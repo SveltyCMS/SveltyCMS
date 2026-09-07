@@ -54,7 +54,7 @@
 	}
 </script>
 
-<div class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
+<div class="card p-5 bg-[var(--admin-bg-card)] border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
 	<div class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3">
 		<div class="flex items-center gap-2">
 			<iconify-icon icon="mdi:checkbox-marked-outline" width="20" class="text-primary-500"></iconify-icon>

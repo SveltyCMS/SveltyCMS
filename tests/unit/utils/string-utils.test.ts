@@ -91,4 +91,13 @@ describe("string-utils", () => {
       expect(str.escapeRegex("hello")).toBe("hello");
     });
   });
+
+  describe("getTextDirection", () => {
+    it("marks Arabic as RTL and English/German as LTR", async () => {
+      const { getTextDirection } = await import("@src/utils/string");
+      expect(getTextDirection("ar")).toBe("rtl");
+      expect(getTextDirection("en")).toBe("ltr");
+      expect(getTextDirection("de")).toBe("ltr");
+    });
+  });
 });

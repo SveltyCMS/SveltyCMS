@@ -50,7 +50,9 @@ Core widgets are the backbone of the CMS. Each widget now has a dedicated test f
 - ✅ `relation.test.ts`
 - ✅ `rich-text.test.ts`
 - ✅ `select.test.ts`
-- ✅ `slug.test.ts`
+- ✅ `slug.test.ts` — validation plus dedicated `input.svelte` / `display.svelte` pillar paths
+- ✅ `tests/unit/utils/form-sections.test.ts` — editor section grouping, pairing, and width parsing (`src/utils/form-sections.ts`)
+- ✅ `tests/unit/utils/locale-map.test.ts` — locale-map unwrap used by list cells and SEO
 
 ### 2. Portable Custom Widgets (`src/widgets/custom/[name]/tests/`)
 
@@ -59,6 +61,7 @@ Inspired by the **Drupal Module Pattern**, custom widgets are now self-contained
 - ✅ `address/tests/address.test.ts`
 - ✅ `price/tests/price.test.ts`
 - ✅ `repeater/tests/repeater.test.ts`
+- ✅ `tests/unit/widgets/custom/seo.test.ts` — validation plus SERP/heatmap helpers (`seo-serp.ts`)
 
 ---
 

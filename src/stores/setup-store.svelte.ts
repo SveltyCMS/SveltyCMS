@@ -137,9 +137,9 @@ const initialSystemSettings: SystemSettings = {
   siteName: "SveltyCMS",
   hostProd: "https://localhost:5173",
   defaultSystemLanguage: "en",
-  systemLanguages: ["en", "de"], // Will be populated from DB after seeding (reads from settings.json)
+  systemLanguages: ["en", "de"], // Seeded from inlang locales minus experimental UI locales (e.g. ar)
   defaultContentLanguage: "en",
-  contentLanguages: ["en", "de"], // Will be populated from DB after seeding (reads from settings.json)
+  contentLanguages: ["en", "de"],
   mediaStorageType: "local",
   mediaFolder: "./mediaFolder",
   preset: "website",

@@ -68,3 +68,19 @@ export function getLanguageName(tag: string, displayLocale?: string): string {
     return safeTag;
   }
 }
+
+/**
+ * Compiled UI locales that exist for RTL / layout verification, not translation coverage.
+ * `ar.json` is mostly English strings; do not pre-select these during setup.
+ */
+export const EXPERIMENTAL_UI_LOCALES = new Set(["ar"]);
+
+export function isExperimentalUiLocale(tag: string): boolean {
+  if (!tag || typeof tag !== "string") return false;
+  return EXPERIMENTAL_UI_LOCALES.has(normalizeTag(tag).toLowerCase());
+}
+
+/** Drop experimental UI locales from setup defaults; they remain pickable from inlang. */
+export function productionUiLocales(locales: readonly string[]): string[] {
+  return locales.filter((locale) => !isExperimentalUiLocale(locale));
+}

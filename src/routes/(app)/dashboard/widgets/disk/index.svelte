@@ -104,7 +104,7 @@ export const widgetMeta = {
 				<!-- Multi-disk Selector tabs (Only shown if more than 1 disk is detected) -->
 				{#if disks.length > 1}
 					<div
-						class="flex flex-wrap gap-1.5 border-b pb-2 {theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}"
+						class="flex flex-wrap gap-1.5 border-b pb-2 {'border-[var(--admin-border-default)]'}"
 						role="tablist"
 						aria-label="Select disk drive"
 					>
@@ -116,8 +116,8 @@ export const widgetMeta = {
 								class="px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-tertiary-500 {disk.key === d.key
 									? 'bg-tertiary-500 text-white shadow-sm'
 									: theme === 'dark'
-										? 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-										: 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'}"
+										? 'bg-surface-800 text-[var(--admin-text-muted)] hover:text-surface-200 hover:bg-surface-500/20'
+										: 'bg-surface-500/10 text-[var(--admin-text-muted)] hover:text-[var(--admin-text-body)] hover:bg-surface-500/20'}"
 								onclick={() => (activeDiskKey = d.key)}
 							>
 								{d.name} ({d.percent.toFixed(0)}%)
@@ -135,18 +135,18 @@ export const widgetMeta = {
 						</div>
 						<div>
 							<span class="text-3xl font-semibold tabular-nums tracking-tighter">{disk.percent.toFixed(1)}</span>
-							<span class="text-xl font-medium text-gray-400">%</span>
+							<span class="text-xl font-medium text-[var(--admin-text-muted)]">%</span>
 						</div>
-						<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
+						<span class="text-sm {'text-[var(--admin-text-muted)]'}">Used</span>
 					</div>
 
 					<div class="text-end text-sm">
-						<div class="font-medium tabular-nums">{disk.free.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
+						<div class="font-medium tabular-nums">{disk.free.toFixed(1)} GB <span class="text-xs {'text-[var(--admin-text-muted)]'}">free</span></div>
 					</div>
 				</div>
 
 				<!-- Segmented Visual Bar -->
-				<div class="relative h-9 overflow-hidden rounded-2xl {theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} shadow-inner">
+				<div class="relative h-9 overflow-hidden rounded-2xl {'bg-surface-500/20 dark:bg-surface-700'} shadow-inner">
 					<div
 						class="absolute h-full flex items-center justify-center font-semibold text-sm text-white transition-all duration-700 ease-out rounded-2xl {disk.level === 'high' ? 'bg-error-500' : disk.level === 'medium' ? 'bg-warning-500' : 'bg-tertiary-500'}"
 						style="width: {disk.percent}%"
@@ -156,7 +156,7 @@ export const widgetMeta = {
 						{/if}
 					</div>
 					<div
-						class="absolute h-full flex items-center justify-center font-medium text-sm text-gray-500 dark:text-gray-400 transition-all duration-700 ease-out"
+						class="absolute h-full flex items-center justify-center font-medium text-sm text-[var(--admin-text-muted)] transition-all duration-700 ease-out"
 						style="left: {disk.percent}%; width: {disk.freePercent}%"
 					>
 						{#if disk.freePercent > 15}
@@ -169,18 +169,18 @@ export const widgetMeta = {
 				<div class="space-y-3">
 					<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center text-sm">
 						<div>
-							<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</div>
+							<div class={'text-[var(--admin-text-muted)]'}>Total</div>
 							<div class="font-semibold tabular-nums mt-0.5">{disk.total.toFixed(1)} GB</div>
 						</div>
 						<div>
-							<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</div>
+							<div class={'text-[var(--admin-text-muted)]'}>Used</div>
 							<div class="font-semibold tabular-nums mt-0.5 {disk.level === 'high' ? 'text-error-500' : disk.level === 'medium' ? 'text-warning-500' : 'text-tertiary-500'}">
 								{disk.used.toFixed(1)} GB
 							</div>
 						</div>
 						{#if size.w > 1}
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</div>
+								<div class={'text-[var(--admin-text-muted)]'}>Free</div>
 								<div class="font-semibold tabular-nums mt-0.5">{disk.free.toFixed(1)} GB</div>
 							</div>
 						{/if}
@@ -213,7 +213,7 @@ export const widgetMeta = {
 									x="46"
 									y="52"
 									text-anchor="middle"
-									class="text-[22px] font-semibold fill-current {theme === 'dark' ? 'text-white' : 'text-gray-900'}"
+									class="text-[22px] font-semibold fill-current {'text-[var(--admin-text-body)]'}"
 								>
 									{disk.percent.toFixed(0)}
 								</text>
@@ -223,10 +223,10 @@ export const widgetMeta = {
 				</div>
 
 				{#if size.w >= 2}
-					<div class="flex justify-between text-xs pt-2 border-t {theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-200 text-gray-500'}">
-						<span>Mount: <span class="font-mono text-gray-300 dark:text-gray-400">{disk.mountPoint}</span></span>
+					<div class="flex justify-between text-xs pt-2 border-t {'border-[var(--admin-border-default)] text-[var(--admin-text-muted)]'}">
+						<span>Mount: <span class="font-mono text-surface-400 dark:text-surface-400">{disk.mountPoint}</span></span>
 						{#if disk.filesystem}
-							<span>FS: <span class="font-mono text-gray-300 dark:text-gray-400">{disk.filesystem}</span></span>
+							<span>FS: <span class="font-mono text-surface-400 dark:text-surface-400">{disk.filesystem}</span></span>
 						{/if}
 					</div>
 				{/if}
@@ -235,8 +235,8 @@ export const widgetMeta = {
 			<div class="flex h-full flex-col items-center justify-center space-y-3" role="status" aria-live="polite">
 				<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading disk metrics</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm font-medium {'text-[var(--admin-text-body)]'}">Loading disk metrics</div>
+					<div class="text-xs {'text-[var(--admin-text-muted)]'}">Please wait...</div>
 				</div>
 			</div>
 		{/if}

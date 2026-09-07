@@ -35,7 +35,9 @@ The **SEO widget** is a comprehensive solution for managing all aspects of searc
 #### Free Tier (Basic SEO)
 
 - ✅ **Tabbed Interface**: Organized UI with a streamlined Basic tab
-- ✅ **Character Counting**: Live title (60) and description (160) character limits
+- ✅ **Character Counting**: Live title (60) and description (160) character limits, plus desktop/mobile pixel width guidance in the search preview
+- ✅ **Search preview**: Desktop/mobile Google-like snippet with typical truncation
+- ✅ **Snippet heatmap**: Existing overlay highlights the focus keyword, power words, and front-of-snippet words. This is **not** live Google click data.
 - ✅ **Focus Keyword**: Fundamental keyword assignment
 - ✅ **Accessibility**: WCAG 3.0 compliant with proper labels and ARIA support
 - ✅ **Multilingual Support**: Full translation support per language
@@ -322,6 +324,14 @@ focusKeyword: "sveltycms tutorial";
 - **Title**: 50-60 characters, include focus keyword near start
 - **Description**: 150-160 characters, compelling call-to-action
 - **Focus Keyword**: Specific, relevant, appears in title and description
+
+### Search preview and heatmap
+
+The **Search preview** card shows a Google-like snippet for the current SEO title, meta description, and URL.
+
+- **Desktop / Mobile** switches the preview width and the pixel budget used for truncation (about 600px / 654px for titles and 970px / 981px for descriptions).
+- **Heatmap** colors words in the snippet: focus keyword (highest), configured power words, the first few words, then longer words. It is a writing aid, **not** a live Google CTR heatmap and does not imply click tracking.
+- The URL line uses **Canonical URL** when set, otherwise the entry slug.
 
 ### Social Media Tab
 
@@ -811,6 +821,10 @@ interface SeoData {
   - Global Redirect Management GUI in Config.
   - Plugin-based UI injection into Content Sidebar and Header.
   - Token-aware SEO fields for dynamic title/description resolution.
+
+### 2026-09-03
+
+- Search preview: desktop/mobile truncation, character + pixel guidance, and heatmap keyword wiring (snippet emphasis only — not live Google CTR data).
 
 ---
 

@@ -45,5 +45,5 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 		{/each}
 	</ul>
 {:else}
-	<span>�</span>
+	<span>–</span>
 {/if}

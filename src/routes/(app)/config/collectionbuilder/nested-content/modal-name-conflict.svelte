@@ -98,8 +98,7 @@ const suggestionOptions = $derived(
 		<Button variant="tertiary"
 			type="button"
 			onclick={handleConfirm}
-			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
-		 class="dark:">
+			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}>
 			Use Selected Name
 		</Button>
 	</footer>

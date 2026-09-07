@@ -9,6 +9,7 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 <script lang="ts">
 	import Sanitize from '@src/utils/sanitize.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
+	import { unwrapLocaleLayers } from '@utils/locale-map';
 	import { getCachedWidgetDisplayLoader } from '@widgets/widget-loader-registry';
 
 	interface Props {
@@ -24,18 +25,24 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 	let DisplayComponent = $state<any>(null);
 	let loadFailed = $state(false);
 
+	const isTitleField = $derived(/^(title|name)$/i.test(fieldName));
+	const emptyCell = $derived(isTitleField ? '' : '–');
+
 	const displayValue = $derived.by(() => {
-		if (value === null || value === undefined) return '-';
+		if (value === null || value === undefined || value === '') return emptyCell;
 		// Relation cells need the raw id (or SSR-hydrated { _id, displayField }).
 		if (widgetName === 'Relation' || widgetName === 'RelationList') return value;
-		if (typeof value === 'object' && !Array.isArray(value)) {
-			const record = value as Record<string, unknown>;
-			const langVal = record[contentLanguage];
-			if (langVal !== undefined && langVal !== null) return langVal;
-			const first = Object.values(record)[0];
-			return first ?? '-';
-		}
-		return value;
+		const current = unwrapLocaleLayers(value, contentLanguage, {
+			stop: (layer) =>
+				Boolean(
+					layer &&
+						typeof layer === 'object' &&
+						!Array.isArray(layer) &&
+						('title' in layer || 'content' in layer || 'blocks' in layer)
+				)
+		});
+		if (current === null || current === undefined || current === '') return emptyCell;
+		return current;
 	});
 
 	$effect(() => {
@@ -71,8 +78,10 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 		value={displayValue}
 		{compact}
 	/>
+{:else if isTitleField && (displayValue === '' || displayValue === '–')}
+	<span class="italic" style="color: var(--admin-text-muted)">Untitled</span>
 {:else if typeof displayValue === 'string' || typeof displayValue === 'number'}
 	<Sanitize html={String(displayValue)} profile="strict" />
 {:else}
-	<Sanitize html={String(displayValue ?? '-')} profile="strict" />
+	<Sanitize html={String(displayValue ?? '–')} profile="strict" />
 {/if}

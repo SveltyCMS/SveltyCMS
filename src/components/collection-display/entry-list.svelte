@@ -1136,7 +1136,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}
 								aria-label="toggle-column-visibility"
-							 class="chip {header.visible ? '' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
+							 class="{header.visible ? '' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
 								{#if header.visible}
 									<iconify-icon icon="fa:check" width={24} class="me-1"></iconify-icon>
 								{/if}

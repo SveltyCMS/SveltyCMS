@@ -396,12 +396,12 @@ $effect(() => {
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-500/30 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container group relative flex h-full flex-col rounded border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)] shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50"
 	aria-labelledby="widget-title-{widgetId || label}"
 	style="overflow: visible;"
 >
 	<header
-		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 ps-4 pe-2 dark:text-surface-50 dark:bg-surface-800"
+		class="widget-header flex cursor-grab items-center justify-between border-b border-[var(--admin-border-subtle)] bg-[var(--admin-bg-card)] py-2 ps-4 pe-2 dark:text-surface-50"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
@@ -436,7 +436,7 @@ $effect(() => {
 				</Button>
 				{#if showSizeMenu}
 					<div
-						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-500/30 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)] py-1 shadow-xl dark:text-surface-50"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
@@ -463,12 +463,12 @@ $effect(() => {
 		</div>
 	</header>
 	<section
-		class="widget-body relative min-h-12.5 flex-1 bg-white px-3 pb-2 dark:bg-surface-800"
+		class="widget-body relative min-h-12.5 flex-1 bg-[var(--admin-bg-card)] px-3 pb-2"
 		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
 		<div aria-live="polite" class="contents">
 			{#if endpoint && loading && !internalData}
-				<div class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
+				<div class="loading-state text-surface-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
 			{:else if endpoint && error && !internalData}
 				<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-base text-error-500">
 					<iconify-icon icon="mdi:alert-circle" width={24} class="mb-1"></iconify-icon>
@@ -484,13 +484,13 @@ $effect(() => {
 					error
 				})}
 			{:else if internalData}
-				<pre class="text-text-700 dark:text-text-200 whitespace-pre-wrap break-all text-sm" style="width: 100%; height: 100%;">{JSON.stringify(
+				<pre class="text-surface-600 dark:text-surface-400 whitespace-pre-wrap break-all text-sm" style="width: 100%; height: 100%;">{JSON.stringify(
 						internalData,
 						null,
 						2
 					)}</pre>
 			{:else}
-				<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">No content.</div>
+				<div class="text-surface-400 absolute inset-0 flex items-center justify-center text-base">No content.</div>
 			{/if}
 		</div>
 	</section>
@@ -512,7 +512,7 @@ $effect(() => {
 						}
 					}}
 				>
-					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-gray-900 drop-shadow-sm dark:text-surface-400"></iconify-icon>
+					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-surface-600 drop-shadow-sm dark:text-surface-400"></iconify-icon>
 				</div>
 			{/each}
 		</div>

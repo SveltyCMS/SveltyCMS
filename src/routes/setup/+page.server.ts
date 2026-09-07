@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   const { clearAllSessionCookies } = await import("@src/databases/auth/constants");
   clearAllSessionCookies(cookies, "/");
 
-  const availableLanguages: string[] = inlangSettings.locales || ["en", "de"];
+  const availableLanguages: string[] = inlangSettings.locales || ["en", "de", "ar"];
 
   return {
     theme: locals.theme,

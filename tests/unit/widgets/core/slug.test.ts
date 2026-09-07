@@ -41,4 +41,11 @@ describe("Slug Widget", () => {
     expect(safeParse(schema as any, "").success).toBe(false);
     expect(safeParse(schema as any, null).success).toBe(false);
   });
+
+  it("uses dedicated slug input and display pillars, not the generic Input widget", () => {
+    const field = SlugWidget({ label: "Slug" });
+    expect(field.widget.inputComponentPath).toContain("/widgets/core/slug/input.svelte");
+    expect(field.widget.displayComponentPath).toContain("/widgets/core/slug/display.svelte");
+    expect(field.widget.Name).toBe("Slug");
+  });
 });

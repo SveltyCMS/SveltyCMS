@@ -112,6 +112,11 @@
     Object.keys(guiSchema).filter((k) => !DEFAULT_KEYS.has(k)),
   );
 
+  const widthSpan = $derived.by(() => {
+    const n = Number(local?.width);
+    return Number.isFinite(n) && n >= 1 && n <= 12 ? n : 12;
+  });
+
   // --- Auto-generate db_fieldName from label ---
   function labelToDbName(label: string): string {
     return label
@@ -299,11 +304,34 @@
             placeholder="Help text shown below the field"
           />
 
-          <Input
-            label="Width"
-            bind:value={local.width}
-            placeholder="e.g. 1/2, 1/3, full"
-          />
+          <div class="rounded-lg border border-surface-500/30 p-3 dark:border-surface-500/40">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <div>
+                <p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Colspan</p>
+                <p class="text-xs text-surface-500">How many of 12 columns this field spans</p>
+              </div>
+              <span class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">{widthSpan}/12</span>
+            </div>
+            <div class="grid grid-cols-12 gap-0.5" role="group" aria-label="Field column span">
+              {#each Array.from({ length: 12 }, (_, i) => i + 1) as n (n)}
+                <button
+                  type="button"
+                  class="h-8 rounded-sm text-[10px] font-semibold transition-colors {n <= widthSpan
+                    ? 'bg-success-500 text-white'
+                    : 'bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 dark:bg-surface-800'}"
+                  aria-label="Span {n} columns"
+                  aria-pressed={widthSpan === n}
+                  onclick={() => (local.width = n)}
+                >{n}</button>
+              {/each}
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <Button variant="outline" size="sm" type="button" onclick={() => (local.width = 6)}>1/2</Button>
+              <Button variant="outline" size="sm" type="button" onclick={() => (local.width = 4)}>1/3</Button>
+              <Button variant="outline" size="sm" type="button" onclick={() => (local.width = 8)}>2/3</Button>
+              <Button variant="outline" size="sm" type="button" onclick={() => (local.width = 12)}>Full</Button>
+            </div>
+          </div>
         </div>
 
       {:else if activeTab === "settings"}

@@ -213,14 +213,14 @@ Interactive menu builder with add/edit/reorder capabilities
 <div class="space-y-4">
 	<div class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:text-surface-50">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
-		<Button variant="tertiary" type="button" onclick={addItem} class="dark:">
+		<Button variant="tertiary" type="button" onclick={addItem}>
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Item
 		</Button>
 	</div>
 
 	<div
-		class="mmin-h-[200px] space-y-2"
+		class="min-h-[200px] space-y-2"
 		class:flex={!value || value.length === 0}
 		class:items-center={!value || value.length === 0}
 		class:justify-center={!value || value.length === 0}
@@ -286,8 +286,7 @@ Interactive menu builder with add/edit/reorder capabilities
 									type="button"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
-									title="Add child item"
-								 class="dark:">
+									title="Add child item">
 									<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 								</Button>
 							{/if}

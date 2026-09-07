@@ -8,6 +8,7 @@ Displays detailed SEO analysis results in a modal overlay.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Loader from '@components/ui/loader.svelte';
 	import { fade, scale } from 'svelte/transition';
 	import type { SeoAnalysisResult } from '../seo-types';
 
@@ -158,7 +159,7 @@ Displays detailed SEO analysis results in a modal overlay.
 					{/if}
 				{:else}
 					<div class="p-8 text-center">
-						<div class="placeholder-circle animate-pulse w-16 h-16 mx-auto mb-4"></div>
+						<Loader variant="circle" width="size-16" height="size-16" class="mx-auto mb-4" ariaLabel="Running SEO analysis" />
 						<p>Running Analysis...</p>
 					</div>
 				{/if}

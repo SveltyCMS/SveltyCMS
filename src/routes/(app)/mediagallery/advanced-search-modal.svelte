@@ -235,7 +235,7 @@ function handleKeydown(e: KeyboardEvent) {
 					<Button
 						variant="outline"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							const date = new SvelteDate();
 							date.setDate(date.getDate() - 7);
@@ -249,7 +249,7 @@ function handleKeydown(e: KeyboardEvent) {
 					<Button
 						variant="outline"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							const date = new SvelteDate();
 							date.setDate(date.getDate() - 30);
@@ -263,7 +263,7 @@ function handleKeydown(e: KeyboardEvent) {
 					<Button
 						variant="outline"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							formValues.minSize = '5';
 							formValues.maxSize = '';
@@ -275,7 +275,7 @@ function handleKeydown(e: KeyboardEvent) {
 					<Button
 						variant="outline"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							formValues.minWidth = '3840';
 							formValues.minHeight = '2160';
@@ -391,7 +391,7 @@ function handleKeydown(e: KeyboardEvent) {
 				<div class="ms-auto flex gap-3">
 					<Button variant="outline" type="button" onclick={resetForm}>Reset</Button>
 					<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
-					<Button variant="tertiary" type="submit" form="advanced-search-form" class="dark:">
+					<Button variant="tertiary" type="submit" form="advanced-search-form">
 						<iconify-icon icon="mdi:magnify" width={20}></iconify-icon>
 						Search
 					</Button>

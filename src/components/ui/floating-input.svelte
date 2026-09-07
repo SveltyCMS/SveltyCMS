@@ -204,7 +204,7 @@ function handlePaste(e: ClipboardEvent) {
 								? 'bg-white  focus:bg-white focus:text-black text-surface-900'
 								: textColor === 'white'
 									? 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
-									: 'bg-surface-500/10 text-surface-900 focus:bg-surface-500/10 focus:text-surface-900 dark:bg-[#242728] dark:text-white dark:focus:bg-[#242728] dark:focus:text-white',
+									: 'bg-white text-surface-900 focus:bg-white focus:text-surface-900 dark:bg-[#242728] dark:text-white dark:focus:bg-[#242728] dark:focus:text-white',
 							colorClass,
 					  ),
 				invalid && 'border-error-500! dark:border-error-500!',

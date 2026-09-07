@@ -905,7 +905,7 @@ const conditionOperatorOptions = [
 					<!-- Test Execution -->
 					<div class="space-y-3">
 						<div class="flex items-center gap-3">
-							<Button variant="tertiary" onclick={testFlow} disabled={isTesting || isNew} aria-label="Run test" class="dark:">
+							<Button variant="tertiary" onclick={testFlow} disabled={isTesting || isNew} aria-label="Run test">
 								{#if isTesting}
 									<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 									<span>Testing...</span>
