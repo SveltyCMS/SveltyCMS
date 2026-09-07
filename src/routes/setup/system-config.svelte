@@ -71,7 +71,7 @@ Features:
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	import { systemSettingsSchema } from '@utils/schemas';
 	import iso6391 from '@utils/iso639-1.json';
-	import { getLanguageName } from '@utils/language-utils';
+	import { getLanguageName, isExperimentalUiLocale } from '@utils/language-utils';
 	import { safeParse } from 'valibot';
 	// Components
 	import PresetSelector from './preset-selector.svelte';
@@ -126,9 +126,10 @@ Features:
 	function displayLang(code: string) {
 		try {
 			const name = getLanguageName(code);
-			return `${name} (${code.toUpperCase()})`;
+			const label = `${name} (${code.toUpperCase()})`;
+			return isExperimentalUiLocale(code) ? `${label} — experimental` : label;
 		} catch {
-			return code.toUpperCase();
+			return isExperimentalUiLocale(code) ? `${code.toUpperCase()} — experimental` : code.toUpperCase();
 		}
 	}
 

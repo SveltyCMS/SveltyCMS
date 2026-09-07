@@ -8,7 +8,11 @@
  * - Edge cases
  */
 
-import { getLanguageName } from "@src/utils/language-utils";
+import {
+  getLanguageName,
+  isExperimentalUiLocale,
+  productionUiLocales,
+} from "@src/utils/language-utils";
 
 describe("Language Utils - Get Language Name", () => {
   it("should get language names", () => {
@@ -163,5 +167,14 @@ describe("Language Utils - Edge Cases", () => {
     const second = getLanguageName("en");
 
     expect(first).toBe(second);
+  });
+});
+
+describe("Language Utils - Experimental UI locales", () => {
+  it("marks Arabic as experimental and keeps it out of setup defaults", () => {
+    expect(isExperimentalUiLocale("ar")).toBe(true);
+    expect(isExperimentalUiLocale("AR")).toBe(true);
+    expect(isExperimentalUiLocale("en")).toBe(false);
+    expect(productionUiLocales(["en", "de", "ar"])).toEqual(["en", "de"]);
   });
 });

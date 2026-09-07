@@ -70,7 +70,7 @@ graph TB
 
 **Available Languages:**
 
-Compiled UI locales (from `project.inlang/settings.json`) are **`en`**, **`de`**, and **`ar`**. Arabic is the RTL locale used to verify mirroring (`getTextDirection("ar")` → `rtl`). Adding a locale still requires a Paraglide compile (`bun run paraglide`).
+Compiled UI locales (from `project.inlang/settings.json`) are **`en`**, **`de`**, and **`ar`**. Arabic is compiled so RTL mirroring can be verified (`getTextDirection("ar")` → `rtl`); its message file is still mostly English, so setup treats it as **experimental** and does not pre-select it. Adding a locale still requires a Paraglide compile (`bun run paraglide`).
 
 ```
 // project.inlang/settings.json

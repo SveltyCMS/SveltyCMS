@@ -18,8 +18,10 @@
 /**
  * Fallback system/interface languages (DOCUMENTATION ONLY - see seed.ts)
  * Actual source: project.inlang/settings.json → seed.ts → database → publicEnv.LOCALES
+ * `ar` is compiled for RTL verification but is experimental until translations exist,
+ * so it is not a default setup selection.
  */
-export const DEFAULT_SYSTEM_LANGUAGES = ["en", "de", "ar"] as const;
+export const DEFAULT_SYSTEM_LANGUAGES = ["en", "de"] as const;
 
 /**
  * Fallback base locale (DOCUMENTATION ONLY - see seed.ts)
@@ -31,7 +33,7 @@ export const DEFAULT_BASE_LOCALE = "en" as const;
  * Fallback content languages (DOCUMENTATION ONLY - see seed.ts)
  * Actual source: project.inlang/settings.json → seed.ts → database
  */
-export const DEFAULT_CONTENT_LANGUAGES = ["en", "de", "ar"] as const;
+export const DEFAULT_CONTENT_LANGUAGES = ["en", "de"] as const;
 
 /**
  * Fallback content language (DOCUMENTATION ONLY - see seed.ts)

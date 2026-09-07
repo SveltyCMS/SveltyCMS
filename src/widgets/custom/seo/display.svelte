@@ -25,13 +25,13 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 -->
 
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { unwrapSeoPayload } from './seo-serp';
 
 	const { value }: { value: unknown } = $props();
 
-	const payload = $derived(unwrapSeoPayload(value, app.contentLanguage || 'en'));
+	const payload = $derived(unwrapSeoPayload(value, locale.contentLanguage || 'en'));
 	const hasSeoPreview = $derived(
 		Boolean(
 			payload &&

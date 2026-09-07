@@ -52,6 +52,7 @@ import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 	import Loader from '@components/ui/loader.svelte';
 	import { button_Collections } from '@src/paraglide/messages';
 	import { page } from '$app/state';
+	import { locale } from '@src/stores/locale-store.svelte';
 
 const { data }: { data: PageData } = $props();
 
@@ -164,7 +165,7 @@ const hotCollectionLinks = $derived.by(() => {
 	}
 	const chips: { href: string; id: string; label: string }[] = [];
 	const seen = new Set<string>();
-	const language = app.contentLanguage || 'en';
+	const language = locale.contentLanguage || 'en';
 	for (const { id } of hot) {
 		const node = byKey.get(String(id).toLowerCase());
 		if (!node) continue;

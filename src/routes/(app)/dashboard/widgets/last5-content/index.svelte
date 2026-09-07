@@ -24,6 +24,7 @@ export const widgetMeta = {
 
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { formatRelativeDate } from '@utils/date';
 	import BaseWidget from '../../base-widget.svelte';
 
@@ -93,7 +94,7 @@ export const widgetMeta = {
 					{#each items.slice(0, limit) as item (item.id)}
 						<div role="listitem">
 							<a
-								href={`/${app.contentLanguage}/${item.collection}?edit=${item.id}`}
+								href={`/${locale.contentLanguage}/${item.collection}?edit=${item.id}`}
 								data-sveltekit-preload-data="hover"
 								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-surface-500/10 dark:hover:bg-surface-500/20 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-tertiary-500 border border-transparent hover:border-[var(--admin-border-subtle)]"
 							>

@@ -27,6 +27,7 @@ Renders current language text with truncation for long content
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
+	import { unwrapLocaleLayers } from '@utils/locale-map';
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: string | Record<string, unknown> | null | undefined } = $props();
@@ -39,17 +40,12 @@ Renders current language text with truncation for long content
 
 	const fullText = $derived.by(() => {
 		if (value == null) return emptyFallback;
-		if (typeof value === 'string') {
-			return value.trim() === '' ? emptyFallback : value;
+		const unwrapped = unwrapLocaleLayers(value, lang);
+		if (typeof unwrapped === 'string') {
+			return unwrapped.trim() === '' ? emptyFallback : unwrapped;
 		}
-		if (typeof value === 'number' || typeof value === 'boolean') {
-			return String(value);
-		}
-		if (typeof value === 'object' && !Array.isArray(value)) {
-			const rec = value as Record<string, unknown>;
-			const hit = rec[lang] ?? rec[Object.keys(rec)[0] ?? ''];
-			if (typeof hit === 'string') return hit.trim() === '' ? emptyFallback : hit;
-			if (typeof hit === 'number' || typeof hit === 'boolean') return String(hit);
+		if (typeof unwrapped === 'number' || typeof unwrapped === 'boolean') {
+			return String(unwrapped);
 		}
 		return emptyFallback;
 	});

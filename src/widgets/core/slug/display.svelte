@@ -10,7 +10,7 @@
 
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: string | Record<string, unknown> | null | undefined } =
@@ -18,7 +18,7 @@
 
 	const lang = $derived(
 		field?.translated
-			? app.contentLanguage.toLowerCase()
+			? locale.contentLanguage.toLowerCase()
 			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
 	);
 

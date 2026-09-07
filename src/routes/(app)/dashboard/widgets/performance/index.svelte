@@ -171,7 +171,7 @@ export const widgetMeta = {
 						</div>
 						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-surface-500/40">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Sessions</div>
-							<div class="text-xl font-bold tabular-nums text-violet-500 mt-0.5">
+							<div class="text-xl font-bold tabular-nums text-tertiary-500 mt-0.5">
 								{metrics.sessions?.active ?? 0}
 							</div>
 						</div>
@@ -222,7 +222,7 @@ export const widgetMeta = {
 
 						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-surface-500/40">
 							<div class="text-xs font-semibold text-surface-500 mb-1">Active Sessions</div>
-							<div class="text-3xl font-bold tabular-nums text-violet-500">
+							<div class="text-3xl font-bold tabular-nums text-tertiary-500">
 								{metrics.sessions?.active ?? 0}
 							</div>
 							<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">Active logins</div>

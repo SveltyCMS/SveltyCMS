@@ -9,6 +9,8 @@
  * - Honest heatmap roles (keyword / power word / position / length) — not live CTR data
  */
 
+import { unwrapLocaleLayers } from "@utils/locale-map";
+
 export const SERP_TITLE_DESKTOP_PX = 600;
 export const SERP_TITLE_MOBILE_PX = 654;
 export const SERP_DESC_DESKTOP_PX = 970;
@@ -186,7 +188,6 @@ export function readLocalizedString(value: unknown, lang: string): string {
   return "";
 }
 
-const LOCALE_KEY = /^[a-z]{2}(?:-[A-Za-z]{2})?$/;
 const SEO_PAYLOAD_KEYS = ["title", "description", "focusKeyword", "robotsMeta"] as const;
 
 /** True when this object is an SEO payload, not a `{ en: … }` locale map. */
@@ -223,22 +224,8 @@ export function emptySeoData(): Record<string, string> {
  * Unwrap until a payload with SEO fields is reached.
  */
 export function unwrapSeoPayload(value: unknown, lang = "en"): Record<string, unknown> | undefined {
-  let current: unknown = value;
-  for (let i = 0; i < 4; i++) {
-    if (!current || typeof current !== "object" || Array.isArray(current)) {
-      return undefined;
-    }
-    if (isSeoPayload(current)) {
-      return current as Record<string, unknown>;
-    }
-    const rec = current as Record<string, unknown>;
-    const keys = Object.keys(rec);
-    if (keys.length === 0 || !keys.every((key) => LOCALE_KEY.test(key))) {
-      return undefined;
-    }
-    current = rec[lang] ?? rec[keys[0]];
-  }
-  return undefined;
+  const current = unwrapLocaleLayers(value, lang, { stop: isSeoPayload });
+  return isSeoPayload(current) ? (current as Record<string, unknown>) : undefined;
 }
 
 /** Flatten a locale-bound (or double-wrapped) value to a single SEO payload. */

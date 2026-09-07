@@ -21,22 +21,6 @@ export interface FormSectionField {
   widget?: { Name?: string; __widgetName?: string } | string;
 }
 
-/** Static Tailwind spans — dynamic `sm:col-span-${n}` is stripped at build time. */
-export const FORM_COL_SPAN_CLASS: Record<number, string> = {
-  1: "col-span-12 sm:col-span-1",
-  2: "col-span-12 sm:col-span-2",
-  3: "col-span-12 sm:col-span-3",
-  4: "col-span-12 sm:col-span-4",
-  5: "col-span-12 sm:col-span-5",
-  6: "col-span-12 sm:col-span-6",
-  7: "col-span-12 sm:col-span-7",
-  8: "col-span-12 sm:col-span-8",
-  9: "col-span-12 sm:col-span-9",
-  10: "col-span-12 sm:col-span-10",
-  11: "col-span-12 sm:col-span-11",
-  12: "col-span-12",
-};
-
 function clampColSpan(n: number): number {
   if (!Number.isFinite(n)) return 12;
   return Math.min(12, Math.max(1, Math.round(n)));
@@ -68,10 +52,6 @@ export function formFieldColSpan(field: FormSectionField): number {
   const explicit = parseFieldWidth(field.width);
   if (explicit) return explicit;
   return isFullWidthFormField(field) ? 12 : 6;
-}
-
-export function formFieldColSpanClass(field: FormSectionField): string {
-  return FORM_COL_SPAN_CLASS[formFieldColSpan(field)] ?? FORM_COL_SPAN_CLASS[12];
 }
 
 export interface FormSection {

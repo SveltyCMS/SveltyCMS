@@ -24,6 +24,7 @@ import type { DatabaseAdapter, Theme, BaseQueryOptions } from "@src/databases/db
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/core/settings-service";
 import { dateToISODateString } from "@utils/date";
+import { productionUiLocales } from "@utils/language-utils";
 import { logger } from "@utils/logger";
 import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
@@ -165,7 +166,7 @@ export async function persistCollectionContentNodes(
 // EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
 // ============================================================================
 
-export const DEFAULT_SYSTEM_LANGUAGES = inlangSettings.locales || ["en", "de", "ar"];
+export const DEFAULT_SYSTEM_LANGUAGES = productionUiLocales(inlangSettings.locales || ["en", "de"]);
 export const DEFAULT_BASE_LOCALE = inlangSettings.baseLocale || "en";
 export const DEFAULT_CONTENT_LANGUAGES = DEFAULT_SYSTEM_LANGUAGES;
 export const DEFAULT_CONTENT_LANGUAGE = DEFAULT_BASE_LOCALE;

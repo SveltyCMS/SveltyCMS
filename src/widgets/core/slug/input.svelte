@@ -19,7 +19,8 @@ Features:
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { collectionValue } from '@src/stores/collection-store.svelte';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { slugify } from '@utils/navigation';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -34,7 +35,7 @@ Features:
 
 	let { field, value = $bindable() }: Props = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : 'en');
 	const fieldName = $derived(getFieldName(field));
 	const sourceKey = $derived(((field as { targetField?: string }).targetField || 'title').trim());
 	const prefix = $derived(String((field as { prefix?: string }).prefix || ''));
@@ -68,7 +69,7 @@ Features:
 		if (typeof raw === 'string') return raw;
 		if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
 			const rec = raw as Record<string, unknown>;
-			const hit = rec[app.contentLanguage] ?? rec[Object.keys(rec)[0] ?? ''];
+			const hit = rec[locale.contentLanguage] ?? rec[Object.keys(rec)[0] ?? ''];
 			return typeof hit === 'string' ? hit : '';
 		}
 		return '';
