@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/slug/index.ts
+ * @file src/widgets/core/slug/index.ts
  * @description Slug Widget Definition - URL-safe identifier
  *
  * Implements a specialized slug widget that generates URL-safe strings.
@@ -92,8 +92,8 @@ const SlugWidget = createWidget<SlugProps>({
   version: "1.0.0",
   Icon: "mdi:link-variant",
   Description: "URL-friendly identifier generated from text content.",
-  inputComponentPath: "/src/widgets/core/input/input.svelte",
-  displayComponentPath: "/src/widgets/core/input/display.svelte",
+  inputComponentPath: "/src/widgets/core/slug/input.svelte",
+  displayComponentPath: "/src/widgets/core/slug/display.svelte",
 
   validationSchema: createValidationSchema,
 
@@ -168,3 +168,5 @@ const SlugWidget = createWidget<SlugProps>({
 });
 
 export default SlugWidget;
+
+export type FieldType = ReturnType<typeof SlugWidget>;

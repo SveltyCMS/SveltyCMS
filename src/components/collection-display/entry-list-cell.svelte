@@ -24,18 +24,33 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 	let DisplayComponent = $state<any>(null);
 	let loadFailed = $state(false);
 
+	const LOCALE_KEY = /^[a-z]{2}(?:-[A-Za-z]{2})?$/;
+	const isTitleField = $derived(/^(title|name)$/i.test(fieldName));
+
+	function isLocaleMap(record: Record<string, unknown>): boolean {
+		const keys = Object.keys(record);
+		return keys.length > 0 && keys.every((key) => LOCALE_KEY.test(key));
+	}
+
 	const displayValue = $derived.by(() => {
-		if (value === null || value === undefined) return '-';
+		if (value === null || value === undefined || value === '') return isTitleField ? '' : '–';
 		// Relation cells need the raw id (or SSR-hydrated { _id, displayField }).
 		if (widgetName === 'Relation' || widgetName === 'RelationList') return value;
-		if (typeof value === 'object' && !Array.isArray(value)) {
-			const record = value as Record<string, unknown>;
+		let current: unknown = value;
+		// Unwrap { en: … } maps, including accidental double-wraps from widgets
+		// that also key by locale. Stop on structured payloads (SEO, rich text).
+		for (let i = 0; i < 4; i++) {
+			if (!current || typeof current !== 'object' || Array.isArray(current)) break;
+			const record = current as Record<string, unknown>;
+			if (!isLocaleMap(record)) return current;
 			const langVal = record[contentLanguage];
-			if (langVal !== undefined && langVal !== null) return langVal;
-			const first = Object.values(record)[0];
-			return first ?? '-';
+			if (langVal !== undefined && langVal !== null && langVal !== '') {
+				current = langVal;
+				continue;
+			}
+			current = Object.values(record)[0] ?? (isTitleField ? '' : '–');
 		}
-		return value;
+		return current;
 	});
 
 	$effect(() => {
@@ -71,8 +86,10 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 		value={displayValue}
 		{compact}
 	/>
+{:else if isTitleField && (displayValue === '' || displayValue === '–')}
+	<span class="italic" style="color: var(--admin-text-muted)">Untitled</span>
 {:else if typeof displayValue === 'string' || typeof displayValue === 'number'}
 	<Sanitize html={String(displayValue)} profile="strict" />
 {:else}
-	<Sanitize html={String(displayValue ?? '-')} profile="strict" />
+	<Sanitize html={String(displayValue ?? '–')} profile="strict" />
 {/if}

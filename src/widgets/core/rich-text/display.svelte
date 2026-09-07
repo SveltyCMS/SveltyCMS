@@ -17,7 +17,7 @@ Renders: Title heading + XSS-protected HTML in prose container
 - **XSS Protection**: Sanitized HTML rendering via Sanitize component
 - **Prose Styling**: Semantic typography with proper line-height and spacing
 - **Title Support**: Optional heading display with structured hierarchy
-- **Null Handling**: Graceful fallback to "�" for empty content
+- **Null Handling**: Graceful fallback to "–" for empty content
 - **Content Display**: Renders HTML content with DOMPurify sanitization
 -->
 
@@ -25,14 +25,26 @@ Renders: Title heading + XSS-protected HTML in prose container
 	import Sanitize from '@src/utils/sanitize.svelte';
 	import type { RichTextData } from './types';
 
-	let { value }: { value: RichTextData | null | undefined } = $props();
+	let { value, compact = false }: { value: RichTextData | null | undefined; compact?: boolean } = $props();
+
+	const excerpt = $derived.by(() => {
+		const html = value?.content;
+		if (typeof html !== 'string' || !html) return '';
+		return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	});
 </script>
 
-{#if value?.content}
+{#if compact}
+	{#if excerpt}
+		<span class="truncate" title={excerpt}>{excerpt.length > 50 ? `${excerpt.slice(0, 50)}...` : excerpt}</span>
+	{:else}
+		<span>–</span>
+	{/if}
+{:else if value?.content}
 	{#if value.title}
 		<h2>{value.title}</h2>
 	{/if}
 	<Sanitize html={value.content} profile="rich-text" class="prose" />
 {:else}
-	<span>�</span>
+	<span>–</span>
 {/if}

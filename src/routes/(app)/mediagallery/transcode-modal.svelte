@@ -144,7 +144,7 @@ function toggleResolution(res: string) {
 		<Button variant="tertiary"
 			onclick={startTranscoding}
 			disabled={isProcessing || resolutions.length === 0}
-		 class="dark: flex-1 gap-2">
+		 class="flex-1 gap-2">
 			{#if isProcessing}
 				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
 			{:else}

@@ -442,7 +442,7 @@ import { logger } from "@utils/logger";
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m (m.name)}
-							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:bg-surface-500/10 dark:hover:bg-surface-700">
+							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="hover:bg-surface-500/10 dark:hover:bg-surface-700">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
 							</Button>

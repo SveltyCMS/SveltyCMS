@@ -17,7 +17,7 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 - **Compact Preview**: Focus keyword display with SEO icon for quick identification
 - **Rich Tooltips**: Hover tooltips showing full title and description metadata
 - **Iconify Integration**: Professional SEO icon from Tabler icon set
-- **Null Handling**: Graceful fallback to "No SEO data" for missing information
+- **Null Handling**: Graceful fallback to "–" for missing information
 - **Performance Optimized**: Efficient text derivation with `$derived.by()`
 - **Accessibility**: Descriptive tooltips for screen readers and assistive technology
 - **PostCSS Styling**: Modern CSS with flexbox layout and responsive design
@@ -25,21 +25,26 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 -->
 
 <script lang="ts">
-	import type { SeoData } from './types';
+	import { app } from '@src/stores/store.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { unwrapSeoPayload } from './seo-serp';
 
-	const { value }: { value: SeoData | null | undefined } = $props();
+	const { value }: { value: unknown } = $props();
 
-	// Note: The score is not stored with the data, so we can't display it here.
-	// A more advanced implementation might store the score, or we can just show the keyword.
-	// $derived is sufficient — no multi-statement block needed
-	const displayText = $derived(
-		value?.focusKeyword ? `Keyword: ${value.focusKeyword}` : 'No SEO data'
+	const payload = $derived(unwrapSeoPayload(value, app.contentLanguage || 'en'));
+	const hasSeoPreview = $derived(
+		Boolean(
+			payload &&
+				(String(payload.focusKeyword ?? '').trim() ||
+					String(payload.title ?? '').trim() ||
+					String(payload.description ?? '').trim())
+		)
 	);
+	const displayText = $derived(payload?.focusKeyword ? `Keyword: ${payload.focusKeyword}` : 'SEO');
 </script>
 
-{#if value}
-	<SystemTooltip title="Title: {value.title} | Description: {value.description}">
+{#if hasSeoPreview && payload}
+	<SystemTooltip title="Title: {payload.title} | Description: {payload.description}">
 		<div class="inline-flex items-center gap-0.5 text-surface-600 dark:text-surface-100">
 			<iconify-icon icon="tabler:seo" width="24" style="flex-shrink: 0"></iconify-icon>
 			<span>{displayText}</span>

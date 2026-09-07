@@ -130,9 +130,9 @@ export const widgetMeta = {
 							<span class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy' ? 'text-success-600 dark:text-success-400' : scim.status === 'degraded' ? 'text-warning-600 dark:text-warning-400' : 'text-error-500'}">{scim.status}</span>
 						</div>
 						<div class="flex items-center gap-2 text-end">
-							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{scim.activeUsers} Active Users</span>
+							<span class="font-semibold text-surface-600 dark:text-surface-400 tabular-nums">{scim.activeUsers} Active Users</span>
 							{#if scim.syncedToday > 0}
-								<span class="text-gray-400 dark:text-gray-500">| +{scim.syncedToday} Today</span>
+								<span class="text-[var(--admin-text-muted)]">| +{scim.syncedToday} Today</span>
 							{/if}
 						</div>
 					</div>
@@ -153,14 +153,14 @@ export const widgetMeta = {
 
 					<!-- Main Stats -->
 					<div class="my-4 grid grid-cols-2 gap-3.5">
-						<div class="rounded-2xl bg-surface-500/10 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-gray-800">
+						<div class="rounded-2xl bg-surface-500/10 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-surface-500/40">
 							<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
 								{scim.activeUsers}
 							</div>
 							<div class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1">Active Users</div>
 						</div>
 
-						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 border border-transparent dark:border-gray-800 flex flex-col justify-between items-center relative overflow-hidden">
+						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 border border-transparent dark:border-surface-500/40 flex flex-col justify-between items-center relative overflow-hidden">
 							<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
 								{scim.syncedToday}
 							</div>
@@ -190,7 +190,7 @@ export const widgetMeta = {
 							<span class="text-surface-500 dark:text-surface-400">Last Sync</span>
 							<span class="font-medium font-mono text-surface-600 dark:text-surface-400 tabular-nums">{scim.lastSync}</span>
 						</div>
-						<div class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2">
+						<div class="flex justify-between items-center py-1 border-b border-[var(--admin-border-subtle)] pb-2">
 							<span class="text-surface-500 dark:text-surface-400">Provider</span>
 							<span class="font-mono text-tertiary-600 dark:text-primary-500 font-semibold">{scim.provider}</span>
 						</div>

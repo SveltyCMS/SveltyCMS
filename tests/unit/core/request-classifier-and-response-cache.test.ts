@@ -104,21 +104,23 @@ describe("Request Classifier Lane Router", () => {
     expect(classifyRequest(nonCacheableUrl, "OPTIONS", publicHeaders)).toBe(RequestLane.API_READ);
   });
 
-  test("locale normalization only strips configured locales (en|de), never public paths", () => {
+  test("locale normalization only strips configured locales (en|de|ar), never public paths", () => {
     const headers = new Headers();
     // Public paths like /about must NOT be misclassified as APP_SSR (generic
     // [a-z]{2} locale regexes would strip them to "/").
     const aboutUrl = new URL("http://localhost:5173/about");
     const blogUrl = new URL("http://localhost:5173/blog");
-    // /en-US is not a configured locale (locales are en|de) — stays public.
+    // /en-US is not a configured locale (locales are en|de|ar) — stays public.
     const enUsUrl = new URL("http://localhost:5173/en-US/products");
     // Real locale prefix on a public path is stripped, then re-classified.
     const enAboutUrl = new URL("http://localhost:5173/en/about");
+    const arAboutUrl = new URL("http://localhost:5173/ar/about");
 
     expect(classifyRequest(aboutUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
     expect(classifyRequest(blogUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
     expect(classifyRequest(enUsUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
     expect(classifyRequest(enAboutUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
+    expect(classifyRequest(arAboutUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
   });
 
   test("classifies API_WRITE for mutation methods", () => {

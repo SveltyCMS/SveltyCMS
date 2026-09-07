@@ -354,7 +354,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</div>
 
 		<!-- Refresh -->
-		<Button variant="primary" onclick={fetchMedia} disabled={isLoading} aria-label="Refresh media" size="sm" class="dark:">
+		<Button variant="primary" onclick={fetchMedia} disabled={isLoading} aria-label="Refresh media" size="sm">
 			<iconify-icon icon="mdi:refresh" width="20" class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
 		</Button>
 
@@ -384,7 +384,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={clearSelection} size="sm">Clear</Button>
-				<Button variant="tertiary" onclick={confirmSelection} size="sm" class="dark:">Confirm Selection</Button>
+				<Button variant="tertiary" onclick={confirmSelection} size="sm">Confirm Selection</Button>
 				<Button
 					variant="error"
 					onclick={bulkDelete}
@@ -413,7 +413,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
-				<Button variant="tertiary" onclick={fetchMedia} size="sm" class="dark:">Try Again</Button>
+				<Button variant="tertiary" onclick={fetchMedia} size="sm">Try Again</Button>
 			</div>
 		</div>
 	{:else if !hasFiles}

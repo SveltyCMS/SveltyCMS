@@ -6,7 +6,7 @@ order: 8
 icon: "mdi:translate"
 author: "SveltyCMS Team"
 created: "2025-11-02"
-updated: "2026-03-27"
+updated: "2026-09-01"
 tags:
   - "architecture"
   - "i18n"
@@ -70,10 +70,12 @@ graph TB
 
 **Available Languages:**
 
+Compiled UI locales (from `project.inlang/settings.json`) are **`en`**, **`de`**, and **`ar`**. Arabic is the RTL locale used to verify mirroring (`getTextDirection("ar")` → `rtl`). Adding a locale still requires a Paraglide compile (`bun run paraglide`).
+
 ```
 // project.inlang/settings.json
 {
-  "languageTags": ["en", "de", "fr", "es"],
+  "languageTags": ["en", "de", "ar"],
   "baseLanguageTag": "en"
 }
 ```

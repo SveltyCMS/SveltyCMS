@@ -9,6 +9,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <script lang="ts">
 import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
+	import Loader from '@components/ui/loader.svelte';
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SeoAnalysisResult } from '../seo-types';
@@ -66,12 +67,12 @@ import { logger } from "@utils/logger";
 	}
 </script>
 
-<div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-125' : 'h-16'}">
+<div class="flex flex-col overflow-hidden rounded-lg border border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900 {className}">
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
+		class="flex w-full items-center gap-3 bg-white px-6 py-3 text-start transition-colors hover:bg-surface-500/10 dark:bg-surface-900 dark:hover:bg-surface-500/20"
 		onclick={() => (expanded = !expanded)}
-		aria-label="Toggle SEO analysis"
+		aria-label="Toggle SEO analysis{analysisResult ? `, ${Number.isNaN(analysisResult.score.overall) ? 0 : analysisResult.score.overall}%` : ''}"
 		aria-expanded={expanded}
 	>
 		<div class="flex items-center gap-2 flex-1">
@@ -83,7 +84,7 @@ import { logger } from "@utils/logger";
 			<div class="flex items-center gap-3">
 				<div
 					class="font-bold {analysisResult.score.overall >= 80
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-success-500'
 						: analysisResult.score.overall >= 50
 							? 'text-warning-500'
 							: 'text-error-500'}"
@@ -99,11 +100,6 @@ import { logger } from "@utils/logger";
 						Needs Work
 					{/if}
 				</div>
-				{#if expanded}
-					<iconify-icon icon="mdi:chevron-up" class="text-surface-400"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:chevron-down" class="text-surface-400"></iconify-icon>
-				{/if}
 			</div>
 		{:else}
 			<div class="text-xs opacity-50">
@@ -114,44 +110,49 @@ import { logger } from "@utils/logger";
 				{/if}
 			</div>
 		{/if}
+		<iconify-icon
+			icon={expanded ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+			class="shrink-0 text-surface-400"
+			aria-hidden="true"
+		></iconify-icon>
 	</button>
 
 	{#if expanded}
 		{#if isAnalyzing}
-			<div class="flex-1 flex flex-col items-center justify-center text-surface-400 opacity-50 p-4">
-				<div class="placeholder-circle animate-pulse w-8 h-8 mb-2"></div>
+			<div class="flex flex-col items-center justify-center p-6 text-surface-400 opacity-50">
+				<Loader variant="circle" width="size-8" height="size-8" class="mb-2" ariaLabel="Analyzing SEO" />
 				<span class="text-xs">Analyzing...</span>
 			</div>
 		{:else if analysisResult}
 			<!-- Metrics Summary -->
-			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-500/10 border-b border-surface-500/10">
-				<div class="card p-2 preset-soft-surface">
-					<div class="text-[10px] uppercase opacity-50 font-bold">Readability</div>
-					<div class="text-sm font-bold">{analysisResult.readability.fleschKincaidScore}</div>
-					<div class="text-[9px] opacity-70 leading-tight">{getReadingEaseDescription(analysisResult.readability.fleschKincaidScore)}</div>
+			<div class="grid grid-cols-2 gap-3 px-6 py-3 bg-surface-500/10 border-b border-surface-500/20">
+				<div class="rounded-lg border border-surface-500/20 bg-white p-3 dark:border-surface-600 dark:bg-surface-800">
+					<div class="text-[10px] uppercase tracking-wide text-surface-500 font-bold">Readability</div>
+					<div class="text-lg font-bold">{analysisResult.readability.fleschKincaidScore}</div>
+					<div class="text-[11px] text-surface-500 leading-tight">{getReadingEaseDescription(analysisResult.readability.fleschKincaidScore)}</div>
 				</div>
-				<div class="card p-2 preset-soft-surface">
-					<div class="text-[10px] uppercase opacity-50 font-bold">Word Count</div>
-					<div class="text-sm font-bold">{analysisResult.readability.wordCount}</div>
-					<div class="text-[9px] opacity-70">~{analysisResult.readability.readingTime} min read</div>
+				<div class="rounded-lg border border-surface-500/20 bg-white p-3 dark:border-surface-600 dark:bg-surface-800">
+					<div class="text-[10px] uppercase tracking-wide text-surface-500 font-bold">Word Count</div>
+					<div class="text-lg font-bold">{analysisResult.readability.wordCount}</div>
+					<div class="text-[11px] text-surface-500">~{analysisResult.readability.readingTime} min read</div>
 				</div>
 			</div>
 
 			<!-- Scrollable Suggestions -->
-			<div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" transition:slide>
+			<div class="max-h-80 overflow-y-auto px-6 py-3 space-y-4 custom-scrollbar" transition:slide>
 				<div>
-					<h4 class="text-xs font-bold uppercase opacity-50 mb-2">Suggestions</h4>
-					<div class="space-y-2">
+					<h4 class="text-xs font-bold uppercase tracking-wide text-surface-500 mb-3">Suggestions</h4>
+					<div class="space-y-3">
 				{#if analysisResult.suggestions.length > 0}
 					{#each analysisResult.suggestions as suggestion (suggestion.id)}
 						{const suggestionIcon =
 							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div
-							class="card border-s-4 p-3 {suggestion.type === 'error'
+							class="rounded-lg border-s-4 p-3 {suggestion.type === 'error'
 								? 'border-error-500 bg-error-500/10'
 								: suggestion.type === 'warning'
 									? 'border-warning-500 bg-warning-500/10'
-									: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/10'}"
+									: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/10 dark:bg-primary-500/10'}"
 						>
 							<div class="flex items-start gap-2">
 								<div class="mt-0.5 shrink-0">
@@ -173,7 +174,7 @@ import { logger } from "@utils/logger";
 										</p>
 									</SystemTooltip>
 									{#if suggestion.fix}
-										<div class="mt-1.5 text-[10px] font-mono bg-surface-500/10 dark:bg-surface-700 p-1.5 rounded opacity-80">
+										<div class="mt-2 text-[11px] bg-surface-500/10 dark:bg-surface-700 p-2 rounded">
 											<strong>Fix:</strong>
 											{suggestion.fix}
 										</div>
@@ -223,7 +224,7 @@ import { logger } from "@utils/logger";
 				</div>
 			</div>
 		{:else}
-			<div class="flex-1 flex flex-col items-center justify-center text-surface-400 opacity-50 p-4">
+			<div class="flex flex-col items-center justify-center p-6 text-surface-400 opacity-50">
 				<span class="text-xs">Run analysis to see results.</span>
 			</div>
 		{/if}
