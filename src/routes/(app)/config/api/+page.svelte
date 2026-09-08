@@ -15,6 +15,8 @@
 	import { toast } from "@src/stores/toast.svelte.ts";
 	import { clientJsonHeaders } from "@utils/security/client-csrf";
 
+	import VisualQueryBuilder from "./visual-query-builder.svelte";
+
 	interface Props {
 		data: {
 			isAdmin: boolean;
@@ -27,8 +29,9 @@
 
 	let { data }: Props = $props();
 
-	type Tab = "rest" | "graphql" | "codegen";
-	let activeTab = $state<Tab>("rest");
+	type Tab = "builder" | "rest" | "graphql" | "codegen";
+	let activeTab = $state<Tab>("builder");
+
 
 	// ── REST State ──
 	let restMethod = $state<"GET" | "POST">("GET");
@@ -235,7 +238,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	{/snippet}
 
 	<!-- Tab Switcher -->
-	<div class="mb-6 flex border-b border-surface-500/20">
+	<div class="mb-6 flex border-b border-surface-500/20 overflow-x-auto">
+		<button
+			type="button"
+			onclick={() => (activeTab = "builder")}
+			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab === 'builder' ? 'border-primary-500 text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
+		>
+			<iconify-icon icon="mdi:database-search-outline" width="18"></iconify-icon>
+			Visual Query Builder
+		</button>
 		<button
 			type="button"
 			onclick={() => (activeTab = "rest")}
@@ -262,8 +273,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		</button>
 	</div>
 
+	<!-- TAB 0: Visual Query Builder -->
+	{#if activeTab === "builder"}
+		<VisualQueryBuilder collections={data.collections} />
+	{/if}
+
 	<!-- TAB 1: REST API / OpenAPI -->
 	{#if activeTab === "rest"}
+
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Request Form -->
 			<AdminCard>
@@ -572,7 +589,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 			<!-- Generated Snippet Display -->
 			<div class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100">
-				<div class="absolute top-3 end-3">
+				<div class="absolute top-3 inset-e-3">
 					<Button
 						variant="secondary"
 						size="sm"

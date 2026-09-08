@@ -534,7 +534,7 @@ sequenceDiagram
 
 ### 4. Motion & Transition System
 
-All shared motion lives in `src/utils/admin-transitions.ts` and is **reduced-motion safe** (every transition drops to 0ms when `prefers-reduced-motion: reduce` or the theme's `reducedMotion` feature is on — see the [Accessibility Guide](../contributing/accessibility.mdx)).
+All shared motion lives in `src/utils/admin-transitions.ts` and is **reduced-motion safe** (every transition drops to 0ms when `prefers-reduced-motion: reduce` or the theme's `reducedMotion` feature is on — see the [Accessibility Guide](../../contributing/accessibility.mdx)).
 
 | Transition     | When to use                                                                                                   |
 | :------------- | :------------------------------------------------------------------------------------------------------------ |
@@ -577,12 +577,120 @@ All theme operations go through the REST API at `/api/theme/`. Admin authenticat
 
 ---
 
-## Related Documents
+## 🏢 Agency Whitelabeling & Client Handover
 
-- [System Settings Guide](./system-settings.mdx)
-- [Access Management](./access-management.mdx)
-- [GUI Styling & UX Guide](../../contributing/style-guide-gui.mdx)
-- [Accessibility Guide](../../contributing/accessibility.mdx)
+SveltyCMS is built from the ground up to support complete **agency whitelabeling**. Agencies and enterprise dev teams can rebrand the entire CMS administration experience in minutes, presenting a cohesive, professional brand identity to clients without touching a single line of CMS core code.
+
+### 5-Minute Client Whitelabel Blueprint
+
+Follow this step-by-step workflow to prepare a turnkey client installation:
+
+```mermaid
+flowchart LR
+    A["1. Brand Identity<br/>(Logo, Favicon, Site Name)"] --> B["2. Palette Studio<br/>(Brand Hex Colors)"]
+    B --> C["3. Branded Login<br/>(Custom Login Experience)"]
+    C --> D["4. Agency Credits<br/>(Support Links in Footer)"]
+    D --> E["5. Git Export<br/>(/src/themes/client.json)"]
+```
+
+#### Step 1: Set Brand Identity & Assets
+
+Navigate to **Config → System Settings**:
+
+| Setting Key    | Value / Format                     | Effect                                                                 |
+| :------------- | :--------------------------------- | :--------------------------------------------------------------------- |
+| `SITE_NAME`    | Client Organization / Project Name | Replaces "SveltyCMS" in browser title, header breadcrumbs, and sidebar |
+| `LOGO_URL`     | `/media/client-logo.svg` or CDN    | Client brand logo rendered on login screen and admin sidebar           |
+| `FAVICON_URL`  | `/favicon.ico` or PNG              | Custom browser tab icon                                                |
+| `ACCENT_COLOR` | Brand hex (e.g., `#0f766e`)        | Meta theme-color for mobile browser chrome                             |
+
+#### Step 2: Configure Client Brand Palette
+
+Navigate to **Config → Design System → Palette & Import**:
+
+1. In the **Palette Studio**, input the client's corporate primary color (e.g., `#1e40af` for corporate navy, `#047857` for emerald).
+2. Choose a matching secondary and surface seed.
+3. SveltyCMS instantly generates full 50–950 tint and shade scales via native CSS `color-mix()` algorithms, automatically binding semantic variables (`--admin-bg-*`, `--admin-border-*`).
+4. Click **Live apply** to verify the aesthetic in real time across the current admin workspace.
+
+#### Step 3: Enable Branded Login
+
+In **Config → Design System → Features**:
+
+- Toggle **Branded Login** to `ON`.
+- When active, the `/login` authentication screen automatically:
+  - Replaces default CMS logos with the client's high-resolution `LOGO_URL`.
+  - Prominently displays the custom `SITE_NAME`.
+  - Uses the active theme's card variant (`flat`, `bordered`, or `elevated`) and border styling.
+  - Applies sanitized custom CSS rules scoped exclusively to the login container.
+
+#### Step 4: Add Agency Support Credits & Contact Information
+
+To provide a branded client handoff with direct support escalation, inject your agency credentials into the `global-footer` slot:
+
+```svelte
+<!-- Example: Injecting agency support into layout via plugin or theme component -->
+<div class="flex items-center justify-between text-xs text-surface-500 px-4 py-2">
+  <span>© 2026 Acme Corp. All rights reserved.</span>
+  <span>
+    Managed by <a href="https://youragency.com" class="text-primary-500 font-medium hover:underline" target="_blank">YourAgency</a>
+    • <a href="mailto:support@youragency.com" class="hover:underline">Need Help?</a>
+  </span>
+</div>
+```
+
+#### Step 5: Version-Control the Client Theme
+
+Once customized, click **Export Theme JSON** on the Palette & Import tab. Save the output to:
+
+```text
+/src/themes/client-brand.json
+```
+
+Because SveltyCMS features a **File + DB Hybrid Theme Architecture**, committing this file to your project repository guarantees that when your deployment pipeline runs (`git push origin main`), the client's custom branding is automatically loaded into the database during initial setup or migration without manual GUI re-configuration.
+
+---
+
+### Protecting Brand Integrity: Role Locking & Permissions
+
+Clients and non-technical content editors should enjoy the customized interface without the risk of accidental brand breakage:
+
+1. **Role Gating**: Only users with the `admin` role or explicit `theme:write` permissions have access to `/config/design-system`.
+2. **Editor Experience**: Content editors and authors see the client's branded interface out of the box, with full focus on content creation.
+3. **Accessibility Overrides**: Individual users can still adjust their personal preferences (such as High Contrast Mode or Compact Density) via `/config/design-system?tab=overrides` without impacting the global company branding.
+
+---
+
+## 💼 Commercial Strategy & Marketplace Ecosystem
+
+SveltyCMS balances rapid open-source developer adoption with a sustainable commercial monetization path.
+
+### The "Redis vs. Memory Cache" Architecture Rule
+
+To maintain peak performance and avoid bloated core code, SveltyCMS strictly enforces the **Zero-Friction Core vs. Scalable Extensions** design pattern:
+
+| Category         | Free Open-Core (Zero Dependencies)                         | Commercial / Marketplace Extension                             |
+| :--------------- | :--------------------------------------------------------- | :------------------------------------------------------------- |
+| **Caching**      | High-performance in-memory LRU cache with sub-1µs hits     | Redis L2 Distributed Cluster with pub/sub invalidation         |
+| **Database**     | Embedded SQLite with sub-2ms local persistence             | Managed PostgreSQL / MariaDB / MongoDB with connection pooling |
+| **Media**        | Local filesystem storage with WebP/AVIF processing         | S3 / Cloudflare R2 Cloud Storage CDN with global edge cache    |
+| **Theme System** | Built-in 6-region shell, Palette Studio, 37+ UI components | Premium Agency Theme Packs (Medical, SaaS, Editorial)          |
+| **Translations** | Standard multi-locale content schema & analytics engine    | AI Automated Bulk Translation (DeepL / OpenAI cockpit plugin)  |
+| **Security**     | Native WebAuthn passkeys, 2FA TOTP, AES-256 ALE            | Enterprise SAML / OIDC Single Sign-On (SSO) connector          |
+
+> [!TIP]
+> **Adoption First**: The Open-Core foundation contains everything required to build blazing-fast production websites. No arbitrary artificial limits are placed on user accounts, collections, API traffic, or languages.
+
+### Monetization Channels
+
+1. **Agency Whitelabel Pro Packs**:
+   - Turnkey agency tools including multi-client workspace switchers, client billing integration, and one-click brand provisioning.
+2. **Marketplace Extensions (`marketplace.sveltycms.com`)**:
+   - Official and third-party verified widgets, dashboards, and enterprise connectors.
+   - Transparent 70/30 developer revenue share, encouraging ecosystem developers to build and sell high-value Svelte 5 components.
+   - Built-in license verification via `src/utils/license-manager.ts` supporting offline-safe validation and 14-day client evaluation periods.
+3. **Managed SveltyCMS Cloud**:
+   - Turnkey global hosting with zero DevOps overhead, automated daily backups, managed Redis clusters, and edge CDN distribution.
 
 ---
 
@@ -695,3 +803,13 @@ import { screen } from "@src/stores/screen-size-store.svelte";
 // screen.isDesktop → true when width >= 1024px
 // screen.isMobile  → true when width < 768px
 ```
+
+---
+
+## 📚 Related Documents
+
+- [System Settings Guide](./system-settings.mdx)
+- [Access Management](./access-management.mdx)
+- [GUI Styling & UX Guide](../../contributing/style-guide-gui.mdx)
+- [Accessibility Guide](../../contributing/accessibility.mdx)
+- [Hybrid Package Model](../../development/package-model.mdx)

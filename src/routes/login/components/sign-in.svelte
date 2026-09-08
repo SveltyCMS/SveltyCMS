@@ -70,6 +70,7 @@ import type { LoginBranding } from "@utils/theme-merge";
 import SigninIcon from "./icons/signin-icon.svelte";
 import OauthLogin from "./oauth-login.svelte";
 import { fade } from 'svelte/transition';
+import { base64UrlToBuffer, bufferToBase64Url } from "@utils/webauthn-client";
 
 // Props
 const {
@@ -290,22 +291,6 @@ const forgotForm = new Form({ email: "" }, forgotFormSchema);
 // ---------------------------------------------------------------------------
 
 const magicForm = new Form({ email: "" }, forgotFormSchema);
-
-function base64UrlToBuffer(base64url: string): Uint8Array {
-	const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
-	const base64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
-	const raw = atob(base64);
-	const buf = new Uint8Array(raw.length);
-	for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-	return buf;
-}
-
-function bufferToBase64Url(buffer: ArrayBuffer): string {
-	const bytes = new Uint8Array(buffer);
-	let binary = "";
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
 
 async function handlePasskeySignIn() {
 	if (!browser) return;
@@ -716,7 +701,7 @@ $effect(() => {
 								id="emailsignIn"
 								name="email"
 								type="email"
-								autocomplete="username"
+								autocomplete="username webauthn"
 								autocapitalize="none"
 								spellcheck={false}
 								bind:value={loginForm.data.email}
@@ -781,11 +766,12 @@ $effect(() => {
 								<Button
 									type="button"
 									variant="outline"
-									class="w-full sm:w-auto text-black!"
-									aria-label="Sign in with Passkey"
+									class="w-full sm:w-auto text-black! flex items-center justify-center gap-1.5"
+									aria-label="Sign in with Passkey or Biometrics"
 									onclick={handlePasskeySignIn}
 									loading={isPasskeyLoading}
 								>
+									<iconify-icon icon="mdi:fingerprint" width={18} aria-hidden="true"></iconify-icon>
 									Passkey
 								</Button>
 								{/if}

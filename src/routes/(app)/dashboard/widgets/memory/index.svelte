@@ -107,8 +107,9 @@ export const widgetMeta = {
 				
 				{#if size.h === 1}
 					<!-- Compact single-row layout -->
-					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-[36px]">
+					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-9">
 						<div class="flex items-center gap-2">
+
 							<div class="relative flex h-2.5 w-2.5">
 								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {mem.level === 'high' ? 'bg-error-400' : mem.level === 'medium' ? 'bg-warning-400' : 'bg-success-400'}"></span>
 								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {mem.level === 'high' ? 'bg-error-500' : mem.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></span>

@@ -22,7 +22,7 @@
 <script lang="ts">
 import Tabs from "@components/ui/tabs";
 import AdminPageShell from "@components/admin-page-shell.svelte";
-import { uploadMedia_title } from "@src/paraglide/messages";
+import { uploadMedia_title, uploadMedia_local_upload, uploadMedia_remote_upload } from "@src/paraglide/messages";
 import { goto } from "$app/navigation";
 import LocalUpload from "./local-upload.svelte";
 import RemoteUpload from "./remote-upload.svelte";
@@ -41,15 +41,16 @@ function handleUploadComplete() {
 			<Tabs.Trigger value="0" class="flex-1" data-testid="upload-tab-local">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:database" width="24"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
+					<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_local_upload()}</p>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="1" class="flex-1" data-testid="upload-tab-remote">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
+					<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_remote_upload()}</p>
 				</div>
 			</Tabs.Trigger>
+
 			<Tabs.Indicator />
 		</Tabs.List>
 

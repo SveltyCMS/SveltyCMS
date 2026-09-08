@@ -17,7 +17,15 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import Avatar from "@components/ui/avatar.svelte";
 	import FileUpload from "@components/ui/file-upload.svelte";
 	// ParaglideJS
-	import { button_cancel, button_delete, button_save, modaledit_avatarfilesallowed, modaledit_avatarfilesize } from '@src/paraglide/messages';
+	import {
+		button_cancel,
+		button_delete,
+		button_save,
+		modaledit_avatar_alt,
+		modaledit_avatar_click_upload,
+		modaledit_avatarfilesallowed,
+		modaledit_avatarfilesize,
+	} from '@src/paraglide/messages';
 	// Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@src/utils/logger';
@@ -355,7 +363,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					<div class="outline-none relative mx-auto mb-3 cursor-pointer rounded-full focus:ring-2 focus:ring-primary-500">
 						<Avatar
 							src={displayAvatar}
-							alt="User avatar"
+							alt={modaledit_avatar_alt()}
 							initials="AB"
 							size="size-32"
 							class="rounded-full border-4 border-surface-500/30 dark:border-surface-500/40 shadow-xl aspect-square"
@@ -364,9 +372,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						<!-- Hover/Focus overlay cue when not uploading -->
 						{#if !isUploading}
 							<div class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white focus-within:flex hover:flex">
-								<span class="text-xs font-medium">Click to upload</span>
+								<span class="text-xs font-medium">{modaledit_avatar_click_upload()}</span>
 							</div>
 						{/if}
+
 						{#if isUploading}
 							<div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
 								<div class="text-sm font-medium text-white">...</div>
@@ -403,8 +412,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
 		<!-- Delete Avatar -->
 		{#if page.data.user?.avatar && page.data.user.avatar !== '/Default_User.svg'}
-			<Button variant="error" type="button" onclick={deleteAvatar} aria-label="Delete Avatar">
+			<Button variant="error" type="button" onclick={deleteAvatar} aria-label={button_delete()}>
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
+
 				<span class="hidden sm:block">{button_delete()}</span>
 			</Button>
 		{:else}

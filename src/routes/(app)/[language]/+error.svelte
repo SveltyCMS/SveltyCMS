@@ -23,6 +23,7 @@ import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import {
 	db_error_description,
 	db_error_title,
+	error_goback,
 	error_gofrontpage,
 	error_page_moved,
 	error_pagenotfound,
@@ -165,8 +166,9 @@ const errorSummary = isDatabaseError
 					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
 					</svg>
-					Go Back
+					{error_goback()}
 				</button>
+
 			</div>
 		</div>
 	</main>

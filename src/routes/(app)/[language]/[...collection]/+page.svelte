@@ -20,6 +20,11 @@ This page dynamically switches between List views and Field editors based on the
 
 import { contentLanguage } from '@src/stores/locale-store.svelte';
 import { validationStore } from '@src/stores/validation-store.svelte';
+import {
+	collection_autosaving_draft,
+	collection_not_loaded,
+	collection_unable_to_load,
+} from '@src/paraglide/messages';
 import EntryList from "@src/components/collection-display/entry-list.svelte";
 import Fields from "@src/components/collection-display/fields.svelte";
 import WorkflowActions from "@src/components/collection-display/workflow-actions.svelte";
@@ -495,7 +500,7 @@ beforeNavigate(async ({ cancel, to }) => {
 	{#if isSavingDraft}
 		<div class="fixed inset-e-4-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">
 			<div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-			<span class="text-sm font-medium">Auto-saving draft...</span>
+			<span class="text-sm font-medium">{collection_autosaving_draft()}</span>
 		</div>
 	{/if}
 
@@ -510,9 +515,10 @@ beforeNavigate(async ({ cancel, to }) => {
 					d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 				/>
 			</svg>
-			<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-500">Collection Not Loaded</h3>
-			<p class="text-center text-error-600 dark:text-error-500">Unable to load collection schema. Please refresh the page.</p>
+			<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-500">{collection_not_loaded()}</h3>
+			<p class="text-center text-error-600 dark:text-error-500">{collection_unable_to_load()}</p>
 		</div>
+
 	{:else if collections.mode === 'view' || collections.mode === 'modify'}
 		<!-- Key block forces EntryList to remount when collection changes -->
 		{#key collectionSchema?._id}

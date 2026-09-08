@@ -99,7 +99,7 @@ async function handleRegenerate() {
 					<Button variant="tertiary"
 						onclick={handleRegenerate}
 						disabled={isRegenerating}
-					 size="sm" class="absolute end-1 top-1 bottom-1 px-4 rounded-full dark:">
+					 size="sm" class="absolute inset-e-1 top-1 bottom-1 px-4 rounded-full">
 						{#if isRegenerating}
 							<iconify-icon icon="mdi:loading" class="animate-spin" width="18"></iconify-icon>
 						{:else}
@@ -111,8 +111,9 @@ async function handleRegenerate() {
 		</div>
 
 		<!-- AI Content -->
-		<div class="p-4 rounded-2xl bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-white/20 shadow-xl min-h-[400px]">
+		<div class="p-4 rounded-2xl bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-white/20 shadow-xl min-h-100">
 			<JSONUIProvider initialState={context}>
+
 				<Renderer registry={sveltyRegistry} spec={currentSpec} />
 			</JSONUIProvider>
 		</div>

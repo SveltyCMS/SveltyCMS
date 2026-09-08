@@ -49,6 +49,7 @@
 	import { formatDateTime } from '@utils/format-date';
 	import AdminArea from './components/admin-area.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
+	import ModalPasskeyManagement from './components/modal-passkey-management.svelte';
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { globalSearch } from '@utils/global-search-index.svelte';
@@ -120,6 +121,7 @@
 		tenantId: serverUser?.tenantId ?? '',
 		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 		isAdmin: serverUser?.isAdmin ?? false,
+		authenticators: serverUser?.authenticators ?? [],
 		permissions:
 			Array.isArray(serverUser?.permissions) && serverUser.permissions.length > 0
 				? (serverUser.permissions as string[])
@@ -603,6 +605,10 @@
 		});
 	}
 
+	function openPasskeyModal(): void {
+		modalState.trigger(ModalPasskeyManagement, { user, onSuccess: async () => { await refreshAll(); } });
+	}
+
 	async function updateRtcPreference(key: string, value: boolean) {
 		const isAuth = ['passkeyEnabled', 'magicLinkEnabled', 'oauthEnabled'].includes(key);
 		const prefs = serverUser?.preferences as Record<string, any> | undefined;
@@ -976,6 +982,42 @@
 									</Button>
 								</div>
 							{/if}
+
+							<div class={rowClass} data-testid="security-passkey-section">
+								<div class="flex min-w-0 items-center gap-3">
+									<iconify-icon icon="mdi:fingerprint" class={securityRowIcon} width={20} aria-hidden="true"
+									></iconify-icon>
+									<div class="min-w-0">
+										<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+											Passkeys &amp; Biometrics
+											<SystemTooltip title={helpTitle('passkeys')}>
+												<button
+													type="button"
+													tabindex="-1"
+													aria-label="Help: Passkeys & Biometrics"
+													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+												>
+													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
+												</button>
+											</SystemTooltip>
+										</p>
+										<p class="text-xs {(user.authenticators?.length ?? 0) > 0 ? 'text-primary-600 dark:text-primary-500' : 'text-surface-500'}">
+											{(user.authenticators?.length ?? 0) > 0
+												? `${user.authenticators.length} registered`
+												: 'Not configured'}
+										</p>
+									</div>
+								</div>
+								<Button
+									variant="surface"
+									size="sm"
+									onclick={openPasskeyModal}
+									class="{securityActionBtn} {(user.authenticators?.length ?? 0) > 0 ? 'text-primary-600 dark:text-primary-500' : ''}"
+									data-testid="security-passkey-btn"
+								>
+									{(user.authenticators?.length ?? 0) > 0 ? 'Manage' : 'Setup'}
+								</Button>
+							</div>
 
 							<div class="py-3" data-testid="active-sessions-section">
 								<div class="mb-2 flex flex-wrap items-center justify-between gap-2">

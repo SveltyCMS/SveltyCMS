@@ -33,8 +33,11 @@ FIXES:
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
+	import TranslationCockpit from './translation-cockpit.svelte';
+
 	// State
 	let isInitialized = $state(false);
+	let isCockpitOpen = $state(false);
 	let completionTotals = $state({ total: 0, translated: 0 });
 
 	// Derived values
@@ -489,7 +492,27 @@ FIXES:
 				</div>
 			</div>
 		{/if}
+
+		{#if !isViewMode}
+			<div class="border-t border-surface-500/30 dark:border-surface-50 my-1"></div>
+			<div class="p-2">
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full flex items-center justify-center gap-2 text-xs"
+					onclick={() => {
+						isCockpitOpen = true;
+					}}
+				>
+					<iconify-icon icon="mdi:translate" width="16"></iconify-icon>
+					<span>Translation Cockpit</span>
+				</Button>
+			</div>
+		{/if}
 	</Dropdown>
+
+	<TranslationCockpit bind:open={isCockpitOpen} />
 
 	<div class="mt-0.5 transition-all duration-300"><!-- External progress bar removed to prevent header overflow --></div>
 </div>
+

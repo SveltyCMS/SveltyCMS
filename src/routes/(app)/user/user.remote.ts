@@ -269,3 +269,30 @@ export const reauthForSessionManagement = query(
     }
   },
 );
+
+export const revokePasskey = command(
+  "unchecked",
+  async (data: { credentialID: string }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const event = getRequestEvent();
+      const user = getAuthenticatedUser(event.locals);
+      const { cms, tenantId } = await getRequestLocalCMS();
+      const freshResult = await cms.auth.getUserById(String(user._id), {
+        tenantId: tenantId as never,
+      });
+      const freshUser = freshResult?.success ? freshResult.data : null;
+      if (!freshUser) throw new AppError("User not found", 404);
+      const authenticators = (freshUser.authenticators || []).filter(
+        (a: any) => a.credentialID !== data.credentialID,
+      );
+      await cms.auth.updateUserAttributes(
+        String(user._id),
+        { authenticators },
+        { tenantId: tenantId as never },
+      );
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Failed to revoke passkey") };
+    }
+  },
+);
