@@ -1449,5 +1449,15 @@
   "widget_useronline_search_aria": "Search users",
   "widgets_nodata": "No Data",
   "widgets_required_by_collections": "The following widgets are required by your collections",
-  "widgets_shown": "widgets shown"
+  "widgets_shown": "widgets shown",
+  "translation_cockpit_title": "Translation Cockpit",
+  "translation_cockpit_admin_lang": "Admin Interface",
+  "translation_cockpit_content_readiness": "Content Readiness",
+  "translation_cockpit_source_lang": "Source Language",
+  "translation_cockpit_autotranslate_all": "Auto-Translate All Missing",
+  "translation_cockpit_autotranslate_lang": "Auto-Translate",
+  "translation_cockpit_translating": "Translating...",
+  "translation_cockpit_jump_field": "Jump to field",
+  "translation_cockpit_all_complete": "All translatable fields complete",
+  "translation_cockpit_missing_fields": "{count} fields missing translation"
 }

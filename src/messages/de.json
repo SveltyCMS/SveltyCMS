@@ -1449,5 +1449,15 @@
   "widget_useronline_search_aria": "Benutzer suchen",
   "widgets_nodata": "Keine Daten",
   "widgets_required_by_collections": "Die folgenden Widgets werden von Ihren Sammlungen benötigt",
-  "widgets_shown": "angezeigte Widgets"
+  "widgets_shown": "angezeigte Widgets",
+  "translation_cockpit_title": "Übersetzungs-Cockpit",
+  "translation_cockpit_admin_lang": "Admin-Oberfläche",
+  "translation_cockpit_content_readiness": "Inhalts-Vollständigkeit",
+  "translation_cockpit_source_lang": "Quellsprache",
+  "translation_cockpit_autotranslate_all": "Alle fehlenden automatisch übersetzen",
+  "translation_cockpit_autotranslate_lang": "Automatisch übersetzen",
+  "translation_cockpit_translating": "Wird übersetzt...",
+  "translation_cockpit_jump_field": "Zum Feld springen",
+  "translation_cockpit_all_complete": "Alle übersetzbaren Felder vollständig",
+  "translation_cockpit_missing_fields": "{count} Felder fehlen noch"
 }

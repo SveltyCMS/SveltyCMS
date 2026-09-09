@@ -689,10 +689,13 @@ import { tick, untrack } from "svelte";
           {#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
             {#if field.widget}
               {@const fieldIcon = resolveFieldIcon(field)}
+              {@const fieldName = getFieldName(field, false)}
               <div
                 class="mx-auto text-center {!field?.width
                   ? 'w-full '
                   : 'max-md:w-full!'}"
+                id="field-container-{fieldName}"
+                data-field-name={fieldName}
                 style={"min-width:min(300px,100%);" +
                   (field.width
                     ? `width:calc(${(field.width / 12) * 100}% - 0.5rem)`
