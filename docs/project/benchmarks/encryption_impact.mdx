@@ -15,6 +15,8 @@ tags:
   - "adapter"
 ---
 
+> **EU Compliance**: Competitive references are based on publicly available documentation as of September 2026. All SveltyCMS figures are self-measured with a reproducible suite (`BENCHMARK_RECORD=1 bun test tests/benchmarks/`) on the hardware named in the methodology section below.
+
 # 🔐 Application-Layer Encryption (ALE) Performance Impact
 
 > [!NOTE]
@@ -33,16 +35,16 @@ unverschlüsselten Schreibern.
 
 ## Konfiguration
 
-| Parameter | Wert |
-| --------- | ---- |
-| Layer | `dbAdapter` → `db.crud.insert` |
-| Verschlüsselung | AES-256-GCM (`aes-256-gcm`, 256-bit) via `node:crypto` |
-| Verschlüsseltes Feld | `email` (Typ: Feld `encrypt: true`) |
-| Schreibvorgänge / Lauf | 1000 |
-| Warmup | 100 |
-| Testläufe | **3** |
-| DB-Engine | SQLite (Benchmark-Datei) |
-| Ausführungszeitpunkt | 2026-09-07 21:00 (CEST) |
+| Parameter              | Wert                                                   |
+| ---------------------- | ------------------------------------------------------ |
+| Layer                  | `dbAdapter` → `db.crud.insert`                         |
+| Verschlüsselung        | AES-256-GCM (`aes-256-gcm`, 256-bit) via `node:crypto` |
+| Verschlüsseltes Feld   | `email` (Typ: Feld `encrypt: true`)                    |
+| Schreibvorgänge / Lauf | 1000                                                   |
+| Warmup                 | 100                                                    |
+| Testläufe              | **3**                                                  |
+| DB-Engine              | SQLite (Benchmark-Datei)                               |
+| Ausführungszeitpunkt   | 2026-09-07 21:00 (CEST)                                |
 
 > [!WARNING]
 > ALE wird hier **extern** auf `db.crud.insert` angewandt (via `encryptDocumentFields`),
@@ -54,23 +56,23 @@ unverschlüsselten Schreibern.
 
 ### Adapter-Schreibpfad — Baseline vs ALE
 
-| Metrik | Baseline (Klartext) | ALE (AES-256-GCM) | Delta | Δ % |
-| ------ | :-----------------: | :---------------: | :---: | --: |
-| **Ø Latenz / Write** | 0.107 ms | 0.128 ms | **+0.021 ms** | **+19.7%** |
-| p50 Latenz | 0.061 ms | 0.077 ms | +0.016 ms | +26.2% |
-| p95 Latenz | 0.114 ms | 0.142 ms | +0.028 ms | +24.7% |
-| **Durchsatz** | 9 331 writes/s | 7 810 writes/s | **−1 521 writes/s** | **−16.3%** |
-| CPU-Last (Messfenster) | 94.0% | 98.4% | +4.4 pp | +4.7% |
+| Metrik                 | Baseline (Klartext) | ALE (AES-256-GCM) |        Delta        |        Δ % |
+| ---------------------- | :-----------------: | :---------------: | :-----------------: | ---------: |
+| **Ø Latenz / Write**   |      0.107 ms       |     0.128 ms      |    **+0.021 ms**    | **+19.7%** |
+| p50 Latenz             |      0.061 ms       |     0.077 ms      |      +0.016 ms      |     +26.2% |
+| p95 Latenz             |      0.114 ms       |     0.142 ms      |      +0.028 ms      |     +24.7% |
+| **Durchsatz**          |   9 331 writes/s    |  7 810 writes/s   | **−1 521 writes/s** | **−16.3%** |
+| CPU-Last (Messfenster) |        94.0%        |       98.4%       |       +4.4 pp       |      +4.7% |
 
 ### Isolierte Verschlüsselungskosten (ohne DB-Noise, 20 000 Ops)
 
-| Metrik | Wert |
-| ------ | ---- |
-| Ø Latenz / Op | 0.0046 ms |
-| p95 Latenz | 0.0064 ms |
-| p99 Latenz | 0.0090 ms |
-| Durchsatz | ~213 385 ops/s |
-| CPU-Auslastung (sustained) | 100 % 😅 |
+| Metrik                     | Wert           |
+| -------------------------- | -------------- |
+| Ø Latenz / Op              | 0.0046 ms      |
+| p95 Latenz                 | 0.0064 ms      |
+| p99 Latenz                 | 0.0090 ms      |
+| Durchsatz                  | ~213 385 ops/s |
+| CPU-Auslastung (sustained) | 100 % 😅       |
 
 ## Interpretation
 
@@ -102,12 +104,12 @@ unverschlüsselten Schreibern.
 
 ## Verifikation (3 Testläufe)
 
-| Lauf | Baseline Ø (ms) | ALE Ø (ms) | Baseline w/s | ALE w/s | CPU Δ (pp) |
-| :--: | :-------------: | :--------: | :----------: | :-----: | :--------: |
-| 1 | 0.103 | 0.137 | 9 634 | 7 251 | +95.1 → 100 |
-| 2 | 0.115 | 0.129 | 8 621 | 7 728 | +91.0 → 100 |
-| 3 | 0.102 | 0.118 | 9 739 | 8 451 | +90.9 → 100 |
-| **Ø** | **0.107** | **0.128** | **9 331** | **7 810** | **+4.4** |
+| Lauf  | Baseline Ø (ms) | ALE Ø (ms) | Baseline w/s |  ALE w/s  | CPU Δ (pp)  |
+| :---: | :-------------: | :--------: | :----------: | :-------: | :---------: |
+|   1   |      0.103      |   0.137    |    9 634     |   7 251   | +95.1 → 100 |
+|   2   |      0.115      |   0.129    |    8 621     |   7 728   | +91.0 → 100 |
+|   3   |      0.102      |   0.118    |    9 739     |   8 451   | +90.9 → 100 |
+| **Ø** |    **0.107**    | **0.128**  |  **9 331**   | **7 810** |  **+4.4**   |
 
 > [!NOTE]
 > Die CPU-Spaltenwerte einzelner Läufe schwanken (91–100 %), weil `process.cpuUsage()`

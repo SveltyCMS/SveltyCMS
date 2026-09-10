@@ -1,35 +1,59 @@
+---
+path: "docs/project/lean-out-plan.mdx"
+title: "SveltyCMS Lean-Out Plan"
+description: "Concrete plan to shrink bundle size, drop unused dependencies and reduce runtime surface without losing functionality."
+order: 6
+icon: "mdi:broom"
+author: "SveltyCMS Team"
+created: "2026-09-10"
+updated: "2026-09-10"
+tags:
+  - "plan"
+  - "performance"
+  - "bundle-size"
+---
+
 # SveltyCMS Lean-Out Plan
 
 ## 1. Bundle Size Optimization
+
 ### Identified Bloat
-- **Tiptap Extensions:** Currently importing the entire `@tiptap/starter-kit` and numerous individual extensions. 
-    - *Action:* Audit `src/lib/editor` to remove unused extensions (e.g., `youtube`, `table-cell` if not used in UI).
+
+- **Tiptap Extensions:** Currently importing the entire `@tiptap/starter-kit` and numerous individual extensions.
+  - _Action:_ Audit `src/lib/editor` to remove unused extensions (e.g., `youtube`, `table-cell` if not used in UI).
 - **AWS SDK:** Full `@aws-sdk` clients are imported.
-    - *Action:* Switch to modular imports (e.g., `@aws-sdk/client-s3` only) where full client instances are not required.
-- **Lodash:** `lodash` and `lodash.memoize` are present. 
-    - *Action:* Replace with native JS methods or `fast-deep-equal` where possible to remove `lodash` entirely.
+  - _Action:_ Switch to modular imports (e.g., `@aws-sdk/client-s3` only) where full client instances are not required.
+- **Lodash:** `lodash` and `lodash.memoize` are present.
+  - _Action:_ Replace with native JS methods or `fast-deep-equal` where possible to remove `lodash` entirely.
 
 ### Removal Candidates
+
 - `maplibre-gl` (Verify if only used in specific views; move to dynamic import).
 - `shiki` (Verify if only used in docs; move to dynamic import).
 
 ## 2. Runtime Overhead
+
 ### Middleware Audit
+
 - **Auth Checks:** Redundant `session` checks in nested route groups.
-    - *Action:* Consolidate Auth middleware to prevent duplicate DB lookups.
+  - _Action:_ Consolidate Auth middleware to prevent duplicate DB lookups.
 - **Tenant Validation:** `tenant_id` is validated multiple times in `src/routes/api`.
-    - *Action:* Move to a single pre-processor step.
+  - _Action:_ Move to a single pre-processor step.
 
 ## 3. Code Fragmentation
+
 ### Component Consolidation
+
 - **Button/Input Primitives:** Small variations in `src/components/ui` can be consolidated into a single `BaseComponent` with a `variant` prop to reduce total Svelte component overhead.
 - **Utility Functions:** Fragmented helpers in `src/utils` to be moved to `src/lib/utils.ts`.
 
 ## 4. Legacy Cleanup
+
 - **CJS Check:** `index.cjs` exists; verify if any logic remains that isn't compatible with ESM.
 - **Svelte Stores:** Audit `src/lib/stores` for any legacy `writable` stores that can be replaced by Svelte 5 `runes` (`$state`).
 
 ## Prioritized Technical Debt
+
 1. [ ] **High:** Remove/Modularize Lodash.
 2. [ ] **High:** Optimize AWS SDK imports.
 3. [ ] **Medium:** Consolidate Auth Middleware.

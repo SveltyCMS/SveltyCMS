@@ -89,7 +89,9 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
     try {
       await db.crud.deleteMany(COLLECTION_ID, {}, { bypassTenantCheck: true, permanent: true });
     } catch {}
-    await db.crud.deleteMany(COLLECTION_ID, {}, { bypassTenantCheck: true, permanent: true }).catch(() => {});
+    await db.crud
+      .deleteMany(COLLECTION_ID, {}, { bypassTenantCheck: true, permanent: true })
+      .catch(() => {});
 
     const opts = { bypassCache: true, tenantId: TEST_TENANT };
 
@@ -203,7 +205,7 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
           cpuPercent: avgOf("cpuPercent", ales),
         },
       },
-      runs: runResults,
+      runDetails: runResults,
     };
 
     const base = report.aggregate.baseline;
@@ -212,7 +214,8 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
       avgLatencyDeltaMs: enc.avgMs - base.avgMs,
       avgLatencyPercent: ((enc.avgMs - base.avgMs) / Math.max(base.avgMs, 0.0001)) * 100,
       throughputDropWritesSec: enc.writesPerSec - base.writesPerSec,
-      throughputDropPercent: ((enc.writesPerSec - base.writesPerSec) / Math.max(base.writesPerSec, 0.0001)) * 100,
+      throughputDropPercent:
+        ((enc.writesPerSec - base.writesPerSec) / Math.max(base.writesPerSec, 0.0001)) * 100,
       cpuDeltaPercent: enc.cpuPercent - base.cpuPercent,
     };
 

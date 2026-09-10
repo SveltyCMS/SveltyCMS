@@ -35,6 +35,9 @@ const ORIG = {
   refill: process.env.RATE_LIMIT_REFILL_PER_SEC,
 };
 process.env.RATE_LIMIT_CAPACITY = "10";
+// Der verteilte Limiter ist opt-in (RATE_LIMIT_DISTRIBUTED_ENABLED) —
+// dieser Test prueft genau diesen Pfad, also Flag hier setzen.
+process.env.RATE_LIMIT_DISTRIBUTED_ENABLED = "true";
 
 function post(pathname: string) {
   return createMockEvent(pathname, {

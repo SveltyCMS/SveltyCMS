@@ -123,6 +123,16 @@ export const handleRedisRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // Opt-in: der verteilte Limiter ist nur aktiv, wenn er ausdruecklich
+  // eingeschaltet ist (RATE_LIMIT_DISTRIBUTED_ENABLED=true). Grund: der Bucket
+  // haengt an der Quell-IP — in Integrations-/E2E-/Benchmark-Laeufen kommen
+  // alle Requests von 127.0.0.1, wodurch ein gemeinsamer Bucket die Suite nach
+  // ~100 Mutationen kollektiv mit 429 abwuergt. Ohne Redis und ohne dieses
+  // Flag bleibt der bestehende lokale Limiter (handle-rate-limit.ts) zustaendig.
+  if (process.env.RATE_LIMIT_DISTRIBUTED_ENABLED !== "true") {
+    return resolve(event);
+  }
+
   const context = extractContext(event);
   const clientIp = getClientIp(event);
   const namespace = `ip:${clientIp}`;

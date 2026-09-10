@@ -799,7 +799,9 @@ export const handle: Handle = async ({ event, resolve }) => {
       ) {
         import("./databases/db")
           .then(({ getDbInitPromise }) => {
-            getDbInitPromise(false, "CORE").catch((err) => logger.error("[System] Database init failed", err));
+            getDbInitPromise(false, "CORE").catch((err) =>
+              logger.error("[System] Database init failed", err),
+            );
           })
           .catch((err) => logger.error("[System] DB module load failed", err));
       }

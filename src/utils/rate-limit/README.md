@@ -37,14 +37,14 @@ Ein Bucket hat `capacity` (Max-Burst) und `refillPerSecond` (Refill-Rate).
 
 ## Konfiguration (ENV-Variablen)
 
-| Variable                     | Default       | Bedeutung                                            |
-|------------------------------|---------------|------------------------------------------------------|
-| `RATE_LIMIT_CAPACITY`        | 100           | Max-Burst / Bucket-Kapazität                          |
-| `RATE_LIMIT_MAX_REQUESTS`    | 100           | Kompatibilitäts-Alias für `CAPACITY` (`NODE_ENV!=prod`: 1000) |
-| `RATE_LIMIT_WINDOW_MS`       | 60000         | Fenster in ms (steuert abgeleitete Refill-Rate)       |
-| `RATE_LIMIT_REFILL_PER_SEC`  | `capacity/windowSek` | Explizite Refill-Rate in Tokens/s (überschreibt Ableitung) |
-| `RATE_LIMIT_REDIS_PING_MS`   | 30000         | Ping-Intervall des Redis-Detektors                    |
-| `REDIS_URL`                  | `redis://127.0.0.1:6379` | Redis-Endpunkt                                        |
+| Variable                    | Default                  | Bedeutung                                                     |
+| --------------------------- | ------------------------ | ------------------------------------------------------------- |
+| `RATE_LIMIT_CAPACITY`       | 100                      | Max-Burst / Bucket-Kapazität                                  |
+| `RATE_LIMIT_MAX_REQUESTS`   | 100                      | Kompatibilitäts-Alias für `CAPACITY` (`NODE_ENV!=prod`: 1000) |
+| `RATE_LIMIT_WINDOW_MS`      | 60000                    | Fenster in ms (steuert abgeleitete Refill-Rate)               |
+| `RATE_LIMIT_REFILL_PER_SEC` | `capacity/windowSek`     | Explizite Refill-Rate in Tokens/s (überschreibt Ableitung)    |
+| `RATE_LIMIT_REDIS_PING_MS`  | 30000                    | Ping-Intervall des Redis-Detektors                            |
+| `REDIS_URL`                 | `redis://127.0.0.1:6379` | Redis-Endpunkt                                                |
 
 ### Refill-Rate-Default
 
@@ -55,12 +55,12 @@ komplett auf: `refillPerSecond = capacity / (windowMs / 1000)`.
 
 Multiplikator auf die Basis-Kapazität, je nach Profil:
 
-| Profil                | Ermittlung                        | Multiplikator |
-|-----------------------|-----------------------------------|---------------|
-| Admin                 | `role=admin` / `isAdmin`          | 3.0×         |
-| Staff/Editor          | `role=staff/editor/moderator`      | 2.0×        |
-| Registrierter Gast    | `userId` vorhanden                | 1.0×       |
-| Anonym (Bot-Fläche)   | kein `userId`                     | 0.5×       |
+| Profil              | Ermittlung                    | Multiplikator |
+| ------------------- | ----------------------------- | ------------- |
+| Admin               | `role=admin` / `isAdmin`      | 3.0×          |
+| Staff/Editor        | `role=staff/editor/moderator` | 2.0×          |
+| Registrierter Gast  | `userId` vorhanden            | 1.0×          |
+| Anonym (Bot-Fläche) | kein `userId`                 | 0.5×          |
 
 Zusätzlich skaliert ein Tenant mit gültiger (nicht `global`/`default`) Kennung mit **1.5×**
 (Isolation). Ergebnis wird auf `>= 1` geklemmt. Die Refill-Rate skaliert proportional,
@@ -94,8 +94,8 @@ await initRateLimiter(); // idempotent, fallback-sicher
 
 const decision = await rateLimit({
   context: { tenantId: "acme", userId: "u1" },
-  namespace: "api",           // Bucket-Isolation
-  cost: 1,                    // z.B. 4 für sensible Endpunkte
+  namespace: "api", // Bucket-Isolation
+  cost: 1, // z.B. 4 für sensible Endpunkte
 });
 
 if (!decision.allowed) {
