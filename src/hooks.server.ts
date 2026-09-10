@@ -139,6 +139,7 @@ const passThrough: Handle = ({ event, resolve }) => resolve(event);
 
 let handleSecurity: Handle = passThrough,
   handleRateLimit: Handle = passThrough,
+  handleRedisRateLimit: Handle = passThrough,
   handleUserPreferences: Handle = passThrough,
   handleAuthentication: Handle = passThrough,
   handleAuthorization: Handle = passThrough,
@@ -161,6 +162,7 @@ async function ensureFullMiddleware() {
   const [
     security,
     rateLimit,
+    redisRateLimit,
     preferences,
     auth,
     authz,
@@ -174,6 +176,7 @@ async function ensureFullMiddleware() {
   ] = await Promise.all([
     import("./hooks/handle-security"),
     import("./hooks/handle-rate-limit"),
+    import("./hooks/handle-redis-rate-limit"),
     import("./hooks/handle-user-preferences"),
     import("./hooks/handle-authentication"),
     import("./hooks/handle-authorization"),
@@ -188,6 +191,7 @@ async function ensureFullMiddleware() {
 
   handleSecurity = security.handleSecurity;
   handleRateLimit = rateLimit.handleRateLimit;
+  handleRedisRateLimit = redisRateLimit.handleRedisRateLimit;
   handleUserPreferences = preferences.handleUserPreferences;
   handleAuthentication = auth.handleAuthentication;
   handleAuthorization = authz.handleAuthorization;
@@ -642,6 +646,7 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
           wrapHandle("authentication", () => handleAuthentication),
           wrapHandle("authorization", () => handleAuthorization),
           wrapHandle("local-context", () => handleLocalContext),
+          wrapHandle("redis-rate-limit", () => handleRedisRateLimit),
           wrapHandle("audit-logging", () => handleAuditLogging),
           wrapHandle("api-requests", () => handleApiRequests),
         );
@@ -687,6 +692,7 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),
         wrapHandle("local-context", () => handleLocalContext),
+        wrapHandle("redis-rate-limit", () => handleRedisRateLimit),
         wrapHandle("audit-logging", () => handleAuditLogging),
         wrapHandle("api-requests", () => handleApiRequests),
         wrapHandle("token-resolution", () => handleTokenResolution),

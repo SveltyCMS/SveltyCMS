@@ -1,0 +1,128 @@
+/**
+ * @file src/utils/rate-limit/index.ts
+ * @description Öffentliche API des Rate-Limiting-Systems (Redis + In-Memory-Fallback).
+ *
+ * Verwendungs-Fluss:
+ * 1. Basis-Konfiguration aus der Umgebung laden (loadBaseRateLimitConfig).
+ * 2. Adaptive Bucket-Konfiguration per tenantId/userId berechnen (computeAdaptiveBucket).
+ * 3. `rateLimit()` versucht zuerst Redis (cluster-weit), faellt bei
+ *    Timeout/Fehler nahtlos auf den lokalen In-Memory-Store zurück (mit Logging).
+ *
+ * Das Modul hält einen Lazy-Singleton (läuft in der App-Prozessperipherie),
+ * damit der Hook im Hot-Path keine Verbindung pro Request aufbaut.
+ */
+
+import { logger } from "@utils/logger";
+import { computeAdaptiveBucket, type AdaptiveContext, type BaseRateLimitConfig } from "./adaptive";
+import { loadBaseRateLimitConfig, loadRedisPingMs } from "./config";
+import { MemoryRateLimitStore } from "./memory-store";
+import { RedisRateLimitStore } from "./redis-client";
+
+export type RateLimitScope = "redis" | "memory";
+
+export interface RateLimitDecision {
+  allowed: boolean;
+  scope: RateLimitScope;
+  remaining: number;
+  retryAfterSeconds: number;
+  /** Hatte diese Anfrage einen Fallback ausgeloest? (fuer Metric/Logging) */
+  degraded: boolean;
+}
+
+export interface RateLimitOptions {
+  /** Kontext der adaptiven Schicht (tenantId, userId, role, isAdmin). */
+  context: AdaptiveContext;
+  /** Basis-Konfiguration; default: aus Umgebung geladen. */
+  base?: BaseRateLimitConfig;
+  /** Key-Scope-Praeferenz (z.B. "api"). */
+  namespace?: string;
+  /** Kosten dieses Requests (z.B. 4 fuer sensible Endpunkte). */
+  cost?: number;
+}
+
+// ─── Status: Ist Redis aktuell aktiv? (fuer Health/Metriken) ─────────────
+export function isRedisRateLimitActive(): boolean {
+  return redisStore.isAvailable();
+}
+
+// ─── Singleton-Store ──────────────────────────────────────────────────────
+const memoryStore = new MemoryRateLimitStore();
+const redisStore = new RedisRateLimitStore({
+  pingIntervalMs: loadRedisPingMs(),
+});
+
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Startet den (idempotenten) Verbindungsaufbau zu Redis. Wird von der
+ * Middleware-Initialisierung aufgerufen. Schlaegt fehl, bleibt der Store
+ * unavailable und fällt beim Request auf den In-Memory-Fallback zurück.
+ */
+export function initRateLimiter(): Promise<void> {
+  if (!initPromise) {
+    initPromise = redisStore.connect().catch(() => {
+      // Fehler ist hier ok — Fallback greift im Request-Pfad.
+      logger.debug("[RateLimit] Redis-Init fehlgeschlagen (Fallback aktiv)");
+    });
+  }
+  return initPromise;
+}
+
+/** Baut stabilen Bucket-Key (kein PII — nur gehashte Kennung). */
+function buildBucketKey(namespace: string, ctx: AdaptiveContext, profile: string): string {
+  const tenant = ctx.tenantId || "global";
+  return `rl:${namespace}:${tenant}:${profile}`;
+}
+
+/**
+ * Führt den Rate-Limit-Check aus: adaptive Kapazität → Redis → In-Memory-Fallback.
+ */
+export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDecision> {
+  const base = options.base ?? loadBaseRateLimitConfig();
+  const context = options.context ?? {};
+  const namespace = options.namespace ?? "api";
+  const cost = options.cost ?? 1;
+
+  const bucket = computeAdaptiveBucket(base, context);
+  const key = buildBucketKey(namespace, context, String(cost));
+
+  // ── Primary: Redis (cluster-weit) ──────────────────────────────────────
+  if (redisStore.isAvailable()) {
+    try {
+      const res = await redisStore.checkAndConsume(key, bucket, cost);
+      return {
+        allowed: res.allowed,
+        scope: "redis",
+        remaining: Math.max(0, Math.round(res.tokens)),
+        retryAfterSeconds: res.retryAfterSeconds,
+        degraded: false,
+      };
+    } catch (err: any) {
+      // Redis-Ausfall mid-flight → Fallback, einmalig loggen.
+      logger.warn("[RateLimit] Redis fehlgeschlagen, lokaler Fallback aktiv:", err?.message ?? err);
+    }
+  }
+
+  // ── Fallback: lokal (In-Memory) ────────────────────────────────────────
+  const res = memoryStore.checkAndConsume(key, bucket, cost);
+  return {
+    allowed: res.allowed,
+    scope: "memory",
+    remaining: Math.max(0, Math.round(res.tokens)),
+    retryAfterSeconds: res.retryAfterSeconds,
+    degraded: true,
+  };
+}
+
+/** Setzt alle Storen zurück (Tests / Reset). */
+export function resetRateLimitStores(): void {
+  memoryStore.reset();
+}
+
+/** Test-Hilfe: Redis-Store vollständig schließen und zurücksetzen. */
+export function _resetForTests(): void {
+  memoryStore.reset();
+  void redisStore.close();
+}
+
+export { RedisRateLimitStore, MemoryRateLimitStore };
