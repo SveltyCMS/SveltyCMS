@@ -252,7 +252,10 @@ if (!building) {
               `[System] Hardware optimized: ThreadPool=${hw.threadPoolSize} | SharpConcurrency=${hw.sharpConcurrency}`,
             );
           })
-          .catch(() => {});
+          .catch((err) => {
+            logger.warn("[System] Image processing initialization failed", err);
+            hw.sharpConcurrency = 0;
+          });
 
         logger.info(`[System] ${describeHardware(hw)}`);
 
@@ -262,9 +265,9 @@ if (!building) {
         // - `graphql`            → handle-security's GraphQL complexity shield
         // - settings-service     → turbo-pipeline CORS preflight (getCorsHeadersInline)
         import("graphql")
-          .catch(() => {})
+          .catch((err) => logger.error("[System] GraphQL pre-warm failed", err))
           .then(() => import("@src/services/core/settings-service"))
-          .catch(() => {});
+          .catch((err) => logger.error("[System] Settings service pre-warm failed", err));
 
         // 🚀 GRAPHQL PRE-WARM: build the Yoga schema once at boot
         // (registerCollections + createSchema JIT ≈ 20ms) so the first
@@ -280,7 +283,7 @@ if (!building) {
               logger.debug("[GraphQL] Schema pre-warmed at boot");
             }
           })
-          .catch(() => {});
+          .catch((err) => logger.error("[System] GraphQL schema pre-warm failed", err));
 
         // Background services always start — production parity. Benchmark
         // runs measure the same runtime a real deployment has (pollers,
@@ -790,9 +793,11 @@ export const handle: Handle = async ({ event, resolve }) => {
       ) {
         import("./databases/db")
           .then(({ getDbInitPromise }) => {
-            getDbInitPromise(false, "CORE").catch(() => {});
+            getDbInitPromise(false, "CORE").catch((err) =>
+              logger.error("[System] Database init failed", err),
+            );
           })
-          .catch(() => {});
+          .catch((err) => logger.error("[System] DB module load failed", err));
       }
 
       const isReady =

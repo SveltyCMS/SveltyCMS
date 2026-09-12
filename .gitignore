@@ -115,3 +115,6 @@ tests/e2e/.auth/
 nul
 .tmp_config_backup/database/
 bun.lock
+
+# Lokale Review-Worktrees (geteilte Objekte, kein zweiter Klon)
+.worktrees/

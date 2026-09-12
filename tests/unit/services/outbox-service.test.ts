@@ -138,9 +138,7 @@ describe("outboxService.emit", () => {
 
     // Buffered emit returns immediately; the bulk flush persists asynchronously
     // on the coalescing timer (OUTBOX_BUFFER_FLUSH_MS = 25ms).
-    await new Promise((resolve) => setTimeout(resolve, 60));
-
-    expect(insertManyMock).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(insertManyMock).toHaveBeenCalledTimes(1));
     const [collection, rows] = insertManyMock.mock.calls[0];
     expect(collection).toBe("svelty_outbox");
     expect(rows[0].eventType).toBe("entry:create");
