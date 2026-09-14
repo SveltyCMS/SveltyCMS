@@ -1,12 +1,11 @@
 <!--
-import { ui } from '@src/stores/ui-store.svelte';
-@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/Widget.svelte
+@file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/widget.svelte
 @component
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
-
-import { ui } from '@src/stores/ui-store.svelte';import {
+import { ui } from '@src/stores/ui-store.svelte';
+import {
 	button_edit,
 	button_previous,
 	button_save,
@@ -15,7 +14,7 @@ import { ui } from '@src/stores/ui-store.svelte';import {
 	collection_widgetfield_drag,
 } from "@src/paraglide/messages";
 import {
-	collectionValue,
+	collections,
 	setCollectionValue,
 	setTargetWidget,
 } from "@src/stores/collection-store.svelte";
@@ -59,7 +58,7 @@ const contentTypes = page.params.contentPath ?? "";
 
 // Fields state with proper typing
 let fields = $state<Field[]>(
-	((collectionValue.value.fields as any[]) || []).map((field, index) => {
+	((collections.activeValue.fields as any[]) || []).map((field, index) => {
 		const baseField = {
 			id: index + 1,
 			label: field.label || "",
@@ -72,7 +71,7 @@ let fields = $state<Field[]>(
 
 // Effect to update fields when collection value changes
 $effect.root(() => {
-	fields = ((collectionValue.value.fields as any[]) || []).map(
+	fields = ((collections.activeValue.fields as any[]) || []).map(
 		(field, index) => {
 			const baseField = {
 				id: index + 1,
@@ -117,7 +116,7 @@ $effect.root(() => {
 
 	// Persist to store
 	setCollectionValue({
-		...collectionValue.value,
+		...collections.activeValue,
 		fields,
 	});
 };
@@ -151,7 +150,7 @@ function modalWidgetForm(selectedWidget: Field): void {
 					...fields.slice(existingIndex + 1),
 				];
 				setCollectionValue({
-					...collectionValue,
+					...collections.activeValue,
 					fields,
 				});
 			} else {
@@ -159,7 +158,7 @@ function modalWidgetForm(selectedWidget: Field): void {
 				const newField = { ...r, id: fields.length + 1 };
 				fields = [...fields, newField];
 				setCollectionValue({
-					...collectionValue,
+					...collections.activeValue,
 					fields,
 				});
 			}
@@ -225,7 +224,7 @@ async function handleCollectionSave() {
 
 	// Update the collection fields
 	setCollectionValue({
-		...collectionValue.value,
+		...collections.activeValue,
 		fields,
 	});
 

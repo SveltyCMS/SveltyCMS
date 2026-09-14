@@ -16,6 +16,7 @@ import { DatabaseModule } from "./base-adapter";
 import { assertSafeSqlIdentifier } from "./relational-utils";
 import { normalizeCollectionTableName } from "./collection-name";
 import { logger } from "@src/utils/logger";
+import { isMultiTenantEnabled } from "@utils/tenant";
 
 export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
   private get crud() {
@@ -196,17 +197,11 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
   /**
    * Multi-tenant scoping for content structure lookups (mirrors listSchemas).
    */
-  private async applyStructureTenantFilter(
-    filter: Record<string, any>,
+  private applyStructureTenantFilter(
+    filter: Record<string, unknown>,
     tenantId?: DatabaseId | null,
-  ): Promise<void> {
-    let isMultiTenant = false;
-    try {
-      const { isMultiTenantEnabled } = await import("@utils/tenant");
-      isMultiTenant = isMultiTenantEnabled();
-    } catch {
-      isMultiTenant = process.env.MULTI_TENANT === "true";
-    }
+  ): void {
+    const isMultiTenant = isMultiTenantEnabled() || process.env.MULTI_TENANT === "true";
     if (isMultiTenant && tenantId) filter.tenantId = tenantId;
   }
 
@@ -239,36 +234,15 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
     return this.adapter.wrap(async () => {
       // 🚀 Query system_content_structure first to get full schemas with fields
       try {
-        const filter: Record<string, any> = { nodeType: "collection" };
-        let isMultiTenant = false;
-        try {
-          const { isMultiTenantEnabled } = await import("@utils/tenant");
-          isMultiTenant = isMultiTenantEnabled();
-        } catch {
-          isMultiTenant = process.env.MULTI_TENANT === "true";
-        }
-
-        if (isMultiTenant && tenantId) {
-          filter.tenantId = tenantId;
-        }
+        const filter: Record<string, unknown> = { nodeType: "collection" };
+        this.applyStructureTenantFilter(filter, tenantId);
 
         const res = await this.crud.findMany("content_nodes", filter as any, options);
         if (res.success && Array.isArray(res.data)) {
           const schemas: Schema[] = [];
           for (const node of res.data) {
-            let def = (node as any).collectionDef;
-            if (def) {
-              if (typeof def === "string") {
-                try {
-                  def = JSON.parse(def);
-                } catch {
-                  /* ignore */
-                }
-              }
-              if (def && typeof def === "object") {
-                schemas.push(def as Schema);
-              }
-            }
+            const def = this.parseSchemaDefinition(node);
+            if (def) schemas.push(def);
           }
           if (process.env.BENCHMARK_DEBUG === "true") {
             logger.info(

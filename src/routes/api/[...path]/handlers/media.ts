@@ -10,7 +10,6 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import { Readable } from "node:stream";
-import mime from "mime-types";
 import { AppError, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -39,6 +38,7 @@ import {
   getVersionStats,
 } from "@src/utils/media/media-storage.server";
 import { parseMultipartStream } from "@utils/media/streaming-upload";
+import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
 import type { MediaItem } from "@utils/media/media-models";
 
@@ -908,7 +908,9 @@ export async function handleMediaShareDownload(
 
   try {
     const stats = await fsp.stat(fullPath);
-    const mimeType = mime.lookup(fullPath) || "application/octet-stream";
+    const storedMime = typeof item.mimeType === "string" ? item.mimeType : undefined;
+    const extraNames = typeof item.filename === "string" ? [item.filename] : undefined;
+    const mimeType = await resolveMimeTypeFromPath(fullPath, storedMime, extraNames);
 
     // Explicit web-stream conversion + abort teardown: a raw Node stream passed to
     // Response can leak the fd / surface uncaught fs errors when the client aborts.
@@ -923,6 +925,7 @@ export async function handleMediaShareDownload(
         "Content-Length": stats.size.toString(),
         "Content-Disposition": `attachment; filename="${item.filename}"`,
         "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch {

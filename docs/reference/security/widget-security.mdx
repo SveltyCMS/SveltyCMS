@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-04-10"
+updated: "2026-09-14"
 tags:
   - "security"
   - "widgets"
@@ -592,11 +592,11 @@ const results = await Promise.allSettled(
 
 **Implementation**:
 
-- **Small files (<5MB)**: Uses `arrayBuffer()` → `Buffer.from()` → `sniffMimeType(buffer.subarray(0, 2048))` to verify binary signatures before accepting
-- **Large files (≥5MB, non-SVG)**: Reads first 2048 bytes via `file.slice(0, 2048).arrayBuffer()`, runs `sniffMimeType()`, and rejects on major MIME category mismatch (e.g., client sends `image/png` but binary signature indicates `application/pdf`)
-- **SVG (any size ≤ MAX_SVG_BYTES)**: Always buffered and passed through `sanitizeSvg()` — never pure-streamed. Oversized SVGs are rejected. Misdeclared SVG content is sanitized or blocked on the stream path.
-- Uses the lightweight `slim-sniffer.server.ts` (~2KB) which detects 10+ formats via magic bytes (JPEG, PNG, GIF, WebP, SVG, MP4, WebM, PDF, DOCX)
-- **Remote URL uploads**: `saveRemoteMedia` + egress guard only (no raw `fetch(userUrl)`)
+- **Small files (<5MB)**: Uses `arrayBuffer()` → `Buffer.from()` → `sniffMimeType(buffer.subarray(0, 2048))` then `assertMimeAgreement()` before accepting
+- **Large files (≥5MB, non-SVG)**: Reads first 2048 bytes via `file.slice(0, 2048).arrayBuffer()`, runs `sniffMimeType()`, and rejects family/scriptable mismatches (`MIME_MISMATCH`)
+- **SVG (any size ≤ MAX_SVG_BYTES)**: Always buffered and passed through `sanitizeSvg()` — never pure-streamed. Oversized SVGs are rejected. JPEG-named SVG polyglots are rejected at write time.
+- Uses `slim-sniffer.server.ts` (~2KB) magic-byte detection (JPEG, PNG, GIF, WebP, SVG, HTML, TIFF, AVIF, HEIC, MP4, WebM, PDF, DOCX) plus `isAllowedUploadMime()` (no `image/*` prefix matching)
+- **Remote URL uploads / importer**: `saveRemoteMedia` and smart-importer use `resolveRemoteAssetMime()` after `validateEgressUrl` + `safeFetch` (no raw `fetch(userUrl)`). `Content-Type: octet-stream` is treated as unknown so sniffing can recover the type.
 
 **Protection Against**:
 

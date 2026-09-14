@@ -5,6 +5,7 @@
  *
  * ### Features:
  * - MIME type lookup and file validation (merged from mime-utils)
+ * - Single upload allowlist (`isAllowedUploadMime`) derived from MIME_MAP
  * - Reverse extension mapping from MIME type
  * - Media URL construction and path resolution
  * - Filename sanitization for safe upload/storage (merged from media-processing)
@@ -63,24 +64,32 @@ const MIME_MAP: Record<string, string> = {
   avif: "image/avif",
   bmp: "image/bmp",
   ico: "image/x-icon",
+  tif: "image/tiff",
   tiff: "image/tiff",
+  heic: "image/heic",
+  heif: "image/heif",
 
   // Audio
   mp3: "audio/mpeg",
   wav: "audio/wav",
   ogg: "audio/ogg",
+  oga: "audio/ogg",
   m4a: "audio/mp4",
   aac: "audio/aac",
   flac: "audio/flac",
+  weba: "audio/webm",
 
   // Video
   mp4: "video/mp4",
+  m4v: "video/mp4",
   webm: "video/webm",
   mov: "video/quicktime",
   avi: "video/x-msvideo",
+  mpg: "video/mpeg",
   mpeg: "video/mpeg",
+  ogv: "video/ogg",
 
-  // Documents
+  // Documents / archives (aligned with upload allowlist)
   pdf: "application/pdf",
   txt: "text/plain",
   html: "text/html",
@@ -89,6 +98,10 @@ const MIME_MAP: Record<string, string> = {
   json: "application/json",
   xml: "application/xml",
   zip: "application/zip",
+  gz: "application/gzip",
+  gzip: "application/gzip",
+  tar: "application/x-tar",
+  "7z": "application/x-7z-compressed",
   csv: "text/csv",
   doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -102,9 +115,50 @@ const EXT_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(MIME_MAP).map(([ext, mime]) => [mime, ext]),
 );
 
-/** Browser-compatible MIME lookup */
+/** Scriptable / office types we may serve from disk but never accept as uploads. */
+const BLOCKED_UPLOAD_MIME = new Set([
+  "text/html",
+  "text/css",
+  "text/javascript",
+  "application/javascript",
+  "application/xml",
+  "text/xml",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
+
+/** Single upload allowlist derived from MIME_MAP minus BLOCKED_UPLOAD_MIME. */
+export const ALLOWED_UPLOAD_MIME: ReadonlySet<string> = new Set(
+  Object.values(MIME_MAP).filter((mime) => !BLOCKED_UPLOAD_MIME.has(mime)),
+);
+
+/** Strip RFC 7231 parameters (`image/jpeg; charset=binary` → `image/jpeg`). */
+export function normalizeMime(mime: string): string {
+  return mime.split(";", 1)[0].trim().toLowerCase();
+}
+
+export function isAllowedUploadMime(mime: string): boolean {
+  if (!mime) return false;
+  return ALLOWED_UPLOAD_MIME.has(normalizeMime(mime));
+}
+
+/** Extension of a path/filename, ignoring dots in directory names. */
+function fileExtension(name: string): string | null {
+  const baseStart = Math.max(name.lastIndexOf("/"), name.lastIndexOf("\\")) + 1;
+  const base = name.slice(baseStart);
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0 || dot === base.length - 1) return null;
+  return base.slice(dot + 1).toLowerCase();
+}
+
+/** Browser-compatible MIME lookup. Returns null when the extension is unknown. */
 export function getMimeType(name: string): string | null {
-  const ext = name.toLowerCase().split(".").pop();
+  if (!name) return null;
+  const ext = fileExtension(name);
   if (!ext) return null;
   return MIME_MAP[ext] ?? null;
 }

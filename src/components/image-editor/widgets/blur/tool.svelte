@@ -5,6 +5,7 @@ Blur tool with interactive rectangular redaction regions.
 -->
 <script lang="ts">
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
+	import { generateUUID } from '@utils/native-utils';
 	import { Layer } from 'svelte-canvas';
 	import BlurControls from './controls.svelte';
 	import BlurControlsMobile from './controls-mobile.svelte';
@@ -33,7 +34,7 @@ Blur tool with interactive rectangular redaction regions.
 
 	// Generate unique ID
 	function generateId(): string {
-		return `blur_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		return `blur_${generateUUID()}`;
 	}
 
 	// Add new blur region

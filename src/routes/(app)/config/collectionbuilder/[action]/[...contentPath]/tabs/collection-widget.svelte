@@ -7,13 +7,12 @@ import { SvelteSet } from "svelte/reactivity";
 import type { FieldInstance } from "@src/content/types";
 import type { Role } from "@src/databases/auth/types";
 import {
-	collection,
+	collections,
 	setCollection,
 	setTargetWidget,
 } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { getWidgetFunction, widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
-import { widgets } from "@src/stores/widget-store.svelte.ts";
+import { getWidgetFunction, widgets } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 import { getGuiFields } from "@utils/schema/field-utils";
 import { logger } from "@utils/logger";
@@ -74,11 +73,11 @@ $effect(() => {
 const flipDurationMs = 180;
 
 function updateStore() {
-	if (collection.value) {
+	if (collections.active) {
 		const nextFields = items.map(
 			({ _dragId, id: _id, ...rest }) => rest as FieldInstance,
 		);
-		setCollection({ ...collection.value, fields: nextFields });
+		setCollection({ ...collections.active, fields: nextFields });
 	}
 }
 
@@ -272,7 +271,7 @@ function duplicateField(field: WidgetListItem) {
 }
 
 async function addSidebarWidget(key: string, openEditor = true) {
-	await widgetStoreActions.initializeWidgets();
+	await widgets.initialize();
 	// Resolve case-insensitive so "input" / "Input" both work from E2E + palette
 	const resolvedKey =
 		getWidgetFunction(key)
@@ -405,7 +404,7 @@ const inferredWidget = $derived.by<InferredWidgetResult | null>(() => {
 });
 
 const generatedCode = $derived(
-	generateCollectionTypeScript(collection.value || {}, items),
+	generateCollectionTypeScript(collections.active || {}, items),
 );
 
 async function copyCode() {
@@ -426,7 +425,7 @@ async function handleQuickAdd() {
 	const target = inferredWidget;
 	quickAddInput = "";
 
-	await widgetStoreActions.initializeWidgets();
+	await widgets.initialize();
 	const resolvedKey =
 		getWidgetFunction(target.widgetKey)
 			? target.widgetKey
@@ -477,7 +476,7 @@ async function handleQuickAdd() {
 			<div class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400">
 				<iconify-icon icon="mdi:code-json" width="20" class="text-tertiary-500"></iconify-icon>
 				<span class="font-mono text-xs font-bold text-surface-900 dark:text-surface-100">
-					config/collections/{(collection.value?.name || 'collection').toLowerCase().replace(/\s+/g, '_')}.ts
+					config/collections/{(collections.active?.name || 'collection').toLowerCase().replace(/\s+/g, '_')}.ts
 				</span>
 				<span class="inline-flex items-center gap-1 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-semibold text-success-500 dark:bg-success-500/20">
 					<span class="h-1.5 w-1.5 rounded-full bg-success-500 animate-pulse"></span>

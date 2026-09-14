@@ -14,6 +14,7 @@ export const API_CONTENT_SECURITY_POLICY =
 /** Required for /files/ assets to load under COEP require-corp admin pages. */
 export const MEDIA_RESOURCE_HEADERS: Record<string, string> = {
   "Cross-Origin-Resource-Policy": "same-origin",
+  "X-Content-Type-Options": "nosniff",
 };
 
 export const BASE_HEADERS: Record<string, string> = {

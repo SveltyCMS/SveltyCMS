@@ -340,87 +340,11 @@ class CollectionState {
   clearSelected() {
     this.selectedEntries.length = 0;
   }
-
-  // Legacy compatibility getters/setters for smooth migration
-  get current() {
-    return this.active;
-  }
-  set current(v) {
-    this.active = v;
-  }
 }
 
 // Singleton instances
 export const collections = new CollectionState();
 
-/**
- * BACKWARD COMPATIBILITY LAYER
- * These exports are maintained to prevent immediate breakage.
- * TODO: Migrate all consumers to use the 'collections' singleton.
- */
-
-// Legacy 'collections' was a record. We bridge it to collections.all
-// This is tricky because it was a direct export of a $state object.
-// We'll provide a Proxy or just keep the old collections record for now if needed,
-// but let's try to migrate.
-
-// Actually, let's keep the discrete exports for now but wire them to the singleton.
-
-export const collection = {
-  get value() {
-    return collections.active;
-  },
-  set value(v) {
-    collections.active = v;
-  },
-};
-
-export const collectionValue = {
-  get value() {
-    return collections.activeValue;
-  },
-  set value(v) {
-    collections.setCollectionValue(v);
-  },
-};
-
-export const mode = {
-  get value() {
-    return collections.mode;
-  },
-  set value(v) {
-    collections.setMode(v);
-  },
-};
-
-export const contentStructure = {
-  get value() {
-    return collections.contentStructure;
-  },
-  set value(v) {
-    collections.contentStructure = v;
-  },
-};
-
-export const modifyEntry = {
-  get value() {
-    return collections.modifyEntry;
-  },
-  set value(v) {
-    collections.modifyEntry = v;
-  },
-};
-
-export const targetWidget = {
-  get value() {
-    return collections.targetWidget;
-  },
-  set value(v) {
-    collections.targetWidget = v;
-  },
-};
-
-// Action functions
 export const setCollection = (v: Schema | null) => collections.setCollection(v);
 export const setMode = (v: ModeType) => collections.setMode(v);
 export const setCollectionValue = (v: Record<string, unknown>) => collections.setCollectionValue(v);
@@ -434,41 +358,3 @@ export const applyRemoteContentStructure = (v: ContentNode[]) =>
 /** Current structure revision — see `CollectionState.structureRevision`. */
 export const getStructureRevision = () => collections.structureRevision;
 export const setTargetWidget = (v: Widget) => collections.setTargetWidget(v);
-
-// Legacy derived/utility functions
-export const getTotalCollections = () => collections.total;
-export const getHasSelectedEntries = () => collections.hasSelected;
-export const getCurrentCollectionName = () => collections.activeName;
-
-export const entryActions = {
-  addEntry: (id: string) => collections.addEntry(id),
-  removeEntry: (id: string) => collections.removeEntry(id),
-  clear: () => collections.clearSelected(),
-};
-
-// Reactive getters for legacy components — reads from singleton directly
-export const currentCollectionId = {
-  get value() {
-    return collections.currentId;
-  },
-};
-export const collectionsLoading = {
-  get value() {
-    return collections.loading;
-  },
-};
-export const collectionsError = {
-  get value() {
-    return collections.error;
-  },
-};
-export const unAssigned = {
-  get value() {
-    return collections.unassigned;
-  },
-};
-export const selectedEntries = {
-  get value() {
-    return collections.selectedEntries;
-  },
-};

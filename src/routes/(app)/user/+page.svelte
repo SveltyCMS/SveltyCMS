@@ -356,7 +356,7 @@
 				info.key === 'unknown'
 					? s.isCurrent
 						? 'current-unknown'
-						: `orphan-${String(s._id ?? s.id ?? Math.random())}`
+						: `orphan-${String(s._id ?? s.id ?? 'unknown')}`
 					: `${info.key}|${s.ip ?? ''}`;
 			const list = map.get(key) ?? [];
 			list.push(s);

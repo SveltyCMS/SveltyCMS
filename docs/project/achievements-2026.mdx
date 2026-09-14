@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-08"
+updated: "2026-09-14"
 tags:
   - "achievements"
   - "log"
@@ -1358,6 +1358,39 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **Paraglide i18n Tree-Shaking Audit & Copy Scanner (September 2026)**:
   - **Strict Tree-Shaking (Rule 3.1)**: Eliminated wildcard imports (`import * as m from '@src/paraglide/messages'`) across dashboard widgets in favor of explicit named imports, preventing dead message bundle bloat.
   - **Automated Hardcoded Copy Scanner (`scripts/check-hardcoded-copy.ts`)**: Introduced an automated scanner and CI check guarding against wildcard paraglide imports and untranslated strings across admin Svelte routes.
+- **Enterprise Multi-Stage Review Workflows (September 2026)**:
+  - **Full Lifecycle Finite State Machine**: Built `WorkflowService` with configurable stage graphs (`draft` → `review` → `approved` → `published`), audit history logging, and role-based stage transitions guarded by `workflow:transition`.
+  - **Visual State Graph Editor & In-Context Controls**: Visual workflow editor at `/config/workflows` with collection binding, transition guards, and `<WorkflowActions>` embedded in the collection content view allowing editors to execute transitions with optional review comments.
+- **Visual Polymorphic Block Builder (September 2026)**:
+  - **Component-Driven Page Layout Widget**: Production widget (`src/widgets/custom/block-builder/`) featuring 8 standard presets (Hero, Text & Prose, Media Showcase, Call to Action, Features Grid, Quote/Testimonial, FAQ, Rich Text).
+  - **Interactive Ergonomics & Headless Export**: Keyboard-accessible block reordering, duplication, collapse/expand, Valibot schema validation, and headless JSON export matching AST compilation standards.
+- **In-App Developer & API Playground (September 2026)**:
+  - **Unified Developer Console**: Integrated console at `/config/api` inside `<AdminPageShell>` providing interactive OpenAPI 3.1 REST execution, live GraphQL query testing against `/api/graphql`, and multi-language client code generation (cURL, TypeScript fetch, Python requests, zero-latency SvelteKit `LocalCMS`).
+- **GDPR Article 17 Right to Erasure (September 2026)**:
+  - **Cascading Data Erasure**: End-to-end permanent erasure at `POST /api/gdpr` (`action: "erase"` / `"wipe"`) cascading across sessions, tokens, audit logs, and users via `gdprService.eraseUser` with strict `tenantId` isolation.
+  - **Verified Sub-Millisecond Benchmark**: `right-to-be-forgotten-audit.test.ts` verified on production endpoint with <1ms avg wipe latency and 0 orphaned records across all four database engines.
+- **Intelligence Consumption & Predictive Navigation (September 2026)**:
+  - **Behavioral Learner Preloading**: Integrated `predictNextPathAdaptive` with confidence gating; applied `data-preload="smart"` to sidebar navigation and collection tree nodes in `collections.svelte` and `tree-view.svelte`.
+  - **Warm Next Page**: Added viewport preloading on Smart Table pagination controls (`data-preload="viewport"` on next page link via `pagination.svelte`) and dashboard hot-collection quick chips.
+  - **Heat-Aware SWR**: Implemented heat-aware stale-while-revalidate in `collection-service.ts`, serving hot top-20 lists stale up to 15 minutes while maintaining 60s fresh TTL.
+- **Request-Pipeline Lean Optimization (September 2026)**:
+  - **Single L2 Cache Key**: Unified hook and dispatcher caching under a single canonical L2 cache key, retiring duplicate namespaces.
+  - **Single-Compression Guarantee**: Introduced a `compressed: {}` sentinel guaranteeing a single compression pass (Brotli/Gzip/Zstd) re-populating L1 variants.
+  - **Admin Sidebar Caching**: Cached admin sidebar payloads per `(tenantId, contentVersion)` to eliminate per-SSR reconstruction and recursive cloning overhead.
+- **Smart Table Saved Views Integration (September 2026)**:
+  - **Unified Saved Views UI**: Wired `SmartTableSavedViewsMenu` across User Management (`admin-area.svelte`), Entry List, and Website Tokens surfaces.
+- **Unified Upload Allowlist & Write-Time MIME Conflict Defense (September 2026)**:
+  - **Single Upload Allowlist**: Derived `isAllowedUploadMime()` from `MIME_MAP` minus scriptable and office types (`text/html`, JS, XML, CSS, Office formats); used uniformly across streaming uploads, `saveMedia`, and the `<MediaUpload>` widget. Permissive media formats (`HEIC`, `AVIF`, `FLAC`) supported while eliminating insecure prefix matching (`image/*`).
+  - **Write-Time Polyglot Conflict Detection**: Implemented `assertMimeAgreement()` running after magic-byte sniffing (first 512 bytes) on write. Allows same-family transitions (JPEG vs PNG) while strictly rejecting polyglots, scriptable payloads, or HTML masquerading as image extensions (`MIME_MISMATCH`), avoiding expensive head reads on GET requests.
+  - **Universal `nosniff` Defense**: Enforced `X-Content-Type-Options: nosniff` globally on `MEDIA_RESOURCE_HEADERS`, ensuring local file delivery, cloud 302 redirects, share-downloads, and turbo static responses strictly reject browser MIME sniffing.
+  - **Serve-path resolve without `mime-types`/`mrmime`**: `/files` and share-download use `resolveMimeTypeFromPath` (extension map → stored MIME → 512-byte sniff → `application/octet-stream`). Scripts use `node:fs` `globSync` instead of the `glob` package.
+  - **Remote/importer MIME**: `resolveRemoteAssetMime()` is the shared path for smart-importer, S3 mirror PUTs, and `saveRemoteMedia`. Remote `Content-Type: octet-stream` is treated as unknown so sniffing can recover the type; HTML is sniffed (`<!DOCTYPE html>` / `<html`) and rejected against image claims. Image-editor watermark/blur/annotate IDs use `generateUUID()` (CSPRNG).
+  - **Verification**: `tests/unit/media/media-utils.test.ts`, `tests/unit/media/slim-sniffer.test.ts`, `tests/unit/media/processing/media-svg-ssrf-regression.test.ts`.
+- **CollectionsNamespace Consolidation & Hot-Path Architecture (August 2026)**:
+  - **Monolith Decomposition**: Decomposed the ~2,100-line `collections-namespace.ts` into a lightweight orchestrator supported by focused modules (`schema-store`, `read-pipeline`, `write-pipeline`, `post-write`, `request-cache`, `lazy-services`).
+  - **Zero-Redundancy Schema Walks**: Field prep consolidated to a single schema walk and single clone via `prepareCollectionFields()` in `content-utils.ts`, replacing 3 prior passes; unified `applySchemaHookPipeline` across create/update operations.
+  - **Physical Table Naming Reconciliation**: Normalized adapter table naming (`normalizeCollectionTableName()`) across SQL (`getTable`, `createIndexes`, `registerTableSchema`) and MongoDB (`normalizeCollectionName`, `createModel`), resolving hyphenated-ID model registry inconsistencies.
+  - **Hot-Path Optimization**: Inserted widget transform field-level caching, insert-only `createdAt` semantics, synchronous L1 mutation with background L2 fire-and-forget invalidation, and session verification via single JOIN.
 
 ---
 

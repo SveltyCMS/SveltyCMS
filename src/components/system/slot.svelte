@@ -7,7 +7,7 @@
 	import '@src/plugins/index';
 	import { slotRegistry } from '@src/plugins/slot-registry.svelte.ts';
 	import type { InjectionZone } from '@src/plugins/types';
-	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-component-loader';
+	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-module';
 
 	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
 	// Actually, WidgetLoader is designed for Widgets with specific props.

@@ -19,7 +19,7 @@ pathname, collection, isAdmin).
 <script lang="ts">
 	import '@src/plugins/index';
 	import { adminZoneRegistry, type AdminZoneName } from '@src/plugins/admin-zone-registry.svelte.ts';
-	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-component-loader';
+	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-module';
 
 	interface Props {
 		zone: AdminZoneName;

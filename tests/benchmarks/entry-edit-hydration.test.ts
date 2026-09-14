@@ -62,7 +62,7 @@ async function runHydrationAudit() {
   console.log("🚀 Starting Entry Edit Hydration Audit (50-field form)...\n");
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  const { widgets, widgetStoreActions } = await import("@src/stores/widget-store.svelte");
+  const { widgets } = await import("@src/stores/widget-store.svelte");
   const { getCachedWidgetInputLoader, prefetchWidgetLoaders, clearWidgetLoaderCache } =
     await import("@widgets/widget-loader-registry");
 
@@ -70,7 +70,7 @@ async function runHydrationAudit() {
   const db = getDb();
   if (!db) throw new Error("Database initialization failed");
 
-  await widgetStoreActions.initializeWidgets("global", db);
+  await widgets.initialize("global", db);
   clearWidgetLoaderCache();
 
   const fields = build50FieldSchema();

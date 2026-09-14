@@ -219,5 +219,3 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     }, "GET_VERSION_FAILED");
   }
 }
-
-export * from "./adapter-core";

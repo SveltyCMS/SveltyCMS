@@ -14,7 +14,7 @@
  * - Graceful force-reset to 'view' from unexpected states
  */
 import { logger } from "@utils/logger";
-import { mode, setMode as _setMode, collections } from "./collection-store.svelte";
+import { setMode as _setMode, collections } from "./collection-store.svelte";
 
 type Mode = "view" | "edit" | "create" | "modify" | "media";
 
@@ -72,7 +72,7 @@ class ModeStateMachine {
    * @returns true if transition successful, false if blocked/invalid.
    */
   async transitionTo(newMode: Mode): Promise<boolean> {
-    const currentMode = mode.value as Mode;
+    const currentMode = collections.mode as Mode;
 
     // Idempotent check
     if (currentMode === newMode) {

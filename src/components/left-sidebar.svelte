@@ -1,8 +1,5 @@
 <!--
-import { ui } from '@src/stores/ui-store.svelte';
-import { systemLanguage } from '@src/stores/locale-store.svelte';
 @file src/components/left-sidebar.svelte
-
 @component
 **LeftSidebar — context-aware primary navigation**
 
@@ -56,8 +53,8 @@ import Button from '@components/ui/button.svelte';
 	import { applySystemLanguage, mergeSystemLanguages } from '@utils/system-locale';
 	import { goto, refreshAll } from '$app/navigation';
 	// Stores
-	import { contentStructure } from '@src/stores/collection-store.svelte';
-	import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
+	import { collections as collectionState } from '@src/stores/collection-store.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
@@ -92,7 +89,7 @@ import Button from '@components/ui/button.svelte';
 			(page.data as { predictedNextPath?: string | null } | undefined)?.predictedNextPath
 		)
 	);
-	const collections: ContentNode[] = $derived(contentStructure.value || []);
+	const collections: ContentNode[] = $derived(collectionState.contentStructure || []);
 	let searchQuery = $state('');
 
 	// Route context: exclusive modes — never show both trees at once
@@ -206,19 +203,19 @@ import Button from '@components/ui/button.svelte';
 
 	function toggleSidebar(): void {
 		const newState: SidebarState = ui.state.leftSidebar === 'full' ? 'collapsed' : 'full';
-		toggleUIElement('leftSidebar', newState);
+		ui.toggle('leftSidebar', newState);
 	}
 
 	function handleUserClick(): void {
 		if (isMobile()) {
-			toggleUIElement('leftSidebar', 'hidden');
+			ui.toggle('leftSidebar', 'hidden');
 		}
 		modeTransitionGuard.setMode('view');
 	}
 
 	function handleConfigClick(): void {
 		if (isMobile()) {
-			toggleUIElement('leftSidebar', 'hidden');
+			ui.toggle('leftSidebar', 'hidden');
 		}
 		modeTransitionGuard.setMode('view');
 	}
@@ -258,7 +255,7 @@ import Button from '@components/ui/button.svelte';
 			goto(firstCollectionPath);
 		}
 		if (isMobile()) {
-			toggleUIElement('leftSidebar', 'collapsed');
+			ui.toggle('leftSidebar', 'collapsed');
 		}
 	}
 
@@ -266,7 +263,7 @@ import Button from '@components/ui/button.svelte';
 	function handleGoToMediaGallery(): void {
 		goto('/mediagallery');
 		if (isMobile()) {
-			toggleUIElement('leftSidebar', 'collapsed');
+			ui.toggle('leftSidebar', 'collapsed');
 		}
 	}
 </script>
@@ -282,7 +279,7 @@ import Button from '@components/ui/button.svelte';
 		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
 			<Button variant="ghost"
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
+				onclick={() => ui.toggle('leftSidebar', 'hidden')}
 				aria-label={applayout_close_sidebar()}
 			 class="p-0! min-w-0 preset-outlined-surface-500">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
@@ -358,7 +355,7 @@ import Button from '@components/ui/button.svelte';
 										class="flex flex-1 items-center gap-2 px-2 py-2 text-sm no-underline!"
 										style="color: var(--admin-text-body)"
 										onclick={() => {
-											if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+											if (isMobile()) ui.toggle('leftSidebar', 'hidden');
 										}}
 									>
 										<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -461,7 +458,7 @@ import Button from '@components/ui/button.svelte';
 							class="flex items-center gap-2 rounded px-2 py-2 text-sm no-underline! transition-colors hover:bg-surface-200/70 dark:hover:bg-surface-800"
 							style="color: var(--admin-text-body)"
 							onclick={() => {
-								if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+								if (isMobile()) ui.toggle('leftSidebar', 'hidden');
 							}}
 						>
 							<iconify-icon icon={item.icon} width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>

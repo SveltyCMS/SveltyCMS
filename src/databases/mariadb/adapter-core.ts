@@ -1588,5 +1588,3 @@ export abstract class AdapterCore extends SqlAdapterCore {
     );
   }
 }
-
-export * from "./adapter-core";

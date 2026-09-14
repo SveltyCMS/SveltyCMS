@@ -44,7 +44,7 @@
 	} from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { app } from '@src/stores/ui-store.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
@@ -189,7 +189,7 @@
 	const batchSizeLimit = $derived(isSlowConnection ? 10 : 50);
 
 	// --- Derived State ---
-	const currentAction = $derived((app.listboxValueState as ActionType) || 'create');
+	const currentAction = $derived((ui.listboxValueState as ActionType) || 'create');
 
 	const currentConfig = $derived.by(() => {
 		const config = ACTION_CONFIGS.find((c) => c.type === currentAction);
@@ -249,7 +249,7 @@
 	// Smart action selection based on selection state
 	$effect(() => {
 		if (isCollectionEmpty) {
-			app.listboxValueState = 'create';
+			ui.listboxValueState = 'create';
 						manualActionSet = false;
 						return;
 					}
@@ -260,7 +260,7 @@
 
 		if (!hasSelections) {
 			if (currentAction !== 'create') {
-				app.listboxValueState = 'create';
+				ui.listboxValueState = 'create';
 							}
 			return;
 		}
@@ -268,11 +268,11 @@
 		// Selection logic: prioritize Unpublish if only published items are selected
 		if (stats.published > 0 && stats.published === selectedCount) {
 			if (currentAction !== 'unpublish') {
-				app.listboxValueState = 'unpublish';
+				ui.listboxValueState = 'unpublish';
 							}
 		} else if (currentAction !== 'publish') {
 			// Mixed or Drafts: prioritize Publish
-			app.listboxValueState = 'publish';
+			ui.listboxValueState = 'publish';
 					}
 	});
 
@@ -454,7 +454,7 @@
 
 	function handleOptionClick(event: Event, actionType: ActionType) {
 		event.preventDefault();
-		app.listboxValueState = actionType;
+		ui.listboxValueState = actionType;
 		manualActionSet = true;
 		isDropdownOpen = false;
 	}

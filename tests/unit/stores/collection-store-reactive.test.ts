@@ -25,38 +25,34 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     collections.selectedEntries = [];
   });
 
-  describe("reactive getter wrappers", () => {
-    it("collectionsLoading should reflect loading state changes", async () => {
-      const mod = await import("@src/stores/collection-store.svelte.ts");
+  describe("singleton state", () => {
+    it("loading should reflect loading state changes", () => {
       collections.loading = true;
-      expect(mod.collectionsLoading.value).toBe(true);
+      expect(collections.loading).toBe(true);
 
       collections.loading = false;
-      expect(mod.collectionsLoading.value).toBe(false);
+      expect(collections.loading).toBe(false);
     });
 
-    it("collectionsError should reflect error state changes", async () => {
-      const mod = await import("@src/stores/collection-store.svelte.ts");
+    it("error should reflect error state changes", () => {
       collections.error = "Something failed";
-      expect(mod.collectionsError.value).toBe("Something failed");
+      expect(collections.error).toBe("Something failed");
 
       collections.error = null;
-      expect(mod.collectionsError.value).toBeNull();
+      expect(collections.error).toBeNull();
     });
 
-    it("currentCollectionId should reflect id changes", async () => {
-      const mod = await import("@src/stores/collection-store.svelte.ts");
+    it("currentId should reflect id changes", () => {
       collections.currentId = "col-123";
-      expect(mod.currentCollectionId.value).toBe("col-123");
+      expect(collections.currentId).toBe("col-123");
     });
 
-    it("selectedEntries should reflect selection changes", async () => {
-      const mod = await import("@src/stores/collection-store.svelte.ts");
+    it("selectedEntries should reflect selection changes", () => {
       collections.addEntry("entry-1");
-      expect(mod.selectedEntries.value).toContain("entry-1");
+      expect(collections.selectedEntries).toContain("entry-1");
 
       collections.clearSelected();
-      expect(mod.selectedEntries.value).toEqual([]);
+      expect(collections.selectedEntries).toEqual([]);
     });
   });
 

@@ -44,23 +44,31 @@ vi.mock("@src/utils/media/media-storage.server", () => ({
   moveMediaToTrash: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@src/utils/media/slim-sniffer.server", () => ({
-  sniffMimeType: vi.fn().mockReturnValue({ mime: "image/png", ext: "png" }),
-}));
+vi.mock("@src/utils/media/slim-sniffer.server", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@src/utils/media/slim-sniffer.server")>();
+  return {
+    ...real,
+    sniffMimeType: vi.fn().mockReturnValue({ mime: "image/png", ext: "png" }),
+  };
+});
 
-vi.mock("@src/utils/media/media-utils", () => ({
-  validateMediaFileServer: vi.fn().mockReturnValue({ valid: true }),
-  resolveMediaRelPath: vi.fn().mockImplementation((item: any) => item.path || item.url),
-  buildOriginalRelPath: vi
-    .fn()
-    .mockImplementation((hash: string, filename: string, tenantId?: string | null) => {
-      const dot = filename.lastIndexOf(".");
-      const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
-      const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
-      const tenant = tenantId ? `${tenantId}/` : "";
-      return `${tenant}${hash}/original/${baseName}-${hash}.${ext}`;
-    }),
-}));
+vi.mock("@src/utils/media/media-utils", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@src/utils/media/media-utils")>();
+  return {
+    ...real,
+    validateMediaFileServer: vi.fn().mockReturnValue({ valid: true }),
+    resolveMediaRelPath: vi.fn().mockImplementation((item: any) => item.path || item.url),
+    buildOriginalRelPath: vi
+      .fn()
+      .mockImplementation((hash: string, filename: string, tenantId?: string | null) => {
+        const dot = filename.lastIndexOf(".");
+        const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
+        const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
+        const tenant = tenantId ? `${tenantId}/` : "";
+        return `${tenant}${hash}/original/${baseName}-${hash}.${ext}`;
+      }),
+  };
+});
 
 vi.mock("@src/services/core/settings-service", () => ({
   getPublicSettingSync: vi.fn().mockImplementation((key) => {

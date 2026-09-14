@@ -1,7 +1,6 @@
 <script lang="ts">
 import { collections } from "@src/stores/collection-store.svelte";
 import type { AIEnrichmentProps } from "./types";
-import Icon from "@iconify/svelte";
 import { logger } from "@utils/logger";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { getFieldName } from "@utils/schema/field-utils";
@@ -101,10 +100,10 @@ async function runEnrichment() {
 			aria-controls={inputId}
 		>
 			{#if loading}
-				<Icon icon="mdi:loading" class="animate-spin" />
+				<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 				<span aria-live="polite">Processing...</span>
 			{:else}
-				<Icon icon="mdi:auto-fix" />
+				<iconify-icon icon="mdi:auto-fix"></iconify-icon>
 				Enrich from {field.sourceField || 'source'}
 			{/if}
 		</Button>
@@ -142,7 +141,7 @@ async function runEnrichment() {
 		{/if}
 
 		<div class="absolute bottom-2 inset-e-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">
-			<Icon icon="mdi:robot" />
+			<iconify-icon icon="mdi:robot"></iconify-icon>
 			{field.action.toUpperCase()}
 		</div>
 	</div>

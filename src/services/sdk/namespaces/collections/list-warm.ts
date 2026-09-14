@@ -16,7 +16,8 @@
  *   amplify into read amplification (each warm re-queries the list once)
  * - Learner-gated: only collections the behavioral learner scores as hot
  * - System/internal writes skipped (content sync, imports, LocalCMS system)
- * - Fire-and-forget on a microtask; failures are debug-logged, never thrown
+ * - Fire-and-forget on setImmediate (macrotask); never same-tick as the write
+ *   so SQLite mutex / PG connections stay on the create burst
  * - Env kill-switch: `SVELTY_DISABLE_LIST_WARM=1`
  */
 import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
@@ -81,7 +82,11 @@ export function scheduleDefaultListWarm(
   if (!isHot) return;
 
   warmedAt.set(key, now);
-  queueMicrotask(() => {
+  // Macrotask, not microtask: a same-tick find() steals the SQLite write
+  // mutex from the next concurrent create (the 8c HTTP cliff).
+  const later =
+    typeof setImmediate === "function" ? setImmediate : (fn: () => void) => setTimeout(fn, 0);
+  later(() => {
     runFind({ tenantId, user }).catch((err: unknown) => {
       logger.debug(
         `[list-warm] default-list warm failed for ${schemaId}: ${

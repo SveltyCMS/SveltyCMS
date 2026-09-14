@@ -802,7 +802,7 @@ async function mirrorAssetsLocally(
   const localIds: string[] = [];
   const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
   const { persistMigratedAsset } = await import("./utils/migrated-media.server");
-  const { getMimeType } = await import("@src/utils/media/media-utils");
+  const { resolveRemoteAssetMime } = await import("@src/utils/media/slim-sniffer.server");
 
   for (const asset of assets) {
     try {
@@ -827,13 +827,15 @@ async function mirrorAssetsLocally(
       const arrayBuffer = resp.bodyBytes;
       const filename =
         asset.externalUrl.split("/").pop()?.split("?")[0] || `migrated_${asset.originalId}.png`;
-      const mimeType =
-        resp.headers?.["content-type"]?.split(";")[0]?.trim() ||
-        getMimeType(filename) ||
-        "application/octet-stream";
+      const buffer = Buffer.from(arrayBuffer);
+      const mimeType = resolveRemoteAssetMime({
+        filename,
+        declaredMime: resp.headers?.["content-type"] ?? null,
+        buffer,
+      });
 
       const mediaId = await persistMigratedAsset(dbAdapter, {
-        buffer: Buffer.from(arrayBuffer),
+        buffer,
         filename,
         mimeType,
         altText: asset.altText,

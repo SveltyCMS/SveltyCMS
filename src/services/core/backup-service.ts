@@ -38,6 +38,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
 import type { IDBAdapter } from "@src/databases/db-interface";
+import { generateUUID } from "@utils/native-utils";
 import {
   AES256_HKDF_INFO,
   AES256_HKDF_SALT,
@@ -843,7 +844,7 @@ export class BackupService {
       `[BackupService] Creating restore plan from: ${backupPath}, tenant=${targetTenant}`,
     );
 
-    const planId = `restore_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const planId = `restore_${generateUUID()}`;
     const collectionPlans: RestoreCollectionPlan[] = [];
     const settingsPlans: RestoreSettingsPlan[] = [];
     const rolePlans: RestoreRolePlan[] = [];

@@ -37,7 +37,7 @@ functionality for image editing and basic file information display.
 		widget_ImageUpload_Type,
 		widget_ImageUpload_Uploaded
 	} from '@src/paraglide/messages';
-	import { collectionValue } from '@src/stores/collection-store.svelte.ts';
+	import { collections } from '@src/stores/collection-store.svelte.ts';
 	// Stores
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { isoDateStringToDate } from '@utils/date';
@@ -69,8 +69,8 @@ functionality for image editing and basic file information display.
 	// Effect to initialize 'value' if it's undefined and a default is available
 	// This runs after the component has initialized and 'value' would have received its initial binding
 	$effect(() => {
-		if (value === undefined && (collectionValue.value as Record<string, unknown>)[getFieldName(field)] !== undefined) {
-			value = (collectionValue.value as Record<string, unknown>)[getFieldName(field)] as File | MediaImage;
+		if (value === undefined && (collections.activeValue as Record<string, unknown>)[getFieldName(field)] !== undefined) {
+			value = (collections.activeValue as Record<string, unknown>)[getFieldName(field)] as File | MediaImage;
 		}
 	});
 

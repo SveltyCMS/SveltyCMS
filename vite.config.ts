@@ -55,7 +55,6 @@ const SERVER_EXTERNALS = [
 ];
 
 const SSR_NO_EXTERNAL = [
-  "@iconify/svelte",
   "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-awesome-color-picker",
@@ -68,7 +67,6 @@ const OPTIMIZE_DEPS_INCLUDE = [
   "svelte",
   "svelte/store",
   "svelte/reactivity",
-  "@iconify/svelte",
   "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-awesome-color-picker",
@@ -540,10 +538,10 @@ function sveltyCmsPlugin(): Plugin {
       clearTimeout(widgetTimeout);
       widgetTimeout = setTimeout(async () => {
         try {
-          const { widgetStoreActions } = await server.ssrLoadModule(
+          const { widgets } = await server.ssrLoadModule(
             path.join(CWD, "src/stores/widget-store.svelte.ts"),
           );
-          await widgetStoreActions.reload();
+          await widgets.reload();
           server.ws.send({ type: "full-reload", path: "*" });
           log.success("Widgets reloaded.");
         } catch (e) {

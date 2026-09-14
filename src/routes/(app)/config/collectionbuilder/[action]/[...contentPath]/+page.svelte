@@ -9,14 +9,14 @@ import type { User } from "@src/databases/auth/types";
 import type { Role } from "@src/databases/auth/types";
 import { button_delete, button_save } from "@src/paraglide/messages";
 import {
-	collection,
+	collections,
 	setCollection,
 } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte";
 import { useContent } from "@src/content";
 import { validationStore } from "@src/stores/validation-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
+import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
 import { obj2formData } from "@utils/form.svelte";
@@ -72,11 +72,11 @@ if (action === "edit" && data.collection) {
 	setCollection(data.collection);
 	originalName = String(data.collection.name || "");
 } else if (action === "new") {
-	if (!collection.value || !collection.value.name) {
+	if (!collections.active || !collections.active.name) {
 		const draftCollection = createDraftCollection(page.params.contentPath);
 		setCollection(draftCollection);
 	}
-	originalName = collection.value?.name ? String(collection.value.name) : "";
+	originalName = collections.active?.name ? String(collections.active.name) : "";
 }
 lastCollectionSyncKey = editorSyncKey;
 
@@ -93,7 +93,7 @@ const TAB_ORDER = ["define", "widgets", "permissions"] as const;
 
 /** Step completion for create/edit wizard UX */
 const stepProgress = $derived.by(() => {
-	const c = collection.value;
+	const c = collections.active;
 	const nameOk = !!(c?.name && c.name.trim() && c.name.trim() !== "new");
 	const iconOk = !!(c?.icon && String(c.icon).trim());
 	const fields = (c?.fields as FieldInstance[] | undefined) ?? [];
@@ -189,7 +189,7 @@ function goBack() {
 }
 
 onMount(() => {
-	widgetStoreActions.initializeWidgets();
+	widgets.initialize();
 	ui.setRouteContext({ isCollectionBuilder: true });
 
 	// Hide global header but SHOW layout footer (v4 Studio integration)
@@ -220,7 +220,7 @@ async function handleCollectionSave(confirmDeletions = false) {
 	validationStore.clearAllErrors();
 
 	// Validate required name client-side
-	const name = collection.value?.name?.trim() ?? "";
+	const name = collections.active?.name?.trim() ?? "";
 	if (!name || name === "new") {
 		validationStore.setError("name", "Collection name is required");
 		toast.error("Collection name is required");
@@ -232,12 +232,12 @@ async function handleCollectionSave(confirmDeletions = false) {
 		// Ensure fields always serializes as JSON array for the server action
 		const payload = {
 			originalName,
-			...collection.value,
+			...collections.active,
 			name,
-			fields: collection.value?.fields ?? [],
-			icon: collection.value?.icon || "bi:collection",
+			fields: collections.active?.fields ?? [],
+			icon: collections.active?.icon || "bi:collection",
 			slug:
-				collection.value?.slug ||
+				collections.active?.slug ||
 				name
 					.toLowerCase()
 					.replace(/\s+/g, "-")
@@ -298,11 +298,11 @@ async function handleCollectionSave(confirmDeletions = false) {
 function handleCollectionDelete() {
 	showConfirm({
 		title: "Delete Collection?",
-		body: `Are you sure you want to delete "${collection.value?.name}"?`,
+		body: `Are you sure you want to delete "${collections.active?.name}"?`,
 		onConfirm: async () => {
 			const res = await fetch("?/deleteCollections", {
 				method: "POST",
-				body: obj2formData({ name: collection.value?.name ?? "" }),
+				body: obj2formData({ name: collections.active?.name ?? "" }),
 			});
 			const result = await res.json().catch(() => ({} as { type?: string }));
 			if (res.ok && result?.type !== "failure") {
@@ -340,8 +340,8 @@ $effect(() => {
 </script>
 
 <AdminPageShell
-	title={action === 'edit' ? `Edit ${collection.value?.name}` : (collection.value?.name && collection.value.name !== 'new' ? `Create ${collection.value.name}` : 'Create Collection')}
-	icon={collection.value?.icon || 'ic:baseline-build'}
+	title={action === 'edit' ? `Edit ${collections.active?.name}` : (collections.active?.name && collections.active.name !== 'new' ? `Create ${collections.active.name}` : 'Create Collection')}
+	icon={collections.active?.icon || 'ic:baseline-build'}
 	showBackButton={true}
 	backUrl="/config/collectionbuilder"
 	fullHeight={true}
@@ -473,7 +473,7 @@ $effect(() => {
 			>
 				{#if activeTab === 'define'}
 					<div class="animate-in fade-in slide-in-from-bottom-4 duration-500" role="tabpanel" id="tabpanel-define" aria-labelledby="tab-define">
-						<CollectionForm bind:data={collection.value} syncKey={editorSyncKey} />
+						<CollectionForm bind:data={collections.active} syncKey={editorSyncKey} />
 						<div class="mt-8 flex justify-end gap-2 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
 							<Button
 								variant="primary"
@@ -489,7 +489,7 @@ $effect(() => {
 					</div>
 				{:else if activeTab === 'widgets'}
 					<div class="flex h-full min-h-0 flex-1 flex-col animate-in fade-in slide-in-from-right-4 duration-500" role="tabpanel" id="tabpanel-widgets" aria-labelledby="tab-widgets">
-						<CollectionWidget fields={(collection.value?.fields as FieldInstance[]) || []} roles={data.roles || []} />
+						<CollectionWidget fields={(collections.active?.fields as FieldInstance[]) || []} roles={data.roles || []} />
 					</div>
 				{:else if activeTab === 'permissions'}
 					<div class="animate-in fade-in slide-in-from-right-4 duration-500" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">

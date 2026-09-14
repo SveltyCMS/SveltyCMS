@@ -84,6 +84,3 @@ export function filterWebhooksByQuery<T extends { name: string; url: string }>(
   if (!q) return rows;
   return rows.filter((r) => r.name.toLowerCase().includes(q) || r.url.toLowerCase().includes(q));
 }
-
-/** Re-export for webhook modules that import local utils only */
-export { clientJsonHeaders } from "@utils/security/client-csrf";

@@ -15,7 +15,7 @@
   import Badge from '@components/ui/badge.svelte';
   import Button from '@components/ui/button.svelte';
   import type { FederationEnrichment, Schema } from '@src/content/types';
-  import { mode } from '@src/stores/collection-store.svelte';
+  import { collections } from '@src/stores/collection-store.svelte';
 
   interface FederatedRow {
     _id?: string;
@@ -51,7 +51,7 @@
     (collection?.federationEnrichments ?? []) as FederationEnrichment[],
   );
 
-  const currentMode = $derived(mode.value);
+  const currentMode = $derived(collections.mode);
   const showPreview = $derived(currentMode === 'edit' && enrichments.length > 0);
 
   let previews = $state<Record<string, PreviewState>>({});

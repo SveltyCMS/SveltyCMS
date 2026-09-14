@@ -20,9 +20,13 @@ vi.mock("@src/utils/media/media-storage.server", () => ({
   saveResizedImages: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock("@src/utils/media/slim-sniffer.server", () => ({
-  sniffMimeType: vi.fn().mockReturnValue(null),
-}));
+vi.mock("@src/utils/media/slim-sniffer.server", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@src/utils/media/slim-sniffer.server")>();
+  return {
+    ...real,
+    sniffMimeType: vi.fn().mockReturnValue(null),
+  };
+});
 
 // Avoid sharp / image processor side effects
 vi.mock("@src/services/media/image-processor", () => ({
@@ -43,6 +47,7 @@ vi.mock("@src/utils/media/media-processing.server", async (importOriginal) => {
 });
 
 import { MediaService, MAX_SVG_BYTES } from "@src/utils/media/media-service.server";
+import { sniffMimeType } from "@src/utils/media/slim-sniffer.server";
 
 function createMockDb() {
   return {
@@ -121,6 +126,18 @@ describe("MediaService SVG sanitization path (P0)", () => {
     expect(String((result as { success: false; message: string }).message)).toMatch(
       /SVG|sanitiz|MB/i,
     );
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a JPEG-named SVG polyglot at write time", async () => {
+    vi.mocked(sniffMimeType).mockReturnValue({ ext: "svg", mime: "image/svg+xml" });
+    const evil = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+    const file = new File([evil], "photo.jpg", { type: "image/jpeg" });
+
+    const result = await service.saveMedia(file, "user-1", "public", null);
+
+    expect(result.success).toBe(false);
+    expect(String((result as { success: false; message: string }).message)).toMatch(/mismatch/i);
     expect(uploadMock).not.toHaveBeenCalled();
   });
 });

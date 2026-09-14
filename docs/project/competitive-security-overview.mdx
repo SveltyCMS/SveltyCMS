@@ -4,7 +4,7 @@ title: "Competitive Security Overview"
 description: "An EU-compliant, documentation-based comparison of security and compliance controls across SveltyCMS, Payload CMS, Strapi, and Directus."
 author: "SveltyCMS Team"
 created: "2026-08-25"
-updated: "2026-09-08"
+updated: "2026-09-14"
 tags:
   - "security"
   - "compliance"
@@ -26,13 +26,11 @@ _How do users authenticate? What forces a second factor? Can logs be tampered
 with? How fast do permission changes propagate?_
 
 > **Honesty note (EU/UWG §6):** Every claim is **date-stamped**, **source-based
-> (public vendor documentation or pricing pages)**, and **not** a third-party
-> audit or a live measurement run against competitor instances. Nothing below
-> was measured with our own benchmark harness against a running competitor
-> deployment. Where a capability is described as "documented in core," that is
-> what **our own documentation** states about SveltyCMS; for competitors it is
-> what **their** public documentation states. Verify current tiers on each
-> vendor's pricing page before a procurement decision.
+> (public vendor documentation or pricing pages as of July/September 2026)**, and
+> **not** a third-party audit or a live measurement run against competitor instances.
+> Where a capability is described as "documented in core," that is what **our own documentation**
+> states about SveltyCMS; for competitors it is what **their** public documentation states.
+> Verify current tiers on each vendor's pricing page before a procurement decision.
 
 ## Security model at a glance
 
@@ -47,6 +45,7 @@ with? How fast do permission changes propagate?_
 | **Session hardening**        | `__Host-` cookie prefix + per-origin tokens                      | Built-in                                 | Built-in                                                                      | Built-in                                              |
 | **API key security**         | HMAC-SHA-256 (v2) with server secret                             | SHA-256 hashing                          | SHA-256 hashing                                                               | SHA-256 hashing                                       |
 | **Field-level encryption**   | Native `encrypt: true` AES-256-GCM (< 18 µs, zero-tax)           | Hooks / marketplace plugin (public docs) | Marketplace plugin; dashboard data not auto-encrypted (public security guide) | Client-responsible; extensions (public security page) |
+| **MIME & upload hardening**  | Single allowlist + write-time agreement + universal `nosniff`    | Default-only coverage                    | Default-only coverage                                                         | Default-only coverage                                 |
 | **Rate limiting & DoS**      | Built-in Token-Bucket (Redis L2 + local memory fallback + tiers) | Not documented as built-in               | Rate limit plugin (public docs)                                               | Rate limit plugin (public docs)                       |
 | **Collection ETag / 304**    | Weak generation ETag; DB-free 304 on match                       | HTTP caching via app/CDN (public docs)   | HTTP caching via app/CDN (public docs)                                        | Cache headers / CDN (public docs)                     |
 
@@ -82,6 +81,7 @@ with? How fast do permission changes propagate?_
   before the collections handler (no database query). Self-described, September 2026.
 - **Field-level encryption at rest (ALE)** — collection fields flagged `encrypt: true` are stored as
   AES-256-GCM envelopes (`v1:iv:tag:ciphertext`) using `ENCRYPTION_KEY` with HKDF-SHA-256 domain separation and AAD binding. Pure synchronous execution paths (`encryptFieldValueSync`) achieve <18 µs encryption time and <3% write duration overhead on benchmarked workloads (`tests/benchmarks/ale-encryption-impact.test.ts`), strictly satisfying the <5% write overhead tolerance gate. See [Field-Level Encryption](../reference/security/field-level-encryption.mdx) and [ALE Benchmark](../benchmarks/encryption_impact.mdx).
+- **Unified upload allowlist & write-time MIME defense** — `isAllowedUploadMime()` enforces a unified upload allowlist derived from `MIME_MAP` (blocking scriptable and office types while admitting HEIC/AVIF/FLAC). Write-time `assertMimeAgreement()` inspects magic bytes (first 512 bytes) to reject polyglots (`MIME_MISMATCH`). Remote imports and `saveRemoteMedia` use the same `resolveRemoteAssetMime()` path. All media responses send `X-Content-Type-Options: nosniff`. Self-described, September 2026.
 
 ### Payload CMS
 

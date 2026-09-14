@@ -20,10 +20,11 @@
 
 <script lang="ts">
 	import MediaLibraryModal from '@components/media-library-modal.svelte';
-	import { collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { collections, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import { getMimeType, isAllowedUploadMime } from '@utils/media/media-utils';
 	import Portal from "@components/ui/portal.svelte";
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
@@ -38,28 +39,15 @@
 
 	const tenantId = $derived(page.data?.tenantId);
 
-	const ALLOWED_MIME_TYPES = [
-		'image/jpeg',
-		'image/png',
-		'image/gif',
-		'image/webp',
-		'image/svg+xml',
-		'video/mp4',
-		'video/webm',
-		'video/ogg',
-		'application/pdf',
-		'audio/mpeg',
-		'audio/wav'
-	];
 	const MAX_FILE_SIZE = 10 * 1024 * 1024;
-	const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'ogg', 'pdf', 'mp3', 'wav'];
 
 	function validateFile(file: { name: string; type: string; size: number }): {
 		valid: boolean;
 		error?: string;
 	} {
-		if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-			return { valid: false, error: `Invalid file type: ${file.type}` };
+		const mime = file.type || getMimeType(file.name) || '';
+		if (!isAllowedUploadMime(mime)) {
+			return { valid: false, error: `Invalid file type: ${file.type || 'unknown'}` };
 		}
 
 		if (file.size > MAX_FILE_SIZE) {
@@ -67,11 +55,6 @@
 				valid: false,
 				error: `File too large (max 10MB): ${(file.size / 1024 / 1024).toFixed(2)}MB`
 			};
-		}
-
-		const ext = file.name.split('.').pop()?.toLowerCase();
-		if (!(ext && VALID_EXTENSIONS.includes(ext))) {
-			return { valid: false, error: `Invalid file extension: ${ext}` };
 		}
 
 		return { valid: true };
@@ -102,7 +85,7 @@
 			return;
 		}
 
-		const current = (collectionValue.value as Record<string, unknown> | undefined) ?? {};
+		const current = (collections.activeValue as Record<string, unknown> | undefined) ?? {};
 		if (current[fieldKey] !== nextValue) {
 			setCollectionValue({
 				...current,

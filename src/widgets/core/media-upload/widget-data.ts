@@ -1,4 +1,4 @@
-import { mode } from "@src/stores/collection-store.svelte.ts";
+import { collections } from "@src/stores/collection-store.svelte.ts";
 import type { MediaImage } from "@utils/media/media-models";
 import { meta_data } from "@utils/entry-actions";
 
@@ -19,7 +19,7 @@ export const getWidgetData = async (
     !(data instanceof File) &&
     data?._id !== value?._id &&
     value?._id &&
-    mode.value === "edit"
+    collections.mode === "edit"
   ) {
     meta_data.add("media_images_remove", [value._id.toString()]);
   }
@@ -27,5 +27,5 @@ export const getWidgetData = async (
   // Assuming validateInput is defined in MediaUpload.svelte and needs to be called there
   // This function only returns the data, not handles validation directly
 
-  return data || mode.value === "create" ? data : { _id: (value as MediaImage)?._id };
+  return data || collections.mode === "create" ? data : { _id: (value as MediaImage)?._id };
 };

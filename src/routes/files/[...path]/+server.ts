@@ -8,10 +8,9 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import path from "node:path";
-import { lookup } from "mime-types";
-
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { resolveConfiguredMediaFolder } from "@src/utils/media/storage-adapters";
+import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { apiHandler } from "@utils/api-handler";
 import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 import { AppError } from "@utils/error-handling";
@@ -187,7 +186,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
     return new Response(null, { status: 304 });
   }
 
-  const mimeType = lookup(resolvedPath) || "application/octet-stream";
+  const mimeType = await resolveMimeTypeFromPath(resolvedPath);
   const mimeHeaders = headersForMime(mimeType);
   const range = request.headers.get("range");
 

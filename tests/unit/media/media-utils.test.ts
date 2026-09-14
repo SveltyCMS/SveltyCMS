@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import {
   getMimeType,
+  isAllowedUploadMime,
   getExtensionFromMimeType,
   sanitizedFilename,
   getSanitizedFileName,
@@ -26,9 +27,23 @@ describe("media-utils — MIME lookup", () => {
     expect(getMimeType("data.json")).toBe("application/json");
   });
 
+  it("maps upload-allowlist aliases", () => {
+    expect(getMimeType("scan.tif")).toBe("image/tiff");
+    expect(getMimeType("clip.m4v")).toBe("video/mp4");
+    expect(getMimeType("audio.oga")).toBe("audio/ogg");
+    expect(getMimeType("archive.gz")).toBe("application/gzip");
+    expect(getMimeType("photo.heic")).toBe("image/heic");
+  });
+
   it("is case-insensitive", () => {
     expect(getMimeType("PHOTO.JPG")).toBe("image/jpeg");
     expect(getMimeType("Image.PnG")).toBe("image/png");
+  });
+
+  it("reads the extension from a path, not directory dots", () => {
+    expect(getMimeType("global/ab.hash/original/hero.webp")).toBe("image/webp");
+    expect(getMimeType("C:\\media\\foo.bar\\photo.jpg")).toBe("image/jpeg");
+    expect(getMimeType("C:\\media\\foo.bar\\noext")).toBeNull();
   });
 
   it("returns null for unknown extension", () => {
@@ -37,6 +52,29 @@ describe("media-utils — MIME lookup", () => {
 
   it("returns null for empty string", () => {
     expect(getMimeType("")).toBeNull();
+  });
+});
+
+describe("media-utils — upload allowlist", () => {
+  it("allows CMS media types including HEIC/AVIF aliases", () => {
+    expect(isAllowedUploadMime("image/jpeg")).toBe(true);
+    expect(isAllowedUploadMime("image/avif")).toBe(true);
+    expect(isAllowedUploadMime("image/heic")).toBe(true);
+    expect(isAllowedUploadMime("image/svg+xml")).toBe(true);
+    expect(isAllowedUploadMime("application/pdf")).toBe(true);
+    expect(isAllowedUploadMime("audio/flac")).toBe(true);
+  });
+
+  it("strips RFC 7231 parameters before matching", () => {
+    expect(isAllowedUploadMime("image/jpeg; charset=binary")).toBe(true);
+  });
+
+  it("rejects scriptable and office types", () => {
+    expect(isAllowedUploadMime("text/html")).toBe(false);
+    expect(isAllowedUploadMime("text/javascript")).toBe(false);
+    expect(isAllowedUploadMime("application/xml")).toBe(false);
+    expect(isAllowedUploadMime("application/msword")).toBe(false);
+    expect(isAllowedUploadMime("application/octet-stream")).toBe(false);
   });
 });
 

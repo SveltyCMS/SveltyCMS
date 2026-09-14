@@ -17,12 +17,7 @@ import {
   set_status_error,
   set_status_no_selection_error,
 } from "@src/paraglide/messages";
-import {
-  collection,
-  collectionValue,
-  setCollectionValue,
-  setMode,
-} from "@src/stores/collection-store.svelte.ts";
+import { collections, setCollectionValue, setMode } from "@src/stores/collection-store.svelte.ts";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { showCloneModal, showConfirm, showScheduleModal } from "@utils/modal.svelte";
@@ -59,7 +54,7 @@ export async function setEntriesStatus(
   if (!entryIds.length) {
     return;
   }
-  const collId = collection.value?._id;
+  const collId = collections.active?._id;
   if (!collId) {
     return;
   }
@@ -107,7 +102,7 @@ export async function deleteEntries(
   if (!entryIds.length) {
     return;
   }
-  const collId = collection.value?._id;
+  const collId = collections.active?._id;
   if (!collId) {
     return;
   }
@@ -171,7 +166,7 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
   if (!rawEntries.length) {
     return;
   }
-  const collId = collection.value?._id;
+  const collId = collections.active?._id;
   if (!collId) {
     return;
   }
@@ -196,7 +191,7 @@ export async function saveEntry(
   entryData: Record<string, unknown>,
   publish = false,
 ): Promise<boolean> {
-  const collId = collection.value?._id;
+  const collId = collections.active?._id;
   if (!collId) {
     toast.warning("Collection not found");
     return false;
@@ -210,7 +205,7 @@ export async function saveEntry(
     payload.status = StatusTypes.publish;
   } else if (!payload.status) {
     // Use collection's default status if no status is specified (new entries)
-    payload.status = collection.value?.status || StatusTypes.draft;
+    payload.status = collections.active?.status || StatusTypes.draft;
   }
   // Otherwise preserve the existing status from entryData
 
@@ -245,8 +240,8 @@ export async function saveEntry(
 
 // Deletes the currently active entry after confirmation
 export async function deleteCurrentEntry(isAdmin = false) {
-  const entry = collectionValue.value;
-  const coll = collection.value;
+  const entry = collections.activeValue;
+  const coll = collections.active;
   if (!(entry?._id && coll?._id)) {
     toast.warning({ description: delete_entry_no_selection_error() });
     return;
@@ -331,7 +326,7 @@ function showDeleteConfirmationModal(
         if (isArchive) {
           await updateStatus(collectionId, entryId, StatusTypes.archive);
           setCollectionValue({
-            ...collectionValue.value,
+            ...collections.activeValue,
             status: StatusTypes.archive,
           });
           toast.success("Entry archived successfully.");
@@ -352,7 +347,7 @@ function showDeleteConfirmationModal(
 }
 
 export async function permanentlyDeleteEntry(entryId: string) {
-  const coll = collection.value;
+  const coll = collections.active;
   if (!coll?._id) {
     toast.warning({ description: clone_entry_no_selection_error() });
     return;
@@ -378,8 +373,8 @@ export async function permanentlyDeleteEntry(entryId: string) {
 }
 
 export async function setEntryStatus(newStatus: StatusType) {
-  const entry = collectionValue.value;
-  const coll = collection.value;
+  const entry = collections.activeValue;
+  const coll = collections.active;
   if (!(entry?._id && coll?._id)) {
     toast.warning({ description: set_status_no_selection_error() });
     return;
@@ -394,7 +389,7 @@ export async function setEntryStatus(newStatus: StatusType) {
   }
   try {
     await updateStatus(collectionId, entryId, newStatus);
-    setCollectionValue({ ...collectionValue.value, status: newStatus });
+    setCollectionValue({ ...collections.activeValue, status: newStatus });
     toast.success({
       description: entry_status_updated({ status: newStatus }),
     });
@@ -407,8 +402,8 @@ export async function setEntryStatus(newStatus: StatusType) {
 
 // Schedule entry for future publication with improved date picker integration
 export async function scheduleCurrentEntry(scheduledDate?: Date) {
-  const entry = collectionValue.value;
-  const coll = collection.value;
+  const entry = collections.activeValue;
+  const coll = collections.active;
 
   if (!(entry?._id && coll?._id)) {
     toast.warning({ description: entryMessages.noEntryForScheduling() });
@@ -429,7 +424,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
       // 'scheduled' is not a valid StatusType, use 'publish' or 'draft' as needed
       await updateStatus(collectionId, entryId, StatusTypes.publish);
       setCollectionValue({
-        ...collectionValue.value,
+        ...collections.activeValue,
         status: StatusTypes.publish,
         scheduledDate: scheduledDate.toISOString(),
       });
@@ -449,7 +444,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
         try {
           await updateStatus(collectionId, entryId, StatusTypes.publish);
           setCollectionValue({
-            ...collectionValue.value,
+            ...collections.activeValue,
             status: StatusTypes.publish,
             scheduledDate: date.toISOString(),
             scheduledAction: action,
@@ -469,8 +464,8 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 
 // Clones the currently active entry with improved modal
 export async function cloneCurrentEntry() {
-  const entry = collectionValue.value;
-  const coll = collection.value;
+  const entry = collections.activeValue;
+  const coll = collections.active;
   if (!(entry && coll?._id)) {
     toast.warning({ description: clone_entry_no_selection_error() });
     return;
@@ -532,8 +527,8 @@ export function getHasUnsavedChanges(): boolean {
 
 // Save current data as draft when user tries to leave
 export async function saveDraftAndLeave(): Promise<boolean> {
-  const entry = collectionValue.value;
-  const coll = collection.value;
+  const entry = collections.activeValue;
+  const coll = collections.active;
 
   if (!(hasUnsavedChanges && entry && coll?._id)) {
     return true; // Allow navigation if no unsaved changes

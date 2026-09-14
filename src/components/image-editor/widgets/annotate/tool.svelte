@@ -8,6 +8,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 
 <script lang="ts">
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
+	import { generateUUID } from '@utils/native-utils';
 	import { Layer } from 'svelte-canvas';
 	import AnnotateControls from './controls.svelte';
 	import AnnotateControlsMobile from './controls-mobile.svelte';
@@ -44,7 +45,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 
 	// Generate unique ID
 	function generateId(): string {
-		return `ann_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		return `ann_${generateUUID()}`;
 	}
 
 	// Drawing state

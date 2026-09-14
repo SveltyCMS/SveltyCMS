@@ -239,6 +239,18 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   stripe: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
   seo: "collection:read",
   chat: "system:settings",
+
+  // Utility / ops namespaces previously fail-closed to isAdmin() only because
+  // they were missing from this map. Explicit mappings keep fail-closed for
+  // unknown keys while letting the matching capability through.
+  marketplace: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  "send-mail": "system:settings",
+  trash: (method: string) => (isReadMethod(method) ? "collection:read" : "collection:write"),
+  debug: "system:admin",
+  cache: "system:admin",
+  metrics: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  telemetry: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  security: "system:admin",
 };
 
 /**
@@ -396,17 +408,10 @@ export const _handler = async (event: RequestEvent) => {
   // turbo-pipeline preflight exit — which runs before this dispatcher for every
   // `/api/` request. No preflight logic lives here (or in any handler).
 
-  // ── Cached imports for hot paths (avoids dynamic import on every request) ────
-  let _getDatabaseResilience: any = null;
-
   // 🚀 HYPER-TURBO: Direct Health Check
+  // Public payload stays minimal — no memory/resilience/dbType disclosure.
   if (namespace === "system" && segments[1] === "health") {
     const connected = isDbConnected();
-    if (!_getDatabaseResilience) {
-      const mod = await import("@src/databases/database-resilience");
-      _getDatabaseResilience = mod.getDatabaseResilience;
-    }
-    const metrics = _getDatabaseResilience().getMetrics();
     return json(
       {
         status: connected ? "healthy" : "initializing",
@@ -414,14 +419,6 @@ export const _handler = async (event: RequestEvent) => {
         database: connected,
         uptime: process.uptime(),
         timestamp: Date.now(),
-        dbType: process.env.DB_TYPE || "unknown",
-        memory: process.memoryUsage(),
-        resilience: {
-          circuitState: metrics.circuitState,
-          totalRetries: metrics.totalRetries,
-          successfulReconnections: metrics.successfulReconnections,
-          averageRecoveryTime: metrics.averageRecoveryTime,
-        },
       },
       { status: connected ? 200 : 533 }, // Use 533 to differentiate from standard 503 if needed
     );
@@ -836,3 +833,9 @@ export const OPTIONS = apiHandler(_handler);
  * until a test owner is declared in tests/unit/api/namespace-ownership.test.ts.
  */
 export const _API_NAMESPACE_KEYS: readonly string[] = Object.freeze(Object.keys(NAMESPACE_CONFIG));
+
+/**
+ * Frozen ENDPOINT_PERMISSIONS map for completeness tests. Namespaces that are
+ * public, setup-gated, or test-bypass stay unmapped on purpose (fail-closed).
+ */
+export const _ENDPOINT_PERMISSIONS: typeof ENDPOINT_PERMISSIONS = ENDPOINT_PERMISSIONS;

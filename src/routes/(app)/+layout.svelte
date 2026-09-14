@@ -509,7 +509,7 @@ afterNavigate(() => {
 			--admin-sticky-bar-height: {theme.stickyBarHeight};
 		"
 	>
-		{#if ui.isCommandBarVisible || ui.isSearchVisible}
+		{#if ui.isCommandBarVisible}
 			<CommandPalette />
 		{/if}
 

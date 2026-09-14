@@ -27,7 +27,7 @@ Advanced icon picker with search, pagination, and favorites.
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Select from '@components/ui/select.svelte';
-	import { loadIcons } from '@iconify/svelte';
+	import { loadIcons } from 'iconify-icon';
 	import { iconpicker_placeholder } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';

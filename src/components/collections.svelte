@@ -29,7 +29,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
-	import { applyRemoteContentStructure, collection, contentStructure, setDraftContentStructure } from '@src/stores/collection-store.svelte.ts';
+	import { applyRemoteContentStructure, collections, setDraftContentStructure } from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -149,7 +149,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	});
 
 	$effect(() => {
-		const nodes = contentStructure.value ?? [];
+		const nodes = collections.contentStructure ?? [];
 		const signature = nodes
 			.map((node) => `${node._id}:${node.parentId ?? ''}:${node.order ?? 0}`)
 			.sort()
@@ -242,9 +242,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	// Derived UI & data
 	let isFullSidebar = $derived(ui.state.leftSidebar === 'full');
 	let currentLanguage = $derived(contentLanguage.value);
-	let selectedId = $derived(collection.value?._id ?? null);
+	let selectedId = $derived(collections.active?._id ?? null);
 	let activeWidgetList = $derived(widgets.activeWidgets);
-	let structure = $derived(contentStructure.value ?? []);
+	let structure = $derived(collections.contentStructure ?? []);
 
 	// === Main derived tree with override-aware sorting at every level ===
 	let treeNodes = $derived.by(() => {
@@ -480,7 +480,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	) {
 		if (draggedId === targetId) return;
 
-		const structure = [...(contentStructure.value ?? [])] as ExtendedContentNode[];
+		const structure = [...(collections.contentStructure ?? [])] as ExtendedContentNode[];
 		const byId = new Map(structure.map((n) => [String(n._id), { ...n }]));
 		const dragged = byId.get(draggedId);
 		const target = byId.get(targetId);

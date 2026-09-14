@@ -4,12 +4,11 @@
  * @description High-performance Bundle size monitoring in TypeScript.
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync, writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
-import { globSync } from "glob";
 
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
@@ -123,8 +122,10 @@ async function getBuildMetadata(): Promise<BuildMetadata> {
 
 async function getFilesRecursively(dir: string): Promise<string[]> {
   try {
-    return globSync("**/*.{js,css}", { cwd: dir, absolute: true });
-  } catch (e: any) {
+    return globSync("**/*.{js,css}", { cwd: dir }).map((f) =>
+      path.isAbsolute(f) ? f : path.join(dir, f),
+    );
+  } catch (e) {
     console.error(e);
     return [];
   }

@@ -20,10 +20,9 @@
  * bun run scripts/slop-scanner.ts --files file.svelte # Check target file(s)
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, globSync } from "node:fs";
 import fs from "node:fs/promises";
-import { basename, join, relative } from "node:path";
-import { globSync } from "glob";
+import { basename, isAbsolute, join, relative } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -736,15 +735,17 @@ async function main() {
   } else {
     const allFiles = globSync("src/**/*.{svelte,ts,js}", {
       cwd: ROOT,
-      ignore: [
-        "**/node_modules/**",
-        "**/.svelte-kit/**",
-        "**/paraglide/**",
-        "**/dist/**",
-        "**/build/**",
-      ],
-      absolute: true,
-    });
+      exclude: (p) => {
+        const s = String(p);
+        return (
+          s.includes("node_modules") ||
+          s.includes(".svelte-kit") ||
+          s.includes("paraglide") ||
+          s.includes("dist") ||
+          s.includes("build")
+        );
+      },
+    }).map((f) => (isAbsolute(f) ? f : join(ROOT, f)));
     for (const f of allFiles) {
       if (f.endsWith(".svelte")) svelteFiles.push(f);
       else tsFiles.push(f);
