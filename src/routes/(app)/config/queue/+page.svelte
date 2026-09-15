@@ -10,7 +10,6 @@ import { clearCompleted, deleteJob, retryJob } from "./queue.remote";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { showConfirm } from "@utils/modal.svelte";
 import { formatRelativeDate } from "@utils/date";
-import { fade, fly } from "svelte/transition";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -127,9 +126,9 @@ function getFilterUrl(status: string | undefined = undefined) {
 	{/snippet}
 
 	<div data-testid="queue-page" class="contents">
-	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }} data-testid="queue-stats">
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" data-testid="queue-stats">
 		<a aria-label="View all jobs" href={getFilterUrl()} class="block no-underline text-inherit" data-testid="queue-stat-total" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
+			<AdminCard class="p-4 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
 						<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
@@ -143,7 +142,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View pending jobs" href={getFilterUrl('pending')} class="block no-underline text-inherit" data-testid="queue-stat-pending" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors">
+			<AdminCard class="p-4 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-surface">
 						<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
@@ -157,7 +156,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View running jobs" href={getFilterUrl('running')} class="block no-underline text-inherit" data-testid="queue-stat-running" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
+			<AdminCard class="p-4 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-primary">
 						<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
@@ -171,7 +170,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View completed jobs" href={getFilterUrl('completed')} class="block no-underline text-inherit" data-testid="queue-stat-completed" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors">
+			<AdminCard class="p-4 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-success">
 						<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
@@ -185,7 +184,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View failed jobs" href={getFilterUrl('failed')} class="block no-underline text-inherit" data-testid="queue-stat-failed" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors">
+			<AdminCard class="p-4 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-error">
 						<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
@@ -224,9 +223,8 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</div>
 	</div>
 
-	<div in:fade>
 	<AdminCard
-		class="p-0 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
+		class="p-0 overflow-hidden"
 		data-testid="queue-jobs-table"
 	>
 		<div class="overflow-x-auto w-full">
@@ -242,7 +240,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 						<th class="px-4 py-3 font-semibold text-end">Actions</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+				<tbody class="divide-y divide-surface-500/30 dark:divide-surface-500/40">
 					{#each data.jobs as job (job._id)}
 						<tr class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20">
 							<td class="px-4 py-3">
@@ -352,6 +350,5 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</div>
 		{/if}
 	</AdminCard>
-	</div>
 	</div>
 </AdminPageShell>

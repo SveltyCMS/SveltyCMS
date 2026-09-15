@@ -207,7 +207,7 @@ onMount(loadFlows);
 
 	<div data-testid="automations-page" class="contents">
 	<!-- Search & Bulk Actions -->
-	<AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
+	<AdminCard class="space-y-4 p-6">
 		<div class="flex flex-col md:flex-row items-center gap-4">
 			<div class="relative flex-1 w-full">
 				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-40"></iconify-icon>
@@ -250,14 +250,14 @@ onMount(loadFlows);
 	</AdminCard>
 
 	{#if isLoading}
-		<AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="automations-loading">
+		<AdminCard class="p-6" data-testid="automations-loading">
 			<div class="flex flex-col items-center justify-center gap-4 py-20 grayscale opacity-50">
 				<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Loading automations" />
 				<p>Loading automations...</p>
 			</div>
 		</AdminCard>
 	{:else if flows.length === 0}
-		<AdminCard class="border-2 border-dashed border-surface-500/30 bg-white p-12 text-center shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="automations-empty">
+		<AdminCard class="border-dashed! p-12 text-center" data-testid="automations-empty">
 			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
@@ -268,7 +268,7 @@ onMount(loadFlows);
 			</Button>
 		</AdminCard>
 	{:else}
-		<AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="automations-list">
+		<AdminCard class="space-y-4 p-6" data-testid="automations-list">
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
 					<div class:opacity-50={!flow.active} transition:slide data-testid={`automation-card-${flow.id}`} data-automation-name={flow.name}>

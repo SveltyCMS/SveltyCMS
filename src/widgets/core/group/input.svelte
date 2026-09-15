@@ -79,7 +79,8 @@ Renders a group of fields, allowing for nested data structures.
 <div class="mb-4 w-full {variant.container}">
 	<!-- Header -->
 	{#if (field as any).groupTitle || (field as any).collapsible}
-		<Button variant="outline">
+		<Button
+			variant="outline"
 			type="button"
 			onclick={toggleCollapse}
 			disabled={!(field as any).collapsible}

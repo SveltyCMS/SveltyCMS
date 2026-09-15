@@ -175,7 +175,7 @@
 
 	<div data-testid="redirects-page" class="contents">
 		<AdminCard
-			class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
+			class="space-y-4 p-6"
 		>
 			<div class="relative">
 				<iconify-icon
@@ -285,7 +285,7 @@
 		data-testid="redirects-modal-backdrop"
 	>
 		<AdminCard
-			class="w-full max-w-lg space-y-4 border border-surface-500/30 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
+			class="w-full max-w-lg space-y-4 p-6"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="redirect-modal-title"

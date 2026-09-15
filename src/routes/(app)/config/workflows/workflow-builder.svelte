@@ -146,7 +146,7 @@ function selectNode(id: string) {
 		</StickyActions>
 	{/snippet}
 
-	<AdminCard class="flex flex-wrap items-center justify-between gap-4 border border-surface-500/30 bg-white p-4 shadow-sm dark:border-surface-500/40 dark:bg-surface-900" data-testid="workflow-toolbar">
+	<AdminCard class="flex flex-wrap items-center justify-between gap-4 p-4" data-testid="workflow-toolbar">
 		<div data-testid="workflow-collection-select">
 			<Select
 				bind:value={selectedCollectionId}
@@ -221,7 +221,7 @@ function selectNode(id: string) {
 
 		<!-- Properties Inspector -->
 		<AdminCard
-			class="overflow-y-auto border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
+			class="overflow-y-auto p-6"
 		>
 			<h3 class="mb-6 text-xs font-bold uppercase tracking-widest opacity-40">Properties</h3>
 

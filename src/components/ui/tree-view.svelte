@@ -90,6 +90,9 @@ search filtering, and RTL support.
         label?: string;
         name?: string;          // Backward compat with system tree-view
         icon?: string;
+        iconExpanded?: string;
+        iconColorClass?: string;
+        labelClass?: string;
         children?: TreeItem[];
         disabled?: boolean;
         isLoading?: boolean;
@@ -559,6 +562,7 @@ search filtering, and RTL support.
     {@const hasChildren = !!(node.children && node.children.length > 0)}
     {@const expanded = expandedIds.has(node.id)}
     {@const isSelected = selectedId === node.id}
+    {@const isHighlighted = isSelected || (dragOverNode?.id === node.id && dropPosition === 'inside')}
     {@const isFocused = focusedNodeId === node.id}
     {@const nodeLabel = getNodeLabel(node)}
     {@const showBadge = shouldShowBadge(node)}
@@ -619,7 +623,7 @@ search filtering, and RTL support.
             data-preload={node.preload}
             data-sveltekit-preload-data={node.href || node.path ? 'hover' : undefined}
             class={cn(
-                'flex w-full group focus:outline-none justify-start text-start cursor-pointer select-none no-underline text-inherit',
+                'flex w-full group group/item focus:outline-none justify-start text-start cursor-pointer select-none no-underline text-inherit',
                 isMedia
                     ? cn(
                         'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
@@ -679,10 +683,10 @@ search filtering, and RTL support.
             {/if}
 
             <!-- Node Icon -->
-            {#if node.icon}
+            {#if node.icon || node.iconExpanded}
                 <div class="relative flex shrink-0 items-center">
                     <iconify-icon
-                        icon={node.icon}
+                        icon={(expanded && node.iconExpanded) ? node.iconExpanded : (node.icon || '')}
                         width={isMedia ? (isRoot ? '18' : '16') : densityTokens.icon}
                         class={cn(
                             isMedia
@@ -691,9 +695,9 @@ search filtering, and RTL support.
                                     : isRoot
                                         ? mediaIconTone
                                         : mediaFolderText
-                                : isSelected
+                                : isHighlighted
                                     ? 'text-primary-600 dark:text-primary-500'
-                                    : iconColorClass,
+                                    : (node.iconColorClass || iconColorClass),
                         )}
                         aria-hidden="true"
                     ></iconify-icon>
@@ -712,10 +716,10 @@ search filtering, and RTL support.
                         !isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-400',
                     )
                     : cn(
-                        densityTokens.font,
-                        isSelected
+                        node.labelClass || densityTokens.font,
+                        isHighlighted
                             ? 'font-bold text-primary-600 dark:text-primary-500'
-                            : 'font-medium text-surface-900 dark:text-surface-100',
+                            : (node.labelClass ? 'font-bold text-surface-500 dark:text-surface-400' : 'font-medium text-surface-900 dark:text-surface-100'),
                     ),
             )}>
                 {nodeLabel}
@@ -792,8 +796,8 @@ search filtering, and RTL support.
                     ></div>
                 {:else if !isMedia}
                     <div
-                        class="absolute inset-s-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
-                        style="margin-inline-start: {guidelineLeft(depth)}rem; height: 100%"
+                        class="absolute inset-s-0 top-0 bottom-0 w-px bg-surface-200 dark:bg-surface-700"
+                        style="margin-inline-start: {guidelineLeft(depth)}rem;"
                         aria-hidden="true"
                     ></div>
                 {/if}

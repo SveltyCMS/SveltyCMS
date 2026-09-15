@@ -36,8 +36,8 @@
 	backUrl="/config"
 >
 	<div data-testid="extensions-page" class="contents">
-		<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
-			<div class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-50">
+		<AdminCard class="p-6">
+			<div class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40">
 				<div class="flex gap-2" role="tablist" aria-label="Extension categories" data-testid="extensions-tabs">
 					{#each tabs as tab (tab.id)}
 						<Button

@@ -43,7 +43,6 @@
 	} from '@src/paraglide/messages';
 	import { normalizeAvatarUrl } from '@utils/avatar';
 	import { onMount, untrack } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { formatDateTime } from '@utils/format-date';
@@ -729,16 +728,16 @@
 		});
 	}
 
-	const cardClass = 'border border-surface-500/30 dark:border-surface-500/40 p-5 sm:p-6 shadow-sm';
-	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-500/40 last:border-0';
+	const cardClass = 'p-5 sm:p-6';
+	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-surface-500/30 dark:border-surface-500/40 last:border-0';
 	/** Equal width for Security row actions (Setup / Manage / Refresh) */
 	const securityActionBtn = 'min-w-[5.5rem] justify-center shrink-0';
 	/** Row lead icons: tertiary (light) / primary (dark) */
 	const securityRowIcon = 'shrink-0 text-tertiary-500 dark:text-primary-500';
 </script>
 
-<AdminPageShell title={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config">
-	<div in:fade={{ duration: 250 }} class="flex flex-col gap-6" data-testid="user-account-page">
+<AdminPageShell title={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/">
+	<div class="flex flex-col gap-6" data-testid="user-account-page">
 		<!-- Tabs directly under PageTitle -->
 		<Tabs
 			tabs={accountTabs}
@@ -1034,7 +1033,7 @@
 											<li
 												class="rounded-lg border {group.isCurrent
 													? 'border-primary-500/60 bg-primary-500/10 shadow-sm ring-1 ring-primary-500/30 dark:border-primary-500/50 dark:bg-primary-500/10 dark:ring-primary-500/25'
-													: 'border-surface-100 dark:border-surface-500/40'}"
+													: 'border-surface-500/30 dark:border-surface-500/40'}"
 												data-testid="session-group"
 												data-current={group.isCurrent ? 'true' : 'false'}
 											>
@@ -1115,7 +1114,7 @@
 												<ul
 													class="space-y-1.5 border-t px-3 py-2 {group.isCurrent
 														? 'border-primary-500/25 dark:border-primary-500/30'
-														: 'border-surface-100 dark:border-surface-500/40'}"
+														: 'border-surface-500/30 dark:border-surface-500/40'}"
 													aria-label="Sessions on this device"
 													data-testid="session-group-members"
 												>
@@ -1306,7 +1305,7 @@
 							Workspace &amp; collaboration
 						</h3>
 						<div class="space-y-1">
-							<div class="border-b border-surface-100 py-3 dark:border-surface-500/40" data-testid="workspace-appearance-section">
+							<div class="border-b border-surface-500/30 py-3 dark:border-surface-500/40" data-testid="workspace-appearance-section">
 								<div class="mb-2 flex items-center gap-2">
 									<iconify-icon
 										icon="mdi:palette-outline"

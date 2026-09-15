@@ -697,7 +697,7 @@ onMount(() => {
 </script>
 
 <div data-testid="dashboard-widget-registry-ready" data-loaded={registryLoaded}>
-<AdminPageShell title="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config">
+<AdminPageShell title="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/">
 	<WelcomeThemePicker />
 	{#snippet actions()}
 		<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
@@ -776,7 +776,7 @@ onMount(() => {
 		<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
 			{#if hotCollectionLinks.length > 0}
 				<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">
-					<span class="text-[10px] font-bold uppercase tracking-wider text-surface-500">{button_Collections()}</span>
+					<span class="text-xs font-bold uppercase tracking-wider text-surface-500">{button_Collections()}</span>
 					<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
 						{#each hotCollectionLinks as link (link.id)}
 							<a
@@ -791,7 +791,7 @@ onMount(() => {
 				</div>
 			{/if}
 			{#if aiLoading}
-				<AdminCard class="flex flex-col items-center justify-center border border-surface-500/30 py-20 dark:border-surface-500/40">
+				<AdminCard class="flex flex-col items-center justify-center py-20">
 					<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Generating AI dashboard" />
 					<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">Generating AI Dashboard...</p>
 					<p class="text-sm text-surface-500">Connecting to Knowledge Core (mcp.sveltycms.com)</p>
@@ -819,7 +819,7 @@ onMount(() => {
 								role="article"
 								aria-label="{widgetName} widget. Press Ctrl + Arrow keys to reorder."
 								tabindex="0"
-								class="widget-container group relative select-none overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								class="widget-container group relative select-none overflow-hidden rounded-lg border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)] transition-colors duration-150 dark:text-surface-50 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
 								data-widget-order={item.order ?? 0}
 								data-testid="dashboard-widget"

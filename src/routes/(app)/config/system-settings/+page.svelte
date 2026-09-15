@@ -181,8 +181,8 @@ $effect(() => {
 
 <AdminPageShell title="System Settings" icon="mdi:cog-outline" showBackButton={true} backUrl="/config" spaceY="8">
 	<div data-testid="system-settings-page" class="contents">
-	<AdminCard class="border border-surface-500/30 bg-white p-4 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
-		<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Configure global system settings</h2>
+	<AdminCard class="p-4">
+		<h2 class="h2 mb-4 text-center font-bold text-[var(--admin-text-body)]">Configure global system settings</h2>
 
 		<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
 			These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
@@ -298,8 +298,8 @@ $effect(() => {
 	</AdminCard>
 
 	<!-- Multi-Tenancy Migration -->
-	<AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="system-settings-mt-migration">
-		<h2 class="h2 mb-4 font-bold text-tertiary-600 dark:text-primary-500">Multi-Tenancy Migration</h2>
+	<AdminCard class="p-6" data-testid="system-settings-mt-migration">
+		<h2 class="h2 mb-4 font-bold text-[var(--admin-text-body)]">Multi-Tenancy Migration</h2>
 		<p class="text-surface-600 dark:text-surface-400 text-sm mb-4">
 			Migrate collections and media files between flat and tenant-namespaced structures.
 			Check the current state, then migrate if needed.

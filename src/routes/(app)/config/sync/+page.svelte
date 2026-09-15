@@ -169,7 +169,7 @@ onMount(() => {
 	backUrl="/config"
 >
 	<div data-testid="sync-page" class="contents">
-		<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
+		<AdminCard class="p-6">
 			<div class="preset-tonal-surface mb-4 p-4 rounded-md">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
 					Manage your system configuration using <strong>Schema as Code</strong>. Deploy filesystem changes to the active database, or export the active configuration to <code>config/sync/</code> for version control.

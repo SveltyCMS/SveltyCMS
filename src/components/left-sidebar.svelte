@@ -291,7 +291,7 @@ import Button from '@components/ui/button.svelte';
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 		positioning={{ placement: 'right-end' }}
-		triggerClass="absolute top-3 z-20 ltr:-end-4 rtl:-start-4"
+		triggerClass="absolute top-3 z-20 -end-4"
 	>
 		<Button variant="transparent"
 			type="button"
@@ -312,7 +312,7 @@ import Button from '@components/ui/button.svelte';
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
-		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui.routeContext.isSystemSettings
+		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container overflow-x-hidden {ui.routeContext.isSystemSettings
 			? 'overflow-y-hidden flex flex-col'
 			: 'overflow-y-auto'}"
 	>
@@ -364,7 +364,7 @@ import Button from '@components/ui/button.svelte';
 											type="button"
 											onclick={() => pinnedStore.unpin(item.id)}
 											title="Unpin"
-										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-(--admin-border-subtle)]">
+										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-[var(--admin-border-subtle)]">
 											<iconify-icon icon="bi:x" width="16" style="color: var(--admin-text-muted)"></iconify-icon>
 										</Button>
 									{/if}
@@ -440,7 +440,7 @@ import Button from '@components/ui/button.svelte';
 	<!-- Plugin Pages (declarative nav) -->
 	{#if pluginNavItems.length > 0}
 		<div class="mt-2 w-full px-1" data-testid="sidebar-plugin-nav">
-			<div class="mb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-surface-500">
+			<div class="mb-1 px-2 text-xs font-bold uppercase tracking-wider text-surface-500">
 				Plugins
 			</div>
 			<div class="space-y-0.5">
@@ -477,7 +477,7 @@ import Button from '@components/ui/button.svelte';
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-subtle)"></div>
 
-		<div class="grid w-full items-center justify-center gap-1 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}" style="color: var(--admin-text-body)">
+		<div class="grid w-full items-center justify-center gap-1 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-1'}" style="color: var(--admin-text-body)">
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
@@ -488,8 +488,8 @@ import Button from '@components/ui/button.svelte';
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-(--admin-border-subtle)]'
-							: 'h-8 w-8 rounded-full hover:bg-(--admin-border-subtle)]'} relative flex items-center justify-center text-center no-underline!"
+							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-[var(--admin-border-subtle)]'
+							: 'h-8 w-8 rounded-full hover:bg-[var(--admin-border-subtle)]'} relative flex items-center justify-center text-center no-underline!"
 						>
 							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
 						{#if isSidebarFull && user?.username}

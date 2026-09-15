@@ -79,17 +79,17 @@ onMount(loadLogs);
 
 	<div data-testid="webhook-logs-page" class="contents">
 	{#if isLoading}
-		<AdminCard class="flex h-64 items-center justify-center border border-surface-500/30 bg-white p-6 dark:border-surface-500/40 dark:bg-surface-900/20" data-testid="webhook-logs-loading">
+		<AdminCard class="flex h-64 items-center justify-center p-6" data-testid="webhook-logs-loading">
 			<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel="Loading delivery logs" />
 		</AdminCard>
 	{:else if logs.length === 0}
-		<AdminCard class="border-2 border-dashed border-surface-500/30 p-12 text-center dark:border-surface-500/40" data-testid="webhook-logs-empty">
+		<AdminCard class="border-dashed! p-12 text-center" data-testid="webhook-logs-empty">
 			<iconify-icon icon="mdi:webhook" width="64" class="mx-auto mb-4 opacity-20"></iconify-icon>
 			<h3 class="text-xl font-semibold text-surface-900 dark:text-white">No logs found</h3>
 			<p class="text-surface-500">Webhook delivery attempts will appear here.</p>
 		</AdminCard>
 	{:else}
-		<AdminCard class="overflow-hidden border border-surface-500/30 bg-white p-0 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20" data-testid="webhook-logs-table">
+		<AdminCard class="overflow-hidden p-0" data-testid="webhook-logs-table">
 			<div class="overflow-x-auto w-full">
 				<table class="w-full border-collapse text-sm">
 					<thead>
@@ -102,7 +102,7 @@ onMount(loadLogs);
 							<th class="px-4 py-3 text-end font-semibold">Actions</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+					<tbody class="divide-y divide-surface-500/30 dark:divide-surface-500/40">
 						{#each logs as log (log._id)}
 							<tr class="text-surface-600 transition-colors hover:bg-surface-500/40 dark:text-surface-400 dark:hover:bg-surface-900/20">
 								<td class="px-4 py-3">

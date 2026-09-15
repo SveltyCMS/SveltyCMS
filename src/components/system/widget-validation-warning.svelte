@@ -95,7 +95,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 					<iconify-icon icon="mdi:power" width="18"></iconify-icon>
 					Activate Missing Widgets ({missingWidgets.length})
 				</Button>
-				<Button variant="secondary" href="/dashboard/widgets">
+				<Button variant="secondary" href="/config/extensions">
 					<iconify-icon icon="mdi:cog" width="18"></iconify-icon>
 					Manage Widgets
 				</Button>

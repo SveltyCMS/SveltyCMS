@@ -66,7 +66,7 @@ import { logger } from "@utils/logger";
 	{:else}
 		{#each data.plugins as plugin (plugin.name)}
 			<div
-				class="flex flex-col rounded border border-surface-500/30 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-500/40 dark:bg-surface-800"
+				class="flex flex-col rounded-lg border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)] p-5 transition-colors"
 				data-testid={`plugin-card-${plugin.name}`}
 				data-plugin-id={plugin.name}
 			>
@@ -114,7 +114,7 @@ import { logger } from "@utils/logger";
 				</div>
 				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">{plugin.description}</p>
 
-				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-500/40">
+				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-500/30 pt-3 dark:border-surface-500/40">
 					<Button
 						variant="surface"
 						onclick={() => handleConfigure(plugin)}

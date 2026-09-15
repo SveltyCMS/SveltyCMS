@@ -362,14 +362,14 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.demoMode ? 'Enabled' : 'Disabled'}</dd>
 
 						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1"
+							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-500/30 dark:border-surface-500/40 pt-1 mt-1"
 						>
 							Redis Caching:
 							<SystemTooltip title="In-memory caching for database queries and session data.">
 								<HelpIcon ariaLabel="Help for Redis Caching" />
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1 font-semibold">
+						<dd class="text-tertiary-500 dark:text-primary-500 border-t border-surface-500/30 dark:border-surface-500/40 pt-1 mt-1 font-semibold">
 							{systemSettings.useRedis ? '🚀 Enabled' : 'Disabled'}
 						</dd>
 
@@ -385,14 +385,14 @@ This component presents a summary of all configuration steps before finalizing t
 
 						{#if systemSettings.cfApiToken}
 							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1"
+								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-500/30 dark:border-surface-500/40 pt-1 mt-1"
 							>
 								Cloudflare CDN:
 								<SystemTooltip title="Native Cloudflare CDN integration for edge purging.">
 									<HelpIcon ariaLabel="Help for Cloudflare CDN" />
 								</SystemTooltip>
 							</dt>
-							<dd class="text-tertiary-500 dark:text-primary-500 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1 font-semibold">
+							<dd class="text-tertiary-500 dark:text-primary-500 border-t border-surface-500/30 dark:border-surface-500/40 pt-1 mt-1 font-semibold">
 								🚀 {systemSettings.cfZoneId ? 'Active' : 'Partial (Missing Zone ID)'}
 							</dd>
 							{#if systemSettings.cfZoneId}

@@ -40,7 +40,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 </script>
 
 <div
-	class="shrink-0 bg-white p-2 dark:bg-surface-800 dark:text-surface-50"
+	class="shrink-0 bg-[var(--admin-bg-card)] p-2 text-[var(--admin-text-body)]"
 >
 	<!-- Row 1: Branding and Controls (Grid on desktop, flex on mobile) -->
 	<div class="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-center lg:gap-4">

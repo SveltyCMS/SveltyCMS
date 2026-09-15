@@ -63,6 +63,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		children?: CollectionTreeNode[];
 		depth: number;
 		icon?: string;
+		iconExpanded?: string;
+		iconColorClass?: string;
+		labelClass?: string;
 		id: string;
 		isExpanded: boolean;
 		name: string;
@@ -355,7 +358,10 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				isExpanded,
 				onClick: () => selectNode(node),
 				children,
-				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
+				icon: isCategory ? 'bi:folder' : (node.icon || 'bi:collection'),
+				iconExpanded: isCategory ? 'bi:folder2-open' : undefined,
+				iconColorClass: isCategory ? 'text-surface-400 dark:text-surface-500' : (node.icon ? undefined : 'text-tertiary-500 dark:text-primary-500'),
+				labelClass: isCategory ? 'text-xs uppercase tracking-wider' : undefined,
 				badge,
 				path: nodePath,
 				href: nodePath,
@@ -366,24 +372,36 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			};
 		}
 
-		function filterNode(node: ExtendedContentNode): ExtendedContentNode | null {
+		function filterNode(node: ExtendedContentNode, inheritSearchMatch = false): ExtendedContentNode | null {
 			const isFav = collectionMetadata.isFavorite(node._id);
 			const nodeTags = collectionMetadata.getTags(node._id);
 			const matchesTag = selectedTagFilter ? nodeTags.includes(selectedTagFilter) : true;
-			const matchesFav = showOnlyFavorites ? isFav : true;
+
+			const translation = node.translations?.find(t => t.languageTag === currentLanguage);
+			const label = (translation?.translationName || node.name || '').toLowerCase();
+			const selfMatchesSearch = !debouncedSearch || label.includes(debouncedSearch);
+			const matchesSearch = selfMatchesSearch || inheritSearchMatch;
 
 			if (node.nodeType === 'category') {
+				// A category name match keeps the subtree (TreeView search semantics)
+				// while descendants still honor favorites/tags.
+				const childInherit = inheritSearchMatch || (!!debouncedSearch && selfMatchesSearch);
 				const filtered = (node.children ?? [])
-					.map(filterNode)
+					.map((child) => filterNode(child, childInherit))
 					.filter((n): n is ExtendedContentNode => n !== null);
 				if (filtered.length) return { ...node, children: filtered };
-				if (showOnlyFavorites && isFav) return { ...node, children: [] };
-				if (selectedTagFilter && matchesTag) return { ...node, children: [] };
-				if (!showOnlyFavorites && !selectedTagFilter) return { ...node, children: [] };
-				return null;
+
+				if (showOnlyFavorites && !isFav) return null;
+				if (selectedTagFilter && !matchesTag) return null;
+				if (debouncedSearch && !matchesSearch) return null;
+
+				return { ...node, children: [] };
 			}
+
 			if (showOnlyFavorites && !isFav) return null;
 			if (selectedTagFilter && !matchesTag) return null;
+			if (debouncedSearch && !matchesSearch) return null;
+
 			return node;
 		}
 
@@ -424,7 +442,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 		const nested = buildTree(structure as ExtendedContentNode[]);
 		const filtered = nested
-			.map(filterNode)
+			.map((node) => filterNode(node))
 			.filter((n): n is ExtendedContentNode => n !== null);
 
 		// Top-level sort uses effective order
@@ -641,7 +659,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	<!-- Collections Section Header with Quick-Add -->
 	{#if isFullSidebar}
 		<div class="flex items-center justify-between px-1 pb-0.5">
-			<span class="text-[11px] font-bold uppercase tracking-wider text-surface-500">Collections</span>
+			<span class="text-xs font-bold uppercase tracking-wider text-surface-500">Collections</span>
 			<SystemTooltip title="Manage Collections & Categories" positioning={{ placement: 'right' }}>
 				<a
 					href="/config/collectionbuilder"
@@ -699,13 +717,13 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 	{#snippet clearIcon()}
 		{#if isSearching}
-			<Loader variant="circle" width="size-2" height="size-2" />
+			<Loader variant="circle" width="size-4" height="size-4" />
 		{:else if search}
 			<Button
 				variant="ghost"
 				type="button"
 				onclick={() => (search = '')}
-				class="p-0.5 min-w-0 rounded-full hover:bg-surface-700"
+				class="p-0.5 min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500"
 				aria-label="Clear search"
 			>
 				<iconify-icon icon="ic:round-close" width="18"></iconify-icon>
@@ -819,7 +837,6 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				{selectedId}
 				compact={!isFullSidebar}
 				search={debouncedSearch}
-				iconColorClass="text-error-500"
 				showBadges={true}
 				allowDragDrop={true}
 				onreorder={handleTreeReorder}

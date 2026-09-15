@@ -205,7 +205,7 @@ onMount(loadWebhooks);
 
 	<div data-testid="webhooks-page" class="contents">
 		{#if isLoading}
-			<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
+			<AdminCard class="p-6">
 				<div class="flex flex-col items-center justify-center py-20" data-testid="webhooks-loading">
 					<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Loading webhooks" />
 				</div>
@@ -227,7 +227,7 @@ onMount(loadWebhooks);
 			{#if webhooks.length === 0}
 				<div in:fade>
 					<AdminCard
-						class="p-12 text-center border-2 border-dashed border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+						class="p-12 text-center border-dashed!"
 						data-testid="webhooks-empty"
 					>
 						<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
@@ -245,7 +245,7 @@ onMount(loadWebhooks);
 			{:else}
 				<div in:fade>
 					<AdminCard
-						class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs space-y-4"
+						class="p-6 space-y-4"
 						data-testid="webhooks-list"
 					>
 						<div class="grid gap-4">

@@ -42,13 +42,14 @@
 	const itemRefs: Array<HTMLButtonElement | null> = [];
 
 	// Action to capture each item's button element reference
-	// @ts-expect-error - used in template via use:captureItem directive
-	function captureItem(node: HTMLButtonElement, index: number) {
-		itemRefs[index] = node;
+	function captureItem(node: HTMLElement, index: number) {
+		const btn = (node.matches('button, [role="button"], [role="menuitem"]')
+			? node
+			: node.querySelector('button, [role="button"], [role="menuitem"]')) as HTMLButtonElement | null;
+		itemRefs[index] = btn;
 		return {
 			destroy() {
-				// Clean up reference on removal
-				if (itemRefs[index] === node) {
+				if (itemRefs[index] === btn) {
 					itemRefs[index] = null;
 				}
 			}
@@ -216,8 +217,9 @@
 			}}
 		>
 			{#each items as item, i (item.name || item.title || i)}
-				<Button variant="outline">
-					use:captureItem={i}
+				<span class="contents" use:captureItem={i}>
+				<Button
+					variant="outline"
 					onclick={(e: MouseEvent) => selectItem(item, e)}
 					onkeydown={(e: KeyboardEvent) => {
 						if (e.key === 'Enter' || e.key === ' ') {
@@ -225,8 +227,9 @@
 							e.preventDefault();
 						}
 					}}
-					class="flex w-full items-center gap-2 px-3 py-2 text-start text-surface-700 hover:bg-surface-200/70 focus:bg-tertiary-500/20 focus:outline-none dark:text-white dark:hover:bg-surface-600/60 dark:focus:bg-tertiary-400/25"
-					class:active={item.active && item.active()}
+					class="flex w-full items-center gap-2 px-3 py-2 text-start text-surface-700 hover:bg-surface-200/70 focus:bg-tertiary-500/20 focus:outline-none dark:text-white dark:hover:bg-surface-600/60 dark:focus:bg-tertiary-400/25 {item.active && item.active()
+						? 'active'
+						: ''}"
 					role="menuitem"
 					tabindex={i === focusedIndex ? 0 : -1}
 					aria-current={item.active && item.active() ? 'true' : undefined}
@@ -241,6 +244,7 @@
 					{/if}
 					<span class="whitespace-nowrap text-sm">{item.name || item.title || ''}</span>
 				</Button>
+				</span>
 			{/each}
 		</div>
 	{/if}

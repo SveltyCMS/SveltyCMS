@@ -702,7 +702,7 @@
 
 	<AdminCard
 		data-testid="user-admin-area"
-		class="flex flex-col border border-surface-500/30 bg-white shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+		class="flex flex-col border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)]"
 	>
 		<!-- Header: Tabs + Invite button -->
 		<div class="flex items-center justify-between gap-3 px-4 pt-3">

@@ -748,7 +748,7 @@ onMount(() => {
 			{#if group.id === 'languages'}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
-					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-500/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-800/40">
 						{#if defaultLangField}
 							<div>
 								<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -795,7 +795,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[availableLangsField.key]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-700/40'}"
 									>
 										{#if (values[availableLangsField.key] as string[])?.length > 0}
 											{const languages = values[availableLangsField.key] as string[]}
@@ -843,7 +843,7 @@ onMount(() => {
 									{#if showLanguagePicker[availableLangsField.key]}
 										<div
 											id="{availableLangsField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 bg-[var(--admin-bg-card)] p-2 shadow-lg dark:border-surface-500/40"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -879,7 +879,7 @@ onMount(() => {
 														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 													</button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+													<p class="px-1 py-2 text-center text-xs text-surface-500">No matches</p>
 												{/each}
 											</div>
 										</div>
@@ -889,13 +889,13 @@ onMount(() => {
 									<div class="mt-1 text-xs text-error-500">{errors[availableLangsField.key]}</div>
 								{/if}
 								{#if availableLangsField.placeholder}
-									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {availableLangsField.placeholder}</p>
+									<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Example: {availableLangsField.placeholder}</p>
 								{/if}
 							</div>
 						{/if}
 					</div>
 					<!-- Right Column: Base Locale + Available Locales -->
-					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-500/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-800/40">
 						{#if baseLocaleField}
 							<div>
 								<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -942,7 +942,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[localesField.key]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-700/40'}"
 									>
 										{#if (values[localesField.key] as string[])?.length > 0}
 											{const locales = values[localesField.key] as string[]}
@@ -998,7 +998,7 @@ onMount(() => {
 									{#if showLanguagePicker[localesField.key]}
 										<div
 											id="{localesField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 bg-[var(--admin-bg-card)] p-2 shadow-lg dark:border-surface-500/40"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1033,7 +1033,7 @@ onMount(() => {
 														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 													</button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+													<p class="px-1 py-2 text-center text-xs text-surface-500">No matches</p>
 												{/each}
 											</div>
 										</div>
@@ -1043,7 +1043,7 @@ onMount(() => {
 									<div class="mt-1 text-xs text-error-500">{errors[localesField.key]}</div>
 								{/if}
 								{#if localesField.placeholder}
-									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {localesField.placeholder}</p>
+									<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Example: {localesField.placeholder}</p>
 								{/if}
 							</div>
 						{/if}
@@ -1194,7 +1194,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{const languages = values[field.key] as string[]}
@@ -1242,7 +1242,7 @@ onMount(() => {
 									{#if showLanguagePicker[field.key]}
 										<div
 											id="{field.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 bg-[var(--admin-bg-card)] p-2 shadow-lg dark:border-surface-500/40"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1274,14 +1274,14 @@ onMount(() => {
 														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 													</button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+													<p class="px-1 py-2 text-center text-xs text-surface-500">No matches</p>
 												{/each}
 											</div>
 										</div>
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
-									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Example: {field.placeholder}</p>
 								{/if}
 								<!-- Log Level Multi-Select -->
 							{:else if field.type === 'loglevel-multi'}
@@ -1289,7 +1289,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{const levels = values[field.key] as LogLevel[]}
@@ -1334,7 +1334,7 @@ onMount(() => {
 									{#if showLogLevelPicker[field.key]}
 										<div
 											id="{field.key}-loglevel-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 bg-[var(--admin-bg-card)] p-2 shadow-lg dark:border-surface-500/40"
 											role="dialog"
 											aria-label="Add log level"
 											tabindex="-1"
@@ -1361,7 +1361,7 @@ onMount(() => {
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
-									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Example: {field.placeholder}</p>
 								{/if}
 							{/if}
 
@@ -1375,7 +1375,7 @@ onMount(() => {
 			{/if}
 
 			<!-- Local Group Actions -->
-				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+				<div class="mt-8 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
 					<!-- Children slot (e.g. Repair Cache) rendered outside StickyActions to avoid double-render in global sticky bar -->
 					{#if children}
 						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mb-3">

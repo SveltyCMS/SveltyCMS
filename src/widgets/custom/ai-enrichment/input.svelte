@@ -93,7 +93,8 @@ async function runEnrichment() {
 			{#if field.required}<span class="text-error-500">*</span>{/if}
 		</label>
 
-		<Button variant="outline">
+		<Button
+			variant="outline"
 			type="button"
 			class="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-all bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-500 disabled:opacity-50 disabled:pointer-events-none"
 			onclick={runEnrichment}

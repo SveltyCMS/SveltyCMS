@@ -396,7 +396,7 @@ const conditionOperatorOptions = [
 		</div>
 
 		<!-- Step Content -->
-		<AdminCard class="overflow-hidden border border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900/50">
+		<AdminCard class="overflow-hidden">
 			<!-- STEP 1: Trigger -->
 			{#if activeStep === 1}
 				<div class="p-6 space-y-6" transition:fade>
