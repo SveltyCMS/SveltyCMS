@@ -497,22 +497,6 @@ export function isWidgetAvailable(name: string): boolean {
   return !!getWidgetFunction(name) && isWidgetActive(name);
 }
 
-// Compatibility export for theme branch components
-export const widgetStoreActions = {
-  updateStatus: widgetStateInstance.updateStatus.bind(widgetStateInstance),
-  updateConfig: widgetStateInstance.updateConfig.bind(widgetStateInstance),
-  reload: widgetStateInstance.reload.bind(widgetStateInstance),
-  initializeWidgets: widgetStateInstance.initialize.bind(widgetStateInstance),
-};
-
-// Compatibility store for legacy components
-export const widgetFunctions = {
-  subscribe(fn: (value: WidgetRegistry) => void) {
-    fn(widgetStateInstance.widgetFunctions);
-    return () => {}; // Non-reactive for now, sufficient for initial load or use $effect if needed
-  },
-};
-
 // HMR
 if (import.meta.hot) {
   import.meta.hot.accept(() => {

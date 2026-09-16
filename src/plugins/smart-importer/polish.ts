@@ -11,6 +11,7 @@
 
 import { logger } from "@utils/logger";
 import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
+import { resolveRemoteAssetMime } from "@src/utils/media/slim-sniffer.server";
 import type { SNCEntry } from "./types";
 
 // ============================================================================
@@ -90,12 +91,19 @@ export async function downloadMediaWithRateLimit(
 
         // If S3 configured, upload directly
         if (cfg.s3Endpoint && cfg.s3Bucket) {
+          const filename = sanitizeFilename(asset.externalUrl);
+          const buffer = Buffer.from(resp.bodyBytes);
+          const mimeType = resolveRemoteAssetMime({
+            filename,
+            declaredMime: resp.headers?.["content-type"] ?? null,
+            buffer,
+          });
           const s3Path = await uploadToS3(
             cfg.s3Endpoint,
             cfg.s3Bucket,
             asset,
             resp.bodyBytes,
-            resp.headers?.["content-type"],
+            mimeType,
           );
           results.set(asset.originalId, s3Path);
         } else {

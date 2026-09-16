@@ -19,10 +19,9 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, globSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
-import { globSync } from "glob";
 
 const ROOT = process.cwd();
 const ENTROPY_THRESHOLD = 4.0; // Shannon entropy threshold for flagging
@@ -250,8 +249,10 @@ function isKnownSafe(str: string): boolean {
 
 function collectSourceFiles(dir: string): string[] {
   return globSync(`${dir}/**/*.{ts,svelte,js}`, {
-    nodir: true,
-    ignore: ["**/node_modules/**", "**/paraglide/**", "**/*.d.ts"],
+    exclude: (p) => {
+      const s = String(p);
+      return s.includes("node_modules") || s.includes("paraglide") || s.endsWith(".d.ts");
+    },
   });
 }
 

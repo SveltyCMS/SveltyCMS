@@ -49,8 +49,6 @@ import { tick, untrack } from "svelte";
   import type { Locale } from "@src/paraglide/runtime";
   // Stores
   import {
-    collection,
-    collectionValue,
     setCollectionValue,
     collections,
   } from "@src/stores/collection-store.svelte";
@@ -62,7 +60,7 @@ import { tick, untrack } from "svelte";
   import { collaborationService } from "@src/services/collaboration/collaboration-service.svelte";
   import { showConfirm } from "@utils/modal.svelte";
   import { getCachedWidgetInputLoader, prefetchWidgetLoaders } from "@widgets/widget-loader-registry";
-  import { memoizeLazyLoader, type LazyComponent } from "@utils/lazy-component-loader";
+  import { memoizeLazyLoader, type LazyComponent } from "@utils/lazy-module";
   import WidgetLoader from "./widget-loader.svelte";
 
   	import Portal from "@components/ui/portal.svelte";
@@ -72,7 +70,7 @@ import { tick, untrack } from "svelte";
 
   // Plugin Slot System
   import { slotRegistry } from "@src/plugins/slot-registry.svelte.ts";
-  import { activeInputStore } from "@src/stores/active-input-store.svelte";
+  import { activeInput } from "@src/stores/active-input-store.svelte";
 
   // Token Picker
   // Token Picker
@@ -88,7 +86,7 @@ import { tick, untrack } from "svelte";
       | HTMLTextAreaElement;
     if (el) {
       el.focus();
-      activeInputStore.set({ element: el, field }); // Explicitly open picker on button click
+      activeInput.set({ element: el, field });
     } else {
       logger.warn("Could not find input for field", field);
     }
@@ -189,7 +187,7 @@ import { tick, untrack } from "svelte";
           sourceLang: sourceLocale,
           targetLang: targetLocale,
           field: field.label || fieldName,
-          collection: collection.value?.name || "unknown",
+          collection: collections.active?.name || "unknown",
         }),
       });
       if (!res.ok) {
@@ -210,7 +208,7 @@ import { tick, untrack } from "svelte";
         currentCollectionValue[fieldName] = fieldValue;
         // Update store and track translation progress
         setCollectionValue({ ...currentCollectionValue });
-        const fieldPath = `${collection.value?.name}.${fieldName}`;
+        const fieldPath = `${collections.active?.name}.${fieldName}`;
         translationProgress.markFieldTranslated(targetLocale, fieldPath);
         toast.success(`Translated to ${targetLocale.toUpperCase()}`);
       } else {
@@ -287,7 +285,7 @@ import { tick, untrack } from "svelte";
 
   /** Field-level store patch — avoids full-object JSON.stringify on every keystroke. */
   function syncFieldToStore(fieldName: string) {
-    const base = (collectionValue.value as Record<string, any>) || {};
+    const base = (collections.activeValue as Record<string, any>) || {};
     const patch = { ...base, [fieldName]: currentCollectionValue[fieldName] };
     setCollectionValue(patch);
     collections.compareWithCurrent(patch);
@@ -302,7 +300,7 @@ import { tick, untrack } from "svelte";
   // expressions are forbidden by Svelte: they cause unstable re-renders that
   // end in effect_update_depth_exceeded).
   $effect(() => {
-    const global = collectionValue.value as Record<string, unknown> | undefined;
+    const global = collections.activeValue as Record<string, unknown> | undefined;
     const globalId = (global as any)?._id;
 
     if (globalId && globalId !== lastEntryId) {
@@ -402,14 +400,14 @@ import { tick, untrack } from "svelte";
       }
       return;
     }
-    const coll = collection.value;
-    const entryId = collectionValue.value?._id ?? "new";
+    const coll = collections.active;
+    const entryId = collections.activeValue?._id ?? "new";
     const key = `${coll?._id ?? ""}:${entryId}`;
     if (key === collabSessionKey) return;
     collabSessionKey = key;
     collaborationService.destroy();
     if (coll) {
-      void collaborationService.init(coll, collectionValue.value ?? {});
+      void collaborationService.init(coll, collections.activeValue ?? {});
     }
   });
 
@@ -440,7 +438,7 @@ import { tick, untrack } from "svelte";
       onConfirm: () => {
         const revertData = {
           ...selectedRevision.data,
-          _id: (collectionValue as any).value?._id,
+          _id: collections.activeValue?._id,
         };
         // A revision may predate the current schema — stale error keys for
         // removed/renamed fields would otherwise block Save forever
@@ -489,8 +487,8 @@ import { tick, untrack } from "svelte";
   });
 
   $effect(() => {
-    if ((collectionValue as any).value?._id) {
-      apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
+    if (collections.activeValue?._id) {
+      apiUrl = `${location.origin}/api/collection/${collections.active?._id}/${collections.activeValue._id}`;
     }
   });
 
@@ -536,9 +534,9 @@ import { tick, untrack } from "svelte";
       if (!merged || typeof merged !== "object") return;
 
       currentCollectionValue = { ...currentCollectionValue, ...merged };
-      setCollectionValue({ ...(collectionValue.value as Record<string, unknown>), ...merged });
+      setCollectionValue({ ...(collections.activeValue as Record<string, unknown>), ...merged });
       collections.compareWithCurrent({
-        ...(collectionValue.value as Record<string, unknown>),
+        ...(collections.activeValue as Record<string, unknown>),
         ...merged,
       });
     };
@@ -555,16 +553,16 @@ import { tick, untrack } from "svelte";
       (slot) =>
         !slot.condition ||
         slot.condition({
-          collection: collection.value,
-          entry: (collectionValue as any).value,
+          collection: collections.active,
+          entry: collections.activeValue,
         }),
     );
   });
 </script>
 
 <h1 class="sr-only">
-  {collection.value?.name
-    ? `Edit ${collection.value.name} Entry`
+  {collections.active?.name
+    ? `Edit ${collections.active.name} Entry`
     : "Edit Entry"}
 </h1>
 
@@ -592,12 +590,12 @@ import { tick, untrack } from "svelte";
 {:else}
   <div class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-500/10 dark:bg-surface-800/70 border border-surface-500/30 dark:border-surface-500/40 text-sm">
     <div class="flex items-center gap-2">
-      <iconify-icon icon={collection.value?.icon || "mdi:folder-outline"} width="18" class="text-primary-500"></iconify-icon>
-      <span class="font-semibold text-primary-600 dark:text-primary-400">{collection.value?.name || "Collection"}</span>
+      <iconify-icon icon={collections.active?.icon || "mdi:folder-outline"} width="18" class="text-primary-500"></iconify-icon>
+      <span class="font-semibold text-primary-600 dark:text-primary-400">{collections.active?.name || "Collection"}</span>
       <span class="text-surface-400">/</span>
       <span class="text-surface-600 dark:text-surface-400 font-medium">
-        {#if (collectionValue as any)?.value?._id}
-          Edit <span class="font-mono text-xs opacity-80">({String((collectionValue as any).value._id).slice(0, 8)})</span>
+        {#if collections.activeValue?._id}
+          Edit <span class="font-mono text-xs opacity-80">({String(collections.activeValue._id).slice(0, 8)})</span>
         {:else}
           New Entry
         {/if}
@@ -624,7 +622,7 @@ import { tick, untrack } from "svelte";
         </div>
       </Tabs.Trigger>
 
-      {#if collection.value?.revision}
+      {#if collections.active?.revision}
         <Tabs.Trigger value="1" class="flex-1">
           <div class="flex items-center justify-center gap-2 py-2">
             <iconify-icon
@@ -829,7 +827,7 @@ import { tick, untrack } from "svelte";
                             bind:value={currentCollectionValue[fieldName][fieldLocale]}
                             onFieldSync={() => syncFieldToStore(fieldName)}
                             {tenantId}
-                            collectionName={collection.value?.name}
+                            collectionName={collections.active?.name}
                           />
                         {/if}
                       {/key}
@@ -841,7 +839,7 @@ import { tick, untrack } from "svelte";
                         bind:value={currentCollectionValue[fieldName]}
                         onFieldSync={() => syncFieldToStore(fieldName)}
                         {tenantId}
-                        collectionName={collection.value?.name}
+                        collectionName={collections.active?.name}
                       />
                     {/if}
                   {:else if widgets.loading}
@@ -996,7 +994,7 @@ import { tick, untrack } from "svelte";
         <AdminCard
                   class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"
                 >
-          <pre>{JSON.stringify((collectionValue as any).value, null, 2)}</pre>
+          <pre>{JSON.stringify(collections.activeValue, null, 2)}</pre>
                   </AdminCard>
       </div>
     </Tabs.Content>

@@ -10,7 +10,6 @@
  */
 
 let navigationManager: any;
-let mode: any;
 let globalLoadingStore: any;
 let collections: any;
 
@@ -21,7 +20,6 @@ beforeAll(async () => {
   const LOAD_STORE = await import("@src/stores/loading-store.svelte");
 
   navigationManager = NAV_MOD.navigationManager;
-  mode = COL_STORE.mode;
   globalLoadingStore = LOAD_STORE.globalLoadingStore;
   collections = COL_STORE.collections;
 });
@@ -40,7 +38,7 @@ describe("NavigationManager", () => {
 
     // Assertions
     expect(collections.hasChanges).toBe(false);
-    expect(mode.value).toBe("view");
+    expect(collections.mode).toBe("view");
   });
 
   it("should prevent concurrent navigations", async () => {

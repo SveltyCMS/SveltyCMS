@@ -50,7 +50,7 @@ import {
 import TreeViewBoard from "@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte";
 // Stores
 import {
-    contentStructure,
+    collections,
     setCollection,
     setCollectionValue,
     setDraftContentStructure,
@@ -147,7 +147,7 @@ $effect(() => {
 });
 
 $effect(() => {
-    const sharedStructure = contentStructure.value as ContentNode[];
+    const sharedStructure = collections.contentStructure as ContentNode[];
     if (!initializedFromPageData || !sharedStructure?.length) return;
 
     const hierarchySignature = (nodes: ContentNode[]) =>

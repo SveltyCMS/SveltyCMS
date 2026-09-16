@@ -11,7 +11,7 @@ Features:
 - Integrated marketplace tab
 -->
 <script lang="ts">
-import { widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
+import { widgets as widgetRegistry } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
 // Using iconify-icon web component
 import { onMount } from "svelte";
@@ -187,7 +187,7 @@ async function toggleWidget(widgetName: string) {
 		}
 
 		// Force refresh: Clear cache and reload widget store + widget list
-		await widgetStoreActions.initializeWidgets(tenantId);
+		await widgetRegistry.initialize(tenantId);
 		await loadWidgets();
 
 		logger.debug(

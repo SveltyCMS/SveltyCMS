@@ -24,7 +24,7 @@ import { logger } from "@utils/logger";
 	import { modifierMetadata } from '@src/services/token/modifiers';
 	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
 	import { activeInput } from '@src/stores/active-input-store.svelte';
-	import { collection, collectionValue } from '@src/stores/collection-store.svelte';
+	import { collections } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { nowISODateString } from '@utils/date';
@@ -59,7 +59,7 @@ import { logger } from "@utils/logger";
 	});
 
 	// Derived data
-	let groupedTokens = $derived(TokenRegistry.getTokens(collection.value ?? undefined, page.data?.user));
+	let groupedTokens = $derived(TokenRegistry.getTokens(collections.active ?? undefined, page.data?.user));
 
 	let filteredGroups = $derived.by(() => {
 		const q = search.toLowerCase();
@@ -110,7 +110,7 @@ import { logger } from "@utils/logger";
 			isLoadingPreview = true;
 			try {
 				const context = {
-					entry: collectionValue.value,
+					entry: collections.activeValue,
 					user: page.data.user,
 					site: publicEnv,
 					system: { now: nowISODateString() }

@@ -37,6 +37,7 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 import { contentStore } from "@stores/content-registry.svelte";
 import { createChecksum } from "@utils/security/crypto";
+import { generateUUID } from "@utils/native-utils";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";
 
@@ -205,6 +206,10 @@ export interface ImportPlan {
   duplicateStrategy: DuplicateStrategy;
   /** Whether to run as a background job. */
   background: boolean;
+  /** Authoritative tenant the plan was built for. */
+  tenantId?: string;
+  /** User who created the plan. */
+  userId?: string;
 }
 
 /** Options for applying an import plan. */
@@ -694,7 +699,7 @@ export class ContentPackageService {
     }
 
     const strategy = options.duplicateStrategy ?? "skip";
-    const planId = `import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const planId = `import_${generateUUID()}`;
     const operations: ImportOperation[] = [];
     const tenantId = options.tenantId ?? pkg.manifest.tenantId;
 
@@ -747,6 +752,8 @@ export class ContentPackageService {
       summary,
       duplicateStrategy: strategy,
       background: isLargeImport,
+      tenantId,
+      userId: options.userId,
     };
 
     this.importPlans.set(planId, plan);
@@ -773,6 +780,18 @@ export class ContentPackageService {
     const plan = this.importPlans.get(planId);
     if (!plan) {
       return { success: false, message: `Import plan not found: ${planId}` };
+    }
+    if (plan.tenantId && options.tenantId && plan.tenantId !== options.tenantId) {
+      return {
+        success: false,
+        message: `Tenant mismatch for import plan ${planId}`,
+      };
+    }
+    if (plan.userId && options.userId && plan.userId !== options.userId) {
+      return {
+        success: false,
+        message: `Import plan belongs to another user`,
+      };
     }
 
     // Emit webhook event (best-effort, non-blocking)
@@ -1084,7 +1103,7 @@ export class ContentPackageService {
     strategy: DuplicateStrategy,
     _tenantId: string,
   ): Promise<ImportOperation> {
-    const entryId = String(entry._id ?? `entry_${Math.random().toString(36).slice(2, 10)}`);
+    const entryId = String(entry._id ?? `entry_${generateUUID()}`);
 
     // 1. syncId match
     if (entry.syncId && typeof entry.syncId === "string") {

@@ -22,7 +22,7 @@ FIXES:
 	// Paraglide Messages
 	import { applayout_contentlanguage, translationsstatus_completed } from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
-	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
+	import { collections } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { contentLanguage, translationProgress } from '@src/stores/locale-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
@@ -50,7 +50,7 @@ FIXES:
 	});
 
 	const currentLanguage = $derived(contentLanguage.value);
-	const currentMode = $derived(mode.value);
+	const currentMode = $derived(collections.mode);
 	const isViewMode = $derived(currentMode === 'view');
 
 	// Logic: In View Mode, only show *other* languages (switcher style). In Edit Mode, show all (status style).
@@ -330,7 +330,7 @@ FIXES:
 
 		// Handle View Mode Navigation (previously handleViewModeLanguageChange)
 		if (isViewMode) {
-			const currentCollectionId = collection.value?._id;
+			const currentCollectionId = collections.active?._id;
 			const currentSearch = page.url.search;
 
 			if (currentCollectionId) {
@@ -373,8 +373,8 @@ FIXES:
 	let lastCollectionId = $state<string | undefined>(undefined);
 
 	$effect(() => {
-		const currentCollection = collection.value;
-		const currentEntry = collectionValue.value as { _id?: string } | undefined;
+		const currentCollection = collections.active;
+		const currentEntry = collections.activeValue as { _id?: string } | undefined;
 		const entryId = currentEntry?._id;
 		const collectionId = currentCollection?._id;
 
@@ -409,8 +409,8 @@ FIXES:
 
 	let lastCollectionValueStr = $state<string>('');
 	$effect(() => {
-		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue.value as Record<string, any>;
+		const currentCollection = collections.active;
+		const currentCollectionValue = collections.activeValue as Record<string, any>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			const currentStr = JSON.stringify(currentCollectionValue);

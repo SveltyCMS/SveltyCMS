@@ -3,7 +3,7 @@
 @component Collection Permissions — Tab 3: Role-based edit/view/write matrix
  -->
 <script lang="ts">
-import { collection, setCollection } from "@src/stores/collection-store.svelte";
+import { collections, setCollection } from "@src/stores/collection-store.svelte";
 import Card from "@src/components/ui/card.svelte";
 import Button from "@src/components/ui/button.svelte";
 import type { Role } from "@src/databases/auth/types";
@@ -17,7 +17,7 @@ let permissions = $state<Record<string, { view: boolean; edit: boolean; write: b
 
 // Sync from existing collection on mount and when collection changes
 $effect(() => {
-	const col = collection.value as Record<string, any> | null;
+	const col = collections.active as Record<string, any> | null;
 	if (!col) return;
 
 	// Try to hydrate from collection.permissions if available
@@ -72,8 +72,8 @@ function setAllForRole(roleName: string, value: boolean) {
 
 // Write to collection store
 function flushToCollection() {
-	if (!collection.value) return;
-	setCollection({ ...collection.value, permissions } as any);
+	if (!collections.active) return;
+	setCollection({ ...collections.active, permissions } as any);
 	toast.info("Permissions updated", { duration: 1500 });
 }
 

@@ -15,7 +15,7 @@
  */
 
 import { untrack } from "svelte";
-import { mode } from "./collection-store.svelte";
+import { collections } from "./collection-store.svelte";
 import { ScreenSize, screen } from "./screen-size-store.svelte";
 
 // Types for UI visibility states
@@ -81,8 +81,6 @@ class UIStore {
   // UI toggles
   manualOverrideActive = $state(false);
   headerShowMore = $state(false);
-  /** @deprecated Prefer isCommandBarVisible — kept in sync for legacy callers */
-  isSearchVisible = $state(false);
   /** Unified global search / command palette visibility */
   isCommandBarVisible = $state(false);
   // Sticky action bar: pages set their action buttons here
@@ -94,12 +92,10 @@ class UIStore {
   toggleGlobalSearch(force?: boolean): void {
     const next = force ?? !this.isCommandBarVisible;
     this.isCommandBarVisible = next;
-    this.isSearchVisible = next;
   }
 
   closeGlobalSearch(): void {
     this.isCommandBarVisible = false;
-    this.isSearchVisible = false;
   }
 
   // Internal state
@@ -267,7 +263,7 @@ class UIStore {
    * Force a layout update
    */
   forceUpdate(): void {
-    this.updateFromContext(screen.size, mode.value);
+    this.updateFromContext(screen.size, collections.mode);
   }
 
   /**
@@ -298,7 +294,7 @@ moduleEffectCleanup = $effect.root(() => {
     if (typeof window === "undefined") return;
 
     const size = screen.size;
-    const currentMode = mode.value;
+    const currentMode = collections.mode;
     const CTX =
       ui.routeContext.isImageEditor ||
       ui.routeContext.isCollectionBuilder ||
@@ -313,32 +309,4 @@ moduleEffectCleanup = $effect.root(() => {
   });
 });
 
-// Backward compatibility exports for theme branch components
-export function toggleUIElement(element: keyof UIState, visibility: UIVisibility): void {
-  ui.toggle(element, visibility);
-}
-
-// Compatibility export for uiStateManager - wraps ui instance
-export const uiStateManager = {
-  get state() {
-    return ui.state;
-  },
-  get uiState() {
-    return { value: ui.state };
-  },
-  toggle: ui.toggle.bind(ui),
-  show: (element: keyof UIState) => ui.toggle(element, "full"),
-  hide: (element: keyof UIState) => ui.toggle(element, "hidden"),
-};
-
 export const setRouteContext = ui.setRouteContext.bind(ui);
-
-/** Compatibility bridge for cross-component action state (table-icons, entry-list-multi-button, multibutton) */
-export const app = {
-  get listboxValueState() {
-    return ui.listboxValueState;
-  },
-  set listboxValueState(v: string) {
-    ui.listboxValueState = v;
-  },
-};

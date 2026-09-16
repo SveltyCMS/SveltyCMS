@@ -6,7 +6,7 @@
 
 import { browser } from "$app/env";
 import { page } from "$app/state";
-import { collectionValue } from "@src/stores/collection-store.svelte";
+import { collections } from "@src/stores/collection-store.svelte";
 import { logger } from "@utils/logger";
 import * as Y from "yjs";
 import { untrack } from "svelte";
@@ -117,12 +117,12 @@ class CollaborationService {
         const yjsData = yMap.toJSON();
         if (Object.keys(yjsData).length === 0) return;
 
-        const current = (collectionValue.value as Record<string, any>) || {};
+        const current = (collections.activeValue as Record<string, any>) || {};
         const merged = { ...current, ...yjsData };
 
         // Simple deep equality check (can be optimized with a better diff later)
         if (JSON.stringify(current) !== JSON.stringify(merged)) {
-          collectionValue.value = merged;
+          collections.setCollectionValue(merged);
         }
       });
     };

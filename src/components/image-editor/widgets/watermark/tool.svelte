@@ -5,6 +5,7 @@ Watermark tool with full text and image watermark support.
 -->
 <script lang="ts">
 import { logger } from "@utils/logger";
+	import { generateUUID } from '@utils/native-utils';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
@@ -45,7 +46,7 @@ import { logger } from "@utils/logger";
 
 	// Generate unique ID
 	function generateId(): string {
-		return `wm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		return `wm_${generateUUID()}`;
 	}
 
 	function measureTextWatermark(text: string, fontSize: number) {

@@ -18,7 +18,7 @@ export interface CachedResponseEntry {
   body: string;
   etag: string;
   buffer?: Uint8Array;
-  /** Pre-computed compression variants (br/gzip) for TURBO-HIT serving. */
+  /** Pre-computed compression variants (br/gzip/zstd) for TURBO-HIT serving. */
   compressed?: Record<string, Uint8Array>;
   /** L1/L2 expiration timestamp in ms — persisted so promoted entries expire too. */
   expiresAt?: number;
@@ -244,10 +244,16 @@ class ResponseCacheService {
             const size = rawBody.length;
             const gzip = await compressAsync(rawBody, "gzip", size).catch(() => null);
             const br = await compressAsync(rawBody, "br", size).catch(() => null);
-            if (gzip || br) {
+            // zstd only pays off ≥32 KiB (same cutoff as negotiateEncoding).
+            const zstd =
+              size >= 32 * 1024
+                ? await compressAsync(rawBody, "zstd", size).catch(() => null)
+                : null;
+            if (gzip || br || zstd) {
               entry.compressed = {
                 ...(gzip ? { gzip } : {}),
                 ...(br ? { br } : {}),
+                ...(zstd ? { zstd } : {}),
               };
             }
           }

@@ -6,7 +6,7 @@ order: 28
 icon: "mdi:tools"
 author: "SveltyCMS Team"
 created: "2026-06-25"
-updated: "2026-06-25"
+updated: "2026-09-14"
 tags:
   - "architecture"
   - "utilities"
@@ -75,12 +75,12 @@ src/utils/
 
 All 14 files are **wired to API handlers** or planned for wiring:
 
-| File                      | Key exports                                                    | API endpoint        |
-| ------------------------- | -------------------------------------------------------------- | ------------------- |
-| `media-utils.ts`          | `getMimeType`, `mediaUrl`, `sanitizedFilename`, `SIZES`        | Multiple            |
-| `media-models.ts`         | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType`            | Type definitions    |
-| `media-service.server.ts` | `MediaService` class                                           | Core CRUD           |
-| `media-storage.server.ts` | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` | Storage abstraction |
+| File                      | Key exports                                                           | API endpoint        |
+| ------------------------- | --------------------------------------------------------------------- | ------------------- |
+| `media-utils.ts`          | `getMimeType`, `isAllowedUploadMime`, `mediaUrl`, `sanitizedFilename` | Multiple            |
+| `media-models.ts`         | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType`                   | Type definitions    |
+| `media-service.server.ts` | `MediaService` class                                                  | Core CRUD           |
+| `media-storage.server.ts` | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages`        | Storage abstraction |
 
 | File                   | Key exports                                                                 | API endpoint |
 | ---------------------- | --------------------------------------------------------------------------- | ------------ |
@@ -88,14 +88,14 @@ All 14 files are **wired to API handlers** or planned for wiring:
 | `sharing.ts`           | `createLink`, `validateLink`, `revoke`, `extend`, `newToken`, bulk-download | Share + Bulk |
 | `storage-analytics.ts` | `analyze`, `insights`, `trends`, `quota`, `formatBytes`                     | Analytics    |
 
-| File                         | Key exports                                                                  | API endpoint                 |
-| ---------------------------- | ---------------------------------------------------------------------------- | ---------------------------- |
-| `media-storage.server.ts`    | `createVersion`, `compareVersions`, `getVersionStats`, `saveFile`, `getFile` | Storage + Version            |
-| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`                         | Search API                   |
-| `streaming-upload.ts`        | `parseMultipartStream`                                                       | Stream upload                |
-| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                                  | Processing                   |
-| `slim-sniffer.server.ts`     | `sniffMimeType`                                                              | Binary MIME detection        |
-| `webgpu-processor.ts`        | `optimizeImage`                                                              | Client-side GPU optimization |
+| File                         | Key exports                                                                         | API endpoint                                |
+| ---------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------- |
+| `media-storage.server.ts`    | `createVersion`, `compareVersions`, `getVersionStats`, `saveFile`, `getFile`        | Storage + Version                           |
+| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`                                | Search API                                  |
+| `streaming-upload.ts`        | `parseMultipartStream`                                                              | Stream upload                               |
+| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                                         | Processing                                  |
+| `slim-sniffer.server.ts`     | `sniffMimeType`, `resolveMimeType`, `assertMimeAgreement`, `resolveRemoteAssetMime` | Binary MIME detection + write/serve resolve |
+| `webgpu-processor.ts`        | `optimizeImage`                                                                     | Client-side GPU optimization                |
 
 ### Infrastructure
 

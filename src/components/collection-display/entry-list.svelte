@@ -71,9 +71,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 	import { EntryList_no_collection, entrylist_all, entrylist_dnd } from '@src/paraglide/messages';
 	// Stores
 	import {
-		collection,
-		collectionValue,
-		mode,
+		collections,
 		setCollectionValue,
 		setModifyEntry,
 		type statusMap
@@ -177,7 +175,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 	// layoutKey is per-collection (EntryList remounts via {#key collectionSchema?._id})
 	const smartTable = createSmartTable<CollectionEntry>({
 		mode: 'server',
-		layoutKey: collection.value?._id ? `entry-list:${collection.value._id}` : 'entry-list',
+		layoutKey: collections.active?._id ? `entry-list:${collections.active._id}` : 'entry-list',
 		onQueryChange: (updates) => updateURL(updates),
 		getRowId: (row) => String(row._id ?? '')
 	});
@@ -249,7 +247,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 	};
 
 	// Schema-aware filter controller (platform pure defs + URL; server enforces FLAC)
-	const smartFilter = createSmartFilter(() => collection.value);
+	const smartFilter = createSmartFilter(() => collections.active);
 
 	// Virtual scroll shell (math owned by smartTable)
 	let scrollContainerEl = $state<HTMLDivElement | null>(null);
@@ -296,7 +294,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 	}
 
 	const viewsScope = $derived(
-		collection.value?._id ? `entry-list:${collection.value._id}` : 'entry-list:unknown'
+		collections.active?._id ? `entry-list:${collections.active._id}` : 'entry-list:unknown'
 	);
 
 	const activeStatusFacet = $derived(smartFilter.filters['status'] ?? '');
@@ -571,22 +569,22 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 		filters: {}, // Will be populated by an effect based on tableHeaders
 		displayTableHeaders: []
 	});
-	let entryListPaginationSettings = $state(defaultPaginationSettings(collection.value?._id ?? null));
+	let entryListPaginationSettings = $state(defaultPaginationSettings(collections.active?._id ?? null));
 
 	// Load settings from localStorage
 	$effect(() => {
-		if (browser && collection.value?._id) {
-			const key = `entryListPaginationSettings_${collection.value._id}`;
+		if (browser && collections.active?._id) {
+			const key = `entryListPaginationSettings_${collections.active._id}`;
 			const saved = localStorage.getItem(key);
 			if (saved) {
 				try {
 					const parsed = JSON.parse(saved);
 					// Ensure we don't overwrite with stale data structure, merge carefully if needed
 					// For now, assume saved state is valid but ensure collectionId matches
-					if (parsed.collectionId === collection.value._id) {
+					if (parsed.collectionId === collections.active._id) {
 						// We need to match the Shape of PaginationSettings
 						entryListPaginationSettings = {
-							...defaultPaginationSettings(collection.value._id),
+							...defaultPaginationSettings(collections.active._id),
 							...parsed
 							// Ensure displayTableHeaders are re-verified against current schema later by existing effects
 						};
@@ -600,8 +598,8 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 
 	// Save settings to localStorage
 	$effect(() => {
-		if (browser && collection.value?._id && entryListPaginationSettings) {
-			const key = `entryListPaginationSettings_${collection.value._id}`;
+		if (browser && collections.active?._id && entryListPaginationSettings) {
+			const key = `entryListPaginationSettings_${collections.active._id}`;
 			// Debounce save slightly or just save? $effect runs after render.
 			// Use untrack? No, we want to track entryListPaginationSettings.
 			const stringified = JSON.stringify(entryListPaginationSettings);
@@ -618,8 +616,8 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 	const currentStates = $derived.by(() => ({
 		language: contentLanguage.value,
 		systemLanguage: systemLanguage.value,
-		mode: mode.value,
-		collection: collection.value,
+		mode: collections.mode,
+		collection: collections.active,
 		screenSize: screen.size
 	}));
 
@@ -817,11 +815,11 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 		if (currentMode === 'view') {
 			untrack(() => {
 				meta_data.clear();
-				const currentValue = collectionValue;
+				const currentValue = collections.activeValue;
 				if (currentValue && Object.keys(currentValue).length > 0) {
 					setCollectionValue({});
 				}
-				const currentCollId = collection.value?._id;
+				const currentCollId = collections.active?._id;
 				if (currentCollId) {
 					invalidateCollectionCache(currentCollId);
 				}
@@ -878,8 +876,8 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 				}
 			}
 		}
-		if (collection.value?.status) {
-			newEntry.status = collection.value.status;
+		if (collections.active?.status) {
+			newEntry.status = collections.active.status;
 		}
 
 		// ✅ GUI-FIRST PATTERN: Instant mode switch (no data loading needed for create)
@@ -919,7 +917,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 				try {
 					if (willDelete) {
 						try {
-							const collId = collection.value?._id;
+							const collId = collections.active?._id;
 							if (collId) {
 								const result = await batchDeleteEntries(collId, selectedIds);
 								if (result.success) {
@@ -932,7 +930,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 							logger.warn('Batch delete failed, using individual deletes:', batchError);
 							await Promise.all(
 								selectedIds.map((entryId) => {
-									const collId = collection.value?._id;
+									const collId = collections.active?._id;
 									if (collId) {
 										return deleteEntry(collId, entryId);
 									}
@@ -1293,7 +1291,7 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 														count: 1,
 														onConfirm: async () => {
 															try {
-																const collId = collection.value?._id;
+																const collId = collections.active?._id;
 																if (!collId) return;
 																const result = await updateEntryStatus(collId, entry._id as string, String(nextStatus));
 																if (result.success) {

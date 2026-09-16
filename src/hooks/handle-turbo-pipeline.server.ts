@@ -172,17 +172,15 @@ async function getCorsHeadersInline(
       ? allowedOriginsRaw.split(",").map((s: string) => s.trim())
       : [];
 
-  if (
-    Array.isArray(allowedOrigins) &&
-    !allowedOrigins.includes(origin) &&
-    !allowedOrigins.includes("*")
-  )
-    return null;
-
-  const allowOrigin = allowedOrigins.includes(origin) ? origin : "*";
+  // Fail-closed allowlist: never emit `*` and never reflect an unmatched Origin
+  // (AGENTS.md CORS contract + cors-utils.ts). A configured wildcard is ignored.
+  const allowlisted = (Array.isArray(allowedOrigins) ? allowedOrigins : []).filter(
+    (o: string) => typeof o === "string" && o.length > 0 && o !== "*",
+  );
+  if (!allowlisted.includes(origin)) return null;
 
   const headers: Record<string, string> = {
-    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": (
       (getPrivateSettingSync("CORS_ALLOWED_METHODS") as string[]) || [
         "GET",
@@ -203,7 +201,7 @@ async function getCorsHeadersInline(
     "Access-Control-Expose-Headers": "Content-Length, Content-Range, X-Total-Count",
   };
 
-  if ((getPrivateSettingSync("CORS_ALLOW_CREDENTIALS") as boolean) && allowOrigin !== "*") {
+  if (getPrivateSettingSync("CORS_ALLOW_CREDENTIALS") as boolean) {
     headers["Access-Control-Allow-Credentials"] = "true";
   }
 

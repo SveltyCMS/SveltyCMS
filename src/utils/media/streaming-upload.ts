@@ -30,6 +30,7 @@
  */
 
 import { AppError } from "@utils/error-handling";
+import { isAllowedUploadMime } from "./media-utils";
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -49,9 +50,8 @@ export interface StreamingUploadOptions {
   /** Maximum combined body size across all parts (default: 5 GiB). */
   maxTotalSize?: number;
   /**
-   * Regex tested against the `Content-Type` of each file part.
-   * Parts that don't match are rejected with 415.
-   * Default: /^(image|video|audio|application)\\//
+   * Optional override regex for the part `Content-Type`.
+   * Default: `isAllowedUploadMime` (MIME_MAP minus scriptable/office types).
    */
   allowedMimePattern?: RegExp;
   /** Upload timeout in seconds (default: 300).  Enforced per chunk read. */
@@ -64,8 +64,6 @@ export interface StreamingUploadOptions {
 
 const DEFAULT_MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GiB
 const DEFAULT_MAX_TOTAL_SIZE = 5 * 1024 * 1024 * 1024; // 5 GiB
-const DEFAULT_ALLOWED_MIME =
-  /^(image\/(jpeg|png|gif|webp|svg\+xml|bmp|tiff|avif)|video\/(mp4|webm|ogg|quicktime|x-msvideo)|audio\/(mpeg|ogg|wav|webm|aac|flac)|application\/(pdf|json|zip|gzip|x-tar|x-7z-compressed))$/;
 const DEFAULT_TIMEOUT_S = 300;
 
 const CRLF = new Uint8Array([0x0d, 0x0a]);
@@ -130,7 +128,7 @@ export async function parseMultipartStream(
 
   const maxFileSize = options.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
   const maxTotal = options.maxTotalSize ?? DEFAULT_MAX_TOTAL_SIZE;
-  const allowedMime = options.allowedMimePattern ?? DEFAULT_ALLOWED_MIME;
+  const allowedMime = options.allowedMimePattern;
   const timeoutMs = (options.timeout ?? DEFAULT_TIMEOUT_S) * 1000;
 
   const boundaryDelim = concat(DASH_DASH, encode(boundary)); // --boundary
@@ -181,7 +179,8 @@ export async function parseMultipartStream(
 
           if (filename) {
             const mime = headers.get("content-type") ?? "application/octet-stream";
-            if (!allowedMime.test(mime)) {
+            const mimeOk = allowedMime ? allowedMime.test(mime) : isAllowedUploadMime(mime);
+            if (!mimeOk) {
               throw new AppError(`File type not allowed: ${mime}`, 415);
             }
 

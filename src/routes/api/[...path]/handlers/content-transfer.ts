@@ -23,6 +23,8 @@ import { successResponse, errorResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
 import type { ContentPackage } from "@src/services/core/content-package-service";
 import type { LocalCMS } from "@src/services/sdk";
+import { generateUUID } from "@utils/native-utils";
+import { isAdmin } from "@src/databases/auth/constants";
 
 // ---------------------------------------------------------------------------
 // In-memory export store for large packages
@@ -31,7 +33,28 @@ import type { LocalCMS } from "@src/services/sdk";
 /** TTL for stored exports in milliseconds (1 hour). */
 const EXPORT_STORE_TTL = 60 * 60 * 1000;
 
-const exportStore = new Map<string, { pkg: ContentPackage; createdAt: number }>();
+interface StoredExport {
+  pkg: ContentPackage;
+  createdAt: number;
+  userId: string;
+  tenantId: string;
+}
+
+const exportStore = new Map<string, StoredExport>();
+
+function assertExportAccess(
+  stored: StoredExport,
+  userId: string,
+  tenantId: string,
+  user: unknown,
+): void {
+  if (stored.tenantId !== tenantId) {
+    throw new AppError("Forbidden: export belongs to another tenant", 403, "FORBIDDEN");
+  }
+  if (stored.userId !== userId && !isAdmin(user)) {
+    throw new AppError("Forbidden: export belongs to another user", 403, "FORBIDDEN");
+  }
+}
 
 /** Periodic cleanup of expired exports (runs every 5 minutes). */
 setInterval(
@@ -134,9 +157,14 @@ export async function handleContentExportRoutes(
         return successResponse(event, pkg);
       }
 
-      // Large export: store and return jobId for download
-      const jobId = `export_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      exportStore.set(jobId, { pkg, createdAt: Date.now() });
+      // Large export: store and return unguessable jobId for download
+      const jobId = `export_${generateUUID()}`;
+      exportStore.set(jobId, {
+        pkg,
+        createdAt: Date.now(),
+        userId,
+        tenantId: tenantId as string,
+      });
 
       return successResponse(event, {
         jobId,
@@ -158,6 +186,7 @@ export async function handleContentExportRoutes(
         // Check if it's a stored inline export
         const stored = exportStore.get(subId);
         if (stored) {
+          assertExportAccess(stored, userId, tenantId as string, user);
           return successResponse(event, {
             jobId: subId,
             status: "completed",
@@ -179,6 +208,13 @@ export async function handleContentExportRoutes(
     const stored = exportStore.get(subId);
     if (!stored) {
       return errorResponse(event, `Export not found or expired: ${subId}`, 404);
+    }
+
+    try {
+      assertExportAccess(stored, userId, tenantId as string, user);
+    } catch (err) {
+      if (err instanceof AppError) return errorResponse(event, err.message, err.status);
+      throw err;
     }
 
     const serialized = JSON.stringify(stored.pkg, null, 2);
@@ -225,11 +261,15 @@ export async function handleContentImportRoutes(
       const body = await request.json().catch(() => ({}));
       const { contentPackageService } = await import("@src/services/core/content-package-service");
 
-      // The body IS the ContentPackage with optional tenantId override
+      // The body IS the ContentPackage. Client tenantId is ignored unless super-admin.
       const { tenantId: bodyTenantId, ...pkg } = body as ContentPackage & { tenantId?: string };
+      const effectiveTenant =
+        user?.role === "super-admin" && typeof bodyTenantId === "string" && bodyTenantId
+          ? bodyTenantId
+          : (tenantId as string);
 
       const result = await contentPackageService.validateImport(pkg as ContentPackage, {
-        tenantId: (bodyTenantId || tenantId) as string,
+        tenantId: effectiveTenant,
         userId,
       });
 
@@ -255,9 +295,14 @@ export async function handleContentImportRoutes(
         tenantId?: string;
       };
 
+      const effectiveTenant =
+        user?.role === "super-admin" && typeof bodyTenantId === "string" && bodyTenantId
+          ? bodyTenantId
+          : (tenantId as string);
+
       const result = await contentPackageService.planImport(pkg as ContentPackage, {
         duplicateStrategy: duplicateStrategy as any,
-        tenantId: (bodyTenantId || tenantId) as string,
+        tenantId: effectiveTenant,
         userId,
       });
 

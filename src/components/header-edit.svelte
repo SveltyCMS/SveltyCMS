@@ -40,7 +40,7 @@ import Button from '@components/ui/button.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
-	import { collection, collectionValue, mode, setCollectionValue, collections } from '@src/stores/collection-store.svelte';
+	import { setCollectionValue, collections } from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { createEntry, invalidateCollectionCache } from '@utils/api';
@@ -61,9 +61,9 @@ import Button from '@components/ui/button.svelte';
 	let user = $derived(page.data.user);
 	let isAdmin = $derived(page.data.isAdmin === true);
 
-	let currentMode = $derived(mode.value);
-	let currentCollection = $derived(collection.value);
-	let currentEntry = $derived(collectionValue.value as CollectionEntry | null);
+	let currentMode = $derived(collections.mode);
+	let currentCollection = $derived(collections.active);
+	let currentEntry = $derived(collections.activeValue as CollectionEntry | null);
 
 	let isDesktop = $derived(screen.isDesktop);
 

@@ -8,11 +8,39 @@
  * - video formats (MP4, WebM)
  * - document formats (PDF, ZIP/DOCX/XLSX)
  * - hardened SVG detection via XML namespace regex
+ * - serve-path MIME resolve: extension map → stored type → magic bytes → octet-stream
+ * - write-time MIME agreement: reject scriptable/family mismatches (polyglots)
+ * - remote-asset MIME resolve for importer / saveRemoteMedia
  */
+
+import { open } from "node:fs/promises";
+import { AppError } from "@utils/error-handling";
+import { getMimeType, isAllowedUploadMime, normalizeMime } from "./media-utils";
 
 export interface SniffResult {
   ext: string;
   mime: string;
+}
+
+const OCTET_STREAM = "application/octet-stream";
+const SNIFF_HEAD_BYTES = 512;
+
+/** Types that can execute in a browser if we lie about Content-Type. */
+const SCRIPTABLE_MIME = new Set([
+  "text/html",
+  "application/xhtml+xml",
+  "text/xml",
+  "application/xml",
+  "text/javascript",
+  "application/javascript",
+  "application/x-javascript",
+  "image/svg+xml",
+]);
+
+function usableMime(mime: string | null | undefined): string | null {
+  const trimmed = mime?.trim();
+  if (!trimmed || trimmed === OCTET_STREAM) return null;
+  return trimmed;
 }
 
 /**
@@ -85,13 +113,16 @@ export function sniffMimeType(buffer: Buffer): SniffResult | null {
   // Use TextDecoder with fatal:true on a UTF-8 slice for reliable detection
   try {
     const head = new TextDecoder("utf-8", { fatal: true }).decode(buffer.slice(0, 256));
+    if (/<!DOCTYPE\s+html/i.test(head) || /<html[\s>]/i.test(head)) {
+      return { ext: "html", mime: "text/html" };
+    }
     const hasXmlDeclaration = head.includes("<?xml");
     const hasSvgNamespace = /<svg\b[^>]*xmlns=["']http:\/\/www\.w3\.org\/2000\/svg["']/i.test(head);
     if (hasXmlDeclaration || hasSvgNamespace) {
       return { ext: "svg", mime: "image/svg+xml" };
     }
   } catch {
-    // Not valid UTF-8 in the first 256 bytes — definitely not SVG
+    // Not valid UTF-8 in the first 256 bytes — definitely not SVG/HTML
   }
 
   // --- VIDEO FORMATS ---
@@ -127,4 +158,140 @@ export function sniffMimeType(buffer: Buffer): SniffResult | null {
   }
 
   return null;
+}
+
+/**
+ * Resolve a response Content-Type without I/O.
+ * Order: filename extension → stored MIME (skipping octet-stream) → magic bytes → octet-stream.
+ */
+export function resolveMimeType(options: {
+  name?: string | null;
+  storedMime?: string | null;
+  buffer?: Buffer | null;
+}): string {
+  if (options.name) {
+    const mapped = getMimeType(options.name);
+    if (mapped) return mapped;
+  }
+  const stored = usableMime(options.storedMime);
+  if (stored) return stored;
+  if (options.buffer && options.buffer.length >= 4) {
+    const sniffed = sniffMimeType(options.buffer)?.mime;
+    if (sniffed) return sniffed;
+  }
+  return OCTET_STREAM;
+}
+
+/**
+ * Resolve Content-Type for a file on disk. Known extensions skip the head read.
+ */
+export async function resolveMimeTypeFromPath(
+  filePath: string,
+  storedMime?: string | null,
+  extraNames?: readonly string[],
+): Promise<string> {
+  const mapped = getMimeType(filePath);
+  if (mapped) return mapped;
+  if (extraNames) {
+    for (const name of extraNames) {
+      const extra = getMimeType(name);
+      if (extra) return extra;
+    }
+  }
+  const stored = usableMime(storedMime);
+  if (stored) return stored;
+
+  try {
+    const fh = await open(filePath, "r");
+    try {
+      const buf = Buffer.allocUnsafe(SNIFF_HEAD_BYTES);
+      const { bytesRead } = await fh.read(buf, 0, SNIFF_HEAD_BYTES, 0);
+      const sniffed = sniffMimeType(buf.subarray(0, bytesRead))?.mime;
+      if (sniffed) return sniffed;
+    } finally {
+      await fh.close();
+    }
+  } catch {
+    // unreadable — fall through to octet-stream
+  }
+  return OCTET_STREAM;
+}
+
+function mimeFamily(mime: string): string {
+  return mime.split("/", 1)[0] ?? "";
+}
+
+/**
+ * True when claimed and sniffed types are a dangerous mismatch.
+ * Same family (jpeg vs png) is allowed; scriptable sniff/claim vs anything else is not.
+ */
+export function mimeTypesConflict(claimed: string | null, sniffed: string | null): boolean {
+  if (!claimed || !sniffed) return false;
+  const a = normalizeMime(claimed);
+  const b = normalizeMime(sniffed);
+  if (!a || !b || a === b) return false;
+  if (SCRIPTABLE_MIME.has(a) || SCRIPTABLE_MIME.has(b)) return true;
+  return mimeFamily(a) !== mimeFamily(b);
+}
+
+/**
+ * Reject polyglots at write time (extension/declared vs magic bytes).
+ * Known-extension GET path does not sniff — this is the security check.
+ */
+export function assertMimeAgreement(options: {
+  filename?: string | null;
+  declaredMime?: string | null;
+  sniffedMime?: string | null;
+}): void {
+  const fromName = options.filename ? getMimeType(options.filename) : null;
+  const declared = usableMime(options.declaredMime);
+  const sniffed = usableMime(options.sniffedMime);
+
+  if (mimeTypesConflict(fromName, declared)) {
+    throw new AppError(
+      `MIME type mismatch: file claims "${fromName}", client sent "${declared}"`,
+      415,
+      "MIME_MISMATCH",
+    );
+  }
+  if (mimeTypesConflict(fromName, sniffed)) {
+    throw new AppError(
+      `MIME type mismatch: file claims "${fromName}", binary signature indicates "${sniffed}"`,
+      415,
+      "MIME_MISMATCH",
+    );
+  }
+  if (mimeTypesConflict(declared, sniffed)) {
+    throw new AppError(
+      `MIME type mismatch: client sent "${declared}", binary signature indicates "${sniffed}"`,
+      415,
+      "MIME_MISMATCH",
+    );
+  }
+}
+
+/**
+ * Resolve MIME for a downloaded remote asset (importer, saveRemoteMedia, S3 mirror).
+ * Extension → declared Content-Type → magic bytes, then allowlist. Rejects polyglots.
+ */
+export function resolveRemoteAssetMime(options: {
+  filename: string;
+  declaredMime?: string | null;
+  buffer: Buffer;
+}): string {
+  const sniffed = sniffMimeType(options.buffer)?.mime ?? null;
+  assertMimeAgreement({
+    filename: options.filename,
+    declaredMime: options.declaredMime,
+    sniffedMime: sniffed,
+  });
+  const mime = resolveMimeType({
+    name: options.filename,
+    storedMime: options.declaredMime,
+    buffer: options.buffer,
+  });
+  if (!isAllowedUploadMime(mime)) {
+    throw new AppError(`MIME type not allowed: ${mime}`, 415, "MIME_NOT_ALLOWED");
+  }
+  return mime;
 }

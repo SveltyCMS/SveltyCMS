@@ -31,7 +31,7 @@ import Button from '@components/ui/button.svelte';
 		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
-	import { collection, collectionValue, mode, collections } from '@src/stores/collection-store.svelte';
+	import { collections } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';
 
@@ -62,9 +62,9 @@ import Button from '@components/ui/button.svelte';
 	let user = $derived(page.data.user);
 	let isAdmin = $derived(page.data.isAdmin === true);
 
-	let currentMode = $derived(mode.value);
-	let currentCollection = $derived(collection.value);
-	let currentEntry = $derived(collectionValue.value as Entry | null);
+	let currentMode = $derived(collections.mode);
+	let currentCollection = $derived(collections.active);
+	let currentEntry = $derived(collections.activeValue as Entry | null);
 
 	let isFormValid = $derived(validationStore.isValid);
 	let hasChanges = $derived(collections.hasChanges);
@@ -179,7 +179,7 @@ import Button from '@components/ui/button.svelte';
 			initialAction: currentEntry?.status === StatusTypes.publish ? 'publish' : 'unpublish',
 			onSchedule: (date: Date, action: string) => {
 				const timestamp = date.getTime();
-				collectionValue.value = {
+				collections.activeValue = {
 					...currentEntry!,
 					status: StatusTypes.schedule,
 					_scheduled: timestamp
@@ -359,7 +359,7 @@ import Button from '@components/ui/button.svelte';
 						{#if scheduleTimestamp}
 							<Button variant="error"
 								onclick={() => {
-									collectionValue.value = { ...currentEntry!, _scheduled: undefined, status: StatusTypes.draft };
+									collections.activeValue = { ...currentEntry!, _scheduled: undefined, status: StatusTypes.draft };
 									toast.success('Schedule cancelled');
 								}}
 							 class="w-full justify-start gap-2 text-start text-sm">

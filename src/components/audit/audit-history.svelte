@@ -12,7 +12,7 @@
 
 <script lang="ts">
 	import { queryAuditLogs, verifyAuditChain } from '@src/routes/(app)/audit-history.remote';
-	import { collectionValue } from '@src/stores/collection-store.svelte';
+	import { collections } from '@src/stores/collection-store.svelte';
 	import Button from '@components/ui/button.svelte';
 	import { formatDateTime } from '@utils/format-date';
 
@@ -52,7 +52,7 @@
 
 	// Derive target ID from current entry or props
 	let targetId = $derived(
-		entryId ?? (collectionValue.value as Record<string, unknown>)?._id as string | undefined,
+		entryId ?? (collections.activeValue as Record<string, unknown>)?._id as string | undefined,
 	);
 
 	/** Load audit logs for the current/target entry */

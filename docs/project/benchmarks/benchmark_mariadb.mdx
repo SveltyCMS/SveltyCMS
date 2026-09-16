@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    32 | 🟢     | —       | 0      |
+| **Core**       |     5 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,47 +62,22 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario           | Latency | Trend                            | Budget | Result |
-| ------------------ | ------- | -------------------------------- | ------ | ------ |
-| **Scale Spectrum** | 3.327ms | ⚪ established at 3.33ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.644ms | ⚪ established at 3.64ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.665ms | ⚪ established at 3.67ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.385ms | ⚪ established at 3.38ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.347ms | ⚪ established at 3.35ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.067ms | ⚪ established at 3.07ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.316ms | ⚪ established at 3.32ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.161ms | ⚪ established at 3.16ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 5.023ms | ⚪ established at 5.02ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.192ms | ⚪ established at 2.19ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.494ms | ⚪ established at 2.49ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.133ms | ⚪ established at 3.13ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 6.598ms | ⚪ established at 6.60ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 1.980ms | ⚪ established at 1.98ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.515ms | ⚪ established at 2.52ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.892ms | ⚪ established at 2.89ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 5.672ms | ⚪ established at 5.67ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.335ms | ⚪ established at 2.33ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.346ms | ⚪ established at 2.35ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.660ms | ⚪ established at 2.66ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 5.509ms | ⚪ established at 5.51ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.601ms | ⚪ established at 2.60ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.067ms | ⚪ established at 2.07ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.703ms | ⚪ established at 2.70ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 5.728ms | ⚪ established at 5.73ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 1.747ms | ⚪ established at 1.75ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.647ms | ⚪ established at 2.65ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 2.433ms | ⚪ established at 2.43ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 5.539ms | ⚪ established at 5.54ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 1.784ms | ⚪ established at 1.78ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 1.916ms | ⚪ established at 1.92ms (1 run) | < 5ms  | 🟢     |
-| **Scale Spectrum** | 3.782ms | ⚪ established at 3.78ms (1 run) | < 5ms  | 🟢     |
+| Scenario          | Latency | Trend                             | Budget | Result |
+| ----------------- | ------- | --------------------------------- | ------ | ------ |
+| **System**        | 0.453ms | ⚪ established at 0.453ms (1 run) | < 5ms  | 🟢     |
+| **Metadata**      | 0.724ms | ⚪ established at 0.724ms (1 run) | < 5ms  | 🟢     |
+| **CRUD (Get)**    | 0.714ms | ⚪ established at 0.714ms (1 run) | < 5ms  | 🟢     |
+| **CRUD (List)**   | 0.889ms | ⚪ established at 0.889ms (1 run) | < 5ms  | 🟢     |
+| **CRUD (Search)** | 0.710ms | ⚪ established at 0.710ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric | Trend | Sparkline | Latest |
-| ------ | ----- | --------- | ------ |
+| Metric                                                    | Trend | Sparkline | Latest     |
+| --------------------------------------------------------- | ----- | --------- | ---------- |
+| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `▁`       | 1370.148ms |
+| database performance (BULK INSERT (100)) (warm)           | 🟢    | `▁`       | 4.611ms    |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -128,65 +103,45 @@ xychart-beta
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-09-02)
+### Current Run Summary (2026-09-14)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `3c3a4350-da7e-4563-abcc-5ab68f6c74ec` · **Tests invoked:** 1 · **Metrics:** 32 · **DB:** mariadb
+**Run ID:** `cf393ec7-c614-482b-aca8-4d6cf7bc30cf` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** mariadb
 
-| Test           | Metric                  | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                           |
-| -------------- | ----------------------- | -------- | -------- | ---- | ----- | -------------------------------- |
-| Scale Spectrum | findByIdRandom @ 1      | 3.327    | 3.837    | 2303 | 🟢    | ⚪ established at 3.33ms (1 run) |
-| Scale Spectrum | listFilterSort @ 1      | 3.644    | 5.488    | 2124 | 🟢    | ⚪ established at 3.64ms (1 run) |
-| Scale Spectrum | graphql @ 1             | 3.665    | 4.255    | 2098 | 🟢    | ⚪ established at 3.67ms (1 run) |
-| Scale Spectrum | create @ 1              | 3.385    | 4.416    | 1132 | 🟢    | ⚪ established at 3.38ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 10     | 3.347    | 5.943    | 2325 | 🟢    | ⚪ established at 3.35ms (1 run) |
-| Scale Spectrum | listFilterSort @ 10     | 3.067    | 4.860    | 2527 | 🟢    | ⚪ established at 3.07ms (1 run) |
-| Scale Spectrum | graphql @ 10            | 3.316    | 5.434    | 2342 | 🟢    | ⚪ established at 3.32ms (1 run) |
-| Scale Spectrum | create @ 10             | 3.161    | 4.284    | 1184 | 🟢    | ⚪ established at 3.16ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 100    | 5.023    | 8.953    | 1547 | 🟢    | ⚪ established at 5.02ms (1 run) |
-| Scale Spectrum | listFilterSort @ 100    | 2.192    | 2.529    | 3526 | 🟢    | ⚪ established at 2.19ms (1 run) |
-| Scale Spectrum | graphql @ 100           | 2.494    | 3.003    | 3093 | 🟢    | ⚪ established at 2.49ms (1 run) |
-| Scale Spectrum | create @ 100            | 3.133    | 5.019    | 1238 | 🟢    | ⚪ established at 3.13ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 1000   | 6.598    | 13.539   | 1187 | 🟢    | ⚪ established at 6.60ms (1 run) |
-| Scale Spectrum | listFilterSort @ 1000   | 1.980    | 2.223    | 3822 | 🟢    | ⚪ established at 1.98ms (1 run) |
-| Scale Spectrum | graphql @ 1000          | 2.515    | 3.084    | 3075 | 🟢    | ⚪ established at 2.52ms (1 run) |
-| Scale Spectrum | create @ 1000           | 2.892    | 4.153    | 1347 | 🟢    | ⚪ established at 2.89ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 5000   | 5.672    | 8.045    | 1366 | 🟢    | ⚪ established at 5.67ms (1 run) |
-| Scale Spectrum | listFilterSort @ 5000   | 2.335    | 5.490    | 3321 | 🟢    | ⚪ established at 2.33ms (1 run) |
-| Scale Spectrum | graphql @ 5000          | 2.346    | 3.026    | 3238 | 🟢    | ⚪ established at 2.35ms (1 run) |
-| Scale Spectrum | create @ 5000           | 2.660    | 3.645    | 1435 | 🟢    | ⚪ established at 2.66ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 10000  | 5.509    | 7.325    | 1393 | 🟢    | ⚪ established at 5.51ms (1 run) |
-| Scale Spectrum | listFilterSort @ 10000  | 2.601    | 8.330    | 2995 | 🟢    | ⚪ established at 2.60ms (1 run) |
-| Scale Spectrum | graphql @ 10000         | 2.067    | 2.768    | 3729 | 🟢    | ⚪ established at 2.07ms (1 run) |
-| Scale Spectrum | create @ 10000          | 2.703    | 3.793    | 1436 | 🟢    | ⚪ established at 2.70ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 50000  | 5.728    | 6.905    | 1345 | 🟢    | ⚪ established at 5.73ms (1 run) |
-| Scale Spectrum | listFilterSort @ 50000  | 1.747    | 1.915    | 4407 | 🟢    | ⚪ established at 1.75ms (1 run) |
-| Scale Spectrum | graphql @ 50000         | 2.647    | 5.422    | 2934 | 🟢    | ⚪ established at 2.65ms (1 run) |
-| Scale Spectrum | create @ 50000          | 2.433    | 3.325    | 1623 | 🟢    | ⚪ established at 2.43ms (1 run) |
-| Scale Spectrum | findByIdRandom @ 100000 | 5.539    | 8.658    | 1366 | 🟢    | ⚪ established at 5.54ms (1 run) |
-| Scale Spectrum | listFilterSort @ 100000 | 1.784    | 2.651    | 4329 | 🟢    | ⚪ established at 1.78ms (1 run) |
-| Scale Spectrum | graphql @ 100000        | 1.916    | 2.127    | 4021 | 🟢    | ⚪ established at 1.92ms (1 run) |
-| Scale Spectrum | create @ 100000         | 3.782    | 6.997    | 1002 | 🟢    | ⚪ established at 3.78ms (1 run) |
+| Test                 | Metric                          | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| -------------------- | ------------------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
+| Rest Api Performance | System Health Check             | 0.453    | 1.146    | 7508 | 🟢    | ⚪ established at 0.453ms (1 run) |
+| Rest Api Performance | Collection Schema Metadata      | 0.724    | 1.180    | 5028 | 🟢    | ⚪ established at 0.724ms (1 run) |
+| Rest Api Performance | Single Document Read            | 0.714    | 1.320    | 5028 | 🟢    | ⚪ established at 0.714ms (1 run) |
+| Rest Api Performance | Collection Find (List Limit 20) | 0.889    | 2.089    | 3907 | 🟢    | ⚪ established at 0.889ms (1 run) |
+| Rest Api Performance | Collection Search Query         | 0.710    | 1.549    | 4974 | 🟢    | ⚪ established at 0.710ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-09-02)
+### Historical Trends (2026-09-14)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='mariadb' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 2 · **DB:** mariadb
+**Series:** 9 · **DB:** mariadb
 
-| Metric                              | Trend | Sparkline (last 7) | Latest   |
-| ----------------------------------- | ----- | ------------------ | -------- |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▆▁▁▂▁▇█`          | 11.065ms |
-| SCALE SPECTRUM (warm)               | 🟢    | `█▂▁▃▃▁▁`          | 1.747ms  |
+| Metric                              | Trend | Sparkline (last 7) | Latest     |
+| ----------------------------------- | ----- | ------------------ | ---------- |
+| CACHE PERFORMANCE (warm)            | 🟢    | `█▁`               | 0.266ms    |
+| COLD START PHASED (cold)            | 🟢    | `▁`                | 1370.148ms |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▆▁▁▂▁▇█`          | 11.065ms   |
+| DATABASE PERFORMANCE (warm)         | 🟢    | `▂▅▂▁█▂▁`          | 0.399ms    |
+| HOOKS PERFORMANCE (warm)            | 🟢    | `▂█▁▁▁`            | 0.716ms    |
+| SCALE SPECTRUM (warm)               | 🟢    | `█▂▁▃▃▁▁`          | 1.747ms    |
+| TRANSACTION ACID (warm)             | 🟢    | `▁█`               | 1.758ms    |
+| TRUTH LATENCY (warm)                | 🟢    | `█▆▁▁`             | 0.000ms    |
+| REST API PERFORMANCE (warm)         | ⚪    | `█▅▅▅▁`            | 0.453ms    |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -199,7 +154,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- LEDGER_DIMENSION:CORE:START -->
 
 <details id="ledger-dimension-core">
-<summary><strong>Core</strong> · 20 tests</summary>
+<summary><strong>Core</strong> · 24 tests</summary>
 
 <!-- SECTION:API_LATENCY:START -->
 
@@ -227,17 +182,18 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:COLD_START:START -->
 <details id="section-cold_start">
-<summary><strong>🏷️ cold start phased</strong> · 🟢 1031.709ms · ➡️ ⚪ established at 1031.71ms (1 run) (2026-08-25 11:30:08) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
+<summary><strong>🏷️ cold start phased</strong> · 🟢 1370.148ms · ➡️ ⚪ established at 1370.15ms (1 run) (2026-09-14 19:03:40) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
-║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
-║                                Ran: 2026-08-25 11:30:08                                 ║
-║       Measures server cold-start latency to READY state, using the built server.        ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │     1031.709 ms │ p95:     1882.087 ms │ RPS:          0 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  SVELTYCMS — PHASED COLD START AUDIT                                  ║
+║                           File: tests/benchmarks/cold-start-phased.test.ts                            ║
+║                                       Ran: 2026-09-14 19:03:40                                        ║
+║            Measures process spawn, dependency hydration, and first-request TTFB readiness.            ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Initial Cold Boot (Fresh Process) │     2310.868 ms │ p95:     2310.868 ms │ RPS:          0 ║
+║ Steady-State Respawn (Average) │     1370.148 ms │ p95:     2310.868 ms │ RPS:          0 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
 
@@ -255,12 +211,13 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                      SVELTYCMS — SRE TRUTH AUDIT                                      ║
 ║                             File: tests/benchmarks/truth-latency.test.ts                              ║
-║                                       Ran: 2026-08-29 21:35:34                                        ║
+║                                       Ran: 2026-09-14 19:03:46                                        ║
 ║            Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack             ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline               │ Cold:     0.01 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 528,728 RPS ║
-║ Local SDK (Full)             │ Cold:    21.07 ms │ Warm:     0.023 ms │ p95:     0.010 ms │  41,504 RPS ║
-║ HTTP End-to-End              │ Cold:     7.04 ms │ Warm:     0.417 ms │ p95:     0.527 ms │   2,383 RPS ║
+║ Logic Baseline               │ Cold:     0.01 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 539,180 RPS ║
+║ Local SDK (Full)             │ Cold:     2.54 ms │ Warm:     0.005 ms │ p95:     0.009 ms │ 171,851 RPS ║
+║ HTTP End-to-End              │ Cold:    10.41 ms │ Warm:     0.401 ms │ p95:     0.475 ms │   2,481 RPS ║
+║ HTTP Cold (Cache-Busted)     │ Cold:     1.28 ms │ Warm:     0.511 ms │ p95:     0.939 ms │   1,952 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -298,7 +255,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:HOOKS_TRACE:START -->
 
 <details id="section-hooks_trace">
-<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 1.670ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 2.080ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -306,14 +263,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                                  ║
 ║                           File: tests/benchmarks/hooks-performance.test.ts                            ║
-║                                       Ran: 2026-08-29 21:37:12                                        ║
+║                                       Ran: 2026-09-14 19:05:44                                        ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware) │ Cold:     1.67 ms │ Warm:     0.893 ms │ p95:     1.820 ms │   3,928 RPS ║
-║ Turbo Pipeline (Light)       │ Cold:     1.22 ms │ Warm:     0.591 ms │ p95:     1.010 ms │   6,268 RPS ║
-║ Full Security + Auth Pipeline │ Cold:     1.34 ms │ Warm:     1.039 ms │ p95:     1.475 ms │   3,718 RPS ║
-║ REST with API Caching        │ Cold:     3.54 ms │ Warm:     0.994 ms │ p95:     1.588 ms │   3,828 RPS ║
-║ Mutation (audit logging disabled) │ Cold:     9.59 ms │ Warm:     2.450 ms │ p95:     3.473 ms │     390 RPS ║
+║ Static Asset (No Middleware) │ Cold:     2.08 ms │ Warm:     0.746 ms │ p95:     1.760 ms │   4,654 RPS ║
+║ Turbo Pipeline (Light)       │ Cold:     1.42 ms │ Warm:     0.716 ms │ p95:     1.046 ms │   5,119 RPS ║
+║ Full Security + Auth Pipeline │ Cold:     6.78 ms │ Warm:     0.976 ms │ p95:     2.306 ms │   3,586 RPS ║
+║ REST with API Caching        │ Cold:     5.16 ms │ Warm:     0.815 ms │ p95:     2.186 ms │   4,337 RPS ║
+║ Mutation (audit logging disabled) │ Cold:     8.92 ms │ Warm:     2.159 ms │ p95:     3.788 ms │     419 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -348,33 +305,33 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 4.290ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ database performance</strong> · 🟢 1.151ms · ➡️ ⚪ established at 1.15ms (1 run) (2026-09-14 19:05:15) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MARIADB)                           ║
 ║                          File: tests/benchmarks/database-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 21:39:51                                        ║
+║                                       Ran: 2026-09-14 19:05:15                                        ║
 ║          Measures raw CRUD performance, indexing efficiency, and connection pool resilience.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                       │ Cold:     4.29 ms │ Warm:     2.234 ms │ p95:     4.141 ms │     415 RPS ║
-║ FIND ONE                     │ Cold:     4.16 ms │ Warm:     0.442 ms │ p95:     0.846 ms │   1,953 RPS ║
-║ FIND MANY (limit 50)         │ Cold:     8.13 ms │ Warm:     0.647 ms │ p95:     1.659 ms │   1,313 RPS ║
-║ QUERY BUILDER LIST (50)      │ Cold:     8.89 ms │ Warm:     2.827 ms │ p95:     4.484 ms │     319 RPS ║
-║ FIND PAGE (50 hasMore)       │ Cold:     3.96 ms │ Warm:     0.706 ms │ p95:     1.897 ms │   1,251 RPS ║
-║ FIND PAGE keyset             │ Cold:     4.39 ms │ Warm:     0.772 ms │ p95:     2.087 ms │   1,158 RPS ║
-║ FIND MANY offset 50          │ Cold:     1.97 ms │ Warm:     0.600 ms │ p95:     1.093 ms │   1,469 RPS ║
-║ LIST+COUNT (legacy)          │ Cold:     2.97 ms │ Warm:     0.854 ms │ p95:     2.128 ms │   1,022 RPS ║
-║ UPDATE                       │ Cold:    10.75 ms │ Warm:     0.831 ms │ p95:     2.288 ms │   1,059 RPS ║
-║ UPDATE (no-returning)        │ Cold:     2.15 ms │ Warm:     0.460 ms │ p95:     0.773 ms │   1,898 RPS ║
-║ NATIVE UPSERT                │ Cold:     2.75 ms │ Warm:     0.405 ms │ p95:     0.551 ms │   2,161 RPS ║
-║ COUNT                        │ Cold:     2.08 ms │ Warm:     0.635 ms │ p95:     0.960 ms │   1,372 RPS ║
-║ COUNT ESTIMATE               │ Cold:     4.45 ms │ Warm:     0.353 ms │ p95:     0.571 ms │   2,419 RPS ║
-║ COUNT CACHED                 │ Cold:     3.48 ms │ Warm:     0.001 ms │ p95:     0.003 ms │ 512,138 RPS ║
-║ DELETE (Active Rows)         │ Cold:    18.07 ms │ Warm:     1.675 ms │ p95:     3.482 ms │     513 RPS ║
-║ BULK INSERT (100)            │ Cold:    10.32 ms │ Warm:     7.739 ms │ p95:    64.460 ms │      68 RPS ║
-║ BULK UPDATE (100 heterogeneous) │ Cold:    95.89 ms │ Warm:     3.831 ms │ p95:     5.774 ms │     253 RPS ║
-║ BULK UPDATE (100 homogeneous) │ Cold:    50.33 ms │ Warm:     1.178 ms │ p95:     2.914 ms │     742 RPS ║
+║ INSERT                       │ Cold:     2.58 ms │ Warm:     1.710 ms │ p95:     3.397 ms │     506 RPS ║
+║ FIND ONE                     │ Cold:     2.40 ms │ Warm:     0.378 ms │ p95:     0.536 ms │   2,340 RPS ║
+║ FIND MANY (limit 50)         │ Cold:    17.03 ms │ Warm:     0.639 ms │ p95:     1.560 ms │   1,299 RPS ║
+║ QUERY BUILDER LIST (50)      │ Cold:     8.31 ms │ Warm:     2.704 ms │ p95:     4.386 ms │     334 RPS ║
+║ FIND PAGE (50 hasMore)       │ Cold:     2.84 ms │ Warm:     0.676 ms │ p95:     1.187 ms │   1,304 RPS ║
+║ FIND PAGE keyset             │ Cold:     4.56 ms │ Warm:     0.766 ms │ p95:     2.076 ms │   1,144 RPS ║
+║ FIND MANY offset 50          │ Cold:     1.88 ms │ Warm:     0.555 ms │ p95:     0.758 ms │   1,612 RPS ║
+║ LIST+COUNT (legacy)          │ Cold:     2.79 ms │ Warm:     0.815 ms │ p95:     2.118 ms │   1,083 RPS ║
+║ UPDATE                       │ Cold:     6.34 ms │ Warm:     0.775 ms │ p95:     2.122 ms │   1,139 RPS ║
+║ UPDATE (no-returning)        │ Cold:     2.89 ms │ Warm:     0.399 ms │ p95:     0.615 ms │   2,193 RPS ║
+║ NATIVE UPSERT                │ Cold:     2.45 ms │ Warm:     0.418 ms │ p95:     0.629 ms │   2,055 RPS ║
+║ COUNT                        │ Cold:     2.40 ms │ Warm:     0.633 ms │ p95:     0.854 ms │   1,381 RPS ║
+║ COUNT ESTIMATE               │ Cold:     2.58 ms │ Warm:     0.324 ms │ p95:     0.434 ms │   2,711 RPS ║
+║ COUNT CACHED                 │ Cold:     4.10 ms │ Warm:     0.002 ms │ p95:     0.005 ms │ 406,190 RPS ║
+║ DELETE (Active Rows)         │ Cold:    14.67 ms │ Warm:     1.524 ms │ p95:     3.330 ms │     567 RPS ║
+║ BULK INSERT (100)            │ Cold:     5.12 ms │ Warm:     4.611 ms │ p95:     6.626 ms │     210 RPS ║
+║ BULK UPDATE (100 heterogeneous) │ Cold:    56.97 ms │ Warm:     3.101 ms │ p95:     5.320 ms │     281 RPS ║
+║ BULK UPDATE (100 homogeneous) │ Cold:    37.32 ms │ Warm:     1.151 ms │ p95:     2.818 ms │     760 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -384,19 +341,26 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:ACID:START -->
 <details id="section-acid">
-<summary><strong>🏷️ transaction acid</strong> · 🟢 2.620ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
+<summary><strong>🏷️ transaction acid</strong> · 🟢 1.758ms · ↘️ ⚪ stable at 2.92ms (±3.56ms) (7 runs) (2026-09-14 19:05:25) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — ACID INTEGRITY AUDIT                                    ║
 ║                            File: tests/benchmarks/transaction-acid.test.ts                            ║
-║                                       Ran: 2026-08-29 21:39:54                                        ║
+║                                       Ran: 2026-09-14 19:05:25                                        ║
 ║         Measures transaction commit latencies and rollback overhead across database adapters          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                    │ Cold:     2.62 ms │ Warm:     0.813 ms │ p95:     2.533 ms │   4,143 RPS ║
-║ TX Rollback Integrity        │ Cold:     6.54 ms │ Warm:     1.914 ms │ p95:     3.858 ms │     522 RPS ║
+║ TX Commit                    │ Cold:     2.54 ms │ Warm:     0.779 ms │ p95:     2.146 ms │   4,491 RPS ║
+║ TX Rollback Integrity        │ Cold:     4.43 ms │ Warm:     1.758 ms │ p95:     3.758 ms │     568 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -404,18 +368,17 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ Cache</strong> · 🟢 3.988ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache</strong> · 🟢 0.303ms · ➡️ ⚪ established at 0.303ms (1 run) (2026-09-14 19:05:34) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                  SVELTYCMS — CACHE SERVICE TELEMETRY                                  ║
-║                             File: tests/benchmarks/cache-service.test.ts                              ║
-║                                       Ran: 2026-08-29 21:40:06                                        ║
-║               Measures L1 cache hit latency and pattern invalidation overhead at scale.               ║
+║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
+║                           File: tests/benchmarks/cache-performance.test.ts                            ║
+║                                       Ran: 2026-09-14 19:05:34                                        ║
+║         Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache L1 Hit                 │ Cold:     0.31 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 1,401,745 RPS ║
-║ Pattern Invalidation (1k items @ 200k noise) │        3.988 ms │ p95:        5.224 ms │ RPS:        251 ║
-║ Pattern Invalidation (Namespaced 1k @ 100k noise) │        2.033 ms │ p95:        2.474 ms │ RPS:        492 ║
+║ Cache Miss (Bypass)          │ Cold:     2.04 ms │ Warm:     0.266 ms │ p95:     0.366 ms │   3,283 RPS ║
+║ Cache Hit (L1 Warm)          │ Cold:     2.48 ms │ Warm:     0.303 ms │ p95:     0.430 ms │   2,910 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -469,7 +432,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:LOGIC:START -->
 <details id="section-logic">
-<summary><strong>🏷️ Logic</strong> · 🟢 ⏳ pending · ➡️ ⚪ established at 0ms (1 run) (2026-08-25 11:30:20) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ Logic</strong> · 🟢 ⏳ pending · ➡️ ⚪ stable at 0ms (5 runs) (2026-09-14 19:03:54) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -479,7 +442,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:SDK:START -->
 <details id="section-sdk">
-<summary><strong>🏷️ SDK</strong> · 🟢 1.680ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ SDK</strong> · 🟢 0.005ms · ➡️ ⚪ stable at 0.005ms (±0.003ms) (5 runs) (2026-09-14 19:03:54) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
@@ -500,9 +463,16 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:HTTP:START -->
 <details id="section-http">
-<summary><strong>🏷️ HTTP</strong> · 🟢 0.315ms · ➡️ ⚪ established at 0.315ms (1 run) (2026-08-25 11:30:20) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ HTTP</strong> · 🟢 0.401ms · ↘️ ⚪ stable at 0.530ms (±0.094ms) (5 runs) (2026-09-14 19:03:54) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 > ⏳ Pending
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -510,9 +480,16 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:MIDDLEWARE:START -->
 <details id="section-middleware">
-<summary><strong>🏷️ Middleware</strong> · 🟢 1.063ms · ➡️ ⚪ established at 1.06ms (1 run) (2026-08-25 11:31:24) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware</strong> · ⚪ 2.159ms · ↘️ 🟢 faster: 3.45ms → 2.16ms (-37%) (4 runs) (2026-09-14 19:05:44) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 > ⏳ Pending
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -520,7 +497,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:SYSTEM:START -->
 <details id="section-system">
-<summary><strong>🏷️ System</strong> · 🟢 0.387ms · ➡️ ⚪ established at 0.387ms (1 run) (2026-08-25 11:31:30) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ System</strong> · 🟢 0.453ms · ➡️ ⚪ established at 0.453ms (1 run) (2026-09-14 19:05:53) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -530,7 +507,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:METADATA:START -->
 <details id="section-metadata">
-<summary><strong>🏷️ Metadata</strong> · 🟢 0.632ms · ➡️ ⚪ established at 0.632ms (1 run) (2026-08-25 11:31:30) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Metadata</strong> · 🟢 0.724ms · ➡️ ⚪ established at 0.724ms (1 run) (2026-09-14 19:05:54) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -577,6 +554,46 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 </details>
 <!-- SECTION:ANALYTICS:END -->
+
+<!-- SECTION:HTTP_COLD:START -->
+<details id="section-http_cold">
+<summary><strong>🏷️ HTTP-Cold</strong> · 🟢 0.511ms · ➡️ ⚪ established at 0.511ms (1 run) (2026-09-14 19:03:54) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:HTTP_COLD:END -->
+
+<!-- SECTION:CRUD__GET_:START -->
+<details id="section-crud__get_">
+<summary><strong>🏷️ CRUD (Get)</strong> · 🟢 0.714ms · ➡️ ⚪ established at 0.714ms (1 run) (2026-09-14 19:05:54) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:CRUD__GET_:END -->
+
+<!-- SECTION:CRUD__LIST_:START -->
+<details id="section-crud__list_">
+<summary><strong>🏷️ CRUD (List)</strong> · 🟢 0.889ms · ➡️ ⚪ established at 0.889ms (1 run) (2026-09-14 19:05:55) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:CRUD__LIST_:END -->
+
+<!-- SECTION:CRUD__SEARCH_:START -->
+<details id="section-crud__search_">
+<summary><strong>🏷️ CRUD (Search)</strong> · 🟢 0.710ms · ➡️ ⚪ established at 0.710ms (1 run) (2026-09-14 19:05:55) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:CRUD__SEARCH_:END -->
 
 </details>
 
@@ -663,7 +680,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:REST:START -->
 
 <details id="section-rest">
-<summary><strong>🏷️ REST API Performance</strong> · 🟢 0.980ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ REST API Performance</strong> · 🟢 1.280ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -671,14 +688,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — ENTERPRISE REST API AUDIT                                 ║
 ║                          File: tests/benchmarks/rest-api-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 21:35:46                                        ║
+║                                       Ran: 2026-09-14 19:05:55                                        ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, single read, list, and search.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ System Health Check          │ Cold:     0.98 ms │ Warm:     0.729 ms │ p95:     1.310 ms │   4,968 RPS ║
-║ Collection Schema Metadata   │ Cold:     5.25 ms │ Warm:     0.946 ms │ p95:     1.456 ms │   3,976 RPS ║
-║ Single Document Read         │ Cold:     1.01 ms │ Warm:     0.848 ms │ p95:     1.287 ms │   4,534 RPS ║
-║ Collection Find (List Limit 20) │ Cold:     6.66 ms │ Warm:     0.915 ms │ p95:     1.307 ms │   4,223 RPS ║
-║ Collection Search Query      │ Cold:     3.24 ms │ Warm:     0.959 ms │ p95:     1.289 ms │   4,076 RPS ║
+║ System Health Check          │ Cold:     1.28 ms │ Warm:     0.453 ms │ p95:     1.146 ms │   7,508 RPS ║
+║ Collection Schema Metadata   │ Cold:     6.33 ms │ Warm:     0.724 ms │ p95:     1.180 ms │   5,028 RPS ║
+║ Single Document Read         │ Cold:     2.57 ms │ Warm:     0.714 ms │ p95:     1.320 ms │   5,028 RPS ║
+║ Collection Find (List Limit 20) │ Cold:     6.14 ms │ Warm:     0.889 ms │ p95:     2.089 ms │   3,907 RPS ║
+║ Collection Search Query      │ Cold:     3.75 ms │ Warm:     0.710 ms │ p95:     1.549 ms │   4,974 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

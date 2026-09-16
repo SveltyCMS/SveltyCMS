@@ -20,7 +20,7 @@ Features:
 	import Select from '@components/ui/select.svelte';
 	import { locales as bundledLocales } from '@src/paraglide/runtime';
 	import type { Locale } from '@src/paraglide/runtime';
-	import { collection, collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { collections, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { contentLanguage, systemLanguage, translationProgress } from '@src/stores/locale-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -54,8 +54,8 @@ Features:
 	let { open = $bindable(false) }: Props = $props();
 
 	// Derived document and locale state
-	const currentEntry = $derived((collectionValue.value ?? {}) as Record<string, unknown>);
-	const currentCollection = $derived(collection.value);
+	const currentEntry = $derived((collections.activeValue ?? {}) as Record<string, unknown>);
+	const currentCollection = $derived(collections.active);
 	const activeLocales = $derived.by(() => {
 		const langs = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (Array.isArray(langs) && langs.length > 0) return langs as string[];

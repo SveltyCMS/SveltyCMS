@@ -26,7 +26,6 @@ import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
 import { successResponse } from "@src/routes/api/[...path]/handlers/base";
-import { responseCache } from "@src/services/cache/response-cache";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
@@ -130,9 +129,10 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
     result = await cms.collections.update(collectionId, entryId, data, { user, tenantId });
   }
 
-  const tenantKey = tenantId ? String(tenantId) : "global";
-  void responseCache.invalidateCollection(collectionId, tenantKey).catch(() => {});
-
+  // L1/L2 invalidation is already scheduled by collections.create/update
+  // (schedulePostWrite). A second invalidateCollection here double-bumps the
+  // epoch and starts an L2 tag scan on the same tick as the next concurrent
+  // create — that is the HTTP write cliff.
   const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
   applyAllSecurityHeaders(
     res.headers,

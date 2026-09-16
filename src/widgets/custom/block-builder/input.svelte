@@ -74,7 +74,7 @@
 
 	function addBlock(def: BlockTypeDefinition) {
 		const newBlock: BlockInstance = {
-			_id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+			_id: crypto.randomUUID(),
 			_type: def.type,
 			data: def.defaultData ? JSON.parse(JSON.stringify(def.defaultData)) : {},
 			collapsed: false,
@@ -93,7 +93,7 @@
 		const source = blocks[index];
 		if (!source) return;
 		const duplicated: BlockInstance = {
-			_id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+			_id: crypto.randomUUID(),
 			_type: source._type,
 			data: JSON.parse(JSON.stringify(source.data)),
 			collapsed: false,

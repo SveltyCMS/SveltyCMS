@@ -23,7 +23,7 @@
 <script lang="ts">
 	// Props
 	import { StatusTypes } from '@src/content/types';
-	import { app } from '@src/stores/ui-store.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
 
 	// Props
 	let { checked = false, iconStatus = undefined, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>
@@ -61,7 +61,7 @@
 						{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>
 		<!-- Icons rendered based on checked and storeListboxValue -->
-		{#if checked && app.listboxValueState === 'delete'}
+		{#if checked && ui.listboxValueState === 'delete'}
 			<!--Red Cross icon 3d-->
 			<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 224 224">
 				<mask id="a" width="224" height="224" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha">
@@ -127,7 +127,7 @@
 					</linearGradient>
 				</defs>
 			</svg>
-		{:else if checked && app.listboxValueState !== 'delete'}
+		{:else if checked && ui.listboxValueState !== 'delete'}
 			<!--Green Check icon 3d-->
 			<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 				<defs>

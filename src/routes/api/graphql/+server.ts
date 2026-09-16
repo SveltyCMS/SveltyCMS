@@ -60,8 +60,12 @@ import {
 const MAX_QUERY_DEPTH = 8;
 const MAX_ALIASES = 15;
 
-// Live getter (not a module-load snapshot) so tests can toggle NODE_ENV.
+// Live getters (not module-load snapshots) so tests can toggle env.
 const isProduction = () => process.env.NODE_ENV === "production";
+const isIntrospectionBlocked = () =>
+  isProduction() ||
+  process.env.BLOCK_GRAPHQL_INTROSPECTION === "true" ||
+  process.env.DEMO_MODE === "true";
 
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
@@ -299,8 +303,9 @@ const securityValidationPlugin = {
 
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
-    // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
-    if (isProduction() || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
+    // 🛡️ Introspection blocked in production, demo, or when explicitly opted in.
+    // Development stays open for the in-app playground unless BLOCK_GRAPHQL_INTROSPECTION=true.
+    if (isIntrospectionBlocked()) {
       addValidationRule(NoSchemaIntrospectionCustomRule);
     }
     endValidate();

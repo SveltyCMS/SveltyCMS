@@ -24,7 +24,7 @@ Features:
 
 	// Stores
 	import {
-		contentStructure,
+		collections,
 		setContentStructure,
 	} from "@src/stores/collection-store.svelte";
 	import { logger } from "@utils/logger";
@@ -150,7 +150,7 @@ Features:
 			return;
 		}
 
-		const flat = contentStructure.value ?? [];
+		const flat = collections.contentStructure ?? [];
 		const idsToDelete = getDescendantIds(categoryId, flat);
 		const attachedCount = idsToDelete.length - 1;
 

@@ -12,7 +12,7 @@ import {
 	collectionname_labelicon,
 } from "@src/paraglide/messages";
 
-import { collection, setCollection } from "@src/stores/collection-store.svelte";
+import { collections, setCollection } from "@src/stores/collection-store.svelte";
 import IconifyIconsPicker from "@src/components/iconify-icons-picker.svelte";
 import Input from "@src/components/ui/input.svelte";
 import Button from "@src/components/ui/button.svelte";
@@ -22,13 +22,13 @@ import { collectionMetadata, getTagColor } from "@src/stores/collection-metadata
 let { data = $bindable(null), syncKey = "" } = $props();
 
 let searchQuery = $state("");
-let selectedIcon = $state(data?.icon || collection.value?.icon || "bi:collection");
+let selectedIcon = $state(data?.icon || collections.active?.icon || "bi:collection");
 
 let name = $state(data?.name ?? "");
 let description = $state(data?.description ?? "");
 let lastSyncedKey = $state<string | null>(syncKey);
 
-const targetId = $derived(String(data?._id || collection.value?._id || (name ? name.toLowerCase().replace(/\s+/g, "_") : "")));
+const targetId = $derived(String(data?._id || collections.active?._id || (name ? name.toLowerCase().replace(/\s+/g, "_") : "")));
 let tagsInput = $state("");
 const currentTags = $derived(targetId ? collectionMetadata.getTags(targetId) : []);
 const isFavorite = $derived(targetId ? collectionMetadata.isFavorite(targetId) : false);
@@ -72,7 +72,7 @@ $effect(() => {
 	if (currentSyncKey && currentSyncKey !== lastSyncedKey) {
 		lastSyncedKey = currentSyncKey;
 		const fromData = untrack(() => data);
-		const fromStore = untrack(() => collection.value);
+		const fromStore = untrack(() => collections.active);
 		name = fromData?.name ?? "";
 		description = fromData?.description ?? "";
 		const iconValue =
@@ -106,7 +106,7 @@ $effect(() => {
 		: "";
 
 	untrack(() => {
-		const base = collection.value ?? {
+		const base = collections.active ?? {
 			name: "",
 			icon: "bi:collection",
 			status: "unpublish",

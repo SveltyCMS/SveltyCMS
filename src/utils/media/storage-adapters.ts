@@ -321,8 +321,11 @@ export class S3StorageAdapter implements StorageAdapter {
   async upload(data: Buffer | ReadableStream | Readable, relativePath: string): Promise<string> {
     const client = await this.getS3Client();
     const { PutObjectCommand } = await import("@aws-sdk/client-s3");
-    const { getMimeType } = await import("./media-utils");
-    const mime = getMimeType(relativePath) || "application/octet-stream";
+    const { resolveMimeType } = await import("./slim-sniffer.server");
+    const mime = resolveMimeType({
+      name: relativePath,
+      buffer: Buffer.isBuffer(data) ? data : null,
+    });
     const fullPath = getPath(this.config, relativePath);
 
     logger.debug("S3 upload start", { path: fullPath });

@@ -17,7 +17,7 @@
   import Select from '@components/ui/select.svelte';
   import Badge from '@components/ui/badge.svelte';
   import type { FederationEnrichment, FieldInstance } from '@src/content/types';
-  import { collection, setCollection } from '@src/stores/collection-store.svelte';
+  import { collections, setCollection } from '@src/stores/collection-store.svelte';
   import { normalizeFederationEnrichments } from '@plugins/unified-data-hub/federation-enrichment-utils';
 
   interface Props {
@@ -38,14 +38,14 @@
   let lastSyncedCollectionId = $state<string | null>(null);
 
   const nativeFieldOptions = $derived(
-    ((collection.value?.fields ?? []) as FieldInstance[])
+    ((collections.active?.fields ?? []) as FieldInstance[])
       .map((f) => f.db_fieldName)
       .filter((name): name is string => Boolean(name))
       .map((value) => ({ value, label: value })),
   );
 
   const collectionKey = $derived(
-    String(collection.value?._id ?? collection.value?.name ?? ''),
+    String(collections.active?._id ?? collections.active?.name ?? ''),
   );
 
   const virtualSelectOptions = $derived(
@@ -55,8 +55,8 @@
   function persist(next: FederationEnrichment[]) {
     const normalized = normalizeFederationEnrichments(next);
     enrichments = normalized;
-    if (collection.value) {
-      setCollection({ ...collection.value, federationEnrichments: normalized });
+    if (collections.active) {
+      setCollection({ ...collections.active, federationEnrichments: normalized });
     }
   }
 
@@ -114,7 +114,7 @@
     if (!isCollectionEditor || !collectionKey) return;
     if (collectionKey === lastSyncedCollectionId) return;
     lastSyncedCollectionId = collectionKey;
-    enrichments = normalizeFederationEnrichments(collection.value?.federationEnrichments);
+    enrichments = normalizeFederationEnrichments(collections.active?.federationEnrichments);
   });
 </script>
 

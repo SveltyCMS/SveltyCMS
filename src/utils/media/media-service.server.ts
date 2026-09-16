@@ -27,10 +27,16 @@ import type {
   EntityUpdate,
 } from "@src/databases/db-interface";
 import { mediaTypeFromMime, type MediaItem } from "./media-models";
-import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
+import {
+  buildOriginalRelPath,
+  getMimeType,
+  isAllowedUploadMime,
+  normalizeMime,
+  resolveMediaRelPath,
+} from "./media-utils";
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
-import { sniffMimeType } from "./slim-sniffer.server";
+import { assertMimeAgreement, resolveRemoteAssetMime, sniffMimeType } from "./slim-sniffer.server";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import type { SharpFactory, SharpOverlayOptions } from "./media-processing.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
@@ -133,16 +139,6 @@ export function sanitizeSvg(svg: string): string {
   return cleaned;
 }
 
-const ALLOWED_MIME_PREFIXES = [
-  "image/",
-  "video/",
-  "audio/",
-  "application/pdf",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-];
-
 function isSvgFile(mimeType: string, filename: string): boolean {
   return mimeType === "image/svg+xml" || filename.toLowerCase().endsWith(".svg");
 }
@@ -178,15 +174,12 @@ async function bufferAndSanitizeSvg(file: {
 }
 
 function validateMime(mimeType: string, filename: string) {
-  if (!mimeType) {
-    // Fall back to extension-based lookup
-    const ext = filename.split(".").pop()?.toLowerCase();
-    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
-    return; // Allow through — binary sniffing will run downstream
-  }
-  if (!ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p))) {
-    const ext = filename.split(".").pop()?.toLowerCase();
-    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (ext && ["html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
+  if (!mimeType) return; // sniff + allowlist run after magic-byte inspection
+  const normalized = normalizeMime(mimeType);
+  if (!normalized || normalized === "application/octet-stream") return;
+  if (!isAllowedUploadMime(normalized)) {
     throw new Error("MIME not allowed: " + mimeType);
   }
 }
@@ -617,7 +610,16 @@ export class MediaService {
 
         // Binary MIME sniffing as defense-in-depth
         const sniffed = sniffMimeType(buffer.subarray(0, 2048));
-        let effectiveType = file.type || sniffed?.mime || "application/octet-stream";
+        assertMimeAgreement({
+          filename: file.name,
+          declaredMime: file.type,
+          sniffedMime: sniffed?.mime,
+        });
+        let effectiveType =
+          sniffed?.mime || getMimeType(file.name) || file.type || "application/octet-stream";
+        if (!isAllowedUploadMime(effectiveType)) {
+          throw new Error("MIME not allowed: " + effectiveType);
+        }
 
         // Defense-in-depth: sniffed SVG (misdeclared MIME) still must be sanitized
         if (isSvgFile(effectiveType, file.name) || isSvgFile(sniffed?.mime || "", file.name)) {
@@ -698,7 +700,7 @@ export class MediaService {
           {
             filename: file.name,
             originalFilename: file.name,
-            mimeType: file.type,
+            mimeType: effectiveType,
             size: file.size,
             hash,
             path: relPath,
@@ -760,15 +762,15 @@ export class MediaService {
             "SVG content cannot use the streaming upload path — upload as image/svg+xml (≤5MB, sanitized)",
           );
         }
-        if (
-          sniffedLarge &&
-          sniffedLarge.mime !== "application/octet-stream" &&
-          file.type &&
-          sniffedLarge.mime.split("/")[0] !== file.type.split("/")[0]
-        ) {
-          throw new Error(
-            `MIME type mismatch: client sent "${file.type}", binary signature indicates "${sniffedLarge.mime}"`,
-          );
+        assertMimeAgreement({
+          filename: file.name,
+          declaredMime: file.type,
+          sniffedMime: sniffedLarge?.mime,
+        });
+        const largeType =
+          sniffedLarge?.mime || getMimeType(file.name) || file.type || "application/octet-stream";
+        if (!isAllowedUploadMime(largeType)) {
+          throw new Error("MIME not allowed: " + largeType);
         }
 
         // We tee the stream: one for hashing, one for uploading
@@ -822,7 +824,7 @@ export class MediaService {
           {
             filename: file.name,
             originalFilename: file.name,
-            mimeType: file.type,
+            mimeType: largeType,
             size: file.size,
             hash,
             path: relPath,
@@ -840,14 +842,14 @@ export class MediaService {
         // For large streamed files, try variant generation by re-reading from storage.
         // This is fire-and-forget: failure does not affect the upload response.
         if (
-          file.type.startsWith("image/") &&
-          !isSvgFile(file.type, file.name) &&
+          largeType.startsWith("image/") &&
+          !isSvgFile(largeType, file.name) &&
           uploadResult.success
         ) {
           this.generateVariantsForStreamedFile(
             hash,
             relPath,
-            file.type,
+            largeType,
             file.name,
             uploadResult as unknown as DatabaseResult<MediaItem>,
             tenantId,
@@ -947,10 +949,7 @@ export class MediaService {
         throw new Error(`Failed to fetch remote media: ${resp.error || resp.status}`);
       }
 
-      // Prefer raw bytes (binary-safe); fall back to text body for legacy callers
-      const remoteMime =
-        (resp.headers?.["content-type"] || "application/octet-stream").split(";")[0].trim() ||
-        "application/octet-stream";
+      const declaredMime = resp.headers?.["content-type"]?.split(";")[0]?.trim() || null;
       const payload: BlobPart = resp.bodyBytes
         ? (resp.bodyBytes as BlobPart)
         : (resp.body as string);
@@ -963,7 +962,17 @@ export class MediaService {
           return url.split("/").pop() || "remote-file";
         }
       })();
-      const file = new File([payload], name, { type: remoteMime });
+      const buffer = Buffer.isBuffer(payload)
+        ? payload
+        : Buffer.from(
+            typeof payload === "string" ? payload : (payload as ArrayBuffer | Uint8Array),
+          );
+      const remoteMime = resolveRemoteAssetMime({
+        filename: name,
+        declaredMime,
+        buffer,
+      });
+      const file = new File([buffer], name, { type: remoteMime });
 
       return await this.saveMedia(file, userId, access as "public" | "private", tenantId, basePath);
     } catch (err: unknown) {

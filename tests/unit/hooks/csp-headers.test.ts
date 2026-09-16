@@ -9,7 +9,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "@src/utils/security/constants";
+import {
+  API_CONTENT_SECURITY_POLICY,
+  BASE_HEADERS,
+  MEDIA_RESOURCE_HEADERS,
+} from "@src/utils/security/constants";
 import { applyAllSecurityHeaders } from "@src/hooks/handle-security-headers";
 import { applySecurityHeaders } from "@src/utils/hook-utils";
 
@@ -42,6 +46,11 @@ describe("Content-Security-Policy Headers", () => {
     expect(BASE_HEADERS["X-Frame-Options"]).toBe("DENY");
     expect(BASE_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
     expect(BASE_HEADERS["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
+  });
+
+  it("sets nosniff on every /files response via MEDIA_RESOURCE_HEADERS", () => {
+    expect(MEDIA_RESOURCE_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
+    expect(MEDIA_RESOURCE_HEADERS["Cross-Origin-Resource-Policy"]).toBe("same-origin");
   });
 
   it("applySecurityHeaders must preserve existing SvelteKit nonce CSP on page responses", () => {

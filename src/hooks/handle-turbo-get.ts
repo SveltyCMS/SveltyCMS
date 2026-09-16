@@ -253,6 +253,9 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
         if (compressed && compressed.length < payloadSize) {
           bodyToSend = compressed;
           setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
+          // Persist so the next TURBO-HIT skips compressSync (cold L1 / missing zstd).
+          if (!resEntry.compressed) resEntry.compressed = {};
+          resEntry.compressed[algo] = compressed;
         }
       } catch {
         bodyToSend = resEntry.buffer ?? rawBody;

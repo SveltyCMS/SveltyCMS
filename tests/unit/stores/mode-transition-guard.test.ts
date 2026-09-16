@@ -10,16 +10,14 @@ const mockSetMode = vi.fn();
 const mockDataChangeStore = { hasChanges: false };
 
 vi.mock("@src/stores/collection-store.svelte", () => ({
-  mode: {
-    get value() {
-      return mockMode.value;
-    },
-    set value(v: string) {
-      mockMode.value = v;
-    },
-  },
   setMode: mockSetMode,
   collections: {
+    get mode() {
+      return mockMode.value;
+    },
+    set mode(v: string) {
+      mockMode.value = v;
+    },
     get hasChanges() {
       return mockDataChangeStore.hasChanges;
     },
