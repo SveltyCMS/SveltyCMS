@@ -33,7 +33,7 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework (on the SvelteKit 3 release-candidate — see [svelte.dev/blog/sveltekit-3-release-candidate](https://svelte.dev/blog/sveltekit-3-release-candidate)). Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle.dev)).
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework (on the SvelteKit 3 release-candidate — see [svelte.dev/blog/sveltekit-3-release-candidate](https://svelte.dev/blog/sveltekit-3-release-candidate)). Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://orm.drizzle.team/)).
 
 You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
