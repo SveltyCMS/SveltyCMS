@@ -6,6 +6,8 @@
  */
 
 import type { RequestHandler } from "./$types";
+import { validateCsrfForRequest } from "@utils/security/csrf-utils";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
@@ -25,7 +27,13 @@ function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, cookies, url }) => {
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
+  if (!csrfResult.isValid) {
+    throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
+  }
+
   const user = locals.user;
   if (!user) {
     return new Response("Unauthorized", { status: 401 });

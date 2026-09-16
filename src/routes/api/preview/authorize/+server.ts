@@ -9,8 +9,16 @@ import { requireEditableWebsiteLicense } from "@src/plugins/editable-website/lic
 import { json } from "@sveltejs/kit";
 import { raise } from "@utils/error-handling";
 import type { RequestHandler } from "./$types";
+import { validateCsrfForRequest } from "@utils/security/csrf-utils";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, cookies, url }) => {
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
+  if (!csrfResult.isValid) {
+    raise(403, `Security violation: ${csrfResult.error}`);
+  }
+
   const user = locals.user;
   if (!user || (user as { isAnonymous?: boolean }).isAnonymous) {
     raise(401, "Authentication required for preview authorization");
