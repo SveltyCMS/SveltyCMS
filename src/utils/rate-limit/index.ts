@@ -8,6 +8,13 @@
  * 3. `rateLimit()` versucht zuerst Redis (cluster-weit), faellt bei
  *    Timeout/Fehler nahtlos auf den lokalen In-Memory-Store zurück (mit Logging).
  *
+ * Smart-Upgrades (2027+):
+ * - A. System-Druck (EWMA CPU/RAM) via `system-pressure.ts` — wird beim Init gestartet.
+ * - B. Predictive Throttling (24h-Histogramm) via `request-clock.ts` — jeder Request
+ *      wird in die Zeitreihe eingetragen.
+ * - C. Cost-Aware Limiting via `endpoint-cost.ts` — automatische Kosten-Ermittlung
+ *      wenn kein expliziter `cost` angegeben wird.
+ *
  * Das Modul hält einen Lazy-Singleton (läuft in der App-Prozessperipherie),
  * damit der Hook im Hot-Path keine Verbindung pro Request aufbaut.
  */
@@ -17,6 +24,14 @@ import { computeAdaptiveBucket, type AdaptiveContext, type BaseRateLimitConfig }
 import { loadBaseRateLimitConfig, loadRedisPingMs } from "./config";
 import { MemoryRateLimitStore } from "./memory-store";
 import { RedisRateLimitStore } from "./redis-client";
+import {
+  startPressureMonitor,
+  stopPressureMonitor,
+  describePressure,
+  getPressureScore,
+} from "./system-pressure";
+import { recordRequest, getPredictedPressure, describeRequestClock } from "./request-clock";
+import { getEndpointCost, listEndpointCosts } from "./endpoint-cost";
 
 export type RateLimitScope = "redis" | "memory";
 
@@ -36,8 +51,17 @@ export interface RateLimitOptions {
   base?: BaseRateLimitConfig;
   /** Key-Scope-Praeferenz (z.B. "api"). */
   namespace?: string;
-  /** Kosten dieses Requests (z.B. 4 fuer sensible Endpunkte). */
+  /**
+   * Kosten dieses Requests in Token-Einheiten.
+   * Wenn nicht angegeben, wird der Wert automatisch aus `pathname` ermittelt
+   * (Cost-Aware Limiting via endpoint-cost.ts).
+   */
   cost?: number;
+  /**
+   * Pfad des Requests fuer automatische Kostenzuweisung (endpoint-cost.ts).
+   * Wird ignoriert wenn `cost` explizit gesetzt ist.
+   */
+  pathname?: string;
 }
 
 // ─── Status: Ist Redis aktuell aktiv? (fuer Health/Metriken) ─────────────
@@ -60,12 +84,24 @@ let initPromise: Promise<void> | null = null;
  */
 export function initRateLimiter(): Promise<void> {
   if (!initPromise) {
+    // A. System-Druck-Monitor starten (EWMA CPU/RAM-Polling).
+    startPressureMonitor();
+
     initPromise = redisStore.connect().catch(() => {
       // Fehler ist hier ok — Fallback greift im Request-Pfad.
       logger.debug("[RateLimit] Redis-Init fehlgeschlagen (Fallback aktiv)");
     });
   }
   return initPromise;
+}
+
+/**
+ * Beendet alle Hintergrund-Prozesse (Monitor, Redis).
+ * Fuer Graceful Shutdown / Tests.
+ */
+export function shutdownRateLimiter(): void {
+  stopPressureMonitor();
+  void redisStore.close();
 }
 
 /** Baut stabilen Bucket-Key (kein PII — nur gehashte Kennung). */
@@ -81,7 +117,12 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
   const base = options.base ?? loadBaseRateLimitConfig();
   const context = options.context ?? {};
   const namespace = options.namespace ?? "api";
-  const cost = options.cost ?? 1;
+
+  // C. Cost-Aware: expliziter cost gewinnt, sonst Pfad-basierte Ermittlung.
+  const cost = options.cost ?? (options.pathname ? getEndpointCost(options.pathname) : 1);
+
+  // B. Predictive Throttling: Request in Zeitreihe eintragen.
+  recordRequest(Date.now());
 
   const bucket = computeAdaptiveBucket(base, context);
   const key = buildBucketKey(namespace, context, String(cost));
@@ -123,6 +164,22 @@ export function resetRateLimitStores(): void {
 export function _resetForTests(): void {
   memoryStore.reset();
   void redisStore.close();
+}
+
+/**
+ * Gibt einen konsolidierten Status aller Smart-Upgrade-Subsysteme zurueck.
+ * Fuer Health-Endpoints und Monitoring-Dashboards.
+ */
+export function getRateLimitSmartStatus() {
+  return {
+    pressure: {
+      score: getPressureScore(),
+      status: describePressure(),
+    },
+    prediction: getPredictedPressure(),
+    requestClock: describeRequestClock(),
+    endpointCosts: listEndpointCosts(),
+  };
 }
 
 export { RedisRateLimitStore, MemoryRateLimitStore };
