@@ -48,6 +48,20 @@ export async function seedWebsiteStarterBlueprint(
   }
 
   await seedWebsiteStarterPages(adapter, { siteName, tenantId });
+  try {
+    const { setPublicSetting, invalidateSettingsCache } =
+      await import("@src/services/core/settings-service");
+    await setPublicSetting("SITE_STARTER_ENABLED", true, tenantId ?? undefined);
+    invalidateSettingsCache(tenantId ?? undefined);
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    await cacheService.invalidateCollection("pages", (tenantId ?? undefined) as string | undefined);
+    await cacheService.invalidateCollection(
+      "collection_pages",
+      (tenantId ?? undefined) as string | undefined,
+    );
+  } catch (err) {
+    logger.warn("[WebsiteStarterSeed] Failed to configure site starter settings/cache:", err);
+  }
 
   let pluginEnabled = false;
   if (enablePlugin) {

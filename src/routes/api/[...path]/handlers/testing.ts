@@ -1063,7 +1063,7 @@ export async function handleTestingRoutes(
         throw new AppError("key is required", 400);
       }
       const { setPrivateSetting } = await import("@src/services/core/settings-service");
-      await setPrivateSetting(key as any, value as any, tenantId as any);
+      await setPrivateSetting(key as any, value as any, (tenantId || undefined) as any);
       return rawResponse({ success: true, key, value });
     }
 
@@ -1303,6 +1303,17 @@ export async function handleTestingRoutes(
           enablePlugin: params.enablePlugin !== false,
           adminUserId: params.userId as string | undefined,
         });
+        try {
+          const { cacheService } = await import("@src/databases/cache/cache-service");
+          await cacheService.invalidateCollection(
+            "pages",
+            (tenantId ?? undefined) as string | undefined,
+          );
+          await cacheService.invalidateCollection(
+            "collection_pages",
+            (tenantId ?? undefined) as string | undefined,
+          );
+        } catch {}
         return rawResponse({ success: true, ...result });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

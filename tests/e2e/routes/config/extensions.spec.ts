@@ -120,7 +120,11 @@ test.describe("Extension Management", () => {
       });
     });
 
-    await page.getByTestId("extensions-tab-marketplace").click();
+    await page
+      .getByTestId("extensions-tab-marketplace")
+      .or(page.getByTestId("extensions-marketplace"))
+      .first()
+      .click();
     await expect(page.getByTestId("marketplace-catalog")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });

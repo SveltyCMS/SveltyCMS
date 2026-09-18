@@ -56,12 +56,16 @@ async function uploadImage(page: Page) {
   await uploadResponse;
   // Wait for the actual grid item to appear, not just any text on the page
   // (toast notifications can match text before the grid renders)
-  await expect(
-    page
-      .getByTestId("media-item")
-      .filter({ hasText: /testthumb/i })
-      .first(),
-  ).toBeVisible({ timeout: ACTION_TIMEOUT });
+  const mediaItem = page
+    .getByTestId("media-item")
+    .filter({ hasText: /testthumb/i })
+    .first();
+  await expect(async () => {
+    if (!(await mediaItem.isVisible())) {
+      await page.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
+    }
+    await expect(mediaItem).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: ACTION_TIMEOUT, intervals: [1_000, 2_000] });
 }
 
 test.describe.configure({ mode: "serial" });

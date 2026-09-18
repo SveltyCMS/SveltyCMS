@@ -41,6 +41,7 @@ import type { DashboardWidgetPickerInfo } from "./widget-runtime";
 
 import { systemPreferences } from "./dashboard-preferences.svelte";
 import { themeStore } from "@src/stores/theme-store.svelte.ts";
+import { contentLanguage } from "@src/stores/locale-store.svelte";
 
 import { logger } from "@utils/logger";
 import { adminStagger, motionDuration } from "@utils/admin-transitions";
@@ -164,7 +165,7 @@ const hotCollectionLinks = $derived.by(() => {
 	}
 	const chips: { href: string; id: string; label: string }[] = [];
 	const seen = new Set<string>();
-	const language = app.contentLanguage || 'en';
+	const language = contentLanguage.value || 'en';
 	for (const { id } of hot) {
 		const node = byKey.get(String(id).toLowerCase());
 		if (!node) continue;

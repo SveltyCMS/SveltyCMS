@@ -47,7 +47,7 @@ test.describe("Design System workspace", () => {
     await openWorkspace(page, "preview");
     await expect(page.getByTestId("design-system-preview")).toBeVisible({ timeout: 10_000 });
 
-    const densitySelect = page.getByLabel(/^density$/i);
+    const densitySelect = page.getByTestId("design-system-preview").getByLabel(/^density$/i);
     await expect(densitySelect).toBeVisible({ timeout: 10_000 });
     await densitySelect.selectOption("compact");
     await expect(densitySelect).toHaveValue("compact");
@@ -75,7 +75,7 @@ test.describe("Design System workspace", () => {
       { value: "cozy", label: "Cozy" },
       { value: "spacious", label: "Spacious" },
     ];
-    const densitySelect = page.getByLabel(/^density$/i);
+    const densitySelect = page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i);
     await expect(densitySelect).toBeVisible({ timeout: 10_000 });
 
     const originalValue = await densitySelect.inputValue();
@@ -98,14 +98,16 @@ test.describe("Design System workspace", () => {
         await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
           timeout: 10_000,
         });
-        await expect(page.getByLabel(/^density$/i)).toHaveValue(target.value, {
+        await expect(
+          page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i),
+        ).toHaveValue(target.value, {
           timeout: 10_000,
         });
       }).toPass({ timeout: 25_000 });
     } finally {
       // Restore the previous preference so the seeded admin stays deterministic.
       try {
-        const select = page.getByLabel(/^density$/i);
+        const select = page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i);
         if (await select.isVisible({ timeout: 2_000 }).catch(() => false)) {
           await select.selectOption({ label: originalLabel });
           await page.getByTestId("appearance-save-overrides").click();

@@ -934,11 +934,6 @@ export async function seedWebsiteStarterPages(
       { tenantId: tenantId as DatabaseId, bypassTenantCheck: true, limit: 1 },
     );
 
-    if (Array.isArray(existing) && existing.length > 0) {
-      logger.debug("[Website Starter] Homepage already exists — skipping seed");
-      return;
-    }
-
     const { createDefaultHomeDocument, serializeSveditContent } =
       await import("@src/services/site/svedit/default-home-document");
     const document = createDefaultHomeDocument(siteName);
@@ -958,12 +953,38 @@ export async function seedWebsiteStarterPages(
       ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
 
-    await dbAdapter.crud.insertMany("pages", [homepage], {
-      tenantId: tenantId as DatabaseId,
-      bypassTenantCheck: true,
-    });
+    if (Array.isArray(existing) && existing.length > 0) {
+      const existingId = (existing[0] as any)._id;
+      if (existingId) {
+        await dbAdapter.crud.update("pages", existingId, homepage, {
+          tenantId: tenantId as DatabaseId,
+          bypassTenantCheck: true,
+        });
+        logger.debug("✅ Updated Website Starter homepage (slug: home)");
+      }
+    } else {
+      await dbAdapter.crud.insertMany("pages", [homepage], {
+        tenantId: tenantId as DatabaseId,
+        bypassTenantCheck: true,
+      });
+      logger.debug("✅ Seeded Website Starter homepage (slug: home)");
+    }
 
-    logger.debug("✅ Seeded Website Starter homepage (slug: home)");
+    try {
+      const { evictRequestCache } =
+        await import("@src/services/sdk/namespaces/collections/request-cache");
+      evictRequestCache("pages", (tenantId ?? undefined) as string | undefined);
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      cacheService.bumpCollectionEpoch("pages", tenantId);
+      await cacheService.invalidateCollection(
+        "pages",
+        (tenantId ?? undefined) as string | undefined,
+      );
+      await cacheService.invalidateCollection(
+        "collection_pages",
+        (tenantId ?? undefined) as string | undefined,
+      );
+    } catch {}
   } catch (error) {
     logger.error("[Website Starter] Failed to seed homepage:", error);
   }

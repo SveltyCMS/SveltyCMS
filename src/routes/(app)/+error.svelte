@@ -46,9 +46,13 @@ const errorTitle = $derived(
 		? db_error_title()
 		: status === 404
 			? error_pagenotfound()
-			: isRateLimited
-				? "Too Many Requests"
-				: "System Error",
+			: status === 403
+				? "Access Denied"
+				: status === 401
+					? "Unauthorized"
+					: isRateLimited
+						? "Too Many Requests"
+						: "System Error",
 );
 
 const errorSummary = $derived(
@@ -58,9 +62,13 @@ const errorSummary = $derived(
 			? "System in Setup Mode"
 			: status === 404
 				? error_pagenotfound()
-				: isRateLimited
-					? "Slow down — you're sending requests too quickly. Please wait and try again."
-					: page.error?.message || error_wrong(),
+				: status === 403
+					? page.error?.message || "You do not have permission to access this resource (Forbidden)."
+					: status === 401
+						? page.error?.message || "Authentication is required to access this resource (Unauthorized)."
+						: isRateLimited
+							? "Slow down — you're sending requests too quickly. Please wait and try again."
+							: page.error?.message || error_wrong(),
 );
 </script>
 

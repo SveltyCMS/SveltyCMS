@@ -209,7 +209,9 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     // Guard against SSR hydration race where early click on Create button is a silent no-op
     await expect(async () => {
       if (!(await titleBox.isVisible())) {
-        await createBtn.click({ timeout: 5_000 });
+        if (await createBtn.isVisible().catch(() => false)) {
+          await createBtn.click({ timeout: 2_000 }).catch(() => {});
+        }
       }
       await expect(titleBox, "Title field on entry form").toBeVisible({ timeout: 3_000 });
     }).toPass({ timeout: 20_000, intervals: [1_000, 2_000] });

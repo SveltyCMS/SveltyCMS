@@ -239,7 +239,11 @@ test.describe("2FA enroll with fixture", () => {
 
     const twoFaBtn = page
       .getByTestId("security-2fa-btn")
-      .or(page.getByRole("button", { name: /Setup|Manage|Enabled/i }))
+      .or(
+        page
+          .getByTestId("security-2fa-section")
+          .getByRole("button", { name: /Setup|Manage|Enabled/i }),
+      )
       .first();
     await expect(twoFaBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
     const modal = page.locator(".modal-2fa").first();

@@ -414,6 +414,10 @@ export class Auth {
       user = (ur as User) ?? null;
     }
 
+    if (!user) {
+      throw error(500, "User not found for session");
+    }
+
     const sessionMetadata = {
       amr: sessionData.amr ?? (user.is2FAEnabled ? ["pwd", "mfa"] : ["pwd"]),
       mfaVerifiedAt:
@@ -1188,7 +1192,16 @@ export class Auth {
     }
 
     // We don't hash here because updateUser() handles hashing and validation
-    await this.updateUser(user._id, { password }, options);
+    // Clear account lockout and failed attempts so legitimate users who were locked out can immediately log in
+    await this.updateUser(
+      user._id,
+      {
+        password,
+        failedAttempts: 0,
+        lockoutUntil: null,
+      },
+      options,
+    );
 
     // Invalidate all other sessions across all devices for security
     // Skip the current session so the password-changer stays logged in

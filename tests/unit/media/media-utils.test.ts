@@ -128,6 +128,14 @@ describe("media-utils — path resolution", () => {
     });
     expect(result).toBe("global/abc123/original/photo-abc123.jpg");
   });
+
+  it("strips path traversal segments from filename", () => {
+    const posix = buildOriginalRelPath("abc123def", "../../etc/passwd.jpg");
+    expect(posix).toBe("global/abc123def/original/passwd-abc123def.jpg");
+
+    const win = buildOriginalRelPath("abc123def", "..\\..\\windows\\system32\\cmd.exe");
+    expect(win).toBe("global/abc123def/original/cmd-abc123def.exe");
+  });
 });
 
 describe("media-utils — gallery display URL", () => {

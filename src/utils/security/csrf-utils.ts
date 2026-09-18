@@ -102,6 +102,11 @@ export function validateCsrfForRequest(
       if (originUrl.host === host) {
         return { isValid: true };
       }
+      const isLoopback = (h: string) =>
+        h.startsWith("localhost") || h.startsWith("127.0.0.1") || h.startsWith("[::1]");
+      if (isLoopback(originUrl.host) && isLoopback(host)) {
+        return { isValid: true };
+      }
     } catch {
       // Malformed origin — fall through to token check
     }

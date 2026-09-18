@@ -9,8 +9,11 @@
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 test.describe("Site Starter", () => {
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
+
   // Constant per spec file: workers share one server DB, and the homepage seed
   // is idempotent (first seed wins). A per-worker Date.now() name made every
   // worker except the first assert a name the page never shows. The name only
@@ -59,11 +62,18 @@ test.describe("Site Starter", () => {
   });
 
   test("admin can open pages collection and Live Preview tab", async ({ page }) => {
+    page.on("pageerror", (err) => console.log(">>> BROWSER PAGE ERROR:", err));
+    page.on("response", (res) => {
+      if (res.status() >= 400) console.log(">>> HTTP ERROR:", res.status(), res.url());
+    });
+    await seedCookieConsent(page);
     await loginAsAdmin(page);
+    await dismissCookieConsent(page);
 
     await page.goto("/en/collection/pages", { waitUntil: "domcontentloaded" });
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/en/collection/pages");
+      await dismissCookieConsent(page);
     }
     await expect(page).toHaveURL(/\/en\/collection\/pages/i, { timeout: 15_000 });
 
@@ -76,8 +86,10 @@ test.describe("Site Starter", () => {
     await expect(async () => {
       if (page.url().includes("/login")) {
         await loginAsAdmin(page, "/en/collection/pages");
+        await dismissCookieConsent(page);
       } else {
         await page.goto("/en/collection/pages", { waitUntil: "domcontentloaded" });
+        await dismissCookieConsent(page);
       }
       await expect(homeRow, "seeded Home entry must be listed in the pages collection").toBeVisible(
         {
@@ -85,7 +97,11 @@ test.describe("Site Starter", () => {
         },
       );
     }).toPass({ timeout: 60_000, intervals: [2_000, 3_000, 5_000] });
-    await homeRow.click();
+    await homeRow
+      .getByText(/home/i)
+      .first()
+      .click()
+      .catch(() => homeRow.click());
 
     // The pages collection declares livePreview and the editable-website plugin
     // is enabled by the seed — the Live Preview tab must be present.

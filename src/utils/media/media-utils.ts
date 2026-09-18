@@ -191,6 +191,8 @@ export function resolveMediaRelPath(item: {
   return stored;
 }
 
+import path from "node:path";
+
 /** Sentinel value for global / no-tenant storage paths. */
 const TENANT_GLOBAL = "global";
 
@@ -205,9 +207,10 @@ export function buildOriginalRelPath(
   filename: string,
   tenantId?: string | null,
 ): string {
-  const dot = filename.lastIndexOf(".");
-  const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
-  const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
+  const safeFilename = path.basename(filename.replace(/\\/g, "/"));
+  const dot = safeFilename.lastIndexOf(".");
+  const ext = dot >= 0 ? safeFilename.slice(dot + 1) : "bin";
+  const baseName = dot >= 0 ? safeFilename.slice(0, dot) : safeFilename || "file";
   const tenant = tenantPathSegment(tenantId);
   return `${tenant}/${hash}/original/${baseName}-${hash}.${ext}`;
 }

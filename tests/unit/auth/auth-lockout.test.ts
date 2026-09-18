@@ -111,6 +111,7 @@ function createAuthHarness(userSeed: Partial<User> & { password: string }) {
       createSession,
       getActiveSessions: vi.fn(async () => ({ success: true, data: [] })),
       deleteSession: vi.fn(async () => ({ success: true })),
+      invalidateAllUserSessions: vi.fn(async () => ({ success: true, data: [] })),
       createUser: vi.fn(async (data: Partial<User>) => ({
         success: true,
         data: { _id: "new-user", ...data },
@@ -461,5 +462,25 @@ describe("Auth.createUser (real Auth class — password strength)", () => {
     // Stored hash must not be plaintext
     expect(payload.password).not.toBe("ValidPass1!");
     expect(payload.password).toMatch(/^\$argon2/);
+  });
+
+  it("clears lockoutUntil and failedAttempts when password is updated", async () => {
+    const lockoutTime = new Date(Date.now() + 15 * 60_000);
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "locked@test.com",
+      password: await hashPassword("OldValidPass1!"),
+      failedAttempts: 5,
+      lockoutUntil: dateToISODateString(lockoutTime),
+    });
+
+    const res = await auth.updateUserPassword("locked@test.com", "NewValidPass1!");
+    expect(res.status).toBe(true);
+
+    const updateCalls = (dbAdapter.auth.updateUserAttributes as any).mock.calls;
+    const lastUpdate = updateCalls[updateCalls.length - 1];
+    expect(lastUpdate[1]).toMatchObject({
+      failedAttempts: 0,
+      lockoutUntil: null,
+    });
   });
 });

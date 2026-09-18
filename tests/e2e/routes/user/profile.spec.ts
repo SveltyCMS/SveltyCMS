@@ -197,7 +197,9 @@ test.describe.serial("User Profile Management", () => {
       await expect(avatarModal).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
 
-    let deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    let deleteBtn = avatarModal
+      .getByTestId("delete-avatar-btn")
+      .or(avatarModal.getByRole("button", { name: /delete/i }));
     if (!(await deleteBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
       // Seed an avatar so the delete flow can be verified (e.g. on test retry)
       const fileInput = page.locator('input[type="file"]');
@@ -220,7 +222,9 @@ test.describe.serial("User Profile Management", () => {
           .catch(() => editAvatarBtn.evaluate((el: HTMLElement) => el.click()));
         await expect(avatarModal).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 15_000 });
-      deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+      deleteBtn = avatarModal
+        .getByTestId("delete-avatar-btn")
+        .or(avatarModal.getByRole("button", { name: /delete/i }));
     }
 
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 });

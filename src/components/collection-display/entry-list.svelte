@@ -1,6 +1,4 @@
 <!--
-import { ui } from '@src/stores/ui-store.svelte';
-import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';
 @file src/components/collection-display/entry-list.svelte
 @description
 High-performance data table for managing collection entries.
@@ -48,8 +46,8 @@ bulk actions, and predictive preloading.
 -->
 
 <script module lang="ts">
-
-import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';	import Button from '@components/ui/button.svelte';
+	import Button from '@components/ui/button.svelte';
+	import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
@@ -1244,6 +1242,16 @@ import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte
 								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
+								onclick={(e) => {
+									const target = e.target as HTMLElement | null;
+									if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+									const originalEntry = tableData.find((item: CollectionEntry) => item._id === entry._id);
+									if (originalEntry) {
+										modeTransitionGuard.setMode("edit");
+										setCollectionValue(originalEntry);
+										reflectModeInURL("edit", originalEntry._id as string);
+									}
+								}}
 							>
 								<TableIcons
 									cellClass={`w-10 text-center ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}

@@ -29,6 +29,7 @@ import {
 	error_wrong,
 } from "@src/paraglide/messages";
 import { page } from "$app/state";
+import { locale } from "@src/stores/locale-store.svelte";
 
 const size = 140;
 const font = 0.9;
@@ -81,7 +82,7 @@ const errorSummary = isDatabaseError
 
 {#if page}
 	<main
-		lang={app.contentLanguage}
+		lang={locale.contentLanguage}
 		class="flex min-h-screen w-full flex-col items-center justify-center bg-linear-to-t from-surface-900 via-surface-700 to-surface-900 px-4 text-white"
 		aria-labelledby="error-heading"
 	>

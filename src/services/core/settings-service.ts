@@ -317,7 +317,9 @@ export class SettingsService {
     scope?: "public" | "private",
     tenantId?: string,
   ): Promise<T | undefined> {
-    const { public: publicEnv, private: privateEnv } = await this.loadSettingsCache(tenantId);
+    const effectiveTenantId = tenantId || GLOBAL_TENANT;
+    const { public: publicEnv, private: privateEnv } =
+      await this.loadSettingsCache(effectiveTenantId);
 
     if (
       (!scope || scope === "public") &&
@@ -338,14 +340,14 @@ export class SettingsService {
     key: K,
     tenantId: string = GLOBAL_TENANT,
   ): PublicEnv[K] {
-    return this.getOrCreateCache(tenantId).public[key];
+    return this.getOrCreateCache(tenantId || GLOBAL_TENANT).public[key];
   }
 
   public getPrivateSettingSync<K extends keyof PrivateEnv>(
     key: K,
     tenantId: string = GLOBAL_TENANT,
   ): PrivateEnv[K] {
-    return this.getOrCreateCache(tenantId).private[key];
+    return this.getOrCreateCache(tenantId || GLOBAL_TENANT).private[key];
   }
 
   public async setPrivateSetting<K extends keyof PrivateEnv>(
@@ -361,16 +363,45 @@ export class SettingsService {
       throw new Error("Database adapter not available");
     }
 
+    const effectiveTenantId = tenantId || GLOBAL_TENANT;
     const res = await dbAdapter.system.preferences.set(key as string, value, {
       scope: "system",
-      tenantId: tenantId as any,
+      tenantId: effectiveTenantId as any,
     });
 
     if (!res.success) {
       throw new Error(res.error?.message || `Failed to update private setting: ${key as string}`);
     }
 
-    this.invalidateCache(tenantId);
+    this.invalidateCache(effectiveTenantId);
+    this.invalidateCache();
+  }
+
+  public async setPublicSetting<K extends keyof PublicEnv>(
+    key: K,
+    value: PublicEnv[K],
+    tenantId: string = GLOBAL_TENANT,
+  ): Promise<void> {
+    if (typeof window !== "undefined" || !import.meta.env.SSR) {
+      throw new Error("setPublicSetting is server-only");
+    }
+    const { dbAdapter } = await import("@src/databases/db");
+    if (!dbAdapter?.system.preferences) {
+      throw new Error("Database adapter not available");
+    }
+
+    const effectiveTenantId = tenantId || GLOBAL_TENANT;
+    const res = await dbAdapter.system.preferences.set(key as string, value, {
+      scope: "system",
+      tenantId: effectiveTenantId as any,
+    });
+
+    if (!res.success) {
+      throw new Error(res.error?.message || `Failed to update public setting: ${key as string}`);
+    }
+
+    this.invalidateCache(effectiveTenantId);
+    this.invalidateCache();
   }
 
   public async getAllSettings(tenantId?: string): Promise<Record<string, unknown>> {
@@ -426,5 +457,6 @@ export const getPublicSettingSync = settingsService.getPublicSettingSync.bind(se
 export const getPrivateSettingSync = settingsService.getPrivateSettingSync.bind(settingsService);
 export const getAllSettings = settingsService.getAllSettings.bind(settingsService);
 export const setPrivateSetting = settingsService.setPrivateSetting.bind(settingsService);
+export const setPublicSetting = settingsService.setPublicSetting.bind(settingsService);
 export const updateSettingsFromSnapshot =
   settingsService.updateSettingsFromSnapshot.bind(settingsService);

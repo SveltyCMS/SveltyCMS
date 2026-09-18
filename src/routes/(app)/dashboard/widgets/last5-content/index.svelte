@@ -26,6 +26,7 @@ export const widgetMeta = {
 	import type { WidgetSize } from '@src/content/types';
 	import { formatRelativeDate } from '@utils/date';
 	import BaseWidget from '../../base-widget.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import {
 		widget_last5_recent_items,
 		widget_last5_recent_content,
@@ -101,7 +102,7 @@ export const widgetMeta = {
 					{#each items.slice(0, limit) as item (item.id)}
 						<div role="listitem">
 							<a
-								href={`/${app.contentLanguage}/${item.collection}?edit=${item.id}`}
+								href={`/${contentLanguage.value}/${item.collection}?edit=${item.id}`}
 								data-sveltekit-preload-data="hover"
 								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-gray-50 dark:hover:bg-gray-800/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-tertiary-500 border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
 							>

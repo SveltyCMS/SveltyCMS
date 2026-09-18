@@ -9,7 +9,7 @@ import type { RequestHandler } from "./$types";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
-import { AppError, raise } from "@utils/error-handling";
+import { AppError } from "@utils/error-handling";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { resolveTargetCollection } from "@plugins/smart-importer/infer-collection";
 import {
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies, url }) =>
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
   if (!csrfResult.isValid) {
-    raise(403, `Security violation: ${csrfResult.error}`);
+    return new Response(`Security violation: ${csrfResult.error}`, { status: 403 });
   }
 
   const user = locals.user;

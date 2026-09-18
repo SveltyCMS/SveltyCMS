@@ -876,6 +876,16 @@ async function resetPWInternal(event: RequestEvent, input: any) {
   const ur = await auth.updateUserPassword(e, p);
   if (!ur.status) return { success: false, message: "Failed to update password." };
 
+  // Clear account lockout on password reset so legitimate users who were locked out by brute-force attacks can immediately log in
+  try {
+    await auth.authInterface?.updateUserAttributes?.(user._id, {
+      failedAttempts: 0,
+      lockoutUntil: null,
+    });
+  } catch (err) {
+    logger.debug("Failed to clear lockout attributes on password reset", { err });
+  }
+
   auditLogService
     .log(
       "Password reset success",
