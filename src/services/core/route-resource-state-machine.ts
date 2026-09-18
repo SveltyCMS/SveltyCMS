@@ -15,6 +15,7 @@
  */
 
 import { CacheCategory } from "@src/databases/cache/types";
+import type { DatabaseId } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { validateId } from "@src/databases/core/id-contract";
 import {
@@ -309,7 +310,7 @@ export class RouteResourceStateMachine {
 
       const { LocalCMS } = await import("@src/services/sdk");
       const cms = new LocalCMS(adapter);
-      const opts = { tenantId, user };
+      const opts = { tenantId: tenantId as DatabaseId, user };
 
       if (parsed.entryId) {
         const result = await cms.collections.findById(parsed.collectionId, parsed.entryId, opts);

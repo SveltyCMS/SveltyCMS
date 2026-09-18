@@ -28,10 +28,12 @@ import { error, redirect, type RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
 import { getRoleBitset } from "@src/databases/auth/permissions";
+import { seedRoleTiers } from "@utils/rate-limit/role-tiers";
 
 const IS_BUN_TEST =
   typeof globalThis !== "undefined" && !!(globalThis as any).process?.env?.BUN_TEST;
@@ -181,7 +183,7 @@ async function getCachedUserCount(
       if (!auth) return -1;
       const filter = multiTenant && tenantId ? { tenantId: tenantId as DatabaseId } : {};
       const bypassOpts = !tenantId
-        ? { bypassTenantCheck: true }
+        ? withSystemScope("auth-bootstrap")
         : { tenantId: tenantId as DatabaseId };
       if (typeof auth.getUserCount !== "function") return -1;
       const count = await auth.getUserCount(filter, bypassOpts);
@@ -230,10 +232,11 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
       if (!auth || typeof auth.getAllRoles !== "function") return [];
       const bypassOpts =
         !tenantId || tenantId === "global"
-          ? { bypassTenantCheck: true }
+          ? withSystemScope("auth-bootstrap")
           : { tenantId: tenantId as DatabaseId };
       const data = await auth.getAllRoles(bypassOpts);
       if (!data?.length) return [];
+      seedRoleTiers(data);
       const cacheData = { data, timestamp: now };
       setBoundedCache(rolesCache, key, cacheData);
       await cacheService.set(

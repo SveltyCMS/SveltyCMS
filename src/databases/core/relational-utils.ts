@@ -850,7 +850,7 @@ export function buildRawTenantClause(
   dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
   opts: { parameterized?: boolean; paramIndex?: number } = {},
 ): { sql: string; params: string[] } {
-  if (options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global") {
+  if (hasTenantBypass(options) || !options?.tenantId || options?.tenantId === "global") {
     return EMPTY_TENANT_CLAUSE;
   }
   const parameterized = opts.parameterized !== false;

@@ -51,9 +51,12 @@ export default defineConfig({
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
-    // CI: dots + annotations; silence console from passing tests (failures still print logs)
+    // CI: dots + annotations; local: full reporter.
     reporters: isCI ? ["dot", "github-actions"] : ["default"],
-    silent: isCI ? "passed-only" : false,
+    // Only failing tests print their captured console/stdout — locally too. Passing
+    // tests that log (config-cli dumps JSON, dispatcher suites log requests) otherwise
+    // flood the terminal and cost real I/O time on Windows. Debug with `--silent=false`.
+    silent: "passed-only",
     coverage: {
       provider: "v8",
       reportsDirectory: "./.vitest/coverage",
@@ -78,11 +81,14 @@ export default defineConfig({
       },
     },
     pool: "forks",
+    isolate: true,
+    // NOTE: `isolate: false` is NOT viable here (measured 2026-09-18: 37 files /
+    // 147 tests fail — setup.ts global mocks and module-level singletons leak
+    // across files). Keep per-file isolation; reduce import cost instead.
+    // Worker args are top-level in Vitest 5 (`poolOptions.forks` is gone).
+    execArgv: ["--enable-source-maps"],
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
     ...(isCI ? {} : { maxWorkers: localMaxWorkers }),
-    forks: {
-      execArgv: ["--enable-source-maps"],
-    },
     env: {
       TEST_MODE: "true",
       QUIET: "true",

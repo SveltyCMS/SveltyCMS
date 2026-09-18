@@ -22,6 +22,7 @@ import { validateBenchmarkEnvironment } from "./modules/benchmark-sanitizer";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import { toQueryOptions } from "@src/databases/policy";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";
@@ -39,10 +40,7 @@ const MANY_READ_OPTS = Object.freeze({
   tenantId: TEST_TENANT,
 });
 
-const PERM_DELETE_OPTS = Object.freeze({
-  bypassTenantCheck: true,
-  permanent: true,
-});
+const PERM_DELETE_OPTS = Object.freeze(withSystemScope("benchmark", { permanent: true }));
 
 let stopServer: (() => Promise<void>) | null = null;
 

@@ -9,6 +9,7 @@
  * - credential lookup aligned with API key auth (tenant-scoped when context exists)
  * - compound index on { token, tenantId } for high-throughput auth lookups
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
 import type { WebsiteToken } from "@src/content/types";
@@ -57,7 +58,7 @@ export class MongoWebsiteTokenMethods {
   private _tenantOpts(tenantId?: string, credentialLookup = false) {
     return {
       ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
-      ...(credentialLookup && !tenantId ? { bypassTenantCheck: true } : {}),
+      ...(credentialLookup && !tenantId ? withSystemScope("bootstrap") : {}),
     };
   }
 

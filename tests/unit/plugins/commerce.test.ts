@@ -5,11 +5,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@utils/tenant", () => ({
+vi.mock("@utils/tenant-isolation.server", () => ({
   isMultiTenantEnabled: vi.fn(() => true),
+  resetMultiTenantCache: vi.fn(),
 }));
 
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { requireCommerceTenantId, withTenant } from "../../../src/plugins/commerce/tenant";
 import { computeTotals } from "../../../src/services/commerce/adjustment-engine";
 import { money } from "../../../src/services/commerce/price";

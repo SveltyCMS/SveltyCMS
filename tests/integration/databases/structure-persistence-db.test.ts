@@ -12,6 +12,7 @@ import type { ContentNode } from "@src/content/types";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { syncContentState } from "@src/content/index.server";
 import { assertRealAdapter } from "@tests/helpers/assert-real-adapter";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const TENANT: DatabaseId = "global" as DatabaseId;
 const CATEGORY_NODE_TYPE = "category" as const;
@@ -67,9 +68,7 @@ describe("structure persistence DB roundtrip", () => {
 
     expect(bulk.success).toBe(true);
 
-    const probe = await db.content.nodes.getStructure("flat", {
-      bypassTenantCheck: true,
-    });
+    const probe = await db.content.nodes.getStructure("flat", withSystemScope("testing"));
 
     expect(probe.success).toBe(true);
     const nodes = getData<ContentNode[]>(probe);

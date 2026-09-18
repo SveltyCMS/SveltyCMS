@@ -35,7 +35,6 @@ describe("MongoCrudMethods.upsert", () => {
       {
         tenantId: "tenant-1" as DatabaseId,
         bypassSafeQuery: true,
-        bypassTenantCheck: true,
       },
     );
 

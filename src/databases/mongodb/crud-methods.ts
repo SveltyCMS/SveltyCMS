@@ -4,6 +4,7 @@
  */
 
 import { safeQuery, isMultiTenantMode } from "@src/utils/security/safe-query";
+import { hasTenantBypass } from "../system-tenant-scope";
 import { nowISODateString } from "@utils/date";
 import mongoose, { type Model } from "mongoose";
 import type {
@@ -32,6 +33,19 @@ import {
   withIdTiebreaker,
 } from "../core/page-utils";
 import { applyLookupStatus, parseIdLookup } from "../core/lookup-query";
+
+/**
+ * Native `collection.findOne` may return a BSON ObjectId `_id`. Stringify so
+ * REST JSON.stringify stays a plain UUID and does not walk a Buffer.
+ */
+function plainNativeDoc<T>(raw: unknown): T {
+  if (!raw || typeof raw !== "object") return raw as T;
+  const id = (raw as { _id?: unknown })._id;
+  if (id && typeof id === "object" && (id as { _bsontype?: string })._bsontype === "ObjectId") {
+    return { ...(raw as Record<string, unknown>), _id: String(id) } as T;
+  }
+  return raw as T;
+}
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
@@ -112,25 +126,29 @@ export class MongoCrudMethods<T extends BaseEntity> {
             const filter: Record<string, unknown> = { _id: lookup.id };
             if (effectiveTenant) filter.tenantId = effectiveTenant;
 
-            const projection = options.fields?.length ? options.fields.join(" ") : undefined;
-            const result = await this.model.findOne(filter, projection).lean().exec();
-
-            const meta = { executionTime: performance.now() - startTime };
-            if (!result || (result as any).isDeleted === true) {
-              return { success: true, data: null, meta };
-            }
-            const mapped = applyLookupStatus(this.mapDates(result) as T, lookup);
-            return { success: true, data: mapped, meta };
+            const projection = options.fields?.length
+              ? Object.fromEntries(options.fields.map((f) => [f, 1]))
+              : undefined;
+            const result = await this.model.collection.findOne(filter, { projection });
+            const data =
+              !result || (result as { isDeleted?: boolean }).isDeleted === true
+                ? null
+                : applyLookupStatus(this.mapDates(plainNativeDoc<T>(result)), lookup);
+            if (options.skipMeta) return { success: true, data };
+            return {
+              success: true,
+              data,
+              meta: { executionTime: performance.now() - startTime },
+            };
           }
         }
       }
 
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
         }),
       );
 
@@ -172,10 +190,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // No fast-path bypass — multi-tenant data leakage is non-negotiable.
       const secureQuery = this.adapter.mapQuery(
         safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
         }),
       );
 
@@ -232,25 +249,30 @@ export class MongoCrudMethods<T extends BaseEntity> {
             const filter: Record<string, unknown> = { _id: lookup.id };
             if (effectiveTenant) filter.tenantId = effectiveTenant;
 
-            const projection = options.fields?.length ? options.fields.join(" ") : undefined;
-            const result = await this.model.findOne(filter, projection).lean().exec();
-
-            const meta = { executionTime: performance.now() - startTime };
-            if (!result || (result as any).isDeleted === true) {
-              return { success: true, data: [], meta };
-            }
-            const mapped = applyLookupStatus(this.mapDates(result) as T, lookup);
-            return { success: true, data: mapped ? [mapped] : [], meta };
+            const projection = options.fields?.length
+              ? Object.fromEntries(options.fields.map((f) => [f, 1]))
+              : undefined;
+            const result = await this.model.collection.findOne(filter, { projection });
+            const mapped =
+              !result || (result as { isDeleted?: boolean }).isDeleted === true
+                ? null
+                : applyLookupStatus(this.mapDates(plainNativeDoc<T>(result)), lookup);
+            const data = mapped ? [mapped] : [];
+            if (options.skipMeta) return { success: true, data };
+            return {
+              success: true,
+              data,
+              meta: { executionTime: performance.now() - startTime },
+            };
           }
         }
       }
 
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
         }),
       );
 
@@ -297,10 +319,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
         }),
       );
 
@@ -338,9 +359,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       // Fix: removed includeDeleted: true from insert safeQuery (copy-paste error)
       const secureData = safeQuery(data as Record<string, unknown>, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-        bypassSafeQuery: options.bypassSafeQuery,
         systemScope: options.systemScope,
+        bypassSafeQuery: options.bypassSafeQuery,
       });
 
       const invalid = this.invalidEntryId(secureData._id);
@@ -423,9 +443,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const now = nowISODateString();
       const ops = data.map((d) => {
         const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          bypassSafeQuery: options.bypassSafeQuery,
           systemScope: options.systemScope,
+          bypassSafeQuery: options.bypassSafeQuery,
         });
 
         const doc = {
@@ -490,7 +509,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // 🚀 Fast-Path: Direct ID update
       // `options.filter` (e.g. `{ status: "pending" }`) makes the update conditional —
       // atomic claim semantics: no row matched ⇒ no-op, callers treat it as "not claimed".
-      if (!options.tenantId && !options.bypassTenantCheck) {
+      if (!options.tenantId && !hasTenantBypass(options)) {
         const now = nowISODateString();
         const { _id: _, createdAt: __, ...updateData } = { ...data, updatedAt: now } as any;
         const result = await this.model
@@ -523,9 +542,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       const query = this.adapter.mapQuery(
         safeQuery({ _id: id, ...options.filter } as QueryFilter<T>, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          bypassSafeQuery: options.bypassSafeQuery,
           systemScope: options.systemScope,
+          bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
 
@@ -583,9 +601,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          bypassSafeQuery: options.bypassSafeQuery,
           systemScope: options.systemScope,
+          bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
       const updateOptions: any = { cloneUpdate: false };
@@ -620,9 +637,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const opts = options || {};
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, opts.tenantId as string, {
-          bypassTenantCheck: opts.bypassTenantCheck,
-          bypassSafeQuery: opts.bypassSafeQuery,
           systemScope: opts.systemScope,
+          bypassSafeQuery: opts.bypassSafeQuery,
         }),
       ) as Record<string, unknown>;
       const now = nowISODateString();
@@ -707,10 +723,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
 
     try {
-      const { tenantId, bypassTenantCheck, permanent, userId } = options;
+      const { tenantId, permanent, userId } = options;
       const query = this.adapter.mapQuery(
         safeQuery({ _id: id } as QueryFilter<T>, tenantId as string, {
-          bypassTenantCheck,
           includeDeleted: permanent,
           bypassSafeQuery: (options as any).bypassSafeQuery,
           systemScope: options.systemScope,
@@ -795,10 +810,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
     } = {},
   ): Promise<DatabaseResult<{ deletedCount: number; matchedCount: number }>> {
     try {
-      const { tenantId, bypassTenantCheck, permanent, userId } = options;
+      const { tenantId, permanent, userId } = options;
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, tenantId as string, {
-          bypassTenantCheck,
           includeDeleted: permanent,
           bypassSafeQuery: (options as any).bypassSafeQuery,
           systemScope: options.systemScope,
@@ -865,10 +879,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
 
     try {
-      const { tenantId, bypassTenantCheck } = options;
+      const { tenantId } = options;
       const query = this.adapter.mapQuery(
         safeQuery({ _id: id, isDeleted: true } as QueryFilter<T>, tenantId as string, {
-          bypassTenantCheck,
           includeDeleted: true,
           bypassSafeQuery: options.bypassSafeQuery,
           systemScope: options.systemScope,
@@ -977,10 +990,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
         }),
       );
       const count = await this.model.countDocuments(secureQuery);
@@ -1025,7 +1037,6 @@ export class MongoCrudMethods<T extends BaseEntity> {
         ? this.count(query, {
             tenantId: options.tenantId,
             systemScope: options.systemScope,
-            bypassTenantCheck: options.bypassTenantCheck,
             includeDeleted: options.includeDeleted,
             bypassSafeQuery: options.bypassSafeQuery,
             skipMeta: true,
@@ -1071,10 +1082,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
         }),
       );
       const doc = await this.model.findOne(secureQuery, { _id: 1 }).lean().exec();
@@ -1092,9 +1102,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       const filter = this.adapter.mapQuery(
         safeQuery({}, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          bypassSafeQuery: options.bypassSafeQuery,
           systemScope: options.systemScope,
+          bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
 
@@ -1155,9 +1164,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         updateOne: {
           filter: this.adapter.mapQuery(
             safeQuery(item.query, options.tenantId as string, {
-              bypassTenantCheck: options.bypassTenantCheck,
-              bypassSafeQuery: options.bypassSafeQuery,
               systemScope: options.systemScope,
+              bypassSafeQuery: options.bypassSafeQuery,
             }),
           ),
 
@@ -1222,9 +1230,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         updateOne: {
           filter: this.adapter.mapQuery(
             safeQuery(update.query, options.tenantId as string, {
-              bypassTenantCheck: options.bypassTenantCheck,
-              bypassSafeQuery: options.bypassSafeQuery,
               systemScope: options.systemScope,
+              bypassSafeQuery: options.bypassSafeQuery,
             }),
           ),
           update: {

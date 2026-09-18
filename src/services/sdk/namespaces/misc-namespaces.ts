@@ -25,7 +25,7 @@ import {
   updateSettingsFromSnapshot,
 } from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
-import { withTenant } from "@utils/tenant";
+import { withTenant } from "@utils/tenant-isolation.server";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { MediaService } from "@utils/media/media-service.server";

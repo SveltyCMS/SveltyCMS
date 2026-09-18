@@ -79,12 +79,40 @@ const CONTINUE_ON_ERROR =
 
 // Auto-discover all test files
 const benchmarksDir = path.resolve(process.cwd(), "tests/benchmarks");
-const testFiles = fs.existsSync(benchmarksDir)
+const discoveredTestFiles = fs.existsSync(benchmarksDir)
   ? fs
       .readdirSync(benchmarksDir)
       .filter((f) => f.endsWith(".test.ts"))
       .sort()
   : [];
+
+// 🔎 `--only=name[,name]` — run a single benchmark (or a few) instead of the whole
+// matrix. Substring match on the file name, so `--only=database` also runs
+// `database-performance`; repeated flags OR together. Documented in
+// docs/tests/benchmark-isolation.mdx and relied on by reporting.ts recovery paths.
+const onlyFilters = process.argv
+  .filter((a) => a.startsWith("--only="))
+  .flatMap((a) => a.slice("--only=".length).toLowerCase().split(","))
+  .filter(Boolean);
+
+const testFiles =
+  onlyFilters.length === 0
+    ? discoveredTestFiles
+    : discoveredTestFiles.filter((f) =>
+        onlyFilters.some((needle) => f.toLowerCase().includes(needle)),
+      );
+
+if (onlyFilters.length > 0) {
+  if (testFiles.length === 0) {
+    console.error(
+      `❌ --only=${onlyFilters.join(",")} matched no benchmark files in tests/benchmarks/.`,
+    );
+    process.exit(1);
+  }
+  console.log(
+    `🔎 --only=${onlyFilters.join(",")} → ${testFiles.length} of ${discoveredTestFiles.length} test(s): ${testFiles.join(", ")}`,
+  );
+}
 
 // Smart test ordering groups based on workload analysis
 const GROUPS = [
@@ -494,6 +522,20 @@ async function run() {
     if (!allGroupedNames.has(getTestName(file))) {
       orderedTests.push(file);
     }
+  }
+
+  // 🛡️ Only GROUPS drive execution — a benchmark file that exists in
+  // tests/benchmarks/ but is missing from GROUPS would silently never run (and
+  // `--only=<new-test>` would report 0 passed/0 failed). Append the leftovers as a
+  // final group so matrix coverage matches the directory.
+  const ungroupedNames = testFiles
+    .map((file) => getTestName(file))
+    .filter((name) => !allGroupedNames.has(name));
+  if (ungroupedNames.length > 0) {
+    GROUPS.push({ name: "Ungrouped", parallel: false, tests: ungroupedNames });
+    console.log(
+      `ℹ️  ${ungroupedNames.length} ungrouped benchmark(s) appended as a final group: ${ungroupedNames.join(", ")}`,
+    );
   }
 
   for (const db of databases) {

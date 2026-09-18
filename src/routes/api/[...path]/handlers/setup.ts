@@ -9,6 +9,7 @@
  * - Admin user creation with secure session cookie
  * - System reinitialization for recovery scenarios
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { logger } from "@utils/logger";
 import { AppError, isAppError, raise } from "@utils/error-handling";
@@ -262,7 +263,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
     {
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
     },
-    { bypassTenantCheck: true, allowPrivilegeEscalation: true },
+    { ...withSystemScope("setup"), allowPrivilegeEscalation: true },
   );
 
   if (!authResult.success || !authResult.data) {
@@ -331,7 +332,7 @@ async function verifyDatabaseUnseeded(dbConfig: DatabaseConfig) {
     const dbAdapter = adapterWrapper.dbAdapter;
     const adminCountResult = await dbAdapter.auth.getUserCount(
       { role: "admin" },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
 
     const count =

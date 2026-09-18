@@ -134,7 +134,7 @@ export class LocalCMS {
     const isLegacyContentSystem =
       candidate !== null &&
       typeof candidate === "object" &&
-      typeof (candidate as { getCollectionById?: unknown }).getCollectionById === "function";
+      typeof (candidate as { getCollection?: unknown }).getCollection === "function";
     const hasContentSystemKey =
       candidate !== null &&
       typeof candidate === "object" &&

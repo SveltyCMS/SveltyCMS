@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-05-14"
-updated: "2026-09-08"
+updated: "2026-09-18"
 tags:
   - "security"
   - "auth"
@@ -229,9 +229,11 @@ SveltyCMS enforces mandatory multi-factor authentication on a per-role basis:
   - `amr: ["pwd"]` — Password authentication only.
   - `amr: ["pwd", "mfa"]` — Interactive 2FA verified (TOTP, hardware passkey/WebAuthn, backup code).
   - `mfaVerifiedAt` — ISO timestamp recording when second-factor elevation occurred.
+- **Persisted on every engine**: `amr` (JSON/JSONB) and `mfaVerifiedAt` are real `auth_sessions` columns on all four adapters — declared in the system schema spec, materialised by the Drizzle schemas (SQLite/PostgreSQL/MariaDB) and Mongo's `SessionSchema`, and back-filled on existing databases by the boot legacy-tail `ALTER`s. Before this, the SQL adapters accepted and dropped both fields on write, so MFA elevation survived a reload only on Mongo.
 - **Endpoint Gate Enforcement**: In `_checkEndpointPermission`, requests made under a mandatory-MFA role that carry non-MFA sessions (`amr: ["pwd"]` or `amr: ["pwd", "trusted_device"]`) are immediately rejected with HTTP 403 `MFA_REQUIRED`.
 - **Exempt Routes**: Self-service 2FA setup/verification (`/api/auth/2fa/*`) and session teardown (`/api/auth/logout`) remain accessible so users can authenticate their factor or safely log out.
 - **Trusted-Device Override**: Device-level trust (`__Host-2fa-trusted-device`) is unconditionally disabled for any user assigned to a role with `mfaRequired: true`. Interactive second factor is required on every login.
+- **Rotation preserves the proof**: token rotation copies `amr` and `mfaVerifiedAt` onto the new session row, so a renewed cookie keeps its MFA claim — and a password-only session cannot acquire one by rotating.
 
 ---
 
@@ -272,9 +274,12 @@ flowchart TD
    - **Authenticated Users**: $2\times$ capacity multiplier for verified editors and interactive staff.
    - **Anonymous / Public**: $1\times$ baseline quota protecting against unauthenticated scrapers and brute-force attempts.
    - Evaluated via a **zero-overhead synchronous session cache peeker** (`peekSessionFromCacheSync`) in `handle-authentication.ts` avoiding circular dependencies and Promise overhead.
-5. **Hardware-Aware Load Shedding**:
-   - Integrates with `SystemMonitor` to measure event loop lag and CPU load.
-   - Under heavy system pressure, token cost scales between $0.8\times$ (idle system) up to $2.0\times$ (saturated host), actively dampening traffic before server responsiveness degrades.
+5. **Hardware-Aware Load Shedding** (`system-pressure.ts` — the only rate-limit pressure source):
+   - Polls every 5s: process `cpuUsage()` delta ÷ (elapsed µs × core count), plus 1-minute `os.loadavg() / cores` when the platform reports a non-zero load. Windows loadavg is zeros and is ignored.
+   - EWMA (α=0.25) so a single spike does not throttle. Admin tier stays at 1.0. Heap > 92% rejects mutations with 503 `HEAP_PRESSURE`.
+   - Predictive histogram (`request-clock.ts`) can raise pressure before CPU moves. Endpoint token costs (`endpoint-cost.ts`) debit more than 1 token for media/AI/import/GraphQL.
+   - RBAC role tiers are seeded from `getAllRoles()` into an in-memory set; tenant plan (`free`/`pro`/`enterprise`) is seeded from TenantService. The limiter never queries the DB.
+   - One hook: `handle-rate-limit.ts` (Redis L2 + memory). The previous opt-in Redis handle is gone.
 
 ---
 

@@ -32,6 +32,7 @@ import { logger } from "@utils/logger";
  */
 const BUILT_IN_COSTS: Array<[string, number]> = [
   ["/api/media/upload", 5],
+  ["/api/media/stream", 5],
   ["/api/ai", 10],
   ["/api/graphql", 2],
   ["/api/content/import", 8],

@@ -964,9 +964,13 @@ export class MediaService {
       })();
       const buffer = Buffer.isBuffer(payload)
         ? payload
-        : Buffer.from(
-            typeof payload === "string" ? payload : (payload as ArrayBuffer | Uint8Array),
-          );
+        : typeof payload === "string"
+          ? Buffer.from(payload)
+          : payload instanceof Blob
+            ? Buffer.from(await payload.arrayBuffer())
+            : payload instanceof ArrayBuffer
+              ? Buffer.from(payload)
+              : Buffer.from(payload.buffer, payload.byteOffset, payload.byteLength);
       const remoteMime = resolveRemoteAssetMime({
         filename: name,
         declaredMime,

@@ -172,6 +172,11 @@ Runs automatically before `bun run benchmark` and `bun run benchmark:core`. Chec
 COMPILE_ALL_ADAPTERS=true bun run build
 bun run benchmark --db=sqlite          # preflight runs first
 bun run benchmark:core --db=sqlite     # CI parity core suite
+
+# Single benchmark (or a few) instead of the whole matrix — substring match on the
+# file name, comma-separated; repeated flags OR together:
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=auth-session-amr
+bun run scripts/benchmark-matrix/index.ts --db=postgresql --only=database-performance,truth-latency
 ```
 
 ## Key Features

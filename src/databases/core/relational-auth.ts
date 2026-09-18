@@ -37,6 +37,17 @@ import {
 import type { ISODateString } from "@src/content/types";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 
+/**
+ * Normalize the `amr` JSON column once at the session boundary. SQLite (mode:"json")
+ * and PostgreSQL (JSONB) hand back parsed arrays, MariaDB can double-encode them as
+ * strings — the same defensive read the other JSON auth columns use (`parseJsonField`).
+ */
+function normalizeSessionAmr<T>(row: T): T {
+  const amr = (row as { amr?: unknown } | null | undefined)?.amr;
+  if (!row || amr === undefined || amr === null) return row;
+  return { ...(row as Record<string, unknown>), amr: parseJsonField<string[]>(amr, []) } as T;
+}
+
 export class RelationalAuthModule implements IAuthAdapter {
   protected readonly adapter: ISqlAdapter;
   protected readonly schema: any;
@@ -424,7 +435,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         const scoped: BaseQueryOptions = {
           ...options,
           tenantId: criteria.tenantId !== undefined ? criteria.tenantId : options?.tenantId,
-          bypassTenantCheck: options?.bypassTenantCheck,
+          systemScope: options?.systemScope,
           bypassSafeQuery: options?.bypassSafeQuery,
         };
         assertTenantContext(scoped, "auth.getUserByEmail");
@@ -542,6 +553,8 @@ export class RelationalAuthModule implements IAuthAdapter {
       userAgent?: string;
       deviceId?: string;
       ipAddress?: string;
+      amr?: string[];
+      mfaVerifiedAt?: ISODateString;
     },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session>> {
@@ -558,12 +571,14 @@ export class RelationalAuthModule implements IAuthAdapter {
           userAgent: sessionData.userAgent || null,
           deviceId: sessionData.deviceId || null,
           ipAddress: sessionData.ipAddress || null,
+          amr: sessionData.amr ?? null,
+          mfaVerifiedAt: sessionData.mfaVerifiedAt ? new Date(sessionData.mfaVerifiedAt) : null,
           createdAt: now,
           updatedAt: now,
         };
         await db.insert(this.schema.authSessions).values(sessionValues);
         // 🚀 Optimized mapper: construct the return session object directly to avoid a redundant SELECT query
-        return convertSessionToISO(sessionValues) as unknown as Session;
+        return normalizeSessionAmr(convertSessionToISO(sessionValues)) as unknown as Session;
       },
       "CREATE_SESSION_FAILED",
       undefined,
@@ -718,7 +733,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .from(this.schema.authSessions)
           .where(eq(this.schema.authSessions._id, sessionId as string))
           .limit(1);
-        return convertDatesToISO(res) as unknown as Session;
+        return normalizeSessionAmr(convertDatesToISO(res)) as unknown as Session;
       },
       "UPDATE_SESSION_FAILED",
       undefined,
@@ -776,7 +791,9 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
-        return convertArrayDatesToISO(res) as unknown as Session[];
+        return (convertArrayDatesToISO(res) as unknown as Session[]).map(
+          normalizeSessionAmr,
+        ) as unknown as Session[];
       },
       "GET_ACTIVE_SESSIONS_FAILED",
       undefined,
@@ -798,7 +815,9 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
-        return convertArrayDatesToISO(res) as unknown as Session[];
+        return (convertArrayDatesToISO(res) as unknown as Session[]).map(
+          normalizeSessionAmr,
+        ) as unknown as Session[];
       },
       "GET_ALL_ACTIVE_SESSIONS_FAILED",
       undefined,
@@ -831,11 +850,18 @@ export class RelationalAuthModule implements IAuthAdapter {
         .limit(1);
       if (!old) throw new Error("Session not found");
       const newId = generateId();
+      // Rotation swaps the session id only — MFA proof and device metadata must survive it.
+      const carried = normalizeSessionAmr(old) as Record<string, unknown>;
       await tx.db.insert(this.schema.authSessions).values({
         _id: newId,
         user_id: old.user_id,
         expires: new Date(expires),
         tenantId: old.tenantId,
+        userAgent: carried.userAgent,
+        deviceId: carried.deviceId,
+        ipAddress: carried.ipAddress,
+        amr: carried.amr,
+        mfaVerifiedAt: carried.mfaVerifiedAt,
       });
       await tx.db
         .delete(this.schema.authSessions)

@@ -33,6 +33,7 @@ describe("getEndpointCost — Built-In-Kosten", () => {
   it("Media-Upload kostet 5", () => {
     expect(getEndpointCost("/api/media/upload")).toBe(5);
     expect(getEndpointCost("/api/media/upload/chunk")).toBe(5);
+    expect(getEndpointCost("/api/media/stream")).toBe(5);
   });
 
   it("GraphQL kostet 2", () => {

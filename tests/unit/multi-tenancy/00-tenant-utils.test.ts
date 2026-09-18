@@ -1,26 +1,44 @@
 /**
  * @file tests/unit/multi-tenancy/00-tenant-utils.test.ts
- * @description Tests for isMultiTenantEnabled() and detectFullStructure().
+ * @description Tests for isValidTenantId() and isMultiTenantEnabled().
  *
  * Runs first (00- prefix) to avoid mock pollution from files that mock @utils/tenant.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { isValidTenantId } from "@utils/tenant.server";
 
 // Unmock modules that may have been mocked by other test files (Vitest caches
 // module mocks across files in the same worker, causing cross-file leakage).
 // These hoisted calls ensure real module implementations are used.
 vi.unmock("@utils/tenant");
+vi.unmock("@utils/tenant-isolation.server");
 vi.unmock("@utils/logger");
 
-describe("isValidTenantId", () => {
-  it("validates correctly", async () => {
-    function isValidTenantId(tenantId: string | null | undefined): boolean {
-      if (tenantId === null || tenantId === undefined) return true;
-      const validPattern = /^[a-zA-Z0-9_-]+$/;
-      return validPattern.test(tenantId) && !tenantId.includes("..");
-    }
+// isMultiTenantEnabled() resolves MULTI_TENANT through the settings service — its
+// only boundary. Override just that getter and keep the real module for every
+// other consumer.
+const privateSettings = vi.hoisted(() => ({
+  multiTenant: undefined as unknown,
+  throwOnRead: false,
+}));
 
+vi.mock("@src/services/core/settings-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@src/services/core/settings-service")>();
+  return {
+    ...actual,
+    getPrivateSettingSync: (key: string, tenantId?: string): unknown => {
+      if (key === "MULTI_TENANT") {
+        if (privateSettings.throwOnRead) throw new Error("Settings unavailable");
+        return privateSettings.multiTenant;
+      }
+      return actual.getPrivateSettingSync(key as never, tenantId);
+    },
+  };
+});
+
+describe("isValidTenantId", () => {
+  it("accepts safe tenant ids and rejects path traversal", () => {
     expect(isValidTenantId("tenant-a")).toBe(true);
     expect(isValidTenantId("tenant_123")).toBe(true);
     expect(isValidTenantId("primary")).toBe(true);
@@ -34,46 +52,36 @@ describe("isValidTenantId", () => {
 
 describe("isMultiTenantEnabled", () => {
   beforeEach(() => {
-    delete (globalThis as any).require;
+    privateSettings.multiTenant = undefined;
+    privateSettings.throwOnRead = false;
   });
 
   it("returns true when MULTI_TENANT is true", async () => {
-    const mockRequire = vi.fn(() => ({
-      getPrivateSettingSync: vi.fn((key: string) => (key === "MULTI_TENANT" ? true : undefined)),
-    }));
-    (globalThis as any).require = mockRequire;
+    privateSettings.multiTenant = true;
 
-    const mod = await import("@utils/tenant");
+    const mod = await import("@utils/tenant-isolation.server");
     mod.resetMultiTenantCache();
     expect(mod.isMultiTenantEnabled()).toBe(true);
   });
 
   it("returns false when MULTI_TENANT is false", async () => {
-    const mockRequire = vi.fn(() => ({
-      getPrivateSettingSync: vi.fn((key: string) => (key === "MULTI_TENANT" ? false : undefined)),
-    }));
-    (globalThis as any).require = mockRequire;
+    privateSettings.multiTenant = false;
 
-    const mod = await import("@utils/tenant");
+    const mod = await import("@utils/tenant-isolation.server");
     mod.resetMultiTenantCache();
     expect(mod.isMultiTenantEnabled()).toBe(false);
   });
 
-  it("returns false gracefully when require is unavailable", async () => {
-    delete (globalThis as any).require;
-
-    const mod = await import("@utils/tenant");
+  it("returns false when MULTI_TENANT is unset", async () => {
+    const mod = await import("@utils/tenant-isolation.server");
     mod.resetMultiTenantCache();
     expect(mod.isMultiTenantEnabled()).toBe(false);
   });
 
-  it("returns false gracefully when module throws", async () => {
-    const mockRequire = vi.fn(() => {
-      throw new Error("Module not found");
-    });
-    (globalThis as any).require = mockRequire;
+  it("returns false gracefully when the settings lookup throws", async () => {
+    privateSettings.throwOnRead = true;
 
-    const mod = await import("@utils/tenant");
+    const mod = await import("@utils/tenant-isolation.server");
     mod.resetMultiTenantCache();
     expect(mod.isMultiTenantEnabled()).toBe(false);
   });
@@ -81,11 +89,8 @@ describe("isMultiTenantEnabled", () => {
 
 describe("detectFullStructure", () => {
   beforeEach(() => {
-    delete (globalThis as any).require;
-    const mockRequire = vi.fn(() => ({
-      getPrivateSettingSync: vi.fn((key: string) => (key === "MULTI_TENANT" ? true : undefined)),
-    }));
-    (globalThis as any).require = mockRequire;
+    privateSettings.multiTenant = true;
+    privateSettings.throwOnRead = false;
   });
 
   it("returns expected properties", async () => {

@@ -15,7 +15,7 @@
  * ### Features:
  * - branded system scope
  * - withSystemScope options helper
- * - hasTenantBypass (scope | legacy bridge | bypassSafeQuery)
+ * - hasTenantBypass (branded scope | bypassSafeQuery)
  */
 
 /** Why a system path may omit tenantId under MULTI_TENANT. */
@@ -71,22 +71,17 @@ export function isSystemTenantScope(value: unknown): value is SystemTenantScope 
 /** Minimal shape for bypass detection (avoids circular imports with db-interface). */
 export type TenantBypassOptions = {
   systemScope?: SystemTenantScope | unknown;
-  /** @deprecated Prefer `systemScope` via `withSystemScope`. Still honored for one release. */
-  bypassTenantCheck?: boolean;
   bypassSafeQuery?: boolean;
 };
 
 /**
  * Whether options waive tenant isolation under MULTI_TENANT.
- * Prefer branded `systemScope`; legacy `bypassTenantCheck` remains for migration.
+ * Only branded `systemScope` or `bypassSafeQuery` — no boolean escape hatch.
  */
 export function hasTenantBypass(options?: TenantBypassOptions | null): boolean {
   if (!options) return false;
   if (options.bypassSafeQuery) return true;
-  if (isSystemTenantScope(options.systemScope)) return true;
-  // Legacy bridge — lint bans new product use; tests may still pass boolean during migrate
-  if (options.bypassTenantCheck === true) return true;
-  return false;
+  return isSystemTenantScope(options.systemScope);
 }
 
 /**

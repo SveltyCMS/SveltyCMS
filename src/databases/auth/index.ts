@@ -19,7 +19,7 @@ import type {
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
@@ -856,7 +856,7 @@ export class Auth {
     email: string,
     password: string,
     tenantId?: DatabaseId | null,
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
     sessionMeta?: {
       userAgent?: string;
       deviceId?: string;
@@ -995,7 +995,7 @@ export class Auth {
       samlId?: string;
       tenantId?: DatabaseId | null;
     },
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<User | null> {
     if (fields.samlId) {
       // Workaround for DB adapter missing native getBySamlId - search all users

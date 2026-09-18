@@ -2,6 +2,7 @@
  * @file tests/unit/services/website-starter-seed.test.ts
  * @description Unit tests for Website Starter homepage seeding.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { describe, expect, it, vi } from "vitest";
 import { seedWebsiteStarterPages } from "@src/routes/setup/seed";
@@ -25,7 +26,7 @@ describe("seedWebsiteStarterPages", () => {
     expect(adapter.crud!.findMany).toHaveBeenCalledWith(
       "pages",
       expect.objectContaining({ slug: "home" }),
-      expect.objectContaining({ bypassTenantCheck: true }),
+      expect.objectContaining(withSystemScope("seed")),
     );
     expect(adapter.crud!.insertMany).not.toHaveBeenCalled();
   });

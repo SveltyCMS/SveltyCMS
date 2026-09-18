@@ -8,15 +8,23 @@ nahtlosem **In-Memory-Fallback** und **adaptiver Kapazität** je nach Nutzerprof
 ```
 src/utils/rate-limit/
 ├── token-bucket.ts     pure Token-Bucket-Mathematik (keine Abhängigkeiten)
-├── adaptive.ts         Adaptive Kapazität nach tenantId/userId (Admin vs. Gast)
+├── adaptive.ts         Adaptive Kapazität nach Tier × Tenant-Plan × System-Druck
+├── role-tiers.ts       RBAC-Seeding der Rollen-Tiers (Hot-Path: Set-Lookup, kein DB-Zugriff)
+├── tenant-plan.ts      In-Memory-Plan-Cache je tenantId (Hot-Path: Map-Get)
+├── system-pressure.ts  EWMA über CPU/RAM → Kapazitäts-Senkung (kein Cost-Inflate)
+├── request-clock.ts    Predictive Throttling (Zeitreihe → Vorhersage-Druck)
+├── request-velocity.ts Per-Key-Velocity-Tax (EMA der Request-Rate, observierend)
+├── endpoint-cost.ts    Cost-Aware Limiting (Kosten pro Pfad, ohne expliziten `cost`)
 ├── config.ts           Lädt/normalisiert RATE_LIMIT_* ENV-Parameter
 ├── redis-client.ts     Redis-Verbindungsmanager + Connection-Detector (Fail-open)
 ├── memory-store.ts     In-Memory-Fallback (bounded, LRU, Cleanup)
 └── index.ts            Orchestrator: adapt → Redis → Memory-Fallback (öffentl. API)
 ```
 
-Middleware-Hook: `src/hooks/handle-redis-rate-limit.ts` (integriert in `hooks.server.ts`,
-schützt alle `/api`-Mutations nach der Authentifizierung).
+Middleware-Hook: `src/hooks/handle-rate-limit.ts` (integriert in `hooks.server.ts`,
+schützt alle `/api`-Mutations nach der Authentifizierung). Es gibt genau **einen**
+Mutation-Limiter — der frühere zweite Redis-Hook wurde entfernt; das Lua-Script lebt
+allein in `redis-client.ts`.
 
 ## Algorithmus: Token-Bucket
 
@@ -51,20 +59,30 @@ Ein Bucket hat `capacity` (Max-Burst) und `refillPerSecond` (Refill-Rate).
 Wird `RATE_LIMIT_REFILL_PER_SEC` nicht gesetzt, füllt sich der Bucket **einmal pro Fenster**
 komplett auf: `refillPerSecond = capacity / (windowMs / 1000)`.
 
-### Adaptive Kapazität (Admin vs. Gast)
+### Adaptive Kapazität (Tier × Tenant-Plan × System-Druck)
 
-Multiplikator auf die Basis-Kapazität, je nach Profil:
+`capacity = base.capacity × tierMultiplier × tenantPlanScale × pressureFactor`, geklemmt auf
+`>= 1`. Die Refill-Rate skaliert proportional, damit die Zeit bis „vollem Bucket“ konstant
+bleibt.
 
-| Profil              | Ermittlung                    | Multiplikator |
-| ------------------- | ----------------------------- | ------------- |
-| Admin               | `role=admin` / `isAdmin`      | 3.0×          |
-| Staff/Editor        | `role=staff/editor/moderator` | 2.0×          |
-| Registrierter Gast  | `userId` vorhanden            | 1.0×          |
-| Anonym (Bot-Fläche) | kein `userId`                 | 0.5×          |
+| Tier   | Ermittlung                                             | Multiplikator |
+| ------ | ------------------------------------------------------ | ------------- |
+| Admin  | `isAdmin` (nur Server-Session) / geseedete Admin-Rolle | 10×           |
+| Staff  | Rolle mit Write-Permission (RBAC-Seed)                 | 2×            |
+| Gast   | `userId` vorhanden                                     | 2×            |
+| Anonym | kein `userId` (Bot-Fläche)                             | 1×            |
 
-Zusätzlich skaliert ein Tenant mit gültiger (nicht `global`/`default`) Kennung mit **1.5×**
-(Isolation). Ergebnis wird auf `>= 1` geklemmt. Die Refill-Rate skaliert proportional,
-damit die Zeit bis „vollem Bucket“ konstant bleibt.
+Die Rollen kommen **nicht** aus einer Namensliste im Limiter, sondern werden per
+`seedRoleTiers()` aus `getAllRoles()` geseedet (`role-tiers.ts`); der Hot-Path ist ein
+Set-Lookup ohne DB-Query.
+
+Der Tenant-Plan wird über `seedTenantPlan()` (z. B. aus `tenant-service`) in einen
+In-Memory-Cache geschrieben: `enterprise` 3×, `pro` 1.5×, `free`/unbekannt 1×. Ein Miss
+oder abgelaufener Eintrag ergibt 1× — der Limiter fragt nie die DB.
+
+Zusätzlich senkt der System-Druck (`system-pressure.ts`, EWMA über CPU/RAM) die Kapazität
+von Non-Admin-Tiers; Admin bleibt ausgenommen. Bei vorhergesagtem Druck > 0.75 greift
+prophylaktisch Staff 0.85× / Gast 0.7× / Anonym 0.55×.
 
 ## Redis-Ausfall (Fail-open Fallback)
 
@@ -75,8 +93,10 @@ damit die Zeit bis „vollem Bucket“ konstant bleibt.
   Request fällt in den **Memory-Fallback**. Redis kann später wieder „hochkommen“, ohne Neustart.
 - **Fail-open:** Wenn weder Redis noch lokal verfügbar sind (unwahrscheinlich), wird der
   Request DURCHGELASSEN — Verfügbarkeit vor Block durch Fehler.
-- Jeder Fallback wird geloggt (`[RedisRateLimit] ...`), Header zeigen den aktiven Store
-  (`X-RateLimit-Scope: redis|memory`, `X-RateLimit-Redis: 1|0`).
+- Jeder Fallback wird geloggt (`[RateLimit] Redis fehlgeschlagen, lokaler Fallback aktiv`).
+- Erfolgs-Header: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`,
+  `X-RateLimit-Lane`. Existiert ein Tenant-Bucket, zusätzlich `X-RateLimit-Scope: tenant`
+  und `X-RateLimit-Tenant-Remaining`. Bei 429 kommt `Retry-After` hinzu.
 
 ## Endpunkte / Limits
 
@@ -110,7 +130,12 @@ npx vitest run tests/unit/rate-limit
 ```
 
 - `token-bucket.test.ts` — pure Bucket-Mathematik (Refill, Burst, Denial).
-- `adaptive.test.ts` — Profil→Kapazitäts-Mapping.
+- `adaptive.test.ts` — Tier/Plan/Druck→Kapazitäts-Mapping.
 - `redis-client.test.ts` — Connection-Detector (unerreichbarer Endpunkt → unavailable).
 - `engine-fallback.test.ts` — Redis down → Memory-Fallback, Limits greifen weiter.
-- `handle-redis-rate-limit.test.ts` — HTTP 429 (`RATE_LIMITED`) + Header.
+- `system-pressure.test.ts` — EWMA-Skalierung und Reject-Schwelle.
+- `request-clock.test.ts` / `request-velocity.test.ts` — Predictive-Druck und Velocity-Tax.
+- `endpoint-cost.test.ts` — Kosten-Mapping pro Pfad.
+
+Der HTTP-429-Pfad (`RATE_LIMITED` + Header) wird in `tests/unit/hooks/rate-limit.test.ts`
+abgedeckt.

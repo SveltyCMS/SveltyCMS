@@ -2,6 +2,7 @@
  * @file src/databases/mongodb/mongo-db-adapter.ts
  * @description MongoDB adapter for SveltyCMS - Modularized version.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { MongoAdapterCore } from "./adapter-core";
 import { logger } from "@utils/logger";
@@ -234,7 +235,7 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     }
 
     // Seed roles if missing
-    const rolesRes = await this.auth.getAllRoles({ bypassTenantCheck: true });
+    const rolesRes = await this.auth.getAllRoles(withSystemScope("bootstrap"));
     if (rolesRes.length === 0) {
       const roles = getDefaultRoles();
       for (const role of roles) {

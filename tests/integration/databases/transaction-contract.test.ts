@@ -15,6 +15,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 // The self-healing proxy in db.ts wraps the adapter. Namespace methods
 // (crud, auth, media, etc.) are proxied, but root-level methods like
@@ -53,7 +54,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(TEST_COLLECTION, {}, { bypassTenantCheck: true, permanent: true })
+      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
       .catch(() => {});
   }
 });

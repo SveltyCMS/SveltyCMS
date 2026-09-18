@@ -329,6 +329,8 @@ async function runPostgresLegacyTails(sql: postgres.Sql): Promise<void> {
     `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "userAgent" VARCHAR(500)`,
     `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "deviceId" VARCHAR(64)`,
     `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "ipAddress" VARCHAR(64)`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "amr" JSONB`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "mfaVerifiedAt" TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "consumed" BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "blocked" BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "role" VARCHAR(50)`,
@@ -444,6 +446,8 @@ async function runMariaDbLegacyTails(connection: mysql.Pool): Promise<void> {
     `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS userAgent VARCHAR(500)`,
     `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS deviceId VARCHAR(64)`,
     `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS ipAddress VARCHAR(64)`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS amr JSON`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS mfaVerifiedAt DATETIME(3)`,
     `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS consumed BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS role VARCHAR(50)`,
@@ -580,6 +584,8 @@ async function runSqliteTails(db: unknown): Promise<void> {
   executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "userAgent" TEXT`);
   executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "deviceId" TEXT`);
   executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "ipAddress" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "amr" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "mfaVerifiedAt" INTEGER`);
 
   executeSqlite(db, `ALTER TABLE "auth_tokens" ADD COLUMN "consumed" INTEGER DEFAULT 0`);
   executeSqlite(db, `ALTER TABLE "auth_tokens" ADD COLUMN "blocked" INTEGER DEFAULT 0`);

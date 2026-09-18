@@ -16,6 +16,7 @@ import {
   stabilize,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const WRITE_DOCS = 100;
 const WRITES_PER_DOC = 10;
@@ -270,7 +271,7 @@ async function run() {
     // Clean up provisioned temporary read collections
     for (const col of readCols) {
       await db.crud
-        .deleteMany(col, {}, { bypassTenantCheck: true, permanent: true })
+        .deleteMany(col, {}, withSystemScope("benchmark", { permanent: true }))
         .catch(() => {});
     }
     if (stopServer) {

@@ -11,7 +11,7 @@ import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse, validateRequestBody } from "./base";
 import { webhookService, type Webhook } from "@src/services/background/webhook-service";
 import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { isAdmin } from "@src/databases/auth/constants";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { versionService } from "@services/core/version-service";

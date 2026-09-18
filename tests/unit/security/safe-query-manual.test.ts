@@ -2,6 +2,7 @@
  * @file tests/unit/security/safe-query-manual.test.ts
  * @description Security hardening for safeQuery multi-tenant isolation.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
@@ -78,9 +79,9 @@ describe("safeQuery Hardening", () => {
     expect(result.name).toBe("test");
   });
 
-  it("should still honor legacy bypassTenantCheck during migration", () => {
+  it("should honor branded systemScope in multi-tenant mode", () => {
     (globalThis as any).__privateEnv = { MULTI_TENANT: true };
-    const result = safeQuery({ name: "test" }, undefined, { bypassTenantCheck: true });
+    const result = safeQuery({ name: "test" }, undefined, withSystemScope("bootstrap"));
     expect(result.name).toBe("test");
   });
 
@@ -104,7 +105,7 @@ describe("safeQuery Hardening", () => {
     expect(isMultiTenantMode()).toBe(true);
     expect(() => assertTenantContext({})).toThrow("Security Violation");
     expect(() => assertTenantContext({ tenantId: "t1" })).not.toThrow();
-    expect(() => assertTenantContext({ bypassTenantCheck: true })).not.toThrow();
+    expect(() => assertTenantContext(withSystemScope("bootstrap"))).not.toThrow();
     // Forged systemScope must not pass
     expect(() =>
       assertTenantContext({ systemScope: { kind: "system", reason: "scheduler" } } as any),

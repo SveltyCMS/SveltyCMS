@@ -20,6 +20,7 @@ import { monitorEventLoopDelay } from "node:perf_hooks";
 import os from "node:os";
 import v8 from "node:v8";
 import { getHardwareProfile } from "@utils/hardware-profile";
+import { sampleProcessCpuShare } from "@utils/cpu-sample";
 import { logger } from "@utils/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -64,32 +65,11 @@ const _history: HistoricalPoint[] = [];
 
 let _lagHistogram: ReturnType<typeof monitorEventLoopDelay> | null = null;
 
-// Static hardware descriptors cached once on initialization
-const _cpuCores = Math.max(1, os.cpus()?.length || 1);
-
-// State tracking for high-performance CPU delta calculation
-let _lastCpuUsage = process.cpuUsage();
-let _lastCpuTime = Date.now();
-
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 /** Calculates CPU usage over the interval window instantly without blocking */
 function calculateCpuUsagePercentage(): number {
-  const currentCpuUsage = process.cpuUsage(_lastCpuUsage);
-  const currentTime = Date.now();
-  const timeDeltaMs = currentTime - _lastCpuTime;
-
-  _lastCpuUsage = process.cpuUsage(); // reset markers
-  _lastCpuTime = currentTime;
-
-  if (timeDeltaMs <= 0) return 0;
-
-  // Total user + system time in microseconds
-  const totalUsage = currentCpuUsage.user + currentCpuUsage.system;
-  // Calculate percentage relative to total potential core time in the window
-  const percent = (totalUsage / (timeDeltaMs * 1000 * _cpuCores)) * 100;
-
-  return Math.min(Math.round(percent), 100);
+  return Math.min(Math.round(sampleProcessCpuShare() * 100), 100);
 }
 
 function getMemoryUsedPercent(): number {
@@ -187,10 +167,6 @@ export function startSystemMonitor(): void {
   } catch (err) {
     logger.warn("[SystemMonitor] Event loop delay monitoring unavailable", err);
   }
-
-  // Pre-seed CPU timing ticks immediately
-  _lastCpuUsage = process.cpuUsage();
-  _lastCpuTime = Date.now();
 
   try {
     collectSnapshot();

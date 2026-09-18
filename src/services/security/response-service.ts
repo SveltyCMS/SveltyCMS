@@ -12,7 +12,7 @@ import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible";
 import { cacheService } from "@src/databases/cache/cache-service";
 import fs from "node:fs";
 import path from "node:path";
-import { systemMonitor } from "@utils/system-monitor";
+import { getPressureCostMultiplier } from "@utils/rate-limit/system-pressure";
 import type {
   SecurityIncident,
   SecurityPolicy,
@@ -516,7 +516,7 @@ export class SecurityResponseService {
       const limiter = await this.getOrCreateLimiter(endpoint, tenantId);
 
       // ⚡ ADAPTIVE LOGIC: Scale points (cost) based on system pressure
-      const multiplier = systemMonitor.getAdaptiveCostMultiplier();
+      const multiplier = getPressureCostMultiplier();
       const adaptivePoints = Math.max(1, Math.ceil(points * multiplier));
 
       await limiter.consume(ip, adaptivePoints);

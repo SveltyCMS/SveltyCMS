@@ -6,6 +6,7 @@
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { CollectionMap } from "@src/content/types";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
+import type { SystemTenantScope } from "@src/databases/system-tenant-scope";
 
 export interface LocalApiOptions {
   user?: any;
@@ -25,8 +26,8 @@ export interface LocalApiOptions {
    * Default false — privilege escalation fail-closed at Auth + adapter layers.
    */
   allowPrivilegeEscalation?: boolean;
-  /** Forwarded to adapter when multi-tenant id-only updates are required. */
-  bypassTenantCheck?: boolean;
+  /** Branded system capability — only from `withSystemScope` / `createSystemTenantScope`. */
+  systemScope?: SystemTenantScope;
   /**
    * Skip post-write side effects (outbox, workflow init, plugin afterSave, L2 cache fan-out).
    * L1 request cache is still cleared. Used by bulk seed / high-throughput write paths.

@@ -18,8 +18,6 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 
 export interface SafeQueryOptions {
-  /** @deprecated Prefer systemScope via withSystemScope / createSystemTenantScope. */
-  bypassTenantCheck?: boolean;
   /** Branded system capability (scheduler, setup, testing, …). */
   systemScope?: SystemTenantScope;
   includeDeleted?: boolean;
@@ -31,8 +29,6 @@ export interface SafeQueryOptions {
 /** Minimal options bag used by SQL adapters (BaseQueryOptions-compatible). */
 export interface TenantScopedOptions {
   tenantId?: string | null | undefined;
-  /** @deprecated Prefer systemScope. */
-  bypassTenantCheck?: boolean;
   systemScope?: SystemTenantScope;
   bypassSafeQuery?: boolean;
 }
@@ -83,7 +79,7 @@ export function assertTenantContext(
 ): void {
   // Single-tenant / global hot path: no-op before any option inspection (cached 5s flag).
   if (!isMultiTenantMode()) return;
-  // System scope (branded) or legacy bypass / ultra-fast path
+  // System scope (branded) or ultra-fast path
   if (hasTenantBypass(options)) return;
   if (hasUsableTenantId(options?.tenantId)) {
     // Having tenantId present is always safe to proceed (single-tenant stamping ok).

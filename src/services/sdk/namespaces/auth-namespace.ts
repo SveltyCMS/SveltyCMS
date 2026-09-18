@@ -2,11 +2,13 @@
  * @file src/services/sdk/namespaces/auth-namespace.ts
  * @description Authentication namespace for LocalCMS SDK.
  */
+import { hasTenantBypass, withSystemScope } from "@src/databases/system-tenant-scope";
+
 import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { verifyPassword, verifyDummyPassword } from "@utils/security/crypto";
-import { isMultiTenantEnabled, withTenant } from "@utils/tenant";
+import { isMultiTenantEnabled, withTenant } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { sessionTtlMs } from "@src/databases/auth/constants";
@@ -240,17 +242,23 @@ export class AuthNamespace {
 
   async getUserByEmail(email: string, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId, bypassTenantCheck } = options as LocalApiOptions & {
-        bypassTenantCheck?: boolean;
-      };
+      const { tenantId } = options;
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      // When bypassing tenant (or tenant unset), look up by email only
+      // System scope (or tenant unset): look up by email only
       const criteria: { email: string; tenantId?: DatabaseId | null } = { email };
-      if (!bypassTenantCheck && tenantId !== undefined && tenantId !== null && tenantId !== "") {
+      if (
+        !hasTenantBypass(options) &&
+        tenantId !== undefined &&
+        tenantId !== null &&
+        tenantId !== ""
+      ) {
         criteria.tenantId = tenantId as DatabaseId;
       }
-      const result = await auth.getUserByEmail(criteria);
+      const result = await auth.getUserByEmail(criteria, {
+        tenantId: criteria.tenantId,
+        systemScope: options.systemScope,
+      });
       if (!result.success || !result.data) throw new AppError("User not found", 404);
       return result.data;
     });
@@ -309,15 +317,15 @@ export class AuthNamespace {
 
   async updateUserAttributes(userId: string, data: any, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId, bypassTenantCheck, allowPrivilegeEscalation } = options;
+      const { tenantId, systemScope, allowPrivilegeEscalation } = options;
       const auth = await this.getAuth();
-      // Forward full query options — do not drop bypassTenantCheck (E2E / null-tenant)
-      // or allowPrivilegeEscalation (admin / seed role assignment)
+      // Forward branded systemScope (E2E / null-tenant) and
+      // allowPrivilegeEscalation (admin / seed role assignment)
       const result = await auth.updateUserAttributes(userId as DatabaseId, data, {
         ...(tenantId !== undefined && tenantId !== null && tenantId !== ""
           ? { tenantId: tenantId as DatabaseId }
           : {}),
-        ...(bypassTenantCheck ? { bypassTenantCheck: true } : {}),
+        ...(systemScope ? { systemScope } : {}),
         ...(allowPrivilegeEscalation ? { allowPrivilegeEscalation: true } : {}),
       });
       if (!result || (typeof result === "object" && "success" in result && !result.success)) {
@@ -482,7 +490,7 @@ export class AuthNamespace {
           if (policy !== "allow-multiple") {
             const sessionsResult = await auth.getActiveSessions(user._id as DatabaseId, {
               tenantId: tenantId as DatabaseId,
-              bypassTenantCheck: true,
+              ...withSystemScope("auth-bootstrap"),
             });
             if (sessionsResult.success) {
               const sessions = Array.isArray(sessionsResult.data) ? sessionsResult.data : [];
@@ -779,7 +787,7 @@ export class AuthNamespace {
           for (const userId of userIds) {
             const activeRes = await auth.getActiveSessions(userId as DatabaseId, {
               tenantId: tenantId as DatabaseId,
-              bypassTenantCheck: true,
+              ...withSystemScope("auth-bootstrap"),
             });
             const active =
               activeRes?.success && Array.isArray(activeRes.data) ? activeRes.data : [];

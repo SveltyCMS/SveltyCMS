@@ -6,7 +6,7 @@
  * (`media-storage.server.ts` / `process-media` job), including format conversion
  * from `MEDIA_OUTPUT_FORMAT_QUALITY` and auto-WebP sidecars.
  */
-
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
@@ -36,7 +36,10 @@ function isRasterImage(mimeType: string, filename: string): boolean {
 }
 
 /** Options-last media call shape (matches IMediaAdapter.files). */
-type MediaTenantOptions = { tenantId?: string | null; bypassTenantCheck?: boolean };
+type MediaTenantOptions = {
+  tenantId?: string | null;
+  systemScope?: import("@src/databases/system-tenant-scope").SystemTenantScope;
+};
 
 function hasMediaFilesApi(dbAdapter: unknown): dbAdapter is {
   media: {
@@ -109,7 +112,7 @@ export async function persistMigratedAsset(
     };
 
     if (hasMediaFilesApi(dbAdapter)) {
-      const mediaOpts = tenantId != null ? { tenantId } : { bypassTenantCheck: true as const };
+      const mediaOpts = tenantId != null ? { tenantId } : withSystemScope("bootstrap");
       if (dbAdapter.media.files.getByHash) {
         const existing = await dbAdapter.media.files.getByHash(hash, mediaOpts);
         if (existing.success && existing.data?._id) {

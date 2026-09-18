@@ -83,7 +83,7 @@ export function generateCollectionTypeScript(
   const formattedFields = fields.map((field) => {
     const widgetName = field.widget?.Name
       ? formatWidgetName(field.widget.Name)
-      : formatWidgetName(field.widget?.key || "Input");
+      : formatWidgetName((field.widget as { key?: string } | undefined)?.key || "Input");
 
     // Extract relevant widget properties, omitting internal UI properties
     const props: Record<string, unknown> = {
@@ -97,7 +97,7 @@ export function generateCollectionTypeScript(
 
     // Merge widget-specific props if available
     if (field.widget && typeof field.widget === "object") {
-      const widgetObj = field.widget as Record<string, unknown>;
+      const widgetObj = field.widget as unknown as Record<string, unknown>;
       for (const [k, v] of Object.entries(widgetObj)) {
         if (
           !k.startsWith("_") &&

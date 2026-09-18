@@ -92,6 +92,19 @@ export function getCollectionFilePath(collectionName: string, tenantId?: string 
 }
 
 /**
+ * Validate tenant ID against path traversal and injection.
+ * Strictly alphanumeric + hyphen/underscore, no path segments (..).
+ *
+ * Lives here (not in tenant.ts) because this module is reachable from
+ * vite.config.ts via compilation/compile.ts, whose config loader (esbuild)
+ * cannot resolve `@src`/`@utils` path aliases — tenant.ts imports settings.
+ */
+export function isValidTenantId(tenantId: string | null | undefined): boolean {
+  if (!tenantId) return true;
+  return /^[a-zA-Z0-9_-]+$/.test(tenantId) && !tenantId.includes("..");
+}
+
+/**
  * Get display path for logging.
  */
 export function getCollectionDisplayPath(collectionName: string, tenantId?: string | null): string {

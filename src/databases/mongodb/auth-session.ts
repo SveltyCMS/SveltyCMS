@@ -27,6 +27,8 @@ export const SessionSchema = new Schema(
     userAgent: { type: String }, // Device tracking (browser/OS info)
     deviceId: { type: String }, // Stable per-device id (client-generated, localStorage)
     ipAddress: { type: String }, // Security auditing (client IP)
+    amr: { type: [String], default: undefined }, // Authentication Method References (["pwd", "mfa"])
+    mfaVerifiedAt: { type: Date }, // When MFA was proven for this session
   },
   {
     timestamps: true,
@@ -42,6 +44,17 @@ SessionSchema.index({ rotated: 1 });
 
 export class SessionAdapter {
   private _SessionModel: Model<Session> | null = null;
+  /**
+   * Wired by AuthModule from the adapter capabilities. Standalone MongoDB has no
+   * transactions (the adapter reports `supportsTransactions: false`), so rotation
+   * degrades to sequential writes instead of throwing from `startSession()`.
+   */
+  private useTransactions = false;
+  private warnedNoTransaction = false;
+
+  public setTransactionSupport(enabled: boolean): void {
+    this.useTransactions = enabled;
+  }
 
   private get SessionModel(): Model<Session> {
     if (!this._SessionModel) {
@@ -66,6 +79,8 @@ export class SessionAdapter {
     userAgent?: string;
     deviceId?: string;
     ipAddress?: string;
+    amr?: string[];
+    mfaVerifiedAt?: ISODateString;
   }): Promise<DatabaseResult<Session>> {
     try {
       const session = new this.SessionModel({
@@ -213,7 +228,13 @@ export class SessionAdapter {
       if (!userId) {
         return { success: true, data: [] };
       }
-      const filter: any = { user_id: userId, expires: { $gt: new Date() } };
+      // Retired (rotated) ids are not usable sessions — parity with SQL, which deletes
+      // the old row on rotation, and with this adapter's own validateSession filter.
+      const filter: any = {
+        user_id: userId,
+        expires: { $gt: new Date() },
+        rotated: { $ne: true },
+      };
       if (tenantId) filter.tenantId = tenantId;
       const sessions = await this.SessionModel.find(filter).lean();
       // Normalize lean docs so callers always get ISO-friendly session shapes
@@ -276,15 +297,24 @@ export class SessionAdapter {
     expiresAt: ISODateString,
     tenantId?: string,
   ): Promise<DatabaseResult<string>> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const session = this.useTransactions ? await mongoose.startSession() : null;
+    if (session) {
+      session.startTransaction();
+    } else if (!this.warnedNoTransaction) {
+      this.warnedNoTransaction = true;
+      logger.debug(
+        "[Sessions] Rotation runs without a transaction — MongoDB standalone has no transaction support",
+      );
+    }
+    const txOpts = session ? { session } : {};
+
     try {
       const filter = safeQuery(
         { _id: oldSessionId, rotated: { $ne: true } } as any,
         tenantId as string,
         { includeDeleted: true },
       );
-      const oldSession = await this.SessionModel.findOne(filter).session(session).lean();
+      const oldSession = await this.SessionModel.findOne(filter, null, txOpts).lean();
 
       if (!oldSession) {
         throw new Error("Original session not found or already rotated");
@@ -296,7 +326,7 @@ export class SessionAdapter {
       await this.SessionModel.updateOne(
         { _id: oldSessionId },
         { $set: { rotated: true, rotatedTo: newId } },
-        { session },
+        txOpts,
       );
 
       // Create new session
@@ -306,13 +336,23 @@ export class SessionAdapter {
         user_id: oldSession.user_id,
         tenantId: oldSession.tenantId,
         expires: new Date(expiresAt),
+        // Rotation swaps the session id only — MFA proof and device metadata must survive it.
+        userAgent: oldSession.userAgent,
+        deviceId: oldSession.deviceId,
+        ipAddress: oldSession.ipAddress,
+        amr: oldSession.amr,
+        mfaVerifiedAt: oldSession.mfaVerifiedAt,
       });
-      await newSession.save({ session });
+      await newSession.save(txOpts);
 
-      await session.commitTransaction();
+      if (session) {
+        await session.commitTransaction();
+      }
       return { success: true, data: newId };
     } catch (err: any) {
-      await session.abortTransaction();
+      if (session) {
+        await session.abortTransaction().catch(() => {});
+      }
       const message = `Token rotation failed: ${err.message}`;
       logger.error(message, err);
       return {
@@ -321,7 +361,7 @@ export class SessionAdapter {
         error: { code: "SESSION_ROTATE_ERROR", message },
       };
     } finally {
-      session.endSession();
+      session?.endSession();
     }
   }
 

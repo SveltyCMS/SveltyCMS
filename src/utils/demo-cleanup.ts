@@ -13,6 +13,7 @@
 import type { User } from "@src/databases/auth/types";
 import { getPrivateEnv } from "@src/databases/config-state";
 import type { DatabaseId } from "@src/databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { logger } from "@utils/logger";
 
 interface Tenanted {
@@ -55,7 +56,7 @@ export async function cleanupExpiredDemoTenants() {
     // MariaDB's mapQuery() only supports equality operators, so date filtering
     // must happen in JS. Demo mode has limited users so this is acceptable.
     const usersResult = await db.auth.getAllUsers(undefined, {
-      bypassTenantCheck: true,
+      ...withSystemScope("bootstrap"),
     });
     if (!(usersResult.success && usersResult.data)) {
       logger.warn("[Demo Cleanup] Failed to fetch users");

@@ -8,6 +8,7 @@
  * as `_populated_<field>`.
  */
 import type { DatabaseId } from "@src/content/types";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 /**
  * Resolve populated relations for a result set.
@@ -75,7 +76,11 @@ export async function resolvePopulatedRelations(
         const relatedResult = await _dbAdapter.crud.findMany(
           collectionName,
           { _id: { $in: idArray } },
-          { limit: idArray.length, tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
+          {
+            limit: idArray.length,
+            tenantId: tenantId as DatabaseId,
+            ...withSystemScope("bootstrap"),
+          },
         );
 
         if (relatedResult?.success && Array.isArray(relatedResult.data)) {

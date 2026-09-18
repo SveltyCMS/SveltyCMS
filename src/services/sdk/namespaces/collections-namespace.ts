@@ -34,7 +34,7 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { FieldInstance, Schema } from "@src/content/types";
@@ -414,7 +414,7 @@ export class CollectionsNamespace {
 
     const searchPromises = collectionsToSearch.map(async (collectionId) => {
       const collection =
-        collectionMap.get(collectionId) || (await cs.getCollectionById(collectionId, tenantId));
+        collectionMap.get(collectionId) || (await cs.getCollection(collectionId, tenantId));
       if (!collection) return [];
 
       try {
@@ -702,7 +702,7 @@ export class CollectionsNamespace {
   ) {
     const { tenantId, user } = options;
     // Shared getSchema path — findStreaming previously bypassed the schema cache
-    // via cs.getCollectionById, causing duplicate resolution per stream.
+    // via cs.getCollection, causing duplicate resolution per stream.
     const schema = await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
     const encCtx = fieldEncryptionContext(schema, tenantId);
@@ -1125,9 +1125,11 @@ export class CollectionsNamespace {
       typeof crud.findById === "function"
         ? await crud.findById(collectionName, entryId as DatabaseId, {
             tenantId: tenantId as DatabaseId,
+            skipMeta: true,
           })
         : await crud.findOne(collectionName, { _id: entryId } as any, {
             tenantId: tenantId as DatabaseId,
+            skipMeta: true,
           });
 
     let item =

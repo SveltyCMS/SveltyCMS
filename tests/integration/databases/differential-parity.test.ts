@@ -19,6 +19,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { connectWithRetry, currentDbType, shouldRunAdapterSuite } from "./adapter-test-env";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const ENGINE = currentDbType() as "sqlite" | "postgresql" | "mariadb" | "mongodb";
 // SQLite is file-based — always run (no docker hint, mirroring sqlite-adapter.test.ts).
@@ -104,7 +105,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
       await (db as any).crud.deleteMany?.(
         COLLECTION,
         {},
-        { bypassTenantCheck: true, tenantId: TENANT },
+        withSystemScope("testing", { tenantId: TENANT }),
       );
       await db.disconnect();
     }

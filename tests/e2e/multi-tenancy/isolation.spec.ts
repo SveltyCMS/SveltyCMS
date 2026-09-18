@@ -26,6 +26,7 @@
  * @see src/hooks/handle-authorization.ts
  * @see src/databases/crud-tenant-guard.ts
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { test, expect } from "@playwright/test";
 import { ensureAuthenticated } from "../helpers/test-auth";
@@ -245,7 +246,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
     });
     expect(createCol.success).toBe(true);
 
-    // Step 2: Insert entries for both tenants (using bypassTenantCheck)
+    // Step 2: Insert entries for both tenants (using withSystemScope)
     await sdkCall(adminPage, "db.crud.insert", [
       collectionId,
       {
@@ -258,7 +259,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         updatedAt: new Date().toISOString(),
         isDeleted: false,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     ]);
 
     await sdkCall(adminPage, "db.crud.insert", [
@@ -273,7 +274,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         updatedAt: new Date().toISOString(),
         isDeleted: false,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     ]);
 
     // Step 3: Login as Tenant A user
@@ -320,7 +321,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         updatedAt: new Date().toISOString(),
         isDeleted: false,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     ]);
 
     await sdkCall(adminPage, "db.crud.insert", [
@@ -340,7 +341,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         updatedAt: new Date().toISOString(),
         isDeleted: false,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     ]);
 
     // Step 2: Login as Tenant A user
@@ -400,7 +401,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         updatedAt: new Date().toISOString(),
         isDeleted: false,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     ]);
 
     // Step 2: Login as Tenant A user
@@ -453,7 +454,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         updatedAt: new Date().toISOString(),
         isDeleted: false,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     ]);
 
     // Step 3: Login as Tenant A user and verify global resource accessible

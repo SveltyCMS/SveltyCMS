@@ -18,7 +18,8 @@
 import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
-import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
+import { getTenantIdFromHostname } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
 import { parseCookies } from "@utils/cookie-utils";
 import { resolveSessionForWebSocket } from "@src/hooks/handle-authentication";

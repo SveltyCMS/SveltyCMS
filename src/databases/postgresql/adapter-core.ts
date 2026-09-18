@@ -1026,6 +1026,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
 
         const url = new URL(effectiveConnection);
+        const { detectPostgresSocketDir, preferIpv4Loopback } = await import("../db-local-socket");
+        const socketDir = detectPostgresSocketDir(url.hostname);
         const hw = getHardwareProfile();
         // 🚀 POOL FLOOR: raise to 32 on medium+ hosts so the pool never saturates
         // before 32 concurrent workers (findById peaks at 16c, drops −19% at 32c
@@ -1034,7 +1036,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // always wins.
         const poolFloor = hw.tier === "single" || hw.tier === "small" ? 20 : 32;
         options = {
-          host: url.hostname,
+          host: socketDir || preferIpv4Loopback(url.hostname),
           port: Number(url.port || 5432),
           user: decodeURIComponent(url.username),
           password: decodeURIComponent(url.password),
@@ -1064,8 +1066,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const hw2 = getHardwareProfile();
         const poolFloor2 = hw2.tier === "single" || hw2.tier === "small" ? 20 : 32;
 
+        const { detectPostgresSocketDir, preferIpv4Loopback } = await import("../db-local-socket");
+        const rawHost = c.host || c.DB_HOST || "127.0.0.1";
+        const socketDirObj = detectPostgresSocketDir(rawHost);
         options = {
-          host: c.host || c.DB_HOST || "127.0.0.1",
+          host: socketDirObj || preferIpv4Loopback(String(rawHost)),
           port: Number(c.port || c.DB_PORT || 5432),
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",

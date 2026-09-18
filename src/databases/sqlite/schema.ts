@@ -91,6 +91,8 @@ export const authSessions = sqliteTable(
     userAgent: text("userAgent"),
     deviceId: text("deviceId", { length: 64 }),
     ipAddress: text("ipAddress"),
+    amr: text("amr", { mode: "json" }).$type<string[]>(),
+    mfaVerifiedAt: integer("mfaVerifiedAt", { mode: "timestamp_ms" }),
     ...timestamps,
   },
   (table) => ({

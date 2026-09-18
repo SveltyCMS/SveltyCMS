@@ -37,8 +37,12 @@ vi.mock("@src/services/ai-builder", () => ({
 }));
 
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 const PROPOSAL = {

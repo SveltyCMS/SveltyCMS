@@ -4,16 +4,23 @@
  * einen Drosselungs-Faktor fuer die adaptive Rate-Limit-Schicht.
  *
  * Features:
- * - Liest `process.cpuUsage()` + `process.memoryUsage()` (Node.js Built-ins, kein npm-Dep)
- * - Exponentially Weighted Moving Average (EWMA) ueber ein rollierendes 5s-Fenster —
- *   ein einzelner Spike loest kein Throttling aus (Spike-Resistenz).
- * - Konfiguration via Umgebungsvariablen: RATE_PRESSURE_CPU_THRESHOLD (default 0.80),
- *   RATE_PRESSURE_RAM_THRESHOLD (default 0.85), RATE_PRESSURE_POLL_MS (default 5000).
- * - Admin-Tier ist immer AUSGENOMMEN — Operations muessen bei Last funktionieren.
- * - Singleton-Pattern mit Lazy-Initialisierung (kein overhead auf Unit-Test-Import).
+ * - Process-local CPU: `process.cpuUsage()` delta over the poll interval, divided by
+ *   (elapsed µs × core count). That is this Node process only.
+ * - Host-load fallback: 1-minute `os.loadavg() / cores` when the platform reports a
+ *   real load average (Linux/containers). Windows returns zeros — ignored, not faked.
+ *   Shared-host saturation (other processes in the same machine) is visible here even
+ *   when this process is idle. No hypervisor-specific paths.
+ * - RAM: `process.memoryUsage().rss` vs heap proxy.
+ * - EWMA over a rolling 5s window — a single spike does not throttle.
+ * - Env: RATE_PRESSURE_CPU_THRESHOLD (0.80), RATE_PRESSURE_RAM_THRESHOLD (0.85),
+ *   RATE_PRESSURE_POLL_MS (5000), RATE_PRESSURE_USE_LOADAVG (default on).
+ * - Admin tier is always exempt.
  */
 
+import os from "node:os";
 import { logger } from "@utils/logger";
+import { isHeapCritical } from "@utils/heap-pressure";
+import { sampleProcessCpuShare } from "@utils/cpu-sample";
 import type { UserTier } from "./adaptive";
 
 // ─── Konfiguration ───────────────────────────────────────────────────────────
@@ -27,6 +34,11 @@ const RAM_THRESHOLD = Math.min(
   Math.max(0.5, parseFloat(process.env["RATE_PRESSURE_RAM_THRESHOLD"] ?? "0.85")),
 );
 const POLL_MS = Math.max(1000, parseInt(process.env["RATE_PRESSURE_POLL_MS"] ?? "5000", 10));
+const USE_LOADAVG = !/^(0|false|off)$/i.test(process.env["RATE_PRESSURE_USE_LOADAVG"] ?? "1");
+const HEAP_REJECT = Math.min(
+  0.99,
+  Math.max(0.5, parseFloat(process.env["RATE_HEAP_REJECT"] ?? "0.92")),
+);
 
 /** EWMA-Glaettungsfaktor alpha — hoeher = mehr Gewicht auf aktuelle Messung. */
 const EWMA_ALPHA = 0.25;
@@ -51,13 +63,31 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ─── Interne Mess-Logik ───────────────────────────────────────────────────────
 
+function coreCount(): number {
+  const n =
+    typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
+  return Math.max(1, n);
+}
+
+function measureProcessCpuScore(_lastUsage: NodeJS.CpuUsage, _elapsedMs: number): number {
+  return sampleProcessCpuShare();
+}
+
+/**
+ * Host 1-minute load average normalized by core count.
+ * Returns null when the platform does not report load (Windows zeros).
+ */
+export function hostLoadScore(): number | null {
+  if (!USE_LOADAVG) return null;
+  const oneMin = os.loadavg()[0];
+  if (!Number.isFinite(oneMin) || oneMin <= 0) return null;
+  return Math.min(1, oneMin / coreCount());
+}
+
 function measureCpuScore(lastUsage: NodeJS.CpuUsage, elapsedMs: number): number {
-  const current = process.cpuUsage(lastUsage);
-  // cpuUsage liefert Microsekunden (user + system) seit dem letzten Snapshot.
-  const totalCpuMicros = current.user + current.system;
-  // Normalisieren: elapsedMs * 1000 = verfuegbare Microsekunden auf einem Kern.
-  const availableMicros = elapsedMs * 1000;
-  return availableMicros > 0 ? Math.min(1, totalCpuMicros / availableMicros) : 0;
+  const processScore = measureProcessCpuScore(lastUsage, elapsedMs);
+  const loadScore = hostLoadScore();
+  return loadScore === null ? processScore : Math.max(processScore, loadScore);
 }
 
 function measureRamScore(): number {
@@ -148,10 +178,13 @@ export function getPressureScore(): number {
 export function getPressureScale(tier: UserTier): number {
   if (tier === "admin") return 1.0; // Admin immer frei
 
-  const score = getPressureScore();
+  const cpu = state?.cpuScore ?? 0;
+  const ram = state?.ramScore ?? 0;
+  const score = Math.max(cpu, ram);
+  const cpuHot = cpu >= CPU_THRESHOLD;
+  const ramHot = ram >= RAM_THRESHOLD;
+  if (!cpuHot && !ramHot) return 1.0;
   const hi = CPU_THRESHOLD + 0.05;
-
-  if (score < CPU_THRESHOLD) return 1.0;
 
   if (score < hi) {
     // Mittlere Last-Zone
@@ -166,13 +199,29 @@ export function getPressureScale(tier: UserTier): number {
   return 0.35; // anonymous
 }
 
+/** Circuit-break mutations when V8 heap is critically full (same ratio as handle-security). */
+export function shouldRejectMutations(): boolean {
+  return isHeapCritical(HEAP_REJECT);
+}
+
 /**
- * Gibt einen menschenlesbaren Status-String zurueck (fuer Health-Endpoints).
+ * Cost multiplier for threat throttling (1.0 idle → 2.0 critical).
+ * Inverse of capacity scale — same EWMA, one source.
  */
-export function describePressure(): string {
+export function getPressureCostMultiplier(): number {
   const score = getPressureScore();
+  if (score < CPU_THRESHOLD) return 1;
+  const span = Math.max(0.05, 1 - CPU_THRESHOLD);
+  return Math.min(2, 1 + (score - CPU_THRESHOLD) / span);
+}
+
+/** Human-readable pressure band for health endpoints. */
+export function describePressure(): string {
   if (!state) return "monitor_off";
-  if (score < CPU_THRESHOLD) return "normal";
-  if (score < CPU_THRESHOLD + 0.05) return "elevated";
+  const cpuHot = state.cpuScore >= CPU_THRESHOLD;
+  const ramHot = state.ramScore >= RAM_THRESHOLD;
+  if (!cpuHot && !ramHot) return "normal";
+  const hi = CPU_THRESHOLD + 0.05;
+  if (Math.max(state.cpuScore, state.ramScore) < hi && !ramHot) return "elevated";
   return "high";
 }

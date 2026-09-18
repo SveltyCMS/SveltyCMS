@@ -11,7 +11,6 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { GuiFieldConfig } from "@utils/schema/field-utils";
-import type { SvelteComponent } from "svelte";
 import type { FieldInstance, Schema } from "../content/types";
 import type { SchemaHooks } from "../content/schema-hooks";
 
@@ -223,50 +222,6 @@ export type FieldConfig<TProps extends Record<string, unknown> = Record<string, 
   // Permissions
   permissions?: Record<string, Record<string, boolean>>;
 } & Partial<TProps>; // Widget-specific props
-
-// ============================================================================
-// Legacy Compatibility Types (for gradual migration)
-// ============================================================================
-
-/**
- * @deprecated Use WidgetFactory instead
- * Legacy widget function type for backward compatibility
- */
-export interface Widget {
-  __dependencies?: string[];
-  __displayComponentPath?: string;
-  __inputComponentPath?: string;
-  __widgetType?: WidgetType;
-  aggregations?: unknown;
-  componentPath?: string;
-  Description?: string;
-  GraphqlSchema?: unknown;
-  GuiSchema?: SvelteComponent;
-  Icon?: string;
-  Name: string;
-  (field: FieldInstance): FieldInstance;
-}
-
-/**
- * @deprecated Use WidgetFactory instead
- * Legacy widget function type
- */
-export interface WidgetFunction {
-  __dependencies?: string[];
-  __displayComponentPath?: string;
-  __inputComponentPath?: string;
-  __isCore?: boolean;
-  __widgetId?: string;
-  __widgetType?: WidgetType;
-  aggregations?: unknown;
-  componentPath?: string;
-  Description?: string;
-  GraphqlSchema?: unknown;
-  GuiSchema?: typeof SvelteComponent | Record<string, unknown>;
-  Icon?: string;
-  Name: string;
-  (config: Record<string, unknown>): Widget;
-}
 
 // ============================================================================
 // Widget Module (for dynamic imports)

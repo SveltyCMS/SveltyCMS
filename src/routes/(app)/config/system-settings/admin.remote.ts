@@ -138,7 +138,7 @@ export const detectTenantStructure = command(
 
     try {
       const { detectFullStructure } = await import("@utils/collections-migration.server");
-      const { isMultiTenantEnabled } = await import("@utils/tenant");
+      const { isMultiTenantEnabled } = await import("@utils/tenant-isolation.server");
       const info = await detectFullStructure();
       const isMultiTenant = isMultiTenantEnabled();
       return {

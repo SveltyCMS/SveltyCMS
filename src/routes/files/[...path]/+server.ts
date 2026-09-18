@@ -15,7 +15,7 @@ import { apiHandler } from "@utils/api-handler";
 import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 
 // Pre-compute headers once (shared across all responses)
 const _baseHeaders = {

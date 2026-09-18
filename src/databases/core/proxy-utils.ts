@@ -140,7 +140,7 @@ const TENANT_PROXY = Symbol.for("svelty.tenantProxy");
  * - Last arg plain object (not Array/Date) → merge injectTenant(last)
  * - Else → append injectTenant({})
  * - Skips re-wrapping (TENANT_PROXY marker)
- * - injectTenant itself decides bypass (systemScope / bypassTenantCheck) vs stamp tenantId
+ * - injectTenant itself decides bypass (systemScope / bypassSafeQuery) vs stamp tenantId
  *
  * Used by {@link forTenant} in tenant-adapter.ts for request-scoped MT binding.
  */

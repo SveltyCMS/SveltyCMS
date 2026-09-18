@@ -3,6 +3,7 @@
  * @description Unit-Tests fuer das System-Pressure-Modul (EWMA CPU/RAM).
  */
 
+import os from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   startPressureMonitor,
@@ -10,6 +11,7 @@ import {
   getPressureScore,
   getPressureScale,
   describePressure,
+  hostLoadScore,
 } from "@utils/rate-limit/system-pressure";
 
 // Stabile Zeit: setTimeout nicht wirklich warten lassen.
@@ -85,5 +87,34 @@ describe("System Pressure Monitor", () => {
     stopPressureMonitor();
     expect(getPressureScore()).toBe(0); // nach Stop: kein State mehr
     expect(describePressure()).toBe("monitor_off");
+  });
+
+  describe("host loadavg fallback", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("ignores a zero load average (typical on Windows)", () => {
+      vi.spyOn(os, "loadavg").mockReturnValue([0, 0, 0]);
+      expect(hostLoadScore()).toBeNull();
+    });
+
+    it("normalizes 1-minute load by core count", () => {
+      vi.spyOn(os, "loadavg").mockReturnValue([8, 8, 8]);
+      vi.spyOn(os, "availableParallelism").mockReturnValue(4);
+      expect(hostLoadScore()).toBe(1);
+    });
+
+    it("raises guest scale when blended host load crosses the threshold", () => {
+      vi.spyOn(os, "loadavg").mockReturnValue([8, 8, 8]);
+      vi.spyOn(os, "availableParallelism").mockReturnValue(4);
+      vi.spyOn(process, "cpuUsage").mockReturnValue({ user: 0, system: 0 });
+      startPressureMonitor();
+      // EWMA α=0.25: six polls (~0.82) cross the 0.80 throttle threshold
+      vi.advanceTimersByTime(30_000);
+      expect(getPressureScore()).toBeGreaterThan(0.8);
+      expect(getPressureScale("guest")).toBeLessThan(1);
+      expect(getPressureScale("admin")).toBe(1);
+    });
   });
 });

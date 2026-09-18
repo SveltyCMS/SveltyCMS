@@ -113,6 +113,14 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     return this._getRepo(collection).findByIds(ids, options);
   }
 
+  async findById<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    options?: FindOptions<T>,
+  ): Promise<DatabaseResult<T | null>> {
+    return this._getRepo(collection).findOne({ _id: id } as QueryFilter<T>, options);
+  }
+
   async find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

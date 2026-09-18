@@ -7,7 +7,7 @@
 import { contentSystem } from "@src/content/index.server";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { pubSub } from "../background/pub-sub";
 import { logger } from "@utils/logger";
 import { collectionTableName } from "@src/databases/core/collection-name";
@@ -71,7 +71,7 @@ export class HistoryService {
     page?: number;
     limit?: number;
   }) {
-    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    const schema = await contentSystem.getCollection(collectionId, tenantId);
     if (!schema) {
       return { success: false, error: { message: "Collection not found" } };
     }

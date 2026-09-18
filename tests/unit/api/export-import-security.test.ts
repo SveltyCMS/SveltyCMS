@@ -47,8 +47,12 @@ vi.mock("@src/databases/db", () => {
 
 // Mock tenant utils
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 // Mock settings service

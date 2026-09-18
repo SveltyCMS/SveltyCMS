@@ -228,7 +228,7 @@ export class RelationalContentModule implements IContentAdapter {
       assertTenantContext(options, "content.nodes.getStructure");
       return this.crud.findMany<ContentNode>("content_nodes", (options?.filter || {}) as any, {
         tenantId: options?.tenantId as any,
-        bypassTenantCheck: options?.bypassTenantCheck,
+        systemScope: options?.systemScope,
         bypassSafeQuery: options?.bypassSafeQuery,
         bypassCache: options?.bypassCache,
       });

@@ -37,7 +37,7 @@ export async function logFederationAccess(
         ...entry,
         timestamp: nowISODateString(),
       } as any,
-      { tenantId: entry.tenantId as DatabaseId, bypassTenantCheck: false },
+      { tenantId: entry.tenantId as DatabaseId },
     );
   } catch (err) {
     logger.debug("[unified-data-hub] Audit log write failed", { err });

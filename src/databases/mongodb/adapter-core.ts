@@ -86,11 +86,26 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           ? connectionStringOrOptions
           : {};
 
+      const { isLoopbackHost } = await import("../db-local-socket");
+      let mongoHost = "";
+      try {
+        mongoHost = new URL(connectionString.replace(/^mongodb(\+srv)?:/, "http:")).hostname;
+      } catch {
+        mongoHost = "";
+      }
+      const loopback = isLoopbackHost(mongoHost);
+
       const compressors: string[] = [];
       const compressorsEnv = ((globalThis as any).process?.env?.MONGO_COMPRESSORS || "auto")
         .toLowerCase()
         .trim();
-      if (compressorsEnv !== "none" && compressorsEnv !== "off" && compressorsEnv !== "false") {
+      // Loopback: compression costs CPU on small payloads (REST point reads).
+      if (
+        !loopback &&
+        compressorsEnv !== "none" &&
+        compressorsEnv !== "off" &&
+        compressorsEnv !== "false"
+      ) {
         try {
           // @ts-expect-error - optional peer for zstd wire compression
           await import("@mongodb-js/zstd");
@@ -126,6 +141,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         serverSelectionTimeoutMS: poolOptions.connectionTimeout || 30000,
         socketTimeoutMS: 45000,
         family: 4,
+        ...(loopback ? { directConnection: true } : {}),
         connectTimeoutMS: 10000,
         waitQueueTimeoutMS: 10000,
         // Prefer `journal` over deprecated `j` (driver warns / may reject in newer majors)
@@ -198,7 +214,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       return this._connection.models[collection];
     }
     if (schema) {
-      return this._connection.model(collection, schema);
+      return this._connection.model(collection, schema) as unknown as mongoose.Model<any>;
     }
     const genericSchema = new mongoose.Schema(
       { _id: { type: String, required: true } },

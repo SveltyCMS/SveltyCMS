@@ -14,9 +14,13 @@ vi.mock("$app/environment", () => ({
 
 // Mock tenant detection — isMultiTenantEnabled() reads from config/private.ts
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn(() => true),
   isValidTenantId: vi.fn(() => true),
   getTenantIdFromHostname: vi.fn(() => "test-tenant"),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn(() => true),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 // Mocking settings (kept for any direct getPrivateSettingSync calls)

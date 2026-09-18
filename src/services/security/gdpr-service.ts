@@ -182,7 +182,7 @@ export class GDPRService {
             .catch(() => {}),
         ]);
         await dbAdapter.crud
-          .delete("auth_users", userId, {
+          .delete("auth_users", targetUser, {
             permanent: true,
             tenantId: targetTenant,
           })

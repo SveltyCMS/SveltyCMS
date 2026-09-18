@@ -5,7 +5,7 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { logger } from "@utils/logger";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";

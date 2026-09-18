@@ -7,6 +7,7 @@
  * - SMTP-aware email dispatch with dev fallback logging
  * - audit trail integration
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import type { RequestEvent } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
@@ -161,7 +162,7 @@ export async function verifyMagicLink({
           lastAuthMethod: "magic_link",
           lastActiveAt: new Date().toISOString() as any,
         },
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       )
       .catch(() => {
         logger.debug("Magic link user attribute update failed silently");

@@ -3,6 +3,7 @@
  * @description Service for managing persistent plugin settings and states,
  * including encrypted secret fields via AES-256-GCM.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { logger } from "@utils/logger";
@@ -41,7 +42,7 @@ export class PluginSettingsService {
       // to ensure the probe insert runs and triggers auto-provision via
       // SqlAdapterCore.insert().
       const count = await this.dbAdapter.crud.count(this.SETTINGS_COLLECTION, undefined, {
-        bypassTenantCheck: true,
+        ...withSystemScope("plugin"),
       });
       if (!count.success || count.data === 0) {
         logger.info(`Creating ${this.SETTINGS_COLLECTION} collection...`);
@@ -52,12 +53,12 @@ export class PluginSettingsService {
             tenantId: "system",
             settings: {},
           } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
         await this.dbAdapter.crud.deleteMany(
           this.SETTINGS_COLLECTION,
           { pluginId: "__INIT__" } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
       }
     } catch (error) {
@@ -89,7 +90,7 @@ export class PluginSettingsService {
       const result: any = await this.dbAdapter.crud.findOne(
         this.SETTINGS_COLLECTION,
         { pluginId, tenantId } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       const data = result.data as { settings?: Record<string, unknown> } | undefined;
 
@@ -129,7 +130,7 @@ export class PluginSettingsService {
       const result: any = await this.dbAdapter.crud.findOne(
         this.SETTINGS_COLLECTION,
         { pluginId, tenantId } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       const data = result.data as { settings?: Record<string, unknown> } | undefined;
 
@@ -185,7 +186,7 @@ export class PluginSettingsService {
       const existing: any = await this.dbAdapter.crud.findOne(
         this.SETTINGS_COLLECTION,
         { pluginId, tenantId } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       const existingData = existing.data as
         | { _id?: unknown; settings?: Record<string, unknown> }
@@ -199,7 +200,7 @@ export class PluginSettingsService {
             settings: toStore,
             updatedAt: new Date(),
           } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
         return updateResult.success;
       }
@@ -212,7 +213,7 @@ export class PluginSettingsService {
           tenantId,
           settings: toStore,
         } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       return insertResult.success;
     } catch (error) {
@@ -229,7 +230,7 @@ export class PluginSettingsService {
       const result = await this.dbAdapter.crud.deleteMany(
         this.SETTINGS_COLLECTION,
         { pluginId, tenantId } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       return result.success;
     } catch (error) {
@@ -257,7 +258,7 @@ export class PluginSettingsService {
           pluginId,
           tenantId,
         } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
 
       const state = result.success && result.data ? result.data : null;
@@ -277,7 +278,7 @@ export class PluginSettingsService {
         {
           tenantId,
         } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       const rows = result.success && result.data ? result.data : [];
       const exp = Date.now() + this.CACHE_TTL_MS;
@@ -324,7 +325,7 @@ export class PluginSettingsService {
             updatedAt: new Date(),
             updatedBy: userId,
           } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
         this.invalidateStateCache(pluginId, tenantId);
         return updateResult.success;
@@ -337,7 +338,7 @@ export class PluginSettingsService {
           enabled,
           updatedBy: userId,
         } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       this.invalidateStateCache(pluginId, tenantId);
       return insertResult.success;

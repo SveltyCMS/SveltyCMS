@@ -226,7 +226,7 @@ export class MongoContentModule
         filter?: Partial<ContentNode>;
         tenantId?: string | null;
         bypassCache?: boolean;
-        bypassTenantCheck?: boolean;
+        systemScope?: import("../system-tenant-scope").SystemTenantScope;
         bypassSafeQuery?: boolean;
       } = {},
     ): Promise<DatabaseResult<ContentNode[]>> => {
@@ -234,12 +234,12 @@ export class MongoContentModule
         filter = {},
         tenantId = null,
         bypassCache = false,
-        bypassTenantCheck = false,
+        systemScope,
         bypassSafeQuery = false,
       } = options;
 
       assertTenantContext(
-        { tenantId: tenantId ?? filter.tenantId, bypassTenantCheck, bypassSafeQuery },
+        { tenantId: tenantId ?? filter.tenantId, systemScope, bypassSafeQuery },
         "content.nodes.getStructure",
       );
 
@@ -250,10 +250,10 @@ export class MongoContentModule
         const { nodesRepo } = await this._ensureRepos();
         const fetchOptions: {
           tenantId?: string | null;
-          bypassTenantCheck?: boolean;
+          systemScope?: import("../system-tenant-scope").SystemTenantScope;
           bypassSafeQuery?: boolean;
         } = {
-          bypassTenantCheck,
+          systemScope,
           bypassSafeQuery,
         };
         if (tenantId) {
@@ -370,7 +370,7 @@ export class MongoContentModule
       }>,
       options: {
         tenantId?: string | null;
-        bypassTenantCheck?: boolean;
+        systemScope?: import("../system-tenant-scope").SystemTenantScope;
         bypassCache?: boolean;
       } = {},
     ): Promise<DatabaseResult<ContentNode[]>> => {
@@ -397,7 +397,7 @@ export class MongoContentModule
           }
 
           const secureFilter = safeQuery(baseFilter as any, tenantId, {
-            bypassTenantCheck: options?.bypassTenantCheck,
+            systemScope: options?.systemScope,
             includeDeleted: true,
             bypassSafeQuery: (options as any)?.bypassSafeQuery,
           }) as MongoQueryFilter<ContentNode>;

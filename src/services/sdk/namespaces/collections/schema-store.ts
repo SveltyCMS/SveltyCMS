@@ -407,7 +407,7 @@ export async function resolveSchema(
   let schema: Schema | null = null;
   try {
     const cs = await resolveContentSystem();
-    schema = (await cs.getCollectionById(collectionId, tenantId)) ?? null;
+    schema = (await cs.getCollection(collectionId, tenantId)) ?? null;
     if (!schema || !schema.fields || schema.fields.length === 0) {
       // Product path slug strips `_` and non [a-z0-9-]; also try hyphen/underscore swaps
       const alts = [
@@ -417,7 +417,7 @@ export async function resolveSchema(
         collectionId.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase(),
       ].filter((a): a is string => Boolean(a) && a !== collectionId);
       for (const altId of new Set(alts)) {
-        const altSchema = await cs.getCollectionById(altId, tenantId);
+        const altSchema = await cs.getCollection(altId, tenantId);
         if (altSchema && altSchema.fields && altSchema.fields.length > 0) {
           schema = altSchema;
           break;

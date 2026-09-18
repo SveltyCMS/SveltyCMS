@@ -53,13 +53,17 @@ vi.mock("@src/databases/db", () => ({
 vi.mock("@src/content/index.server", () => ({
   contentSystem: {
     getCollections: vi.fn().mockResolvedValue([]),
-    getCollectionById: vi.fn().mockResolvedValue(null),
+    getCollection: vi.fn().mockResolvedValue(null),
   },
 }));
 
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 vi.mock("@src/services/core/settings-service", () => ({
@@ -176,7 +180,7 @@ describe("Dispatcher security matrix (real +server)", () => {
 
     it("allows collections list without tenantId when multi-tenant is OFF", async () => {
       // Temporarily flip MT off
-      const tenant = await import("@utils/tenant");
+      const tenant = await import("@utils/tenant-isolation.server");
       vi.mocked(tenant.isMultiTenantEnabled).mockReturnValueOnce(false);
 
       await expectApi(

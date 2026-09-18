@@ -186,6 +186,7 @@ export function convertMongoSessionToISO<T extends Record<string, any>>(session:
   if (!session) return session;
   const res = { ...session } as any;
   if (res.expires instanceof Date) res.expires = res.expires.toISOString();
+  if (res.mfaVerifiedAt instanceof Date) res.mfaVerifiedAt = res.mfaVerifiedAt.toISOString();
   if (res.createdAt instanceof Date) res.createdAt = res.createdAt.toISOString();
   if (res.updatedAt instanceof Date) res.updatedAt = res.updatedAt.toISOString();
   if (res._id && typeof res._id !== "string") res._id = res._id.toString();

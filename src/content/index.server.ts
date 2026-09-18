@@ -206,11 +206,6 @@ async function generateApiSpec(tenantId: string = "global", force = false) {
 export const contentSystem = {
   ...contentSystemBase,
 
-  /** @deprecated Use getCollection — kept for SDK/REST backward compatibility */
-  getCollectionById(id: string, tenantId?: string | null) {
-    return contentStore.getCollection(id, tenantId);
-  },
-
   initialize(
     tenantId: string | null = null,
     options: ContentInitOptions | boolean = {},

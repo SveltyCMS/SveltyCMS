@@ -17,6 +17,7 @@
  */
 
 import type { Theme } from "@src/databases/db-interface";
+import type { SystemTenantScope } from "../system-tenant-scope";
 import { nowISODateString, toISOString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
@@ -183,7 +184,7 @@ export class MongoThemeMethods {
    */
   async getActive(options?: {
     tenantId?: string | null;
-    bypassTenantCheck?: boolean;
+    systemScope?: SystemTenantScope;
   }): Promise<DatabaseResult<Theme | null>> {
     const effectiveTenantId =
       options?.tenantId === undefined ? null : (options.tenantId as string | null);
@@ -215,8 +216,7 @@ export class MongoThemeMethods {
    */
   async getDefaultTheme(options?: {
     tenantId?: string | null;
-    bypassTenantCheck?: boolean;
-    systemScope?: import("../system-tenant-scope").SystemTenantScope;
+    systemScope?: SystemTenantScope;
   }): Promise<DatabaseResult<Theme>> {
     const { assertTenantContext } = await import("@src/utils/security/safe-query");
     // Fail-closed under MT: tenantId or withSystemScope(...) required (no auto-bypass)
@@ -260,7 +260,7 @@ export class MongoThemeMethods {
   // Wrapper methods to match DatabaseResult interface requirement if needed by IDBAdapter
   async getActiveTheme(options?: {
     tenantId?: string | null;
-    bypassTenantCheck?: boolean;
+    systemScope?: SystemTenantScope;
   }): Promise<DatabaseResult<Theme>> {
     const result = await this.getActive(options);
     if (!result.success || !result.data) {
@@ -280,7 +280,7 @@ export class MongoThemeMethods {
    */
   async getAllThemes(options?: {
     tenantId?: string | null;
-    bypassTenantCheck?: boolean;
+    systemScope?: SystemTenantScope;
   }): Promise<DatabaseResult<Theme[]>> {
     const effectiveTenantId =
       options?.tenantId === undefined ? null : (options.tenantId as string | null);

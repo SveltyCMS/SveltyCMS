@@ -32,11 +32,12 @@
 		show = true, // Whether to show the dropdown
 		active = $bindable('') // Currently active dropdown ID
 	} = $props();
+	const id = $props.id();
 
 	let expanded = $state(false);
 	let dropdownRef: HTMLDivElement | undefined = $state();
 	let buttonWrapperRef: HTMLDivElement | undefined = $state();
-	const dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
+	const dropdownId = `dropdown-${id}`;
 	const listboxId = $derived(`${dropdownId}-menu`);
 	let focusedIndex = $state(-1); // roving focus index when expanded
 	const itemRefs: Array<HTMLButtonElement | null> = [];

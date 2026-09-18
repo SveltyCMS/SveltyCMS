@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const TEST_COLLECTION = "bulk_contract_test";
 const TEST_TENANT = "bulk-tenant";
@@ -39,7 +40,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(TEST_COLLECTION, {}, { bypassTenantCheck: true, permanent: true })
+      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
       .catch(() => {});
   }
 });
@@ -298,9 +299,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
       const foreign = await db.crud.findOne(
         TEST_COLLECTION,
         { _id: foreignId },
-        {
-          bypassTenantCheck: true,
-        },
+        withSystemScope("testing"),
       );
       expect(foreign.success).toBe(true);
       expect(foreign.data.title).toBe("Foreign"); // untouched by the foreign-tenant id

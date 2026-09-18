@@ -319,7 +319,7 @@ export interface StructureInfo {
 }
 
 export async function detectFullStructure(): Promise<StructureInfo> {
-  const { isMultiTenantEnabled } = await import("@utils/tenant");
+  const { isMultiTenantEnabled } = await import("@utils/tenant-isolation.server");
   const isMultiTenant = isMultiTenantEnabled();
 
   const { flat, tenant: _tenantDir } = getMigrationDirs();

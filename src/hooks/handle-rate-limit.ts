@@ -2,15 +2,14 @@
  * @file src/hooks/handle-rate-limit.ts
  * @description Enterprise-grade hardware-aware rate limiting middleware with Token-Bucket burst management, Redis fallback, and adaptive throttling.
  *
- * Integrates with SystemMonitor to dynamically adjust rate limit costs based on
- * real-time CPU, memory, and event loop pressure. Employs a Token-Bucket algorithm
- * with continuous replenishment for smooth burst management, Redis L2 primary storage
- * with automatic in-memory fallback, and adaptive sizing per user profile.
+ * Single mutation limiter: Redis L2 token buckets with in-memory fallback,
+ * system-pressure EWMA (capacity shrink, not cost inflate), endpoint credits,
+ * and RBAC/tenant-plan caches (no DB on this path).
  *
  * ### Features:
  * - **Token-Bucket Algorithm**: Continuous token replenishment for precise burst control (no window-boundary spikes)
  * - **Redis-Primary with Local Fallback**: Distributed token buckets in Redis L2, with automatic switch to local memory on Redis disconnect or timeout (>15ms)
- * - **Adaptive Throttling**: Dynamic bucket capacity based on user role (Admin 10x, Authenticated 2x, Anonymous 1x) and hardware pressure (0.8x-2.0x)
+ * - **Adaptive Throttling**: RBAC-seeded role tiers (Admin 10x, staff/guest 2x, anonymous 1x) × cached tenant plan × system-pressure scale
  * - **Two-tier token buckets**: per-IP (fine-grained) + per-tenant (aggregate)
  * - **Dedicated `/api/commerce` lane**: isolated buckets + tighter cap so guest
  *   cart/coupon/checkout floods cannot exhaust admin API quota (and vice versa)
@@ -24,7 +23,7 @@
  * ### Security:
  * - Client IP via `getClientIp()` / `event.getClientAddress()` only — never trust
  *   raw `X-Forwarded-For` from the client (proxy must set address adapter)
- * - Fail-open: if SystemMonitor is unavailable, uses baseline 1.0x multiplier
+ * - Fail-open: if pressure monitor is off, scale stays 1.0
  * - No PII stored: only hashed IPs in the tracking map
  * - Auto-cleanup: expired entries pruned every 60s
  * - Mutable header injection via `withMutableHeaders` (immutable Response safety)
@@ -41,14 +40,19 @@ import {
   withMutableHeaders,
   IS_TEST_MODE,
 } from "@utils/hook-utils";
-import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
-import {
-  getPressureMultiplier,
-  shouldRejectMutations,
-  startSystemMonitor,
-} from "@utils/system-monitor";
+import { getTenantIdFromHostname } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
-import { cacheService } from "@src/databases/cache/cache-service";
+import { getEndpointCost } from "@utils/rate-limit/endpoint-cost";
+import { velocityCostMultiplier } from "@utils/rate-limit/request-velocity";
+import {
+  shouldRejectMutations,
+  startPressureMonitor,
+  getPressureScale,
+} from "@utils/rate-limit/system-pressure";
+import { resolveUserTier } from "@utils/rate-limit/adaptive";
+import { getTenantPlanScale } from "@utils/rate-limit/tenant-plan";
+import { initRateLimiter, rateLimit, resetRateLimitStores } from "@utils/rate-limit";
 import {
   getSessionCookieName,
   isAdmin,
@@ -56,14 +60,14 @@ import {
   SESSION_COOKIE_NAME,
 } from "@src/databases/auth/constants";
 
-// Eager start — snapshot loop runs in background; hot path stays fully sync
-startSystemMonitor();
+// Eager start — EWMA loop + Redis connect (fail-open to memory)
+startPressureMonitor();
+void initRateLimiter();
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const DEFAULT_WINDOW_MS = 60_000;
 const MAX_TRACKED_BUCKETS = 10000;
-const CLEANUP_INTERVAL_MS = 60_000;
 
 type RateLimitLane = "commerce" | "default";
 
@@ -152,123 +156,6 @@ export interface AdaptiveUserTier {
   multiplier: number;
 }
 
-// ─── State ────────────────────────────────────────────────────────────────
-
-const _buckets = new Map<string, TokenBucketEntry>();
-const _tenantBuckets = new Map<string, TokenBucketEntry>();
-
-// ─── Redis Token Bucket & Fallback Configuration ──────────────────────────
-
-const LUA_TOKEN_BUCKET_SCRIPT = `
-local key = KEYS[1]
-local capacity = tonumber(ARGV[1])
-local refillRate = tonumber(ARGV[2])
-local cost = tonumber(ARGV[3])
-local nowMs = tonumber(ARGV[4])
-local ttl = tonumber(ARGV[5])
-
-local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
-local tokens = tonumber(data[1])
-local lastRefill = tonumber(data[2])
-
-if not tokens or not lastRefill then
-    tokens = capacity
-    lastRefill = nowMs
-else
-    local delta = math.max(0, nowMs - lastRefill) / 1000.0
-    tokens = math.min(capacity, tokens + (delta * refillRate))
-    lastRefill = nowMs
-end
-
-if tokens >= cost then
-    tokens = tokens - cost
-    redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', lastRefill)
-    redis.call('EXPIRE', key, ttl)
-    return {1, math.floor(tokens), 0}
-else
-    local needed = cost - tokens
-    local retryAfter = math.max(1, math.ceil(needed / refillRate))
-    redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', lastRefill)
-    redis.call('EXPIRE', key, ttl)
-    return {0, math.floor(tokens), retryAfter}
-end
-`;
-
-let _redisCircuitBrokenUntil = 0;
-const REDIS_CIRCUIT_BREAK_MS = 5000;
-const REDIS_TIMEOUT_MS = 15;
-
-export function resetRedisCircuitBreaker(): void {
-  _redisCircuitBrokenUntil = 0;
-}
-
-async function executeWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("Redis rate limiter timed out")), timeoutMs);
-    if (typeof (timer as any)?.unref === "function") (timer as any).unref();
-  });
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-async function checkRedisTokenBucket(
-  l2: any,
-  key: string,
-  capacity: number,
-  windowMs: number,
-  cost: number,
-  now: number,
-): Promise<{ allowed: boolean; remaining: number; resetTime: number; retryAfterSeconds: number }> {
-  const refillRatePerSec = Math.max(0.001, capacity / (windowMs / 1000));
-  const ttlSeconds = Math.max(1, Math.ceil((windowMs * 2) / 1000));
-  const redisKey = `svelty:rl:tb:${key}`;
-
-  const redisCall = async () => {
-    try {
-      return await (l2 as any)["eval"](LUA_TOKEN_BUCKET_SCRIPT, {
-        keys: [redisKey],
-        arguments: [
-          String(capacity),
-          String(refillRatePerSec),
-          String(cost),
-          String(now),
-          String(ttlSeconds),
-        ],
-      });
-    } catch (err: any) {
-      if (typeof err?.message === "string" && err.message.includes("wrong number of arguments")) {
-        return await (l2 as any)["eval"](
-          LUA_TOKEN_BUCKET_SCRIPT,
-          1,
-          redisKey,
-          String(capacity),
-          String(refillRatePerSec),
-          String(cost),
-          String(now),
-          String(ttlSeconds),
-        );
-      }
-      throw err;
-    }
-  };
-
-  const res = await executeWithTimeout(redisCall(), REDIS_TIMEOUT_MS);
-  if (Array.isArray(res)) {
-    const allowed = Number(res[0]) === 1;
-    const remaining = Number(res[1]) || 0;
-    const retryAfter = Number(res[2]) || 0;
-    const resetTime = allowed
-      ? Math.max(1, Math.ceil((capacity - remaining) / refillRatePerSec))
-      : retryAfter;
-    return { allowed, remaining, resetTime, retryAfterSeconds: retryAfter };
-  }
-  throw new Error("Invalid Redis token-bucket response shape");
-}
-
 function checkMemoryTokenBucket(
   map: Map<string, TokenBucketEntry>,
   key: string,
@@ -303,39 +190,6 @@ function checkMemoryTokenBucket(
   }
 }
 
-export async function checkTokenBucket(
-  map: Map<string, TokenBucketEntry>,
-  key: string,
-  capacity: number,
-  windowMs: number,
-  cost: number,
-  now: number,
-): Promise<{
-  allowed: boolean;
-  remaining: number;
-  resetTime: number;
-  retryAfterSeconds: number;
-  source: "redis" | "memory";
-}> {
-  const l2 = (cacheService as any)?.getRedisClient ? cacheService.getRedisClient() : null;
-  const isRedisAvailable = Boolean(l2 && l2.isOpen && now >= _redisCircuitBrokenUntil);
-
-  if (isRedisAvailable) {
-    try {
-      const result = await checkRedisTokenBucket(l2, key, capacity, windowMs, cost, now);
-      return { ...result, source: "redis" };
-    } catch (err: any) {
-      _redisCircuitBrokenUntil = now + REDIS_CIRCUIT_BREAK_MS;
-      logger.debug(
-        `[RateLimit] Redis token-bucket failed (${err?.message || err}), falling back to local memory`,
-      );
-    }
-  }
-
-  const result = checkMemoryTokenBucket(map, key, capacity, windowMs, cost, now);
-  return { ...result, source: "memory" };
-}
-
 // ─── Adaptive User Profile Resolution ──────────────────────────────────────
 
 export function peekSessionUserSync(sessionId: string): any | null {
@@ -350,33 +204,33 @@ export function peekSessionUserSync(sessionId: string): any | null {
   return null;
 }
 
+const TIER_CAP_MULTIPLIER: Record<string, number> = {
+  admin: 10,
+  staff: 2,
+  guest: 2,
+  anonymous: 1,
+};
+
 export function resolveAdaptiveUserTier(event: RequestEvent): AdaptiveUserTier {
-  const localUser = (event.locals as any)?.user;
-  if (localUser) {
-    if (isAdmin(localUser)) {
-      return { role: "admin", multiplier: 10.0 };
+  const localUser = (event.locals as { user?: { role?: string; isAdmin?: boolean } } | undefined)
+    ?.user;
+  const peeked = (): { role?: string; isAdmin?: boolean } | null => {
+    try {
+      const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
+      const cookieName = getSessionCookieName(isSecure);
+      const sessionId = event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
+      return sessionId ? peekSessionUserSync(sessionId) : null;
+    } catch {
+      return null;
     }
-    return { role: localUser.role || "user", multiplier: 2.0 };
-  }
-
-  try {
-    const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
-    const cookieName = getSessionCookieName(isSecure);
-    const sessionId = event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
-    if (sessionId) {
-      const user = peekSessionUserSync(sessionId);
-      if (user) {
-        if (isAdmin(user)) {
-          return { role: "admin", multiplier: 10.0 };
-        }
-        return { role: user.role || "user", multiplier: 2.0 };
-      }
-    }
-  } catch {
-    // Fail-open to guest baseline
-  }
-
-  return { role: "anonymous", multiplier: 1.0 };
+  };
+  const user = localUser ?? peeked();
+  const tier = resolveUserTier({
+    role: user?.role,
+    isAdmin: user ? isAdmin(user) : false,
+    userId: user ? "session" : null,
+  });
+  return { role: tier, multiplier: TIER_CAP_MULTIPLIER[tier] ?? 1 };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -489,30 +343,6 @@ function buildRateLimitResponse(
   );
 }
 
-const LIMITER_CLEANUP_KEY = Symbol.for("svelty.limiter.cleanup");
-const globalWithLimiter = globalThis as typeof globalThis & {
-  [key: symbol]: ReturnType<typeof setInterval> | undefined;
-};
-if (typeof setInterval !== "undefined" && !globalWithLimiter[LIMITER_CLEANUP_KEY]) {
-  globalWithLimiter[LIMITER_CLEANUP_KEY] = setInterval(() => {
-    const now = Date.now();
-    const windowMs = getWindowMs();
-    for (const [key, entry] of _buckets) {
-      if (now - entry.lastRefill > windowMs * 2) {
-        _buckets.delete(key);
-      }
-    }
-    for (const [key, entry] of _tenantBuckets) {
-      if (now - entry.lastRefill > windowMs * 2) {
-        _tenantBuckets.delete(key);
-      }
-    }
-  }, CLEANUP_INTERVAL_MS);
-  if (typeof (globalWithLimiter[LIMITER_CLEANUP_KEY] as any)?.unref === "function") {
-    (globalWithLimiter[LIMITER_CLEANUP_KEY] as any).unref();
-  }
-}
-
 /**
  * LRU-correct bounded bucket update: delete-then-set so an active key's window
  * reset REFRESHES its iteration position. Without the refresh, busy keys
@@ -576,59 +406,77 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // 🚀 ADAPTIVE THROTTLING: dynamic bucket capacity scaled by user profile/role
   const userTier = resolveAdaptiveUserTier(event);
+  const tenantId = isMultiTenantEnabled()
+    ? getTenantIdFromHostname(event.url.hostname, true)
+    : null;
+  const pressureScale = getPressureScale(
+    userTier.role === "admin"
+      ? "admin"
+      : userTier.role === "staff"
+        ? "staff"
+        : userTier.role === "guest"
+          ? "guest"
+          : "anonymous",
+  );
+  const planScale = getTenantPlanScale(tenantId);
   const baseMaxRequests = getMaxRequests(lane);
-  const maxRequests = Math.round(baseMaxRequests * userTier.multiplier);
+  const maxRequests = Math.max(
+    1,
+    Math.round(baseMaxRequests * userTier.multiplier * pressureScale * planScale),
+  );
 
-  // Sync SystemMonitor reads — no dynamic import / microtask on hot path
-  let multiplier = 1.0;
-  try {
-    multiplier = getPressureMultiplier();
-
-    // Reject mutations when heap is critically high
-    if (shouldRejectMutations()) {
-      logger.warn(`[RateLimit] Mutation rejected — heap pressure critical (${clientKey})`, {
-        pathname,
-        method,
-      });
-      return withSecurityHeaders(
-        new Response(
-          JSON.stringify({
-            error: "Service temporarily unavailable due to high system load",
-            code: "HEAP_PRESSURE",
-          }),
-          {
-            status: 503,
-            headers: {
-              "Content-Type": "application/json",
-              "Retry-After": "30",
-            },
+  if (shouldRejectMutations()) {
+    logger.warn(`[RateLimit] Mutation rejected — heap pressure critical (${clientKey})`, {
+      pathname,
+      method,
+    });
+    return withSecurityHeaders(
+      new Response(
+        JSON.stringify({
+          error: "Service temporarily unavailable due to high system load",
+          code: "HEAP_PRESSURE",
+        }),
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": "30",
           },
-        ),
-        event,
-      );
-    }
-  } catch {
-    // SystemMonitor not available — use baseline
+        },
+      ),
+      event,
+    );
   }
 
-  // Apply adaptive cost: critical pressure makes each request count more.
-  // Commerce coupon/pay/checkout consume extra tokens (guest brute-force).
-  const cost = getLaneCost(pathname, Math.max(1, Math.round(multiplier)));
+  const endpointCost = getEndpointCost(pathname);
+  const velocity = userTier.role === "admin" ? 1 : velocityCostMultiplier(clientKey, now);
+  const cost = getLaneCost(pathname, Math.max(1, Math.round(endpointCost * velocity)));
 
-  // 🚀 TOKEN-BUCKET CHECK (Redis primary with instantaneous in-memory fallback)
-  const ipResult = await checkTokenBucket(
-    _buckets,
-    clientKey,
-    maxRequests,
-    getWindowMs(),
+  const windowMs = getWindowMs();
+  const refillPerSecond = maxRequests / (windowMs / 1000);
+  const ipDecision = await rateLimit({
+    context: {},
+    namespace: `ip:${clientKey}`,
     cost,
-    now,
-  );
+    record: true,
+    base: {
+      capacity: maxRequests,
+      refillPerSecond,
+      maxRequests,
+      windowMs,
+    },
+  });
+  const ipResult = {
+    allowed: ipDecision.allowed,
+    remaining: ipDecision.remaining,
+    retryAfterSeconds: ipDecision.retryAfterSeconds,
+    resetTime: ipDecision.retryAfterSeconds,
+  };
 
   // Per-IP rate limit exceeded
   if (!ipResult.allowed) {
     logger.warn(
-      `[RateLimit] ${clientKey} exceeded limit (${ipResult.remaining}/${maxRequests}, ${multiplier}x multiplier, role: ${userTier.role})`,
+      `[RateLimit] ${clientKey} exceeded limit (${ipResult.remaining}/${maxRequests}, pressure ${pressureScale}, role: ${userTier.role})`,
       { pathname, method },
     );
     return withSecurityHeaders(
@@ -654,21 +502,31 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   if (tenantKey) {
     const baseTenantMax = getTenantMaxRequests(lane);
-    const tenantMaxRequests = Math.round(baseTenantMax * userTier.multiplier);
-    const tenantResult = await checkTokenBucket(
-      _tenantBuckets,
-      tenantKey,
-      tenantMaxRequests,
-      getWindowMs(),
+    const tenantMaxRequests = Math.max(1, Math.round(baseTenantMax * pressureScale * planScale));
+    const tenantWindowMs = getWindowMs();
+    const tenantDecision = await rateLimit({
+      context: {},
+      namespace: `tenant:${tenantKey}`,
       cost,
-      now,
-    );
+      record: false,
+      base: {
+        capacity: tenantMaxRequests,
+        refillPerSecond: tenantMaxRequests / (tenantWindowMs / 1000),
+        maxRequests: tenantMaxRequests,
+        windowMs: tenantWindowMs,
+      },
+    });
+    const tenantResult = {
+      allowed: tenantDecision.allowed,
+      remaining: tenantDecision.remaining,
+      retryAfterSeconds: tenantDecision.retryAfterSeconds,
+    };
 
     tenantRemaining = tenantResult.remaining;
 
     if (!tenantResult.allowed) {
       logger.warn(
-        `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantResult.remaining}/${tenantMaxRequests}, ${multiplier}x multiplier)`,
+        `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantResult.remaining}/${tenantMaxRequests}, pressure ${pressureScale})`,
         { pathname, method, tenant: tenantKey },
       );
       return withSecurityHeaders(
@@ -703,9 +561,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
  * Reset all rate limit buckets (for testing).
  */
 export function resetRateLimitBuckets(): void {
-  _buckets.clear();
-  _tenantBuckets.clear();
-  _redisCircuitBrokenUntil = 0;
+  resetRateLimitStores();
 }
 
 // ─── Targeted Endpoint & Action Rate Limiter ───────────────────────────────

@@ -9,6 +9,7 @@
  * - Role/permission management
  * - Test-mode bypass for integration/E2E suites
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { AppError, rethrow, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -32,7 +33,7 @@ import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
 import {
@@ -712,7 +713,7 @@ export async function handleOidcLoginCallback(
         isRegistered: true,
         lastAuthMethod: stored.providerId,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
 
     if (!createRes?.success || !createRes.data) {
@@ -724,7 +725,7 @@ export async function handleOidcLoginCallback(
       await auth.updateUserAttributes(
         user._id as any,
         { role: targetRole },
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       user.role = targetRole;
     }
@@ -750,7 +751,7 @@ export async function handleOidcLoginCallback(
     try {
       const res = await auth.getActiveSessions(user._id as any, {
         tenantId: tenantId as any,
-        bypassTenantCheck: true,
+        ...withSystemScope("auth-bootstrap"),
       });
       const list = res?.success && Array.isArray(res.data) ? res.data : [];
       return (

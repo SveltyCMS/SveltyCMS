@@ -48,7 +48,7 @@ export async function getRelationTokens(
 
     // Get the related collection schema to discover its fields
     try {
-      const relatedSchema = await contentSystem.getCollectionById(relatedCollection, tenantId);
+      const relatedSchema = await contentSystem.getCollection(relatedCollection, tenantId);
       if (!relatedSchema) {
         continue;
       }

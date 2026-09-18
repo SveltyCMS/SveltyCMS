@@ -19,6 +19,7 @@ import { dateToISODateString } from "@utils/date";
 import { contentStore } from "@src/stores/content-registry.svelte";
 import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateCategoryNodesFromPaths } from "./content-utils";
 import { compareCollectionSchemas } from "./first-collection";
 import { cacheService } from "@src/databases/cache/cache-service";
@@ -631,7 +632,7 @@ export const contentService = {
     const [dbResult, categoryNodes, manifestOrder, manifestStructure] = await Promise.all([
       dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as any,
-        bypassTenantCheck: true,
+        ...withSystemScope("bootstrap"),
       }),
       generateCategoryNodesFromPaths(schemas, tenantId),
       getCollectionOrder(tenantId ?? null),
@@ -1100,7 +1101,7 @@ export const contentService = {
     if (!db) return [];
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
-      bypassTenantCheck: true,
+      ...withSystemScope("bootstrap"),
       // Fresh read: callers use this right after structure writes (saves,
       // GUI reorders) — a stale cached empty list would render an empty
       // builder board even though the DB row exists.

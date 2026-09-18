@@ -18,6 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult, assertDatabaseSuccess } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const TEST_COLLECTION = "parity_test";
 const TEST_TENANT = "parity-tenant";
@@ -46,14 +47,7 @@ beforeAll(async () => {
 
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(
-        TEST_COLLECTION,
-        {},
-        {
-          bypassTenantCheck: true,
-          permanent: true,
-        },
-      )
+      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
       .catch(() => {});
   }
 });
@@ -61,14 +55,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(
-        TEST_COLLECTION,
-        {},
-        {
-          bypassTenantCheck: true,
-          permanent: true,
-        },
-      )
+      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
       .catch(() => {});
   }
 });

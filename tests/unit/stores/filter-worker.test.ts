@@ -118,6 +118,12 @@ describe("FilterWorker", () => {
 
   describe("performance", () => {
     it("should process 1024x768 under 200ms", () => {
+      // JIT warm-up before the timed pass: a cold first call pays the compiler and
+      // allocator, which made this budget flaky on loaded runners (same rule as
+      // dashboard-runtime.test.ts). Warm on a smaller image — same code path, less cost.
+      const warm = makeImageData(128, 128) as ImageData;
+      for (let i = 0; i < 50; i++) applySharpness(warm, 128, 128, { sharpness: 36, clarity: 0 });
+
       const img = makeImageData(1024, 768) as ImageData;
       const start = performance.now();
       applySharpness(img, 1024, 768, { sharpness: 36, clarity: 0 });

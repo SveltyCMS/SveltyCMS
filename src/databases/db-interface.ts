@@ -140,14 +140,9 @@ export interface BaseQueryOptions {
   tenantId?: DatabaseId | null;
   /**
    * Branded system capability — only from `createSystemTenantScope` / `withSystemScope`.
-   * Prefer this over `bypassTenantCheck` for MULTI_TENANT system paths.
+   * A forgeable `bypassTenantCheck` boolean is not a field and is ignored if present.
    */
   systemScope?: SystemTenantScope;
-  /**
-   * @deprecated Use `systemScope: createSystemTenantScope(reason)` or `withSystemScope(reason)`.
-   * Bare boolean is a forgeable escape hatch; lint bans new product use.
-   */
-  bypassTenantCheck?: boolean;
   includeDeleted?: boolean;
   bypassSafeQuery?: boolean; // 🚀 ULTRA FAST PATH: Skip all security and allocation checks
   silent?: boolean; // Useful for skipping trigger/audit logs
@@ -725,6 +720,13 @@ export interface IAuthAdapter {
       /** Stable per-device id (client-generated, localStorage) — precise device grouping */
       deviceId?: string;
       ipAddress?: string;
+      /**
+       * Authentication Method References (e.g. ["pwd", "mfa"]).
+       * Persisted on every engine (`amr` JSON column on auth_sessions) and normalized
+       * on read; `mfaVerifiedAt` records when MFA was proven for the session.
+       */
+      amr?: string[];
+      mfaVerifiedAt?: ISODateString;
     },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session>>;

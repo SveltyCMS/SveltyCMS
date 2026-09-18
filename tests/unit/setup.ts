@@ -632,7 +632,12 @@ if (isBun) {
 }
 
 // 2. TESTING LIBRARIES (Dynamic import to avoid hoisting before shims)
-await import("@testing-library/jest-dom/vitest");
+// jest-dom matchers only make sense against a real DOM: the jsdom-env files get them,
+// the node-env bulk of the suite no longer pays this import per file (~80ms on this
+// host, measured 2026-09-18 — the single hottest item in this setup file).
+if (typeof window !== "undefined" || typeof document !== "undefined") {
+  await import("@testing-library/jest-dom/vitest");
+}
 
 if (!isBun) {
   // Node/Vitest environment - Vitest handles globals via config

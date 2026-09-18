@@ -2,10 +2,11 @@
  * @file src/services/local-cms/media-namespace.ts
  * @description Media namespace for LocalCMS SDK.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { MediaService } from "@utils/media/media-service.server";
 import { AppError } from "@utils/error-handling";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { LRUCache } from "lru-cache";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
@@ -310,7 +311,7 @@ export class MediaNamespace {
       const result = await this._dbAdapter.media.files.move(
         ids as DatabaseId[],
         (targetFolderId || null) as DatabaseId,
-        tenantId != null ? { tenantId: tenantId as DatabaseId } : { bypassTenantCheck: true },
+        tenantId != null ? { tenantId: tenantId as DatabaseId } : withSystemScope("bootstrap"),
       );
 
       if (result.success) {

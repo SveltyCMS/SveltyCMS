@@ -21,6 +21,7 @@ import { getFirstCollectionSchema } from "@src/content/first-collection";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
 import type { DatabaseAdapter, Theme, BaseQueryOptions } from "@src/databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/core/settings-service";
 import { dateToISODateString } from "@utils/date";
@@ -144,7 +145,7 @@ export async function persistCollectionContentNodes(
   );
   const result = await dbAdapter.content.nodes.bulkUpdate(updates, {
     tenantId: tenantId as DatabaseId,
-    bypassTenantCheck: true,
+    ...withSystemScope("seed"),
     bypassCache: true,
     transaction: options?.transaction,
   });
@@ -931,7 +932,7 @@ export async function seedWebsiteStarterPages(
         string,
         unknown
       >,
-      { tenantId: tenantId as DatabaseId, bypassTenantCheck: true, limit: 1 },
+      { tenantId: tenantId as DatabaseId, ...withSystemScope("seed"), limit: 1 },
     );
 
     const { createDefaultHomeDocument, serializeSveditContent } =
@@ -958,14 +959,14 @@ export async function seedWebsiteStarterPages(
       if (existingId) {
         await dbAdapter.crud.update("pages", existingId, homepage, {
           tenantId: tenantId as DatabaseId,
-          bypassTenantCheck: true,
+          ...withSystemScope("seed"),
         });
         logger.debug("✅ Updated Website Starter homepage (slug: home)");
       }
     } else {
       await dbAdapter.crud.insertMany("pages", [homepage], {
         tenantId: tenantId as DatabaseId,
-        bypassTenantCheck: true,
+        ...withSystemScope("seed"),
       });
       logger.debug("✅ Seeded Website Starter homepage (slug: home)");
     }
@@ -1036,7 +1037,7 @@ export async function seedDemoRecords(
         // Use insertMany to trigger the new dynamic table + packData logic
         await dbAdapter.crud.insertMany(collectionId, posts, {
           tenantId: tenantId as DatabaseId,
-          bypassTenantCheck: true,
+          ...withSystemScope("seed"),
           ...options,
         });
         logger.debug(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
@@ -1066,7 +1067,7 @@ export async function seedDemoRecords(
         ];
         await dbAdapter.crud.insertMany(collectionId, menuItems, {
           tenantId: tenantId as DatabaseId,
-          bypassTenantCheck: true,
+          ...withSystemScope("seed"),
           ...options,
         });
         logger.debug(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
@@ -1192,7 +1193,7 @@ export async function initSystemFast(
             },
             {
               tenantId: tenantId as DatabaseId,
-              bypassTenantCheck: true,
+              ...withSystemScope("seed"),
             },
           );
           logger.debug("✅ Content structure cleared successfully");
@@ -2070,7 +2071,7 @@ export async function seedDemoTenant(
   if (dbAdapter.auth) {
     const result = await dbAdapter.auth.getRoleById("admin" as DatabaseId, {
       tenantId: tenantId as DatabaseId,
-      bypassTenantCheck: true,
+      ...withSystemScope("seed"),
       ...options,
     });
     const adminRole = result.success ? result.data : null;

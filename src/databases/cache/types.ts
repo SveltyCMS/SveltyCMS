@@ -13,6 +13,8 @@ export enum CacheCategory {
   AUTH = "auth",
   COLLECTION = "collection",
   CONTENT = "content",
+  /** Single random docs (point reads) — skips the L1 LRU age update. */
+  ENTRY = "entry",
   GENERAL = "general",
   MEDIA = "media",
   SCHEMA = "schema",

@@ -6,7 +6,7 @@
 import { contentSystem } from "@src/content/index.server";
 import { localizeSitePage, resolveSitePage } from "@src/services/site/page-resolver.server";
 import { isSiteStarterEnabled } from "@src/services/site/site-config.server";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { isAdmin } from "@utils/hook-utils";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";

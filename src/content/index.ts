@@ -44,8 +44,6 @@ export const contentSystemBase = {
   },
 
   collections: {
-    getAll: (tenantId?: string | null) => contentStore.getAllCollections(tenantId),
-    get: (id: string, tenantId?: string | null) => contentStore.getCollection(id, tenantId),
     getSmartFirst: (tenantId?: string | null) => contentStore.getSmartFirstCollection(tenantId),
   },
 
@@ -54,10 +52,6 @@ export const contentSystemBase = {
   },
 
   getCollection(id: string, tenantId?: string | null) {
-    return contentStore.getCollection(id, tenantId);
-  },
-
-  getCollectionById(id: string, tenantId?: string | null) {
     return contentStore.getCollection(id, tenantId);
   },
 

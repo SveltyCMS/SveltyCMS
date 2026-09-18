@@ -51,6 +51,7 @@ import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-s
 import { evaluateSessionAnomaly, toSafeSessionUser } from "@src/databases/auth/session-user";
 
 import { getDbInitPromise, auth, dbAdapter, isDbConnected } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
@@ -84,7 +85,8 @@ function getCookiePath(): string {
 
 import { getClientIp, getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
-import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
+import { getTenantIdFromHostname } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { dev } from "$app/env";
 import { runWithContext } from "@src/utils/context";
 import {
@@ -878,7 +880,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     // 🛡️ Request-scoped tenant binding (early — refined after session/user load).
-    // System/scheduler: use locals.dbAdapterUnscoped + bypassTenantCheck.
+    // System/scheduler: use locals.dbAdapterUnscoped + withSystemScope(reason).
     // The tenant resolved before the session lookup is captured so the post-
     // user bind below is skipped when nothing changed (avoids a duplicate
     // tenant-injecting proxy wrap on every authenticated multi-tenant request).
@@ -1209,7 +1211,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             const res = await dbAdapter.system.websiteTokens.getByTokenHash(tokenHash, {
               tenantId: locals.tenantId as DatabaseId,
               // Auth bootstrap: allow lookup when tenant not yet resolved (single-tenant)
-              ...(locals.tenantId ? {} : { bypassTenantCheck: true }),
+              ...(locals.tenantId ? {} : withSystemScope("auth-bootstrap")),
             });
 
             if (res.success && res.data) {

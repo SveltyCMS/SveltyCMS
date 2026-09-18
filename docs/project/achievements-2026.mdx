@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-14"
+updated: "2026-09-18"
 tags:
   - "achievements"
   - "log"
@@ -1056,6 +1056,19 @@ Two follow-on sprints on top of the 3.14 profile build: the behavioral-learning 
 
 Verified 2026-09-02 (SQLite): `bun run check` 0/0 · `test:unit` 453 files / 3,894 tests · `test:security` 262 · `risk:audit` 5/5 · `test:integration` 632 pass / 0 fail (19 adapter skips) · core benchmarks all green (incl. `cache-performance`, `hooks-performance`, `rest-api-performance`).
 
+### 3.16 September 2026 — Limiter, tenant scope, Mongo REST, Yjs ACL
+
+Follow-on to the dual-path collapse (one limiter, one CPU sampler, branded `systemScope`). Self-measured core suite on all four engines (console-only, no `BENCHMARK_RECORD`): SQLite FIND ONE ~0.005 ms / REST ~0.73 ms; Mongo FIND ONE ~0.54 ms / REST ~2.1 ms (HTTP/JSON still dominates the REST delta). Postgres/MariaDB INSERT ~1.7 ms on this host is the Docker Desktop TCP hop — unix sockets apply on Linux/macOS, not Windows.
+
+- **Dead Lua copy removed** from `handle-rate-limit.ts`. Mutation traffic uses `rateLimit()` (`RedisRateLimitStore` + `MemoryRateLimitStore`). Atomic Redis Lua remains in `@utils/rate-limit/redis-client.ts` only. Tests: `tests/unit/hooks/rate-limit.test.ts`, `tests/unit/rate-limit/engine-fallback.test.ts`.
+- **`bypassTenantCheck` boolean is not a query option.** Adapters forward branded `systemScope` from `withSystemScope(reason)`. `hasTenantBypass` accepts only that brand or `bypassSafeQuery`. Tests: `tests/unit/security/system-tenant-scope.test.ts`, `tests/unit/security/tenant-isolation-matrix.test.ts`.
+- **Mongo REST point-read** uses native `collection.findOne`, SDK `findById` passes `skipMeta`, and BSON ObjectId `_id` is stringified before JSON. Same-host: `src/databases/db-local-socket.ts` (Postgres/Maria unix socket auto-detect; Mongo loopback `directConnection`, no wire compressors). Tests: `tests/unit/databases/db-local-socket.test.ts`.
+- **Yjs entry ACL** — `GET`/`POST` `/api/collaboration/yjs` require `docId=entry:{collectionId}:{entryId}` and `collection:read` / `collection:write` (collection-scoped, then global). ACL helpers sit in `yjs-access.ts` rather than `+server.ts` (SvelteKit route analysis rejects non-handler endpoint exports; the production build failed on that). Tests: `tests/unit/api/yjs-acl.test.ts`.
+- **Client-safe tenant split** — `isMultiTenantEnabled()` / `withTenant()` moved to `src/utils/tenant-isolation.server.ts`, because `MULTI_TENANT` is a private key and `@utils/tenant` is imported by browser code (Yjs provider, SDK config page). `isValidTenantId()` lives in `src/utils/tenant.server.ts`, which keeps `vite.config.ts`'s alias-free config graph intact (`compilation/compile.ts` imports it directly). `globalThis.require` is gone end-to-end.
+- **Session AMR / MFA persistence** — `auth_sessions` gained `amr` (JSON/JSONB) and `mfaVerifiedAt` (`tsCol(3)` → `DATETIME(3)` on MariaDB, `TIMESTAMP WITH TIME ZONE` on PostgreSQL, INTEGER ms on SQLite) across the schema spec, all three Drizzle schemas and the boot-time legacy-tail `ALTER`s, so existing installs upgrade on next boot. Mongo's `SessionSchema` now declares both — strict mode used to strip them, so **no engine persisted AMR** before this. Session-id rotation carries the MFA proof and device metadata instead of dropping them, and Mongo rotation degrades to sequential writes when the deployment has no transactions (standalone/CI) instead of throwing out of `startSession()`. Tests: `tests/integration/databases/auth-session-amr-contract.test.ts` (all four engines). Cost guard: `tests/benchmarks/auth-session-amr.test.ts` — `INSERT` Δ(amr vs plain) **−14.6 % SQLite / −9.5 % PostgreSQL**, i.e. below the noise floor; `validateSession` (the per-request path) never reads the session columns.
+- **Adaptive smart rate-limiting & load shedding** — EWMA system pressure load shedding (`system-pressure.ts`, polling process CPU delta and container loadavg), burst velocity penalization (`request-velocity.ts`), route-aware token pricing (`endpoint-cost.ts`), and dynamic user tier and tenant plan quotas (`role-tiers.ts`, `tenant-plan.ts`) unified under `handle-rate-limit.ts`. Tests: `tests/unit/rate-limit/`.
+- **Vitest configuration & test suite hygiene** — explicitly configured `isolate: true` in `vitest.config.ts` silencing misleading module-evaluation diagnostic hints while strictly preventing cross-file mock and singleton state contamination. Applied `silent: "passed-only"` locally to eliminate console clutter. Full suite: 504 files / 4,303 tests pass in ~47s.
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.
@@ -1092,7 +1105,7 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 ### 4.6 Real-Time Collaboration & Concurrency
 
 - **Features:** Conflict-free Replicated Data Type (CRDT) concurrent editing powered by **Yjs**, transported over **adapter-node-compatible channels** — SSE (`/api/events` + `/api/collaboration/yjs`) for the default path, plus a native `ws`-based sync server on `/ws` (`yjs-sync-server`, wired in the production `index.cjs` entry). No uWebSockets / svelte-realtime dependency.
-- **Server state:** `yjs-service` (`src/services/collaboration/yjs-service.ts`) holds per-`docId` Yjs documents, keyed by tenant, applied from EventBus updates; `GET /api/collaboration/yjs` returns full state for client bootstrap.
+- **Server state:** `yjs-service` (`src/services/collaboration/yjs-service.ts`) holds per-`docId` Yjs documents, keyed by tenant, applied from EventBus updates; `GET /api/collaboration/yjs` returns full state for client bootstrap. **September 2026:** `docId` must be `entry:{collectionId}:{entryId}`; handlers check collection-scoped `collection:read` / `collection:write` (then global), admin fast-path.
 - **Client integration:** `collaboration-service.svelte.ts` + `SseProvider` (SSE transport), wired into the field editor (`fields.svelte`) when a collection enables `collaboration.enabled`. Awareness protocol carries cursor/presence per editor.
 - **Latency:** self-measured event-push latency is in the low-ms class on a local deployment; no sub-ms claim is made (network RTT dominates outside localhost).
 - **Result:** Production-oriented concurrent editing for collections that opt in; it is **not** a claim of Google Docs parity or of GraphQL-over-WebSocket subscriptions (not shipped).
@@ -1347,6 +1360,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **Continuous Token Replenishment**: Replaced coarse fixed-window counters with a high-precision Token-Bucket algorithm (`handle-rate-limit.ts`) for smooth burst management, eliminating 2x spike artifacts at window boundaries.
   - **Redis-Primary with Automatic Memory Fallback**: Distributed token accounting via atomic Lua script on Redis L2 with a strict 15ms timeout and 5-second circuit-breaker backoff. Falls back seamlessly and instantaneously to local in-memory token buckets without failing requests or degrading user latency.
   - **Zero-Tax Adaptive Sizing**: Dynamically scales bucket capacities based on user profile (Admin 10x, Authenticated User 2x, Anonymous 1x) and system hardware pressure from `SystemMonitor` (0.8x–2.0x), utilizing a zero-overhead synchronous session cache peeker in `handle-authentication.ts`.
+  - **Self-healing / predictive / cost-aware upgrades (A+B+C)**: `system-pressure.ts` EWMA of process `cpuUsage` deltas (normalized by core count) plus 1-minute `os.loadavg()` when the OS reports it (ignored on Windows zeros — not hypervisor-specific). `request-clock.ts` 24h/15-min histogram for predictive throttle after warmup. `endpoint-cost.ts` longest-prefix token costs (`/api/graphql` 2, media upload 5, import 8, AI copilot 10). Admin tier never scaled down. Tests: `tests/unit/rate-limit/*.test.ts`.
 - **Application-Layer Encryption (ALE) Zero-Tax Performance Benchmark (September 2026)**:
   - **Empirical Benchmarking Suite**: Created `tests/benchmarks/ale-encryption-impact.test.ts` profiling AES-256-GCM field encryption on `content_nodes` and `audit_logs` across 256 B, 4 KB, and 64 KB payloads.
   - **Zero-Tax Cryptographic Optimization**: Optimized `field-encryption.ts` with static crypto imports, synchronous key resolution (`getFieldKeysSync()`), direct GCM ciphertext extraction, and synchronous primitives (`encryptFieldValueSync`, `decryptFieldValueSync`).

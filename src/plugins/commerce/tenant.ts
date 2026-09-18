@@ -13,7 +13,7 @@
 
 import type { DatabaseId } from "@src/content/types";
 import { raise } from "@utils/error-handling";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 
 /** Resolve the tenant for commerce I/O. Never trusts client input. */
 export function requireCommerceTenantId(

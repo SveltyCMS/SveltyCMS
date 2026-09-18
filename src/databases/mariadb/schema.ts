@@ -83,6 +83,8 @@ export const authSessions = mysqlTable(
     userAgent: varchar("userAgent", { length: 500 }),
     deviceId: varchar("deviceId", { length: 64 }),
     ipAddress: varchar("ipAddress", { length: 64 }),
+    amr: json("amr").$type<string[]>(),
+    mfaVerifiedAt: datetime("mfaVerifiedAt", { fsp: 3 }),
     ...timestamps,
   },
   (table) => ({

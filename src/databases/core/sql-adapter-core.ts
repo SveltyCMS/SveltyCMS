@@ -1367,7 +1367,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         ? this.count(collection, query, {
             tenantId: options.tenantId,
             systemScope: options.systemScope,
-            bypassTenantCheck: options.bypassTenantCheck,
             includeDeleted: options.includeDeleted,
             bypassSafeQuery: options.bypassSafeQuery,
             skipMeta: true,

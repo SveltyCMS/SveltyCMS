@@ -24,22 +24,47 @@ vi.mock("@utils/test-bypass.server", () => ({
   timingSafeEqual: (a: string, b: string) => a === b,
 }));
 
-vi.mock("@utils/system-monitor", () => ({
-  getPressureMultiplier: vi.fn(() => 1),
+vi.mock("@utils/rate-limit/redis-client", () => ({
+  RedisRateLimitStore: class {
+    isAvailable() {
+      return false;
+    }
+    async connect() {}
+    async close() {}
+    async checkAndConsume() {
+      throw new Error("redis down (test)");
+    }
+    getStatus() {
+      return "unavailable";
+    }
+  },
+}));
+
+vi.mock("@utils/rate-limit/system-pressure", () => ({
+  getPressureScale: vi.fn(() => 1),
   shouldRejectMutations: vi.fn(() => false),
-  startSystemMonitor: vi.fn(),
+  startPressureMonitor: vi.fn(),
+  getPressureScore: vi.fn(() => 0),
+  describePressure: vi.fn(() => "monitor_off"),
+  hostLoadScore: vi.fn(() => null),
+  stopPressureMonitor: vi.fn(),
 }));
 
 // The tenant aggregate bucket only exists when multi-tenancy is enabled —
 // single-tenant deployments skip it entirely (a shared "global" bucket was a
 // site-wide 429 DoS vector). The tenant-cap test exercises the MT path.
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn(() => true),
   getTenantIdFromHostname: vi.fn(() => "tenant-test"),
 }));
 
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn(() => true),
+  resetMultiTenantCache: vi.fn(),
+}));
+
 import { handleRateLimit, resetRateLimitBuckets, RateLimiter } from "@src/hooks/handle-rate-limit";
-import { getPressureMultiplier, shouldRejectMutations } from "@utils/system-monitor";
+import { getPressureScale, shouldRejectMutations } from "@utils/rate-limit/system-pressure";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { createMockEvent, mockResolve } from "./test-utils";
 
 const REMOTE_IP = "203.0.113.7";
@@ -56,8 +81,9 @@ describe("handleRateLimit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockResolve.mockClear();
-    vi.mocked(getPressureMultiplier).mockReturnValue(1);
+    vi.mocked(getPressureScale).mockReturnValue(1);
     vi.mocked(shouldRejectMutations).mockReturnValue(false);
+    vi.mocked(isMultiTenantEnabled).mockReturnValue(true);
     resetRateLimitBuckets();
   });
 
@@ -122,7 +148,7 @@ describe("handleRateLimit", () => {
   });
 
   it("returns JSON 429 with RATE_LIMITED code for /api/* when the IP cap is exceeded", async () => {
-    vi.mocked(getPressureMultiplier).mockReturnValue(1000); // cost 1000 → 2 requests exceed cap 1000
+    vi.mocked(getPressureScale).mockReturnValue(0.001); // capacity 1 → 2nd request 429s
     const first = await handleRateLimit({
       event: postEvent("/api/foo"),
       resolve: mockResolve as any,
@@ -143,7 +169,7 @@ describe("handleRateLimit", () => {
   });
 
   it("returns an HTML 429 for browser requests (non-API path, HTML Accept)", async () => {
-    vi.mocked(getPressureMultiplier).mockReturnValue(1000);
+    vi.mocked(getPressureScale).mockReturnValue(0.001);
     const path = "/admin/foo";
     await handleRateLimit({ event: postEvent(path), resolve: mockResolve as any });
     const second = await handleRateLimit({
@@ -155,7 +181,8 @@ describe("handleRateLimit", () => {
   });
 
   it("tracks buckets per-IP independently (XFF does not split a real client)", async () => {
-    vi.mocked(getPressureMultiplier).mockReturnValue(1000);
+    vi.mocked(isMultiTenantEnabled).mockReturnValue(false);
+    vi.mocked(getPressureScale).mockReturnValue(0.001);
     // Two requests from the same real IP (regardless of XFF header) share a bucket
     const a1 = await handleRateLimit({
       event: postEvent("/api/foo", { headers: { "x-forwarded-for": "1.2.3.4" } }),
@@ -177,7 +204,7 @@ describe("handleRateLimit", () => {
   });
 
   it("enforces the aggregate tenant cap across distinct IPs", async () => {
-    vi.mocked(getPressureMultiplier).mockReturnValue(1000); // tenant cap 10000 → 11th request 429s
+    vi.mocked(getPressureScale).mockReturnValue(0.001); // tenant cap 10000 → 11th request 429s
     let last: Response | null = null;
     for (let i = 0; i < 11; i++) {
       last = await handleRateLimit({
@@ -242,7 +269,7 @@ describe("handleRateLimit", () => {
   });
 
   it("does not spend the commerce lane when the default API bucket is exhausted", async () => {
-    vi.mocked(getPressureMultiplier).mockReturnValue(1000);
+    vi.mocked(getPressureScale).mockReturnValue(0.001);
     await handleRateLimit({
       event: postEvent("/api/foo"),
       resolve: mockResolve as any,
@@ -254,7 +281,7 @@ describe("handleRateLimit", () => {
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get("X-RateLimit-Lane")).toBe("default");
 
-    vi.mocked(getPressureMultiplier).mockReturnValue(1);
+    vi.mocked(getPressureScale).mockReturnValue(1);
     const cart = await handleRateLimit({
       event: postEvent("/api/commerce/cart"),
       resolve: mockResolve as any,
@@ -367,48 +394,11 @@ describe("Token-Bucket Algorithm, Adaptive Throttling & Redis Fallback", () => {
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("1999");
   });
 
-  it("falls back to local in-memory Token Bucket when Redis throws or disconnects", async () => {
-    const { cacheService } = await import("@src/databases/cache/cache-service");
-    const originalGetRedis = (cacheService as any).getRedisClient;
-
-    // Simulate failing Redis
-    (cacheService as any).getRedisClient = () => ({
-      isOpen: true,
-      eval: vi.fn().mockRejectedValue(new Error("ECONNREFUSED - Redis cluster unavailable")),
-    });
-
-    try {
-      const event = postEvent("/api/test-redis-fallback");
-      const res = await handleRateLimit({ event, resolve: mockResolve as any });
-      // Should not throw, but gracefully degrade to local memory
-      expect(res.status).toBe(200);
-      expect(res.headers.get("X-RateLimit-Limit")).toBe("1000");
-      expect(res.headers.get("X-RateLimit-Remaining")).toBe("999");
-    } finally {
-      (cacheService as any).getRedisClient = originalGetRedis;
-      resetRateLimitBuckets();
-    }
-  });
-
-  it("correctly routes through Redis token-bucket when Redis is available", async () => {
-    const { cacheService } = await import("@src/databases/cache/cache-service");
-    const originalGetRedis = (cacheService as any).getRedisClient;
-
-    const mockEval = vi.fn().mockResolvedValue([1, 950, 0]);
-    (cacheService as any).getRedisClient = () => ({
-      isOpen: true,
-      eval: mockEval,
-    });
-
-    try {
-      const event = postEvent("/api/test-redis-primary");
-      const res = await handleRateLimit({ event, resolve: mockResolve as any });
-      expect(res.status).toBe(200);
-      expect(mockEval).toHaveBeenCalled();
-      expect(res.headers.get("X-RateLimit-Remaining")).toBe("950");
-    } finally {
-      (cacheService as any).getRedisClient = originalGetRedis;
-      resetRateLimitBuckets();
-    }
+  it("falls back to local in-memory Token Bucket when Redis is unavailable", async () => {
+    const event = postEvent("/api/test-redis-fallback");
+    const res = await handleRateLimit({ event, resolve: mockResolve as any });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("X-RateLimit-Limit")).toBe("1000");
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("999");
   });
 });

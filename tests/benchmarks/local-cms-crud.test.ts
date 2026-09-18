@@ -18,6 +18,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import type { DatabaseId } from "@src/content/types";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const COLLECTION = "BenchmarkStable";
 const TENANT = "global" as unknown as DatabaseId;
@@ -339,7 +340,7 @@ async function runLocalCmsCrudBenchmark() {
   } finally {
     // Post-benchmark collection cleanup
     await db.crud
-      .deleteMany(COLLECTION, {}, { bypassTenantCheck: true, permanent: true })
+      .deleteMany(COLLECTION, {}, withSystemScope("benchmark", { permanent: true }))
       .catch(() => {});
   }
 }

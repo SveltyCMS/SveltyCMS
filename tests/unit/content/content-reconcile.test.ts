@@ -423,9 +423,9 @@ describe("contentSystemBase (shared API)", () => {
     const { contentSystemBase } = await import("../../../src/content/index");
 
     expect(contentSystemBase.collections).toBeDefined();
-    expect(typeof contentSystemBase.collections.getAll).toBe("function");
-    expect(typeof contentSystemBase.collections.get).toBe("function");
     expect(typeof contentSystemBase.collections.getSmartFirst).toBe("function");
+    expect(typeof contentSystemBase.getCollections).toBe("function");
+    expect(typeof contentSystemBase.getCollection).toBe("function");
   });
 
   it("exposes navigation and metrics", async () => {

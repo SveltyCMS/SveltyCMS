@@ -317,36 +317,84 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
       let poolConfig: any;
 
+      const { detectMysqlSocketPath, preferIpv4Loopback } = await import("../db-local-socket");
+
       if (typeof finalConnection === "string") {
         const hw = getHardwareProfile();
-        poolConfig = {
-          uri: finalConnection,
-          connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || hw.dbPoolSize,
-          connectTimeout: 30000,
-          maxIdle: Math.max(hw.dbPoolMin, 2),
-          idleTimeout: 60000,
-          charset: "utf8mb4",
-        };
+        let hostname = "127.0.0.1";
+        try {
+          hostname = new URL(finalConnection).hostname;
+        } catch {
+          /* uri parse optional */
+        }
+        const socketPath = detectMysqlSocketPath(hostname);
+        poolConfig = socketPath
+          ? {
+              socketPath,
+              user: new URL(finalConnection).username || "root",
+              password: decodeURIComponent(new URL(finalConnection).password || ""),
+              database: new URL(finalConnection).pathname.slice(1),
+              connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || hw.dbPoolSize,
+              connectTimeout: 30000,
+              maxIdle: Math.max(hw.dbPoolMin, 2),
+              idleTimeout: 60000,
+              charset: "utf8mb4",
+              enableKeepAlive: true,
+              keepAliveInitialDelay: 0,
+              maxPreparedStatements: Number(process.env.MARIADB_MAX_PREPARED || 2000),
+            }
+          : {
+              uri: finalConnection.replace("@localhost:", "@127.0.0.1:"),
+              connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || hw.dbPoolSize,
+              connectTimeout: 30000,
+              maxIdle: Math.max(hw.dbPoolMin, 2),
+              idleTimeout: 60000,
+              charset: "utf8mb4",
+              enableKeepAlive: true,
+              keepAliveInitialDelay: 0,
+              maxPreparedStatements: Number(process.env.MARIADB_MAX_PREPARED || 2000),
+            };
       } else {
         const c = (finalConnection || {}) as any;
-        poolConfig = {
-          host: c.host || c.DB_HOST || "127.0.0.1",
-          port: Number(c.port || c.DB_PORT || 3306),
-          user: c.user || c.DB_USER || "root",
-          password: c.password || c.DB_PASSWORD || "",
-          database: c.database || c.DB_NAME,
-          connectionLimit:
-            Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
-            getHardwareProfile().dbPoolSize,
-          connectTimeout: 30000,
-          waitForConnections: true,
-          maxIdle: Math.max(getHardwareProfile().dbPoolMin, 2),
-          idleTimeout: 60000,
-          queueLimit: 0,
-          enableKeepAlive: true,
-          charset: "utf8mb4",
-          keepAliveInitialDelay: 0,
-        };
+        const rawHost = c.host || c.DB_HOST || "127.0.0.1";
+        const socketPath = detectMysqlSocketPath(rawHost);
+        poolConfig = socketPath
+          ? {
+              socketPath,
+              user: c.user || c.DB_USER || "root",
+              password: c.password || c.DB_PASSWORD || "",
+              database: c.database || c.DB_NAME,
+              connectionLimit:
+                Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
+                getHardwareProfile().dbPoolSize,
+              connectTimeout: 30000,
+              waitForConnections: true,
+              maxIdle: Math.max(getHardwareProfile().dbPoolMin, 2),
+              idleTimeout: 60000,
+              queueLimit: 0,
+              enableKeepAlive: true,
+              charset: "utf8mb4",
+              keepAliveInitialDelay: 0,
+              maxPreparedStatements: Number(process.env.MARIADB_MAX_PREPARED || 2000),
+            }
+          : {
+              host: preferIpv4Loopback(String(rawHost)),
+              port: Number(c.port || c.DB_PORT || 3306),
+              user: c.user || c.DB_USER || "root",
+              password: c.password || c.DB_PASSWORD || "",
+              database: c.database || c.DB_NAME,
+              connectionLimit:
+                Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
+                getHardwareProfile().dbPoolSize,
+              connectTimeout: 30000,
+              waitForConnections: true,
+              maxIdle: Math.max(getHardwareProfile().dbPoolMin, 2),
+              idleTimeout: 60000,
+              queueLimit: 0,
+              enableKeepAlive: true,
+              charset: "utf8mb4",
+              keepAliveInitialDelay: 0,
+            };
       }
 
       this.pool = mysql.createPool(poolConfig);

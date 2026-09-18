@@ -20,7 +20,12 @@
  */
 
 import { logger } from "@utils/logger";
-import { computeAdaptiveBucket, type AdaptiveContext, type BaseRateLimitConfig } from "./adaptive";
+import {
+  computeAdaptiveBucket,
+  resolveUserTier,
+  type AdaptiveContext,
+  type BaseRateLimitConfig,
+} from "./adaptive";
 import { loadBaseRateLimitConfig, loadRedisPingMs } from "./config";
 import { MemoryRateLimitStore } from "./memory-store";
 import { RedisRateLimitStore } from "./redis-client";
@@ -32,6 +37,7 @@ import {
 } from "./system-pressure";
 import { recordRequest, getPredictedPressure, describeRequestClock } from "./request-clock";
 import { getEndpointCost, listEndpointCosts } from "./endpoint-cost";
+import { velocityCostMultiplier } from "./request-velocity";
 
 export type RateLimitScope = "redis" | "memory";
 
@@ -62,6 +68,8 @@ export interface RateLimitOptions {
    * Wird ignoriert wenn `cost` explizit gesetzt ist.
    */
   pathname?: string;
+  /** Skip histogram record (second consume on the same request). */
+  record?: boolean;
 }
 
 // ─── Status: Ist Redis aktuell aktiv? (fuer Health/Metriken) ─────────────
@@ -118,11 +126,17 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
   const context = options.context ?? {};
   const namespace = options.namespace ?? "api";
 
-  // C. Cost-Aware: expliziter cost gewinnt, sonst Pfad-basierte Ermittlung.
-  const cost = options.cost ?? (options.pathname ? getEndpointCost(options.pathname) : 1);
+  // C. Cost-Aware: explicit cost wins, else pathname map. Observation-zone
+  // extra applies only when cost was derived (never overwrite a caller override).
+  const derived = options.pathname ? getEndpointCost(options.pathname) : 1;
+  let cost = options.cost ?? derived;
+  if (options.cost === undefined && resolveUserTier(context) !== "admin") {
+    cost *= velocityCostMultiplier(namespace, Date.now());
+  }
 
-  // B. Predictive Throttling: Request in Zeitreihe eintragen.
-  recordRequest(Date.now());
+  if (options.record !== false) {
+    recordRequest(Date.now());
+  }
 
   const bucket = computeAdaptiveBucket(base, context);
   const key = buildBucketKey(namespace, context, String(cost));

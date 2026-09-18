@@ -99,13 +99,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     if (isUUID) {
       // Direct UUID lookup
       logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
-      currentCollection = contentSystem.getCollectionById(collection!, tenantId);
+      currentCollection = contentSystem.getCollection(collection!, tenantId);
 
       // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
       if (!currentCollection) {
         logger.warn(`Collection UUID ${collection} not found. Triggeringcontent-managerrefresh...`);
         await contentSystem.refresh(tenantId);
-        currentCollection = contentSystem.getCollectionById(collection!, tenantId);
+        currentCollection = contentSystem.getCollection(collection!, tenantId);
       }
 
       // Redirect to pretty path if available (Prevents UUID -> Path flicker on client)

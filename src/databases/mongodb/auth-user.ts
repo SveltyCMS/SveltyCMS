@@ -123,7 +123,7 @@ export class UserAdapter {
 
       // safeQuery used for validation side-effects as per documentation requirement
       safeQuery({}, userData.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
+        systemScope: options.systemScope,
         includeDeleted: true,
       });
 
@@ -194,7 +194,7 @@ export class UserAdapter {
       }
 
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
+        systemScope: options.systemScope,
         bypassSafeQuery: options.bypassSafeQuery,
         includeDeleted: true,
       });
@@ -228,7 +228,7 @@ export class UserAdapter {
   ): Promise<DatabaseResult<User[]>> {
     try {
       const filter = safeQuery({}, dbOptions.tenantId as string, {
-        bypassTenantCheck: dbOptions.bypassTenantCheck,
+        systemScope: dbOptions.systemScope,
         bypassSafeQuery: dbOptions.bypassSafeQuery,
         includeDeleted: true,
       });
@@ -272,7 +272,7 @@ export class UserAdapter {
   ): Promise<DatabaseResult<number>> {
     try {
       const safeFilter = safeQuery(filter, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
+        systemScope: options.systemScope,
         bypassSafeQuery: options.bypassSafeQuery,
         includeDeleted: true,
       });
@@ -366,7 +366,7 @@ export class UserAdapter {
   ): Promise<DatabaseResult<void>> {
     try {
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
+        systemScope: options.systemScope,
         bypassSafeQuery: options.bypassSafeQuery,
         includeDeleted: true,
       });
@@ -421,7 +421,7 @@ export class UserAdapter {
   ): Promise<DatabaseResult<User | null>> {
     try {
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
+        systemScope: options.systemScope,
         bypassSafeQuery: options.bypassSafeQuery,
         includeDeleted: true,
       });
@@ -447,7 +447,7 @@ export class UserAdapter {
         { email: normalizeEmail(criteria.email) } as any,
         criteria.tenantId as string,
         {
-          bypassTenantCheck: options.bypassTenantCheck,
+          systemScope: options.systemScope,
           bypassSafeQuery: options.bypassSafeQuery,
           includeDeleted: true,
         },

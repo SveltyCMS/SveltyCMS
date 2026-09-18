@@ -134,12 +134,13 @@ function jsonCol(): Partial<Record<Dialect, string>> {
   return { sqlite: "TEXT", postgresql: "JSONB", mariadb: "JSON" };
 }
 
-/** Timestamp: INTEGER ms epoch (sqlite) vs TIMESTAMP WITH TIME ZONE vs DATETIME. */
-function tsCol(): Partial<Record<Dialect, string>> {
+/** Timestamp: INTEGER ms epoch (sqlite) vs TIMESTAMP WITH TIME ZONE vs DATETIME.
+ *  `fsp` keeps sub-second precision on MariaDB (plain DATETIME truncates to seconds). */
+function tsCol(fsp?: number): Partial<Record<Dialect, string>> {
   return {
     sqlite: "INTEGER",
     postgresql: "TIMESTAMP WITH TIME ZONE",
-    mariadb: "DATETIME",
+    mariadb: fsp === undefined ? "DATETIME" : `DATETIME(${fsp})`,
   };
 }
 
@@ -295,6 +296,9 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "userAgent", type: varchar(500) },
       { name: "deviceId", type: varchar(64) },
       { name: "ipAddress", type: varchar(64) },
+      // Authentication Method References (["pwd", "mfa"]) + when MFA was proven for this session
+      { name: "amr", type: jsonCol() },
+      { name: "mfaVerifiedAt", type: tsCol(3) },
       ...timestamps(),
     ],
     indexes: [

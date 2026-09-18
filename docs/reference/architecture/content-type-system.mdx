@@ -57,7 +57,7 @@ Autocomplete for collection names and validation for field types.
 ```typescript
 import type { ContentTypes } from "@src/content/types";
 function getCollection(name: ContentTypes) {
-  return contentSystem.collections.get(name);
+  return contentSystem.getCollection(name);
 }
 ```
 

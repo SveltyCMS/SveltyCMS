@@ -18,6 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const TEST_COLLECTION = "find_page_count_contract";
 const TEST_TENANT = "fpc-tenant";
@@ -56,7 +57,7 @@ beforeAll(async () => {
 
   // Clean slate then seed a known page size (+1 for hasMore)
   await db.crud
-    .deleteMany(TEST_COLLECTION, {}, { bypassTenantCheck: true, permanent: true })
+    .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
     .catch(() => {});
 
   for (let i = 0; i < 12; i++) {
@@ -77,7 +78,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(TEST_COLLECTION, {}, { bypassTenantCheck: true, permanent: true })
+      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
       .catch(() => {});
   }
 });
@@ -186,7 +187,7 @@ describe("count mode contract", () => {
         mode: "estimate",
         bypassCache: true,
         skipMeta: true,
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
       },
     );
     validateDatabaseResult(result, { operation: "count estimate" });

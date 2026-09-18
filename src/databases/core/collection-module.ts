@@ -16,7 +16,7 @@ import { DatabaseModule } from "./base-adapter";
 import { assertSafeSqlIdentifier } from "./relational-utils";
 import { normalizeCollectionTableName } from "./collection-name";
 import { logger } from "@src/utils/logger";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 
 export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
   private get crud() {
@@ -199,7 +199,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
    */
   private applyStructureTenantFilter(
     filter: Record<string, unknown>,
-    tenantId?: DatabaseId | null,
+    tenantId?: string | null,
   ): void {
     const isMultiTenant = isMultiTenantEnabled() || process.env.MULTI_TENANT === "true";
     if (isMultiTenant && tenantId) filter.tenantId = tenantId;

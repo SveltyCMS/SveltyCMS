@@ -8,10 +8,12 @@
  * - Tracking Usage (incrementing counters)
  * - Managing Tenant Lifecycle (suspend/activate)
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import type { Tenant, TenantQuota } from "@src/databases/db-interface";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { seedTenantPlan } from "@utils/rate-limit/tenant-plan";
 
 // Default quotas for new tenants
 const DEFAULT_QUOTAS: TenantQuota = {
@@ -69,6 +71,7 @@ export class TenantService {
       }
 
       logger.info(`New Tenant created: ${name} (${result.data._id}) for owner ${ownerId}`);
+      seedTenantPlan(String(result.data._id), result.data.plan);
       return result.data;
     } catch (err) {
       logger.error("Failed to create tenant", err);
@@ -87,7 +90,7 @@ export class TenantService {
 
     try {
       // Execute a cascade delete of all data matching this tenant ID via CRUD layer
-      const options = { bypassTenantCheck: true };
+      const options = withSystemScope("bootstrap");
 
       const tablesToDelete = [
         "auth_users",
@@ -143,6 +146,7 @@ export class TenantService {
     if (!result.success) {
       return null;
     }
+    if (result.data) seedTenantPlan(String(result.data._id), result.data.plan);
     return result.data;
   }
 

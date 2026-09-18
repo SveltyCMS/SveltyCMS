@@ -16,15 +16,20 @@
  *   ALE       — encrypted write (AES-256-GCM over the `email` field)
  */
 import { sql } from "drizzle-orm";
+import type { DatabaseId } from "@src/content/types";
 import { performance } from "node:perf_hooks";
 import { test, describe, expect } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { encryptDocumentFields } from "@utils/security/field-encryption";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import fs from "node:fs";
 import path from "node:path";
 
 const COLLECTION_ID = "ale_bench";
-const TEST_TENANT = "global";
+const TEST_TENANT = "global" as DatabaseId;
+
+/** Raw-SQL escape hatch used only to reset the benchmark table (best-effort). */
+type RawSqlExecutor = { execute: (query: unknown) => Promise<unknown> };
 const WRITES = 1000;
 const RUNS = 3;
 const WARMUP = 100;
@@ -67,12 +72,17 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
     if (typeof db.crud?.insert !== "function") throw new Error("crud.insert missing");
+    // Narrowed alias: TS does not carry `db`'s non-null narrowing into the nested
+    // closures below (measureScenario / warm-up loop).
+    const adapter = db;
 
     // ── Prepare collection ────────────────────────────────────────────────
     if (db.collection?.createModel) {
       const q = db.type === "mariadb" || db.type === "mysql" ? "`" : '"';
       try {
-        await db.execute(sql.raw(`DROP TABLE IF EXISTS ${q}collection_${COLLECTION_ID}${q}`));
+        await (db as unknown as RawSqlExecutor).execute(
+          sql.raw(`DROP TABLE IF EXISTS ${q}collection_${COLLECTION_ID}${q}`),
+        );
       } catch {}
       await db.collection
         .createModel({
@@ -87,10 +97,14 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
         .catch(() => {});
     }
     try {
-      await db.crud.deleteMany(COLLECTION_ID, {}, { bypassTenantCheck: true, permanent: true });
+      await db.crud.deleteMany(
+        COLLECTION_ID,
+        {},
+        withSystemScope("benchmark", { permanent: true }),
+      );
     } catch {}
     await db.crud
-      .deleteMany(COLLECTION_ID, {}, { bypassTenantCheck: true, permanent: true })
+      .deleteMany(COLLECTION_ID, {}, withSystemScope("benchmark", { permanent: true }))
       .catch(() => {});
 
     const opts = { bypassCache: true, tenantId: TEST_TENANT };
@@ -116,7 +130,7 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
             tenantId: TEST_TENANT,
           });
         }
-        await db.crud.insert(COLLECTION_ID, doc, opts);
+        await adapter.crud.insert(COLLECTION_ID, doc, opts);
       }
       const cpuBefore = process.cpuUsage();
       const clockStart = performance.now();
@@ -129,7 +143,7 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
             tenantId: TEST_TENANT,
           });
         }
-        await db.crud.insert(COLLECTION_ID, doc, opts);
+        await adapter.crud.insert(COLLECTION_ID, doc, opts);
         times.push(performance.now() - t0);
       }
       const clockEnd = performance.now();
@@ -175,6 +189,36 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
     const baselines = runResults.map((r) => r.baseline);
     const ales = runResults.map((r) => r.ale);
 
+    const baselineAgg = {
+      avgMs: avgOf("avgMs", baselines),
+      p50Ms: avgOf("p50Ms", baselines),
+      p95Ms: avgOf("p95Ms", baselines),
+      minMs: avgOf("minMs", baselines),
+      maxMs: avgOf("maxMs", baselines),
+      writesPerSec: avgOf("writesPerSec", baselines),
+      cpuPercent: avgOf("cpuPercent", baselines),
+    };
+    const aleAgg = {
+      avgMs: avgOf("avgMs", ales),
+      p50Ms: avgOf("p50Ms", ales),
+      p95Ms: avgOf("p95Ms", ales),
+      minMs: avgOf("minMs", ales),
+      maxMs: avgOf("maxMs", ales),
+      writesPerSec: avgOf("writesPerSec", ales),
+      cpuPercent: avgOf("cpuPercent", ales),
+    };
+    const overheadAgg = {
+      avgLatencyDeltaMs: aleAgg.avgMs - baselineAgg.avgMs,
+      avgLatencyPercent:
+        ((aleAgg.avgMs - baselineAgg.avgMs) / Math.max(baselineAgg.avgMs, 0.0001)) * 100,
+      throughputDropWritesSec: aleAgg.writesPerSec - baselineAgg.writesPerSec,
+      throughputDropPercent:
+        ((aleAgg.writesPerSec - baselineAgg.writesPerSec) /
+          Math.max(baselineAgg.writesPerSec, 0.0001)) *
+        100,
+      cpuDeltaPercent: aleAgg.cpuPercent - baselineAgg.cpuPercent,
+    };
+
     const report = {
       project: "SveltyCMS",
       benchmark: "ALE (Application-Layer Encryption) field-at-rest performance impact",
@@ -185,38 +229,8 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
       warmup: WARMUP,
       fields: ENCRYPTED_FIELDS,
       dbType: db.type,
-      aggregate: {
-        baseline: {
-          avgMs: avgOf("avgMs", baselines),
-          p50Ms: avgOf("p50Ms", baselines),
-          p95Ms: avgOf("p95Ms", baselines),
-          minMs: avgOf("minMs", baselines),
-          maxMs: avgOf("maxMs", baselines),
-          writesPerSec: avgOf("writesPerSec", baselines),
-          cpuPercent: avgOf("cpuPercent", baselines),
-        },
-        ale: {
-          avgMs: avgOf("avgMs", ales),
-          p50Ms: avgOf("p50Ms", ales),
-          p95Ms: avgOf("p95Ms", ales),
-          minMs: avgOf("minMs", ales),
-          maxMs: avgOf("maxMs", ales),
-          writesPerSec: avgOf("writesPerSec", ales),
-          cpuPercent: avgOf("cpuPercent", ales),
-        },
-      },
+      aggregate: { baseline: baselineAgg, ale: aleAgg, overhead: overheadAgg },
       runDetails: runResults,
-    };
-
-    const base = report.aggregate.baseline;
-    const enc = report.aggregate.ale;
-    report.aggregate.overhead = {
-      avgLatencyDeltaMs: enc.avgMs - base.avgMs,
-      avgLatencyPercent: ((enc.avgMs - base.avgMs) / Math.max(base.avgMs, 0.0001)) * 100,
-      throughputDropWritesSec: enc.writesPerSec - base.writesPerSec,
-      throughputDropPercent:
-        ((enc.writesPerSec - base.writesPerSec) / Math.max(base.writesPerSec, 0.0001)) * 100,
-      cpuDeltaPercent: enc.cpuPercent - base.cpuPercent,
     };
 
     const reportPath = path.resolve("tests/benchmarks/results/ale-encryption-performance.json");

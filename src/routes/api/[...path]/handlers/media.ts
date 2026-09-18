@@ -18,7 +18,7 @@ import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import {
   createLink,
   validateLink,

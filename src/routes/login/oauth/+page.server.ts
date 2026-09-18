@@ -272,7 +272,7 @@ async function handleGoogleUser(
       // Send welcome email for new admin
       await sendWelcomeEmail(fetchFn, email, googleUser.name || "", request);
     } else {
-      const { isMultiTenantEnabled } = await import("@utils/tenant");
+      const { isMultiTenantEnabled } = await import("@utils/tenant-isolation.server");
       const isOpenSignup = isMultiTenantEnabled() && Boolean(getPrivateSettingSync("DEMO"));
 
       // For non-first users, validate the invite token (unless open signup demo mode is active)

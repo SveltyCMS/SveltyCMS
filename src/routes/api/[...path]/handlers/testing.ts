@@ -2,6 +2,7 @@
  * @file src/routes/api/[...path]/handlers/testing.ts
  * @description State-management handler for integration testing (Reset, Seed, Reinitialize).
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
@@ -802,7 +803,7 @@ export async function handleTestingRoutes(
       let seeded = 0;
       const insertOpts = {
         tenantId,
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
         skipReturning: true,
       };
 
@@ -882,7 +883,7 @@ export async function handleTestingRoutes(
 
       const result = await initializedAdapter.crud.insert(collectionId, data, {
         tenantId,
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
       });
 
       // Role writes via the testing API must invalidate the permission cache —
@@ -919,7 +920,7 @@ export async function handleTestingRoutes(
 
       const result = await initializedAdapter.crud.update(collectionId, id, data, {
         tenantId,
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
       });
 
       // Role mutations via the testing API bypass AuthNamespace.updateRoles (which
@@ -956,7 +957,7 @@ export async function handleTestingRoutes(
 
       const result = await initializedAdapter.crud.delete(collectionId, id, {
         tenantId,
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
         permanent: true,
       });
 
@@ -1219,7 +1220,7 @@ export async function handleTestingRoutes(
             emailVerified: true,
             tenantId: tenantId || "global",
           } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
 
         for (let i = 0; i < 3; i++) {
@@ -1231,7 +1232,7 @@ export async function handleTestingRoutes(
               action: "login",
               tenantId: tenantId || "global",
             } as any,
-            { bypassTenantCheck: true },
+            withSystemScope("bootstrap"),
           );
         }
 
@@ -1243,7 +1244,7 @@ export async function handleTestingRoutes(
             expires_at: new Date(Date.now() + 86400000).toISOString(),
             tenantId: tenantId || "global",
           } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
 
         await cms.db.crud.create(
@@ -1254,7 +1255,7 @@ export async function handleTestingRoutes(
             token: `tok_val_${targetUserId}`,
             tenantId: tenantId || "global",
           } as any,
-          { bypassTenantCheck: true },
+          withSystemScope("bootstrap"),
         );
 
         return rawResponse({ success: true, userId: targetUserId });
@@ -1268,15 +1269,15 @@ export async function handleTestingRoutes(
       if (!userId) throw new AppError("userId required", 400);
 
       const [userRes, auditRes, sessRes, tokenRes] = await Promise.all([
-        cms.db.crud.findOne("auth_users", { _id: userId } as any, { bypassTenantCheck: true }),
+        cms.db.crud.findOne("auth_users", { _id: userId } as any, withSystemScope("bootstrap")),
         cms.db.crud.findMany("audit_logs", { actorId: userId } as any, {
-          bypassTenantCheck: true,
+          ...withSystemScope("testing"),
         }),
         cms.db.crud.findMany("auth_sessions", { user_id: userId } as any, {
-          bypassTenantCheck: true,
+          ...withSystemScope("testing"),
         }),
         cms.db.crud.findMany("auth_tokens", { user_id: userId } as any, {
-          bypassTenantCheck: true,
+          ...withSystemScope("testing"),
         }),
       ]);
 
@@ -1523,7 +1524,7 @@ export async function handleTestingRoutes(
             "BenchmarkStable" as any,
             { _id: STABLE_ENTRY_ID } as any,
             stablePayload as any,
-            { tenantId, bypassTenantCheck: true } as any,
+            { tenantId, ...withSystemScope("testing") } as any,
           )
           .then(async (res) => {
             if (!res.success) {

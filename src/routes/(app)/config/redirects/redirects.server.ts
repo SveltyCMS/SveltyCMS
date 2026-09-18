@@ -79,7 +79,7 @@ async function mirrorContentCollection(
     };
     if (mode === "delete") {
       if (payload.id) {
-        // Mirror is best-effort; stay tenant-scoped (no bypassTenantCheck — tenant lint)
+        // Mirror is best-effort; stay tenant-scoped (no withSystemScope — tenant lint)
         await cms.collections.delete("redirects", payload.id, apiOpts as any);
       }
       return;

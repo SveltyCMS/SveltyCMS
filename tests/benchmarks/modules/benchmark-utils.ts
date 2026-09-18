@@ -12,6 +12,7 @@ import { pushTableToMdx, appendSummaryToMdx } from "./benchmark-reporting";
 import { logger } from "@utils/logger";
 import { takeProfileSpans } from "@src/utils/write-profiler";
 import type { DatabaseId } from "@src/content/types";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 // 🟢 ESM require shim: package.json is "type": "module", so raw require()
 // throws ReferenceError under Node/vitest — only Bun provided it. createRequire
@@ -1147,7 +1148,7 @@ export async function seedThroughputDocs(
     });
     await (db as any).crud.insertMany(collectionId, docs, {
       tenantId,
-      bypassTenantCheck: true,
+      ...withSystemScope("benchmark"),
       skipReturning: true,
     });
   }
@@ -1195,7 +1196,7 @@ export async function seedBenchmarkState(): Promise<void> {
   // The lookup scope mirrors the login EXACTLY (no tenant filter, oldest
   // first), so the row we update IS the row login reads.
   const email = "admin@example.com";
-  const canonicalOpts = { bypassTenantCheck: true, tenantId: null } as any;
+  const canonicalOpts = withSystemScope("benchmark", { tenantId: null });
   const existing = await cms.auth.getUserByEmail(email, canonicalOpts);
   if (existing?.success && existing?.data) {
     await cms.auth.updateUserAttributes(
@@ -1428,7 +1429,7 @@ export async function seedBenchmarkState(): Promise<void> {
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-"),
         } as any,
-        { tenantId, bypassTenantCheck: true },
+        withSystemScope("benchmark", { tenantId }),
       );
     } catch (err: any) {
       logger.warn(`[BenchSeed] content_nodes upsert failed for ${schema._id}: ${err.message}`);
@@ -1476,7 +1477,7 @@ export async function seedBenchmarkState(): Promise<void> {
       "BenchmarkStable",
       { _id: STABLE_ENTRY_ID },
       stablePayload,
-      { tenantId, bypassTenantCheck: true },
+      withSystemScope("benchmark", { tenantId }),
     );
     if (!res?.success) {
       await cms.collections.create("BenchmarkStable", stablePayload, {

@@ -226,7 +226,7 @@ SveltyCMS treats website tokens and `sck_` API keys as **credentials**, not user
 ### MongoDB-specific notes
 
 - Mongoose `strict: true` requires every persisted field to be declared on the schema. Undeclared fields (e.g. `tenantId`) are silently stripped on insert and break tenant-scoped list queries.
-- Credential lookup without request tenant context uses `bypassTenantCheck` only (not `bypassSafeQuery`), so `safeQuery` still applies soft-delete boundaries.
+- Credential lookup without request tenant context uses branded `withSystemScope(reason)` only (not `bypassSafeQuery`), so `safeQuery` still applies soft-delete boundaries.
 - Do **not** use `bypassSafeQuery` for routine website-token CRUD; it is reserved for other internal fast-paths documented in the MongoDB implementation guide.
 
 ### SQL migration note

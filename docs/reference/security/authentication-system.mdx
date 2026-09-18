@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-08-04"
+updated: "2026-09-18"
 tags:
   - "security"
   - "auth"
@@ -61,6 +61,23 @@ SveltyCMS employs dual-cookie architecture enforcing strict browser boundaries:
 - **`__Host-` Cookie Prefix (RFC 6265bis)**: In production HTTPS contexts, session and CSRF cookies use the `__Host-` prefix. This mandates `secure: true`, `path: "/"`, and forbids `domain` inheritance — guaranteeing subdomains cannot inject, overwrite, or hijack cookies.
 - **Cookie Invalidation Flag Parity**: When terminating sessions (`clearSessionCookies`), deletion calls match creation flags (`path: "/"`, `httpOnly: true`, `sameSite: "strict"`, `secure: true`) across all prefix variations (`__Host-`, `__Secure-`, plain), guaranteeing full browser cookie revocation.
 - **CSRF Token Rotation**: Mutating endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) require matching `X-CSRF-Token` headers and rotate the CSRF cookie upon successful execution to prevent token reuse. Safe read methods (`GET`, `HEAD`, `OPTIONS`) bypass CSRF checks entirely (0µs overhead).
+
+### Session Record (all engines)
+
+Every engine persists the same authoritative record — `auth_sessions` (Mongo: the sessions collection) carries:
+
+| Column                                 | Purpose                                                                                                         |
+| :------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `_id`                                  | 32-char CSPRNG session token, rotated on login and renewal.                                                     |
+| `user_id`                              | Owning user; all sessions are purged when the user is deleted.                                                  |
+| `expires`                              | Absolute expiry — the L0/L1 caches never outlive it.                                                            |
+| `tenantId`                             | Tenant scope: a session is valid only inside the tenant it was created for.                                     |
+| `userAgent` / `deviceId` / `ipAddress` | Device binding and the session listing in the admin UI.                                                         |
+| `amr`                                  | Authentication Method References (RFC 8176), e.g. `["pwd"]` or `["pwd","mfa"]` — drives the `mfaRequired` gate. |
+| `mfaVerifiedAt`                        | When the second factor was proven for this session; `null` until then.                                          |
+
+- **Cross-engine parity**: the columns are declared once in the system schema spec and materialised per adapter (Drizzle schemas plus boot legacy-tail `ALTER`s for existing databases, Mongo `SessionSchema`). MariaDB stores `mfaVerifiedAt` as `DATETIME(3)` so millisecond precision survives the round-trip; MariaDB also double-encodes JSON columns, so reads normalise `amr` through the shared `parseJsonField` boundary.
+- **Rotation carries the MFA proof**: `rotateToken` copies `amr`, `mfaVerifiedAt`, and the device metadata onto the new row — renewing a cookie never downgrades or silently upgrades the session's authentication strength.
 
 ### Multi-Tenancy 2.0
 

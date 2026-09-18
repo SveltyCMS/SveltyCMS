@@ -64,6 +64,7 @@
     "scripts/**/*.ts",
     "tests/**/*.ts",
     "vite.config.ts",
+    "vitest.config.ts",
     "path-aliases.ts",
     "playwright.config.ts"
   ],

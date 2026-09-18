@@ -19,6 +19,7 @@ import { LocalCMS } from "@src/services/sdk";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { toQueryOptions } from "@src/databases/policy";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -326,7 +327,7 @@ async function run() {
   } finally {
     // Clean up inserted test documents
     await db.crud
-      .deleteMany("SdkVsDirect", {}, { bypassTenantCheck: true, permanent: true })
+      .deleteMany("SdkVsDirect", {}, withSystemScope("benchmark", { permanent: true }))
       .catch(() => {});
     if (stopServer) {
       await stopServer().catch(() => {});

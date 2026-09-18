@@ -11,14 +11,15 @@
  * - Client IP via `getClientIp()` only (no X-Forwarded-For spoofing)
  */
 
-import v8 from "node:v8";
 import { metricsService } from "@src/services/observability/metrics-service";
+import { getHeapUsedRatio } from "@utils/heap-pressure";
 import { securityResponseService } from "@src/services/security/response-service";
 import { error } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
+import { getTenantIdFromHostname } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
 import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
@@ -148,19 +149,6 @@ async function calculateGraphqlComplexity(query: string): Promise<GraphqlComplex
   }
 }
 
-let _lastHeapRatio = 0;
-let _lastHeapCheck = 0;
-
-function getCachedHeapRatio(): number {
-  const now = Date.now();
-  if (now - _lastHeapCheck > 100) {
-    const heapStats = v8.getHeapStatistics();
-    _lastHeapRatio = heapStats.used_heap_size / heapStats.heap_size_limit;
-    _lastHeapCheck = now;
-  }
-  return _lastHeapRatio;
-}
-
 export const handleSecurity: Handle = async ({ event, resolve }) => {
   if ((event.locals as any).__testBypass) return resolve(event);
   const { request, url } = event;
@@ -179,7 +167,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   if (isLocal && IS_TEST_MODE && !forceSecurity) return resolve(event);
 
   // Load shedding: use cached v8 heap_size_limit ratio (100ms sample window)
-  const physicalLimitRatio = getCachedHeapRatio();
+  const physicalLimitRatio = getHeapUsedRatio();
   if (
     !IS_TEST_MODE &&
     physicalLimitRatio > 0.95 &&

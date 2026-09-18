@@ -61,8 +61,10 @@ describe("tenant isolation matrix (MULTI_TENANT on)", () => {
       ).toThrow(/Security Violation/);
     });
 
-    it("still allows legacy bypassTenantCheck during migration", () => {
-      expect(() => assertTenantContext({ bypassTenantCheck: true }, "system")).not.toThrow();
+    it("rejects forgeable bypassTenantCheck boolean", () => {
+      expect(() => assertTenantContext({ bypassTenantCheck: true } as any, "system")).toThrow(
+        /Security Violation/,
+      );
     });
   });
 

@@ -682,7 +682,6 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
             {
               limit,
               tenantId: options?.tenantId,
-              bypassTenantCheck: options?.bypassTenantCheck,
               systemScope: options?.systemScope,
             } as any,
           ),

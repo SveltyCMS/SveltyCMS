@@ -60,19 +60,18 @@ describe("Redis-Fallback (rateLimit API)", () => {
     expect(isRedisRateLimitActive()).toBe(false);
   });
 
-  it("setzt die adaptive Grenze durch (anonymous → 0.5x Kapazitaet)", async () => {
-    // base capacity 10, anonymous tier (kein user), tenant global → effektiv 5.
+  it("setzt die adaptive Grenze durch (anonymous → 1× Kapazitaet)", async () => {
     const decision = await rateLimit({
       context: { tenantId: "global" },
       base: NO_REFILL,
       namespace: "ip:203.0.113.2",
     });
-    expect(decision.remaining).toBeLessThanOrEqual(4); // 5 - 1 = 4 uebrig
+    expect(decision.remaining).toBe(9); // 10 - 1
   });
 
   it("verweigert ab Kapazitaetsueberschreitung mit retryAfterSeconds", async () => {
     let last;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 11; i++) {
       last = await rateLimit({
         context: { tenantId: "global" },
         base: NO_REFILL,
@@ -84,16 +83,15 @@ describe("Redis-Fallback (rateLimit API)", () => {
   });
 
   it("erlaubt unterschiedliche Buckets (namespace/tenant) unabhaengig", async () => {
-    // Gleiche Kapazitaet, aber unterschiedliche Namespaces → isolierte Buckets.
-    let limitedBucket: any;
-    for (let i = 0; i < 6; i++) {
+    let limitedBucket: { allowed: boolean } | undefined;
+    for (let i = 0; i < 11; i++) {
       limitedBucket = await rateLimit({
         context: { tenantId: "global" },
         base: NO_REFILL,
         namespace: "ip:203.0.113.4",
       });
     }
-    expect(limitedBucket.allowed).toBe(false);
+    expect(limitedBucket!.allowed).toBe(false);
 
     const fresh = await rateLimit({
       context: { tenantId: "global" },
@@ -104,7 +102,7 @@ describe("Redis-Fallback (rateLimit API)", () => {
   });
 
   it("Admin bekommt eine groessere Kapazitaet als Gast (adaptiv)", async () => {
-    // Admin (role=admin): tier 3x → capacity = 10*3 = 30. Gast: 10*0.5 = 5.
+    // Admin 10× vs guest 2× of capacity 10.
     const adminBase: BaseRateLimitConfig = { ...NO_REFILL, capacity: 10, refillPerSecond: 0 };
     const guest = await rateLimit({
       context: { tenantId: "global", userId: "u-guest" },

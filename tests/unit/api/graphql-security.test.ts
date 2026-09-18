@@ -44,8 +44,12 @@ vi.mock("@src/databases/db", () => ({
 }));
 
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 describe("GraphQL Whitebox Native Security Rules", () => {

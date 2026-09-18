@@ -22,6 +22,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const TEST_COLLECTION = "error_contract_test";
 const TEST_TENANT = "error-contract-tenant";
@@ -56,7 +57,7 @@ afterAll(async () => {
       {},
       {
         tenantId: TEST_TENANT,
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
         permanent: true,
       },
     );

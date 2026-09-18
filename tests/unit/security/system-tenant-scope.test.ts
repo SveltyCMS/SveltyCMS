@@ -49,9 +49,9 @@ describe("SystemTenantScope brand", () => {
     expect(hasTenantBypass(opts)).toBe(true);
   });
 
-  it("hasTenantBypass accepts systemScope and legacy boolean", () => {
+  it("hasTenantBypass accepts branded systemScope only", () => {
     expect(hasTenantBypass(withSystemScope("bootstrap"))).toBe(true);
-    expect(hasTenantBypass({ bypassTenantCheck: true })).toBe(true);
+    expect(hasTenantBypass({ bypassTenantCheck: true } as any)).toBe(false);
     expect(hasTenantBypass({ bypassSafeQuery: true })).toBe(true);
     expect(hasTenantBypass({})).toBe(false);
     expect(hasTenantBypass({ systemScope: { kind: "system", reason: "x" } as any })).toBe(false);

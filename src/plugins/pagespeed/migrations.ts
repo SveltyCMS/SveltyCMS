@@ -5,6 +5,7 @@
  */
 
 import type { IDBAdapter } from "@databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { logger } from "@utils/logger";
 import type { PluginMigration } from "../types";
 
@@ -29,7 +30,7 @@ export const createPageSpeedResultsTable: PluginMigration = {
       const probe = await dbAdapter.crud.findMany(
         "pluginPagespeedResults",
         {},
-        { limit: 1, bypassTenantCheck: true },
+        { limit: 1, ...withSystemScope("migration") },
       );
 
       if (probe.success) {

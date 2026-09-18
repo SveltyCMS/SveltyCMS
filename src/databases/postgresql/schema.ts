@@ -85,6 +85,8 @@ export const authSessions = pgTable(
     userAgent: varchar("userAgent", { length: 500 }),
     deviceId: varchar("deviceId", { length: 64 }),
     ipAddress: varchar("ipAddress", { length: 64 }),
+    amr: jsonb("amr").$type<string[]>(),
+    mfaVerifiedAt: timestamp("mfaVerifiedAt"),
     ...timestamps,
   },
   (table) => ({

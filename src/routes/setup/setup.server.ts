@@ -5,6 +5,7 @@
  * Extracted from +page.server.ts for auditability and type safety.
  * installDriver remains as a traditional form action (spawn-based npm install).
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -495,13 +496,13 @@ export async function completeSetup(
 
   const existing = await auth.getUserByEmail(
     { email: admin.email, tenantId: undefined },
-    { bypassTenantCheck: true },
+    withSystemScope("bootstrap"),
   );
   // Defense: if any admin already exists in DB, refuse (config/private.ts missing/corrupt case)
   try {
     const adminCountResult = await dbAdapter.auth.getUserCount(
       { role: "admin" },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
     const adminCount =
       typeof adminCountResult === "number"
@@ -524,19 +525,19 @@ export async function completeSetup(
   if (existing) {
     // Only allow password reset path during first-time setup for the bootstrap admin email
     await auth.updateUserPassword(admin.email, admin.password, {
-      bypassTenantCheck: true,
+      ...withSystemScope("setup"),
     });
     await auth.updateUser(
       existing._id,
       { username: admin.username, role: "admin", isRegistered: true, isAdmin: true },
-      { bypassTenantCheck: true, allowPrivilegeEscalation: true },
+      { ...withSystemScope("setup"), allowPrivilegeEscalation: true },
     );
     session = await auth.createSession(
       {
         user_id: existing._id,
         expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
   } else {
     const r = await auth.createUserAndSession(
@@ -550,7 +551,7 @@ export async function completeSetup(
       {
         expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
     if (!r.success)
       return {

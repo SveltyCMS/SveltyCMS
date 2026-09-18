@@ -13,6 +13,7 @@
  * - migrations management
  * - hook resolution
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
 import { nowISODateString } from "@utils/date";
@@ -782,7 +783,7 @@ export class PluginRegistry implements IPluginService {
           pluginId,
           tenantId,
         } as any,
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
       return result as DatabaseResult<PluginMigrationRecord[]>;
     } catch (error) {
@@ -814,7 +815,7 @@ export class PluginRegistry implements IPluginService {
         tenantId,
         appliedAt: new Date(),
       } as any,
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
   }
 }

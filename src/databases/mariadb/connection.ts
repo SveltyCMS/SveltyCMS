@@ -31,9 +31,10 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
   // the caller should pass host/port from the pooler. We keep driver pool settings conservative
   // when a pooler is in front (fewer direct connections needed).
   // See docs/guides/deployment/scaling-layers.mdx for ProxySQL / MaxScale guidance.
+  const { detectMysqlSocketPath, preferIpv4Loopback } = await import("../db-local-socket");
+  const socketPath = detectMysqlSocketPath(config.host);
   pool = mysql.createPool({
-    host: config.host,
-    port: config.port,
+    ...(socketPath ? { socketPath } : { host: preferIpv4Loopback(config.host), port: config.port }),
     user: config.user,
     password: config.password,
     database: config.database,

@@ -75,8 +75,12 @@ vi.mock("@src/databases/auth/two-factor-auth", () => {
 });
 
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 vi.mock("@utils/api-handler", () => ({
@@ -156,7 +160,7 @@ describe("2FA API Unit Tests", () => {
     const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     mockTwoFactorService = getDefaultTwoFactorAuthService({} as any);
 
-    const { isMultiTenantEnabled } = await import("@utils/tenant");
+    const { isMultiTenantEnabled } = await import("@utils/tenant-isolation.server");
     mockIsMultiTenantEnabled = isMultiTenantEnabled;
     mockIsMultiTenantEnabled.mockReturnValue(false);
 

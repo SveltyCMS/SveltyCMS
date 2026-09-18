@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as utils from "@src/databases/core/relational-utils";
 import type { BaseQueryOptions } from "@src/databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 describe("relational-utils — id + error helpers", () => {
   it("generateId returns 32 hex chars (UUID without dashes)", () => {
@@ -212,11 +213,11 @@ describe("relational-utils — tenant filter centralization", () => {
     expect(conditions[0]).toBeTruthy();
   });
 
-  it("honors bypassTenantCheck and adds nothing", () => {
+  it("honors branded systemScope and adds nothing", () => {
     const conditions: any[] = [];
     const options: BaseQueryOptions = {
       tenantId: "tenant-xyz" as any,
-      bypassTenantCheck: true,
+      ...withSystemScope("testing"),
     };
 
     utils.applyTenantFilter(conditions, fakeTenantCol, options);
@@ -271,7 +272,7 @@ describe("relational-utils — tenant filter centralization", () => {
 
     const bypass = utils.applyTenantFilterToObject(base, {
       ...opts,
-      bypassTenantCheck: true,
+      ...withSystemScope("testing"),
     });
     expect(bypass).toEqual({ status: "active" }); // no tenant added
     expect(bypass).toBe(base); // unchanged ref (efficient, no clone when skipping)
@@ -299,7 +300,7 @@ describe("relational-utils — tenant filter centralization", () => {
 
     expect(
       utils.buildRawTenantFilter({
-        bypassTenantCheck: true,
+        ...withSystemScope("testing"),
         tenantId: "x" as any,
       }),
     ).toBe("");

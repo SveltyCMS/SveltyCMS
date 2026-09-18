@@ -488,16 +488,19 @@ Multi-tenancy is enabled via the `MULTI_TENANT` private setting in `config/priva
 
 ### `isMultiTenantEnabled()` — Unified Detection
 
-All runtime code uses `isMultiTenantEnabled()` from `src/utils/tenant.ts` instead of reading `config/private.ts` directly:
+All runtime code uses `isMultiTenantEnabled()` from `src/utils/tenant-isolation.server.ts` instead of reading `config/private.ts` directly:
 
 ```typescript
-// Unified checker — two sources, one answer
+// Server-only: MULTI_TENANT is a private setting, so the read must not live in a
+// client-reachable module (@utils/tenant is imported by the Yjs editor provider
+// and the SDK config page). Result is memoized for 5s, fail-closed on error.
 export function isMultiTenantEnabled(): boolean {
-  // 1. Check DB setting (runtime override — set via System Settings, no restart)
-  const dbVal = getPublicSettingSync("MULTI_TENANT");
-  if (dbVal !== undefined) return !!dbVal;
-  // 2. Fall back to file config (bootstrap default)
-  return getPrivateSettingSync("MULTI_TENANT") === true;
+  try {
+    // Merged private settings — bootstrap file plus DB-side private overrides
+    return getPrivateSettingSync("MULTI_TENANT") === true;
+  } catch {
+    return false;
+  }
 }
 ```
 
@@ -535,12 +538,12 @@ All database operations pass through `crud-tenant-guard.ts`, a transparent proxy
 adapter.crud = createTenantGuardedCrud(adapter.crud, "inject");
 ```
 
-| Operation                              | Guard behavior                                                 |
-| -------------------------------------- | -------------------------------------------------------------- |
-| **Read** (find, findMany, etc.)        | Injects `tenantId` into query `options` — `WHERE tenantId = ?` |
-| **Write** (insert, update, upsert)     | Injects `tenantId` into **both** data AND options              |
-| **Delete**                             | Injects `tenantId` into query options                          |
-| **Bypass** (`bypassTenantCheck: true`) | Skips enforcement — for system-level ops                       |
+| Operation                              | Guard behavior                                                                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Read** (find, findMany, etc.)        | Injects `tenantId` into query `options` — `WHERE tenantId = ?`                                                                    |
+| **Write** (insert, update, upsert)     | Injects `tenantId` into **both** data AND options                                                                                 |
+| **Delete**                             | Injects `tenantId` into query options                                                                                             |
+| **Bypass** (`withSystemScope(reason)`) | Skips enforcement — branded system capability only (scheduler, setup, tests). A forgeable `bypassTenantCheck` boolean is ignored. |
 
 This protects all plugins, custom widgets, and extensions **automatically** — no code changes needed.
 

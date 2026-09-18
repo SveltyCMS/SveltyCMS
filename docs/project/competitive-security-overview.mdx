@@ -72,7 +72,7 @@ with? How fast do permission changes propagate?_
   protected admin/API resources. Trusted-device logins are tagged with `amr: ["pwd", "trusted_device"]`
   and automatically require step-up authentication (`STEP_UP_MFA_REQUIRED`) for high-privilege
   administrative operations, lifting device trust directly to the session MFA level.
-- **Distributed Token-Bucket rate limiting & adaptive throttling** — continuous token replenishment with Redis L2 primary via atomic Lua script (15ms timeout), automatic instantaneous circuit-breaker fallback to local memory (< 2 µs), adaptive user quotas (Admin 10x, Authenticated 2x, Anonymous 1x), and real-time hardware pressure scaling (0.8x–2.0x). Self-described, September 2026. See [API Security](../reference/security/api-security.mdx).
+- **Distributed Token-Bucket rate limiting & adaptive throttling** — continuous token replenishment with Redis L2 primary via atomic Lua script (15ms timeout), automatic instantaneous circuit-breaker fallback to local memory (< 2 µs), adaptive user quotas, process+host pressure EWMA (`cpuUsage` delta and `os.loadavg` when reported), 24h predictive histogram, and per-endpoint token costs. Admin tier is never scaled down. Self-described, September 2026. See [API Security](../reference/security/api-security.mdx).
 - **Streamed collection export** — `GET /api/collections/{id}/export` streams
   NDJSON, CSV, or chunked JSON from database cursors / paged SQL reads so the
   process does not hold the full export in memory. Self-described, September 2026.

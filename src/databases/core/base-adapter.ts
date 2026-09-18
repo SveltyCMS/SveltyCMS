@@ -417,7 +417,7 @@ export abstract class BaseAdapter {
         offset: options?.offset,
         fields: options?.fields as any,
         sort: options?.sort as any,
-        bypassTenantCheck: (options as any)?.bypassTenantCheck,
+        systemScope: (options as any)?.systemScope,
         skipMeta: true,
         total: options?.includeMetadata ? "auto" : "none",
       });

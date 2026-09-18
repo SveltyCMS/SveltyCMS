@@ -4,6 +4,7 @@
  *
  * Security preserved: rate limiting, Argon2id, timing-attack mitigation, audit logging.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { auth, dbInitPromise } from "@src/databases/db";
 import { safeParse, flatten } from "valibot";
@@ -19,7 +20,7 @@ import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.ser
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { isAdmin } from "@utils/hook-utils";
 import { isAutomatedTestHarness, resolvePrivateConfigFileName } from "@utils/private-config-policy";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -278,7 +279,7 @@ export const verify2FA = command(
           lastAuthMethod: "security",
           lastActiveAt: new Date().toISOString() as ISODateString,
         },
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       )
       .catch(() => {
         logger.debug("2FA verify user attribute update failed silently");
@@ -307,7 +308,7 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
   let isDbUnhealthy = false;
   try {
     if (auth) {
-      await auth.getUserCount({}, { bypassTenantCheck: true });
+      await auth.getUserCount({}, withSystemScope("bootstrap"));
     } else {
       isDbUnhealthy = true;
     }
@@ -443,7 +444,7 @@ async function signInInternal(event: RequestEvent, input: any) {
   let ok = false;
 
   if (isToken) {
-    const tu = await auth.checkUser({ email: e }, { bypassTenantCheck: true });
+    const tu = await auth.checkUser({ email: e }, withSystemScope("bootstrap"));
     if (!tu) {
       await verifyDummyPassword(p);
       return { success: false, message: "Invalid credentials." };
@@ -462,13 +463,11 @@ async function signInInternal(event: RequestEvent, input: any) {
         : undefined) ||
       event.request.headers.get("x-device-id") ||
       undefined;
-    const ar = await auth.authenticate(
-      e,
-      p,
-      undefined,
-      { bypassTenantCheck: true },
-      { userAgent: ua, deviceId, ipAddress: ip },
-    );
+    const ar = await auth.authenticate(e, p, undefined, withSystemScope("bootstrap"), {
+      userAgent: ua,
+      deviceId,
+      ipAddress: ip,
+    });
     if (ar?.user) {
       user = ar.user;
 
@@ -602,7 +601,7 @@ async function signInInternal(event: RequestEvent, input: any) {
         lastAuthMethod: isToken ? "token" : "security",
         lastActiveAt: new Date().toISOString(),
       },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     )
     .catch(() => {
       logger.debug("User attribute update after login failed silently");
@@ -687,7 +686,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
     tid: string | undefined;
 
   if (open && !t) {
-    if ((await auth.getUserCount({}, { bypassTenantCheck: true })) >= 100)
+    if ((await auth.getUserCount({}, withSystemScope("bootstrap"))) >= 100)
       return { success: false, message: "Demo capacity reached." };
     role = "admin";
     // Use the demo_tenant_id cookie if present (set by handleDemoTenantAssignment)
@@ -1061,7 +1060,7 @@ export const verifyPasskeyAuth = command(
           authenticators: updatedAuthenticators,
           lastAuthMethod: "passkey" as any,
         },
-        { bypassTenantCheck: true },
+        withSystemScope("bootstrap"),
       );
 
       const session = await auth.createSession({
@@ -1156,7 +1155,7 @@ export const verifyPasskeyRegister = command("unchecked", async (data: { attesta
     await auth.updateUserAttributes(
       user._id as DatabaseId,
       { authenticators: [...existing, authenticator] },
-      { bypassTenantCheck: true },
+      withSystemScope("bootstrap"),
     );
 
     return { success: true, message: "Passkey registered successfully." };

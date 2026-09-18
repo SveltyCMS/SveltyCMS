@@ -1391,7 +1391,7 @@ async function startRawHttpServer(
   };
 }
 
-async function benchRawHttpFloor(engine: Engine): Promise<Map<string, OpSample>> {
+async function benchRawHttpFloor(engine: Engine): Promise<Map<string, OpSample> | undefined> {
   if (typeof engine.rawOp !== "function") return;
   const { port, close } = await startRawHttpServer(engine);
   const base = `http://127.0.0.1:${port}`;

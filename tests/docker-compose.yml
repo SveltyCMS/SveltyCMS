@@ -37,6 +37,8 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: mariadb
       MARIADB_DATABASE: sveltycms_test
+    volumes:
+      - ${MYSQL_SOCKET_DIR:-/tmp/svelty-mysql-run}:/var/run/mysqld
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
       interval: 10s
@@ -54,6 +56,10 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sveltycms_test
+    # Linux/CI: bind-mount so the CMS process can use a Unix socket (DATABASE_SOCKET / auto-detect).
+    # Windows Docker Desktop cannot expose this socket to the host Node process — TCP 127.0.0.1 stays.
+    volumes:
+      - ${PG_SOCKET_DIR:-/tmp/svelty-pg-run}:/var/run/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s

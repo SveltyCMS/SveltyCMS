@@ -32,8 +32,11 @@ import * as ts from "typescript";
 // module, and Vite's config loader (esbuild) cannot resolve path aliases — a
 // bare `@utils/hardware-profile` here breaks `svelte-kit sync` for the project.
 import { getHardwareProfile } from "../hardware-profile.ts";
-import { isValidTenantId } from "../tenant.ts";
-import { getCollectionsPath, getCompiledCollectionsPath } from "../tenant.server.ts";
+import {
+  getCollectionsPath,
+  getCompiledCollectionsPath,
+  isValidTenantId,
+} from "../tenant.server.ts";
 import { isBenchmarkArtifact, isBenchmarkRuntime } from "../benchmark-runtime.ts";
 import { isBenchmarkRelativePath } from "../benchmark-paths.ts";
 import { assertLiveDataWriteAllowed } from "../benchmark-sandbox.ts";

@@ -9,8 +9,12 @@
  * - O(1) reserved-word lookup: Set.has() replaces array.includes()
  * - Tenant ID normalization: hostname-derived IDs lowercased for consistency
  *
+ * Client-safe tenant helpers. The `MULTI_TENANT` flag and the `withTenant()`
+ * guard live in `tenant-isolation.server.ts` — this module is reachable from
+ * browser code (Yjs editor provider, SDK config page) and must never touch
+ * private settings or other server-only APIs.
+ *
  * Consolidates:
- * - Tenant path resolution (collections, compiled output)
  * - Hostname-based tenant identification
  * - Security context validation
  * - Data encoding helpers (Base64/Yjs)
@@ -18,54 +22,6 @@
 
 import { logger } from "./logger.ts";
 import { AppError } from "./error-handling.ts";
-
-// Memoized multi-tenant check with 5-second TTL
-let _multiTenantCached: boolean | null = null;
-let _multiTenantCachedAt = 0;
-
-/**
- * Multi-tenant mode detection via config/private.ts.
- * Uses globalThis.require (set up by hooks.server.ts) to avoid ESM
- * path alias resolution issues at module init time.
- */
-export function isMultiTenantEnabled(): boolean {
-  const now = Date.now();
-  if (_multiTenantCached !== null && now - _multiTenantCachedAt < 5000) {
-    return _multiTenantCached;
-  }
-
-  try {
-    const req = (globalThis as any).require;
-    if (req) {
-      const { getPrivateSettingSync } = req("@src/services/core/settings-service");
-      const SETTING_KEY = "MULTI_TENANT" as const;
-      _multiTenantCached = getPrivateSettingSync(SETTING_KEY) === true;
-    } else {
-      _multiTenantCached = false;
-    }
-  } catch {
-    _multiTenantCached = false;
-  }
-  _multiTenantCachedAt = now;
-  return _multiTenantCached;
-}
-
-/**
- * Reset the cached multi-tenant state. Used in tests to force re-evaluation.
- */
-export function resetMultiTenantCache(): void {
-  _multiTenantCached = null;
-  _multiTenantCachedAt = 0;
-}
-
-/**
- * Validate tenant ID against path traversal and injection.
- * Strictly alphanumeric + hyphen/underscore, no path segments (..).
- */
-export function isValidTenantId(tenantId: string | null | undefined): boolean {
-  if (!tenantId) return true;
-  return /^[a-zA-Z0-9_-]+$/.test(tenantId) && !tenantId.includes("..");
-}
 
 // --- Identification Utilities ---
 
@@ -121,58 +77,4 @@ export function encodeYjsToBase64(uint8Array: Uint8Array): string {
 /** 🚀 Performance: Use Buffer for native Base64 decoding. */
 export function decodeBase64ToYjs(base64: string): Uint8Array {
   return new Uint8Array(Buffer.from(base64, "base64"));
-}
-
-/**
- * Options for tenant isolation wrapper.
- */
-export interface TenantOptions {
-  /**
-   * Whether to allow access to global/system context when multi-tenancy is enabled but no tenantId is provided.
-   */
-  allowGlobal?: boolean;
-  /**
-   * Optional collection name for better error reporting.
-   */
-  collection?: string;
-}
-
-/**
- * Central wrapper to enforce strict tenant isolation across database calls.
- * Ensures operations are either scoped to a tenant or allowed in single-tenant/global mode.
- */
-export async function withTenant<T>(
-  tenantId: string | null | undefined,
-  operation: () => Promise<T>,
-  options: TenantOptions = {},
-): Promise<T> {
-  // Guard against empty strings which might indicate a bug in tenant resolution
-  if (tenantId === "") {
-    throw new AppError("Invalid tenant context: empty string provided", 400, "INVALID_TENANT_ID");
-  }
-
-  // If tenantId is provided, we always allow (tenant context is active)
-  if (tenantId) {
-    return operation();
-  }
-
-  const isMultiTenant = isMultiTenantEnabled();
-
-  // If multi-tenancy is disabled, we don't require a tenantId
-  if (!isMultiTenant) {
-    logger.debug(`Single-tenant mode: allowing operation on ${options.collection || "unknown"}`);
-    return operation();
-  }
-
-  // If multi-tenancy is enabled but no tenantId provided, check if global access is allowed
-  if (options.allowGlobal) {
-    logger.debug(`Global/system context allowed for ${options.collection || "unknown"}`);
-    return operation();
-  }
-
-  throw new AppError(
-    `Tenant context required for this operation (collection: ${options.collection || "unknown"})`,
-    403,
-    "TENANT_REQUIRED",
-  );
 }

@@ -10,6 +10,7 @@
  * Run: bun test tests/integration/databases/content-nodes-contract.test.ts
  * Matrix: DB=postgresql,mariadb,mongodb bun test ...
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
@@ -32,7 +33,7 @@ function getData<T>(res: { success: boolean; data?: T }): T {
 }
 
 async function readPaths(db: DatabaseAdapter, paths: string[]) {
-  const res = await db.content.nodes.getStructure("flat", { bypassTenantCheck: true });
+  const res = await db.content.nodes.getStructure("flat", withSystemScope("bootstrap"));
   expect(res.success).toBe(true);
   const set = new Set(paths);
   const data = getData<ContentNode[]>(res);

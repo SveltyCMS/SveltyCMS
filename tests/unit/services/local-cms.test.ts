@@ -31,7 +31,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
 
   it("should bypass HTTP overhead and call adapter directly with collection prefix", async () => {
     const contentMock = {
-      getCollectionById: vi.fn((id) => ({
+      getCollection: vi.fn((id) => ({
         _id: id,
         name: "Test",
         fields: [],
@@ -57,7 +57,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
 
   it("should provide an ergonomic locals.cms bridge via DI-enabled getLocals", async () => {
     const contentMock = {
-      getCollectionById: vi.fn((id) => ({
+      getCollection: vi.fn((id) => ({
         _id: id,
         name: "Test",
         fields: [],
@@ -89,7 +89,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     });
 
     const contentMock = {
-      getCollectionById: vi.fn((id) => ({
+      getCollection: vi.fn((id) => ({
         _id: id,
         name: "Posts",
         fields: [{ db_fieldName: "title", type: "string", widget: { Name: "Input" } }],
@@ -123,7 +123,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     });
 
     const contentMock = {
-      getCollectionById: vi.fn((id) => ({
+      getCollection: vi.fn((id) => ({
         _id: id,
         name: "Posts",
         fields: [{ db_fieldName: "title", type: "string", widget: { Name: "Input" } }],
@@ -154,7 +154,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     });
 
     const contentMock = {
-      getCollectionById: vi.fn((id) => ({
+      getCollection: vi.fn((id) => ({
         _id: id,
         name: "Posts",
         fields: [{ db_fieldName: "title", type: "string", widget: { Name: "Input" } }],

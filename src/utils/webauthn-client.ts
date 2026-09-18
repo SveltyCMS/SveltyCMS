@@ -8,7 +8,7 @@
  * - Zero-dependency native browser credential helpers
  */
 
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 /** Converts a base64url string to Uint8Array buffer */
 export function base64UrlToBuffer(base64url: string): Uint8Array {

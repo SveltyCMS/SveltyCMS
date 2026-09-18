@@ -21,7 +21,6 @@ import { building } from "$app/env";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
-import { createRequire } from "node:module";
 
 // 🚀 SK3: background services are STATICALLY imported (they start on READY).
 // Dynamic import() of these modules left Rolldown's cyclic-chunk initializers
@@ -35,10 +34,7 @@ import { telemetryService } from "@src/services/observability/telemetry-service"
 import { startScheduler } from "@src/services/scheduler";
 import { startBehavioralEngine } from "@src/services/intelligence/behavioral-learner";
 import { outboxService } from "@src/services/outbox";
-// ESM Shims for legacy CJS compatibility in production build
-if (typeof (globalThis as any).require === "undefined") {
-  (globalThis as any).require = createRequire(import.meta.url);
-}
+// ESM shims for CJS packages that still read __filename / __dirname at runtime
 if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);
 }
@@ -139,7 +135,6 @@ const passThrough: Handle = ({ event, resolve }) => resolve(event);
 
 let handleSecurity: Handle = passThrough,
   handleRateLimit: Handle = passThrough,
-  handleRedisRateLimit: Handle = passThrough,
   handleUserPreferences: Handle = passThrough,
   handleAuthentication: Handle = passThrough,
   handleAuthorization: Handle = passThrough,
@@ -162,7 +157,6 @@ async function ensureFullMiddleware() {
   const [
     security,
     rateLimit,
-    redisRateLimit,
     preferences,
     auth,
     authz,
@@ -176,7 +170,6 @@ async function ensureFullMiddleware() {
   ] = await Promise.all([
     import("./hooks/handle-security"),
     import("./hooks/handle-rate-limit"),
-    import("./hooks/handle-redis-rate-limit"),
     import("./hooks/handle-user-preferences"),
     import("./hooks/handle-authentication"),
     import("./hooks/handle-authorization"),
@@ -191,7 +184,6 @@ async function ensureFullMiddleware() {
 
   handleSecurity = security.handleSecurity;
   handleRateLimit = rateLimit.handleRateLimit;
-  handleRedisRateLimit = redisRateLimit.handleRedisRateLimit;
   handleUserPreferences = preferences.handleUserPreferences;
   handleAuthentication = auth.handleAuthentication;
   handleAuthorization = authz.handleAuthorization;
@@ -646,7 +638,6 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
           wrapHandle("authentication", () => handleAuthentication),
           wrapHandle("authorization", () => handleAuthorization),
           wrapHandle("local-context", () => handleLocalContext),
-          wrapHandle("redis-rate-limit", () => handleRedisRateLimit),
           wrapHandle("audit-logging", () => handleAuditLogging),
           wrapHandle("api-requests", () => handleApiRequests),
         );
@@ -692,7 +683,6 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),
         wrapHandle("local-context", () => handleLocalContext),
-        wrapHandle("redis-rate-limit", () => handleRedisRateLimit),
         wrapHandle("audit-logging", () => handleAuditLogging),
         wrapHandle("api-requests", () => handleApiRequests),
         wrapHandle("token-resolution", () => handleTokenResolution),

@@ -39,7 +39,7 @@ import {
 } from "@utils/collection-query-filters";
 import { recordListQuery } from "@utils/list-query-metrics";
 import { modifyRequest } from "@utils/modify-request";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
 import { error } from "@sveltejs/kit";

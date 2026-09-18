@@ -104,13 +104,17 @@ import { dbAdapter as mockDbAdapter } from "@src/databases/db";
 vi.mock("@src/content/index.server", () => ({
   contentSystem: {
     getCollections: vi.fn(),
-    getCollectionById: vi.fn(),
+    getCollection: vi.fn(),
   },
 }));
 
 vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  resetMultiTenantCache: vi.fn(),
 }));
 
 vi.mock("@src/services/token/engine", () => ({
@@ -156,7 +160,7 @@ describe("Collections API Unit Tests", () => {
       .mockResolvedValue({ success: true, data: { _id: "updated-id" } });
     (mockDbAdapter as any).crud.delete = vi.fn().mockResolvedValue({ success: true });
 
-    const tenantModule = await import("@utils/tenant");
+    const tenantModule = await import("@utils/tenant-isolation.server");
     mockIsMultiTenantEnabled = tenantModule.isMultiTenantEnabled;
   });
 
@@ -216,7 +220,7 @@ describe("Collections API Unit Tests", () => {
 
   describe("PATCH /api/collections/[collectionId]/[entryId] - Update Entry", () => {
     it("should update an entry successfully", async () => {
-      mockContentSystem.getCollectionById.mockResolvedValue({
+      mockContentSystem.getCollection.mockResolvedValue({
         _id: "col-1",
         name: "posts",
         fields: [],
@@ -236,7 +240,7 @@ describe("Collections API Unit Tests", () => {
 
   describe("DELETE /api/collections/[collectionId]/[entryId] - Delete Entry", () => {
     it("should delete an entry successfully", async () => {
-      mockContentSystem.getCollectionById.mockResolvedValue({
+      mockContentSystem.getCollection.mockResolvedValue({
         _id: "col-1",
         name: "posts",
         fields: [],
@@ -255,7 +259,7 @@ describe("Collections API Unit Tests", () => {
     };
 
     beforeEach(() => {
-      mockContentSystem.getCollectionById.mockResolvedValue(postsSchema);
+      mockContentSystem.getCollection.mockResolvedValue(postsSchema);
       (mockDbAdapter as any).batch.bulkDelete = vi
         .fn()
         .mockResolvedValue({ success: true, deletedCount: 2 });
@@ -367,7 +371,7 @@ describe("Collections API Unit Tests", () => {
 
   describe("PUT /api/collections/[collectionId]/[entryId] - Update alias", () => {
     it("accepts PUT as an alias for PATCH", async () => {
-      mockContentSystem.getCollectionById.mockResolvedValue({
+      mockContentSystem.getCollection.mockResolvedValue({
         _id: "col-1",
         name: "posts",
         fields: [{ name: "title", type: "text" }],

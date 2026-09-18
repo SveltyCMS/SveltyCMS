@@ -19,6 +19,8 @@
 
 import type { TokenBucketConfig } from "./token-bucket";
 import { getPressureScale } from "./system-pressure";
+import { getTenantPlanScale } from "./tenant-plan";
+import { resolveRoleTier } from "./role-tiers";
 import { getPredictedPressure } from "./request-clock";
 
 export type UserTier = "admin" | "staff" | "guest" | "anonymous";
@@ -46,32 +48,21 @@ export interface BaseRateLimitConfig extends TokenBucketConfig {
 
 /** Multiplikator je Tier gegenueber der Basis-Kapazitaet. */
 const TIER_MULTIPLIER: Record<UserTier, number> = {
-  admin: 3,
+  admin: 10,
   staff: 2,
-  guest: 1,
-  anonymous: 0.5,
+  guest: 2,
+  anonymous: 1,
 };
 
 /**
- * Leitet die Tier-Stufe aus Context ab. Reihenfolge: explizite Rolle →
- * isAdmin-Flag → userId vorhanden (staff) → Gast/Anonym (userId fehlt).
+ * Resolves tier. Order: admin role / isAdmin → staff-like roles → identified user
+ * (guest) → anonymous. `isAdmin` is server-session only (never from a client body).
  */
 export function resolveUserTier(ctx: AdaptiveContext): UserTier {
-  const role = ctx.role?.toLowerCase() ?? "";
-  if (role === "admin" || ctx.isAdmin === true) return "admin";
-  if (role === "staff" || role === "editor" || role === "moderator") return "staff";
+  const fromRbac = resolveRoleTier(ctx.role, ctx.isAdmin);
+  if (fromRbac) return fromRbac;
   if (ctx.userId) return "guest";
   return "anonymous";
-}
-
-/**
- * Skalierungsfaktor fuer den Tenant.
- * - Multi-Tenant-Kennungen (nicht "global") duerfen mehr Burst (Isolation).
- * - "global"/default bleibt konservativ (groesste gemeinsame Nutzerbasis).
- */
-function tenantScale(tenantId: string | null | undefined): number {
-  if (!tenantId || tenantId === "global" || tenantId === "default") return 1;
-  return 1.5;
 }
 
 /**
@@ -121,13 +112,16 @@ export function computeAdaptiveBucket(
 ): TokenBucketConfig {
   const tier = resolveUserTier(ctx);
   const pressureFactor = computePressureFactor(tier);
+  const baseCapacity = Math.max(1, Number(base.capacity) || 1);
+  const baseRefill = Math.max(0, Number(base.refillPerSecond) || 0);
 
   const capacity = Math.max(
     1,
-    Math.round(base.capacity * TIER_MULTIPLIER[tier] * tenantScale(ctx.tenantId) * pressureFactor),
+    Math.round(
+      baseCapacity * TIER_MULTIPLIER[tier] * getTenantPlanScale(ctx.tenantId) * pressureFactor,
+    ),
   );
-  // Refill skaliert mit, damit die Erholungszeit (capacity/refill) stabil bleibt.
-  const refillPerSecond = Math.max(0.001, (capacity / base.capacity) * base.refillPerSecond);
+  const refillPerSecond = Math.max(0.001, (capacity / baseCapacity) * baseRefill);
   return { capacity, refillPerSecond };
 }
 

@@ -5,6 +5,7 @@
  * Core auth logic lives in auth.remote.ts as type-safe Remote Functions.
  * The form actions below parse formData and delegate to those functions.
  */
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import {
   generateGithubAuthUrl,
@@ -93,7 +94,7 @@ async function checkDatabaseHealth(): Promise<{
 
   try {
     if (auth && typeof auth.getUserCount === "function") {
-      await auth.getUserCount({}, { bypassTenantCheck: true });
+      await auth.getUserCount({}, withSystemScope("bootstrap"));
       // Users exist or DB is empty — neither is an error.
       // An empty database is the normal state for first-user signup.
       _dbHealthCache = { healthy: true, timestamp: now };
@@ -304,7 +305,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     let hasAdminUser = false;
     if (auth && typeof auth.getUserCount === "function") {
       try {
-        const adminCount = await auth.getUserCount({ role: "admin" }, { bypassTenantCheck: true });
+        const adminCount = await auth.getUserCount({ role: "admin" }, withSystemScope("bootstrap"));
         hasAdminUser = adminCount > 0;
       } catch {
         // Fall back to DB health check if role filter fails
@@ -398,7 +399,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
                 lastAuthMethod: "google",
                 lastActiveAt: new Date().toISOString() as any,
               },
-              { bypassTenantCheck: true },
+              withSystemScope("bootstrap"),
             )
             .catch(() => {
               logger.debug("Google user attribute update failed silently");

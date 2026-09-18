@@ -68,6 +68,9 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     super(adapter);
     this.userAdapter = new UserAdapter();
     this.sessionAdapter = new SessionAdapter();
+    // Standalone MongoDB has no transactions — surface that so rotation degrades
+    // to sequential writes instead of throwing out of `startSession()`.
+    this.sessionAdapter.setTransactionSupport(adapter.capabilities?.supportsTransactions === true);
     this.tokenAdapter = new TokenAdapter();
     this.apiKeyAdapter = new ApiKeyAdapter();
     this.userAdapter.setSessionAdapter(this.sessionAdapter);
@@ -211,6 +214,11 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     user_id: DatabaseId;
     expires: ISODateString;
     tenantId?: DatabaseId | null;
+    userAgent?: string;
+    deviceId?: string;
+    ipAddress?: string;
+    amr?: string[];
+    mfaVerifiedAt?: ISODateString;
   }) {
     return this.sessionAdapter.createSession(sessionData);
   }
@@ -363,7 +371,7 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     try {
       const ROLE_MODEL = getRoleModel(this.activeConnection);
       const filter = safeQuery({}, options?.tenantId as string, {
-        bypassTenantCheck: options?.bypassTenantCheck,
+        systemScope: options?.systemScope,
         bypassSafeQuery: options?.bypassSafeQuery,
       });
 
@@ -380,7 +388,7 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     try {
       const ROLE_MODEL = getRoleModel(this.activeConnection);
       const filter = safeQuery({ _id: roleId } as any, options?.tenantId as string, {
-        bypassTenantCheck: options?.bypassTenantCheck,
+        systemScope: options?.systemScope,
         bypassSafeQuery: options?.bypassSafeQuery,
       });
 
@@ -402,7 +410,7 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     try {
       const ROLE_MODEL = getRoleModel(this.activeConnection);
       const safeFilter = safeQuery(filter || {}, options?.tenantId as string, {
-        bypassTenantCheck: options?.bypassTenantCheck,
+        systemScope: options?.systemScope,
         bypassSafeQuery: options?.bypassSafeQuery,
       });
 
@@ -425,7 +433,7 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     try {
       const ROLE_MODEL = getRoleModel(this.activeConnection);
       const filter = safeQuery({ _id: roleId } as any, options?.tenantId as string, {
-        bypassTenantCheck: options?.bypassTenantCheck,
+        systemScope: options?.systemScope,
         bypassSafeQuery: options?.bypassSafeQuery,
       });
 
@@ -449,7 +457,7 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
     try {
       const ROLE_MODEL = getRoleModel(this.activeConnection);
       const filter = safeQuery({ _id: roleId } as any, options?.tenantId as string, {
-        bypassTenantCheck: options?.bypassTenantCheck,
+        systemScope: options?.systemScope,
         bypassSafeQuery: options?.bypassSafeQuery,
       });
 

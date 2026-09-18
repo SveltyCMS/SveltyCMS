@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { currentDbType } from "./adapter-test-env";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 const C = "bulkfix_test";
 const isSqlite = currentDbType() === "sqlite";
@@ -38,12 +39,14 @@ describe.skipIf(!isSqlite)(
           })
           .catch(() => {});
       }
-      await db.crud.deleteMany(C, {}, { bypassTenantCheck: true, permanent: true }).catch(() => {});
+      await db.crud
+        .deleteMany(C, {}, withSystemScope("testing", { permanent: true }))
+        .catch(() => {});
     }, 30000);
 
     afterAll(async () => {
       await db?.crud
-        ?.deleteMany(C, {}, { bypassTenantCheck: true, permanent: true })
+        ?.deleteMany(C, {}, withSystemScope("testing", { permanent: true }))
         .catch(() => {});
     }, 15000);
 

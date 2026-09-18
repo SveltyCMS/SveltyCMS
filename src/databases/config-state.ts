@@ -466,7 +466,12 @@ const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
     buildConnectionString: (c) => {
       const auth = c.user && c.user.trim() ? `${c.user}:${c.password}@` : "";
       const dbName = c.name.replace(/\.db$/, "").replace(/\./g, "_");
-      return `mongodb://${auth}${c.host}:${c.port}/${dbName}?authSource=admin`;
+      const host = c.host === "localhost" ? "127.0.0.1" : c.host;
+      const qs =
+        host === "127.0.0.1" || host === "::1"
+          ? "authSource=admin&directConnection=true"
+          : "authSource=admin";
+      return `mongodb://${auth}${host}:${c.port}/${dbName}?${qs}`;
     },
   },
   "mongodb+srv": {
@@ -481,14 +486,16 @@ const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
     protocol: "postgresql",
     buildConnectionString: (c) => {
       const auth = c.user ? `${c.user}:${c.password}@` : "";
-      return `postgresql://${auth}${c.host}:${c.port}/${c.name}`;
+      const host = c.host === "localhost" ? "127.0.0.1" : c.host;
+      return `postgresql://${auth}${host}:${c.port}/${c.name}`;
     },
   },
   mariadb: {
     protocol: "mysql",
     buildConnectionString: (c) => {
       const auth = c.user ? `${c.user}:${c.password}@` : "";
-      return `mysql://${auth}${c.host}:${c.port}/${c.name}`;
+      const host = c.host === "localhost" ? "127.0.0.1" : c.host;
+      return `mysql://${auth}${host}:${c.port}/${c.name}`;
     },
   },
   sqlite: {

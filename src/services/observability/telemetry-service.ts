@@ -18,6 +18,7 @@ import { getPrivateEnv } from "@src/databases/db";
 import { getPrivateSetting } from "@src/services/core/settings-service";
 import { getCustomWidgetNames } from "@src/widgets/scanner";
 import { logger } from "@utils/logger";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
 
@@ -226,14 +227,14 @@ export class TelemetryService {
 
           if (dbAdapter.auth) {
             const userCountResult = await dbAdapter.auth.getUserCount(undefined, {
-              bypassTenantCheck: true,
+              ...withSystemScope("bootstrap"),
             });
             if (userCountResult.success) {
               userCount = userCountResult.data;
             }
             roleCount = (
               await dbAdapter.auth.getAllRoles({
-                bypassTenantCheck: true,
+                ...withSystemScope("bootstrap"),
               })
             ).length;
           }
