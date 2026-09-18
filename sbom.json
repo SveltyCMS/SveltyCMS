@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:e67a10c8-b1c4-48f1-a29f-c14a107dee13",
+  "serialNumber": "urn:uuid:da172279-bcc4-43ea-ae7c-dcde4f4a4a95",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-14T20:28:27.467Z",
+    "timestamp": "2026-09-18T15:02:03.558Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -3025,26 +3025,26 @@
     {
       "type": "library",
       "name": "@sveltejs/adapter-node",
-      "version": "6.0.0-next.10",
-      "purl": "pkg:npm/@sveltejs/adapter-node@6.0.0-next.10",
+      "version": "6.0.0-next.12",
+      "purl": "pkg:npm/@sveltejs/adapter-node@6.0.0-next.12",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-eYvk01tqPixXDkw5MCsMJZUU/9gbqWIAE9ASUYDtIaESmUcT/QBXo15Gd5NHy4ow4pelXVP/wJnQKa2RxOg10g=="
+          "content": "sha512-wheNAOlAqLoXvGeSxJChM4jMEAKoMIcBCE18jGbTUdDDENPLefTmX55ACeUOkFqaVeZbAwKVHKifKZeyVNR9Yg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@sveltejs/kit",
-      "version": "3.0.0-next.25",
-      "purl": "pkg:npm/@sveltejs/kit@3.0.0-next.25",
+      "version": "3.0.0-next.27",
+      "purl": "pkg:npm/@sveltejs/kit@3.0.0-next.27",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-3ih37NCbIQUnGzn3fPK7XA9Qn9ipA6D4+6rBfHZfpUc1ga1eLxyJmINPzV1lFlM55LaWjus88rGoUSiKeevRhw=="
+          "content": "sha512-m2R6GvcMhiAbYVKhzRf5mzLSvcXEuy/H0Va72XvxfEl1ZglrSC/321GKYa6idDHPojuRzkyh9EB0jBZmAwf6+Q=="
         }
       ]
     },

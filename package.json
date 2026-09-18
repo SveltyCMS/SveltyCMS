@@ -144,7 +144,7 @@
     "@node-saml/node-saml": "^5.1.0",
     "@opentelemetry/api": "^1.9.1",
     "@smithy/node-http-handler": "^4.12.1",
-    "@sveltejs/kit": "3.0.0-next.25",
+    "@sveltejs/kit": "3.0.0-next.27",
     "@thisux/sveltednd": "0.8.0",
     "@tiptap/core": "^3.31.3",
     "@tiptap/extension-character-count": "^3.31.3",
