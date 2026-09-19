@@ -4,11 +4,22 @@
  * `scripts/version.ts`. The real `decideBump()` / `nextVersion()` exports are
  * imported — never re-implemented — so the SemVer mapping (MINOR for `feat`,
  * breaking changes minor on 0.x and major after, everything else patch) is
- * asserted against the code that ships.
+ * asserted against the code that ships. The explicit-target contract on top of
+ * it (argv parsing, the literal parser, and both release refusals) is asserted
+ * the same way: `parseCliArgs()`, `parseTargetVersion()`,
+ * `assertProposalAccepted()` and `explainNoOp()` are called directly, so the
+ * process is never spawned.
  */
 
 import { describe, it, expect } from "vitest";
-import { decideBump, nextVersion } from "../../../scripts/version";
+import {
+  assertProposalAccepted,
+  decideBump,
+  explainNoOp,
+  nextVersion,
+  parseCliArgs,
+  parseTargetVersion,
+} from "../../../scripts/version";
 
 /** `feat(area-N): …` subjects, one per requested count. */
 function featSubjects(count: number): string[] {
@@ -221,5 +232,103 @@ describe("nextVersion", () => {
       /cannot parse current version/,
     );
     expect(() => nextVersion("1.0", "minor")).toThrow(/cannot parse current version/);
+  });
+});
+
+describe("parseTargetVersion — explicit version literals", () => {
+  it("accepts a plain literal and a v-prefixed one", () => {
+    expect(parseTargetVersion("0.0.10")).toBe("0.0.10");
+    expect(parseTargetVersion("v0.0.8")).toBe("0.0.8");
+    expect(parseTargetVersion("1.2.3")).toBe("1.2.3");
+  });
+
+  it("refuses a partial literal instead of guessing", () => {
+    expect(() => parseTargetVersion("1.0")).toThrow(/cannot parse version target "1.0"/);
+    expect(() => parseTargetVersion("next")).toThrow(/expected a literal MAJOR\.MINOR\.PATCH/);
+  });
+
+  it("refuses prerelease/build metadata the release workflow cannot tag", () => {
+    expect(() => parseTargetVersion("0.0.10-rc.1")).toThrow(/cannot parse version target/);
+    expect(() => parseTargetVersion("0.0.10+build.5")).toThrow(/cannot parse version target/);
+  });
+
+  it("refuses a non-canonical literal with leading zeros", () => {
+    expect(() => parseTargetVersion("0.0.010")).toThrow(/not canonical/);
+  });
+});
+
+describe("assertProposalAccepted — release guards", () => {
+  it("refuses a version that already carries a v* tag", () => {
+    expect(() => assertProposalAccepted("0.0.8", "0.0.10", true)).toThrow(/refusing to re-release/);
+  });
+
+  it("refuses a downgrade even when the version is untagged", () => {
+    expect(() => assertProposalAccepted("0.0.9", "0.0.10", false)).toThrow(/refusing to downgrade/);
+  });
+
+  it("accepts a target ahead of the manifest and reports the comparison", () => {
+    expect(assertProposalAccepted("0.0.10", "0.0.9", false)).toBeGreaterThan(0);
+  });
+
+  it("accepts the manifest version itself — an idempotent no-op, not an error", () => {
+    expect(assertProposalAccepted("0.0.10", "0.0.10", false)).toBe(0);
+  });
+
+  it("refuses an unparseable manifest version instead of guessing", () => {
+    expect(() => assertProposalAccepted("0.0.10", "v0.0.9", false)).toThrow(
+      /cannot parse package\.json version/,
+    );
+  });
+});
+
+describe("parseCliArgs — CLI contract", () => {
+  it("defaults to auto without arguments", () => {
+    expect(parseCliArgs([])).toEqual({ dryRun: false, request: { mode: "kind", kind: "auto" } });
+  });
+
+  it("keeps the bump kinds and accepts --dry-run in any position", () => {
+    expect(parseCliArgs(["patch"]).request).toEqual({ mode: "kind", kind: "patch" });
+    expect(parseCliArgs(["minor", "--dry-run"])).toEqual({
+      dryRun: true,
+      request: { mode: "kind", kind: "minor" },
+    });
+  });
+
+  it("recognises a version literal as an explicit target", () => {
+    // The CLI half of `bun run version:bump 0.0.10`.
+    expect(parseCliArgs(["0.0.10"])).toEqual({
+      dryRun: false,
+      request: { mode: "target", version: "0.0.10" },
+    });
+    expect(parseCliArgs(["--dry-run", "v0.0.8"]).request).toEqual({
+      mode: "target",
+      version: "0.0.8",
+    });
+  });
+
+  it("refuses an invalid literal", () => {
+    expect(() => parseCliArgs(["1.0"])).toThrow(/cannot parse version target/);
+    expect(() => parseCliArgs(["0.0.10-rc.1"])).toThrow(/cannot parse version target/);
+  });
+
+  it("refuses two version arguments and unknown ones", () => {
+    expect(() => parseCliArgs(["patch", "0.0.10"])).toThrow(/more than one version argument/);
+    expect(() => parseCliArgs(["--bump"])).toThrow(/unknown argument "--bump"/);
+  });
+});
+
+describe("explainNoOp — the confusing no-op", () => {
+  it("explains why a tag-derived proposal repeats the manifest", () => {
+    const { note, hint } = explainNoOp("0.0.9", "v0.0.8");
+
+    expect(note).toContain("next release above v0.0.8");
+    expect(note).toContain("no tag yet");
+    expect(hint).toContain("bun run version:bump 0.0.10");
+  });
+
+  it("falls back to the manifest being the source when no tag exists", () => {
+    const { note } = explainNoOp("0.1.0", null);
+
+    expect(note).toContain("version source");
   });
 });

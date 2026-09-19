@@ -36,7 +36,7 @@ main:   CI runs (whitebox → build → DB matrix → bench → E2E)
                  ▼ (CI passes)
         auto-release triggers:
         1. reads version from package.json
-        2. creates git tag (e.g. v0.0.9)
+        2. creates git tag (e.g. v0.0.10)
         3. GitHub Release with auto-generated notes (independent of npm)
         4. npm publish (best-effort — npm never blocks the release)
 
@@ -45,13 +45,14 @@ main:   CI runs (whitebox → build → DB matrix → bench → E2E)
 
 ### Deriving the next version
 
-`bun run version:bump` runs `scripts/version.ts`. It reads the released version from the highest `v*` git tag reachable from the current branch (falling back to `package.json` when no tag exists yet), inspects the commits since that tag, and writes the next version back into `package.json`. Every run prints the source it used, the commit range it inspected, and the proposed version before anything is written — `--dry-run` stops right after that report.
+`bun run version:bump` runs `scripts/version.ts`. It reads the released version from the highest `v*` git tag reachable from the current branch (falling back to `package.json` when no tag exists yet), inspects the commits since that tag, and writes the next version back into `package.json`. Every run prints the source it used, the commit range it inspected, and the proposed version before anything is written — `--dry-run` stops right after that report. An explicit `x.y.z` argument (optionally `v`-prefixed) sets that version instead: the manifest is written as given, no commit is inspected, and the same refusals below still apply.
 
 ```bash
 bun run version:bump              # auto policy (default)
 bun run version:bump patch        # force a patch bump
 bun run version:bump minor        # force a minor bump
 bun run version:bump major        # force a major bump
+bun run version:bump 0.0.10       # set exactly this version (no commit detection)
 bun run version:bump --dry-run    # print the decision, change nothing
 ```
 
@@ -64,7 +65,7 @@ bun run version:bump --dry-run    # print the decision, change nothing
 | `feat` subject — new backwards-compatible functionality                                                               | minor (SemVer §7) |
 | Everything else (`fix`, `perf`, `refactor`, `docs`, `chore`, `ci`, `test`, `build`, `style`, `revert`, merge commits) | patch (SemVer §6) |
 
-SemVer §7 defines MINOR as new backwards-compatible functionality, so a `feat` is never a patch. SemVer §4 (`0.y.z` may change anything) is why a breaking commit is a minor while `major === 0` and a major afterwards (§8); §6 keeps pure fix/refactor/docs ranges at patch. A range that mixes types follows the highest rule that applies — breaking beats `feat`, `feat` beats everything else — so `feat!:` on `1.x` is a major release even beside `fix` commits. `patch`, `minor` or `major` as an argument overrides detection.
+SemVer §7 defines MINOR as new backwards-compatible functionality, so a `feat` is never a patch. SemVer §4 (`0.y.z` may change anything) is why a breaking commit is a minor while `major === 0` and a major afterwards (§8); §6 keeps pure fix/refactor/docs ranges at patch. A range that mixes types follows the highest rule that applies — breaking beats `feat`, `feat` beats everything else — so `feat!:` on `1.x` is a major release even beside `fix` commits. `patch`, `minor` or `major` as an argument overrides detection, while an explicit `x.y.z` literal sets that version verbatim without inspecting commits.
 
 ### Single source of truth
 
@@ -72,7 +73,9 @@ Two rules keep the tag and the manifest in lockstep (as of September 2026): the 
 
 Two further safety rails (as of September 2026): the script refuses to run while `package.json` has uncommitted changes (`--dry-run` still previews the decision and prints a warning), and it never creates a commit or a tag — committing the bumped manifest and merging to `main` stays a human decision.
 
-The version flows from `next` → `main` through the normal merge. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.9 && git push origin v0.0.9`) triggers the same pipeline from the tag name.
+The same refusals cover an explicit target: a literal that is not `MAJOR.MINOR.PATCH`, a version that already carries a `v*` tag, or one lower than `package.json` (a downgrade). Because the derived proposal comes from the tag rather than the manifest, it can equal `package.json` — that means the pending version _is_ the next release above the newest tag, so a `patch` bump reports nothing to write and the script says so, pointing at the explicit form (`bun run version:bump 0.0.10`) for any other release.
+
+The version flows from `next` → `main` through the normal merge. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.10 && git push origin v0.0.10`) triggers the same pipeline from the tag name.
 
 > **npm token caveat**: the GitHub Release (tag + release notes) is created **before** npm publish and never blocked by it. If `NPM_TOKEN` is missing or invalid, the run logs a warning and skips publishing — the release still exists, so the in-app update check (`/api/system/version/check`) keeps working.
 
@@ -108,8 +111,8 @@ Queries the GitHub Releases API and compares against the installed version from 
 {
   "success": true,
   "data": {
-    "currentVersion": "0.0.8",
-    "latestVersion": "0.0.9",
+    "currentVersion": "0.0.9",
+    "latestVersion": "0.0.10",
     "updateAvailable": true,
     "checkedAt": "2026-07-08T12:00:00.000Z"
   }
@@ -122,8 +125,8 @@ Queries the GitHub Releases API and compares against the installed version from 
 {
   "success": true,
   "data": {
-    "currentVersion": "0.0.9",
-    "latestVersion": "0.0.9",
+    "currentVersion": "0.0.10",
+    "latestVersion": "0.0.10",
     "updateAvailable": false,
     "checkedAt": "2026-07-08T12:00:00.000Z"
   }
@@ -142,11 +145,11 @@ The `VersionCheck` component (`src/components/version-check.svelte`) appears in 
 - Fetches `/api/system/version/check` every hour to compare against the latest GitHub release
 - Shows a clickable badge linking to the releases page
 
-| Badge State            | Meaning                                                            |
-| ---------------------- | ------------------------------------------------------------------ |
-| **Green** (`success`)  | You are up to date                                                 |
-| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.9 recommended") |
-| **Grey** (`surface`)   | Could not check for updates (network/GitHub API issue)             |
+| Badge State            | Meaning                                                             |
+| ---------------------- | ------------------------------------------------------------------- |
+| **Green** (`success`)  | You are up to date                                                  |
+| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.10 recommended") |
+| **Grey** (`surface`)   | Could not check for updates (network/GitHub API issue)              |
 
 ---
 

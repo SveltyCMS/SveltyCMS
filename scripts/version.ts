@@ -14,6 +14,11 @@
  *   tag by commit distance, which is not the highest version when tags were
  *   created out of order (this repo tagged v0.0.8 before v0.0.7).
  * - package.json when no `v*` tag exists yet.
+ * - an explicit `MAJOR.MINOR.PATCH` literal on the command line, which wins over
+ *   both: the manifest is set to exactly that version and no commit is
+ *   inspected (`bun run version:bump 0.0.10`). This is the escape hatch for a
+ *   release the tag-derived policy cannot express — e.g. when the pending
+ *   manifest version is untagged and will never be released.
  *
  * Auto policy (default) — Conventional Commits subjects mapped to SemVer,
  * highest rule first:
@@ -28,7 +33,9 @@
  * breaking commit on 0.x is a minor (release-please's `bump-minor-pre-major`
  * stance). A mixed range follows the highest rule that applies: breaking >
  * feat > everything else, so `feat!:` on 1.x outranks the `fix` commits next
- * to it. Explicit `patch|minor|major` arguments override detection.
+ * to it. Explicit `patch|minor|major` arguments override detection; an explicit
+ * `MAJOR.MINOR.PATCH` target skips detection entirely and is written as given
+ * (canonicalised: no `v` prefix, no leading zeros, no prerelease/build suffix).
  *
  * Safety:
  * - refuses to run (except --dry-run, which only previews and warns) when
@@ -36,12 +43,15 @@
  * - refuses a version that already carries a `v*` tag (the case the release
  *   workflow used to swallow as "Tag already exists — skipping tag creation")
  * - refuses to downgrade package.json
+ * - applies the same refusals to an explicit target: an invalid literal, a
+ *   version that already carries a tag, or one lower than package.json
  * - rewrites package.json in place, preserving its formatting and newline
  * - never creates a commit or a tag
  *
  * Usage:
  *   bun run version:bump                # auto (default)
  *   bun run version:bump patch|minor|major
+ *   bun run version:bump 0.0.10         # set exactly this version (no detection)
  *   bun run version:bump --dry-run      # print the decision, write nothing
  *
  * Features:
@@ -49,7 +59,11 @@
  * - `decideBump()` is pure and exported, so the policy is unit-tested without
  *   git (tests/unit/scripts/version-bump.test.ts)
  * - shows the source tag, the policy reason and the commits it decided from
- * - idempotent: a no-op when package.json already holds the derived version
+ * - idempotent: a no-op when package.json already holds the proposed version,
+ *   with a note explaining why and the explicit form to use for a different one
+ * - `parseCliArgs()`, `parseTargetVersion()`, `assertProposalAccepted()` and
+ *   `explainNoOp()` are pure and exported, so the argument contract and both
+ *   refusals are unit-tested without spawning the process
  */
 
 import { spawnSync } from "node:child_process";
@@ -58,11 +72,13 @@ import { readFileSync, writeFileSync } from "node:fs";
 const PACKAGE_PATH = "package.json";
 const RELEASE_TAG = /^v(\d+\.\d+\.\d+)$/;
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$/;
+/** CLI target literal: `0.0.10` or `v0.0.10` — the tag shape CI can actually create. */
+const TARGET_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)$/;
 const BREAKING_MARKER = /\bBREAKING[ -]CHANGE\b/;
 /** `type`, optional `(scope)`, optional `!`, then the `: ` Conventional Commits requires. */
 const CONVENTIONAL_SUBJECT = /^([a-z]+)(?:\([^)]*\))?(!)?:\s/i;
 const EVIDENCE_COMMITS = 5;
-const USAGE = "usage: bun run version:bump [auto|patch|minor|major] [--dry-run]";
+const USAGE = "usage: bun run version:bump [auto|patch|minor|major|x.y.z] [--dry-run]";
 
 export type BumpKind = "auto" | "patch" | "minor" | "major";
 export type ConcreteBump = Exclude<BumpKind, "auto">;
@@ -71,6 +87,14 @@ export interface BumpDecision {
   kind: ConcreteBump;
   reason: string;
   evidence: string[];
+}
+
+/** What the CLI was asked for: a bump kind (auto included) or an exact version. */
+export type BumpRequest = { mode: "kind"; kind: BumpKind } | { mode: "target"; version: string };
+
+export interface CliArgs {
+  dryRun: boolean;
+  request: BumpRequest;
 }
 
 interface GitResult {
@@ -142,6 +166,82 @@ function bumpVersion(current: ParsedVersion, kind: ConcreteBump): ParsedVersion 
 /** Applies a bump kind to a MAJOR.MINOR.PATCH string. Exported for unit tests. */
 export function nextVersion(current: string, kind: ConcreteBump): string {
   return formatVersion(bumpVersion(parseVersion(current, "current"), kind));
+}
+
+/**
+ * Validates an explicit CLI version target (`0.0.10`, `v0.0.10`) and returns the
+ * canonical form. Only the plain `MAJOR.MINOR.PATCH` shape passes: the release
+ * workflow tags `vX.Y.Z` and nothing else, so a prerelease, build metadata or a
+ * leading zero is refused instead of written into a manifest CI cannot tag.
+ * Exported for unit tests; throws instead of exiting.
+ */
+export function parseTargetVersion(value: string): string {
+  const literal = value.trim();
+  const match = TARGET_PATTERN.exec(literal);
+  if (!match) {
+    throw new Error(
+      `cannot parse version target "${value}" — expected a literal MAJOR.MINOR.PATCH (e.g. 0.0.10)`,
+    );
+  }
+  const canonical = `${Number(match[1])}.${Number(match[2])}.${Number(match[3])}`;
+  if (canonical !== literal.replace(/^v/, "")) {
+    throw new Error(
+      `version target "${value}" is not canonical — write ${canonical}: no leading zeros, no prerelease or build metadata`,
+    );
+  }
+  return canonical;
+}
+
+/**
+ * Refuses the two release hazards this script exists to catch: re-releasing a
+ * version that already carries a `v*` tag, and moving package.json backwards.
+ * The tag lookup is passed in as data, so both refusals are pure and unit-tested
+ * against the shipped messages. Returns the proposal-vs-manifest comparison
+ * (0 = already at it, > 0 = ahead) for the caller's no-op check.
+ */
+export function assertProposalAccepted(
+  proposed: string,
+  current: string,
+  alreadyTagged: boolean,
+): number {
+  if (alreadyTagged) {
+    throw new Error(
+      `version ${proposed} already has a v* tag — refusing to re-release.\n` +
+        `   The release workflow tags whatever ${PACKAGE_PATH} says, so releasing it again would\n` +
+        `   re-point at an existing release (the old "Tag already exists" swallow in CI).\n` +
+        `   Pass a different version (e.g. \`bun run version:bump <x.y.z>\`), or delete the stale tag if it was created by mistake.`,
+    );
+  }
+  const comparison = compareVersions(
+    parseVersion(proposed, "proposal"),
+    parseVersion(current, PACKAGE_PATH),
+  );
+  if (comparison < 0) {
+    throw new Error(
+      `version ${proposed} is lower than ${PACKAGE_PATH} ${current} — refusing to downgrade.\n` +
+        `   Pass a higher version (e.g. \`bun run version:bump <x.y.z>\`).`,
+    );
+  }
+  return comparison;
+}
+
+/**
+ * Wording for the no-op case (proposal == manifest), which used to read as a
+ * bare "nothing to write". A tag-derived proposal repeats the manifest exactly
+ * when the manifest already is the next release above the newest tag, so the
+ * note says that and the hint names the explicit form for anything else.
+ * Exported for unit tests.
+ */
+export function explainNoOp(
+  current: string,
+  latestTag: string | null,
+): { note: string; hint: string } {
+  return {
+    note: latestTag
+      ? `${current} is already the next release above ${latestTag}, which has no tag yet — a tag-based bump keeps re-deriving it until that release is tagged`
+      : `${PACKAGE_PATH} is the version source (no v* tag to derive from) and already holds the proposed version`,
+    hint: `To release a different version, pass it explicitly: bun run version:bump ${nextVersion(current, "patch")}`,
+  };
 }
 
 /** Conventional-Commit `!` (or a `BREAKING CHANGE` footer) marks an incompatible change. */
@@ -272,21 +372,38 @@ function report(label: string, value: string): void {
   console.log(`   ${label.padEnd(13)} ${value}`);
 }
 
+/**
+ * Pure argv parser: `auto|patch|minor|major`, one explicit `MAJOR.MINOR.PATCH`
+ * target, and `--dry-run` in any position. Anything else — an unknown flag, a
+ * malformed literal, a second version argument — throws, so the CLI contract is
+ * unit-tested without spawning the process.
+ */
+export function parseCliArgs(argv: string[]): CliArgs {
+  let dryRun = false;
+  let request: BumpRequest | null = null;
+  for (const arg of argv) {
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (request) throw new Error(`more than one version argument given — ${USAGE}`);
+    if (arg === "auto" || arg === "patch" || arg === "minor" || arg === "major") {
+      request = { mode: "kind", kind: arg };
+    } else if (/^v?\d/.test(arg)) {
+      request = { mode: "target", version: parseTargetVersion(arg) };
+    } else {
+      throw new Error(`unknown argument "${arg}" — ${USAGE}`);
+    }
+  }
+  return { dryRun, request: request ?? { mode: "kind", kind: "auto" } };
+}
+
 // ── CLI ─────────────────────────────────────────────────────────────────────
 
 function main(): void {
-  let dryRun = false;
-  let requested: BumpKind = "auto";
-  for (const arg of process.argv.slice(2)) {
-    if (arg === "--dry-run") {
-      dryRun = true;
-    } else if (arg === "auto" || arg === "patch" || arg === "minor" || arg === "major") {
-      if (requested !== "auto") fail(`multiple bump kinds given — ${USAGE}`);
-      requested = arg;
-    } else {
-      fail(`unknown argument "${arg}" — ${USAGE}`);
-    }
-  }
+  const { dryRun, request } = parseCliArgs(process.argv.slice(2));
+  const target = request.mode === "target" ? request.version : "";
+  const requested: BumpKind = request.mode === "kind" ? request.kind : "auto";
 
   // ── 1. Safety gate: the manifest must be clean (dry-run only warns) ───────
 
@@ -304,85 +421,92 @@ function main(): void {
   }
 
   const currentRaw = readPackageVersion(raw);
-  const currentVersion = parseVersion(currentRaw, PACKAGE_PATH);
 
-  // ── 2. Version source: latest reachable v* tag, package.json fallback ─────
+  // ── 2. Version source: explicit target, else the latest reachable v* tag ──
 
   const latest = latestReachableRelease();
-  const sourceRaw = latest ? latest.version : currentRaw;
-  const sourceLabel = latest
-    ? `git tag v${latest.version} (highest v* tag reachable from HEAD)`
-    : `${PACKAGE_PATH} ${currentRaw} (no v* tag found)`;
-
-  // ── 3. Bump kind: explicit flag or the auto policy ────────────────────────
-
-  const commits = latest ? readCommits(`${latest.tag}..HEAD`) : [];
+  const commits = target === "" && latest ? readCommits(`${latest.tag}..HEAD`) : [];
   const breaking = commits.filter((commit) => hasBreakingMarker(commit.subject, commit.body));
   const features = commits.filter((commit) => isFeatureSubject(commit.subject));
-  const decision = decideBump(
-    sourceRaw,
-    requested,
-    commits.map((commit) => commit.subject),
-    commits.map((commit) => commit.body),
-  );
 
-  const proposedRaw = nextVersion(sourceRaw, decision.kind);
+  // ── 3. Proposal: the explicit target verbatim, else the bump policy ───────
+
+  let sourceLabel: string;
+  let proposedRaw: string;
+  let reason = "";
+  let evidence: string[] = [];
+
+  if (target !== "") {
+    sourceLabel = `explicit target ${target} — commit detection skipped`;
+    proposedRaw = target;
+  } else {
+    const sourceRaw = latest ? latest.version : currentRaw;
+    sourceLabel = latest
+      ? `git tag v${latest.version} (highest v* tag reachable from HEAD)`
+      : `${PACKAGE_PATH} ${currentRaw} (no v* tag found)`;
+    const decision = decideBump(
+      sourceRaw,
+      requested,
+      commits.map((commit) => commit.subject),
+      commits.map((commit) => commit.body),
+    );
+    proposedRaw = nextVersion(sourceRaw, decision.kind);
+    reason = `${decision.kind} — ${decision.reason}`;
+    evidence = decision.evidence;
+  }
 
   // ── 4. Guards: no re-release, no downgrade ────────────────────────────────
 
   const tagged = git(["tag", "--list", `v${proposedRaw}`]);
   if (!tagged.ok)
     fail(`cannot look up tag v${proposedRaw} (${tagged.stderr || "unknown git error"})`);
-  if (tagged.stdout) {
-    fail(
-      `derived version ${proposedRaw} already has a v* tag — refusing to re-release.\n` +
-        `   The release workflow tags whatever ${PACKAGE_PATH} says, so releasing it again would\n` +
-        `   re-point at an existing release (the old "Tag already exists" swallow in CI).\n` +
-        `   Bump explicitly (e.g. \`bun run version:bump minor\`) or delete the stale tag if it was created by mistake.`,
-    );
-  }
-
-  const comparison = compareVersions(parseVersion(proposedRaw, "proposal"), currentVersion);
-  if (comparison < 0) {
-    fail(
-      `derived version ${proposedRaw} is lower than ${PACKAGE_PATH} ${currentRaw} — refusing to downgrade.\n` +
-        `   Tag the pending release first, or pass an explicit bump kind.`,
-    );
-  }
+  const comparison = assertProposalAccepted(proposedRaw, currentRaw, tagged.stdout !== "");
 
   // ── 5. Report the evidence, then write ────────────────────────────────────
 
+  const label =
+    target !== ""
+      ? `explicit target ${target}`
+      : requested === "auto"
+        ? "auto"
+        : `explicit ${requested}`;
   console.log();
-  console.log(`🔖 version:bump — ${requested === "auto" ? "auto" : `explicit ${requested}`}`);
+  console.log(`🔖 version:bump — ${label}`);
   console.log();
   report("source", sourceLabel);
-  if (latest) {
+  if (target !== "") {
+    report(
+      "tags",
+      latest
+        ? `highest reachable v* tag is ${latest.tag} — a target must not be it`
+        : "no v* tag reachable from HEAD yet",
+    );
+  } else if (latest) {
     report(
       "commits",
       `${latest.tag}..HEAD — ${commits.length} inspected, ${features.length} feat, ${breaking.length} breaking marker(s)`,
     );
+    const describe = git(["describe", "--tags", "--abbrev=0", "--match", "v*"]);
+    if (describe.ok && describe.stdout && describe.stdout !== latest.tag) {
+      report(
+        "tag note",
+        `git describe prefers ${describe.stdout} (nearest, not highest) — using ${latest.tag}`,
+      );
+    }
   } else {
     report("commits", "none — no baseline tag to diff against");
   }
 
-  const describe = git(["describe", "--tags", "--abbrev=0", "--match", "v*"]);
-  if (latest && describe.ok && describe.stdout && describe.stdout !== latest.tag) {
-    report(
-      "tag note",
-      `git describe prefers ${describe.stdout} (nearest, not highest) — using ${latest.tag}`,
-    );
-  }
-
   report("manifest", `${PACKAGE_PATH} ${currentRaw}`);
   if (dirtyWarning) report("warning", dirtyWarning);
-  report("bump", `${decision.kind} — ${decision.reason}`);
-  if (decision.evidence.length > 0) {
-    report("decides", `${decision.evidence.length} commit(s):`);
-    for (const subject of decision.evidence.slice(0, EVIDENCE_COMMITS)) {
+  if (target === "") report("bump", reason);
+  if (evidence.length > 0) {
+    report("decides", `${evidence.length} commit(s):`);
+    for (const subject of evidence.slice(0, EVIDENCE_COMMITS)) {
       console.log(`                 - ${subject}`);
     }
-    if (decision.evidence.length > EVIDENCE_COMMITS) {
-      console.log(`                 … ${decision.evidence.length - EVIDENCE_COMMITS} more`);
+    if (evidence.length > EVIDENCE_COMMITS) {
+      console.log(`                 … ${evidence.length - EVIDENCE_COMMITS} more`);
     }
   }
   report("proposal", `${currentRaw} → ${proposedRaw}`);
@@ -400,6 +524,16 @@ function main(): void {
 
   if (comparison === 0) {
     report("result", `${PACKAGE_PATH} already at ${proposedRaw} — nothing to write`);
+    if (target === "") {
+      const guidance = explainNoOp(currentRaw, latest ? latest.tag : null);
+      report("note", guidance.note);
+      report("hint", guidance.hint);
+    } else {
+      report(
+        "note",
+        `requested version ${proposedRaw} already matches the manifest — idempotent, nothing to do`,
+      );
+    }
     console.log();
     process.exit(0);
   }
