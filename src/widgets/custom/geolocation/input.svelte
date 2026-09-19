@@ -67,7 +67,9 @@ import { logger } from "@utils/logger";
 		<!-- Latitude -->
 		<div class="flex flex-col gap-1.5">
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Latitude</span>
-			<div class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
+			<div
+				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
+			>
 				<Input
 					type="number"
 					aria-label="Latitude"
@@ -86,7 +88,9 @@ import { logger } from "@utils/logger";
 		<!-- Longitude -->
 		<div class="flex flex-col gap-1.5">
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Longitude</span>
-			<div class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
+			<div
+				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
+			>
 				<Input
 					type="number"
 					aria-label="Longitude"
@@ -119,7 +123,10 @@ import { logger } from "@utils/logger";
 
 	<!-- Visual Feedback -->
 	{#if value}
-		<div class="p-3 bg-surface-500/10 dark:bg-surface-800 rounded border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center">
+		<div
+			class="p-3 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
+			style="border-radius: var(--admin-radius-input, 0.25rem)"
+		>
 			GeoJSON: {JSON.stringify(value)}
 		</div>
 	{/if}

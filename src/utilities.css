@@ -200,7 +200,7 @@
   background-color: var(--color-surface-50);
   border-color: var(--color-surface-200);
   border-width: 1px;
-  border-radius: var(--radius-base, 0.375rem);
+  border-radius: var(--admin-radius-base, 0.25rem);
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   backdrop-filter: blur(12px);
   transition:
@@ -286,10 +286,10 @@ select:focus {
   /* Density Scale (0.85 = compact, 1.0 = cozy, 1.25 = spacious) */
   --admin-density: 1;
 
-  /* Radii */
-  --admin-radius-base: 0.75rem;
-  --admin-radius-card: 0.75rem;
-  --admin-radius-input: 0.375rem;
+  /* Radii — global admin chrome uses 0.25rem (cozy density overrides match) */
+  --admin-radius-base: 0.25rem;
+  --admin-radius-card: 0.25rem;
+  --admin-radius-input: 0.25rem;
   --admin-radius-button: 0.25rem;
 
   /* Borders & Shadows */

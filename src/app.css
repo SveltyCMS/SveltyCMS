@@ -379,7 +379,7 @@
    ======================================================================== */
 @layer components {
   .card {
-    border-radius: var(--admin-radius-card, 0.75rem);
+    border-radius: var(--admin-radius-card, 0.25rem);
     border-width: var(--admin-border-width, 1px);
     border-style: solid;
     border-color: var(--admin-border-default, var(--color-surface-200));

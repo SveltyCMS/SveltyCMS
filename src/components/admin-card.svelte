@@ -10,12 +10,14 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 ### Props
 - `class` (string): Additional CSS classes.
 - `variant` / `preset`: When set, delegates to `Card` with preset styling.
+- `radius` ('card' | 'input' | 'button'): Theme radius token (default `card`; use `input` for edit form sections).
 - `children` (Snippet): Card body content.
 - Remaining `HTMLAttributes<HTMLDivElement>` are forwarded to the root element.
 
 ### Features
 - Semantic --admin-bg-card / border / text tokens
 - Variant-aware shadow & border width via getThemeContext()
+- Optional `radius` token alignment with inputs/buttons (style-guide)
 - Optional passthrough to `Card` when `variant` or `preset` is provided
 - Full Svelte 5 runes
 -->
@@ -32,6 +34,8 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 		children?: Snippet;
 		variant?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface';
 		preset?: 'filled' | 'tonal' | 'outlined';
+		/** Theme radius token — `input` matches edit-field shells (style-guide). */
+		radius?: 'card' | 'input' | 'button';
 	};
 
 	let {
@@ -39,23 +43,36 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 		children: content,
 		variant,
 		preset,
+		radius = 'card',
+		style: styleAttr,
 		...rest
 	}: Props = $props();
 
 	const useCard = $derived(Boolean(variant || preset));
 	const theme = getThemeContext();
 
+	const radiusVar = $derived(
+		radius === 'input'
+			? 'var(--admin-radius-input, 0.25rem)'
+			: radius === 'button'
+				? 'var(--admin-radius-button, 0.25rem)'
+				: 'var(--admin-radius-card, 0.25rem)',
+	);
+
 	/** Structural + semantic surface tokens; shadow/border follow theme variant (flat/bordered/elevated). */
 	const adminStyles = $derived(
 		[
-			'border-radius: var(--admin-radius-card, 0.75rem)',
+			`border-radius: ${radiusVar}`,
 			`border-width: ${theme?.cardBorder ?? 'var(--admin-border-width, 1px)'}`,
 			'border-style: solid',
 			'border-color: var(--admin-border-default, var(--color-surface-200))',
 			'background-color: var(--admin-bg-card, var(--color-surface-50))',
 			'color: var(--admin-text-body, var(--color-surface-900))',
 			`box-shadow: ${theme?.cardShadow ?? 'var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1))'}`,
-		].join('; '),
+			typeof styleAttr === 'string' ? styleAttr : '',
+		]
+			.filter(Boolean)
+			.join('; '),
 	);
 </script>
 

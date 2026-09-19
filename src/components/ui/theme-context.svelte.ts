@@ -209,47 +209,20 @@ export class AdminTheme {
   }
 
   get radiusBase() {
-    switch (this.#density) {
-      case "compact":
-        return "0.25rem";
-      case "spacious":
-        return "1rem";
-      default:
-        return "0.75rem";
-    }
+    // Global UI chrome: 0.25rem across densities (client polish request)
+    return "0.25rem";
   }
 
   get radiusCard() {
-    switch (this.#density) {
-      case "compact":
-        return "6px";
-      case "spacious":
-        return "16px";
-      default:
-        return "0.75rem";
-    }
+    return "0.25rem";
   }
 
   get radiusInput() {
-    switch (this.#density) {
-      case "compact":
-        return "4px";
-      case "spacious":
-        return "10px";
-      default:
-        return "0.375rem";
-    }
+    return "0.25rem";
   }
 
   get radiusButton() {
-    switch (this.#density) {
-      case "compact":
-        return "0.125rem";
-      case "spacious":
-        return "0.625rem";
-      default:
-        return "0.25rem";
-    }
+    return "0.25rem";
   }
 
   // Shadow synthesis based on variant

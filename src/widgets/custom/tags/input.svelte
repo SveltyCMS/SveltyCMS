@@ -83,7 +83,8 @@
 	<div
 		role="button"
 		tabindex="0"
-		class="flex min-h-10.5 w-full flex-wrap items-center gap-2 rounded border border-surface-500/30 bg-white p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500 dark:border-surface-600 dark:bg-surface-900 {validationError ? 'border-error-500' : ''}"
+		class="flex min-h-10.5 w-full flex-wrap items-center gap-2 bg-white p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500/40 dark:bg-surface-900"
+		style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid {validationError ? 'var(--color-error-500)' : 'var(--admin-border-default, var(--color-surface-200))'}"
 		onclick={() => document.getElementById(`${fieldName}-input`)?.focus()}
 		onkeydown={(e) => { if (e.key === 'Enter') document.getElementById(`${fieldName}-input`)?.focus(); }}
 	>

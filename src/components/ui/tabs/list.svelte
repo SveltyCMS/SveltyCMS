@@ -27,7 +27,7 @@ scrollbar for clean overflow handling.
 	let { children, class: className = '' }: Props = $props();
 </script>
 
-<div class={cn("tabs-list flex border-b border-surface-500/30 dark:border-surface-500/40 mb-4 overflow-x-auto scrollbar-hide", className)} role="tablist">
+<div class={cn("tabs-list mb-4 flex w-full items-stretch justify-start gap-0 overflow-x-auto border-b border-surface-500/20 scrollbar-hide", className)} role="tablist">
 	{@render children?.()}
 </div>
 

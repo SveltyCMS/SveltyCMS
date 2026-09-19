@@ -564,9 +564,10 @@ import { logger } from "@utils/logger";
 </script>
 
 <div
-	class="my-2 relative overflow-hidden rounded border {error
+	class="my-2 relative overflow-hidden bg-white dark:bg-surface-900 dark:text-surface-50 {error
 		? 'border-error-500 bg-error-500-10'
-		: 'border-surface-500/30 dark:text-surface-50'} bg-white dark:bg-surface-900"
+		: ''}"
+	style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid {error ? 'var(--color-error-500)' : 'var(--admin-border-default, var(--color-surface-200))'}"
 >
 	<!-- Toolbar -->
 	<div

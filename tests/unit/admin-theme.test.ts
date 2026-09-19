@@ -92,22 +92,17 @@ describe("AdminTheme", () => {
     );
   });
 
-  it("should derive correct radii per density", () => {
+  it("should use 0.25rem radii across densities (client polish)", () => {
     const compact = new AdminTheme({ density: "compact" });
     const cozy = new AdminTheme({ density: "cozy" });
     const spacious = new AdminTheme({ density: "spacious" });
 
-    expect(compact.radiusCard).toBe("6px");
-    expect(cozy.radiusCard).toBe("0.75rem");
-    expect(spacious.radiusCard).toBe("16px");
-
-    expect(compact.radiusInput).toBe("4px");
-    expect(cozy.radiusInput).toBe("0.375rem");
-    expect(spacious.radiusInput).toBe("10px");
-
-    expect(compact.radiusButton).toBe("0.125rem");
-    expect(cozy.radiusButton).toBe("0.25rem");
-    expect(spacious.radiusButton).toBe("0.625rem");
+    for (const theme of [compact, cozy, spacious]) {
+      expect(theme.radiusBase).toBe("0.25rem");
+      expect(theme.radiusCard).toBe("0.25rem");
+      expect(theme.radiusInput).toBe("0.25rem");
+      expect(theme.radiusButton).toBe("0.25rem");
+    }
   });
 
   it("should default features to DEFAULT_THEME_FEATURES", () => {
@@ -298,15 +293,15 @@ describe("AdminTheme SSR propagation", () => {
     expect(body).toContain("border-radius: var(--admin-radius-button, 0.25rem);");
 
     // Card styling
-    expect(body).toContain("border-radius: var(--admin-radius-card, 0.75rem);");
+    expect(body).toContain("border-radius: var(--admin-radius-card, 0.25rem);");
     expect(body).toContain("border-width: var(--admin-border-width, 1px);");
     expect(body).toContain("box-shadow: var(--admin-shadow-elevation");
 
     // Input scaling (padding is handled by Tailwind ps-3/pe-3)
     // removed inline padding assertions
 
-    // Badge styling
-    expect(body).toContain("border-radius: var(--admin-radius-input, 6px);");
+    // Badge styling (non-pill uses button radius token)
+    expect(body).toContain("border-radius: var(--admin-radius-button, 0.25rem);");
   });
 
   it("propagates spacious density variables to components", () => {

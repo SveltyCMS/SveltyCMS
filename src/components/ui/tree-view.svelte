@@ -19,7 +19,8 @@ search filtering, and RTL support.
 - `showBadges` (boolean): Show count badges on nodes (default: false).
 - `ariaLabel` (string): Accessible label for the tree (default: 'Navigation tree').
 - `dir` ('ltr' | 'rtl' | 'auto'): Text direction for RTL language support.
-- `variant` ('default' | 'media'): Media gallery folder styling (root + guide lines).
+- `variant` ('default' | 'media' | 'sidebar'): Media gallery folder styling, or collections sidebar (nested panel + left-aligned rows).
+- `collapsed` (boolean): Sidebar rail mode — parent rows stack icon above label like Media Gallery.
 - `externalDrop` (object): Optional @thisux/sveltednd drop targets (e.g. media files → folders).
 - `class` (string): Additional CSS classes.
 
@@ -156,7 +157,9 @@ search filtering, and RTL support.
         showBadges?: boolean;
         ariaLabel?: string;
         dir?: 'ltr' | 'rtl' | 'auto';
-        variant?: 'default' | 'media';
+        variant?: 'default' | 'media' | 'sidebar';
+        /** Collapsed left-rail: stack icon above label (matches Media Gallery rail). */
+        collapsed?: boolean;
         /** Media-file (or other) external drops onto folder/category rows */
         externalDrop?: TreeExternalDrop | null;
         class?: string;
@@ -185,6 +188,7 @@ search filtering, and RTL support.
         ariaLabel = 'Navigation tree',
         dir = 'ltr',
         variant = 'default',
+        collapsed = false,
         externalDrop = null,
         class: className,
         onselect,
@@ -567,6 +571,9 @@ search filtering, and RTL support.
     {@const nodeLabel = getNodeLabel(node)}
     {@const showBadge = shouldShowBadge(node)}
     {@const isMedia = variant === 'media'}
+    {@const isSidebar = variant === 'sidebar'}
+    {@const isNested = depth > 0}
+    {@const isSidebarRail = isSidebar && collapsed && !isNested}
     {@const isRoot = depth === 0 && node.id === 'root'}
     {@const showChevron = hasChildren || canNestInto(node)}
     {@const mediaIconTone = 'text-surface-300 dark:text-surface-400'}
@@ -585,7 +592,10 @@ search filtering, and RTL support.
         context so inner z-indexes can never paint over sticky sidebar chrome.
     -->
     <div
-        class="group/item relative isolate flex w-full min-w-0 items-center"
+        class={cn(
+            'group/item relative isolate flex w-full min-w-0 items-center',
+            isSidebar && 'rounded-[var(--admin-radius-button,0.25rem)] outline-none focus:outline-none focus-visible:outline-none',
+        )}
         data-node-type={node.type || node.nodeType || (isMedia ? 'folder' : undefined)}
         data-media-drop-target={externalDrop?.enabled ? node.id : undefined}
         use:droppable={externalDroppableOptions(node.id)}
@@ -639,47 +649,63 @@ search filtering, and RTL support.
                             ),
                         isFocused && 'ring-1 ring-inset ring-primary-500/40',
                     )
+                    : isSidebar
+                    ? cn(
+                        // Full: horizontal Media Gallery chip. Rail: stacked icon+label like Media.
+                        'box-border border-0 font-semibold tracking-wide leading-snug transition-colors shadow-none',
+                        'text-surface-900 dark:text-white',
+                        isSidebarRail
+                            ? 'flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px]'
+                            : 'items-center gap-1.5 px-3 py-2 text-[11px]',
+                        isNested
+                            ? 'bg-transparent hover:bg-black/5 dark:hover:bg-white/5'
+                            : 'bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-800',
+                    )
                     : cn(
-                        'items-center rounded-lg transition-all border border-transparent px-2',
+                        'items-center transition-colors border border-transparent px-2 box-border',
                         densityTokens.padding,
                         densityTokens.touch,
                         isSelected
-                            ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400 shadow-xs'
+                            ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400'
                             : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
-                        isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm',
+                        isFocused && 'ring-2 ring-inset ring-primary-500/50',
                     ),
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
-                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500/20! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
+                !isSidebar && dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500/20! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
-            style={!isMedia
-                ? `padding-inline-start: ${indentLeft(depth)}rem`
-                : !isRoot
+            style={isMedia
+                ? (!isRoot
                     ? `padding-inline-start: ${1.75 + Math.max(0, depth - 1) * 1.25}rem`
-                    : undefined}
+                    : undefined)
+                : isSidebar
+                    ? 'border-radius: var(--admin-radius-button, 0.25rem)'
+                    : `border-radius: var(--admin-radius-input, 0.25rem); padding-inline-start: ${indentLeft(depth)}rem`}
         >
-            <!-- Expand/Collapse Chevron or Loading Spinner -->
-            {#if showChevron}
-                {#if node.isLoading}
-                    <div class="flex items-center justify-center {densityTokens.dummy}">
-                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-500 border-t-transparent" aria-label="Loading"></div>
-                    </div>
-                {:else}
-                    <iconify-icon
-                        icon="mdi:chevron-right"
-                        width={isMedia ? '16' : densityTokens.chevron}
-                        class={cn(
-                            'shrink-0 opacity-60 transition-transform',
-                            prefersReducedMotion ? 'duration-0' : 'duration-200',
-                            expanded && 'rotate-90',
-                            dir === 'rtl' && 'rotate-180'
-                        )}
-                        aria-hidden="true"
-                    ></iconify-icon>
+            <!-- Expand/Collapse — leading chevron (default/media); sidebar puts it at the end -->
+            {#if !isSidebar}
+                {#if showChevron}
+                    {#if node.isLoading}
+                        <div class="flex items-center justify-center {densityTokens.dummy}">
+                            <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-500 border-t-transparent" aria-label="Loading"></div>
+                        </div>
+                    {:else}
+                        <iconify-icon
+                            icon="mdi:chevron-right"
+                            width={isMedia ? '16' : densityTokens.chevron}
+                            class={cn(
+                                'shrink-0 opacity-60 transition-transform',
+                                prefersReducedMotion ? 'duration-0' : 'duration-200',
+                                expanded && 'rotate-90',
+                                dir === 'rtl' && 'rotate-180'
+                            )}
+                            aria-hidden="true"
+                        ></iconify-icon>
+                    {/if}
+                {:else if !isMedia}
+                    <!-- Spacer when no children, matching chevron width -->
+                    <div class={densityTokens.dummy} aria-hidden="true"></div>
                 {/if}
-            {:else if !isMedia}
-                <!-- Spacer when no children, matching chevron width -->
-                <div class={densityTokens.dummy} aria-hidden="true"></div>
             {/if}
 
             <!-- Node Icon -->
@@ -687,7 +713,7 @@ search filtering, and RTL support.
                 <div class="relative flex shrink-0 items-center">
                     <iconify-icon
                         icon={(expanded && node.iconExpanded) ? node.iconExpanded : (node.icon || '')}
-                        width={isMedia ? (isRoot ? '18' : '16') : densityTokens.icon}
+                        width={isMedia ? (isRoot ? '18' : '16') : isSidebar ? (isSidebarRail ? '18' : '16') : densityTokens.icon}
                         class={cn(
                             isMedia
                                 ? isSelected
@@ -695,9 +721,11 @@ search filtering, and RTL support.
                                     : isRoot
                                         ? mediaIconTone
                                         : mediaFolderText
-                                : isHighlighted
-                                    ? 'text-primary-600 dark:text-primary-500'
-                                    : (node.iconColorClass || iconColorClass),
+                                : isSidebar
+                                    ? 'text-tertiary-500 dark:text-primary-500'
+                                    : isHighlighted
+                                        ? 'text-primary-600 dark:text-primary-500'
+                                        : (node.iconColorClass || iconColorClass),
                         )}
                         aria-hidden="true"
                     ></iconify-icon>
@@ -708,29 +736,40 @@ search filtering, and RTL support.
             <span
                 title={nodeLabel}
                 class={cn(
-                'truncate transition-colors',
+                'truncate transition-colors min-w-0',
+                !isSidebarRail && 'flex-1',
                 isMedia
                     ? cn(
                         isRoot ? 'text-[15px]' : 'text-sm',
                         isSelected ? mediaSelectedText : isRoot ? mediaRootText : mediaFolderText,
                         !isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-400',
                     )
+                    : isSidebar
+                    ? cn(
+                        isSidebarRail
+                            ? 'max-w-full truncate text-center text-[10px] font-semibold tracking-wide text-surface-900 dark:text-white'
+                            : 'text-[11px] font-semibold tracking-wide text-surface-900 dark:text-white',
+                    )
                     : cn(
                         node.labelClass || densityTokens.font,
                         isHighlighted
-                            ? 'font-bold text-primary-600 dark:text-primary-500'
-                            : (node.labelClass ? 'font-bold text-surface-500 dark:text-surface-400' : 'font-medium text-surface-900 dark:text-surface-100'),
+                            ? 'font-semibold text-primary-600 dark:text-primary-500'
+                            : (!node.labelClass && 'font-medium text-surface-900 dark:text-surface-100'),
                     ),
             )}>
                 {nodeLabel}
             </span>
 
-	            <!-- Count Badge -->
-	            {#if showBadge}
+	            <!-- Count Badge — hide on rail (Media has none); keep in full sidebar -->
+	            {#if showBadge && !isSidebarRail}
 	                <Badge
 	                    variant="surface"
 	                    size="sm"
-	                    class="ms-auto shrink-0 group-hover/item:hidden"
+	                    class={cn(
+	                        'shrink-0',
+	                        !isSidebar && 'ms-auto',
+	                        computedDensity !== 'compact' && 'group-hover/item:hidden',
+	                    )}
 	                    title={node.badge?.title}
 	                >
 	                    {#if node.badge?.icon}
@@ -739,6 +778,27 @@ search filtering, and RTL support.
 	                    {node.badge?.count ?? ''}
 	                </Badge>
 	            {/if}
+
+            <!-- Sidebar: chevron when item has children (full + rail) -->
+            {#if isSidebar && showChevron}
+                {#if node.isLoading}
+                    <div class="flex shrink-0 items-center justify-center {densityTokens.dummy}">
+                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-500 border-t-transparent" aria-label="Loading"></div>
+                    </div>
+                {:else}
+                    <iconify-icon
+                        icon="mdi:chevron-down"
+                        width={isSidebarRail ? '12' : densityTokens.chevron}
+                        class={cn(
+                            'shrink-0 opacity-60 transition-transform',
+                            prefersReducedMotion ? 'duration-0' : 'duration-200',
+                            !expanded && '-rotate-90',
+                            dir === 'rtl' && expanded && 'rotate-180'
+                        )}
+                        aria-hidden="true"
+                    ></iconify-icon>
+                {/if}
+            {/if}
         </svelte:element>
 
         <!-- Per-node Action Buttons -->
@@ -783,18 +843,26 @@ search filtering, and RTL support.
                 data-media-drop-line-guard={externalDrop?.enabled ? '' : undefined}
                 class={cn(
                     'relative',
-                    isMedia && isRoot ? 'ms-0' : computedDensity === 'compact' ? 'ms-1' : 'ms-4',
+                    isSidebar
+                        ? // Submenu panel only — no colored border; parents keep Media Gallery chip look
+                          'ms-0 me-0 mt-0.5 mb-1 overflow-hidden border-0 bg-surface-500/10 dark:bg-surface-900/80'
+                        : isMedia && isRoot
+                            ? 'ms-0'
+                            : computedDensity === 'compact'
+                                ? 'ms-1'
+                                : 'ms-4',
                 )}
+                style={isSidebar ? 'border-radius: var(--admin-radius-button, 0.25rem)' : undefined}
                 role="group"
                 aria-labelledby={`treenode-${node.id}`}
             >
-                <!-- Vertical Guide Line — media root only, aligned to home icon column -->
+                <!-- Vertical Guide Line — media root only, or default tree (not sidebar panel) -->
                 {#if isMedia && isRoot && expanded}
                     <div
                         class={cn('pointer-events-none absolute bottom-0 inset-s-5.75 top-0 w-px', mediaGuideLine)}
                         aria-hidden="true"
                     ></div>
-                {:else if !isMedia}
+                {:else if !isMedia && !isSidebar}
                     <div
                         class="absolute inset-s-0 top-0 bottom-0 w-px bg-surface-200 dark:bg-surface-700"
                         style="margin-inline-start: {guidelineLeft(depth)}rem;"
@@ -803,7 +871,10 @@ search filtering, and RTL support.
                 {/if}
 
                 {#if expanded}
-                    <div transition:fly|local={{ y: prefersReducedMotion ? 0 : -10, duration: transitionDuration }}>
+                    <div
+                        class={isSidebar ? 'divide-y divide-surface-500/15 dark:divide-surface-500/25' : undefined}
+                        transition:fly|local={{ y: prefersReducedMotion ? 0 : -10, duration: transitionDuration }}
+                    >
                         {#each node.children! as child (child.id)}
                             {@render treeNode(child, depth + 1)}
                         {/each}
@@ -815,7 +886,11 @@ search filtering, and RTL support.
 {/snippet}
 
 <div
-    class={cn('flex flex-col gap-0.5 w-full', className)}
+    class={cn(
+        'flex flex-col w-full',
+        variant === 'sidebar' ? 'gap-1' : 'gap-0.5',
+        className,
+    )}
     role="tree"
     aria-label={ariaLabel}
     aria-orientation="vertical"
@@ -860,6 +935,11 @@ search filtering, and RTL support.
       element. Same reason the ring reset below is CSS — `cn` is plain clsx (no
       tailwind-merge), so a competing utility loses on stylesheet order anyway.
     */
+    :global([role='treeitem'].outline-none:focus),
+    :global([role='treeitem'].outline-none:focus-visible) {
+        outline: none;
+    }
+
     :global(.tree-node-btn:focus-visible) {
         outline-offset: -2px;
         /* The outline above is the focus indicator; suppress Button's own

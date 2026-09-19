@@ -99,7 +99,7 @@ Shows a Google-like snippet with desktop/mobile width and an optional word-empha
 			<p class="mt-0.5 text-xs text-surface-400">How this snippet may appear in Google search results.</p>
 		</div>
 
-		<div class="btn-group overflow-hidden rounded-lg border border-surface-500/30 dark:border-surface-500/40" role="group" aria-label="Preview mode">
+		<div class="btn-group overflow-hidden border border-surface-500/30 dark:border-surface-500/40" role="group" aria-label="Preview mode" style="border-radius: var(--admin-radius-input, 0.25rem)">
 			<Button
 				variant={!SeoPreviewToggle ? 'primary' : 'ghost'}
 				type="button"
@@ -142,8 +142,8 @@ Shows a Google-like snippet with desktop/mobile width and an optional word-empha
 	</div>
 
 	<div
-		class="rounded-lg border border-surface-500/30 bg-white p-4 dark:border-surface-500/40 dark:bg-surface-900 {SeoPreviewToggle ? 'max-w-93.75 mx-auto' : 'w-full'}"
-		data-testid="seo-search-preview"
+		class="border border-surface-500/30 bg-white p-4 dark:border-surface-500/40 dark:bg-surface-900 {SeoPreviewToggle ? 'max-w-93.75 mx-auto' : 'w-full'}"
+		style="border-radius: var(--admin-radius-input, 0.25rem)"		data-testid="seo-search-preview"
 	>
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">

@@ -269,9 +269,16 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		const getEffectiveOrder = (node: ExtendedContentNode) =>
 			orderOverrides.get(node._id) ?? node.order ?? 0;
 
+		/** Display labels: fix all-lowercase names like "pages" → "Pages"; keep mixed/Title case as-is. */
+		function formatCollectionLabel(raw: string): string {
+			if (!raw) return raw;
+			if (raw !== raw.toLowerCase()) return raw;
+			return raw.replace(/\b\p{L}/gu, (ch) => ch.toUpperCase());
+		}
+
 		function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
 			const translation = node.translations?.find(t => t.languageTag === currentLanguage);
-			const label = translation?.translationName || node.name;
+			const label = formatCollectionLabel(translation?.translationName || node.name || '');
 			const isCategory = node.nodeType === 'category';
 			const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
 
@@ -360,8 +367,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				children,
 				icon: isCategory ? 'bi:folder' : (node.icon || 'bi:collection'),
 				iconExpanded: isCategory ? 'bi:folder2-open' : undefined,
-				iconColorClass: isCategory ? 'text-surface-400 dark:text-surface-500' : (node.icon ? undefined : 'text-tertiary-500 dark:text-primary-500'),
-				labelClass: isCategory ? 'text-xs uppercase tracking-wider' : undefined,
+				// First-level items share one accent; nested rows inherit tree sidebar styling
+				iconColorClass: 'text-tertiary-500 dark:text-primary-500',
+				labelClass: undefined,
 				badge,
 				path: nodePath,
 				href: nodePath,
@@ -659,52 +667,54 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	<!-- Collections Section Header with Quick-Add -->
 	{#if isFullSidebar}
 		<div class="flex items-center justify-between px-1 pb-0.5">
-			<span class="text-xs font-bold uppercase tracking-wider text-surface-500">Collections</span>
+			<span class="text-[11px] font-semibold uppercase tracking-wider text-surface-500">Collections</span>
 			<SystemTooltip title="Manage Collections & Categories" positioning={{ placement: 'right' }}>
 				<a
 					href="/config/collectionbuilder"
 					data-sveltekit-preload-data="hover"
 					data-testid="sidebar-collection-builder-link"
-					class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-primary-500 transition-colors no-underline!"
+					class="flex size-7 items-center justify-center border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)] text-surface-600 hover:border-tertiary-500 hover:text-tertiary-500 dark:text-surface-400 dark:hover:border-primary-500 dark:hover:text-primary-500 transition-colors no-underline!"
+					style="border-radius: var(--admin-radius-button, 0.25rem)"
 					aria-label="Manage Collections & Categories"
 				>
-					<iconify-icon icon="ic:round-add" width="16"></iconify-icon>
+					<iconify-icon icon="ic:round-add" width="18" aria-hidden="true"></iconify-icon>
 				</a>
 			</SystemTooltip>
 		</div>
 	{/if}
 
-	<!-- Filters Row -->
+	<!-- Filters Row — Favorites + Tags share the row so the right side is not blank -->
 	{#if isFullSidebar}
-		<div class="flex flex-wrap items-center gap-2 px-1">
+		<div class="flex items-center gap-2 px-1">
 			<Button
 				variant="outline"
 				type="button"
 				size="sm"
 				onclick={() => showOnlyFavorites = !showOnlyFavorites}
-				class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
+				class="flex shrink-0 items-center gap-1.5 border text-[11px] font-medium py-1 px-2.5 transition-colors {showOnlyFavorites
 					? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
 					: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+				style="border-radius: var(--admin-radius-button, 0.25rem)"
 			>
-				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
+				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="12"></iconify-icon>
 				<span>Favorites</span>
 			</Button>
 
-			{#if allTags.length > 0}
-				<div class="relative flex-1 min-w-35">
-					<Select
-						bind:value={selectedTagFilter}
-						options={tagFilterOptions}
-						placeholder="All Tags"
-						allowEmptySelection
-						size="sm"
-					/>
-				</div>
-			{/if}
+			<div class="min-w-0 flex-1">
+				<Select
+					bind:value={selectedTagFilter}
+					options={tagFilterOptions}
+					placeholder={allTags.length > 0 ? 'Tags' : 'No tags'}
+					allowEmptySelection
+					size="sm"
+					disabled={allTags.length === 0}
+					aria-label="Filter by tag"
+				/>
+			</div>
 
 			{#if search || showOnlyFavorites || selectedTagFilter}
-				<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
-					Clear filters
+				<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="shrink-0 text-[11px] px-1.5">
+					Clear
 				</Button>
 			{/if}
 		</div>
@@ -740,7 +750,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				placeholder="Search collections..."
 				pre={searchIcon as Snippet}
 				post={clearIcon as Snippet}
-				inputClass="w-full text-xs"
+				inputClass="w-full text-[11px]"
 				aria-label="Search collections"
 			/>
 		</div>
@@ -755,7 +765,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 						placeholder="Search…"
 						pre={searchIcon as Snippet}
 						post={clearIcon as Snippet}
-						inputClass="w-full text-xs"
+						inputClass="w-full text-[11px]"
 						aria-label="Search collections"
 					/>
 				</div>
@@ -787,9 +797,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 	<!-- Custom Order Banner (full sidebar only — compact is 120px) -->
 	{#if isFullSidebar && orderOverrides.size > 0}
-		<div class="flex items-center justify-between rounded bg-tertiary-500/10 px-3 py-1.5 text-xs text-tertiary-600 dark:text-tertiary-400">
-			<span>Custom order active</span>
-			<Button variant="ghost" type="button" size="sm" onclick={resetCustomOrder} class="text-xs px-2">
+		<div class="flex items-center justify-between gap-2 bg-tertiary-500/10 px-2.5 py-1.5 text-[11px] text-tertiary-600 dark:text-tertiary-400" style="border-radius: var(--admin-radius-button, 0.25rem)">
+			<span class="min-w-0 truncate">Custom order active</span>
+			<Button variant="ghost" type="button" size="sm" onclick={resetCustomOrder} class="shrink-0 text-[11px] font-medium px-1.5 py-0.5! min-h-0">
 				Reset order
 			</Button>
 		</div>
@@ -835,7 +845,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			<TreeView
 				nodes={treeNodes}
 				{selectedId}
-				compact={!isFullSidebar}
+				compact={true}
+				variant="sidebar"
+				collapsed={!isFullSidebar}
 				search={debouncedSearch}
 				showBadges={true}
 				allowDragDrop={true}

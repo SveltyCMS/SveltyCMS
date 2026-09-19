@@ -295,7 +295,8 @@
 			{#each selectedFiles as file (file._id)}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
-					class="relative overflow-hidden rounded border border-surface-500/30 dark:text-surface-50"
+					class="relative overflow-hidden border border-surface-500/30 dark:text-surface-50"
+					style="border-radius: var(--admin-radius-input, 0.25rem)"
 					animate:flip
 					use:draggable={{ container: 'media-grid', dragData: file, keyboard: true }}
 					role="listitem"

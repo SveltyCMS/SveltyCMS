@@ -373,7 +373,7 @@ import Button from '@components/ui/button.svelte';
 				<div class="space-y-3">
 					<div class="space-y-1">
 						<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_createdby()}</p>
-						<div class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800">
+						<div class="border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800" style="border-radius: var(--admin-radius-input, 0.25rem)">
 							<span class="text-sm font-semibold text-surface-600 dark:text-surface-100"> {getDisplayName(currentEntry?.createdBy as string)} </span>
 						</div>
 					</div>
@@ -381,7 +381,7 @@ import Button from '@components/ui/button.svelte';
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Last updated by</p>
-							<div class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800">
+							<div class="border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800" style="border-radius: var(--admin-radius-input, 0.25rem)">
 								<span class="text-sm font-semibold text-surface-600 dark:text-surface-100">
 									{getDisplayName(currentEntry?.updatedBy as string)}
 								</span>

@@ -425,10 +425,11 @@ FIXES:
 		{#snippet trigger()}
 			<Button variant="ghost"
 				aria-label="Toggle language menu"
-			 class="flex h-9 items-center gap-1 rounded-md px-3 py-1.5 text-sm transition-all {!isViewMode ? 'bg-success-500 text-white hover:bg-success-500 hover:brightness-100' : 'hover:bg-surface-500/10'}">
+			 class="flex h-9 items-center gap-2 px-3 py-1.5 text-sm transition-all {!isViewMode ? 'bg-success-500 text-white hover:bg-success-500 hover:brightness-100' : 'hover:bg-surface-500/10'}"
+			 style="border-radius: var(--admin-radius-button, 0.25rem)">
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
-				<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:chevron-down" class="size-4 shrink-0 opacity-90" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/snippet}
 

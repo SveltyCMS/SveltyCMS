@@ -146,6 +146,16 @@ import { tick, untrack } from "svelte";
     return Boolean(label) && label !== sectionLabel;
   }
 
+  /** Display labels: "pages" → "Pages"; keep mixed case as-is. */
+  function formatDisplayName(raw: string): string {
+    if (!raw) return raw;
+    if (raw !== raw.toLowerCase()) return raw;
+    return raw.replace(/\b\p{L}/gu, (ch) => ch.toUpperCase());
+  }
+
+  const breadcrumbCollection = $derived(formatDisplayName(collection.value?.name || "Collection"));
+  const isExistingEntry = $derived(Boolean((collectionValue as any)?.value?._id));
+
   // --- 1. RECEIVE DATA AS PROPS ---
   let {
     fields,
@@ -804,18 +814,14 @@ import { tick, untrack } from "svelte";
             {/if}
   {/snippet}
 
-  <div class="mb-0 flex w-full items-center gap-2 border-b border-surface-500/30 bg-surface-500/10 px-4 py-2.5 text-sm dark:border-surface-500/40 dark:bg-surface-800/70">
-    <div class="flex items-center gap-2">
-      <iconify-icon icon={collection.value?.icon || "mdi:folder-outline"} width="18" class="text-primary-500"></iconify-icon>
-      <span class="font-semibold text-primary-600 dark:text-primary-400">{collection.value?.name || "Collection"}</span>
-      <span class="text-surface-400">/</span>
-      <span class="text-surface-600 dark:text-surface-400 font-medium">
-        {#if (collectionValue as any)?.value?._id}
-          Edit <span class="font-mono text-xs opacity-80">({String((collectionValue as any).value._id).slice(0, 8)})</span>
-        {:else}
-          New Entry
-        {/if}
-      </span>
+  <div class="mb-0 flex w-full items-center gap-2 border-b border-surface-500/20 bg-transparent px-4 py-2 text-sm">
+    <div class="flex min-w-0 items-center gap-2">
+      <iconify-icon icon={collection.value?.icon || "mdi:folder-outline"} width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+      <span class="truncate font-medium text-surface-600 dark:text-surface-400">{breadcrumbCollection}</span>
+      {#if !isExistingEntry}
+        <span class="text-surface-400" aria-hidden="true">/</span>
+        <span class="truncate text-surface-500 dark:text-surface-400">New Entry</span>
+      {/if}
     </div>
   </div>
 
@@ -824,70 +830,34 @@ import { tick, untrack } from "svelte";
     onValueChange={(e) => (localTabSet = e.value)}
     class="flex w-full flex-1 flex-col items-stretch"
   >
+    <!-- Clean underline tabs (video / Drupal-style): text-first, light rule, active accent underline -->
     <Tabs.List
-      class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full"
+      class="mb-0 w-full justify-start gap-0 border-b border-surface-500/20 bg-transparent px-2 sm:px-4"
     >
-      <Tabs.Trigger value="0" class="flex-1">
-        <div class="flex items-center justify-center gap-2 py-2">
-          <iconify-icon
-            icon="mdi:pen"
-            width="20"
-            class="text-tertiary-500 dark:text-primary-500"
-          ></iconify-icon>
-          {button_edit()}
-        </div>
+      <Tabs.Trigger value="0" class="flex-none px-3 py-2.5 text-sm font-medium">
+        {button_edit()}
       </Tabs.Trigger>
 
       {#if collection.value?.revision}
-        <Tabs.Trigger value="1" class="flex-1">
-          <div class="flex items-center justify-center gap-2 py-2">
-            <iconify-icon
-              icon="mdi:history"
-              width="20"
-              class="text-tertiary-500 dark:text-primary-500"
-            ></iconify-icon>
-	            {applayout_version()}
-	            <Badge variant="secondary">{revisions.length}</Badge>
-          </div>
+        <Tabs.Trigger value="1" class="flex-none px-3 py-2.5 text-sm font-medium">
+          <span class="inline-flex items-center gap-1.5">
+            {applayout_version()}
+            <Badge variant="secondary" size="sm" rounded={false}>{revisions.length}</Badge>
+          </span>
         </Tabs.Trigger>
       {/if}
 
       {#if user?.isAdmin}
-        <Tabs.Trigger value="3" class="flex-1">
-          <div class="flex items-center justify-center gap-2 py-2">
-            <iconify-icon
-              icon="mdi:api"
-              width="20"
-              class="text-tertiary-500 dark:text-primary-500"
-            ></iconify-icon>
-            API
-          </div>
+        <Tabs.Trigger value="3" class="flex-none px-3 py-2.5 text-sm font-medium">
+          API
         </Tabs.Trigger>
       {/if}
 
-      <!-- Plugin Slots Triggers -->
       {#each entryEditSlots as slot (slot.id)}
-        <Tabs.Trigger value={slot.id} class="flex-1">
-          <div class="flex items-center justify-center gap-2 py-2">
-            {#if slot.props?.icon}
-              <iconify-icon
-                icon={slot.props.icon}
-                width="20"
-                class="text-tertiary-500 dark:text-primary-500"
-              ></iconify-icon>
-            {:else}
-              <iconify-icon
-                icon="mdi:puzzle-outline"
-                width="20"
-                class="text-tertiary-500 dark:text-primary-500"
-              ></iconify-icon>
-            {/if}
-            {slot.props?.label || slot.id}
-          </div>
+        <Tabs.Trigger value={slot.id} class="flex-none px-3 py-2.5 text-sm font-medium">
+          {slot.props?.label || slot.id}
         </Tabs.Trigger>
       {/each}
-
-      <Tabs.Indicator />
     </Tabs.List>
 
     <Tabs.Content value="0" class="w-full">
@@ -899,6 +869,7 @@ import { tick, untrack } from "svelte";
           {@const sectionCollapsed = isSectionCollapsed(section.key)}
           <AdminCard
             class="w-full overflow-hidden p-0"
+            radius="input"
             data-testid="form-section"
             data-section-key={section.key}
             aria-label={section.label}
@@ -1000,7 +971,7 @@ import { tick, untrack } from "svelte";
             </Portal>
           {/if}
 
-          <div class="rounded border p-4 dark:text-surface-50">
+          <div class="border p-4 dark:text-surface-50" style="border-radius: var(--admin-radius-card, 0.25rem)">
             <h3 class="mb-3 text-lg font-bold">Quick Preview</h3>
 
             {#if selectedRevision}

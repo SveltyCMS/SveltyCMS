@@ -744,36 +744,34 @@ function modalLoadPreset(): void {
 
     {#if currentConfig.length > 0}
         <AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 backdrop-blur-md shadow-xs">
-        <div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
-        <Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-44 justify-center" disabled={isLoading}>
-            <iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
-            <span>Quick Start</span>
+        <div class="mb-4 flex flex-wrap justify-center gap-3" in:fade={{ duration: 300 }}>
+        <Button onclick={() => modalQuickStart()} variant="secondary" size="md" class="group min-w-40 justify-center gap-2 px-4 py-2.5" disabled={isLoading}>
+            <iconify-icon icon="mdi:magic-staff" width="20" class="shrink-0 transition-transform group-hover:rotate-12"></iconify-icon>
+            <span class="whitespace-nowrap">Quick Start</span>
         </Button>
 
         <Button
             onclick={() => modalIntrospectSchema()}
             variant="secondary"
-            rounded={true}
-            size="lg"
-            class="group w-52 justify-center"
+            size="md"
+            class="group min-w-44 justify-center gap-2 px-4 py-2.5"
             disabled={isLoading}
             data-testid="introspect-schema-button"
         >
-            <iconify-icon icon="mdi:database-arrow-right" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
-            <span>Introspect / Ingest</span>
+            <iconify-icon icon="mdi:database-arrow-right" width="20" class="shrink-0 transition-transform group-hover:scale-110"></iconify-icon>
+            <span class="whitespace-nowrap">Introspect / Ingest</span>
         </Button>
 
         <Button
             onclick={() => modalAddCategory()}
             variant="tertiary"
-            rounded={true}
-            size="lg"
-            class="group w-44 justify-center"
+            size="md"
+            class="group min-w-40 justify-center gap-2 px-4 py-2.5"
             disabled={isLoading}
             data-testid="add-category-button"
         >
-            <iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
-            <span>{collection_addcategory()}</span>
+            <iconify-icon icon="mdi:folder-plus" width="20" class="shrink-0 transition-transform group-hover:scale-110"></iconify-icon>
+            <span class="whitespace-nowrap">{collection_addcategory()}</span>
         </Button>
 
         <Button
@@ -781,15 +779,14 @@ function modalLoadPreset(): void {
             data-preload="hover"
             onclick={setupNewCollection}
             variant="error"
-            rounded={true}
-            size="lg"
-            class="group w-44 justify-center"
+            size="md"
+            class="group min-w-40 justify-center gap-2 px-4 py-2.5"
             disabled={isLoading}
             data-testid="add-collection-button"
             aria-keyshortcuts="Mod+N"
         >
-            <iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
-            <span>{collection_add()}</span>
+            <iconify-icon icon="ic:round-plus" width="20" class="shrink-0 transition-transform group-hover:rotate-90"></iconify-icon>
+            <span class="whitespace-nowrap">{collection_add()}</span>
         </Button>
 
         {#if selectedCategoryId}

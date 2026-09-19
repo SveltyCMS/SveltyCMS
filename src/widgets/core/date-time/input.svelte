@@ -152,7 +152,11 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="relative mb-0 min-h-10 w-full">
 	<SystemTooltip title={error || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div
+			class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+			style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
+			role="group"
+		>
 			<Input
 				bind:inputRef
 				type="date"

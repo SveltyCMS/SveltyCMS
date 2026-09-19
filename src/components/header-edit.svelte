@@ -309,7 +309,7 @@ import Button from '@components/ui/button.svelte';
 		{/if}
 	</div>
 
-	<div class="flex items-center gap-2 shrink-0">
+	<div class="flex items-center gap-3 shrink-0">
 		<!-- Mobile & Tablet: Translation + Save/Next + More -->
 		{#if !isDesktop}
 			{#if showMore}
@@ -355,8 +355,14 @@ import Button from '@components/ui/button.svelte';
 		{/if}
 
 		{#if !ui.wizard.headerActionButton}
-			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
-				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
+			<Button
+				variant="outline"
+				onclick={cancel}
+				aria-label="Cancel"
+				class="flex size-9 shrink-0 items-center justify-center p-0! min-w-0"
+				style="border-radius: var(--admin-radius-button, 0.25rem)"
+			>
+				<iconify-icon icon="material-symbols:close" width="20" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/if}
 	</div>

@@ -100,7 +100,7 @@ corner-shape angled corners.
 
     // Set dynamic border-radius
     if (shape !== 'angle') {
-      styles += `border-radius: var(--admin-radius-card, 0.75rem); `;
+      styles += `border-radius: var(--admin-radius-card, 0.25rem); `;
     }
 
     // Set dynamic border-width and shadow — variant-aware via theme context

@@ -535,7 +535,7 @@ afterNavigate(() => {
 					</aside>
 				{/if}
 
-				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
+				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col ps-3">
 					{#if ui.state.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}

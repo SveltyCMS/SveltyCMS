@@ -46,7 +46,7 @@ let {
 		value = $bindable(),
 		name = uid,
 		disabled = false,
-		rounded = 'var(--admin-radius-input, 0.375rem)',
+		rounded = 'var(--admin-radius-input, 0.25rem)',
 		class: className,
 		onchange,
 		...rest

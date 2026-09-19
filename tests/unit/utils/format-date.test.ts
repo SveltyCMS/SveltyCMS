@@ -104,9 +104,13 @@ describe("format-date utility", () => {
     const testDate = new Date(Date.UTC(2026, 2, 15, 14, 30, 0));
 
     it("should format time with deterministic locale", () => {
-      const result = formatTime(testDate, "en");
+      const result = formatTime(
+        testDate,
+        { timeZone: "UTC", hour: "numeric", minute: "2-digit", second: "2-digit" },
+        "en",
+      );
       expect(result).toBeTruthy();
-      // Contains minutes: 30
+      // UTC 14:30 → minutes stay "30" regardless of host TZ
       expect(result).toContain("30");
     });
 

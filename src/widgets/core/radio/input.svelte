@@ -87,7 +87,8 @@ Renders radio group with options from field.options array
 <div class="mb-4">
 	<fieldset
 		id={fieldId}
-		class="rounded border border-surface-500 px-2 py-1 dark:border-surface-400"
+		class="border px-2 py-1"
+		style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
 		aria-describedby={error ? `${fieldId}-error` : undefined}
 	>
 		<!-- Legend -->

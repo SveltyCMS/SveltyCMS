@@ -273,13 +273,15 @@ import Button from '@components/ui/button.svelte';
 		</a>
 	{:else}
 		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
-			<Button variant="transparent"
+			<button
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-			 class="p-0! min-w-0">
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</Button>
+				class="flex size-8 shrink-0 items-center justify-center border border-[var(--admin-border-default)] bg-[var(--admin-bg-sidebar)] text-[var(--admin-text-body)] shadow-sm hover:bg-[var(--admin-border-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500/40 dark:focus-visible:ring-primary-500/40"
+				style="border-radius: var(--admin-radius-button, 0.25rem)"
+			>
+				<iconify-icon icon="mingcute:menu-fill" width="20" aria-hidden="true"></iconify-icon>
+			</button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!">
 				<SveltyCMSLogo fill="red" className="h-9 -ms-2" />
@@ -287,28 +289,28 @@ import Button from '@components/ui/button.svelte';
 		</div>
 	{/if}
 
-	<!-- Expand/Collapse Button -->
+	<!-- Expand/Collapse — edge toggle; 0.25rem radius (theme button), clears main content -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 		positioning={{ placement: 'right-end' }}
-		triggerClass="absolute top-3 z-20 -end-4"
+		triggerClass="absolute top-3 z-30 end-0 translate-x-1/2 rtl:-translate-x-1/2"
 	>
-		<Button variant="transparent"
+		<button
 			type="button"
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="flex h-8 w-8 items-center justify-center rounded-full! border-0 bg-transparent p-0! min-w-0 shadow-none hover:bg-surface-500/10"
+			class="flex size-7 shrink-0 items-center justify-center border border-error-500 bg-error-500 text-white shadow-sm transition-colors hover:bg-error-500/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-500/40"
+			style="border-radius: var(--admin-radius-button, 0.25rem)"
 		>
 			<iconify-icon
 				icon="bi:chevron-right"
-				width="22"
-				class="text-surface-600 transition-transform dark:text-white {isSidebarFull
-					? 'rotate-180 rtl:rotate-0'
-					: 'rotate-0 rtl:rotate-180'}"
+				width="14"
+				aria-hidden="true"
+				class="block leading-none transition-transform {isSidebarFull ? 'rotate-180 rtl:rotate-0' : 'rotate-0 rtl:rotate-180'}"
 			></iconify-icon>
-			</Button>
-		</SystemTooltip>
+		</button>
+	</SystemTooltip>
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
@@ -325,11 +327,12 @@ import Button from '@components/ui/button.svelte';
 					<Button variant="ghost"
 						type="button"
 						onclick={() => isPinnedOpen = !isPinnedOpen}
-						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-1' : 'justify-center'}"
+						class="flex w-full items-center justify-between py-1.5 text-[11px] font-semibold tracking-wide {isSidebarFull ? 'px-1' : 'justify-center'}"
+						style="border-radius: var(--admin-radius-button, 0.25rem)"
 					 aria-label="Toggle pinned items">
 						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}Pinned{/if}
+							<iconify-icon icon="bi:pin-angle-fill" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}<span class="text-[11px] font-semibold uppercase tracking-wider text-surface-500">Pinned</span>{/if}
 						</span>
 						{#if isSidebarFull}
 							<iconify-icon
@@ -348,13 +351,13 @@ import Button from '@components/ui/button.svelte';
 										href={item.path}
 										data-sveltekit-preload-data="hover"
 										data-preload={normalizeHref(item.path) === predictedNextPath ? 'smart' : undefined}
-										class="flex flex-1 items-center gap-2 px-2 py-2 text-sm no-underline!"
+										class="flex flex-1 items-center gap-2 px-2 py-1.5 text-xs no-underline!"
 										style="color: var(--admin-text-body)"
 										onclick={() => {
 											if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 										}}
 									>
-										<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<iconify-icon icon={item.icon || 'bi:pin'} width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										{#if isSidebarFull}
 											<span class="truncate">{item.name}</span>
 										{/if}
@@ -397,41 +400,38 @@ import Button from '@components/ui/button.svelte';
 								type="button"
 								onclick={handleBackToCollections}
 								aria-label="Back to Collections"
-								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+								class="flex w-full items-center gap-1.5 py-2 text-[11px] font-semibold tracking-wide bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+								style="border-radius: var(--admin-radius-button, 0.25rem)"
 							>
-								<iconify-icon icon="bi:arrow-left" width={isSidebarFull ? 18 : 16} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-								<span class="truncate">{isSidebarFull ? 'Collections' : 'Collections'}</span>
+								<iconify-icon icon="bi:arrow-left" width={isSidebarFull ? 16 : 14} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<span class="truncate">Collections</span>
 							</Button>
 						</SystemTooltip>
 					</div>
 				</div>
 			{:else if showCollectionsHere}
-				<!-- Default: collection tree only — flex column layout for sticky bottom media link -->
-				<div class="flex flex-col">
-					<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
+				<!-- Collection tree + Media Gallery share one column so spacing matches -->
+				<div class="flex flex-col gap-1">
+					<div class="w-full text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
 						<Collections />
 					</div>
 
-					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
-						<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-default)"></div>
-
-						<SystemTooltip
-							title="Media Gallery"
-							positioning={{ placement: 'right' }}
-							triggerClass="w-full"
+					<SystemTooltip
+						title="Media Gallery"
+						positioning={{ placement: 'right' }}
+						triggerClass="w-full"
+					>
+						<button
+							type="button"
+							onclick={handleGoToMediaGallery}
+							aria-label="Go to Media Gallery"
+							class="flex w-full items-center gap-1.5 border-0 bg-surface-200/80 px-3 py-2 text-[11px] font-semibold leading-snug tracking-wide text-surface-900 shadow-none transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:text-white dark:hover:bg-surface-800 {isSidebarFull ? 'justify-start' : 'flex-col justify-center px-1 py-1.5 text-[10px]'}"
+							style="border-radius: var(--admin-radius-button, 0.25rem)"
 						>
-							<Button
-								variant="surface"
-								type="button"
-								onclick={handleGoToMediaGallery}
-								aria-label="Go to Media Gallery"
-								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
-							>
-								<iconify-icon icon="bi:image-fill" width={isSidebarFull ? 20 : 18} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-								<span class="truncate">{isSidebarFull ? 'Media Gallery' : 'Media'}</span>
-							</Button>
-						</SystemTooltip>
-					</div>
+							<iconify-icon icon="bi:image-fill" width={isSidebarFull ? 16 : 14} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span class="truncate">{isSidebarFull ? 'Media Gallery' : 'Media'}</span>
+						</button>
+					</SystemTooltip>
 				</div>
 			{/if}
 		{/if}
@@ -440,7 +440,7 @@ import Button from '@components/ui/button.svelte';
 	<!-- Plugin Pages (declarative nav) -->
 	{#if pluginNavItems.length > 0}
 		<div class="mt-2 w-full px-1" data-testid="sidebar-plugin-nav">
-			<div class="mb-1 px-2 text-xs font-bold uppercase tracking-wider text-surface-500">
+			<div class="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-surface-500">
 				Plugins
 			</div>
 			<div class="space-y-0.5">
@@ -451,13 +451,13 @@ import Button from '@components/ui/button.svelte';
 							data-sveltekit-preload-data="hover"
 							data-preload={normalizeHref(item.path) === predictedNextPath ? 'smart' : undefined}
 							aria-label={item.label}
-							class="flex items-center gap-2 rounded px-2 py-2 text-sm no-underline! transition-colors hover:bg-surface-200/70 dark:hover:bg-surface-800"
-							style="color: var(--admin-text-body)"
+							class="flex items-center gap-2 px-2 py-1.5 text-xs no-underline! transition-colors hover:bg-surface-200/70 dark:hover:bg-surface-800"
+							style="color: var(--admin-text-body); border-radius: var(--admin-radius-button, 0.25rem)"
 							onclick={() => {
 								if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 							}}
 						>
-							<iconify-icon icon={item.icon} width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon={item.icon} width="14" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							{#if isSidebarFull}
 								<span class="truncate">{item.label}</span>
 							{/if}

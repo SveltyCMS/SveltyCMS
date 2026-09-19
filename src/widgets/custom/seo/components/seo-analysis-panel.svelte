@@ -67,7 +67,7 @@ import { logger } from "@utils/logger";
 	}
 </script>
 
-<div class="flex flex-col overflow-hidden rounded-lg border border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900 {className}">
+<div class="flex flex-col overflow-hidden border border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900 {className}" style="border-radius: var(--admin-radius-input, 0.25rem)">
 	<button
 		type="button"
 		class="flex w-full items-center gap-3 bg-white px-6 py-3 text-start transition-colors hover:bg-surface-500/10 dark:bg-surface-900 dark:hover:bg-surface-500/20"

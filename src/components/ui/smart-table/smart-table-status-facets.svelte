@@ -43,10 +43,11 @@
 	>
 		<button
 			type="button"
-			class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors
+			class="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors
 				{!active
 				? 'bg-tertiary-500 text-white dark:bg-surface-500'
 				: 'bg-surface-500/10 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300'}"
+			style="border-radius: var(--admin-radius-button, 0.25rem)"
 			aria-pressed={!active}
 			onclick={() => onSelect('')}
 		>
@@ -57,13 +58,14 @@
 			{#if count > 0 || active === chip.key}
 				<button
 					type="button"
-					class="inline-flex items-center gap-1 rounded-full transition-transform hover:scale-[1.02]
+					class="inline-flex items-center gap-1 transition-colors
 						{active === chip.key ? 'ring-2 ring-tertiary-500 dark:ring-primary-500' : ''}"
+					style="border-radius: var(--admin-radius-button, 0.25rem)"
 					aria-pressed={active === chip.key}
 					aria-label="Filter {chip.label}: {count}"
 					onclick={() => onSelect(active === chip.key ? '' : chip.key)}
 				>
-					<Badge variant={chip.variant} size="sm" class="normal-case tracking-normal">
+					<Badge variant={chip.variant} size="sm" rounded={false} class="normal-case tracking-normal">
 						{chip.label}
 						<span class="ms-0.5 opacity-80">({count})</span>
 					</Badge>

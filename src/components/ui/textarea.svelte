@@ -51,12 +51,15 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 	const theme = getThemeContext();
 
 	const baseStyles =
-		'flex min-h-[80px] w-full border border-surface-500/30 dark:border-surface-600 bg-white dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-y';
+		'flex min-h-[80px] w-full border bg-white dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-y';
 
-	const errorStyles = 'border-error-500 focus-visible:ring-error-500';
+	const errorStyles = 'border-error-500! focus-visible:ring-error-500/40';
 
 	const customStyles = $derived.by(() => {
-		let styles = `border-radius: var(--admin-radius-input, 6px); border-width: var(--admin-border-width, 1px); `;
+		let styles = `border-radius: var(--admin-radius-input, 0.25rem); border-width: var(--admin-border-width, 1px); border-style: solid; `;
+		if (!error) {
+			styles += `border-color: var(--admin-border-default, var(--color-surface-200)); `;
+		}
 		const scale = theme ? theme.spacingScale : 1.0;
 		if (scale !== 1.0) {
 			styles += `font-size: 0.875rem; padding: ${Math.round(8 * scale)}px ${Math.round(12 * scale)}px; `;

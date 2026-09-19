@@ -84,8 +84,8 @@
 
 <div class="email-widget flex flex-col gap-1">
 	<div
-		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-500 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
-		class:!border-error-500={!!error}
+		class="flex items-center transition-all bg-white dark:bg-surface-900 focus-within:ring-2 focus-within:ring-primary-500/40"
+		style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid {error ? 'var(--color-error-500)' : 'var(--admin-border-default, var(--color-surface-200))'}"
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>

@@ -181,7 +181,7 @@ import { logger } from "@utils/logger";
 <div class="@container relative space-y-4">
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
-						<div class="flex items-center justify-between gap-3 rounded-lg border border-warning-500/30 bg-warning-500/10 p-3 text-warning-500 dark:bg-warning-900/20">
+						<div class="flex items-center justify-between gap-3 border border-warning-500/30 bg-warning-500/10 p-3 text-warning-500 dark:bg-warning-900/20" style="border-radius: var(--admin-radius-input, 0.25rem)">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="22" aria-hidden="true"></iconify-icon>
 					<span class="text-sm"><strong>Premium trial active:</strong> {licenseStatus.daysRemaining} days left to try Social, Advanced, and Schema features.</span>
@@ -192,7 +192,7 @@ import { logger } from "@utils/logger";
 	{/if}
 	<!-- Preview + Analysis — container query so it columns inside the form, not the viewport -->
 	<div class="grid grid-cols-1 items-start gap-4 @min-[40rem]:grid-cols-2">
-		<div class="min-w-0 rounded-lg border border-surface-500/30 bg-white/60 px-6 py-5 dark:border-surface-500/40 dark:bg-surface-900/50">
+		<div class="min-w-0 border border-surface-500/30 bg-white/60 px-6 py-5 dark:border-surface-500/40 dark:bg-surface-900/50" style="border-radius: var(--admin-radius-input, 0.25rem)">
 			<SeoPreview
 				title={langData?.title || ''}
 				description={langData?.description || ''}
@@ -215,11 +215,11 @@ import { logger } from "@utils/logger";
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card relative overflow-hidden bg-white/50 px-6 py-5 dark:bg-surface-900/50 backdrop-blur-sm">
+	<div class="card relative overflow-hidden bg-white/50 px-6 py-5 dark:bg-surface-900/50 backdrop-blur-sm" style="border-radius: var(--admin-radius-input, 0.25rem)">
 
 		{#if !isCheckingLicense && !licenseStatus.active}
-						<div class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg">
-				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20">
+						<div class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none" style="border-radius: var(--admin-radius-input, 0.25rem)">
+				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20" style="border-radius: var(--admin-radius-input, 0.25rem)">
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
 					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>

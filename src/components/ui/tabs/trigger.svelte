@@ -56,10 +56,10 @@ and active border indicator. Receives context from parent Tabs component.
 	{disabled}
 	{...rest}
 	class={cn(
-		'relative flex items-center gap-1 px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none border-b-2 -mb-0.5 whitespace-nowrap',
+		'relative flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium leading-snug transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-tertiary-500/30 dark:focus-visible:ring-primary-500/30 border-b-2 -mb-px whitespace-nowrap',
 		active
 			? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-			: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-white',
+			: 'border-transparent text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100',
 		disabled && 'opacity-50 cursor-not-allowed',
 		className
 	)}

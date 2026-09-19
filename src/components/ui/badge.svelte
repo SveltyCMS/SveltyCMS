@@ -123,7 +123,7 @@ presets, and progressive corner-shape angled corners.
 
     // Set dynamic border-radius when not angled and not fully rounded (pill)
     if (shape !== 'angle' && !rounded) {
-      styles += `border-radius: var(--admin-radius-input, 6px); `;
+      styles += `border-radius: var(--admin-radius-button, 0.25rem); `;
     }
 
     if (shape === 'angle') {

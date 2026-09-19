@@ -153,7 +153,7 @@
 	<!-- Welcome Container -->
 	<div
 		class="welcome-container mx-auto max-w-4xl border border-surface-500/30 bg-surface-500/10 p-6 shadow-lg dark:border-surface-500/40 dark:bg-surface-800"
-		style="border-radius: var(--admin-radius-card, 0.75rem);"
+		style="border-radius: var(--admin-radius-card, 0.25rem);"
 	>
 		<!-- Header -->
 		<div class="mb-8 text-center">
@@ -225,28 +225,28 @@
 		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<div
 				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
-				style="border-radius: var(--admin-radius-card, 0.75rem);"
+				style="border-radius: var(--admin-radius-card, 0.25rem);"
 			>
 				<div class="text-2xl font-bold text-success-600">✓</div>
 				<div class="text-sm text-[var(--admin-text-muted)]">Setup Complete</div>
 			</div>
 			<div
 				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
-				style="border-radius: var(--admin-radius-card, 0.75rem);"
+				style="border-radius: var(--admin-radius-card, 0.25rem);"
 			>
 				<div class="text-2xl font-bold text-tertiary-600">0</div>
 				<div class="text-sm text-[var(--admin-text-muted)]">Collections</div>
 			</div>
 			<div
 				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
-				style="border-radius: var(--admin-radius-card, 0.75rem);"
+				style="border-radius: var(--admin-radius-card, 0.25rem);"
 			>
 				<div class="text-2xl font-bold text-tertiary-500">1</div>
 				<div class="text-sm text-[var(--admin-text-muted)]">Admin User</div>
 			</div>
 			<div
 				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
-				style="border-radius: var(--admin-radius-card, 0.75rem);"
+				style="border-radius: var(--admin-radius-card, 0.25rem);"
 			>
 				<div class="text-2xl font-bold text-warning-600">∞</div>
 				<div class="text-sm text-[var(--admin-text-muted)]">Possibilities</div>
@@ -286,7 +286,7 @@
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--admin-bg-backdrop)] p-4">
 		<div
 			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-surface-500/30 bg-surface-500/10 shadow-xl dark:border-surface-500/40 dark:bg-surface-800"
-			style="border-radius: var(--admin-radius-card, 0.75rem);"
+			style="border-radius: var(--admin-radius-card, 0.25rem);"
 		>
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>

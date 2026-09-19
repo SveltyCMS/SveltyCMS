@@ -82,9 +82,9 @@ corner-shape angled corners.
   const theme = getThemeContext();
 
   const baseInputStyles =
-    "flex h-10 w-full border border-surface-500/30 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 appearance-none";
+    "flex h-10 w-full border bg-white dark:bg-surface-900 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 appearance-none";
 
-  const errorInputStyles = "border-error-500 focus-visible:ring-error-500";
+  const errorInputStyles = "border-error-500! focus-visible:ring-error-500/40";
 
   const inputPadding = $derived.by(() => {
     let prePad = pre ? "ps-9" : "ps-3";
@@ -94,14 +94,22 @@ corner-shape angled corners.
 
   const customStyles = $derived.by(() => {
     let styles = '';
+    const classes = `${inputClass ?? ''} ${className ?? ''}`;
+    const borderless = /\bborder-0\b|\bborder-none\b/.test(classes);
 
-    // Wire custom property for input border radius
+    // Theme tokens — same border/radius as Select, Textarea, and edit field shells
     if (shape !== 'angle') {
-      styles += `border-radius: var(--admin-radius-input, 6px); `;
+      styles += `border-radius: ${borderless ? '0' : 'var(--admin-radius-input, 0.25rem)'}; `;
     }
-
-    // Set dynamic border-width
-    styles += `border-width: var(--admin-border-width, 1px); `;
+    if (!borderless) {
+      styles += `border-width: var(--admin-border-width, 1px); `;
+      styles += `border-style: solid; `;
+      if (!error) {
+        styles += `border-color: var(--admin-border-default, var(--color-surface-200)); `;
+      }
+    } else {
+      styles += `border-width: 0; border-style: none; `;
+    }
 
     // Apply scale multiplier dynamically to heights and paddings
     const scale = theme ? theme.spacingScale : 1.0;
