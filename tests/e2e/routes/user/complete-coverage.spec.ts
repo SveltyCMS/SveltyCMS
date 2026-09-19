@@ -20,6 +20,7 @@
 import { expect, test } from "@playwright/test";
 import { ensureAuthenticated, seedInviteToken } from "../../helpers/api";
 import {
+  openIdentityTab,
   openTokenView,
   openUserManagement,
   openUserSettings,
@@ -688,8 +689,10 @@ test.describe("Accessibility", () => {
   });
 
   test("focus ring is visible on interactive elements", async ({ page }) => {
-    // Focus the Edit User Settings button
-    const editBtn = page.getByRole("button", { name: /Edit User Settings/i });
+    await openIdentityTab(page);
+    const editBtn = page.getByTestId("edit-user-settings-btn");
+    await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await editBtn.scrollIntoViewIfNeeded();
     await editBtn.focus({ timeout: ACTION_TIMEOUT });
 
     // Verify the button is focused
