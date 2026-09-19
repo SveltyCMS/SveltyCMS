@@ -13,6 +13,7 @@
 
 import { logger } from "@utils/logger";
 import { AppError, raise } from "@utils/error-handling";
+import { checkForUpdates } from "@services/core/version-service";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -23,7 +24,6 @@ import { collectionTableName } from "@src/databases/core/collection-name";
 
 let apiSpecService: any;
 let cacheService: any;
-let versionCheckService: any;
 let marketplaceService: import("@src/services/core/marketplace-service").MarketplaceService;
 let configService: import("@src/services/core/config-service").ConfigService;
 
@@ -39,14 +39,6 @@ async function getCacheService() {
     cacheService = (await import("@src/databases/cache/cache-service")).cacheService;
   }
   return cacheService;
-}
-
-async function getVersionCheckService() {
-  if (!versionCheckService) {
-    versionCheckService = (await import("@src/services/observability/version-check-service"))
-      .versionCheckService;
-  }
-  return versionCheckService;
 }
 
 async function getMarketplaceService() {
@@ -94,14 +86,11 @@ export async function handleUtilityRoutes(
     }
 
     // ── Version Check ──
+    // Same service as /api/system/version/check — one implementation, one payload.
+    // The former `{ status, local, remote, version }` shape (and the `?checkUpdates=`
+    // opt-out it existed for) went away with `version-check-service.ts`.
     if (namespace === "version-check" && request.method === "GET") {
-      const service = await getVersionCheckService();
-      return rawResponse(
-        event,
-        await service.checkVersion({
-          checkUpdates: url.searchParams.get("checkUpdates") === "true",
-        }),
-      );
+      return rawResponse(event, await checkForUpdates());
     }
 
     // ── Config Sync ──

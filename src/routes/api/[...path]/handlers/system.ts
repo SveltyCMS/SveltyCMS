@@ -14,7 +14,7 @@ import { settingsGroups } from "@src/routes/(app)/config/system-settings/setting
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { isAdmin } from "@src/databases/auth/constants";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { versionService } from "@services/core/version-service";
+import { checkForUpdates, readLocalVersion } from "@services/core/version-service";
 import { getDatabaseResilience } from "@src/databases/database-resilience";
 import { getSystemStatus } from "@src/databases/resilience-integration";
 import { requireDashboardWidgetLicense } from "./dashboard";
@@ -1778,12 +1778,12 @@ export async function handleVersionRoutes(
   try {
     // GET /api/system/version/check
     if (subAction === "check" && request.method === "GET") {
-      return successResponse(event, await versionService.checkForUpdates());
+      return successResponse(event, await checkForUpdates());
     }
 
     // GET /api/system/version (bare — return current version only)
     if (!subAction && request.method === "GET") {
-      const currentVersion = versionService.readLocalVersion();
+      const currentVersion = readLocalVersion();
       return successResponse(event, { currentVersion });
     }
 

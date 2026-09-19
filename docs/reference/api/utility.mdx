@@ -127,9 +127,11 @@ Send emails directly via the API using the system mail service.
 
 ### Version Check
 
-Checks for available updates.
+Checks for available updates. **Authenticated** (unlike the public `/api/system/version`).
 
-**Endpoint**: `GET /api/version-check?checkUpdates=true`
+**Endpoint**: `GET /api/version-check` — dispatcher alias of `GET /api/system/version/check`.
+
+Returns the raw update-check payload (`currentVersion`, `latestVersion`, `updateAvailable`, `checkedAt`, and `error` when GitHub is unreachable). The canonical route wraps the same payload in the standard `{ success, data }` envelope.
 
 ### Configuration Sync
 
