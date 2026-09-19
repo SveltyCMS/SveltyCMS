@@ -83,7 +83,7 @@ bulk actions, and predictive preloading.
 	// Utils
 	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api';
 	import { formatDisplayDate } from '@utils/date';
-	import { cloneEntries, setEntriesStatus } from '@utils/entry-actions';
+	import { bulkEditEntries, cloneEntries, setEntriesStatus } from '@utils/entry-actions';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -120,6 +120,7 @@ bulk actions, and predictive preloading.
 	import EntryListCell from './entry-list-cell.svelte';
 	import { createSmartFilter } from './create-smart-filter.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
+	import BulkFieldEditModal from './bulk-field-edit-modal.svelte';
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -949,6 +950,22 @@ bulk actions, and predictive preloading.
 	};
 	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess);
 
+	let isBulkEditOpen = $state(false);
+
+	const onBulkEdit = () => {
+		const selectedIds = getSelectedIds();
+		if (!selectedIds.length) {
+			toast.warning('No entries selected');
+			return;
+		}
+		isBulkEditOpen = true;
+	};
+
+	const handleApplyBulkEdit = async (updates: Record<string, unknown>) => {
+		const selectedIds = getSelectedIds();
+		await bulkEditEntries(selectedIds, updates, onActionSuccess);
+	};
+
 	const onSchedule = (date: string) => {
 		const payload = { _scheduled: new Date(date).getTime() };
 		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
@@ -1062,6 +1079,7 @@ bulk actions, and predictive preloading.
 				delete={onDelete}
 				draft={onDraft}
 				clone={onClone}
+				bulkEdit={onBulkEdit}
 				create={onCreate}
 			/>
 		</div>
@@ -1254,7 +1272,7 @@ bulk actions, and predictive preloading.
 								}}
 							>
 								<TableIcons
-									cellClass={`w-10 text-center ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
+									cellClass={`w-10 text-center ${pinCellClass('start')} ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
 									checked={rowSelected}
 									onCheck={() => {
 										if (rowId) smartTable.toggleSelect(rowId);
@@ -1404,6 +1422,14 @@ bulk actions, and predictive preloading.
 		</div>
 	{/if}
 {/if}
+
+<BulkFieldEditModal
+	bind:isOpen={isBulkEditOpen}
+	selectedCount={smartTable.selectedCount}
+	fields={currentCollection?.fields || []}
+	onApply={handleApplyBulkEdit}
+	onClose={() => (isBulkEditOpen = false)}
+/>
 
 <style>
 	div::-webkit-scrollbar {

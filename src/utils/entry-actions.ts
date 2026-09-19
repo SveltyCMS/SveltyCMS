@@ -93,7 +93,41 @@ export async function setEntriesStatus(
       description: result.error || entryMessages.updateFailed("update"),
     });
   }
-} // Deletes or archives one or more entries with improved batch delete
+}
+
+// Bulk edit fields for one or more entries
+export async function bulkEditEntries(
+  entryIds: string[],
+  fields: Record<string, unknown>,
+  onSuccess: () => void,
+) {
+  if (!entryIds.length) {
+    return;
+  }
+  const collId = collections.active?._id;
+  if (!collId) {
+    return;
+  }
+
+  const result = await batchUpdateEntries(collId, {
+    ids: entryIds,
+    data: fields,
+  });
+
+  if (result.success) {
+    const count = entryIds.length;
+    toast.success({
+      description: `${count} ${count === 1 ? "entry" : "entries"} updated successfully`,
+    });
+    onSuccess();
+  } else {
+    toast.error({
+      description: result.error || result.message || "Failed to update entries",
+    });
+  }
+}
+
+// Deletes or archives one or more entries with improved batch delete
 export async function deleteEntries(
   entryIds: string[],
   isPermanentDelete: boolean,

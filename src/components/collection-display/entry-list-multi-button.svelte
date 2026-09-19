@@ -50,7 +50,7 @@
 	import { scale } from 'svelte/transition';
 
 	// --- Types ---
-	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete';
+	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete' | 'bulk-edit';
 	type DangerLevel = 'low' | 'medium' | 'high';
 
 	interface ActionConfig {
@@ -67,6 +67,7 @@
 
 	// --- Props ---
 	interface Props {
+		bulkEdit?: () => Promise<void> | void;
 		clone: () => Promise<void> | void;
 		create: () => void;
 		delete: (permanent: boolean) => Promise<void> | void;
@@ -93,7 +94,8 @@
 		schedule,
 		delete: deleteAction,
 		clone,
-		create
+		create,
+		bulkEdit
 	}: Props = $props();
 
 	// --- Action Configurations ---
@@ -157,6 +159,17 @@
 			gradient: 'gradient-secondary',
 			icon: 'ic:round-content-copy',
 			textColor: 'text-white dark:text-white',
+			requiresSelection: true,
+			dangerLevel: 'low'
+		},
+		{
+			type: 'bulk-edit',
+			label: 'Bulk Edit',
+			gradient: 'gradient-secondary',
+			icon: 'ic:baseline-edit-note',
+			textColor: 'text-white dark:text-white',
+			shortcut: 'Alt+E',
+			shortcutKey: 'e',
 			requiresSelection: true,
 			dangerLevel: 'low'
 		},
@@ -425,6 +438,9 @@
 					break;
 				case 'clone':
 					await clone();
+					break;
+				case 'bulk-edit':
+					if (bulkEdit) await bulkEdit();
 					break;
 				case 'delete':
 					// Delete usually has its own confirmation in parent if triggering via deleteAction?
