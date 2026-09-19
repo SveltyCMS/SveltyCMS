@@ -20,7 +20,7 @@ search filtering, and RTL support.
 - `ariaLabel` (string): Accessible label for the tree (default: 'Navigation tree').
 - `dir` ('ltr' | 'rtl' | 'auto'): Text direction for RTL language support.
 - `variant` ('default' | 'media' | 'sidebar'): Media gallery folder styling, or collections sidebar (nested panel + left-aligned rows).
-- `collapsed` (boolean): Sidebar rail mode — parent rows stack icon above label like Media Gallery.
+- `collapsed` (boolean): Sidebar rail mode — Demo compact: label above icon; categories = icon+chevron + grey panel.
 - `externalDrop` (object): Optional @thisux/sveltednd drop targets (e.g. media files → folders).
 - `class` (string): Additional CSS classes.
 
@@ -158,7 +158,7 @@ search filtering, and RTL support.
         ariaLabel?: string;
         dir?: 'ltr' | 'rtl' | 'auto';
         variant?: 'default' | 'media' | 'sidebar';
-        /** Collapsed left-rail: stack icon above label (matches Media Gallery rail). */
+        /** Collapsed left-rail: Demo compact — label above icon; categories expand into a grey panel. */
         collapsed?: boolean;
         /** Media-file (or other) external drops onto folder/category rows */
         externalDrop?: TreeExternalDrop | null;
@@ -573,16 +573,28 @@ search filtering, and RTL support.
     {@const isMedia = variant === 'media'}
     {@const isSidebar = variant === 'sidebar'}
     {@const isNested = depth > 0}
-    {@const isSidebarRail = isSidebar && collapsed && !isNested}
+    {@const isSidebarRail = isSidebar && collapsed}
     {@const isRoot = depth === 0 && node.id === 'root'}
     {@const showChevron = hasChildren || canNestInto(node)}
+    {@const isRailCategory = isSidebarRail && showChevron}
+    {@const isRailLeaf = isSidebarRail && !showChevron}
     {@const mediaIconTone = 'text-surface-300 dark:text-surface-400'}
     {@const mediaRootText = 'text-surface-200 dark:text-surface-400'}
     {@const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
     {@const mediaSelectedText = 'text-warning-400 dark:text-warning-400'}
     {@const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
 
-    <div class="flex flex-col" data-item-id={node.id}>
+    <div
+        class={cn(
+            'flex flex-col',
+            // Demo: expanded category wraps header + children in one light-grey panel
+            isSidebarRail && hasChildren && expanded && 'overflow-hidden bg-surface-200 dark:bg-surface-400',
+        )}
+        style={isSidebarRail && hasChildren && expanded
+            ? 'border-radius: var(--admin-radius-button, 0.25rem)'
+            : undefined}
+        data-item-id={node.id}
+    >
     <!--
         Row wrapper. Everything that is positioned relative to a *row* (hover
         actions, drop indicators, the sveltednd drop highlight) lives here and
@@ -632,6 +644,8 @@ search filtering, and RTL support.
             href={node.href || node.path}
             data-preload={node.preload}
             data-sveltekit-preload-data={node.href || node.path ? 'hover' : undefined}
+            title={isSidebarRail ? nodeLabel : undefined}
+            aria-label={isSidebarRail ? nodeLabel : undefined}
             class={cn(
                 'flex w-full group group/item focus:outline-none justify-start text-start cursor-pointer select-none no-underline text-inherit',
                 isMedia
@@ -651,15 +665,24 @@ search filtering, and RTL support.
                     )
                     : isSidebar
                     ? cn(
-                        // Full: horizontal Media Gallery chip. Rail: stacked icon+label like Media.
+                        // Full: horizontal chip. Rail leaf: label above icon. Rail category: icon+chevron.
                         'box-border border-0 font-semibold tracking-wide leading-snug transition-colors shadow-none',
                         'text-surface-900 dark:text-white',
-                        isSidebarRail
+                        isRailLeaf
                             ? 'flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px]'
-                            : 'items-center gap-1.5 px-3 py-2 text-[11px]',
-                        isNested
-                            ? 'bg-transparent hover:bg-black/5 dark:hover:bg-white/5'
-                            : 'bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-800',
+                            : isRailCategory
+                                ? 'flex-row items-center justify-center gap-0.5 px-1 py-1.5'
+                                : 'items-center gap-1.5 px-3 py-2 text-[11px]',
+                        isSidebarRail
+                            ? cn(
+                                // Inside Demo grey panel, rows stay flat; collapsed roots stay transparent
+                                hasChildren && expanded
+                                    ? 'bg-transparent hover:bg-black/5 dark:hover:bg-black/10'
+                                    : 'bg-transparent hover:bg-surface-200/80 dark:hover:bg-surface-800',
+                            )
+                            : isNested
+                                ? 'bg-transparent hover:bg-black/5 dark:hover:bg-white/5'
+                                : 'bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-800',
                     )
                     : cn(
                         'items-center transition-colors border border-transparent px-2 box-border',
@@ -710,7 +733,7 @@ search filtering, and RTL support.
 
             <!-- Node Icon -->
             {#if node.icon || node.iconExpanded}
-                <div class="relative flex shrink-0 items-center">
+                <div class={cn('relative flex shrink-0 items-center', isRailLeaf && 'order-2')}>
                     <iconify-icon
                         icon={(expanded && node.iconExpanded) ? node.iconExpanded : (node.icon || '')}
                         width={isMedia ? (isRoot ? '18' : '16') : isSidebar ? (isSidebarRail ? '18' : '16') : densityTokens.icon}
@@ -732,35 +755,37 @@ search filtering, and RTL support.
                 </div>
             {/if}
 
-            <!-- Label -->
+            <!-- Label — Demo rail leaf: text above icon; rail category: sr-only -->
             <span
                 title={nodeLabel}
                 class={cn(
                 'truncate transition-colors min-w-0',
-                !isSidebarRail && 'flex-1',
+                isRailCategory && 'sr-only',
+                isRailLeaf && cn(
+                    'order-1 max-w-full text-center text-[10px] font-semibold tracking-wide text-surface-900',
+                    isNested ? 'dark:text-surface-900' : 'dark:text-white',
+                ),
+                !isSidebarRail && isSidebar && 'flex-1 text-[11px] font-semibold tracking-wide text-surface-900 dark:text-white',
+                !isSidebar && !isMedia && 'flex-1',
                 isMedia
                     ? cn(
                         isRoot ? 'text-[15px]' : 'text-sm',
                         isSelected ? mediaSelectedText : isRoot ? mediaRootText : mediaFolderText,
                         !isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-400',
                     )
-                    : isSidebar
+                    : !isSidebar
                     ? cn(
-                        isSidebarRail
-                            ? 'max-w-full truncate text-center text-[10px] font-semibold tracking-wide text-surface-900 dark:text-white'
-                            : 'text-[11px] font-semibold tracking-wide text-surface-900 dark:text-white',
-                    )
-                    : cn(
                         node.labelClass || densityTokens.font,
                         isHighlighted
                             ? 'font-semibold text-primary-600 dark:text-primary-500'
                             : (!node.labelClass && 'font-medium text-surface-900 dark:text-surface-100'),
-                    ),
+                    )
+                    : undefined,
             )}>
                 {nodeLabel}
             </span>
 
-	            <!-- Count Badge — hide on rail (Media has none); keep in full sidebar -->
+	            <!-- Count Badge — hide on rail; keep in full sidebar -->
 	            {#if showBadge && !isSidebarRail}
 	                <Badge
 	                    variant="surface"
@@ -779,7 +804,7 @@ search filtering, and RTL support.
 	                </Badge>
 	            {/if}
 
-            <!-- Sidebar: chevron when item has children (full + rail) -->
+            <!-- Sidebar chevron: full sidebar + Demo rail categories -->
             {#if isSidebar && showChevron}
                 {#if node.isLoading}
                     <div class="flex shrink-0 items-center justify-center {densityTokens.dummy}">
@@ -790,7 +815,8 @@ search filtering, and RTL support.
                         icon="mdi:chevron-down"
                         width={isSidebarRail ? '12' : densityTokens.chevron}
                         class={cn(
-                            'shrink-0 opacity-60 transition-transform',
+                            'shrink-0 transition-transform',
+                            isSidebarRail ? 'opacity-90 text-surface-600 dark:text-white' : 'opacity-60',
                             prefersReducedMotion ? 'duration-0' : 'duration-200',
                             !expanded && '-rotate-90',
                             dir === 'rtl' && expanded && 'rotate-180'
@@ -844,15 +870,18 @@ search filtering, and RTL support.
                 class={cn(
                     'relative',
                     isSidebar
-                        ? // Submenu panel only — no colored border; parents keep Media Gallery chip look
-                          'ms-0 me-0 mt-0.5 mb-1 overflow-hidden border-0 bg-surface-500/10 dark:bg-surface-900/80'
+                        ? isSidebarRail
+                            ? // Demo rail: children sit inside parent grey panel — top rule + dividers
+                              'ms-0 me-0 overflow-hidden border-0 border-t border-surface-500/25 bg-transparent dark:border-surface-500/40'
+                            : // Full sidebar: submenu panel
+                              'ms-0 me-0 mt-0.5 mb-1 overflow-hidden border-0 bg-surface-500/10 dark:bg-surface-900/80'
                         : isMedia && isRoot
                             ? 'ms-0'
                             : computedDensity === 'compact'
                                 ? 'ms-1'
                                 : 'ms-4',
                 )}
-                style={isSidebar ? 'border-radius: var(--admin-radius-button, 0.25rem)' : undefined}
+                style={isSidebar && !isSidebarRail ? 'border-radius: var(--admin-radius-button, 0.25rem)' : undefined}
                 role="group"
                 aria-labelledby={`treenode-${node.id}`}
             >
@@ -872,7 +901,7 @@ search filtering, and RTL support.
 
                 {#if expanded}
                     <div
-                        class={isSidebar ? 'divide-y divide-surface-500/15 dark:divide-surface-500/25' : undefined}
+                        class={isSidebar ? 'divide-y divide-surface-500/20 dark:divide-surface-500/30' : undefined}
                         transition:fly|local={{ y: prefersReducedMotion ? 0 : -10, duration: transitionDuration }}
                     >
                         {#each node.children! as child (child.id)}

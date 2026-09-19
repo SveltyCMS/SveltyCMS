@@ -272,19 +272,19 @@ import Button from '@components/ui/button.svelte';
 			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
-		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
+		<div class="flex min-h-12 shrink-0 items-center justify-center gap-1.5 pt-2">
 			<button
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-				class="flex size-8 shrink-0 items-center justify-center border border-[var(--admin-border-default)] bg-[var(--admin-bg-sidebar)] text-[var(--admin-text-body)] shadow-sm hover:bg-[var(--admin-border-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500/40 dark:focus-visible:ring-primary-500/40"
+				class="flex size-8 shrink-0 items-center justify-center text-[var(--admin-text-body)] hover:bg-surface-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500/40 dark:hover:bg-surface-800 dark:focus-visible:ring-primary-500/40"
 				style="border-radius: var(--admin-radius-button, 0.25rem)"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="20" aria-hidden="true"></iconify-icon>
 			</button>
 
-			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!">
-				<SveltyCMSLogo fill="red" className="h-9 -ms-2" />
+			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!" data-sveltekit-preload-data="hover">
+				<SveltyCMSLogo fill="red" className="h-8" />
 			</a>
 		</div>
 	{/if}
@@ -400,11 +400,19 @@ import Button from '@components/ui/button.svelte';
 								type="button"
 								onclick={handleBackToCollections}
 								aria-label="Back to Collections"
-								class="flex w-full items-center gap-1.5 py-2 text-[11px] font-semibold tracking-wide bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+								title="Back to Collections"
+								class="flex w-full items-center text-[11px] font-semibold tracking-wide text-surface-900 dark:text-white transition-colors {isSidebarFull
+									? 'justify-start gap-1.5 bg-surface-200/80 px-3 py-2 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700'
+									: 'flex-col justify-center gap-0.5 bg-transparent px-1 py-1.5 text-[10px] hover:bg-surface-200/80 dark:hover:bg-surface-800'}"
 								style="border-radius: var(--admin-radius-button, 0.25rem)"
 							>
-								<iconify-icon icon="bi:arrow-left" width={isSidebarFull ? 16 : 14} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-								<span class="truncate">Collections</span>
+								{#if isSidebarFull}
+									<iconify-icon icon="bi:arrow-left" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+									<span class="truncate">Collections</span>
+								{:else}
+									<span class="max-w-full truncate text-center text-[10px] font-semibold uppercase tracking-wide">Back</span>
+									<iconify-icon icon="bi:arrow-left" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+								{/if}
 							</Button>
 						</SystemTooltip>
 					</div>
@@ -425,11 +433,19 @@ import Button from '@components/ui/button.svelte';
 							type="button"
 							onclick={handleGoToMediaGallery}
 							aria-label="Go to Media Gallery"
-							class="flex w-full items-center gap-1.5 border-0 bg-surface-200/80 px-3 py-2 text-[11px] font-semibold leading-snug tracking-wide text-surface-900 shadow-none transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:text-white dark:hover:bg-surface-800 {isSidebarFull ? 'justify-start' : 'flex-col justify-center px-1 py-1.5 text-[10px]'}"
+							title="Media Gallery"
+							class="flex w-full items-center text-[11px] font-semibold leading-snug tracking-wide text-surface-900 shadow-none transition-colors dark:text-white {isSidebarFull
+								? 'justify-start gap-1.5 border-0 bg-surface-200/80 px-3 py-2 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-800'
+								: 'flex-col justify-center gap-0.5 border-0 bg-transparent px-1 py-1.5 text-[10px] hover:bg-surface-200/80 dark:hover:bg-surface-800'}"
 							style="border-radius: var(--admin-radius-button, 0.25rem)"
 						>
-							<iconify-icon icon="bi:image-fill" width={isSidebarFull ? 16 : 14} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							<span class="truncate">{isSidebarFull ? 'Media Gallery' : 'Media'}</span>
+							{#if isSidebarFull}
+								<iconify-icon icon="bi:image-fill" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+								<span class="truncate">Media Gallery</span>
+							{:else}
+								<span class="max-w-full truncate text-center text-[10px] font-semibold uppercase tracking-wide text-surface-900 dark:text-white">Media</span>
+								<iconify-icon icon="bi:image-fill" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+							{/if}
 						</button>
 					</SystemTooltip>
 				</div>

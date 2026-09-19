@@ -795,7 +795,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		</div>
 	{/if}
 
-	<!-- Custom Order Banner (full sidebar only — compact is 120px) -->
+	<!-- Custom Order Banner (full sidebar only — compact is icon rail) -->
 	{#if isFullSidebar && orderOverrides.size > 0}
 		<div class="flex items-center justify-between gap-2 bg-tertiary-500/10 px-2.5 py-1.5 text-[11px] text-tertiary-600 dark:text-tertiary-400" style="border-radius: var(--admin-radius-button, 0.25rem)">
 			<span class="min-w-0 truncate">Custom order active</span>
