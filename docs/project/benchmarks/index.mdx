@@ -158,14 +158,15 @@ flowchart TD
 
 ## Guardrails
 
-| Guard                   | Behavior                                                    |
-| ----------------------- | ----------------------------------------------------------- |
-| `BENCHMARK_RECORD=1`    | Gates MDX mutation (matrix/CI always on)                    |
-| `appendSummaryToMdx`    | **No-op** — no duplicate ASCII summary boxes                |
-| `isSpecificInsight()`   | Filters generic SWOT boilerplate from `[!NOTE]` overlays    |
-| `normalizeLedgerZone()` | Strips stray flat trend headings outside `<details>`        |
-| `lint:benchmark-mdx`    | Fails CI on zone drift, duplicate tags, unclosed sections   |
-| Partial executive       | `isPartial` watermark; rollups scoped to invoked tests only |
+| Guard                   | Behavior                                                     |
+| ----------------------- | ------------------------------------------------------------ |
+| `BENCHMARK_RECORD=1`    | Gates MDX mutation (matrix/CI always on)                     |
+| `appendSummaryToMdx`    | **No-op** — no duplicate ASCII summary boxes                 |
+| `isSpecificInsight()`   | Filters generic SWOT boilerplate from `[!NOTE]` overlays     |
+| `normalizeLedgerZone()` | Strips stray flat trend headings outside `<details>`         |
+| `lint:benchmark-mdx`    | Fails CI on zone drift, duplicate tags, unclosed sections    |
+| Mode-parity guard       | Refuses matrix rows measured against a non-production server |
+| Partial executive       | `isPartial` watermark; rollups scoped to invoked tests only  |
 
 ## Creating a new benchmark
 
@@ -208,6 +209,23 @@ bun run scripts/benchmark-matrix/index.ts --continue-on-error
 bun run lint:benchmark-mdx
 ```
 
+## Mode parity (comparability rule)
+
+A trend number is only comparable to numbers measured in the same execution mode. The published ledgers are **production parity** — `NODE_ENV=production`, `BENCHMARK=true`, **no** `TEST_MODE` — and every row carries the two stamps that make that checkable:
+
+| Stamp         | Values                              | Where                                           |
+| :------------ | :---------------------------------- | :---------------------------------------------- |
+| `run_mode`    | `matrix` \| `standalone`            | which harness wrote the row                     |
+| `server_mode` | `production` \| `test` \| `unknown` | which server was measured (the comparison axis) |
+
+The matrix runner stamps `SVELTY_BENCHMARK_SERVER_MODE=production` into every test child; standalone runs set it in `setupBenchmarkServer()` (`production` unless `TEST_MODE` is inherited). A row labelled `matrix` with a non-production `server_mode` is **refused** (never recorded), and all published trend tables read `run_mode='matrix'` + `server_mode='production'` samples only. Reproduce a comparable standalone baseline with:
+
+```bash
+SVELTY_BENCHMARK_SERVER_MODE=production BENCHMARK_RECORD=1 bun test tests/benchmarks/<name>.test.ts
+```
+
+Detail + failure history: [Benchmark Matrix → Mode Parity](../../tests/benchmark-matrix.mdx#mode-parity-read-this-before-recording-a-baseline).
+
 ## Data sources
 
 | Source            | Path                                            |
@@ -222,8 +240,16 @@ bun run lint:benchmark-mdx
 
 ### ⚡ Executive Summary Matrix
 
-| Database | Status | Cold Start | REST p95 | GQL Avg | CPU | Memory |
-| :------- | :----- | :--------- | :------- | :------ | :-- | :----- |
+| Database                                                  | Status  | Cold Start | REST p95 | GQL Avg | CPU | Memory |
+| :-------------------------------------------------------- | :------ | :--------- | :------- | :------ | :-- | :----- |
+| [ **SQLITE**](./benchmark_sqlite.mdx)                     | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx)         | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MONGODB**](./benchmark_mongodb.mdx)                   | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx)       | ⚪ N/A  | -          | -        | -       | -   | -      |
+| [ **POSTGRESQL**](./benchmark_postgresql.mdx)             | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MARIADB**](./benchmark_mariadb.mdx)                   | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx)       | 🟢 PASS | 0ms        | —        | —       | —   | —      |
 
 <!-- SUMMARY_MATRIX_END -->
 

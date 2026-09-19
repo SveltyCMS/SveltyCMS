@@ -12,7 +12,7 @@
  * JSON is stored as TEXT and parsed at runtime.
  */
 
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 import type { TenantQuota, TenantUsage } from "../db-interface";
@@ -309,6 +309,17 @@ export const mediaItems = sqliteTable(
     folderIdx: index("folder_idx").on(table.folderId),
     createdByIdx: index("created_by_idx").on(table.createdBy),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // 🚀 Media gallery: WHERE tenantId = ? AND folderId = ? ORDER BY updatedAt DESC LIMIT 101
+    // Names match the boot-provisioned indexes in system-schema-spec.ts.
+    tenantFolderUpdatedIdx: index("idx_media_items_tenant_folder_updated").on(
+      table.tenantId,
+      table.folderId,
+      desc(table.updatedAt),
+    ),
+    tenantUpdatedIdx: index("idx_media_items_tenant_updated").on(
+      table.tenantId,
+      desc(table.updatedAt),
+    ),
   }),
 );
 

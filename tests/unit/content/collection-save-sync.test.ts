@@ -121,8 +121,11 @@ describe("collection-save ContentSync (filesystem)", () => {
       expect(second.compiled!.skipped).toBeGreaterThanOrEqual(1);
       expect(second.noOp).toBe(true);
 
-      await new Promise((r) => setTimeout(r, 500));
+      // After cooldown (~450ms) watcher should not be skipped forever — fast time advancement without wall-clock sleep
+      const realNow = Date.now();
+      const dateSpy = vi.spyOn(Date, "now").mockReturnValue(realNow + 1000);
       expect(shouldSkipWatcherSync()).toBe(false);
+      dateSpy.mockRestore();
 
       // Output still present after no-op
       await expect(

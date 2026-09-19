@@ -41,6 +41,12 @@ import { assertTenantContext } from "@src/utils/security/safe-query";
  * Normalize the `amr` JSON column once at the session boundary. SQLite (mode:"json")
  * and PostgreSQL (JSONB) hand back parsed arrays, MariaDB can double-encode them as
  * strings — the same defensive read the other JSON auth columns use (`parseJsonField`).
+ *
+ * Kept as its own pass on purpose: `amr` is not a `JSON_FIELDS` member, so
+ * `convertDatesToISO` copies it verbatim. Folding it into the converter would mean
+ * either widening `JSON_FIELDS` (changing how any user collection with an `amr`
+ * field reads) or a per-table JSON override — and `normalizeJsonFieldValue` has no
+ * fallback, so a malformed `[...]` value would surface raw instead of as `[]`.
  */
 function normalizeSessionAmr<T>(row: T): T {
   const amr = (row as { amr?: unknown } | null | undefined)?.amr;
@@ -97,8 +103,12 @@ export class RelationalAuthModule implements IAuthAdapter {
 
     // Diagnostic Logging for specific user removed to clean up noisy logs
 
-    // 🚀 Optimized mapper to bypass generic column scanning
-    const converted = convertUserToISO(dbUser);
+    // 🚀 Optimized mapper: the `table` key routes through the registered-schema
+    // branch (only authUsers' known date/JSON columns are visited) instead of the
+    // no-schema walk over every key of every row. The registered column set is the
+    // authUsers schema superset (sql-adapter-core), so the output is byte-identical
+    // to the fallback — regression-guarded by the converter parity unit test.
+    const converted = convertUserToISO(dbUser, { table: "authUsers" });
     const finalRoleIds = parseJsonField<string[]>(converted.roleIds, []);
 
     // Priority: roleIds[0] > dbUser.role > "user"
@@ -733,7 +743,9 @@ export class RelationalAuthModule implements IAuthAdapter {
           .from(this.schema.authSessions)
           .where(eq(this.schema.authSessions._id, sessionId as string))
           .limit(1);
-        return normalizeSessionAmr(convertDatesToISO(res)) as unknown as Session;
+        return normalizeSessionAmr(
+          convertDatesToISO(res, { table: "authSessions" }),
+        ) as unknown as Session;
       },
       "UPDATE_SESSION_FAILED",
       undefined,
@@ -791,7 +803,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
-        return (convertArrayDatesToISO(res) as unknown as Session[]).map(
+        return (convertArrayDatesToISO(res, { table: "authSessions" }) as unknown as Session[]).map(
           normalizeSessionAmr,
         ) as unknown as Session[];
       },
@@ -815,7 +827,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
-        return (convertArrayDatesToISO(res) as unknown as Session[]).map(
+        return (convertArrayDatesToISO(res, { table: "authSessions" }) as unknown as Session[]).map(
           normalizeSessionAmr,
         ) as unknown as Session[];
       },

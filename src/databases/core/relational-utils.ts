@@ -79,6 +79,13 @@ const DATE_FIELDS = new Set([
   "lastHit",
   "fetchedAt",
   "last2FAVerification",
+  // Auth timestamps that were previously only normalised by the no-schema walk
+  // (any Date instance → ISODateString). Registered tables use the targeted
+  // dateCols loop instead, so they must be listed here or a PostgreSQL / SQLite
+  // Date would leak through unconverted while MariaDB returns a string — the
+  // same field in three shapes across four adapters.
+  "lockoutUntil",
+  "mfaVerifiedAt",
 ]);
 
 // ============================================================================

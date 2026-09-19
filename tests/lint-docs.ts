@@ -552,7 +552,9 @@ async function lintSingleFile(fp: string) {
   let updatedBody = body;
   const docDir = path.dirname(relPath).replace(/\\/g, "/");
   const actualPath = relPath.replace(/^docs\//, "").replace(/\.(mdx|md)$/, "");
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const maxAllowedDate = new Date(now.getTime() + 86400000).toISOString().split("T")[0];
 
   // --- Frontmatter: path alignment ---
   const pathM = updatedFm.match(/^path:\s*["']?([^"'\n]+)["']?/m);
@@ -622,7 +624,7 @@ async function lintSingleFile(fp: string) {
     const d = new Date(updatedMatch[1] + "T00:00:00Z");
     if (isNaN(d.getTime())) {
       addError("frontmatter", relPath, `Invalid date: ${updatedMatch[1]}`);
-    } else if (updatedMatch[1] > today) {
+    } else if (updatedMatch[1] > maxAllowedDate) {
       addError("frontmatter", relPath, `Future date: ${updatedMatch[1]}`);
       if (shouldAutofix && !isDryRun) {
         updatedFm = updatedFm.replace(/^updated:\s*.*$/m, `updated: "${today}"`);

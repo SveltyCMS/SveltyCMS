@@ -103,6 +103,13 @@ describe("auth sessions — AMR / MFA persistence", () => {
     const read = await readBack(userId, written._id);
     expect(read.amr).toEqual(MFA_AMR);
     expect(new Date(read.mfaVerifiedAt as string).toISOString()).toBe(mfaVerifiedAt);
+    // Boundary contract after the registered-table conversion: the session read
+    // must hand back a parsed array + an ISODateString, never a driver-native
+    // JSON string or Date instance (the fast branch only converts registered
+    // JSON/date columns — this is what proves amr/mfaVerifiedAt are among them).
+    // NOT RUN locally: needs the 4-DB integration harness (orchestrator-owned).
+    expect(Array.isArray(read.amr)).toBe(true);
+    expect(typeof read.mfaVerifiedAt).toBe("string");
   });
 
   it("keeps device metadata that other auth paths rely on", async () => {

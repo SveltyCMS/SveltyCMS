@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-08-06"
+updated: "2026-09-18"
 tags:
   - "git"
   - "workflow"
@@ -199,6 +199,14 @@ Runs automatically on every `git commit`. Target: **~40–60 seconds** (full uni
 | Unit tests         | `bun run test:unit` (Vitest)     |
 | SBOM sync          | `audit:sbom` (if lock changed)   |
 
+> [!NOTE]
+> **Gate vs. inner loop:** the pre-commit unit run (`bun run test:unit`) is the gate — always
+> exhaustive, intentionally not selective. For iteration, pick the smallest scope that covers the
+> change: `bun run test:unit:area tests/unit/<dir>/` (fastest: one area, no changed-graph build) or
+> `bun run test:unit:changed` (selective: unpushed commits + dirty tree; prints the resolved diff base
+> and affected-test count, warns loudly when nothing is affected, exits 3 when no base resolves, and
+> escalates to the full suite on setup/config changes).
+
 ### Tier 2: Pre-Push (`.githooks/pre-push`) — Production Build + Integration
 
 Runs automatically on every `git push`. Catches build and integration failures before they reach CI.
@@ -243,6 +251,7 @@ All scripts in `scripts/` and their role in the testing pipeline:
 | :------------------------------ | :--------------------------------------- | :----------------------------- |
 | `test-doctor.ts`                | Gate map + unit + SQLite integration     | `bun run test:doctor` (manual) |
 | `test-smart.ts`                 | Git-diff-aware test selector             | `bun run test:smart` (manual)  |
+| `test-unit-changed.ts`          | Selective Vitest runner (resolves base)  | `bun run test:unit:changed`    |
 | `security-audit.ts`             | Security vulnerability scanner           | `bun run security`             |
 | `run-e2e.ts`                    | Unified E2E runner (CI/dev modes)        | `bun run test:e2e`             |
 | `check-test-db-safety.ts`       | Blocks unsafe test config                | pre-commit                     |

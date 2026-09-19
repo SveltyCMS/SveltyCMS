@@ -68,6 +68,20 @@ export interface ResolvedPageSort {
   direction: "asc" | "desc";
 }
 
+/**
+ * Canonical sort-direction normalizer shared by every adapter path.
+ *
+ * Accepts the wire form (`"asc"`/`"ASC"`) and the Mongo-style numeric form
+ * (`1` = ascending) that `withIdTiebreaker`/`defaultPageSortOption` emit and
+ * that mongoose consumes natively. The SQL emitters previously treated anything
+ * that was not exactly `"asc"` as DESC, so `{ status: 1 }` ordered DESC while
+ * Mongo and the keyset cursors ordered ASC — page N+1 then repeated page N.
+ * Unknown values keep the historical DESC default.
+ */
+export function normalizeSortDirection(direction: unknown): "asc" | "desc" {
+  return direction === 1 || direction === "asc" || direction === "ASC" ? "asc" : "desc";
+}
+
 /** Normalize FindOptions.sort into a single primary field + direction. */
 export function resolvePageSort(sort?: unknown): ResolvedPageSort {
   if (!sort) return { field: "_id", direction: "desc" };
@@ -83,7 +97,7 @@ export function resolvePageSort(sort?: unknown): ResolvedPageSort {
     }
     if (Array.isArray(first) && first.length >= 1) {
       const field = String(first[0]);
-      const direction = first[1] === "asc" || first[1] === 1 ? "asc" : "desc";
+      const direction = normalizeSortDirection(first[1]);
       return { field, direction };
     }
     if (first && typeof first === "object") {
@@ -97,7 +111,7 @@ export function resolvePageSort(sort?: unknown): ResolvedPageSort {
     for (const field in sort as Record<string, unknown>) {
       if (!Object.hasOwn(sort, field)) continue;
       const dir = (sort as Record<string, unknown>)[field];
-      const direction = dir === 1 || dir === "asc" || dir === "ASC" ? "asc" : "desc";
+      const direction = normalizeSortDirection(dir);
       return { field, direction };
     }
   }
@@ -126,6 +140,11 @@ export function defaultPageSortOption(): { updatedAt: -1 } {
  * bulk seed) previously came back in arbitrary order, so page N+1 overlapped
  * page N (or silently skipped rows). Pure `_id` sorts are already unique and
  * pass through unchanged.
+ *
+ * The direction is deliberately keyed to the PRIMARY (first) sort key, not the
+ * last: `mergeKeysetFilter` compares `_id` with `cursor.d` — the primary key's
+ * direction — so the emitted ORDER BY tiebreak must follow the primary or the
+ * compound seek would walk the wrong way within a tie group.
  */
 export function withIdTiebreaker(sort: unknown): unknown {
   const primary = resolvePageSort(sort);

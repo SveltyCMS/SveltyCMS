@@ -18,6 +18,7 @@ import type {
   IBatchAdapter,
 } from "../db-interface";
 import * as relationalUtils from "./relational-utils";
+import { buildCollectionCacheTags } from "./collection-name";
 
 export type HookType = "before" | "after";
 export type HookAction = "insert" | "update" | "delete" | "find";
@@ -372,7 +373,11 @@ export abstract class BaseAdapter {
         // Collection-wide list/query + count caches by tag (O(#matched)) — never a
         // pattern scan over all cached documents. Per-id caches are tagged
         // doc:{collection}:{id} and only cleared for the ids actually written.
-        await cacheService.clearByTags([`collection:${collection}`, `count:${collection}`], tid);
+        // `buildCollectionCacheTags` clears the as-passed, physical AND bare
+        // spellings (superset): callers here may hold only the physical name
+        // (Mongo crud/media pass `collection_*`), which the lossy normaliser
+        // cannot map back to the logical spelling.
+        await cacheService.clearByTags(buildCollectionCacheTags(collection), tid);
       }
 
       if (options?.ids && options.ids.length > 0) {

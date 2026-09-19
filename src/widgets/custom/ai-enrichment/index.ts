@@ -20,6 +20,7 @@ export const createValidationSchema = (
 const AIEnrichmentWidget = createWidget<AIEnrichmentProps>({
   Name: "AIEnrichment",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:auto-fix",
   Description: "Automated content enrichment (Summarization, SEO, Translation) via AI",
   inputComponentPath: "/src/widgets/custom/ai-enrichment/input.svelte",

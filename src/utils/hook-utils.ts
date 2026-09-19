@@ -374,20 +374,16 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
   if (isSiteStarterPublicPath(pathname)) return true;
   if (testMode && pathname.startsWith("/api/testing")) return true;
 
-  // 3. Token access (regex capture — zero allocation)
+  // 3. Token access — explicit allowlist (zero allocation, no regex backtracking).
+  // ONLY the read-only validation flow is public: GET /api/token/validate-token/:value
+  // (the handler serves this action for GET only — see handlers/tokens.ts).
+  // The previous deny-list shape treated every other /api/token/* path as public,
+  // so PUT/DELETE /api/token/:id skipped the middleware gate AND the dispatcher's
+  // endpoint-permission map (`api:token`), letting any session mutate tokens
+  // (CWE-862 authorization bypass → account takeover via user_id re-pointing).
   if (pathname.startsWith("/api/token/")) {
-    const tokenMatch = pathname.match(/^\/api\/token\/([^/]+)/);
-    if (tokenMatch) {
-      const action = tokenMatch[1];
-      if (
-        action !== "list" &&
-        action !== "batch" &&
-        action !== "create-token" &&
-        action !== "resolve"
-      ) {
-        return true;
-      }
-    }
+    if (pathname.startsWith("/api/token/validate-token/")) return true;
+    return false;
   }
 
   // 4. Localized routes + OAuth

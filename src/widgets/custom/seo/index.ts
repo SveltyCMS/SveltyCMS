@@ -113,6 +113,7 @@ const validationSchema = (field: any) => {
 const SeoWidget = createWidget({
   Name: "SEO",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "tabler:seo",
   Description: widget_seo_description(),
   inputComponentPath: "/src/widgets/custom/Seo/input.svelte",

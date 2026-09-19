@@ -312,6 +312,8 @@ const page = await db.crud.findPage(
 - **Ignores `offset`** when cursor is set (avoids `OFFSET N` scans)
 - Filter merge uses Mongo-style `$lt`/`$gt`/`$or`/`$and` — SQL `mapQuery` and Mongo both understand them
 - Default sort when omitted: `{ _id: -1 }` for stable keyset order
+- **Tiebreak follows the sort direction**: the `_id` tiebreak appended to a paginated `ORDER BY`/`sort()` runs in the same direction as the sort key it follows (`createdAt DESC` → `_id DESC`), so the composite stays monotonic and one index can serve it (a backward scan covers the same-direction keyset indexes); a mixed-direction composite (`createdAt DESC, _id ASC`) is served by no B-tree and forces a filesort / blocking `SORT` stage
+- **Direction spellings are normalized per engine**: the wire form (`"asc"`/`"desc"`) and the Mongo-style numeric form (`1` ascending / `-1` descending, as emitted by `defaultPageSortOption`) produce the same clause everywhere — `normalizeSortDirection()` in `core/page-utils.ts` is the single definition
 - Legacy plain `_id` strings still decode as cursors
 
 When `total` is requested, **findMany and count run in parallel** (count still hits the 30s L1 cache).

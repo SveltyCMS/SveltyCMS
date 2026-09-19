@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Auth } from "@src/databases/auth";
 import type { SessionStore, User } from "@src/databases/auth/types";
 // User imported for DatabaseId-branded _id casts in harness seeds
-import { hashPassword } from "@utils/security/crypto";
+import { hashPassword, DUMMY_ARGON2_HASH } from "@utils/security/crypto";
 import { dateToISODateString } from "@src/utils/date";
 import { createLockedUser } from "./utils/auth-test-utils";
 
@@ -39,6 +39,10 @@ vi.mock("@src/services/core/settings-service", () => ({
 // Session cache purge is called by device-session eviction — keep it a no-op spy
 vi.mock("@src/hooks/handle-authentication", () => ({
   invalidateSessionCache: vi.fn(),
+}));
+
+vi.mock("@src/hooks.server", () => ({
+  invalidateTurboAuthForUser: vi.fn(),
 }));
 
 function createMemorySessionStore(): SessionStore {
@@ -427,7 +431,7 @@ describe("Auth.createUser (real Auth class — password strength)", () => {
   it("rejects weak passwords via validatePasswordStrength", async () => {
     const { auth } = createAuthHarness({
       email: "seed@test.com",
-      password: await hashPassword("ValidPass1!"),
+      password: DUMMY_ARGON2_HASH,
     });
 
     await expect(
@@ -446,7 +450,7 @@ describe("Auth.createUser (real Auth class — password strength)", () => {
   it("accepts a strong password and hashes before createUser", async () => {
     const { auth, dbAdapter } = createAuthHarness({
       email: "seed@test.com",
-      password: await hashPassword("ValidPass1!"),
+      password: DUMMY_ARGON2_HASH,
     });
 
     const created = await auth.createUser({
@@ -468,7 +472,7 @@ describe("Auth.createUser (real Auth class — password strength)", () => {
     const lockoutTime = new Date(Date.now() + 15 * 60_000);
     const { auth, dbAdapter } = createAuthHarness({
       email: "locked@test.com",
-      password: await hashPassword("OldValidPass1!"),
+      password: DUMMY_ARGON2_HASH,
       failedAttempts: 5,
       lockoutUntil: dateToISODateString(lockoutTime),
     });

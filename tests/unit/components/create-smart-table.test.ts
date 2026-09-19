@@ -137,4 +137,30 @@ describe("createSmartTable", () => {
     table.setRows([{ _id: "1", name: "x" }]);
     expect(table.isEmpty).toBe(false);
   });
+
+  it("supports column resizing and dynamic setLayoutKey", () => {
+    const table = createSmartTable({ mode: "client", layoutKey: "test-table-1" });
+    table.setColumns([
+      { key: "col1", label: "Col 1" },
+      { key: "col2", label: "Col 2" },
+    ]);
+
+    table.setColumnWidth("col1", 180);
+    expect(table.columnWidths.col1).toBe(180);
+    expect(table.getColumnWidthStyle("col1")).toBe("180px");
+    expect(table.getColumnWidthStyle("col2")).toBeUndefined();
+
+    // Switch layout key to a new layout
+    table.setLayoutKey("test-table-2");
+    expect(table.columnWidths.col1).toBeUndefined();
+
+    // Set width on the new layout
+    table.setColumnWidth("col2", 220);
+    expect(table.columnWidths.col2).toBe(220);
+    expect(table.getColumnWidthStyle("col2")).toBe("220px");
+
+    // Switching back restores saved layout prefs
+    table.setLayoutKey("test-table-1");
+    expect(table.columnWidths.col1).toBe(180);
+  });
 });

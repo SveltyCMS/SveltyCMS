@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:database-check"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-08-04"
+updated: "2026-09-19"
 tags:
   - "testing"
   - "database"
@@ -65,7 +65,7 @@ SveltyCMS enforces a hard boundary between production and testing:
 
 ### Database Test Sequence
 
-````mermaid
+```mermaid
 sequenceDiagram
     participant Runner as Playwright Worker
     participant Server as Preview Server
@@ -76,7 +76,7 @@ sequenceDiagram
     Runner->>Server: POST /api/testing (Action: seed, Header: index=X)
     Server->>DB: Initialize schema & Insert Admin
     Note over Runner,DB: Execute Isolated Parallel Tests
-```text
+```
 
 ---
 
@@ -126,12 +126,12 @@ docker compose -f tests/docker-compose.yml --profile mariadb up -d
 docker compose -f tests/docker-compose.yml --profile redis up -d
 ```
 
-| Adapter | Compose profile | Default test credentials |
-| :------ | :-------------- | :----------------------- |
-| MongoDB | `mongodb` | no auth on port `27017` (official image default) |
-| PostgreSQL | `postgresql` | `postgres` / `postgres` on port `5432` |
-| MariaDB | `mariadb` | `root` / `mariadb` on port `3306` |
-| Redis | `redis` | no password on port `6379`; benchmark cache variants only |
+| Adapter    | Compose profile | Default test credentials                                  |
+| :--------- | :-------------- | :-------------------------------------------------------- |
+| MongoDB    | `mongodb`       | no auth on port `27017` (official image default)          |
+| PostgreSQL | `postgresql`    | `postgres` / `postgres` on port `5432`                    |
+| MariaDB    | `mariadb`       | `root` / `mariadb` on port `3306`                         |
+| Redis      | `redis`         | no password on port `6379`; benchmark cache variants only |
 
 Then run:
 
@@ -196,27 +196,29 @@ We use the **Enterprise Benchmark Matrix** to validate database adapter performa
 
 To ensure identical behavior across all 4 database adapters, SveltyCMS now runs **95 contract tests** across 10 test suites. Every `IDBAdapter` method is validated for consistent return shapes, error handling, and data integrity:
 
-| Suite | Tests | Coverage |
-|---|---|---|
-| `adapter-parity.test.ts` | 15 | insert, findOne, findMany, update, delete, count, upsert |
-| `error-contract.test.ts` | 11 | Duplicate keys, missing records, invalid input, error shapes |
-| `cache-contract.test.ts` | 9 | L1 set/get/delete, TTL, tenant isolation, negative cache |
-| `transaction-contract.test.ts` | 5 | Commit, rollback, orphan prevention |
-| `bulk-operations-contract.test.ts` | 10 | insertMany, updateMany, deleteMany, upsertMany, atomicIncrement |
-| `advanced-crud-contract.test.ts` | 9 | streamMany, findByIds, aggregate, restore, exists |
-| `find-page-count-contract.test.ts` | 9 | **findPage** hasMore/total/**keyset cursor**, **count** modes, count cache |
-| `health-contract.test.ts` | 12 | Connection health, pool stats, queryBuilder, tenant policy |
+| Suite                               | Tests | Coverage                                                                   |
+| ----------------------------------- | ----- | -------------------------------------------------------------------------- |
+| `adapter-parity.test.ts`            | 15    | insert, findOne, findMany, update, delete, count, upsert                   |
+| `error-contract.test.ts`            | 11    | Duplicate keys, missing records, invalid input, error shapes               |
+| `cache-contract.test.ts`            | 9     | L1 set/get/delete, TTL, tenant isolation, negative cache                   |
+| `transaction-contract.test.ts`      | 5     | Commit, rollback, orphan prevention                                        |
+| `bulk-operations-contract.test.ts`  | 10    | insertMany, updateMany, deleteMany, upsertMany, atomicIncrement            |
+| `advanced-crud-contract.test.ts`    | 9     | streamMany, findByIds, aggregate, restore, exists                          |
+| `find-page-count-contract.test.ts`  | 9     | **findPage** hasMore/total/**keyset cursor**, **count** modes, count cache |
+| `auth-session-amr-contract.test.ts` | 6     | Session `amr` + `mfaVerifiedAt` multi-engine persistence & rotation        |
+| `content-nodes-contract.test.ts`    | 8     | Node hierarchy, parent traversal, path queries, physical column selection  |
+| `health-contract.test.ts`           | 12    | Connection health, pool stats, queryBuilder, tenant policy                 |
 
 ### Three-layer mapping: list / count product APIs
 
 Respect the pyramid in [Testing index](./index.mdx) — **do not** put adapter contracts in Playwright.
 
-| Layer | What | Files | Command |
-| :---- | :--- | :---- | :------ |
-| **Unit** (white-box) | Pure eligibility + page slicing + count-cache proxy (mocked L1) | `tests/unit/core/page-utils.test.ts`, `tests/unit/core/count-cache.test.ts` | `bun run test:unit` / pre-commit |
-| **Integration** (black-box adapter) | Real `ensureFullInitialization` + live CRUD on active `DB_TYPE` | `tests/integration/databases/find-page-count-contract.test.ts` | `bun run test:integration` / pre-push SQLite; CI multi-DB |
-| **E2E** | Only after UI/list routes **call** `findPage` (golden journey) | *none yet* — not an adapter-only concern | — |
-| **Benchmark** | Latency truth tables (not a gate substitute) | `tests/benchmarks/database-performance.test.ts` | `BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts` |
+| Layer                               | What                                                            | Files                                                                       | Command                                                                     |
+| :---------------------------------- | :-------------------------------------------------------------- | :-------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **Unit** (white-box)                | Pure eligibility + page slicing + count-cache proxy (mocked L1) | `tests/unit/core/page-utils.test.ts`, `tests/unit/core/count-cache.test.ts` | `bun run test:unit` / pre-commit                                            |
+| **Integration** (black-box adapter) | Real `ensureFullInitialization` + live CRUD on active `DB_TYPE` | `tests/integration/databases/find-page-count-contract.test.ts`              | `bun run test:integration` / pre-push SQLite; CI multi-DB                   |
+| **E2E**                             | Only after UI/list routes **call** `findPage` (golden journey)  | _none yet_ — not an adapter-only concern                                    | —                                                                           |
+| **Benchmark**                       | Latency truth tables (not a gate substitute)                    | `tests/benchmarks/database-performance.test.ts`                             | `BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts` |
 
 ```bash
 # Unit only (pure helpers)
@@ -230,6 +232,7 @@ DB_TYPE=postgresql bun test --timeout 300000 tests/integration/databases/find-pa
 ```
 
 **Run against a specific adapter**:
+
 ```bash
 DB=sqlite      bun test tests/integration/databases/*-contract.test.ts
 DB=mongodb     bun test tests/integration/databases/*-contract.test.ts
@@ -262,12 +265,12 @@ test("my test", async () => {
 
 This replaces the previous matrix approach where the orchestrator spawned 8 separate `bun test` subprocesses per test file. Benefits:
 
-| Before | After |
-|--------|-------|
-| 464 total subprocess spawns (61 tests × 8 DBs) | 61 total subprocess spawns (1 per test file) |
-| 8 servers per test (each test started its own) | 8 servers per test (same, but one `bun test` process) |
-| Failure cascades across database variants | Each database is isolated — failure stops only that variant |
-| Redis connection accumulation across subprocesses | Redis connections cleaned up per variant |
+| Before                                            | After                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------- |
+| 464 total subprocess spawns (61 tests × 8 DBs)    | 61 total subprocess spawns (1 per test file)                |
+| 8 servers per test (each test started its own)    | 8 servers per test (same, but one `bun test` process)       |
+| Failure cascades across database variants         | Each database is isolated — failure stops only that variant |
+| Redis connection accumulation across subprocesses | Redis connections cleaned up per variant                    |
 
 ### Known-Incompatible Tests
 
@@ -280,22 +283,22 @@ Some tests are incompatible with specific database engines. The `skipOn` field i
 }
 ```
 
-| Test | Skipped On | Reason |
-|------|-----------|--------|
-| `state-machine-transition` | MongoDB | Connection drops during self-healing stress cycles |
-| `data-residency-failover` | MongoDB | `ConnectionRefused` after failover simulation |
-| `database-failover` | MongoDB | Connection doesn't recover cleanly enough for failover timing |
+| Test                       | Skipped On | Reason                                                        |
+| -------------------------- | ---------- | ------------------------------------------------------------- |
+| `state-machine-transition` | MongoDB    | Connection drops during self-healing stress cycles            |
+| `data-residency-failover`  | MongoDB    | `ConnectionRefused` after failover simulation                 |
+| `database-failover`        | MongoDB    | Connection doesn't recover cleanly enough for failover timing |
 
 ### Bun Runtime Alignment
 
 All 4 database adapters now run natively under `bun test` — no vitest/Node.js special case for MongoDB:
 
-| Adapter | Driver | Previously | Now |
-|---------|--------|-----------|-----|
-| SQLite | `bun:sqlite` (native) | `bun test` | `bun test` |
-| MariaDB | `mysql2` (pure JS) | `bun test` | `bun test` |
-| PostgreSQL | `postgres` (pure JS) | `bun test` | `bun test` |
-| MongoDB | `mongoose` → `bson` | `vitest` (Node.js) | `bun test` ✅ |
+| Adapter    | Driver                | Previously         | Now           |
+| ---------- | --------------------- | ------------------ | ------------- |
+| SQLite     | `bun:sqlite` (native) | `bun test`         | `bun test`    |
+| MariaDB    | `mysql2` (pure JS)    | `bun test`         | `bun test`    |
+| PostgreSQL | `postgres` (pure JS)  | `bun test`         | `bun test`    |
+| MongoDB    | `mongoose` → `bson`   | `vitest` (Node.js) | `bun test` ✅ |
 
 The `bson` package calls `v8.isBuildingSnapshot()` at module load time, which Bun (JavaScriptCore) doesn't implement. A shim in `src/utils/v8-shim.ts` patches `process.getBuiltinModule('v8')` to return a safe stub.
 
@@ -307,4 +310,3 @@ The `bson` package calls `v8.isBuildingSnapshot()` at module load time, which Bu
 - [Testing Index](./index.mdx)
 - [API Testing](./api-testing.mdx)
 - [Black-Box Testing Architecture](./black-box-testing.mdx)
-````

@@ -4,6 +4,7 @@
  *              invalidation, TTL, pattern clearing, concurrent safety.
  */
 import { vi } from "vitest";
+import { expectedCollectionCacheTags } from "../helpers/collection-cache-tags";
 
 // Full settings mock — incomplete factories leak into later suite files (e.g. magic-link).
 vi.mock("@src/services/core/settings-service", () => ({
@@ -117,6 +118,72 @@ describe("CacheService (Whitebox)", () => {
       expect(await service.get("user:1:profile")).toBeUndefined();
       expect(await service.get("user:1:settings")).toBeUndefined();
       expect(await service.get("post:1:data")).toBe("c");
+    });
+
+    it("invalidateCollection clears list + count entries for both spellings", async () => {
+      const tenant = "invalidate-collection-tenant";
+      // Tagged per the shared contract count-cache registers them under. The
+      // physical-spelled entry is the one collection-service.ts reads via
+      // collectionTableName(schemaId).
+      await service.set(
+        "count:collection_posts:exact:0:a",
+        1,
+        30,
+        tenant,
+        undefined,
+        expectedCollectionCacheTags("collection_posts", { countBucket: true }),
+      );
+      await service.set(
+        "count:posts:exact:0:a",
+        2,
+        30,
+        tenant,
+        undefined,
+        expectedCollectionCacheTags("posts", { countBucket: true }),
+      );
+      await service.set("collection:posts:find:x", [1], 30, tenant, undefined, [
+        "collection:posts",
+      ]);
+      await service.set("collection:other:find:x", [2], 30, tenant, undefined, [
+        "collection:other",
+      ]);
+
+      // Schema-id caller (e.g. handleCollectionIncrement) — must still evict the
+      // physical-spelled count entry. Pre-fix this returned the stale count.
+      await service.invalidateCollection("posts", tenant);
+
+      expect(await service.get("count:collection_posts:exact:0:a", tenant)).toBeUndefined();
+      expect(await service.get("count:posts:exact:0:a", tenant)).toBeUndefined();
+      expect(await service.get("collection:posts:find:x", tenant)).toBeUndefined();
+      // An unrelated collection's exact tag survives.
+      expect(await service.get("collection:other:find:x", tenant)).toEqual([2]);
+    });
+
+    it("a physical-only caller reaches logical and bare-spelled entries (superset tags)", async () => {
+      const tenant = "physical-only-tenant";
+      // Producers that only knew the logical id ("posts") or the dash-lost bare
+      // spelling ("blogposts" for id "blog-posts"). collectionTableName cannot
+      // map collection_posts / collection_blogposts back to either, so without
+      // the bare tags these entries stay stale until TTL.
+      await service.set("collection:posts:query:h", [1], 60, tenant, undefined, [
+        "collection:posts",
+      ]);
+      await service.set("count:posts:auto:0:h", 5, 30, tenant, undefined, ["count:posts"]);
+      await service.set("collection:blogposts:query:h", [2], 60, tenant, undefined, [
+        ...expectedCollectionCacheTags("blogposts"),
+      ]);
+      await service.set("collection:articles:query:h", [3], 60, tenant, undefined, [
+        "collection:articles",
+      ]);
+
+      await service.invalidateCollection("collection_posts", tenant);
+      await service.invalidateCollection("collection_blogposts", tenant);
+
+      expect(await service.get("collection:posts:query:h", tenant)).toBeUndefined();
+      expect(await service.get("count:posts:auto:0:h", tenant)).toBeUndefined();
+      expect(await service.get("collection:blogposts:query:h", tenant)).toBeUndefined();
+      // The superset stays scoped: unrelated collections survive.
+      expect(await service.get("collection:articles:query:h", tenant)).toEqual([3]);
     });
   });
 

@@ -10,7 +10,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import { Readable } from "node:stream";
-import { AppError, rethrow } from "@utils/error-handling";
+import { AppError, raise, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -38,6 +38,7 @@ import {
   getVersionStats,
 } from "@src/utils/media/media-storage.server";
 import { parseMultipartStream } from "@utils/media/streaming-upload";
+import { API_MAX_BODY_SIZE_BYTES } from "@utils/api-body-limits";
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
 import type { MediaItem } from "@utils/media/media-models";
@@ -1182,56 +1183,84 @@ export async function handleMediaStreamUpload(
   }[] = [];
 
   try {
-    await parseMultipartStream(event.request, {
-      onFile: async (info) => {
-        const chunks: Uint8Array[] = [];
-        const reader = info.stream.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) chunks.push(value);
-        }
+    await parseMultipartStream(
+      event.request,
+      {
+        onFile: async (info) => {
+          const chunks: Uint8Array[] = [];
+          let received = 0;
+          const reader = info.stream.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              if (!value) continue;
 
-        const totalLength = chunks.reduce((s, c) => s + c.length, 0);
-        const buffer = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-          buffer.set(chunk, offset);
-          offset += chunk.length;
-        }
+              received += value.length;
+              if (received > API_MAX_BODY_SIZE_BYTES) {
+                // Abort incrementally: drop what was buffered, stop pulling from the
+                // client, and fail the whole transaction before more heap is used.
+                chunks.length = 0;
+                await reader.cancel().catch(() => {});
+                raise(413, `File exceeds maximum size: ${info.filename}`, "PAYLOAD_TOO_LARGE");
+              }
 
-        try {
-          const res = await cms.media.upload(
-            new File([buffer], info.filename, { type: info.contentType }),
-            {
-              userId: user?._id || "system",
-              tenantId,
-              folder: uploadFolder,
-            },
-          );
-          uploaded.push({
-            fileName: info.filename,
-            success: !!res.success,
-            data: (res as any).data,
-            message: res.success ? undefined : res.message,
-          });
-        } catch (err: any) {
-          const code =
-            err instanceof AppError ? err.code : (err as NodeJS.ErrnoException)?.code || undefined;
-          uploaded.push({
-            fileName: info.filename,
-            success: false,
-            message: err.message,
-            ...(code ? { code } : {}),
-          });
-        }
+              chunks.push(value);
+            }
+          } catch (err) {
+            chunks.length = 0;
+            throw err;
+          }
+
+          const totalLength = chunks.reduce((s, c) => s + c.length, 0);
+          const buffer = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const chunk of chunks) {
+            buffer.set(chunk, offset);
+            offset += chunk.length;
+          }
+
+          try {
+            const res = await cms.media.upload(
+              new File([buffer], info.filename, { type: info.contentType }),
+              {
+                userId: user?._id || "system",
+                tenantId,
+                folder: uploadFolder,
+              },
+            );
+            uploaded.push({
+              fileName: info.filename,
+              success: !!res.success,
+              data: (res as any).data,
+              message: res.success ? undefined : res.message,
+            });
+          } catch (err: any) {
+            const code =
+              err instanceof AppError
+                ? err.code
+                : (err as NodeJS.ErrnoException)?.code || undefined;
+            uploaded.push({
+              fileName: info.filename,
+              success: false,
+              message: err.message,
+              ...(code ? { code } : {}),
+            });
+          }
+        },
+        onField: (name, value) => {
+          if (name === "folder" && value) {
+            uploadFolder = value;
+          }
+        },
       },
-      onField: (name, value) => {
-        if (name === "folder" && value) {
-          uploadFolder = value;
-        }
+      {
+        // A chunked body carries no Content-Length, so the dispatcher's API body
+        // guard never runs — enforce the same ceiling incrementally here.
+        maxFileSize: API_MAX_BODY_SIZE_BYTES,
+        maxTotalSize: API_MAX_BODY_SIZE_BYTES,
       },
-    });
+    );
   } catch (err: any) {
     rethrow(err);
     if (err instanceof AppError) throw err;

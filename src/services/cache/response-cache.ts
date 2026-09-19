@@ -237,16 +237,19 @@ class ResponseCacheService {
     if (!entry.compressed && entry.body && entry.body.length > 1024) {
       queueMicrotask(async () => {
         try {
-          const { compressAsync, hasNativeCompression } =
+          const { compressAsync, hasNativeCompression, hasAsyncZstd, SYNC_MAX_SIZE } =
             await import("@src/hooks/handle-compression");
           if (hasNativeCompression()) {
             const rawBody = entry.body;
             const size = rawBody.length;
             const gzip = await compressAsync(rawBody, "gzip", size).catch(() => null);
             const br = await compressAsync(rawBody, "br", size).catch(() => null);
-            // zstd only pays off ≥32 KiB (same cutoff as negotiateEncoding).
+            // zstd only pays off ≥32 KiB (same cutoff as negotiateEncoding), and
+            // only when it cannot block the loop: off-thread async API, or a body
+            // within the sync cap (FIX 7/8 — oversized sync compression stalls
+            // the request thread; callers serve br/gzip instead).
             const zstd =
-              size >= 32 * 1024
+              size >= 32 * 1024 && (hasAsyncZstd() || size <= SYNC_MAX_SIZE)
                 ? await compressAsync(rawBody, "zstd", size).catch(() => null)
                 : null;
             if (gzip || br || zstd) {

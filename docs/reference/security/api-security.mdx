@@ -28,14 +28,17 @@ SveltyCMS employs a **zero-trust architecture** for API access — authenticatio
 Request → Layer 1 (Middleware) → Layer 2 (Dispatcher) → Layer 3 (Handler) → Layer 4 (Page Action) → Response
 ```
 
-| Layer                     | What It Checks                                                                                                      | Failure Mode                           |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| **Layer 1 — Middleware**  | CSP, CORS, HSTS, X-Frame-Options, firewall patterns, body size (10MB), rate limiting, `__Host-` cookie prefix, CSRF | 403/429 before any business logic runs |
-| **Layer 2 — Dispatcher**  | `ENDPOINT_PERMISSIONS` mapping, SCIM blocking, admin fast-path                                                      | 403 for any unmapped namespace         |
-| **Layer 3 — Handler**     | Admin verification for mutations, `media:write`/`media:delete` checks                                               | 403 on unauthorized mutations          |
-| **Layer 4 — Page Action** | `requireCollectionBuilderPermission()`, inline RBAC checks                                                          | 403 before state change                |
+| Layer                     | What It Checks                                                                                                               | Failure Mode                           |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Layer 1 — Middleware**  | CSP, CORS, HSTS, X-Frame-Options, firewall patterns, body size (15 MB), rate limiting, `__Host-` cookie prefix, CSRF         | 403/429 before any business logic runs |
+| **Layer 2 — Dispatcher**  | `ENDPOINT_PERMISSIONS` mapping, namespace-root verification (no action segment ⇒ not public), SCIM blocking, admin fast-path | 403 for any unmapped namespace         |
+| **Layer 3 — Handler**     | Admin verification for mutations, `media:write`/`media:delete` checks                                                        | 403 on unauthorized mutations          |
+| **Layer 4 — Page Action** | `requireCollectionBuilderPermission()`, inline RBAC checks                                                                   | 403 before state change                |
 
 > **Fail-Closed Default**: If a permission mapping is missing or ambiguous, the dispatcher returns 403 — never 200 with leaked data.
+
+> [!IMPORTANT]
+> **Namespace roots are not public (September 2026).** For `user` and `auth`, the dispatcher no longer treats a route with no action segment as an exemption: `GET /api/user` (directory listing) requires `user:read` and `POST /api/user` (account creation) requires `user:write`. Only named self-service actions (`me`, `login`, `logout`, OIDC/SAML callbacks, `2fa*`) and bare `GET /api/auth` (the caller's own session user) skip the permission lookup; non-admin create payloads are additionally stripped of `role`/`roles`/`isAdmin`/`roleIds`/`permissions` via `sanitizeClientUserAttributePatch`. `tests/unit/api/authz-bypass-guard.test.ts` enumerates every namespace root and public-route exemption against a reasoned contract so a new bypass fails a unit test.
 
 ---
 
@@ -70,6 +73,20 @@ Browser-based authentication and mutation security rely on hardened cookie struc
   - Password change or logout triggers cascading invalidation across all devices.
   - 3-layer caching: Memory (L1) → Redis (L2) → Database (L3) with credential-free memory caching.
 
+### 2.3 Token Namespace Authorization
+
+`/api/token/*` is a **positive allowlist**, not a public-route deny-list:
+
+| Route pattern                                      | Access                                                                                                                                                                                                  |
+| :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/token/validate-token/{value}`            | **Public** — invitation / verification links.                                                                                                                                                           |
+| `GET /api/token/{value}` (legacy alias)            | No longer public — unauthenticated requests return 401; signed-in callers still get the validation action, but must pass the dispatcher `system:read` gate and the handler's admin / `api:token` check. |
+| `GET /api/token/list`                              | Admin session or the mapped `api:token` permission.                                                                                                                                                     |
+| `POST /api/token/create-token`, `resolve`, `batch` | Admin session or `api:token`.                                                                                                                                                                           |
+| `PUT` / `DELETE /api/token/{id}`                   | Admin session or `api:token`. Updates are field-allowlisted — see below.                                                                                                                                |
+
+`PUT /api/token/{id}` accepts only `expires`, `blocked` and `consumed` from a caller holding `api:token`; admins may additionally set `email` and `role`. Identity and flow fields — `user_id`, `type`, `token`, `_id` and `tenantId` — are never client-writable, closing the account-takeover vector of re-pointing a reset token at another user. Website tokens (`/api/website-tokens`) stay strictly admin-only. Coverage: `tests/unit/api/token.test.ts`, `tests/integration/api/token.test.ts`, `tests/unit/api/authz-bypass-guard.test.ts`.
+
 ---
 
 ## 3. Authentication Flow
@@ -99,6 +116,7 @@ GraphQL requests pass through the same middleware pipeline as REST:
 
 - **HTTP entry**: `handleRequest()` rejects unauthenticated requests (401) before schema execution
 - **Validation plugin**: Query depth limit (8), alias limit (15)
+- **APQ hash binding**: for `extensions.persistedQuery`, the hash must be exactly 64 hex characters and `sha256(query)` is compared with `timingSafeEqual` **before** the query is registered — a client cannot plant a query under a hash another client will request (`PERSISTED_QUERY_HASH_INVALID` for a malformed key, `PERSISTED_QUERY_HASH_MISMATCH` for a wrong digest), which closes cache poisoning/flooding of the persisted-query store
 - **Introspection**: Explicitly blocked in production via `NoSchemaIntrospectionCustomRule`
 - **Subscriptions**: Context handler validates sessions before WebSocket upgrade
 
@@ -135,14 +153,15 @@ To prevent memory exhaustion and DoS attacks through oversized payloads:
 
 ## 5. Rate Limiting & DoS Prevention
 
-| Mechanism                | Location                   | Detail                                                                                                                  |
-| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Login brute-force**    | `handle-authentication.ts` | `handle-rate-limit.ts` (`RateLimiter`) — 5 attempts → 15-min lockout (HTTP 423)                                         |
-| **API rate limit**       | `handle-rate-limit.ts`     | Hardware-aware Token-Bucket (Redis L2 primary + local memory fallback); **commerce lane** isolated (`X-RateLimit-Lane`) |
-| **WAF endpoint limits**  | `SecurityResponseService`  | `rate-limiter-flexible` per path; `/api/commerce` is 60/min (prefix-matched)                                            |
-| **Body size limit**      | `api-handler.ts`           | 10MB cap — returns 413 `PAYLOAD_TOO_LARGE` before parsing                                                               |
-| **Memory load shedding** | `hooks.server.ts`          | Rejects mutation traffic (503) when heap > 90%                                                                          |
-| **Retry-After header**   | RFC 6585 compliant         | All 429 responses include `Retry-After: 60` and `X-RateLimit-*` headers                                                 |
+| Mechanism                | Location                      | Detail                                                                                                                                                                                                                                                                |
+| ------------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Login brute-force**    | `handle-authentication.ts`    | `handle-rate-limit.ts` (`RateLimiter`) — 5 attempts → 15-min lockout (HTTP 423)                                                                                                                                                                                       |
+| **API rate limit**       | `handle-rate-limit.ts`        | Hardware-aware Token-Bucket (Redis L2 primary + local memory fallback); **commerce lane** isolated (`X-RateLimit-Lane`)                                                                                                                                               |
+| **WAF endpoint limits**  | `SecurityResponseService`     | `rate-limiter-flexible` per path; `/api/commerce` is 60/min (prefix-matched)                                                                                                                                                                                          |
+| **Body size limit**      | `api-handler.ts` / dispatcher | 15 MB ceiling (`API_MAX_BODY_SIZE_BYTES` in `@utils/api-body-limits`) — returns 413 `PAYLOAD_TOO_LARGE` before parsing; **chunked bodies** (`Transfer-Encoding: chunked`, no `Content-Length`) are counted through a zero-copy stream and stopped at the same ceiling |
+| **Query page size**      | `@utils/api-params`           | `MAX_PAGE_SIZE = 200` clamp on REST parsers, the SDK `find` funnel and the GraphQL fast path + resolver — a client-supplied `limit` never reaches the adapter unbounded                                                                                               |
+| **Memory load shedding** | `hooks.server.ts`             | Rejects mutation traffic (503) when heap > 90%                                                                                                                                                                                                                        |
+| **Retry-After header**   | RFC 6585 compliant            | All 429 responses include `Retry-After: 60` and `X-RateLimit-*` headers                                                                                                                                                                                               |
 
 ---
 

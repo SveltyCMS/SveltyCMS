@@ -367,6 +367,7 @@ const validationSchema = (field: FieldInstance & BlockBuilderProps) => {
 const BlockBuilderWidget = createWidget<BlockBuilderProps>({
   Name: "BlockBuilder",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:view-dashboard-outline",
   Description: "Visual polymorphic block builder for modular page layouts",
   inputComponentPath: "/src/widgets/custom/block-builder/input.svelte",

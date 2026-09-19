@@ -26,6 +26,7 @@ import {
 	SMART_TABLE_THEAD,
 } from "@components/ui/smart-table";
 import SmartTableShell from "@components/ui/smart-table/smart-table-shell.svelte";
+import ColumnResizeHandle from "@components/ui/smart-table/column-resize-handle.svelte";
 import MediaTableRowMenu from "./media-table-row-menu.svelte";
 import { mediaDisplayUrl } from "@utils/media/media-utils";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
@@ -323,12 +324,12 @@ function onUpdateRowsPerPage(rows: number) {
 			<!-- Desktop: full table (shared Smart Table chrome) -->
 			<table class="media-table {SMART_TABLE} hidden md:table lg:table-fixed">
 				<colgroup>
-					<col class="media-table-col-select" />
-					<col class="media-table-col-preview" />
-					<col class="media-table-col-name" />
-					<col class="media-table-col-size" />
-					<col class="media-table-col-type" />
-					<col class="media-table-col-actions" />
+					<col class="media-table-col-select" style={smartTable.getColumnWidthStyle('_select')} />
+					<col class="media-table-col-preview" style={smartTable.getColumnWidthStyle('preview')} />
+					<col class="media-table-col-name" style={smartTable.getColumnWidthStyle('filename')} />
+					<col class="media-table-col-size" style={smartTable.getColumnWidthStyle('size')} />
+					<col class="media-table-col-type" style={smartTable.getColumnWidthStyle('type')} />
+					<col class="media-table-col-actions" style={smartTable.getColumnWidthStyle('_actions')} />
 				</colgroup>
 				<thead class="{SMART_TABLE_THEAD} backdrop-blur-sm">
 					<tr class="text-[10px] font-semibold uppercase tracking-wider">
@@ -344,30 +345,36 @@ function onUpdateRowsPerPage(rows: number) {
 								/>
 							</div>
 						</th>
-						<th class="media-table-preview {SMART_TABLE_TH} w-16 shrink-0 text-start!">Preview</th>
-						<th class="media-table-name {SMART_TABLE_TH} min-w-0 text-start!">
+						<th class="media-table-preview relative {SMART_TABLE_TH} w-16 shrink-0 text-start!" style={smartTable.getColumnWidthStyle('preview')}>
+							<span>Preview</span>
+							<ColumnResizeHandle columnKey="preview" onResize={smartTable.setColumnWidth} />
+						</th>
+						<th class="media-table-name relative {SMART_TABLE_TH} min-w-0 text-start!" style={smartTable.getColumnWidthStyle('filename')}>
 							<button type="button" class="font-semibold uppercase" onclick={() => smartTable.setSort('filename')}>
 								Name
 								{#if smartTable.sort.sortedBy === 'filename' && smartTable.sort.isSorted !== 0}
 									<iconify-icon icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'} width="14" class="ms-0.5 inline"></iconify-icon>
 								{/if}
 							</button>
+							<ColumnResizeHandle columnKey="filename" onResize={smartTable.setColumnWidth} />
 						</th>
-						<th class="media-table-size {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! sm:table-cell">
+						<th class="media-table-size relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! sm:table-cell" style={smartTable.getColumnWidthStyle('size')}>
 							<button type="button" class="font-semibold uppercase" onclick={() => smartTable.setSort('size')}>
 								Size
 								{#if smartTable.sort.sortedBy === 'size' && smartTable.sort.isSorted !== 0}
 									<iconify-icon icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'} width="14" class="ms-0.5 inline"></iconify-icon>
 								{/if}
 							</button>
+							<ColumnResizeHandle columnKey="size" onResize={smartTable.setColumnWidth} />
 						</th>
-						<th class="media-table-type {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! md:table-cell">
+						<th class="media-table-type relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! md:table-cell" style={smartTable.getColumnWidthStyle('type')}>
 							<button type="button" class="font-semibold uppercase" onclick={() => smartTable.setSort('type')}>
 								Type
 								{#if smartTable.sort.sortedBy === 'type' && smartTable.sort.isSorted !== 0}
 									<iconify-icon icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'} width="14" class="ms-0.5 inline"></iconify-icon>
 								{/if}
 							</button>
+							<ColumnResizeHandle columnKey="type" onResize={smartTable.setColumnWidth} />
 						</th>
 						<th class="media-table-actions {SMART_TABLE_TH} {pinCellClass('end')} w-11 shrink-0 text-end!">Actions</th>
 					</tr>

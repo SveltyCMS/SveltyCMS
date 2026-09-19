@@ -2,6 +2,8 @@
  * @file tests/unit/api/graphql-apq.test.ts
  * @description Unit tests for GraphQL Automatic Persisted Queries (APQ) protocol and L1/L2 Redis caching.
  */
+import { createHash } from "node:crypto";
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST, GET } from "@src/routes/api/graphql/+server";
 import { cacheService } from "@src/databases/cache/cache-service";
@@ -65,8 +67,24 @@ vi.mock("@src/content/index.server", () => ({
 
 describe("GraphQL Automatic Persisted Queries (APQ)", () => {
   const mockUser = createMockUser({ role: "admin", isAdmin: true });
-  const testHash = "ecf4edb46db40b5132295c0291d62fb7147bacfb";
   const testQuery = "query TestApq { contentSystemHealth { status } }";
+  const testHash = createHash("sha256").update(testQuery, "utf8").digest("hex");
+
+  const postApq = (body: Record<string, unknown>) => {
+    const url = new URL("http://localhost:5173/api/graphql");
+    return {
+      request: new Request(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+      url,
+      locals: {
+        user: mockUser,
+        tenantId: "global",
+      },
+    } as any;
+  };
 
   beforeEach(async () => {
     await cacheService.delete(`apq:${testHash}`, "global");
@@ -202,5 +220,85 @@ describe("GraphQL Automatic Persisted Queries (APQ)", () => {
     const json = await response.json();
     expect(json.errors).toBeUndefined();
     expect(json.data).toBeDefined();
+  });
+
+  it("rejects a hash that is not the sha256 of the query and does not write to cache", async () => {
+    const mismatchedHash = createHash("sha256")
+      .update("query OtherQuery { contentSystemHealth { status } }", "utf8")
+      .digest("hex");
+    vi.mocked(cacheService.set).mockClear();
+
+    const response = await POST(
+      postApq({
+        query: testQuery,
+        extensions: { persistedQuery: { version: 1, sha256Hash: mismatchedHash } },
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = await response.json();
+    expect(json.errors).toBeDefined();
+    expect(json.errors[0].extensions.code).toBe("PERSISTED_QUERY_HASH_MISMATCH");
+    expect(json.errors[0].message).toBe("PersistedQueryHashMismatch");
+    expect(cacheService.set).not.toHaveBeenCalled();
+    expect(cacheStore.has(`global:apq:${mismatchedHash}`)).toBe(false);
+    expect(cacheStore.has(`global:apq:${testHash}`)).toBe(false);
+  });
+
+  it("rejects a malformed hash (wrong length) before touching the cache", async () => {
+    vi.mocked(cacheService.set).mockClear();
+    vi.mocked(cacheService.get).mockClear();
+    vi.mocked(cacheService.getSync).mockClear();
+
+    const response = await POST(
+      postApq({
+        query: testQuery,
+        extensions: { persistedQuery: { version: 1, sha256Hash: "abc123" } },
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = await response.json();
+    expect(json.errors[0].extensions.code).toBe("PERSISTED_QUERY_HASH_INVALID");
+    expect(json.errors[0].message).toBe("PersistedQueryHashInvalid");
+    expect(cacheService.getSync).not.toHaveBeenCalled();
+    expect(cacheService.get).not.toHaveBeenCalled();
+    expect(cacheService.set).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed hash (non-hex) before touching the cache", async () => {
+    vi.mocked(cacheService.set).mockClear();
+    vi.mocked(cacheService.get).mockClear();
+    vi.mocked(cacheService.getSync).mockClear();
+
+    const response = await POST(
+      postApq({
+        query: testQuery,
+        extensions: { persistedQuery: { version: 1, sha256Hash: "z".repeat(64) } },
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = await response.json();
+    expect(json.errors[0].extensions.code).toBe("PERSISTED_QUERY_HASH_INVALID");
+    expect(cacheService.getSync).not.toHaveBeenCalled();
+    expect(cacheService.get).not.toHaveBeenCalled();
+    expect(cacheService.set).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid uppercase sha256 hash and caches the query", async () => {
+    const upperHash = testHash.toUpperCase();
+    vi.mocked(cacheService.set).mockClear();
+
+    const response = await POST(
+      postApq({
+        query: testQuery,
+        extensions: { persistedQuery: { version: 1, sha256Hash: upperHash } },
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    expect(cacheService.set).toHaveBeenCalled();
+    expect(cacheStore.get(`global:apq:${upperHash}`)).toBe(testQuery);
   });
 });

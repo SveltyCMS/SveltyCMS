@@ -286,6 +286,14 @@ export const mediaItems = mysqlTable(
     folderIdx: index("folder_idx").on(table.folderId),
     createdByIdx: index("created_by_idx").on(table.createdBy),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // 🚀 Media gallery: WHERE tenantId = ? AND folderId = ? ORDER BY updatedAt DESC LIMIT 101
+    // No DESC here: MariaDB <10.8 ignores index direction and InnoDB scans ASC indexes backwards.
+    tenantFolderUpdatedIdx: index("tenant_folder_updated_idx").on(
+      table.tenantId,
+      table.folderId,
+      table.updatedAt,
+    ),
+    tenantUpdatedIdx: index("tenant_updated_idx").on(table.tenantId, table.updatedAt),
   }),
 );
 

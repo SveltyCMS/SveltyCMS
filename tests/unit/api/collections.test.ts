@@ -99,6 +99,8 @@ vi.mock("@src/databases/db", () => {
 
 import { _handler as dispatcher } from "../../../src/routes/api/[...path]/+server";
 import { dbAdapter as mockDbAdapter } from "@src/databases/db";
+import { LocalCMS } from "@src/services/sdk";
+import { MAX_PAGE_SIZE } from "@utils/api-params";
 // ... in beforeEach, ensure event.locals.dbAdapter = mockDbAdapter;
 
 vi.mock("@src/content/index.server", () => ({
@@ -385,6 +387,65 @@ describe("Collections API Unit Tests", () => {
       );
       const data = await response!.json();
       expect(data.success).toBe(true);
+    });
+  });
+
+  // The SDK funnel both REST (handleCollectionFind) and GraphQL (resolvers +
+  // fast path) go through: a client-supplied `limit` is clamped, never rejected.
+  describe("Page-size ceiling (MAX_PAGE_SIZE)", () => {
+    const capContentSystem = {
+      getCollection: vi.fn((id: string) => ({
+        _id: id,
+        name: id,
+        fields: [{ name: "title", type: "text" }],
+      })),
+      getCollections: vi.fn(() => []),
+    };
+
+    function capAdapter() {
+      return {
+        crud: { findMany: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+        auth: { user: {}, session: {}, token: {} },
+        media: {},
+        settings: {},
+        collection: { getModel: vi.fn().mockResolvedValue({}) },
+        system: { preferences: {} },
+        content: { nodes: {} },
+        isConnected: vi.fn(() => true),
+      };
+    }
+
+    async function findWithLimit(limit?: number) {
+      const adapter = capAdapter();
+      const cms = new LocalCMS(adapter as any, capContentSystem);
+      await cms.collections.find("cap-col", {
+        tenantId: "cap-tenant",
+        user: { _id: "u1", role: "admin", isAdmin: true },
+        bypassCache: true,
+        ...(limit === undefined ? {} : { limit }),
+      });
+      return adapter.crud.findMany;
+    }
+
+    it("caps an over-cap limit instead of rejecting it", async () => {
+      const findMany = await findWithLimit(100_000_000);
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(findMany.mock.calls[0][2]).toMatchObject({ limit: MAX_PAGE_SIZE });
+    });
+
+    it("leaves a normal limit untouched", async () => {
+      const findMany = await findWithLimit(25);
+      expect(findMany.mock.calls[0][2]).toMatchObject({ limit: 25 });
+    });
+
+    it("keeps the default page size when no limit is supplied", async () => {
+      const findMany = await findWithLimit();
+      expect(findMany.mock.calls[0][2]).toMatchObject({ limit: 50 });
+    });
+
+    it("falls back to the default for a non-positive limit", async () => {
+      const findMany = await findWithLimit(0);
+      expect(findMany.mock.calls[0][2]).toMatchObject({ limit: 50 });
     });
   });
 });

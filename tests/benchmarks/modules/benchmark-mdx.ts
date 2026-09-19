@@ -418,14 +418,79 @@ export const SUMMARY_MARKERS = {
   historyTables: ["<!-- SUMMARY_HISTORY_START -->", "<!-- SUMMARY_HISTORY_END -->"] as const,
 } as const;
 
+// Replaces the watermark + its (optional) single text line. The lookahead keeps a
+// following marker line — `<!-- EXECUTIVE_ALERTS_START -->` directly after the
+// watermark (report shells and pre-2026-09 partial writes) used to be consumed as
+// "the text line", which orphaned the alerts END and made every later write append
+// a second pair (`…END …START …END`).
 const EXECUTIVE_PARTIAL_RX = new RegExp(
-  `${escapeRegex(EXECUTIVE_MARKERS.partialWatermark)}\\s*\\n(?:[^\\n]*\\n)?`,
+  `${escapeRegex(EXECUTIVE_MARKERS.partialWatermark)}[ \\t]*\\n(?:(?!<!--)[^\\n]*\\n)?`,
   "m",
 );
 
+/**
+ * Collapse duplicated (or stranded) marker occurrences to exactly one pair.
+ *
+ * Marker-driven writers replace between the FIRST start and the FIRST end after
+ * it, so any surplus marker survives every subsequent patch and accumulates — the
+ * sqlite/postgres ledgers ended up with `…END …START …END` after a partial write.
+ * This keeps the FIRST start and the LAST end and drops the rest; content is
+ * preserved, no marker is invented (a caller that finds no start still appends a
+ * full pair). If the surviving end precedes the surviving start, patching is a
+ * no-op rather than a mis-scoped rewrite.
+ */
+export function normalizeMarkerPair(scope: string, startMarker: string, endMarker: string): string {
+  const occurrences: Array<{ type: "start" | "end"; index: number }> = [];
+  for (
+    let i = scope.indexOf(startMarker);
+    i !== -1;
+    i = scope.indexOf(startMarker, i + startMarker.length)
+  ) {
+    occurrences.push({ type: "start", index: i });
+  }
+  for (
+    let i = scope.indexOf(endMarker);
+    i !== -1;
+    i = scope.indexOf(endMarker, i + endMarker.length)
+  ) {
+    occurrences.push({ type: "end", index: i });
+  }
+  const startCount = occurrences.filter((o) => o.type === "start").length;
+  const endCount = occurrences.length - startCount;
+  if (startCount <= 1 && endCount <= 1) return scope;
+
+  occurrences.sort((a, b) => a.index - b.index);
+  const keepStart = occurrences.find((o) => o.type === "start");
+  const keepEnd = [...occurrences].reverse().find((o) => o.type === "end");
+
+  let out = "";
+  let cursor = 0;
+  for (const occurrence of occurrences) {
+    const marker = occurrence.type === "start" ? startMarker : endMarker;
+    const keep = occurrence.type === "start" ? occurrence === keepStart : occurrence === keepEnd;
+    out += scope.slice(cursor, occurrence.index) + (keep ? marker : "");
+    cursor = occurrence.index + marker.length;
+  }
+  out += scope.slice(cursor);
+  return out;
+}
+
 /** Ensure EXECUTIVE body contains deterministic marker anchors. */
 export function ensureExecutiveMarkers(executive: string): string {
-  let body = executive.trimEnd();
+  // 🔧 SELF-HEAL: collapse surplus markers before the presence checks below. A
+  // stranded `_END` (left by an earlier partial write) would otherwise survive
+  // every patch while this function appends a fresh pair — the sqlite/postgres
+  // ledgers accumulated exactly that on 2026-09-19.
+  let body = normalizeMarkerPair(
+    executive,
+    EXECUTIVE_MARKERS.alerts[0],
+    EXECUTIVE_MARKERS.alerts[1],
+  ).trimEnd();
+  body = normalizeMarkerPair(
+    body,
+    EXECUTIVE_MARKERS.fixNotes[0],
+    EXECUTIVE_MARKERS.fixNotes[1],
+  ).trimEnd();
   if (!body.includes(EXECUTIVE_MARKERS.fixNotes[0])) {
     const [fixStart, fixEnd] = EXECUTIVE_MARKERS.fixNotes;
     const fixSlot = `\n${fixStart}\n${EXECUTIVE_FIX_NOTES_PLACEHOLDER}\n${fixEnd}\n`;
@@ -567,7 +632,16 @@ export function patchExecutiveAlerts(executive: string, alertsBody: string): str
 
 /** Ensure SUMMARY body contains deterministic marker anchors (C: two isolated slots). */
 export function ensureSummaryMarkers(summary: string): string {
-  let body = summary.trimEnd();
+  let body = normalizeMarkerPair(
+    summary,
+    SUMMARY_MARKERS.runOverlay[0],
+    SUMMARY_MARKERS.runOverlay[1],
+  ).trimEnd();
+  body = normalizeMarkerPair(
+    body,
+    SUMMARY_MARKERS.historyTables[0],
+    SUMMARY_MARKERS.historyTables[1],
+  ).trimEnd();
   if (!body.includes(SUMMARY_MARKERS.runOverlay[0])) {
     body += [
       "",

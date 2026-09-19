@@ -40,6 +40,7 @@ const validationSchema = (field: FieldInstance) => {
 const PhoneNumberWidget = createWidget<PhoneNumberProps>({
   Name: "PhoneNumber",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "ic:baseline-phone-in-talk",
   Description: widget_phoneNumber_description(),
   inputComponentPath: "/src/widgets/custom/phone-number/input.svelte",

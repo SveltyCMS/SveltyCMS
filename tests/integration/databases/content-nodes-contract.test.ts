@@ -182,6 +182,75 @@ describe("content.nodes bulkUpdate contract", () => {
     expect(found[0]?._id?.toString()).toBe(originalId);
   });
 
+  it("moves the same _id to a new path without a primary-key violation", async () => {
+    const suffix = runSuffix();
+    const originalPath = `/contract-move-a-${suffix}`;
+    const movedPath = `/contract-move-b-${suffix}`;
+    const id = `contract-move-${suffix}`;
+    cleanupPaths.push(originalPath, movedPath);
+
+    const first = await db.content.nodes.bulkUpdate(
+      [
+        {
+          path: originalPath,
+          id,
+          changes: {
+            name: `Before move ${suffix}`,
+            path: originalPath,
+            nodeType: CATEGORY_NODE_TYPE,
+            source: BUILDER_SOURCE,
+            order: 1,
+          },
+        },
+      ],
+      { tenantId: TENANT },
+    );
+    expect(first.success).toBe(true);
+
+    // Same _id under a NEW path: SQL pre-clears the stale _id (one batched
+    // IN (...) DELETE) before the conflict-target upsert, otherwise the insert
+    // hits the primary key while ON CONFLICT (path, tenantId) does not match.
+    const second = await db.content.nodes.bulkUpdate(
+      [
+        {
+          path: movedPath,
+          id,
+          changes: {
+            name: `After move ${suffix}`,
+            path: movedPath,
+            nodeType: CATEGORY_NODE_TYPE,
+            source: BUILDER_SOURCE,
+            order: 1,
+          },
+        },
+      ],
+      { tenantId: TENANT },
+    );
+
+    if (db.type === "mongodb" && !second.success) {
+      // Known Mongo divergence: upserting a new (path, tenantId) with an _id that
+      // already exists hits the unique _id index instead of moving the row. Assert
+      // the failure left no partial write behind.
+      const untouched = await readPaths(db, [originalPath]);
+      expect(untouched).toHaveLength(1);
+      expect(untouched[0]?.name).toBe(`Before move ${suffix}`);
+      expect(untouched[0]?._id?.toString()).toBe(id);
+      return;
+    }
+
+    // SQL adapters: the pre-clean must have moved the node to the new path.
+    expect(second.success).toBe(true);
+
+    const atMoved = await readPaths(db, [movedPath]);
+    expect(atMoved).toHaveLength(1);
+    expect(atMoved[0]?._id?.toString()).toBe(id);
+    expect(atMoved[0]?.name).toBe(`After move ${suffix}`);
+
+    // The node identity moved — it must not be duplicated at the old path.
+    const atOriginal = await readPaths(db, [originalPath]);
+    expect(atOriginal).toHaveLength(0);
+  });
+
   it("deleteMany removes structure nodes by path", async () => {
     const suffix = runSuffix();
     const path = `/contract-delete-${suffix}`;

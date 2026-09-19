@@ -49,11 +49,11 @@ export const SMART_TABLE_SHELL = "flex h-full min-h-0 w-full flex-col overflow-h
 
 /** Sticky pin: logical start edge (checkbox column) */
 export const SMART_TABLE_PIN_START =
-  "sticky inset-s-0 z-[5] bg-secondary-500/10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)] dark:bg-surface-900";
+  "sticky inset-s-0 z-[5] bg-white shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)] dark:bg-surface-900";
 
 /** Sticky pin: logical end edge (actions column) */
 export const SMART_TABLE_PIN_END =
-  "sticky end-0 z-[5] bg-secondary-500/10 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)] dark:bg-surface-900";
+  "sticky end-0 z-[5] bg-white shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)] dark:bg-surface-900";
 
 /** Empty / loading body area */
 export const SMART_TABLE_STATE_BODY =

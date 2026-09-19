@@ -62,11 +62,44 @@ import {
   decodePageCursor,
   defaultPageSortOption,
   mergeKeysetFilter,
+  normalizeSortDirection,
   resolvePageSort,
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "./page-utils";
 import { applyLookupStatus, extractPkConflictId, parseIdLookup } from "./lookup-query";
+
+// ============================================================================
+// System table schema pre-registration (module scope — evaluated once)
+// ============================================================================
+// Registers every system table's literal column list so the schema-aware fast
+// branch in `convertDatesToISO` / `convertArrayDatesToISO` is available to ALL
+// SQL adapters. This previously lived in the SQLite adapter, which left
+// PostgreSQL and MariaDB on the per-key `DATE_FIELDS` / `JSON_FIELDS` walk.
+//
+// Safe as a module-scope side effect: `registerTableSchema` is idempotent and
+// ADDITIVE (it merges into the single TableMeta registry), so re-evaluating this
+// module can only add column knowledge — never shrink or corrupt it.
+for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS)) {
+  utils.registerTableSchema(tableName, columns as string[]);
+}
+
+// The curated literal lists predate a few physical columns of the auth tables.
+// Register the schema-authoritative superset so the fast branch sees exactly the
+// field set the un-schemed walk saw: a registered table skips the per-key
+// DATE_FIELDS/JSON_FIELDS checks, so any column missing here would read back
+// unparsed/unconverted (a security bug for auth data, not a perf one).
+utils.registerTableSchema("authUsers", [
+  ...helpers.SYSTEM_LITERAL_COLUMNS.authUsers,
+  "preferences", // JSON blob column (JSON_FIELDS)
+  "failedAttempts",
+  "lockoutUntil", // timestamp column (DATE_FIELDS)
+]);
+utils.registerTableSchema("authSessions", [
+  ...helpers.SYSTEM_LITERAL_COLUMNS.authSessions,
+  "amr", // JSON array column — normalised by normalizeSessionAmr
+  "mfaVerifiedAt", // timestamp column (DATE_FIELDS)
+]);
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -1134,14 +1167,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
                 if (Array.isArray(item) && item.length >= 2) {
                   normalizedSorts.push({
                     field: item[0],
-                    direction: item[1] as "asc" | "desc",
+                    direction: normalizeSortDirection(item[1]),
                   });
                 } else if (typeof item === "object" && item !== null) {
                   const keys = Object.keys(item);
                   if (keys.length > 0) {
                     normalizedSorts.push({
                       field: keys[0],
-                      direction: (item as any)[keys[0]],
+                      direction: normalizeSortDirection((item as any)[keys[0]]),
                     });
                   }
                 }
@@ -1150,7 +1183,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
               for (const field of Object.keys(options.sort)) {
                 normalizedSorts.push({
                   field,
-                  direction: (options.sort as any)[field],
+                  direction: normalizeSortDirection((options.sort as any)[field]),
                 });
               }
             }

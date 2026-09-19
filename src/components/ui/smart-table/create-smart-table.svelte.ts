@@ -91,6 +91,7 @@ export interface SmartTableApi<T extends Record<string, unknown> = Record<string
   reorderColumns: (orderedKeys: string[]) => void;
   /** Persist density/order/visibility when layoutKey is set */
   persistLayout: () => void;
+  setLayoutKey: (key: string) => void;
   getRowId: (row: T, index: number) => string;
 }
 
@@ -119,9 +120,9 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   const rowHeight = options.rowHeight ?? ROW_HEIGHT;
   const virtualBuffer = options.virtualBuffer ?? VIRTUAL_BUFFER;
   const onQueryChange = options.onQueryChange;
-  const layoutKey = options.layoutKey;
+  let currentLayoutKey = $state(options.layoutKey);
 
-  const savedLayout = layoutKey ? loadTableLayout(layoutKey) : null;
+  const savedLayout = currentLayoutKey ? loadTableLayout(currentLayoutKey) : null;
 
   let rows = $state.raw<T[]>([]);
   let columns = $state<SmartTableColumn<T>[]>([]);
@@ -274,7 +275,25 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
       pin: c.pin ?? false,
       align: c.align ?? "center",
     }));
-    columns = mergeLayoutIntoColumns(normalized, layoutKey ? loadTableLayout(layoutKey) : null);
+    columns = mergeLayoutIntoColumns(
+      normalized,
+      currentLayoutKey ? loadTableLayout(currentLayoutKey) : null,
+    );
+  }
+
+  function setLayoutKey(nextKey: string) {
+    currentLayoutKey = nextKey;
+    const saved = nextKey ? loadTableLayout(nextKey) : null;
+    if (saved) {
+      if (saved.density && isValidDensity(saved.density)) density = saved.density;
+      if (saved.pageSize) pagination.pageSize = saved.pageSize;
+      columnWidths = saved.columnWidths ?? {};
+      if (columns.length > 0) {
+        columns = mergeLayoutIntoColumns(columns, saved);
+      }
+    } else {
+      columnWidths = {};
+    }
   }
 
   function setPaginationMeta(meta: Partial<SmartTablePagination>) {
@@ -285,12 +304,12 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   }
 
   function persistLayout() {
-    if (!layoutKey) return;
+    if (!currentLayoutKey) return;
     const visibility: Record<string, boolean> = {};
     for (const c of columns) {
       visibility[c.key] = c.visible !== false;
     }
-    saveTableLayout(layoutKey, {
+    saveTableLayout(currentLayoutKey, {
       density,
       pageSize: pagination.pageSize,
       columnOrder: columns.map((c) => c.key),
@@ -529,6 +548,7 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     getColumnWidthStyle,
     reorderColumns,
     persistLayout,
+    setLayoutKey,
     getRowId,
   };
 }

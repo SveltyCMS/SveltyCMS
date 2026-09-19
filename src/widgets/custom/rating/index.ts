@@ -55,6 +55,7 @@ const validationSchema = (field: FieldInstance) => {
 const RatingWidget = createWidget<RatingProps>({
   Name: "Rating",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "material-symbols:star-outline",
   Description: widget_rating_description(),
   inputComponentPath: "/src/widgets/custom/rating/input.svelte",

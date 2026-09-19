@@ -7,7 +7,7 @@
  * @src/databases/db mock is not the only proof.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { setGlobal } from "@src/utils/native-utils";
 
 const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
@@ -22,8 +22,11 @@ async function loadRealDb() {
 describe("Database Resilience (real db.ts)", () => {
   let realDb: Awaited<ReturnType<typeof loadRealDb>>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     realDb = await loadRealDb();
+  });
+
+  beforeEach(() => {
     // Isolate boot globals from other suites
     setGlobal(INIT_PROMISE_KEY, null);
     setGlobal(BOOT_PHASE_KEY, "IDLE");

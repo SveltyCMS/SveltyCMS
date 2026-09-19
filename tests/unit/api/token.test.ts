@@ -47,7 +47,13 @@ vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));
 
-import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
+import {
+  GET as dispatcherGET,
+  POST as dispatcherPOST,
+  PUT as dispatcherPUT,
+  DELETE as dispatcherDELETE,
+} from "@src/routes/api/[...path]/+server";
+import { isPublicRoute } from "@utils/hook-utils";
 
 function tokenAdapter() {
   const dbStub = createDbAdapterStub();
@@ -74,6 +80,16 @@ function tokenAdapter() {
       count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
     },
   };
+}
+
+/** Adapter whose token lookup resolves to a real _id so updateToken is reachable. */
+function updateableTokenAdapter() {
+  const adapter = tokenAdapter();
+  adapter.auth.getTokenById = vi.fn().mockImplementation(async (id) => ({
+    success: true,
+    data: { _id: id, token: `val-${id}` },
+  }));
+  return adapter;
 }
 
 describe("Token API Unit Tests", () => {
@@ -195,5 +211,138 @@ describe("Token API Unit Tests", () => {
     await expect(dispatcherPOST(createResetEvent("2.2.2.2"))).rejects.toThrow(
       "Password reset already requested",
     );
+  });
+
+  describe("Authorization and update allowlist (authz bypass regression)", () => {
+    const editor = { _id: "u-editor", email: "editor@example.com", role: "editor" };
+    const editorRoles = [{ _id: "editor", name: "Editor", isAdmin: false, permissions: [] }];
+
+    it("keeps only the explicit validate-token path public", () => {
+      // The old deny-list treated every /api/token/* path (other than
+      // list/batch/create-token/resolve) as public, so PUT/DELETE on
+      // /api/token/:id skipped both the middleware gate and the dispatcher's
+      // endpoint-permission map (`api:token` => admin) — any session could
+      // mutate tokens (CWE-862 authorization bypass).
+      expect(isPublicRoute("/api/token/some-token-id")).toBe(false);
+      expect(isPublicRoute("/api/token/list")).toBe(false);
+      expect(isPublicRoute("/api/token/batch")).toBe(false);
+      expect(isPublicRoute("/api/token/create-token")).toBe(false);
+      expect(isPublicRoute("/api/token/validate-token/some-token-value")).toBe(true);
+    });
+
+    it("denies token update and delete for a non-admin session", async () => {
+      const adapter = updateableTokenAdapter();
+
+      const putEvent = createMockRequestEvent({
+        method: "PUT",
+        path: "token/token-id",
+        body: { newTokenData: { expires: "2026-02-01T00:00:00.000Z" } },
+        user: editor,
+        tenantId: "t1",
+        roles: editorRoles,
+        dbAdapter: adapter,
+      });
+      await expect(dispatcherPUT(putEvent)).rejects.toThrow(/Forbidden/);
+
+      const deleteEvent = createMockRequestEvent({
+        method: "DELETE",
+        path: "token/token-id",
+        user: editor,
+        tenantId: "t1",
+        roles: editorRoles,
+        dbAdapter: adapter,
+      });
+      await expect(dispatcherDELETE(deleteEvent)).rejects.toThrow(/Forbidden/);
+
+      expect(adapter.auth.updateToken).not.toHaveBeenCalled();
+      expect(adapter.auth.deleteTokens).not.toHaveBeenCalled();
+    });
+
+    it("denies token update without any session", async () => {
+      const putEvent = createMockRequestEvent({
+        method: "PUT",
+        path: "token/token-id",
+        body: { newTokenData: { expires: "2026-02-01T00:00:00.000Z" } },
+        user: null,
+        tenantId: "t1",
+        roles: [],
+        dbAdapter: updateableTokenAdapter(),
+      });
+      await expect(dispatcherPUT(putEvent)).rejects.toThrow(/Authentication required/);
+    });
+
+    it("allows an admin update and strips non-writable columns", async () => {
+      const adapter = updateableTokenAdapter();
+      const event = createMockRequestEvent({
+        method: "PUT",
+        path: "token/token-id",
+        body: {
+          newTokenData: {
+            user_id: "victim-user-id",
+            type: "reset",
+            token: "attacker-chosen-token",
+            _id: "another-token-id",
+            tenantId: "tenant-evil",
+            email: "victim@example.com",
+            role: "developer",
+            expires: "2026-02-01T00:00:00.000Z",
+          },
+        },
+        user: { ...admin, role: "admin", isAdmin: true },
+        tenantId: "t1",
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+        dbAdapter: adapter,
+      });
+
+      const response = await dispatcherPUT(event);
+      expect(response!.status).toBe(200);
+
+      expect(adapter.auth.updateToken).toHaveBeenCalledTimes(1);
+      const [calledTokenId, payload] = adapter.auth.updateToken.mock.calls[0];
+      expect(calledTokenId).toBe("token-id");
+      expect(payload).toEqual({
+        expires: "2026-02-01T00:00:00.000Z",
+        email: "victim@example.com",
+        role: "developer",
+      });
+      for (const forbidden of ["user_id", "type", "token", "_id", "tenantId"]) {
+        expect(payload).not.toHaveProperty(forbidden);
+      }
+    });
+
+    it("allows a role holding the mapped api:token permission, without admin-only fields", async () => {
+      const adapter = updateableTokenAdapter();
+      const event = createMockRequestEvent({
+        method: "PUT",
+        path: "token/token-id",
+        body: {
+          newTokenData: {
+            user_id: "victim-user-id",
+            email: "victim@example.com",
+            role: "developer",
+            expires: "2026-03-01T00:00:00.000Z",
+          },
+        },
+        user: { _id: "u-token-mgr", email: "tokens@example.com", role: "token-manager" },
+        tenantId: "t1",
+        roles: [
+          {
+            _id: "token-manager",
+            name: "Token Manager",
+            isAdmin: false,
+            permissions: ["api:token"],
+          },
+        ],
+        dbAdapter: adapter,
+      });
+
+      const response = await dispatcherPUT(event);
+      expect(response!.status).toBe(200);
+      // Identity fields stay admin-only: email/role must not be written by the
+      // mapped-permission holder; user_id is never client-writable.
+      expect(adapter.auth.updateToken.mock.calls[0][1]).toEqual({
+        expires: "2026-03-01T00:00:00.000Z",
+      });
+    });
   });
 });

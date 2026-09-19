@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:graphql"
 author: "SveltyCMS Team"
 created: "2026-04-05"
-updated: "2026-07-07"
+updated: "2026-09-18"
 tags:
   - "graphql"
   - "query"
@@ -49,7 +49,7 @@ Use standard GraphQL syntax to retrieve exactly the fields you need. This is man
 **Endpoint**: `POST /api/graphql`
 **Example Query**:
 
-````graphql
+```graphql
 query GetPosts {
   posts(limit: 5, filter: { status: "published" }) {
     _id
@@ -104,6 +104,20 @@ graph TD
     J --> K[JSON Response + populate cache]
 ```
 
+### Automatic Persisted Queries (APQ)
+
+Clients can send a SHA-256 digest instead of the full query document via `extensions.persistedQuery.sha256Hash`, following the standard APQ handshake:
+
+- **Miss**: only the hash is sent and nothing is registered under it — the gateway answers with a `PERSISTED_QUERY_NOT_FOUND` GraphQL error.
+- **Register**: the client repeats the request with both `query` and `extensions.persistedQuery.sha256Hash`; the gateway verifies the pair, stores the query per tenant in the L1 RAM / L2 Redis store (`apq:{hash}`, 7-day TTL, tagged `graphql`/`apq`), then executes it.
+- **Hit**: later requests send the hash alone; the stored document is resolved and executed.
+
+The gateway also accepts `extensions.persistedQuery.hash`, a top-level `hash` field, and the GET `extensions` / `hash` / `sha256Hash` parameters.
+
+**Hash binding**: an APQ key is accepted only when it is **exactly 64 hex characters**, and when a `query` accompanies it, `sha256(query)` must equal that key under a constant-time comparison (`timingSafeEqual`) **before** anything is stored. A malformed key fails with `PERSISTED_QUERY_HASH_INVALID`; a non-matching digest fails with `PERSISTED_QUERY_HASH_MISMATCH`; neither response reads from or writes to the APQ store. This closes cache poisoning (a client registering a query under a hash another client will later request) and unbounded persisted-query growth from arbitrary client-chosen keys.
+
+Implementation: `src/routes/api/graphql/+server.ts` (`APQ_HASH_PATTERN`, `apqHashMatchesQuery`). Regression suite: `tests/unit/api/graphql-apq.test.ts`. See also [API Security §3.2 GraphQL Authentication](../security/api-security.mdx#32-graphql-authentication).
+
 ### Schema Caching (per tenant)
 
 The Yoga schema is built **once per tenant** and reused across requests:
@@ -141,4 +155,3 @@ See the [Real-Time Updates](./graphql-subscriptions.mdx) guide for client integr
 - [Collection API](./collections.mdx)
 - [Local SDK vs HTTP API](../../development/local-vs-http-api.mdx)
 - [GraphQL Subscriptions](./graphql-subscriptions.mdx)
-````

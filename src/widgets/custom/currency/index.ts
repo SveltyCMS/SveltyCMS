@@ -57,6 +57,7 @@ const validationSchema = (field: FieldInstance) => {
 const CurrencyWidget = createWidget<CurrencyProps>({
   Name: "Currency",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:currency-usd",
   Description: widget_currency_description(),
   inputComponentPath: "/src/widgets/custom/currency/input.svelte",

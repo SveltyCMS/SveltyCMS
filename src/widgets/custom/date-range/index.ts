@@ -53,6 +53,7 @@ const createValidationSchema = (field: DateRangeProps) => {
 const DateRangeWidget = createWidget<DateRangeProps>({
   Name: "DateRange",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:calendar-range",
   Description: widget_dateRange_description(),
 

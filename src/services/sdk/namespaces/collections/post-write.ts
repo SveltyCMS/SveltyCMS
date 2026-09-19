@@ -20,6 +20,7 @@ import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@src/utils/date";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import { pluginRegistry } from "@src/plugins/registry";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
@@ -154,6 +155,14 @@ export function invalidateCache(
           `res:${schemaId}`,
           "res:graphql",
         ];
+        // Count entries are keyed by the physical table name in the read path
+        // (collection-service.ts -> collectionTableName); count-cache tags both
+        // spellings, so clearing the normalised name too is required — otherwise
+        // list totals stay stale for the full count TTL.
+        const physicalSchemaId = collectionTableName(schemaId);
+        if (physicalSchemaId !== schemaId) {
+          tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
+        }
         if (ids && ids.size > 0) {
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         }

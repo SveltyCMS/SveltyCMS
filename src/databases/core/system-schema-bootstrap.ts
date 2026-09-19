@@ -164,7 +164,10 @@ function isUniqueFor(idx: IndexSpec, dialect: Dialect): boolean {
 function pgIndexStatement(idx: IndexSpec, table: string): string {
   const name = idx.name.postgresql!;
   const cols = (idx.columns.postgresql ?? [])
-    .map((c) => (idx.postgresqlQuotedColumns?.includes(c) ? `"${c}"` : pgColumn(c)))
+    .map((c) => {
+      const rendered = idx.postgresqlQuotedColumns?.includes(c) ? `"${c}"` : pgColumn(c);
+      return idx.descColumns?.postgresql?.includes(c) ? `${rendered} DESC` : rendered;
+    })
     .join(", ");
   const uniq = isUniqueFor(idx, "postgresql") ? "UNIQUE " : "";
   const method = idx.method?.postgresql ? ` USING ${idx.method.postgresql}` : "";
@@ -175,7 +178,9 @@ function pgIndexStatement(idx: IndexSpec, table: string): string {
 }
 
 function sqliteIndexStatement(idx: IndexSpec, table: string): string {
-  const cols = (idx.columns.sqlite ?? []).map(sqliteIdent).join(", ");
+  const cols = (idx.columns.sqlite ?? [])
+    .map((c) => (idx.descColumns?.sqlite?.includes(c) ? `${sqliteIdent(c)} DESC` : sqliteIdent(c)))
+    .join(", ");
   const uniq = isUniqueFor(idx, "sqlite") ? "UNIQUE " : "";
   return `CREATE ${uniq}INDEX IF NOT EXISTS ${sqliteIdent(idx.name.sqlite!)} ON ${sqliteIdent(
     table,
@@ -187,7 +192,11 @@ function mariaInlineIndexes(t: TableSpec): string[] {
   for (const idx of t.indexes ?? []) {
     if (!idx.name.mariadb) continue;
     const cols = (idx.columns.mariadb ?? [])
-      .map((c) => mariaColumn(c, idx.mariadbQuotedColumns?.includes(c) ?? false))
+      .map((c) => {
+        const rendered = mariaColumn(c, idx.mariadbQuotedColumns?.includes(c) ?? false);
+        // MariaDB <10.8 parses and ignores DESC; kept for spec parity where declared.
+        return idx.descColumns?.mariadb?.includes(c) ? `${rendered} DESC` : rendered;
+      })
       .join(", ");
     const uniq = isUniqueFor(idx, "mariadb") ? "UNIQUE " : "";
     lines.push(`${uniq}INDEX ${idx.name.mariadb} (${cols})`);
@@ -400,6 +409,18 @@ async function runPostgresLegacyTails(sql: postgres.Sql): Promise<void> {
       // Index may already exist
     }
 
+    // 🚀 MIGRATION: Ensure media gallery composite indexes exist (pre-existing databases)
+    try {
+      await sql.unsafe(
+        `CREATE INDEX IF NOT EXISTS media_items_tenant_folder_updated_idx ON media_items ("tenantId", "folderId", "updatedAt" DESC)`,
+      );
+      await sql.unsafe(
+        `CREATE INDEX IF NOT EXISTS media_items_tenant_updated_idx ON media_items ("tenantId", "updatedAt" DESC)`,
+      );
+    } catch {
+      // Index may already exist
+    }
+
     // 🚀 MIGRATION: Ensure 'isDeleted' column exists in all dynamic collections
     try {
       const tables = await sql`
@@ -472,6 +493,32 @@ async function runMariaDbLegacyTails(connection: mysql.Pool): Promise<void> {
       await connection.query(alter);
     }
 
+    // 🚀 MIGRATION: widen pre-existing `mfaVerifiedAt` columns to milliseconds.
+    // `ADD COLUMN IF NOT EXISTS mfaVerifiedAt DATETIME(3)` above is a no-op once the
+    // column exists, so databases provisioned before the fsp-3 declaration kept a
+    // whole-second DATETIME and silently truncated the MFA proof on write (the
+    // session AMR contract assertion in auth-session-amr-contract.test.ts).
+    // MODIFY is data-preserving and runs once per install (guarded by the type check).
+    try {
+      const [mfaColumnRows] = await connection.query(
+        "SHOW COLUMNS FROM auth_sessions LIKE 'mfaVerifiedAt'",
+      );
+      const mfaType =
+        Array.isArray(mfaColumnRows) && mfaColumnRows.length > 0
+          ? ((mfaColumnRows[0] as { Type?: string }).Type ?? "")
+          : "";
+      if (mfaType && !mfaType.includes("(3)")) {
+        logger.info(
+          `[MariaDB] Widening auth_sessions.mfaVerifiedAt (${mfaType} -> datetime(3)) to keep millisecond MFA precision...`,
+        );
+        await connection.query(
+          "ALTER TABLE auth_sessions MODIFY COLUMN mfaVerifiedAt DATETIME(3) NULL DEFAULT NULL",
+        );
+      }
+    } catch (err) {
+      logger.error("[MariaDB] auth_sessions.mfaVerifiedAt precision migration failed:", err);
+    }
+
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
     try {
       const [columns] = await connection.query("SHOW COLUMNS FROM auth_users LIKE 'security'");
@@ -513,6 +560,19 @@ async function runMariaDbLegacyTails(connection: mysql.Pool): Promise<void> {
     try {
       await connection.query(
         "CREATE INDEX IF NOT EXISTS idx_redirects_mv_lookup ON redirects_mv (tenantId, source, active)",
+      );
+    } catch {
+      // Index may already exist
+    }
+
+    // 🚀 MIGRATION: Ensure media gallery composite indexes exist (pre-existing databases).
+    // MariaDB bakes inline indexes into CREATE TABLE, so existing tables need these explicit tails.
+    try {
+      await connection.query(
+        "CREATE INDEX IF NOT EXISTS tenant_folder_updated_idx ON media_items (tenantId, folderId, updatedAt)",
+      );
+      await connection.query(
+        "CREATE INDEX IF NOT EXISTS tenant_updated_idx ON media_items (tenantId, updatedAt)",
       );
     } catch {
       // Index may already exist
@@ -610,6 +670,16 @@ async function runSqliteTails(db: unknown): Promise<void> {
   );
   executeSqlite(db, `ALTER TABLE "workflow_instances" ADD COLUMN "assigneeId" TEXT`);
   executeSqlite(db, `ALTER TABLE "roles" ADD COLUMN "mfaRequired" INTEGER DEFAULT 0`);
+
+  // 🚀 MIGRATION: media gallery composite indexes (idempotent, for pre-existing databases)
+  executeSqlite(
+    db,
+    `CREATE INDEX IF NOT EXISTS "idx_media_items_tenant_folder_updated" ON "media_items" ("tenantId", "folderId", "updatedAt" DESC)`,
+  );
+  executeSqlite(
+    db,
+    `CREATE INDEX IF NOT EXISTS "idx_media_items_tenant_updated" ON "media_items" ("tenantId", "updatedAt" DESC)`,
+  );
 
   // 🚀 MIGRATION: Rename 'security' to 'password' if needed
   try {

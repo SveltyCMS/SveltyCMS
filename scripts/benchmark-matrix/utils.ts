@@ -50,7 +50,7 @@ export function loadMetricHistory(dbKey: string, metric: string): number[] {
     const rows = db
       .query(
         `SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as val
-         FROM runs WHERE db_key = ? AND status = 'SUCCESS'
+         FROM matrix_runs WHERE db_key = ? AND status = 'SUCCESS'
          ORDER BY timestamp DESC LIMIT 20`,
       )
       .all(metric, dbKey) as { val: number | null }[];

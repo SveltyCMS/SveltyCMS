@@ -6,7 +6,7 @@ order: 48
 icon: "mdi:key-chain-variant"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-04-12"
+updated: "2026-09-18"
 tags:
   - "api"
   - "tokens"
@@ -23,12 +23,15 @@ The Tokens API manages stateless authentication secrets used for both human invi
 
 ## ⚡ Quick Reference
 
-| Token Type         | HTTP Endpoint              | Method     | Local SDK Equivalent      |
-| :----------------- | :------------------------- | :--------- | :------------------------ |
-| **Invitations**    | `/api/token`               | `GET/POST` | `cms.auth.tokens`         |
-| **Provider Info**  | `/api/get-tokens-provided` | `GET`      | N/A                       |
-| **Website Tokens** | `/api/website-tokens`      | `GET/POST` | `cms.websiteTokens`       |
-| **Resolve Token**  | `/api/token/resolve`       | `POST`     | `cms.auth.tokens.resolve` |
+| Token Type         | HTTP Endpoint                       | Method     | Local SDK Equivalent      |
+| :----------------- | :---------------------------------- | :--------- | :------------------------ |
+| **Validate Token** | `/api/token/validate-token/{value}` | `GET`      | N/A (public)              |
+| **Invitations**    | `/api/token/create-token`, `/list`  | `POST/GET` | `cms.auth.tokens`         |
+| **Provider Info**  | `/api/get-tokens-provided`          | `GET`      | N/A                       |
+| **Website Tokens** | `/api/website-tokens`               | `GET/POST` | `cms.websiteTokens`       |
+| **Resolve Token**  | `/api/token/resolve`                | `POST`     | `cms.auth.tokens.resolve` |
+
+With the exception of the public validation route, every token route above requires an admin session or the mapped `api:token` permission (Website Tokens stay strictly admin-only). Unauthenticated `GET /api/token/{value}` now returns 401.
 
 ---
 
@@ -38,7 +41,7 @@ These tokens are used for human-centric workflows such as inviting new users to 
 
 - **Create Token**: `POST /api/token/create-token` — generates a high-entropy token string for a user or action. Returns `200 OK`.
 - **List Tokens**: `GET /api/token/list` — allows admins to monitor active invitation or recovery links.
-- **Validate Token**: `GET /api/token/{tokenValue}` — Publicly accessible for invitations. Returns `{ success: true, data: { ..., valid: true } }`.
+- **Validate Token**: `GET /api/token/validate-token/{tokenValue}` — the only public token route (invitation links). Returns `{ success: true, data: { ..., valid: true } }`. The legacy `GET /api/token/{tokenValue}` alias now requires an authenticated session and additionally passes the dispatcher's `system:read` gate plus the handler's admin / `api:token` check, and all token mutations (`PUT`/`DELETE`/`create-token`/`batch`) require admin or the mapped `api:token` permission.
 - **Identity Resolution**: `POST /api/token/resolve` — converts a raw token string back into its associated metadata and user context.
 
 ---
@@ -68,8 +71,9 @@ Website Tokens (also known as Personal Access Tokens) are designed for long-live
 - **Hashing**: All tokens are hashed using SHA-256 before storage. The raw token value is only shown once during creation.
 - **Expiry**: Tokens can be issued with a specific time-to-live (TTL). Once expired, they are automatically purged by the system's background vacuum service.
 - **Revocation**: Tokens can be invalidated instantly via the `DELETE` method on their respective endpoints.
+- **Authorization & field allowlist**: `/api/token/*` is a positive allowlist — only `GET /api/token/validate-token/{value}` is public. `PUT /api/token/{id}` accepts `expires`, `blocked` and `consumed` (admins additionally `email`, `role`); `user_id`, `type`, `token`, `_id` and `tenantId` are never client-writable.
 
-````mermaid
+```mermaid
 sequenceDiagram
     participant App as External App / Script
     participant Tokens as Tokens Handler (tokens.ts)
@@ -86,7 +90,7 @@ sequenceDiagram
     Tokens->>SDK: validateToken(raw)
     SDK->>DB: SELECT * FROM tokens WHERE hash = ?
     SDK-->>App: Authorized
-```text
+```
 
 ---
 
@@ -96,4 +100,3 @@ sequenceDiagram
 - [System Reference (system.ts)](./system.mdx)
 - [SCIM 2.0 (scim.ts)](./scim.mdx)
 - [Secrets & Tokens Inventory](../security/secrets-inventory.mdx) — where every token and secret lives in the system
-````

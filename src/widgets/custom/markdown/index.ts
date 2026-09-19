@@ -18,6 +18,7 @@ export interface MarkdownProps {
 const MarkdownWidget = createWidget<MarkdownProps>({
   Name: "Markdown",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:language-markdown",
   Description: "High-performance Markdown editor with real-time preview.",
   inputComponentPath: "/src/widgets/custom/markdown/input.svelte",

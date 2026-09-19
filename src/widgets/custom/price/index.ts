@@ -34,6 +34,7 @@ const validationSchema = (field: FieldInstance) => {
 const PriceWidget = createWidget<PriceProps>({
   Name: "Price",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:currency-usd",
   Description: "Price with currency selection support",
   inputComponentPath: "/src/widgets/custom/price/input.svelte",

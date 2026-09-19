@@ -35,6 +35,7 @@ const MEGA_MENU_VALIDATION_SCHEMA = array(MENU_ITEM_SCHEMA);
 const MegaMenuWidget = createWidget({
   Name: "MegaMenu",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:menu",
   Description: widget_megaMenu_description(),
 

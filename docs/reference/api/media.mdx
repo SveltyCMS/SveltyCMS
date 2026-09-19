@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-15"
+updated: "2026-09-18"
 tags:
   - "api"
   - "media"
@@ -59,6 +59,9 @@ SveltyCMS supports single and bulk uploads via standard `multipart/form-data`.
 **Streaming endpoint** (large payloads): `POST /api/media/stream`  
 **Payload**: Same `multipart/form-data` shape; parsed via `streaming-upload.ts` with backpressure-safe chunk handling. The `folder` field is captured before file parts are processed.
 
+> [!IMPORTANT]
+> **15 MB route cap.** Both upload routes are bounded by the dispatcher's `API_MAX_BODY_SIZE_BYTES` (**15 MB**) — the same ceiling for `Content-Length` bodies and `Transfer-Encoding: chunked` bodies. The streaming route hands the dispatcher's counted stream through undrained, so multipart parsing stays incremental; an oversize part aborts incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering to the parser's multi-GiB defaults.
+
 #### Client-Side Routing (`upload-client.ts`)
 
 The admin UI does not call these endpoints directly for every upload. `uploadMediaFiles()` in `src/utils/media/upload-client.ts` auto-routes:
@@ -67,6 +70,8 @@ The admin UI does not call these endpoints directly for every upload. `uploadMed
 | :---------------------------------------------- | :------------------------------------------------------------ |
 | Any single file ≥ 10 MB, or total batch ≥ 10 MB | `POST /api/media/stream`                                      |
 | Otherwise                                       | SvelteKit form action (`?/upload` or `/mediagallery?/upload`) |
+
+The 10 MB routing threshold is a client heuristic below the 15 MB server ceiling; large-payload streaming remains bounded by the route cap above.
 
 Used by `mediagallery/+page.svelte` and `upload-media/local-upload.svelte`.
 

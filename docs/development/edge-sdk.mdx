@@ -50,12 +50,12 @@ const data = await response.json();
 
 ### Fetching Content
 
-````
+```
 const posts = await cms.getEntries("posts", {
   limit: 10,
   filter: { status: "published" },
 });
-```text
+```
 
 ---
 
@@ -63,7 +63,7 @@ const posts = await cms.getEntries("posts", {
 
 ### Edge-First Architecture
 
-````
+```mermaid
 
 sequenceDiagram
 participant User
@@ -78,7 +78,7 @@ participant DB as Database
     Origin-->>Edge: Gzip Encrypted Response
     Edge-->>User: Rendered HTML
 
-```text
+```
 
 ### Performance Features
 
@@ -89,4 +89,3 @@ participant DB as Database
 ---
 
 **Next Steps**: For real-time updates at the edge, see the [Content & Search Reference](../reference/api/content.mdx).
-```

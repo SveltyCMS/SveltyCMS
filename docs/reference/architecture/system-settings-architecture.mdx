@@ -36,7 +36,7 @@ This document details the architecture of the SveltyCMS System Settings. The sys
 
 SveltyCMS utilizes a two-tier data flow for settings: a high-frequency polling mechanism for public settings and a secure, batch-loading mechanism for the administrative dashboard.
 
-````mermaid
+```mermaid
 sequenceDiagram
     participant User
     participant UI as Settings Dashboard
@@ -67,7 +67,7 @@ sequenceDiagram
         API-->>ClientStore: Refreshed Public Settings
         ClientStore->>UI: Global UI elements update
     end
-```text
+```
 
 ### Server-Side
 
@@ -199,7 +199,7 @@ AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr']
     // ❌ es: "Hola Mundo" - DELETED
   }
 }
-```text
+```
 
 **Data Preservation Strategies:**
 
@@ -211,7 +211,7 @@ AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr']
 
    # This creates backup with all translations intact
    # File: /config/sync/collections/[collection].json
-````
+   ```
 
 2. **Database Backup:**
 

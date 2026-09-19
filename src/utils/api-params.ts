@@ -7,7 +7,28 @@
  * - Safe numeric parsing with fallback defaults (limit: 50, offset: 0)
  * - JSON and bracket filter syntax normalization (`filter[key]=val` + `filter={...}`)
  * - Comma-separated list splitting for populate and field projections
+ * - Hard page-size ceiling (MAX_PAGE_SIZE) shared by REST, SDK and GraphQL read paths
  */
+
+/**
+ * Hard upper bound for a single page of results on every read path that accepts a
+ * client-supplied `limit` (REST query params, GraphQL resolvers/fast path, and the
+ * SDK funnel `CollectionsNamespace.find`). Requests above this are clamped, never
+ * rejected, so a client cannot ask an adapter for an unbounded result set while
+ * existing callers asking for more than they need keep working.
+ */
+export const MAX_PAGE_SIZE = 200;
+
+/**
+ * Clamp a client-supplied page size into `1..MAX_PAGE_SIZE`.
+ * Missing / non-finite / non-positive values fall back to `fallback` (default 50) —
+ * the same lenient behavior the query parsers have always had, now with a ceiling.
+ */
+export function clampPageSize(value: unknown, fallback = 50): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(n, MAX_PAGE_SIZE);
+}
 
 export interface CollectionQueryParams {
   limit: number;
@@ -57,7 +78,7 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
   for (const [key, value] of searchParams.entries()) {
     if (key === "limit") {
       const n = Number(value);
-      if (!isNaN(n) && n > 0) limit = n;
+      if (!isNaN(n) && n > 0) limit = Math.min(n, MAX_PAGE_SIZE);
     } else if (key === "offset") {
       const n = Number(value);
       if (!isNaN(n) && n >= 0) offset = n;
@@ -197,7 +218,7 @@ export function parsePaginationQueryParams(
       if (!isNaN(n) && n > 0) page = n;
     } else if (key === "limit") {
       const n = parseInt(value, 10);
-      if (!isNaN(n) && n > 0) limit = n;
+      if (!isNaN(n) && n > 0) limit = Math.min(n, MAX_PAGE_SIZE);
     } else if (key === "search") {
       if (value.trim()) search = value.trim();
     } else if (key === "sort") {

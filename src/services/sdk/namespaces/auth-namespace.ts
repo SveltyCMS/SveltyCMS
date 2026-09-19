@@ -774,7 +774,7 @@ export class AuthNamespace {
       // Invalidate turbo-auth caches for affected users on block/delete/unblock
       if (action === "block" || action === "delete" || action === "unblock") {
         try {
-          const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+          const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
           for (const userId of userIds) {
             invalidateTurboAuthForUser(userId);
           }

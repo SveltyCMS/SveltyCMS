@@ -20,8 +20,15 @@ const resolvedAliases = Object.fromEntries(
   Object.entries(pathAliases).map(([key, value]) => [key, path.resolve(__dirname, value)]),
 );
 
-/** Local runs: cap forks to reduce Windows thrash. CI keeps Vitest defaults. */
-const localMaxWorkers = Math.min(4, Math.max(1, os.cpus().length - 1));
+/**
+ * Local runs: dynamically scale worker pool to available CPU cores with environment override.
+ * Leaves headroom for OS/UI responsive operations while utilizing multi-core silicon.
+ */
+const cpuCount = os.cpus().length;
+const defaultWorkers = cpuCount >= 16 ? Math.min(16, cpuCount - 4) : Math.max(1, cpuCount - 1);
+const localMaxWorkers = process.env.VITEST_MAX_WORKERS
+  ? parseInt(process.env.VITEST_MAX_WORKERS, 10)
+  : defaultWorkers;
 
 export default defineConfig({
   plugins: [svelte({ configFile: false } as any)],

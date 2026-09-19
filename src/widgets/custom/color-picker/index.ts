@@ -41,6 +41,7 @@ const validationSchema = (field: FieldInstance) => {
 const ColorPickerWidget = createWidget<ColorPickerProps>({
   Name: "ColorPicker",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "ic:outline-colorize",
   Description: widget_colorPicker_description(),
   inputComponentPath: "/src/widgets/custom/color-picker/input.svelte",

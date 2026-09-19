@@ -11,6 +11,7 @@ vi.mock("@utils/tenant-isolation.server", () => ({
 }));
 
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import { MAX_PAGE_SIZE } from "@utils/api-params";
 import { requireCommerceTenantId, withTenant } from "../../../src/plugins/commerce/tenant";
 import { computeTotals } from "../../../src/services/commerce/adjustment-engine";
 import { money } from "../../../src/services/commerce/price";
@@ -18,8 +19,15 @@ import {
   addCartItem,
   getOrCreateCart,
   mergeCartOnLogin,
+  type CartLine,
 } from "../../../src/plugins/commerce/cart-service";
 import type { CommerceStore } from "../../../src/plugins/commerce/store";
+import { orderAnalytics } from "../../../src/plugins/commerce/analytics";
+import { resolveDownloadFiles } from "../../../src/routes/api/[...path]/handlers/commerce";
+import { handleCollectionFind } from "../../../src/routes/api/[...path]/handlers/collections";
+import type { LocalCMS } from "../../../src/services/sdk";
+import type { DatabaseId } from "../../../src/content/types";
+import { createMockRequestEvent } from "../utils/mock-event";
 import { AppError } from "@utils/error-handling";
 
 const mockedMulti = isMultiTenantEnabled as any;
@@ -35,7 +43,13 @@ function memoryStore(tenantId: string): CommerceStore & { rows: Map<string, any[
   ]);
   const scoped = (collection: string, filter: Record<string, unknown>) =>
     (rows.get(collection) || []).filter((row) =>
-      Object.entries(filter).every(([k, v]) => String(row[k]) === String(v)),
+      Object.entries(filter).every(([k, v]) => {
+        const inList = (v as { $in?: unknown[] } | null)?.$in;
+        if (Array.isArray(inList)) {
+          return inList.some((item) => String(row[k]) === String(item));
+        }
+        return String(row[k]) === String(v);
+      }),
     );
   return {
     tenantId: tenantId as any,
@@ -310,5 +324,193 @@ describe("Variant Matrix Generation & DoS Protection", () => {
     const result = expandVariantMatrix(attributes);
     expect(result.length).toBeLessThanOrEqual(500);
     expect(result.length).toBe(500);
+  });
+});
+
+describe("digital downloads — batched product lookup", () => {
+  const orderLine = (overrides: Partial<CartLine> = {}): CartLine => ({
+    productId: "p1",
+    title: "Item",
+    sku: "SKU",
+    qty: 1,
+    unitAmount: 100,
+    currency: "EUR",
+    ...overrides,
+  });
+
+  it("issues one product lookup for a multi-line order and resolves every downloadable line", async () => {
+    const store = memoryStore("tenant-a");
+    store.rows
+      .get("products")!
+      .push(
+        { _id: "p1", tenantId: "tenant-a", title: "Album", downloadFile: "album.zip" },
+        { _id: "p3", tenantId: "tenant-a", title: "E-Book", downloadFile: "ebook.epub" },
+      );
+    const productFilters: Record<string, unknown>[] = [];
+    const countingStore: CommerceStore = {
+      ...store,
+      findMany: async (collection, filter, opts) => {
+        if (collection === "products") productFilters.push(filter);
+        return store.findMany(collection, filter, opts);
+      },
+    };
+
+    const files = await resolveDownloadFiles(
+      countingStore,
+      [
+        orderLine({ productId: "p1", title: "Album", downloadable: true }),
+        orderLine({ productId: "p2", title: "Poster", downloadable: false }),
+        orderLine({ productId: "p3", title: "E-Book", downloadable: true }),
+      ],
+      { tenantId: "tenant-a", orderId: "order-1" },
+      (input) => `tok:${input.productId}`,
+    );
+
+    expect(productFilters).toHaveLength(1);
+    expect(productFilters[0]).toEqual({ _id: { $in: ["p1", "p3"] } });
+    expect(files).toEqual([
+      { productId: "p1", title: "Album", token: "tok:p1", file: "album.zip" },
+      { productId: "p3", title: "E-Book", token: "tok:p3", file: "ebook.epub" },
+    ]);
+  });
+
+  it("keeps the file:null fallback for a downloadable line whose product is missing", async () => {
+    const store = memoryStore("tenant-a");
+    store.rows.get("products")!.push({
+      _id: "p1",
+      tenantId: "tenant-a",
+      title: "Album",
+      downloadFile: "album.zip",
+    });
+
+    const files = await resolveDownloadFiles(
+      store,
+      [
+        orderLine({ productId: "p1", title: "Album", downloadable: true }),
+        orderLine({ productId: "p9", title: "Ghost", downloadable: true }),
+      ],
+      { tenantId: "tenant-a", orderId: "order-1" },
+      (input) => `tok:${input.productId}`,
+    );
+
+    expect(files).toEqual([
+      { productId: "p1", title: "Album", token: "tok:p1", file: "album.zip" },
+      { productId: "p9", title: "Ghost", token: "tok:p9", file: null },
+    ]);
+  });
+
+  it("skips the product query entirely when no line is downloadable", async () => {
+    const store = memoryStore("tenant-a");
+    let productQueries = 0;
+    const countingStore: CommerceStore = {
+      ...store,
+      findMany: async (collection, filter, opts) => {
+        if (collection === "products") productQueries += 1;
+        return store.findMany(collection, filter, opts);
+      },
+    };
+
+    const files = await resolveDownloadFiles(
+      countingStore,
+      [orderLine({ downloadable: false })],
+      { tenantId: "tenant-a", orderId: "order-1" },
+      (input) => `tok:${input.productId}`,
+    );
+
+    expect(files).toEqual([]);
+    expect(productQueries).toBe(0);
+  });
+});
+
+describe("orderAnalytics — internal aggregation is not clamped by MAX_PAGE_SIZE", () => {
+  it("sees orders past the public page cap through the streaming path", async () => {
+    const total = MAX_PAGE_SIZE + 50;
+    const orders = Array.from({ length: total }, (_, i) => ({
+      _id: `o${i}`,
+      tenantId: "tenant-a",
+      status: "delivered",
+      totalCents: 100,
+    }));
+    const clampedFind = vi.fn(
+      async (_collection: string, opts: { offset?: number; limit?: number }) => {
+        const offset = opts?.offset ?? 0;
+        const limit = Math.min(opts?.limit ?? 50, MAX_PAGE_SIZE);
+        return { success: true, data: orders.slice(offset, offset + limit) };
+      },
+    );
+    const findStreaming = vi.fn(async (_collection: string, _options: Record<string, unknown>) =>
+      (async function* () {
+        yield* orders;
+      })(),
+    );
+    const cms = { collections: { find: clampedFind, findStreaming } } as unknown as LocalCMS;
+
+    const result = await orderAnalytics(cms, "tenant-a" as DatabaseId);
+
+    expect(result.orderCount).toBe(total);
+    expect(result.paidCount).toBe(total);
+    expect(result.gross).toBe(total); // 100 cents per order
+    expect(findStreaming).toHaveBeenCalledTimes(1);
+    expect(findStreaming.mock.calls[0][1]).toMatchObject({
+      tenantId: "tenant-a",
+      system: true,
+      publicationFilter: "all",
+      limit: 500,
+    });
+    // Regression guard: the clamped paged funnel would only see MAX_PAGE_SIZE rows.
+    expect(clampedFind).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCollectionFind — streaming heuristic at the page-size cap", () => {
+  function getEvent(query: string) {
+    return createMockRequestEvent({
+      method: "GET",
+      url: `/api/collections/posts${query}`,
+    });
+  }
+
+  it("streams a request whose clamped limit reaches MAX_PAGE_SIZE", async () => {
+    const findStreaming = vi.fn(async () => (async function* () {})());
+    const find = vi.fn(async () => ({ success: true, data: [] }));
+    const cms = { collections: { findStreaming, find } } as unknown as LocalCMS;
+    const event = getEvent(`?limit=${MAX_PAGE_SIZE}`);
+
+    const response = await handleCollectionFind(
+      event,
+      cms,
+      "t1" as DatabaseId,
+      { _id: "u1" },
+      "posts",
+      event.url,
+    );
+
+    expect(findStreaming).toHaveBeenCalledTimes(1);
+    expect(find).not.toHaveBeenCalled();
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("keeps the buffered JSON envelope below the cap", async () => {
+    const findStreaming = vi.fn(async () => (async function* () {})());
+    const find = vi.fn(async (_collection: string, _options: Record<string, unknown>) => ({
+      success: true,
+      data: [],
+    }));
+    const cms = { collections: { findStreaming, find } } as unknown as LocalCMS;
+    const event = getEvent("");
+
+    const response = await handleCollectionFind(
+      event,
+      cms,
+      "t1" as DatabaseId,
+      { _id: "u1" },
+      "posts",
+      event.url,
+    );
+
+    expect(findStreaming).not.toHaveBeenCalled();
+    expect(find).toHaveBeenCalledTimes(1);
+    expect(find.mock.calls[0][1]).toMatchObject({ limit: 50 });
+    expect(await response.json()).toEqual({ success: true, data: [] });
   });
 });

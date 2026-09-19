@@ -374,10 +374,15 @@ export class RelationalContentModule implements IContentAdapter {
         // Pre-clean: delete rows with the same _id but different (path, tenantId) to
         // prevent PK constraint violations. ON CONFLICT (path, tenantId) handles the
         // path-based upsert (which is the canonical identity for content nodes).
-        for (const v of preparedValuesList as any[]) {
+        // One `_id IN (...)` statement clears exactly the rows the old per-row
+        // DELETE loop cleared — N round trips collapse to one.
+        const staleIds = preparedValuesList
+          .map((v) => v?._id)
+          .filter((id): id is string => typeof id === "string");
+        if (staleIds.length > 0) {
           await db
             .delete(this.schema.contentNodes)
-            .where(and(eq(this.schema.contentNodes._id, v._id)));
+            .where(inArray(this.schema.contentNodes._id, staleIds));
         }
 
         const insert = db.insert(this.schema.contentNodes).values(preparedValuesList) as any;
@@ -510,17 +515,32 @@ export class RelationalContentModule implements IContentAdapter {
       return this.adapter.transaction(
         async (tx: any) => {
           const db = (tx as any).db || tx;
+          // Batch the per-item `data` reads into one `_id IN (...)` query. The
+          // per-item merge below is still required (see the comment inside the
+          // loop), but it only needs each row once: N reads + N writes become
+          // 1 read + N writes.
+          const ids = items.map((item) => item.id);
+          const rows: Array<{ _id?: unknown; data?: unknown }> =
+            ids.length > 0
+              ? await db
+                  .select({
+                    _id: this.schema.contentNodes._id,
+                    data: this.schema.contentNodes.data,
+                  })
+                  .from(this.schema.contentNodes)
+                  .where(inArray(this.schema.contentNodes._id, ids))
+              : [];
+          const dataById = new Map<string, unknown>();
+          for (const row of rows) {
+            dataById.set(String(row._id), row.data);
+          }
+
           for (const item of items) {
             // `order` lives twice: the `position` column AND `order` inside the
             // `data` JSON blob (that is the one read-back hydrates ContentNode.order
             // from). Updating only `position` left every read serving the PRE-reorder
             // order, so the reorder response rolled the client back to the old order.
-            const existing = await db
-              .select()
-              .from(this.schema.contentNodes)
-              .where(eq(this.schema.contentNodes._id, item.id))
-              .limit(1);
-            const rawData = (existing?.[0] as { data?: unknown } | undefined)?.data;
+            const rawData = dataById.get(String(item.id));
             let nextData: unknown;
             if (typeof rawData === "string") {
               // sqlite / mysql: text column holding JSON

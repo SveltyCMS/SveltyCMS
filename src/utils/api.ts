@@ -198,18 +198,24 @@ export function batchUpdateEntries(
   collectionId: string,
   payload: Record<string, unknown>,
 ): Promise<ApiResponse<unknown>> {
-  const { ids, status, ...otherFields } = payload;
+  const { ids, status, data, fields, ...otherFields } = payload;
   if (status && ids && Array.isArray(ids)) {
     return fetchApi(`/api/collections/${collectionId}/batch`, {
       method: "POST",
       body: JSON.stringify({ action: "status", entryIds: ids, status, ...otherFields }),
     });
   }
-  // Return unified error object instead of throwing, to prevent unhandled promise rejections
+  if (ids && Array.isArray(ids)) {
+    const updateData = (data || fields || otherFields) as Record<string, unknown>;
+    return fetchApi(`/api/collections/${collectionId}/batch`, {
+      method: "POST",
+      body: JSON.stringify({ action: "update", entryIds: ids, data: updateData }),
+    });
+  }
   return Promise.resolve({
     success: false,
-    message: "Batch updates only supported for status changes",
-    code: "NOT_IMPLEMENTED",
+    message: "Invalid batch update payload: entryIds required",
+    code: "BAD_REQUEST",
   });
 }
 

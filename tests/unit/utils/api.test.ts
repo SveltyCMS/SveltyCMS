@@ -9,6 +9,7 @@ import {
   createEntry,
   updateEntry,
   deleteEntry,
+  batchUpdateEntries,
   getData,
   invalidateCollectionCache,
   getCollections,
@@ -246,6 +247,62 @@ describe("API Client Utilities", () => {
         "/api/collections?includeFields=true",
         expect.any(Object),
       );
+    });
+  });
+
+  describe("batchUpdateEntries", () => {
+    it("should send status batch action when status is provided", async () => {
+      globalFetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, count: 2 }),
+      });
+
+      const res = await batchUpdateEntries("posts", {
+        ids: ["id1", "id2"],
+        status: "publish",
+      });
+
+      expect(res.success).toBe(true);
+      expect(globalFetchMock).toHaveBeenCalledWith(
+        "/api/collections/posts/batch",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ action: "status", entryIds: ["id1", "id2"], status: "publish" }),
+        }),
+      );
+    });
+
+    it("should send update batch action when data fields are provided", async () => {
+      globalFetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, count: 2 }),
+      });
+
+      const res = await batchUpdateEntries("posts", {
+        ids: ["id1", "id2"],
+        data: { author: "Admin", views: 42 },
+      });
+
+      expect(res.success).toBe(true);
+      expect(globalFetchMock).toHaveBeenCalledWith(
+        "/api/collections/posts/batch",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            action: "update",
+            entryIds: ["id1", "id2"],
+            data: { author: "Admin", views: 42 },
+          }),
+        }),
+      );
+    });
+
+    it("should fail gracefully when no entryIds are provided", async () => {
+      const res = await batchUpdateEntries("posts", { data: { author: "Admin" } });
+      expect(res.success).toBe(false);
+      expect(res.code).toBe("BAD_REQUEST");
     });
   });
 });

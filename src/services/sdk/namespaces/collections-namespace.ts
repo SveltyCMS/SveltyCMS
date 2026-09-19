@@ -45,7 +45,8 @@ import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-pr
 import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
 import { parseIdLookup } from "@src/databases/core/lookup-query";
 import { nowISODateString } from "@src/utils/date";
-import { collectionTableName } from "@src/databases/core/collection-name";
+import { clampPageSize } from "@utils/api-params";
+import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 
 import {
   getDbModuleLazy,
@@ -504,7 +505,16 @@ export class CollectionsNamespace {
   }
 
   async find(collectionId: string, options: any = {}) {
-    const { tenantId, filter = {}, limit = 50, offset = 0, bypassCache = false } = options;
+    const {
+      tenantId,
+      filter = {},
+      limit: requestedLimit = 50,
+      offset = 0,
+      bypassCache = false,
+    } = options;
+    // Hard ceiling on the SDK funnel both REST and GraphQL reads go through — a
+    // client-supplied limit can never reach `crud.findMany` unbounded.
+    const limit = clampPageSize(requestedLimit, 50);
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.schemaOf(collectionId, tenantId);
     const normalizedFilter = normalizeRelationshipFilter(filter);
@@ -669,7 +679,10 @@ export class CollectionsNamespace {
           CacheCategory.CONTENT,
           // 🚀 List/query caches are collection-wide: any write to the collection
           // must clear them. Tagged so clearByTags is O(#list-keys), not O(#docs).
-          [`collection:${schema._id}`],
+          // Superset (as-passed + physical + bare spellings) so a physical-only
+          // invalidator (Mongo crud → BaseAdapter.invalidateQueryCache) reaches
+          // logical-spelled entries too.
+          buildCollectionCacheTags(schema._id as string),
         );
 
         // Negative Caching: If result is empty and it was a specific ID query

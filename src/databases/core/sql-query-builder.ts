@@ -15,7 +15,7 @@
  * - where / whereIn / whereNotIn / whereBetween / whereNull / whereNotNull
  * - hybrid-schema JSON fallbacks (dynamic fields materialized in the `data` blob)
  * - keyset-cursor paginate() with offset fallback
- * - deterministic `_id` tie-breaker on paginated reads
+ * - direction-matched `_id` tie-breaker on paginated reads (index-friendly total order)
  * - search (LIKE/ILIKE per dialect) with JSON fallback
  * - projection via select(); no-op exclude/distinct/groupBy/hint/timeout
  * - count / exists / findOne / findOneOrFail / updateMany / deleteMany
@@ -46,6 +46,7 @@ import type {
   QueryBuilder,
   QueryOptimizationHints,
 } from "../db-interface";
+import { normalizeSortDirection } from "./page-utils";
 import * as utils from "./relational-utils";
 
 /**
@@ -325,6 +326,10 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       const direction = options.cursorDirection || "after";
       const idCol = this.table["_id"];
       if (idCol) {
+        // ⚠️ The comparison operator and the `_id` sort pushed here are one
+        // contract: `> cursor` needs `_id asc` (forward seek), `< cursor` needs
+        // `_id desc` (backward seek). Changing one without the other silently
+        // breaks page continuation (repeats / skipped rows).
         if (direction === "after") {
           this.conditions.push(sql`${idCol} > ${options.cursor}`);
           this.sortOptions.push({ field: "_id" as keyof T, direction: "asc" });
@@ -403,11 +408,18 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       q = q.where(and(...this.conditions));
     }
 
+    const idCol = this.table["_id"];
     const orderClauses: any[] = [];
+    // Direction of the LAST explicit ORDER BY clause — drives the tie-breaker below.
+    let lastSortDirection: "asc" | "desc" | undefined;
+    let ordersById = false;
     if (this.sortOptions.length > 0) {
       for (let i = 0; i < this.sortOptions.length; i++) {
         const s = this.sortOptions[i];
-        const order = s.direction === "desc" ? desc : asc;
+        // Normalize so a Mongo-style numeric (`1`/`-1`) direction can never put
+        // the emitted clause and the `_id` tie-breaker on opposite directions.
+        const direction = normalizeSortDirection(s.direction);
+        const order = direction === "desc" ? desc : asc;
         const fieldName = s.field as string;
         // Resolve MongoDB-convention fields (e.g. _createdAt → createdAt)
         const column = this.table[fieldName] ?? this.table[fieldName.replace(/^_/, "")];
@@ -415,16 +427,26 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
           // 🚀 HYBRID SCHEMA SUPPORT: JSON sorting for dynamic fields
           orderClauses.push(order(this.core.getJsonField(fieldName)));
         } else {
+          if (idCol && column.name === idCol.name) ordersById = true;
           orderClauses.push(order(column));
         }
+        lastSortDirection = direction;
       }
     }
 
-    // 🚀 STABILITY TIE-BREAKER: Ensure deterministic ordering for paginated queries
-    if (this.limitValue !== undefined || this.skipValue !== undefined) {
-      const idCol = this.table["_id"];
+    // 🚀 STABILITY TIE-BREAKER: deterministic ordering for paginated queries.
+    // The `_id` tiebreak follows the LAST explicit sort direction: a mixed-direction
+    // composite (e.g. `createdAt DESC, _id ASC`) cannot be served by ANY B-tree
+    // index — the planner falls back to a full scan + filesort, and the existing
+    // same-direction keyset indexes (`… updatedAt, _id`, served by a backward scan)
+    // stay unusable too. A tiebreak on the unique `_id` in either direction is
+    // still a total order, so rows sharing a sort value only mirror their relative
+    // order when the primary sort is DESC.
+    // Skipped when `_id` is already an explicit sort key: a second `_id` clause is
+    // unreachable (the first occurrence fully determines the order).
+    if ((this.limitValue !== undefined || this.skipValue !== undefined) && !ordersById) {
       if (idCol) {
-        orderClauses.push(asc(idCol));
+        orderClauses.push(lastSortDirection === "desc" ? desc(idCol) : asc(idCol));
       }
     }
 

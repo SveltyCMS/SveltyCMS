@@ -20,6 +20,7 @@ export async function seedHttpCollectionBurst(opts: {
   concurrency: number;
   payloadAt: (i: number) => unknown;
   existing?: string[];
+  retryDelayMultiplier?: number;
 }): Promise<string[]> {
   const createdIds = opts.existing ?? [];
   const start = createdIds.length;
@@ -34,7 +35,14 @@ export async function seedHttpCollectionBurst(opts: {
       while (true) {
         const i = nextIndex++;
         if (i >= opts.count) break;
-        const id = await seedOne(opts.url, opts.headers, opts.payloadAt(i), i, failures);
+        const id = await seedOne(
+          opts.url,
+          opts.headers,
+          opts.payloadAt(i),
+          i,
+          failures,
+          opts.retryDelayMultiplier,
+        );
         if (id) createdIds.push(id);
       }
     }),
@@ -55,6 +63,7 @@ async function seedOne(
   payload: unknown,
   index: number,
   failures: string[],
+  retryDelayMultiplier = 40,
 ): Promise<string | null> {
   const body = JSON.stringify(payload);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -69,7 +78,9 @@ async function seedOne(
       }
       const text = await res.text().catch(() => "");
       if (TRANSIENT.has(res.status) && attempt < MAX_ATTEMPTS - 1) {
-        await sleep(40 * (attempt + 1) * (attempt + 1));
+        if (retryDelayMultiplier > 0) {
+          await sleep(retryDelayMultiplier * (attempt + 1) * (attempt + 1));
+        }
         continue;
       }
       failures.push(`i=${index} HTTP ${res.status} ${text.slice(0, 160)}`);
@@ -78,7 +89,9 @@ async function seedOne(
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (attempt < MAX_ATTEMPTS - 1) {
-        await sleep(40 * (attempt + 1) * (attempt + 1));
+        if (retryDelayMultiplier > 0) {
+          await sleep(retryDelayMultiplier * (attempt + 1) * (attempt + 1));
+        }
         continue;
       }
       failures.push(`i=${index} ${msg}`);

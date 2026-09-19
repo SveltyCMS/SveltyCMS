@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-08-05"
+updated: "2026-09-18"
 tags:
   - security
   - testing
@@ -30,6 +30,8 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 ---
 
 ## Security Vulnerabilities Fixed
+
+### 1. Localhost Rate Limit Bypass (Protected March 2026)
 
 **Issue**: Localhost (127.0.0.1, ::1) was exempt from rate limiting, allowing SSRF attacks to bypass rate limits.
 
@@ -70,19 +72,19 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: `tests/unit/auth/timing-defense.test.ts`, `tests/unit/scripts/scan-security-risk.test.ts`, `tests/unit/scripts/slop-scanner.test.ts`, `tests/unit/hooks/ws-ratelimit.test.ts`, `tests/unit/utils/format-date.test.ts`.
 
-### 6. Native Field-Level Encryption at Rest (September 2026)
+### 5. Native Field-Level Encryption at Rest (September 2026)
 
 **Control**: Collection fields flagged `encrypt: true` are stored as AES-256-GCM envelopes (`v1:iv:tag:ciphertext`) using `ENCRYPTION_KEY`. Writes fail closed without the key. Tamper / AAD mismatch decrypts that field to `null`. Filter/sort on encrypted fields returns `400 ENCRYPTED_FIELD_NOT_QUERYABLE`.
 
 **Tests**: `tests/unit/utils/field-encryption.test.ts`, `tests/unit/services/field-encryption-pipeline.test.ts`, `tests/unit/content/schema-contract.test.ts` (encrypt+unique warning).
 
-### 7. Collection Weak ETags & DB-free 304 (September 2026)
+### 6. Collection Weak ETags & DB-free 304 (September 2026)
 
 **Control**: Collection find/entry GET responses carry `W/"cv1|{tenant}|{collection}|{epoch}|{reprHash}"`. Matching `If-None-Match` returns 304 before the handler (no DB). Epoch bumps on write; repr hash includes user id so publication/FLAC views do not cross-validate. `refresh` / `nocache` / `bypassCache` skip the 304.
 
 **Tests**: `tests/unit/services/collection-etag.test.ts`.
 
-### 5. August 2026 Lean-Code Security Assessment & Audit Remediation
+### 7. August 2026 Lean-Code Security Assessment & Audit Remediation
 
 **Assessment Outcome**: Maintained **A++ Security Grade** with self-healing isolation.
 
@@ -103,7 +105,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: `tests/unit/security/safe-redirect.test.ts`, `tests/unit/plugins/commerce.test.ts`, `tests/unit/databases/escape-like.test.ts`, `tests/unit/auth/sessions/session-cookies.test.ts`.
 
-### 5. April 2026 Security Assessment & Hardening
+### 8. April 2026 Security Assessment & Hardening
 
 **Assessment Outcome**: Achieved **A++ Security Grade**.
 
@@ -121,7 +123,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/hooks/firewall.test.ts`.
 
-### 5. May 2026 Enterprise Security Hardening
+### 9. May 2026 Enterprise Security Hardening
 
 **Assessment Outcome**: Defense-in-depth hardening across all API and page action layers.
 
@@ -139,7 +141,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`.
 
-### 6. AI Bot Defense & Crypto Hardening
+### 10. AI Bot Defense & Crypto Hardening
 
 **Assessment Outcome**: Enhanced AI crawler defenses, zero-bias tokens, and cross-origin isolation headers.
 
@@ -155,7 +157,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: All 134 security regression tests pass.
 
-### Comprehensive Security Audit & Hardening
+### 11. Comprehensive Security Audit & Hardening
 
 **Assessment Outcome**: Closed 6 security gaps identified through full-stack codebase audit against dependency stack, security architecture docs, and CVE landscape.
 
@@ -164,6 +166,12 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **SVG Polyglot Upload Sanitization**: Server-side `sanitizeSvg()` function strips script tags, foreignObject elements, inline event handlers, javascript:/data: URIs, CDATA blocks, XML PIs, and DOCTYPE declarations from uploaded SVG files before storage (`src/utils/media/media-service.server.ts`).
 - ✅ **SVG large-file streaming bypass fixed**: SVGs always take `bufferAndSanitizeSvg` (never the ≥5MB pure-stream path). `MAX_SVG_BYTES` rejects oversized SVGs. File server adds CSP `script-src 'none'` for `image/svg+xml` responses.
 - ✅ **User attribute privilege escalation fixed**: `handleUpdateUserAttributesRoute` requires auth, restricts non-admins to self, and strips `role`/`isAdmin`/permissions via `stripPrivilegedUserFields` (`src/utils/security/user-attribute-policy.ts`).
+- ✅ **User creation privilege escalation fixed**: `POST /api/user` (bare namespace root) no longer inherits the auth path exemption — the dispatcher requires `user:write` for creates and `user:read` for listings (`GET /api/user`), matching the strict `POST /api/user/create-user` sibling; bare `GET /api/auth` stays a named self-service read, and public login/2FA/OIDC/SAML actions remain exempt. Non-admin create payloads are stripped of `role`/`roles`/`isAdmin`/`roleIds`/`permissions` via `sanitizeClientUserAttributePatch` (`src/routes/api/[...path]/handlers/auth.ts`). Coverage: `tests/unit/api/rbac-endpoint-integration.test.ts`, `tests/unit/api/user.test.ts`, `tests/unit/security/user-attribute-policy.test.ts`.
+- ✅ **Token namespace positive allowlist**: `/api/token/*` no longer inherits a public-route deny-list — only `GET /api/token/validate-token/{value}` is public. List/create/resolve/batch and `PUT`/`DELETE` require an admin session or the mapped `api:token` permission (Website Tokens stay admin-only), unauthenticated `GET /api/token/{value}` returns 401, and `PUT /api/token/{id}` is field-allowlisted to `expires`/`blocked`/`consumed` (admins additionally `email`/`role`; never `user_id`, `type`, `token`, `_id`, `tenantId`). Coverage: `tests/unit/api/token.test.ts`, `tests/integration/api/token.test.ts`, `tests/unit/api/authz-bypass-guard.test.ts`.
+- ✅ **GraphQL APQ hash binding**: `extensions.persistedQuery` keys must be exactly 64 hex characters and `sha256(query)` is compared with `timingSafeEqual` before the query is registered, so a client cannot plant a query under a hash another client will request (`PERSISTED_QUERY_HASH_INVALID` / `PERSISTED_QUERY_HASH_MISMATCH`). Coverage: `tests/unit/api/graphql-apq.test.ts`.
+- ✅ **Central page-size ceiling**: `MAX_PAGE_SIZE = 200` in `@utils/api-params` clamps REST parsers, the SDK `find` funnel and the GraphQL fast path + resolver, so a client-supplied `limit` can no longer reach adapters unbounded. Coverage: `tests/unit/utils/api-params.test.ts`, `tests/unit/core/page-utils.test.ts`, `tests/unit/graphql/fast-path.test.ts`.
+- ✅ **Uniform 15 MB body ceiling (chunked included) and incremental media abort**: the dispatcher counts `Transfer-Encoding: chunked` bodies through a zero-copy stream and stops at `API_MAX_BODY_SIZE_BYTES` (15 MB) exactly like `Content-Length` bodies (413 `PAYLOAD_TOO_LARGE`); the media stream route passes the same cap to `parseMultipartStream` and aborts oversize parts incrementally instead of buffering. Coverage: `tests/unit/api/dispatcher-body-limit.test.ts`, `tests/unit/media/streaming-upload.test.ts`.
+- ✅ **Authorization bypass guardrail suite**: `tests/unit/api/authz-bypass-guard.test.ts` (27 tests) enumerates every `/api/<namespace>` root and every public-route exemption against a reasoned contract, so a new authorization bypass fails a unit test instead of shipping.
 - ✅ **Remote media upload SSRF fixed**: Gallery remote upload uses `MediaService.saveRemoteMedia` → `validateEgressUrl` + `safeFetch` (private IPs, localhost, metadata, DNS rebinding, redirect re-validation).
 - ✅ **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), IPv6 loopback/link-local, cloud metadata hosts, and non-HTTP protocols before S3Client creation (`src/utils/media/cloud-storage.ts`).
 
@@ -176,7 +184,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
 
-### Performance Sprint — Security Preservation
+### 12. Performance Sprint — Security Preservation
 
 **Assessment Outcome**: 19-file multi-phase performance optimization sprint completed with **zero security regressions**. All 4 defense-in-depth layers preserved. 70/70 regression tests pass.
 
@@ -186,7 +194,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **Turbo Auth Skip Guard**: `__turboAuth` flag prevents duplicate audit on turbo-served mutations without bypassing any auth checks. Turbo path still requires valid session + absolute-expiry auth cache (`src/hooks/handle-turbo-get.ts`).
 - ✅ **Hook Timing Gate**: `HOOK_TIMING_ENABLED` gate disables per-request instrumentation in production. No security hooks are skipped — only timing/tracing overhead is removed (`src/hooks.server.ts`).
 
-### 8. August 2026 Security & Cookie Parity Hardening
+### 13. August 2026 Security & Cookie Parity Hardening
 
 **Assessment Outcome**: Full cookie flag alignment, non-fatal transaction isolation, and translation catalog integrity verification.
 
@@ -210,7 +218,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ---
 
-### Threat Modeling & Gating Hardening
+### 14. Threat Modeling & Gating Hardening
 
 **Assessment Outcome**: Resolved critical race conditions in setup gating and corrected CSRF constraints for stateless external API integrations.
 
@@ -224,7 +232,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ---
 
-### Global Security Risk Audit & Pre-Auth Fixes (August 2026)
+### 15. Global Security Risk Audit & Pre-Auth Fixes (August 2026)
 
 **Assessment Outcome**: A **global static risk audit** now runs on every commit, and the first full-`src/` pass found and fixed two pre-authentication vulnerabilities.
 
@@ -245,7 +253,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Files Modified**: `scripts/scan-security-risk.ts`, `scripts/scan-osv.ts`, `scripts/risk-audit.ts`, `.githooks/pre-commit`, `src/routes/setup/setup.server.ts`, `src/routes/setup/setup-service.server.ts`, `src/routes/setup/+page.server.ts`, `src/routes/setup/setup.remote.ts`.
 
-### Pen-Test Hardening Batch (August 2026)
+### 16. Pen-Test Hardening Batch (August 2026)
 
 External penetration-test findings closed with regression coverage in `tests/unit/security/login-hardening.test.ts`, `tests/unit/api/auth-2fa.test.ts`, `tests/unit/auth/totp/totp-encryption.test.ts`, and `tests/unit/security/egress-guard.test.ts`:
 

@@ -953,10 +953,23 @@ export async function handleBackChannelLogoutRoute(event: RequestEvent) {
 
 /**
  * Creates a new user.
+ *
+ * ### Authorization
+ * - Dispatcher gate requires `user:write` (or admin) for `POST /api/user` and
+ *   `POST /api/user/create-user`.
+ * - Defense-in-depth: non-admin callers never keep privilege fields
+ *   (`role`/`roles`/`isAdmin`/`roleIds`/`permissions`) — same strip semantics as
+ *   `update-user-attributes` and `PUT /api/user/:id`.
  */
 export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
-  const body = await event.request.json();
-  const result = await cms.auth.createUser(body, { tenantId });
+  const body = (await event.request.json()) as Record<string, unknown>;
+  const caller = event.locals.user;
+  const isAdmin = isAdminCaller(caller);
+  if (!isAdmin && hasPrivilegedUserFields(body)) {
+    logger.warn(`[Auth] Stripped privileged fields from create-user (user=${caller?._id})`);
+  }
+  const payload = isAdmin ? body : sanitizeClientUserAttributePatch(body, { isAdmin: false });
+  const result = await cms.auth.createUser(payload, { tenantId });
   if (!result.success) throw new AppError(result.message || "Failed to create user", 400);
   // 🛡️ Strip the password hash (and other server-only fields) from the response
   // AND the locals.apiData stash — the raw adapter record must never leave the server.

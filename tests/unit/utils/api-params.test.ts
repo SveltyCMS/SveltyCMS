@@ -4,7 +4,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { parseCollectionQueryParams } from "@src/utils/api-params";
+import {
+  MAX_PAGE_SIZE,
+  clampPageSize,
+  parseCollectionQueryParams,
+  parsePaginationQueryParams,
+} from "@src/utils/api-params";
 
 describe("parseCollectionQueryParams", () => {
   it("should return defaults when searchParams is empty", () => {
@@ -92,5 +97,41 @@ describe("parseCollectionQueryParams", () => {
     const params = parseCollectionQueryParams(searchParams);
     expect(params.limit).toBe(50);
     expect(params.offset).toBe(0);
+  });
+});
+
+describe("page-size ceiling (MAX_PAGE_SIZE)", () => {
+  it("caps an over-cap limit instead of rejecting it", () => {
+    const params = parseCollectionQueryParams(new URLSearchParams({ limit: "100000000" }));
+    expect(params.limit).toBe(MAX_PAGE_SIZE);
+  });
+
+  it("leaves a normal limit untouched", () => {
+    const params = parseCollectionQueryParams(new URLSearchParams({ limit: "25" }));
+    expect(params.limit).toBe(25);
+  });
+
+  it("keeps the default page size when no limit is given", () => {
+    expect(parseCollectionQueryParams(new URLSearchParams()).limit).toBe(50);
+    expect(parsePaginationQueryParams(new URLSearchParams()).limit).toBe(50);
+  });
+
+  it("applies the same ceiling to parsePaginationQueryParams", () => {
+    expect(parsePaginationQueryParams(new URLSearchParams({ limit: "100000000" })).limit).toBe(
+      MAX_PAGE_SIZE,
+    );
+    expect(parsePaginationQueryParams(new URLSearchParams({ limit: "25" })).limit).toBe(25);
+  });
+
+  it("clampPageSize keeps the lenient fallback semantics", () => {
+    expect(clampPageSize("100000000")).toBe(MAX_PAGE_SIZE);
+    expect(clampPageSize(200)).toBe(MAX_PAGE_SIZE);
+    expect(clampPageSize(25)).toBe(25);
+    expect(clampPageSize(undefined, 50)).toBe(50);
+    expect(clampPageSize(null, 50)).toBe(50);
+    expect(clampPageSize(0, 50)).toBe(50);
+    expect(clampPageSize(-5, 50)).toBe(50);
+    expect(clampPageSize("not-a-number", 50)).toBe(50);
+    expect(clampPageSize(Infinity, 50)).toBe(50);
   });
 });

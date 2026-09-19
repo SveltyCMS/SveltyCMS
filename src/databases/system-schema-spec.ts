@@ -62,6 +62,12 @@ export interface IndexSpec {
   method?: Partial<Record<Dialect, string>>;
   /** Partial-index predicate per dialect (e.g. the postgresql unconsumed-token index). */
   where?: Partial<Record<Dialect, string>>;
+  /**
+   * Indexed columns rendered with a trailing `DESC`, per dialect (e.g. the media
+   * gallery's `ORDER BY updatedAt DESC`). MariaDB entries intentionally omit it:
+   * pre-10.8 parses and ignores `DESC`, and InnoDB scans an ASC index backwards.
+   */
+  descColumns?: Partial<Record<Dialect, string[]>>;
   /** MariaDB inline-index columns that need backticks (reserved words). */
   mariadbQuotedColumns?: string[];
   /** Postgresql index columns that are quoted even though the default rule would not quote them (historical hand-quirks). */
@@ -733,6 +739,34 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       {
         name: { postgresql: "media_items_tenant_idx", mariadb: "tenant_idx" },
         columns: { postgresql: ["tenantId"], mariadb: ["tenantId"] },
+      },
+      // 🚀 Media gallery: WHERE tenantId = ? AND folderId = ? ORDER BY updatedAt DESC LIMIT 101
+      // (src/routes/(app)/mediagallery/+page.server.ts → relational-media getByFolder)
+      {
+        name: {
+          postgresql: "media_items_tenant_folder_updated_idx",
+          mariadb: "tenant_folder_updated_idx",
+          sqlite: "idx_media_items_tenant_folder_updated",
+        },
+        columns: {
+          postgresql: ["tenantId", "folderId", "updatedAt"],
+          mariadb: ["tenantId", "folderId", "updatedAt"],
+          sqlite: ["tenantId", "folderId", "updatedAt"],
+        },
+        descColumns: { postgresql: ["updatedAt"], sqlite: ["updatedAt"] },
+      },
+      {
+        name: {
+          postgresql: "media_items_tenant_updated_idx",
+          mariadb: "tenant_updated_idx",
+          sqlite: "idx_media_items_tenant_updated",
+        },
+        columns: {
+          postgresql: ["tenantId", "updatedAt"],
+          mariadb: ["tenantId", "updatedAt"],
+          sqlite: ["tenantId", "updatedAt"],
+        },
+        descColumns: { postgresql: ["updatedAt"], sqlite: ["updatedAt"] },
       },
     ],
   },

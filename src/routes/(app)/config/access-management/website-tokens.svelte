@@ -29,6 +29,7 @@ import {
 	type TableDensity,
 } from "@components/ui/smart-table";
 import SmartTableEmpty from "@components/ui/smart-table/smart-table-empty.svelte";
+import ColumnResizeHandle from "@components/ui/smart-table/column-resize-handle.svelte";
 import type { Permission } from "@src/databases/auth/types";
 import type { TokenUserRef } from "./website-tokens-api";
 import type { DatabaseId, WebsiteToken } from "@src/content/types";
@@ -649,7 +650,8 @@ $effect(() => {
 							</th>
 							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
 								<th
-									class="{SMART_TABLE_TH} cursor-pointer"
+									class="{SMART_TABLE_TH} relative cursor-pointer"
+									style={smartTable.getColumnWidthStyle(header.key)}
 									aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}
 								>
 									<button
@@ -667,6 +669,7 @@ $effect(() => {
 											></iconify-icon>
 										{/if}
 									</button>
+									<ColumnResizeHandle columnKey={header.key} onResize={smartTable.setColumnWidth} />
 								</th>
 							{/each}
 							<th class="{SMART_TABLE_TH} {pinCellClass('end')}" scope="col">Action</th>
@@ -688,7 +691,7 @@ $effect(() => {
 									/>
 								</td>
 								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-									<td class={SMART_TABLE_TD}>
+									<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(header.key)}>
 										{#if header.key === 'token'}
 											<div class="flex items-center gap-2">
 												<code class="bg-surface-500/10 dark:bg-surface-800 px-2 py-1 rounded">

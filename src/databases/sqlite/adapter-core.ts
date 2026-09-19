@@ -30,11 +30,6 @@ import { TransactionModule } from "./transaction-module";
 import { withMigrationLock } from "../migration-lock";
 import { getHardwareProfile } from "@utils/hardware-profile";
 
-// Pre-register system table schemas for optimal row conversion
-for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS)) {
-  registerTableSchema(tableName, columns as string[]);
-}
-
 // --- Types ---
 export type SQLiteConfig = { connectionString?: string; readonly?: boolean };
 export type SQLiteClient = any;

@@ -32,16 +32,9 @@ interface L2Driver {
   makeService(): Promise<any>;
   /** Best-effort per-service teardown (closes real Redis clients). */
   teardown?(service: any): Promise<void>;
+  flushWrites?(): Promise<void>;
+  settleInvalidation?(): Promise<void>;
 }
-
-/** Deterministic flush wait for the 15ms write-batch timer. */
-const flushWrites = () => new Promise((resolve) => setTimeout(resolve, 40));
-
-/**
- * Real Redis pub/sub is async — L1 on peer nodes is not guaranteed to clear
- * in the same tick as `delete()` / `clearByTags()`. FakeRedis delivers inline.
- */
-const settleInvalidation = () => new Promise((resolve) => setTimeout(resolve, 80));
 
 /** Hard cap so afterEach never hangs the suite (node-redis quit can stall). */
 async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T | void> {
@@ -61,6 +54,11 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
 }
 
 function runL2Contract(label: string, driver: L2Driver) {
+  const flushWrites =
+    driver.flushWrites ?? (() => new Promise((resolve) => setTimeout(resolve, 40)));
+  const settleInvalidation =
+    driver.settleInvalidation ?? (() => new Promise((resolve) => setTimeout(resolve, 80)));
+
   describe(`CacheService L2 contract — ${label}`, () => {
     let serviceA: any;
     let serviceB: any;
@@ -211,6 +209,8 @@ describe("CacheService L2 contract — in-memory FakeRedis (always on)", () => {
       await service.connectL2ForTest(fake, fake);
       return service;
     },
+    flushWrites: () => new Promise((resolve) => setTimeout(resolve, 18)),
+    settleInvalidation: () => Promise.resolve(),
   });
 });
 
@@ -238,6 +238,9 @@ describe.skipIf(!redisUrl)(
         cmd.on("error", () => {});
         sub.on("error", () => {});
         await Promise.all([cmd.connect(), sub.connect()]);
+        try {
+          await cmd.flushDb();
+        } catch {}
         const service = new CacheServiceClass();
         await service.connectL2ForTest(cmd, sub);
         // Stash for teardown (avoid shared openClients array races)

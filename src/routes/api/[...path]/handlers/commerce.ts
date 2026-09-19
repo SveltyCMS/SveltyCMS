@@ -13,7 +13,7 @@ import { AppError, isAppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { pluginRegistry } from "@src/plugins/registry";
 import { requireCommerceTenantId } from "@src/plugins/commerce/tenant";
-import { createCommerceStore } from "@src/plugins/commerce/store";
+import { createCommerceStore, type CommerceStore } from "@src/plugins/commerce/store";
 import {
   addCartItem,
   getOrCreateCart,
@@ -74,6 +74,54 @@ async function readJson(event: RequestEvent): Promise<Record<string, unknown>> {
   } catch {
     return {};
   }
+}
+
+type DownloadTokenSigner = (input: {
+  tenantId: string;
+  orderId: string;
+  productId: string;
+}) => string;
+
+export interface DownloadFileEntry {
+  productId: string;
+  title: string;
+  token: string;
+  file: unknown;
+}
+
+/**
+ * Resolve the downloadable lines of an order with a SINGLE product query.
+ *
+ * The per-line `findOne` loop was an N+1 on a customer-facing route; one
+ * `$in` lookup + Map keeps the response shape identical, including the legacy
+ * `file: null` fallback for products that are missing/gone (the token is
+ * still issued for those lines).
+ */
+export async function resolveDownloadFiles(
+  store: CommerceStore,
+  items: CartView["items"],
+  context: { tenantId: string; orderId: string },
+  sign: DownloadTokenSigner = signDownloadToken,
+): Promise<DownloadFileEntry[]> {
+  const lines = items.filter((line) => line.downloadable);
+  const productIds = [...new Set(lines.map((line) => String(line.productId)))];
+  const products = productIds.length
+    ? await store.findMany("products", { _id: { $in: productIds } }, { limit: productIds.length })
+    : [];
+  const productsById = new Map(products.map((product) => [String(product._id), product]));
+  return lines.map((line) => {
+    const product = productsById.get(String(line.productId));
+    return {
+      productId: line.productId,
+      title: line.title,
+      token: sign({
+        tenantId: context.tenantId,
+        orderId: context.orderId,
+        productId: line.productId,
+      }),
+      file: product?.downloadFile ?? null,
+    };
+  });
 }
 
 export async function handleCommerceRoutes(
@@ -388,22 +436,10 @@ export async function handleCommerceRoutes(
             raise(403, "Downloads are available after payment.", "NOT_PAID");
           }
           const items = Array.isArray(order.items) ? (order.items as CartView["items"]) : [];
-          const files = [];
-          for (const line of items) {
-            if (!line.downloadable) continue;
-            const product = await store.findOne("products", { _id: line.productId });
-            const file = product?.downloadFile;
-            files.push({
-              productId: line.productId,
-              title: line.title,
-              token: signDownloadToken({
-                tenantId: String(scoped),
-                orderId,
-                productId: line.productId,
-              }),
-              file: file ?? null,
-            });
-          }
+          const files = await resolveDownloadFiles(store, items, {
+            tenantId: String(scoped),
+            orderId,
+          });
           return successResponse(event, files);
         }
         if (orderId) {
@@ -478,7 +514,7 @@ export async function handleCommerceRoutes(
           raise(403, "Store analytics require an admin.", "FORBIDDEN");
         }
         await requireCommercePro("Store analytics");
-        return successResponse(event, await orderAnalytics(store));
+        return successResponse(event, await orderAnalytics(cms, scoped));
       }
 
       default:

@@ -27,6 +27,7 @@ import type { FieldInstance, Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import { clampPageSize } from "@utils/api-params";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
 // Token Engine
 import { replaceTokens } from "@src/services/token/engine";
@@ -522,7 +523,9 @@ export async function collectionsResolvers(
         throw new Error("Database adapter is not initialized");
       }
 
-      const limit = args.pagination?.limit ?? args.limit ?? 50;
+      // Same MAX_PAGE_SIZE ceiling as REST — offset is derived from the clamped
+      // limit so an over-cap request still returns its first clamped page.
+      const limit = clampPageSize(args.pagination?.limit ?? args.limit, 50);
       const page = args.pagination?.page ?? args.page ?? 1;
       const fields = extractGraphQLFields(info);
 

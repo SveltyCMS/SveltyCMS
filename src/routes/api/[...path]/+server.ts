@@ -8,7 +8,14 @@ import { logger } from "@utils/logger";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
-import { AppError } from "@utils/error-handling";
+import {
+  API_MAX_BODY_SIZE_BYTES,
+  bodyTooLargeMessage,
+  boundApiRequestBody,
+  isStreamingBodyRoute,
+  readBoundedApiBody,
+} from "@utils/api-body-limits";
+import { AppError, raise } from "@utils/error-handling";
 import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -316,9 +323,10 @@ export function _checkEndpointPermission(
 
   if (namespace === "user" || namespace === "auth") {
     const action = segments[1];
-    // Public / self endpoints are allowed
+    // Public / self endpoints are allowed by NAME only — a bare namespace root
+    // (no action) is not public: POST /api/user creates accounts, so it must
+    // fall through to the user:write check below (same for GET /api/user).
     if (
-      !action ||
       action === "me" ||
       action === "login" ||
       action === "logout" ||
@@ -331,6 +339,10 @@ export function _checkEndpointPermission(
       action === "saml" ||
       action === "2fa"
     ) {
+      return true;
+    }
+    // Bare `GET /api/auth` is self-service (returns only the caller's own session user).
+    if (!action && namespace === "auth" && method === "GET") {
       return true;
     }
     // Role-matrix writes are admin-only (handler also fail-closes).
@@ -541,14 +553,23 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   // --- Body Size Limit (prevents memory exhaustion) ---
-  const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB for API requests (allows 10MB multipart uploads)
-  if (WRITE_HTTP_METHODS.has(request.method) && request.headers.get("content-length")) {
-    const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
-    if (contentLength > MAX_BODY_SIZE) {
-      throw new AppError(
-        `Request body too large (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maximum is 15MB.`,
-        413,
-      );
+  // A declared `Content-Length` is rejected before a single byte is read. A chunked
+  // write carries none, so there the ceiling is enforced on the bytes actually
+  // received — otherwise every `request.json()` / `request.formData()` below would
+  // buffer an unbounded body into heap.
+  let routedEvent = event;
+  if (WRITE_HTTP_METHODS.has(request.method) && request.body) {
+    const declaredLength = request.headers.get("content-length");
+    if (declaredLength !== null) {
+      const contentLength = parseInt(declaredLength, 10);
+      if (contentLength > API_MAX_BODY_SIZE_BYTES) {
+        raise(413, bodyTooLargeMessage(contentLength), "PAYLOAD_TOO_LARGE");
+      }
+    } else if (isStreamingBodyRoute(namespace, segments[1])) {
+      // Undrained hand-off: the media route's multipart parser streams the bytes itself.
+      routedEvent = { ...event, request: boundApiRequestBody(request) };
+    } else {
+      routedEvent = { ...event, request: await readBoundedApiBody(request) };
     }
   }
 
@@ -604,7 +625,7 @@ export const _handler = async (event: RequestEvent) => {
           if (!ok) throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
         }
       }
-      return pluginMatch.handler(event);
+      return pluginMatch.handler(routedEvent);
     }
     // Fail-closed: unknown namespaces are Forbidden (not 404).
     throw new AppError(`API Namespace "/api/${namespace}" not found`, 403, "NAMESPACE_FORBIDDEN");
@@ -625,7 +646,7 @@ export const _handler = async (event: RequestEvent) => {
     );
   }
 
-  const response = await fn(event, cms, tenantId as DatabaseId, segments);
+  const response = await fn(routedEvent, cms, tenantId as DatabaseId, segments);
 
   if (!(response instanceof Response)) {
     throw new AppError(

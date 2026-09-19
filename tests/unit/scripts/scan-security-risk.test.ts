@@ -277,6 +277,43 @@ describe("scanGlobalRisk — path traversal / SSRF / XSS", () => {
     ).toBe(false);
   });
 
+  it("does not flag a dispatcher that only names update-user-attributes and parses JSON", () => {
+    // Shape of src/routes/api/[...path]/+server.ts: imports the auth handler,
+    // parses a bounded JSON body, and matches the action string in an allowlist
+    // — but never calls updateUserAttributes itself (false-positive guard).
+    const dispatcher = [
+      'import * as authHandler from "./handlers/auth";',
+      "async function readBoundedApiBody(event: RequestEvent) {",
+      "  return (await event.request.json()) as Record<string, unknown>;",
+      "}",
+      "function isSelfServiceAction(action: string) {",
+      '  return action === "update-user-attributes" || action === "save-avatar";',
+      "}",
+      "export async function POST(event: RequestEvent) {",
+      "  const body = await readBoundedApiBody(event);",
+      "  return authHandler.handleAuthRoutes(event, body);",
+      "}",
+    ].join("\n");
+    const violations = scanGlobalRisk("routes/api/[...path]/+server.ts", dispatcher);
+    expect(violations.some((v) => v.category === "privilege-field-write")).toBe(false);
+  });
+
+  it("still flags a handler that calls updateUserAttributes with request JSON and no policy", () => {
+    const handler = [
+      "export async function PUT(event: RequestEvent) {",
+      "  const userId = event.params.userId;",
+      "  return successResponse(",
+      "    event,",
+      "    await cms.auth.updateUserAttributes(userId, await event.request.json()),",
+      "  );",
+      "}",
+    ].join("\n");
+    const violations = scanGlobalRisk("routes/api/[...path]/handlers/auth.ts", handler);
+    expect(
+      violations.some((v) => v.category === "privilege-field-write" && v.severity === "error"),
+    ).toBe(true);
+  });
+
   it("flags classifyRequest bootstrap-public without setupApiLocked", () => {
     const vulnerable = [
       "export function classifyRequest(pathname, locals) {",

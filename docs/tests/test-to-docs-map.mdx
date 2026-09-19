@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-09-18"
+updated: "2026-09-19"
 tags:
   - "tests"
   - "documentation"
@@ -22,6 +22,10 @@ tags:
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `tests/unit/api/collections.test.ts`                            | `docs/tests/api-testing.mdx`, `docs/reference/architecture/collection-store-dataflow.mdx`                                    |
 | `tests/unit/api/yjs-acl.test.ts`                                | `docs/project/achievements-2026.mdx` (§3.16 / §4.6), `docs/reference/security/api-security.mdx`                              |
+| `tests/unit/api/authz-bypass-guard.test.ts`                     | `docs/reference/security/api-security.mdx`, `docs/reference/security/tested-security-features.mdx`                           |
+| `tests/unit/api/dispatcher-body-limit.test.ts`                  | `docs/reference/security/api-security.mdx`, `docs/reference/api/media.mdx`                                                   |
+| `tests/unit/api/graphql-apq.test.ts`                            | `docs/reference/api/graphql.mdx`, `docs/reference/security/api-security.mdx`                                                 |
+| `tests/unit/utils/api-params.test.ts`                           | `docs/reference/security/api-security.mdx`, `docs/reference/database/database-methods.mdx`                                   |
 | `tests/unit/databases/db-local-socket.test.ts`                  | `docs/project/achievements-2026.mdx` (§3.16), `docs/reference/database/performance-architecture.mdx`                         |
 | `tests/unit/security/system-tenant-scope.test.ts`               | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/achievements-2026.mdx` (§3.16)                                |
 | `tests/integration/api/collections-mutations.test.ts`           | `docs/tests/api-testing.mdx` (create/update/delete/clone/schedule HTTP contract)                                             |
@@ -44,7 +48,13 @@ tags:
 | `tests/unit/services/bulk-import.test.ts`                       | `docs/reference/database/performance-architecture.mdx`, `docs/reference/database/database-methods.mdx`                       |
 | `tests/unit/databases/lookup-query.test.ts`                     | `docs/reference/database/performance-architecture.mdx`                                                                       |
 | `tests/unit/databases/sql-query-builder-read.test.ts`           | `docs/reference/database/performance-architecture.mdx`                                                                       |
+| `tests/unit/databases/mongo-query-builder-sort.test.ts`         | `docs/reference/database/performance-architecture.mdx`                                                                       |
+| `tests/unit/databases/drizzle-order-by-direction.test.ts`       | `docs/reference/database/performance-architecture.mdx`                                                                       |
 | `tests/unit/databases/mongo-upsert-one-rt.test.ts`              | `docs/reference/database/performance-architecture.mdx`                                                                       |
+| `tests/unit/databases/mongo-reorder-structure.test.ts`          | `docs/reference/database/performance-architecture.mdx`, `docs/reference/architecture/content-system.mdx`                     |
+| `tests/unit/databases/content-node-batching.test.ts`            | `docs/reference/database/performance-architecture.mdx`                                                                       |
+| `tests/unit/databases/media-gallery-indexes.test.ts`            | `docs/reference/architecture/media-system.mdx`, `docs/reference/database/performance-architecture.mdx`                       |
+| `tests/unit/core/auth-row-converter-parity.test.ts`             | `docs/reference/database/performance-architecture.mdx`                                                                       |
 | `tests/unit/widgets/fetch-related.test.ts`                      | `docs/development/local-vs-http-api.mdx`, `docs/reference/database/performance-architecture.mdx`                             |
 | `tests/unit/utils/session-reauth.test.ts`                       | `docs/reference/security/authentication-system.mdx`                                                                          |
 | `tests/unit/utils/user-attribute-update.test.ts`                | `docs/development/local-vs-http-api.mdx`, `docs/reference/security/authentication-system.mdx`                                |
@@ -75,6 +85,7 @@ tags:
 | `tests/unit/media/processing/media-svg-ssrf-regression.test.ts` | `docs/reference/security/widget-security.mdx`, `docs/reference/architecture/media-system.mdx`                                |
 | `tests/unit/media/gallery-list-item.test.ts`                    | `docs/tests/routes/mediagallery.mdx`                                                                                         |
 | `tests/unit/media/media-reference-index.test.ts`                | `docs/tests/routes/mediagallery.mdx`                                                                                         |
+| `tests/unit/media/streaming-upload.test.ts`                     | `docs/reference/architecture/media-system.mdx`, `docs/reference/api/media.mdx`                                               |
 | `tests/e2e/routes/mediagallery/image-editor.spec.ts`            | `docs/guides/content/image-editor.mdx`, `docs/tests/routes/mediagallery.mdx`                                                 |
 | `tests/unit/graphql/graphql-server.test.ts`                     | `docs/reference/api/graphql.mdx`                                                                                             |
 | `tests/unit/content/sync-content-state.test.ts`                 | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                     |
@@ -88,3 +99,7 @@ tags:
 | `tests/unit/routes/api-playground-page-server.test.ts`          | `docs/reference/api/index.mdx`, `docs/development/openapi-spec.mdx`                                                          |
 | `tests/unit/services/workflow-service-completion.test.ts`       | `docs/development/workflow-engine.mdx`, `docs/reference/components/workflow-actions.mdx`                                     |
 | `tests/unit/widgets/custom/block-builder.test.ts`               | `docs/reference/components/fields.mdx`, `docs/development/widgets/index.mdx`                                                 |
+| `tests/unit/components/create-smart-table.test.ts`              | `docs/contributing/style-guide-gui.mdx`, `docs/project/achievements-2026.mdx` (§3.18)                                        |
+| `tests/unit/utils/entry-actions.test.ts`                        | `docs/reference/architecture/content-system.mdx`, `docs/project/achievements-2026.mdx` (§3.18)                               |
+| `tests/unit/widgets/custom-widget-sveltycms.test.ts`            | `docs/development/widgets/index.mdx`, `docs/reference/components/fields.mdx`                                                 |
+| `tests/unit/databases/cache-service-l2-contract.test.ts`        | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                       |

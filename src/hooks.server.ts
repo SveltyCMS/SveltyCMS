@@ -51,7 +51,7 @@ import {
 import { resetIdCounters } from "@utils/id-generator";
 import { handleApiError } from "@utils/error-handling";
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
-import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
+import { handleTurboGet } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
@@ -979,18 +979,8 @@ export const handleError: HandleServerError = async (input) => {
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
 
-/**
- * Invalidate all turbo-auth cache entries for a specific user.
- * Called when roles change or the user is blocked/deleted/unblocked
- * so privilege changes take effect immediately without waiting for TTL expiry.
- */
-export function invalidateTurboAuthForUser(userId: string) {
-  for (const [key, ctx] of turboAuthCache.entries()) {
-    if (ctx.user?._id === userId || ctx.user?.id === userId) {
-      turboAuthCache.delete(key);
-    }
-  }
-}
+// Re-export turbo-auth cache invalidation helper
+export { invalidateTurboAuthForUser } from "./hooks/handle-turbo-get";
 
 import { TokenRegistry } from "@src/services/token/engine";
 

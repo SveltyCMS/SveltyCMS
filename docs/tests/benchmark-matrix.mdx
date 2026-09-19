@@ -29,6 +29,54 @@ The SveltyCMS benchmark matrix is a CI-integrated performance validation system 
 - **History**: All runs persist in `tests/benchmarks/results/history.sqlite` for trend analysis.
 - **Reports**: 8 auto-generated MDX files in `docs/project/benchmarks/` with executive summaries, full audit ledgers, and trend visualizations.
 
+## Mode Parity (read this before recording a baseline)
+
+A benchmark number is only comparable to another number measured **in the same execution mode**. The ledger has exactly one production-parity mode and it must never be mixed with the dev/test mode:
+
+| Axis          | Matrix contract (the ledger's mode)                       | Non-comparable variants                                                        |
+| :------------ | :-------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| `run_mode`    | `matrix` — written by `scripts/benchmark-matrix/index.ts` | `standalone` — `BENCHMARK_RECORD=1 bun test …` runs the test's own server      |
+| `server_mode` | `production` — `NODE_ENV=production`, **no** `TEST_MODE`  | `test` — dev server with `TEST_MODE` (rate limit / WAF / security path bypass) |
+
+The matrix runner boots every server from `serverEnv` (`index.ts`) with `NODE_ENV=production`, `BENCHMARK=true` and no `TEST_MODE`, and stamps `SVELTY_BENCHMARK_SERVER_MODE=production` into every test child. Every recorded row carries both stamps:
+
+- `history.jsonl` → `runMode` + `serverMode` per row
+- `history.sqlite` (`runs`) → `run_mode` + `server_mode` columns
+
+**Guards (fail loud, never silent):**
+
+1. A row labelled `matrix` whose server mode is not `production` is **refused** — it is never written to the JSONL or the trend store (`isModeContaminated()` in `benchmark-history.ts`). This is what kept a 0.538 ms TEST_MODE cache-invalidation sample from entering the ledger on 2026-09-18.
+2. Trend queries are **mode-filtered**: the published per-adapter ledgers and the matrix regression detector read `run_mode='matrix'` + `server_mode='production'` samples only. Standalone runs compare against standalone samples of their own server mode.
+3. Rows without a mode stamp (pre-2026-09-19 history) are `unknown` and are never used for comparison.
+
+### Why this exists
+
+`cache-hit-ratio` → _Cache Invalidation_ once reported a **1.089 ms regression** against a **0.595 ms baseline**. Neither number was wrong: the baseline came from a standalone run whose server had been spawned with `NODE_ENV=development` + `TEST_MODE=true` (security path bypassed — the default for any standalone benchmark, because `bun test` forces `TEST_MODE`), the matrix run measured production parity, and the same build under `TEST_MODE=true` measures 0.538 ms. Two modes, one table — the artifact was the ledger, not the cache. `--no-build`-style convenience flags are fine; convenience _modes_ are not.
+
+### Reproducing a comparable standalone baseline
+
+A standalone run measures a server that the test process spawns itself. `bun test`
+**always** sets `TEST_MODE=true` (bunfig preload → `tests/unit/setup.ts`), so without
+an explicit marker every standalone server is a dev-mode TEST_MODE server and its
+rows are stamped `server_mode='test'` — measurable, recorded, and never compared
+against matrix rows.
+
+To record a production-parity standalone baseline, set the marker explicitly — it
+takes precedence over the ambient `TEST_MODE` flag in `setupBenchmarkServer()`:
+
+```bash
+# Production parity (server boots NODE_ENV=production, TEST_MODE deleted)
+# Linux/macOS/Git-Bash:
+SVELTY_BENCHMARK_SERVER_MODE=production BENCHMARK_RECORD=1 bun test tests/benchmarks/cache-hit-ratio.test.ts
+```
+
+On PowerShell set the variable first (`$env:SVELTY_BENCHMARK_SERVER_MODE="production"`),
+then run `BENCHMARK_RECORD=1 bun test …`. Verify the result rather than assuming it:
+the recorded row must show `"runMode": "standalone"` **and** `"serverMode": "production"`
+in `tests/benchmarks/results/history.jsonl`, and the server log line must report
+`NODE_ENV=production` with no `TEST_MODE`.
+On Windows `sh`/Git Bash the inline prefix works; on PowerShell set the variable first (`$env:SVELTY_BENCHMARK_SERVER_MODE="production"`), then run `BENCHMARK_RECORD=1 bun test …`. The recorded row's `serverMode` tells you which of the two you produced.
+
 ## Architecture
 
 ```mermaid
@@ -233,10 +281,13 @@ export const ADAPTER_BUDGET_OVERRIDES = {
 
 Runs persist in `tests/benchmarks/results/history.sqlite` via `benchmark-history.ts`:
 
-- Table `runs` with columns: `run_id`, `test_id`, `db_type`, `redis`, `phase`, `avg_ms`, `p95_ms`, `rps`, `error_count`, `status`, `timestamp`
-- Deduplication index on `(run_id, run_mode, test_id, db_type, redis, phase)`
+- Table `runs` with columns: `run_id`, `run_mode`, `server_mode`, `test_id`, `db_type`, `redis`, `phase`, `metric`, `avg_ms`, `p95_ms`, `rps`, `error_count`, `status`, `timestamp`
+- Deduplication index on `(run_id, run_mode, test_id, db_type, redis, phase, metric)`
+- **Mode parity**: matrix and standalone writers both stamp `server_mode`; trend reads filter on it (see [Mode Parity](#mode-parity-read-this-before-recording-a-baseline))
 - Auto-prunes to 50 runs per test to stay lean
-- Also persisted as JSONL (`results/*.jsonl`) for portability
+- Also persisted as JSONL (`results/history.jsonl`) for portability — one row per metric with `runMode` + `serverMode`
+- Per-adapter run snapshots live in a separate `matrix_runs` table (never `runs` — the trend store owns that name)
+- A locked/unwritable store is reported (`warning`), never swallowed: the ledger is auxiliary telemetry
 
 ### Warming-Up Detection
 
@@ -367,9 +418,13 @@ bun run scripts/benchmark-matrix/index.ts --db=sqlite --redis
 # Continue past individual test failures (still records + finalizes report)
 bun run scripts/benchmark-matrix/index.ts --db=sqlite --continue-on-error
 
-# Skip build (already built)
+# Skip build (already built) — never rebuilds mid-run, still verifies build/index.js exists
 bun run scripts/benchmark-matrix/index.ts --db=sqlite --no-build
 ```
+
+> **Mode contract:** matrix runs are production parity by construction. If you need a
+> standalone baseline for comparison, record it with `SVELTY_BENCHMARK_SERVER_MODE=production`
+> and **without** `TEST_MODE` — see [Mode Parity](#mode-parity-read-this-before-recording-a-baseline).
 
 ### Single Test with Recording
 

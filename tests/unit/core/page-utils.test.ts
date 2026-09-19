@@ -11,6 +11,7 @@ import {
   encodePageCursor,
   isEmptyQueryFilter,
   mergeKeysetFilter,
+  normalizeSortDirection,
   resolvePageSort,
   shouldUseEstimateCount,
   withIdTiebreaker,
@@ -52,6 +53,22 @@ describe("resolvePageSort / keyset cursor", () => {
       direction: "asc",
     });
     expect(resolvePageSort(undefined)).toEqual({ field: "_id", direction: "desc" });
+  });
+
+  it("treats the Mongo-style numeric 1 as ascending (SQL emitters must agree)", () => {
+    // Regression: the SQL ORDER BY emitters read `1` as DESC while this helper
+    // told the keyset cursor "asc" — page N+1 then repeated page N.
+    expect(normalizeSortDirection(1)).toBe("asc");
+    expect(normalizeSortDirection(-1)).toBe("desc");
+    expect(normalizeSortDirection("asc")).toBe("asc");
+    expect(normalizeSortDirection("ASC")).toBe("asc");
+    expect(normalizeSortDirection("desc")).toBe("desc");
+    expect(normalizeSortDirection(undefined)).toBe("desc");
+
+    expect(resolvePageSort({ status: 1 })).toEqual({ field: "status", direction: "asc" });
+    expect(resolvePageSort({ status: -1 })).toEqual({ field: "status", direction: "desc" });
+    expect(resolvePageSort([["status", 1]])).toEqual({ field: "status", direction: "asc" });
+    expect(withIdTiebreaker({ status: 1 })).toEqual({ status: 1, _id: 1 });
   });
 
   it("withIdTiebreaker appends a same-direction _id secondary sort", () => {

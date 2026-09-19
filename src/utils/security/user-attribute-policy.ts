@@ -14,7 +14,7 @@
  *    `allowPrivilegeEscalation: true` (admin / system / testing seed only)
  *
  * ### Features:
- * - privilege-escalation denylist (role, isAdmin, roleIds, permissions)
+ * - privilege-escalation denylist (role, roles, isAdmin, roleIds, permissions)
  * - full privileged denylist for client-facing profile APIs
  * - pure helpers suitable for unit tests and static scanners
  */
@@ -22,7 +22,13 @@
 import { isAdmin } from "@src/databases/auth/constants";
 
 /** Fields that grant administrator / RBAC power — fail-closed at every write path. */
-export const PRIVILEGE_ESCALATION_FIELDS = ["role", "isAdmin", "roleIds", "permissions"] as const;
+export const PRIVILEGE_ESCALATION_FIELDS = [
+  "role",
+  "roles",
+  "isAdmin",
+  "roleIds",
+  "permissions",
+] as const;
 
 export type PrivilegeEscalationField = (typeof PRIVILEGE_ESCALATION_FIELDS)[number];
 
@@ -77,7 +83,7 @@ function stripKeys<T extends Record<string, unknown>>(updates: T, keys: Set<stri
 }
 
 /**
- * Remove privilege-escalation fields only (role / isAdmin / roleIds / permissions).
+ * Remove privilege-escalation fields only (role / roles / isAdmin / roleIds / permissions).
  * Used as the adapter-level fail-closed default so lockout/2FA internal updates still work.
  */
 export function stripPrivilegeEscalationFields<T extends Record<string, unknown>>(updates: T): T {

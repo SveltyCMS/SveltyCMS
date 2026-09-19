@@ -55,7 +55,7 @@ When a recipient clicks the generated link (`https://sveltycms.com/share/[token]
 
 The sharing mechanism relies on a multi-layered validation process:
 
-````mermaid
+```mermaid
 sequenceDiagram
     participant Client
     participant ServerLoad[Server Load Function]
@@ -79,11 +79,10 @@ sequenceDiagram
             ServerLoad->>Client: File Data & Download Link (200 OK)
         end
     end
-```text
+```
 
 This single endpoint performs three checks sequentially, which must all pass for access:
 ...
-````
 
 ---
 

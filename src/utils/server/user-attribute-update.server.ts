@@ -113,7 +113,7 @@ export async function applyUserAttributeUpdate(
   }
 
   try {
-    const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+    const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
     invalidateTurboAuthForUser(resolvedId);
   } catch {
     /* turbo auth cache helper unavailable */

@@ -5,7 +5,7 @@
  * This class provides a fluent interface for building MongoDB queries with support for:
  * - Filtering with MongoDB query operators
  * - Sorting with multiple fields
- * - Pagination with skip/limit
+ * - Pagination with skip/limit (keyset cursors are owned by `page-utils`/`findPage`)
  * - Field projection
  * - Distinct queries
  * - Count operations
@@ -26,6 +26,18 @@ import type {
   QueryMeta,
   QueryOptimizationHints,
 } from "../db-interface";
+import { normalizeSortDirection } from "../core/page-utils";
+
+/**
+ * Direction of the LAST key of a Mongo sort object. Object key order is
+ * insertion order for non-integer keys, so this is the last `.sort()`/`.orderBy()`
+ * clause — the clause the `_id` pagination tiebreak must follow.
+ */
+function lastSortKeyDirection(sort: Record<string, 1 | -1>): 1 | -1 {
+  const keys = Object.keys(sort);
+  const last = keys.length > 0 ? keys[keys.length - 1] : undefined;
+  return last !== undefined ? sort[last] : 1;
+}
 
 export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   private readonly model: Model<T>;
@@ -126,7 +138,9 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
   }
 
   sort<K extends keyof T>(field: K, direction: "asc" | "desc"): this {
-    this.sortOptions[field as string] = direction === "asc" ? 1 : -1;
+    // Normalize so the Mongo-style numeric form (`1`/`-1`) that untyped/passthrough
+    // callers and `defaultPageSortOption()` emit can never invert to DESC here.
+    this.sortOptions[field as string] = normalizeSortDirection(direction) === "asc" ? 1 : -1;
     return this;
   }
 
@@ -134,7 +148,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
     this.multiSortOptions = sorts;
     // Also update sortOptions for backward compatibility
     sorts.forEach(({ field, direction }) => {
-      this.sortOptions[field as string] = direction === "asc" ? 1 : -1;
+      this.sortOptions[field as string] = normalizeSortDirection(direction) === "asc" ? 1 : -1;
     });
     return this;
   }
@@ -177,25 +191,19 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
   }
 
   paginate(options: PaginationOptions): this {
-    // Support both offset-based and cursor-based pagination
-    if (options.cursor) {
-      // Cursor-based pagination (more efficient for large datasets)
-      // Cursor format: "field:value" (e.g., "_id:507f1f77bcf86cd799439011")
-      const [cursorField, cursorValue] = options.cursor.split(":");
-      if (cursorField && cursorValue) {
-        // Add cursor condition to query
-        const cursorCondition =
-          options.sortDirection === "desc" ? { $lt: cursorValue } : { $gt: cursorValue };
-        this.query[cursorField] = cursorCondition;
-      }
-    } else if (options.page && options.pageSize) {
-      // Traditional offset-based pagination (less efficient for large datasets)
+    // Offset pagination only. `options.cursor` is deliberately ignored: keyset
+    // pagination is owned by `page-utils` (`withIdTiebreaker`/`mergeKeysetFilter`)
+    // and served by `findPage` / the SDK `collections.find` path. Do not grow a
+    // second cursor implementation here — the removed `"field:value"` branch
+    // compared raw strings and mapped numeric sort directions to the inverse seek.
+    if (options.page && options.pageSize) {
       this.skipValue = (options.page - 1) * options.pageSize;
       this.limitValue = options.pageSize;
     }
 
     if (options.sortField && options.sortDirection) {
-      this.sortOptions[options.sortField] = options.sortDirection === "asc" ? 1 : -1;
+      this.sortOptions[options.sortField] =
+        normalizeSortDirection(options.sortDirection) === "asc" ? 1 : -1;
     }
     return this;
   }
@@ -353,22 +361,25 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
       }
 
       // Apply sorting (prioritize multi-sort over single sort)
-      // 🚀 STABILITY TIE-BREAKER: Append _id asc to ensure deterministic ordering
-      // for paginated queries — mirrors the sql-query-builder.ts fix for all SQL adapters.
+      // 🚀 STABILITY TIE-BREAKER: the `_id` tiebreak follows the LAST sort key's
+      // direction (parity with sql-query-builder.ts). A mixed-direction sort
+      // ({createdAt: -1, _id: 1}) cannot be served by the compound index
+      // ({createdAt: -1, _id: -1}) and forces a blocking in-memory SORT stage.
+      // A tiebreak on the unique `_id` in either direction is still a total order.
       if (this.multiSortOptions.length > 0) {
         const sortObj: Record<string, 1 | -1> = {};
         this.multiSortOptions.forEach(({ field, direction }) => {
-          sortObj[field as string] = direction === "asc" ? 1 : -1;
+          sortObj[field as string] = normalizeSortDirection(direction) === "asc" ? 1 : -1;
         });
         if (this.limitValue !== undefined || this.skipValue !== undefined) {
-          sortObj["_id"] = sortObj["_id"] ?? 1;
+          sortObj["_id"] = sortObj["_id"] ?? lastSortKeyDirection(sortObj);
         }
         mongoQuery = mongoQuery.sort(sortObj);
       } else if (Object.keys(this.sortOptions).length > 0) {
         const sortCopy = { ...this.sortOptions };
         if (this.limitValue !== undefined || this.skipValue !== undefined) {
           (sortCopy as Record<string, 1 | -1>)["_id"] =
-            (sortCopy as Record<string, 1 | -1>)["_id"] ?? 1;
+            (sortCopy as Record<string, 1 | -1>)["_id"] ?? lastSortKeyDirection(sortCopy);
         }
         mongoQuery = mongoQuery.sort(sortCopy);
       } else if (this.limitValue !== undefined || this.skipValue !== undefined) {
@@ -456,7 +467,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
       if (this.multiSortOptions.length > 0) {
         const sortObj: Record<string, 1 | -1> = {};
         this.multiSortOptions.forEach(({ field, direction }) => {
-          sortObj[field as string] = direction === "asc" ? 1 : -1;
+          sortObj[field as string] = normalizeSortDirection(direction) === "asc" ? 1 : -1;
         });
         mongoQuery = mongoQuery.sort(sortObj);
       } else if (Object.keys(this.sortOptions).length > 0) {
@@ -531,7 +542,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
       if (this.multiSortOptions.length > 0) {
         const sortObj: Record<string, 1 | -1> = {};
         this.multiSortOptions.forEach(({ field, direction }) => {
-          sortObj[field as string] = direction === "asc" ? 1 : -1;
+          sortObj[field as string] = normalizeSortDirection(direction) === "asc" ? 1 : -1;
         });
         mongoQuery = mongoQuery.sort(sortObj);
       } else if (Object.keys(this.sortOptions).length > 0) {

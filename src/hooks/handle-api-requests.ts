@@ -43,6 +43,7 @@ import {
   compressAsync,
   compressZstd,
   hasNativeCompression,
+  hasAsyncZstd,
   setCompressionHeaders,
   addVaryHeader,
   SYNC_MAX_SIZE,
@@ -416,13 +417,20 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                           .catch(() => {}),
                       );
                     }
-                    compressionTasks.push(
-                      compressZstd(responseBody!)
-                        .then((zstd) => {
-                          if (zstd && zstd.byteLength < bodyBytes) compressedPayloads.zstd = zstd;
-                        })
-                        .catch(() => {}),
-                    );
+                    // 🔴 FIX 7/8: the native async zstd API runs on the libuv
+                    // worker pool, so it is safe at any size — but a runtime with
+                    // only the sync API must not rip a body above SYNC_MAX_SIZE on
+                    // the request thread. Skip the call entirely in that case;
+                    // callers serve br/gzip/uncompressed instead of stalling.
+                    if (hasAsyncZstd() || bodyBytes <= SYNC_MAX_SIZE) {
+                      compressionTasks.push(
+                        compressZstd(responseBody!, bodyBytes)
+                          .then((zstd) => {
+                            if (zstd && zstd.byteLength < bodyBytes) compressedPayloads.zstd = zstd;
+                          })
+                          .catch(() => {}),
+                      );
+                    }
                     await Promise.all(compressionTasks);
 
                     // 🚀 Stash the variants into the L1 turbo entry too —

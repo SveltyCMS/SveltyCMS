@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-09-14"
+updated: "2026-09-18"
 tags:
   - "architecture"
   - "media"
@@ -218,7 +218,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 ### Phase I: Ingestion (Client-Side & Hashing)
 
 - **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth (`local-upload.svelte`).
-- **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved.
+- **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved. Both paths share one hard ceiling: the dispatcher bounds the request at `API_MAX_BODY_SIZE_BYTES` (**15 MB**, `Content-Length` and chunked alike) and `parseMultipartStream` receives the same cap for `maxFileSize`/`maxTotalSize`, aborting incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering toward the parser defaults.
 - **Hash-First Approach**: Every file is identified by a **20-character SHA-256 hash**. This hash is the primary key for global deduplication across the entire system.
 - **SlimSniffer + unified allowlist**: `slim-sniffer.server.ts` (~2KB, no `mime-types`/`mrmime`) inspects magic bytes. Uploads use `isAllowedUploadMime()` (from `MIME_MAP`, minus scriptable/office types) and `assertMimeAgreement()` at write time. `/files` resolves Content-Type via extension → stored MIME → 512-byte sniff. Remote imports and `saveRemoteMedia` share `resolveRemoteAssetMime()`. All media responses send `X-Content-Type-Options: nosniff`.
 
@@ -419,16 +419,16 @@ The previous `streaming-upload.ts` had two critical bugs:
 
 A byte-level state machine (`streaming-upload.ts`) that processes `ReadableStream` chunks incrementally:
 
-| Feature                   | Implementation                                                                                       |
-| :------------------------ | :--------------------------------------------------------------------------------------------------- |
-| **True streaming**        | Incremental byte-level parser — never buffers the full body                                          |
-| **Binary-safe**           | Raw `Uint8Array` chunks pass through untouched                                                       |
-| **Backpressure**          | Per-file `ReadableStream` pipes directly to storage adapter                                          |
-| **Size limits**           | Configurable `maxFileSize` (1 GiB) and `maxTotalSize` (5 GiB)                                        |
-| **MIME validation**       | `isAllowedUploadMime()` on part Content-Type (415); magic-byte agreement after the body is available |
-| **Filename sanitization** | Path separators, control chars, Windows reserved names stripped                                      |
-| **Error cleanup**         | Active push streams errored on parser failure — no hanging readers                                   |
-| **Timeout**               | Configurable per-chunk read timeout (default 300s)                                                   |
+| Feature                   | Implementation                                                                                                                                                                                                                                                                                                                                      |
+| :------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **True streaming**        | Incremental byte-level parser — never buffers the full body                                                                                                                                                                                                                                                                                         |
+| **Binary-safe**           | Raw `Uint8Array` chunks pass through untouched                                                                                                                                                                                                                                                                                                      |
+| **Backpressure**          | Per-file `ReadableStream` pipes directly to storage adapter                                                                                                                                                                                                                                                                                         |
+| **Size limits**           | `maxFileSize` / `maxTotalSize` are set by the route to `API_MAX_BODY_SIZE_BYTES` (**15 MB**) — the same ceiling the dispatcher enforces for `Content-Length` and chunked bodies. The parser's 1 GiB / 5 GiB defaults are never the effective limit on uploads; an oversize part aborts incrementally (`413 PAYLOAD_TOO_LARGE`) instead of buffering |
+| **MIME validation**       | `isAllowedUploadMime()` on part Content-Type (415); magic-byte agreement after the body is available                                                                                                                                                                                                                                                |
+| **Filename sanitization** | Path separators, control chars, Windows reserved names stripped                                                                                                                                                                                                                                                                                     |
+| **Error cleanup**         | Active push streams errored on parser failure — no hanging readers                                                                                                                                                                                                                                                                                  |
+| **Timeout**               | Configurable per-chunk read timeout (default 300s)                                                                                                                                                                                                                                                                                                  |
 
 ```typescript
 // Storage adapters receive a per-file ReadableStream — direct pipe to S3/disk

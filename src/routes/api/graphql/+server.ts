@@ -16,6 +16,8 @@
  * - Enforces query execution cost limits at parse time.
  */
 
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
@@ -642,6 +644,26 @@ export async function _refreshSchema(dbAdapter: any, tenantId?: string | null) {
 let sharedCMS: LocalCMS | null = null;
 import { cacheService } from "@src/databases/cache/cache-service";
 
+/** APQ keys are client-supplied sha256 digests: exactly 64 hex characters. */
+const APQ_HASH_PATTERN = /^[0-9a-fA-F]{64}$/;
+
+/** Standard GraphQL application/json error envelope used by the APQ handshake. */
+function apqErrorResponse(message: string, code: string): Response {
+  return new Response(JSON.stringify({ errors: [{ message, extensions: { code } }] }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/** Constant-time check that `apqHash` is the SHA-256 digest of `query`. */
+function apqHashMatchesQuery(apqHash: string, query: string): boolean {
+  const supplied = Buffer.from(apqHash, "hex");
+  const expected = createHash("sha256").update(query, "utf8").digest();
+  // Shape validation guarantees 32 bytes; the guard keeps timingSafeEqual safe.
+  if (supplied.length !== expected.length) return false;
+  return timingSafeEqual(supplied, expected);
+}
+
 async function handleRequest(event: RequestEvent) {
   const request = event.request;
   const locals = event.locals;
@@ -716,6 +738,13 @@ async function handleRequest(event: RequestEvent) {
   // 🚀 AUTOMATIC PERSISTED QUERIES (APQ): Resolve or register query via APQ hash
   if (apqHash) {
     const tenant = (locals.tenantId as string) || "global";
+
+    // 🔒 SECURITY: only 64-char hex sha256 digests are valid APQ keys — reject
+    // arbitrary/oversized keys before any cache read or write (flood guard).
+    if (!APQ_HASH_PATTERN.test(apqHash)) {
+      return apqErrorResponse("PersistedQueryHashInvalid", "PERSISTED_QUERY_HASH_INVALID");
+    }
+
     if (!query) {
       // Lookup registered query from L1/L2 Redis
       const cachedQuery =
@@ -726,22 +755,15 @@ async function handleRequest(event: RequestEvent) {
         query = cachedQuery;
       } else {
         // Return standard GraphQL APQ protocol error
-        return new Response(
-          JSON.stringify({
-            errors: [
-              {
-                message: "PersistedQueryNotFound",
-                extensions: { code: "PERSISTED_QUERY_NOT_FOUND" },
-              },
-            ],
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
+        return apqErrorResponse("PersistedQueryNotFound", "PERSISTED_QUERY_NOT_FOUND");
       }
     } else {
+      // 🔒 SECURITY: the persisted query must hash to the supplied key, otherwise
+      // a client could plant a query under a hash another client will request.
+      if (!apqHashMatchesQuery(apqHash, query)) {
+        return apqErrorResponse("PersistedQueryHashMismatch", "PERSISTED_QUERY_HASH_MISMATCH");
+      }
+
       // Register incoming query with its APQ hash across L1/L2 Redis (7 days TTL)
       await cacheService.set(`apq:${apqHash}`, query, 7 * 24 * 3600, tenant, undefined, [
         "graphql",

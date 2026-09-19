@@ -7,6 +7,7 @@
  * ### Features:
  * - Self-healing root adapter proxy (survives Vite HMR, auto-recovers on connection loss)
  * - Tenant-injecting namespace proxy (deep: media.files, system.jobs, content.nodes, …)
+ * - Per-property memoized tenant wrappers (zero closure allocation after first access)
  * - Hot-swap lazy namespace definer (Object.defineProperty swap for zero Proxy tax)
  */
 
@@ -154,6 +155,32 @@ export function createTenantInjectingProxy(
 
   const nestedCache = new Map<string | symbol, any>();
 
+  /**
+   * 🚀 PER-REQUEST ALLOCATION FIX: one wrapper per property — not one wrapper per
+   * property *access*. With multi-tenancy on, `forTenant()` wraps every namespace
+   * per request, so a page render making N adapter calls used to allocate N
+   * throwaway closures. The wrapper depends only on its call arguments, so caching
+   * it is behaviour-neutral.
+   *
+   * Why the captured references cannot go stale for the proxy's lifetime:
+   * - `target` is the object the proxy was built around, and the wrapper has always
+   *   invoked `original.apply(target, args)`. Memoizing does not change which object
+   *   receives the call — that binding was already fixed at proxy creation.
+   * - `injectTenant` is a const created once per `forTenant()` call, never reassigned.
+   * - The proxies are request-scoped: `forTenant()` runs per request (and per
+   *   scheduler job) over the live adapter, and HMR / self-healing replaces the
+   *   adapter instance — which re-creates these proxies — rather than mutating a
+   *   namespace object in place.
+   *
+   * The `original` identity guard keeps method re-assignment live: if the
+   * namespace method is replaced (mock / hot-swap), the next access re-wraps
+   * instead of routing to the stale function.
+   */
+  const methodCache = new Map<
+    string | symbol,
+    { original: Function; wrapper: (...args: any[]) => any }
+  >();
+
   return new Proxy(namespace, {
     get(target, prop, receiver) {
       if (prop === TENANT_PROXY) return true;
@@ -161,7 +188,10 @@ export function createTenantInjectingProxy(
       const original = Reflect.get(target, prop, receiver);
 
       if (typeof original === "function") {
-        return (...args: any[]) => {
+        const cached = methodCache.get(prop);
+        if (cached && cached.original === original) return cached.wrapper;
+
+        const wrapper = (...args: any[]) => {
           const lastArg = args[args.length - 1];
           if (
             lastArg &&
@@ -177,6 +207,8 @@ export function createTenantInjectingProxy(
           }
           return original.apply(target, args);
         };
+        methodCache.set(prop, { original, wrapper });
+        return wrapper;
       }
 
       // Nested namespace (e.g. media.files, system.jobs) — recurse + cache

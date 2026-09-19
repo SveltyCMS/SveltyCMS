@@ -161,6 +161,7 @@ export interface WidgetLoaderProps {
 }
 
 export interface EntryListMultiButtonProps {
+  bulkEdit?: () => void;
   clone: () => void;
   create: () => void;
   delete: (permanent: boolean) => void;

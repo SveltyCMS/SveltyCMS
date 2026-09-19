@@ -16,6 +16,14 @@
  * Note: Type check, lint, and slop scan are handled by the pre-commit hook
  * (gates 1 & 3), not by this orchestrator.
  *
+ * ### Scope dedupe (execution only)
+ * The printed plan always shows every suite that was considered. At execution
+ * time a plain, unfiltered Vitest suite is skipped when another selected suite
+ * at the same gate already runs a superset of its paths — `tests/unit/utils/`
+ * is redundant once `tests/unit` is selected. Every uncertainty keeps the
+ * suite: compound commands, `VAR=value` prefixes, name filters (`-t`), globs,
+ * partial overlap, non-Vitest runners, and fail-closed plans.
+ *
  * ### Failure Policy
  * Flaky means unstable core. No "retry until green." Every failure must be root-caused.
  *
@@ -521,10 +529,20 @@ function getMergeBase(): string {
   }
 }
 
-function extractChangedIdentifiers(filePath: string, mergeBase: string): string[] {
+/**
+ * Candidate identifiers from the current diff (added lines' symbols), used to
+ * optionally narrow `vitest -t`. One whole-tree diff instead of one `git diff`
+ * per file: callers use only the union, per-file spawns cost ~8s on a
+ * 280-file Windows diff, and a superset can only push the count past the
+ * 15-identifier gate (skipping the filter) — never toward fewer tests.
+ */
+function extractChangedIdentifiers(mergeBase: string): string[] {
   try {
     const { execSync } = require("node:child_process");
-    const diff = execSync(`git diff ${mergeBase} -- "${filePath}"`, { encoding: "utf8" });
+    const diff = execSync(`git diff ${mergeBase}`, {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
     const identifiers = new Set<string>();
 
     // Look for added lines containing potential function/method calls or properties
@@ -593,6 +611,161 @@ function filterExcludedFiles(cmd: string, excludeList: string[]): string {
     return !excludeList.some((ex) => part === ex || part.endsWith("/" + ex));
   });
   return filtered.join(" ");
+}
+
+// ---------------------------------------------------------------------------
+// Scope-containment dedupe (execution only — the printed plan stays complete)
+// ---------------------------------------------------------------------------
+
+/** Path scope kinds: a directory covers its whole subtree, a file only itself. */
+interface ScopePath {
+  kind: "dir" | "file";
+  /** Repo-relative posix path, trailing slash stripped. */
+  path: string;
+}
+
+/** Shell operators that turn a suite command into a compound invocation. */
+const SHELL_OPERATORS = new Set(["&&", "||", ";", "|"]);
+/** `VAR=value` prefix — selects an alternate runtime config (e.g. DB_TYPE=…). */
+const ENV_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*=/;
+const TEST_FILE_SUFFIX = /\.(test|spec)\.ts$/;
+
+/**
+ * Parse a suite command into the repo-relative paths it runs, or null when the
+ * command is not a plain, unfiltered `vitest run <paths…>`.
+ *
+ * Null means "not comparable": the suite is then neither dropped nor used as a
+ * container. That covers every shape we cannot prove equivalent —
+ *   - compound commands (`a && b`), `VAR=value` prefixes (DB_TYPE=… targets a
+ *     different adapter), and non-Vitest runners (bun test, playwright);
+ *   - any flag, including `-t`/`--testNamePattern`: the run then covers only a
+ *     name-filtered subset of its paths, so it cannot stand in for a sibling;
+ *   - a bare `vitest run` (scope comes from vitest.config.ts), a glob, or a
+ *     path that does not resolve on disk.
+ */
+function parseVitestScope(command: string, root: string): ScopePath[] | null {
+  const tokens = command.trim().split(/\s+/);
+  if (tokens.some((t) => SHELL_OPERATORS.has(t) || ENV_PREFIX.test(t))) return null;
+
+  const prefix =
+    tokens[0] === "bun" && tokens[1] === "x" && tokens[2] === "vitest" && tokens[3] === "run"
+      ? 4
+      : tokens[0] === "bunx" && tokens[1] === "vitest" && tokens[2] === "run"
+        ? 3
+        : -1;
+  if (prefix < 0) return null;
+
+  const positional = tokens.slice(prefix);
+  if (positional.length === 0) return null;
+
+  const scope: ScopePath[] = [];
+  for (const token of positional) {
+    if (token.startsWith("-") || /[*?[\]{}]/.test(token)) return null;
+    const rel = token.replace(/^\.\//, "").replace(/\/+$/, "");
+    const abs = join(root, rel);
+    if (!existsSync(abs)) return null;
+    if (statSync(abs).isDirectory()) {
+      scope.push({ kind: "dir", path: rel });
+    } else if (TEST_FILE_SUFFIX.test(rel)) {
+      scope.push({ kind: "file", path: rel });
+    } else {
+      return null; // positional that is neither a directory nor a test file
+    }
+  }
+  return scope;
+}
+
+/** True when every path in `candidate` equals or nests under a path in `container`. */
+function scopeContains(container: ScopePath[], candidate: ScopePath[]): boolean {
+  return candidate.every((c) =>
+    container.some((k) =>
+      k.kind === "file" ? k.path === c.path : c.path === k.path || c.path.startsWith(k.path + "/"),
+    ),
+  );
+}
+
+function formatScope(scope: ScopePath[]): string {
+  return scope.map((s) => (s.kind === "dir" ? `${s.path}/` : s.path)).join(" ");
+}
+
+/** A suite that was not executed because a broader suite already covers it. */
+interface DedupedSuite {
+  label: string;
+  scope: string;
+  containerLabel: string;
+  containerScope: string;
+}
+
+/**
+ * Drop suites whose entire path scope is already covered by another selected
+ * suite at the same gate (both plain, unfiltered Vitest runs). Equal scopes
+ * keep the first suite in plan order. A suite is restored — never silently
+ * lost — when the only suite that covered it is itself dropped and no kept
+ * ancestor exists.
+ *
+ * Exported for direct unit testing (see tests/unit/scripts/test-smart.test.ts).
+ */
+export function dedupeContainedSuites(
+  suites: SelectedSuite[],
+  root: string,
+): { kept: SelectedSuite[]; skipped: DedupedSuite[] } {
+  // Fail-closed / "run everything" plans must behave exactly as before.
+  if (suites.some((s) => s.rule.gate === 0)) return { kept: suites, skipped: [] };
+
+  const scopes = new Map<SelectedSuite, ScopePath[] | null>(
+    suites.map((s) => [s, parseVitestScope(s.rule.command, root)]),
+  );
+  const order = new Map(suites.map((s, i) => [s, i]));
+
+  const covers = (container: SelectedSuite, candidate: SelectedSuite): boolean => {
+    if (container === candidate) return false;
+    if (container.rule.gate !== candidate.rule.gate) return false;
+    const outer = scopes.get(container);
+    const inner = scopes.get(candidate);
+    if (!outer || !inner) return false;
+    if (!scopeContains(outer, inner)) return false;
+    // Same scope in both directions → keep the first in plan order.
+    if (scopeContains(inner, outer) && order.get(container)! > order.get(candidate)!) return false;
+    return true;
+  };
+
+  const droppedBy = new Map<SelectedSuite, SelectedSuite>();
+  for (const candidate of suites) {
+    const container = suites.find((other) => covers(other, candidate));
+    if (container) droppedBy.set(candidate, container);
+  }
+
+  // Containment is transitive, so a dropped container always has a kept
+  // ancestor. This fixed point resolves to that ancestor and restores any
+  // suite that would otherwise lose its coverage — belt and braces.
+  let settled = false;
+  while (!settled) {
+    settled = true;
+    for (const [suite, container] of Array.from(droppedBy)) {
+      if (!droppedBy.has(container)) continue;
+      const alternative = suites.find((other) => !droppedBy.has(other) && covers(other, suite));
+      if (alternative) droppedBy.set(suite, alternative);
+      else {
+        droppedBy.delete(suite);
+        settled = false;
+      }
+    }
+  }
+
+  const skipped: DedupedSuite[] = [];
+  for (const [suite, container] of droppedBy) {
+    const inner = scopes.get(suite);
+    const outer = scopes.get(container);
+    if (!inner || !outer) continue; // unreachable: covers() requires both scopes
+    skipped.push({
+      label: suite.rule.label,
+      scope: formatScope(inner),
+      containerLabel: container.rule.label,
+      containerScope: formatScope(outer),
+    });
+  }
+
+  return { kept: suites.filter((s) => !droppedBy.has(s)), skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -781,19 +954,24 @@ async function main() {
     }
   };
 
-  if (hasConfigChange) {
-    console.log("⚙️  Config or pipeline files changed. Using pattern-based matching.");
-  }
-
   // Signal 1 — always runs; fails closed to FULL_CORE_SUITE internally if
   // nothing matches.
   addSuites(selectSuites(expandedChangedFiles));
   const ranFullCore = suites.some((s) => s.rule.label === FULL_CORE_SUITE.label);
 
+  if (hasConfigChange) {
+    console.log(
+      ranFullCore
+        ? "⚙️  Config or pipeline files changed — full core suite selected."
+        : "⚙️  Config or pipeline files changed — dependency graph still runs alongside patterns.",
+    );
+  }
+
   // Signal 2 — additive only. Skipped once we've already decided to run
-  // everything, or for systemic config changes where import tracing isn't
-  // meaningful.
-  if (!runAll && !hasConfigChange && !ranFullCore) {
+  // everything. Config changes (package.json, lockfiles, …) do NOT disable
+  // it: a version bump routinely rides along with real source edits, and the
+  // graph build is cheap next to silently under-testing that diff.
+  if (!runAll && !ranFullCore) {
     console.log("🕸️  Building file dependency graph...");
     const graph = buildDependencyGraph(ROOT);
     const affected = findTransitiveDependents(expandedChangedFiles, graph);
@@ -812,7 +990,7 @@ async function main() {
 
       if (unitFiles.length > 0) {
         const mb = getMergeBase();
-        const changesInDiff = expandedChangedFiles.flatMap((f) => extractChangedIdentifiers(f, mb));
+        const changesInDiff = extractChangedIdentifiers(mb);
         let filterFlag = "";
 
         if (changesInDiff.length > 0 && changesInDiff.length < 15) {
@@ -1003,6 +1181,29 @@ async function main() {
     }
   }
 
+  // ── Scope-containment dedupe ────────────────────────────────────────────
+  // Execution-time only: the plan above still shows every suite that was
+  // considered. See dedupeContainedSuites() for the never-deduped cases.
+  const failClosed = suites.some((s) => s.rule.gate === 0);
+  const dedupe = failClosed
+    ? { kept: suites, skipped: [] as DedupedSuite[] }
+    : dedupeContainedSuites(suites, ROOT);
+
+  if (failClosed) {
+    console.log("\n🔁 Scope dedupe: not applied — fail-closed plan runs everything.");
+  } else if (dedupe.skipped.length > 0) {
+    console.log(
+      `\n🔁 Scope dedupe: ${dedupe.skipped.length} suite(s) already covered by a broader Vitest scope — skipping:`,
+    );
+    for (const s of dedupe.skipped) {
+      console.log(
+        `   ↳ skipped "${s.label}" [${s.scope}] — already covered by "${s.containerLabel}" [${s.containerScope}]`,
+      );
+    }
+  } else {
+    console.log("\n🔁 Scope dedupe: no redundant Vitest scopes in this plan.");
+  }
+
   if (listOnly) {
     console.log("\n✅ Listed only. Use without --list to execute.");
     return;
@@ -1012,7 +1213,7 @@ async function main() {
   console.log("\n" + "═".repeat(60));
   console.log("🚀 Executing test suites...\n");
 
-  let suitesToRun = [...suites];
+  let suitesToRun = [...dedupe.kept];
 
   while (suitesToRun.length > 0) {
     const results: { label: string; gate: number; code: number }[] = [];

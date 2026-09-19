@@ -133,7 +133,7 @@ After successful 2FA verification, the browser flow can pass `trustDevice: true`
 **Endpoint**: `POST /api/auth/2fa/disable`  
 **Payload**: `{ "password": "current_password" }` — Requires current password verification before disabling.
 
-````mermaid
+```mermaid
 sequenceDiagram
     participant User
     participant Auth as Auth Handler (auth.ts)
@@ -194,12 +194,13 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 
 **Start** — `GET /api/auth/oidc-login`
 
-| Query | Required | Description |
-| :---- | :------- | :---------- |
-| `provider` | Yes | Provider `id` from `SSO_PROVIDERS` (e.g. `azure-ad`, `auth0`) |
-| `redirect_uri` | No | Defaults to `{origin}/api/auth/oidc-callback` |
+| Query          | Required | Description                                                   |
+| :------------- | :------- | :------------------------------------------------------------ |
+| `provider`     | Yes      | Provider `id` from `SSO_PROVIDERS` (e.g. `azure-ad`, `auth0`) |
+| `redirect_uri` | No       | Defaults to `{origin}/api/auth/oidc-callback`                 |
 
 **Flow**:
+
 1. Load providers from settings; 404 if `provider` unknown
 2. Generate RFC 7636 PKCE `code_verifier` (32-byte CSPRNG) and `code_challenge` (`BASE64URL(SHA256(verifier))`), along with CSRF `state` + `nonce`; store in short-lived HttpOnly cookie `oidc_login_state` (10 min, `SameSite=Lax`)
 3. OIDC discovery (`/.well-known/openid-configuration`) populates authorize/token/jwks/end_session when not set manually
@@ -207,13 +208,14 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 
 **Callback** — `GET /api/auth/oidc-callback`
 
-| Query | Required | Description |
-| :---- | :------- | :---------- |
-| `code` | Yes | Authorization code from OP |
-| `state` | Yes | Must match cookie `state` |
-| `error` | No | OP error → 400 |
+| Query   | Required | Description                |
+| :------ | :------- | :------------------------- |
+| `code`  | Yes      | Authorization code from OP |
+| `state` | Yes      | Must match cookie `state`  |
+| `error` | No       | OP error → 400             |
 
 **Flow**:
+
 1. Validate `state` against cookie; retrieve `code_verifier`; clear cookie
 2. Exchange `code` at token endpoint sending `code_verifier` (RFC 7636 PKCE verification)
 3. Verify `id_token` signature via **JWKS** (RS256/ES256; 1h JWKS cache). Without `jwks_uri`, only structural claim checks
@@ -230,29 +232,30 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 **Endpoint**: `GET /api/auth/sso-providers`, `POST /api/auth/sso-providers`
 
 **Access Control**:
+
 - `GET`: Returns public provider metadata (`PublicSsoProvider[]`) for unauthenticated or non-admin callers (safe for login buttons). Returns full configs with client secrets masked (`••••••••`) for authenticated admins.
 - `POST`: Restricted to **Administrators** (`isAdmin === true`). Validates provider configurations, preserves existing secrets when placeholder `••••••••` is passed, and persists to encrypted system preferences.
 
 **Provider Configuration Schema (`SsoProviderConfig`)**:
 
-| Field | Type | Description |
-| :---- | :--- | :---------- |
-| `id` | `string` | Unique provider key (e.g. `google`, `azure-ad`, `okta`, `auth0`) |
-| `name` | `string` | Display label for login buttons (e.g. "Google Workspace") |
-| `icon` | `string` | Iconify identifier (e.g. `flat-color-icons:google`, `logos:okta`) |
-| `issuer` | `string` | OIDC issuer URL (used for discovery) |
-| `clientId` | `string` | Client ID registered with the identity provider |
-| `clientSecret` | `string` | Client Secret (stored securely, masked as `••••••••` in API reads) |
-| `allowedRedirectUris` | `string[]` | Allowed redirect URIs for login and RP-initiated logout |
-| `authorizationEndpoint` | `string?` | Optional override for authorize endpoint |
-| `tokenEndpoint` | `string?` | Optional override for token exchange endpoint |
-| `jwksUri` | `string?` | Optional override for JWKS certificate endpoint |
-| `endSessionEndpoint` | `string?` | Optional override for federated logout endpoint |
-| `scopes` | `string[]` | OAuth scopes requested (default `["openid", "profile", "email"]`) |
-| `jitProvisioning` | `boolean` | Enable Just-In-Time auto-provisioning for new users (default `true`) |
-| `defaultRole` | `string` | Default role assigned to new JIT accounts (default `"user"`) |
-| `roleMapping` | `object` | `{ claimField: string, rules: { claimValue: string, role: string }[] }` |
-| `syncRolesOnLogin` | `boolean` | Re-evaluate and synchronize roles on subsequent logins |
+| Field                   | Type       | Description                                                             |
+| :---------------------- | :--------- | :---------------------------------------------------------------------- |
+| `id`                    | `string`   | Unique provider key (e.g. `google`, `azure-ad`, `okta`, `auth0`)        |
+| `name`                  | `string`   | Display label for login buttons (e.g. "Google Workspace")               |
+| `icon`                  | `string`   | Iconify identifier (e.g. `flat-color-icons:google`, `logos:okta`)       |
+| `issuer`                | `string`   | OIDC issuer URL (used for discovery)                                    |
+| `clientId`              | `string`   | Client ID registered with the identity provider                         |
+| `clientSecret`          | `string`   | Client Secret (stored securely, masked as `••••••••` in API reads)      |
+| `allowedRedirectUris`   | `string[]` | Allowed redirect URIs for login and RP-initiated logout                 |
+| `authorizationEndpoint` | `string?`  | Optional override for authorize endpoint                                |
+| `tokenEndpoint`         | `string?`  | Optional override for token exchange endpoint                           |
+| `jwksUri`               | `string?`  | Optional override for JWKS certificate endpoint                         |
+| `endSessionEndpoint`    | `string?`  | Optional override for federated logout endpoint                         |
+| `scopes`                | `string[]` | OAuth scopes requested (default `["openid", "profile", "email"]`)       |
+| `jitProvisioning`       | `boolean`  | Enable Just-In-Time auto-provisioning for new users (default `true`)    |
+| `defaultRole`           | `string`   | Default role assigned to new JIT accounts (default `"user"`)            |
+| `roleMapping`           | `object`   | `{ claimField: string, rules: { claimValue: string, role: string }[] }` |
+| `syncRolesOnLogin`      | `boolean`  | Re-evaluate and synchronize roles on subsequent logins                  |
 
 ### RP-Initiated Logout
 
@@ -266,12 +269,14 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 | `state` | Optional | Opaque value for CSRF protection, echoed back by the OP |
 
 **Flow**:
+
 1. Browser sends logout request with OIDC params
 2. SveltyCMS terminates the local session and clears cookies
 3. If the OP has an `end_session_endpoint` (config or discovery), the browser is redirected there for federated logout
 4. On success, the browser lands at `post_logout_redirect_uri` (if provided and valid)
 
 **Security**:
+
 - RFC 7636 PKCE with `S256` SHA-256 method on all authorization code exchanges
 - Login CSRF mitigated via short-lived HttpOnly `state` cookie; `nonce` bound into authorize request
 - `post_logout_redirect_uri` validated against provider allowlist
@@ -295,11 +300,11 @@ API Keys enable programmatic access for CI/CD pipelines, external services, and 
 
 ### Key Management
 
-| Operation      | Endpoint               | Method   | Description                                      |
-| :------------- | :--------------------- | :------- | :----------------------------------------------- |
-| **List Keys**  | `/api/api-keys`        | `GET`    | Returns all keys for authenticated user (no hash) |
-| **Create Key** | `/api/api-keys`        | `POST`   | Returns plaintext `sck_*` key **once**            |
-| **Revoke Key** | `/api/api-keys/{id}`   | `DELETE` | Owner or admin only; purges credential cache      |
+| Operation      | Endpoint             | Method   | Description                                       |
+| :------------- | :------------------- | :------- | :------------------------------------------------ |
+| **List Keys**  | `/api/api-keys`      | `GET`    | Returns all keys for authenticated user (no hash) |
+| **Create Key** | `/api/api-keys`      | `POST`   | Returns plaintext `sck_*` key **once**            |
+| **Revoke Key** | `/api/api-keys/{id}` | `DELETE` | Owner or admin only; purges credential cache      |
 
 > **Security**: Plaintext keys are shown exactly once at creation. After that, only the SHA-256 hash is stored. Revoked keys stop authenticating within 60 seconds (credential cache TTL).
 
@@ -357,12 +362,12 @@ WebAuthn provides phishing-resistant biometric authentication via platform authe
 
 ### Remote Functions
 
-| Function                     | Auth Required | Description                              |
-| :--------------------------- | :-----------: | :--------------------------------------- |
-| `getPasskeyAuthOptions`      |      No       | Returns challenge for login              |
-| `verifyPasskeyAuth`          |      No       | Validates assertion, creates session     |
-| `getPasskeyRegisterOptions`  |      Yes      | Returns challenge for registration       |
-| `verifyPasskeyRegister`      |      Yes      | Validates attestation, stores credential |
+| Function                    | Auth Required | Description                              |
+| :-------------------------- | :-----------: | :--------------------------------------- |
+| `getPasskeyAuthOptions`     |      No       | Returns challenge for login              |
+| `verifyPasskeyAuth`         |      No       | Validates assertion, creates session     |
+| `getPasskeyRegisterOptions` |      Yes      | Returns challenge for registration       |
+| `verifyPasskeyRegister`     |      Yes      | Validates attestation, stores credential |
 
 ### Database
 
@@ -371,9 +376,9 @@ Authenticators are stored as a JSON array on the User record:
 ```typescript
 interface Authenticator {
   credentialId: string;
-  publicKey: JsonWebKey;  // COSE to JWK converted
-  counter: number;         // Clone detection
-  transports?: string[];   // ["internal", "usb", "nfc", "ble"]
+  publicKey: JsonWebKey; // COSE to JWK converted
+  counter: number; // Clone detection
+  transports?: string[]; // ["internal", "usb", "nfc", "ble"]
 }
 ```
 
@@ -401,11 +406,11 @@ The GDPR compliance endpoint implements regulatory data portability (Article 20)
 
 ### `POST /api/gdpr`
 
-| Action | Payload | Description |
-| :--- | :--- | :--- |
-| `export` | `{ "action": "export", "userId": "<id>" }` | **Article 20 Data Portability**: Exports user profile metadata and audit trail history. |
-| `anonymize` | `{ "action": "anonymize", "userId": "<id>", "reason": "..." }` | **Article 17 Soft Erasure**: Replaces PII with pseudonymized ghost identities while maintaining schema foreign key integrity. |
-| `erase` / `wipe` | `{ "action": "erase", "userId": "<id>", "reason": "..." }` | **Article 17 Deep Wipe**: Permanently erases user identity and cascades across active sessions, tokens, and audit logs with 0 orphans. |
+| Action           | Payload                                                        | Description                                                                                                                            |
+| :--------------- | :------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
+| `export`         | `{ "action": "export", "userId": "<id>" }`                     | **Article 20 Data Portability**: Exports user profile metadata and audit trail history.                                                |
+| `anonymize`      | `{ "action": "anonymize", "userId": "<id>", "reason": "..." }` | **Article 17 Soft Erasure**: Replaces PII with pseudonymized ghost identities while maintaining schema foreign key integrity.          |
+| `erase` / `wipe` | `{ "action": "erase", "userId": "<id>", "reason": "..." }`     | **Article 17 Deep Wipe**: Permanently erases user identity and cascades across active sessions, tokens, and audit logs with 0 orphans. |
 
 ---
 
@@ -416,4 +421,3 @@ The GDPR compliance endpoint implements regulatory data portability (Article 20)
 - [Login Security](../security/login-security.mdx)
 - [Authentication System Architecture](../security/authentication-system.mdx)
 - [ADR: Testing 2026](../../tests/adr-testing-2026.mdx)
-````

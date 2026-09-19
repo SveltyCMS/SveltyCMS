@@ -41,6 +41,7 @@ const validationSchema = (field: FieldInstance & RepeaterProps) => {
 const RepeaterWidget = createWidget<RepeaterProps>({
   Name: "Repeater",
   version: "1.0.0",
+  sveltycms: ">=0.0.8",
   Icon: "mdi:view-list-outline",
   Description: "A list of repeatable items",
   inputComponentPath: "/src/widgets/custom/repeater/input.svelte",

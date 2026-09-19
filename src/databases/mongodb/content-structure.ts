@@ -347,9 +347,6 @@ contentStructureSchema.statics = {
     items: ContentStructureReorderItem[],
     tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
       const bulkOps: mongoose.AnyBulkWriteOperation<ContentStructureDocument>[] = items.map(
         (item) => ({
@@ -369,21 +366,23 @@ contentStructureSchema.statics = {
       ) as any[];
 
       if (bulkOps.length > 0) {
-        await this.bulkWrite(bulkOps, { session });
+        // No session: the adapter owns its connection via `mongoose.createConnection`
+        // (adapter-core), so the default `mongoose.connection` has no client and
+        // `mongoose.startSession()` threw before any write. MongoDB in this stack also
+        // reports `supportsTransactions: false` (standalone), matching the
+        // non-transactional `nodes.bulkUpdate` bulkWrite — one ordered bulkWrite still
+        // persists every item.
+        await this.bulkWrite(bulkOps);
       }
 
-      await session.commitTransaction();
       return { success: true, data: undefined };
     } catch (error) {
-      await session.abortTransaction();
       const message = "Error reordering content structure";
       return {
         success: false,
         message,
         error: createDatabaseError(error, "CONTENT_REORDER_ERROR", message),
       };
-    } finally {
-      session.endSession();
     }
   },
 };

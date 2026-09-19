@@ -352,6 +352,125 @@ describe("User API Unit Tests", () => {
     }
   });
 
+  describe("POST /user account-creation gate (privilege-escalation regression)", () => {
+    const editorRoles = [
+      {
+        _id: "editor",
+        name: "Editor",
+        isAdmin: false,
+        permissions: ["user:read"],
+      },
+    ];
+
+    it("denies non-admin POST /user and never reaches the adapter", async () => {
+      const createSpy = vi.fn().mockResolvedValue({ success: true, data: { _id: "created-1" } });
+      (dbAdapter as any).auth.createUser = createSpy;
+
+      await expectApi(
+        "POST",
+        {
+          path: "user",
+          body: {
+            email: "escalate@test.com",
+            password: "ValidPass1!",
+            username: "escalate",
+            role: "admin",
+            isAdmin: true,
+          },
+          user: editorUser,
+          tenantId: "t1",
+          roles: editorRoles,
+          dbAdapter,
+          bypass: false,
+        },
+        403,
+      );
+      expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    it("allows admin POST /user and forwards the requested role", async () => {
+      const createSpy = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "created-2", email: "fresh@test.com", role: "editor" },
+      });
+      (dbAdapter as any).auth.createUser = createSpy;
+
+      const response = await invokeApi("POST", {
+        path: "user",
+        body: {
+          email: "fresh@test.com",
+          password: "ValidPass1!",
+          username: "fresh",
+          role: "editor",
+        },
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        bypass: false,
+      });
+
+      expect(response.status).toBe(201);
+      const result = await response.json();
+      expect(result.success).toBe(true);
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(createSpy.mock.calls[0][0]).toMatchObject({
+        email: "fresh@test.com",
+        role: "editor",
+      });
+    });
+
+    it("strips role/isAdmin/roles/permissions for a non-admin user manager", async () => {
+      const createSpy = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "created-3", email: "managed@test.com", role: "user" },
+      });
+      (dbAdapter as any).auth.createUser = createSpy;
+
+      const managerUser = createMockUser({
+        _id: "manager-1",
+        role: "user_manager",
+        isAdmin: false,
+        email: "manager@test.com",
+      } as any);
+
+      const response = await invokeApi("POST", {
+        path: "user",
+        body: {
+          email: "managed@test.com",
+          password: "ValidPass1!",
+          username: "managed",
+          role: "admin",
+          isAdmin: true,
+          roles: ["admin"],
+          permissions: ["user:write", "system:admin"],
+        },
+        user: managerUser,
+        tenantId: "t1",
+        roles: [
+          {
+            _id: "user_manager",
+            name: "User Manager",
+            isAdmin: false,
+            permissions: ["user:read", "user:write"],
+          },
+        ],
+        dbAdapter,
+        bypass: false,
+      });
+
+      expect(response.status).toBe(201);
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      const [attrs] = createSpy.mock.calls[0];
+      expect(attrs).not.toHaveProperty("role");
+      expect(attrs).not.toHaveProperty("isAdmin");
+      expect(attrs).not.toHaveProperty("roles");
+      expect(attrs).not.toHaveProperty("permissions");
+      expect(attrs.email).toBe("managed@test.com");
+      expect(attrs.username).toBe("managed");
+    });
+  });
+
   describe("Session management (sessions API)", () => {
     beforeEach(() => {
       mockPrivateSettings.clear();

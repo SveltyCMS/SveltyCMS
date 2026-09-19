@@ -5,10 +5,12 @@
  * Features tested:
  * - health / allCollections signatures (with comments + query keyword)
  * - mutations and multi-field queries stay on Yoga
+ * - client-supplied limits are capped by the shared MAX_PAGE_SIZE bound
  */
 
 import { describe, expect, it } from "vitest";
 import { matchSingleFieldQuery, matchCollectionQuery } from "@src/routes/api/graphql/cost-analyzer";
+import { MAX_PAGE_SIZE } from "@utils/api-params";
 
 describe("matchSingleFieldQuery", () => {
   it("matches health and collection-list bench queries including comment noise", () => {
@@ -72,5 +74,27 @@ describe("matchCollectionQuery (fast-path)", () => {
     expect(
       matchCollectionQuery(`query { Articles { _id title author { name email } } }`),
     ).toBeNull();
+  });
+
+  it("caps an over-cap limit with the shared MAX_PAGE_SIZE bound", () => {
+    const matched = matchCollectionQuery(
+      `query { Articles(pagination: { limit: 100000000 }) { _id title } }`,
+    );
+    expect(matched?.limit).toBe(MAX_PAGE_SIZE);
+    expect(matched?.page).toBe(1);
+  });
+
+  it("caps a top-level over-cap limit argument", () => {
+    expect(matchCollectionQuery(`query { Articles(limit: 100000000) { _id } }`)?.limit).toBe(
+      MAX_PAGE_SIZE,
+    );
+  });
+
+  it("leaves a normal limit untouched", () => {
+    expect(matchCollectionQuery(`query { Articles(limit: 25) { _id } }`)?.limit).toBe(25);
+  });
+
+  it("keeps the default 50 when no limit is given", () => {
+    expect(matchCollectionQuery(`query { Articles { _id } }`)?.limit).toBe(50);
   });
 });

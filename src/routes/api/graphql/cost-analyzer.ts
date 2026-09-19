@@ -16,6 +16,7 @@
  */
 
 import { parse, visit, type ASTNode, type DocumentNode, type FieldNode } from "graphql";
+import { clampPageSize } from "@utils/api-params";
 
 /** Default maximum query cost before rejection. */
 export const DEFAULT_MAX_COST = 1000;
@@ -143,7 +144,7 @@ function applyArgTokens(
               ? boolVal === "true"
               : undefined;
 
-    if (key === "limit" && typeof val === "number") result.limit = val;
+    if (key === "limit" && typeof val === "number") result.limit = clampPageSize(val, 50);
     else if (key === "page" && typeof val === "number") result.page = val;
     else if (key === "sort" && typeof val === "string") {
       if (val.startsWith("-")) {

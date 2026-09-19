@@ -34,6 +34,7 @@ import {
 } from "drizzle-orm";
 import type { FindOptions, QueryCondition } from "../db-interface";
 import { acquireConditionsArray, applyTenantFilter, safeDate } from "./relational-utils";
+import { normalizeSortDirection } from "./page-utils";
 
 /**
  * Universal Drizzle write executor across SQLite (.run()), LibSQL (.run()), and PostgreSQL/MariaDB (thenable).
@@ -1073,21 +1074,25 @@ export function applyOrderBy(
         if (Array.isArray(item) && item.length >= 2) {
           normalizedSorts.push({
             field: item[0],
-            direction: item[1] as "asc" | "desc",
+            direction: normalizeSortDirection(item[1]),
           });
         } else if (typeof item === "object" && item !== null) {
           const keys = Object.keys(item);
           if (keys.length > 0) {
             const field = keys[0];
-            const direction = (item as any)[field];
-            normalizedSorts.push({ field, direction });
+            normalizedSorts.push({
+              field,
+              direction: normalizeSortDirection((item as any)[field]),
+            });
           }
         }
       }
     } else if (typeof options.sort === "object") {
       for (const field of Object.keys(options.sort)) {
-        const direction = (options.sort as any)[field];
-        normalizedSorts.push({ field, direction });
+        normalizedSorts.push({
+          field,
+          direction: normalizeSortDirection((options.sort as any)[field]),
+        });
       }
     }
 

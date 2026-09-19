@@ -79,7 +79,12 @@ function formatMdxDoc(filePath: string): void {
   }
 }
 import { analyzeTrend, classifyRootCause } from "../../tests/benchmarks/modules/benchmark-analysis";
-import { loadHistory } from "../../tests/benchmarks/modules/benchmark-history";
+import {
+  loadHistory,
+  persistRun,
+  type BenchmarkServerMode,
+  type HistoryEntry,
+} from "../../tests/benchmarks/modules/benchmark-history";
 import {
   buildCollapsedLedgerTagInner,
   buildExecutiveReport,
@@ -310,7 +315,7 @@ async function getScriptTrend(
     const row = db
       .query(
         `SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as prev_val
-        FROM runs
+        FROM matrix_runs
         WHERE db_key = ? AND status = 'SUCCESS'
         ORDER BY timestamp DESC LIMIT 1 OFFSET 1`,
       )
@@ -353,12 +358,22 @@ async function generateTrendBlock(
   title: string,
   unit: string = "ms",
 ) {
-  const trend = await getTrendDetails(db, dbKey, (m as any)[liveKey], historyKey);
   const budget = (PERFORMANCE_BUDGET as any)[metricKey];
   const budgetText = budget ? ` | **Target:** < ${budget}${unit}` : "";
 
   let block = `### 🏷️ ${title} {#${metricKey}}\n`;
-  block += `**${label}:** ${(m as any)[liveKey].toFixed(3)}${unit}${budgetText} | **Trend:** ${trend.icon} (${trend.pct})\n`;
+  const value = Number((m as Record<string, unknown>)?.[liveKey]);
+  if (!Number.isFinite(value)) {
+    // Partial runs (`--only=…`) never produce every metric. Report the gap — a
+    // throw here aborts the whole ledger pass (regression detection, per-adapter
+    // ledgers, executive summary) while the run itself was fine.
+    block += `**${label}:** — (not measured in this run)${budgetText} | **Trend:** ⚪ (—)\n`;
+    block += `> ${desc}\n\n`;
+    return block;
+  }
+
+  const trend = await getTrendDetails(db, dbKey, value, historyKey);
+  block += `**${label}:** ${value.toFixed(3)}${unit}${budgetText} | **Trend:** ${trend.icon} (${trend.pct})\n`;
   block += `> ${desc}\n\n`;
   return block;
 }
@@ -420,7 +435,7 @@ export async function buildFullAuditLedger(
     const history = db
       .query(
         `
-        SELECT metrics_json FROM runs
+        SELECT metrics_json FROM matrix_runs
         WHERE db_key = ? AND status = 'SUCCESS'
         ORDER BY timestamp DESC LIMIT 10
     `,
@@ -475,11 +490,89 @@ async function releaseLock(lockName: string) {
 }
 
 /**
+ * 📈 Persist this matrix invocation's per-metric rows into the metric-keyed trend
+ * store (`history.sqlite.runs`) — mode-stamped `matrix` + production parity.
+ *
+ * The matrix is the only production-parity harness, yet its samples used to land
+ * solely in `history.jsonl` + the per-adapter `matrix_runs` snapshots. Every trend
+ * table the published ledgers render therefore compared production-parity matrix
+ * numbers against standalone (often TEST_MODE) baselines — the 1.089 vs 0.595 ms
+ * cache-invalidation artifact. Persisting here (and filtering by `server_mode` on
+ * read) keeps each series inside one measurement mode.
+ *
+ * Idempotent: the trend store dedups on (run_id, run_mode, test_id, db_type, redis,
+ * phase, metric), so a repeated finalize cannot double-write.
+ */
+function persistMatrixTrendRows(cfg?: {
+  runId?: string;
+  serverMode?: BenchmarkServerMode;
+}): number {
+  if (!cfg?.runId) return 0;
+  const serverMode = cfg.serverMode ?? "unknown";
+  // Mode parity guard — same contract as `exportResult()`: a matrix row is only
+  // recordable when it was measured against a production-parity server.
+  if (serverMode !== "production") {
+    log.warn(
+      `Mode parity: refusing to persist trend rows for run ${cfg.runId} — server mode is "${serverMode}", expected "production".`,
+    );
+    return 0;
+  }
+  const jsonlPath = path.join(ROOT_RESULTS_DIR, "history.jsonl");
+  if (!fsSync.existsSync(jsonlPath)) return 0;
+  let persisted = 0;
+
+  try {
+    const lines = fsSync.readFileSync(jsonlPath, "utf8").trim().split("\n").filter(Boolean);
+    const latest = new Map<string, Record<string, any>>();
+    for (const line of lines) {
+      const entry = JSON.parse(line) as Record<string, any>;
+      if (entry.runId !== cfg.runId) continue;
+      if ((entry.status ?? "SUCCESS") !== "SUCCESS") continue;
+      // Last write per test+metric wins — the invocation's final sample.
+      latest.set(`${entry.testFile}|${entry.metric}`, entry);
+    }
+
+    for (const entry of latest.values()) {
+      const testFile = String(entry.testFile || "unknown").replace(/\\/g, "/");
+      const testId = path.basename(testFile).replace(/\.test\.ts$/i, "");
+      const phase = /cold-start|setup-proxy/i.test(testId) ? "cold" : "warm";
+      const result: HistoryEntry = {
+        runId: cfg.runId,
+        runMode: "matrix",
+        serverMode,
+        testId,
+        dbType: String(entry.db || "sqlite"),
+        redisEnabled: entry.redis === true,
+        phase,
+        metric: String(entry.metric ?? "avg"),
+        avgMs: Number(entry.avgMs ?? 0),
+        p95Ms: Number(entry.p95Ms ?? 0),
+        rps: Number(entry.rps ?? 0),
+        errorCount: 0,
+        status: "SUCCESS",
+      };
+      if (persistRun(result)) persisted++;
+    }
+  } catch (err) {
+    log.warn(
+      `Trend rows not persisted for run ${cfg.runId}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  return persisted;
+}
+
+/**
  * Orchestrates the final report generation.
  */
 export async function generateFinalReport(
   resultsIn: BenchmarkResult[] = [],
-  _cfg?: RunConfig,
+  cfg?: RunConfig & {
+    runId?: string;
+    serverMode?: BenchmarkServerMode;
+    /** Report keys (e.g. `sqlite`, `sqlite-redis`) invoked by this run. */
+    databases?: string[];
+  },
 ): Promise<RegressionResult[]> {
   const scanned = await scanResultsDirectory();
   const results = [...resultsIn];
@@ -502,6 +595,21 @@ export async function generateFinalReport(
       };
     }
   }
+
+  // 🎯 SCOPE TO THE INVOCATION: the runner calls this once per adapter, so only the
+  // adapters it actually measured may be rewritten. Without this, a partial run
+  // (`--db=sqlite --only=…`) regenerated every other adapter's report from stale
+  // disk artifacts — and, because `resultsIn` stayed empty, regression detection
+  // and `isPartial` lost their reference set entirely.
+  const invokedKeys = new Set(cfg?.databases ?? []);
+  if (invokedKeys.size > 0 && resultsIn.length === 0) {
+    for (const r of results) {
+      if (invokedKeys.has(r.db)) resultsIn.push({ ...r });
+    }
+  }
+  const scopedResults =
+    invokedKeys.size > 0 ? results.filter((r) => invokedKeys.has(r.db)) : results;
+
   const now = new Date().toISOString();
 
   const { Database } = await import("bun:sqlite");
@@ -509,8 +617,14 @@ export async function generateFinalReport(
   const db = new Database(sqliteHistoryFile);
 
   try {
+    // ⚠️ This is the MATRIX SNAPSHOT table (one row per adapter per run, `db_key` +
+    // `metrics_json`) — deliberately NOT named `runs`: `runs` is the metric-keyed
+    // TREND table owned by tests/benchmarks/modules/benchmark-history.ts. Using the
+    // same name made `CREATE TABLE IF NOT EXISTS` a silent no-op, so every insert
+    // here threw `table runs has no column named db_key` — which the caller swallowed,
+    // disabling regression detection + ledgers + executive summary for months.
     db.exec(`
-      CREATE TABLE IF NOT EXISTS runs (
+      CREATE TABLE IF NOT EXISTS matrix_runs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT,
         db_key TEXT,
@@ -531,7 +645,7 @@ export async function generateFinalReport(
     `);
 
     // Schema migration for older tables missing these columns
-    const existingCols = db.query("PRAGMA table_info(runs)").all() as {
+    const existingCols = db.query("PRAGMA table_info(matrix_runs)").all() as {
       name: string;
     }[];
     const existingColNames = new Set(existingCols.map((c) => c.name));
@@ -544,7 +658,7 @@ export async function generateFinalReport(
     ];
     for (const [col, def] of newCols) {
       if (!existingColNames.has(col)) {
-        db.exec("ALTER TABLE runs ADD COLUMN " + col + " " + def);
+        db.exec("ALTER TABLE matrix_runs ADD COLUMN " + col + " " + def);
       }
     }
 
@@ -568,7 +682,7 @@ export async function generateFinalReport(
     const latestMetrics: Record<string, ReturnType<typeof extractMetrics>> = {};
 
     const insert = db.prepare(`
-      INSERT INTO runs (timestamp, db_key, status, cold_start_ms, collections_p95, graphql_avg, mem_growth, cpu_load, middleware_hooks_p95, index_pressure_p95, adapter_read_avg, mixed_workload_aggregate, auth_avg, host_info_json, metrics_json)
+      INSERT INTO matrix_runs (timestamp, db_key, status, cold_start_ms, collections_p95, graphql_avg, mem_growth, cpu_load, middleware_hooks_p95, index_pressure_p95, adapter_read_avg, mixed_workload_aggregate, auth_avg, host_info_json, metrics_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -601,6 +715,12 @@ export async function generateFinalReport(
     // 🚀 Detect performance regressions — only on CURRENT run's DBs, not stale disk data
     const currentDbKeys = new Set(resultsIn.map((r) => r.db));
     const currentResults = results.filter((r) => currentDbKeys.has(r.db));
+
+    // 📈 Metric-keyed trend rows for THIS invocation (mode-stamped, parity-only).
+    const trendRows = persistMatrixTrendRows(cfg);
+    if (trendRows > 0)
+      log.success(`Trend store updated: ${trendRows} metric rows (matrix/production).`);
+
     const result = await detectRegressions(currentResults);
     const perfRegressions = result.regressions;
     const _report = result.report;
@@ -612,7 +732,7 @@ export async function generateFinalReport(
       try {
         await updateDatabaseSpecificReports(
           db,
-          results,
+          scopedResults,
           latestMetrics,
           resultsIn,
           perfRegressions,
@@ -622,7 +742,7 @@ export async function generateFinalReport(
 
         // 🚀 Build ranked executive summary from history.sqlite
         const isPartial = resultsIn.length < ALL_DATABASES.length;
-        await writeRankedExecutiveSummary(db, results, isPartial);
+        await writeRankedExecutiveSummary(db, scopedResults, isPartial);
         log.success("Ranked executive summary updated.");
 
         log.success("Enterprise Benchmark technical ledgers updated.");
@@ -648,16 +768,24 @@ async function writeRankedExecutiveSummary(
   const dbKeys = [...new Set(results.map((r) => r.db))];
 
   for (const dbKey of dbKeys) {
-    // Query recent regressions for this DB
+    // Trend rows for this adapter — the metric-keyed `runs` table owned by
+    // benchmark-history.ts, filtered to production-parity matrix samples so a
+    // standalone/TEST_MODE series can never masquerade as a regression basis.
+    // (The old query targeted `benchmark_runs` + a `p50_ms` column; neither exists
+    // in the trend schema, so this summary silently never rendered.)
+    const dbType = dbKey.replace("-redis", "");
+    const redisOn = dbKey.includes("redis") ? 1 : 0;
     const regressions = db
       .query(
-        `SELECT test_id, avg_ms, p50_ms, p95_ms, rps, phase, timestamp
-         FROM benchmark_runs
-         WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
+        `SELECT test_id, avg_ms, p95_ms, rps, phase, timestamp
+         FROM runs
+         WHERE db_type = ? AND redis = ? AND status = 'SUCCESS' AND avg_ms > 0
+           AND run_mode = 'matrix'
+           AND COALESCE(NULLIF(server_mode, ''), 'unknown') = 'production'
          ORDER BY timestamp DESC
          LIMIT 200`,
       )
-      .all(dbKey) as any[];
+      .all(dbType, redisOn) as any[];
 
     if (regressions.length < 2) continue;
 
@@ -822,7 +950,7 @@ async function updateBenchmarkIndexReport(
 
       const last = db
         .query(
-          `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
+          `SELECT * FROM matrix_runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
         )
         .get(dbKey) as any;
       if (last && curr.status === "FAILED" && m) {
@@ -836,7 +964,7 @@ async function updateBenchmarkIndexReport(
     } else {
       const last = db
         .query(
-          `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
+          `SELECT * FROM matrix_runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
         )
         .get(dbKey) as any;
       if (last) {
@@ -847,7 +975,12 @@ async function updateBenchmarkIndexReport(
     }
 
     if (m) {
-      tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ${status} | ${curr?.coldStartMs || 0}ms | ${m.collections.toFixed(3)}ms | ${m.graphqlAvg.toFixed(3)}ms | ${m.systemCpu.toFixed(1)}% | ${m.memGrowth.toFixed(1)}MB |\n`;
+      // Metrics are optional: a partial run (`--only=…`) or a run whose scripts
+      // were skipped leaves holes. Format them as "—" instead of throwing — a
+      // single missing metric must not abort the whole report pass.
+      const fmt = (value: number | undefined, digits: number, unit: string): string =>
+        Number.isFinite(value) ? `${(value as number).toFixed(digits)}${unit}` : "—";
+      tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ${status} | ${curr?.coldStartMs || 0}ms | ${fmt(m.collections, 3, "ms")} | ${fmt(m.graphqlAvg, 3, "ms")} | ${fmt(m.systemCpu, 1, "%")} | ${fmt(m.memGrowth, 1, "MB")} |\n`;
     } else {
       tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ⚪ N/A | - | - | - | - | - |\n`;
     }
@@ -964,7 +1097,7 @@ tags:
     // the last COMPLETE run, not from itself.
     const last = db
       .query(
-        `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS'${currentRunTimestamp ? " AND timestamp < ?" : ""} ORDER BY timestamp DESC LIMIT 1`,
+        `SELECT * FROM matrix_runs WHERE db_key = ? AND status = 'SUCCESS'${currentRunTimestamp ? " AND timestamp < ?" : ""} ORDER BY timestamp DESC LIMIT 1`,
       )
       .all(...(currentRunTimestamp ? [dbKey, currentRunTimestamp] : [dbKey])) as any[];
     const previousRun = last?.[0] || null;
@@ -1089,7 +1222,7 @@ tags:
 
     const mermaidHist = db
       .query(
-        `SELECT collections_p95 FROM runs WHERE db_key = ? AND status = 'SUCCESS' AND collections_p95 > 0 ORDER BY timestamp DESC LIMIT 10`,
+        `SELECT collections_p95 FROM matrix_runs WHERE db_key = ? AND status = 'SUCCESS' AND collections_p95 > 0 ORDER BY timestamp DESC LIMIT 10`,
       )
       .all(dbKey) as Array<{ collections_p95: number }>;
     const mermaidPoints = mermaidHist.map((h) => h.collections_p95).reverse();
@@ -1219,7 +1352,12 @@ tags:
         .toUpperCase();
 
       const testId = path.basename(script.path).replace(/\.test\.ts$/i, "");
-      const history = loadHistory(testId, dbType, redisOn, "warm");
+      // Mode parity: this block renders matrix/production trends, so it may only
+      // compare against rows measured the same way.
+      const history = loadHistory(testId, dbType, redisOn, "warm", undefined, {
+        runMode: "matrix",
+        serverMode: "production",
+      });
       const prior = history.slice(0, -1);
       const currentSample =
         history.length > 0

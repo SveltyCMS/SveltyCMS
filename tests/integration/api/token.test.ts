@@ -103,9 +103,11 @@ describe("Token API Endpoints", () => {
       invitationToken = createResult.token.value;
     });
 
-    describe("GET /api/token/[tokenId]", () => {
+    describe("GET /api/token/validate-token/[tokenId]", () => {
       it("should validate an existing and valid token", async () => {
-        const response = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`);
+        const response = await safeFetch(
+          `${API_BASE_URL}/api/token/validate-token/${invitationToken}`,
+        );
         const result = await response.json();
 
         if (response.status !== 200) {
@@ -118,7 +120,9 @@ describe("Token API Endpoints", () => {
       });
 
       it("should return 404 for a non-existent token", async () => {
-        const response = await safeFetch(`${API_BASE_URL}/api/token/non-existent-token`);
+        const response = await safeFetch(
+          `${API_BASE_URL}/api/token/validate-token/non-existent-token`,
+        );
         expect(response.status).toBe(404);
       });
     });
@@ -132,7 +136,9 @@ describe("Token API Endpoints", () => {
         expect(response.status).toBe(200);
 
         // Verify the token is actually deleted
-        const checkResponse = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`);
+        const checkResponse = await safeFetch(
+          `${API_BASE_URL}/api/token/validate-token/${invitationToken}`,
+        );
         expect(checkResponse.status).toBe(404);
       });
 
@@ -519,8 +525,8 @@ describe("Token API Endpoints", () => {
       const tokenAValue = resultA.token?.value ?? resultA.data?.token ?? resultA.data;
       expect(tokenAValue, "tenant A token value").toBeTruthy();
 
-      // Token A is valid for public validate by value
-      const verifyA = await safeFetch(`${API_BASE_URL}/api/token/${tokenAValue}`, {
+      // Token A is valid for public validate by value (public allowlist path)
+      const verifyA = await safeFetch(`${API_BASE_URL}/api/token/validate-token/${tokenAValue}`, {
         headers: { "x-test-tenant-id": tenantA },
       });
       expect(verifyA.status).toBe(200);
@@ -599,7 +605,7 @@ describe("Token API Endpoints", () => {
       expect(batchB.status).toBeLessThan(500);
 
       // Tenant A token still validates
-      const stillA = await safeFetch(`${API_BASE_URL}/api/token/${tokenAValue}`, {
+      const stillA = await safeFetch(`${API_BASE_URL}/api/token/validate-token/${tokenAValue}`, {
         headers: { "x-test-tenant-id": tenantA },
       });
       expect(stillA.status).toBe(200);

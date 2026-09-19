@@ -14,8 +14,7 @@
 import type { RequestEvent, RequestHandler } from "@sveltejs/kit";
 import { handleApiError } from "./error-handling";
 import { logger } from "./logger";
-
-const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB
+import { API_MAX_BODY_SIZE_BYTES } from "@utils/api-body-limits";
 
 type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
 
@@ -36,7 +35,7 @@ export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {
 
     // 🛡️ DoS Prevention: reject requests with oversized bodies before parsing
     const contentLength = event.request.headers.get("content-length");
-    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+    if (contentLength && parseInt(contentLength, 10) > API_MAX_BODY_SIZE_BYTES) {
       return new Response(
         JSON.stringify({
           error: "Request body exceeds maximum size",

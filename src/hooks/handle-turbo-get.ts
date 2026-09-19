@@ -102,6 +102,19 @@ export function clearTurboAuthCache(): void {
   turboAuthCache.clear();
 }
 
+/**
+ * Invalidate all turbo-auth cache entries for a specific user.
+ * Called when roles change or the user is blocked/deleted/unblocked
+ * so privilege changes take effect immediately without waiting for TTL expiry.
+ */
+export function invalidateTurboAuthForUser(userId: string): void {
+  for (const [key, ctx] of turboAuthCache.entries()) {
+    if (ctx.user?._id === userId || (ctx.user as unknown as { id?: string })?.id === userId) {
+      turboAuthCache.delete(key);
+    }
+  }
+}
+
 function isCacheableApiPath(pathname: string): boolean {
   if (!pathname.startsWith("/api/")) return false;
   for (let i = 0; i < CACHEABLE_PREFIXES.length; i++) {

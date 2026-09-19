@@ -237,8 +237,6 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
    const secret = getPrivateSetting("JWT_SECRET_KEY");
    ```
 
-````
-
 3. **`getAllSettings()` in client code**
    ```typescript
    // ❌ BLOCKED - Returns both public AND private settings!
@@ -683,4 +681,3 @@ The enterprise security architecture provides **comprehensive protection** throu
 6. ✅ **Credentials Protection**: Build-time enforcement prevents sensitive data exposure
 
 This multi-layered approach ensures enterprise-grade security while maintaining optimal performance and user experience.
-````

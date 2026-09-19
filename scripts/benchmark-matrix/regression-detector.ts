@@ -121,6 +121,8 @@ function detectColdWarmRatioRegressions(
     const query = db.query(
       `SELECT metric, phase, avg_ms FROM runs
        WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
+         AND run_mode = 'matrix'
+         AND COALESCE(NULLIF(server_mode, ''), 'unknown') = 'production'
        ORDER BY timestamp DESC LIMIT 600`,
     );
     const rows = query.all(baseDb) as {

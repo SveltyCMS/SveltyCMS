@@ -23,7 +23,15 @@ declare global {
   var vi: {
     fn: typeof import("bun:test").Mock;
     spyOn: typeof import("bun:test").spyOn;
-    mock: (path: string, factory?: () => any) => void;
+    /**
+     * Register a module mock. The factory form replaces the module; Vitest's
+     * `{ spy: true }` form keeps the real exports and wraps them in spies so
+     * call-through counts can be asserted with `vi.mocked(...)`.
+     */
+    mock(path: string, factory?: () => any): void;
+    mock(path: string, options: { spy: true }): void;
+    /** Narrow an imported function to its mocked type for call assertions. */
+    mocked<T>(item: T): T;
     clearAllMocks: () => void;
     resetAllMocks: () => void;
     restoreAllMocks: () => void;

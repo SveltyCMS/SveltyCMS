@@ -12,7 +12,8 @@
  * - chunked state-machine parser (never buffers the entire request body)
  * - binary-safe: raw `Uint8Array` chunks pass through untouched
  * - per-file backpressure via push-based `ReadableStream`
- * - configurable size limits per part and total body
+ * - configurable size limits per part and total body (incremental 413 abort)
+ * - aborts the body read on failure — never drains a rejected request
  * - filename sanitization (path separators, null bytes, reserved names)
  * - MIME-type allowlist validation
  * - proper error propagation with partial-upload cleanup hooks
@@ -29,7 +30,7 @@
  * ```
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import { isAllowedUploadMime } from "./media-utils";
 
 // ---------------------------------------------------------------------------
@@ -141,6 +142,8 @@ export async function parseMultipartStream(
   /** Accumulated raw bytes not yet consumed by the parser. */
   let buffer: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
   let totalRead = 0;
+  /** Fatal error surfaced by an `onFile` handler (e.g. an incremental size cap). */
+  let callbackError: unknown = null;
   // Type assertion prevents TS narrowing to the initial variant
   let state = { tag: "find-initial" } as ParserState;
 
@@ -197,6 +200,9 @@ export async function parseMultipartStream(
 
             // Fire onFile immediately — the stream receives bytes as they arrive
             const filePromise = callbacks.onFile(partInfo).catch((err) => {
+              // A rejected handler is fatal: record it so the read loop aborts the
+              // request instead of draining a body we have already rejected.
+              callbackError ??= err;
               pushStream.error(
                 err instanceof Error ? err : new AppError("File handler failed", 500),
               );
@@ -234,9 +240,7 @@ export async function parseMultipartStream(
               state.bodySize = curSize + safeLen;
 
               if (state.bodySize > maxFileSize) {
-                const err = new AppError(`File exceeds maximum size: ${state.filename}`, 413);
-                pushStream.error(err);
-                throw err;
+                raise(413, `File exceeds maximum size: ${state.filename}`, "PAYLOAD_TOO_LARGE");
               }
             }
             return;
@@ -251,9 +255,7 @@ export async function parseMultipartStream(
               state.bodySize = curSize + finalChunk.length;
 
               if (state.bodySize > maxFileSize) {
-                const err = new AppError(`File exceeds maximum size: ${state.filename}`, 413);
-                pushStream.error(err);
-                throw err;
+                raise(413, `File exceeds maximum size: ${state.filename}`, "PAYLOAD_TOO_LARGE");
               }
             }
           }
@@ -315,6 +317,8 @@ export async function parseMultipartStream(
 
   try {
     while (true) {
+      if (callbackError) throw callbackError;
+
       const chunk = await readWithTimeout(reader, timeoutMs);
 
       if (chunk.done) {
@@ -326,12 +330,12 @@ export async function parseMultipartStream(
 
       totalRead += chunk.value.length;
       if (totalRead > maxTotal) {
-        abortActiveStreams(activeStreams, new AppError("Upload exceeds maximum total size", 413));
-        throw new AppError("Upload exceeds maximum total size", 413);
+        raise(413, "Upload exceeds maximum total size", "PAYLOAD_TOO_LARGE");
       }
 
       buffer = concat(buffer, chunk.value);
       await pumpStateMachine();
+      if (callbackError) throw callbackError;
     }
 
     // If we finished in the middle of a field, deliver it
@@ -339,6 +343,14 @@ export async function parseMultipartStream(
       callbacks.onField(state.name, state.value);
     }
   } catch (err) {
+    // Release the retained bytes and stop pulling from the client — a rejected
+    // body must never be drained to completion just to observe its size.
+    buffer = new Uint8Array(0);
+    try {
+      await reader.cancel();
+    } catch {
+      // Body stream already closed/errored — nothing left to cancel.
+    }
     // Clean up any active push streams so their readers don't hang
     abortActiveStreams(
       activeStreams,

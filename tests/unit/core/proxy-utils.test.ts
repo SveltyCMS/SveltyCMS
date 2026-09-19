@@ -248,6 +248,63 @@ describe("proxy-utils (core database + SDK proxies)", () => {
       expect(lastCall[0]).toEqual([1, 2, 3]);
       expect(lastCall[1]).toEqual({ tenantId: defaultTenant });
     });
+
+    it("memoizes the wrapper per property (same function reference) while still injecting tenantId", () => {
+      const ns = { findMany: vi.fn() };
+      const proxied = createTenantInjectingProxy(ns, makeInject(defaultTenant));
+
+      // A page render makes 10–50 adapter calls: each access must NOT allocate a
+      // fresh closure — the memo returns the identical wrapper.
+      const first = (proxied as any).findMany;
+      const second = (proxied as any).findMany;
+      expect(second).toBe(first);
+
+      // …and the memoized wrapper still injects the tenant on every call.
+      first("coll", { limit: 5 });
+      second("coll", { limit: 6 });
+
+      expect(ns.findMany).toHaveBeenNthCalledWith(1, "coll", {
+        limit: 5,
+        tenantId: defaultTenant,
+      });
+      expect(ns.findMany).toHaveBeenNthCalledWith(2, "coll", {
+        limit: 6,
+        tenantId: defaultTenant,
+      });
+    });
+
+    it("re-wraps when the underlying method is re-assigned (memo never calls a stale ref)", () => {
+      const ns: { findMany: (coll: string, opts?: Record<string, any>) => unknown } = {
+        findMany: vi.fn(),
+      };
+      const proxied = createTenantInjectingProxy(ns, makeInject(defaultTenant));
+
+      const first = (proxied as any).findMany;
+      const replacement = vi.fn();
+      ns.findMany = replacement as typeof ns.findMany;
+      const second = (proxied as any).findMany;
+
+      expect(second).not.toBe(first); // identity guard invalidates the memo
+      second("coll", {});
+      expect(replacement).toHaveBeenCalledWith("coll", { tenantId: defaultTenant });
+    });
+
+    it("memoizes per proxy, never globally (two tenants never share a wrapper)", () => {
+      const nsA = { findMany: vi.fn() };
+      const nsB = { findMany: vi.fn() };
+      const proxyA = createTenantInjectingProxy(nsA, makeInject("tenant-A" as DatabaseId));
+      const proxyB = createTenantInjectingProxy(nsB, makeInject("tenant-B" as DatabaseId));
+
+      const fnA = (proxyA as any).findMany;
+      const fnB = (proxyB as any).findMany;
+      expect(fnA).not.toBe(fnB);
+
+      fnA("coll", {});
+      fnB("coll", {});
+
+      expect(nsA.findMany).toHaveBeenCalledWith("coll", { tenantId: "tenant-A" });
+      expect(nsB.findMany).toHaveBeenCalledWith("coll", { tenantId: "tenant-B" });
+    });
   });
 
   // ============================================================================

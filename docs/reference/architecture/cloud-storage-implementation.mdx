@@ -186,8 +186,6 @@ else
    } from "./cloudStorage";
    ```
 
-````
-
 2. **`saveFileToDisk()`**: Now returns URL instead of void
 
    ```typescript
@@ -204,7 +202,7 @@ else
    }
    // Local save...
    return `/files/${relativePath}`; // Local URL
-````
+   ```
 
 3. **`deleteFile()`**: Cloud-aware deletion
 
@@ -601,15 +599,13 @@ const trends = getTrends(breakdown);
    console.log("Media Folder:", config.mediaFolder);
    ```
 
-````
-
 2. **Test Cloud Operations**:
 
    ```typescript
    const testPath = "test/file.txt";
    console.log("Cloud Path:", getCloudPath(testPath));
    console.log("Cloud URL:", getCloudUrl(testPath));
-````
+   ```
 
 3. **Verify Credentials**:
 

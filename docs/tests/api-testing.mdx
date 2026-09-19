@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:api-check"
 author: "SveltyCMS Team"
 created: "2026-02-17"
-updated: "2026-08-19"
+updated: "2026-09-19"
 tags:
   - "testing"
   - "api"
@@ -69,8 +69,9 @@ Our API tests operate at the **integration** level. Unlike unit tests, they boot
 
 ### User & Token Management
 
-- **User Lifecycle**: Creation, login/logout, multi-tenant isolation, and role-based access.
-- **Token System**: JWT creation, rotation, and revocation.
+- **User Lifecycle**: Creation, login/logout, multi-tenant isolation, and role-based access. `POST /api/user` and `GET /api/user` strictly require `user:write`/`user:read` authorization, stripping non-admin privilege fields (`role`, `roles`, `isAdmin`, `roleIds`, `permissions`).
+- **Token System**: JWT creation, rotation, and revocation. `/api/token/*` enforces a strict positive allowlist (only public route is `GET /api/token/validate-token/{value}`).
+- **Payload & Page Limits**: Streaming body counter enforces 15 MB `API_MAX_BODY_SIZE_BYTES` limit even on chunked requests; `MAX_PAGE_SIZE = 200` enforced centrally.
 - **State Verification**: Usage of `get-user` action to verify post-registration database state.
 
 ### Content & Relational APIs
@@ -102,9 +103,9 @@ Each job reuses the shared test secret, provisions an isolated database, boots t
 
 ### Run All Integration Tests
 
-````bash
+```bash
 bun run test:integration
-```text
+```
 
 ### Targeted Testing (day-to-day loop)
 
@@ -151,7 +152,6 @@ See [Headless-First Test Inventory](./headless-test-inventory.mdx).
 ---
 
 _Last Updated: July 15, 2026_
-````
 
 ---
 

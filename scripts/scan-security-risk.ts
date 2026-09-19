@@ -281,8 +281,13 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
     /\bstripPrivilegedUserFields\b|\bstripPrivilegeEscalationFields\b|\bsanitizeClientUserAttributePatch\b|\bPRIVILEGED_USER_FIELDS\b|\bPRIVILEGE_ESCALATION_FIELDS\b|\bhasPrivilegedUserFields\b|\ballowPrivilegeEscalation\b/.test(
       content,
     );
+  // The write is the CALL to updateUserAttributes — dispatchers, permission
+  // maps and docs may name the "update-user-attributes" action (or import
+  // handlers/auth) without ever writing user attributes, so the bare route
+  // literal must not arm this rule.
+  const callsUpdateUserAttributes = /\bupdateUserAttributes\s*\(/.test(content);
   const isUserAttrApiPath =
-    /handlers[\\/]auth|update-user-attributes|updateUserAttributesRoute|handleUpdateUserAttributes|handleUserSpecificRoutes/.test(
+    /handlers[\\/]auth|updateUserAttributesRoute|handleUpdateUserAttributes|handleUserSpecificRoutes/.test(
       relPath + content,
     ) ||
     (/[\\/]routes[\\/]api[\\/]/.test(relPath) &&
@@ -292,7 +297,7 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
   if (
     isServerFile &&
     isUserAttrApiPath &&
-    /\bupdateUserAttributes\b|update-user-attributes/.test(content) &&
+    callsUpdateUserAttributes &&
     /\brequest\.json\b|\.json\(\)/.test(content) &&
     !hasPrivilegePolicy
   ) {

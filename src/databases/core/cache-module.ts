@@ -9,6 +9,7 @@
  */
 
 import type { DatabaseResult, CacheOptions, ISqlAdapter } from "../db-interface";
+import { buildCollectionCacheTags } from "./collection-name";
 
 let _cacheServiceCache: any = null;
 
@@ -64,7 +65,8 @@ export class CacheModule {
     tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
     const cacheService = await getCacheService();
-    await cacheService.clearByTags([`collection:${collection}`], tenantId ?? undefined);
+    // Schema id + normalised physical name — see buildCollectionCacheTags.
+    await cacheService.clearByTags(buildCollectionCacheTags(collection), tenantId ?? undefined);
     await this.incrementVersion(tenantId);
     return { success: true, data: undefined };
   }

@@ -46,7 +46,7 @@ We write dedicated accessibility specs to audit critical user flows:
 - **`tests/e2e/accessibility.spec.ts`** — Keyboard focus indicator visibility test: verifies that the focused element has a visible focus ring (not `outline: none`) when navigating the admin interface via Tab key.
 - **`tests/e2e/routes/login/accessibility.spec.ts`** — Login flow accessibility audit.
 
-````typescript
+```typescript
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -76,7 +76,7 @@ test.describe("Accessibility Audits", () => {
     expect(accessibilityScanResults.violations).toEqual([]);
   });
 });
-```text
+```
 
 ### CI Failure Criteria
 
@@ -115,7 +115,7 @@ test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
   );
   expect(criticalViolations.length).toBe(0);
 });
-```text
+```
 
 ### Key RTL Guidelines for Component Developers
 
@@ -154,7 +154,7 @@ test("Keyboard Navigation - Dialog Focus Trap", async ({ page }) => {
   const activeElementId = await page.evaluate(() => document.activeElement?.id);
   expect(activeElementId).not.toBeNull();
 });
-```text
+```
 
 ---
 
@@ -174,7 +174,7 @@ If any issues are found, the factory prints compile-time accessibility warnings 
 ```
 [Accessibility Warning] Widget 'ColorPicker' has potential WCAG compliance issues:
   - Interactive element '<input type="text" ...>' lacks 'aria-label', 'aria-labelledby', or 'id'.
-```text
+```
 
 ---
 
@@ -207,7 +207,7 @@ test("Focus Restoration - Relations Widget modal close", async ({ page }) => {
   // Focus must return to the trigger element
   await expect(relationTrigger).toBeFocused();
 });
-```text
+```
 
 ---
 
@@ -242,8 +242,7 @@ You can execute accessibility checks locally using the following workflows:
 ```
 # Run the E2E accessibility suite (automated axe, keyboard, and RTL checks)
 npx playwright test tests/e2e/accessibility.spec.ts tests/e2e/routes/login/accessibility.spec.ts
-```text
-````
+```
 
 ---
 

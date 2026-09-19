@@ -109,6 +109,17 @@ interface PayloadSnapshot {
   text?: string;
 }
 
+/**
+ * Fast-path verdicts computed once in analyzeRequest() and reused by
+ * analyzePayload() so the surface/UA scans run at most once per request.
+ */
+interface SurfaceScan {
+  pathnameClean: boolean;
+  searchClean: boolean;
+  /** UA verdict; absent when the surface was dirty and the UA scan is deferred. */
+  uaVerdict?: ThreatLevel;
+}
+
 // ============================================================================
 // SECURITY RESPONSE SERVICE
 // ============================================================================
@@ -207,23 +218,35 @@ export class SecurityResponseService {
     // GET allow-path: skip IP-keyed work when the caller passed no IP, and skip
     // rate-limit/throttle machinery when the process is test/dev or the path is
     // a non-API read. Clean collection URLs return here without concat or regex.
+    // Cheap predicates are hoisted above the scans: a production /api/ read can
+    // never take the fast allow (its rate limiter is live), so scanning there
+    // would only duplicate what analyzePayload() re-checks. The throttle gate
+    // keys on clientIp alone and stays ahead of the rate limiter for every read;
+    // the later sync+distributed pass would reject the same IP anyway.
+    let surfaceScan: SurfaceScan | undefined;
     if (isReadOnly && !forceSecurity) {
-      const ua = request.headers.get("user-agent") || "";
-      if (
-        ua &&
-        isCleanRequestSurface(pathname) &&
-        isCleanRequestSurface(search) &&
-        AuthGuardService.scanUserAgent(ua) === "none"
-      ) {
-        if (clientIp) {
-          const throttle = securityStore.getThrottleSync(clientIp);
-          if (throttle && throttle.until > Date.now()) {
-            return { level: "medium", action: "throttle", reason: "IP is throttled" };
-          }
+      if (clientIp) {
+        const throttle = securityStore.getThrottleSync(clientIp);
+        if (throttle && throttle.until > Date.now()) {
+          return { level: "medium", action: "throttle", reason: "IP is throttled" };
         }
-        const isApiPath = pathname.startsWith("/api/");
-        if (!isApiPath || this.shouldSkipRateLimit(false)) {
-          return ALLOW_STATUS;
+      }
+      const isApiPath = pathname.startsWith("/api/");
+      if (!isApiPath || this.shouldSkipRateLimit(false)) {
+        const ua = request.headers.get("user-agent") || "";
+        if (ua) {
+          const pathnameClean = isCleanRequestSurface(pathname);
+          if (pathnameClean) {
+            const searchClean = isCleanRequestSurface(search);
+            surfaceScan = { pathnameClean, searchClean };
+            if (searchClean) {
+              const uaVerdict = AuthGuardService.scanUserAgent(ua);
+              surfaceScan.uaVerdict = uaVerdict;
+              if (uaVerdict === "none") return ALLOW_STATUS;
+            }
+          } else {
+            surfaceScan = { pathnameClean: false, searchClean: false };
+          }
         }
       }
     }
@@ -258,7 +281,13 @@ export class SecurityResponseService {
       }
     }
 
-    const threatOrPromise = this.analyzePayload(request, payloadSnapshot, pathname, search);
+    const threatOrPromise = this.analyzePayload(
+      request,
+      payloadSnapshot,
+      pathname,
+      search,
+      surfaceScan,
+    );
     const threatLevel =
       threatOrPromise !== null && typeof threatOrPromise === "object" && "then" in threatOrPromise
         ? await threatOrPromise
@@ -287,6 +316,7 @@ export class SecurityResponseService {
     payloadSnapshot?: PayloadSnapshot,
     pathname?: string,
     search?: string,
+    surfaceScan?: SurfaceScan,
   ): ThreatLevel | Promise<ThreatLevel> {
     const parsed =
       pathname !== undefined ? { pathname, search: search ?? "" } : splitRequestUrl(request.url);
@@ -303,14 +333,22 @@ export class SecurityResponseService {
       Boolean(request.body);
     const userAgent = request.headers.get("user-agent") || "";
 
-    // 99.9% GET allow-path: one alphabet pass, no concat, no second URL scan
-    if (
-      !isMutation &&
-      isCleanRequestSurface(parsed.pathname) &&
-      isCleanRequestSurface(parsed.search) &&
-      AuthGuardService.scanUserAgent(userAgent) === "none"
-    ) {
-      return "none";
+    // 99.9% GET allow-path: one alphabet pass, no concat, no second URL scan.
+    // analyzeRequest() already computed these verdicts for read-only requests;
+    // only mutations, forced security, and production /api/ reads (whose live
+    // rate limiter makes its fast allow unreachable) reach here without them.
+    let uaVerdict = surfaceScan?.uaVerdict;
+    if (!isMutation) {
+      const pathnameClean = surfaceScan
+        ? surfaceScan.pathnameClean
+        : isCleanRequestSurface(parsed.pathname);
+      const searchClean =
+        pathnameClean &&
+        (surfaceScan ? surfaceScan.searchClean : isCleanRequestSurface(parsed.search));
+      if (pathnameClean && searchClean) {
+        uaVerdict ??= AuthGuardService.scanUserAgent(userAgent);
+        if (uaVerdict === "none") return "none";
+      }
     }
 
     let maxThreat: ThreatLevel = "none";
@@ -320,7 +358,10 @@ export class SecurityResponseService {
     );
     if (urlThreat === "critical") return "critical";
     maxThreat = this.upgradeThreat(maxThreat, urlThreat);
-    maxThreat = this.upgradeThreat(maxThreat, AuthGuardService.scanUserAgent(userAgent));
+    maxThreat = this.upgradeThreat(
+      maxThreat,
+      uaVerdict ?? AuthGuardService.scanUserAgent(userAgent),
+    );
 
     if (isMutation) {
       return this.scanMutationBody(request, payloadSnapshot, parsed, maxThreat);

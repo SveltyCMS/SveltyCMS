@@ -8,7 +8,7 @@
  * - Atomic increment for counter fields (views, likes, etc.)
  * - Cross-collection search with pagination
  * - Revision history retrieval
- * - Streaming JSON responses for large datasets (>500 items)
+ * - Streaming JSON responses at the page-size ceiling (MAX_PAGE_SIZE) or explicit `stream=true`
  * - Weak collection-generation ETags (`W/"cv1|…"`) with If-None-Match 304
  * - Cursor-streamed NDJSON / CSV / JSON export (`GET …/export`)
  */
@@ -34,7 +34,7 @@ import {
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
-import { parseCollectionQueryParams } from "@utils/api-params";
+import { MAX_PAGE_SIZE, parseCollectionQueryParams } from "@utils/api-params";
 import { getUserCacheId } from "@utils/hook-utils";
 import {
   collectionEtagResponseHeaders,
@@ -313,8 +313,10 @@ export async function handleCollectionFind(
   const conditional = collectionConditionalGet(event, collectionId, bypassEtag);
   if (conditional instanceof Response) return conditional;
 
-  // Streaming for large datasets or explicit stream requests
-  const isLargeRequest = params.limit > 500;
+  // Streaming for the largest page the parser can produce or explicit stream requests.
+  // The client limit is clamped to MAX_PAGE_SIZE, so "large" is now "at the cap" —
+  // the old `> 500` threshold could never be reached and the intent was silently lost.
+  const isLargeRequest = params.limit >= MAX_PAGE_SIZE;
   if (params.stream || isLargeRequest) {
     const iterator = await cms.collections.findStreaming(collectionId, {
       tenantId,
@@ -740,7 +742,7 @@ async function handleCollectionBatchAction(
 
   if (!action) {
     throw new AppError(
-      'Batch action required. Expected { action: "delete" | "clone" | "status", entryIds }',
+      'Batch action required. Expected { action: "delete" | "clone" | "status" | "update", entryIds }',
       400,
     );
   }
@@ -760,6 +762,25 @@ async function handleCollectionBatchAction(
 
   if (action === "clone") {
     return runBulkClone(event, cms, tenantId, user, collectionId, body);
+  }
+
+  if (action === "update" || action === "edit") {
+    const ids = extractEntryIds(body);
+    if (ids.length === 0) {
+      throw new AppError("entryIds[] is required for bulk update", 400);
+    }
+    if (ids.length > MAX_BULK_ITEMS) {
+      throw new AppError(
+        `Bulk update limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+        413,
+      );
+    }
+    const data = (body.data || body.fields || body.payload || {}) as Record<string, unknown>;
+    const updates = ids.map((id) => ({ id, data: { ...data } }));
+    return successResponse(
+      event,
+      await cms.collections.bulkUpdate(collectionId, updates, { user: user!, tenantId }),
+    );
   }
 
   throw new AppError(`Unsupported batch action: ${action}`, 400);

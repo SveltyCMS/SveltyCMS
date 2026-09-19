@@ -3,13 +3,13 @@
  * @description Runtime gate tests for /api/testing — no backdoor without harness env + secret.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { handleTestingRoutes } from "@src/routes/api/[...path]/handlers/testing";
 
 describe("testing API runtime gate", () => {
   const envSnapshot = { ...process.env };
 
   beforeEach(() => {
-    vi.resetModules();
     process.env = { ...envSnapshot, NODE_ENV: "production" };
     delete process.env.TEST_MODE;
     delete process.env.BENCHMARK;
@@ -19,7 +19,6 @@ describe("testing API runtime gate", () => {
 
   afterEach(() => {
     process.env = { ...envSnapshot };
-    vi.resetModules();
   });
 
   it("rejects hardcoded benchmark secret when harness env is unset", async () => {
@@ -34,8 +33,6 @@ describe("testing API runtime gate", () => {
       }),
       url: new URL("http://localhost/api/testing"),
     } as any;
-
-    const { handleTestingRoutes } = await import("@src/routes/api/[...path]/handlers/testing");
 
     // Production NODE_ENV hard-closes with 403 (not 401) — fail-closed, no backdoor
     await expect(handleTestingRoutes(event, {} as any, "global" as any, [])).rejects.toMatchObject({
@@ -60,8 +57,6 @@ describe("testing API runtime gate", () => {
       }),
       url: new URL("http://localhost/api/testing"),
     } as any;
-
-    const { handleTestingRoutes } = await import("@src/routes/api/[...path]/handlers/testing");
 
     await expect(handleTestingRoutes(event, {} as any, "global" as any, [])).rejects.toMatchObject({
       status: 401,

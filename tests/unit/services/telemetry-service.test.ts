@@ -52,7 +52,14 @@ describe("TelemetryService Environment Checks", () => {
     delete process.env.CI;
     delete process.env.VITEST;
     delete process.env.NODE_ENV;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ status: "ok" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
     const result = await telemetryService.checkUpdateStatus();
     expect(result).toBeDefined();
+    fetchSpy.mockRestore();
   });
 });

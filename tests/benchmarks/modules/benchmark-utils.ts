@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pushTableToMdx, appendSummaryToMdx } from "./benchmark-reporting";
+import { resolveServerMode, isModeContaminated, reportModeRefusal } from "./benchmark-history";
 import { logger } from "@utils/logger";
 import { takeProfileSpans } from "@src/utils/write-profiler";
 import type { DatabaseId } from "@src/content/types";
@@ -1387,6 +1388,19 @@ export async function seedBenchmarkState(): Promise<void> {
         { db_fieldName: "data", label: "Data", widget: { Name: "JSON" }, type: "string" },
       ],
     },
+    // 📦 ZSTD-ASYNC: bench_zstd_payload powers the api-latency compression
+    // scenario, which needs a GET body above `SYNC_MAX_SIZE` (64 KiB) to reach the
+    // async (streaming) zstd tier. Rows are seeded by the test itself; the
+    // collection must be provisioned here so the REST dispatcher knows it (a
+    // collection created at runtime 404s — the server caches the schema store).
+    {
+      _id: "bench_zstd_payload",
+      name: "bench_zstd_payload",
+      fields: [
+        { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "content", label: "Content", widget: { Name: "Input" }, type: "string" },
+      ],
+    },
   ];
   await Promise.all(
     collectionSchemas.map(async (schema) => {
@@ -1553,7 +1567,19 @@ export async function setupBenchmarkServer() {
   process.env.TEST_API_SECRET = secret;
   process.env.ADMIN_PASSWORD = adminPw;
   TEST_API_SECRET = secret;
-  const isTestMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+  // 🛡️ MODE PARITY (docs/tests/benchmark-matrix.mdx): `bun test` always sets
+  // TEST_MODE=true (bunfig preload → tests/unit/setup.ts), so a bare env check
+  // would make EVERY standalone benchmark a dev-mode server — that is how the
+  // 0.595 ms cache-invalidation "baseline" was recorded. An explicit
+  // `SVELTY_BENCHMARK_SERVER_MODE` therefore wins over the ambient flags, which
+  // is what makes a documented production-parity standalone baseline possible.
+  const explicitMode = (process.env.SVELTY_BENCHMARK_SERVER_MODE || "").trim().toLowerCase();
+  const isTestMode =
+    explicitMode === "production"
+      ? false
+      : explicitMode === "test"
+        ? true
+        : process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
   if (!isTestMode) {
     delete process.env.TEST_MODE;
     delete process.env.PLAYWRIGHT_TEST;
@@ -1718,6 +1744,16 @@ export async function exportResult(r: any) {
   }
 
   const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
+  const serverMode = resolveServerMode();
+  const modeVerdict = isModeContaminated(runMode, serverMode);
+  if (modeVerdict.contaminated) {
+    // Mode parity guard (docs/tests/benchmark-matrix.mdx): a matrix-labelled row
+    // from a dev/TEST_MODE server is a measurement artifact — refuse it instead of
+    // poisoning the trend ledger with a sample no other matrix row can be
+    // compared against (2026-09-18: 0.538 ms cache-invalidation artifact).
+    reportModeRefusal(`${r.name} (${testFile || "unknown"})`, modeVerdict.reason);
+    return;
+  }
   const wallClockMs = _benchmarkTestStartTime > 0 ? performance.now() - _benchmarkTestStartTime : 0;
 
   // Build structured entry — spans + event-loop telemetry become trendable
@@ -1725,6 +1761,8 @@ export async function exportResult(r: any) {
   const spans = takeProfileSpans();
   const entry = {
     runMode,
+    // Mode parity stamp — trend comparisons filter on this (never compare modes).
+    serverMode,
     runId: _currentRunId,
     testFile: testFile || "unknown",
     metric: r.name,

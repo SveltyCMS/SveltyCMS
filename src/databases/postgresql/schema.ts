@@ -305,6 +305,16 @@ export const mediaItems = pgTable(
     folderIdx: index("media_items_folder_idx").on(table.folderId),
     createdByIdx: index("media_items_created_by_idx").on(table.createdBy),
     tenantIdx: index("media_items_tenant_idx").on(table.tenantId),
+    // 🚀 Media gallery: WHERE tenantId = ? AND folderId = ? ORDER BY updatedAt DESC LIMIT 101
+    tenantFolderUpdatedIdx: index("media_items_tenant_folder_updated_idx").on(
+      table.tenantId,
+      table.folderId,
+      table.updatedAt.desc(),
+    ),
+    tenantUpdatedIdx: index("media_items_tenant_updated_idx").on(
+      table.tenantId,
+      table.updatedAt.desc(),
+    ),
     // Performance: Trigram indexes for fast media searching
     filenameTrgmIdx: index("media_items_filename_trgm_idx").using(
       "gin",

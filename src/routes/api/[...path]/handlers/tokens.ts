@@ -16,6 +16,7 @@ import { type DatabaseId } from "@src/databases/db-interface";
 import { rawResponse, successResponse } from "./base";
 import { raise } from "@utils/error-handling";
 import { getClientIp, isAdmin } from "@utils/hook-utils";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { parsePaginationQueryParams } from "@src/utils/api-params";
 import { recordListQuery } from "@utils/list-query-metrics";
 
@@ -148,8 +149,19 @@ export async function handleTokenRoutes(
   // All other methods require authentication
   if (!locals.user) raise(401, "Authentication required", "UNAUTHORIZED");
 
+  // Token management is a privileged surface — API_PERMISSIONS maps `api:token`
+  // to admin only. Previously any authenticated session passed this point, and
+  // the public-route catch-all kept the dispatcher's endpoint-permission gate
+  // out of the picture (including for PUT/DELETE on /api/token/:id).
+  const isAdminUser = !!(locals.isAdmin || isAdmin(locals.user));
   const isWebsite = segments[0] === "website-tokens";
-  if (isWebsite && !(locals.isAdmin || isAdmin(locals.user))) {
+  if (isWebsite) {
+    // Website tokens are bearer credentials — strictly admin-only, never delegated.
+    if (!isAdminUser) raise(403, "Forbidden", "FORBIDDEN");
+  } else if (
+    !isAdminUser &&
+    !hasPermissionWithRoles(locals.user, "api:token", locals.roles ?? [])
+  ) {
     raise(403, "Forbidden", "FORBIDDEN");
   }
 
@@ -245,15 +257,22 @@ export async function handleTokenRoutes(
   if (request.method === "PUT" && action === "update") {
     if (!tokenId) raise(400, "Token ID is required");
     const body = await request.json().catch(() => ({}));
-    const updateData = body.newTokenData || body.data || body;
+    const rawUpdateData: unknown = body.newTokenData || body.data || body;
 
     if (isWebsite) {
-      // Website token update: delegate to websiteTokens module
-      const result = await cms.websiteTokens.update(tokenId, updateData, {
+      // Website token update: delegate to websiteTokens module (admin-only above).
+      const result = await cms.websiteTokens.update(tokenId, rawUpdateData, {
         tenantId,
       });
       if (!result) raise(404, "Website token not found");
       return successResponse(event, result);
+    }
+
+    // Auth-token updates go through a strict allowlist — never forward the raw
+    // client body (see pickTokenUpdateFields).
+    const updateData = pickTokenUpdateFields(rawUpdateData, isAdminUser);
+    if (Object.keys(updateData).length === 0) {
+      raise(400, "No updatable token fields provided", "VALIDATION_FAILED");
     }
 
     const result = await cms.auth.tokens.update(tokenId, updateData, {
@@ -264,6 +283,41 @@ export async function handleTokenRoutes(
   }
 
   raise(404, `Method ${request.method} or action ${action} not implemented`);
+}
+
+/**
+ * Client-writable fields for `PUT /api/token/:id` (auth tokens).
+ *
+ * - Lifecycle — `expires`, `blocked`, `consumed`: activate/deactivate an invite;
+ *   safe for a caller holding the mapped `api:token` permission.
+ * - Identity (admin only) — `email`, `role`: decide who the invite binds and which
+ *   role acceptance grants, so they are gated on isAdmin.
+ *
+ * NEVER client-writable: `user_id`, `type`, `token`, `_id`, `tenantId` (and the
+ * `createdAt`/`updatedAt` timestamps). Re-pointing a reset token at another user
+ * (`user_id`) or changing its flow (`type`) was the account-takeover vector of
+ * the raw-body forward. `expiresInHours` is intentionally dropped — it is not a
+ * token column (adapters store `expires` only; the legacy modal payload already
+ * no-op'd).
+ */
+const TOKEN_UPDATE_LIFECYCLE_FIELDS = ["expires", "blocked", "consumed"] as const;
+const TOKEN_UPDATE_ADMIN_FIELDS = ["email", "role"] as const;
+
+function pickTokenUpdateFields(data: unknown, admin: boolean): Record<string, unknown> {
+  const allowed = admin
+    ? [...TOKEN_UPDATE_LIFECYCLE_FIELDS, ...TOKEN_UPDATE_ADMIN_FIELDS]
+    : TOKEN_UPDATE_LIFECYCLE_FIELDS;
+  const update: Record<string, unknown> = {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) return update;
+
+  const source = data as Record<string, unknown>;
+  for (let i = 0; i < allowed.length; i++) {
+    const key = allowed[i];
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      update[key] = source[key];
+    }
+  }
+  return update;
 }
 
 function scrubApiKey(key: any) {

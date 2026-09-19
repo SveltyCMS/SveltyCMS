@@ -17,6 +17,7 @@ import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
+import { buildCollectionCacheTags } from "../core/collection-name";
 import { cacheMetrics } from "./cache-metrics";
 import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
@@ -984,6 +985,15 @@ export class CacheService {
     return true;
   }
 
+  /**
+   * Clears every L1 key registered under any of `tags`.
+   *
+   * Tag resolution is DEDUPED and single-pass: callers pass supersets (as-passed
+   * + physical + bare spellings from `buildCollectionCacheTags`), so repeated or
+   * empty tags are dropped before the index is touched, and the wildcard-tenant
+   * case walks the reverse index ONCE for the whole tag set instead of restarting
+   * a full index walk per tag (the per-tag walk multiplied with the superset).
+   */
   private clearLocalL1ByTags(tags: string[], tenantId: string | null) {
     if (this.tagMap.size === 0) return;
     const isWildcard =
@@ -991,22 +1001,44 @@ export class CacheService {
     const tid = isWildcard ? null : this.normalizeTenantId(tenantId);
     const tenantKeyPrefix = tid ? `tenant:${tid}:` : null;
 
+    // 1. Distinct, non-empty tags only — the superset builder can emit the same
+    //    spelling twice (e.g. an already-bare collection id) and callers append
+    //    buckets ("collection", "count") that may repeat one of them.
+    const wanted = new Set<string>();
     for (let t = 0; t < tags.length; t++) {
       const tag = tags[t];
-      if (tid) {
-        const scopedTag = this.scopeTag(tag, tid);
+      if (tag) wanted.add(tag);
+    }
+    if (wanted.size === 0) return;
+
+    if (tid) {
+      // Scoped: two O(1) index lookups per tag (tenant-scoped + legacy unscoped).
+      for (const tag of wanted) {
+        const scopedTag = `${tid}:${tag}`;
         const keys1 = this.tagMap.get(scopedTag);
         if (keys1) this.processTagKeys(scopedTag, keys1, tenantKeyPrefix);
         if (scopedTag !== tag) {
           const keys2 = this.tagMap.get(tag);
           if (keys2) this.processTagKeys(tag, keys2, tenantKeyPrefix);
         }
-      } else {
-        const suffix = `:${tag}`;
-        for (const [k, keys] of this.tagMap.entries()) {
-          if (k === tag || k.endsWith(suffix)) {
-            this.processTagKeys(k, keys, tenantKeyPrefix);
-          }
+      }
+      return;
+    }
+
+    // 2. Wildcard tenant: ONE pass over the reverse index for all tags. Index
+    //    keys are `<tenant>:<tag>`, so an exact hit is tried first and the
+    //    suffix set covers the remaining (tag-anywhere) spellings.
+    const suffixes: string[] = [];
+    for (const tag of wanted) suffixes.push(`:${tag}`);
+    for (const [indexKey, keys] of this.tagMap) {
+      if (wanted.has(indexKey)) {
+        this.processTagKeys(indexKey, keys, tenantKeyPrefix);
+        continue;
+      }
+      for (let s = 0; s < suffixes.length; s++) {
+        if (indexKey.endsWith(suffixes[s])) {
+          this.processTagKeys(indexKey, keys, tenantKeyPrefix);
+          break;
         }
       }
     }
@@ -1218,7 +1250,10 @@ export class CacheService {
 
   async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
     if (category === CacheCategory.CONTENT || category === CacheCategory.COLLECTION) {
-      await this.clearByTags(["collection", "content"], tenantId);
+      // Count entries are stored under CONTENT but only carry the per-collection
+      // `count:<name>` tags plus the bare `count` bucket — clear the bucket or
+      // list totals survive a category flush until their TTL expires.
+      await this.clearByTags(["collection", "content", "count"], tenantId);
       await this.clearByPattern("collection:", tenantId);
     } else {
       await this.clearByPattern(`${category}:`, tenantId);
@@ -1227,7 +1262,10 @@ export class CacheService {
 
   async invalidateCollection(collection: string, tenantId: string | null = "*") {
     this.bumpCollectionEpoch(collection, tenantId);
-    await this.clearByTags([`collection:${collection}`, "collection"], tenantId);
+    // List + count tags under BOTH accepted spellings (schema id + normalised
+    // physical name) — callers pass the schema id while count reads are cached
+    // under collectionTableName(id); without both, one side stays stale.
+    await this.clearByTags([...buildCollectionCacheTags(collection), "collection"], tenantId);
     await this.clearByPattern(`collection:${collection}:`, tenantId);
   }
 

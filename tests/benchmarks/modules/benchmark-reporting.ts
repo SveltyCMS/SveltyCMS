@@ -15,11 +15,17 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { logger } from "@utils/logger";
 import {
-  persistRun,
+  isModeContaminated,
   loadHistory,
   loadDistinctTestIds,
+  persistRun,
+  reportModeRefusal,
+  resolveServerMode,
+  type BenchmarkServerMode,
   type HistoryEntry,
+  type HistoryModeFilter,
 } from "./benchmark-history";
 import { analyzeTrend, classifyRootCause, checkBudgets } from "./benchmark-analysis";
 import {
@@ -166,9 +172,17 @@ export async function reportBenchmark(
     (result.status === "SUCCESS" || result.status === undefined) && (result.errorCount || 0) === 0;
 
   if (isPassing && options.mode !== "none") {
+    const runMode = isMatrixRun() ? "matrix" : "standalone";
+    const serverMode = resolveServerMode();
+    const modeVerdict = isModeContaminated(runMode, serverMode);
+    if (modeVerdict.contaminated) {
+      reportModeRefusal(`${result.name} (${options.testFile})`, modeVerdict.reason);
+      return;
+    }
     const entry: HistoryEntry = {
       runId: options.runId,
-      runMode: isMatrixRun() ? "matrix" : "standalone",
+      runMode,
+      serverMode,
       testId,
       dbType,
       redisEnabled,
@@ -229,6 +243,8 @@ const SEVERITY_RANK: Record<string, number> = {
 export interface JsonlRunEntry {
   runId?: string;
   runMode?: string;
+  /** Server mode stamp (mode parity) — absent on pre-2026-09-19 rows. */
+  serverMode?: BenchmarkServerMode;
   testFile: string;
   metric: string;
   layer?: string;
@@ -315,8 +331,13 @@ function buildRunSummaryRows(
     const testFile = normalizeTestFile(entry.testFile);
     const testId = testFile.replace(/^tests\/benchmarks\//, "").replace(/\.test\.ts$/i, "");
     const phase = inferPhase(testFile, entry.phase);
-    // Metric-keyed history — never trend BULK INSERT against INSERT
-    const history = loadHistory(testId, db, redis, phase, entry.metric);
+    // Metric-keyed history — never trend BULK INSERT against INSERT.
+    // Mode-keyed too: compare only same-harness, same-server-mode samples.
+    const modeFilter: HistoryModeFilter = {
+      runMode: entry.runMode || "standalone",
+      serverMode: entry.serverMode ?? "unknown",
+    };
+    const history = loadHistory(testId, db, redis, phase, entry.metric, modeFilter);
     const prior = history.slice(0, -1);
     const trend = analyzeTrend(
       {
@@ -429,7 +450,7 @@ function historySqliteDetailLink(dbType: string, redis: boolean): string {
   const redisFlag = redis ? 1 : 0;
   return [
     `**Detail:** [\`${HISTORY_SQLITE_PATH}\`](../../../${HISTORY_SQLITE_PATH})`,
-    `\`SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='${dbType}' AND redis=${redisFlag} ORDER BY timestamp DESC\``,
+    `\`SELECT test_id, phase, server_mode, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='${dbType}' AND redis=${redisFlag} ORDER BY timestamp DESC\``,
   ].join(" · ");
 }
 
@@ -441,17 +462,25 @@ export function buildHistoryArchiveTable(dbLabel?: string): string {
   const raw = dbLabel || getDbType();
   const dbType = raw.replace("-redis", "").replace("_redis", "");
   const redisEnabled = raw.includes("redis");
-  const testIds = loadDistinctTestIds(dbType);
+  // 📊 MODE PARITY: the published ledger only ever shows production-parity MATRIX
+  // samples (`run_mode='matrix'` + `server_mode='production'`). Rows measured
+  // against a dev/TEST_MODE server, or with a different harness (standalone spawns
+  // its own server), are not comparable and stay out of the series.
+  const modeFilter = {
+    runMode: "matrix",
+    serverMode: "production" as BenchmarkServerMode,
+  };
+  const testIds = loadDistinctTestIds(dbType, modeFilter);
   const dateLabel = new Date().toISOString().slice(0, 10);
   if (testIds.length === 0) {
-    return `\n### Historical Trends (${dateLabel})\n\n> \u23F3 No history recorded yet.\n`;
+    return `\n### Historical Trends (${dateLabel})\n\n> \u23F3 No production-parity history recorded yet (\`server_mode='production'\`).\n`;
   }
 
   const rows: HistorySparklineRow[] = [];
 
   for (const testId of testIds) {
     for (const phase of ["warm", "cold", "mixed"] as const) {
-      const history = loadHistory(testId, dbType, redisEnabled, phase);
+      const history = loadHistory(testId, dbType, redisEnabled, phase, undefined, modeFilter);
       if (history.length === 0) continue;
 
       const samples = history.map((h) => h.avgMs);
@@ -486,6 +515,7 @@ export function buildHistoryArchiveTable(dbLabel?: string): string {
   const sorted = rows.sort((a, b) => b.sortRank - a.sortRank || a.name.localeCompare(b.name));
 
   let summary = `\n### Historical Trends (${dateLabel})\n\n`;
+  summary += `> **Mode:** production-parity matrix runs only (\`run_mode='matrix'\` + \`server_mode='production'\` — \`NODE_ENV=production\`, no \`TEST_MODE\`). Standalone/mode-variant samples are recorded but never trended here.\n\n`;
   summary +=
     "> **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.\n\n";
   summary += `${historySqliteDetailLink(dbType, redisEnabled)}\n\n`;
@@ -658,6 +688,8 @@ export function rebuildSummaryFromHistory(dbLabel?: string, docPath?: string): v
 export interface FinalizeReportOptions {
   /** Test files/ids that executed in this invocation (`exportResult` / `_reportedFiles`). */
   invokedTestFiles?: Iterable<string>;
+  /** Report keys (`sqlite`, `sqlite-redis`, …) this invocation measured. */
+  databases?: string[];
 }
 
 export async function finalizeReport(
@@ -670,9 +702,20 @@ export async function finalizeReport(
         await import("../../../scripts/benchmark-matrix/reporting").catch(() => ({
           generateFinalReport: null,
         }));
-      if (generateFinalReport) await generateFinalReport();
-    } catch {
-      /* matrix reporting optional */
+      if (generateFinalReport)
+        await generateFinalReport([], {
+          runId,
+          serverMode: resolveServerMode(),
+          databases: options.databases,
+        });
+    } catch (err) {
+      // NEVER swallow: a silent throw here disabled the entire matrix reporting
+      // chain (regression detection, per-DB ledgers, executive summary) — it hid
+      // the `runs` table schema collision between this module's trend schema and
+      // the matrix snapshot schema for months while every run printed "OK".
+      logger.warn(
+        `[benchmark-reporting] matrix finalizeReport failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
     return;
   }
@@ -701,7 +744,13 @@ export async function finalizeReport(
       groups.get(key)!.push(entry);
     }
 
-    const previousSameMode = allEntries.filter((e) => e.runMode === runMode && e.runId !== runId);
+    const previousSameMode = allEntries.filter(
+      (e) =>
+        e.runMode === runMode &&
+        // Mode parity: a comparison series must not mix server modes either.
+        (e.serverMode ?? "unknown") === (runEntries[0].serverMode ?? "unknown") &&
+        e.runId !== runId,
+    );
 
     for (const [_key, entries] of groups) {
       const current = entries[entries.length - 1];
@@ -718,6 +767,7 @@ export async function finalizeReport(
         redisEnabled: redis,
         phase,
         metric: current.metric,
+        serverMode: current.serverMode ?? "unknown",
         avgMs: current.avgMs,
         p95Ms: current.p95Ms || 0,
         rps: current.rps || 0,
@@ -743,7 +793,10 @@ export async function finalizeReport(
         rps: e.rps || 0,
         runMode: e.runMode,
       }));
-      const sqliteHistory = loadHistory(testId, db, redis, phase, current.metric);
+      const sqliteHistory = loadHistory(testId, db, redis, phase, current.metric, {
+        runMode,
+        serverMode: current.serverMode ?? "unknown",
+      });
       const sqlitePrior = sqliteHistory.slice(0, -1);
       const prior = jsonlPrior.length > 0 ? jsonlPrior : sqlitePrior;
       const trend = analyzeTrend(

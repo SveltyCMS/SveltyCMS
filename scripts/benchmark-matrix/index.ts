@@ -24,6 +24,9 @@
  *   COMPILE_ALL_ADAPTERS=true bun run build
  *   bun run benchmark --db=sqlite
  *   bun run scripts/benchmark-matrix/index.ts --db=sqlite,mongodb
+ *
+ * Flags: `--db=a,b` (adapters), `--only=name` (substring test filter),
+ * `--continue-on-error`, `--no-build` (never rebuild mid-run — see docs/tests/benchmark-matrix.mdx).
  */
 
 import { spawn, execSync } from "node:child_process";
@@ -76,6 +79,12 @@ const filter = filterRaw ? filterRaw.toLowerCase().split(",").filter(Boolean) : 
 const databases = filter && filter.length > 0 ? DBS.filter((d) => filter.includes(d)) : DBS;
 const CONTINUE_ON_ERROR =
   process.argv.includes("--continue-on-error") || process.argv.includes("--continue");
+
+// 🏗️ `--no-build` (documented): trust the existing production build and never
+// rebuild mid-run. Matrix runs rebuild automatically when artifacts are missing
+// (or when a mid-run cleanup strips the testing harness), which is the right
+// default — but it silently costs minutes on a build that is already current.
+const NO_BUILD = process.argv.includes("--no-build");
 
 // Auto-discover all test files
 const benchmarksDir = path.resolve(process.cwd(), "tests/benchmarks");
@@ -503,6 +512,9 @@ async function run() {
   const profile = resolveBenchmarkProfile();
   process.env.BENCHMARK_PROFILE = profile;
   process.env.BENCHMARK = "true";
+  if (NO_BUILD) {
+    console.log("🏗️  --no-build: using the existing build/ artifacts (no rebuild, no recovery).");
+  }
 
   // Build ordered test list from smart groups
   const allGroupedNames = new Set(GROUPS.flatMap((g) => g.tests));
@@ -621,6 +633,7 @@ async function run() {
      * via testBackdoorStripperPlugin and breaks matrix seed/media.
      */
     const ensureBuildArtifacts = () => {
+      if (NO_BUILD) return; // --no-build: trust the existing production build
       const handler = path.join(process.cwd(), "build", "handler.js");
       const adapterEntry = path.join(process.cwd(), "build", "index.js");
       const yjs = path.join(process.cwd(), "build", "yjs-sync-server.js");
@@ -1041,8 +1054,16 @@ async function run() {
       process.env.DB_TYPE = db;
       process.env.BENCHMARK_MATRIX = "1";
       process.env.USE_REDIS = useRedis ? "true" : "false";
+      // Mode-parity stamp for this runner process: every server it spawns comes from
+      // `serverEnv` (NODE_ENV=production, no TEST_MODE). finalizeReport() reads this
+      // marker and refuses to stamp trend rows with anything but production parity.
+      process.env.SVELTY_BENCHMARK_SERVER_MODE = serverEnv.NODE_ENV || "production";
       const { finalizeReport } = await import("../../tests/benchmarks/modules/benchmark-reporting");
-      await finalizeReport(BENCHMARK_RUN_ID);
+      // Scope the report pass to the adapter this loop just measured — the other
+      // adapters' reports must not be regenerated from stale disk artifacts.
+      await finalizeReport(BENCHMARK_RUN_ID, {
+        databases: [useRedis ? `${db}-redis` : db],
+      });
       process.stdout.write(" OK\n");
     } catch (e: any) {
       process.stdout.write(` ${e.message}\n`);

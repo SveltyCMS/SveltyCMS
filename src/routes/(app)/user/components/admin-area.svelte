@@ -64,6 +64,7 @@
 		type TableDensity
 	} from '@components/ui/smart-table';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
+	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 	// Types
@@ -362,6 +363,8 @@
 
 	$effect(() => {
 		// Update displayTableHeaders when view changes
+		const targetLayoutKey = showUserList ? 'admin-area-users' : 'admin-area-tokens';
+		smartTable.setLayoutKey(targetLayoutKey);
 		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
 					// Essential columns only visible by default — rest available via column toggle
@@ -869,14 +872,16 @@
 							/>
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
+								{@const colKey = String(header.key)}
 								<th
-									class="{SMART_TABLE_TH} cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800/50"
+									class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800/50"
+									style={smartTable.getColumnWidthStyle(colKey)}
 									aria-sort={sorting.sortedBy === header.key
 										? sorting.isSorted === 1
 											? 'ascending'
 											: 'descending'
 										: 'none'}
-									onclick={() => smartTable.setSort(String(header.key))}
+									onclick={() => smartTable.setSort(colKey)}
 								>
 									<div class="flex items-center justify-center gap-1">
 										{header.label}
@@ -888,6 +893,7 @@
 											></iconify-icon>
 										{/if}
 									</div>
+									<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
 								</th>
 							{/each}
 						</tr>
@@ -923,7 +929,7 @@
 									}}
 								/>
 								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-									<td class={SMART_TABLE_TD}>
+									<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(String(header.key))}>
 										{#if header.key === 'blocked'}
 											{#if showUserList}
 												<button

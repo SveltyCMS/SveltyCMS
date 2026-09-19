@@ -22,7 +22,22 @@ import {
 } from "./benchmark-reporting";
 import { buildBenchmarkMetricId, loadHistory, closeHistory } from "./benchmark-history";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+
+// ─────────────────────────────────────────────────────────────
+// Isolation + mode contract
+// ─────────────────────────────────────────────────────────────
+// 1. Writes go to a throwaway results dir — the real trend ledger
+//    (`tests/benchmarks/results/history.sqlite`) must never be deleted or
+//    polluted by a module test.
+// 2. The published archive renders production-parity MATRIX samples only, so this
+//    test declares the same contract the matrix runner stamps into its children:
+//    `BENCHMARK_MATRIX=1` + `SVELTY_BENCHMARK_SERVER_MODE=production`.
+const TEST_RESULTS_DIR = path.join(os.tmpdir(), "svelty-benchmark-reporting-test");
+process.env.RESULTS_DIR = TEST_RESULTS_DIR;
+process.env.BENCHMARK_MATRIX = "1";
+process.env.SVELTY_BENCHMARK_SERVER_MODE = "production";
 
 // ─────────────────────────────────────────────────────────────
 // Helper: clean test artifacts
@@ -30,17 +45,13 @@ import path from "node:path";
 
 function cleanTestArtifacts() {
   closeHistory(); // Release SQLite lock
-  const dbPath = path.resolve(process.cwd(), "tests/benchmarks/results/history.sqlite");
-  if (fs.existsSync(dbPath)) {
+  const dbPath = path.join(TEST_RESULTS_DIR, "history.sqlite");
+  for (const suffix of ["", "-wal", "-shm"]) {
     try {
-      fs.unlinkSync(dbPath);
-    } catch {}
-    try {
-      fs.unlinkSync(dbPath + "-wal");
-    } catch {}
-    try {
-      fs.unlinkSync(dbPath + "-shm");
-    } catch {}
+      fs.unlinkSync(dbPath + suffix);
+    } catch {
+      /* absent is fine */
+    }
   }
 }
 

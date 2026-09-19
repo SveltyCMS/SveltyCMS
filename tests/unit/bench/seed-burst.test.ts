@@ -35,6 +35,7 @@ describe("seedHttpCollectionBurst", () => {
       count: 1,
       concurrency: 1,
       payloadAt: () => ({ title: "t" }),
+      retryDelayMultiplier: 0,
     });
     expect(ids).toHaveLength(1);
     expect(n).toBe(3);
@@ -52,6 +53,7 @@ describe("seedHttpCollectionBurst", () => {
         count: 2,
         concurrency: 1,
         payloadAt: () => ({}),
+        retryDelayMultiplier: 0,
       }),
     ).rejects.toThrow(/Dataset integrity: seeded 0\/2/);
   });

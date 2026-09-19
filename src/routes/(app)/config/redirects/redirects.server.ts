@@ -136,18 +136,23 @@ export async function listRedirects(
   if (result.success && Array.isArray(result.data)) {
     rows = result.data;
   } else {
-    // MV query failed (adapter/migration lag) — best-effort content collection fallback only
+    // MV query failed (adapter/migration lag) — best-effort content collection fallback only.
+    // Streaming path (`crud.streamMany`) is not clamped by MAX_PAGE_SIZE, so the mirror
+    // fallback is not silently truncated to the first public page.
     try {
       const cms = new LocalCMS(dbAdapter);
       const user = getAuthenticatedUser(locals);
-      const col = await cms.collections.find("redirects", {
-        tenantId,
+      const stream = await cms.collections.findStreaming("redirects", {
+        // `locals.tenantId` is a plain string at the type level while the SDK options expect the
+        // branded `DatabaseId`. Type-only assertion: the runtime value is unchanged (tenant scoping
+        // stays, and `undefined` still means "no tenant filter" exactly as in the previous call).
+        tenantId: tenantId as DatabaseId | undefined,
         user,
         limit: 500,
       });
-      if (col.success && Array.isArray(col.data)) {
-        rows = col.data;
-      }
+      const mirror: any[] = [];
+      for await (const row of stream) mirror.push(row);
+      rows = mirror;
     } catch {
       /* collection may not exist yet */
     }

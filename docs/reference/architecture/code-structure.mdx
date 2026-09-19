@@ -1377,8 +1377,6 @@ export default defineConfig({
   const cacheKey = `entries:${collectionId}:page:${page}`;
   ```
 
-````
-
 - **Redis** for distributed caching (optional)
 - **HTTP caching** headers for static assets
 - **CDN** for media files
@@ -1395,7 +1393,7 @@ async function updateEntry(entryId: string, data: any) {
     await cache.delete(`entry:${entryId}:lang:${lang}`);
   }
 }
-````
+```
 
 ---
 
@@ -1472,8 +1470,6 @@ npm run preview
    CMD ["node", "build"]
    ```
 
-````
-
 2. **Vercel/Netlify**
    - Automatic deployments from Git
    - Serverless functions support
@@ -1510,7 +1506,7 @@ function updateValue(newVal: string) {
     value = newVal;
   }
 }
-````
+```
 
 **For API Endpoints:**
 

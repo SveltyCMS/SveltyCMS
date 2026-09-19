@@ -20,6 +20,7 @@
 import {
   test,
   runBenchmark,
+  exportResult,
   exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
@@ -144,6 +145,19 @@ async function runSessionAmrBenchmark(): Promise<void> {
   exportMetric("AUTH SESSION INSERT Δ (amr vs plain)", insertDeltaPct, "%");
   exportMetric("AUTH SESSION READ single (token data)", singleRead.avgMs, "ms");
   exportMetric("AUTH SESSION VALIDATE (per-request)", validate.avgMs, "ms");
+
+  // 📈 Trend rows (history.jsonl + history.sqlite + ledger trend lines).
+  // exportMetric() only feeds the debug CSV — without these the test had no
+  // history at all, so its "baseline" was overwritten by the next run.
+  // The Δ% stays a CSV metric: the trend store is millisecond-keyed.
+  for (const r of [
+    { ...plainInsert, name: "SESSION INSERT (plain)", layer: "AMR" },
+    { ...amrInsert, name: "SESSION INSERT (amr + mfaVerifiedAt)", layer: "AMR" },
+    { ...singleRead, name: "SESSION READ single (session columns)", layer: "AMR" },
+    { ...validate, name: "SESSION VALIDATE (per-request JOIN)", layer: "AMR" },
+  ]) {
+    exportResult(r);
+  }
 
   // Cleanup — dedicated users only, never real sessions.
   for (const userId of [plainUser, amrUser]) {

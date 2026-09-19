@@ -86,6 +86,9 @@ mediaSchema.index({ tenantId: 1, folderId: 1, createdAt: -1 }); // Folder browsi
 mediaSchema.index({ tenantId: 1, createdBy: 1, createdAt: -1 }); // User's media library
 mediaSchema.index({ tenantId: 1, mimeType: 1, createdAt: -1 }); // Filter by file type
 mediaSchema.index({ tenantId: 1, updatedAt: -1 }); // Recent media
+// SQL parity: media_items (tenantId, folderId, updatedAt DESC) — the gallery sorts by
+// updatedAt, which the tenantId+folderId+createdAt index above cannot serve.
+mediaSchema.index({ tenantId: 1, folderId: 1, updatedAt: -1 }); // Folder last-updated / gallery
 mediaSchema.index({ tenantId: 1, folderId: 1, mimeType: 1 }); // Folder + type filtering
 mediaSchema.index({ tenantId: 1, filename: "text", originalFilename: "text" }); // Full-text search on filenames
 

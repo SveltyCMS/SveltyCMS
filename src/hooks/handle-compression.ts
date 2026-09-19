@@ -148,12 +148,57 @@ function zstdCompressOptions(): { dict?: Buffer } {
   return dict ? { dict } : {};
 }
 
+/**
+ * Capability probe for native zstd (Node 22.15+/23.8+ and current Bun).
+ *
+ * Accepts either the callback API (`zstdCompress`, runs on the libuv worker
+ * pool) or the sync API (`zstdCompressSync`, blocks the request thread) as the
+ * one-shot compressor; `createZstdCompress` must exist for the streaming tier
+ * in `handleCompression`.
+ */
 function hasNativeZstd(): boolean {
-  return !!(
-    zlib &&
-    typeof (zlib as { zstdCompressSync?: unknown }).zstdCompressSync === "function" &&
-    typeof (zlib as { createZstdCompress?: unknown }).createZstdCompress === "function"
+  if (!zlib) return false;
+  const candidate = zlib as {
+    zstdCompress?: unknown;
+    zstdCompressSync?: unknown;
+    createZstdCompress?: unknown;
+  };
+  return (
+    (typeof candidate.zstdCompress === "function" ||
+      typeof candidate.zstdCompressSync === "function") &&
+    typeof candidate.createZstdCompress === "function"
   );
+}
+
+/** Native async zstd (`zlib.zstdCompress`) — libuv worker pool, never blocks. */
+type ZstdAsyncCompress = (
+  buffer: Buffer,
+  options: { dict?: Buffer },
+  callback: (error: Error | null, result?: Buffer) => void,
+) => void;
+
+/** Resolves the async native zstd compressor (null when the runtime lacks it). */
+function getZstdAsyncCompress(): ZstdAsyncCompress | null {
+  if (!zlib) return null;
+  const fn = (zlib as { zstdCompress?: unknown }).zstdCompress;
+  return typeof fn === "function" ? (fn as ZstdAsyncCompress) : null;
+}
+
+/**
+ * True when zstd compression runs off the request thread (native callback API).
+ * Call sites gate bodies above `SYNC_MAX_SIZE` on this so an oversized payload
+ * is skipped instead of being ripped synchronously on the event loop (FIX 7/8).
+ */
+export function hasAsyncZstd(): boolean {
+  return getZstdAsyncCompress() !== null;
+}
+
+/** Zero-copy Buffer view for string/Uint8Array/Buffer inputs. */
+function toBuffer(data: string | Uint8Array | Buffer): Buffer {
+  if (Buffer.isBuffer(data)) return data;
+  return typeof data === "string"
+    ? Buffer.from(data)
+    : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
 }
 
 /**
@@ -378,7 +423,7 @@ export function compressAsync(
   const opts = compressionLevel(algorithm, len);
 
   if (algorithm === "zstd") {
-    return compressZstd(input);
+    return compressZstd(input, len);
   }
 
   return new Promise((resolve) => {
@@ -405,20 +450,50 @@ export function compressAsync(
 
 /**
  * Async zstd compress with CMS dictionary when available.
- * Prefer native node:zlib; fall back to optional @mongodb-js/zstd (level-only, no dict).
- * Used by handle-api-requests for background cache pre-compression.
+ *
+ * 🔴 FIX 7/8 (event-loop load): prefers the native *callback* API
+ * (`zlib.zstdCompress`) so the native work lands on the libuv worker pool —
+ * the previous implementation was declared async but called `zstdCompressSync`
+ * on ANY size, stalling the loop for every concurrent request. The sync API is
+ * only a fallback and is hard-capped at `SYNC_MAX_SIZE`; above it this returns
+ * null and the caller serves br/gzip/uncompressed instead of blocking.
+ *
+ * Final fallback: optional @mongodb-js/zstd (level-only, no dict) — that binding
+ * is synchronous native work under a Promise, so the same cap applies.
+ * Used by handle-api-requests / response-cache for background pre-compression.
  */
-export async function compressZstd(data: string | Uint8Array | Buffer): Promise<Uint8Array | null> {
-  // Native path (Node 22+ / current Bun)
-  if (hasNativeZstd()) {
+export async function compressZstd(
+  data: string | Uint8Array | Buffer,
+  contentLength?: number,
+): Promise<Uint8Array | null> {
+  const len =
+    contentLength ?? (typeof data === "string" ? Buffer.byteLength(data, "utf8") : data.byteLength);
+
+  // 1) Preferred: native async API (Node 22.15+ / current Bun) — off-thread.
+  const zstdAsync = getZstdAsyncCompress();
+  if (zstdAsync) {
     try {
-      const input = Buffer.isBuffer(data)
-        ? data
-        : typeof data === "string"
-          ? Buffer.from(data)
-          : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
-      const zstdSync = (zlib as { zstdCompressSync: (b: Buffer, o: unknown) => Buffer })
+      const input = toBuffer(data);
+      const out = await new Promise<Buffer>((resolve, reject) => {
+        zstdAsync(input, zstdCompressOptions(), (error, result) => {
+          if (error || !result) reject(error ?? new Error("zstd returned no output"));
+          else resolve(result);
+        });
+      });
+      // Expanded (or equal) output is a net loss — serve uncompressed.
+      return out.byteLength < input.byteLength ? out : null;
+    } catch {
+      /* runtime refused (e.g. dict unsupported) — try the size-capped sync path */
+    }
+  }
+
+  // 2) Sync fallback — size-gated so a large body never blocks the request thread.
+  if (hasNativeZstd() && len <= SYNC_MAX_SIZE) {
+    try {
+      const input = toBuffer(data);
+      const zstdSync = (zlib as { zstdCompressSync?: (b: Buffer, o: unknown) => Buffer })
         .zstdCompressSync;
+      if (typeof zstdSync !== "function") return null;
       const out = zstdSync(input, zstdCompressOptions());
       if (!out || out.byteLength >= input.byteLength) return null;
       return out;
@@ -427,17 +502,15 @@ export async function compressZstd(data: string | Uint8Array | Buffer): Promise<
     }
   }
 
+  // 3) Optional binding: blocking native call — refuse oversized bodies too.
+  if (len > SYNC_MAX_SIZE) return null;
   try {
     // Optional dep — guarded by try/catch; not listed as hard dependency
     // @ts-expect-error optional peer; may be absent in install graphs
     const mod = (await import("@mongodb-js/zstd")) as {
       compress: (buf: Buffer, level: number) => Promise<Buffer | Uint8Array>;
     };
-    const input = Buffer.isBuffer(data)
-      ? data
-      : typeof data === "string"
-        ? Buffer.from(data)
-        : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+    const input = toBuffer(data);
     // API: compress(buffer, level) — dictionary not supported by this binding
     const compressed = await mod.compress(input, 3);
     const out = Buffer.from(compressed);

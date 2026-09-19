@@ -21,7 +21,7 @@ tags:
 This document is the **living roadmap** — in-progress and planned work. Completed achievements: [Achievements Log](./achievements-2026.mdx).
 
 > [!TIP]
-> **Recently Completed (September 2026)**: Platform hardening (one mutation limiter, branded `systemScope`, Mongo REST point-read, Yjs entry ACL, same-host sockets, client-safe tenant split, session AMR persistence, and adaptive smart rate-limiting) has shipped and is fully logged in [Achievements Log](./achievements-2026.mdx) §3.16.
+> **Recently Completed (September 2026)**: Platform hardening (one mutation limiter, branded `systemScope`, Mongo REST point-read, Yjs entry ACL, same-host sockets, client-safe tenant split, session AMR persistence, and adaptive smart rate-limiting) shipped in [Achievements Log](./achievements-2026.mdx) §3.16, followed by the authorization-guardrail + 4-DB contract wave (token namespace allowlist, GraphQL APQ hash binding, uniform 15 MB body ceiling, `MAX_PAGE_SIZE` clamp, numeric sort-direction unification) in §3.17.
 
 ---
 
@@ -31,18 +31,18 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ### Next (high leverage — foundations ready)
 
-| Enhancement                      | Status     | Notes                                                                                                       |
-| -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
-| **Saved views**                  | 🟢 Shipped | 100% wired across all list surfaces: Entry-list, website-tokens, users, and media                           |
-| **Column resize + layout prefs** | 🟡 Partial | Entry-list + tokens `layoutKey`; extend media/users                                                         |
-| **Status / domain facets**       | 🟢 Shipped | Collection facets + interactive User Management facet chips (`All`, `Admins`, `Users`, `Active`, `Blocked`) |
-| **List metrics**                 | 🟢 Shipped | `list-query-metrics` + SSR badge on collections, users, and tokens                                          |
-| **Filter engine reuse**          | 🟢 Shipped | Allowlisted field filtering (`role`, `blocked`, `email`, `username`) on users/tokens                        |
+| Enhancement                      | Status     | Notes                                                                                                            |
+| -------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Saved views**                  | 🟢 Shipped | 100% wired across all list surfaces: Entry-list, website-tokens, users, and media                                |
+| **Column resize + layout prefs** | 🟢 Shipped | All 4 table views active: Entry-list, website-tokens, media gallery, and users/tokens admin area via `layoutKey` |
+| **Status / domain facets**       | 🟢 Shipped | Collection facets + interactive User Management facet chips (`All`, `Admins`, `Users`, `Active`, `Blocked`)      |
+| **List metrics**                 | 🟢 Shipped | `list-query-metrics` + SSR badge on collections, users, and tokens                                               |
+| **Filter engine reuse**          | 🟢 Shipped | Allowlisted field filtering (`role`, `blocked`, `email`, `username`) on users/tokens                             |
 
 ### Planned product UX
 
-- **Bulk field-edit UI**, sticky columns, multi-column sort, advanced filter operators UI
-- **Export filtered selection**, keyboard grid nav (ATAG), responsive card mode
+- **Bulk field-edit UI & sticky columns** — 🟢 Shipped (September 2026): interactive bulk field update modal for collections + opaque sticky start/end column pinning across all data tables.
+- **Multi-column sort**, advanced filter operators UI, export filtered selection, keyboard grid nav (ATAG), responsive card mode
 - **Team / cloud saved views** (enterprise)
 
 ### Performance & observability
@@ -159,7 +159,7 @@ Order is fixed: **coverage before packs, packs before cockpit, cockpit before ma
 
 | Priority | Work                                                                                                                                          |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0**   | AI-Assisted Builder Phase 1 (`approve-collection` schema AST generator) & Smart Table bulk field editing / column resize                      |
+| **P0**   | AI-Assisted Builder Phase 1 (`approve-collection` schema AST generator) & multi-column sort / advanced filter operators UI                    |
 | **P1**   | Marketplace remote package one-click install pipeline; published database adapter packages (`sveltycms-sqlite\|mongodb\|mariadb\|postgresql`) |
 | **P2**   | Docker/Terraform enterprise cluster pack, managed cloud deployment                                                                            |
 
@@ -169,6 +169,11 @@ Order is fixed: **coverage before packs, packs before cockpit, cockpit before ma
 - **Adaptive smart rate-limiting & load shedding** — dynamic EWMA system pressure, request velocity damping, and tier/plan quotas under unified `rateLimit()` core.
 - **Platform infrastructure** — same-host Unix domain socket auto-detection, client-safe tenant split, and Yjs collaboration route export isolation.
 - **Hardware-adaptive profile & 4-DB benchmark matrix** — 200/200 green across all 4 database adapters.
+- **Omni-surface column resizing & layout preferences** across media gallery, user admin, website tokens, and entry list via persistent `layoutKey`.
+- **Bulk field-edit UI & sticky columns** — interactive batch field updating modal for collections + non-bleed sticky start/end column pinning.
+- **Authorization guardrails (September 2026)** — `POST /api/user` (bare root) now requires `user:write` and `GET /api/user` requires `user:read`; `/api/token/*` is a positive allowlist (only `GET /api/token/validate-token/{value}` is public) with a field-allowlisted update path; GraphQL APQ verifies `sha256(query)` (constant-time, 64-hex) before registering a persisted query. See [Achievements Log](./achievements-2026.mdx) §3.17.
+- **Request-size and page-size ceilings** — chunked bodies are counted through a zero-copy stream and bounded at the same 15 MB as `Content-Length` bodies; media uploads abort incrementally at that cap; `MAX_PAGE_SIZE = 200` is enforced across REST, the SDK find funnel and GraphQL.
+- **Cross-engine correctness fixes** — one `normalizeSortDirection()` for every SQL sort emitter (keyset pagination no longer repeated/terminated early on numeric directions), MongoDB `reorderStructure` persists through a single ordered `bulkWrite`, and MariaDB repairs `mfaVerifiedAt` to `DATETIME(3)` once per install.
 
 _Last roadmap sync: 2026-09-18_
 

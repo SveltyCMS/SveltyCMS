@@ -4,13 +4,17 @@
  * Short-lived tenant-scoped cache for crud.count — equal benefit on all engines.
  *
  * Misses still hit the adapter (exact/estimate); hits serve from L1 (and L2 if Redis).
- * Invalidated with collection writes via BaseAdapter.invalidateQueryCache pattern
- * `count:{collection}:*`.
+ * Entries are tagged under every spelling `buildCollectionCacheTags` derives — the
+ * name they were called with, the normalised physical table name
+ * (`collectionTableName`), and the bare unprefixed spelling — so the write path
+ * (post-write.ts) and adapter invalidators (BaseAdapter.invalidateQueryCache)
+ * evict them whichever spelling they hold.
  *
  * ### Features:
  * - 30s TTL (CacheCategory.CONTENT tags)
  * - filter+mode hashed keys (stable serialization)
  * - bypassCache / skip when count fails
+ * - superset tags (as-passed + normalised physical + bare spelling)
  * - Proxy wrap preserves class-based adapter methods
  */
 
@@ -24,9 +28,20 @@ import type {
 import { hashQueryPayload } from "@src/utils/collection-query-filters";
 import { CacheCategory } from "../cache/types";
 import { cacheService } from "../cache/cache-service";
+import { buildCollectionCacheTags } from "./collection-name";
 
 /** Short TTL so admin badges stay fresh without hammering COUNT. */
 export const COUNT_CACHE_TTL_SECONDS = 30;
+
+/**
+ * Tags a count entry is registered under: the bare `count` bucket plus every
+ * `collection:`/`count:` tag for the collection spellings (shared derivation in
+ * collection-name.ts). The write path must evict the entry without knowing
+ * which spelling was used.
+ */
+export function buildCountCacheTags(collection: string): string[] {
+  return ["count", ...buildCollectionCacheTags(collection)];
+}
 
 export function buildCountCacheKey(
   collection: string,
@@ -87,7 +102,7 @@ export function createCountCachedCrud(inner: ICrudAdapter): ICrudAdapter {
                   COUNT_CACHE_TTL_SECONDS,
                   tenantId,
                   CacheCategory.CONTENT,
-                  [`count`, `count:${collection}`, `collection:${collection}`],
+                  buildCountCacheTags(collection),
                 );
               }
               return result;

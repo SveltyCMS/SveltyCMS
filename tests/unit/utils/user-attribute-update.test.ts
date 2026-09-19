@@ -11,6 +11,10 @@ vi.mock("@src/hooks/handle-authentication", () => ({
   primeSessionMemoryCache: vi.fn(),
 }));
 
+vi.mock("@src/hooks.server", () => ({
+  invalidateTurboAuthForUser: vi.fn(),
+}));
+
 describe("applyUserAttributeUpdate", () => {
   it("forbids non-admin updates of another user", async () => {
     const cms = { auth: { updateUserAttributes: vi.fn() } };

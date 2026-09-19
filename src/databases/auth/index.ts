@@ -292,7 +292,7 @@ export class Auth {
     // Turbo auth contexts cache per-session user/roles/bitsets. Clear the user's
     // sessions so privilege changes apply immediately instead of after the 60s TTL.
     try {
-      const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+      const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
       invalidateTurboAuthForUser(userId as string);
     } catch {
       // Non-critical — turbo contexts expire naturally after TTL
@@ -320,7 +320,7 @@ export class Auth {
     // Turbo auth contexts cache per-session user/roles/bitsets and skip session
     // re-validation — a deleted user's warm context must not survive.
     try {
-      const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+      const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
       invalidateTurboAuthForUser(userId as string);
     } catch {
       // Non-critical — turbo contexts expire naturally after TTL
@@ -1059,7 +1059,7 @@ export class Auth {
       // sessions so profile edits (username/email/avatar) show immediately after
       // reload instead of after the 60s TTL (same as Auth.updateUser).
       try {
-        const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+        const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
         invalidateTurboAuthForUser(String(userId));
       } catch {
         // Non-critical — turbo contexts expire naturally after TTL

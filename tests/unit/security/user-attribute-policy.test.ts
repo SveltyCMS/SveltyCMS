@@ -25,7 +25,13 @@ describe("user-attribute-policy — privilege escalation defense", () => {
     expect(PRIVILEGED_USER_FIELDS).toContain("permissions");
     expect(PRIVILEGED_USER_FIELDS).toContain("roleIds");
     expect(PRIVILEGED_USER_FIELDS).toContain("blocked");
-    expect(PRIVILEGE_ESCALATION_FIELDS).toEqual(["role", "isAdmin", "roleIds", "permissions"]);
+    expect(PRIVILEGE_ESCALATION_FIELDS).toEqual([
+      "role",
+      "roles",
+      "isAdmin",
+      "roleIds",
+      "permissions",
+    ]);
   });
 
   it("detects privileged fields in a client payload", () => {
