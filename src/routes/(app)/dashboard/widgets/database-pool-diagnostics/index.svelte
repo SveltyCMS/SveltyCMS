@@ -31,6 +31,7 @@ export const widgetMeta = {
 	const isLicensed = $derived(Boolean(licenseStatus?.hasLicense));
 
 	import type { WidgetSize } from '@src/content/types';
+	import type { ConnectionPoolDiagnostics } from '@src/databases/database-resilience';
 	import BaseWidget from '../../base-widget.svelte';
 	import {
 		widget_dbpool_total,
@@ -110,7 +111,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const diagnostics = data as PoolDiagnostics | null}
+		{@const diagnostics = data as ConnectionPoolDiagnostics | null}
 
 		{#if !diagnostics}
 			<div class="flex h-full items-center justify-center">

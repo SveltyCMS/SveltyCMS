@@ -100,7 +100,6 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		if (except !== 'column') {
 			columnShow = false;
 		}
-		app.translationStatusOpen = false;
 	}
 
 	// Function to cycle density

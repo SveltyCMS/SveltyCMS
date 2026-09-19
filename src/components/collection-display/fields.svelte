@@ -53,6 +53,7 @@ import { tick, untrack } from "svelte";
     collections,
   } from "@src/stores/collection-store.svelte";
   import { contentLanguage, translationProgress } from "@src/stores/locale-store.svelte";
+  import type { Schema } from "@src/content/types";
   import { publicEnv } from "@src/stores/global-settings.svelte";
   import { validationStore } from "@src/stores/validation-store.svelte";
   import { toast } from "@src/stores/toast.svelte.ts";
@@ -111,7 +112,7 @@ import { tick, untrack } from "svelte";
     revisions = [],
     // contentLanguage prop received but not directly used - widgets access contentLanguage store
   } = $props<{
-    fields?: NonNullable<(typeof collection)["value"]>["fields"];
+    fields?: Schema["fields"];
     revisions?: any[];
     contentLanguage?: string; // Passed for documentation, widgets use store directly
   }>();
@@ -1014,7 +1015,7 @@ import { tick, untrack } from "svelte";
         {:then Component}
           {#if "default" in Component}
             <Component.default
-              {collection}
+              collection={collections.active}
               currentCollectionValue={currentCollectionValue}
               {user}
               {tenantId}
@@ -1024,7 +1025,7 @@ import { tick, untrack } from "svelte";
             />
           {:else}
             <Component
-              {collection}
+              collection={collections.active}
               currentCollectionValue={currentCollectionValue}
               {user}
               {tenantId}

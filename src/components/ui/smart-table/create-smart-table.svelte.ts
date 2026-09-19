@@ -281,7 +281,18 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     );
   }
 
+  /**
+   * Switch the persisted-layout scope (e.g. users vs tokens table).
+   *
+   * ⚠️ Idempotent on purpose: callers invoke this from a `$effect` that also
+   * feeds `setColumns()`. The saved branch READS `columns` to merge widths and
+   * then WRITES it — inside an effect both the read and the write are tracked,
+   * so a repeated same-key call would schedule the effect that issued it
+   * (`effect_update_depth_exceeded`). Guarding on the key keeps a no-op call a
+   * genuine no-op; the layout is applied exactly once per key change.
+   */
   function setLayoutKey(nextKey: string) {
+    if (nextKey === currentLayoutKey) return;
     currentLayoutKey = nextKey;
     const saved = nextKey ? loadTableLayout(nextKey) : null;
     if (saved) {

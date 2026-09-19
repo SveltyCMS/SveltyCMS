@@ -21,6 +21,7 @@
 <script lang="ts">
   import { toast } from '@src/stores/toast.svelte';
   import { logger } from '@utils/logger';
+  import { clientJsonHeaders } from '@utils/security/client-csrf';
   import { formatNumber, formatTime } from '@utils/format-date';
   import { fade, slide } from 'svelte/transition';
   import AdminCard from '@components/admin-card.svelte';

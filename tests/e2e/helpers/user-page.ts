@@ -214,7 +214,17 @@ export async function openUserTab(page: Page, name: RegExp): Promise<void> {
   await dismissCookieConsent(page);
   const tab = page.getByRole("tab", { name });
   await expect(tab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
-  await tab.click({ timeout: USER_ACTION_TIMEOUT });
+
+  // The tab strip is SSR-rendered before Svelte attaches its click handler, so a
+  // click that lands pre-hydration is a silent no-op and the caller's panel
+  // assertion times out. Click until the tab reports the selected state — the
+  // outcome of the click — instead of firing once and hoping it landed.
+  await expect(async () => {
+    if ((await tab.getAttribute("aria-selected")) !== "true") {
+      await tab.click({ timeout: 5_000 }).catch(() => {});
+    }
+    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 3_000 });
+  }).toPass({ timeout: USER_ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 }
 
 /** Open the User Management tab and wait for the AdminArea to render. */

@@ -362,9 +362,12 @@
 	let displayTableHeaders: TableHeader[] = $state([]);
 
 	$effect(() => {
-		// Update displayTableHeaders when view changes
+		// Update displayTableHeaders when view changes.
+		// 🛡️ The controller calls below mutate smart-table state (lay-out key, columns,
+		// widths) — run them untracked so this effect depends only on the view flags and
+		// never on state it writes. Tracked writes here re-schedule the effect that made
+		// them (effect_update_depth_exceeded).
 		const targetLayoutKey = showUserList ? 'admin-area-users' : 'admin-area-tokens';
-		smartTable.setLayoutKey(targetLayoutKey);
 		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
 					// Essential columns only visible by default — rest available via column toggle
@@ -377,15 +380,19 @@
 			visible: essentialKeys.includes(header.key),
 			id: `header-${header.key}`
 		}));
-		displayTableHeaders = newHeaders;
-		smartTable.setColumns(
-			newHeaders.map((h) => ({
-				key: String(h.key),
-				label: h.label,
-				sortable: true,
-				visible: h.visible
-			}))
-		);
+
+		untrack(() => {
+			smartTable.setLayoutKey(targetLayoutKey);
+			displayTableHeaders = newHeaders;
+			smartTable.setColumns(
+				newHeaders.map((h) => ({
+					key: String(h.key),
+					label: h.label,
+					sortable: true,
+					visible: h.visible
+				}))
+			);
+		});
 	});
 
 	// Density → controller (for cell padding helpers)

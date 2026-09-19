@@ -397,7 +397,7 @@ import Button from '@components/ui/button.svelte';
 			{/if}
 		</div>
 
-		<Slot name="entry_edit_header" props={{ collection, currentEntry }} />
+		<Slot name="entry_edit_header" props={{ collection: currentCollection, currentEntry }} />
 
 		<!-- User -->
 		<div class="space-y-1 text-xs">

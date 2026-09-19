@@ -334,7 +334,7 @@ import Button from '@components/ui/button.svelte';
 				{/if}
 			</header>
 
-			<Slot name="entry_edit_sidebar" props={{ collection, currentEntry }} />
+			<Slot name="entry_edit_sidebar" props={{ collection: currentCollection, currentEntry }} />
 
 			<main class="mt-6 flex w-full flex-col gap-4 text-start">
 				<div class="border-b border-surface-500/30 pb-2 dark:border-surface-600">

@@ -246,7 +246,7 @@ export const widgetMeta = {
 			<div class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll">
 				{#each filtered as log (log.timestamp + log.message)}
 					{const logId = log.timestamp + log.message}
-					{const isOpen = expandedId === logId}
+					{const isOpen = expandedKey === logId}
 					<button
 						onclick={() => toggleExpand(logId)}
 						class="w-full text-start group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
@@ -258,7 +258,7 @@ export const widgetMeta = {
 						<div class="min-w-0 flex-1">
 							<div class="flex items-baseline gap-2">
 								<span class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
-									{fmtTime(log.timestamp)}
+									{formatTime(log.timestamp)}
 								</span>
 								<span class="text-xs font-semibold uppercase tracking-wider {levelCls(log.level)}">
 									{log.level}

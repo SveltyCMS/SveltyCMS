@@ -219,12 +219,31 @@ export async function prepareLoginForm(page: Page) {
     !signInIconVisible && (await signUpIconEl.isVisible({ timeout: 1000 }).catch(() => false));
 
   if (!isSignupShowing && !isSignupIconOnly) {
-    // Try waiting for signin-email with 4s timeout (so fallback seeds quickly if DB unseeded)
-    await signinField.waitFor({ state: "visible", timeout: 4_000 }).catch(() => {
+    // The chooser → form swap is client-rendered, so a SIGN IN click that lands
+    // before hydration is dropped silently and a slow render can exceed any single
+    // fixed probe. Re-click the chooser while waiting instead of concluding the DB
+    // is unseeded: the seeding branch navigates away and reseeds, which cannot
+    // recover a lost click and turns a slow render into four seeding round-trips.
+    for (let clickAttempt = 0; clickAttempt < 3; clickAttempt++) {
+      if (await signinField.isVisible().catch(() => false)) break;
+      const signInIconRetry = page.getByTestId("signin-icon");
+      if (await signInIconRetry.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await signInIconRetry.click({ force: true, timeout: 10_000 }).catch(() => {});
+      }
+      if (
+        await signinField
+          .waitFor({ state: "visible", timeout: 5_000 })
+          .then(() => true)
+          .catch(() => false)
+      ) {
+        break;
+      }
+    }
+    if (!(await signinField.isVisible().catch(() => false))) {
       console.log(
-        "[Auth] signin-email not visible within 4s, checking for auto-seeding fallback...",
+        "[Auth] signin-email not visible after chooser retries, checking for auto-seeding fallback...",
       );
-    });
+    }
   }
 
   if (!(await signinField.isVisible().catch(() => false))) {

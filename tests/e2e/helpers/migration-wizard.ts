@@ -125,15 +125,25 @@ export async function expectCollectionEntry(
   collectionId: string,
   matcher: (entry: Record<string, unknown>) => boolean,
 ) {
-  const apiRes = await page.request.get(`/api/collections/${collectionId}`);
-  expect(
-    apiRes.ok(),
-    `GET /api/collections/${collectionId} failed: ${apiRes.status()}`,
-  ).toBeTruthy();
+  let match: Record<string, unknown> | undefined;
 
-  const body = (await apiRes.json()) as { data?: Record<string, unknown>[] };
-  const entries = Array.isArray(body.data) ? body.data : [];
-  const match = entries.find(matcher);
-  expect(match, `Expected entry in "${collectionId}" collection`).toBeDefined();
+  // Outcome assertion with retry: the import's list cache is invalidated
+  // asynchronously, so a single read taken right after the SSE `complete` event can
+  // still serve the pre-import list (shared-DB runs and Playwright retries both
+  // re-import into a collection that already has rows). `bypassCache=true` reads the
+  // authoritative store — same reason the builder golden test sets it.
+  await expect(async () => {
+    const apiRes = await page.request.get(`/api/collections/${collectionId}?bypassCache=true`);
+    expect(
+      apiRes.ok(),
+      `GET /api/collections/${collectionId} failed: ${apiRes.status()}`,
+    ).toBeTruthy();
+
+    const body = (await apiRes.json()) as { data?: Record<string, unknown>[] };
+    const entries = Array.isArray(body.data) ? body.data : [];
+    match = entries.find(matcher);
+    expect(match, `Expected entry in "${collectionId}" collection`).toBeDefined();
+  }).toPass({ timeout: 15_000, intervals: [500, 1_000, 2_000] });
+
   return match!;
 }
