@@ -175,10 +175,10 @@ export const authUsers = mysqlTable(
 
 ## 🔧 Connection Management
 
-### Connection Pool Configuration
+### Connection Pool Configuration (2026-09 Hardening)
 
-```
-// Optimized mysql2 pool settings
+```ts
+// Optimized mysql2 pool settings — all timing values configurable via env
 {
   host: config.host,
   port: config.port,
@@ -186,14 +186,22 @@ export const authUsers = mysqlTable(
   password: config.password,
   database: config.database,
   waitForConnections: true,
-  connectionLimit: 10,      // Max concurrent connections
-  maxIdle: 10,              // Keep connections warm
-  idleTimeout: 60000,       // 60s idle timeout
-  queueLimit: 0,            // Unlimited queue
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  connectionLimit: 100,          // Max concurrent connections
+  maxIdle: 50,                   // MARIADB_MAX_IDLE (default 50)
+  idleTimeout: 0,                // MARIADB_IDLE_TIMEOUT ms (default 0 = permanently warm)
+  queueLimit: 0,                 // Unlimited queue
+  enableKeepAlive: true,         // TCP keepalive — prevents silent NAT/firewall drops
+  keepAliveInitialDelay: 0,      // MARIADB_KEEPALIVE_DELAY ms (0 = immediate)
+  maxPreparedStatements: 2000,   // MARIADB_MAX_PREPARED (Drizzle dynamic collections)
 }
 ```
+
+| Setting                 | Default | Env Var                   | Purpose                                                                                                                                                              |
+| ----------------------- | ------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idleTimeout`           | **0**   | `MARIADB_IDLE_TIMEOUT`    | **0 = permanently warm** — eliminates reconnect storms on bursty load. Set to positive ms (e.g. `300000` = 5 min) only behind ProxySQL/MaxScale in transaction mode. |
+| `maxIdle`               | 50      | `MARIADB_MAX_IDLE`        | Max idle connections to keep warm in the pool.                                                                                                                       |
+| `keepAliveInitialDelay` | 0       | `MARIADB_KEEPALIVE_DELAY` | Delay in ms before first TCP keepalive ping. 0 = immediate (default).                                                                                                |
+| `maxPreparedStatements` | 2 000   | `MARIADB_MAX_PREPARED`    | Drizzle’s dynamic collection tables exceed mysql2’s 100-statement default without this.                                                                              |
 
 ### Health Monitoring
 

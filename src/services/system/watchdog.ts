@@ -38,6 +38,12 @@ class SystemWatchdog {
     if (this.intervalId) return;
     logger.info("🛡️ Autonomous System Watchdog started");
     this.intervalId = setInterval(() => this.check(), this.CHECK_INTERVAL);
+    // .unref() — consistent with JobQueue and Outbox: the watchdog timer must not
+    // keep the process alive on its own when all requests have drained. This eliminates
+    // event-loop pressure during idle periods and allows clean graceful shutdown.
+    if (typeof this.intervalId.unref === "function") {
+      this.intervalId.unref();
+    }
   }
 
   /**

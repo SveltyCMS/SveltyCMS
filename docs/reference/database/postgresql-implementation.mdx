@@ -68,22 +68,29 @@ sequenceDiagram
     A-->>S: Ready
 ```
 
-### Connection Pool Configuration (2026-07 Optimization)
+### Connection Pool Configuration (2026-09 Hardening)
 
-SveltyCMS configures the `postgres.js` driver with production-tuned connection pool settings. These can be overridden via environment variables or connection config object:
+SveltyCMS configures the `postgres.js` driver with production-tuned connection pool settings. All timing values are configurable via environment variables so operators can tune without code changes:
 
-| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                                                                  |
-| ----------------------------- | ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `max`                         | 100         | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool (capped at PostgreSQL's default `max_connections = 100` to avoid pool exhaustion / `too many clients`; raise via env for larger servers) |
-| `connect_timeout`             | 10s         | —                          | 3× faster failure detection on unreachable hosts                                                                                                                         |
-| `idle_timeout`                | 300s        | —                          | Pooled connections stay warm 5× longer; reduces SSL handshake overhead                                                                                                   |
-| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. previous 30 min default                                                                                                              |
-| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls                                                                                                        |
-| `keepaliveInitialDelayMillis` | 10000       | —                          | Starts keepalive pings after 10s idle                                                                                                                                    |
-| `pipeline`                    | true        | —                          | Postgres.js query pipelining; batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads)                                         |
-| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements; disable for PgBouncer transaction mode                                                                                                  |
-| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries                                                                                                                                      |
-| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`                                                                                                                                 |
+| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                                                                                            |
+| ----------------------------- | ----------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `max`                         | 100         | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool. Raise for large servers; keep at 100 on shared hosts to avoid `too many clients`.                                                                                 |
+| `idle_timeout`                | **0**       | `DATABASE_IDLE_TIMEOUT`    | **0 = permanently warm (default)** — eliminates reconnect storms when a load wave hits after a quiet period. Set to a positive value (seconds) only when fronted by PgBouncer in transaction mode. |
+| `connect_timeout`             | 10s         | `DATABASE_CONNECT_TIMEOUT` | TCP connect timeout. 3× faster failure detection on unreachable hosts vs. the postgres.js default 30s.                                                                                             |
+| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. the previous 30 min default.                                                                                                                                   |
+| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls.                                                                                                                                 |
+| `keepaliveInitialDelayMillis` | 10 000      | —                          | Starts keepalive pings after 10 s idle.                                                                                                                                                            |
+| `pipeline`                    | true        | —                          | Postgres.js query pipelining — batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads).                                                                 |
+| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements. Disable for PgBouncer transaction mode (`DATABASE_PREPARE=false`).                                                                                                |
+| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries.                                                                                                                                                               |
+| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`.                                                                                                                                                          |
+
+> [!TIP]
+> **When to change `DATABASE_IDLE_TIMEOUT`:** The default `0` (permanently warm) is optimal for direct
+> PostgreSQL connections and most managed-database services (Supabase, RDS, Neon). Set it to a
+> positive number of **seconds** (e.g. `600`) only when a connection pooler like PgBouncer in
+> **transaction mode** sits between the CMS and Postgres — in that case the pooler handles recycling
+> and idle connections on the CMS side waste pooler slots.
 
 ### Connection Configuration
 

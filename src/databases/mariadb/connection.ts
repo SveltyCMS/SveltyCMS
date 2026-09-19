@@ -1,6 +1,15 @@
 /**
  * @file src/databases/mariadb/connection.ts
  * @description MariaDB connection pool management using mysql2
+ *
+ * @env MARIADB_IDLE_TIMEOUT      Pool idle timeout in **milliseconds**. Default `0`
+ *                                (disabled — connections stay permanently warm).
+ *                                Set to a positive value (e.g. `300000` = 5 min) when
+ *                                fronted by ProxySQL/MaxScale in transaction mode.
+ * @env MARIADB_MAX_IDLE          Maximum number of idle connections kept in pool. Default `50`.
+ * @env MARIADB_KEEPALIVE_DELAY   TCP keepalive initial delay in ms. Default `0` (immediate).
+ * @env MARIADB_MAX_PREPARED      Maximum prepared statements per connection. Default `2000`.
+ * @env MARIADB_SESSION_INIT      Optional session-init SQL run on each new connection.
  */
 
 import { logger } from "@utils/logger";
@@ -41,11 +50,15 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
     waitForConnections: true,
     connectionLimit: 100,
     connectTimeout: 30000,
-    maxIdle: 50,
-    idleTimeout: 60_000,
+    // idleTimeout: 0 = permanently warm (no idle disconnect). Prevents reconnect
+    // storms when connection bursts follow a quiet period. Set MARIADB_IDLE_TIMEOUT
+    // to a positive ms value only when an external pooler recycles connections.
+    maxIdle: Number(process.env.MARIADB_MAX_IDLE) || 50,
+    idleTimeout:
+      process.env.MARIADB_IDLE_TIMEOUT !== undefined ? Number(process.env.MARIADB_IDLE_TIMEOUT) : 0,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0,
+    keepAliveInitialDelay: Number(process.env.MARIADB_KEEPALIVE_DELAY) || 0,
     // mysql2 default is 100 prepared statements per connection — Drizzle's
     // dynamic content collections exceed that and force re-prepare churn.
     // Mirrors the SQLite statement cache sizing (2000).

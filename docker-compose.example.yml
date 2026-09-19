@@ -1,0 +1,68 @@
+﻿# SveltyCMS — Example Production docker-compose
+#
+# Copy this file to docker-compose.yml and set the required environment variables.
+# All sensitive values should be injected via a .env file or secrets manager —
+# never hardcoded here (12-Factor App principle).
+#
+# Requires Docker 25+ for start_interval support in healthcheck.
+
+services:
+  sveltycms:
+    build: .
+    image: sveltycms:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4173}:4173"
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN:?ORIGIN must be set (e.g. https://your-domain.com)}
+
+      # Database
+      DB_TYPE: ${DB_TYPE:-postgresql}
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-sveltycms}
+      DB_USER: ${DB_USER:-sveltycms}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+
+      # Connection-pool tuning
+      # 0 = permanently warm (prevents reconnect storms under bursty load).
+      # Set to a positive value only when fronted by PgBouncer/ProxySQL.
+      DATABASE_IDLE_TIMEOUT: "0"
+      MARIADB_IDLE_TIMEOUT: "0"
+      MONGODB_IDLE_TIMEOUT_MS: "0"
+
+      # Body size limit (bytes) — default 100 MB
+      BODY_SIZE_LIMIT: "104857600"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4173/healthz"]
+      interval: 30s
+      timeout: 5s
+      # Docker 25+: re-check every 1 s during start_period for fast ready-detection.
+      # SveltyCMS cold-start (including DB init) is typically 3–8 s.
+      start_interval: 1s
+      start_period: 15s
+      retries: 3
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      POSTGRES_DB: ${DB_NAME:-sveltycms}
+      POSTGRES_USER: ${DB_USER:-sveltycms}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-sveltycms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -7,6 +7,12 @@
  * - SSL support
  * - Connection testing
  * - Graceful shutdown
+ *
+ * @env DATABASE_IDLE_TIMEOUT   Pool idle timeout in **seconds**. Default `0` (disabled —
+ *                              connections stay permanently warm). Set to a positive value
+ *                              (e.g. `600`) when fronted by PgBouncer in transaction mode.
+ * @env DATABASE_CONNECT_TIMEOUT TCP connect timeout in seconds. Default `10`.
+ * @env DATABASE_MAX_CONNECTIONS Maximum number of pooled connections. Default `100`.
  */
 
 import { logger } from "@utils/logger";
@@ -75,8 +81,16 @@ export async function createConnection(
     database: config.database,
     ssl: config.ssl === true || config.ssl === "require" ? "require" : undefined,
     max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
-    idle_timeout: 30, // Idle connection timeout in seconds
-    connect_timeout: 10, // Connection timeout in seconds
+    // idle_timeout: 0 = permanently warm (no idle disconnect). Prevents the
+    // 30–50 simultaneous TCP re-handshakes that cause latency spikes when a load
+    // wave hits after a quiet period. Set DATABASE_IDLE_TIMEOUT > 0 (seconds)
+    // only when fronted by an external pooler (PgBouncer in transaction mode)
+    // that already recycles connections itself.
+    idle_timeout:
+      process.env.DATABASE_IDLE_TIMEOUT !== undefined
+        ? Number(process.env.DATABASE_IDLE_TIMEOUT)
+        : 0,
+    connect_timeout: Number(process.env.DATABASE_CONNECT_TIMEOUT) || 10,
     prepare: effectivePrepare,
     pipeline: true as any,
     onnotice: () => {

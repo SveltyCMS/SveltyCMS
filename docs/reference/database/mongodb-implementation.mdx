@@ -801,45 +801,46 @@ widgetSchema.index({ isActive: 1, updatedAt: -1 });
 
 ---
 
-## ⚙️ Connection Pool Configuration
+## ⚙️ Connection Pool Configuration (2026-09 Hardening)
 
-### Enterprise Connection Pool
+### Hardware-Adaptive Connection Pool
 
-The MongoDB adapter uses an optimized connection pool for enterprise-scale performance.
+The MongoDB adapter scales pool size with the detected host hardware (`@utils/hardware-profile`) and exposes all timing values via environment variables:
 
-```
-// File: src/databases/mongodb/mongodb-adapter.ts
-
+```ts
+// src/databases/mongodb/adapter-core.ts
 const connectOptions: mongoose.ConnectOptions = {
-  // Connection Pool Settings
-  maxPoolSize: 10, // Optimized for CMS workloads
-  minPoolSize: 2, // Maintain warm connections
+  // Hardware-adaptive pool (scales with CPU/RAM profile: weak VPS → few, large box → 100-ceiling)
+  maxPoolSize: poolOptions.maxConnections || getHardwareProfile().dbPoolSize,
+  minPoolSize: poolOptions.minConnections || getHardwareProfile().mongoMinPool,
 
-  // Performance Optimizations
-  compressors: ["zstd", "snappy"], // Wire compression: 40-60% bandwidth reduction
-  heartbeatFrequencyMS: 10000, // Faster topology detection for replica sets
+  // Timeout settings
+  serverSelectionTimeoutMS: 30_000, // Topology selection
+  connectTimeoutMS: 10_000, // TCP connect
+  socketTimeoutMS: 45_000, // Prevent zombie connections
+  waitQueueTimeoutMS: 10_000, // Max wait for pool slot
 
-  // Timeout Settings
-  serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
-  connectTimeoutMS: 5000, // Connection timeout
-  socketTimeoutMS: 45000, // Prevent zombie connections (45s idle timeout)
+  // Idle & heartbeat (2026-09: both env-configurable)
+  maxIdleTimeMS: 0, // MONGODB_IDLE_TIMEOUT_MS (0 = driver-managed, no forced disconnect)
+  heartbeatFrequencyMS: 10_000, // MONGODB_HEARTBEAT_MS (topology detection cadence)
 
-  // Reliability Settings
-  retryWrites: true, // Auto-retry failed writes
-  retryReads: true, // Auto-retry transient read failures
-  w: "majority", // Write concern for data durability
+  // Wire compression (auto-detected: zstd → snappy → none; MONGO_COMPRESSORS=none to disable)
+  // compressors: ["zstd", "snappy"],  // only if optional peer packages are installed
 };
 ```
 
-### Configuration Benefits
+| Setting                | Default     | Env Var                   | Purpose                                                                                                                                          |
+| ---------------------- | ----------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `maxPoolSize`          | HW-adaptive | `DB_POOL_SIZE`            | Scales with detected CPU budget. Override via env for fixed sizing.                                                                              |
+| `minPoolSize`          | HW-adaptive | `MONGO_MIN_POOL_SIZE`     | Pre-spawned sockets scaled down on weak hosts.                                                                                                   |
+| `maxIdleTimeMS`        | **0**       | `MONGODB_IDLE_TIMEOUT_MS` | **0 = driver-managed (no forced disconnect)**. Set to positive ms (e.g. `300000`) when behind a load balancer that silently closes idle sockets. |
+| `heartbeatFrequencyMS` | 10 000      | `MONGODB_HEARTBEAT_MS`    | How often the driver pings the server. Lower values detect failovers faster at the cost of extra traffic.                                        |
+| `socketTimeoutMS`      | 45 000      | —                         | Prevents zombie connections on hanging queries.                                                                                                  |
+| `MONGO_COMPRESSORS`    | `auto`      | `MONGO_COMPRESSORS`       | `zstd,snappy` for WAN deployments; `none`/`off`/`false` for LAN/loopback (saves CPU on small payloads).                                          |
 
-| Feature              | Benefit                          | Impact                 |
-| -------------------- | -------------------------------- | ---------------------- |
-| `maxPoolSize: 10`    | Balanced for CMS concurrency     | Efficient resource use |
-| `minPoolSize: 2`     | Pre-warmed connections           | Fast first query       |
-| `retryWrites/Reads`  | Auto-retry on failures           | 99.9% reliability      |
-| `heartbeatFrequency` | 10s topology detection           | Fast failover          |
-| `socketTimeoutMS`    | 45s zombie connection prevention | No hanging queries     |
+> [!NOTE]
+> Pool size is hardware-adaptive by default. On a 1-core VPS the default `dbPoolSize` may be as low as 5;
+> on a 16-core server it scales to ~100. Set `DB_POOL_SIZE=N` to override for a specific deployment.
 
 ### Connection Pool Monitoring
 

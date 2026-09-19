@@ -14,6 +14,11 @@ import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-co
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 const ACTION_TIMEOUT = 25_000;
+// E2E API responses on CI runners can take longer than ACTION_TIMEOUT because
+// the Playwright click + dialog fill + form submit happens between
+// waitForResponse setup and the actual POST. Use a separate, larger timeout
+// specifically for API round-trip assertions.
+const API_TIMEOUT = 60_000;
 
 async function openGallery(page: Page) {
   await seedCookieConsent(page);
@@ -63,10 +68,13 @@ test.describe("Media virtual folders", () => {
     await openGallery(page);
     const folderName = `e2e_folder_${Date.now().toString(36).slice(-6)}`;
 
+    // Start listening BEFORE the click so we don't miss a fast response.
+    // Timeout uses API_TIMEOUT (60 s) — the full round-trip includes:
+    // dialog open + input fill + confirm click + POST /api/system-virtual-folder.
     const createApi = page.waitForResponse(
       (res) =>
         res.url().includes("/api/system-virtual-folder") && res.request().method() === "POST",
-      { timeout: ACTION_TIMEOUT },
+      { timeout: API_TIMEOUT },
     );
 
     await page.getByTestId("media-create-folder").click();
@@ -86,6 +94,7 @@ test.describe("Media virtual folders", () => {
     await input.fill(folderName);
     await dialog.getByRole("button", { name: /^(ok|create|confirm|save)$/i }).click();
 
+    // Await the API response — the server must confirm before we assert UI.
     const res = await createApi;
     expect(res.ok()).toBe(true);
     await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: ACTION_TIMEOUT });

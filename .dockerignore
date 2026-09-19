@@ -1,0 +1,46 @@
+﻿# Dependencies (reinstalled in builder stage)
+node_modules/
+
+# Git history
+.git/
+.gitattributes
+.gitignore
+.githooks/
+.github/
+
+# SvelteKit generated / build output (built fresh in builder stage)
+.svelte-kit/
+build/
+
+# Tests and development tooling
+tests/
+.vitest/
+
+# Documentation (not needed in image)
+docs/
+
+# Logs
+logs/
+*.log
+
+# Local environment overrides
+.env
+.env.*
+.env.local
+
+# Sensitive config (must be injected via ENV, never baked in)
+config/private.ts
+
+# User media (should be on a volume, not baked in)
+mediaFolder/
+
+# Development IDE config
+.vscode/
+.zed/
+
+# Misc
+*.md
+bundle-report.json
+sbom.json
+playwright.config.ts
+vitest.config.ts

@@ -1,6 +1,13 @@
 /**
  * @file src/databases/mongodb/adapter/adapter-core.ts
  * @description Core functionality shared across MongoDB adapter modules.
+ *
+ * @env MONGODB_IDLE_TIMEOUT_MS   Maximum idle time for pooled connections in **ms**.
+ *                                Default `0` (driver-managed: no forced idle disconnect).
+ *                                Set to a positive value (e.g. `300000` = 5 min) when
+ *                                behind a load balancer that silently closes idle sockets.
+ * @env MONGODB_HEARTBEAT_MS      Frequency of server heartbeat pings in ms. Default `10000`.
+ * @env MONGO_COMPRESSORS         Wire compression: `zstd,snappy`, `none`. Default: `auto`.
  */
 
 import { createRequire } from "node:module";
@@ -140,6 +147,16 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         minPoolSize: poolOptions.minConnections || getHardwareProfile().mongoMinPool,
         serverSelectionTimeoutMS: poolOptions.connectionTimeout || 30000,
         socketTimeoutMS: 45000,
+        // maxIdleTimeMS: 0 = driver-managed (no forced idle disconnect).
+        // Set MONGODB_IDLE_TIMEOUT_MS to a positive value when behind a load balancer
+        // that silently closes idle sockets (avoids broken-pipe errors on next use).
+        maxIdleTimeMS:
+          process.env.MONGODB_IDLE_TIMEOUT_MS !== undefined
+            ? Number(process.env.MONGODB_IDLE_TIMEOUT_MS)
+            : 0,
+        // heartbeatFrequencyMS: how often the driver pings the server to detect topology
+        // changes. Default 10s is suitable for most deployments.
+        heartbeatFrequencyMS: Number(process.env.MONGODB_HEARTBEAT_MS) || 10000,
         family: 4,
         ...(loopback ? { directConnection: true } : {}),
         connectTimeoutMS: 10000,
