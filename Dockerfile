@@ -52,8 +52,10 @@ ENV PORT=4173
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 
-# Database — required, no sane default:
-# ENV DB_TYPE=sqlite          # sqlite | postgresql | mariadb | mongodb
+# Database — default is embedded SQLite, so a bare `docker run` works with no
+# external services. Override DB_TYPE to postgresql | mariadb | mongodb and set
+# the matching DB_* variables below for those engines.
+ENV DB_TYPE=sqlite
 # ENV DB_HOST=
 # ENV DB_PORT=
 # ENV DB_NAME=
@@ -77,6 +79,13 @@ ENV NODE_ENV=production
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY index.cjs package.json ./
+
+# -- Persistent state ---------------------------------------------------------
+# SQLite data (config/database/) and the setup-wizard-generated config/private.ts
+# both live under /app/config. Mount a volume here so the database and secrets
+# survive container restarts:
+#   docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
+VOLUME ["/app/config"]
 
 EXPOSE 4173
 
