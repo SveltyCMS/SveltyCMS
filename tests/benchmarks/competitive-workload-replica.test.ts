@@ -390,35 +390,56 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const t0 = Date.now();
       const stop = { flag: false };
       const counter = { n: 0 };
-      await Promise.all(
-        Array.from({ length: CONCURRENCY }, async () => {
-          while (!stop.flag) {
-            try {
-              await mixedStable();
-              counter.n++;
-            } catch {}
-          }
-        }),
-      );
+      // Fire-and-forget workers (NOT awaited yet): the sampling loop must run
+      // concurrently with them. Awaiting this array first would deadlock — the
+      // workers only exit once stop.flag is set after sampling completes.
+      const workers = Array.from({ length: CONCURRENCY }, async () => {
+        while (!stop.flag) {
+          try {
+            await mixedStable();
+            counter.n++;
+          } catch {}
+        }
+      });
       const buckets: string[] = [];
+      const rpsSeries: number[] = [];
       let lastT = t0;
       let lastN = 0;
       while (Date.now() - t0 < SOAK_SECONDS * 1000) {
         await new Promise((r) => setTimeout(r, 5000));
         const now = Date.now();
         const n = counter.n;
-        buckets.push(
-          `${((now - t0) / 1000).toFixed(1)}s:${((n - lastN) / ((now - lastT) / 1000)).toFixed(0)}`,
-        );
+        const rps = (n - lastN) / ((now - lastT) / 1000);
+        rpsSeries.push(rps);
+        buckets.push(`${((now - t0) / 1000).toFixed(1)}s:${rps.toFixed(0)}`);
         lastT = now;
         lastN = n;
       }
       stop.flag = true;
+      await Promise.all(workers);
       const totalSec = (Date.now() - t0) / 1000;
       const avgRps = counter.n / totalSec;
-      logger.info(`  → soak: ${counter.n} reqs, avg ${avgRps.toFixed(1)} RPS`);
+      const minRps = rpsSeries.length ? Math.min(...rpsSeries) : 0;
+      const maxRps = rpsSeries.length ? Math.max(...rpsSeries) : 0;
+      // Same instability metric as the external harness: (max − min) / max × 100.
+      const instability = maxRps > 0 ? ((maxRps - minRps) / maxRps) * 100 : 0;
+      logger.info(
+        `  → soak: ${counter.n} reqs, avg ${avgRps.toFixed(1)} RPS, min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)}, instability ${instability.toFixed(1)}%`,
+      );
       logger.info(`  → buckets: ${buckets.join(" ")}`);
       exportMetric("competitive.soak.avg_rps", +avgRps.toFixed(1), "req/s");
+      exportMetric("competitive.soak.min_rps", +minRps.toFixed(1), "req/s");
+      exportMetric("competitive.soak.max_rps", +maxRps.toFixed(1), "req/s");
+      exportMetric("competitive.soak.instability_pct", +instability.toFixed(1), "%");
+
+      // Stability guard (opt-in): a wildly swinging throughput is a leak / GC /
+      // contention signal, not just noise. The 2026-09-19 run measured 53.8%.
+      const instabilityMax = Number(process.env.BENCH_SOAK_INSTABILITY_MAX) || 0;
+      if (instabilityMax > 0 && instability > instabilityMax) {
+        throw new Error(
+          `Soak instability ${instability.toFixed(1)}% exceeds BENCH_SOAK_INSTABILITY_MAX=${instabilityMax}% (min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)} RPS)`,
+        );
+      }
     }
 
     // ── REPORTING & EXPORT ───────────────────────────────────────────────
