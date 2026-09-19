@@ -112,17 +112,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return true;
   }
 
-  private _pgSelectColsCache = new WeakMap<object, { withData?: string; withoutData?: string }>();
-
-  /**
-   * Raw prepared-SQL findById: postgres.js caches parsed statements by SQL
-   * text, so a stable parameterized SELECT skips Drizzle's per-call AST
-   * building + SQL string construction (~30-80µs/call on hot reads).
-   */
-  protected get useRawFindById(): boolean {
-    return true;
-  }
-
   /**
    * Tx-scoped postgres.js instance when inside a transaction started by the
    * PG TransactionModule (which stashes the begin()-scoped instance on
@@ -389,6 +378,109 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       return null;
     } catch (err: any) {
       if (err?.code === "23505") throw err;
+      return null;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Raw findById fast path (PostgreSQL prepared statement)
+  // --------------------------------------------------------------------------
+
+  protected override get useRawFindById(): boolean {
+    return true;
+  }
+
+  private _rawFindByIdSqlCache = new WeakMap<
+    any,
+    {
+      withData: string;
+      withoutData: string;
+      withDataTenant: string;
+      withoutDataTenant: string;
+    }
+  >();
+
+  protected override async rawFindById<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    id: DatabaseId,
+    options: import("../db-interface").FindOptions<T>,
+  ): Promise<T | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    if (!exec) return null;
+
+    try {
+      // Read-path schema registration: raw reads must normalize timestamps to
+      // ISODateString even on read-only workloads (parity with SQLite/MariaDB).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
+      const tableName = getTableName(table);
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+
+      let cachedSql = this._rawFindByIdSqlCache.get(table);
+      if (!cachedSql) {
+        const safeTable = `"${utils.assertSafeSqlIdentifier(tableName, "table")}"`;
+        const selectWithData = this.getRawFindByIdCols(table, true)
+          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+          .join(", ");
+        const selectWithoutData = this.getRawFindByIdCols(table, false)
+          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+          .join(", ");
+
+        cachedSql = {
+          withData: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
+          withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
+          withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+        };
+        this._rawFindByIdSqlCache.set(table, cachedSql);
+      }
+
+      // Reuse the shared tenant-clause contract (respects bypass + "global")
+      // so the raw path scopes identically to SQLite/MariaDB and the Drizzle
+      // fallback below.
+      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 2 });
+      const hasTenant = tenantClause.sql !== "";
+
+      const sqlText = hasTenant
+        ? wantsData
+          ? cachedSql.withDataTenant
+          : cachedSql.withoutDataTenant
+        : wantsData
+          ? cachedSql.withData
+          : cachedSql.withoutData;
+
+      const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
+      const rows = await exec.unsafe(sqlText, params, { prepare: true });
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+
+      return utils.convertDatesToISO(rows[0], {
+        ...this.convertDatesOptions,
+        table: collection,
+        skipJson: !wantsData,
+      }) as unknown as T;
+    } catch {
       return null;
     }
   }
@@ -729,99 +821,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       /* fall through to the base path */
     }
     return super.executeDynamicSql(_db, sqlQuery, options);
-  }
-
-  protected async rawFindById<T extends import("../db-interface").BaseEntity>(
-    table: any,
-    collection: string,
-    id: import("../db-interface").DatabaseId,
-    options: import("../db-interface").FindOptions<T>,
-  ): Promise<T | null> {
-    try {
-      // Read-path schema registration: raw reads must normalize SQLite INTEGER
-      // ms timestamps to ISODateString (see isEpochMs in relational-utils).
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-      const tableName = getTableName(table);
-      const tenantId =
-        options?.tenantId && options?.tenantId !== "global" ? options.tenantId : null;
-      // Projection-aware: skip the jsonb data blob when all requested fields
-      // are physical columns (avoids jsonb deserialization on hot reads).
-      const fields = options?.fields;
-      const wantsData =
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        fields.some((f) => {
-          if (f === "data") return true;
-          if (
-            f === "_id" ||
-            f === "id" ||
-            f === "tenantId" ||
-            f === "status" ||
-            f === "createdAt" ||
-            f === "updatedAt" ||
-            f === "isDeleted"
-          )
-            return false;
-          return !this.getColumn(table, String(f));
-        });
-      let entry = this._pgSelectColsCache.get(table);
-      let selectCols = wantsData ? entry?.withData : entry?.withoutData;
-      if (!selectCols) {
-        selectCols = this.getRawFindByIdCols(table, wantsData)
-          .map((c) => {
-            const phys = this.getColumn(table, c);
-            return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
-          })
-          .join(", ");
-        if (!entry) {
-          entry = {};
-          this._pgSelectColsCache.set(table, entry);
-        }
-        if (wantsData) entry.withData = selectCols;
-        else entry.withoutData = selectCols;
-      }
-      // Tagged template (NOT unsafe): postgres.js caches prepared statements by
-      // SQL text, so this stable query gets parse-once + bind/execute reuse.
-      // Identifiers are inlined via sql.unsafe fragments (stable SQL text);
-      // only _id/tenantId are bound values. Inside a transaction the
-      // begin()-scoped instance is used so the read stays on the txn
-      // connection (consistent snapshot, no pool bypass).
-      const exec = this.getTxnSql(options) ?? this.sql!;
-      const selectFragment = exec.unsafe(selectCols);
-      // 🐛 identifiers must be quoted — PostgreSQL folds unquoted
-      // identifiers to lowercase, so mixed-case collection tables
-      // (e.g. collection_BenchmarkStable) errored with 42P01 and silently
-      // fell back to the slower Drizzle path on EVERY read.
-      const tableFragment = exec.unsafe(`"${tableName.replace(/"/g, '""')}"`);
-      const rows = tenantId
-        ? await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
-            id,
-          )} AND "tenantId" = ${String(tenantId)} LIMIT 1`
-        : await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
-            id,
-          )} LIMIT 1`;
-      if (Array.isArray(rows) && rows.length > 0) {
-        const row = rows[0];
-        if (!wantsData) {
-          return utils.convertDatesToISO(row, {
-            ...this.convertDatesOptions,
-            table: collection,
-            skipJson: true,
-          }) as T;
-        }
-        return utils.convertDatesToISO(row, {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as T;
-      }
-      return null;
-    } catch (rawErr: any) {
-      logger.debug("[PostgreSQL raw findById] falling back to Drizzle:", rawErr?.message);
-      return null;
-    }
   }
 
   protected isMissingTableError(err: any): boolean {
@@ -1318,7 +1317,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   };
 
   // --------------------------------------------------------------------------
-  // Stream Many (PostgreSQL-specific native streaming)
+  // Stream Many (Delegates to SqlAdapterCore paged cursor)
   // --------------------------------------------------------------------------
 
   public async streamMany<T extends import("../db-interface").BaseEntity>(
@@ -1326,29 +1325,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     query: import("../db-interface").QueryFilter<T>,
     options: import("../db-interface").FindOptions<T> = {},
   ): Promise<import("../db-interface").DatabaseResult<AsyncIterable<T>>> {
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const where = this.mapQuery(table, q, options);
-      let builder = (this.db as any).select().from(table).where(where);
-      if (options.limit) builder = builder.limit(options.limit);
-      if (options.offset) builder = builder.offset(options.offset);
-
-      const stream = await (builder as any).stream();
-      const convertFn = utils.convertDatesToISO;
-
-      async function* generator() {
-        for await (const row of stream) {
-          yield convertFn(row) as T;
-        }
-      }
-
-      return generator() as AsyncIterable<T>;
-    }, "STREAM_MANY_FAILED");
+    return super.streamMany(collection, query, options);
   }
 
   // --------------------------------------------------------------------------
