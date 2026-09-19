@@ -55,15 +55,16 @@ bun run version:bump major        # force a major bump
 bun run version:bump --dry-run    # print the decision, change nothing
 ```
 
-**Auto policy** (default):
+**Auto policy** (default) — Conventional Commits subjects mapped to SemVer, highest rule first:
 
-| Commits since the latest `v*` tag                            | Result                    |
-| ------------------------------------------------------------ | ------------------------- |
-| Anything else — 0.x features ship as patches in this project | patch                     |
-| `BREAKING CHANGE` footer or `type!:` subject                 | minor while `major === 0` |
-| The same markers once `major >= 1`                           | major                     |
+| Commits since the latest `v*` tag                                                                                     | Result            |
+| --------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `BREAKING CHANGE` footer or `type!:` subject while `major === 0`                                                      | minor (SemVer §4) |
+| The same markers once `major >= 1`                                                                                    | major (SemVer §8) |
+| `feat` subject — new backwards-compatible functionality                                                               | minor (SemVer §7) |
+| Everything else (`fix`, `perf`, `refactor`, `docs`, `chore`, `ci`, `test`, `build`, `style`, `revert`, merge commits) | patch (SemVer §6) |
 
-A plain `feat` commit does not auto-promote during `0.x`; a 0.x feature release is an explicit `bun run version:bump minor`.
+SemVer §7 defines MINOR as new backwards-compatible functionality, so a `feat` is never a patch. SemVer §4 (`0.y.z` may change anything) is why a breaking commit is a minor while `major === 0` and a major afterwards (§8); §6 keeps pure fix/refactor/docs ranges at patch. A range that mixes types follows the highest rule that applies — breaking beats `feat`, `feat` beats everything else — so `feat!:` on `1.x` is a major release even beside `fix` commits. `patch`, `minor` or `major` as an argument overrides detection.
 
 ### Single source of truth
 
