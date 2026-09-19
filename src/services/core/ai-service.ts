@@ -6,6 +6,7 @@
  */
 
 import ollama from "ollama";
+import { readLocalVersion } from "./version-service";
 import { logger } from "@utils/logger";
 import { getPrivateSetting } from "./settings-service";
 
@@ -82,9 +83,10 @@ export class AIService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "SveltyCMS-Server/0.0.8",
+          // Read once per process — a hardcoded version here silently drifts from package.json.
+          "User-Agent": `SveltyCMS-Server/${readLocalVersion()}`,
         },
-        body: JSON.stringify({ query, limit, version: "0.0.8" }),
+        body: JSON.stringify({ query, limit, version: readLocalVersion() }),
       });
 
       if (!response.ok) {
