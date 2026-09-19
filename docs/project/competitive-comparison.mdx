@@ -111,7 +111,7 @@ Optional dual-query list paths (`findMany` + exact `count`) vs shared **`findPag
 
 Throughput (Requests / Sec) and bulk seeding throughput across SveltyCMS, Payload CMS v3 & v4, Directus 12, and Strapi v5:
 
-| Workload                 | SveltyCMS (v0.0.9)           | Payload CMS v3 (3.88.0) | Payload v4 (4.0.0-canary.31) | Strapi v5 (5.52.3)     | Directus v12 (12.3.1)  | Comparative Ratio             |
+| Workload                 | SveltyCMS (v0.0.10)          | Payload CMS v3 (3.88.0) | Payload v4 (4.0.0-canary.31) | Strapi v5 (5.52.3)     | Directus v12 (12.3.1)  | Comparative Ratio             |
 | :----------------------- | :--------------------------- | :---------------------- | :--------------------------- | :--------------------- | :--------------------- | :---------------------------- |
 | **`findById`**           | **4,101.9 req/s** (1.93 ms)  | 769.1 req/s (10.37 ms)  | 762.9 req/s (10.43 ms)       | 507.9 req/s (15.68 ms) | 459.7 req/s (17.33 ms) | **5.3×** over competitor max  |
 | **`findByIdRandom`**     | **1,148.7 req/s** (6.92 ms)  | 676.3 req/s (11.78 ms)  | 799.3 req/s (9.98 ms)        | 518.4 req/s (15.38 ms) | 455.6 req/s (17.48 ms) | **1.4×** over competitor max  |
