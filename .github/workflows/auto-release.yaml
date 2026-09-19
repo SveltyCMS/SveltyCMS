@@ -1,7 +1,9 @@
 # .github/workflows/auto-release.yaml
-# Primary: CI passes on main → version is read from package.json → tag + GitHub Release + npm publish.
-# Fallback A: pushing a `v*` tag triggers a release from the tag name (matches the AGENTS.md flow).
-# Fallback B: manual dispatch with an explicit version input.
+# Release triggers (each run has exactly one event; the job `if:` accepts all three):
+#   1. CI succeeds on `main`  → release the version recorded in package.json (primary path)
+#   2. a `v*` tag is pushed   → release from the tag name (manual/emergency fallback)
+#   3. manual dispatch        → release the explicit `version` input (fallback)
+# Tag pushes by github-actions[bot] are ignored so a release cannot loop.
 #
 # The GitHub Release is created independently of npm publish — a missing/invalid
 # NPM_TOKEN or registry failure must never swallow the release (that previously
@@ -78,19 +80,12 @@ jobs:
             echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
             echo "source=package.json" >> $GITHUB_OUTPUT
           fi
-          PKG_NAME=$(node -e "console.log(require('./package.json').name)")
-          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
         env:
           MANUAL_VERSION: ${{ github.event.inputs.version }}
 
-      - name: Log version
-        run: |
-          echo "Publishing $PKG_NAME v$VERSION (from $SOURCE)"
-        env:
-          VERSION: ${{ steps.version.outputs.value }}
-          SOURCE: ${{ steps.version.outputs.source }}
-          PKG_NAME: ${{ steps.version.outputs.pkg_name }}
-
+      # An existing tag means this version was released before (e.g. a re-run):
+      # skip idempotently. `bun run version:bump` refuses to derive an
+      # already-tagged version locally, which is the fail-fast re-release guard.
       - name: Create git tag
         run: |
           git config user.name "github-actions[bot]"
@@ -128,20 +123,6 @@ jobs:
           npm whoami || { echo "❌ npm token is invalid or expired — skipping npm publish"; exit 1; }
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Check if package exists in registry
-        id: check-pkg
-        continue-on-error: true
-        run: |
-          if npm view "$PKG_NAME" version >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ Package exists — will publish new version"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Package does not exist in registry — first publish will create it"
-          fi
-        env:
-          PKG_NAME: ${{ steps.version.outputs.pkg_name }}
 
       - name: Publish to npm
         if: steps.npm-auth.outcome == 'success'

@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:source-branch"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-08-23"
+updated: "2026-09-19"
 tags:
   - "version"
   - "update"
@@ -28,7 +28,7 @@ SveltyCMS uses a simple two-branch model with automated releases triggered when 
 ## Release Pipeline
 
 ```
-next:   bump package.json version → commit → merge to main
+next:   bun run version:bump → commit package.json → merge to main
                  │
                  ▼
 main:   CI runs (whitebox → build → DB matrix → bench → E2E)
@@ -38,12 +38,40 @@ main:   CI runs (whitebox → build → DB matrix → bench → E2E)
         1. reads version from package.json
         2. creates git tag (e.g. v0.0.9)
         3. GitHub Release with auto-generated notes (independent of npm)
-        4. npm publish (best-effort — never blocks the release)
+        4. npm publish (best-effort — npm never blocks the release)
 
-        version matches between package.json and git tag ✅
+        the created tag is always the package.json version ✅
 ```
 
-The `package.json` version flows naturally from `next` → `main` through merges. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.9 && git push origin v0.0.9`) triggers the same pipeline from the tag name.
+### Deriving the next version
+
+`bun run version:bump` runs `scripts/version.ts`. It reads the released version from the highest `v*` git tag reachable from the current branch (falling back to `package.json` when no tag exists yet), inspects the commits since that tag, and writes the next version back into `package.json`. Every run prints the source it used, the commit range it inspected, and the proposed version before anything is written — `--dry-run` stops right after that report.
+
+```bash
+bun run version:bump              # auto policy (default)
+bun run version:bump patch        # force a patch bump
+bun run version:bump minor        # force a minor bump
+bun run version:bump major        # force a major bump
+bun run version:bump --dry-run    # print the decision, change nothing
+```
+
+**Auto policy** (default):
+
+| Commits since the latest `v*` tag                            | Result                    |
+| ------------------------------------------------------------ | ------------------------- |
+| Anything else — 0.x features ship as patches in this project | patch                     |
+| `BREAKING CHANGE` footer or `type!:` subject                 | minor while `major === 0` |
+| The same markers once `major >= 1`                           | major                     |
+
+A plain `feat` commit does not auto-promote during `0.x`; a 0.x feature release is an explicit `bun run version:bump minor`.
+
+### Single source of truth
+
+Two rules keep the tag and the manifest in lockstep (as of September 2026): the release workflow tags whatever version it finds in `package.json`, and `scripts/version.ts` derives the next `package.json` version from the latest `v*` tag — it reads git, not the hand-edited manifest, so the two cannot drift apart. Because the script refuses to derive a version that already carries a tag, re-releasing an existing version fails fast locally instead of the runner quietly skipping tag creation.
+
+Two further safety rails (as of September 2026): the script refuses to run while `package.json` has uncommitted changes (`--dry-run` still previews the decision and prints a warning), and it never creates a commit or a tag — committing the bumped manifest and merging to `main` stays a human decision.
+
+The version flows from `next` → `main` through the normal merge. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.9 && git push origin v0.0.9`) triggers the same pipeline from the tag name.
 
 > **npm token caveat**: the GitHub Release (tag + release notes) is created **before** npm publish and never blocked by it. If `NPM_TOKEN` is missing or invalid, the run logs a warning and skips publishing — the release still exists, so the in-app update check (`/api/system/version/check`) keeps working.
 
@@ -51,13 +79,13 @@ The `package.json` version flows naturally from `next` → `main` through merges
 
 ## Version Pipeline Components
 
-| Component                  | Path                                           | Role                                                                                      |
-| -------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Version Service**        | `src/services/core/version-service.ts`         | Reads local version from `package.json`, checks GitHub Releases API for newer versions    |
-| **Version Handler**        | `src/routes/api/[...path]/handlers/version.ts` | REST endpoint `/api/system/version/check` — serves update status to the admin UI          |
-| **VersionCheck Component** | `src/components/version-check.svelte`          | Admin UI badge — displays current version with green/yellow/grey status                   |
-| **Version Tests**          | `tests/unit/api/version.test.ts`               | Unit tests for `isNewer` comparison logic and API response shapes                         |
-| **Auto Release**           | `.github/workflows/auto-release.yaml`          | CI pass on `main` (or manual `v*` tag push / dispatch) → tag, GitHub Release, npm publish |
+| Component                  | Path                                          | Role                                                                                                                                           |
+| -------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Version Service**        | `src/services/core/version-service.ts`        | Reads local version from `package.json`, checks GitHub Releases API for newer versions                                                         |
+| **Version Handler**        | `src/routes/api/[...path]/handlers/system.ts` | REST endpoints `/api/system/version` (public: installed version) and `/api/system/version/check` (authenticated: update check)                 |
+| **VersionCheck Component** | `src/components/version-check.svelte`         | Admin UI badge — displays current version with green/yellow/grey status                                                                        |
+| **Version Tests**          | `tests/unit/api/version.test.ts`              | Unit tests for `compareVersions` (SemVer incl. prerelease precedence) and `checkForUpdates` — these import the real implementation, not a copy |
+| **Auto Release**           | `.github/workflows/auto-release.yaml`         | CI pass on `main` (or manual `v*` tag push / dispatch) → tag, GitHub Release, npm publish                                                      |
 
 > **Note**: `src/utils/media/version-history.ts` is a separate module for tracking **media file** revisions (create/update/replace diffs) — not related to CMS release versioning.
 
@@ -79,8 +107,8 @@ Queries the GitHub Releases API and compares against the installed version from 
 {
   "success": true,
   "data": {
-    "currentVersion": "0.0.7",
-    "latestVersion": "0.0.8",
+    "currentVersion": "0.0.8",
+    "latestVersion": "0.0.9",
     "updateAvailable": true,
     "checkedAt": "2026-07-08T12:00:00.000Z"
   }
@@ -93,8 +121,8 @@ Queries the GitHub Releases API and compares against the installed version from 
 {
   "success": true,
   "data": {
-    "currentVersion": "0.0.7",
-    "latestVersion": "0.0.7",
+    "currentVersion": "0.0.9",
+    "latestVersion": "0.0.9",
     "updateAvailable": false,
     "checkedAt": "2026-07-08T12:00:00.000Z"
   }
@@ -116,7 +144,7 @@ The `VersionCheck` component (`src/components/version-check.svelte`) appears in 
 | Badge State            | Meaning                                                            |
 | ---------------------- | ------------------------------------------------------------------ |
 | **Green** (`success`)  | You are up to date                                                 |
-| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.8 recommended") |
+| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.9 recommended") |
 | **Grey** (`surface`)   | Could not check for updates (network/GitHub API issue)             |
 
 ---
