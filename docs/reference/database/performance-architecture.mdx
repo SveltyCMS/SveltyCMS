@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-21"
+updated: "2026-09-19"
 tags:
   - "performance"
   - "optimization"
@@ -44,6 +44,9 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 SveltyCMS provides first-class support for both **Node.js (>=24)** and **Bun (>=1.3 / 1.4)**:
 
 - **Node.js 24+ (V8 TurboFan)**: Recommended for **long-running production servers**. In full-stack CMS workloads involving deep middleware chains, session HMAC cryptography, GraphQL AST parsing, and Drizzle query construction, V8's TurboFan JIT compiler delivers **1.8× to 2.4× higher sustained throughput (4,000+ RPS on `findById`)** and tighter p99 tail latency.
+  - **V8 Young Generation Tuning & Soak-Test Hardening**: In high-throughput 60s soak tests (~1,050 RPS, 61,800+ total requests), SvelteKit allocates 30–35 MB/s of ephemeral objects (Request, Response, URL, locals, ASTs). With the Node.js default 16 MB Semi-Space, the Young Generation overflows in milliseconds, forcing V8 to promote short-lived garbage into Old Space (**Premature Tenuring**). This accumulates ~500 MB of garbage and causes major Full GC pauses at ~15s and ~55s.
+  - **The Fix**: Setting `NODE_OPTIONS="--max-semi-space-size=128 --max-old-space-size=1024"` expands the Semi-Space to 128 MB. V8 cleans up transient allocations in sub-millisecond minor scavenge cycles (<1 ms) without tenuring them into Old Space, eliminating GC throughput drops and stabilizing memory at ~200–300 MB under sustained load.
+  - **Containerization**: The official production `Dockerfile` is built on `node:24-slim` (~450 MB) with these flags pre-configured, coupled with a fast, zero-dependency `curl` healthcheck (~3 ms vs ~200 ms Node evaluation).
 - **Bun 1.4+ (`Bun.serve`)**: Recommended for **developer tooling (`bun install` / `bun test`), CLI scripts, and serverless / edge containers** where sub-10ms cold start latency and low idle memory are prioritized.
 
 ### Core database layer (all 4 engines)
@@ -591,18 +594,43 @@ services:
 
 SveltyCMS supports native environment variable overrides to tune database session parameters directly from `.env` or process environment, eliminating the need to modify external database container files:
 
-| Environment Variable        | Target Database | Default         | Fast Dev / Benchmark Setting | Impact & Behavior                                                                                                      |
-| --------------------------- | --------------- | --------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `PG_SYNCHRONOUS_COMMIT`     | PostgreSQL      | `on`            | `off` or `local`             | Bypasses per-transaction disk `fsync`. Reduces write latencies from ~15ms down to ~1-2ms for local dev and benchmarks. |
-| `PG_WORK_MEM`               | PostgreSQL      | Default (4MB)   | `32MB` or `64MB`             | Prevents disk spilling for complex sorts/joins during dynamic content queries.                                         |
-| `SQLITE_SYNCHRONOUS`        | SQLite          | `NORMAL`        | `NORMAL` / `OFF`             | Controls SQLite synchronous write durability (`NORMAL` recommended for WAL mode).                                      |
-| `SQLITE_BUSY_TIMEOUT`       | SQLite          | `30000`         | `30000`                      | Busy lock wait timeout (30s) preventing concurrent writer lock errors under load.                                      |
-| `SQLITE_WAL_AUTOCHECKPOINT` | SQLite          | `2000`          | `2000` or `5000`             | Page count for auto-flushing dirty WAL pages to main file, smoothing out p99 tail spikes.                              |
-| `MARIADB_SESSION_INIT`      | MariaDB         | None            | Custom SQL                   | Allows executing session-level SQL commands per new connection checked out from the pool.                              |
-| `TEST_MODE`                 | MongoDB         | `w: 1, j: true` | —                            | Sandbox isolation only (bench DB + test config); the adapter never changes write concern from environment flags.       |
+| Environment Variable         | Target Database | Default          | Fast Dev / Benchmark Setting | Impact & Behavior                                                                                                      |
+| ---------------------------- | --------------- | ---------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_IDLE_TIMEOUT`      | PostgreSQL      | `0` (disabled)   | `0`                          | Seconds before closing an idle pooled connection. `0` keeps pool warm, eliminating connection storm spikes.            |
+| `DATABASE_CONNECT_TIMEOUT`   | PostgreSQL      | `10` (seconds)   | `10`                         | Timeout in seconds when establishing a new connection to PostgreSQL.                                                   |
+| `MARIADB_IDLE_TIMEOUT`       | MariaDB         | `0` (disabled)   | `0`                          | Milliseconds before an idle pooled connection is released. `0` disables eviction, keeping connections warm.            |
+| `MARIADB_MAX_IDLE`           | MariaDB         | Same as pool max | Same as pool max             | Maximum number of idle connections held open in the `mysql2` pool.                                                     |
+| `MARIADB_KEEPALIVE_DELAY_MS` | MariaDB         | `0`              | `0`                          | Initial delay in ms for TCP keepalive probes.                                                                          |
+| `MONGODB_IDLE_TIMEOUT_MS`    | MongoDB         | `0` (disabled)   | `0`                          | Maximum time in ms that a connection can remain idle before being closed. `0` keeps sockets permanently warm.          |
+| `MONGODB_HEARTBEAT_MS`       | MongoDB         | `10000` (10s)    | `10000`                      | Frequency in ms of server monitoring checks.                                                                           |
+| `PG_SYNCHRONOUS_COMMIT`      | PostgreSQL      | `on`             | `off` or `local`             | Bypasses per-transaction disk `fsync`. Reduces write latencies from ~15ms down to ~1-2ms for local dev and benchmarks. |
+| `PG_WORK_MEM`                | PostgreSQL      | Default (4MB)    | `32MB` or `64MB`             | Prevents disk spilling for complex sorts/joins during dynamic content queries.                                         |
+| `SQLITE_SYNCHRONOUS`         | SQLite          | `NORMAL`         | `NORMAL` / `OFF`             | Controls SQLite synchronous write durability (`NORMAL` recommended for WAL mode).                                      |
+| `SQLITE_BUSY_TIMEOUT`        | SQLite          | `30000`          | `30000`                      | Busy lock wait timeout (30s) preventing concurrent writer lock errors under load.                                      |
+| `SQLITE_WAL_AUTOCHECKPOINT`  | SQLite          | `2000`           | `2000` or `5000`             | Page count for auto-flushing dirty WAL pages to main file, smoothing out p99 tail spikes.                              |
+| `MARIADB_SESSION_INIT`       | MariaDB         | None             | Custom SQL                   | Allows executing session-level SQL commands per new connection checked out from the pool.                              |
+| `TEST_MODE`                  | MongoDB         | `w: 1, j: true`  | —                            | Sandbox isolation only (bench DB + test config); the adapter never changes write concern from environment flags.       |
 
 > [!TIP]
 > **Developer Recommendation**: For maximum developer velocity during local testing, migration seeding, or benchmark runs, set `PG_SYNCHRONOUS_COMMIT=off` in your `.env` file or export it in your shell environment.
+
+### 🔌 Connection Pool Architecture & Keep-Warm Defaults (All 4 Adapters)
+
+In real production workloads, traffic is rarely uniform — bursts and quiet periods alternate. In older versions or unoptimized setups, connection pools were configured with aggressive idle timeouts (e.g. 30s in PostgreSQL, 60s in MariaDB). Under fluctuating traffic, this caused recurring **connection storms**:
+
+1. After 30–60 seconds of low traffic, connections were terminated by the client pool.
+2. The next burst of incoming requests forced the adapter to establish dozens of fresh TCP handshakes, TLS negotiations, and authentication handshakes concurrently against the database server.
+3. This resulted in observable tail-latency spikes (500ms–2000ms p99) and unnecessary CPU load on both the CMS node and the database server.
+
+**SveltyCMS 2026-09 Hardening**:
+
+- **PostgreSQL (`postgres` driver)**: `idle_timeout: 0` by default. Sockets remain connected and warm. Configurable via `DATABASE_IDLE_TIMEOUT` (in seconds).
+- **MariaDB (`mysql2/promise` pool)**: `idleTimeout: 0` by default. Configurable via `MARIADB_IDLE_TIMEOUT` (in milliseconds).
+- **MongoDB (`mongodb` driver)**: `maxIdleTimeMS: 0` by default. Sockets remain alive and ready. Configurable via `MONGODB_IDLE_TIMEOUT_MS`.
+- **SQLite (`bun:sqlite` / `better-sqlite3`)**: Single-file direct memory engine; zero connection pool overhead, no TCP sockets, zero connection storm risk.
+
+> [!NOTE]
+> For serverless or short-lived container environments (e.g. AWS Lambda) where holding open idle connections could exhaust external database connection limits, operators can set `DATABASE_IDLE_TIMEOUT=30` or `MARIADB_IDLE_TIMEOUT=30000` via environment variables.
 
 ### 🚀 Core CMS Application Code Optimizations (Universal Across All 4 Adapters)
 
