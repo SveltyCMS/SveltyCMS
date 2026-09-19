@@ -4,7 +4,7 @@ title: "Competitive Comparison"
 description: "A strategic, EU-compliant buyer's guide comparing SveltyCMS with Payload CMS, Strapi, and Directus across total cost of ownership, compliance readiness, and time-to-market."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-09-14"
+updated: "2026-09-19"
 tags:
   - "comparison"
   - "buyers-guide"
@@ -111,23 +111,47 @@ Optional dual-query list paths (`findMany` + exact `count`) vs shared **`findPag
 
 Throughput (Requests / Sec) and bulk seeding throughput across SveltyCMS, Payload CMS v3 & v4, Directus 12, and Strapi v5:
 
-| Workload                 | SveltyCMS (v0.0.10)          | Payload CMS v3 (3.88.0) | Payload v4 (4.0.0-canary.31) | Strapi v5 (5.52.3)     | Directus v12 (12.3.1)  | Comparative Ratio             |
-| :----------------------- | :--------------------------- | :---------------------- | :--------------------------- | :--------------------- | :--------------------- | :---------------------------- |
-| **`findById`**           | **4,101.9 req/s** (1.93 ms)  | 769.1 req/s (10.37 ms)  | 762.9 req/s (10.43 ms)       | 507.9 req/s (15.68 ms) | 459.7 req/s (17.33 ms) | **5.3×** over competitor max  |
-| **`findByIdRandom`**     | **1,148.7 req/s** (6.92 ms)  | 676.3 req/s (11.78 ms)  | 799.3 req/s (9.98 ms)        | 518.4 req/s (15.38 ms) | 455.6 req/s (17.48 ms) | **1.4×** over competitor max  |
-| **`listPlain`**          | **2,949.5 req/s** (2.69 ms)  | 694.4 req/s (11.42 ms)  | 689.1 req/s (11.48 ms)       | 349.8 req/s (22.45 ms) | 403.8 req/s (19.53 ms) | **4.2×** over competitor max  |
-| **`listFilterSort`**     | **1,919.7 req/s** (4.10 ms)  | 93.3 req/s (84.67 ms)   | 76.4 req/s (103.45 ms)       | 82.5 req/s (94.92 ms)  | 152.0 req/s (52.13 ms) | **12.6×** over competitor max |
-| **`listLarge`**          | **739.1 req/s** (10.66 ms)   | 81.9 req/s (96.72 ms)   | 70.6 req/s (111.72 ms)       | 69.2 req/s (113.41 ms) | 119.1 req/s (66.00 ms) | **6.2×** over competitor max  |
-| **`findMissing` (404)**  | **5,728.7 req/s** (1.37 ms)  | 405.4 req/s (19.63 ms)  | 475.6 req/s (16.73 ms)       | 523.1 req/s (15.18 ms) | 571.6 req/s (13.78 ms) | **10.0×** over competitor max |
-| **`create`**             | **1,501.1 req/s** (5.24 ms)  | 642.2 req/s (12.37 ms)  | 563.6 req/s (14.11 ms)       | 330.6 req/s (24.05 ms) | 274.9 req/s (28.99 ms) | **2.3×** over competitor max  |
-| **`update`**             | **1,559.2 req/s** (5.07 ms)  | 485.5 req/s (16.35 ms)  | 402.1 req/s (19.75 ms)       | 308.9 req/s (25.74 ms) | 238.0 req/s (33.42 ms) | **3.2×** over competitor max  |
-| **`graphql`**            | **2,619.6 req/s** (3.00 ms)  | 468.1 req/s (16.83 ms)  | 470.8 req/s (16.73 ms)       | 384.2 req/s (20.61 ms) | 369.6 req/s (21.38 ms) | **5.6×** over competitor max  |
-| **`mixed` (Read/Write)** | **1,311.2 req/s** (5.98 ms)  | 301.7 req/s (25.08 ms)  | 314.5 req/s (24.32 ms)       | 218.2 req/s (34.25 ms) | 257.0 req/s (30.46 ms) | **4.2×** over competitor max  |
-| **Seeding Throughput**   | **1,442.4 docs/s** (0.69 ms) | 582.7 docs/s (1.72 ms)  | 489.7 docs/s (2.04 ms)       | 332.6 docs/s (3.01 ms) | 249.6 docs/s (4.01 ms) | **2.5×** over competitor max  |
+| Workload                 | SveltyCMS (v0.0.10)          | Payload CMS v3 (3.88.0) | Payload v4 (4.0.0-canary.31) | Strapi v5 (5.52.3)     | Directus v12 (12.3.1)  | Comparative Ratio            |
+| :----------------------- | :--------------------------- | :---------------------- | :--------------------------- | :--------------------- | :--------------------- | :--------------------------- |
+| **`findById`**           | **2,784.8 req/s** (2.86 ms)  | 769.1 req/s (10.37 ms)  | 762.9 req/s (10.43 ms)       | 507.9 req/s (15.68 ms) | 459.7 req/s (17.33 ms) | **3.6×** over competitor max |
+| **`findByIdRandom`**     | **829.7 req/s** (9.57 ms)    | 676.3 req/s (11.78 ms)  | 799.3 req/s (9.98 ms)        | 518.4 req/s (15.38 ms) | 455.6 req/s (17.48 ms) | **1.0×** over competitor max |
+| **`listPlain`**          | **1,961.2 req/s** (4.05 ms)  | 694.4 req/s (11.42 ms)  | 689.1 req/s (11.48 ms)       | 349.8 req/s (22.45 ms) | 403.8 req/s (19.53 ms) | **2.8×** over competitor max |
+| **`listFilterSort`**     | **1,248.5 req/s** (6.32 ms)  | 93.3 req/s (84.67 ms)   | 76.4 req/s (103.45 ms)       | 82.5 req/s (94.92 ms)  | 152.0 req/s (52.13 ms) | **8.2×** over competitor max |
+| **`listLarge`**          | **463.5 req/s** (17.02 ms)   | 81.9 req/s (96.72 ms)   | 70.6 req/s (111.72 ms)       | 69.2 req/s (113.41 ms) | 119.1 req/s (66.00 ms) | **3.9×** over competitor max |
+| **`findMissing` (404)**  | **3,184.2 req/s** (2.45 ms)  | 405.4 req/s (19.63 ms)  | 475.6 req/s (16.73 ms)       | 523.1 req/s (15.18 ms) | 571.6 req/s (13.78 ms) | **5.6×** over competitor max |
+| **`create`**             | **1,241.5 req/s** (6.36 ms)  | 642.2 req/s (12.37 ms)  | 563.6 req/s (14.11 ms)       | 330.6 req/s (24.05 ms) | 274.9 req/s (28.99 ms) | **1.9×** over competitor max |
+| **`update`**             | **1,366.6 req/s** (5.80 ms)  | 485.5 req/s (16.35 ms)  | 402.1 req/s (19.75 ms)       | 308.9 req/s (25.74 ms) | 238.0 req/s (33.42 ms) | **2.8×** over competitor max |
+| **`graphql`**            | **1,592.8 req/s** (4.93 ms)  | 468.1 req/s (16.83 ms)  | 470.8 req/s (16.73 ms)       | 384.2 req/s (20.61 ms) | 369.6 req/s (21.38 ms) | **3.4×** over competitor max |
+| **`mixed` (Read/Write)** | **1,028.0 req/s** (7.70 ms)  | 301.7 req/s (25.08 ms)  | 314.5 req/s (24.32 ms)       | 218.2 req/s (34.25 ms) | 257.0 req/s (30.46 ms) | **3.3×** over competitor max |
+| **Seeding Throughput**   | **1,224.4 docs/s** (0.82 ms) | 582.7 docs/s (1.72 ms)  | 489.7 docs/s (2.04 ms)       | 332.6 docs/s (3.01 ms) | 249.6 docs/s (4.01 ms) | **2.1×** over competitor max |
 
 > **Methodology & Transparency Note:** Standardized concurrent benchmark run (8 workers, 100,000 documents, 3–7 adaptive rounds per workload with 4% CoV stop threshold) using identical REST and GraphQL endpoint schemas. SveltyCMS ran with its full enterprise security stack active. All comparative claims comply with EU Directive 2006/114/EC and German UWG §6.
+>
+> **Session caveat:** the SveltyCMS column was re-measured **2026-09-19** (commit `fd40e51`); the four competitor columns are from the prior combined run on the same harness. That re-run was on a **loaded host** (~13.5 GiB free of 63.4 GiB) with **53.8% soak instability**, so its figures are noisier and lower than the prior clean run (e.g. `findByIdRandom` 1,149 → 830 req/s) — treat the SveltyCMS column as a conservative, not a like-for-like regression signal.
 
 **Reproduce:** `bun test tests/benchmarks/competitive-workload-replica.test.ts` · methodology: [benchmarks](./benchmarks/index.mdx) · detail: [Performance Architecture](../reference/database/performance-architecture.mdx).
+
+### Servers / containers needed for 10,000 RPS (derived, self-measured)
+
+A practical reading of the table above: how many identical app containers each platform would need to sustain **10,000 requests/second** on the **`mixed` (read/write)** workload. This is the arithmetic `ceil(10,000 ÷ req/s)` applied to the self-measured `mixed` row — it **assumes linear horizontal scaling** and ignores database saturation, session affinity, and inter-node coordination, so read it as an order-of-magnitude orientation, not a capacity plan.
+
+```mermaid
+xychart-beta
+    title "Containers needed for 10,000 RPS (mixed read/write)"
+    x-axis ["SveltyCMS", "Payload v4", "Payload v3", "Directus v12", "Strapi v5"]
+    y-axis "Containers (rounded up)" 0 --> 50
+    bar [10, 32, 34, 39, 46]
+```
+
+| Platform     | `mixed` RPS (self-measured) | Containers for 10k RPS (`ceil`) |
+| :----------- | --------------------------: | ------------------------------: |
+| SveltyCMS    |                     1,028.0 |                              10 |
+| Payload v4   |                       314.5 |                              32 |
+| Payload v3   |                       301.7 |                              34 |
+| Directus v12 |                       257.0 |                              39 |
+| Strapi v5    |                       218.2 |                              46 |
+
+> **Methodology:** derived from the self-measured 8-worker benchmark above (`mixed` row), `containers = ceil(10,000 ÷ req/s)`. Linear-scaling assumption; no third-party audit. This is not a claim that a single container serves 10,000 RPS.
 
 ## Media & Digital Asset Management
 

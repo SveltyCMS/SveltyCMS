@@ -65,6 +65,14 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 
 Get up and running fast:
 
+> 🐳 **Prefer a container?** No Node/Bun needed — the official image defaults to SQLite:
+>
+> ```bash
+> docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
+> ```
+>
+> Open http://localhost:4173 — the Setup Wizard runs on first start.
+
 1. **Clone and install**
 
 ```bash
@@ -207,6 +215,7 @@ We use the unified **Vite+ (VoidZero)** toolchain and support dual-target execut
 - **Production Build**: `bun run build` (or `npm run build`)
 - **Production Server (Node.js)**: `npm run start:node` or `node index.cjs` (standard production server powered by Node 24 V8 engine)
 - **Production Server (Bun)**: `bun run start:bun` or `bun index.bun.ts` (native high-throughput `Bun.serve` runtime)
+- **Container**: `docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest` (official multi-arch image, SQLite default)
 - **Preview**: `bun run preview` (runs on `localhost:4173`)
 - **Linting**: `bun run check` (oxfmt + oxlint — project-wide checks in <50ms)
 
@@ -417,27 +426,27 @@ For detailed information on our Git workflow, branching strategy, and commit con
 
 ### How Releases Work
 
-SveltyCMS uses **tag-driven releases** — the maintainer controls the version number.
+SveltyCMS uses **version-driven releases**: the maintainer bumps `package.json` with `bun run version:bump`, merges to `main`, and CI publishes the rest automatically.
 
 ```
 next:  feat: add media gallery    ─┐
        fix: toolbar spacing        ├─ accumulate over days/weeks
        feat: image derivatives     ─┘
                                          │
+                               bun run version:bump   (writes package.json)
                                merge next → main (when stable)
-                               git tag v0.0.7
-                               git push --tags
                                          │
                                          ▼
-                              Tag push triggers auto-release:
-                              ├─ npm publish → npmjs.com
+                              CI passes on main → auto-release:
+                              ├─ git tag vX.Y.Z (created from package.json)
                               ├─ GitHub Release with auto-generated notes
-                              └─ package.json version set from tag
+                              ├─ npm publish → npmjs.com (best-effort)
+                              └─ Docker image → ghcr.io/sveltycms/sveltycms
 ```
 
 - **`next` branch**: Active development — all features and fixes land here. No releases.
-- **`main` branch**: Production — merged from `next` when stable. Releases triggered by pushing a version tag.
-- **Version source**: Git tags are the source of truth — NOT `package.json`.
+- **`main` branch**: Production — merged from `next` when stable. Releases happen automatically when CI passes (or by pushing a `v*` tag).
+- **Version source**: `package.json` drives the release — the git tag is created from it.
 
 ### Commit Convention
 

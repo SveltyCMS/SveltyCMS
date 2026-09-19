@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-08-19"
+updated: "2026-09-19"
 tags:
   - "getting-started"
   - "quickstart"
@@ -18,7 +18,7 @@ tags:
 
 Get up and running in minutes — whether you're a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
 
-> 💡 **Default**: SQLite (zero-config, in-process, sub-millisecond). No Docker, no external database needed.
+> 💡 **Default**: SQLite (zero-config, in-process, sub-millisecond). No external database needed — the official Docker image ships with the same SQLite default.
 > Upgrade to PostgreSQL/MongoDB/MariaDB when you need multi-instance scale.
 
 ---
@@ -56,7 +56,15 @@ bun install
 bun run dev
 ```
 
-Navigate to `http://localhost:5173`. The system detects the absence of `config/private.ts` and launches the self-healing Setup Wizard.
+#### Option C: Docker (container — no Node/Bun required)
+
+```bash
+docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
+```
+
+Open `http://localhost:4173` — the image defaults to embedded **SQLite** (no external database), and the Setup Wizard runs on first start, writing the database and secrets to the mounted `svelty_data` volume. Published to the GitHub Container Registry on every release: `latest` (stable) plus a pinned version tag (e.g. `:0.0.10`), multi-arch (`amd64` + `arm64`).
+
+For the CLI and Git options, navigate to `http://localhost:5173`. The system detects the absence of `config/private.ts` and launches the self-healing Setup Wizard.
 
 | Step                    | What Happens                                                                                                                |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wrench"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-27"
+updated: "2026-09-19"
 tags:
   - "troubleshooting"
   - "debugging"
@@ -66,6 +66,24 @@ bun run dev    # Bun's runtime works fine after npm install
 ```
 
 > This only affects the Bun **installer** on Windows. Bun's runtime and `bun run` commands work normally.
+
+### Docker container won't start or stays unhealthy
+
+**Symptoms**: Container exits immediately, `docker run` never reports `healthy`, or the image can't be pulled.
+
+**Fix**:
+
+1. Verify the image exists and is reachable:
+   ```bash
+   docker pull ghcr.io/sveltycms/sveltycms:latest
+   ```
+2. Check startup logs:
+   ```bash
+   docker logs <container>
+   ```
+   On first start the Setup Wizard runs at `http://localhost:4173` — complete it once before the healthcheck goes green.
+3. Persist state: mount `/app/config` (`-v svelty_data:/app/config`) so the SQLite database and `config/private.ts` survive restarts.
+4. The image defaults to SQLite. For another engine, pass `-e DB_TYPE=postgresql` (or `mariadb` / `mongodb`) plus the matching `DB_*` variables, and make the database reachable from the container.
 
 ---
 
