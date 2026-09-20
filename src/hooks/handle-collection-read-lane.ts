@@ -16,6 +16,8 @@
  * - Admin/session only (non-admin still uses the full RBAC/FLAC pipeline)
  * - Stashes turbo L1 on first set (point-reads use a dedicated FIFO)
  * - Serve-stale lists after write; single-flight only on true miss
+ * - Labels every owned response: `X-Cache: TURBO-HIT` on hit, `MISS`/`BYPASS`
+ *   on the rebuild, so lane attribution is never ambiguous
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
@@ -144,6 +146,10 @@ async function executeWarmCollectionRead(event: RequestEvent): Promise<Response 
     listParams,
   );
   if (rebuilt?.response) {
+    // The rebuild is the ONLY path that emits no cache header of its own —
+    // `serveTurboCacheEntry` labels hits. Without this, a served miss is
+    // indistinguishable from the lane not having run at all.
+    rebuilt.response.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
     rebuilt.response.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
     return rebuilt.response;
   }

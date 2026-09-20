@@ -90,6 +90,11 @@ describe("collection read lane single-flight", () => {
     const results = await Promise.all(pending);
     expect(findMock).toHaveBeenCalledTimes(1);
     expect(resolve).not.toHaveBeenCalled();
+    // Exactly one rebuild (the leader); the 7 coalesced waiters are served the
+    // shared body and are labelled as hits. Every response carries a header.
+    const cacheHeaders = results.map((res) => res.headers.get("X-Cache"));
+    expect(cacheHeaders.filter((h) => h === "MISS")).toHaveLength(1);
+    expect(cacheHeaders.filter((h) => h === "TURBO-HIT")).toHaveLength(7);
     const bodies = await Promise.all(results.map((res) => res.text()));
     for (const body of bodies) {
       expect(body).toContain("coalesced");
@@ -131,6 +136,7 @@ describe("collection read lane single-flight", () => {
 
     const first = await tryCollectionReadLane({ event: listEvent(), resolve });
     expect(first.headers.get("etag")).toBeTruthy();
+    expect(first.headers.get("X-Cache")).toBe("MISS");
     expect(findMock).toHaveBeenCalledTimes(1);
 
     const key = buildUserResponseCacheKey(
@@ -176,6 +182,26 @@ describe("collection read lane single-flight", () => {
     }
     expect(findMock).toHaveBeenCalledTimes(1);
     expect(responseCache.get(key, null)?.stale).toBe(true);
+  });
+
+  it("labels a point-read rebuild as MISS and the repeat as TURBO-HIT", async () => {
+    findByIdMock.mockResolvedValue({ success: true, data: { _id: "abc", title: "point" } });
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const entryEvent = () =>
+      createMockEvent("/api/collections/BenchmarkStable/abc", {
+        method: "GET",
+        sessionCookie: sessionId,
+        user,
+      });
+
+    // Random point-reads never repeat a URL, so this rebuild path is what the
+    // mixed-cycle diagnostic sees — it must still label itself.
+    const first = await tryCollectionReadLane({ event: entryEvent(), resolve });
+    expect(first.headers.get("X-Cache")).toBe("MISS");
+
+    const second = await tryCollectionReadLane({ event: entryEvent(), resolve });
+    expect(second.headers.get("X-Cache")).toBe("TURBO-HIT");
+    expect(findByIdMock).toHaveBeenCalledTimes(1);
   });
 
   it("scopes the L1 entry to the per-request tenant, not the session tenant", async () => {
