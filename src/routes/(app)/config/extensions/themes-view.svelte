@@ -27,20 +27,17 @@ async function loadCustomThemes() {
 	// Actually import.meta.glob is relative to the file.
 	// Originally: ../themes/custom/*/theme.css from src/routes/(app)/config/themeManagement/+page.svelte
 	// Now: src/routes/(app)/config/extensions/ThemesView.svelte
-	// Need to go up one more level: ../../themes/custom or better use absolute path if possible or adjust relative
-	// The custom themes seem to be in src/routes/(app)/config/themes/custom ?? No, likely src/themes ?
-	// Let's use the same relative path structure as before but adjusted.
-	// Previous: ../themes/custom -> src/routes/(app)/config/themes/custom (unlikely) or src/themes?
-	// Usually themes are in src/themes.
-	// If original file was in src/routes/(app)/config/themeManagement
-	// Then ../themes equal src/routes/(app)/config/themes.
-	// If I'm in src/routes/(app)/config/extensions
-	// I need ../themes/custom as well if themes are in src/routes/(app)/config/themes
-
-	const customThemesFiles = import.meta.glob(
-		"../../../../themes/custom/*/theme.css",
-		{ eager: true },
-	);
+	/*
+	LEAN-OUT CANDIDATE (tracked in docs/project/roadmap-2026.mdx): this eager glob
+	pulls every custom theme's CSS into the extensions page chunk. Only the theme
+	*paths* are needed here — a lazy glob (or `Object.keys()` of a query-only glob)
+	would keep the CSS out of the bundle entirely.
+*/
+// slop:suppress — tracked as lean-out candidate; move to a lazy glob before shipping more themes
+const customThemesFiles = import.meta.glob(
+	"../../../../themes/custom/*/theme.css",
+	{ eager: true },
+);
 
 	// Convert the imported files to Theme objects
 	customThemes = Object.entries(customThemesFiles).map(

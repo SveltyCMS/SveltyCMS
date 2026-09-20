@@ -94,7 +94,7 @@ export const widgetMeta = {
 				{#if size.h === 1}
 					<!-- Compact single-row layout -->
 					<div class="flex items-center justify-between text-xs px-1">
-						<div class="flex items-center space-x-1.5">
+						<div class="flex items-center gap-1.5">
 							<div class="h-2 w-2 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></div>
 							<span class="font-bold tabular-nums">{cpu.current.toFixed(1)}%</span>
 						</div>

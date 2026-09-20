@@ -42,7 +42,8 @@ describe("createSmartTable", () => {
       getRowId: (row) => String(row._id),
     });
     table.setSort("title", { emit: false, direction: -1 });
-    expect(table.sort).toEqual({ sortedBy: "title", isSorted: -1 });
+    expect(table.sort).toMatchObject({ sortedBy: "title", isSorted: -1 });
+    expect(table.multiSort).toEqual([{ key: "title", direction: -1 }]);
     expect(onQueryChange).not.toHaveBeenCalled();
   });
 
@@ -108,7 +109,7 @@ describe("createSmartTable", () => {
       initialSort: { sortedBy: "createdAt", isSorted: -1 },
       onQueryChange,
     });
-    expect(table.sort).toEqual({ sortedBy: "createdAt", isSorted: -1 });
+    expect(table.sort).toMatchObject({ sortedBy: "createdAt", isSorted: -1 });
 
     table.setPaginationMeta({ pagesCount: 5, totalItems: 50, pageSize: 10 });
     table.setPage(3, { emit: false });
@@ -162,5 +163,43 @@ describe("createSmartTable", () => {
     // Switching back restores saved layout prefs
     table.setLayoutKey("test-table-1");
     expect(table.columnWidths.col1).toBe(180);
+  });
+
+  it("composes multi-column sort with Shift (multi: true) and emits field:dir list", () => {
+    const onQueryChange = vi.fn();
+    const table = createSmartTable({
+      mode: "server",
+      onQueryChange,
+      getRowId: (row) => String(row._id),
+    });
+    table.setSort("title");
+    table.setSort("createdAt", { multi: true, direction: -1 });
+    expect(table.multiSort).toEqual([
+      { key: "title", direction: 1 },
+      { key: "createdAt", direction: -1 },
+    ]);
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: "title:asc,createdAt:desc", order: null }),
+    );
+  });
+
+  it("client mode applies cascading multi-column sort", () => {
+    const table = createSmartTable({
+      mode: "client",
+      pageSize: 10,
+      getRowId: (row) => String(row._id),
+    });
+    table.setRows([
+      { _id: "1", group: "b", name: "Charlie" },
+      { _id: "2", group: "a", name: "Bob" },
+      { _id: "3", group: "a", name: "Alice" },
+    ]);
+    table.setColumns([
+      { key: "group", label: "Group", sortable: true },
+      { key: "name", label: "Name", sortable: true },
+    ]);
+    table.setSort("group");
+    table.setSort("name", { multi: true });
+    expect(table.rows.map((r) => r._id)).toEqual(["3", "2", "1"]);
   });
 });

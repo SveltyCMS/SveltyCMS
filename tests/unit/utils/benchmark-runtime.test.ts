@@ -3,19 +3,16 @@
  * @description Tests for benchmark external-service disable guards.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("benchmark-runtime external service guards", () => {
-  const envSnapshot = { ...process.env };
-
   beforeEach(() => {
-    process.env = { ...envSnapshot };
-    delete process.env.BENCHMARK;
-    delete process.env.BENCHMARK_NO_REDIS;
+    vi.stubEnv("BENCHMARK", undefined);
+    vi.stubEnv("BENCHMARK_NO_REDIS", undefined);
   });
 
   afterEach(() => {
-    process.env = { ...envSnapshot };
+    vi.unstubAllEnvs();
   });
 
   async function load() {
@@ -23,7 +20,7 @@ describe("benchmark-runtime external service guards", () => {
   }
 
   it("disables external services when BENCHMARK=true (Redis L2 stays opt-in)", async () => {
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
     const rt = await load();
     expect(rt.isBenchmarkExternalServicesDisabled()).toBe(true);
     // BENCHMARK alone no longer disables Redis L2 — USE_REDIS=true variants
@@ -32,7 +29,7 @@ describe("benchmark-runtime external service guards", () => {
   });
 
   it("disables Redis when BENCHMARK_NO_REDIS=1 without full benchmark flag", async () => {
-    process.env.BENCHMARK_NO_REDIS = "1";
+    vi.stubEnv("BENCHMARK_NO_REDIS", "1");
     const rt = await load();
     expect(rt.isBenchmarkExternalServicesDisabled()).toBe(false);
     expect(rt.isBenchmarkRedisDisabled()).toBe(true);
@@ -45,16 +42,16 @@ describe("benchmark-runtime external service guards", () => {
   });
 
   it("does not skip outbound I/O in production unless BENCHMARK is set", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     const rt = await load();
     expect(rt.isBenchmarkRuntime()).toBe(false);
     expect(rt.isBenchmarkExternalServicesDisabled()).toBe(false);
   });
 
   it("legacy benchmark tokens are inert — BENCHMARK is the single canonical flag", async () => {
-    process.env.BENCHMARK_MODE = "1";
-    process.env.BENCHMARK_STABLE = "true";
-    process.env.SVELTY_BENCHMARK_SUITE = "true";
+    vi.stubEnv("BENCHMARK_MODE", "1");
+    vi.stubEnv("BENCHMARK_STABLE", "true");
+    vi.stubEnv("SVELTY_BENCHMARK_SUITE", "true");
     const rt = await load();
     expect(rt.isBenchmarkExternalServicesDisabled()).toBe(false);
     expect(rt.isBenchmarkRuntime()).toBe(false);

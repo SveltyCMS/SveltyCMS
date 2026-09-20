@@ -29,14 +29,9 @@ import {
 import { loadBaseRateLimitConfig, loadRedisPingMs } from "./config";
 import { MemoryRateLimitStore } from "./memory-store";
 import { RedisRateLimitStore } from "./redis-client";
-import {
-  startPressureMonitor,
-  stopPressureMonitor,
-  describePressure,
-  getPressureScore,
-} from "./system-pressure";
-import { recordRequest, getPredictedPressure, describeRequestClock } from "./request-clock";
-import { getEndpointCost, listEndpointCosts } from "./endpoint-cost";
+import { startPressureMonitor } from "./system-pressure";
+import { recordRequest } from "./request-clock";
+import { getEndpointCost } from "./endpoint-cost";
 import { velocityCostMultiplier } from "./request-velocity";
 
 export type RateLimitScope = "redis" | "memory";
@@ -103,15 +98,6 @@ export function initRateLimiter(): Promise<void> {
   return initPromise;
 }
 
-/**
- * Beendet alle Hintergrund-Prozesse (Monitor, Redis).
- * Fuer Graceful Shutdown / Tests.
- */
-export function shutdownRateLimiter(): void {
-  stopPressureMonitor();
-  void redisStore.close();
-}
-
 /** Baut stabilen Bucket-Key (kein PII — nur gehashte Kennung). */
 function buildBucketKey(namespace: string, ctx: AdaptiveContext, profile: string): string {
   const tenant = ctx.tenantId || "global";
@@ -172,28 +158,6 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
 /** Setzt alle Storen zurück (Tests / Reset). */
 export function resetRateLimitStores(): void {
   memoryStore.reset();
-}
-
-/** Test-Hilfe: Redis-Store vollständig schließen und zurücksetzen. */
-export function _resetForTests(): void {
-  memoryStore.reset();
-  void redisStore.close();
-}
-
-/**
- * Gibt einen konsolidierten Status aller Smart-Upgrade-Subsysteme zurueck.
- * Fuer Health-Endpoints und Monitoring-Dashboards.
- */
-export function getRateLimitSmartStatus() {
-  return {
-    pressure: {
-      score: getPressureScore(),
-      status: describePressure(),
-    },
-    prediction: getPredictedPressure(),
-    requestClock: describeRequestClock(),
-    endpointCosts: listEndpointCosts(),
-  };
 }
 
 export { RedisRateLimitStore, MemoryRateLimitStore };

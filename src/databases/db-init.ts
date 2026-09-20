@@ -318,24 +318,3 @@ export async function loadSettingsFromDB(adapter: IDBAdapter, force = false): Pr
 export async function runSystemBoot(adapter: IDBAdapter): Promise<void> {
   await initializeDatabase(adapter);
 }
-
-/**
- * 🚀 AGNOSTIC CORE: Start background maintenance tasks.
- */
-export async function runBackgroundTasks(adapter: IDBAdapter): Promise<void> {
-  logger.info("[DB Init] Starting background maintenance tasks...");
-
-  // Periodic cleanup (sessions, tokens)
-  setInterval(
-    async () => {
-      try {
-        if (adapter.cleanupExpiredData) {
-          await adapter.cleanupExpiredData();
-        }
-      } catch (err) {
-        logger.error("[Background Tasks] Cleanup failed:", err);
-      }
-    },
-    1000 * 60 * 60,
-  ); // Hourly
-}

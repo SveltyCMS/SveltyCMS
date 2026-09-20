@@ -212,6 +212,43 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
     return this;
   }
 
+  orWhere(clauses: Array<Record<string, unknown>>): this {
+    if (!clauses.length) return this;
+    const groups: SQL[] = [];
+    for (const clause of clauses) {
+      const parts: SQL[] = [];
+      for (const [key, value] of Object.entries(clause)) {
+        const column = this.table[key];
+        if (value === null) {
+          if (column) parts.push(isNull(column));
+          else parts.push(isNull(this.core.getJsonField(key)));
+          continue;
+        }
+        if (column) {
+          parts.push(eq(column, value as string | number | boolean));
+        } else {
+          parts.push(
+            eq(
+              this.core.getJsonField(key),
+              this.dialect.coerceJsonValue(value) as string | number | boolean,
+            ),
+          );
+        }
+      }
+      if (parts.length === 1) groups.push(parts[0]);
+      else if (parts.length > 1) {
+        const combined = and(...parts);
+        if (combined) groups.push(combined);
+      }
+    }
+    if (groups.length === 1) this.conditions.push(groups[0]);
+    else if (groups.length > 1) {
+      const combined = or(...groups);
+      if (combined) this.conditions.push(combined);
+    }
+    return this;
+  }
+
   whereIn<K extends keyof T>(field: K, values: NonNullable<T[K]>[]): this {
     const column = this.table[field as string];
     if (column) {

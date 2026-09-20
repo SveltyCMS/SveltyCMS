@@ -25,11 +25,13 @@
 import { ROW_HEIGHT, VIRTUAL_BUFFER, VIRTUALIZATION_THRESHOLD } from "./types";
 import {
   isValidDensity,
+  isValidViewMode,
   loadTableLayout,
   mergeLayoutIntoColumns,
   saveTableLayout,
 } from "./layout-prefs";
 import type {
+  ColumnSortDescriptor,
   CreateSmartTableOptions,
   PinnedColumnGroups,
   SmartTableColumn,
@@ -37,6 +39,7 @@ import type {
   SmartTableSort,
   TableDensity,
   TableSortOrder,
+  TableViewMode,
   VirtualWindow,
 } from "./types";
 
@@ -55,7 +58,9 @@ export interface SmartTableApi<T extends Record<string, unknown> = Record<string
   /** Pinned column groups for sticky chrome */
   readonly pinned: PinnedColumnGroups<T>;
   readonly density: TableDensity;
+  readonly viewMode: TableViewMode;
   readonly sort: SmartTableSort;
+  readonly multiSort: ColumnSortDescriptor[];
   readonly pagination: SmartTablePagination;
   readonly selectedIds: Set<string>;
   readonly selectedCount: number;
@@ -74,7 +79,13 @@ export interface SmartTableApi<T extends Record<string, unknown> = Record<string
   setColumns: (columns: SmartTableColumn<T>[]) => void;
   setPaginationMeta: (meta: Partial<SmartTablePagination>) => void;
   setDensity: (density: TableDensity) => void;
-  setSort: (field: string, options?: { emit?: boolean; direction?: TableSortOrder }) => void;
+  setViewMode: (viewMode: TableViewMode) => void;
+  setSort: (
+    field: string,
+    options?: { emit?: boolean; direction?: TableSortOrder; multi?: boolean },
+  ) => void;
+  getSortRank: (field: string) => { rank: number; direction: TableSortOrder } | null;
+  clearSorts: (options?: { emit?: boolean }) => void;
   setPage: (page: number, options?: { emit?: boolean }) => void;
   setPageSize: (size: number, options?: { emit?: boolean }) => void;
   toggleSelect: (rowId: string) => void;
@@ -122,7 +133,7 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   const onQueryChange = options.onQueryChange;
   let currentLayoutKey = $state(options.layoutKey);
 
-  const savedLayout = currentLayoutKey ? loadTableLayout(currentLayoutKey) : null;
+  const savedLayout = options.layoutKey ? loadTableLayout(options.layoutKey) : null;
 
   let rows = $state.raw<T[]>([]);
   let columns = $state<SmartTableColumn<T>[]>([]);
@@ -131,7 +142,28 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
       ? savedLayout.density
       : options.density) ?? "normal",
   );
-  let sort = $state<SmartTableSort>(options.initialSort ?? { sortedBy: "", isSorted: 0 });
+  let viewMode = $state<TableViewMode>(
+    (savedLayout?.viewMode && isValidViewMode(savedLayout.viewMode)
+      ? savedLayout.viewMode
+      : options.viewMode) ?? "table",
+  );
+  let multiSort = $state<ColumnSortDescriptor[]>(
+    options.initialSort?.multiSort && options.initialSort.multiSort.length > 0
+      ? [...options.initialSort.multiSort]
+      : options.initialSort?.sortedBy && options.initialSort.isSorted !== 0
+        ? [{ key: options.initialSort.sortedBy, direction: options.initialSort.isSorted }]
+        : [],
+  );
+  const sort = $derived.by((): SmartTableSort => {
+    const s: SmartTableSort = {
+      sortedBy: multiSort[0]?.key ?? "",
+      isSorted: multiSort[0]?.direction ?? 0,
+    };
+    if (multiSort.length > 1) {
+      s.multiSort = multiSort;
+    }
+    return s;
+  });
   let pagination = $state<SmartTablePagination>({
     currentPage: 1,
     pageSize: savedLayout?.pageSize ?? options.pageSize ?? 10,
@@ -156,23 +188,31 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
 
   const visibleColumns = $derived(pinned.ordered);
 
-  /** Rows after client-side sort (client mode only). */
+  /** Rows after client-side sort (client mode only) with cascading multi-column sort. */
   const processedRows = $derived.by((): T[] => {
     if (mode !== "client") return rows;
-    if (!sort.sortedBy || sort.isSorted === 0) return rows;
+    if (multiSort.length === 0) return rows;
 
-    const key = sort.sortedBy;
-    const dir = sort.isSorted;
-    const col = columns.find((c) => c.key === key);
+    const colMap = new Map(columns.map((c) => [c.key, c]));
 
     return [...rows].sort((a, b) => {
-      const av = col?.accessor ? col.accessor(a) : a[key];
-      const bv = col?.accessor ? col.accessor(b) : b[key];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
+      for (const descriptor of multiSort) {
+        if (descriptor.direction === 0) continue;
+        const col = colMap.get(descriptor.key);
+        const av = col?.accessor ? col.accessor(a) : a[descriptor.key];
+        const bv = col?.accessor ? col.accessor(b) : b[descriptor.key];
+        if (av == null && bv == null) continue;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        let diff = 0;
+        if (typeof av === "number" && typeof bv === "number") {
+          diff = (av - bv) * descriptor.direction;
+        } else {
+          diff = String(av).localeCompare(String(bv)) * descriptor.direction;
+        }
+        if (diff !== 0) return diff;
+      }
+      return 0;
     });
   });
 
@@ -297,6 +337,7 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     const saved = nextKey ? loadTableLayout(nextKey) : null;
     if (saved) {
       if (saved.density && isValidDensity(saved.density)) density = saved.density;
+      if (saved.viewMode && isValidViewMode(saved.viewMode)) viewMode = saved.viewMode;
       if (saved.pageSize) pagination.pageSize = saved.pageSize;
       columnWidths = saved.columnWidths ?? {};
       if (columns.length > 0) {
@@ -322,6 +363,7 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     }
     saveTableLayout(currentLayoutKey, {
       density,
+      viewMode,
       pageSize: pagination.pageSize,
       columnOrder: columns.map((c) => c.key),
       visibility,
@@ -334,32 +376,106 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     persistLayout();
   }
 
-  function setSort(field: string, options?: { emit?: boolean; direction?: TableSortOrder }) {
-    const shouldEmit = options?.emit !== false;
-    let next: SmartTableSort;
-    if (options?.direction !== undefined) {
-      next = {
-        sortedBy: options.direction === 0 ? "" : field,
-        isSorted: options.direction,
+  function setViewMode(next: TableViewMode) {
+    viewMode = next;
+    persistLayout();
+  }
+
+  function getSortQueryParams(): { sort: string | null; order: "asc" | "desc" | null } {
+    if (multiSort.length === 1) {
+      return {
+        sort: multiSort[0].key,
+        order: multiSort[0].direction === 1 ? "asc" : multiSort[0].direction === -1 ? "desc" : null,
       };
-    } else if (sort.sortedBy === field) {
-      const cycle: TableSortOrder = sort.isSorted === 1 ? -1 : sort.isSorted === -1 ? 0 : 1;
-      next = {
-        sortedBy: cycle === 0 ? "" : field,
-        isSorted: cycle,
-      };
-    } else {
-      next = { sortedBy: field, isSorted: 1 };
     }
-    sort = next;
+    if (multiSort.length > 1) {
+      return {
+        sort: multiSort.map((s) => `${s.key}:${s.direction === 1 ? "asc" : "desc"}`).join(","),
+        order: null,
+      };
+    }
+    return { sort: null, order: null };
+  }
+
+  function setSort(
+    field: string,
+    options?: { emit?: boolean; direction?: TableSortOrder; multi?: boolean },
+  ) {
+    const shouldEmit = options?.emit !== false;
+    const isMulti = options?.multi === true;
+
+    let nextMulti: ColumnSortDescriptor[];
+
+    if (isMulti) {
+      const existingIndex = multiSort.findIndex((s) => s.key === field);
+      if (existingIndex >= 0) {
+        const existing = multiSort[existingIndex];
+        const nextDir: TableSortOrder =
+          options?.direction !== undefined
+            ? options.direction
+            : existing.direction === 1
+              ? -1
+              : existing.direction === -1
+                ? 0
+                : 1;
+        if (nextDir === 0) {
+          nextMulti = multiSort.filter((s) => s.key !== field);
+        } else {
+          nextMulti = multiSort.map((s, idx) =>
+            idx === existingIndex ? { key: field, direction: nextDir } : s,
+          );
+        }
+      } else {
+        const nextDir: TableSortOrder = options?.direction !== undefined ? options.direction : 1;
+        if (nextDir !== 0) {
+          nextMulti = [...multiSort, { key: field, direction: nextDir }];
+        } else {
+          nextMulti = [...multiSort];
+        }
+      }
+    } else {
+      const existing = multiSort.find((s) => s.key === field);
+      let nextDir: TableSortOrder;
+      if (options?.direction !== undefined) {
+        nextDir = options.direction;
+      } else if (existing && multiSort.length === 1) {
+        nextDir = existing.direction === 1 ? -1 : existing.direction === -1 ? 0 : 1;
+      } else {
+        nextDir = 1;
+      }
+
+      if (nextDir === 0) {
+        nextMulti = [];
+      } else {
+        nextMulti = [{ key: field, direction: nextDir }];
+      }
+    }
+
+    multiSort = nextMulti;
 
     if (mode === "server" && shouldEmit) {
-      let order: "asc" | "desc" | null = null;
-      if (next.isSorted === 1) order = "asc";
-      else if (next.isSorted === -1) order = "desc";
+      const sortParams = getSortQueryParams();
       emitQuery({
-        sort: next.sortedBy || null,
-        order,
+        ...sortParams,
+        page: pagination.currentPage,
+        pageSize: pagination.pageSize,
+      });
+    }
+  }
+
+  function getSortRank(field: string): { rank: number; direction: TableSortOrder } | null {
+    const idx = multiSort.findIndex((s) => s.key === field);
+    if (idx === -1) return null;
+    return { rank: idx + 1, direction: multiSort[idx].direction };
+  }
+
+  function clearSorts(options?: { emit?: boolean }) {
+    multiSort = [];
+    const shouldEmit = options?.emit !== false;
+    if (mode === "server" && shouldEmit) {
+      emitQuery({
+        sort: null,
+        order: null,
         page: pagination.currentPage,
         pageSize: pagination.pageSize,
       });
@@ -373,11 +489,11 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     pagination = { ...pagination, currentPage: next };
     scrollTop = 0;
     if (mode === "server" && shouldEmit) {
+      const sortParams = getSortQueryParams();
       emitQuery({
         page: next,
         pageSize: pagination.pageSize,
-        sort: sort.sortedBy || null,
-        order: sort.isSorted === 1 ? "asc" : sort.isSorted === -1 ? "desc" : null,
+        ...sortParams,
       });
     }
   }
@@ -396,11 +512,11 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     };
     scrollTop = 0;
     if (mode === "server" && shouldEmit) {
+      const sortParams = getSortQueryParams();
       emitQuery({
         page: 1,
         pageSize,
-        sort: sort.sortedBy || null,
-        order: sort.isSorted === 1 ? "asc" : sort.isSorted === -1 ? "desc" : null,
+        ...sortParams,
       });
     }
     persistLayout();
@@ -503,8 +619,14 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     get density() {
       return density;
     },
+    get viewMode() {
+      return viewMode;
+    },
     get sort() {
       return sort;
+    },
+    get multiSort() {
+      return multiSort;
     },
     get pagination() {
       return pagination;
@@ -543,7 +665,10 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     setColumns,
     setPaginationMeta,
     setDensity,
+    setViewMode,
     setSort,
+    getSortRank,
+    clearSorts,
     setPage,
     setPageSize,
     toggleSelect,

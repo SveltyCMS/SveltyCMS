@@ -6,7 +6,8 @@
 ### Features
 - Search / type filter
 - Remote catalog via marketplace-client (cached) with local fallback
-- Install / open homepage links
+- One-click remote install with checksum + license checkout
+- Package detail and license modals
 - Stable data-testids for E2E
 -->
 
@@ -16,8 +17,10 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import { onMount } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { fetchApi } from '@utils/api';
 
 	interface CatalogItem {
 		id: string;
@@ -47,6 +50,12 @@
 	let typeFilter = $state('all');
 	let remoteAvailable = $state(false);
 	let source = $state<'local' | 'remote' | 'mixed'>('local');
+	let installingId = $state<string | null>(null);
+	let detailItem = $state<CatalogItem | null>(null);
+	let detailOpen = $state(false);
+	let licenseOpen = $state(false);
+	let licenseKey = $state('');
+	let licenseTarget = $state<CatalogItem | null>(null);
 
 	const typeOptions = [
 		{ value: 'all', label: 'All types' },
@@ -87,6 +96,71 @@
 	onMount(() => {
 		loadCatalog().catch(() => {});
 	});
+
+	async function installItem(item: CatalogItem, key?: string) {
+		if (item.installed) return;
+		installingId = item.id;
+		try {
+			const res = await fetchApi('/api/marketplace/install', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify({
+					itemId: item.id,
+					type: item.type,
+					licenseKey: key || undefined
+				})
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				throw new Error(body?.message || body?.error || `HTTP ${res.status}`);
+			}
+			const payload = body?.data ?? body;
+			if (payload?.licenseRequired) {
+				licenseTarget = item;
+				licenseOpen = true;
+				toast.warning({
+					title: 'License required',
+					description: 'Enter a license key or continue to checkout.'
+				});
+				return;
+			}
+			toast.success({
+				title: 'Installed',
+				description: `${item.name} ${payload?.package?.version ? 'v' + payload.package.version : ''} is ready. Restart the dev server if it does not appear.`
+			});
+			item.installed = true;
+			await loadCatalog();
+		} catch (err) {
+			toast.error({
+				title: 'Install failed',
+				description: err instanceof Error ? err.message : 'Could not install package'
+			});
+		} finally {
+			installingId = null;
+		}
+	}
+
+	async function submitLicense() {
+		if (!licenseKey.trim()) return;
+		try {
+			const res = await fetchApi('/api/marketplace/license', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify({
+					licenseKey: licenseKey.trim(),
+					pluginId: licenseTarget?.id
+				})
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			licenseOpen = false;
+			if (licenseTarget) await installItem(licenseTarget, licenseKey.trim());
+		} catch (err) {
+			toast.error({
+				title: 'License',
+				description: err instanceof Error ? err.message : 'Could not save license'
+			});
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-4" data-testid="marketplace-catalog">
@@ -202,9 +276,107 @@
 						{#if item.downloads != null}
 							<span class="text-xs text-surface-500">{item.downloads} downloads</span>
 						{/if}
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => {
+								detailItem = item;
+								detailOpen = true;
+							}}
+							data-testid={`marketplace-detail-${item.id}`}
+						>
+							View
+						</Button>
+						{#if !item.installed && item.installable !== false && item.source === 'remote'}
+							<Button
+								variant="primary"
+								size="sm"
+								loading={installingId === item.id}
+								onclick={() => installItem(item)}
+								data-testid={`marketplace-install-${item.id}`}
+							>
+								Install
+							</Button>
+						{:else if item.license === 'paid' && !item.installed}
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => {
+									licenseTarget = item;
+									licenseOpen = true;
+								}}
+								data-testid={`marketplace-license-cta-${item.id}`}
+							>
+								Activate license
+							</Button>
+						{/if}
 					</div>
 				</AdminCard>
 			{/each}
 		</div>
 	{/if}
 </div>
+
+<Modal bind:open={licenseOpen} title="Marketplace license" size="md">
+	<div class="flex flex-col gap-3">
+		<p class="text-sm text-surface-600 dark:text-surface-400">
+			Enter a license key for {licenseTarget?.name ?? 'this package'}, or open hosted checkout.
+		</p>
+		<label class="text-xs font-medium text-surface-500" for="mp-license-key">License key</label>
+		<Input
+			id="mp-license-key"
+			bind:value={licenseKey}
+			placeholder="XXXX-XXXX-XXXX"
+			aria-label="Marketplace license key"
+			data-testid="marketplace-license-key"
+		/>
+		<div class="flex flex-wrap gap-2">
+			<Button variant="primary" onclick={() => submitLicense()} data-testid="marketplace-license-save">
+				Save and install
+			</Button>
+			{#if licenseTarget}
+				<a
+					href="https://marketplace.sveltycms.com/checkout?package={encodeURIComponent(licenseTarget.id)}"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-sm text-tertiary-600 underline dark:text-primary-400 self-center"
+				>
+					Open checkout
+				</a>
+			{/if}
+		</div>
+	</div>
+</Modal>
+
+<Modal
+	bind:open={detailOpen}
+	title={detailItem?.name ?? 'Package'}
+	size="lg"
+	onclose={() => {
+		detailItem = null;
+	}}
+>
+	{#if detailItem}
+		<div class="flex flex-col gap-3" data-testid="marketplace-package-detail">
+			<p class="text-sm text-surface-600 dark:text-surface-400">{detailItem.description}</p>
+			<p class="text-xs text-surface-500">
+				{detailItem.author} · v{detailItem.version} · {detailItem.type}
+			</p>
+			{#if detailItem.homepageUrl}
+				<a
+					href={detailItem.homepageUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-sm text-tertiary-600 underline dark:text-primary-400"
+				>
+					Open listing
+				</a>
+			{/if}
+			{#if !detailItem.installed && detailItem.installable !== false}
+				<Button variant="primary" onclick={() => detailItem && installItem(detailItem)}>
+					Install
+				</Button>
+			{/if}
+		</div>
+	{/if}
+</Modal>

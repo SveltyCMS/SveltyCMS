@@ -37,9 +37,6 @@ export const MediaType = {
 
 export type MediaType = (typeof MediaType)[keyof typeof MediaType];
 
-/** Runtime list for validation, select options, iteration. */
-export const MEDIA_TYPES: readonly MediaType[] = Object.values(MediaType);
-
 export const MediaAccess = {
   Public: "public",
   Private: "private",
@@ -184,19 +181,8 @@ export function isMediaOfType<T extends MediaType>(item: MediaItem, type: T): it
 }
 
 export const isMediaImage = (item: MediaItem): item is MediaImage => item.type === MediaType.Image;
-export const isMediaVideo = (item: MediaItem): item is MediaVideo => item.type === MediaType.Video;
-export const isMediaAudio = (item: MediaItem): item is MediaAudio => item.type === MediaType.Audio;
-export const isMediaDocument = (item: MediaItem): item is MediaDocument =>
-  item.type === MediaType.Document;
-export const isMediaRemoteVideo = (item: MediaItem): item is MediaRemoteVideo =>
-  item.type === MediaType.RemoteVideo;
 export const isStoredMedia = (item: MediaItem): item is StoredMedia =>
   item.type !== MediaType.RemoteVideo;
-
-/** Validate untrusted input (API payloads, query params) as a MediaType. */
-export function isMediaType(value: unknown): value is MediaType {
-  return typeof value === "string" && (MEDIA_TYPES as readonly string[]).includes(value);
-}
 
 const TOP_LEVEL_MIMES = new Set<string>([MediaType.Image, MediaType.Video, MediaType.Audio]);
 

@@ -71,11 +71,6 @@ export function closeAllConnections(code = 1001, reason = "Server shutting down"
   return count;
 }
 
-/** Number of currently tracked WebSocket connections (for health/telemetry). */
-export function getActiveWsConnections(): number {
-  return activeConnections.size;
-}
-
 // ==================== TYPES ====================
 export interface WsUpgradeContext {
   url?: URL | string | { href?: string; pathname?: string; hostname?: string };

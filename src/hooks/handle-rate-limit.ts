@@ -736,5 +736,3 @@ export class RateLimiter {
     this._buckets.clear();
   }
 }
-
-export const EndpointRateLimiter = RateLimiter;

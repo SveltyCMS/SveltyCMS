@@ -35,6 +35,36 @@ describe("Core SDK exports", () => {
   });
 });
 
+describe("Standalone DB adapter packages", () => {
+  const adapters = [
+    ["sveltycms-sqlite", "SQLiteAdapter"],
+    ["sveltycms-mongodb", "MongoDBAdapter"],
+    ["sveltycms-mariadb", "MariaDBAdapter"],
+    ["sveltycms-postgresql", "PostgreSQLAdapter"],
+  ] as const;
+
+  it("ships package.json + README + src/index.ts for each adapter", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    for (const [name] of adapters) {
+      const pkg = JSON.parse(
+        await readFile(join(process.cwd(), "packages", name, "package.json"), "utf8"),
+      ) as { name: string; exports: { ".": { import: string } } };
+      expect(pkg.name).toBe(name);
+      expect(pkg.exports["."].import).toBe("./src/index.ts");
+    }
+  });
+
+  it("re-exports the in-tree adapter class names", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    for (const [name, className] of adapters) {
+      const src = await readFile(join(process.cwd(), "packages", name, "src/index.ts"), "utf8");
+      expect(src).toContain(`export { ${className} }`);
+    }
+  });
+});
+
 describe("Widget factory exports", () => {
   it("exports createWidget factory", async () => {
     const { createWidget } = await import("../../src/widgets/widget-factory");

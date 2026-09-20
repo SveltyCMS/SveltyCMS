@@ -630,6 +630,11 @@ export interface QueryBuilder<T = unknown> {
   timeout(milliseconds: number): this;
   updateMany(data: Partial<T>): Promise<DatabaseResult<{ modifiedCount: number }>>;
   where(conditions: Partial<T> | ((item: T) => boolean)): this;
+  /**
+   * OR a list of equality maps (`{ field: value, ... }`). Null values become IS NULL.
+   * Combined with existing WHERE clauses using AND.
+   */
+  orWhere(clauses: Array<Record<string, unknown>>): this;
   whereBetween<K extends keyof T>(field: K, min: T[K], max: T[K]): this;
   whereIn<K extends keyof T>(field: K, values: NonNullable<T[K]>[]): this;
   whereNotIn<K extends keyof T>(field: K, values: NonNullable<T[K]>[]): this;

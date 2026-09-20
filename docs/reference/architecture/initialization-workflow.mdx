@@ -297,20 +297,24 @@ curl -X POST http://localhost:5173/setup?/testDatabase \
 
 ### Step 5: Seed Initial Data
 
-Run the seed script or use the API:
+Run the headless setup script (requires the server to be running) or use the setup wizard at `/setup`:
 
 ```
-# Using seed script (recommended for CI/CD)
-bun run scripts/seed-cms.js
+# Replicates the setup wizard's seedDatabase action (recommended for CI/CD)
+bun run scripts/setup-system.ts
 
 # Or through the setup wizard at /setup
 ```
 
+The script is environment-driven (`DB_TYPE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`) and safe to re-run.
+
 ### Step 6: Create Admin User
 
+The same script runs the wizard's `completeSetup` action, which creates the initial admin user:
+
 ```
-# Using create-admin script (recommended for CI/CD)
-bun run scripts/create-admin.js
+# Uses ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD (safe to re-run)
+bun run scripts/setup-system.ts
 
 # Or through the setup wizard at /setup
 ```
@@ -479,8 +483,7 @@ SveltyCMS/
 │   └── Menu/
 ├── docs/                       # Documentation
 ├── scripts/                    # Automation scripts
-│   ├── seed-cms.js            # Database seeding script
-│   └── create-admin.js        # Admin user creation script
+│   └── setup-system.ts        # Headless setup (seed + admin) for CI/CD
 ├── src/
 │   ├── routes/                # SvelteKit routes
 │   │   ├── admin/            # Admin panel
@@ -1608,23 +1611,22 @@ jobs:
           mongodb-username: admin
           mongodb-password: admin
 
-      # Seed database BEFORE starting server
-      - run: bun run scripts/seed-cms.js
-        env:
-          MONGO_HOST: localhost
-          MONGO_PORT: 27017
-          MONGO_DB: SveltyCMS
-
-      # Create admin user BEFORE starting server
-      - run: bun run scripts/create-admin.js
-        env:
-          ADMIN_USER: admin
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-
       # Start server (dev or preview)
       - run: bunx vite dev --port 5173 &
         if: matrix.mode == 'dev'
+
+      # Seed database + create admin AFTER the server is up
+      - run: bun run scripts/setup-system.ts
+        env:
+          API_BASE_URL: http://localhost:5173
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          DB_TYPE: mongodb
+          DB_HOST: localhost
+          DB_PORT: 27017
+          DB_NAME: SveltyCMS
+          ADMIN_USERNAME: admin
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASSWORD: Admin123!
 
       # Run tests
       - run: bunx playwright test
@@ -1672,121 +1674,31 @@ jobs:
 
 ## Automated Setup Scripts
 
-For CI/CD environments, SveltyCMS provides scripts that replicate the setup wizard.
+For CI/CD environments, SveltyCMS provides one script that replicates the setup wizard end to end.
 
-### Script: Seed Database
+### Script: Headless System Setup
 
-**File:** `scripts/seed-cms.js`
+**File:** `scripts/setup-system.ts`
 
-Mimics `/setup?/seedDatabase` endpoint:
-
-```
-import { writePrivateConfig } from "../src/routes/setup/writePrivateConfig.js";
-import { initSystemFromSetup } from "../src/routes/setup/seed.js";
-import { getSetupDatabaseAdapter } from "../src/routes/setup/utils.js";
-
-async function main() {
-  const dbConfig = {
-    type: "mongodb",
-    host: process.env.MONGO_HOST || "localhost",
-    port: parseInt(process.env.MONGO_PORT || "27017"),
-    name: process.env.MONGO_DB || "SveltyCMS",
-    user: process.env.MONGO_USER || "",
-    password: process.env.MONGO_PASS || "",
-  };
-
-  // Write config/private.ts
-  await writePrivateConfig(dbConfig);
-
-  // Connect and seed
-  const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-  await initSystemFromSetup(dbAdapter);
-
-  await dbAdapter.disconnect();
-}
-
-main().catch((err) => {
-  console.error("❌ Seeding failed:", err);
-  process.exit(1);
-});
-```
-
-**Usage:**
+The script waits for the running server to become healthy, then POSTs the wizard's `seedDatabase` action followed by `completeSetup` (which creates the initial admin user):
 
 ```
-# Local
-bun run scripts/seed-cms.js
+# Requires the server to be running (default: http://localhost:4173)
+bun run scripts/setup-system.ts
 
-# CI/CD with environment variables
-MONGO_HOST=localhost MONGO_PORT=27017 bun run scripts/seed-cms.js
+# With an explicit API base and database target
+API_BASE_URL=http://localhost:5173 DB_TYPE=mongodb DB_HOST=localhost DB_PORT=27017 \
+  DB_NAME=SveltyCMS bun run scripts/setup-system.ts
 ```
 
-### Script: Create Admin User
-
-**File:** `scripts/create-admin.js`
-
-Mimics `/setup?/completeSetup` endpoint:
-
-```
-import { Auth } from "../src/databases/auth/index.js";
-import { getSetupDatabaseAdapter } from "../src/routes/setup/utils.js";
-
-async function main() {
-  const dbConfig = {
-    /* same as seed-cms.js */
-  };
-  const admin = {
-    username: process.env.ADMIN_USER || "admin",
-    email: process.env.ADMIN_EMAIL || "admin@example.com",
-    password: process.env.ADMIN_PASS || "Admin123!",
-  };
-
-  const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-  const auth = new Auth(dbAdapter);
-
-  try {
-    await auth.createUser({
-      ...admin,
-      role: "admin",
-      isActive: true,
-    });
-    console.log("✅ Admin user created!");
-  } catch (error) {
-    if (error.message?.includes("duplicate")) {
-      console.log("ℹ️  Admin user already exists");
-    } else {
-      throw error;
-    }
-  }
-
-  await dbAdapter.disconnect();
-}
-
-main().catch((err) => {
-  console.error("❌ Admin creation failed:", err);
-  process.exit(1);
-});
-```
-
-**Usage:**
-
-```
-# Local
-bun run scripts/create-admin.js
-
-# CI/CD with custom credentials
-ADMIN_USER=admin \
-ADMIN_EMAIL=admin@example.com \
-ADMIN_PASS=SecurePass123! \
-bun run scripts/create-admin.js
-```
+Configuration is environment-driven: `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD`, `MULTI_TENANT`, `DEMO`, `USE_REDIS`, `PRESET`, and `TEST_API_SECRET` (falls back to `tests/e2e/.auth/test-secret.txt`).
 
 ### Script Benefits
 
 ✅ **No UI required** - Perfect for CI/CD
 ✅ **Idempotent** - Safe to run multiple times
 ✅ **Environment-driven** - Uses environment variables
-✅ **Reuses setup logic** - Imports from actual setup endpoints
+✅ **Reuses setup logic** - Calls the actual setup wizard actions over HTTP
 ✅ **Error handling** - Graceful failure with exit codes
 
 ---
@@ -1859,7 +1771,7 @@ This comprehensive guide covers the complete SveltyCMS lifecycle:
 ⚡ **Smart Compilation** - Only recompiles changed collections using content hashing
 🧪 **Comprehensive Testing** - 95+ API endpoints, full user workflows
 🤖 **Automated CI/CD** - GitHub Actions for testing and releases
-📝 **Automated Scripts** - `seed-cms.js` and `create-admin.js` for CI/CD
+📝 **Automated Scripts** - `setup-system.ts` for headless CI/CD setup
 
 ⚠️ **Known Issue:** Collection UUID table creation may have race conditions during `seedCollectionsForSetup()`
 

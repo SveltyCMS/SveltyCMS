@@ -18,6 +18,8 @@ import {
 import type { DatabaseId, ICrudAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 
+const { invalidateLocal } = vi.hoisted(() => ({ invalidateLocal: vi.fn() }));
+
 vi.mock("@src/databases/cache/cache-service", () => ({
   cacheService: {
     get: vi.fn().mockResolvedValue(undefined),
@@ -25,18 +27,15 @@ vi.mock("@src/databases/cache/cache-service", () => ({
     set: vi.fn().mockResolvedValue(undefined),
     clearByTags: vi.fn().mockResolvedValue(undefined),
     clearByPattern: vi.fn().mockResolvedValue(undefined),
-    // Required since epoch persistence was added to invalidateCache (post-write.ts:119).
-    // bumpCollectionEpoch increments the collection generation so weak ETags 304-miss
-    // on the next GET — missing it causes a TypeError at runtime.
     bumpCollectionEpoch: vi.fn().mockReturnValue(1),
   },
 }));
 
-// Isolate post-write from the response-cache + outbox/pubsub side services.
 vi.mock("@src/services/sdk/namespaces/collections/lazy-services", () => ({
   getResponseCacheLazy: vi.fn().mockResolvedValue({
     invalidateCollection: vi.fn().mockResolvedValue(undefined),
     invalidateAll: vi.fn().mockResolvedValue(undefined),
+    invalidateLocal,
   }),
   getOutboxLazy: vi.fn(),
   getPubSubLazy: vi.fn(),
@@ -48,6 +47,7 @@ describe("collections post-write invalidation", () => {
     vi.mocked(cacheService.clearByTags).mockClear();
     vi.mocked(cacheService.clearByPattern).mockClear();
     vi.mocked(cacheService.bumpCollectionEpoch).mockClear();
+    invalidateLocal.mockClear();
   });
 
   async function flushInvalidation(): Promise<void> {
@@ -75,6 +75,12 @@ describe("collections post-write invalidation", () => {
   });
 
   it("surgically clears ONLY the written doc's per-id tag", async () => {
+    let seenEntryIds: string[] = [];
+    invalidateLocal.mockImplementation(
+      (_c: string, _t: string, opts?: { entryIds?: Iterable<string> }) => {
+        seenEntryIds = opts?.entryIds ? [...opts.entryIds] : [];
+      },
+    );
     invalidateCache({ _id: "Posts" } as any, "tenant-a" as any, { writtenId: "abc-123" });
     await flushInvalidation();
 
@@ -82,6 +88,9 @@ describe("collections post-write invalidation", () => {
     expect(tags).toContain("doc:Posts:abc-123");
     // Exactly one doc tag — writes never clear other documents' per-id caches.
     expect(tags.filter((t) => t.startsWith("doc:")).length).toBe(1);
+    // Point-reads are tagged `doc:` only — `res:Posts` would evict sibling findById hits.
+    expect(tags).not.toContain("res:Posts");
+    expect(seenEntryIds).toEqual(["abc-123"]);
   });
 
   it("clears every written doc tag for a coalesced bulk write", async () => {

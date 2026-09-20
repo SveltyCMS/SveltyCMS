@@ -746,8 +746,8 @@ export async function handleAiRoutes(
 /**
  * --- AI BUILDER (Phase 0) ---
  *
- * Design/refine are read-only AI proposal actions; approve-collection is
- * reserved for Phase 1 (persisting approved proposals) and returns 501.
+ * Design/refine are read-only AI proposal actions; approve-collection
+ * validates, writes the schema via AST, compiles, and reloads collections.
  */
 export async function handleAiBuilderRoutes(
   event: RequestEvent,
@@ -828,12 +828,22 @@ export async function handleAiBuilderRoutes(
   }
 
   if (action === "approve-collection") {
-    // Reserved for Phase 1: persist the approved proposal.
-    throw new AppError(
-      "Collection approval is not implemented yet (Phase 1)",
-      501,
-      "NOT_IMPLEMENTED",
-    );
+    if (!body.proposal || typeof body.proposal !== "object") {
+      throw new AppError("proposal is required", 400, "BAD_REQUEST");
+    }
+
+    const { approveCollection } = await import("@src/services/ai-builder");
+    const result = await approveCollection({
+      proposal: body.proposal,
+      tenantId,
+      overwrite: body.overwrite === true,
+      icon: typeof body.icon === "string" ? body.icon : undefined,
+      status: typeof body.status === "string" ? body.status : "draft",
+      userId: String(user._id),
+      userEmail: typeof user.email === "string" ? user.email : undefined,
+      userRole: typeof user.role === "string" ? user.role : undefined,
+    });
+    return successResponse(event, result);
   }
 
   throw new AppError("Unknown AI builder action", 404, "NOT_FOUND");

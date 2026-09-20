@@ -200,6 +200,7 @@ onMount(() => {
 	registerHotkey("mod+s", () => handleCollectionSave(), "Save Collection");
 	registerHotkey(
 		"escape",
+		// slop:suppress — keyboard Escape shortcut (no anchor target to preload)
 		() => goto("/config/collectionbuilder"),
 		"Cancel & Exit",
 		false,

@@ -17,13 +17,18 @@
 	import Select from '@components/ui/select.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import AdminCard from '@components/admin-card.svelte';
-	import type { FieldInstance } from '@src/content/types';
+	import type { FieldDefinition, FieldInstance } from '@src/content/types';
 	import { getFieldName } from '@utils/schema/field-utils';
 
 	interface Props {
 		isOpen?: boolean;
 		selectedCount: number;
-		fields?: FieldInstance[];
+		/**
+		 * Schema fields to offer for bulk editing: compiled `FieldInstance` entries or
+		 * raw `FieldDefinition` entries (collection schemas may hold placeholders/join
+		 * fields). Only the display keys below are read.
+		 */
+		fields?: readonly (FieldInstance | FieldDefinition)[];
 		onApply: (updates: Record<string, unknown>) => Promise<void> | void;
 		onClose: () => void;
 	}
@@ -52,9 +57,9 @@
 	const editableFields = $derived.by(() => {
 		if (!Array.isArray(fields)) return [];
 		return fields
-			.map((f: FieldInstance | Record<string, unknown>) => {
+			.map((f) => {
 				const typed = f as { db_fieldName?: string; label?: string; widget?: { Name?: string }; type?: string };
-				const name = typed.db_fieldName || getFieldName(f, false);
+				const name = typed.db_fieldName || getFieldName(f as FieldInstance, false);
 				const label = typed.label || name;
 				const widgetName = (typed.widget?.Name || typed.type || 'input').toLowerCase();
 				return { name, label, widgetName, raw: f };

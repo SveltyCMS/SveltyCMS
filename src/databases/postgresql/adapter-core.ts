@@ -37,6 +37,20 @@ import { registerTableSchema } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 
+/**
+ * Keep date/timestamp as ISO text. postgres.js default-parses timestamptz to
+ * Date; convertDatesToISO then allocates another string. Skipping Date stops
+ * two objects per timestamp per row on findById.
+ */
+const PG_TEXT_DATE_TYPES = {
+  date: {
+    to: 1184,
+    from: [1082, 1114, 1184],
+    serialize: (x: unknown) => x,
+    parse: (x: unknown) => x,
+  },
+};
+
 /** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
 function bindPgParam(v: unknown, asJson: boolean): unknown {
   if (v === undefined) return null;
@@ -957,6 +971,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const replicaSql = postgres(urlStr, {
           max: 50,
           transform: { undefined: null },
+          types: PG_TEXT_DATE_TYPES,
         });
         this.allReplicaSqls.push(replicaSql);
         if (region !== "unknown") this.replicaSqls.set(region, replicaSql);
@@ -1045,6 +1060,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
+          types: PG_TEXT_DATE_TYPES,
           max: Number(process.env.DATABASE_MAX_CONNECTIONS) || Math.max(poolFloor, hw.dbPoolSize),
           connect_timeout: 10,
           prepare: effectivePrepare,
@@ -1082,6 +1098,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
+          types: PG_TEXT_DATE_TYPES,
           prepare: usePrepared,
           idle_timeout: Number(c.idle_timeout || 30),
           max_lifetime: Number(c.max_lifetime || 60 * 60),
@@ -1800,6 +1817,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const pool = postgres(baseUrl, {
       max: poolSize,
       transform: { undefined: null },
+      types: PG_TEXT_DATE_TYPES,
       connection: {
         application_name: `tenant_${tenantId}`,
       },
@@ -1833,6 +1851,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const pool = postgres(connectionUrl, {
       max: poolSize,
       transform: { undefined: null },
+      types: PG_TEXT_DATE_TYPES,
       connection: {
         application_name: `tenant_${tenantId}`,
       },

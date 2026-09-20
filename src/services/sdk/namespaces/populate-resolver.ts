@@ -26,6 +26,15 @@ export async function resolvePopulatedRelations(
   if (!items || items.length === 0 || !populateFields || populateFields.length === 0) return;
 
   // 1. Group fields and collect unique IDs by target collection
+  const fieldLookup = new Map<string, any>();
+  if (Array.isArray(schema.fields)) {
+    for (let i = 0; i < schema.fields.length; i++) {
+      const f = schema.fields[i];
+      if (f.db_fieldName) fieldLookup.set(f.db_fieldName, f);
+      if (f.name) fieldLookup.set(f.name, f);
+    }
+  }
+
   const collectionTargets = new Map<
     string,
     {
@@ -35,9 +44,7 @@ export async function resolvePopulatedRelations(
   >();
 
   for (const fieldName of populateFields) {
-    const field = (schema.fields as any[])?.find(
-      (f: any) => f.db_fieldName === fieldName || f.name === fieldName,
-    );
+    const field = fieldLookup.get(fieldName);
     if (!field) continue;
 
     const relationCollection = field.relation || field.collection;

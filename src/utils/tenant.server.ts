@@ -47,42 +47,7 @@ export function getCompiledCollectionsPath(tenantId?: string | null): string {
 }
 
 /**
- * Extracts tenant ID from a file path using strict path.relative boundary.
- */
-export function extractTenantFromPath(filePath: string): string | null | undefined {
-  const normalized = path.normalize(filePath);
-  const relative = path.relative(getConfigRoot(), normalized);
-
-  // If the file is not inside config root, it's invalid/external
-  if (relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
-
-  const parts = relative.split(path.sep);
-
-  // Case: config/collections/file.ts → undefined (no tenant)
-  if (parts[0] === "collections") return undefined;
-
-  // Case: config/tenant/collections/file.ts
-  if (parts.length >= 3 && parts[1] === "collections") {
-    return parts[0] === "global" ? null : parts[0];
-  }
-
-  return undefined;
-}
-
-/**
- * Get prioritized collection paths for scanning.
- */
-export function getAllTenantCollectionPaths(tenantId: string | null): string[] {
-  const paths = [getCollectionsPath(tenantId)];
-  // Only add 'global' path if the current context isn't already global
-  if (tenantId !== null) {
-    paths.push(getCollectionsPath(null));
-  }
-  return paths;
-}
-
-/**
- * Validate path resolution to prevent directory traversal.
+ * Resolve compiled collections output directory.
  */
 export function getCollectionFilePath(collectionName: string, tenantId?: string | null): string {
   const dir = getCollectionsPath(tenantId);

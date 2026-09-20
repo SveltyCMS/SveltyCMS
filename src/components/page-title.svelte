@@ -182,7 +182,7 @@
 						<iconify-icon
 							{icon}
 							width={compact ? '22' : iconSize}
-							class={`me-1 shrink-0 ${iconColor} sm:mr-2`}
+							class={`me-1 shrink-0 ${iconColor} sm:me-2`}
 							aria-hidden="true"
 						></iconify-icon>
 					{/if}

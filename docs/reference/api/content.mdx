@@ -71,13 +71,13 @@ Per-collection **view mode** lists are driven by URL query parameters on the adm
 (`/(app)/[language]/[...collection]`). The page loader parses params, **whitelists field names
 against the collection schema**, then loads via `CollectionService` (L1/L2 SWR).
 
-| Param                | Purpose                                                                | Client source                          |
-| -------------------- | ---------------------------------------------------------------------- | -------------------------------------- |
-| `search`             | In-collection full-text search (searchable schema fields + system ids) | `TableFilter` / `globalSearchValue`    |
-| `page` / `pageSize`  | Pagination                                                             | `TablePagination`                      |
-| `sort` / `order`     | Sort field + `asc` \| `desc`                                           | Header click                           |
-| `filter_{fieldName}` | Per-column filter value                                                | `createSmartFilter` / `SmartFilterRow` |
-| `edit`               | Entry id for edit-mode load (full multilingual row)                    | Mode / URL                             |
+| Param                | Purpose                                                                            | Client source                          |
+| -------------------- | ---------------------------------------------------------------------------------- | -------------------------------------- |
+| `search`             | In-collection text search (searchable schema fields + system ids; `LIKE`/`$regex`) | `TableFilter` / `globalSearchValue`    |
+| `page` / `pageSize`  | Pagination                                                                         | `TablePagination`                      |
+| `sort` / `order`     | Sort field + `asc` \| `desc`                                                       | Header click                           |
+| `filter_{fieldName}` | Per-column filter value                                                            | `createSmartFilter` / `SmartFilterRow` |
+| `edit`               | Entry id for edit-mode load (full multilingual row)                                | Mode / URL                             |
 
 ### Parsing & security
 

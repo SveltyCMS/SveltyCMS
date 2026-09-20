@@ -151,28 +151,6 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
   }
 }
 
-/** Env augmentations for local sandbox isolation (merged into benchmark test env). */
-export function getLocalSandboxEnvOverrides(): Record<string, string> {
-  if (!isLocalBenchmarkSandbox()) return {};
-  // Ensure sandbox media dir exists (fail-open on mkdir)
-  try {
-    fs.mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
-  } catch {
-    /* ignore */
-  }
-  return {
-    BENCHMARK_PROFILE: "local",
-    BENCHMARK_LOCAL_SANDBOX: "1",
-    MEDIA_FOLDER: getLocalSandboxMediaRel(),
-  };
-}
-
-/** Env augmentations for CI-fresh first-install benchmarks. */
-export function getCiFreshBenchmarkEnvOverrides(): Record<string, string> {
-  if (!isCiFreshBenchmark()) return { BENCHMARK_PROFILE: resolveBenchmarkProfile() };
-  return { BENCHMARK_PROFILE: "ci-fresh" };
-}
-
 export interface BenchmarkIsolationSummary {
   profile: BenchmarkProfile;
   dbName: string;

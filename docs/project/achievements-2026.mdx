@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-18"
+updated: "2026-09-20"
 tags:
   - "achievements"
   - "log"
@@ -299,7 +299,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 | **Scheduled Publishing**   | **✅ Adaptive Job Scheduler**                   | ⚠️ Cron Plugin      | ✅ Job Queue | ✅ Flows     | ❌          |
 | **Content Versioning**     | **✅ Revisions + Diff + Restore**               | ⚠️ Basic            | ✅ Versions  | ✅ Revisions | ❌          |
 | **Per-Field Localization** | **✅ Record<Locale,string> + AI**               | ⚠️ Separate Entries | ✅           | ✅           | ❌          |
-| **Full-Text Search**       | **✅ DB-Native FTS (Zero Deps)**                | ⚠️ Plugin           | ⚠️ Plugin    | ⚠️ Plugin    | ❌          |
+| **Full-Text Search**       | ⚠️ FTS adapters on all 4 engines (not wired)    | ⚠️ Plugin           | ⚠️ Plugin    | ⚠️ Plugin    | ❌          |
 | **Crypto-Chained Audit**   | **✅ SHA-256 Tamper-Evident**                   | ❌                  | ❌           | ❌           | ❌          |
 | **Smart CMS Migration**    | **✅ AI-Smart 5-Format Importer**               | ❌                  | ❌           | ❌           | ❌          |
 | **Cold Start UX**          | **✅ Progressive / gated init (self-measured)** | ⚠️ Spinner          | ⚠️ Spinner   | ⚠️ Spinner   | ✅ Local    |
@@ -384,9 +384,9 @@ Extended the audit_logs schema across all 4 database adapters with cryptographic
 - **Per-Content Viewer**: New `AuditHistory` component with visual chain indicator and "Verify Chain" button
 - **Enterprise Compliance**: SOC 2, ISO 27001, GDPR Article 30 ready — verifiable proof no logs were tampered
 
-#### Full-Text Search — Zero Dependency
+#### Full-Text Search — Zero Dependency (adapters implemented, not yet wired)
 
-Database-native FTS across all adapters with no additional npm packages:
+Database-native FTS adapters are implemented across all adapters with no additional npm packages. As of 2026-09 they are not yet called by the live `?search=` path, which uses schema-driven `LIKE`/regex matching; wiring is tracked in the [roadmap](./roadmap-2026.mdx).
 
 - **PostgreSQL**: `tsvector`/`tsquery` with weighted column ranking (title:A, content:B, description:C)
 - **MariaDB**: `MATCH...AGAINST IN BOOLEAN MODE` with FULLTEXT indexes
@@ -898,7 +898,7 @@ A focused security sprint addressing RBAC cache staleness, path traversal defens
 
 **Required-Fields Publish Validation**
 
-- `validateRequiredFields()` in `widget-validation.ts` prevents publishing content with missing required fields (media, relations, text). Closes a data-integrity gap where status transitions could bypass field-level `required` constraints.
+- `validateRequiredFields()` in `widget-validation.ts` is unit-tested but currently has no caller — status transitions can still bypass field-level `required` constraints. Wiring it into the publish path is tracked in the roadmap.
 
 **Scanner Pipeline Unified**
 
@@ -1115,6 +1115,42 @@ Tests: `tests/unit/api/authz-bypass-guard.test.ts` (27), `tests/unit/api/dispatc
 
 **Coverage added** — the previously unmeasured claims are now measured: media-gallery composite indexes (planner-proven `index_used=1`; 0.396–0.410 ms on 4 000 rows SQLite, 1.248 ms PostgreSQL), zstd-async (477 KiB GET 6.0–6.2 ms avg, 300–315 RPS, co-tenant p95 0.37 → 1.06–1.48 ms — no event-loop stall). The body-limiter and scan-dedup changes remain deliberately unmeasured (sub-µs work on a ≥1 ms path, ~3 orders below the noise floor).
 
+### 3.20 September 2026 — Unified Translation Cockpit & Multilingual Studio Inspector
+
+A comprehensive multilingual management and inspection suite bridging admin UI chrome localization with per-field content readiness:
+
+- **Dual-Lens Language Management**: Simultaneously tracks and toggles UI system language (Paraglide compile-time catalogs) alongside content editing languages (`systemLanguage` vs `contentLanguage`) within `translation-cockpit.svelte`.
+- **Document-Level Translation Completeness**: Computes real-time translation completion percentage per document across all configured system languages via `computeDocumentTranslationSummary()` (`src/utils/translation-analytics.ts`).
+- **Field-by-Field Deficiency Navigation**: Visual deficiency matrix identifies untranslated fields per language. Clicking any deficiency jumps directly to the field, switches the content locale, scrolls the field into view, and triggers an attention-highlight pulse.
+- **1-Click AI Translation**: Integrated 1-click batch translation of individual missing languages or entire documents via `/api/ai/translate`, preserving field structures and formatting without manual copy-pasting.
+- **Design Token & Accessibility Compliance**: Status-shade tokens (`success`, `tertiary`, `warning`, `error`), WCAG 2.2 AA compliant modal with focus trap and restoration. Tests: `tests/unit/utils/translation-analytics.test.ts`.
+
+### 3.21 September 2026 — Dependency & Runtime Lean-Out
+
+Execution of the full Lean-Out initiative to shrink bundle size, drop unused dependencies, and minimize runtime surface without feature loss:
+
+- **Complete Lodash Elimination**: Fully purged `lodash` and `lodash.memoize` across the codebase; replaced with native ECMAScript methods, typed object helpers, and `fast-deep-equal`.
+- **Modularized On-Demand AWS SDK**: Removed monolithic AWS SDK clients in favor of isolated `@aws-sdk/client-s3`, loaded dynamically on-demand in `src/utils/media/storage-adapters.ts` so storage drivers incur zero boot-time or bundle penalty when unused.
+- **Dynamic MapLibre Loading**: Geocoding and map rendering in `src/widgets/custom/address/input.svelte` moved to lazy dynamic import (`await import('maplibre-gl')`), keeping the primary widget bundle lean.
+- **Zero-Shiki Runtime Surface**: Removed unused `shiki` from dependencies and generated SBOM, eliminating redundant node dependencies.
+- **Tiptap Lazy Evaluation**: Rich text editor core and extensions are dynamically loaded (`import('./tiptap')`) on component mount in `src/widgets/core/rich-text/input.svelte`, keeping edit views lightweight on initial render.
+- **Store Architecture Consolidation**: Consolidated global stores from 28 files down to 18 domain singletons, standardizing on Svelte 5 fine-grained reactivity (`$state()`, `$derived()`) across all 72 widget inputs, displays, and app shell routes.
+
+### 3.22 September 2026 — Smart Table Advanced UX & Adaptive Grid Platform
+
+A comprehensive overhaul of the core Smart Table data orchestration engine (`src/components/ui/smart-table/` and `src/components/collection-display/`), delivering enterprise-tier UX, multi-column sorting, compound query operators, and accessibility compliance:
+
+- **Multi-Column Sort**: Compose secondary and tertiary sorts via `Shift + Click` or headless `setSort(field, { multi: true })`. Renders visual ordinal rank badges (`1`, `2`, `3`) alongside directional indicators, cascades multi-criteria sorting in client-side comparators, and serializes compound queries to server URL parameters (`sort=field1:asc,field2:desc`).
+- **Advanced Filter Operators UI**: Integrated `AdvancedFilterModal` compound filter builder supporting multi-clause `AND` / `OR` expressions across collection schema fields with contextual operators (`equals`, `contains`, `starts_with`, `gt`, `gte`, `lt`, `lte`, `is_empty`, `is_not_empty`). Active clause counts surface in the filter bar.
+- **Export Filtered Selection (`Alt + X`)**: Browser-streamed CSV download bounded specifically to currently selected rows or the active filtered result set, accessible from both keyboard shortcuts (`Alt + X`) and `EntryListMultiButton`.
+- **Keyboard Grid Navigation (WCAG 2.2 AA / ATAG 2.0)**: Fully keyboard-navigable grid using roving `tabindex`. Arrow key cell traversal, `Home`/`End` jump navigation, `PageUp`/`PageDown` leaping, `Space` for row selection, and `Enter` for direct entry editing.
+- **Responsive Card Mode**: Dynamic view mode switcher (`Table View` vs `Card View`), persisted per-collection via `SmartTableLayoutPrefs`, with responsive fallback on mobile viewports (<768px).
+- **Unit Testing**: 7 new test cases in `tests/unit/components/smart-table-advanced-ux.test.ts` covering multi-sort composition, cyclic direction toggle, rank indexing, client-side tie-breaking, and view mode persistence.
+
+### 3.23 September 2026 — Surgical turbo invalidation (soak / mixed-write)
+
+A single-entry PATCH used to wipe every turbo `findById` for that collection (`invalidateLocal` string-includes + `res:<collection>` tags on point-reads). L2 already cleared `doc:<coll>:<id>` surgically; L1 did not. Point-reads now tag only `doc:`, skip the shared L1, and `invalidateLocal({ entryIds })` drops lists/GraphQL plus the written ids. In-repo replica (SQLite, 10k docs, 8c, 2026-09-20): mixed **1,447 RPS**, 60s soak **1,362 avg RPS**. Tests: `tests/unit/core/request-classifier-and-response-cache.test.ts`, `tests/unit/sdk/collections-post-write.test.ts`. Docs: [Competitive Comparison](./competitive-comparison.mdx), [Performance Architecture](../reference/database/performance-architecture.mdx).
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.
@@ -1265,7 +1301,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **High-Performance GraphQL**: Resolver memoization and JIT execution reducing API latency and redundant database hits.
 - **GraphQL.js 17 + Yoga (August 2026)**: Upgraded to `graphql@17.0.2` with native `graphql-yoga@5.22.0` support and zero-allocation AST visitors.
 
-- **Tenant Management Admin Dashboard (July 2026)**: Full-featured tenant administration UI at `/admin/tenants` with create/suspend/activate operations, real-time quota visualization (users, storage, collections), and plan-level resource enforcement. Gated behind system-admin `isAdmin && !tenantId` guard. Backed by the database-agnostic `ISystemAdapter.tenants` interface with dedicated MongoDB implementation (`MongoTenantMethods`) and shared SQL implementation (`RelationalSystemModule`) across PostgreSQL, MariaDB, and SQLite. Integrated into the sidebar navigation for instant access.
+- **Tenant Management Admin Dashboard (July 2026)**: Full-featured tenant administration UI at `/admin/tenants` with create/suspend/activate operations, real-time quota visualization (users, storage, collections), and plan-level resource enforcement. Gated behind system-admin `isAdmin && !tenantId` guard. Backed by the database-agnostic `ISystemAdapter.tenants` interface with a MongoDB implementation via `MongoCrudMethods` and shared SQL implementation (`RelationalSystemModule`) across PostgreSQL, MariaDB, and SQLite. Integrated into the sidebar navigation for instant access.
 
 - **CLI Maintenance Suite**: Native `cache:clear` utilities for system-wide and tenant-specific operations.
 - **5-Pillar Content Architecture**: Consolidation of 19 fragmented files into 5 high-performance pillars, reducing content system module overhead by **74%**.
@@ -1308,7 +1344,12 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **Crypto-Chained Audit Logs**: SHA-256 tamper-evident audit trail with chain verification and per-content viewer.
 - **Per-Field Localization**: Record<Locale, string> field storage with inline locale switchers and one-click AI translation.
 - **Flexible system languages (September 2026)**: Admin UI ships **EN/DE**. Setup and System Settings use the same ISO 639-1 picker as content languages (RTL via `getTextDirection()` in `@utils/string`). Completing setup writes `project.inlang/settings.json` and runs `bun translate` + `bun run paraglide`. Guide: [System Languages](../guides/configuration/system-languages.mdx).
-- **Zero-Dependency Full-Text Search**: Database-native FTS across PostgreSQL, MariaDB, SQLite, and MongoDB with no additional npm packages.
+- **EU + Arabic language pack seed (September 2026)**: Catalogs for FR, ES, IT, NL, PL, and AR clone English with a reviewed chrome overlay (`scripts/seed-language-packs.ts`); `project.inlang/settings.json` lists all eight locales. Remaining keys stay English until human review. Arabic sets `html dir="rtl"` via `getTextDirection`.
+- **AI-Assisted Builder Phase 1 (September 2026)**: `POST /api/ai-builder/approve-collection` validates a design proposal, writes a TypeScript collection schema via the compiler AST (`generateCollectionSourceFromProposal`), compiles with `syncContentState`, and audit-logs the approval. Draft-gated (`status: "draft"`); refuses overwrite unless `overwrite: true`. Admin-only, tenant-scoped.
+- **Smart Table advanced UX (September 2026)**: Multi-column sort (`sort=title:asc,createdAt:desc` + `QueryBuilder.orderBy`), advanced AND/OR filter modal (`filterLogic` + `orWhere`), and ATAG keyboard grid navigation (arrow keys, Home/End, Space, Enter) on collection entry lists.
+- **Marketplace remote install (September 2026)**: `POST /api/marketplace/install` downloads remote packages through `validateEgressUrl`/`safeFetch`, verifies SHA-256 checksums, allowlists install paths, and activates licenses via `POST /api/marketplace/license`. In-app Install / license / package-detail UI on Extensions → Marketplace.
+- **Standalone DB adapter npm packages (September 2026)**: `sveltycms-sqlite`, `sveltycms-mongodb`, `sveltycms-mariadb`, and `sveltycms-postgresql` re-export the in-tree adapters (no dual engine). CI workflow `.github/workflows/publish-adapters.yml` publishes on `v*` tags.
+- **Zero-Dependency Full-Text Search (adapters)**: Database-native FTS adapters implemented across PostgreSQL, MariaDB, SQLite, and MongoDB with no additional npm packages; not yet wired into the live search path (see [roadmap](./roadmap-2026.mdx)).
 
 - **AI-Smart CMS Migration**: 5-format importer with heuristic field mapping, ACF/CMB2 detection, and drag-and-drop UI.
 - **Quick-Start Collection Templates**: 7 setup presets — Website Starter (default) plus Blog, Agency, SaaS, Corporate, E-commerce, and Blank.
@@ -1455,6 +1496,16 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **Zero-Redundancy Schema Walks**: Field prep consolidated to a single schema walk and single clone via `prepareCollectionFields()` in `content-utils.ts`, replacing 3 prior passes; unified `applySchemaHookPipeline` across create/update operations.
   - **Physical Table Naming Reconciliation**: Normalized adapter table naming (`normalizeCollectionTableName()`) across SQL (`getTable`, `createIndexes`, `registerTableSchema`) and MongoDB (`normalizeCollectionName`, `createModel`), resolving hyphenated-ID model registry inconsistencies.
   - **Hot-Path Optimization**: Inserted widget transform field-level caching, insert-only `createdAt` semantics, synchronous L1 mutation with background L2 fire-and-forget invalidation, and session verification via single JOIN.
+- **Unified Translation Cockpit & Multilingual Studio Inspector (September 2026)**:
+  - **Dual-Lens Architecture**: Live Paraglide admin chrome switcher coupled with content translation readiness metrics in `translation-cockpit.svelte`.
+  - **Automated Deficiency Resolution**: Real-time completeness calculation, interactive jump-to-field focus, and 1-click AI document auto-translation. Tests: `tests/unit/utils/translation-analytics.test.ts`.
+- **Dependency & Runtime Lean-Out (September 2026)**:
+  - **Zero-Lodash & Modular AWS**: Full elimination of Lodash, lazy on-demand S3 client, and dynamic import of MapLibre GL in address inputs.
+  - **Svelte 5 Runes Footprint**: Deletion of legacy store monoliths, 28 → 18 store consolidation, and removal of unused dependencies (`shiki`).
+- **Smart Table Advanced UX & Adaptive Grid Platform (September 2026)**:
+  - **Multi-Column Sort & Ordinal Ranks**: Composed multi-column sorting via `Shift + Click` with visual rank indicators (`1`, `2`, `3`), cascading client-side comparators, and query serialization.
+  - **Compound Filter Logic**: Schema-aware `AdvancedFilterModal` with `AND`/`OR` multi-clause conditions and contextual operators.
+  - **Grid Accessibility & View Modes**: WCAG 2.2 AA roving tabindex cell/row keyboard traversal, `Alt + X` selection export, and dynamic `table` / `card` view mode switching. Tests: `tests/unit/components/smart-table-advanced-ux.test.ts`.
 
 ---
 

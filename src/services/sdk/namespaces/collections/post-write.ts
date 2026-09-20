@@ -112,16 +112,13 @@ export function invalidateCache(
   tenantId?: DatabaseId | null,
   opts?: { skipRequestCacheClear?: boolean; writtenId?: string; writtenIds?: readonly string[] },
 ): void {
-  // 1. Clear L1 (In-Memory) Cache synchronously (0ms) — scoped to this collection keyspace
   if (!opts?.skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
-    // Same tick: bump collection generation so weak ETags 304-miss on the next GET.
-    if (schema._id) {
-      cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
-    }
+  }
+  if (schema._id) {
+    cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
   }
 
-  // 2. Tick-debounced L2 tag clears.
   const tenantKey = (tenantId as string) || "default";
   const schemaId = schema._id as string | undefined;
   const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
@@ -146,30 +143,26 @@ export function invalidateCache(
     const ids = _pendingInvalidationIds.get(requestKey);
     _pendingInvalidationIds.delete(requestKey);
     try {
-      const responseCache = await getResponseCacheLazy();
+      const rc = await getResponseCacheLazy();
       if (schemaId) {
-        // Consolidated tick invalidation: list/count + response cache + per-doc surgical tags in ONE pass.
-        const tagsToClear = [
-          `collection:${schemaId}`,
-          `count:${schemaId}`,
-          `res:${schemaId}`,
-          "res:graphql",
-        ];
-        // Count entries are keyed by the physical table name in the read path
-        // (collection-service.ts -> collectionTableName); count-cache tags both
-        // spellings, so clearing the normalised name too is required — otherwise
-        // list totals stay stale for the full count TTL.
+        const tagsToClear = [`collection:${schemaId}`, `count:${schemaId}`, "res:graphql"];
         const physicalSchemaId = collectionTableName(schemaId);
         if (physicalSchemaId !== schemaId) {
           tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
         }
         if (ids && ids.size > 0) {
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
+        } else {
+          tagsToClear.push(`res:${schemaId}`);
         }
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
-        responseCache.invalidateLocal(schemaId, tenantKey);
+        rc.invalidateLocal(
+          schemaId,
+          tenantKey,
+          ids && ids.size > 0 ? { entryIds: ids } : undefined,
+        );
       } else {
-        void responseCache.invalidateAll(tenantKey).catch(() => {});
+        void rc.invalidateAll(tenantKey).catch(() => {});
       }
     } catch {
     } finally {
@@ -185,7 +178,7 @@ export function invalidateCache(
 
 /**
  * Detach post-write work from the HTTP/SDK response path.
- * Always clears L1 request cache synchronously; everything else is microtasked
+ * Always clears L1 request cache synchronously; turbo L1 + L2 are microtasked
  * (or skipped when the caller passes skipSideEffects explicitly).
  */
 export function schedulePostWrite(

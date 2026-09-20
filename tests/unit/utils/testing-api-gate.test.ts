@@ -4,7 +4,7 @@
  * Covers seed actions' shared fail-closed entry (assertTestingApiAllowed).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   assertTestingApiAllowed,
   isTestOrBenchmarkEnvironment,
@@ -18,19 +18,17 @@ function req(secret?: string) {
 }
 
 describe("assertTestingApiAllowed / isTestOrBenchmarkEnvironment", () => {
-  const original = { ...process.env };
-
   beforeEach(() => {
-    delete process.env.TEST_MODE;
-    delete process.env.VITE_TEST_MODE;
-    delete process.env.PLAYWRIGHT_TEST;
-    delete process.env.BENCHMARK;
-    delete process.env.TEST_API_SECRET;
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("TEST_MODE", undefined);
+    vi.stubEnv("VITE_TEST_MODE", undefined);
+    vi.stubEnv("PLAYWRIGHT_TEST", undefined);
+    vi.stubEnv("BENCHMARK", undefined);
+    vi.stubEnv("TEST_API_SECRET", undefined);
+    vi.stubEnv("NODE_ENV", "development");
   });
 
   afterEach(() => {
-    process.env = { ...original };
+    vi.unstubAllEnvs();
   });
 
   it("denies when no test flags are set", () => {
@@ -41,17 +39,17 @@ describe("assertTestingApiAllowed / isTestOrBenchmarkEnvironment", () => {
   });
 
   it("denies bare NODE_ENV=test without TEST_MODE (no accidental backdoor)", () => {
-    process.env.NODE_ENV = "test";
-    process.env.TEST_API_SECRET = "s3cret";
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("TEST_API_SECRET", "s3cret");
     expect(isTestOrBenchmarkEnvironment()).toBe(false);
     const gate = assertTestingApiAllowed(req("s3cret"));
     expect(gate.allowed).toBe(false);
   });
 
   it("denies production even if TEST_MODE and secret are set", () => {
-    process.env.NODE_ENV = "production";
-    process.env.TEST_MODE = "true";
-    process.env.TEST_API_SECRET = "prod-leak-secret";
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TEST_MODE", "true");
+    vi.stubEnv("TEST_API_SECRET", "prod-leak-secret");
     expect(isTestOrBenchmarkEnvironment()).toBe(false);
     const gate = assertTestingApiAllowed(req("prod-leak-secret"));
     expect(gate.allowed).toBe(false);
@@ -64,32 +62,32 @@ describe("assertTestingApiAllowed / isTestOrBenchmarkEnvironment", () => {
   });
 
   it("denies TEST_MODE without secret header", () => {
-    process.env.TEST_MODE = "true";
-    process.env.TEST_API_SECRET = "valid-secret";
+    vi.stubEnv("TEST_MODE", "true");
+    vi.stubEnv("TEST_API_SECRET", "valid-secret");
     const gate = assertTestingApiAllowed(req());
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) expect(gate.code).toBe("TESTING_SECRET_MISSING");
   });
 
   it("denies wrong secret", () => {
-    process.env.TEST_MODE = "true";
-    process.env.TEST_API_SECRET = "valid-secret";
+    vi.stubEnv("TEST_MODE", "true");
+    vi.stubEnv("TEST_API_SECRET", "valid-secret");
     const gate = assertTestingApiAllowed(req("wrong-secret"));
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) expect(gate.code).toBe("TESTING_SECRET_INVALID");
   });
 
   it("allows only with TEST_MODE + matching secret", () => {
-    process.env.TEST_MODE = "true";
-    process.env.TEST_API_SECRET = "valid-secret";
+    vi.stubEnv("TEST_MODE", "true");
+    vi.stubEnv("TEST_API_SECRET", "valid-secret");
     const gate = assertTestingApiAllowed(req("valid-secret"));
     expect(gate).toEqual({ allowed: true });
   });
 
   it("rejects well-known default e2e secret string in production", () => {
-    process.env.NODE_ENV = "production";
-    process.env.TEST_MODE = "true";
-    process.env.TEST_API_SECRET = "SVELTYCMS_TEST_SECRET_2026";
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TEST_MODE", "true");
+    vi.stubEnv("TEST_API_SECRET", "SVELTYCMS_TEST_SECRET_2026");
     expect(assertTestingApiAllowed(req("SVELTYCMS_TEST_SECRET_2026")).allowed).toBe(false);
   });
 });

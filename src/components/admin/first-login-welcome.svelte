@@ -15,7 +15,6 @@
 	import Button from '@components/ui/button.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
 	import ImportExportManager from './import-export-manager.svelte';
 
 	// Types
@@ -109,7 +108,7 @@
 		if (step.id === 'data-management') {
 			openImportExportModal();
 		} else if (step.actionUrl) {
-			goto(step.actionUrl);
+			// Navigation happens via the Button's href + data-preload
 			markStepCompleted(step.id);
 		}
 	}
@@ -145,7 +144,6 @@
 
 	function goToDashboard() {
 		dismissWelcome();
-		goto('/dashboard');
 	}
 </script>
 
@@ -195,7 +193,15 @@
 
 				<!-- Step Action -->
 				<div class="mb-6 text-center">
-					<Button onclick={() => handleStepAction(step)} variant="primary" size="lg" class="px-8" aria-label={step.action}>
+					<Button
+						href={step.id === 'data-management' ? undefined : step.actionUrl}
+						data-preload="hover"
+						onclick={() => handleStepAction(step)}
+						variant="primary"
+						size="lg"
+						class="px-8"
+						aria-label={step.action}
+					>
 						<iconify-icon icon={step.icon} width="20" class="me-2"></iconify-icon>
 						{step.action}
 					</Button>
@@ -272,7 +278,7 @@
 					<iconify-icon icon="mdi:chevron-right" width={16} class="ms-1"></iconify-icon>
 				</Button>
 			{:else}
-				<Button onclick={goToDashboard} variant="primary" aria-label="Go to dashboard">
+				<Button href="/dashboard" data-preload="hover" onclick={goToDashboard} variant="primary" aria-label="Go to dashboard">
 					Go to Dashboard
 					<iconify-icon icon="mdi:view-dashboard" width={16} class="ms-2"></iconify-icon>
 				</Button>

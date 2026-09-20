@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-09-19"
+updated: "2026-09-20"
 tags:
   - "tests"
   - "documentation"
@@ -37,6 +37,9 @@ tags:
 | `tests/unit/hooks/system-state.test.ts`                         | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`                                      |
 | `tests/unit/hooks/setup.test.ts`                                | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                                            |
 | `tests/unit/hooks/security-headers.test.ts`                     | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                                                     |
+| `tests/unit/hooks/collection-read-lane.test.ts`                 | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                       |
+| `tests/unit/hooks/collection-write-lane.test.ts`                | `docs/reference/database/write-path.mdx`, `docs/reference/database/performance-architecture.mdx`                             |
+| `tests/unit/hooks/handle-turbo-get-lane.test.ts`                | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                       |
 | `tests/unit/auth/roles/role-permission-access.test.ts`          | `docs/tests/rbac-testing.mdx`                                                                                                |
 | `tests/unit/api/media-security.test.ts`                         | `docs/reference/security/widget-security.mdx`                                                                                |
 | `tests/unit/services/media-manipulation.test.ts`                | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx`                          |
@@ -99,7 +102,13 @@ tags:
 | `tests/unit/routes/api-playground-page-server.test.ts`          | `docs/reference/api/index.mdx`, `docs/development/openapi-spec.mdx`                                                          |
 | `tests/unit/services/workflow-service-completion.test.ts`       | `docs/development/workflow-engine.mdx`, `docs/reference/components/workflow-actions.mdx`                                     |
 | `tests/unit/widgets/custom/block-builder.test.ts`               | `docs/reference/components/fields.mdx`, `docs/development/widgets/index.mdx`                                                 |
-| `tests/unit/components/create-smart-table.test.ts`              | `docs/contributing/style-guide-gui.mdx`, `docs/project/achievements-2026.mdx` (§3.18)                                        |
+| `tests/unit/components/create-smart-table.test.ts`              | `docs/reference/components/smart-table.mdx`, `docs/project/achievements-2026.mdx`                                            |
+| `tests/unit/api/ai-builder.test.ts`                             | `docs/development/ai-builder-design.mdx`                                                                                     |
+| `tests/unit/services/ai-builder/schema-ast.test.ts`             | `docs/development/ai-builder-design.mdx`                                                                                     |
+| `tests/unit/utils/boolean-filter.test.ts`                       | `docs/reference/components/smart-table.mdx`, `docs/reference/architecture/collection-filtering.mdx`                          |
+| `tests/unit/services/marketplace-checksum.test.ts`              | `docs/reference/architecture/marketplace.mdx`                                                                                |
+| `tests/unit/setup/language-packs.test.ts`                       | `docs/guides/configuration/system-languages.mdx`                                                                             |
+| `tests/unit/package-exports.test.ts`                            | `docs/development/package-model.mdx`                                                                                         |
 | `tests/unit/utils/entry-actions.test.ts`                        | `docs/reference/architecture/content-system.mdx`, `docs/project/achievements-2026.mdx` (§3.18)                               |
 | `tests/unit/widgets/custom-widget-sveltycms.test.ts`            | `docs/development/widgets/index.mdx`, `docs/reference/components/fields.mdx`                                                 |
 | `tests/unit/databases/cache-service-l2-contract.test.ts`        | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                       |

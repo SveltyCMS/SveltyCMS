@@ -24,7 +24,6 @@ import {
   literal,
   maxLength,
   minLength,
-  nullable,
   number,
   object,
   optional,
@@ -136,10 +135,6 @@ export const signUpFormSchema = pipe(
 );
 
 // Google OAuth Token Schema
-export const signUpOAuthFormSchema = object({
-  lang: nullable(string()),
-});
-
 // Validate New User Token Schema
 export const addUserTokenSchema = object({
   email: emailSchema,

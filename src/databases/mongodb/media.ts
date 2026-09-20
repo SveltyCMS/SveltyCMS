@@ -1,5 +1,5 @@
 /**
- * @file src/databases/mongodb/models/media.ts
+ * @file src/databases/mongodb/media.ts
  * @description MongoDB schema and model for Media.
  *
  * This module defines a schema and model for media files in the CMS.
@@ -23,7 +23,7 @@
  */
 
 import type { DatabaseId } from "@src/content/types";
-import type { DatabaseResult, IDBAdapter, MediaItem } from "@src/databases/db-interface";
+import type { DatabaseResult, MediaItem } from "@src/databases/db-interface";
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
 import { nowISODateString, toISOString } from "@utils/date";
 // System Logger
@@ -91,32 +91,6 @@ mediaSchema.index({ tenantId: 1, updatedAt: -1 }); // Recent media
 mediaSchema.index({ tenantId: 1, folderId: 1, updatedAt: -1 }); // Folder last-updated / gallery
 mediaSchema.index({ tenantId: 1, folderId: 1, mimeType: 1 }); // Folder + type filtering
 mediaSchema.index({ tenantId: 1, filename: "text", originalFilename: "text" }); // Full-text search on filenames
-
-// Fetch all media files using DatabaseAdapter's crud.findMany
-export async function fetchAllMedia(
-  databaseAdapter: IDBAdapter,
-): Promise<DatabaseResult<MediaItem[]>> {
-  try {
-    const result = await databaseAdapter.crud.findMany<MediaItem>("media", {});
-    if (result.success) {
-      return { success: true, data: result.data };
-    }
-    return result;
-  } catch (error) {
-    const message = "Failed to fetch all media files";
-    const err = error as Error;
-    logger.error(`Error fetching all media files: ${err.message}`);
-    return {
-      success: false,
-      message,
-      error: {
-        code: "MEDIA_FETCH_ALL_ERROR",
-        message: "Failed to fetch all media files",
-        details: error,
-      },
-    };
-  }
-}
 
 // Static methods
 mediaSchema.statics = {

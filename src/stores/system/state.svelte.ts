@@ -217,6 +217,35 @@ function transitionServiceState(
       max: metrics.maxInitTime,
     });
 
+    // Track startup timing history. Previously never populated, which left
+    // `calibrateAnomalyThresholds` (requires count >= 5) permanently inert and
+    // the `slow_startup`/`degrading_performance` anomaly branches unreachable.
+    const previousStartupAvg = metrics.stateTimings.startup.avgTime;
+    const startup = {
+      ...metrics.stateTimings.startup,
+      count: metrics.stateTimings.startup.count + 1,
+      lastTime: duration,
+      minTime:
+        metrics.stateTimings.startup.minTime === undefined
+          ? duration
+          : Math.min(metrics.stateTimings.startup.minTime, duration),
+      maxTime:
+        metrics.stateTimings.startup.maxTime === undefined
+          ? duration
+          : Math.max(metrics.stateTimings.startup.maxTime, duration),
+    };
+    startup.avgTime = previousStartupAvg
+      ? alpha * duration + (1 - alpha) * previousStartupAvg
+      : duration;
+    startup.trend = !previousStartupAvg
+      ? "stable"
+      : duration > previousStartupAvg * 1.2
+        ? "degrading"
+        : duration < previousStartupAvg * 0.8
+          ? "improving"
+          : "stable";
+    metrics.stateTimings = { ...metrics.stateTimings, startup };
+
     metrics.consecutiveFailures = 0;
   }
 
@@ -358,49 +387,6 @@ export function updateServiceHealth(
       );
     }
   }
-}
-
-/**
- * Update a service's latency metrics (Heartbeat) and check for performance anomalies.
- */
-export function updateServiceLatency(
-  serviceName: keyof SystemStateStore["services"],
-  latency: number,
-): void {
-  system.update((state) => {
-    const service = state.services[serviceName];
-    if (!service) return state;
-
-    const metrics = { ...service.metrics };
-    metrics.lastLatency = latency;
-
-    // Update average latency using EMA (Exponential Moving Average)
-    const alpha = 0.1;
-    if (metrics.averageLatency && metrics.averageLatency > 0) {
-      metrics.averageLatency = alpha * latency + (1 - alpha) * metrics.averageLatency;
-    } else {
-      metrics.averageLatency = latency;
-    }
-
-    // Check against threshold
-    const threshold = metrics.anomalyThresholds.maxLatency || 50;
-    if (latency > threshold) {
-      logger.warn(
-        `⚠️ High latency detected for ${serviceName}: ${latency.toFixed(2)}ms (Threshold: ${threshold}ms)`,
-      );
-    }
-
-    return {
-      ...state,
-      services: {
-        ...state.services,
-        [serviceName]: {
-          ...service,
-          metrics,
-        },
-      },
-    };
-  });
 }
 
 /**
@@ -590,71 +576,21 @@ export function resetSystemState(): void {
 // Get a readable store for the system state (for Svelte components)
 export const systemState: Readable<SystemStateStore> = derived(systemStateStore, (state) => state);
 
-// Get a readable store for just the overall state (for simple checks)
+/**
+ * Overall system state as a readable store.
+ *
+ * Still consumed by the boot pipeline (`hooks.server.ts` dynamically imports
+ * this module and subscribes here to apply hardware-adaptive tuning / service
+ * init on READY) — do not remove without migrating that caller.
+ */
 export const overallState: Readable<SystemState> = derived(
   systemStateStore,
   (state) => state.overallState,
 );
 
-// --- Granular Derived Stores for Improved Reactivity ---
-
-/**
- * A derived store that returns true if the system is in a ready or degraded state.
- * Ideal for use in UI components to show/hide content based on system readiness.
- */
-export const isReady: Readable<boolean> = derived(
-  overallState,
-  (s) => s === "READY" || s === "WARMED" || s === "WARMING" || s === "DEGRADED",
-);
-
-/**
- * A derived store that returns true if the system is currently initializing.
- */
-export const isInitializing: Readable<boolean> = derived(overallState, (s) => s === "INITIALIZING");
-
-/**
- * A derived store that returns true if the system is currently serving traffic (READY, WARMING, or WARMED).
- */
-export const isServing: Readable<boolean> = derived(
-  overallState,
-  (s) => s === "WARMING" || s === "READY" || s === "WARMED",
-);
-
-/**
- * A derived store that returns true if the system is fully warmed up.
- */
-export const isWarmed: Readable<boolean> = derived(overallState, (s) => s === "WARMED");
-
-/**
- * A derived store that returns true if the system has failed.
- */
-export const isFailed: Readable<boolean> = derived(overallState, (s) => s === "FAILED");
-
-/**
- * A derived store that returns true if the system is in a degraded state.
- */
-export const isDegraded: Readable<boolean> = derived(overallState, (s) => s === "DEGRADED");
-
-/**
- * A derived store containing the status of all individual services.
- */
-export const servicesStatus: Readable<SystemStateStore["services"]> = derived(
-  systemState,
-  (s) => s.services,
-);
-
-/**
- * Individual derived stores for each service's status.
- * This allows components to subscribe to only the service they care about.
- */
-export const databaseStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.database);
-export const authStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.auth);
-export const cacheStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.cache);
-export const contentSystemStatus: Readable<ServiceStatus> = derived(
-  servicesStatus,
-  (s) => s.contentSystem,
-);
-export const themeManagerStatus: Readable<ServiceStatus> = derived(
-  servicesStatus,
-  (s) => s.themeManager,
-);
+// NOTE: The former granular `derived()` exports (isReady, isInitializing,
+// isServing, isWarmed, isFailed, isDegraded, servicesStatus, databaseStatus,
+// authStatus, cacheStatus, contentSystemStatus, themeManagerStatus) were
+// removed — they were unreferenced legacy `svelte/store` bridges (AGENTS.md §1
+// forbids legacy stores). Use the rune container (`system`),
+// `getOverallState()`, or `isSystemReady()` instead.

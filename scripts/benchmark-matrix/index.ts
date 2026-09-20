@@ -600,6 +600,10 @@ async function run() {
         // BENCHMARK is a harness marker only (env-only config, sandbox, setup force-complete).
         NODE_ENV: "production",
         BENCHMARK: "true",
+        // Match production Dockerfile V8 young-gen so 60s soak does not
+        // premature-tenure into Old Space (full GC cliffs at ~15s / ~55s).
+        NODE_OPTIONS:
+          process.env.NODE_OPTIONS || "--max-semi-space-size=128 --max-old-space-size=1024",
         // 🏢 Audit mode: BENCHMARK_AUDIT_MODE=compliance → AUDIT_CHAIN_SYNC=true,
         // DISABLE_AUDIT_LOGS=false (enterprise compliance); default = production defaults.
         BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",

@@ -50,7 +50,7 @@
 	import { scale } from 'svelte/transition';
 
 	// --- Types ---
-	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete' | 'bulk-edit';
+	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete' | 'bulk-edit' | 'export';
 	type DangerLevel = 'low' | 'medium' | 'high';
 
 	interface ActionConfig {
@@ -72,6 +72,7 @@
 		create: () => void;
 		delete: (permanent: boolean) => Promise<void> | void;
 		draft: () => Promise<void> | void;
+		exportSelection?: () => Promise<void> | void;
 		hasSelections?: boolean;
 		isCollectionEmpty?: boolean;
 		publish: () => Promise<void> | void;
@@ -95,7 +96,8 @@
 		delete: deleteAction,
 		clone,
 		create,
-		bulkEdit
+		bulkEdit,
+		exportSelection
 	}: Props = $props();
 
 	// --- Action Configurations ---
@@ -183,6 +185,17 @@
 			shortcutKey: 'Delete',
 			requiresSelection: true,
 			dangerLevel: 'high'
+		},
+		{
+			type: 'export',
+			label: 'Export Data',
+			gradient: 'gradient-tertiary',
+			icon: 'material-symbols:download-rounded',
+			textColor: 'text-white dark:text-white',
+			shortcut: 'Alt+X',
+			shortcutKey: 'x',
+			requiresSelection: false,
+			dangerLevel: 'low'
 		}
 	];
 
@@ -447,6 +460,9 @@
 					// If not, we should probably confirm. But user said "only DELETE need a confirmation modal".
 					// Assuming deleteAction triggers the modal logic or actual delete.
 					await deleteAction(showDeleted);
+					break;
+				case 'export':
+					if (exportSelection) await exportSelection();
 					break;
 				case 'schedule': {
 					const now = new Date().toISOString();

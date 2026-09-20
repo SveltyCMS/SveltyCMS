@@ -187,6 +187,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         page: listQuery.page,
         pageSize: listQuery.pageSize,
         sort: listQuery.sort,
+        sorts: listQuery.sorts,
+        orGroups: listQuery.orGroups,
         filter: listQuery.filter,
         search: listQuery.search,
         language,

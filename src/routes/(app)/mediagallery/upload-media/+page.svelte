@@ -30,6 +30,7 @@ import RemoteUpload from "./remote-upload.svelte";
 let tabSet = $state("0");
 
 function handleUploadComplete() {
+	// slop:suppress — post-action redirect after upload completes, not primary navigation
 	goto("/mediagallery");
 }
 </script>

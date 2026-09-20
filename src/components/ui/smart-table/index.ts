@@ -13,6 +13,7 @@ export type {
   ColumnAlign,
   ColumnFilterHint,
   ColumnPin,
+  ColumnSortDescriptor,
   CreateSmartTableOptions,
   PinnedColumnGroups,
   SmartTableColumn,
@@ -23,6 +24,7 @@ export type {
   TableDataMode,
   TableDensity,
   TableSortOrder,
+  TableViewMode,
   VirtualWindow,
 } from "./types";
 export {

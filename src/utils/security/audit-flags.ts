@@ -99,10 +99,3 @@ export function getAuditFlagsSync(): AuditFlags {
 export function isAuditDisabledByEnv(): boolean {
   return process.env.DISABLE_AUDIT_LOGS === "true";
 }
-
-/** Test helper — reset the memoized cache. */
-export function resetAuditFlagsCache(): void {
-  cached = null;
-  cachedAt = 0;
-  inflight = null;
-}

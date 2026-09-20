@@ -1,6 +1,6 @@
 /**
  * @file src/services/ai-builder/index.ts
- * @description Public entry point for the AI-Assisted Builder (Phase 0).
+ * @description Public entry point for the AI-Assisted Builder (Phase 1).
  *
  * Named exports only — tree-shaking friendly. The API layer consumes the
  * stable contract defined here:
@@ -9,7 +9,8 @@
  * - prompts: injection-shielded prompt templates
  * - validator: structured-output validation
  * - diff: schema diffing for the approval UI
- * - collection-designer: designCollection / refineCollection services
+ * - collection-designer: designCollection / refineCollection / approveCollection
+ * - schema-ast: TypeScript AST generator for approved schemas
  *
  * ### Features:
  * - stable public surface for API consumers
@@ -22,6 +23,8 @@ export type {
   SchemaDiff,
   DesignCollectionInput,
   DesignResult,
+  ApproveCollectionInput,
+  ApproveCollectionResult,
 } from "./types";
 
 export type { ModelBackend, BuilderAiGatewayOptions } from "./gateway";
@@ -37,4 +40,6 @@ export { RESERVED_FIELD_NAMES, validateProposal, validateAgainstRegistry } from 
 
 export { diffSchema } from "./diff";
 
-export { designCollection, refineCollection } from "./collection-designer";
+export { designCollection, refineCollection, approveCollection } from "./collection-designer";
+
+export { generateCollectionSourceFromProposal } from "./schema-ast";

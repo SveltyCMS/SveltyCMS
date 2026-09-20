@@ -116,7 +116,7 @@ function onKeydown(e: KeyboardEvent) {
                         </div>
 
                         <!-- Diff Content -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-surface-200 dark:divide-surface-800">
+                        <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x rtl:divide-x-reverse divide-surface-200 dark:divide-surface-800">
                             <!-- Left: Old Value -->
                             <div class="p-4 bg-surface-500/30 dark:bg-surface-900/20">
                                 <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{oldLabel}</p>

@@ -392,6 +392,17 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     // would just burn CPU on every unique response.
                     const bodyBytes = responseBody ? Buffer.byteLength(responseBody, "utf8") : 0;
                     if (!responseBody || bodyBytes <= 1024) return;
+                    // 🚀 POINT-READ SKIP: single-doc fetches are high-cardinality
+                    // cache keys — random per-id reads (the findByIdRandom shape)
+                    // would pay br+gzip+zstd for entries evicted long before any
+                    // re-read. handleTurboGet serves the raw body on re-hits
+                    // (no re-compression), so hot point-reads stay fast too.
+                    const pathSegs = url.pathname.split("/").filter(Boolean);
+                    const skipCompression =
+                      pathSegs.length >= 4 &&
+                      (pathSegs[1] === "collections" || pathSegs[1] === "content") &&
+                      pathSegs[3] !== "list" &&
+                      pathSegs[3] !== "search";
                     const compressedPayloads: Record<string, Uint8Array> = {};
                     const compressionTasks: Promise<void>[] = [];
                     // 🔴 FIX 8 (event-loop load): sync br/gzip compression runs on the
@@ -401,7 +412,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     // compress bodies at/below SYNC_MAX_SIZE; everything larger goes through
                     // the genuinely-async `compressZstd` (libuv thread pool) and/or the
                     // streaming tier in handleCompression (never the sync path).
-                    if (hasNativeCompression() && bodyBytes <= SYNC_MAX_SIZE) {
+                    if (!skipCompression && hasNativeCompression() && bodyBytes <= SYNC_MAX_SIZE) {
                       compressionTasks.push(
                         compressAsync(responseBody!, "br", bodyBytes)
                           .then((br) => {
@@ -422,7 +433,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     // only the sync API must not rip a body above SYNC_MAX_SIZE on
                     // the request thread. Skip the call entirely in that case;
                     // callers serve br/gzip/uncompressed instead of stalling.
-                    if (hasAsyncZstd() || bodyBytes <= SYNC_MAX_SIZE) {
+                    if (!skipCompression && (hasAsyncZstd() || bodyBytes <= SYNC_MAX_SIZE)) {
                       compressionTasks.push(
                         compressZstd(responseBody!, bodyBytes)
                           .then((zstd) => {
@@ -532,17 +543,40 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
         const apiPathPrefix = url.pathname.includes("/local/")
           ? `/api/local/${apiEndpoint}`
           : `/api/${apiEndpoint}`;
-        // L1 turbo invalidation is synchronous (Map walk) until the first
-        // await inside invalidateCollection. Void the promise so L2 pattern
-        // scans never sit on the mutation response path; the next GET in this
-        // process already sees an empty L1.
-        void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
+        // Surgical L1: a PATCH of one entry must not evict sibling findById
+        // turbo hits. `apiEndpoint` is the first path segment (`collections`),
+        // not the collection id — using it as the collection name used to wipe
+        // every `/api/collections/*` turbo key on any write.
+        const mutatedCollection = getCollectionFromPath(url.pathname);
+        const pathParts = url.pathname.split("/").filter(Boolean);
+        const nameIdx = pathParts[1] === "local" ? 3 : 2;
+        const mutatedEntry = pathParts[nameIdx + 1];
+        const isPointWrite =
+          !!mutatedEntry &&
+          mutatedEntry !== "list" &&
+          mutatedEntry !== "search" &&
+          mutatedEntry !== "batch" &&
+          mutatedEntry !== "bulk" &&
+          mutatedEntry !== "increment";
+        if (mutatedCollection) {
+          cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
+          responseCache.invalidateLocal(
+            mutatedCollection,
+            tenantIdString,
+            isPointWrite ? { entryIds: [mutatedEntry] } : undefined,
+          );
+        } else {
+          void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
+        }
         // Debounce L2 pattern evictions so write bursts do not spawn concurrent
-        // pattern scans or steal PG connections. `{apiPathPrefix}*` covers the
-        // canonical dispatcher/hook key (`{path}?search:u:{user}`) across all
-        // users/searches; the legacy `api:{tenant}:{user}:{path}` namespace was
-        // retired (its single writer/reader lived in this hook).
-        schedulePatternClear(`${apiPathPrefix}*`, currentTenantId);
+        // pattern scans or steal PG connections. Scope the pattern to the
+        // mutated collection, not `/api/collections*` (every collection).
+        const patternPrefix = mutatedCollection
+          ? url.pathname.includes("/local/")
+            ? `/api/local/collections/${mutatedCollection}`
+            : `/api/collections/${mutatedCollection}`
+          : apiPathPrefix;
+        schedulePatternClear(`${patternPrefix}*`, currentTenantId);
       } catch (e) {
         logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
       }
@@ -553,37 +587,3 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     return handleApiError(err, event);
   }
 };
-
-export async function invalidateApiCache(
-  apiEndpoint: string,
-  userId: string,
-  tenantId?: string | null,
-  isLocal = false,
-): Promise<void> {
-  const apiPathPrefix = isLocal ? `/api/local/${apiEndpoint}` : `/api/${apiEndpoint}`;
-  const safeTenant = tenantId ? String(tenantId) : "global";
-  const baseKey = `api:${safeTenant}:${userId}:${apiPathPrefix}`;
-  try {
-    // Canonical dispatcher/hook namespace: `{path}?search:u:{user}` (path-first,
-    // tenant-scoped by cacheService). Clear it across users/searches — the old
-    // user-scoped `api:` pattern below is kept for any legacy leftovers.
-    await cacheService.clearByPattern(`${apiPathPrefix}*`, tenantId ?? undefined);
-    await cacheService.clearByPattern(`${baseKey}*`, tenantId ?? undefined);
-    await cacheService.delete(baseKey, tenantId ?? undefined);
-  } catch (err) {
-    logger.error(`Manual invalidation failed: ${getErrorMessage(err)}`);
-  }
-}
-
-export function getApiHealthMetrics() {
-  const report = metricsService.getReport();
-  return {
-    cache: {
-      hits: report.api.l1Hits + report.api.l2Hits,
-      misses: report.api.cacheMisses,
-      hitRate: report.api.cacheHitRate,
-      layers: { l1: report.api.l1Hits, l2: report.api.l2Hits },
-    },
-    requests: { total: report.api.requests, errors: report.api.errors },
-  };
-}

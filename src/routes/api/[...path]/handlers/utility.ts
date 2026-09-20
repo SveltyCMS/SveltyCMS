@@ -147,9 +147,41 @@ export async function handleUtilityRoutes(
         const body = await request.json().catch(() => ({}));
         const itemId = typeof body?.itemId === "string" ? body.itemId : "";
         if (!itemId) raise(400, "itemId is required");
+        const licenseKey = typeof body?.licenseKey === "string" ? body.licenseKey.trim() : "";
+        const checksum = typeof body?.checksum === "string" ? body.checksum.trim() : "";
+        const type = typeof body?.type === "string" ? body.type : undefined;
 
-        const installed = await service.installTheme(itemId);
+        const installed = await service.install(itemId, {
+          type: type as
+            | import("@src/services/core/marketplace-service").MarketplaceItem["type"]
+            | undefined,
+          licenseKey: licenseKey || undefined,
+          checksum: checksum || undefined,
+        });
         return successResponse(event, installed);
+      }
+
+      if (request.method === "POST" && method === "license") {
+        if (!user?.isAdmin && user?.role !== "admin") {
+          raise(403, "Admin access required to activate marketplace licenses");
+        }
+        const body = await request.json().catch(() => ({}));
+        const licenseKey = typeof body?.licenseKey === "string" ? body.licenseKey.trim() : "";
+        const pluginId = typeof body?.pluginId === "string" ? body.pluginId.trim() : "";
+        if (!licenseKey) raise(400, "licenseKey is required");
+        const { setLicenseKey, marketplace } =
+          await import("@src/services/intelligence/marketplace-client");
+        setLicenseKey(licenseKey);
+        const check = pluginId
+          ? await marketplace.checkLicense(pluginId)
+          : { valid: true, tier: "pro" as const, pluginId: "" };
+        return successResponse(event, {
+          saved: true,
+          checkoutUrl: pluginId
+            ? `https://marketplace.sveltycms.com/checkout?package=${encodeURIComponent(pluginId)}`
+            : "https://marketplace.sveltycms.com/checkout",
+          license: check,
+        });
       }
     }
 

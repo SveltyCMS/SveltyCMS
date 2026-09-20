@@ -61,6 +61,20 @@ describe("System Store - Service Health Management", () => {
     expect(stateAfter.services.database.metrics.initializationDuration).toBeDefined();
   });
 
+  it("should populate startup timings on initialization completion", () => {
+    // Wire source for calibration + the `slow_startup` anomaly branch.
+    startServiceInitialization("database");
+    updateServiceHealth("database", "healthy", "Connected");
+
+    const startup = getSystemState().services.database.metrics.stateTimings.startup;
+    expect(startup.count).toBe(1);
+    expect(startup.lastTime).toBeGreaterThanOrEqual(0);
+    expect(startup.avgTime).toBeDefined();
+    expect(startup.minTime).toBeDefined();
+    expect(startup.maxTime).toBeDefined();
+    expect(startup.trend).toBe("stable");
+  });
+
   it("should track consecutive failures", () => {
     updateServiceHealth("database", "unhealthy", "Connection failed");
     updateServiceHealth("database", "unhealthy", "Connection failed");

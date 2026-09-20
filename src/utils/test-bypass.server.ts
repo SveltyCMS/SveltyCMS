@@ -19,7 +19,6 @@
  */
 
 import { createHash, timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
-import type { RequestEvent } from "@sveltejs/kit";
 import { getTestSecret } from "@utils/server/setup-check";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
@@ -208,11 +207,4 @@ export function applyTestBypassFromRequest(
   }
 
   return true;
-}
-
-export function applyTestBypassFromHeaders(
-  event: RequestEvent,
-  options?: { setBypassFlag?: boolean },
-): boolean {
-  return applyTestBypassFromRequest(event.request, event.locals as BypassLocals, options);
 }

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:lightning-bolt"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-08-19"
+updated: "2026-09-20"
 tags:
   - "components"
   - "enterprise"
@@ -17,14 +17,14 @@ tags:
 
 # Enterprise MultiButton Component
 
-The `entry-list_MultiButton` is an enterprise-grade component for managing bulk actions on collection entries with advanced features like action queuing, optimistic UI, and keyboard navigation.
+The `entry-list-multi-button` is an enterprise-grade component for managing bulk actions on collection entries with advanced features like action queuing, optimistic UI, keyboard navigation, and selection export.
 
 ---
 
 ## Quick Start
 
 ```typescript
-<entry-listMultiButton
+<EntryListMultiButton
   hasSelections={true}
   selectedCount={5}
   selectedItems={selectedEntries}
@@ -35,6 +35,8 @@ The `entry-list_MultiButton` is an enterprise-grade component for managing bulk 
   draft={onDraft}
   schedule={onSchedule}
   clone={onClone}
+  bulkEdit={onBulkEdit}
+  exportSelection={onExport}
   delete={onDelete}
 />
 ```
@@ -176,14 +178,16 @@ Adaptive batch sizing based on network speed.
 
 #### Global Shortcuts (with Alt key)
 
-| Shortcut  | Action             | Requires Selection |
-| --------- | ------------------ | ------------------ |
-| `Alt+N`   | Create new entry   | ❌                 |
-| `Alt+P`   | Publish selected   | ✅                 |
-| `Alt+U`   | Unpublish selected | ✅                 |
-| `Alt+D`   | Move to draft      | ✅                 |
-| `Alt+Del` | Delete selected    | ✅                 |
-| `Alt+Z`   | Undo last action   | ❌                 |
+| Shortcut  | Action                            | Requires Selection |
+| --------- | --------------------------------- | ------------------ |
+| `Alt+N`   | Create new entry                  | ❌                 |
+| `Alt+P`   | Publish selected                  | ✅                 |
+| `Alt+U`   | Unpublish selected                | ✅                 |
+| `Alt+D`   | Move to draft                     | ✅                 |
+| `Alt+E`   | Bulk edit selected                | ✅                 |
+| `Alt+Del` | Delete selected                   | ✅                 |
+| `Alt+X`   | Export filtered selection or data | ❌                 |
+| `Alt+Z`   | Undo last action                  | ❌                 |
 
 #### Dropdown Navigation
 
@@ -251,7 +255,7 @@ sequenceDiagram
 
 ## Props
 
-```
+```typescript
 interface Props {
   isCollectionEmpty?: boolean; // Default: false
   hasSelections?: boolean; // Default: false
@@ -264,6 +268,8 @@ interface Props {
   draft: () => Promise<void> | void;
   schedule: (date: string, action: string) => void;
   clone: () => Promise<void> | void;
+  bulkEdit?: () => Promise<void> | void;
+  exportSelection?: () => Promise<void> | void;
   delete: (permanent: boolean) => Promise<void> | void;
 }
 ```

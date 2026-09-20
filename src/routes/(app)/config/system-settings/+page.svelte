@@ -57,6 +57,8 @@ beforeNavigate(({ cancel, to }) => {
 		body: "You have unsaved settings changes. Leave this page anyway?",
 		onConfirm: () => {
 			hasUnsavedChanges = false;
+			// slop:suppress — resuming an interrupted navigation after the user
+			// confirmed discard; not a static link, cannot be an <a data-preload>
 			if (to?.url) goto(to.url.toString());
 		},
 	});

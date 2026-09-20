@@ -2,7 +2,7 @@
  * @file tests/unit/hooks/route-access-audit.test.ts
  * @description Route access audit — verifies protected CMS paths and production backdoor closure.
  */
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { isPublicRoute, isBootstrapRoute } from "@utils/hook-utils";
 import {
   applyTestBypassFromRequest,
@@ -46,10 +46,8 @@ const INTENTIONAL_PUBLIC_ROUTES = [
 ];
 
 describe("Route Access Audit", () => {
-  const originalEnv = { ...process.env };
-
   afterEach(() => {
-    process.env = { ...originalEnv };
+    vi.unstubAllEnvs();
   });
 
   it("protected CMS routes are not public in production mode", () => {
@@ -75,11 +73,11 @@ describe("Route Access Audit", () => {
 
   describe("Production backdoor closure", () => {
     beforeEach(() => {
-      delete process.env.TEST_MODE;
-      delete process.env.VITE_TEST_MODE;
-      delete process.env.PLAYWRIGHT_TEST;
-      delete process.env.BENCHMARK;
-      delete process.env.TEST_API_SECRET;
+      vi.stubEnv("TEST_MODE", undefined);
+      vi.stubEnv("VITE_TEST_MODE", undefined);
+      vi.stubEnv("PLAYWRIGHT_TEST", undefined);
+      vi.stubEnv("BENCHMARK", undefined);
+      vi.stubEnv("TEST_API_SECRET", undefined);
     });
 
     it("isTestOrBenchmarkEnvironment is false without env flags", () => {
@@ -104,8 +102,8 @@ describe("Route Access Audit", () => {
     });
 
     it("allows bypass only when TEST_MODE and valid secret are both set", () => {
-      process.env.TEST_MODE = "true";
-      process.env.TEST_API_SECRET = "audit-secret-2026";
+      vi.stubEnv("TEST_MODE", "true");
+      vi.stubEnv("TEST_API_SECRET", "audit-secret-2026");
 
       const locals = {} as App.Locals;
       const request = new Request("http://localhost/api/collections", {

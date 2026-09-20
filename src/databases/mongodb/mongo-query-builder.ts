@@ -97,6 +97,20 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
     return this;
   }
 
+  orWhere(clauses: Array<Record<string, unknown>>): this {
+    if (!clauses.length) return this;
+    const mapped = clauses.map((clause) => {
+      const next: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(clause)) {
+        next[key] = value === null ? null : value;
+      }
+      return next;
+    });
+    const existing = this.query.$or;
+    this.query.$or = Array.isArray(existing) ? [...existing, ...mapped] : mapped;
+    return this;
+  }
+
   whereIn<K extends keyof T>(field: K, values: T[K][]): this {
     this.inConditions.push({ field, values });
     return this;

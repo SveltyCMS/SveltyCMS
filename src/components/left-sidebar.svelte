@@ -51,7 +51,7 @@ import Button from '@components/ui/button.svelte';
 	} from '@src/paraglide/messages';
 	import { locales as bundledLocales, getLocale } from '@src/paraglide/runtime';
 	import { applySystemLanguage, mergeSystemLanguages } from '@utils/system-locale';
-	import { goto, refreshAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	// Stores
 	import { collections as collectionState } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
@@ -249,19 +249,13 @@ import Button from '@components/ui/button.svelte';
 
 	/** Leave media gallery and restore collections navigation */
 	function handleBackToCollections(): void {
-		if (collections.length === 0) {
-			goto('/config/collectionbuilder');
-		} else {
-			goto(firstCollectionPath);
-		}
 		if (isMobile()) {
 			ui.toggle('leftSidebar', 'collapsed');
 		}
 	}
 
-	/** Navigate to the media gallery from collection builder context */
+	/** Collapse the mobile sidebar when navigating to the media gallery */
 	function handleGoToMediaGallery(): void {
-		goto('/mediagallery');
 		if (isMobile()) {
 			ui.toggle('leftSidebar', 'collapsed');
 		}
@@ -398,7 +392,8 @@ import Button from '@components/ui/button.svelte';
 						>
 							<Button
 								variant="surface"
-								type="button"
+								href={collections.length === 0 ? '/config/collectionbuilder' : firstCollectionPath}
+								data-preload="hover"
 								onclick={handleBackToCollections}
 								aria-label="Back to Collections"
 								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
@@ -426,7 +421,8 @@ import Button from '@components/ui/button.svelte';
 						>
 							<Button
 								variant="surface"
-								type="button"
+								href="/mediagallery"
+								data-preload="hover"
 								onclick={handleGoToMediaGallery}
 								aria-label="Go to Media Gallery"
 								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"

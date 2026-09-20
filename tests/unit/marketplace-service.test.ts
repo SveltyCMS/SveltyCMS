@@ -76,7 +76,7 @@ describe("marketplace-service", () => {
 
     const installed = await marketplaceService.installTheme(defaultTheme!.id);
     expect(installed.action).toBe("created");
-    expect(installed.theme.name).toBe("Default");
+    expect(installed.theme?.name).toBe("Default");
     expect(mockCreateTheme).toHaveBeenCalled();
   });
 });

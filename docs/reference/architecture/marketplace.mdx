@@ -22,6 +22,8 @@ SveltyCMS connects to the hosted marketplace at **marketplace.sveltycms.com** fo
 
 **Phase 2 (August 2026):** An **in-app catalog** lives under **Config → Extensions → Marketplace**. It merges local listings with the remote catalog offline-first — the CMS stays usable when marketplace.sveltycms.com is unreachable.
 
+**Remote install (September 2026):** `POST /api/marketplace/install` one-click installs remote packages (checksum, path allowlist, `validateEgressUrl` + `safeFetch`). Paid packages open in-app license checkout (`POST /api/marketplace/license`) or hosted `marketplace.sveltycms.com/checkout`.
+
 ## Architecture
 
 ```mermaid
@@ -32,7 +34,7 @@ flowchart TD
         API["GET /api/marketplace"]
         SVC["MarketplaceService"]
         CLIENT["marketplace-client"]
-        INSTALL["installPlugin() / installDashboardWidget() / installTheme()"]
+        INSTALL["install() checksum + path allowlist / installTheme()"]
         SCAFFOLD["AI Widget Scaffolder"]
     end
 

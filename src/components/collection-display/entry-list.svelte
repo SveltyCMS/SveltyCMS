@@ -107,7 +107,8 @@ bulk actions, and predictive preloading.
 		pinCellClass,
 		SMART_TABLE,
 		SMART_TABLE_SCROLL,
-		SMART_TABLE_THEAD
+		SMART_TABLE_THEAD,
+		type ColumnSortDescriptor
 	} from '@components/ui/smart-table';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
@@ -121,6 +122,7 @@ bulk actions, and predictive preloading.
 	import { createSmartFilter } from './create-smart-filter.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
 	import BulkFieldEditModal from './bulk-field-edit-modal.svelte';
+	import AdvancedFilterModal, { type AdvancedFilterClause } from './advanced-filter-modal.svelte';
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -207,9 +209,9 @@ bulk actions, and predictive preloading.
 		smartTable.setPageSize(rows);
 	}
 
-	function onSortChange(fieldName: string) {
+	function onSortChange(fieldName: string, isMulti = false) {
 		if (!fieldName) return;
-		smartTable.setSort(fieldName);
+		smartTable.setSort(fieldName, { multi: isMulti });
 		entryListPaginationSettings.sorting = {
 			sortedBy: smartTable.sort.sortedBy,
 			isSorted: smartTable.sort.isSorted as SortOrder
@@ -218,18 +220,51 @@ bulk actions, and predictive preloading.
 
 	// Keep header sort indicators in sync with the URL after SSR navigation.
 	$effect(() => {
-		const sortField = page.url.searchParams.get('sort') || '';
+		const sortParam = page.url.searchParams.get('sort') || '';
 		const orderRaw = page.url.searchParams.get('order');
-		const isSorted = (orderRaw === 'asc' ? 1 : orderRaw === 'desc' ? -1 : 0) as SortOrder;
+
 		untrack(() => {
-			if (smartTable.sort.sortedBy !== sortField || smartTable.sort.isSorted !== isSorted) {
-				smartTable.setSort(sortField, { emit: false, direction: isSorted });
+			if (sortParam.includes(':') || sortParam.includes(',')) {
+				// Multi-sort serialized as field1:asc,field2:desc
+				const parts = sortParam.split(',').filter(Boolean);
+				const descriptors: ColumnSortDescriptor[] = [];
+				for (const part of parts) {
+					const [key, dirStr] = part.split(':');
+					if (key) {
+						descriptors.push({
+							key,
+							direction: dirStr === 'desc' ? -1 : 1
+						});
+					}
+				}
+				const isDiff =
+					descriptors.length !== smartTable.multiSort.length ||
+					descriptors.some(
+						(d, idx) =>
+							d.key !== smartTable.multiSort[idx]?.key ||
+							d.direction !== smartTable.multiSort[idx]?.direction
+					);
+				if (isDiff) {
+					smartTable.clearSorts({ emit: false });
+					for (const d of descriptors) {
+						smartTable.setSort(d.key, { emit: false, direction: d.direction, multi: true });
+					}
+				}
+			} else {
+				const isSorted = (orderRaw === 'asc' ? 1 : orderRaw === 'desc' ? -1 : 0) as SortOrder;
+				if (smartTable.sort.sortedBy !== sortParam || smartTable.sort.isSorted !== isSorted) {
+					smartTable.setSort(sortParam, { emit: false, direction: isSorted, multi: false });
+				}
 			}
+
 			if (
-				entryListPaginationSettings.sorting.sortedBy !== sortField ||
-				entryListPaginationSettings.sorting.isSorted !== isSorted
+				entryListPaginationSettings.sorting.sortedBy !== smartTable.sort.sortedBy ||
+				entryListPaginationSettings.sorting.isSorted !== smartTable.sort.isSorted
 			) {
-				entryListPaginationSettings.sorting = { sortedBy: sortField, isSorted };
+				entryListPaginationSettings.sorting = {
+					sortedBy: smartTable.sort.sortedBy,
+					isSorted: smartTable.sort.isSorted as SortOrder
+				};
 			}
 		});
 	});
@@ -982,6 +1017,167 @@ bulk actions, and predictive preloading.
 		}
 		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
 	}
+
+	// Advanced Filters State & Handler
+	let isAdvancedFilterOpen = $state(false);
+	let advancedFilterClauses = $state<AdvancedFilterClause[]>([]);
+	let advancedFilterConjunction = $state<'AND' | 'OR'>('AND');
+
+	function handleApplyAdvancedFilters(clauses: AdvancedFilterClause[], conjunction: 'AND' | 'OR') {
+		advancedFilterClauses = clauses;
+		advancedFilterConjunction = conjunction;
+		if (conjunction === 'AND') {
+			for (const clause of clauses) {
+				if (!clause.field) continue;
+				if (clause.operator === 'equals' || clause.operator === 'contains') {
+					smartFilter.setFilter(clause.field, clause.value);
+				} else if (clause.operator === 'gt' || clause.operator === 'gte') {
+					smartFilter.setFilter(clause.field, `${clause.value}:`);
+				} else if (clause.operator === 'lt' || clause.operator === 'lte') {
+					smartFilter.setFilter(clause.field, `:${clause.value}`);
+				}
+			}
+			updateURL({
+				...smartFilter.toURLParams(),
+				filterLogic: null,
+				page: '1'
+			});
+			return;
+		}
+		updateURL({
+			filterLogic: JSON.stringify({
+				combinator: conjunction,
+				rules: clauses.map((c) => ({
+					field: c.field,
+					operator: c.operator,
+					value: c.value
+				}))
+			}),
+			page: '1'
+		});
+	}
+
+	// Export Filtered Selection (Alt + X)
+	function exportData() {
+		const itemsToExport = smartTable.hasSelections ? smartTable.getSelectedRows() : tableData;
+		if (!itemsToExport || itemsToExport.length === 0) {
+			toast.warning('No data to export');
+			return;
+		}
+
+		const headersToUse = visibleTableHeaders.length > 0 ? visibleTableHeaders : tableHeaders;
+		const headerLabels = headersToUse.map((h) => `"${(h.label || h.name || '').replace(/"/g, '""')}"`);
+		const headerKeys = headersToUse.map((h) => h.name || h.id || '');
+
+		const rowsCsv = itemsToExport.map((item) => {
+			return headerKeys
+				.map((k) => {
+					const val = (item as any)[k];
+					if (val == null) return '""';
+					if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+					return `"${String(val).replace(/"/g, '""')}"`;
+				})
+				.join(',');
+		});
+
+		const csvContent = [headerLabels.join(','), ...rowsCsv].join('\r\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		const collectionName = currentCollection?.name || 'collection';
+		a.href = url;
+		a.download = `${collectionName}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+
+		toast.success(`Exported ${itemsToExport.length} ${itemsToExport.length === 1 ? 'entry' : 'entries'} to CSV`);
+	}
+
+	// Keyboard Grid Navigation (ATAG / WCAG 2.2 AA)
+	let focusedRowIndex = $state<number>(0);
+	let focusedColIndex = $state<number>(0);
+
+	function handleTableKeydown(e: KeyboardEvent) {
+		const target = e.target as HTMLElement | null;
+		if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+		if (e.altKey && (e.key === 'x' || e.key === 'X')) {
+			e.preventDefault();
+			exportData();
+			return;
+		}
+
+		if (tableData.length === 0) return;
+		const colCount = Math.max(1, visibleTableHeaders.length);
+
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				focusedRowIndex = Math.min(tableData.length - 1, focusedRowIndex + 1);
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				focusedRowIndex = Math.max(0, focusedRowIndex - 1);
+				break;
+			case 'ArrowRight':
+				e.preventDefault();
+				focusedColIndex = Math.min(colCount - 1, focusedColIndex + 1);
+				break;
+			case 'ArrowLeft':
+				e.preventDefault();
+				focusedColIndex = Math.max(0, focusedColIndex - 1);
+				break;
+			case 'Home':
+				e.preventDefault();
+				if (e.ctrlKey) focusedRowIndex = 0;
+				focusedColIndex = 0;
+				break;
+			case 'End':
+				e.preventDefault();
+				if (e.ctrlKey) focusedRowIndex = tableData.length - 1;
+				focusedColIndex = colCount - 1;
+				break;
+			case 'PageDown':
+				e.preventDefault();
+				focusedRowIndex = Math.min(tableData.length - 1, focusedRowIndex + 10);
+				break;
+			case 'PageUp':
+				e.preventDefault();
+				focusedRowIndex = Math.max(0, focusedRowIndex - 10);
+				break;
+			case ' ':
+				e.preventDefault();
+				if (focusedRowIndex >= 0 && focusedRowIndex < tableData.length) {
+					smartTable.toggleSelectIndex(focusedRowIndex);
+				}
+				break;
+			case 'Enter': {
+				e.preventDefault();
+				const entryToOpen = tableData[focusedRowIndex];
+				if (entryToOpen) {
+					modeTransitionGuard.setMode('edit');
+					setCollectionValue(entryToOpen);
+					reflectModeInURL('edit', entryToOpen._id as string);
+				}
+				break;
+			}
+		}
+	}
+
+	$effect(() => {
+		if (browser) {
+			const onGlobalKeydown = (e: KeyboardEvent) => {
+				if (e.altKey && (e.key === 'x' || e.key === 'X')) {
+					e.preventDefault();
+					exportData();
+				}
+			};
+			window.addEventListener('keydown', onGlobalKeydown);
+			return () => window.removeEventListener('keydown', onGlobalKeydown);
+		}
+	});
 </script>
 
 <!--Table -->
@@ -1041,6 +1237,9 @@ bulk actions, and predictive preloading.
 				bind:filterShow
 				bind:columnShow
 				bind:density={entryListPaginationSettings.density}
+				bind:viewMode={smartTable.viewMode}
+				showViewMode={true}
+				onViewModeChange={(m) => smartTable.setViewMode(m)}
 			/>
 			<SmartTableSavedViewsMenu
 				scope={viewsScope}
@@ -1080,6 +1279,7 @@ bulk actions, and predictive preloading.
 				draft={onDraft}
 				clone={onClone}
 				bulkEdit={onBulkEdit}
+				exportSelection={exportData}
 				create={onCreate}
 			/>
 		</div>
@@ -1088,7 +1288,15 @@ bulk actions, and predictive preloading.
 	<!-- Mobile Expanded Filters -->
 	{#if expand}
 		<div class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800">
-			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
+			<TableFilter
+				bind:globalSearchValue
+				bind:filterShow
+				bind:columnShow
+				bind:density={entryListPaginationSettings.density}
+				bind:viewMode={smartTable.viewMode}
+				showViewMode={true}
+				onViewModeChange={(m) => smartTable.setViewMode(m)}
+			/>
 			<SmartTableSavedViewsMenu
 				scope={viewsScope}
 				getSnapshot={getSavedViewSnapshot}
@@ -1185,12 +1393,127 @@ bulk actions, and predictive preloading.
 					Clear filters
 				</Button>
 			{/snippet}
+
+		{#if smartTable.viewMode === 'card'}
+			<!-- Card View Grid -->
+			<div
+				bind:this={scrollContainerEl}
+				onscroll={onVirtualScroll}
+				class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto p-3"
+				tabindex="0"
+				role="grid"
+				aria-label="Collection entries card grid"
+				onkeydown={handleTableKeydown}
+			>
+				{#if filterShow && visibleTableHeaders.length > 0}
+					<div class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900">
+						<SmartFilterRow
+							headers={visibleTableHeaders}
+							definitions={smartFilter.definitions}
+							filters={smartFilter.filters}
+							activeFilters={smartFilter.activeFilters}
+							onFilterChange={onFilterChange}
+							onClearAll={onClearAllFilters}
+							onClearFilter={onClearFilter}
+							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+							advancedCount={advancedFilterClauses.length}
+						/>
+					</div>
+				{/if}
+
+				{#if tableData.length > 0}
+					<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+						{#each visibleRows as entry, index (entry._id)}
+							{@const rowId = String(entry._id ?? '')}
+							{@const rowSelected = smartTable.isSelected(rowId)}
+							{@const isFocused = focusedRowIndex === index}
+							<div
+								class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer {rowSelected
+									? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
+									: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-primary-500/50 hover:shadow-md'} {isFocused
+									? 'ring-2 ring-primary-500 ring-offset-2'
+									: ''}"
+								role="row"
+								tabindex={isFocused ? 0 : -1}
+								onclick={(e) => {
+									const target = e.target as HTMLElement | null;
+									if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+									const originalEntry = tableData.find((item: CollectionEntry) => item._id === entry._id);
+									if (originalEntry) {
+										modeTransitionGuard.setMode('edit');
+										setCollectionValue(originalEntry);
+										reflectModeInURL('edit', originalEntry._id as string);
+									}
+								}}
+							>
+								<!-- Top: Checkbox, Title/ID, Status -->
+								<div class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5">
+									<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
+										<Checkbox
+											checked={rowSelected}
+											onchange={() => smartTable.toggleSelect(rowId)}
+											label="Select entry {rowId}"
+											hideLabel
+										/>
+										<span class="text-xs font-bold text-surface-900 dark:text-surface-100 truncate">
+											{String(entry[(visibleTableHeaders[0]?.name as any)] || entry._id || 'Entry')}
+										</span>
+									</div>
+									<div data-prevent-row-click>
+										<Status value={entry.status || entry.raw_status || 'draft'} />
+									</div>
+								</div>
+
+								<!-- Body: Key Fields -->
+								<div class="my-3 space-y-1.5 text-xs text-surface-600 dark:text-surface-400">
+									{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
+										{@const fieldName = (header as TableHeader).name || ''}
+										<div class="flex items-center justify-between gap-2">
+											<span class="font-medium text-surface-500 capitalize truncate">{header.label}:</span>
+											<span class="font-semibold text-surface-600 dark:text-surface-400 truncate max-w-[60%]">
+												{String((entry as any)[fieldName] ?? '-')}
+											</span>
+										</div>
+									{/each}
+								</div>
+
+								<!-- Footer: Quick Actions -->
+								<div class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400">
+									<span class="text-[11px]">
+										{formatDisplayDate((entry.updatedAt as string) || (entry.createdAt as string) || '')}
+									</span>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
+										onclick={() => {
+											modeTransitionGuard.setMode('edit');
+											setCollectionValue(entry);
+											reflectModeInURL('edit', entry._id as string);
+										}}
+									>
+										<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
+										Edit
+									</Button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="p-8 text-center text-surface-500 dark:text-surface-400">No results found.</div>
+				{/if}
+			</div>
+		{:else}
 		<div
 			bind:this={scrollContainerEl}
 			onscroll={onVirtualScroll}
-			class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-surface-500/30 dark:border-surface-500/40 shadow-xs"
+			onkeydown={handleTableKeydown}
+			tabindex="0"
+			role="region"
+			aria-label="Collection entries table"
+			class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-surface-500/30 dark:border-surface-500/40 shadow-xs focus:outline-hidden"
 		>
-			<table class="{SMART_TABLE} min-w-max">
+			<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
 				<!-- Table Header -->
 				<thead class={SMART_TABLE_THEAD}>
 					{#if filterShow && visibleTableHeaders.length > 0}
@@ -1202,6 +1525,8 @@ bulk actions, and predictive preloading.
 							onFilterChange={onFilterChange}
 							onClearAll={onClearAllFilters}
 							onClearFilter={onClearFilter}
+							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+							advancedCount={advancedFilterClauses.length}
 						/>
 					{/if}
 
@@ -1216,14 +1541,15 @@ bulk actions, and predictive preloading.
 
 						{#each visibleTableHeaders as header (header.id)}
 							{@const colKey = ((header as TableHeader).name || header.id) as string}
-							{@const isActiveSort = (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy}
+							{@const rankInfo = smartTable.getSortRank(colKey)}
+							{@const isActiveSort = rankInfo !== null}
 							<th
 								class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-surface-600 dark:text-surface-400 {cellPaddingClass}"
 								style={smartTable.getColumnWidthStyle(colKey)}
 								aria-sort={isActiveSort
-									? entryListPaginationSettings.sorting.isSorted === 1
+									? rankInfo.direction === 1
 										? 'ascending'
-										: entryListPaginationSettings.sorting.isSorted === -1
+										: rankInfo.direction === -1
 											? 'descending'
 											: 'none'
 									: 'none'}
@@ -1233,12 +1559,18 @@ bulk actions, and predictive preloading.
 									class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold text-xs tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
 										? 'text-primary-600 dark:text-primary-400 font-bold'
 										: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
-									onclick={() => onSortChange((header as TableHeader).name || '')}
+									onclick={(e) => onSortChange(colKey, e.shiftKey)}
 									aria-label="Sort by {(header as TableHeader).label}"
+									title="Click to sort, Shift+Click to compose secondary sorts"
 								>
 									<span class="truncate">{(header as TableHeader).label}</span>
-									{#if isActiveSort && entryListPaginationSettings.sorting.isSorted !== 0}
-										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+									{#if isActiveSort}
+										{#if smartTable.multiSort.length > 1}
+											<span class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold">
+												{rankInfo.rank}
+											</span>
+										{/if}
+										{@const sortIcon = rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
 										<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"></iconify-icon>
 									{/if}
 								</button>
@@ -1252,12 +1584,16 @@ bulk actions, and predictive preloading.
 						<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
 					{/if}
 					{#if tableData.length > 0}
-						{#each visibleRows as entry (entry._id)}
+						{#each visibleRows as entry, index (entry._id)}
 							{@const rowId = String(entry._id ?? '')}
 							{@const rowSelected = smartTable.isSelected(rowId)}
+							{@const isFocused = focusedRowIndex === index}
 							<tr
-								class="transition-colors duration-150 {rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : 'hover:bg-surface-500/10 dark:hover:bg-surface-800/50'}"
+								class="transition-colors duration-150 {rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : 'hover:bg-surface-500/10 dark:hover:bg-surface-800/50'} {isFocused ? 'ring-2 ring-primary-500 ring-inset' : ''}"
 								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
+								role="row"
+								aria-selected={rowSelected}
+								tabindex={isFocused ? 0 : -1}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 								onclick={(e) => {
@@ -1279,12 +1615,15 @@ bulk actions, and predictive preloading.
 									}}
 								/>
 								{#if visibleTableHeaders}
-									{#each visibleTableHeaders as header (header.id)}
+									{#each visibleTableHeaders as header, colIdx (header.id)}
 										{@const cellKey = ((header as TableHeader).name || header.id) as string}
+										{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
 										<td
+											role="gridcell"
+											aria-colindex={colIdx + 2}
 											class="text-center {cellPaddingClass} text-xs sm:text-sm text-surface-600 dark:text-surface-400 {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-150 hover:bg-surface-200/50 dark:hover:bg-surface-700/50'
-												: ''}"
+												: ''} {isFocusedCell ? 'ring-2 ring-primary-500 ring-inset' : ''}"
 											style={smartTable.getColumnWidthStyle(cellKey)}
 											onclick={async () => {
 												if ((header as TableHeader).name === 'status') {
@@ -1412,6 +1751,7 @@ bulk actions, and predictive preloading.
 				</tbody>
 			</table>
 		</div>
+		{/if}
 		</SmartTableShell>
 	{:else}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
@@ -1429,6 +1769,15 @@ bulk actions, and predictive preloading.
 	fields={currentCollection?.fields || []}
 	onApply={handleApplyBulkEdit}
 	onClose={() => (isBulkEditOpen = false)}
+/>
+
+<AdvancedFilterModal
+	bind:isOpen={isAdvancedFilterOpen}
+	fields={currentCollection?.fields || []}
+	initialClauses={advancedFilterClauses}
+	initialConjunction={advancedFilterConjunction}
+	onApply={handleApplyAdvancedFilters}
+	onClose={() => (isAdvancedFilterOpen = false)}
 />
 
 <style>

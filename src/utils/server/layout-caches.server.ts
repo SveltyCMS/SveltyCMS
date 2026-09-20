@@ -46,10 +46,6 @@ export function invalidateLayoutUserCache(userId: string, tenantId?: string | nu
   void cacheService.delete(layoutUserCacheKey(userId), tenantId ?? undefined).catch(() => {});
 }
 
-export function invalidateLayoutPluginStates(tenantId: string): void {
-  void cacheService.delete(layoutPluginStatesKey(tenantId), tenantId).catch(() => {});
-}
-
 /**
  * Session already carries the user. Re-read from DB at most once per TTL so
  * avatar/role edits show up, without a getUserById on every layout load.

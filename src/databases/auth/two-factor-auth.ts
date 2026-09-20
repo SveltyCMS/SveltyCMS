@@ -563,13 +563,6 @@ export class TwoFactorAuthService {
 // Create a singleton instance for the default auth database
 let defaultTwoFactorService: TwoFactorAuthService | null = null;
 
-export function createTwoFactorAuthService(
-  db: AuthInterface,
-  serviceName?: string,
-): TwoFactorAuthService {
-  return new TwoFactorAuthService(db, serviceName);
-}
-
 export function getDefaultTwoFactorAuthService(db: AuthInterface): TwoFactorAuthService {
   if (!defaultTwoFactorService) {
     defaultTwoFactorService = new TwoFactorAuthService(db);

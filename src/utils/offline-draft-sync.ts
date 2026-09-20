@@ -303,5 +303,3 @@ export class OfflineDraftSync {
     this.saveQueueToStorage();
   }
 }
-
-export const offlineDraftSync = new OfflineDraftSync();

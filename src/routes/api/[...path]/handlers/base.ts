@@ -212,24 +212,6 @@ export async function validateRequestBody<TSchema extends GenericSchema>(
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Extracts clean segments from the catch-all route path.
- * Strips the leading "api/" prefix so the dispatcher sees e.g. ["user", "me"]
- * instead of ["api", "user", "me"].
- */
-export function getSegments(path: string): string[] {
-  if (!path) return [];
-  const parts = path.split("/");
-  const segments: string[] = [];
-  for (let i = 0; i < parts.length; i++) {
-    const s = parts[i];
-    if (s && s !== "api") {
-      segments.push(s);
-    }
-  }
-  return segments;
-}
-
-/**
  * Type guard for DatabaseResult pattern used across all adapters.
  */
 export function isDatabaseResult(obj: any): obj is {

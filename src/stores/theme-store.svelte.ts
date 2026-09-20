@@ -340,11 +340,19 @@ export function clearError() {
 }
 
 // --- 6. Auto-Refresh Management ---
+// These only toggle the feature flag; the actual interval lives in the root
+// layout's effect so it can be cleaned up on unmount. SSR-safe (no-op on server).
 export function startAutoRefresh() {
+  if (!browser) {
+    return;
+  }
   state.autoRefreshEnabled = true;
 }
 
 export function stopAutoRefresh() {
+  if (!browser) {
+    return;
+  }
   state.autoRefreshEnabled = false;
 }
 

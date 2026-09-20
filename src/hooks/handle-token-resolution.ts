@@ -16,6 +16,7 @@ import {
   applyFieldPermissionsToBody,
   getCollectionFromPath,
 } from "@src/services/security/field-permission-service";
+import { classifyTurboKey } from "@src/services/cache/response-cache";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { handleApiError } from "@utils/error-handling";
 
@@ -41,6 +42,11 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
     pathname.startsWith("/api/collections") &&
     (method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE")
   ) {
+    return resolve(event);
+  }
+  // Point-read GET/HEAD: stored JSON has no {{tokens}}; skip the full-body
+  // includes("{{") scan (listLarge is 40KB+). Template tokens live in SSR.
+  if ((method === "GET" || method === "HEAD") && classifyTurboKey(pathname)?.entryId) {
     return resolve(event);
   }
 

@@ -32,8 +32,8 @@ interface L2Driver {
   makeService(): Promise<any>;
   /** Best-effort per-service teardown (closes real Redis clients). */
   teardown?(service: any): Promise<void>;
-  flushWrites?(): Promise<void>;
-  settleInvalidation?(): Promise<void>;
+  /** Deterministic flush of the writer's pending batched writes. */
+  flushWrites?(service: any): Promise<void>;
 }
 
 /** Hard cap so afterEach never hangs the suite (node-redis quit can stall). */
@@ -54,10 +54,21 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
 }
 
 function runL2Contract(label: string, driver: L2Driver) {
-  const flushWrites =
-    driver.flushWrites ?? (() => new Promise((resolve) => setTimeout(resolve, 40)));
-  const settleInvalidation =
-    driver.settleInvalidation ?? (() => new Promise((resolve) => setTimeout(resolve, 80)));
+  // Deterministic: flush the writer's own batcher instead of sleeping. Pub/sub
+  // propagation is asserted by polling (eventual consistency), never by sleeps.
+  const flushWrites = driver.flushWrites ?? ((service: any) => service.flushL2WritesForTest());
+
+  /** Polls until `read()` yields undefined (bounded) — pub/sub propagation. */
+  const expectEventuallyUndefined = async (read: () => Promise<unknown>, ms = 3_000) => {
+    const startedAt = Date.now();
+    let last: unknown;
+    do {
+      last = await read();
+      if (last === undefined) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    } while (Date.now() - startedAt < ms);
+    expect(last).toBeUndefined();
+  };
 
   describe(`CacheService L2 contract — ${label}`, () => {
     let serviceA: any;
@@ -80,54 +91,52 @@ function runL2Contract(label: string, driver: L2Driver) {
 
     it("serves a value written by another instance (L2 hit)", async () => {
       await serviceA.set("shared-key", { hello: "world" }, 60, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
       await expect(serviceB.get("shared-key", "t1")).resolves.toEqual({ hello: "world" });
     });
 
     it("preserves raw strings across instances (__RAW_STRING__ envelope)", async () => {
       await serviceA.set("raw-key", "plain-string", 60, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
       await expect(serviceB.get("raw-key", "t1")).resolves.toBe("plain-string");
     });
 
     it("enforces tenant isolation across instances", async () => {
       await serviceA.set("tenant-key", "a-data", 60, "tenant-a");
-      await flushWrites();
+      await flushWrites(serviceA);
       await expect(serviceB.get("tenant-key", "tenant-b")).resolves.toBeUndefined();
       await expect(serviceB.get("tenant-key", "tenant-a")).resolves.toBe("a-data");
     });
 
     it("delete() clears the entry for the other instance", async () => {
       await serviceA.set("del-key", "value", 60, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
       await expect(serviceB.get("del-key", "t1")).resolves.toBe("value");
 
       await serviceA.delete("del-key", "t1");
-      await settleInvalidation();
-      await expect(serviceB.get("del-key", "t1")).resolves.toBeUndefined();
+      await expectEventuallyUndefined(() => serviceB.get("del-key", "t1"));
     });
 
     it("clearByPattern() crosses instances via L2 scan", async () => {
       await serviceA.set("user:1:profile", "p1", 60, "t1");
       await serviceA.set("user:2:profile", "p2", 60, "t1");
       await serviceA.set("other:keep", "keep", 60, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
 
       await serviceA.clearByPattern("user:*", "t1");
-      await expect(serviceB.get("user:1:profile", "t1")).resolves.toBeUndefined();
-      await expect(serviceB.get("user:2:profile", "t1")).resolves.toBeUndefined();
+      await expectEventuallyUndefined(() => serviceB.get("user:1:profile", "t1"));
+      await expectEventuallyUndefined(() => serviceB.get("user:2:profile", "t1"));
       await expect(serviceB.get("other:keep", "t1")).resolves.toBe("keep");
     });
 
     it("clearByTags() purges tagged entries across instances with tenant partition", async () => {
       await serviceA.set("tagged-a", "va", 60, "tenant-a", undefined, ["shared-tag"]);
       await serviceA.set("tagged-b", "vb", 60, "tenant-b", undefined, ["shared-tag"]);
-      await flushWrites();
+      await flushWrites(serviceA);
 
       // Only tenant-a's tag set is cleared — tenant-b keeps its entry.
       await serviceA.clearByTags(["shared-tag"], "tenant-a");
-      await settleInvalidation();
-      await expect(serviceB.get("tagged-a", "tenant-a")).resolves.toBeUndefined();
+      await expectEventuallyUndefined(() => serviceB.get("tagged-a", "tenant-a"));
       await expect(serviceB.get("tagged-b", "tenant-b")).resolves.toBe("vb");
     });
 
@@ -146,21 +155,20 @@ function runL2Contract(label: string, driver: L2Driver) {
 
     it("propagates invalidation to the other instance's L1 via pub/sub", async () => {
       await serviceA.set("pubsub-key", "hot", 60, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
       // Warm both L1s.
       await serviceA.get("pubsub-key", "t1");
       await serviceB.get("pubsub-key", "t1");
 
       // A invalidates → B's L1 must be purged (B would re-read L2, also deleted).
       await serviceA.delete("pubsub-key", "t1");
-      await settleInvalidation();
-      await expect(serviceB.get("pubsub-key", "t1")).resolves.toBeUndefined();
+      await expectEventuallyUndefined(() => serviceB.get("pubsub-key", "t1"));
     });
 
     it("getMany() reads missing keys across instances (mGet)", async () => {
       await serviceA.set("m1", "one", 60, "t1");
       await serviceA.set("m2", "two", 60, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
 
       const result = await serviceB.getMany(["m1", "m2", "missing"], "t1");
       expect(result).toEqual(["one", "two", null]);
@@ -174,7 +182,7 @@ function runL2Contract(label: string, driver: L2Driver) {
       };
 
       const fromA = await serviceA.getOrSetSWR("swr-key", factory, 60_000, 300_000, "t1");
-      await flushWrites();
+      await flushWrites(serviceA);
       const fromB = await serviceB.getOrSetSWR("swr-key", factory, 60_000, 300_000, "t1");
 
       expect(fromA).toEqual({ v: 42 });
@@ -185,12 +193,11 @@ function runL2Contract(label: string, driver: L2Driver) {
     it("invalidateAll() clears both instances", async () => {
       await serviceA.set("all-a", "1", 60, "t1");
       await serviceA.set("all-b", "2", 60, "t2");
-      await flushWrites();
+      await flushWrites(serviceA);
 
       await serviceA.invalidateAll();
-      await settleInvalidation();
-      await expect(serviceB.get("all-a", "t1")).resolves.toBeUndefined();
-      await expect(serviceB.get("all-b", "t2")).resolves.toBeUndefined();
+      await expectEventuallyUndefined(() => serviceB.get("all-a", "t1"));
+      await expectEventuallyUndefined(() => serviceB.get("all-b", "t2"));
     });
   });
 }
@@ -209,8 +216,7 @@ describe("CacheService L2 contract — in-memory FakeRedis (always on)", () => {
       await service.connectL2ForTest(fake, fake);
       return service;
     },
-    flushWrites: () => new Promise((resolve) => setTimeout(resolve, 18)),
-    settleInvalidation: () => Promise.resolve(),
+    flushWrites: (service: any) => service.flushL2WritesForTest(),
   });
 });
 
@@ -225,6 +231,22 @@ const redisUrl =
   process.env.TEST_REDIS_URL ||
   (process.env.CI !== "true" && isDockerRunning("redis") ? "redis://127.0.0.1:6379" : undefined);
 
+/**
+ * Dedicated logical DB so this suite's `flushDb()` can never wipe state that
+ * other suites/workers share on the same Redis instance (and vice versa) —
+ * shared-DB flushes were a second, order-dependent flake source.
+ * A `TEST_REDIS_URL` that already pins a DB is kept as-is.
+ */
+const redisIsolatedUrl = redisUrl
+  ? (() => {
+      const parsed = new URL(redisUrl);
+      if (!parsed.pathname || parsed.pathname === "/" || parsed.pathname === "/0") {
+        parsed.pathname = "/13";
+      }
+      return parsed.toString();
+    })()
+  : undefined;
+
 describe.skipIf(!redisUrl)(
   "CacheService L2 contract — real Redis (TEST_REDIS_URL or Docker)",
   () => {
@@ -233,8 +255,8 @@ describe.skipIf(!redisUrl)(
         const { createClient } = await import("redis");
         const CacheServiceClass = await getCacheServiceClass();
         // Separate clients for commands vs pub/sub — node-redis requires this.
-        const cmd = createClient({ url: redisUrl });
-        const sub = createClient({ url: redisUrl });
+        const cmd = createClient({ url: redisIsolatedUrl });
+        const sub = createClient({ url: redisIsolatedUrl });
         cmd.on("error", () => {});
         sub.on("error", () => {});
         await Promise.all([cmd.connect(), sub.connect()]);

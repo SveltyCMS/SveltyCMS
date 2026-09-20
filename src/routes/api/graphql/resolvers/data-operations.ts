@@ -700,14 +700,3 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
     },
   };
 }
-
-// ---------------------------------------------------------------------------
-// Combined Resolvers
-// ---------------------------------------------------------------------------
-
-export function dataOperationsResolvers(dbAdapter: IDBAdapter, tenantId?: string | null) {
-  return {
-    Query: dataOperationsQueryResolvers(dbAdapter, tenantId),
-    Mutation: dataOperationsMutationResolvers(dbAdapter, tenantId),
-  };
-}

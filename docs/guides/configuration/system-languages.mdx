@@ -26,10 +26,12 @@ SveltyCMS splits **system language** (admin chrome: menus, buttons, setup) from 
 
 ## What ships by default
 
-| Locale | Role                                                               |
-| :----- | :----------------------------------------------------------------- |
-| `en`   | Source catalog (`src/messages/en.json`) and Paraglide `baseLocale` |
-| `de`   | Bundled translation (`src/messages/de.json`)                       |
+| Locale                   | Role                                                                                  |
+| :----------------------- | :------------------------------------------------------------------------------------ |
+| `en`                     | Source catalog (`src/messages/en.json`) and Paraglide `baseLocale`                    |
+| `de`                     | Bundled translation (`src/messages/de.json`)                                          |
+| `fr` `es` `it` `nl` `pl` | Seeded EU pack (`scripts/seed-language-packs.ts`) — chrome overlay + English fallback |
+| `ar`                     | Seeded Arabic catalog; RTL via `getTextDirection()`                                   |
 
 RTL layout uses `getTextDirection()` in `@utils/string` (`ar`, `he`, `fa`, `ur`, …). Selecting Arabic as a system language sets `html dir="rtl"` even before a catalog is compiled.
 

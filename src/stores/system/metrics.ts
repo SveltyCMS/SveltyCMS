@@ -3,104 +3,16 @@
  * @description Performance metrics, anomaly detection, and reporting for the system state.
  *
  * Features:
- * - Track state timing (startup/shutdown) and update metrics
  * - Self-calibrate anomaly thresholds based on historical performance
  * - Detect anomalies and notify if something is wrong
- * - Load historical metrics from the database
  * - Save current metrics to the database
- * - Record a specific benchmark (e.g. for a setup phase)
  */
 
 // Safe environment detection for SvelteKit and standalone/benchmark environments
 const browser = typeof window !== "undefined";
 import { logger } from "@utils/logger";
 import type { Writable } from "svelte/store";
-import type { AnomalyDetection, ServiceHealth, ServiceName, SystemStateStore } from "./types";
-
-/**
- * Track state timing (startup/shutdown) and update metrics
- */
-export function trackStateTransition(
-  serviceName: keyof SystemStateStore["services"],
-  fromState: ServiceHealth,
-  toState: ServiceHealth,
-  duration: number,
-  store: Writable<SystemStateStore>,
-): void {
-  store.update((current) => {
-    const service = { ...current.services[serviceName] };
-    const stateTimings = { ...service.metrics.stateTimings };
-
-    // Track startup (initializing → healthy)
-    if (fromState === "initializing" && toState === "healthy") {
-      const startup = { ...stateTimings.startup };
-      startup.count++;
-      startup.lastTime = duration;
-
-      // Update statistics
-      if (startup.avgTime) {
-        const prevAvg = startup.avgTime;
-        startup.avgTime = (startup.avgTime * (startup.count - 1) + duration) / startup.count;
-        startup.minTime = Math.min(startup.minTime ?? duration, duration);
-        startup.maxTime = Math.max(startup.maxTime ?? duration, duration);
-
-        // Determine trend (comparing to previous average)
-        if (duration < prevAvg * 0.9) {
-          startup.trend = "improving";
-        } else if (duration > prevAvg * 1.1) {
-          startup.trend = "degrading";
-        } else {
-          startup.trend = "stable";
-        }
-      } else {
-        startup.avgTime = duration;
-        startup.minTime = duration;
-        startup.maxTime = duration;
-      }
-
-      stateTimings.startup = startup;
-    }
-
-    // Track shutdown (healthy → unhealthy or healthy → idle)
-    if (fromState === "healthy" && (toState === "unhealthy" || toState === "initializing")) {
-      const shutdown = { ...stateTimings.shutdown };
-      shutdown.count++;
-      shutdown.lastTime = duration;
-
-      if (shutdown.avgTime) {
-        const prevAvg = shutdown.avgTime;
-        shutdown.avgTime = (shutdown.avgTime * (shutdown.count - 1) + duration) / shutdown.count;
-        shutdown.minTime = Math.min(shutdown.minTime ?? duration, duration);
-        shutdown.maxTime = Math.max(shutdown.maxTime ?? duration, duration);
-
-        // Determine trend
-        if (duration < prevAvg * 0.9) {
-          shutdown.trend = "improving";
-        } else if (duration > prevAvg * 1.1) {
-          shutdown.trend = "degrading";
-        } else {
-          shutdown.trend = "stable";
-        }
-      } else {
-        shutdown.avgTime = duration;
-        shutdown.minTime = duration;
-        shutdown.maxTime = duration;
-      }
-
-      stateTimings.shutdown = shutdown;
-    }
-
-    service.metrics.stateTimings = stateTimings;
-
-    return {
-      ...current,
-      services: {
-        ...current.services,
-        [serviceName]: service,
-      },
-    };
-  });
-}
+import type { AnomalyDetection, SystemStateStore } from "./types";
 
 /**
  * Self-calibrate anomaly thresholds based on historical performance
@@ -129,13 +41,6 @@ export function calibrateAnomalyThresholds(
       thresholds.maxStartupTime = Math.max(avgBased, maxBased);
     }
 
-    // Calibrate shutdown threshold
-    if (metrics.stateTimings.shutdown.avgTime && metrics.stateTimings.shutdown.maxTime) {
-      const avgBased = metrics.stateTimings.shutdown.avgTime * 3;
-      const maxBased = metrics.stateTimings.shutdown.maxTime * 1.5;
-      thresholds.maxShutdownTime = Math.max(avgBased, maxBased);
-    }
-
     // Calibrate failure threshold based on reliability
     if (metrics.uptimePercentage > 99) {
       thresholds.maxConsecutiveFailures = 2; // Stricter for highly reliable services
@@ -153,11 +58,6 @@ export function calibrateAnomalyThresholds(
       thresholds.minUptimePercentage = 90; // More realistic expectations
     } else {
       thresholds.minUptimePercentage = 80; // Lower bar for struggling services
-    }
-
-    // Calibrate latency threshold (use 2x average or 1.2x max, min 50ms)
-    if (metrics.averageLatency && metrics.averageLatency > 0) {
-      thresholds.maxLatency = Math.max(metrics.averageLatency * 2, 50);
     }
 
     thresholds.lastCalibrated = Date.now();
@@ -214,22 +114,6 @@ export function detectAnomalies(
     });
   }
 
-  // Check shutdown time
-  if (
-    metrics.stateTimings.shutdown.lastTime &&
-    metrics.stateTimings.shutdown.lastTime > thresholds.maxShutdownTime
-  ) {
-    anomalies.push({
-      type: "slow_shutdown",
-      severity: "medium",
-      message: `Service ${String(serviceName)} shutdown is slower than expected`,
-      details: {
-        actual: `${metrics.stateTimings.shutdown.lastTime.toFixed(0)}ms`,
-        threshold: `${thresholds.maxShutdownTime.toFixed(0)}ms`,
-      },
-    });
-  }
-
   // Check consecutive failures
   if (metrics.consecutiveFailures >= thresholds.maxConsecutiveFailures) {
     anomalies.push({
@@ -253,22 +137,6 @@ export function detectAnomalies(
       details: {
         uptime: `${metrics.uptimePercentage.toFixed(1)}%`,
         threshold: `${thresholds.minUptimePercentage}%`,
-      },
-    });
-  }
-
-  // Check latency (Heartbeat) - NEW
-  if (metrics.lastLatency && metrics.lastLatency > (thresholds.maxLatency || 50)) {
-    const maxLat = thresholds.maxLatency || 50;
-    const excessPercent = (metrics.lastLatency / maxLat - 1) * 100;
-    anomalies.push({
-      type: "slow_response",
-      severity: excessPercent > 100 ? "high" : "medium",
-      message: `Service ${String(serviceName)} response is slower than enterprise standards`,
-      details: {
-        actual: `${metrics.lastLatency.toFixed(1)}ms`,
-        threshold: `${maxLat.toFixed(0)}ms`,
-        excess: `${excessPercent.toFixed(0)}%`,
       },
     });
   }
@@ -302,75 +170,6 @@ export function detectAnomalies(
   }
 
   return anomalies;
-}
-
-/**
- * Update uptime percentage based on health checks
- */
-export function updateUptimeMetrics(
-  serviceName: ServiceName,
-  store: Writable<SystemStateStore>,
-): void {
-  store.update((current) => {
-    const service = { ...current.services[serviceName] };
-    const metrics = service.metrics;
-
-    // Calculate uptime percentage
-    if (metrics.healthCheckCount > 0) {
-      const healthyChecks = metrics.healthCheckCount - metrics.failureCount;
-      metrics.uptimePercentage = (healthyChecks / metrics.healthCheckCount) * 100;
-    }
-
-    service.metrics = metrics;
-
-    return {
-      ...current,
-      services: {
-        ...current.services,
-        [serviceName]: service,
-      },
-    };
-  });
-}
-
-/**
- * Load historical metrics from the database and hydrate the store.
- * This is the "Learning" part of the state machine.
- */
-export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): Promise<void> {
-  if (browser) return;
-  try {
-    const { performanceService } = await import("@src/services/observability/performance-service");
-    const historicalMetrics = await performanceService.loadMetrics();
-    if (Object.keys(historicalMetrics).length === 0) {
-      return;
-    }
-
-    store.update((current) => {
-      const services = { ...current.services };
-      for (const [name, metrics] of Object.entries(historicalMetrics)) {
-        if (services[name as ServiceName]) {
-          // Merge historical data, favoring more established trends
-          services[name as ServiceName].metrics = {
-            ...services[name as ServiceName].metrics,
-            ...metrics,
-            // Reset volatile session-specific fields
-            initializationStartedAt: undefined,
-            initializationCompletedAt: undefined,
-            initializationDuration: undefined,
-            consecutiveFailures: 0,
-            lastHealthCheckAt: undefined,
-          };
-        }
-      }
-      logger.info(
-        `🧠 Hydrated system state with historical metrics for ${Object.keys(historicalMetrics).length} services`,
-      );
-      return { ...current, services };
-    });
-  } catch (error) {
-    logger.error("Failed to load historical metrics:", error);
-  }
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * @file src\databases\database-resilience.ts
+ * @file src/databases/database-resilience.ts
  * @description Database resilience and self-healing system
  *
  * Features:
@@ -668,13 +668,6 @@ export function getDatabaseResilience(
     resilienceInstance = new DatabaseResilience(config);
   }
   return resilienceInstance;
-}
-
-export function resetDatabaseResilience(): void {
-  if (resilienceInstance) {
-    resilienceInstance.stop();
-    resilienceInstance = null;
-  }
 }
 
 /**

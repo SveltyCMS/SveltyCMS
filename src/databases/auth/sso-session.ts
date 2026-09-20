@@ -232,16 +232,6 @@ export function deleteSsoSessionMetadata(sessionId: string): void {
   ssoSessionMetadata.delete(sessionId);
 }
 
-/** Clean up all SSO metadata for a user's sessions. */
-export function invalidateSsoSessionsForUser(_userId: string): void {
-  // Simple sweep — in production this would use a reverse index
-  for (const [sessionId, _meta] of ssoSessionMetadata) {
-    // Sessions keyed by sessionId; we don't have userId here.
-    // The caller (auth layer) handles per-session cleanup.
-    logger.debug(`[SSO] Retaining SSO metadata for session ${sessionId.slice(0, 8)}...`);
-  }
-}
-
 // ─── Redirect URI validation ───────────────────────────────────────────────
 
 /**

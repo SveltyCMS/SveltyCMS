@@ -682,7 +682,6 @@ export function createPagination<T>(
   };
 }
 
-export const paginateResults = createPagination;
 export const convertUserToISO = convertDatesToISO;
 export const convertSessionToISO = convertDatesToISO;
 

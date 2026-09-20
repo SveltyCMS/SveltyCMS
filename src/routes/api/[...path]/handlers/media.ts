@@ -739,29 +739,6 @@ export async function handleMediaShareCreate(
   });
 }
 
-export async function handleMediaShareDelete(
-  event: RequestEvent,
-  cms: LocalCMS,
-  tenantId: DatabaseId,
-  segments: string[],
-) {
-  const mediaId = segments[2];
-  const token = segments[3];
-  if (!mediaId || !token) throw new AppError("Asset matrix token validation paths mismatch", 400);
-
-  const mediaRes = await cms.media.findById(mediaId, { tenantId });
-  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item entry missing", 404);
-
-  const item = mediaRes.data as any;
-  const filtered = (item.metadata?.sharedLinks || []).filter((l: any) => l.token !== token);
-  await cms.media.update(
-    mediaId,
-    { metadata: { ...item.metadata, sharedLinks: filtered } },
-    { tenantId },
-  );
-  return successResponse(event, { success: true });
-}
-
 /** Revoke a share link (soft-deactivate) — DELETE /api/media/share/{mediaId}/{token} */
 export async function handleMediaShareRevoke(
   event: RequestEvent,

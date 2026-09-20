@@ -14,6 +14,8 @@ import {
   buildUserResponseCacheKey,
   buildGraphQLResponseCacheKey,
   generateContentEtag,
+  classifyTurboKey,
+  collectionResponseCacheTags,
 } from "@src/services/cache/response-cache";
 
 describe("Request Classifier Lane Router", () => {
@@ -254,5 +256,71 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     expect(responseCache.get(key)).not.toBeNull();
     await responseCache.clearLocal();
     expect(responseCache.get(key)).toBeNull();
+  });
+
+  test("classifyTurboKey splits list, point-read, and GraphQL keys", () => {
+    expect(classifyTurboKey("u:1:/api/collections/posts?limit=10")).toEqual({
+      graphql: false,
+      collection: "posts",
+    });
+    expect(classifyTurboKey("u:1:/api/collections/posts/abc-123")).toEqual({
+      graphql: false,
+      collection: "posts",
+      entryId: "abc-123",
+    });
+    expect(classifyTurboKey("anon:/api/graphql?q=deadbeef")).toEqual({ graphql: true });
+    expect(classifyTurboKey("u:1:/api/collections/posts/list")).toEqual({
+      graphql: false,
+      collection: "posts",
+    });
+  });
+
+  test("collectionResponseCacheTags never puts list tags on point-reads", () => {
+    const point = collectionResponseCacheTags("posts", "abc-123");
+    expect(point.skipSharedL1).toBe(true);
+    expect(point.tags).toEqual(["res:all", "doc:posts:abc-123"]);
+    const list = collectionResponseCacheTags("posts", null);
+    expect(list.skipSharedL1).toBe(false);
+    expect(list.tags).toContain("collection:posts");
+    expect(list.tags).toContain("res:posts");
+  });
+
+  test("surgical invalidateLocal keeps sibling findById turbo hits", () => {
+    const tenant = "surgical-iso";
+    const keyList = buildUserResponseCacheKey("/api/collections/posts", "?limit=10", "user-1");
+    const keyGql = buildGraphQLResponseCacheKey("query { posts { id } }", {}, "all", "user-1");
+    const pointA = buildUserResponseCacheKey("/api/collections/posts/id-a", "", "user-1");
+    const pointB = buildUserResponseCacheKey("/api/collections/posts/id-b", "", "user-1");
+
+    responseCache.set(pointA, { body: '{"id":"a"}', etag: '"a"' }, 60_000, tenant);
+    responseCache.set(pointB, { body: '{"id":"b"}', etag: '"b"' }, 60_000, tenant);
+    responseCache.set(keyList, { body: '{"items":[]}', etag: '"l"' }, 60_000, tenant);
+    responseCache.set(keyGql, { body: '{"data":[]}', etag: '"g"' }, 60_000, tenant);
+
+    responseCache.invalidateLocal("posts", tenant, { entryIds: ["id-a"] });
+
+    expect(responseCache.get(pointA, tenant)).toBeNull();
+    expect(responseCache.get(pointB, tenant)?.body).toBe('{"id":"b"}');
+    const listAfter = responseCache.get(keyList, tenant);
+    expect(listAfter?.body).toBe('{"items":[]}');
+    expect(listAfter?.stale).toBe(true);
+    const gqlAfter = responseCache.get(keyGql, tenant);
+    expect(gqlAfter?.body).toBe('{"data":[]}');
+    expect(gqlAfter?.stale).toBe(true);
+
+    responseCache.set(keyList, { body: '{"items":[1]}', etag: '"l2"' }, 60_000, tenant);
+    expect(responseCache.get(keyList, tenant)?.stale).toBe(false);
+    expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[1]}');
+  });
+
+  test("point-read turbo L1 admits on first set and does not evict lists", async () => {
+    const tenant = "admit-iso";
+    const point = buildUserResponseCacheKey("/api/collections/posts/id-hot", "", "user-1");
+    const list = buildUserResponseCacheKey("/api/collections/posts", "?limit=10", "user-1");
+    responseCache.set(list, { body: '{"items":[]}', etag: '"l"' }, 60_000, tenant);
+    responseCache.set(point, { body: '{"id":"hot"}', etag: '"h"' }, 60_000, tenant);
+    expect(responseCache.get(point, tenant)?.body).toBe('{"id":"hot"}');
+    expect(responseCache.get(list, tenant)?.body).toBe('{"items":[]}');
+    await responseCache.clearLocal();
   });
 });

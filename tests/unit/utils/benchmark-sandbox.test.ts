@@ -35,7 +35,7 @@ describe("benchmark-sandbox", () => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
 
     expect(sandbox.resolveBenchmarkProfile()).toBe("local");
     expect(sandbox.isLocalBenchmarkSandbox()).toBe(true);
@@ -43,7 +43,7 @@ describe("benchmark-sandbox", () => {
 
   it("resolves ci-fresh profile when private.ts is absent", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(false);
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
 
     expect(sandbox.resolveBenchmarkProfile()).toBe("ci-fresh");
     expect(sandbox.isCiFreshBenchmark()).toBe(true);
@@ -54,7 +54,7 @@ describe("benchmark-sandbox", () => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
 
     expect(sandbox.resolveCompiledCollectionsPath(null)).toBe(
       path.join(SANDBOX_COMPILED, "global"),
@@ -66,7 +66,7 @@ describe("benchmark-sandbox", () => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
 
     const liveManifest = path.join(ROOT, ".compiledCollections", ".compilation-manifest.json");
 
@@ -78,7 +78,7 @@ describe("benchmark-sandbox", () => {
 
   it("honours explicit BENCHMARK_PROFILE override", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
-    process.env.BENCHMARK_PROFILE = "ci-fresh";
+    vi.stubEnv("BENCHMARK_PROFILE", "ci-fresh");
 
     expect(sandbox.resolveBenchmarkProfile()).toBe("ci-fresh");
   });
@@ -88,7 +88,7 @@ describe("benchmark-sandbox", () => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
 
     expect(() => sandbox.assertLiveDataWriteAllowed(PRIVATE_TS)).toThrow(/SECURITY VIOLATION/);
   });
@@ -101,8 +101,8 @@ describe("benchmark-sandbox", () => {
     vi.spyOn(fs, "readFileSync").mockReturnValue(
       'export const privateEnv = { DB_NAME: "sveltycms_test" };',
     );
-    process.env.BENCHMARK = "true";
-    process.env.DB_NAME = "sveltycms_test";
+    vi.stubEnv("BENCHMARK", "true");
+    vi.stubEnv("DB_NAME", "sveltycms_test");
 
     expect(() => sandbox.assertBenchmarkDbIsolation("sqlite")).toThrow(
       /matches live config\/private\.ts/,
@@ -114,7 +114,7 @@ describe("benchmark-sandbox", () => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
-    process.env.BENCHMARK = "true";
+    vi.stubEnv("BENCHMARK", "true");
 
     const summary = sandbox.getBenchmarkIsolationSummary("sqlite");
     expect(summary.profile).toBe("local");

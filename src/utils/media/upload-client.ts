@@ -95,19 +95,6 @@ function wireAbort(xhr: XMLHttpRequest, signal?: AbortSignal, onAbort?: () => vo
   };
 }
 
-/** Upload via SvelteKit form action with optional XHR progress.
- *
- *  NOTE: XHR uploads do NOT automatically attach SvelteKit's CSRF cookie.
- *  If your deployment requires the `X-CSRF-Token` header, pass `csrfToken`
- *  in `options` or ensure the cookie is SameSite/secure.
- */
-export function uploadViaFormAction(
-  files: File[],
-  options: MediaUploadOptions,
-): Promise<MediaUploadResult> {
-  return uploadViaFormActionHandle(files, options).promise;
-}
-
 export function uploadViaFormActionHandle(
   files: File[],
   options: MediaUploadOptions,
@@ -169,28 +156,6 @@ export function uploadViaFormActionHandle(
   });
 
   return { promise, cancel: () => cancelFn() };
-}
-
-/** Upload large batches via `/api/media/stream`
- *
- *  Uses XMLHttpRequest (not fetch) so that progress events are available,
- *  giving users real-time feedback during large uploads.
- *
- *  NOTE: XHR uploads do NOT automatically attach SvelteKit's CSRF cookie.
- *  If your deployment requires the `X-CSRF-Token` header, pass `csrfToken`
- *  in `options` or ensure the cookie is SameSite/secure.
- */
-export function uploadViaStreamApi(
-  files: File[],
-  options: {
-    folder?: string;
-    csrfToken?: string;
-    allowedTypes?: string;
-    onProgress?: (percent: number) => void;
-    signal?: AbortSignal;
-  } = {},
-): Promise<MediaUploadResult> {
-  return uploadViaStreamApiHandle(files, options).promise;
 }
 
 export function uploadViaStreamApiHandle(

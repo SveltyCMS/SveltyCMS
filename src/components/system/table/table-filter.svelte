@@ -55,7 +55,21 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		columnShow = $bindable(false),
 		density = $bindable('normal'),
 		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
-		showDeleted = $bindable(false)
+		showDeleted = $bindable(false),
+		viewMode = $bindable<'table' | 'card'>('table'),
+		showViewMode = false,
+		onViewModeChange
+	}: {
+		globalSearchValue?: string;
+		searchShow?: boolean;
+		filterShow?: boolean;
+		columnShow?: boolean;
+		density?: string;
+		densityOptions?: string[];
+		showDeleted?: boolean;
+		viewMode?: 'table' | 'card';
+		showViewMode?: boolean;
+		onViewModeChange?: (mode: 'table' | 'card') => void;
 	} = $props();
 
 	// Storage key for user settings
@@ -212,4 +226,25 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
 		</Button>
 	</SystemTooltip>
+
+	<!-- View Mode (Table / Card) -->
+	{#if showViewMode}
+		<SystemTooltip title={viewMode === 'table' ? 'Switch to Card View' : 'Switch to Table View'}>
+			<Button
+				variant="ghost"
+				type="button"
+				onclick={() => {
+					viewMode = viewMode === 'table' ? 'card' : 'table';
+					onViewModeChange?.(viewMode);
+				}}
+				aria-label={viewMode === 'table' ? 'Switch to Card View' : 'Switch to Table View'}
+				class="rounded-full"
+			>
+				<iconify-icon
+					icon={viewMode === 'table' ? 'material-symbols:grid-view-rounded' : 'material-symbols:table-rows-rounded'}
+					width={24}
+				></iconify-icon>
+			</Button>
+		</SystemTooltip>
+	{/if}
 {/if}

@@ -15,6 +15,8 @@
  *
  * `toQueryOptions()` expands a policy into the flat `BaseQueryOptions` the
  * adapters consume (single expansion point — no drift between call sites).
+ * Callers compose policies inline (`toQueryOptions({ sideEffects: "none" })`),
+ * so named convenience presets are not part of the contract.
  */
 
 import type { BaseQueryOptions } from "./db-interface";
@@ -70,14 +72,4 @@ export function toQueryOptions(policy?: DataAccessPolicy): BaseQueryOptions {
   if (policy.readBack === "reconstruct") opts.skipReturning = true;
   if (policy.sideEffects === "none") opts.skipSideEffects = true;
   return opts;
-}
-
-/** Convenience: full-document bulk/seed write — reconstruct, no side effects. */
-export function bulkWritePolicy(extra: ReadPolicy = {}): DataAccessPolicy {
-  return { readBack: "reconstruct", sideEffects: "none", ...extra };
-}
-
-/** Convenience: benchmark read — no caches, conversions on. */
-export function benchmarkReadPolicy(extra: ReadPolicy = {}): DataAccessPolicy {
-  return { bypassCache: true, ...extra };
 }

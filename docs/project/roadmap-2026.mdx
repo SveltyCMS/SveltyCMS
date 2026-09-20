@@ -1,182 +1,124 @@
 ---
 path: "docs/project/roadmap-2026.mdx"
 title: "Project Roadmap 2026"
-description: "SveltyCMS 2026 roadmap — upcoming milestones and in-progress work. Completed items move to the achievements log."
+description: "SveltyCMS 2026 roadmap — upcoming milestones, in-progress initiatives, and active backlog. Shipped deliverables live in the Achievements Log."
 order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-18"
+updated: "2026-09-20"
 tags:
   - "roadmap"
-  - "todo"
+  - "backlog"
   - "planning"
 ---
 
 # SveltyCMS: 2026 Roadmap
 
 > [!NOTE]
-> **EU Compliance**: Based on publicly available documentation as of June 2026. Performance measurements where cited: self-measured via `BENCHMARK_RECORD=1 bun test tests/benchmarks/`. See [Achievements Log](./achievements-2026.mdx) (truth-first) and [Performance Architecture](../reference/database/performance-architecture.mdx).
+> This document is the **active backlog and forward-looking roadmap**. For all completed deliverables, performance measurements, and historical milestones, see the [Achievements Log](./achievements-2026.mdx) and [Competitive Comparison](./competitive-comparison.mdx).
 
-This document is the **living roadmap** — in-progress and planned work. Completed achievements: [Achievements Log](./achievements-2026.mdx).
+---
 
-> [!TIP]
-> **Recently Completed (September 2026)**: Platform hardening (one mutation limiter, branded `systemScope`, Mongo REST point-read, Yjs entry ACL, same-host sockets, client-safe tenant split, session AMR persistence, and adaptive smart rate-limiting) shipped in [Achievements Log](./achievements-2026.mdx) §3.16, followed by the authorization-guardrail + 4-DB contract wave (token namespace allowlist, GraphQL APQ hash binding, uniform 15 MB body ceiling, `MAX_PAGE_SIZE` clamp, numeric sort-direction unification) in §3.17.
+## 🎯 Priority for Implementers
+
+| Priority | Initiative                       | Key Deliverables                                                                                                   |
+| :------- | :------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| **P0**   | **System Language P0 remainder** | Finish remaining hardcoded English strings in admin chrome (`bun run check:copy`)                                  |
+| **P2**   | **Commerce Engine Add-Ons**      | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing |
+| **P2**   | **Enterprise Cluster & Cloud**   | Distributed session clustering, Docker/Terraform enterprise cluster pack, and Svelty Managed Cloud                 |
 
 ---
 
 ## 📊 CMS Tables & List Platform (Smart Table)
 
-**Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives — plus the July 2026 2FA hardening set (AES-256-GCM TOTP secrets at rest, resumable enrollment, trusted-devices cookie, configurable TOTP window, `afterAuthenticate` plugin hook). Both are documented in the [Achievements Log](./achievements-2026.mdx). Collections stay **server-secure**.
+Planned UX and platform extensions:
 
-### Next (high leverage — foundations ready)
+- **Team & Cloud Saved Views**: Enterprise tenant-shared view presets with RBAC visibility controls.
+- **Observability**: Feed list query p50/p95 timings from `list-query-metrics` into continuous benchmark trend reporting.
+- **Negative Cache Policy Documentation**: Formal operational guide for Bloom filter thresholds and 404 cache evictions.
 
-| Enhancement                      | Status     | Notes                                                                                                            |
-| -------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Saved views**                  | 🟢 Shipped | 100% wired across all list surfaces: Entry-list, website-tokens, users, and media                                |
-| **Column resize + layout prefs** | 🟢 Shipped | All 4 table views active: Entry-list, website-tokens, media gallery, and users/tokens admin area via `layoutKey` |
-| **Status / domain facets**       | 🟢 Shipped | Collection facets + interactive User Management facet chips (`All`, `Admins`, `Users`, `Active`, `Blocked`)      |
-| **List metrics**                 | 🟢 Shipped | `list-query-metrics` + SSR badge on collections, users, and tokens                                               |
-| **Filter engine reuse**          | 🟢 Shipped | Allowlisted field filtering (`role`, `blocked`, `email`, `username`) on users/tokens                             |
+### Explicitly Deferred
 
-### Planned product UX
-
-- **Bulk field-edit UI & sticky columns** — 🟢 Shipped (September 2026): interactive bulk field update modal for collections + opaque sticky start/end column pinning across all data tables.
-- **Multi-column sort**, advanced filter operators UI, export filtered selection, keyboard grid nav (ATAG), responsive card mode
-- **Team / cloud saved views** (enterprise)
-
-### Performance & observability
-
-- Predictive preload “warm next page” — 🟢 Shipped: sidebar smart-preload of learner-predicted path + dashboard hot-collection chips + heat-aware SWR + Smart Table pagination links with `data-preload="viewport"` (2026-09-02, see [Achievements Log](./achievements-2026.mdx)).
-- List p50/p95 from `list-query-metrics` into benchmark trend notes
-- Negative cache / empty-page policy documentation
-
-### Explicitly deferred
-
-| Item                         | Why                         |
-| ---------------------------- | --------------------------- |
-| TanStack as collection core  | SSR + multi-tenant security |
-| Mini matrices on Smart Table | Stay purpose-built          |
+| Item                         | Reason                                                                                             |
+| :--------------------------- | :------------------------------------------------------------------------------------------------- |
+| TanStack as collection core  | Headless Svelte 5 engine provides superior SSR performance and zero-overhead multi-tenant security |
+| Mini matrices on Smart Table | Table views remain purpose-built for speed rather than arbitrary nested spreadsheet emulation      |
 
 ---
 
 ## 🏗️ In Progress
 
-- 🏗️ **AI-Assisted Builder (Phase 0 shipped, Phase 1 in progress)** — `src/services/ai-builder/` gateway skeleton: `gateway.ts` (ordered backend failover via the existing Ollama `aiService` + per-user sliding-window quotas), `prompts.ts` (`<user_data>` passive-reference injection shield), `validator.ts` (Valibot structured-output validation + widget-registry awareness + reserved `db_fieldName` blocking), `diff.ts` (proposal-vs-schema diff), `collection-designer.ts` (design/refine). API namespace `ai-builder` registered in the existing fail-closed dispatcher (`ENDPOINT_PERMISSIONS: system:settings`, admin-gated handler): `POST /api/ai-builder/design-collection` and `refine-collection` live; `approve-collection` returns 501 until Phase 1 (schema write via AST path). See [AI-Assisted Builder Design](../development/ai-builder-design.mdx).
-
-- 🏗️ **Marketplace Phase 2 (in-app catalog)** — **August 2026 progress:** Extensions page **Marketplace** tab + `marketplace-view.svelte` + `GET /api/marketplace` offline-first merge (local listings + `marketplace-client` remote). Dashboard widgets refactored into **marketplace-portable package folders** (`widgets/<folder>/<component>.svelte` + required `widget.json` + `.mdx`) with `installDashboardWidget()` and local catalog listings (type filter incl. `dashboard`, license/price badges). **Licensing aligned with widgets/plugins/site starter**: Free / Freemium (14-day key-less trial) / Paid via `checkExtensionLicense("dashboard", id)` — client-side upgrade prompts **and** server-side `403 LICENSE_REQUIRED` gates on premium dashboard endpoints (see [license-endpoint-inventory](../reference/security/license-endpoint-inventory.mdx)). Still open: one-click install pipeline for remote packages, richer package cards, in-app license UX.
-- 🏗️ **Plugin Admin Pages (`page` part)** — plugins contribute full admin pages under `/plugin/<path>` with server `load`, RBAC gating (403), declarative sidebar nav, and the `<AdminZone>` renderer for `adminTool` + `AdminAreaExtension` zones. See [Plugin Architecture](../development/plugins/architecture.mdx).
-- 🏗️ **Published DB Adapters**: `sveltycms-sqlite|mongodb|mariadb|postgresql` npm packages — extraction + CI publish pending.
-- 🏗️ **Native commerce pipeline** — optional Commerce plugin (disabled by default): tenant-scoped guest cart, merge on login, quotes, inventory, checkout, `/api/commerce/*`, Stripe `grandTotal` intent, `/shop` `/cart` `/checkout` `/account`, transactional mail. Smart Importer Woo/Shopify. Dashboard Orders / Inventory widgets. Dedicated `/api/commerce` rate-limit lane. **Paid add-ons (not core):** Live Shipping (`plugin:shipping-live`, UPS/FedEx/DHL) and TaxJar (`plugin:taxjar`) — table rates stay free. **Open (same list as the overview “Still open” table):** `ConditionPlugin` / AND-OR promotion groups; BOGO / tiered promotions, multi-warehouse, FX resolver; Stripe Billing (Pro endpoint is `501`); `computeTotals` &lt; 5 ms benchmark; HTTP cart→order→refund two-tenant integration; Schema.org Product/Offer/Review on `/shop`. Product map: [E-Commerce Overview](../reference/architecture/ecommerce-overview.mdx).
-
----
-
-## 🚀 Planned
-
-- **Cross-Source Merge Execution (v3.1 → stable)**
-- **Visual Studio Query Builder**
-- **GraphQL Supergraph / Federation**
-- **Svelty Managed Cloud**, Docker/Terraform enterprise pack
-- **AI-Verified Zero-Downtime Deployments**
-- **SvelteKit 3.0**, **TypeScript 7** — running `@sveltejs/kit@3.0.0-next.27` + `typescript@6.0.3`; TS7 adoption pending SvelteKit upstream `write_tsconfig` modernisation ([language-tools#3063](https://github.com/sveltejs/language-tools/issues/3063))
-- **Rust Tooling Watch (`fuzdev/tsv`)** — Track development of [fuzdev/tsv](https://github.com/fuzdev/tsv) (native Rust Svelte parser + formatter); evaluate for Svelte AST compilation & CI linting once its planned linter ships to complement/benchmark against Oxc (`oxlint` + `oxfmt`).
-- **Third-party pentest** — engage a pentest lab before enterprise GA (0 CVEs on record today, self-checked via NVD / GitHub Advisory DB)
-- **System-language workstream (P0–P4)** — see [below](#system-language-p0-p4). Not started as a completed pack: EN/DE catalogs exist; admin chrome is only partially keyed.
+- 🏗️ **Plugin Admin Pages (`page` part)** — Finalize declarative sub-navigation, deep-linking, and full-page test suites for `/plugin/<path>` admin tools.
+- 🏗️ **Native Commerce Pipeline Add-ons** — Complete the remaining commercial modules:
+  - `ConditionPlugin` for complex promotion rules (cart minimums, coupon combinations, category discounts).
+  - BOGO and tiered volume pricing calculator.
+  - Multi-warehouse inventory allocation.
+  - Real-time currency exchange (FX) resolver with caching.
+  - Stripe Billing recurring subscription webhooks and portal.
+  - Schema.org structured data markup (`Product`, `Offer`, `AggregateRating`) on public `/shop` routes.
 
 ---
 
-## 🧩 Gap Register & Non-Goals (August 2026)
+## 🔌 Unwired Capabilities & Technical Debt
 
-Honest assessment against reference platforms, based on publicly available documentation as of 2026-08-04. Closure paths link to the roadmap items above; shipped items are tracked in the [Achievements Log](./achievements-2026.mdx).
+Existing modules to be connected or formally retired:
 
-| Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                                                                                               | Gap & closure path                                                                                                                         |
-| :--------------------------------------- | :------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| - **Distributed SSO realm sessions**     | Keycloak documents realm-wide session clustering and cross-application SSO propagation | Single-instance session store (L1/L2 + DB); OIDC login (PKCE S256 + JIT provisioning) and SAML plus all three OIDC logout mechanisms shipped                                                    | No cross-application session propagation yet. Closure: distributed session clustering with the managed-cloud / Docker enterprise pack (P2) |
-| **Adaptive / risk-based authentication** | Keycloak documents conditional authentication flows (step-up, risk-based)              | RFC 8176 Session AMR + `mfaRequired` role enforcement + step-up trusted device tokens persisted on all 4 DB adapters; static lockout, TTL/idle controls, step-up re-auth for session management | No automated risk-scoring policy engine. Closure: roadmap candidate; the shipped log-only anomaly detection feeds future alerting          |
-| **Module ecosystem depth**               | Drupal's public module directory lists tens of thousands of modules                    | Plugin `page` part, widgets, and dashboard widget packages provide first-class admin extension points                                                                                           | Catalog is young. Closure: marketplace in-app catalog + one-click install (P1); ecosystem launch items on the roadmap                      |
-| **Field-level write guards**             | Directus documents per-field read/write policy per role                                | Read-side response filtering shipped (`FIELD_PERMISSIONS`); filter/search FLAC shipped (`canAccessField`); mutation enforcement active via `assertWriteAllowed`                                 | **Shipped**: Full read + write field permission enforcement active across SDK and API pipelines                                            |
-| **Passkey UI polish**                    | WebAuthn/passkeys widely deployed in consumer-grade UX                                 | WebAuthn/passkey support exists; UI polish pending                                                                                                                                              | Small, contained; tracked in the security scorecard                                                                                        |
-| **Independent verification**             | Enterprise platforms publish third-party pentest / audit reports                       | 0 CVEs on record (NVD / GitHub Advisory DB, self-checked); internal scanners enforced in CI                                                                                                     | No third-party pentest yet. Closure: engage a pentest lab before enterprise GA                                                             |
-
-**Strategic non-goals (explicit):** matching WordPress/PHP's install base or module count is not a design target — the extension surface is deliberately typed and tree-shaken (plugins, widgets, dashboard packages) rather than a generic runtime hook bus. **System i18n:** do not replace Paraglide with i18next (compile-time / tree-shake stays); do not unlock ISO codes in the picker as a “50 language” claim while admin chrome still has hardcoded English.
-
----
-
-## System language P0–P4 (Sept 2026) {#system-language-p0-p4}
-
-Order is fixed: **coverage before packs, packs before cockpit, cockpit before marketing claims.** Status is the honest snapshot, not the goal.
-
-| Pri    | Goal                        | Why it sits here                                                                                                                                                               | Status (2026-09-08)                                                                                                                                                                                                                                         |
-| :----- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0** | Make EN/DE _true_           | ~21% of admin Svelte files import Paraglide; German still hits English on config/media/dashboard/image-editor. New locales would only translate that fifth.                    | **In Progress.** Catalogs EN/DE key-parity (1158). `scripts/check-hardcoded-copy.ts` implemented and gating CI. Wildcard imports replaced with explicit named imports.                                                                                      |
-| **P1** | EU pack + AR                | FR, ES, IT, NL, PL cover the EU agency/enterprise set we position for; AR proves RTL (`getTextDirection` + logical CSS), not theory. Prefer 8 reviewed locales over 60 drafts. | **Open.** `src/messages/` is `en.json` + `de.json` only.                                                                                                                                                                                                    |
-| **P2** | Remove the compile cliff    | After Save, the operator must not sit on English copy + RTL with no next step. Dev: HMR after Paraglide compile. Prod: explicit “run `bun run paraglide` / redeploy”.          | **Partial.** Settings toast reports added locales / failed translate. No transparent HMR handshake.                                                                                                                                                         |
-| **P3** | Unified translation cockpit | Combine `systemLanguage` (Paraglide chrome) with per-field content progress (`translationProgress`) + AI translate. “Admin: DE · Content DE 100% / FR 60% / AR 0%”.            | 🟢 **Shipped (September 2026).** Dual-lens studio cockpit (`translation-cockpit.svelte`) with live Paraglide chrome switcher, per-language readiness tokens, 1-click batch AI translation via `/api/ai/translate`, and interactive deficiency jump & focus. |
-| **P4** | UWG-honest buyer copy       | Buyers ask: can editors work in DE/FR _today_? can we add a language without a vendor release? does compile-time stay fast? Engine names (Paraglide vs i18next) are secondary. | **Partial.** Guide + comparison note machine-draft vs Crowdin review. Three buyer questions not yet the lead.                                                                                                                                               |
-
-**After P0:** one `bun translate` across P1 locales, then [Fink](https://fink.inlang.com/github.com/SveltyCMS/SveltyCMS) lektorat (`src/messages/` PRs). Machine seed, community review. See [System Languages](../guides/configuration/system-languages.mdx).
+- **Database-Native FTS** — Wire `IFtsAdapter` (`dbAdapter.fts` across SQLite FTS5, Postgres `tsvector`, MariaDB `MATCH...AGAINST`, Mongo `$text`) into the live `?search=` query pipeline with tenant scoping and field-level access controls.
+- **Semantic Index Persistence** — Implement incremental updates and disk persistence (`indexItem`, `indexBatch`, `persistSemanticIndex`, `rebuildSemanticIndex`) in `src/services/intelligence/semantic-index.ts`.
+- **Content Insights Consumer** — Document and surface `getContentInsights` and cross-tenant pattern recognition in editorial workflows.
+- **`TRUSTED_PROXIES`** — Enforce `getTrustedProxies()` from `src/databases/config-state.ts` across IP extraction in rate limiting, auth, and audit logging.
+- **Role Bitset Invalidation** — Automate role cache clearing on role permission mutations via `invalidateRoleBitset`.
+- **`streamingRawJsonResponse`** — Wire or prune unused streaming helper in `src/routes/api/[...path]/handlers/streaming.ts`.
+- **Required-Fields Publish Guard** — Connect `validateRequiredFields()` (`src/widgets/widget-validation.ts`) to status transition mutations to enforce non-empty publish requirements.
+- **Legacy Store Bridges** — Migrate `systemState` and `overallState` in `src/stores/system/state.svelte.ts` from legacy `svelte/store` `derived()` exports to modern Svelte 5 runes (`$state()`, `$derived()`).
+- **GraphQL Replay & Hint Controls** — `markMutationExecuted` (mutation replay prevention) and `createSuppressHintsRule` in `src/routes/api/graphql/rules.ts` are never wired (`+server.ts` only registers depth-limit and max-alias rules). Wire them into the Yoga validation list or delete them deliberately — as-is the replay guard does not exist at runtime.
 
 ---
 
-## 🏢 Enterprise Workspaces & Governance
+## 🌐 System Language Workstream (P0–P4) {#system-language-p0-p4}
 
-- Whole-team studio workflow, editorial state visibility, translation cockpit
-- Adaptive workspaces theme, OAuth 2.1 for MCP, deep JSON path filtering
-- AI command bar guardrails, Rust tooling evaluation ([fuzdev/tsv](https://github.com/fuzdev/tsv) formatter/parser vs Oxc), onboarding/deploy buttons
+Ordered sequence for internationalization:
 
----
-
-## 📣 Future Improvements to Get Noticed
-
-### 🔴 High
-
-1. Marketplace static OG sync on live docroot
-2. Docs “Was this page helpful?” widget wiring
-3. Framework quickstart tabs / role segmentation
-4. SEO comparison blogs (dated, EU-compliant)
-5. `FUNDING.yml` / sponsors
-6. Ecosystem launch (PH, HN, awesome lists)
-
-### 🟡 Medium
-
-7. Versioned docs
-8. Per-page OG images
-9. Telemetry SSR of first-paint stats
-10. Canonical Discord invite
-11. Stripe renewal webhook fix
-12. Enterprise governance feature page
-
-### GEO / KPIs
-
-13. Agent-prompt onboarding snippets
-14. FAQ JSON-LD
-15. Verifiable dated technical claims (ongoing — evaluation docs truth-pass Aug 2026)
-16. Analytics / Search Console
+| Pri    | Goal                                 | Description & Scope                                                                                                                                                                                       | Status      |
+| :----- | :----------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- |
+| **P0** | **Complete EN/DE Coverage**          | Eliminate all remaining hardcoded English strings in admin chrome (config, media, dashboard, image editor) using `scripts/check-hardcoded-copy.ts`.                                                       | In Progress |
+| **P1** | **EU Pack + Arabic (RTL)**           | Seeded catalogs for FR, ES, IT, NL, PL and AR (`scripts/seed-language-packs.ts`) with EN key parity; RTL via `getTextDirection`. Overlay covers chrome buttons; remaining keys stay English until review. | Seeded      |
+| **P2** | **Transparent Language HMR**         | Implement seamless hot-reloading after language catalog generation (`bun run paraglide`) without requiring a manual server restart in dev.                                                                | Partial     |
+| **P4** | **Buyer & Compliance Documentation** | Provide verifiable translation workflow documentation and Crowdin integration guide adhering to UWG §6.                                                                                                   | Partial     |
 
 ---
 
-## Priority for implementers (current)
+## 🚀 Future & Enterprise Initiatives
 
-| Priority | Work                                                                                                                                          |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0**   | AI-Assisted Builder Phase 1 (`approve-collection` schema AST generator) & multi-column sort / advanced filter operators UI                    |
-| **P1**   | Marketplace remote package one-click install pipeline; published database adapter packages (`sveltycms-sqlite\|mongodb\|mariadb\|postgresql`) |
-| **P2**   | Docker/Terraform enterprise cluster pack, managed cloud deployment                                                                            |
+- **Cross-Source Data Merge (v3.1)**: Federated queries across heterogeneous databases.
+- **Visual Studio Query Builder**: In-app drag-and-drop visual pipeline builder for complex database aggregations.
+- **GraphQL Supergraph & Federation**: Apollo Federation v2 compatibility for multi-service enterprise architectures.
+- **Svelty Managed Cloud & Enterprise Cluster**: Automated multi-region clustering, distributed Redis caching, and Terraform infrastructure recipes.
+- **Zero-Downtime Deployment Verifier**: Automated pre-flight deployment check verifying schema backward-compatibility.
+- **SvelteKit 3.0 & TypeScript 7 Adoption**: Finalize upgrade path once upstream `@sveltejs/kit` and `write_tsconfig` stabilize.
+- **Rust Tooling Evaluation (`fuzdev/tsv`)**: Benchmark Rust-based Svelte AST parsing against Oxc (`oxlint`/`oxfmt`).
+- **Third-Party Security Audit**: Commission an independent external penetration test prior to enterprise GA.
 
-## ✅ Shipped (September 2026) — moved to the [Achievements Log](./achievements-2026.mdx)
+---
 
-- **Session AMR / MFA persistence** across all 4 database engines (SQLite, PostgreSQL, MariaDB, MongoDB) with proof-preserving rotation and zero query cost.
-- **Adaptive smart rate-limiting & load shedding** — dynamic EWMA system pressure, request velocity damping, and tier/plan quotas under unified `rateLimit()` core.
-- **Platform infrastructure** — same-host Unix domain socket auto-detection, client-safe tenant split, and Yjs collaboration route export isolation.
-- **Hardware-adaptive profile & 4-DB benchmark matrix** — 200/200 green across all 4 database adapters.
-- **Omni-surface column resizing & layout preferences** across media gallery, user admin, website tokens, and entry list via persistent `layoutKey`.
-- **Bulk field-edit UI & sticky columns** — interactive batch field updating modal for collections + non-bleed sticky start/end column pinning.
-- **Authorization guardrails (September 2026)** — `POST /api/user` (bare root) now requires `user:write` and `GET /api/user` requires `user:read`; `/api/token/*` is a positive allowlist (only `GET /api/token/validate-token/{value}` is public) with a field-allowlisted update path; GraphQL APQ verifies `sha256(query)` (constant-time, 64-hex) before registering a persisted query. See [Achievements Log](./achievements-2026.mdx) §3.17.
-- **Request-size and page-size ceilings** — chunked bodies are counted through a zero-copy stream and bounded at the same 15 MB as `Content-Length` bodies; media uploads abort incrementally at that cap; `MAX_PAGE_SIZE = 200` is enforced across REST, the SDK find funnel and GraphQL.
-- **Cross-engine correctness fixes** — one `normalizeSortDirection()` for every SQL sort emitter (keyset pagination no longer repeated/terminated early on numeric directions), MongoDB `reorderStructure` persists through a single ordered `bulkWrite`, and MariaDB repairs `mfaVerifiedAt` to `DATETIME(3)` once per install.
+## 📣 Marketing, Ecosystem & Community
 
-_Last roadmap sync: 2026-09-18_
+### High Priority
 
-## ✅ Shipped Milestones
+1. Marketplace static OpenGraph card synchronization on live docroot.
+2. Interactive "Was this page helpful?" feedback component on documentation routes.
+3. Framework quickstart guides (Next.js, Astro, Nuxt, SvelteKit consumers).
+4. Dated, EU-compliant competitive architectural whitepapers.
+5. GitHub Sponsors & `FUNDING.yml` onboarding.
+6. Public ecosystem launch (Product Hunt, Hacker News, awesome-cms lists).
 
-Historical milestones, benchmark proofs, and completed deliverables are permanently maintained in the [Achievements Log](./achievements-2026.mdx).
+### Medium Priority
+
+7. Versioned documentation router for legacy versions.
+8. Automated per-page dynamic OG image generator.
+9. First-paint telemetry metrics display on dashboard.
+10. Official community Discord server launch.
+11. Enterprise governance whitepaper.
+
+_Last roadmap sync: 2026-09-20 (Phase 1 builder, Smart Table UX, marketplace install, adapter packages, EU/AR catalogs)_

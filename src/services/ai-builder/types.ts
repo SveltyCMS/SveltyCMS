@@ -67,3 +67,25 @@ export interface DesignResult {
   /** Name of the model backend that produced it. */
   backend: string;
 }
+
+/** Input for {@link approveCollection}. */
+export interface ApproveCollectionInput {
+  proposal: CollectionDesignProposal;
+  tenantId?: string | null;
+  /** Overwrite an existing collection file with the same slug. Default false. */
+  overwrite?: boolean;
+  icon?: string;
+  status?: string;
+  userId?: string;
+  userEmail?: string;
+  userRole?: string;
+}
+
+/** Result of a successful collection approval write. */
+export interface ApproveCollectionResult {
+  collectionId: string;
+  slug: string;
+  path: string;
+  overwritten: boolean;
+  contentVersion?: number;
+}

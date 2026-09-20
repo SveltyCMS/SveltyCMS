@@ -23,7 +23,7 @@ tags:
 > This document is the **forward-looking companion** to [AI Integration & Local Knowledge Core](./ai-integration.mdx). It describes what we will build so that the **Collection Builder** and every other builder in SveltyCMS (widgets, pages, forms, automations, workflows) can be **designed with AI assistance** — from natural-language intent to validated, versioned, and deployable artifacts.
 
 > [!IMPORTANT]
-> **Status: Roadmap — Phase 0 shipped, Phases 1–3 not yet implemented.** Each feature below lists the building blocks that already exist, the gaps to close, and the acceptance criteria that define "done". Implementation order follows the phases in [Rollout Plan](#rollout-plan).
+> **Status: Phase 0 + Phase 1 Collection Designer shipped.** Widget / page / automation designers (later phases) are still open. Each feature below lists the building blocks that already exist, the gaps to close, and the acceptance criteria that define "done". Implementation order follows the phases in [Rollout Plan](#rollout-plan).
 
 ---
 
@@ -82,7 +82,7 @@ Everything below is implemented and can be composed — no new infrastructure is
 - Endpoints:
   - `POST /api/ai-builder/design-collection` — prompt → structured `CollectionDesignProposal` ✅ (Phase 0)
   - `POST /api/ai-builder/refine-collection` — chat turn against an existing proposal ✅ (Phase 0)
-  - `POST /api/ai-builder/approve-collection` — validates + writes schema (respects permissions, tenant scope, audit log) — Phase 1
+  - `POST /api/ai-builder/approve-collection` — validates + writes schema (respects permissions, tenant scope, audit log) ✅ (Phase 1)
 - **Validation layer (non-negotiable):** every AI field maps to a real widget from the registry; Valibot schemas are re-validated; duplicate `db_fieldName` is rejected; reserved names blocked. ✅ implemented in `validator.ts` (Phase 0).
 
 ### Acceptance criteria
@@ -203,7 +203,7 @@ Prompt (GUI) → Builder AI Gateway (src/services/ai-builder/)
 | Phase                                          | Contents                                                                                                                                                                                                                                           | Effort | Depends on        |
 | :--------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----- | :---------------- |
 | **0 — Gateway skeleton** ✅ shipped 2026-08-20 | `src/services/ai-builder/` (gateway, prompts, validator, diff, collection-designer) + `ai-builder` API namespace in the existing fail-closed dispatcher (`design-collection`, `refine-collection`; `approve-collection` returns 501 until Phase 1) | S      | —                 |
-| **1 — AI Collection Designer**                 | Section 1, full test stack                                                                                                                                                                                                                         | L      | Phase 0           |
+| **1 — AI Collection Designer** ✅              | `generateCollectionSourceFromProposal` AST writer + `approveCollection` disk write / `syncContentState` / audit. `POST /api/ai-builder/approve-collection`                                                                                         | L      | Phase 0           |
 | **1 — AI Widget Builder**                      | Section 2, preview + tests                                                                                                                                                                                                                         | M      | Phase 0           |
 | **2 — Page/Site Designer**                     | Section 3, live-spec mode first, code mode second                                                                                                                                                                                                  | L      | Phase 1 (widgets) |
 | **2 — Automation/Workflow Designer**           | Section 4, graph preview                                                                                                                                                                                                                           | M      | Phase 0           |

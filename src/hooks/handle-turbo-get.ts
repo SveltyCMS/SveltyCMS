@@ -15,6 +15,7 @@ import {
   responseCache,
   buildUserResponseCacheKey,
   buildGraphQLResponseCacheKey,
+  type CachedResponseEntry,
 } from "@src/services/cache/response-cache";
 import {
   collectionEtagMatches,
@@ -22,14 +23,13 @@ import {
 } from "@src/services/cache/collection-etag";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
+import { resolveRequestTenant } from "./request-tenant";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
 import {
   negotiateEncoding,
-  compressSync,
   hasNativeCompression,
   setCompressionHeaders,
-  type CompressionAlgorithm,
 } from "./handle-compression";
 
 interface TurboAuthContext {
@@ -150,20 +150,9 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   locals.tenantId = turboCtx.tenantId;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
-  // 🧪 TEST-MODE TENANT PARITY: honor the per-request tenant header in test mode only
-  // (same as handleAuthentication) so turbo cache keys never cross tenants in
-  // tenant-isolation tests. Without this test-gate, untrusted headers could cross tenants in prod.
-  const isTestMode =
-    process.env.TEST_MODE === "true" ||
-    process.env.PLAYWRIGHT_TEST === "true" ||
-    process.env.NODE_ENV === "test";
-  const requestTenant = isTestMode
-    ? (request.headers.get("x-test-tenant-id") ?? request.headers.get("x-tenant-id"))
-    : null;
-  const cacheTenant =
-    requestTenant && /^[a-zA-Z0-9_-]+$/.test(requestTenant)
-      ? (requestTenant as string)
-      : (turboCtx.tenantId as string);
+  // 🧪 Always re-apply the per-request test-mode tenant override: the turbo
+  // context is session-keyed, so serving it verbatim crosses tenants.
+  const cacheTenant = resolveRequestTenant(request, turboCtx.tenantId);
   if (cacheTenant) locals.tenantId = cacheTenant as DatabaseId;
 
   const userId = turboCtx.user?._id || turboCtx.user?.id || null;
@@ -209,10 +198,24 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   if (!resEntry || !resEntry.body) return resolve(event);
 
+  return serveTurboCacheEntry(event, resEntry);
+};
+
+/**
+ * Serve a turbo L1 tuple (HIT / 304 / pre-compressed). Shared by handleTurboGet
+ * and the collection point-read miss lane so HIT bytes stay identical.
+ */
+export function serveTurboCacheEntry(
+  event: { request: Request; url: URL },
+  resEntry: CachedResponseEntry,
+): Response {
+  const { request, url } = event;
+  const method = request.method;
   const responseHeaders = new Headers({
     "Content-Type": "application/json",
     "X-Cache": "TURBO-HIT",
     "Cache-Control": "private, must-revalidate",
+    "x-srv-dur": "0.05",
     Vary: "Accept-Encoding, Cookie",
   });
 
@@ -251,34 +254,15 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   });
 
   if (algo && payloadSize > 1024) {
-    // 🚀 Serve the pre-computed variant stashed by handle-api-requests
-    // (br/gzip/zstd) — re-compressing the cached body per hit cost ~17-27µs
-    // per KB, i.e. the same magnitude as the whole middleware chain for
-    // >4KB payloads. Fall back to on-the-fly compression when the variant
-    // is missing (e.g. cold L1 entry from before the stash landed).
     const variant = resEntry.compressed?.[algo];
     if (variant && variant.length < payloadSize) {
       bodyToSend = variant;
       setCompressionHeaders(responseHeaders, algo, payloadSize, variant.length);
-    } else {
-      try {
-        const compressed = compressSync(rawBody, algo as CompressionAlgorithm, payloadSize);
-        if (compressed && compressed.length < payloadSize) {
-          bodyToSend = compressed;
-          setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
-          // Persist so the next TURBO-HIT skips compressSync (cold L1 / missing zstd).
-          if (!resEntry.compressed) resEntry.compressed = {};
-          resEntry.compressed[algo] = compressed;
-        }
-      } catch {
-        bodyToSend = resEntry.buffer ?? rawBody;
-      }
     }
+    // No compressSync fallback — HIT must stay off the request thread.
+    // Missing variants serve uncompressed; background compressAsync fills them.
   }
 
-  // HEAD/OPTIONS must return headers only — HTTP forbids a content body on
-  // these methods. Serving the cached JSON payload (as before) violated RFC
-  // 9110 and could hang clients waiting for a body that must not arrive.
   if (method === "HEAD" || method === "OPTIONS") {
     bodyToSend = null;
   }
@@ -287,4 +271,4 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     status: 200,
     headers: responseHeaders,
   });
-};
+}

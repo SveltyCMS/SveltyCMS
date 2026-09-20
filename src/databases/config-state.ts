@@ -52,7 +52,6 @@ export function setPrivateEnv(env: AppPrivateConfig | null) {
   loadPromise = null;
   configStamp++;
   dbConfigCache = null;
-  redisConfigCache = null;
   connectionStringCache = null;
 }
 
@@ -352,7 +351,6 @@ export function getPrivateEnv(): AppPrivateConfig | null {
 
 // Micro-caches for derived configs
 let dbConfigCache: any = null;
-let redisConfigCache: any = null;
 let connectionStringCache: string | null = null;
 
 export function getDatabaseConfig() {
@@ -387,26 +385,6 @@ export function getDatabaseConfig() {
   };
 
   return dbConfigCache;
-}
-
-export function getRedisConfig() {
-  if (redisConfigCache) return redisConfigCache;
-
-  const env = getPrivateEnv();
-  const host = env?.REDIS_HOST || "localhost";
-  const port = env?.REDIS_PORT || 6379;
-
-  redisConfigCache = {
-    useRedis: env?.USE_REDIS === true,
-    host,
-    port,
-    password: env?.REDIS_PASSWORD,
-    url: `redis://${host}:${port}`,
-    retryAttempts: 3,
-    retryDelay: 2000,
-  };
-
-  return redisConfigCache;
 }
 
 /**
@@ -612,7 +590,6 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
     configStamp++;
   }
   dbConfigCache = null;
-  redisConfigCache = null;
   connectionStringCache = null;
 }
 

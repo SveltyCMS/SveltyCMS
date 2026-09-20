@@ -17,7 +17,6 @@
 import { auth } from "@src/databases/db";
 import { SCIM_SCHEMAS } from "@src/types/scim";
 import type { ScimError, ScimPatchOp } from "@src/types/scim";
-import { AppError } from "@utils/error-handling";
 import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { json } from "@sveltejs/kit";
@@ -388,11 +387,4 @@ export function scimError(status: number, detail: string, scimType?: string): Re
     ...(scimType ? { scimType } : {}),
   };
   return json(body, { status });
-}
-
-/**
- * Throws a SCIM-formatted AppError for use with apiHandler.
- */
-export function throwScimError(status: number, detail: string, scimType?: string): never {
-  throw new AppError(detail, status, scimType || "scimError");
 }

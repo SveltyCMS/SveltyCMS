@@ -10,48 +10,43 @@
  * - Node env detection
  */
 
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { telemetryService } from "@src/services/observability/telemetry-service";
 
 describe("TelemetryService Environment Checks", () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = { ...originalEnv };
-  });
-
   afterEach(() => {
-    process.env = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("should return test_mode status when TEST_MODE is true", async () => {
-    process.env.TEST_MODE = "true";
+    vi.stubEnv("TEST_MODE", "true");
     const result = (await telemetryService.checkUpdateStatus()) as any;
     expect(result.status).toBe("test_mode");
   });
 
   it("should return test_mode status when CI is true", async () => {
-    process.env.CI = "true";
+    vi.stubEnv("CI", "true");
     const result = (await telemetryService.checkUpdateStatus()) as any;
     expect(result.status).toBe("test_mode");
   });
 
   it("should return test_mode status when VITEST is true", async () => {
-    process.env.VITEST = "true";
+    vi.stubEnv("VITEST", "true");
     const result = (await telemetryService.checkUpdateStatus()) as any;
     expect(result.status).toBe("test_mode");
   });
 
   it("should return test_mode status when NODE_ENV is test", async () => {
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "test");
     const result = (await telemetryService.checkUpdateStatus()) as any;
     expect(result.status).toBe("test_mode");
   });
 
   it("should not crash when checking status without env vars", async () => {
-    delete process.env.TEST_MODE;
-    delete process.env.CI;
-    delete process.env.VITEST;
-    delete process.env.NODE_ENV;
+    vi.stubEnv("TEST_MODE", undefined);
+    vi.stubEnv("CI", undefined);
+    vi.stubEnv("VITEST", undefined);
+    vi.stubEnv("NODE_ENV", undefined);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ status: "ok" }), {
         status: 200,

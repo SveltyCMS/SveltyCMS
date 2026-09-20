@@ -3,7 +3,7 @@
  * @description Unit tests for native field-level AES-256-GCM envelopes.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   encryptFieldValue,
   decryptFieldValue,
@@ -15,17 +15,16 @@ import {
 import { AppError } from "@utils/error-handling";
 
 const ENCRYPTION_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
-const OLD_ENV = { ...process.env };
 const CTX = { collectionId: "contacts", tenantId: "tenant_a" };
 
 describe("field-level AES-256-GCM encryption", () => {
   beforeEach(() => {
-    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
     resetFieldEncryptionKeyCache();
   });
 
   afterEach(() => {
-    process.env = { ...OLD_ENV };
+    vi.unstubAllEnvs();
     resetFieldEncryptionKeyCache();
   });
 
@@ -100,8 +99,8 @@ describe("field-level AES-256-GCM encryption", () => {
   });
 
   it("throws FIELD_ENCRYPTION_UNAVAILABLE when ENCRYPTION_KEY is missing", async () => {
-    delete process.env.ENCRYPTION_KEY;
-    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", undefined);
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", undefined);
     resetFieldEncryptionKeyCache();
     await expect(encryptFieldValue("x", CTX, "ssn")).rejects.toSatisfy((err: unknown) => {
       return err instanceof AppError && err.code === "FIELD_ENCRYPTION_UNAVAILABLE";

@@ -52,6 +52,8 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 		onClearAll: () => void;
 		onClearFilter?: (id: string) => void;
 		showClearInFirstCell?: boolean;
+		onOpenAdvanced?: () => void;
+		advancedCount?: number;
 	}
 
 	let {
@@ -62,7 +64,9 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 		onFilterChange,
 		onClearAll,
 		onClearFilter,
-		showClearInFirstCell = true
+		showClearInFirstCell = true,
+		onOpenAdvanced,
+		advancedCount = 0
 	}: Props = $props();
 
 	const definitionMap = $derived.by(() => {
@@ -131,7 +135,44 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				>
 					Clear all
 				</Button>
+				{#if onOpenAdvanced}
+					<Button
+						variant="outline"
+						size="sm"
+						class="text-xs gap-1 ms-auto"
+						onclick={onOpenAdvanced}
+						aria-label="Open advanced filter modal"
+					>
+						<iconify-icon icon="carbon:filter-edit" width={14}></iconify-icon>
+						Advanced
+						{#if advancedCount > 0}
+							<span class="rounded-full bg-primary-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
+								{advancedCount}
+							</span>
+						{/if}
+					</Button>
+				{/if}
 			</div>
+		</th>
+	</tr>
+{:else if onOpenAdvanced}
+	<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+		<th colspan={headers.length + 1} class="p-1! px-2! text-end">
+			<Button
+				variant="ghost"
+				size="sm"
+				class="text-xs gap-1 text-tertiary-500 dark:text-primary-500"
+				onclick={onOpenAdvanced}
+				aria-label="Open advanced filter modal"
+			>
+				<iconify-icon icon="carbon:filter-edit" width={14}></iconify-icon>
+				Advanced Filters
+				{#if advancedCount > 0}
+					<span class="rounded-full bg-primary-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
+						{advancedCount}
+					</span>
+				{/if}
+			</Button>
 		</th>
 	</tr>
 {/if}

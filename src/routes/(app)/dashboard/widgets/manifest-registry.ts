@@ -55,7 +55,6 @@ const widgetManifestModules = import.meta.glob<{ default: DashboardWidgetManifes
 );
 
 let cachedWidgets: DashboardWidgetManifest[] | undefined;
-let cachedById: Map<string, DashboardWidgetManifest> | undefined;
 
 function ensureWidgetCache(): void {
   if (cachedWidgets) return;
@@ -63,7 +62,6 @@ function ensureWidgetCache(): void {
     .map((mod) => mod.default)
     .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name));
-  cachedById = new Map(cachedWidgets.map((widget) => [widget.id, widget]));
 }
 
 /**
@@ -72,12 +70,4 @@ function ensureWidgetCache(): void {
 export function getInstalledDashboardWidgets(): DashboardWidgetManifest[] {
   ensureWidgetCache();
   return cachedWidgets ?? [];
-}
-
-/**
- * Returns the manifest for a single package (by folder id), or undefined.
- */
-export function getDashboardWidgetManifest(id: string): DashboardWidgetManifest | undefined {
-  ensureWidgetCache();
-  return cachedById?.get(id);
 }

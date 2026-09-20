@@ -143,24 +143,6 @@ function searchLocalFallback(query: string, limit: number): SearchData[] {
   return results.slice(0, limit);
 }
 
-export function searchGlobalIndexSync(query: string): SearchData[] {
-  const q = query.toLowerCase().trim();
-  if (!q) return [];
-
-  const results: SearchData[] = [];
-  for (const item of globalSearch.entries) {
-    if (
-      item.title.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q) ||
-      item.keywords.some((k) => k.toLowerCase().includes(q))
-    ) {
-      results.push(item);
-    }
-  }
-
-  return results;
-}
-
 async function searchSemanticFromServer(query: string): Promise<SemanticSearchMatch[]> {
   try {
     const url = `/api/search?mode=semantic&q=${encodeURIComponent(query)}`;
@@ -194,46 +176,4 @@ function convertSemanticResults(matches: SemanticSearchMatch[], limit: number): 
       [`Go to ${match.title}`]: { path: match.path },
     },
   }));
-}
-
-/** Map semantic hits into palette entries for the unified UI. */
-export function semanticToPaletteEntries(matches: SemanticSearchMatch[]): CommandPaletteEntry[] {
-  const iconFor = (type: SemanticSearchMatch["type"]) => {
-    switch (type) {
-      case "media":
-        return "mdi:image";
-      case "user":
-        return "mdi:account";
-      case "collection":
-        return "mdi:database";
-      case "admin-page":
-        return "mdi:file-document-outline";
-      default:
-        return "mdi:file-document-outline";
-    }
-  };
-
-  return matches.map((match) => ({
-    id: `semantic:${match.id || match.path}`,
-    category:
-      match.type === "admin-page"
-        ? ("page" as const)
-        : match.type === "collection"
-          ? ("collection" as const)
-          : match.type === "media"
-            ? ("media" as const)
-            : match.type === "user"
-              ? ("user" as const)
-              : ("entry" as const),
-    title: match.title,
-    description: match.description || `${match.type} · ${match.path}`,
-    keywords: [match.type, match.matchType],
-    icon: iconFor(match.type),
-    path: match.path,
-    weight: Math.round(match.score * 50),
-  }));
-}
-
-export function initializeGlobalSearch(): void {
-  logger.info("[SearchIndex] Global search initialized with command palette catalog");
 }

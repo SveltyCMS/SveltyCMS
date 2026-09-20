@@ -20,9 +20,6 @@
  * - Data encoding helpers (Base64/Yjs)
  */
 
-import { logger } from "./logger.ts";
-import { AppError } from "./error-handling.ts";
-
 // --- Identification Utilities ---
 
 /**
@@ -48,23 +45,6 @@ export function getTenantIdFromHostname(hostname: string, multiTenant = true): s
     return parts[0].toLowerCase();
   }
   return null;
-}
-
-/**
- * Ensures valid tenant context. 🛡️ Sanitizes logs to prevent sensitive ID leaks.
- */
-export function requireTenantContext(
-  locals: App.Locals,
-  operationName: string,
-  isMultiTenant = false,
-): string | null {
-  const tenantId = locals.tenantId || locals.user?.tenantId || null;
-
-  if (isMultiTenant && !tenantId) {
-    logger.error("Tenant context missing", { operationName });
-    throw new AppError("Tenant context is required.", 500, "TENANT_REQUIRED");
-  }
-  return tenantId;
 }
 
 // --- Encoding Helpers ---

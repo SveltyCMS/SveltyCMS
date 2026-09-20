@@ -48,6 +48,7 @@ import {
   isSimpleCollectionWrite,
   tryCollectionWriteLane,
 } from "./hooks/handle-collection-write-lane";
+import { isSimpleCollectionRead, tryCollectionReadLane } from "./hooks/handle-collection-read-lane";
 import { resetIdCounters } from "@utils/id-generator";
 import { handleApiError } from "@utils/error-handling";
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
@@ -729,6 +730,24 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   const pathname = event.url.pathname;
+
+  // Warm collection point-read: turbo HIT or one findById. Misses used to
+  // fall through ~9 async hooks + SvelteKit routing before the same SQL.
+  if (
+    (lane === RequestLane.HYPER_TURBO || lane === RequestLane.API_READ) &&
+    isSimpleCollectionRead(event)
+  ) {
+    return withLane(
+      await tryCollectionReadLane({
+        event,
+        resolve: async (evt) => {
+          const pipeline = await getPipeline(lane);
+          return pipeline({ event: evt, resolve });
+        },
+      }),
+      lane,
+    );
+  }
 
   // Warm collection create/update: WAF + CSRF + rate-limit + one persist.
   // Cold sessions fall through to the full API_WRITE sequence.

@@ -276,38 +276,3 @@ export function getAdjustmentsByCategory(
 ): AdjustmentConfig[] {
   return ADJUSTMENT_CONFIGS.filter((config) => config.category === category);
 }
-
-/**
- * Validate adjustment value
- */
-export function clampAdjustment(key: keyof Adjustments, value: number): number {
-  const config = getAdjustmentConfig(key);
-  if (!config) {
-    return value;
-  }
-  return Math.max(config.min, Math.min(config.max, value));
-}
-
-/**
- * Check if adjustments are at default
- */
-export function isDefault(adjustments: Adjustments): boolean {
-  return Object.entries(adjustments).every(
-    ([key, value]) => value === DEFAULT_ADJUSTMENTS[key as keyof Adjustments],
-  );
-}
-
-/**
- * Reset specific category
- */
-export function resetCategory(
-  adjustments: Adjustments,
-  category: AdjustmentConfig["category"],
-): Adjustments {
-  const updated = { ...adjustments };
-  getAdjustmentsByCategory(category).forEach((config) => {
-    const key = config.key;
-    updated[key] = DEFAULT_ADJUSTMENTS[key] ?? 0;
-  });
-  return updated;
-}

@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { getTextDirection } from "@utils/string";
 import {
+  BUNDLED_SYSTEM_LOCALES,
   compiledUiLocale,
   isCompiledSystemLocale,
   isIso6391LanguageCode,
@@ -29,16 +30,28 @@ describe("system-locale", () => {
     expect(languageBase("EN_US")).toBe("en");
   });
 
-  it("treats bundled en/de as compiled and others as English UI fallback", () => {
-    expect(isCompiledSystemLocale("en")).toBe(true);
-    expect(isCompiledSystemLocale("de")).toBe(true);
-    expect(isCompiledSystemLocale("ar")).toBe(false);
-    expect(compiledUiLocale("ar")).toBe("en");
-    expect(compiledUiLocale("de")).toBe("de");
+  it("treats bundled catalogs as compiled and unbundled codes as English fallback", () => {
+    const bundled = [...BUNDLED_SYSTEM_LOCALES];
+    expect(bundled.length).toBeGreaterThan(0);
+    for (const code of bundled) {
+      expect(isCompiledSystemLocale(code)).toBe(true);
+      expect(compiledUiLocale(code)).toBe(code);
+    }
+    // A code that is deliberately not bundled falls back to the base locale.
+    const unbundled = ["ja", "sv", "pt"].find(
+      (code) => !(bundled as readonly string[]).includes(code),
+    )!;
+    expect(isCompiledSystemLocale(unbundled)).toBe(false);
+    expect(compiledUiLocale(unbundled)).toBe("en");
   });
 
   it("merges configured locales with bundled catalogs and dedupes", () => {
-    expect(mergeSystemLanguages(["fr", "en", "de", "fr"])).toEqual(["en", "de", "fr"]);
+    const bundled = [...BUNDLED_SYSTEM_LOCALES];
+    const merged = mergeSystemLanguages(["fr", "en", "de", "fr"]);
+    // Bundled catalogs keep their order and come first; configured codes append once.
+    expect(merged.slice(0, bundled.length)).toEqual(bundled);
+    expect(merged).toHaveLength(new Set(merged).size);
+    expect(merged.filter((code) => code === "fr")).toHaveLength(1);
   });
 
   it("sets RTL html attrs via getTextDirection", () => {

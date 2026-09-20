@@ -44,6 +44,7 @@ function isValidWidget(obj: unknown): obj is EditorWidget {
 }
 
 // Load all widgets from lowercase folders
+// slop:suppress — editor widget registry: the modules themselves are the registry
 const modules = import.meta.glob("./*/index.ts", {
   eager: true,
 }) as Record<string, { default?: EditorWidget; editorWidget?: EditorWidget }>;
@@ -88,28 +89,6 @@ export const editorWidgets: EditorWidget[] = Object.entries(modules)
   });
 
 /**
- * Get widgets by category
- */
-export function getWidgetsByCategory(category: string): EditorWidget[] {
-  return editorWidgets.filter((w) => w.category === category);
-}
-
-/**
- * Get widget by key
- */
-export function getWidgetByKey(key: string): EditorWidget | undefined {
-  return editorWidgets.find((w) => w.key === key);
-}
-
-/**
- * Get all available categories
- */
-export function getCategories(): string[] {
-  const categories = new Set(editorWidgets.map((w) => w.category ?? "general"));
-  return Array.from(categories).sort();
-}
-
-/**
  * Check if a widget is available (not disabled, not experimental in production)
  */
 export function isWidgetAvailable(widget: EditorWidget): boolean {
@@ -129,6 +108,3 @@ if (import.meta.env.DEV) {
     logger.debug("[Widget Registry] Loaded widgets:", editorWidgets.length);
   }
 }
-
-// Export count for external use
-export const widgetCount = editorWidgets.length;

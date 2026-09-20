@@ -34,6 +34,7 @@ import {
   responseCache,
   buildUserResponseCacheKey,
   generateContentEtag,
+  collectionResponseCacheTags,
 } from "@src/services/cache/response-cache";
 
 // Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
@@ -681,11 +682,7 @@ export const _handler = async (event: RequestEvent) => {
           : null;
       const entityDocId =
         parts.length >= 4 && parts[3] !== "list" && parts[3] !== "search" ? parts[3] : null;
-      const tags: string[] = ["res:all"];
-      if (colName) {
-        tags.push(`collection:${colName}`, `res:${colName}`);
-        if (entityDocId) tags.push(`doc:${colName}:${entityDocId}`);
-      }
+      const { tags, skipSharedL1 } = collectionResponseCacheTags(colName, entityDocId);
 
       if (user) {
         // Sync L1 turbo cache with tags — instant O(#matched) invalidation on write.
@@ -707,6 +704,7 @@ export const _handler = async (event: RequestEvent) => {
           tenantId,
           {
             tags,
+            skipSharedL1,
           },
         );
       }
@@ -762,11 +760,7 @@ export const _handler = async (event: RequestEvent) => {
           : null;
       const entityDocId =
         parts.length >= 4 && parts[3] !== "list" && parts[3] !== "search" ? parts[3] : null;
-      const tags: string[] = ["res:all"];
-      if (colName) {
-        tags.push(`collection:${colName}`, `res:${colName}`);
-        if (entityDocId) tags.push(`doc:${colName}:${entityDocId}`);
-      }
+      const { tags, skipSharedL1 } = collectionResponseCacheTags(colName, entityDocId);
 
       // L1 turbo map (sync) + L2 cacheService (async fire-and-forget) with reverse tag index
       // Authenticated JSON GETs flow back through handleApiRequests, which re-sets
@@ -784,6 +778,7 @@ export const _handler = async (event: RequestEvent) => {
         tenantId,
         {
           tags,
+          skipSharedL1,
         },
       );
     }

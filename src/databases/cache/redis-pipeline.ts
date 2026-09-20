@@ -53,6 +53,14 @@ export class RedisWriteBatcher {
   private writeFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly WRITE_BATCH_MS = 15;
   private readonly WRITE_BATCH_MAX = 50;
+  /**
+   * Serializes flushes. Without this, `flush()` could drain the buffer while a
+   * previously scheduled background flush was still executing its pipeline —
+   * so `await flush()` resolved *before* the writes were durable. That made
+   * cross-node reads right after a write miss intermittently, and let
+   * `cleanup()` (shutdown) drop still-in-flight buffered writes.
+   */
+  private flushChain: Promise<void> = Promise.resolve();
 
   /**
    * Adds an entry to the micro-batch write buffer.
@@ -81,8 +89,17 @@ export class RedisWriteBatcher {
 
   /**
    * Flushes all buffered writes to Redis in a single pipeline.
+   *
+   * Resolves only after every write buffered up to this call is durable —
+   * flushes are chained, so an in-flight background flush is awaited first.
    */
   async flush(l2: any): Promise<void> {
+    const run = this.flushChain.catch(() => {}).then(() => this.flushOnce(l2));
+    this.flushChain = run;
+    return run;
+  }
+
+  private async flushOnce(l2: any): Promise<void> {
     const batch = this.writeBuffer.splice(0);
     if (this.writeFlushTimer) {
       clearTimeout(this.writeFlushTimer);

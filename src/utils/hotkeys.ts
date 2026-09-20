@@ -158,13 +158,3 @@ export function registerHotkey(
 
   return unregister;
 }
-
-export function getRegisteredHotkeys() {
-  return Array.from(hotkeys.entries()).map(([combo, stack]) => {
-    const active = stack[stack.length - 1];
-    return {
-      combo: combo.replace(new RegExp(MOD, "gi"), "Mod").replace(/\+/g, " + "),
-      description: active?.description,
-    };
-  });
-}

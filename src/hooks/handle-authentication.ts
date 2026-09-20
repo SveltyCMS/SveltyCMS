@@ -59,6 +59,7 @@ import { error } from "@sveltejs/kit";
 import { AppError, handleApiError, isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "./handle-rate-limit";
+import { resolveRequestTenant } from "./request-tenant";
 
 /** Mask an email for log safety: r***s@web.de */
 function maskEmail(email: string): string {
@@ -761,17 +762,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = getSessionCookieName(isSecure);
 
-  // 🧪 TEST-MODE TENANT HEADER: Resolve once so ALL turbo fast paths (and the
-  // main flow) honor x-test-tenant-id even when a warm session context exists.
-  // Without this, a cached turboCtx.tenantId from an earlier request in the same
-  // session (e.g. tenant A) leaks into later requests for tenant B.
-  const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
-  const testTenantHeader = testMode ? event.request.headers.get("x-test-tenant-id") : null;
-  const testTenantOverride =
-    testTenantHeader && testTenantHeader.length > 0 && testTenantHeader !== "null"
-      ? (testTenantHeader as DatabaseId)
-      : null;
-
+  // 🧪 TEST-MODE TENANT HEADER: turbo contexts are session-keyed, so every turbo
+  // fast path below must re-apply the per-request tenant through
+  // resolveRequestTenant — otherwise a tenantId cached for an earlier request on
+  // the same session (e.g. tenant A) leaks into later requests for tenant B.
+  //
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
   // this skips ~2ms of per-request auth overhead for ALL request types.
@@ -785,7 +780,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = testTenantOverride ?? turboCtx.tenantId ?? locals.tenantId;
+      (locals as any).tenantId = resolveRequestTenant(
+        event.request,
+        turboCtx.tenantId ?? locals.tenantId,
+      );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
       (locals as any).__turboAuth = true;
@@ -819,7 +817,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = testTenantOverride ?? turboCtx.tenantId ?? locals.tenantId;
+      (locals as any).tenantId = resolveRequestTenant(
+        event.request,
+        turboCtx.tenantId ?? locals.tenantId,
+      );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
       (locals as any).__turboAuth = true;

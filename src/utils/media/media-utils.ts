@@ -323,10 +323,8 @@ export function validateBuffer(
   return { valid: true };
 }
 
-/** Aliases for backward compatibility */
+/** Alias for backward compatibility */
 export const validateMediaFileServer = validateBuffer;
-export const constructUrl = mediaUrl;
-export const constructMediaUrl = mediaUrl;
 
 // ─── Filename sanitization (merged from media-processing.ts) ──────────────
 

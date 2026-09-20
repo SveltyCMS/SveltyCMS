@@ -169,8 +169,8 @@ The CMS can run directly exposed, but a reverse proxy adds:
 - WebSocket: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";` for `/ws`.
 - Health: proxy `/api/system/health`.
 
-**TRUSTED_PROXIES** (new in schema):
-Set `TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (or your LB IPs) so our rate limiter, auth, and audit correctly see the real client IP instead of the proxy.
+**TRUSTED_PROXIES** (config key, not yet enforced):
+`TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (or your LB IPs) is stored in `config/private.ts` and exposed via `getTrustedProxies()` in `src/databases/config-state.ts`, but no rate-limiter/auth/audit path consumes it yet. The hooks currently read `X-Forwarded-*` directly, so deploy behind a proxy that strips client-supplied forwarding headers. Wiring `TRUSTED_PROXIES` into client-IP resolution is tracked in the [roadmap](../../project/roadmap-2026.mdx).
 
 ### Production Nginx Example (Copy-Paste Ready)
 
@@ -179,7 +179,7 @@ Set `TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (or your LB IPs) s
 # Place in /etc/nginx/sites-available/ and enable.
 # Assumes SveltyCMS on 127.0.0.1:3000, TLS terminated here.
 #
-# Also set in SveltyCMS private config:
+# Also set in SveltyCMS private config (reserved; not yet enforced):
 #   TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 
 upstream sveltycms {
@@ -344,8 +344,8 @@ All layers are optional — start simple and add as you grow.
 
 - Poolers and proxies must not bypass our 4-layer defense (middleware → dispatcher permissions → handler checks → page actions).
 - Tenant isolation stays in the query layer (`tenantId` filters or separate schemas/DBs). Poolers/proxies are transparent at the connection level.
-- Always validate `X-Forwarded-*` only from trusted proxies (we use the new `TRUSTED_PROXIES` + existing hardening).
-- Audit logs still capture real client IPs when proxies are trusted correctly.
+- Always validate `X-Forwarded-*` only from trusted proxies. The `TRUSTED_PROXIES` key is defined but not yet enforced by the rate limiter/auth/audit path (see [roadmap](../../project/roadmap-2026.mdx)); today the hooks read `X-Forwarded-*` directly, so the proxy must strip client-supplied forwarding headers.
+- Audit logs capture the client IP resolved by the hooks; behind a proxy, correct values depend on the proxy sanitizing `X-Forwarded-For`.
 
 ## When (Not) to Enable Layers
 

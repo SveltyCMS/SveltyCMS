@@ -396,11 +396,11 @@ The **Anomaly Detector** (`src/services/intelligence/anomaly-detector.ts`) uses 
 import {
   recordEdit,
   recordDeletion,
-  detectAnomalies,
+  detectContentAnomalies,
 } from "@src/services/intelligence/anomaly-detector";
 
 recordEdit("posts", 12500); // Called after each save
-const anomalies = detectAnomalies(); // Run periodically or on-demand
+const anomalies = detectContentAnomalies(); // Run periodically or on-demand
 ```
 
 ---

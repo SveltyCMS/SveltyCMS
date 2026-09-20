@@ -32,7 +32,7 @@ import "iconify-icon";
 import { registerPluginSlots } from "@src/plugins/index";
 registerPluginSlots();
 
-import { onMount, untrack } from "svelte";
+import { onDestroy, onMount, untrack } from "svelte";
 import { browser } from "$app/env";
 import { page } from "$app/state";
 import { beforeNavigate, afterNavigate } from "$app/navigation";
@@ -66,6 +66,8 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import {
 	initializeDarkMode,
 	initializeThemeStore,
+	startAutoRefresh,
+	stopAutoRefresh,
 	themeStore,
 } from "@src/stores/theme-store.svelte";
 import { screen } from "@src/stores/screen-size-store.svelte";
@@ -272,6 +274,13 @@ onMount(() => {
 	// Initialize dark mode
 	initializeDarkMode();
 
+	// Load the theme once, then enable the 30-minute revalidation timer
+	// (see the Theme Auto-Refresh effect below). `startAutoRefresh` is a no-op
+	// on the server; it only flips the flag that the effect reacts to.
+	initializeThemeStore()
+		.then(() => startAutoRefresh())
+		.catch((err) => logger.error("[Theme] init failed:", err));
+
 	// Initialize toast navigation handlers (must be called from onMount)
 	toast.init();
 
@@ -316,6 +325,11 @@ onMount(() => {
 	return () => {
 		screen.destroy();
 	};
+});
+
+// Stop theme revalidation when the root layout unmounts.
+onDestroy(() => {
+	stopAutoRefresh();
 });
 
 /**

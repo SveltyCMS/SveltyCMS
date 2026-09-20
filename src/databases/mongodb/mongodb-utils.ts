@@ -275,34 +275,6 @@ export const normalizePath = (path: string): string => {
 };
 
 /**
- * A higher-order function that wraps an async operation to monitor its performance.
- * It logs warnings for slow operations, aiding in performance tuning.
- * @param operation A descriptive name for the operation being monitored.
- * @param fn The async function to execute and monitor.
- */
-export const withPerformanceMonitoring = async <T>(
-  operation: string,
-  fn: () => Promise<T>,
-): Promise<T> => {
-  const startTime = performance.now();
-  try {
-    const result = await fn();
-    const duration = performance.now() - startTime;
-
-    if (duration > 1000) {
-      logger.warn(`Slow Operation: '${operation}' took ${duration.toFixed(2)}ms`);
-    } else {
-      logger.debug(`Operation: '${operation}' took ${duration.toFixed(2)}ms`);
-    }
-    return result;
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    logger.error(`Failed Operation: '${operation}' failed after ${duration.toFixed(2)}ms`, error);
-    throw error;
-  }
-};
-
-/**
  * Creates an in-memory paginated result from an array of items.
  * @param items The full array of items to paginate
  * @param options Pagination options (page, pageSize)

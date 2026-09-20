@@ -419,6 +419,5 @@ export class AuditService {
 
 export const auditService = new AuditService();
 export const auditLogService = auditService;
-export const logAuditEvent = auditService.log.bind(auditService);
 export const queryAuditLogs = auditService.queryLogs.bind(auditService);
 export const getLogs = auditService.getLogs.bind(auditService);

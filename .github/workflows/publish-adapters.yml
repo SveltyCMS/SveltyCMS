@@ -1,0 +1,50 @@
+# Publish standalone DB adapter packages on v* tags (best-effort, never blocks GitHub Release).
+name: Publish Adapters
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: npm publish adapters
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - sveltycms-sqlite
+          - sveltycms-mongodb
+          - sveltycms-mariadb
+          - sveltycms-postgresql
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: Sync package version from root
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          ROOT=$(node -e "console.log(require('./package.json').version)")
+          case "$VER" in
+            ''|main|next) VER="$ROOT" ;;
+          esac
+          node -e "const fs=require('fs'); const p='packages/${{ matrix.package }}/package.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.version=process.argv[process.argv.length-1]; fs.writeFileSync(p, JSON.stringify(j,null,2)+'\n');" "$VER"
+          echo "Publishing ${{ matrix.package }}@$VER"
+      - name: Publish ${{ matrix.package }}
+        working-directory: packages/${{ matrix.package }}
+        run: npm publish --access public --ignore-scripts
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

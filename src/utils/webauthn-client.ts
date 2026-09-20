@@ -32,16 +32,3 @@ export function bufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
 export function isPasskeySupported(): boolean {
   return browser && typeof window !== "undefined" && Boolean(window.PublicKeyCredential);
 }
-
-/** Checks whether WebAuthn Conditional Mediation (Autofill) is supported */
-export async function isConditionalUiSupported(): Promise<boolean> {
-  if (!isPasskeySupported()) return false;
-  if (typeof PublicKeyCredential.isConditionalMediationAvailable === "function") {
-    try {
-      return await PublicKeyCredential.isConditionalMediationAvailable();
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}

@@ -11,6 +11,7 @@
  * - Offline-first: caches listings locally, works without marketplace connectivity
  */
 
+import path from "node:path";
 import { logger } from "@utils/logger";
 import { assertPackageCompatibleWithCms } from "@src/widgets/widget-compatibility";
 
@@ -36,6 +37,12 @@ export interface MarketplacePlugin {
   installPath: string; // relative path e.g. "src/plugins/pagespeed"
   files: Record<string, string>; // filename → content
   updatedAt: string;
+  /** SHA-256 hex of canonical file contents (sorted filenames). */
+  checksum?: string;
+  sha256?: string;
+  downloadUrl?: string;
+  checkoutUrl?: string;
+  price?: number;
 }
 
 export interface MarketplaceSearchParams {
@@ -128,17 +135,31 @@ class MarketplaceClient {
     }
   }
 
-  /** Download a plugin by slug. */
+  /** Download a plugin by slug, preferring JSON payloads with `files` + checksum. */
   async download(pluginSlug: string): Promise<MarketplacePlugin> {
-    // First get package details, then download
     const pkg = await this.getPackage(pluginSlug);
-    const res = await fetch(`${this.baseUrl}/download/${pkg.id}`, {
+    const downloadUrl = pkg.downloadUrl || `${this.baseUrl}/download/${encodeURIComponent(pkg.id)}`;
+    const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+    await validateEgressUrl(downloadUrl, { timeoutMs: 30_000, maxSizeBytes: 20 * 1024 * 1024 });
+    const result = await safeFetch(downloadUrl, {
       headers: this.authHeaders(),
-      signal: AbortSignal.timeout(30000),
+      timeoutMs: 30_000,
+      maxSizeBytes: 20 * 1024 * 1024,
     });
-    if (!res.ok) throw new Error(`Download failed for ${pluginSlug}: ${res.status}`);
-    // Response is the zip/archive — for now return the package metadata
-    // Full install flow handles extraction in installPlugin()
+    if (!result.success || result.status !== 200 || !result.body) {
+      if (pkg.files && Object.keys(pkg.files).length > 0) return pkg;
+      throw new Error(`Download failed for ${pluginSlug}: ${result.error || result.status}`);
+    }
+    try {
+      const parsed = JSON.parse(result.body) as MarketplacePlugin & {
+        files?: Record<string, string>;
+      };
+      if (parsed.files && typeof parsed.files === "object") {
+        return { ...pkg, ...parsed, files: parsed.files };
+      }
+    } catch {
+      // Non-JSON archive: keep metadata; installPlugin requires `files`.
+    }
     return pkg;
   }
 
@@ -246,27 +267,99 @@ class MarketplaceClient {
 
 export const marketplace = new MarketplaceClient();
 
+const ALLOWED_INSTALL_PREFIXES = [
+  "src/plugins/",
+  "src/widgets/",
+  "src/widgets/custom/",
+  "src/routes/(app)/dashboard/widgets/",
+  "src/themes/",
+] as const;
+
+function assertSafeInstallPath(installPath: string, filename: string, cwd: string): string {
+  if (!installPath || installPath.includes("\0") || filename.includes("\0")) {
+    throw new Error("Invalid install path");
+  }
+  const normalized = installPath.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (normalized.includes("..") || filename.includes("..")) {
+    throw new Error("Install path must not contain '..'");
+  }
+  const allowed = ALLOWED_INSTALL_PREFIXES.some(
+    (prefix) => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix),
+  );
+  if (!allowed) {
+    throw new Error(`Install path "${normalized}" is outside the allowed marketplace directories`);
+  }
+  const installDir = path.resolve(cwd, normalized);
+  const filePath = path.resolve(installDir, filename);
+  const rel = path.relative(installDir, filePath);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error("File path escapes install directory");
+  }
+  return filePath;
+}
+
+/** Canonical SHA-256 of package files (sorted filenames, utf-8). */
+export async function hashPackageFiles(files: Record<string, string>): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  const hash = createHash("sha256");
+  for (const name of Object.keys(files).sort()) {
+    hash.update(name);
+    hash.update("\0");
+    hash.update(files[name] ?? "");
+    hash.update("\n");
+  }
+  return hash.digest("hex");
+}
+
+export function verifyPackageChecksum(
+  plugin: Pick<MarketplacePlugin, "id" | "checksum" | "sha256">,
+  actual: string,
+): void {
+  const expected = (plugin.checksum || plugin.sha256 || "").trim().toLowerCase();
+  if (!expected) return;
+  if (expected !== actual.toLowerCase()) {
+    throw new Error(`Checksum mismatch for ${plugin.id}: expected ${expected}, got ${actual}`);
+  }
+}
+
 /**
  * Install a plugin from the marketplace into the local project.
- * Creates the directory structure and writes all files.
+ * Creates the directory structure and writes all files after checksum + path checks.
  */
-export async function installPlugin(pluginId: string): Promise<MarketplacePlugin> {
+export async function installPlugin(
+  pluginId: string,
+  options: { licenseKey?: string; expectedChecksum?: string } = {},
+): Promise<MarketplacePlugin> {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
   const cwd = process.cwd();
 
+  if (options.licenseKey) {
+    marketplace.setLicense(options.licenseKey);
+  }
+
   const plugin = await marketplace.download(pluginId);
   assertPackageCompatibleWithCms(plugin);
-  const installDir = path.join(cwd, plugin.installPath);
+  if (!plugin.files || Object.keys(plugin.files).length === 0) {
+    throw new Error(`Package ${pluginId} did not include installable files`);
+  }
 
-  // Create directory structure
-  await fs.mkdir(installDir, { recursive: true });
+  const actual = await hashPackageFiles(plugin.files);
+  if (options.expectedChecksum) {
+    plugin.checksum = options.expectedChecksum;
+  }
+  verifyPackageChecksum(plugin, actual);
 
-  // Write all plugin files
+  const license = await marketplace.checkLicense(plugin.id);
+  if (plugin.license && plugin.license !== "free" && !license.valid) {
+    throw new Error(`License required for ${plugin.name} (${plugin.license})`);
+  }
+
+  await fs.mkdir(path.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
+
   for (const [filename, content] of Object.entries(plugin.files)) {
-    const filePath = path.join(installDir, filename);
-    const fileDir = path.dirname(filePath);
-    await fs.mkdir(fileDir, { recursive: true });
+    const filePath = assertSafeInstallPath(plugin.installPath, filename, cwd);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, "utf-8");
   }
 

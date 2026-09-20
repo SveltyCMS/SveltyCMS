@@ -95,6 +95,10 @@ interface CollectionDataParams {
   pageSize?: number;
   search?: string;
   sort?: { field: string; direction: "asc" | "desc" };
+  /** Multi-column sort in priority order. When set, used instead of `sort`. */
+  sorts?: Array<{ field: string; direction: "asc" | "desc" }>;
+  /** Portable OR equality groups from advanced `filterLogic`. */
+  orGroups?: Array<Record<string, string | number | boolean | null>>;
   tenantId?: string | null;
   user: User;
 }
@@ -136,6 +140,8 @@ export class CollectionService {
       page = 1,
       pageSize = 10,
       sort = { field: "createdAt", direction: "desc" },
+      sorts,
+      orGroups,
       filter = {},
       search = "",
       language,
@@ -155,6 +161,8 @@ export class CollectionService {
       compiled: compiledForKey,
       search,
       sort,
+      sorts,
+      orGroups,
     });
 
     // Prefix-bucketed key → invalidateCollection(collectionId) clears all pages/filters
@@ -263,6 +271,8 @@ export class CollectionService {
       page = 1,
       pageSize = 10,
       sort = { field: "createdAt", direction: "desc" },
+      sorts,
+      orGroups,
       filter = {},
       search = "",
       language,
@@ -308,15 +318,21 @@ export class CollectionService {
       globalSearch: search,
       collection,
       user,
+      orGroups,
     });
     query = applied.qb;
 
     // 🚀 findPage pattern: fetch pageSize+1 for hasMore; avoid mandatory dual-query
     // when the first page is short (totalItems = entries.length, skip count).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sort field is dynamic schema key
-    query = query
-      .sort(sort.field as any, sort.direction)
-      .paginate({ page, pageSize: pageSize + 1 });
+    const sortList =
+      sorts && sorts.length > 0 ? sorts : [{ field: sort.field, direction: sort.direction }];
+    if (sortList.length > 1 && typeof query.orderBy === "function") {
+      query = query.orderBy(sortList as any);
+    } else {
+      query = query.sort(sortList[0].field as any, sortList[0].direction);
+    }
+    query = query.paginate({ page, pageSize: pageSize + 1 });
 
     const simpleCountEligible =
       !search &&

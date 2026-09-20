@@ -75,6 +75,8 @@ export interface CompiledCollectionFilter {
   queryHash: string;
   /** Definitions used (schema ∩ FLAC). */
   definitions: SmartFilterDefinition[];
+  /** Portable OR equality maps (`orWhere`). */
+  orGroups?: Array<Record<string, string | number | boolean | null>>;
 }
 
 export interface CompileFilterOptions {
@@ -91,6 +93,8 @@ export interface ApplyFilterOptions {
   collection?: Schema | null;
   /** User for FLAC on searchable fields (optional). */
   user?: User | { _id: string; role: string } | null;
+  /** Extra OR equality groups (from advanced filterLogic). */
+  orGroups?: Array<Record<string, string | number | boolean | null>>;
 }
 
 // ─── Resolve (schema + FLAC) ─────────────────────────────────────────────────
@@ -448,7 +452,7 @@ export function applyFiltersToQueryBuilder<T>(
   compiled: CompiledCollectionFilter,
   options: ApplyFilterOptions = {},
 ): { qb: QueryBuilder<T>; searchableFields: string[] } {
-  const { baseWhere = {}, globalSearch = "", collection = null, user = null } = options;
+  const { baseWhere = {}, globalSearch = "", collection = null, user = null, orGroups } = options;
 
   // 1. Equality + base (tenantId, edit id, …)
   const whereMap: Record<string, unknown> = { ...baseWhere, ...compiled.equality };
@@ -494,6 +498,13 @@ export function applyFiltersToQueryBuilder<T>(
     next = next.search(t.value, [t.field] as any);
   }
 
+  const extraOr = [...(compiled.orGroups ?? []), ...(orGroups ?? [])].filter(
+    (g) => g && Object.keys(g).length > 0,
+  );
+  if (extraOr.length > 0 && typeof next.orWhere === "function") {
+    next = next.orWhere(extraOr);
+  }
+
   return { qb: next, searchableFields };
 }
 
@@ -527,6 +538,8 @@ export function hashCollectionListQuery(input: {
   compiled: CompiledCollectionFilter;
   search?: string;
   sort?: { field: string; direction: "asc" | "desc" };
+  sorts?: Array<{ field: string; direction: "asc" | "desc" }>;
+  orGroups?: Array<Record<string, string | number | boolean | null>>;
 }): string {
   return hashQueryPayload({
     filter: {
@@ -538,6 +551,8 @@ export function hashCollectionListQuery(input: {
     },
     search: (input.search || "").trim(),
     sort: input.sort || { field: "createdAt", direction: "desc" },
+    sorts: input.sorts,
+    orGroups: input.orGroups,
   });
 }
 

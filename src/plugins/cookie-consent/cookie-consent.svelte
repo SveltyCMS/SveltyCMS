@@ -79,7 +79,7 @@
 {#if showBanner && !consentStore.responded}
   <div
     transition:fade={{ duration: 300 }}
-    class="fixed inset-x-0 bottom-0 z-9999 p-4 md:bottom-6 md:left-6 md:right-auto md:w-full md:max-w-md"
+    class="fixed inset-x-0 bottom-0 z-9999 p-4 md:bottom-6 md:start-6 md:end-auto md:w-full md:max-w-md"
     role="dialog"
     aria-modal="true"
     aria-labelledby="cookie-heading"

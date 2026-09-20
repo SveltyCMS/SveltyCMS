@@ -91,7 +91,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 #### Hardened Defenses & Fixes:
 
 1. **Multi-Tenant Test Gate (`T1`)**: Gated `x-tenant-id` and `x-test-tenant-id` header resolution strictly to `isTestMode`, closing header-based tenant switching in production.
-2. **Permission Retention Elimination (`T2`)**: Added `invalidateRoleBitset` and `setRolePermissions` to instantly purge cached role bitsets on role edits.
+2. **Permission Retention Elimination (`T2`)**: Added the `invalidateRoleBitset` and `setRolePermissions` helpers in `src/databases/auth/permissions.ts` to purge cached role bitsets. No role-edit path calls them yet, so automatic bitset invalidation on role edits is not active; wiring is tracked in the [roadmap](../../project/roadmap-2026.mdx).
 3. **Cryptographic Content-ETag (`T15`)**: Replaced timestamp weak ETags with content hashes (`generateContentEtag`), preventing false 304s on content updates and deletions.
 4. **Open Redirect Defense (`T25`)**: Centralized `safeRedirect()` engine blocking protocol-relative URLs (`//evil.com`) and unvalidated domains.
 5. **Multi-Variant Session Cookie Purge (`T6`)**: Consolidated multi-variant cookie revocation (`__Host-`, `__Secure-`, plain) in `session-cookie.ts`.

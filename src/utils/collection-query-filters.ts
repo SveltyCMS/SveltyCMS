@@ -22,6 +22,11 @@
 
 import type { FieldInstance, Schema } from "@src/content/types";
 import { getFieldName } from "@utils/schema/field-utils";
+import {
+  compileBooleanFilterGroup,
+  decodeBooleanFilterParam,
+  type BooleanFilterGroup,
+} from "@utils/boolean-filter";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -61,7 +66,13 @@ export interface ParsedCollectionQuery {
   pageSize: number;
   search: string;
   sort: { field: string; direction: "asc" | "desc" };
+  /** Multi-column sort in priority order (includes the primary `sort`). */
+  sorts: Array<{ field: string; direction: "asc" | "desc" }>;
   filter: CollectionFilterMap;
+  /** Advanced AND/OR group from `filterLogic` (null when absent). */
+  filterLogic: BooleanFilterGroup | null;
+  /** Portable OR equality clauses compiled from filterLogic. */
+  orGroups: Array<Record<string, string | number | boolean | null>>;
   /** Short hash of filter+search+sort for cache keys */
   queryHash: string;
 }
@@ -242,26 +253,87 @@ export function parseCollectionListQuery(
 
   const rawSort =
     searchParams.get("sort") || searchParams.get("sortField") || defaults.sortField || "createdAt";
-  const aliasedSort = SORT_FIELD_ALIASES[rawSort] || rawSort;
-  const sortField = allowed.has(aliasedSort) ? aliasedSort : "createdAt";
-  const sortOrderRaw = (
-    searchParams.get("order") ||
-    searchParams.get("sortDirection") ||
-    defaults.sortDirection ||
-    "desc"
-  ).toLowerCase();
-  const direction: "asc" | "desc" = sortOrderRaw === "asc" ? "asc" : "desc";
+  const sorts = parseSortDescriptors(
+    rawSort,
+    searchParams.get("order") || searchParams.get("sortDirection"),
+    allowed,
+    defaults,
+  );
+  const sort = sorts[0] ?? {
+    field: defaults.sortField || "createdAt",
+    direction: defaults.sortDirection || "desc",
+  };
 
-  const queryHash = hashQueryPayload({ filter, search, sort: { field: sortField, direction } });
+  const filterLogic = decodeBooleanFilterParam(searchParams.get("filterLogic"));
+  let orGroups: Array<Record<string, string | number | boolean | null>> = [];
+  if (filterLogic) {
+    const compiledLogic = compileBooleanFilterGroup(filterLogic);
+    Object.assign(filter, whitelistFilterParams(compiledLogic.andFilter, allowed));
+    orGroups = compiledLogic.orGroups
+      .map((group) => {
+        const next: Record<string, string | number | boolean | null> = {};
+        for (const [k, v] of Object.entries(group)) {
+          if (allowed.has(k)) next[k] = v;
+        }
+        return next;
+      })
+      .filter((g) => Object.keys(g).length > 0);
+  }
+
+  const queryHash = hashQueryPayload({
+    filter,
+    search,
+    sort,
+    sorts,
+    filterLogic,
+    orGroups,
+  });
 
   return {
     page,
     pageSize,
     search,
-    sort: { field: sortField, direction },
+    sort,
+    sorts,
     filter,
+    filterLogic,
+    orGroups,
     queryHash,
   };
+}
+
+/**
+ * Parse `sort=title:asc,createdAt:desc` (multi) or `sort=title&order=asc` (single).
+ */
+export function parseSortDescriptors(
+  rawSort: string,
+  rawOrder: string | null,
+  allowed: Set<string>,
+  defaults: { sortField?: string; sortDirection?: "asc" | "desc" } = {},
+): Array<{ field: string; direction: "asc" | "desc" }> {
+  const fallbackField = defaults.sortField || "createdAt";
+  const fallbackDir: "asc" | "desc" = defaults.sortDirection === "asc" ? "asc" : "desc";
+
+  if (rawSort.includes(",") || rawSort.includes(":")) {
+    const out: Array<{ field: string; direction: "asc" | "desc" }> = [];
+    for (const part of rawSort.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const [rawField, rawDir] = trimmed.split(":");
+      const aliased = SORT_FIELD_ALIASES[rawField] || rawField;
+      if (!allowed.has(aliased)) continue;
+      const direction: "asc" | "desc" =
+        rawDir === "desc" || rawField.startsWith("-") ? "desc" : "asc";
+      out.push({ field: aliased, direction });
+    }
+    return out.length > 0 ? out : [{ field: fallbackField, direction: fallbackDir }];
+  }
+
+  const aliasedSort = SORT_FIELD_ALIASES[rawSort] || rawSort;
+  const sortField = allowed.has(aliasedSort) ? aliasedSort : fallbackField;
+  const sortOrderRaw = (rawOrder || fallbackDir).toLowerCase();
+  const direction: "asc" | "desc" = sortOrderRaw === "asc" ? "asc" : "desc";
+  return [{ field: sortField, direction }];
 }
 
 /**

@@ -91,16 +91,3 @@ export function calculateImpact(changes: BreakingChange[]): ImpactReport {
 
   return { score, action, hasDataLoss, breakdown };
 }
-
-/**
- * Convenience wrapper: compares two schemas and returns the impact report.
- * Combines `compareSchemas()` + `calculateImpact()` in one call.
- */
-export async function assessSchemaImpact(
-  oldSchema: import("@src/content/types").Schema | null,
-  newSchema: import("@src/content/types").Schema,
-): Promise<ImpactReport> {
-  const { compareSchemas } = await import("./collection-schema-warnings");
-  const changes = compareSchemas(oldSchema, newSchema);
-  return calculateImpact(changes);
-}

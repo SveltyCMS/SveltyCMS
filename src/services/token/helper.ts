@@ -93,27 +93,3 @@ export async function processTokensInResponse(
 
   return data;
 }
-
-// Previews token resolution (for UI)
-export async function previewTokenResolution(
-  text: string,
-  user: User | undefined,
-  context: Partial<TokenContext> = {},
-): Promise<string> {
-  if (!containsTokens(text)) {
-    return text;
-  }
-
-  try {
-    return await replaceTokens(text, {
-      user,
-      ...context,
-      system: {
-        now: new Date().toISOString() as import("@databases/db-interface").ISODateString,
-      },
-    } as any);
-  } catch (error) {
-    logger.error("Preview resolution failed", error);
-    return "Error resolving token";
-  }
-}

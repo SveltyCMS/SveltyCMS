@@ -48,6 +48,8 @@ describe("public contract surface", () => {
     expect(typeof aiBuilder.diffSchema).toBe("function");
     expect(typeof aiBuilder.designCollection).toBe("function");
     expect(typeof aiBuilder.refineCollection).toBe("function");
+    expect(typeof aiBuilder.approveCollection).toBe("function");
+    expect(typeof aiBuilder.generateCollectionSourceFromProposal).toBe("function");
   });
 
   it("exports the documented contract types (compile-time + runtime shape)", () => {

@@ -83,7 +83,17 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
       const n = Number(value);
       if (!isNaN(n) && n >= 0) offset = n;
     } else if (key === "sortField" || key === "sort") {
-      if (!sortField) sortField = value;
+      if (!sortField) {
+        if (value.startsWith("-")) {
+          sortField = value.slice(1);
+          sortDirection = "desc";
+        } else if (value.startsWith("+")) {
+          sortField = value.slice(1);
+          sortDirection = "asc";
+        } else {
+          sortField = value;
+        }
+      }
     } else if (key === "sortDirection" || key === "order") {
       sortDirection = value === "asc" ? "asc" : "desc";
     } else if (key === "publicationFilter") {

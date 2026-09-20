@@ -580,11 +580,16 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 
   // Collection mutations return ~0.4–2 KiB JSON. Compressing them without a
   // Content-Length (or even with gzip-9) is pure event-loop tax on create/update
-  // concurrency — skip before wrapping resolve.
+  // concurrency — skip before wrapping resolve. GraphQL is almost always POST
+  // (including read-only queries); wrapping those misses in gzip/br after a
+  // write drops `res:graphql` serializes the event loop under 8 workers.
+  // Do not skip GET /api/collections — that path is the mixed-RPS list refill.
   const method = event.request.method;
   if (
     (method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE") &&
-    event.url.pathname.startsWith("/api/collections")
+    (event.url.pathname.startsWith("/api/collections") ||
+      event.url.pathname === "/api/graphql" ||
+      event.url.pathname.startsWith("/api/graphql/"))
   ) {
     return resolve(event);
   }
@@ -670,9 +675,6 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
         compressedBody = compressed as BodyInit;
         compressedSize = compressed.byteLength;
       } else {
-        // Sync failed — serve the buffered bytes uncompressed. Do NOT return the
-        // original response: its body was fully drained by the reader loop above,
-        // so the client would receive a 200 with an empty body.
         return new Response(full as BodyInit, {
           status: response.status,
           statusText: response.statusText,
@@ -680,7 +682,6 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
         });
       }
     } else if (hasZlib) {
-      // Streaming path for large or unknown-size payloads
       compressedBody = compressWithZlib(
         response.body,
         algorithm,

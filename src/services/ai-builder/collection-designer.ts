@@ -3,9 +3,7 @@
  * @description AI-assisted collection design & refinement service (Phase 0).
  *
  * Generates validated collection schema proposals for the Collection Designer.
- * The approval/write path is explicitly out of scope — this module only
- * produces proposals (plus an optional diff against the current schema) and
- * throws clean AppErrors for the API layer to map to responses.
+ * Phase 1 adds {@link approveCollection}: validate → AST write → compile/reload.
  *
  * Pipeline: quota check → prompt build (injection-shielded) → gateway
  * (backends in order) → output validation (shape + reserved names + slug) →
@@ -16,6 +14,7 @@
  *   AI_UNAVAILABLE, AI_OUTPUT_INVALID, VALIDATION_FAILED)
  * - registry-derived widget allowlist when none is provided
  * - caller-provided allowlist is enforced on the produced proposal
+ * - Phase 1 approveCollection writes AST schemas, compiles, and audit-logs
  */
 
 import { AppError, rethrow } from "@utils/error-handling";
@@ -25,7 +24,14 @@ import { builderAiGateway } from "./gateway";
 import { buildDesignCollectionPrompt, buildRefineCollectionPrompt } from "./prompts";
 import { validateAgainstRegistry, validateProposal } from "./validator";
 import { diffSchema } from "./diff";
-import type { CollectionDesignProposal, DesignCollectionInput, DesignResult } from "./types";
+import type {
+  ApproveCollectionInput,
+  ApproveCollectionResult,
+  CollectionDesignProposal,
+  DesignCollectionInput,
+  DesignResult,
+} from "./types";
+import { generateCollectionSourceFromProposal } from "./schema-ast";
 
 /** Registry-derived widget names used as the default allowlist for prompts. */
 async function resolveRegistryWidgetNames(): Promise<string[]> {
@@ -125,4 +131,100 @@ export async function refineCollection(
   userId?: string,
 ): Promise<DesignResult> {
   return runDesign(input, userId, "refine", input.previousProposal);
+}
+
+/**
+ * Persist an approved collection design: validate, write AST schema, compile.
+ *
+ * Draft-gated (`status: "draft"`) until an editor publishes in Collection Builder.
+ * Refuses to overwrite an existing collection file unless `overwrite: true`.
+ */
+export async function approveCollection(
+  input: ApproveCollectionInput,
+): Promise<ApproveCollectionResult> {
+  const proposal = validateProposal(input.proposal);
+  validateAgainstRegistry(proposal, (name) => widgetRegistryService.getWidgetSync(name));
+
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const { getCollectionDisplayPath, getCollectionFilePath, getCollectionsPath } =
+    await import("@utils/tenant.server");
+
+  const tenantId = input.tenantId ?? null;
+  const collectionPath = getCollectionFilePath(proposal.slug, tenantId);
+  const collectionsRoot = getCollectionsPath(tenantId);
+  const rel = path.relative(path.resolve(collectionsRoot), path.resolve(collectionPath));
+  if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new AppError("Invalid collection path", 400, "VALIDATION_FAILED");
+  }
+
+  const exists = fs.existsSync(collectionPath);
+  if (exists && input.overwrite !== true) {
+    throw new AppError(
+      `A collection named "${proposal.slug}" already exists. Pass overwrite: true to replace it.`,
+      409,
+      "COLLECTION_EXISTS",
+      { slug: proposal.slug },
+    );
+  }
+
+  const displayPath = getCollectionDisplayPath(proposal.slug, tenantId);
+  const source = generateCollectionSourceFromProposal(proposal, {
+    displayPath,
+    icon: input.icon,
+    status: input.status || "draft",
+  });
+
+  fs.mkdirSync(path.dirname(collectionPath), { recursive: true });
+  fs.writeFileSync(collectionPath, source, "utf-8");
+
+  const { syncContentState } = await import("@src/content/sync-content-state.server");
+  const relativeSource = path.basename(collectionPath);
+  const syncResult = await syncContentState({
+    // A schema write is a collection save: it takes the file-keyed lock and
+    // compiles only that file. A bespoke reason would fall through the switch
+    // default into a full refresh plus organizational reconciliation.
+    reason: "collection-save",
+    tenantId,
+    targetFile: relativeSource,
+    changedFile: collectionPath,
+    fullBuild: exists,
+  });
+
+  try {
+    const { auditService, AuditEventType } = await import("@src/services/security/audit-service");
+    await auditService.log(
+      "AI Builder approve collection",
+      {
+        id: (input.userId as never) ?? null,
+        email: input.userEmail || "unknown",
+        role: input.userRole,
+      },
+      { type: "collection", id: proposal.slug as never },
+      AuditEventType.DATA_IMPORT,
+      "medium",
+      {
+        slug: proposal.slug,
+        fieldCount: proposal.fields.length,
+        overwritten: exists,
+        path: displayPath,
+      },
+      tenantId as never,
+    );
+  } catch (err) {
+    rethrow(err);
+    logger.debug("[CollectionDesigner] audit log skipped", err);
+  }
+
+  logger.info(
+    `[CollectionDesigner] approved ${proposal.slug} (${proposal.fields.length} fields) in ${syncResult.metrics.totalMs}ms`,
+  );
+
+  return {
+    collectionId: proposal.slug,
+    slug: proposal.slug,
+    path: displayPath,
+    overwritten: exists,
+    contentVersion: syncResult.contentVersion,
+  };
 }

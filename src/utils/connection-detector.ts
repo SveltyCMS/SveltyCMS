@@ -114,35 +114,3 @@ export function shouldReduceMotion(): boolean {
     return false;
   }
 }
-
-export function getRecommendedImageQuality(): number {
-  if (!browser) return 1.0;
-  ensureInitialized();
-
-  switch (connectionState.effectiveType) {
-    case "slow-2g":
-      return 0.3;
-    case "2g":
-      return 0.5;
-    case "3g":
-      return 0.8;
-    default:
-      return 1.0;
-  }
-}
-
-export function getRecommendedBatchSize(): number {
-  if (!browser) return 50;
-  ensureInitialized();
-
-  switch (connectionState.effectiveType) {
-    case "slow-2g":
-      return 5;
-    case "2g":
-      return 10;
-    case "3g":
-      return 25;
-    default:
-      return 100;
-  }
-}

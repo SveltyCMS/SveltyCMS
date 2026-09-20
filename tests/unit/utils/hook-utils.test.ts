@@ -26,6 +26,9 @@ afterEach(() => {
     if (original[key] !== undefined) process.env[key] = original[key];
     else delete process.env[key];
   }
+  // BENCHMARK is mutated by the production-parity test but not part of ENV_KEYS
+  if (original.BENCHMARK !== undefined) process.env.BENCHMARK = original.BENCHMARK;
+  else delete process.env.BENCHMARK;
   vi.resetModules();
 });
 

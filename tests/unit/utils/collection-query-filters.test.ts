@@ -116,6 +116,7 @@ describe("collection-query-filters", () => {
       expect(q.pageSize).toBe(25);
       expect(q.search).toBe("news");
       expect(q.sort).toEqual({ field: "title", direction: "asc" });
+      expect(q.sorts).toEqual([{ field: "title", direction: "asc" }]);
       expect(q.filter).toEqual({ title: { contains: "hello" } });
       expect(q.filter.hacked).toBeUndefined();
       expect(q.queryHash).toMatch(/^[0-9a-f]{8}$/);
@@ -125,6 +126,16 @@ describe("collection-query-filters", () => {
       const params = new URLSearchParams({ sort: "_createdAt", order: "asc" });
       const q = parseCollectionListQuery(params, sampleCollection);
       expect(q.sort).toEqual({ field: "createdAt", direction: "asc" });
+    });
+
+    it("parses multi-column sort lists", () => {
+      const params = new URLSearchParams({ sort: "title:asc,createdAt:desc" });
+      const q = parseCollectionListQuery(params, sampleCollection);
+      expect(q.sorts).toEqual([
+        { field: "title", direction: "asc" },
+        { field: "createdAt", direction: "desc" },
+      ]);
+      expect(q.sort).toEqual({ field: "title", direction: "asc" });
     });
   });
 

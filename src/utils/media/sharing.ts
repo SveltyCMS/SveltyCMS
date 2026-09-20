@@ -154,33 +154,6 @@ export function validateLink(
 }
 
 /**
- * Log access — returns a **new** `ShareLink` object (immutable update).
- * The original link is NOT mutated.
- */
-export function logAccess(
-  link: ShareLink,
-  action: "view" | "download",
-  ip: string,
-  ua: string,
-  ok: boolean,
-): ShareLink {
-  return {
-    ...link,
-    logs: [
-      ...link.logs,
-      {
-        at: nowISODateString() as ISODateString,
-        ip,
-        ua,
-        action,
-        ok,
-      },
-    ],
-    downloadCount: action === "download" && ok ? link.downloadCount + 1 : link.downloadCount,
-  };
-}
-
-/**
  * Revoke link — returns a **new** `ShareLink` object (immutable update).
  * The original link is NOT mutated.
  */
@@ -393,7 +366,3 @@ export async function cleanupArchive(archivePath: string): Promise<void> {
     logger.warn("Archive cleanup failed", { path: archivePath, error: err });
   }
 }
-
-/** Aliases for backward compatibility */
-export const createBulkDownloadArchive = createBulkArchive;
-export const streamArchiveToResponse = streamArchive;

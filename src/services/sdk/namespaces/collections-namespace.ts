@@ -31,7 +31,6 @@ import {
 } from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
-import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -669,8 +668,7 @@ export class CollectionsNamespace {
 
     if (!bypassCache && cacheKey && result.success && result.data) {
       try {
-        const cachePayload =
-          options.populate && Array.isArray(result.data) ? deepClone(result.data) : result.data;
+        const cachePayload = result.data;
         await cacheService.set(
           cacheKey,
           cachePayload,
@@ -1196,7 +1194,10 @@ export class CollectionsNamespace {
             finalResult,
             ttl || 180,
             (tenantId || undefined) as string,
-            CacheCategory.CONTENT,
+            // Single-doc point read → ENTRY (cold category: async reads skip
+            // the LRU age update, so random per-id reads cannot evict hot
+            // list entries the way CONTENT-category hits would).
+            CacheCategory.ENTRY,
             // 🚀 Surgical invalidation: tag by the SPECIFIC doc so a write to
             // this entry clears only this key — NOT all 10k per-id entries.
             [`doc:${schema._id}:${entryId}`],

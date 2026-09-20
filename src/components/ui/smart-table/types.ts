@@ -15,8 +15,16 @@
 
 export type TableDensity = "compact" | "normal" | "comfortable";
 
+export type TableViewMode = "table" | "card";
+
 /** 0 = unsorted, 1 = asc, -1 = desc (CMS convention). */
 export type TableSortOrder = 0 | 1 | -1;
+
+export interface ColumnSortDescriptor {
+  /** Column key (data field) */
+  key: string;
+  direction: TableSortOrder;
+}
 
 export type TableDataMode = "client" | "server";
 
@@ -74,11 +82,14 @@ export interface SmartTablePagination {
 export interface SmartTableSort {
   sortedBy: string;
   isSorted: TableSortOrder;
+  /** Multi-column sort descriptors in priority order */
+  multiSort?: ColumnSortDescriptor[];
 }
 
 /** Persisted column layout (localStorage / future user prefs API). */
 export interface SmartTableLayoutPrefs {
   density?: TableDensity;
+  viewMode?: TableViewMode;
   columnOrder?: string[];
   visibility?: Record<string, boolean>;
   /** Pixel widths keyed by column key */
@@ -91,6 +102,8 @@ export interface CreateSmartTableOptions<T> {
   getRowId?: (row: T, index: number) => string;
   /** client = local ops; server = SSR/URL-driven (default server for CMS safety) */
   mode?: TableDataMode;
+  /** Initial view mode: table or responsive cards (default table) */
+  viewMode?: TableViewMode;
   /** Enable virtualization when row count exceeds threshold */
   virtualizeThreshold?: number;
   /** Fixed row height for virtual scroll (px) */

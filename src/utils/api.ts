@@ -30,19 +30,6 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
 }
 
-export interface RevisionDiff {
-  diff: Record<
-    string,
-    {
-      status: "modified" | "added" | "deleted";
-      old?: unknown;
-      new?: unknown;
-      value?: unknown;
-    }
-  >;
-  revisionData: Record<string, unknown>;
-}
-
 export interface RevisionMeta {
   _id: string;
   revision_at: ISODateString;
@@ -256,43 +243,7 @@ export function createClones(
   });
 }
 
-export function batchCloneEntries(
-  collectionId: string,
-  entryIds: string[],
-): Promise<ApiResponse<unknown>> {
-  return fetchApi(`/api/collections/${collectionId}/batch`, {
-    method: "POST",
-    body: JSON.stringify({ action: "clone", entryIds }),
-  });
-}
-
-export function batchUpdateEntriesStatus(
-  collectionId: string,
-  entryIds: string[],
-  status: string,
-): Promise<ApiResponse<unknown>> {
-  return fetchApi(`/api/collections/${collectionId}/batch`, {
-    method: "POST",
-    body: JSON.stringify({ action: "status", entryIds, status }),
-  });
-}
-
 // --- Revision Functions ---
-
-export async function getRevisionDiff(params: {
-  collectionId: string;
-  entryId: string;
-  revisionId: string;
-  currentData: Record<string, unknown>;
-}): Promise<ApiResponse<RevisionDiff>> {
-  const { collectionId, entryId, revisionId, currentData } = params;
-  const endpoint = `/api/collections/${collectionId}/${entryId}/revisions/diff`;
-
-  return fetchApi(endpoint, {
-    method: "POST",
-    body: JSON.stringify({ revisionId, currentData }),
-  });
-}
 
 export async function getRevisions(
   collectionId: string,

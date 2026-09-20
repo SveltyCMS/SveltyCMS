@@ -271,6 +271,8 @@ Uses the same shared TreeView as collections:
 			ui.toggle('leftSidebar', 'hidden');
 		}
 		const path = resolved === 'root' ? '/mediagallery' : `/mediagallery?folderId=${resolved}`;
+		// slop:suppress — tree-interaction navigation (expand + select + mobile
+		// sidebar close), not a static link — goto is the escape hatch here
 		goto(path);
 	}
 

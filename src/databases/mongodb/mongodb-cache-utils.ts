@@ -1,5 +1,5 @@
 /**
- * @file src/databases/mongodb/methods/mongoDBCacheUtils.ts
+ * @file src/databases/mongodb/mongodb-cache-utils.ts
  * @description Caching utilities for MongoDB adapter.
  * Separated from mongodb-utils.ts to avoid circular dependencies with CacheService.
  */
@@ -202,25 +202,5 @@ export async function invalidateCategoryCache(
     });
   } catch (error) {
     logger.warn(`Failed to invalidate cache for category ${category}:`, error);
-  }
-}
-
-/**
- * Deletes a specific cache entry
- */
-export async function deleteCache(
-  cacheKey: string,
-  category: CacheCategory,
-  tenantId?: string | null,
-): Promise<void> {
-  try {
-    await cacheService.delete(cacheKey, tenantId);
-
-    if (!cacheService.isBootstrapping()) {
-      cacheMetrics.recordDelete(cacheKey, category, tenantId);
-      logger.debug(`Cache entry deleted: ${cacheKey}`, { category, tenantId });
-    }
-  } catch (error) {
-    logger.warn(`Failed to delete cache entry ${cacheKey}:`, error);
   }
 }

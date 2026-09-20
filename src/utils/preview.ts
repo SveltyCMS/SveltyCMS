@@ -14,8 +14,6 @@
  * - Preview Verification (server-side token validation)
  */
 
-import { logger } from "./logger";
-
 // --- Types ---
 
 export interface LivePreviewOptions {
@@ -117,41 +115,4 @@ export function createLivePreviewListener(options: LivePreviewOptions): {
       cleanupVisualEditing();
     },
   };
-}
-
-// --- Server: Token Verification ---
-
-/**
- * Verifies a HMAC-signed preview token.
- * Uses timing-safe comparison to prevent side-channel attacks.
- */
-export async function verifyPreviewToken(
-  token: string,
-  secret: string,
-): Promise<VerificationResult> {
-  try {
-    const { createHmac, timingSafeEqual } = await import("node:crypto");
-    const decoded = Buffer.from(token, "base64url").toString();
-    const [userId, entryId, expiresStr, signature] = decoded.split(":");
-    const expires = Number(expiresStr);
-
-    if (Date.now() > expires) return { valid: false, userId, entryId, expires };
-
-    const payload = `${userId}:${entryId}:${expiresStr}`;
-    const expectedBuffer = createHmac("sha256", secret).update(payload).digest();
-    const providedBuffer = Buffer.from(signature, "hex");
-
-    // 🛡️ Security: Use timingSafeEqual to prevent side-channel timing attacks
-    if (
-      expectedBuffer.length !== providedBuffer.length ||
-      !timingSafeEqual(expectedBuffer, providedBuffer)
-    ) {
-      return { valid: false, userId, entryId, expires };
-    }
-
-    return { valid: true, userId, entryId, expires };
-  } catch (error) {
-    logger.error("Preview token verification error", error);
-    return { valid: false, userId: "", entryId: "", expires: 0 };
-  }
 }

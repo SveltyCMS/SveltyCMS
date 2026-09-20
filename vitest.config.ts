@@ -55,6 +55,10 @@ export default defineConfig({
     // API dispatcher / GraphQL / media security tests load large modules; under full-suite
     // fork contention on Windows they routinely need >15s even when ~5s alone.
     testTimeout: 30000,
+    // Same reason: those suites import the whole `+server` dispatcher inside
+    // `beforeAll`, so the 10s default hookTimeout failed entire files with no
+    // test name under fork contention (saml, export-import-security).
+    hookTimeout: 30000,
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],

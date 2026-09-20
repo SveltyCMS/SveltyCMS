@@ -63,21 +63,3 @@ export function reorderByUsage(items: AdaptiveNavItem[], tenantId: string): Adap
     return 0; // Stable sort — preserve original order
   });
 }
-
-/**
- * Get hot collection IDs for use in sidebar badge/highlight logic.
- * Returns the top 5 most-accessed collection IDs.
- */
-export function getHotCollectionIds(tenantId: string): Set<string> {
-  const hotOrder = getAdaptiveUISortOrder(tenantId);
-  return new Set(hotOrder.slice(0, 5));
-}
-
-/**
- * Check if a collection is "hot" (frequently accessed).
- * Use for adding visual indicators (badge, highlight) to popular items.
- */
-export function isHotCollection(collectionId: string, tenantId: string): boolean {
-  const hotIds = getHotCollectionIds(tenantId);
-  return hotIds.has(collectionId);
-}

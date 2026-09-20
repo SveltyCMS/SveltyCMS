@@ -473,7 +473,7 @@
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
 					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
-					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10" />
+					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:me-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10" />
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 

@@ -103,8 +103,12 @@ export function recordDeletion(collectionId: string): void {
 /**
  * Check for anomalies across all tracked collections.
  * Returns any anomalies that exceed the z-score threshold.
+ *
+ * Named `detectContentAnomalies` to avoid colliding with the system-health
+ * `detectAnomalies()` in `@src/stores/system/metrics` (different domain and
+ * return shape; the shared name defeated scanners/monorepo tooling).
  */
-export function detectAnomalies(): AnomalyResult[] {
+export function detectContentAnomalies(): AnomalyResult[] {
   const anomalies: AnomalyResult[] = [];
   const now = Date.now();
 
@@ -206,7 +210,7 @@ export function getAnomalyStats(): {
   recentAnomalies: number;
   lastCheck: number;
 } {
-  const anomalies = detectAnomalies();
+  const anomalies = detectContentAnomalies();
   return {
     trackedCollections: _stats.size,
     recentAnomalies: anomalies.length,

@@ -32,7 +32,7 @@ import {
   asc,
   desc,
 } from "drizzle-orm";
-import type { FindOptions, QueryCondition } from "../db-interface";
+import type { FindOptions } from "../db-interface";
 import { acquireConditionsArray, applyTenantFilter, safeDate } from "./relational-utils";
 import { normalizeSortDirection } from "./page-utils";
 
@@ -769,44 +769,6 @@ function coerceDateColumnValue(col: any, val: unknown): unknown {
     return new Date(val);
   }
   return val;
-}
-
-export function translateCondition(col: Column, cond: QueryCondition): SQL {
-  let val = cond.value;
-
-  if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
-    val = safeDate(val);
-  } else if (Array.isArray(val)) {
-    val = val.map((v) =>
-      v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
-        ? safeDate(v)
-        : v,
-    );
-  }
-  // Date/timestamp columns need real Date objects for the driver mapping
-  // (Drizzle timestamp modes call value.getTime() with no type guard).
-  // Keyset cursors and API filters pass ISO strings / epoch numbers — coerce
-  // them here or every comparison against a *At/*Date column throws.
-  val = coerceDateColumnValue(col, val);
-
-  switch (cond.operator) {
-    case "$eq":
-      return val === null ? isNull(col) : eq(col, val);
-    case "$ne":
-      return ne(col, val);
-    case "$gt":
-      return gt(col, val);
-    case "$gte":
-      return gte(col, val);
-    case "$lt":
-      return lt(col, val);
-    case "$lte":
-      return lte(col, val);
-    case "$in":
-      return inArray(col, Array.isArray(val) ? val : [val]);
-    default:
-      return eq(col, val);
-  }
 }
 
 // Fused parse + map for mapQuery: builds SQL conditions directly from user query

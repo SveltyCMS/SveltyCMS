@@ -8,6 +8,10 @@
  * - Uses PubSub for GraphQL API endpoint.
  * - Uses Loaders for GraphQL API endpoint.
  * - Yoga-bypass fast path for contentSystemHealth / allCollections (in-memory)
+ * - Single-flight cache-miss refill (identical concurrent queries share one find + stringify)
+ * - Serve-stale: writes mark GraphQL turbo bodies stale; POST/GET serve them
+ *   immediately. No background find() on HIT (that stalled the next request ~60ms).
+ * - Synchronous turbo L1 write on the collection fast path (waiters HIT in the same turn)
  *
  * # Security
  * - Enforces query depth (max 8).
@@ -23,10 +27,12 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { createYoga, createSchema } from "graphql-yoga";
 import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
+import { BoundedJITCache } from "./jit-cache";
 import {
   responseCache,
   buildGraphQLResponseCacheKey,
   generateContentEtag,
+  type CachedResponseEntry,
 } from "@src/services/cache/response-cache";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { metricsService } from "@src/services/observability/metrics-service";
@@ -579,7 +585,12 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
     const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, schemaTenant);
     const schema = createSchema({ typeDefs, resolvers });
 
-    const plugins: any[] = [securityValidationPlugin, useGraphQlJit(), executeSpanPlugin];
+    const jitCache = new BoundedJITCache(1000);
+    const plugins: any[] = [
+      securityValidationPlugin,
+      useGraphQlJit({}, { cache: jitCache }),
+      executeSpanPlugin,
+    ];
 
     const app = createYoga({
       schema: schema as any,
@@ -652,6 +663,53 @@ function apqErrorResponse(message: string, code: string): Response {
   return new Response(JSON.stringify({ errors: [{ message, extensions: { code } }] }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
+  });
+}
+
+interface CoalescedGraphqlRead {
+  body: string;
+  etag: string;
+}
+
+const inflightGraphqlReads = new Map<string, Promise<CoalescedGraphqlRead | null>>();
+const MAX_INFLIGHT_GRAPHQL_READS = 64;
+
+function serveGraphqlCached(request: Request, cached: CachedResponseEntry): Response {
+  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+  const rawBody = cached.body;
+  const payloadSize = cached.buffer
+    ? cached.buffer.byteLength
+    : Buffer.byteLength(rawBody, "utf-8");
+
+  const responseHeaders = new Headers({
+    "Content-Type": "application/json",
+    ETag: cached.etag,
+    "X-Cache": "HIT",
+    "Cache-Control": "private, no-store",
+    Vary: "Accept-Encoding, Cookie",
+  });
+
+  if (cached.compressed && payloadSize > 1024) {
+    if (acceptEncoding.includes("br") && cached.compressed.br) {
+      responseHeaders.set("Content-Encoding", "br");
+      return new Response(cached.compressed.br as BodyInit, {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+    if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
+      responseHeaders.set("Content-Encoding", "gzip");
+      return new Response(cached.compressed.gzip as BodyInit, {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+  }
+
+  const payload = cached.buffer || rawBody;
+  return new Response(payload as BodyInit, {
+    status: 200,
+    headers: responseHeaders,
   });
 }
 
@@ -781,186 +839,198 @@ async function handleRequest(event: RequestEvent) {
       : null;
 
   // 🚀 FAST-PATH: Return cached response immediately before content/DB/Yoga setup
-  if (cacheKey) {
-    const cached = responseCache.get(cacheKey, locals.tenantId as string);
-    if (cached) {
-      metricsService.recordGraphqlResponseHit(locals.tenantId as string);
-      const acceptEncoding = request.headers.get("Accept-Encoding") || "";
-      const rawBody = cached.body;
-      const payloadSize = cached.buffer
-        ? cached.buffer.byteLength
-        : Buffer.byteLength(rawBody, "utf-8");
+  const cacheTenant = locals.tenantId as string;
+  const bypassGraphqlCache =
+    url.searchParams.get("refresh") === "true" ||
+    url.searchParams.get("nocache") === "true" ||
+    url.searchParams.get("bypassCache") === "true";
+  if (cacheKey && !bypassGraphqlCache) {
+    const cached = responseCache.get(cacheKey, cacheTenant);
+    if (cached?.body) {
+      metricsService.recordGraphqlResponseHit(cacheTenant);
+      return serveGraphqlCached(request, cached);
+    }
+  }
 
-      const responseHeaders = new Headers({
-        "Content-Type": "application/json",
-        ETag: cached.etag,
-        "X-Cache": "HIT",
-        "Cache-Control": "private, no-store",
-        Vary: "Accept-Encoding, Cookie",
+  const inflightKey = cacheKey ? `${cacheTenant ?? ""}:${cacheKey}` : "";
+  if (cacheKey) {
+    const inflight = inflightGraphqlReads.get(inflightKey);
+    if (inflight) {
+      const shared = await inflight;
+      if (shared) {
+        metricsService.recordGraphqlResponseHit(cacheTenant);
+        return serveGraphqlCached(request, shared);
+      }
+    }
+  }
+
+  // The executor runs synchronously, so `releaseFlight` is bound before use.
+  let releaseFlight: (entry: CoalescedGraphqlRead | null) => void = () => {};
+  let ownsFlight = false;
+  if (cacheKey && inflightGraphqlReads.size < MAX_INFLIGHT_GRAPHQL_READS) {
+    ownsFlight = true;
+    const flight = new Promise<CoalescedGraphqlRead | null>((res) => {
+      releaseFlight = res;
+    });
+    inflightGraphqlReads.set(inflightKey, flight);
+  }
+
+  let published: CoalescedGraphqlRead | null = null;
+  try {
+    // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
+    if (contentStore.isReloading) {
+      if (PROFILE_WRITE_ENABLED) {
+        const reloadEnd = profileMark("gql:waitForReload");
+        await contentStore.waitForReload();
+        reloadEnd();
+      } else {
+        await contentStore.waitForReload();
+      }
+    }
+
+    const fast = await tryGraphqlFastPath(
+      query,
+      {
+        user: locals.user,
+        tenantId: locals.tenantId,
+        dbAdapter: locals.dbAdapter,
+        publicationFilter,
+      },
+      variables,
+    );
+    if (fast) {
+      const tenant = locals.tenantId as string;
+      if (cacheKey) {
+        // Sync L1 so coalesced waiters and the next same-tick request HIT.
+        // SHA-256 of the already-stringified fast-path body is cheaper than
+        // 8 workers re-running find() after every write invalidates res:graphql.
+        const etag = generateContentEtag(fast);
+        responseCache.set(cacheKey, { body: fast, etag }, 60_000, tenant);
+        published = { body: fast, etag };
+        metricsService.recordGraphqlResponseMiss(tenant);
+      }
+      return new Response(fast, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Cache": "MISS",
+        },
+      });
+    }
+
+    let adapter = locals.dbAdapter;
+    if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
+      if (!isDbConnected()) {
+        await getDbInitPromise();
+      }
+      adapter = getDb();
+    }
+
+    if (!adapter) {
+      throw new AppError("Database unavailable: Adapter not initialized", 503);
+    }
+
+    if (!sharedCMS || sharedCMS.db !== adapter) {
+      sharedCMS = new LocalCMS(adapter);
+    }
+    const cms = sharedCMS;
+    let _loaders: any = null;
+
+    try {
+      const yogaApp = PROFILE_WRITE_ENABLED
+        ? await profileSpan("gql:getYogaApp", () => _getYogaApp(adapter, locals.tenantId))
+        : await _getYogaApp(adapter, locals.tenantId);
+
+      const buildYogaContext = () => ({
+        user: locals.user,
+        tenantId: locals.tenantId,
+        dbAdapter: adapter,
+        cms,
+        parsedDocument: (locals as any).__graphqlAst as DocumentNode | undefined,
+        get loaders() {
+          if (!_loaders) {
+            _loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);
+          }
+          return _loaders;
+        },
+        set loaders(value) {
+          _loaders = value;
+        },
+        publicationFilter,
       });
 
-      // 🚀 Zero-CPU Binary Byte Serving: serve pre-compressed chunk if supported
-      if (cached.compressed && payloadSize > 1024) {
-        if (acceptEncoding.includes("br") && cached.compressed.br) {
-          responseHeaders.set("Content-Encoding", "br");
-          return new Response(cached.compressed.br as BodyInit, {
-            status: 200,
-            headers: responseHeaders,
+      // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
+      // Request only for POST (Yoga needs the body, but we already have bodyText)
+      const yogaBody =
+        bodyText && bodyText.includes('"query"') ? bodyText : JSON.stringify({ query, variables });
+
+      const yogaRequest =
+        request.method === "POST"
+          ? new Request(request.url, { method: "POST", headers: request.headers, body: yogaBody })
+          : request;
+
+      const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
+      const yogaResponse = PROFILE_WRITE_ENABLED
+        ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
+        : await handleYogaRequest();
+
+      // When waiters joined this miss, the body must be published before
+      // finally() resolves the inflight promise. Solo misses keep etag+L1
+      // off the response path so Yoga RPS is not capped by SHA-256.
+      if (cacheKey && yogaResponse.status === 200) {
+        const tenant = locals.tenantId as string;
+        if (ownsFlight) {
+          const responseBody = await yogaResponse.clone().text();
+          if (!responseBody.includes('"errors":[') && !responseBody.includes(":[]")) {
+            const etag = generateContentEtag(responseBody);
+            responseCache.set(cacheKey, { body: responseBody, etag }, 60_000, tenant);
+            published = { body: responseBody, etag };
+          }
+        } else {
+          const cloned = yogaResponse.clone();
+          queueMicrotask(() => {
+            cloned
+              .text()
+              .then((responseBody: string) => {
+                if (responseBody.includes('"errors":[') || responseBody.includes(":[]")) return;
+                responseCache.set(
+                  cacheKey,
+                  { body: responseBody, etag: generateContentEtag(responseBody) },
+                  60_000,
+                  tenant,
+                );
+              })
+              .catch(() => {});
           });
         }
-        if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
-          responseHeaders.set("Content-Encoding", "gzip");
-          return new Response(cached.compressed.gzip as BodyInit, {
-            status: 200,
-            headers: responseHeaders,
-          });
-        }
+        metricsService.recordGraphqlResponseMiss(tenant);
       }
 
-      const payload = cached.buffer || rawBody;
-      return new Response(payload as any, {
-        status: 200,
-        headers: responseHeaders,
+      return withMutableHeaders(yogaResponse, (headers) => {
+        if (cacheKey) headers.set("X-Cache", "MISS");
       });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Internal Server Error";
+      const status =
+        typeof err === "object" && err && "status" in err && typeof err.status === "number"
+          ? err.status
+          : 500;
+      logger.error("GraphQL Request Error:", err);
+      return new Response(
+        JSON.stringify({
+          errors: [{ message }],
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
-  }
-
-  // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
-  if (contentStore.isReloading) {
-    if (PROFILE_WRITE_ENABLED) {
-      const reloadEnd = profileMark("gql:waitForReload");
-      await contentStore.waitForReload();
-      reloadEnd();
-    } else {
-      await contentStore.waitForReload();
+  } finally {
+    if (ownsFlight) {
+      releaseFlight(published);
+      inflightGraphqlReads.delete(inflightKey);
     }
-  }
-
-  const fast = await tryGraphqlFastPath(
-    query,
-    {
-      user: locals.user,
-      tenantId: locals.tenantId,
-      dbAdapter: locals.dbAdapter,
-      publicationFilter,
-    },
-    variables,
-  );
-  if (fast) {
-    const tenant = locals.tenantId as string;
-    if (cacheKey) {
-      // ETag + L1 write off the response path (same as the Yoga miss path).
-      queueMicrotask(() => {
-        responseCache.set(
-          cacheKey,
-          { body: fast, etag: generateContentEtag(fast) },
-          60_000,
-          tenant,
-        );
-      });
-      metricsService.recordGraphqlResponseMiss(tenant);
-    }
-    return new Response(fast, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Cache": "MISS",
-      },
-    });
-  }
-
-  let adapter = locals.dbAdapter;
-  if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
-    if (!isDbConnected()) {
-      await getDbInitPromise();
-    }
-    adapter = getDb();
-  }
-
-  if (!adapter) {
-    throw new AppError("Database unavailable: Adapter not initialized", 503);
-  }
-
-  if (!sharedCMS || sharedCMS.db !== adapter) {
-    sharedCMS = new LocalCMS(adapter);
-  }
-  const cms = sharedCMS;
-  let _loaders: any = null;
-
-  try {
-    const yogaApp = PROFILE_WRITE_ENABLED
-      ? await profileSpan("gql:getYogaApp", () => _getYogaApp(adapter, locals.tenantId))
-      : await _getYogaApp(adapter, locals.tenantId);
-
-    const buildYogaContext = () => ({
-      user: locals.user,
-      tenantId: locals.tenantId,
-      dbAdapter: adapter,
-      cms,
-      parsedDocument: (locals as any).__graphqlAst as DocumentNode | undefined,
-      get loaders() {
-        if (!_loaders) {
-          _loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);
-        }
-        return _loaders;
-      },
-      set loaders(value) {
-        _loaders = value;
-      },
-      publicationFilter,
-    });
-
-    // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
-    // Request only for POST (Yoga needs the body, but we already have bodyText)
-    const yogaBody =
-      bodyText && bodyText.includes('"query"') ? bodyText : JSON.stringify({ query, variables });
-
-    const yogaRequest =
-      request.method === "POST"
-        ? new Request(request.url, { method: "POST", headers: request.headers, body: yogaBody })
-        : request;
-
-    const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
-    const yogaResponse = PROFILE_WRITE_ENABLED
-      ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
-      : await handleYogaRequest();
-
-    // Serve Yoga's body immediately. Buffer + SHA-256 etag + cache write
-    // happen off the response path so query RPS isn't capped by serialization.
-    if (cacheKey && yogaResponse.status === 200) {
-      const tenant = locals.tenantId as string;
-      const cloned = yogaResponse.clone();
-      queueMicrotask(() => {
-        cloned
-          .text()
-          .then((responseBody: string) => {
-            if (responseBody.includes('"errors":[') || responseBody.includes(":[]")) return;
-            responseCache.set(
-              cacheKey,
-              { body: responseBody, etag: generateContentEtag(responseBody) },
-              60_000,
-              tenant,
-            );
-          })
-          .catch(() => {});
-      });
-      metricsService.recordGraphqlResponseMiss(tenant);
-    }
-
-    return withMutableHeaders(yogaResponse, (headers) => {
-      if (cacheKey) headers.set("X-Cache", "MISS");
-    });
-  } catch (err: any) {
-    logger.error("GraphQL Request Error:", err);
-    return new Response(
-      JSON.stringify({
-        errors: [{ message: err.message || "Internal Server Error" }],
-      }),
-      {
-        status: err.status || 500,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
   }
 }
 

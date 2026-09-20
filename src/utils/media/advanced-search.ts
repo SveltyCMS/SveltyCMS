@@ -219,6 +219,3 @@ export function getSuggestions(files: MediaItem[]) {
     ],
   };
 }
-
-/** Alias for backward compatibility */
-export const getSearchSuggestions = getSuggestions;

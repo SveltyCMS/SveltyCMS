@@ -4,8 +4,9 @@
  *
  * Merges local themes/plugin/dashboard-widget listings with remote
  * marketplace.sveltycms.com via marketplace-client (30 min cache). Powers
- * GET /api/marketplace and the Extensions → Marketplace tab (Phase 2). Theme
- * install is available; full remote one-click package install remains a follow-up.
+ * GET /api/marketplace and the Extensions → Marketplace tab (Phase 2).
+ * Remote packages install via checksum-verified `install()`; themes use
+ * `installTheme()`.
  */
 
 import { adminThemeService } from "./admin-theme-service";
@@ -40,7 +41,11 @@ export interface MarketplaceListResult {
 
 export interface MarketplaceInstallResult {
   action: "created" | "updated";
-  theme: { id: string; name: string };
+  theme?: { id: string; name: string };
+  package?: { id: string; name: string; version: string; installPath: string; type: string };
+  checksum?: string;
+  licenseRequired?: boolean;
+  checkoutUrl?: string;
 }
 
 export class MarketplaceService {
@@ -225,6 +230,59 @@ export class MarketplaceService {
         action: "created",
         theme: { id, name: "Default" },
       };
+    }
+  }
+
+  /**
+   * One-click install: themes go through adminThemeService; remote packages
+   * download with checksum verification and path allowlisting.
+   */
+  async install(
+    id: string,
+    options: { type?: MarketplaceItem["type"]; licenseKey?: string; checksum?: string } = {},
+  ): Promise<MarketplaceInstallResult> {
+    if (options.type === "theme" || (!options.type && id === "1")) {
+      return this.installTheme(id);
+    }
+
+    const { installPlugin, hashPackageFiles, setLicenseKey } =
+      await import("@src/services/intelligence/marketplace-client");
+    if (options.licenseKey) setLicenseKey(options.licenseKey);
+
+    try {
+      const plugin = await installPlugin(id, {
+        licenseKey: options.licenseKey,
+        expectedChecksum: options.checksum,
+      });
+      const checksum = plugin.files ? await hashPackageFiles(plugin.files) : undefined;
+      return {
+        action: "created",
+        package: {
+          id: plugin.id,
+          name: plugin.name,
+          version: plugin.version,
+          installPath: plugin.installPath,
+          type: plugin.type,
+        },
+        checksum,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/license required/i.test(message)) {
+        return {
+          action: "created",
+          licenseRequired: true,
+          checkoutUrl: `https://marketplace.sveltycms.com/checkout?package=${encodeURIComponent(id)}`,
+          package: {
+            id,
+            name: id,
+            version: "0.0.0",
+            installPath: "",
+            type: options.type || "plugin",
+          },
+        };
+      }
+      throw err;
     }
   }
 }

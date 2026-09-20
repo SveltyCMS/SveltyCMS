@@ -48,9 +48,3 @@ export function pathToPageSlug(pathname: string): string {
   if (!trimmed) return "home";
   return trimmed;
 }
-
-/** Maps a pages collection slug to a public URL path. */
-export function pageSlugToPath(slug: string): string {
-  if (!slug || slug === "home") return "/";
-  return `/${slug}`;
-}

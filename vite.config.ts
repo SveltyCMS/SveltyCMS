@@ -52,6 +52,7 @@ const SERVER_EXTERNALS = [
   "@tailwindcss/node",
   "jiti", // Build-time JIT — never imported at runtime; pulls zod v4
   "jiti/*", // Subpath imports from jiti internals
+  "shiki", // Optional peer of @better-svelte-email/preview — not on the CMS hot path
 ];
 
 const SSR_NO_EXTERNAL = [

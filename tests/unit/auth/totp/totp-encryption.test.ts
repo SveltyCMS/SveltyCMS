@@ -9,18 +9,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Set encryption key before importing totp module
 const ENCRYPTION_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
-const OLD_ENV = { ...process.env };
 
 import { resetTotpEncryptionKeyCache } from "@src/databases/auth/totp";
 
 describe("TOTP Secret Encryption", () => {
   beforeEach(() => {
-    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
     resetTotpEncryptionKeyCache();
   });
 
   afterEach(() => {
-    process.env = { ...OLD_ENV };
+    vi.unstubAllEnvs();
     resetTotpEncryptionKeyCache();
   });
 
@@ -60,7 +59,7 @@ describe("TOTP Secret Encryption", () => {
   });
 
   it("should decrypt to null for tampered ciphertext", async () => {
-    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
     const { encryptTotpSecret, decryptTotpSecret, resetTotpEncryptionKeyCache } =
       await import("@src/databases/auth/totp");
     resetTotpEncryptionKeyCache();
@@ -121,8 +120,8 @@ describe("TOTP Secret Encryption", () => {
 
   describe("Graceful degradation without encryption key", () => {
     it("should store plaintext when no encryption key is configured", async () => {
-      delete process.env.ENCRYPTION_KEY;
-      delete process.env.SECRET_ENCRYPTION_KEY;
+      vi.stubEnv("ENCRYPTION_KEY", undefined);
+      vi.stubEnv("SECRET_ENCRYPTION_KEY", undefined);
       vi.resetModules();
 
       const { encryptTotpSecret, resetTotpEncryptionKeyCache } =
@@ -142,13 +141,13 @@ describe("TOTP passphrase HKDF dual-read", () => {
   const totpBase32 = "JBSWY3DPEHPK3PXP";
 
   afterEach(() => {
-    process.env = { ...OLD_ENV };
+    vi.unstubAllEnvs();
     vi.resetModules();
   });
 
   it("round-trips a TOTP secret under a passphrase ENCRYPTION_KEY", async () => {
-    process.env.ENCRYPTION_KEY = envKeyMaterial;
-    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", envKeyMaterial);
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", undefined);
     vi.resetModules();
     const { encryptTotpSecret, decryptTotpSecret, resetTotpEncryptionKeyCache } =
       await import("@src/databases/auth/totp");
@@ -160,8 +159,8 @@ describe("TOTP passphrase HKDF dual-read", () => {
   });
 
   it("decrypts SHA-256(raw) envelopes written before HKDF", async () => {
-    process.env.ENCRYPTION_KEY = envKeyMaterial;
-    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", envKeyMaterial);
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", undefined);
     vi.resetModules();
     const { decryptTotpSecret, resetTotpEncryptionKeyCache } =
       await import("@src/databases/auth/totp");
@@ -186,11 +185,11 @@ describe("TOTP passphrase HKDF dual-read", () => {
 
 describe("Trusted Device Tokens", () => {
   beforeEach(() => {
-    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
   });
 
   afterEach(() => {
-    process.env = { ...OLD_ENV };
+    vi.unstubAllEnvs();
   });
 
   it("should generate a valid token for a user", async () => {
@@ -274,12 +273,11 @@ describe("Trusted Device Tokens", () => {
 
 describe("Configurable TOTP Window", () => {
   afterEach(() => {
-    delete process.env.TOTP_WINDOW;
-    process.env = { ...OLD_ENV };
+    vi.unstubAllEnvs();
   });
 
   it("should default to window 1", async () => {
-    delete process.env.TOTP_WINDOW;
+    vi.stubEnv("TOTP_WINDOW", undefined);
     // The TOTP_CONFIG is set at module load time, so we can read it
     const { getCurrentTOTPCode, verifyTOTPCode, generateTOTPSecret } =
       await import("@src/databases/auth/totp");

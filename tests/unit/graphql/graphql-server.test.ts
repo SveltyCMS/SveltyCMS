@@ -170,6 +170,7 @@ vi.mock("@envelop/graphql-jit", () => ({
 // Subject under test (imports real graphql-yoga, graphql, ./rules, error-handling)
 // ---------------------------------------------------------------------------
 import { _getYogaApp, _refreshSchema } from "@src/routes/api/graphql/+server";
+import { BoundedJITCache } from "@src/routes/api/graphql/jit-cache";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -466,6 +467,35 @@ describe("GraphQL Server Endpoint", () => {
       const body = await response.json();
       expect(body.errors).toBeDefined();
       expect(body.errors[0].message).toMatch(/Cannot query field/i);
+    });
+  });
+
+  describe("BoundedJITCache", () => {
+    it("caches compilation entries and preserves LRU order", () => {
+      const cache = new BoundedJITCache(2);
+      const entry1 = { query: vi.fn(), stringify: JSON.stringify };
+      const entry2 = { query: vi.fn(), stringify: JSON.stringify };
+      const entry3 = { query: vi.fn(), stringify: JSON.stringify };
+
+      cache.set("query1", entry1);
+      cache.set("query2", entry2);
+
+      expect(cache.get("query1")).toBe(entry1);
+      expect(cache.get("query2")).toBe(entry2);
+
+      // Access query1 to make query2 the LRU victim
+      expect(cache.get("query1")).toBe(entry1);
+
+      // Adding query3 evicts query2
+      cache.set("query3", entry3);
+      expect(cache.get("query1")).toBe(entry1);
+      expect(cache.get("query2")).toBeUndefined();
+      expect(cache.get("query3")).toBe(entry3);
+
+      // Clear removes all entries
+      cache.clear();
+      expect(cache.get("query1")).toBeUndefined();
+      expect(cache.get("query3")).toBeUndefined();
     });
   });
 });

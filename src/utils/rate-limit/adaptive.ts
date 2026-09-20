@@ -124,10 +124,3 @@ export function computeAdaptiveBucket(
   const refillPerSecond = Math.max(0.001, (capacity / baseCapacity) * baseRefill);
   return { capacity, refillPerSecond };
 }
-
-/**
- * Die effektive Tier fuer Debug/Log-Zwecke (ohne den Zustand selbst zu teilen).
- */
-export function describeTier(ctx: AdaptiveContext): string {
-  return resolveUserTier(ctx);
-}

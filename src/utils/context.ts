@@ -39,10 +39,6 @@ export interface SveltyContext {
 
 export const sveltyContext = new AsyncLocalStorage<SveltyContext>();
 
-export function getTenantId(): DatabaseId | null | undefined {
-  return sveltyContext.getStore()?.tenantId;
-}
-
 /**
  * 🛡️ Hardened: Throws ContextMissingError if store is absent.
  * Use this in paths/lookup code where a tenant context MUST exist.
@@ -53,10 +49,6 @@ export function requireTenantId(): DatabaseId {
     throw new ContextMissingError("TenantId is missing from the active request context.");
   }
   return store.tenantId;
-}
-
-export function getUserId(): DatabaseId | null | undefined {
-  return sveltyContext.getStore()?.userId;
 }
 
 /** 🛡️ Hardened: Returns shallow copy to prevent direct ALS store mutation */

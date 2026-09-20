@@ -269,11 +269,3 @@ export function _resetSAMLCache() {
   samlInstance = null;
   samlConfig = null;
 }
-
-/**
- * Returns the cached SAML configuration. Useful for testing.
- * @internal
- */
-export function _getSAMLCache() {
-  return { samlInstance, samlConfig };
-}

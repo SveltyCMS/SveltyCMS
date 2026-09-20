@@ -88,27 +88,6 @@ export function getBenchmarkUdhPgDatabase(dbType: string = "sqlite"): string {
   return normalized === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName(normalized);
 }
 
-/** Env block shared by integration runner invocations (local + CI parity). */
-export function getIntegrationTestEnv(
-  dbType: string = "sqlite",
-  overrides: Record<string, string> = {},
-) {
-  const normalized = normalizeDbType(dbType);
-  const creds = getDockerDefaultDbCredentials(normalized);
-  return {
-    DB_TYPE: normalized,
-    DB_HOST: "127.0.0.1",
-    DB_PORT: getDefaultDbPort(normalized),
-    DB_NAME: getIntegrationDbName(normalized),
-    DB_USER: creds.user,
-    DB_PASSWORD: creds.password,
-    TEST_MODE: "true",
-    PASSWORD_MIN_LENGTH: "8",
-    PORT: "4173",
-    ...overrides,
-  };
-}
-
 /** Safely prepares the media sandbox dir (idempotent; env builders stay pure). */
 function ensureMediaSandboxDir(): void {
   try {

@@ -8,8 +8,7 @@
 
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
 import { nowISODateString } from "@utils/date";
-import type { Model } from "mongoose";
-import mongoose, { Schema } from "mongoose";
+import { Schema } from "mongoose";
 
 export interface PluginStorageDoc {
   _id: string;
@@ -41,9 +40,3 @@ export const pluginStorageSchema = new Schema<PluginStorageDoc>(
 
 pluginStorageSchema.index({ plugin: 1, collectionName: 1, tenantId: 1 });
 pluginStorageSchema.index({ plugin: 1, collectionName: 1 });
-
-export type PluginStorageModelType = Model<PluginStorageDoc>;
-
-export const PluginStorageModel =
-  (mongoose.models?.PluginStorage as PluginStorageModelType | undefined) ||
-  mongoose.model<PluginStorageDoc, PluginStorageModelType>("PluginStorage", pluginStorageSchema);

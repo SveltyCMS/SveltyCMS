@@ -69,10 +69,6 @@ export function getFieldKeysSync(): ResolvedStaticAesKey | null {
   }
 }
 
-export async function getFieldKeys(): Promise<ResolvedStaticAesKey | null> {
-  return getFieldKeysSync();
-}
-
 function buildAad(context: FieldEncryptionContext, fieldName: string): Buffer {
   return Buffer.from(`${context.tenantId}:${context.collectionId}:${fieldName}`, "utf8");
 }

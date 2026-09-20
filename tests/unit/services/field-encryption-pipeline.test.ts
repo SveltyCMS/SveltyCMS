@@ -3,7 +3,7 @@
  * @description Write/read pipeline tests for `encrypt: true` collection fields.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   encryptWritePayload,
   prepareWritePayload,
@@ -21,7 +21,6 @@ import { AppError } from "@utils/error-handling";
 import type { Schema } from "@src/content/types";
 
 const ENCRYPTION_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
-const OLD_ENV = { ...process.env };
 
 const schema = {
   _id: "Contacts",
@@ -37,12 +36,12 @@ const CTX = { collectionId: "Contacts", tenantId: "global" };
 
 describe("field-encryption write/read pipeline", () => {
   beforeEach(() => {
-    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
     resetFieldEncryptionKeyCache();
   });
 
   afterEach(() => {
-    process.env = { ...OLD_ENV };
+    vi.unstubAllEnvs();
     resetFieldEncryptionKeyCache();
   });
 

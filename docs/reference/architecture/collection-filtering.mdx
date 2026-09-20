@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:filter-cog"
 author: "SveltyCMS Team"
 created: "2026-07-15"
-updated: "2026-08-04"
+updated: "2026-09-20"
 tags:
   - "architecture"
   - "filtering"
@@ -23,14 +23,16 @@ It is CMS-native, secure, cache-aware, and schema-driven — reusable beyond `en
 
 ## Why this is a platform capability
 
-| Advantage                          | How                                                                                                      |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Schema + widgets**               | Control types derived from field widgets (`Input`, `Select`, `Date`, `Number`, `Checkbox`, …)            |
-| **RBAC / field-level permissions** | `canAccessField` (FLAC) drops fields the user cannot read before compile                                 |
-| **Cacheable + invalidatable**      | Stable `queryHash` → L1/L2 SWR keys under `collection:{id}:query:{hash}:…`                               |
-| **List load efficiency**           | `pageSize+1` hasMore + parallel exact count (L1-cached when equality-only)                               |
-| **Zero frontend deps**             | Pure defs in `@utils/collection-filter-defs` (no DB/cache/auth imports)                                  |
-| **Security at query builder**      | Compile to portable `where` / `whereBetween` / `search` — never raw `{ contains }` objects into SQL `eq` |
+| Advantage                          | How                                                                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Schema + widgets**               | Control types derived from field widgets (`Input`, `Select`, `Date`, `Number`, `Checkbox`, …)                        |
+| **RBAC / field-level permissions** | `canAccessField` (FLAC) drops fields the user cannot read before compile                                             |
+| **Cacheable + invalidatable**      | Stable `queryHash` → L1/L2 SWR keys under `collection:{id}:query:{hash}:…`                                           |
+| **List load efficiency**           | `pageSize+1` hasMore + parallel exact count (L1-cached when equality-only)                                           |
+| **Zero frontend deps**             | Pure defs in `@utils/collection-filter-defs` (no DB/cache/auth imports)                                              |
+| **Security at query builder**      | Compile to portable `where` / `whereBetween` / `search` / `orWhere` — never raw `{ contains }` objects into SQL `eq` |
+| **Multi-column sort**              | `sort=title:asc,createdAt:desc` → `QueryBuilder.orderBy` (schema-whitelisted)                                        |
+| **AND/OR groups**                  | `filterLogic` JSON (size-capped) compiles to `whereIn` or `orWhere` after FLAC                                       |
 
 ---
 

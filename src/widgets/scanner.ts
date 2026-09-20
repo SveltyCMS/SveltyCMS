@@ -30,8 +30,12 @@ try {
   // dynamic `(import.meta as any).glob(...)` reference was never transformed:
   // production builds got an empty registry and the FS fallback (which cannot
   // resolve source aliases from a built bundle) spammed one warning per widget.
+  // slop:suppress — registry must know every widget at boot; a lazy glob
+  // leaves the production registry empty (see the note above).
   Object.assign(coreModules, import.meta.glob("./core/*/index.ts", { eager: true }));
+  // slop:suppress — same registry mechanism as core modules above
   Object.assign(customModules, import.meta.glob("./custom/*/index.ts", { eager: true }));
+  // slop:suppress — same registry mechanism as core modules above
   Object.assign(marketplaceModules, import.meta.glob("./marketplace/*/index.ts", { eager: true }));
   Object.assign(
     widgetComponents,

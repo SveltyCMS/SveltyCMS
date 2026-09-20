@@ -205,7 +205,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 				<div class="relative flex items-center h-7.5 px-1">
 					<div class="editor-mobile-slider-dots absolute inset-x-3 top-[42%] h-1.5 pointer-events-none -translate-y-1/2" aria-hidden="true"></div>
 					{#if useRotationSlider}
-						<div class="absolute top-[42%] left-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2" aria-hidden="true">
+						<div class="absolute top-[42%] start-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2" aria-hidden="true">
 							<div class="w-[1.5px] h-3.5 bg-[rgba(255,255,255,0.72)] rounded-[1px]"></div>
 						</div>
 					{/if}
@@ -265,7 +265,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 			<div class="flex flex-col gap-0 py-1 px-4 pb-px">
 				<div class="relative flex items-center h-7.5 px-1">
 					<div class="editor-mobile-slider-dots absolute inset-x-3 top-[42%] h-1.5 pointer-events-none -translate-y-1/2" aria-hidden="true"></div>
-					<div class="absolute top-[42%] left-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2" aria-hidden="true">
+					<div class="absolute top-[42%] start-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2" aria-hidden="true">
 						<div class="w-[1.5px] h-3.5 bg-[rgba(255,255,255,0.72)] rounded-[1px]"></div>
 					</div>
 					<div

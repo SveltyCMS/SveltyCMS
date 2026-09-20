@@ -5,7 +5,7 @@
  * Pure helpers — no Svelte runes (safe for unit tests and SSR guards).
  */
 
-import type { SmartTableLayoutPrefs, TableDensity } from "./types";
+import type { SmartTableLayoutPrefs, TableDensity, TableViewMode } from "./types";
 
 const PREFIX = "smartTableLayout:";
 
@@ -63,4 +63,8 @@ export function mergeLayoutIntoColumns<T extends { key: string; visible?: boolea
 
 export function isValidDensity(value: unknown): value is TableDensity {
   return value === "compact" || value === "normal" || value === "comfortable";
+}
+
+export function isValidViewMode(value: unknown): value is TableViewMode {
+  return value === "table" || value === "card";
 }

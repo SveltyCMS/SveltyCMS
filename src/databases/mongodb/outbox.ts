@@ -1,5 +1,5 @@
 /**
- * @file src/databases/mongodb/models/outbox.ts
+ * @file src/databases/mongodb/outbox.ts
  * @description MongoDB schema and model for Transactional Outbox Events.
  *
  * The outbox collection stores events that must be delivered atomically with
@@ -9,8 +9,7 @@
 
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
 import { nowISODateString } from "@utils/date";
-import type { Model } from "mongoose";
-import mongoose, { Schema } from "mongoose";
+import { Schema } from "mongoose";
 import type { OutboxEvent } from "@src/services/outbox/outbox-service";
 
 export const outboxSchema = new Schema<OutboxEvent>(
@@ -45,9 +44,3 @@ export const outboxSchema = new Schema<OutboxEvent>(
 outboxSchema.index({ status: 1, createdAt: 1 });
 outboxSchema.index({ tenantId: 1, status: 1 });
 outboxSchema.index({ eventType: 1 });
-
-export type OutboxModelType = Model<OutboxEvent>;
-
-export const OutboxModel =
-  (mongoose.models?.OutboxEvent as OutboxModelType | undefined) ||
-  mongoose.model<OutboxEvent, OutboxModelType>("OutboxEvent", outboxSchema);

@@ -19,14 +19,6 @@ function getHmacSecret(): string {
 }
 
 /**
- * Test-only: drop the memoized HMAC secret so the next call re-reads
- * `JWT_SECRET_KEY` (e.g. when a test swaps the secret mid-suite).
- */
-export function resetApiKeyHmacSecretCache(): void {
-  cachedHmacSecret = null;
-}
-
-/**
  * Generates a new cryptographically secure API key.
  *
  * Includes:

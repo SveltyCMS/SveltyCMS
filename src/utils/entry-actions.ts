@@ -13,14 +13,11 @@ import {
   delete_entry_error,
   delete_entry_no_selection_error,
   entry_deleted_success,
-  entry_status_updated,
-  set_status_error,
-  set_status_no_selection_error,
 } from "@src/paraglide/messages";
 import { collections, setCollectionValue, setMode } from "@src/stores/collection-store.svelte.ts";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { showCloneModal, showConfirm, showScheduleModal } from "@utils/modal.svelte";
+import { showCloneModal, showConfirm } from "@utils/modal.svelte";
 import {
   batchDeleteEntries,
   batchUpdateEntries,
@@ -33,7 +30,6 @@ import {
 } from "./api";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
-import { formatDate } from "@utils/format-date";
 
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
@@ -380,122 +376,6 @@ function showDeleteConfirmationModal(
   });
 }
 
-export async function permanentlyDeleteEntry(entryId: string) {
-  const coll = collections.active;
-  if (!coll?._id) {
-    toast.warning({ description: clone_entry_no_selection_error() });
-    return;
-  }
-
-  const collectionId = coll._id as string;
-
-  showConfirm({
-    title: "Confirm Permanent Deletion",
-    body: "This will permanently delete the archived entry from the database. This action cannot be undone.",
-    confirmText: "Permanently Delete",
-    onConfirm: async () => {
-      try {
-        await deleteEntry(collectionId, entryId);
-        toast.success("Entry permanently deleted.");
-        invalidateCollectionCache(collectionId);
-        setMode("view");
-      } catch (e) {
-        toast.error(`Error permanently deleting entry: ${(e as Error).message}`);
-      }
-    },
-  });
-}
-
-export async function setEntryStatus(newStatus: StatusType) {
-  const entry = collections.activeValue;
-  const coll = collections.active;
-  if (!(entry?._id && coll?._id)) {
-    toast.warning({ description: set_status_no_selection_error() });
-    return;
-  }
-
-  const collectionId = coll._id as string;
-  const entryId = entry._id as string;
-
-  if (newStatus === "draft" || newStatus === StatusTypes.archive) {
-    toast.error(`${newStatus} status is reserved for system operations.`);
-    return;
-  }
-  try {
-    await updateStatus(collectionId, entryId, newStatus);
-    setCollectionValue({ ...collections.activeValue, status: newStatus });
-    toast.success({
-      description: entry_status_updated({ status: newStatus }),
-    });
-  } catch (e) {
-    toast.error({
-      description: set_status_error({ error: (e as Error).message }),
-    });
-  }
-}
-
-// Schedule entry for future publication with improved date picker integration
-export async function scheduleCurrentEntry(scheduledDate?: Date) {
-  const entry = collections.activeValue;
-  const coll = collections.active;
-
-  if (!(entry?._id && coll?._id)) {
-    toast.warning({ description: entryMessages.noEntryForScheduling() });
-    return;
-  }
-
-  const collectionId = coll._id as string;
-  const entryId = entry._id as string;
-
-  if (scheduledDate) {
-    // Validate the Date object to prevent .toISOString() crashes
-    if (isNaN(scheduledDate.getTime())) {
-      toast.error({ description: entryMessages.errorScheduling("Invalid date provided.") });
-      return;
-    }
-
-    try {
-      // 'scheduled' is not a valid StatusType, use 'publish' or 'draft' as needed
-      await updateStatus(collectionId, entryId, StatusTypes.publish);
-      setCollectionValue({
-        ...collections.activeValue,
-        status: StatusTypes.publish,
-        scheduledDate: scheduledDate.toISOString(),
-      });
-      toast.success({
-        description: entryMessages.entryScheduled(formatDate(scheduledDate)),
-      });
-    } catch (e) {
-      toast.error({
-        description: entryMessages.errorScheduling((e as Error).message),
-      });
-    }
-  } else {
-    // Show the schedule modal via helper
-    showScheduleModal({
-      initialAction: StatusTypes.publish,
-      onSchedule: async (date: Date, action: string) => {
-        try {
-          await updateStatus(collectionId, entryId, StatusTypes.publish);
-          setCollectionValue({
-            ...collections.activeValue,
-            status: StatusTypes.publish,
-            scheduledDate: date.toISOString(),
-            scheduledAction: action,
-          });
-          toast.success({
-            description: entryMessages.entryScheduled(formatDate(date)),
-          });
-        } catch (e) {
-          toast.error({
-            description: entryMessages.errorScheduling((e as Error).message),
-          });
-        }
-      },
-    });
-  }
-}
-
 // Clones the currently active entry with improved modal
 export async function cloneCurrentEntry() {
   const entry = collections.activeValue;
@@ -539,79 +419,6 @@ export async function cloneCurrentEntry() {
       }
     },
   });
-}
-
-// Auto-draft functionality for unsaved changes
-let hasUnsavedChanges = false;
-
-// Initialize editing mode
-export function startEditing() {
-  hasUnsavedChanges = false;
-}
-
-// Mark that changes have been made
-export function markAsChanged() {
-  hasUnsavedChanges = true;
-}
-
-// Check if there are unsaved changes
-export function getHasUnsavedChanges(): boolean {
-  return hasUnsavedChanges;
-}
-
-// Save current data as draft when user tries to leave
-export async function saveDraftAndLeave(): Promise<boolean> {
-  const entry = collections.activeValue;
-  const coll = collections.active;
-
-  if (!(hasUnsavedChanges && entry && coll?._id)) {
-    return true; // Allow navigation if no unsaved changes
-  }
-
-  const collectionId = coll._id as string;
-
-  return new Promise((resolve) => {
-    showConfirm({
-      title: "Unsaved Changes",
-      body: "You have unsaved changes. Do you want to save them as a draft before leaving?",
-      confirmText: "Save as Draft and Leave",
-      cancelText: "Stay and Continue Editing",
-      onConfirm: async () => {
-        // Save as draft and allow navigation
-        try {
-          // Guarantee draft status in the payload to avoid a second network call
-          const draftData = { ...entry, status: StatusTypes.draft };
-
-          if (entry._id) {
-            const entryId = entry._id as string;
-            const result = await updateEntry(collectionId, entryId, draftData);
-            if (!result.success) throw new Error(result.error || "Failed to update entry");
-          } else {
-            const result = await createEntry(collectionId, draftData);
-            if (!result.success) throw new Error(result.error || "Failed to create entry");
-          }
-
-          toast.warning("Changes saved as draft.");
-
-          invalidateCollectionCache(collectionId);
-          hasUnsavedChanges = false;
-          resolve(true); // Allow navigation
-        } catch (e) {
-          toast.error(`Error saving draft: ${(e as Error).message}`);
-          resolve(false); // Prevent navigation due to error
-        }
-      },
-      onCancel: () => {
-        // User chose to stay and continue editing
-        resolve(false); // Prevent navigation
-      },
-    });
-  });
-}
-
-// Reset the unsaved changes state
-export function resetUnsavedChanges() {
-  hasUnsavedChanges = false;
 }
 
 // --- Entry Metadata Accumulator ---

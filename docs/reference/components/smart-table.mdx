@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:table-large"
 author: "SveltyCMS Team"
 created: "2026-07-15"
-updated: "2026-07-15"
+updated: "2026-09-20"
 tags:
   - "components"
   - "table"
@@ -21,27 +21,36 @@ tags:
 
 ## P0 building blocks (implemented)
 
-| Piece               | Location                                        | Role                                                                 |
-| ------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
-| **Controller**      | `createSmartTable`                              | Selection, sort, page, density, virtual, **pin order**, layout prefs |
-| **Shell**           | `smart-table-shell.svelte`                      | Toolbar slot, empty/loading, scroll body, CMS pagination             |
-| **Empty / loading** | `smart-table-empty` / `smart-table-loading`     | Shared WCAG states                                                   |
-| **Chrome**          | `chrome.ts`                                     | Class tokens + `pinCellClass` / `alignCellClass`                     |
-| **Layout prefs**    | `layout-prefs.ts`                               | localStorage density / order / visibility (`layoutKey`)              |
-| **Column meta**     | `SmartTableColumn.pin`, `.align`, `.meta`       | TanStack-style defs without TanStack dependency                      |
-| **Column resize**   | `setColumnWidth` + `column-resize-handle`       | Drag widths, persisted with `layoutKey`                              |
-| **Saved views**     | `@utils/smart-table-saved-views` + menu UI      | Named filter/sort/layout presets (localStorage)                      |
-| **Status facets**   | `smart-table-status-facets` + `getStatusFacets` | Server status counts as filter chips                                 |
-| **List metrics**    | `@utils/list-query-metrics` + metrics badge     | Latency + cache hit; UI via `?debug=table` (SSR snapshot)            |
+| Piece                     | Location                                        | Role                                                                 |
+| ------------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| **Controller**            | `createSmartTable`                              | Selection, multi-sort, page, density, virtual, **pin order**, layout |
+| **Multi-column sort**     | `multiSort`, `getSortRank`, `clearSorts`        | `Shift+Click` chained ordering with ordinal badges (`1`, `2`, `3`)   |
+| **View modes**            | `viewMode` (`'table' \| 'card'`), `setViewMode` | Responsive card mode toggle persisted in layout prefs                |
+| **Keyboard grid nav**     | Roving `tabindex` on `role="grid"`              | Arrow traversal, `Space` toggle selection, `Enter` edit, WCAG 2.2 AA |
+| **Shell**                 | `smart-table-shell.svelte`                      | Toolbar slot, empty/loading, scroll body, CMS pagination             |
+| **Empty / loading**       | `smart-table-empty` / `smart-table-loading`     | Shared WCAG states                                                   |
+| **Chrome**                | `chrome.ts`                                     | Class tokens + `pinCellClass` / `alignCellClass`                     |
+| **Layout prefs**          | `layout-prefs.ts`                               | localStorage density / viewMode / order / visibility (`layoutKey`)   |
+| **Column meta**           | `SmartTableColumn.pin`, `.align`, `.meta`       | TanStack-style defs without TanStack dependency                      |
+| **Column resize**         | `setColumnWidth` + `column-resize-handle`       | Drag widths, persisted with `layoutKey`                              |
+| **Saved views**           | `@utils/smart-table-saved-views` + menu UI      | Named filter/sort/layout presets (localStorage)                      |
+| **Advanced filter modal** | `advanced-filter-modal.svelte`                  | Compound `AND`/`OR` multi-condition query builder                    |
+| **Status facets**         | `smart-table-status-facets` + `getStatusFacets` | Server status counts as filter chips                                 |
+| **List metrics**          | `@utils/list-query-metrics` + metrics badge     | Latency + cache hit; UI via `?debug=table` (SSR snapshot)            |
 
 ### Entry-list UX (P1 wired)
 
-| Control           | Where                             | Behavior                                                                 |
-| ----------------- | --------------------------------- | ------------------------------------------------------------------------ |
-| **Views menu**    | Toolbar (desktop + mobile expand) | Save/apply/delete named views (filters, search, sort, pageSize, layout)  |
-| **Status facets** | Above table                       | Chip filters → `?filter_status=` via `createSmartFilter` (server FLAC)   |
-| **Metrics badge** | Toolbar when `?debug=table`       | p50/p95/hit% from SSR `listMetrics` (server ring buffer)                 |
-| **Column resize** | Header drag handles               | `setColumnWidth` + per-collection `layoutKey: entry-list:{collectionId}` |
+| Control                 | Where                             | Behavior                                                                  |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------------------- |
+| **Views menu**          | Toolbar (desktop + mobile expand) | Save/apply/delete named views (filters, search, sort, pageSize, layout)   |
+| **View mode toggle**    | Toolbar                           | Toggle between standard data table and responsive card mode               |
+| **Multi-sort controls** | Column headers                    | Click or `Shift+Click` for ordinal sorting; clear all sort descriptors    |
+| **Status facets**       | Above table                       | Chip filters → `?filter_status=` via `createSmartFilter` (server FLAC)    |
+| **Advanced filters**    | Search / filter bar               | Compound multi-clause query builder (`AND`/`OR`) with type-aware inputs   |
+| **Keyboard grid nav**   | Grid cells & cards                | Arrow navigation with roving `tabindex="0"`, `Space` select, `Enter` edit |
+| **Selection export**    | MultiButton / `Alt+X`             | Stream filtered CSV download of selected or matching entries              |
+| **Metrics badge**       | Toolbar when `?debug=table`       | p50/p95/hit% from SSR `listMetrics` (server ring buffer)                  |
+| **Column resize**       | Header drag handles               | `setColumnWidth` + per-collection `layoutKey: entry-list:{collectionId}`  |
 
 ```svelte
 <SmartTableShell
@@ -118,6 +127,62 @@ table.setPaginationMeta(serverPagination);
 const table = createSmartTable({ mode: "client", pageSize: 10 });
 table.setRows(localRows);
 ```
+
+## Advanced UX Capabilities
+
+### 1. Multi-Column Sorting & Ordinal Ranks
+
+Smart Table supports multi-tier sorting, both client-side and serialized for server queries.
+
+- **Interaction**: Single-clicking a sortable column header replaces the sort order. Holding `Shift` while clicking appends or toggles the column in the multi-sort chain.
+- **Visual Ranks**: When multiple columns are sorted, secondary and tertiary columns display ordinal rank indicators (`1`, `2`, `3`) alongside the direction arrow.
+- **Controller API**:
+  - `table.setSort(field, { multi: true })`: Toggles sort direction for `field` while keeping existing sorts.
+  - `table.getSortRank(field)`: Returns 1-based priority rank or `null` if not sorted.
+  - `table.clearSorts()`: Resets all active sort descriptors.
+  - `table.multiSort`: Readonly reactive array of active `ColumnSortDescriptor[]`.
+- **Query Serialization**: In server mode, multiple sorts serialize into the URL parameter format `sort=priority:desc,status:asc,title:asc`.
+- **Persistence**: Saved with the view or stored in `localStorage` under `layoutKey`.
+
+### 2. Responsive Card Mode
+
+For mobile viewports or data presentation emphasizing rich item cards:
+
+- **View Mode Toggle**: Users can switch between standard tabular grid (`viewMode: 'table'`) and responsive card deck (`viewMode: 'card'`).
+- **Persistence**: Preserved per collection or view in `SmartTableLayoutPrefs` (`viewMode`).
+- **Accessibility**: View toggle buttons carry `aria-pressed` states and clear accessible labels.
+- **Cards Grid**: When `viewMode === 'card'`, entries render as responsive cards with status badges, thumbnail previews, inline selection checkboxes, and full row activation.
+
+### 3. Keyboard Grid Navigation (WCAG 2.2 AA / ATAG 2.0)
+
+Smart Table implements the WAI-ARIA Data Grid keyboard navigation pattern with a roving `tabindex`:
+
+- **Focus Management**: Only the currently active cell has `tabindex="0"`; all other cells have `tabindex="-1"`.
+- **Arrow Keys**:
+  - `ArrowDown` / `ArrowUp`: Move focus between rows within the same column.
+  - `ArrowRight` / `ArrowLeft`: Move focus between columns within the same row (RTL-aware).
+  - `Home` / `End`: Jump to the first or last cell in the active row.
+- **Row Selection & Activation**:
+  - `Space`: Toggles row selection without navigating away.
+  - `Enter`: Navigates to the entry editor or triggers the row's primary action.
+- **Screen Reader Announcements**: Uses `role="grid"`, `role="row"`, and `role="gridcell"` with live selection status updates.
+
+### 4. Advanced Filter Modal
+
+A compound filter builder powered by `advanced-filter-modal.svelte`:
+
+- **Rule Clauses**: Allows chaining multiple field criteria with comparison operators (`contains`, `equals`, `starts_with`, `ends_with`, `gt`, `lt`, `is_empty`, `is_not_empty`).
+- **Conjunction Groups**: Supports compound `AND` / `OR` condition logic.
+- **Schema-Aware Inputs**: Automatically renders appropriate inputs (text, number, date, select) based on collection field widget types.
+- **URL & Engine Integration**: AND groups serialize as `?filter_<field>=...`. OR groups use `?filterLogic=` JSON (size-capped), compiled to `whereIn` (same field) or `QueryBuilder.orWhere` (mixed fields), still FLAC-whitelisted.
+
+### 5. Filtered Selection & Export Data Streaming
+
+Exporting dataset slices without client memory bottlenecks:
+
+- **Shortcut**: `Alt + X` triggers export on the active collection.
+- **Selection-Aware**: If entries are selected via checkboxes, exports the selected rows. If no selection is active, exports all entries matching the current filter and search query.
+- **Streaming Delivery**: Downloads data as UTF-8 encoded CSV with proper escaping and column headers.
 
 ## What was unified
 
@@ -198,4 +263,4 @@ import Pagination from "@components/ui/table/pagination.svelte";
 
 ---
 
-**Last Updated**: 2026-07-15
+**Last Updated**: 2026-09-20

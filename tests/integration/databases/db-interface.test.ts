@@ -443,6 +443,7 @@ describe("Database Interface Contract Tests", () => {
 
         expect(typeof builder.sort).toBe("function");
         expect(typeof builder.orderBy).toBe("function");
+        expect(typeof builder.orWhere).toBe("function");
 
         expect(typeof builder.select).toBe("function");
         expect(typeof builder.exclude).toBe("function");

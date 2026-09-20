@@ -3,22 +3,20 @@
  * @description Runtime gate tests for /api/testing — no backdoor without harness env + secret.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleTestingRoutes } from "@src/routes/api/[...path]/handlers/testing";
 
 describe("testing API runtime gate", () => {
-  const envSnapshot = { ...process.env };
-
   beforeEach(() => {
-    process.env = { ...envSnapshot, NODE_ENV: "production" };
-    delete process.env.TEST_MODE;
-    delete process.env.BENCHMARK;
-    delete process.env.TEST_API_SECRET;
-    delete process.env.VITE_TEST_MODE;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TEST_MODE", undefined);
+    vi.stubEnv("BENCHMARK", undefined);
+    vi.stubEnv("TEST_API_SECRET", undefined);
+    vi.stubEnv("VITE_TEST_MODE", undefined);
   });
 
   afterEach(() => {
-    process.env = { ...envSnapshot };
+    vi.unstubAllEnvs();
   });
 
   it("rejects hardcoded benchmark secret when harness env is unset", async () => {
@@ -42,9 +40,9 @@ describe("testing API runtime gate", () => {
   });
 
   it("rejects wrong secret even when BENCHMARK is set", async () => {
-    process.env.NODE_ENV = "test";
-    process.env.BENCHMARK = "true";
-    process.env.TEST_API_SECRET = "correct-secret";
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("BENCHMARK", "true");
+    vi.stubEnv("TEST_API_SECRET", "correct-secret");
 
     const event = {
       request: new Request("http://localhost/api/testing", {

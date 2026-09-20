@@ -33,6 +33,7 @@
  */
 
 import type { AiWorkerRequest, AiWorkerResponse } from "./types";
+import { logger } from "@utils/logger";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -51,6 +52,10 @@ let worker: Worker | null = null;
 let workerReady = false;
 let workerPromise: Promise<Worker> | null = null;
 let restartCount = 0;
+/** Set by explicit teardown/dispose — suppresses all auto-restart. */
+let disposed = false;
+/** True while an auto-restart is in flight, to coalesce crash bursts. */
+let restartInFlight = false;
 
 // ─── RPC Bridge ─────────────────────────────────────────────────────────────
 
@@ -118,6 +123,34 @@ function handleWorkerError(error: ErrorEvent): void {
     pending.reject(new Error(errMsg));
   }
   pendingRequests.clear();
+
+  // Worker crash → auto-restart (up to MAX_RESTART_COUNT). Only heal a worker
+  // that completed its handshake: handshake failures already surface through
+  // createWorker()'s catch and restarting here would race that teardown.
+  scheduleRestart();
+}
+
+/**
+ * Schedule a background auto-restart after a crash.
+ *
+ * Fire-and-forget by design: callers already fall back to Ollama on RPC
+ * failure, so healing the worker for the *next* request is best-effort.
+ * No-op during SSR/unsupported environments (no Worker), after dispose, or
+ * while another restart is already in flight.
+ */
+function scheduleRestart(): void {
+  if (disposed || restartInFlight || !workerReady) return;
+
+  restartInFlight = true;
+  restartWorker()
+    .catch((err) => {
+      logger.warn(
+        `[AI Client] Auto-restart failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    })
+    .finally(() => {
+      restartInFlight = false;
+    });
 }
 
 // ─── Worker Lifecycle ───────────────────────────────────────────────────────
@@ -155,6 +188,9 @@ async function createWorker(): Promise<Worker> {
     );
   }
 
+  // An explicit creation request (re)enables auto-restart after any prior dispose.
+  disposed = false;
+
   // Use Vite's native Worker import — Vite handles bundling the worker
   // as a separate chunk with its own module graph.
   const workerUrl = new URL("./ai.worker.ts", import.meta.url);
@@ -177,17 +213,17 @@ async function createWorker(): Promise<Worker> {
     restartCount = 0;
     return worker;
   } catch (err) {
-    terminateWorker();
+    teardownWorker();
     throw err;
   }
 }
 
 /**
- * Gracefully terminate the AI Worker and reset all state.
+ * Tear down the current Worker instance without changing the disposed flag.
  *
- * All in-flight RPCs will reject with a clear "terminated" error.
+ * Shared by explicit teardown and auto-restart (which must stay re-startable).
  */
-export function terminateWorker(): void {
+function teardownWorker(): void {
   if (worker) {
     worker.removeEventListener("message", handleMessage);
     worker.removeEventListener("error", handleWorkerError);
@@ -205,14 +241,42 @@ export function terminateWorker(): void {
 }
 
 /**
+ * Gracefully terminate the AI Worker and reset all state.
+ *
+ * This is the explicit dispose path: it also suppresses auto-restart until a
+ * Worker is requested again explicitly. All in-flight RPCs reject with a clear
+ * "terminated" error.
+ */
+export function terminateWorker(): void {
+  disposed = true;
+  restartInFlight = false;
+  teardownWorker();
+}
+
+/**
  * Restart the AI Worker after a crash.
  *
- * Called automatically by the RPC bridge when a request fails. Gives up
- * after `MAX_RESTART_COUNT` consecutive restarts to avoid infinite loops.
+ * Called automatically by the crash handler (see `handleWorkerError`). Gives up
+ * after `MAX_RESTART_COUNT` consecutive restarts to avoid infinite loops. Safe
+ * to call on the server (rejects instead of touching `Worker`), and a no-op
+ * failure after dispose.
  */
 export function restartWorker(): Promise<Worker> {
-  terminateWorker();
+  if (typeof Worker === "undefined") {
+    return Promise.reject(
+      new Error(
+        "[AI Client] Web Workers not supported in this browser. " +
+          "Use server-side fallback (Ollama) instead.",
+      ),
+    );
+  }
+
+  if (disposed) {
+    return Promise.reject(new Error("[AI Client] Worker was disposed; not restarting."));
+  }
+
   restartCount++;
+  teardownWorker();
 
   if (restartCount > MAX_RESTART_COUNT) {
     restartCount = 0;

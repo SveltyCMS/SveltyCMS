@@ -390,66 +390,6 @@ async function createAuditLog(
   }
 }
 
-// ──────────────────────────────────────────────────────────────
-// PUBLIC API: Convenience function for scheduling jobs
-// ──────────────────────────────────────────────────────────────
-
-/**
- * Schedules a new job for future execution.
- *
- * @param taskType - The type of task (e.g., "status-transition")
- * @param payload - Job-specific payload
- * @param runAt - When the job should run (Date or ISO string)
- * @returns The created job ID, or null on failure
- */
-export async function scheduleJob(
-  taskType: string,
-  payload: Record<string, unknown>,
-  runAt: Date | string,
-): Promise<string | null> {
-  const db = getDb();
-  if (!db || !db.system?.jobs) {
-    logger.warn("[Scheduler] Cannot schedule job: DB or jobs interface not available");
-    return null;
-  }
-
-  try {
-    const nextRunAt = typeof runAt === "string" ? new Date(runAt) : runAt;
-
-    const result = await db.system.jobs.create({
-      taskType,
-      payload,
-      status: "pending",
-      attempts: 0,
-      maxAttempts: MAX_RETRIES,
-      nextRunAt,
-    });
-
-    if (result.success) {
-      const jobData = result.data;
-      logger.info(
-        `[Scheduler] Scheduled job ${jobData._id} (${taskType}) for ${nextRunAt.toISOString()}`,
-      );
-
-      // Trigger immediate poll if scheduler is running
-      if (isRunning && currentInterval > FAST_POLL_MS) {
-        currentInterval = FAST_POLL_MS;
-        if (pollTimer) {
-          clearTimeout(pollTimer);
-          scheduleNextPoll();
-        }
-      }
-
-      return jobData._id as string;
-    }
-
-    throw new Error(result.message || "Failed to create job");
-  } catch (err) {
-    logger.error(`[Scheduler] Failed to schedule job (${taskType}):`, err);
-    return null;
-  }
-}
-
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     stopScheduler();

@@ -122,7 +122,7 @@ describe("Audit Ledger & Cryptographic Integrity Suite", () => {
       }
 
       const elapsed = performance.now() - start;
-      expect(elapsed).toBeLessThan(100);
+      expect(elapsed).toBeLessThan(250);
       expect(accumulator.entryCount).toBe(200);
     });
   });

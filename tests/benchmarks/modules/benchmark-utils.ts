@@ -1635,6 +1635,8 @@ export async function setupBenchmarkServer() {
       HTTP_HEADERS_TIMEOUT_MS: process.env.HTTP_HEADERS_TIMEOUT_MS || "600000",
       HTTP_REQUEST_TIMEOUT_MS: process.env.HTTP_REQUEST_TIMEOUT_MS || "600000",
       HTTP_KEEPALIVE_TIMEOUT_MS: process.env.HTTP_KEEPALIVE_TIMEOUT_MS || "75000",
+      NODE_OPTIONS:
+        process.env.NODE_OPTIONS || "--max-semi-space-size=128 --max-old-space-size=1024",
     },
     stdio: "pipe",
     shell: false,

@@ -21,6 +21,7 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { getTurboAuthContext } from "./handle-turbo-get";
+import { resolveRequestTenant } from "./request-tenant";
 import { wafGuard } from "./handle-waf-guard";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
@@ -101,7 +102,7 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
 
   locals.user = turbo.user;
   locals.roles = turbo.roles;
-  locals.tenantId = turbo.tenantId as DatabaseId;
+  locals.tenantId = resolveRequestTenant(request, turbo.tenantId);
   locals.isAdmin = isAdmin(turbo.user);
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;

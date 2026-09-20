@@ -30,6 +30,8 @@ import type { Plugin } from "./types";
 let pluginModulesRaw: Record<string, any> = {};
 
 try {
+  // slop:suppress — the plugin registry must enumerate every plugin at boot;
+  // Vite needs the literal static call to transform it into the bundle.
   pluginModulesRaw = import.meta.glob("./*/index.ts", { eager: true });
 } catch (err: any) {
   logger.debug(`[Plugins Scanner] Vite Glob failed: ${err.message}`);

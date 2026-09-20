@@ -96,6 +96,7 @@ onMount(() => {
                 return;
             }
             setupNewCollection();
+            // slop:suppress — keyboard-hotkey fallback navigation (no anchor target to preload)
             goto(newCollectionHref);
         },
         "New collection"
@@ -705,6 +706,7 @@ function modalLoadPreset(): void {
                     })),
                 } as any);
                 toast.success(`Schema ingested: ${schema.name} (${schema.fields.length} fields)`);
+                // slop:suppress — post-action redirect after schema-ingestion modal completes
                 goto(newCollectionHref);
             },
         );

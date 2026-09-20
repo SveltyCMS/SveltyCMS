@@ -159,21 +159,3 @@ export const resetSettingsGroup = query(
     }
   },
 );
-
-export const loadAllSettings = query(
-  "unchecked",
-  async (): Promise<{
-    success: boolean;
-    values?: Record<string, unknown>;
-    error?: string;
-  }> => {
-    try {
-      requireUser();
-      const { cms, tenantId } = await getRequestLocalCMS();
-      const values = await cms.system.settings.getAll({ tenantId: tenantId as never });
-      return { success: true, values: values as Record<string, unknown> };
-    } catch (err) {
-      return { success: false, error: remoteErrorMessage(err, "Failed to load settings") };
-    }
-  },
-);

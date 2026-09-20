@@ -10,7 +10,7 @@
  * - defense-in-depth admin gate (401 unauthenticated / 403 non-admin)
  * - input guards (prompt / previousProposal)
  * - quota enforcement via builderAiGateway.checkQuota (429)
- * - approve-collection Phase 1 stub (501 NOT_IMPLEMENTED)
+ * - approve-collection Phase 1 persist (proposal required, writes via service)
  * - unknown action (404 NOT_FOUND)
  */
 
@@ -23,6 +23,7 @@ import { _checkEndpointPermission } from "@src/routes/api/[...path]/+server";
 const aiBuilder = vi.hoisted(() => ({
   designCollection: vi.fn(),
   refineCollection: vi.fn(),
+  approveCollection: vi.fn(),
   checkQuota: vi.fn(),
 }));
 
@@ -30,6 +31,7 @@ const aiBuilder = vi.hoisted(() => ({
 vi.mock("@src/services/ai-builder", () => ({
   designCollection: aiBuilder.designCollection,
   refineCollection: aiBuilder.refineCollection,
+  approveCollection: aiBuilder.approveCollection,
   builderAiGateway: { checkQuota: aiBuilder.checkQuota },
   BuilderAiGateway: class BuilderAiGateway {
     static resetQuotasForTests(): void {}
@@ -62,6 +64,12 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
     vi.clearAllMocks();
     aiBuilder.designCollection.mockResolvedValue(PROPOSAL);
     aiBuilder.refineCollection.mockResolvedValue(PROPOSAL);
+    aiBuilder.approveCollection.mockResolvedValue({
+      collectionId: "blog",
+      slug: "blog",
+      path: "config/collections/blog.ts",
+      overwritten: false,
+    });
     aiBuilder.checkQuota.mockImplementation(() => {});
   });
 
@@ -198,15 +206,43 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
     });
   });
 
-  describe("approve-collection (Phase 1 reserved)", () => {
-    it("returns 501 NOT_IMPLEMENTED", async () => {
+  describe("approve-collection", () => {
+    it("rejects a missing proposal with 400", async () => {
       const response = await invokeApi("POST", {
         path: "ai-builder/approve-collection",
         body: { prompt: "Approve" },
         user: admin,
         tenantId: "t1",
       });
-      expect(response.status).toBe(501);
+      expect(response.status).toBe(400);
+      expect(aiBuilder.approveCollection).not.toHaveBeenCalled();
+    });
+
+    it("writes the approved proposal via approveCollection", async () => {
+      const proposal = {
+        name: "Blog",
+        slug: "blog",
+        label: "Blog",
+        fields: [{ name: "title", widget: "Input", required: true }],
+      };
+      const response = await invokeApi("POST", {
+        path: "ai-builder/approve-collection",
+        body: { proposal, overwrite: true },
+        user: admin,
+        tenantId: "t1",
+      });
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload.success).toBe(true);
+      expect(payload.data.slug).toBe("blog");
+      expect(aiBuilder.approveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposal,
+          tenantId: "t1",
+          overwrite: true,
+          userId: "admin-1",
+        }),
+      );
     });
   });
 
