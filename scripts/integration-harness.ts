@@ -250,6 +250,20 @@ export function buildIntegrationServerEnv(
   };
 }
 
+/**
+ * Default integration port.
+ *
+ * A fixed 4173 collides with a preview/E2E server or with a stale integration run
+ * still holding the port — and `ensurePortAvailable` can only clear listeners it
+ * recognises as a CMS. A port from the ephemeral range above the preview default
+ * makes that collision unlikely; `PORT` or `API_BASE_URL` still pin it when a
+ * caller needs a known address (the value is propagated to both the server and
+ * the test env through `buildIntegrationServerEnv`).
+ */
+function defaultIntegrationPort(): string {
+  return String(4173 + Math.floor(Math.random() * 500));
+}
+
 export function createIntegrationContext(
   root: string,
   overrides: Partial<{
@@ -261,7 +275,7 @@ export function createIntegrationContext(
 ): IntegrationRunContext {
   // Pin once: private.test.ts, preview env, and bun test env all share this object.
   const secrets = pinIntegrationSecrets();
-  const port = overrides.port ?? process.env.PORT ?? "4173";
+  const port = overrides.port ?? process.env.PORT ?? defaultIntegrationPort();
   const apiBaseUrl = overrides.apiBaseUrl ?? process.env.API_BASE_URL ?? `http://127.0.0.1:${port}`;
   let rawDbType = (overrides.dbType ?? process.env.DB_TYPE ?? "sqlite").toLowerCase();
   if (rawDbType === "postgress" || rawDbType === "postgres" || rawDbType === "pg") {
