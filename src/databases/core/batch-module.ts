@@ -250,14 +250,17 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
           // but nothing persisted, the Zahl-Feld class). prepareValues moves
           // non-column fields into the JSON `data` blob and preserves number
           // types; updatedAt/tenantId stamps come from the same helper.
-          const values = this.core.prepareValues(
-            table,
-            updates[0].data as Record<string, unknown>,
-            undefined,
-            now,
-            (options as { isUpdate?: boolean })?.isUpdate === true
-              ? options
-              : { ...options, isUpdate: true, operation: "update" },
+          const values = utils.convertIsoDatesForDrizzleWrite(
+            this.core.prepareValues(
+              table,
+              updates[0].data as Record<string, unknown>,
+              undefined,
+              now,
+              (options as { isUpdate?: boolean })?.isUpdate === true
+                ? options
+                : { ...options, isUpdate: true, operation: "update" },
+            ),
+            collection,
           );
           const query = this.db
             .update(table as any)
@@ -298,14 +301,17 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
                 // number types stay numbers (the Zahl-Feld class), updatedAt
                 // is stamped by the same helper.
                 .set(
-                  this.core.prepareValues(
-                    table,
-                    update.data as Record<string, unknown>,
-                    undefined,
-                    now,
-                    (options as { isUpdate?: boolean })?.isUpdate === true
-                      ? options
-                      : { ...options, isUpdate: true, operation: "update" },
+                  utils.convertIsoDatesForDrizzleWrite(
+                    this.core.prepareValues(
+                      table,
+                      update.data as Record<string, unknown>,
+                      undefined,
+                      now,
+                      (options as { isUpdate?: boolean })?.isUpdate === true
+                        ? options
+                        : { ...options, isUpdate: true, operation: "update" },
+                    ),
+                    collection,
                   ) as Record<string, unknown>,
                 )
                 .where(

@@ -29,6 +29,7 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
+  convertIsoDatesForDrizzleWrite,
   generateId,
 } from "./relational-utils";
 
@@ -298,17 +299,19 @@ export class RelationalSystemModule implements ISystemAdapter {
         const now = nowISODateString();
         const db = this.getDb(options as any);
         const tid = (options as any)?.tenantId ? String((options as any).tenantId) : null;
-        const rows = preferences.map((pref) => ({
-          _id: String(generateId()),
-          key: String(pref.key),
-          value: encodePreferenceValue(this.adapter.type, pref.value),
-          scope: String(pref.scope || "system"),
-          userId: pref.userId ? String(pref.userId) : null,
-          visibility: String(pref.category || "private"),
-          tenantId: tid,
-          createdAt: now,
-          updatedAt: now,
-        }));
+        const rows = convertIsoDatesForDrizzleWrite(
+          preferences.map((pref) => ({
+            _id: String(generateId()),
+            key: String(pref.key),
+            value: encodePreferenceValue(this.adapter.type, pref.value),
+            scope: String(pref.scope || "system"),
+            userId: pref.userId ? String(pref.userId) : null,
+            visibility: String(pref.category || "private"),
+            tenantId: tid,
+            createdAt: now,
+            updatedAt: now,
+          })),
+        );
         await db
           .insert(this.schema.systemPreferences)
           .values(rows)
@@ -422,15 +425,17 @@ export class RelationalSystemModule implements ISystemAdapter {
               ? new Date(job.nextRunAt.getTime())
               : new Date(job.nextRunAt)
             : now;
-          const values = (this.adapter as any).prepareValues(
-            this.schema.sveltyJobs,
-            {
-              ...(job as any),
-              nextRunAt,
-            },
-            id,
-            now,
-            { tenantId: job.tenantId },
+          const values = convertIsoDatesForDrizzleWrite(
+            (this.adapter as any).prepareValues(
+              this.schema.sveltyJobs,
+              {
+                ...(job as any),
+                nextRunAt,
+              },
+              id,
+              now,
+              { tenantId: job.tenantId },
+            ),
           );
           const db = this.getDb(options);
           await db.insert(this.schema.sveltyJobs).values(values as any);
@@ -545,15 +550,17 @@ export class RelationalSystemModule implements ISystemAdapter {
             ? new Date(data.nextRunAt.getTime())
             : new Date(data.nextRunAt)
           : undefined;
-        const updateValues = (this.adapter as any).prepareValues(
-          this.schema.sveltyJobs,
-          {
-            ...(data as any),
-            nextRunAt,
-          },
-          undefined,
-          now,
-          { tenantId: data.tenantId },
+        const updateValues = convertIsoDatesForDrizzleWrite(
+          (this.adapter as any).prepareValues(
+            this.schema.sveltyJobs,
+            {
+              ...(data as any),
+              nextRunAt,
+            },
+            undefined,
+            now,
+            { tenantId: data.tenantId },
+          ),
         );
         delete updateValues._id;
         delete updateValues.createdAt;
@@ -566,17 +573,36 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (options?.filter?.status) {
           conditions.push(eq(this.schema.sveltyJobs.status, String(options.filter.status) as any));
         }
-        await this.db
+        const updateQuery = this.db
           .update(this.schema.sveltyJobs)
           .set(updateValues as any)
           .where(and(...conditions));
 
+        // The claimed row must come back from the SAME statement. Re-reading with
+        // the claim filter after the UPDATE can never match again (the status just
+        // changed), which reported "not claimed" for every successful claim — both
+        // consumers (`jobQueue.executeJob`, `scheduler.executeScheduledJob`) treat
+        // missing data as "another consumer owns it" and silently dropped EVERY
+        // background job. Dialects without UPDATE … RETURNING (MariaDB/MySQL) use
+        // the affected-row count instead.
+        if (this.adapter.type !== "mariadb" && this.adapter.type !== "mysql") {
+          const rows = await (updateQuery as any).returning(
+            this.adapter.getPhysicalSelection(this.schema.sveltyJobs),
+          );
+          return convertDatesToISO(rows?.[0]) as unknown as Job;
+        }
+
+        const rawResult = (await updateQuery) as any;
+        // mysql2 resolves to [ResultSetHeader, fields] — unwrap before reading counts.
+        const updateResult = Array.isArray(rawResult) ? rawResult[0] : rawResult;
+        const changed =
+          updateResult?.affectedRows ?? updateResult?.changes ?? updateResult?.rowCount ?? 0;
+        // A conditional claim that matched nothing lost the race → no data.
+        if (options?.filter && !changed) return undefined as unknown as Job;
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
           .from(this.schema.sveltyJobs)
-          .where(and(...conditions));
-        // No row matched the filter (already claimed by another consumer) → data
-        // is undefined; callers treat that as "not claimed".
+          .where(eq(this.schema.sveltyJobs._id, jobId as string));
         return convertDatesToISO(result) as unknown as Job;
       }, "JOB_UPDATE_FAILED");
     },

@@ -23,6 +23,7 @@ import {
   applyTenantFilter,
   convertArrayDatesToISO,
   convertDatesToISO,
+  convertIsoDatesForDrizzleWrite,
   generateId,
 } from "./relational-utils";
 import { assertTenantContext } from "@src/utils/security/safe-query";
@@ -73,17 +74,20 @@ export class RelationalContentModule implements IContentAdapter {
     // at the OLD value, so saves came back re-sorted to the pre-move order.
     const position =
       typeof order === "number" ? order : ((node as any).position as number | undefined);
-    const preparedValues = (this.adapter as any).prepareValues(
-      table,
-      {
-        ...node,
-        _id: id,
-        tenantId,
-        ...(position !== undefined ? { position } : {}),
-      },
-      id,
-      now,
-      { tenantId },
+    const preparedValues = convertIsoDatesForDrizzleWrite(
+      (this.adapter as any).prepareValues(
+        table,
+        {
+          ...node,
+          _id: id,
+          tenantId,
+          ...(position !== undefined ? { position } : {}),
+        },
+        id,
+        now,
+        { tenantId },
+      ),
+      "contentNodes",
     );
 
     return { preparedValues, id, tenantId };

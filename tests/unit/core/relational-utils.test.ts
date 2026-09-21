@@ -345,3 +345,68 @@ describe("relational-utils — tenant filter centralization", () => {
     ).toThrow(/63 chars/);
   });
 });
+
+describe("relational-utils — convertIsoDatesForDrizzleWrite", () => {
+  const ISO = "2026-09-21T19:01:20.779Z";
+
+  it("converts ISO date text to Date objects for a registered table's date columns", () => {
+    utils.registerTableSchema("collection_drizzle_probe", [
+      "_id",
+      "data",
+      "createdAt",
+      "updatedAt",
+      "publishedAt",
+    ]);
+
+    const values = utils.convertIsoDatesForDrizzleWrite(
+      { _id: "x", createdAt: ISO, updatedAt: ISO, publishedAt: null, title: ISO },
+      "collection_drizzle_probe",
+    ) as Record<string, unknown>;
+
+    // Drizzle's timestamp mapping calls value.toISOString()/getTime() unguarded —
+    // ISO text would throw (the job-queue dispatch crash).
+    expect(values.createdAt).toBeInstanceOf(Date);
+    expect((values.updatedAt as Date).toISOString()).toBe(ISO);
+    expect(values.publishedAt).toBeNull();
+    // Non-date columns are untouched even when they look like a timestamp.
+    expect(values.title).toBe(ISO);
+  });
+
+  it("leaves non-date strings alone — a lastError message is not a timestamp", () => {
+    const values = utils.convertIsoDatesForDrizzleWrite({
+      status: "pending",
+      lastError: "No handler registered for task type: probe",
+      nextRunAt: ISO,
+    }) as Record<string, unknown>;
+
+    expect(values.lastError).toBe("No handler registered for task type: probe");
+    expect(values.nextRunAt).toBeInstanceOf(Date);
+  });
+
+  it("keeps Date instances and JSON values (no double encoding of arrays)", () => {
+    const date = new Date(ISO);
+    const values = utils.convertIsoDatesForDrizzleWrite({
+      updatedAt: date,
+      tags: ["a", "b"],
+      data: { nested: [1, 2] },
+    }) as Record<string, unknown>;
+
+    expect(values.updatedAt).toBe(date);
+    expect(values.tags).toEqual(["a", "b"]);
+    expect(values.data).toEqual({ nested: [1, 2] });
+  });
+
+  it("walks row arrays in place (setMany / bulkUpdate batch shape)", () => {
+    const rows = [
+      { key: "a", createdAt: ISO, updatedAt: ISO },
+      { key: "b", createdAt: ISO, updatedAt: ISO },
+    ];
+    const out = utils.convertIsoDatesForDrizzleWrite(rows) as Array<Record<string, unknown>>;
+
+    expect(out).toBe(rows);
+    for (const row of out) {
+      expect(row.createdAt).toBeInstanceOf(Date);
+      expect(row.updatedAt).toBeInstanceOf(Date);
+    }
+  });
+});

@@ -72,8 +72,13 @@ const DATE_FIELDS = new Set([
   "timestamp",
   "appliedAt",
   "nextRunAt",
-  "lastError",
   "lastErrorAt",
+  // NOTE: `lastError` is deliberately NOT a date field. It holds the failure
+  // message in `svelty_jobs`/`svelty_outbox` (TEXT in all three schemas). Listing
+  // it here made the schema-aware write conversion turn a message into an invalid
+  // Date — every job retry/back-off write then bound an object on SQLite
+  // ("Binding expected string, TypedArray, boolean, number, bigint or null") and
+  // broke on PostgreSQL for the same reason.
   "deletedAt",
   "publishDate",
   "lastHit",
@@ -663,6 +668,45 @@ export function convertISOToDates(
   }
 
   return result;
+}
+
+/**
+ * Convert ISO-8601 date text back to `Date` objects for a **raw Drizzle**
+ * `.values()` / `.set()` write — never for the adapter's raw-SQL bind path.
+ *
+ * ISO-bind dialects (PostgreSQL, `persistTimestampsAsDate === false`) get ISO
+ * *text* out of `prepareValues`, but Drizzle's timestamp column mapping calls
+ * `value.toISOString()` with no type guard. Handing that text to a raw Drizzle
+ * write therefore throws `e.toISOString is not a function` (minified
+ * `PgTimestamp.mapToDriverValue`), which silently killed every job dispatch:
+ * the background job queue's first poll failed to create `publish-scheduled`
+ * and `session-cleanup` jobs.
+ *
+ * Only parseable date text is converted — a `lastError` message (registered as
+ * a date column) or any other non-date string is left as-is. JSON columns stay
+ * untouched: Drizzle's json mapper serializes them itself, so converting here
+ * would double-encode arrays on PostgreSQL.
+ */
+export function convertIsoDatesForDrizzleWrite<T extends Record<string, any>>(
+  values: T | T[],
+  table?: string,
+): T | T[] {
+  if (!values || typeof values !== "object") return values;
+  if (Array.isArray(values)) {
+    for (let i = 0; i < values.length; i++) {
+      convertIsoDatesForDrizzleWrite(values[i], table);
+    }
+    return values;
+  }
+  const registeredCols = table ? getTableDateColumns(table) : undefined;
+  const cols = registeredCols && registeredCols.length > 0 ? registeredCols : DATE_FIELDS;
+  for (const key of cols) {
+    const val = (values as Record<string, any>)[key];
+    if (typeof val !== "string" || val.length <= 5) continue;
+    const ts = Date.parse(val);
+    if (!Number.isNaN(ts)) (values as Record<string, any>)[key] = new Date(ts);
+  }
+  return values;
 }
 
 export function createPagination<T>(

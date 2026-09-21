@@ -176,4 +176,53 @@ describeSQLite("SQLite Adapter Integration", () => {
       await db.crud.delete(testCollection, docId, { tenantId: TEST_TENANT });
     });
   });
+
+  // Parity with the PostgreSQL suite: the claim step must report the claimed row,
+  // otherwise every consumer treats the job as "taken by someone else" and drops it.
+  describe("Background job queue writes", () => {
+    it("round-trips dispatch → claim → backoff → complete", async () => {
+      if (!db) return;
+
+      const created = await db.system.jobs.create({
+        taskType: "probe-job",
+        payload: { probe: true },
+        status: "pending",
+        attempts: 0,
+        maxAttempts: 3,
+        nextRunAt: new Date(),
+        progress: 0,
+        metadata: {},
+      } as any);
+      expect(created.success).toBe(true);
+      if (!created.success || !created.data?._id) {
+        throw new Error(`job create failed: ${created.success ? "no id" : created.message}`);
+      }
+      const jobId = created.data._id;
+
+      const claimed = await db.system.jobs.update(
+        jobId,
+        { status: "running", attempts: 1 },
+        { filter: { _id: jobId, status: "pending" } },
+      );
+      expect(claimed.success).toBe(true);
+      if (!claimed.success) throw new Error(`claim failed: ${claimed.message}`);
+      expect(claimed.data?.status).toBe("running");
+
+      const backoff = await db.system.jobs.update(jobId, {
+        status: "pending",
+        lastError: "probe: handler blew up",
+        nextRunAt: new Date(Date.now() + 60_000),
+      });
+      expect(backoff.success).toBe(true);
+      if (!backoff.success) throw new Error(`backoff failed: ${backoff.message}`);
+      expect(backoff.data?.lastError).toBe("probe: handler blew up");
+
+      const completed = await db.system.jobs.update(jobId, { status: "completed", progress: 100 });
+      expect(completed.success).toBe(true);
+      if (!completed.success) throw new Error(`complete failed: ${completed.message}`);
+      expect(completed.data?.status).toBe("completed");
+
+      await db.system.jobs.delete(jobId);
+    });
+  });
 });
