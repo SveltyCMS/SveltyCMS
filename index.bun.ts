@@ -3,7 +3,9 @@
  * @description Native Bun Entry Point for SveltyCMS.
  *
  * Responsibilities:
- * - Direct Bun.serve execution with high-throughput event loop
+ * - Node-compatible `node:http` launcher on the Bun runtime — the same server
+ *   shape as index.cjs, plus the Yjs socket below. This is NOT `Bun.serve`;
+ *   the native path is `bun run start:bun` → `build/index.js` (svelte-adapter-bun).
  * - Native Yjs WebSocket collaboration server on /ws
  * - Environment and proxy header configuration
  * - Graceful shutdown handling (SIGINT / SIGTERM)
