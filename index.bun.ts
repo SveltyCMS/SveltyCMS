@@ -7,7 +7,16 @@
  * - Native Yjs WebSocket collaboration server on /ws
  * - Environment and proxy header configuration
  * - Graceful shutdown handling (SIGINT / SIGTERM)
+ *
+ * Deliberately NOT in tsconfig `include`: this entry point dynamically imports
+ * the generated `build/` bundles, so including it would pull every minified
+ * server chunk into the program (measured: 61k+ errors from generated code).
+ * The `bun` types are requested here instead.
  */
+
+/// <reference types="bun" />
+
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 async function startBunServer() {
   console.log("[SveltyCMS:Bun] Initializing high-performance Bun runtime...");
@@ -56,7 +65,16 @@ async function startBunServer() {
   process.env.HOST_HEADER = "host";
 
   // Import the SvelteKit handler
-  const { handler } = await import("./build/handler.js");
+  const { handler: svelteKitHandler } = await import("./build/handler.js");
+  // adapter-node's JSDoc types `next` as required, but its polka chain tolerates
+  // its absence (`next ? next() : isNotFound(req, res)`), which is why index.cjs
+  // also calls it with two arguments. Passing a stub `next` would be worse than
+  // omitting it: nothing would route and nothing would 404, so the request would
+  // hang until the headers timeout.
+  const handler = svelteKitHandler as unknown as (
+    req: IncomingMessage,
+    res: ServerResponse,
+  ) => void;
   const http = await import("node:http");
 
   // Create HTTP server (compatible with SvelteKit handler and ws upgrade)
