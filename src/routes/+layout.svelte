@@ -48,13 +48,9 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import DialogManager from '@src/components/system/dialog-manager.svelte';
 	import ToastContainer from '@src/components/toast-container.svelte';
 	// Paraglide locale bridge
-	import { getLocale } from '@src/paraglide/runtime';
+	import { getLocale, locales } from '@src/paraglide/runtime';
 	import { locale } from '@src/stores/locale-store.svelte';
-	import {
-		applyDocumentLanguage,
-		applySystemLanguage,
-		isIso6391LanguageCode
-	} from '@utils/system-locale';
+	import { applyDocumentLanguage, applySystemLanguage } from '@utils/system-locale';
 	import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
 	import { initWebMCP } from '@src/plugins/webmcp/init';
 	// Global Settings
@@ -81,6 +77,22 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// ============================================================================
 	// State Management
 	// ============================================================================
+
+	/** Locales Paraglide generated messages for — the only valid UI locales. */
+	type AppLocale = ReturnType<typeof getLocale>;
+
+	/**
+	 * Narrow a configured language tag to a generated Paraglide locale.
+	 * `locale.systemLanguage` and `page.data.systemLanguage` are plain strings
+	 * (content languages are configurable), while Paraglide's locale is a literal
+	 * union — assigning them raw does not type-check and would re-key the
+	 * `{#key currentLocale}` tree for a locale that has no messages.
+	 */
+	function toAppLocale(value: unknown): AppLocale | undefined {
+		return typeof value === 'string' && (locales as readonly string[]).includes(value)
+			? (value as AppLocale)
+			: undefined;
+	}
 
 	let currentLocale = $state(getLocale());
 	let isMounted = $state(false);
@@ -267,12 +279,9 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		screen.mount();
 
 		const fromPage = typeof page.data?.systemLanguage === 'string' ? page.data.systemLanguage : '';
-		const initialLocale = isIso6391LanguageCode(fromPage)
-			? fromPage
-			: isIso6391LanguageCode(locale.systemLanguage)
-				? locale.systemLanguage
-				: getLocale();
-		if (initialLocale && locale.systemLanguage !== initialLocale) {
+		const initialLocale =
+			toAppLocale(fromPage) ?? toAppLocale(locale.systemLanguage) ?? getLocale();
+		if (locale.systemLanguage !== initialLocale) {
 			locale.systemLanguage = initialLocale;
 		}
 		currentLocale = initialLocale;
@@ -367,10 +376,13 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 
 		const desired = locale.systemLanguage;
 		const current = untrack(() => currentLocale);
+		// Content languages may not be generated UI locales: mirror any tag to the
+		// document, but only re-key the UI tree for a locale that has messages.
+		const uiLocale = toAppLocale(desired);
 
 		if (desired && current !== desired) {
 			applySystemLanguage(desired);
-			currentLocale = desired;
+			if (uiLocale) currentLocale = uiLocale;
 		}
 	});
 

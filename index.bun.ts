@@ -20,6 +20,25 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+/**
+ * Load a generated bundle from `build/` at runtime.
+ *
+ * The build output is intentionally outside the TypeScript program (following it
+ * would pull every minified server chunk in — measured: 61k+ errors from
+ * generated code), so the specifier is composed at runtime instead of written as
+ * a literal. That keeps `tsc`/editors from resolving into `build/`, while Bun and
+ * Node resolve the very same relative path.
+ */
+const importBuildBundle = <T>(name: string): Promise<T> =>
+  import("./build/" + name + ".js") as Promise<T>;
+
+/** adapter-node's request handler (its JSDoc types `next` as required). */
+type SvelteKitHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  next?: (err?: unknown) => void,
+) => void;
+
 async function startBunServer() {
   console.log("[SveltyCMS:Bun] Initializing high-performance Bun runtime...");
 
@@ -67,7 +86,9 @@ async function startBunServer() {
   process.env.HOST_HEADER = "host";
 
   // Import the SvelteKit handler
-  const { handler: svelteKitHandler } = await import("./build/handler.js");
+  const { handler: svelteKitHandler } = await importBuildBundle<{ handler: SvelteKitHandler }>(
+    "handler",
+  );
   // adapter-node's JSDoc types `next` as required, but its polka chain tolerates
   // its absence (`next ? next() : isNotFound(req, res)`), which is why index.cjs
   // also calls it with two arguments. Passing a stub `next` would be worse than
@@ -99,7 +120,9 @@ async function startBunServer() {
   // Start Yjs collaboration WebSocket server
   let stopYjs: (() => void) | undefined;
   try {
-    const { startYjsSyncServer } = await import("./build/yjs-sync-server.js");
+    const { startYjsSyncServer } = await importBuildBundle<{
+      startYjsSyncServer: (options: { server: unknown; path: string }) => () => void;
+    }>("yjs-sync-server");
     stopYjs = startYjsSyncServer({ server, path: "/ws" });
     console.log("[SveltyCMS:Bun] Yjs WebSocket collaboration server mounted on /ws");
   } catch (err: any) {
