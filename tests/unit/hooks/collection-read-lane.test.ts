@@ -202,6 +202,13 @@ describe("collection read lane single-flight", () => {
     const second = await tryCollectionReadLane({ event: entryEvent(), resolve });
     expect(second.headers.get("X-Cache")).toBe("TURBO-HIT");
     expect(findByIdMock).toHaveBeenCalledTimes(1);
+    // The lane caches the HTTP response itself, so it must tell the namespace to
+    // skip its own L2 entry (prefix map + doc tag index for every random id).
+    expect(findByIdMock).toHaveBeenCalledWith(
+      "BenchmarkStable",
+      "abc",
+      expect.objectContaining({ skipCacheService: true }),
+    );
   });
 
   it("scopes the L1 entry to the per-request tenant, not the session tenant", async () => {

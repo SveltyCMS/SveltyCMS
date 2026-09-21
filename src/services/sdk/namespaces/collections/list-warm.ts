@@ -6,7 +6,7 @@
  * re-reads the collection's default list — a GET that would otherwise be a
  * cold DB query plus full re-cache. This module closes the loop with the
  * behavioral learner: when the written collection is hot
- * (`getHotCollections`), it re-runs the canonical default list read through
+ * (`isHotCollection`), it re-runs the canonical default list read through
  * the same find() pipeline, so L1 request cache, L2 response cache, keyspace
  * index, cache tags and epochs stay consistent by construction — the warm
  * produces the exact payload and cache-key a real list GET would.
@@ -20,13 +20,11 @@
  *   so SQLite mutex / PG connections stay on the create burst
  * - Env kill-switch: `SVELTY_DISABLE_LIST_WARM=1`
  */
-import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
+import { isHotCollection } from "@src/services/intelligence/behavioral-learner";
 import { logger } from "@utils/logger";
 
 /** Minimum delay between two warms of the same tenant:collection. */
 const LIST_WARM_MIN_INTERVAL_MS = 5_000;
-/** Cap on hot collections scanned per warm decision. */
-const LIST_WARM_HOT_SCAN = 100;
 
 const warmedAt = new Map<string, number>();
 
@@ -71,15 +69,9 @@ export function scheduleDefaultListWarm(
   const key = `${tid}:${schemaId}`;
   if (now - (warmedAt.get(key) ?? 0) < LIST_WARM_MIN_INTERVAL_MS) return;
 
-  const hot = getHotCollections(tid, LIST_WARM_HOT_SCAN);
-  let isHot = false;
-  for (let i = 0; i < hot.length; i++) {
-    if (hot[i].id === schemaId) {
-      isHot = true;
-      break;
-    }
-  }
-  if (!isHot) return;
+  // One Map lookup + one decayed score, instead of pruning/scoring/sorting the
+  // whole tenant heat map to test membership of a single id.
+  if (!isHotCollection(tid, schemaId)) return;
 
   warmedAt.set(key, now);
   // Macrotask, not microtask: a same-tick find() steals the SQLite write

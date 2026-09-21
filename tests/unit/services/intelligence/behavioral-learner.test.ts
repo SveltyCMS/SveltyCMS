@@ -11,6 +11,7 @@ import {
   recordNavigation,
   getHotCollections,
   getHotEntries,
+  isHotCollection,
   predictNextPath,
   predictNextPathAdaptive,
   reinforceTransition,
@@ -24,6 +25,43 @@ import { CacheCategory } from "@src/databases/cache/types";
 describe("Behavioral Learner Engine", () => {
   beforeEach(() => {
     clearBehavioralData();
+  });
+
+  describe("isHotCollection", () => {
+    it("is true for a recorded collection and false for an unrecorded one", () => {
+      recordWriteAccess("tenant-hot", "posts", "p1");
+      expect(isHotCollection("tenant-hot", "posts")).toBe(true);
+      expect(isHotCollection("tenant-hot", "pages")).toBe(false);
+    });
+
+    it("is false for an unknown tenant", () => {
+      recordWriteAccess("tenant-hot", "posts", "p1");
+      expect(isHotCollection("tenant-unknown", "posts")).toBe(false);
+    });
+
+    it("agrees with getHotCollections membership", () => {
+      recordWriteAccess("tenant-parity", "posts", "p1");
+      recordCollectionAccess("tenant-parity", "pages");
+
+      const ids = new Set(getHotCollections("tenant-parity", 100).map((c) => c.id));
+      for (const id of ["posts", "pages", "missing"]) {
+        expect(isHotCollection("tenant-parity", id)).toBe(ids.has(id));
+      }
+    });
+
+    it("honours a custom threshold", () => {
+      recordCollectionAccess("tenant-threshold", "posts");
+      expect(isHotCollection("tenant-threshold", "posts", 0.5)).toBe(true);
+      expect(isHotCollection("tenant-threshold", "posts", 5)).toBe(false);
+    });
+
+    it("is a pure read — repeated calls do not mutate the heat map", () => {
+      recordWriteAccess("tenant-pure", "posts", "p1");
+      const before = getHotCollections("tenant-pure", 10);
+      for (let i = 0; i < 25; i++) isHotCollection("tenant-pure", "posts");
+      const after = getHotCollections("tenant-pure", 10);
+      expect(after).toEqual(before);
+    });
   });
 
   describe("recordWriteAccess", () => {

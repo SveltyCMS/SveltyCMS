@@ -220,6 +220,11 @@ async function rebuildWarmCollectionRead(
     ? await cms.collections.findById(collectionId, entryId, {
         user: locals.user,
         tenantId: locals.tenantId as DatabaseId,
+        // This lane caches the whole HTTP response in `responseCache.pointL1`
+        // below, so the namespace's own L2 entry would be a second copy that
+        // only bills prefix-map + tag-index work — for a random per-id scan,
+        // rows that are never read twice.
+        skipCacheService: true,
       })
     : await cms.collections.find(collectionId, {
         user: locals.user,

@@ -309,6 +309,28 @@ export function predictNextPathAdaptive(tenantId: string, currentPath: string): 
   return predictNextPath(tenantId, currentPath);
 }
 
+/**
+ * O(1) "is this one collection hot?" for callers that only need a boolean.
+ *
+ * `getHotCollections` prunes up to `MAX_COLLECTIONS_HEAT` records (a full-map
+ * decay pass with a `Math.exp` each), scores them all, sorts, then slices — per
+ * call. Write paths ([list-warm]) asked it that question on every interactive
+ * write purely to test membership of a single id. This reads one record and
+ * computes one decayed score, with the same threshold and the same pure
+ * (non-mutating) decay as the read path.
+ */
+export function isHotCollection(
+  tenantId: string,
+  collectionId: string,
+  minScore = MIN_HOT_SCORE,
+): boolean {
+  const t = _tenants.get(tenantId);
+  if (!t) return false;
+  const rec = t.heat.collections.get(collectionId);
+  if (!rec) return false;
+  return decayedScore(rec, Date.now()) > minScore;
+}
+
 export function getHotCollections(tenantId: string, limit = 10): { id: string; score: number }[] {
   const t = _tenants.get(tenantId);
   if (!t) return [];

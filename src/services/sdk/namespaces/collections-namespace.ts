@@ -1188,21 +1188,27 @@ export class CollectionsNamespace {
       // L1 set is synchronous; L2 set is microtasked.
       CollectionsNamespace.setRequestCache(cacheKey, finalResult, schema._id as string, tenantId);
       if (item) {
-        cacheService
-          .set(
-            cacheKey,
-            finalResult,
-            ttl || 180,
-            (tenantId || undefined) as string,
-            // Single-doc point read → ENTRY (cold category: async reads skip
-            // the LRU age update, so random per-id reads cannot evict hot
-            // list entries the way CONTENT-category hits would).
-            CacheCategory.ENTRY,
-            // 🚀 Surgical invalidation: tag by the SPECIFIC doc so a write to
-            // this entry clears only this key — NOT all 10k per-id entries.
-            [`doc:${schema._id}:${entryId}`],
-          )
-          .catch(() => {});
+        // Point-read lanes that already cache the full HTTP response opt out of
+        // the second entry: cacheService.set also writes the key prefix map, the
+        // doc tag index and an L2 serialization, all of which a random per-id
+        // scan pays for rows it will never read twice.
+        if (!options.skipCacheService) {
+          cacheService
+            .set(
+              cacheKey,
+              finalResult,
+              ttl || 180,
+              (tenantId || undefined) as string,
+              // Single-doc point read → ENTRY (cold category: async reads skip
+              // the LRU age update, so random per-id reads cannot evict hot
+              // list entries the way CONTENT-category hits would).
+              CacheCategory.ENTRY,
+              // 🚀 Surgical invalidation: tag by the SPECIFIC doc so a write to
+              // this entry clears only this key — NOT all 10k per-id entries.
+              [`doc:${schema._id}:${entryId}`],
+            )
+            .catch(() => {});
+        }
       } else {
         cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
       }

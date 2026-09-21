@@ -368,6 +368,9 @@ class ResponseCacheService {
         store.delete(fullKey);
         this.unindexKey(fullKey);
       } else {
+        if (!local.buffer && textEncoder && local.body) {
+          local.buffer = textEncoder.encode(local.body);
+        }
         return local;
       }
     }
@@ -425,10 +428,6 @@ class ResponseCacheService {
     const fullKey = this.buildKey(key, tenantId);
     const inferredPointRead = classifyTurboKey(key)?.entryId != null;
     const store = inferredPointRead ? this.pointL1 : this.localL1;
-
-    if (!entry.buffer && textEncoder && entry.body) {
-      entry.buffer = textEncoder.encode(entry.body);
-    }
     entry.expiresAt = Date.now() + ttlMs;
     entry.stale = false;
 

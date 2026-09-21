@@ -33,6 +33,14 @@ export interface LocalApiOptions {
    * L1 request cache is still cleared. Used by bulk seed / high-throughput write paths.
    */
   skipSideEffects?: boolean;
+  /**
+   * Skip the L2 (`cacheService`) write of the read result. For callers that already
+   * cache the whole response themselves (the collection read lane's point-read
+   * FIFO), a second entry buys only prefix-map + tag-index bookkeeping for data a
+   * high-cardinality scan will never read again. The request cache is still
+   * written, and negative caching (miss recording) is unaffected.
+   */
+  skipCacheService?: boolean;
 }
 
 export interface TokenOptions extends LocalApiOptions {
