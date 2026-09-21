@@ -80,7 +80,6 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import type { FieldDefinition, FieldInstance } from '@src/content/types';
@@ -134,7 +133,11 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 		}))
 	);
 
-	let conjunction = $state<'AND' | 'OR'>(initialConjunction);
+	// Seeded by the `isOpen` effect below, which re-reads the prop on every open,
+	// so the mount-time literal is never the value in use. Reading
+	// `initialConjunction` here would capture only the initial prop anyway — the
+	// pattern Svelte flags as state_referenced_locally.
+	let conjunction = $state<'AND' | 'OR'>('AND');
 	let clauses = $state<AdvancedFilterClause[]>([]);
 
 	function createEmptyClause(): AdvancedFilterClause {
