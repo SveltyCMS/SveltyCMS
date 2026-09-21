@@ -45,7 +45,7 @@ process.env.TEST_API_SECRET = TEST_API_SECRET;
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: "**/*.{test,spec,spect}.ts",
+  testMatch: "**/*.{test,spec}.ts",
   outputDir: "./tests/test-results",
   timeout: 90_000,
   expect: {
