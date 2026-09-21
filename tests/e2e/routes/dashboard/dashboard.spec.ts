@@ -15,7 +15,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 
 const ACTION_TIMEOUT = 20_000;
 /** Matches HEADER_HEIGHT in +page.svelte — drag only starts in top band of widget */
@@ -48,12 +48,10 @@ async function goDashboard(page: Page) {
     throw new Error(`Dashboard hit System Error: ${detail?.trim() || "(no detail)"}`);
   }
 
-  // Wait for widget registry to finish loading before proceeding
-  await expect(page.getByTestId("dashboard-widget-registry-ready"))
-    .toHaveAttribute("data-loaded", "true", { timeout: ACTION_TIMEOUT })
-    .catch(() => {
-      console.log("[Dashboard] Widget registry may still be loading — continuing");
-    });
+  // Interactivity gate: the toolbar renders in SSR HTML, but clicks only reach
+  // handlers once the client hydrated (the removed `registry-ready` testid
+  // asserted a constant, so it never proved anything about interactivity).
+  await waitForHydration(page);
 
   // Prefer stable testids over free text
   await expect(async () => {
@@ -418,11 +416,12 @@ test.describe("Dashboard widget reorder", () => {
     await first.focus();
     // Product: Ctrl/Meta + ArrowRight|Down moves widget later in order
     await page.keyboard.press("Control+ArrowRight");
-    // Keydown reorders synchronously (updateWidgets → reactive re-render), so no
-    // settle poll is needed — the hard asserts below validate the reorder.
-
-    // Add a small delay to allow for reactive re-render to hit the DOM
-    await page.waitForTimeout(500);
+    // The reorder is optimistic (updateWidgets → reactive re-render), so poll for
+    // the DOM to reflect it rather than sleeping: the condition below IS the
+    // assertion, and the hard expects after it pin the new order.
+    await expect
+      .poll(() => widgetIdsInDomOrder(page), { timeout: ACTION_TIMEOUT })
+      .not.toEqual(before);
 
     const after = await widgetIdsInDomOrder(page);
     expect(after.length).toBe(before.length);

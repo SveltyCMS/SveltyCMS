@@ -118,6 +118,37 @@ Prefer `getByRole` / accessible name when stable.
 
 ---
 
+## 5. Hydration gate — **required before driving fresh pages**
+
+The root layout sets `<html data-hydrated="true">` from its `onMount`, which only
+runs after Svelte 5 finished the (synchronous) SSR hydration walk. Test helpers
+wait on it via `waitForHydration(page)` (`tests/e2e/helpers/auth.ts`;
+`loginAsAdmin` already gates its own navigations).
+
+Why it is mandatory: **auto-waiting locators cannot see this gap.** SSR markup is
+present and stable, so a click resolves, fires and simply never reaches a handler —
+observed 2026-09-21 as 20–25 s timeouts whose element “was never found” even though
+it was in the DOM (dashboard widget menu, extensions tab switch, media-gallery
+folder dialog, upload-media tabs). Symptoms of a missing gate:
+
+- the assertion times out on an element that SSR HTML clearly contains, and
+- the page state did not change (e.g. the previous tab is still selected).
+
+Call `waitForHydration(page)` after **every** spec-local `page.goto` that is
+followed by an interaction (helpers such as `openGallery`, `openUploadMedia`,
+`goExtensions`, `goDashboard` do this). A spec-local helper that navigates is the
+usual place where the gate is forgotten.
+
+> [!WARNING]
+> Known gap (2026-09-21): in `move-remote.spec.ts` the hidden gallery file input
+> inside a **virtual folder** accepts the file and even reports a `change` event,
+> but the component's upload path is not reached (the same file uploads fine at the
+> gallery root, and the header “Upload” button opens the picker). That spec
+> re-dispatches one `change` when the app did not react within 3 s and still asserts
+> the full POST + grid item — remove the fallback once the wiring is understood.
+
+---
+
 ## 5. Shared mutation client — **implemented**
 
 | Piece                        | Location                                                | Status |

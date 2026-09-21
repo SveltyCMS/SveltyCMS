@@ -7,7 +7,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,12 +19,14 @@ async function openGallery(page: Page) {
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
   await expect(
     page
-      .getByTestId("admin-page-shell-title")
+      .getByTestId("admin-page-title")
       .or(page.getByTestId("media-gallery-toolbar"))
       .or(page.getByTestId("media-gallery-content"))
       .or(page.getByRole("heading", { name: /media/i }))
       .first(),
   ).toBeVisible({ timeout: 30_000 });
+  // Upload input + card actions are inert until the client hydrates.
+  await waitForHydration(page);
   await dismissCookieConsent(page);
 }
 

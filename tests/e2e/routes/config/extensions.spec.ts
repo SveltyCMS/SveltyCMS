@@ -4,7 +4,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -14,6 +14,9 @@ async function goExtensions(page: Page) {
   await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
   await expect(page.getByTestId("page-title")).toContainText(/extension/i);
   await expect(page.getByTestId("extensions-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  // Tabs render in SSR HTML; clicking one before hydration is a silent no-op
+  // (observed: the panel stayed on "Plugins" and the widgets tab never rendered).
+  await waitForHydration(page);
 }
 
 // Tests are independent (read-only shell assertions) — no serial mode needed,

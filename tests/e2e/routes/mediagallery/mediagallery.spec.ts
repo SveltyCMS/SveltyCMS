@@ -8,7 +8,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,8 +31,10 @@ async function openMediaGallery(page: import("@playwright/test").Page) {
     .getByTestId("media-gallery-toolbar")
     .or(page.getByTestId("media-gallery-content"))
     .or(page.getByTestId("media-grid"))
-    .or(page.getByTestId("admin-page-shell-title"));
+    .or(page.getByTestId("admin-page-title"));
   await expect(shell.first()).toBeVisible({ timeout: 30_000 });
+  // The shell renders in SSR HTML; search/filters/upload need the hydrated tree.
+  await waitForHydration(page);
 }
 
 test.describe("Media Gallery", () => {

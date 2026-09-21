@@ -529,6 +529,23 @@ export async function loginAsEditor(
 }
 
 /**
+ * Wait until SvelteKit has hydrated the current page.
+ *
+ * The root layout (`src/routes/+layout.svelte`) sets `<html data-hydrated="true">`
+ * from its `onMount`, which only runs after the synchronous SSR hydration walk —
+ * so every listener in the hydrated tree exists when this resolves.
+ *
+ * Interacting earlier is a silent no-op: clicks never reach their handler and
+ * `<input type="file">` changes never fire, which surfaced as 25 s timeouts in
+ * the media gallery (folder dialog, image upload) and the dashboard widget menu
+ * (measured 2026-09-21). Locator auto-waiting cannot see this — the elements
+ * exist in the SSR HTML, they are just not wired yet.
+ */
+export async function waitForHydration(page: Page, timeout = 30_000): Promise<void> {
+  await page.locator("html[data-hydrated='true']").waitFor({ state: "attached", timeout });
+}
+
+/**
  * Login as admin user (uses default ADMIN_CREDENTIALS).
  * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
  * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
@@ -576,6 +593,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
     if (waitForUrl != null) {
       const targetUrl = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
       await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await waitForHydration(page).catch(() => undefined);
       if (page.url().includes("/login") || page.url().includes("/setup")) {
         console.log(
           `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
@@ -591,6 +609,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       // default target so callers can rely on loginAsAdmin always ending on
       // a real page (login.spec.ts asserts non-about:blank after login).
       await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await waitForHydration(page).catch(() => undefined);
       return;
     } else {
       return;
@@ -633,6 +652,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
+      await waitForHydration(page).catch(() => undefined);
       const postAuthUrl = page.url();
       if (postAuthUrl.includes("/login")) {
         console.log(`[Auth] API session did not stick — at login page, falling back to UI login`);

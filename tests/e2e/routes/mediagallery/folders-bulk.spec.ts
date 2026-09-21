@@ -8,7 +8,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,8 +33,10 @@ async function openGallery(page: Page) {
     .getByTestId("media-gallery-toolbar")
     .or(page.getByTestId("media-gallery-content"))
     .or(page.getByTestId("media-grid"))
-    .or(page.getByTestId("admin-page-shell-title"));
+    .or(page.getByTestId("admin-page-title"));
   await expect(shell.first()).toBeVisible({ timeout: 30_000 });
+  // The toolbar renders in SSR HTML; clicking it needs the hydrated listener.
+  await waitForHydration(page);
   await dismissCookieConsent(page);
 }
 
