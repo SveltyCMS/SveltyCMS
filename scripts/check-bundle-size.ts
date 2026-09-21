@@ -37,6 +37,32 @@ interface Issue {
   reason: string;
 }
 
+/**
+ * Static node-builtin imports must never reach a client chunk.
+ *
+ * `from"node:path"` (or a side-effect `import"node:fs"`) makes the browser request
+ * the URL `node:path`; the CORS-blocked scheme aborts the module and the entire
+ * route chunk dies — no server log, because a failed client chunk never reaches
+ * `handleError` (measured 2026-09-21: /mediagallery + marketplace).
+ *
+ * The Vite guard (`clientNodeBuiltinGuardPlugin`) fails the build on the same
+ * mistake, but only for STATIC imports it can resolve — a module that enters the
+ * client graph through a dynamic import chain is invisible to it. This scan looks
+ * at the emitted artifact instead. Dynamic `import("node:fs")` and
+ * `require("node:fs")` are deliberately not matched: both stay legal behind a
+ * `typeof window === "undefined"` guard and are never fetched by the browser.
+ */
+const STATIC_NODE_IMPORT_RE = /(?:^|[^.\w$])(?:from|import)\s*["']((?:node:)[a-z][\w/.-]*)["']/g;
+
+function findNodeBuiltinImports(content: string): string[] {
+  const found = new Set<string>();
+  STATIC_NODE_IMPORT_RE.lastIndex = 0;
+  for (let m = STATIC_NODE_IMPORT_RE.exec(content); m; m = STATIC_NODE_IMPORT_RE.exec(content)) {
+    found.add(m[1]!);
+  }
+  return [...found];
+}
+
 function collectJsFiles(dir: string): string[] {
   const out: string[] = [];
   if (!existsSync(dir)) return out;
@@ -63,10 +89,24 @@ function isAdminShellNode(file: string, content: string): boolean {
 function checkFile(path: string, size: number): Issue | null {
   const rel = path.replace(ROOT, "").replace(/\\/g, "/").replace(/^\/+/, "");
   const name = rel.split("/").pop() || rel;
+  const content = readFileSync(path, "utf8");
+
+  // Every client chunk is checked for node builtins; only entry/shell chunks are
+  // size-gated (they load on every page).
+  const leaks = findNodeBuiltinImports(content);
+  if (leaks.length > 0) {
+    return {
+      file: rel,
+      size: Math.round(size / 1024),
+      reason:
+        `imports ${leaks.map((s) => `"${s}"`).join(", ")} — the browser cannot fetch ` +
+        `node builtins (CORS-blocked scheme) and the whole chunk fails to load. ` +
+        `Move the Node work into a .server.ts module or use pure string helpers.`,
+    };
+  }
 
   // Only check entry chunks + layout files (loaded on every page).
   // SvelteKit compiles the (app) shell to nodes/N.js, so also match that.
-  const content = readFileSync(path, "utf8");
   const isEntry = name.startsWith("entry");
   const isLayout = name.includes("layout") || isAdminShellNode(path, content);
   if (!isEntry && !isLayout) return null;
@@ -141,7 +181,10 @@ function main(): number {
   for (const issue of issues) {
     console.log(`  ${issue.file}: ${issue.size} KB — ${issue.reason}`);
   }
-  console.log("\nFix: ensure TipTap is only loaded via dynamic import() in the rich-text widget.");
+  console.log(
+    "\nFix: TipTap only via dynamic import() in the rich-text widget; node builtins " +
+      "only inside .server.ts modules.",
+  );
   return 1;
 }
 

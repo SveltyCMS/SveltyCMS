@@ -152,6 +152,75 @@ function scanBuildChunks(): {
   return result;
 }
 
+/**
+ * Client bundles must never carry private-config secrets.
+ *
+ * Server-side secrets (JWT, encryption keys, DB credentials) live in
+ * `config/private.ts`; a client chunk that contains their names or values means
+ * the server config module leaked into the browser graph — trivially readable by
+ * any visitor. Values are compared against the harness config only
+ * (`config/private.test.ts`), never against the live file (private-config policy),
+ * and are never printed.
+ */
+const SECRET_KEY_RE = /(SECRET|PASSWORD|TOKEN|_KEY)\b/i;
+const CONFIG_ASSIGNMENT_RE =
+  /^\s*(?:"([A-Z0-9_]+)"|'([A-Z0-9_]+)'|([A-Z0-9_]+))\s*:\s*["']([^"']{8,})["']/gm;
+/**
+ * A secret key used as an object key with a literal value — the shape an inlined
+ * private-config module has after minification (`JWT_SECRET_KEY:"…"`). Bare
+ * mentions of the name are legitimate: the System Settings UI lists them as
+ * editable setting keys (`{key:"JWT_SECRET_KEY",label:…}` in settings-groups.ts).
+ */
+const SECRET_LITERAL_RE = new RegExp(
+  `\\b(?:${["JWT_SECRET_KEY", "ENCRYPTION_KEY", "DB_PASSWORD", "PREVIEW_SECRET", "TEST_API_SECRET"].join("|")})\\b\\s*:\\s*["']`,
+);
+
+interface SecretLeak {
+  file: string;
+  what: string;
+}
+
+function readHarnessSecrets(): Array<{ key: string; value: string }> {
+  const configPath = join(ROOT, "config", "private.test.ts");
+  if (!existsSync(configPath)) return [];
+  const out: Array<{ key: string; value: string }> = [];
+  for (const m of readFileSync(configPath, "utf8").matchAll(CONFIG_ASSIGNMENT_RE)) {
+    const key = m[1] ?? m[2] ?? m[3] ?? "";
+    const value = m[4] ?? "";
+    if (SECRET_KEY_RE.test(key) && value.trim().length >= 8) out.push({ key, value });
+  }
+  return out;
+}
+
+function scanClientForSecrets(): SecretLeak[] {
+  const clientDirs = [join(ROOT, "build", "client"), join(ROOT, ".svelte-kit", "output", "client")];
+  const files = clientDirs.flatMap((dir) => collectJsFiles(dir));
+  const secrets = readHarnessSecrets();
+  const leaks: SecretLeak[] = [];
+
+  for (const file of files) {
+    let content: string;
+    try {
+      content = readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    const rel = file.replace(ROOT, "").replace(/\\/g, "/").replace(/^\/+/, "");
+
+    for (const { key, value } of secrets) {
+      if (content.includes(value)) {
+        leaks.push({ file: rel, what: `${key} value` });
+      }
+    }
+    // Inlined config literal (name + value) — see SECRET_LITERAL_RE.
+    const literal = content.match(SECRET_LITERAL_RE);
+    if (literal) {
+      leaks.push({ file: rel, what: `${literal[0].replace(/\s*:\s*["']$/, "")} literal` });
+    }
+  }
+  return leaks;
+}
+
 function main() {
   const mode = getMode();
 
@@ -195,6 +264,7 @@ function main() {
         ? "  ✅ Production build: testing backdoor stripped (noop stub present)."
         : "  ✅ Production build: no full testing handler markers (safe).",
     );
+    if (!reportClientSecretScan()) process.exit(1);
     process.exit(0);
   }
 
@@ -210,7 +280,26 @@ function main() {
     process.exit(1);
   }
   console.log("  ✅ Benchmark build: testing handler present for harness.");
+  if (!reportClientSecretScan()) process.exit(1);
   process.exit(0);
+}
+
+/** Shared by both modes: the browser must never see private-config secrets. */
+function reportClientSecretScan(): boolean {
+  const leaks = scanClientForSecrets();
+  if (leaks.length === 0) {
+    console.log("  ✅ Client bundles carry no private-config names or values.");
+    return true;
+  }
+  console.error("❌ Private-config secrets detected in client bundles:");
+  for (const leak of leaks.slice(0, 20)) {
+    console.error(`   ${leak.file} → ${leak.what}`);
+  }
+  console.error(
+    "   Fix: keep secret-bearing modules server-only (.server.ts) — client code must " +
+      "read public settings through $env / publicEnv instead.",
+  );
+  return false;
 }
 
 main();

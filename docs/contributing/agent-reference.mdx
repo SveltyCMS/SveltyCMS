@@ -91,10 +91,11 @@ Rules:
 
 - Shared (client+server) modules must not import Node builtins — use pure string
   helpers, or move the work into a `.server.ts` module.
-- `clientNodeBuiltinGuardPlugin` (vite.config.ts) warns `[client-node-builtin]`
-  whenever a static builtin import reaches the client graph; treat it as a bug, not
-  noise. Guarded dynamic imports (behind `typeof window === "undefined"`) are the
-  known accepted case.
+- `clientNodeBuiltinGuardPlugin` (vite.config.ts) **fails the client build** on a
+  static builtin import (`[client-node-builtin]`). `check-bundle-size.ts` scans
+  the emitted client chunks for the same thing (catching leaks that only reach the
+  client through a dynamic-import chain), and `probe-deploy-testing-api.ts` fails
+  when private-config names/values appear in client bundles.
 - Diagnosing an app-wide page failure: check the browser console for
   `Access to script at 'node:…' blocked by CORS policy` or
   `Failed to fetch dynamically imported module` before hunting the server logs.
