@@ -80,6 +80,39 @@ describe("compile() manifest integrity", () => {
     expect(second.changedJsPaths).toHaveLength(0);
   });
 
+  it("preserves string and template contents verbatim through the compile emit", async () => {
+    const { userCollections, compiledCollections } = await createTempCompileFixture();
+    // Every literal below was rewritten by the regex "minifier" this guards
+    // against: `/**/` read as a block comment, `//` as a line comment running to
+    // end-of-line, and the whitespace passes collapsing runs inside strings.
+    await fs.writeFile(
+      path.join(userCollections, "literals.ts"),
+      [
+        "export const schema = {",
+        '  name: "literals",',
+        '  icon: "mdi:test",',
+        '  glob: "src/**/*.ts",',
+        '  homepage: "https://example.com/docs",',
+        '  doc: "a/*b*/c",',
+        '  spaced: "two  spaces",',
+        "  template: `line one",
+        "    indented   spaces`,",
+        '  fields: [{ label: "Title", widget: { Name: "Input" }, db_fieldName: "title" }]',
+        "};",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    await compile({ userCollections, compiledCollections, logger: quietLogger });
+
+    const out = await fs.readFile(path.join(compiledCollections, "literals.js"), "utf-8");
+    expect(out).toContain('"src/**/*.ts"');
+    expect(out).toContain('"https://example.com/docs"');
+    expect(out).toContain('"a/*b*/c"');
+    expect(out).toContain('"two  spaces"');
+    expect(out).toContain("indented   spaces");
+  });
+
   it("does not delete freshly compiled output when manifest keys use a different path shape", async () => {
     const { userCollections, compiledCollections } = await createTempCompileFixture();
 

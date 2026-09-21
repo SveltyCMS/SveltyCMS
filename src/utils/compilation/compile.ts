@@ -50,8 +50,11 @@ const compileAliases: Record<string, string> = Object.fromEntries(
   Object.entries(pathAliases).map(([k, v]) => [k, v.replace(/^\.\//, "")]),
 );
 
-// ─── Transformer version — bump on ANY transformer logic change ─────────
-const TRANSFORMER_VERSION = 6;
+// ─── Transformer version — bump on ANY transformer logic change ────────
+// 7: dropped the regex "minifier" (see the emit site) in favour of the
+//    compiler's own removeComments, which is string- and template-aware.
+//    Bumping forces already-compiled collections to be rewritten.
+const TRANSFORMER_VERSION = 7;
 
 // ─── Manifest metadata keys ─────────────────────────────────────────────
 const MANIFEST_ORDER_KEY = "collectionOrder";
@@ -59,7 +62,7 @@ const MANIFEST_STRUCTURE_KEY = "structureNodes";
 const MANIFEST_FINGERPRINT_KEY = "__fingerprint";
 const MANIFEST_VERSION_KEY = "__version";
 
-// ─── Compiler options used for fingerprinting ───────────────────────────
+// ─── Compiler options used for fingerprinting ─────────────────────────
 const COMPILER_OPTIONS: ts.CompilerOptions = {
   target: ts.ScriptTarget.ESNext,
   module: ts.ModuleKind.ESNext,
@@ -68,6 +71,9 @@ const COMPILER_OPTIONS: ts.CompilerOptions = {
   checkJs: false,
   skipLibCheck: true,
   esModuleInterop: true,
+  // Comments are stripped by the compiler, never by a text pass: it is the only
+  // component here that knows what a string is.
+  removeComments: true,
 };
 
 // ─── Compiler fingerprint — invalidates manifest when toolchain changes ─
@@ -456,17 +462,16 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
             fileName: sourcePath,
           });
 
-          // Strip whitespace from compiled JS — machine-read, not human-read
-          const minified = compilation.outputText
-            .replace(/\/\*[\s\S]*?\*\//g, "") // block comments
-            .replace(/\/\/[^\n]*/g, "") // line comments
-            .replace(/^\s+|\s+$/gm, "") // leading/trailing whitespace per line
-            .replace(/\n{2,}/g, "\n") // blank lines
-            .replace(/[ \t]+/g, " "); // multiple spaces to one
-
+          // Emit as compiled. Comments are already gone (COMPILER_OPTIONS
+          // .removeComments); the regex "minifier" that used to squash this text
+          // did not know what a string was and silently rewrote data —
+          // `"src/**/*.ts"` became `"src*.ts"`, `"a/*b*/c"` became `"ac"`, and
+          // any `//` inside a string (a URL default) truncated the rest of its
+          // line into a syntax error. The compaction it bought is not worth
+          // re-earning with a real minifier: these files emit at ~300 bytes.
           assertLiveDataWriteAllowed(targetPath);
           // Crash-safe: temp + rename (same helper as manifest)
-          await atomicWriteFile(targetPath, minified);
+          await atomicWriteFile(targetPath, compilation.outputText);
 
           manifest.set(targetPath, {
             sourcePath: relativePath,
