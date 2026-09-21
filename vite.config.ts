@@ -702,6 +702,66 @@ function buildWarningManagerPlugin(): Plugin {
   };
 }
 
+/**
+ * Reports node-builtin imports that reach the CLIENT graph.
+ *
+ * A static `import "node:fs"` in a module the browser loads is the exact shape
+ * of the 2026-09-21 outage: the browser fetched the `node:path` URL
+ * (CORS-blocked scheme), the route chunk rejected, /mediagallery and the
+ * marketplace fell back to the error page — with nothing in the server log,
+ * because a failed client chunk never reaches `handleError`.
+ *
+ * The client environment no longer externalizes builtins (see the comment in
+ * `build.rollupOptions`), so a leak stubs the call site instead of killing the
+ * route; this hook keeps the boundary visible in the build log.
+ *
+ * Fix: keep fs/path work in a `.server.ts` module or use pure string helpers
+ * (see `buildOriginalRelPath` in @utils/media/media-utils).
+ */
+function clientNodeBuiltinGuardPlugin(): Plugin {
+  // `import "x"` / `import a from "x"` / `import { a } from "x"` / `export … from "x"`
+  const STATIC_IMPORT_RE =
+    /(?:^|[\n;])\s*(?:import|export)\s+(?:[^;'"]*?\bfrom\s*)?["']([^"']+)["']/g;
+  // Vite hands out posix-style ids (`D:/repo/src/…`) while process.cwd() is
+  // native (`D:\repo`) — compare in one normalised form or the guard never runs
+  // on Windows (measured: the first version silently matched nothing).
+  const CWD_POSIX = CWD.replace(/\\/g, "/");
+
+  const isBuiltin = (spec: string): boolean =>
+    spec.startsWith("node:") || builtinModules.includes(spec.split("/")[0]!);
+
+  return {
+    name: "svelty-client-node-builtin-guard",
+    transform(code, id) {
+      const environment = (
+        this as { environment?: { name?: string; config?: { consumer?: string } } }
+      ).environment;
+      const envName = environment?.name ?? environment?.config?.consumer ?? "";
+      const consumer = environment?.config?.consumer ?? envName;
+      if (envName !== "client" && consumer !== "client") return null;
+      const normalizedId = id.replace(/\\/g, "/");
+      if (normalizedId.includes("node_modules") || normalizedId.includes("src/paraglide")) {
+        return null;
+      }
+      if (!normalizedId.startsWith(CWD_POSIX)) return null;
+      if (!code.includes("import") && !code.includes("export")) return null;
+
+      STATIC_IMPORT_RE.lastIndex = 0;
+      for (let match = STATIC_IMPORT_RE.exec(code); match; match = STATIC_IMPORT_RE.exec(code)) {
+        const spec = match[1]!;
+        if (!isBuiltin(spec)) continue;
+        this.warn({
+          message:
+            `[client-node-builtin] ${path.relative(CWD, id)} imports "${spec}" in the browser graph. ` +
+            `Move the Node work into a .server.ts module or use pure string helpers.`,
+          loc: { file: id, line: code.slice(0, match.index).split("\n").length, column: 0 },
+        });
+      }
+      return null;
+    },
+  };
+}
+
 /** Serves LiteRT.js WASM binaries with correct MIME type from static/ai/wasm/. */
 function liteRtWasmPlugin(): Plugin {
   const WASM_RE = /^\/ai\/wasm\//;
@@ -1104,6 +1164,7 @@ export default defineConfig(() => {
       ...(enableLiteRt ? [liteRtWasmPlugin()] : []),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
+      clientNodeBuiltinGuardPlugin(),
       copyWorkerFilePlugin(),
       adapterNodeBuildPatchPlugin(),
       paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
@@ -1149,7 +1210,14 @@ export default defineConfig(() => {
       // Rolldown (Vite 8): disable plugin-timing spam; still measurable via --debug if needed.
       checks: { pluginTimings: false },
       rollupOptions: {
-        external: SERVER_EXTERNALS,
+        // ⚠️ Do NOT add a global `external` list here: it applies to the CLIENT
+        // environment too. Externalizing `node:*` in the client ships a bare
+        // specifier the browser then fetches as a URL (`node:path` → CORS-blocked
+        // scheme) and the ENTIRE route chunk fails to load — /mediagallery and
+        // the marketplace died exactly that way (2026-09-21, no server log to
+        // explain it). Server externals live in `ssr.external` below; client-side
+        // builtins now fall back to Vite's browser stub, so a stray import
+        // degrades one call site instead of the whole route.
         treeshake: {
           moduleSideEffects: "no-external" as const,
           propertyReadSideEffects: false as const,

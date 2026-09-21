@@ -76,6 +76,29 @@ Reference tables for agents working in SveltyCMS. The rules live in `AGENTS.md`;
 | **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-executive.ts`, `scripts/benchmark-matrix/` (16 files — regression-detector, reporting, runner, config) |
 | **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                                                                                       |
 
+### Client/server boundary (build-enforced)
+
+Server externals (`node:*`, `bun:*`, `mongoose`, …) live in `ssr.external` — **never**
+in a global `build.rollupOptions.external`, which would also apply to the CLIENT
+environment and ship bare `node:*` specifiers the browser cannot fetch. Measured
+2026-09-21: `import path from "node:path"` in `src/utils/media/media-utils.ts`
+(loaded by gallery components) made Chrome request the URL `node:path` (CORS-blocked
+scheme); the whole route chunk rejected, `/mediagallery` and the marketplace fell
+back to the error page, and nothing appeared in the server log — a failed client
+chunk never reaches `handleError`.
+
+Rules:
+
+- Shared (client+server) modules must not import Node builtins — use pure string
+  helpers, or move the work into a `.server.ts` module.
+- `clientNodeBuiltinGuardPlugin` (vite.config.ts) warns `[client-node-builtin]`
+  whenever a static builtin import reaches the client graph; treat it as a bug, not
+  noise. Guarded dynamic imports (behind `typeof window === "undefined"`) are the
+  known accepted case.
+- Diagnosing an app-wide page failure: check the browser console for
+  `Access to script at 'node:…' blocked by CORS policy` or
+  `Failed to fetch dynamically imported module` before hunting the server logs.
+
 ## Path Aliases
 
 ```

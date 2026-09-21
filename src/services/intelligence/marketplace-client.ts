@@ -11,7 +11,6 @@
  * - Offline-first: caches listings locally, works without marketplace connectivity
  */
 
-import path from "node:path";
 import { logger } from "@utils/logger";
 import { assertPackageCompatibleWithCms } from "@src/widgets/widget-compatibility";
 
@@ -275,7 +274,15 @@ const ALLOWED_INSTALL_PREFIXES = [
   "src/themes/",
 ] as const;
 
-function assertSafeInstallPath(installPath: string, filename: string, cwd: string): string {
+/** Node fs/path surface used by the install path guard (loaded lazily by callers). */
+type PathOps = Pick<typeof import("node:path"), "resolve" | "relative" | "isAbsolute">;
+
+function assertSafeInstallPath(
+  path: PathOps,
+  installPath: string,
+  filename: string,
+  cwd: string,
+): string {
   if (!installPath || installPath.includes("\0") || filename.includes("\0")) {
     throw new Error("Invalid install path");
   }
@@ -358,7 +365,7 @@ export async function installPlugin(
   await fs.mkdir(path.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
 
   for (const [filename, content] of Object.entries(plugin.files)) {
-    const filePath = assertSafeInstallPath(plugin.installPath, filename, cwd);
+    const filePath = assertSafeInstallPath(path, plugin.installPath, filename, cwd);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, "utf-8");
   }

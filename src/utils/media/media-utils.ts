@@ -191,8 +191,6 @@ export function resolveMediaRelPath(item: {
   return stored;
 }
 
-import path from "node:path";
-
 /** Sentinel value for global / no-tenant storage paths. */
 const TENANT_GLOBAL = "global";
 
@@ -207,7 +205,12 @@ export function buildOriginalRelPath(
   filename: string,
   tenantId?: string | null,
 ): string {
-  const safeFilename = path.basename(filename.replace(/\\/g, "/"));
+  // Pure-string basename: this module is imported by client components
+  // (`mediaUrl`/`mediaDisplayUrl`), so a `node:path` import would ship a bare
+  // specifier the browser cannot fetch (CORS-blocked `node:path` → the whole
+  // route chunk fails to load). Keep the media utils environment-agnostic.
+  const normalizedName = filename.replace(/\\/g, "/");
+  const safeFilename = normalizedName.slice(normalizedName.lastIndexOf("/") + 1);
   const dot = safeFilename.lastIndexOf(".");
   const ext = dot >= 0 ? safeFilename.slice(dot + 1) : "bin";
   const baseName = dot >= 0 ? safeFilename.slice(0, dot) : safeFilename || "file";
