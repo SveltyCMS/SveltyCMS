@@ -421,6 +421,9 @@ test.describe("Dashboard widget reorder", () => {
     // Keydown reorders synchronously (updateWidgets → reactive re-render), so no
     // settle poll is needed — the hard asserts below validate the reorder.
 
+    // Add a small delay to allow for reactive re-render to hit the DOM
+    await page.waitForTimeout(500);
+
     const after = await widgetIdsInDomOrder(page);
     expect(after.length).toBe(before.length);
     expect(after[0]).not.toBe(before[0]);
