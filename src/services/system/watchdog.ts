@@ -8,49 +8,80 @@
  * - Exponential backoff for recovery attempts
  * - Drift detection (service health vs overall state)
  * - Phase-aware recovery (only re-init what is broken)
- * - Memory governor: trims byte-heavy caches and asks V8 to de-commit above a
- *   soft limit, so a large write burst (e.g. seeding 100k documents) does not
- *   leave the container at its high-water mark forever
+ * - Memory governor (see ./memory-governor.ts): multi-signal trigger, adaptive
+ *   collection passes, and idle reclaim so committed pages go back to the OS
+ *   once a burst is over instead of waiting for the container limit.
  */
 
 import { logger } from "@utils/logger";
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 import { getDbInitPromise, getBootPhase } from "@src/databases/db";
 import { maintenanceService } from "./maintenance-service";
-import { responseCache } from "@src/services/cache/response-cache";
+import { MemoryGovernor, type MemorySnapshot } from "./memory-governor";
+
+/** `gc(options)` is Node ≥ 22; older V8 ignores the options object. */
+type RawGc = (options?: { type?: "major" | "minor"; execution?: "sync" | "async" }) => unknown;
 
 /**
- * V8 keeps committed pages after a traffic spike; `docker stats` then reports the
- * high-water mark even though `heapUsed` already fell back. A GC pass is the only
- * in-process lever that lets V8's memory reducer de-commit free pages promptly.
- * Prefer the real global (Node started with --expose-gc); otherwise expose it
- * ourselves via `node:v8` + `node:vm` (lazy, best-effort — Bun has no `vm`).
+ * Cached `node:v8` handle — the heap limit and the GC accessor both come from it.
+ * Absent under Bun (no `node:vm`), where the governor falls back to RSS + idle.
  */
-async function resolveGc(): Promise<(() => void) | null> {
-  const g = globalThis as { gc?: () => void };
-  if (typeof g.gc === "function") return g.gc;
-  try {
-    const [v8, vm] = await Promise.all([import("node:v8"), import("node:vm")]);
-    v8.setFlagsFromString("--expose-gc");
-    const fn = (vm as { runInNewContext: (code: string) => unknown }).runInNewContext("gc") as
-      | (() => void)
-      | undefined;
-    v8.setFlagsFromString("--no-expose-gc");
-    return typeof fn === "function" ? fn : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Cached `node:v8` handle — heap limit is only needed by the memory governor. */
 let v8Handle: Promise<typeof import("node:v8") | null> | null = null;
 function loadV8(): Promise<typeof import("node:v8") | null> {
   v8Handle ??= import("node:v8").catch(() => null);
   return v8Handle;
 }
 
+/** Resolved once at `start()` so the governor's memory sample stays synchronous. */
+let v8Module: typeof import("node:v8") | null = null;
+
+let gcHandle: Promise<RawGc | null> | null = null;
+
+/**
+ * Prefer the real global (Node started with `--expose-gc`); otherwise expose it
+ * ourselves via `node:v8` + `node:vm` (lazy, best-effort — Bun has no `vm`).
+ */
+function loadGc(): Promise<RawGc | null> {
+  gcHandle ??= (async () => {
+    const existing = (globalThis as { gc?: RawGc }).gc;
+    if (typeof existing === "function") return existing;
+    try {
+      const v8 = await loadV8();
+      if (!v8) return null;
+      const vm = await import("node:vm");
+      v8.setFlagsFromString("--expose-gc");
+      const fn = (vm as { runInNewContext: (code: string) => unknown }).runInNewContext("gc") as
+        | RawGc
+        | undefined;
+      v8.setFlagsFromString("--no-expose-gc");
+      return typeof fn === "function" ? fn : null;
+    } catch {
+      return null;
+    }
+  })();
+  return gcHandle;
+}
+
+/**
+ * One collection pass. `async` lets V8 mark concurrently (the safe choice while
+ * requests are in flight); `sync` is the second pass, when the cheap one did not
+ * hand pages back. The options form is probed once — an older V8 that ignores it
+ * gets a plain call instead.
+ */
+async function runGc(mode: "async" | "sync"): Promise<void> {
+  const gc = (globalThis as { gc?: RawGc }).gc ?? (await loadGc());
+  if (!gc) return;
+  try {
+    const ret = gc({ type: "major", execution: mode });
+    if (ret && typeof (ret as Promise<void>).then === "function") await (ret as Promise<void>);
+  } catch {
+    gc();
+  }
+}
+
 class SystemWatchdog {
   private intervalId: NodeJS.Timeout | null = null;
+  private memoryIntervalId: NodeJS.Timeout | null = null;
   private recoveryAttempts = new Map<string, { count: number; lastAttempt: number }>();
   private readonly CHECK_INTERVAL = 10_000; // 10 seconds
   private readonly MAINTENANCE_INTERVAL = 300_000; // 5 minutes
@@ -64,48 +95,61 @@ class SystemWatchdog {
   private readonly STUCK_INIT_THRESHOLD_MS = 30_000;
 
   // ── Memory governor ────────────────────────────────────────────────────
-  /** Trim caches + request a GC pass above this share of the V8 heap limit. */
-  private readonly MEMORY_TRIGGER_RATIO = Number(process.env.SVELTY_MEMORY_TRIGGER_RATIO) || 0.7;
-  /** Never run the governor more often than this (GC pauses are not free). */
-  private readonly MEMORY_MIN_INTERVAL = 60_000;
-  private lastMemorySweep = 0;
-  private gcFn: (() => void) | null | undefined;
+  /**
+   * Governor tick, independent of the 10 s health tick: a burst that ends in
+   * between must not leave the process holding its high-water mark for a minute.
+   */
+  private readonly MEMORY_CHECK_INTERVAL = Number(process.env.SVELTY_MEMORY_CHECK_MS) || 2_000;
+
+  private readonly governor: MemoryGovernor;
+  /** Lazy response-cache handle for the governor's last-resort trim. */
+  private responseCache: { trimLocal: () => void } | null = null;
+
+  constructor() {
+    this.governor = new MemoryGovernor({
+      read: () => this.readMemory(),
+      gc: runGc,
+      yieldToLoop: () => new Promise<void>((resolve) => setImmediate(resolve)),
+      // Awaits the cache handle: a pressured sweep in the first seconds of boot
+      // would otherwise find `responseCache` still null and trim nothing.
+      trimCaches: async () => {
+        await this.ensureResponseCache();
+        this.responseCache?.trimLocal();
+      },
+      now: () => Date.now(),
+      log: (message) => logger.warn(message),
+    });
+  }
+
+  /** Synchronous process sample; `heapLimit` stays 0 where `node:v8` is absent. */
+  private readMemory(): MemorySnapshot {
+    const mem = process.memoryUsage();
+    const cpu = process.cpuUsage();
+    return {
+      rss: mem.rss,
+      heapUsed: mem.heapUsed,
+      heapLimit: v8Module ? v8Module.getHeapStatistics().heap_size_limit : 0,
+      external: mem.external,
+      arrayBuffers: mem.arrayBuffers,
+      cpuMs: (cpu.user + cpu.system) / 1000,
+      // cgroup/container limit — the number that actually kills the process.
+      constrained:
+        typeof process.constrainedMemory === "function" ? process.constrainedMemory() : 0,
+    };
+  }
 
   /**
-   * Releases committed-but-unused memory after a burst.
-   *
-   * Bounded L1 caches are the biggest byte holders, and emptying them is what
-   * actually frees heap objects; the GC pass that follows is what returns the
-   * pages to the OS (V8 only de-commits after a major GC).
+   * Resolve the cache module once so the governor's trim stays synchronous.
+   * Dynamic on purpose: the watchdog is imported during boot, and a static
+   * import would pull the cache stack into that graph early (cycle risk).
    */
-  private async sweepMemory(heapUsed: number, heapLimit: number): Promise<void> {
-    const now = Date.now();
-    if (now - this.lastMemorySweep < this.MEMORY_MIN_INTERVAL) return;
-    this.lastMemorySweep = now;
-
-    const usedMb = Math.round(heapUsed / 1024 / 1024);
-    const limitMb = Math.round(heapLimit / 1024 / 1024);
-    logger.warn(
-      `🧹 [Memory] heap ${usedMb}MB / limit ${limitMb}MB exceeds ${Math.round(
-        this.MEMORY_TRIGGER_RATIO * 100,
-      )}% — trimming caches and requesting a GC pass`,
-    );
-
+  private async ensureResponseCache(): Promise<void> {
+    if (this.responseCache) return;
     try {
-      await responseCache.clearLocal();
+      const mod = await import("@src/services/cache/response-cache");
+      this.responseCache = mod.responseCache;
     } catch (err) {
-      logger.debug("[Memory] cache trim failed (non-fatal)", err);
-    }
-
-    if (this.gcFn === undefined) this.gcFn = await resolveGc();
-    if (this.gcFn) {
-      try {
-        this.gcFn();
-      } catch (err) {
-        logger.debug("[Memory] gc() failed (non-fatal)", err);
-      }
-    } else {
-      logger.debug("[Memory] no gc() available — relying on V8's memory reducer");
+      logger.debug("[Memory] response cache unavailable for trimming", err);
     }
   }
 
@@ -123,6 +167,29 @@ class SystemWatchdog {
     // event-loop pressure during idle periods and allows clean graceful shutdown.
     if (typeof this.intervalId.unref === "function") {
       this.intervalId.unref();
+    }
+
+    // Cache the v8 handle for the synchronous memory sample, then start the
+    // governor tick. Both are fire-and-forget: recovery and health checks must
+    // not wait on module loading.
+    void loadV8().then((v8) => {
+      v8Module = v8;
+    });
+    void this.ensureResponseCache();
+    this.startMemoryGovernor();
+  }
+
+  /**
+   * Runs the memory governor on its own fast timer. Separated from the health
+   * tick so the release latency after a burst is measured in seconds.
+   */
+  private startMemoryGovernor(): void {
+    if (this.memoryIntervalId) return;
+    this.memoryIntervalId = setInterval(() => {
+      this.governor.tick().catch((err) => logger.debug("[Memory] governor tick failed", err));
+    }, this.MEMORY_CHECK_INTERVAL);
+    if (typeof this.memoryIntervalId.unref === "function") {
+      this.memoryIntervalId.unref();
     }
   }
 
@@ -171,17 +238,6 @@ class SystemWatchdog {
     if (now - this.lastMaintenance > this.MAINTENANCE_INTERVAL) {
       this.lastMaintenance = now;
       await maintenanceService.runMaintenance();
-    }
-
-    // 4. Memory governor — a write burst commits far more than the steady-state
-    // heap; V8 holds those pages unless something asks it to shrink back.
-    const v8 = await loadV8();
-    if (v8) {
-      const mem = process.memoryUsage();
-      const heapLimit = v8.getHeapStatistics().heap_size_limit;
-      if (heapLimit > 0 && mem.heapUsed / heapLimit > this.MEMORY_TRIGGER_RATIO) {
-        await this.sweepMemory(mem.heapUsed, heapLimit);
-      }
     }
   }
 
@@ -241,10 +297,19 @@ class SystemWatchdog {
     }
   }
 
+  /** Memory governor diagnostics (used by tests and support logs). */
+  public get memoryState() {
+    return this.governor.state;
+  }
+
   public stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.memoryIntervalId) {
+      clearInterval(this.memoryIntervalId);
+      this.memoryIntervalId = null;
     }
   }
 }

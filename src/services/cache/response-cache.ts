@@ -245,6 +245,24 @@ class ResponseCacheService {
   private l1Bytes = 0;
   private pointL1Bytes = 0;
 
+  /**
+   * The encoded buffer is a second copy of the body. Skip it when the tier
+   * is already at its byte budget — the string is enough to serve the hit,
+   * and a random id that is about to be evicted must not double its cost.
+   */
+  private maybeAttachBuffer(entry: CachedResponseEntry, pointReads: boolean): void {
+    if (entry.buffer || !textEncoder || !entry.body) return;
+    const budget = this.l1ByteBudget(pointReads);
+    const bytes = pointReads ? this.pointL1Bytes : this.l1Bytes;
+    // ASCII JSON: byte length equals char length. Skip the encode when the
+    // tier is already full; multibyte bodies are checked again after encode.
+    if (bytes + entry.body.length > budget) return;
+    const encoded = textEncoder.encode(entry.body);
+    if (bytes + encoded.byteLength > budget) return;
+    entry.buffer = encoded;
+    this.addL1Bytes(pointReads, encoded.byteLength);
+  }
+
   private addL1Bytes(pointReads: boolean, delta: number): void {
     if (pointReads) this.pointL1Bytes = Math.max(0, this.pointL1Bytes + delta);
     else this.l1Bytes = Math.max(0, this.l1Bytes + delta);
@@ -418,10 +436,7 @@ class ResponseCacheService {
         store.delete(fullKey);
         this.unindexKey(fullKey);
       } else {
-        if (!local.buffer && textEncoder && local.body) {
-          local.buffer = textEncoder.encode(local.body);
-          this.addL1Bytes(store === this.pointL1, local.buffer.byteLength);
-        }
+        this.maybeAttachBuffer(local, store === this.pointL1);
         return local;
       }
     }
@@ -624,6 +639,17 @@ class ResponseCacheService {
    * Clear local in-memory Map and purge L2 cacheService entries.
    */
   public async clearLocal(): Promise<void> {
+    this.trimLocal();
+    await cacheService.clearByPattern("res:*");
+  }
+
+  /**
+   * Drop the in-memory tiers only — no L2 purge. The memory governor's last
+   * resort when the live heap is over the cap: synchronous, so the caller can
+   * measure the effect immediately, and Redis `SCAN`/`DEL` is the wrong cost
+   * for a purely local memory action.
+   */
+  public trimLocal(): void {
     this.localL1.clear();
     this.pointL1.clear();
     this.l1Bytes = 0;
@@ -632,7 +658,6 @@ class ResponseCacheService {
     this.listIndex.clear();
     this.entryIndex.clear();
     this.graphqlIndex.clear();
-    await cacheService.clearByPattern("res:*");
   }
 }
 
