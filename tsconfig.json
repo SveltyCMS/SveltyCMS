@@ -73,5 +73,17 @@
     "path-aliases.ts",
     "playwright.config.ts"
   ],
-  "exclude": ["node_modules", ".svelte-kit", "src/paraglide/**/*.js", "src/service-worker/**"]
+  "exclude": [
+    "node_modules",
+    ".svelte-kit",
+    "src/paraglide/**/*.js",
+    "src/service-worker/**",
+    // Install artifacts: the vendored package types under src/types/* are a bun
+    // copyfile install of nested node_modules, and they ship their own (older)
+    // @types/node. Matching only the root "node_modules" left them inside the
+    // program via `src/**/*.d.ts`, which put two node:http declaration copies in
+    // it (@types/node 26 added `IncomingMessage.signal`) and produced bogus
+    // cross-copy "not assignable" errors in editors.
+    "src/**/node_modules/**"
+  ]
 }
