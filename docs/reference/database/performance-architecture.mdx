@@ -883,6 +883,47 @@ SveltyCMS detects the host machine **once at process start** and tunes every CPU
 
 The detected profile is surfaced in boot logs, the setup-wizard completion response, and `/api/dashboard/system-info` (dashboard CPU widget). GPU: sharp/libvips has no GPU backend — media parallelism is CPU-tier capped; further media gains come from variant dedup/deferral, not more threads.
 
+### Memory governor (runtime)
+
+V8 does not hand committed pages back on its own: after a burst (seeding, bulk import, media upload) `heapUsed` can fall to a fraction of the RSS `docker stats` reports, and the process stays at its high-water mark until it is restarted. In a local probe on Node 24 (2026-09-21, single Windows host — not re-measured by the test suite) a 370 MB burst fell to 59 MB on the first full GC, a second pass freed the remaining external arenas, and **3 s of idle released nothing**.
+
+The system watchdog therefore runs a governor (`src/services/system/memory-governor.ts`) on its own timer. It fires when any signal is over its threshold:
+
+| Signal           | Threshold                                                                | Why it exists                                                                        |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| **heap**         | `heapUsed / heap_size_limit > 0.7`                                       | Classic live-heap pressure                                                           |
+| **live-set**     | `(heapUsed + external + arrayBuffers) / limit > 0.7`                     | HTTP body/buffer bursts keep `heapUsed` flat — a heap-only check never sees them     |
+| **rss**          | `rss > 0.75 × cgroup limit`, else `1.25 × V8 heap limit`                 | The number that actually gets the container OOM-killed                               |
+| **idle reclaim** | quiet loop, `rss > 192 MB`, and `rss > max(1.6 × floor, floor + 128 MB)` | Returns the process to its own low-water mark — nothing to do with a container limit |
+
+The floor is the live set plus 64 MB of non-reclaimable runtime; it rises with a genuinely larger working set and ratchets down whenever a lower idle RSS is observed. `SVELTY_MEMORY_RSS_MB` overrides the derived RSS target in all cases — set it when the container has no cgroup limit and the derived `1.25 × heap limit` is too generous (that is the default when `process.constrainedMemory()` reports nothing).
+
+A sweep runs an **async** major GC first (marking concurrent, off the request path), a **sync** pass only when the first one handed back less than 8 MB and the process is still over a threshold, and trims the response-cache L1 tiers only if the live heap is _still_ over the ratio — an RSS spike alone is not a reason to throw away turbo hits. The trim awaits the cache handle, so a pressured sweep during boot waits for the module instead of silently doing nothing. Cooldown starts at 5 s and doubles up to 2 minutes while sweeps stay unproductive, so a steady working set is not GC-thrashed.
+
+| Env var                       | Default | Effect                                                                         |
+| ----------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `SVELTY_MEMORY_TRIGGER_RATIO` | `0.7`   | Heap / live-set share of the V8 heap limit that triggers a sweep               |
+| `SVELTY_MEMORY_RSS_MB`        | derived | Explicit RSS ceiling; unset derives from the cgroup limit (else heap limit)    |
+| `SVELTY_MEMORY_CHECK_MS`      | `2000`  | Governor tick — a burst tail is caught within seconds, not a minute            |
+| `SVELTY_L1_MAX_MB`            | `64`    | Byte budget for the list-response L1 tier (entry counts alone do not bound it) |
+| `SVELTY_L1_POINT_MAX_MB`      | `16`    | Byte budget for the point-read L1 tier                                         |
+
+**Observing it:** every sweep logs one evidence line — `🧹 [Memory] pass 1/2 (rss) rss 389→286MB · heap 100→57MB · ext+ab 242→172MB · limit 4288MB · busy 88%` — which is what to correlate with `docker stats` after a seeding run. Give the container a real `--memory` limit (Node reads it via `process.constrainedMemory()`) or set `SVELTY_MEMORY_RSS_MB`; keep `--max-old-space-size` in line with it so V8's own limit and the cgroup agree. `--heapsnapshot-signal=USR2` gives a heap diff when a release still looks wrong.
+
+### Module graph: what loads when
+
+Caching a module graph is only a saving if the graph was _cut_ first — the registry caches what was used, and a process cannot predict a working set that was never separated from "everything". The current split, verified in the source:
+
+| Chunk             | Contents                                                                                                             | When it is evaluated                                                                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Request chunk** | Read lane, write lane, session check, active adapter, security headers — statically imported                         | Process start; this is what a cached `findById` touches                                                                                                                                |
+| **Widget chunks** | One loader per factory (`widgets/scanner.ts`, non-eager `import.meta.glob`); input/display stay lazy component loads | When a collection schema names the widget — the SDK resolves a schema, calls `widgetNamesOf()`, and loads only that set. The full catalog loads only when the admin widget store opens |
+| **Background**    | Job queue, scheduler, outbox, watchdog, automation, telemetry, behavioral learner                                    | **Still static in `hooks.server.ts`** and started at READY — see below                                                                                                                 |
+
+The widget side is also used predictively: `CacheWarmingService` reads the behavioral learner's hot collections, peeks their (already warm) schemas, and evaluates exactly the widget factories those collections name — so the first edit of a hot collection does not pay the chunk import. Nothing here loads the catalog.
+
+**Why the background services are still in the request graph:** an earlier attempt to `await import()` them from the hook left their production exports `undefined` under Rolldown's cyclic-chunk initializers, so they were pinned as static imports. Moving them out for real needs a separate entry (`index.cjs` must not import it into the same process, or the modules are evaluated anyway) — scoped with its prerequisites in [roadmap-2026](../../project/roadmap-2026.mdx). Expect 30–80 MB resident and roughly 5–10% on `create` when it lands; cached reads stay at the HTTP floor either way, because they already do.
+
 ---
 
 ---
