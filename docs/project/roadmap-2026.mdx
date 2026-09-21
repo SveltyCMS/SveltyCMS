@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-20"
+updated: "2026-09-21"
 tags:
   - "roadmap"
   - "backlog"
@@ -97,7 +97,12 @@ Ordered sequence for internationalization:
 - **Svelty Managed Cloud & Enterprise Cluster**: Automated multi-region clustering, distributed Redis caching, and Terraform infrastructure recipes.
 - **Zero-Downtime Deployment Verifier**: Automated pre-flight deployment check verifying schema backward-compatibility.
 - **SvelteKit 3.0 & TypeScript 7 Adoption**: Finalize upgrade path once upstream `@sveltejs/kit` and `write_tsconfig` stabilize.
-- **Rust Tooling Evaluation (`fuzdev/tsv`)**: Benchmark Rust-based Svelte AST parsing against Oxc (`oxlint`/`oxfmt`).
+- **Rust Tooling Evaluation (`fuzdev/tsv`)** — measured 2026-09-21, no adoption decision yet. `tsv` 0.4.1 ships native Svelte parse **and** format (`tsv_svelte`, drop-in for Svelte 5's AST with acorn + `@sveltejs/acorn-typescript`). Reproduce every number below with `bun x @fuzdev/tsv` / `bun x oxfmt` (no install, no manifest change):
+  - `oxfmt` (pinned `^0.68.0`, configured by `.oxfmtrc.json`) formats the repo's `.ts`/`.js`/`.css` (`--check src` → `1024 files`, all correct, ~0.56 s) but matches **no** `.svelte` target — `bun x oxfmt --check src/components/ui/checkbox.svelte` returns `Expected at least one target file`. **0 of 489** `.svelte` files under `src/` are covered by the current formatter gate.
+  - `tsv` discovers all 489 (and 1367 files in `src/` overall). `format --check src` → `1346 would change, 21 unchanged` in ~0.12 s; a full write pass over 446 copied `.svelte` files took ~0.14 s and a steady-state `--check` over the same copies ~0.32 s. Its hardcoded style (tabs, single quotes, no trailing commas, `printWidth: 100`) is exactly what those files already use by hand — they were previously formatted by Prettier and nothing has touched them since.
+  - **First-run normalization is large**: 470 of 489 `.svelte` files would change. The diffs are layout-only, dominated by re-wrapping hand-compacted lines past 100 columns (e.g. the one-line `case 'sm': return { … }` arms in `src/components/ui/checkbox.svelte`).
+  - ⚠️ **Not idempotent on 2 of 446 files** (`src/widgets/custom/seo/input.svelte`, `src/routes/(app)/dashboard/widgets/unified-metrics/index.svelte`): the first pass emits a layout it revises on the second (a generic argument list left as `}>(` + object becomes `}>({`), so a single-pass `--check` gate would report those two indefinitely. Two passes converge; the tree is then stable at `0 would change`.
+  - Not a candidate for the TS/JS/CSS share: the same non-configurability conflicts with `.oxfmtrc.json` (2 spaces, double quotes, `trailingComma: all`) — 916 `.ts` files would be rewritten. Upstream status is "near production-ready, a long tail of rare bugs remains", so adopting this for `.svelte` means running `format` twice before wiring `--check` into CI, and reporting the two files above.
 - **Third-Party Security Audit**: Commission an independent external penetration test prior to enterprise GA.
 
 ---
