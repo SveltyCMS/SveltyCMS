@@ -137,7 +137,7 @@
     "migrate": "bun run src/plugins/smart-importer/cli.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1136.0",
+    "@aws-sdk/client-s3": "^3.1137.0",
     "@better-svelte-email/components": "^2.3.0",
     "@better-svelte-email/preview": "^2.3.0",
     "@better-svelte-email/server": "^2.3.0",
@@ -226,7 +226,7 @@
     "lint-staged": "^17.5.1",
     "mysql2": "^3.24.4",
     "oxfmt": "^0.69.0",
-    "oxlint": "^1.84.0",
+    "oxlint": "^1.85.0",
     "playwright": "^1.63.0",
     "postgres": "^3.4.9",
     "svelte": "^5.57.1",
