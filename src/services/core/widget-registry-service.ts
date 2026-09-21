@@ -3,13 +3,7 @@
  * @description High-performance, benchmark-friendly widget registry.
  */
 
-import {
-  coreModules,
-  customModules,
-  marketplaceModules,
-  hasWidgetLoader,
-  loadWidgetFactories,
-} from "../../widgets/scanner";
+import * as scanner from "../../widgets/scanner";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@src/widgets/types";
 import {
   folderFromWidgetPath,
@@ -85,16 +79,16 @@ class WidgetRegistryService {
   }
 
   private _registerPreScannedWidgets() {
-    for (const [path, module] of Object.entries(coreModules)) {
+    for (const [path, module] of Object.entries(scanner.coreModules)) {
       this._registerWidget(path, module as WidgetModule, "core");
     }
 
-    for (const [path, module] of Object.entries(customModules)) {
+    for (const [path, module] of Object.entries(scanner.customModules)) {
       this._registerWidget(path, module as WidgetModule, "custom");
     }
 
     // Vite-eager marketplace packages (if any were present at build time)
-    for (const [path, module] of Object.entries(marketplaceModules)) {
+    for (const [path, module] of Object.entries(scanner.marketplaceModules)) {
       this._registerWidget(path, module as WidgetModule, "marketplace");
     }
   }
@@ -223,7 +217,10 @@ class WidgetRegistryService {
   public canLoad(name: string): boolean {
     if (this.widgets.has(name)) return false;
     try {
-      return hasWidgetLoader(name);
+      // Namespace access on purpose: test setups replace this module with a
+      // partial mock, and a named import of a missing loader is an ESM linking
+      // error ("export named ... not found") rather than a caught call.
+      return typeof scanner.hasWidgetLoader === "function" ? scanner.hasWidgetLoader(name) : false;
     } catch {
       return false;
     }
@@ -240,7 +237,9 @@ class WidgetRegistryService {
     }
     if (missing.length === 0) return;
     try {
-      await loadWidgetFactories(missing);
+      if (typeof scanner.loadWidgetFactories === "function") {
+        await scanner.loadWidgetFactories(missing);
+      }
     } catch {
       // Test mocks replace the scanner and do not export the loader.
     }
@@ -259,7 +258,9 @@ class WidgetRegistryService {
 
   public async getAllWidgets(): Promise<Map<string, WidgetFactory>> {
     try {
-      await loadWidgetFactories();
+      if (typeof scanner.loadWidgetFactories === "function") {
+        await scanner.loadWidgetFactories();
+      }
     } catch {
       // Scanner mock has no loader map; pre-registered factories still apply.
     }

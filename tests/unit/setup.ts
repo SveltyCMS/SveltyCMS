@@ -1076,6 +1076,10 @@ if (isBun && !isBenchmark && ENABLE_MOCKS) {
       marketplaceModules: {},
       widgetComponents: {},
       allWidgetModules,
+      // Loader surface: omitting these breaks ESM linking for consumers that
+      // import them by name (the registry falls back to namespace access).
+      loadWidgetFactories: async () => {},
+      hasWidgetLoader: () => false,
       getComponentLoader: () => null,
       getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
       widgetNameToFolder,
@@ -1666,6 +1670,10 @@ moduleMock("@src/widgets/scanner", () => ({
   marketplaceModules: {},
   widgetComponents: {},
   allWidgetModules: {},
+  // Loader surface: a mock that omits these breaks ESM linking for every
+  // consumer that imports them by name.
+  loadWidgetFactories: async () => {},
+  hasWidgetLoader: () => false,
   getComponentLoader: () => null,
   getWidgetNameFromPath: (path: string) => path.split("/").at(-2) || null,
   widgetNameToFolder,
