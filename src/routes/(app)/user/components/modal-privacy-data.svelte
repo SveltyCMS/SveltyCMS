@@ -90,7 +90,8 @@
 
 <div class="space-y-6 text-black dark:text-white p-2">
 	<header class="flex items-center gap-3 border-b border-surface-500/20 pb-4">
-		<iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500" width="32"></iconify-icon>
+		<iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500" width="32"
+		></iconify-icon>
 		<div>
 			<h2 class="text-xl font-bold">Privacy & Data Management</h2>
 			<p class="text-sm opacity-70">Manage your personal data and account privacy (GDPR)</p>
@@ -109,8 +110,8 @@
 				<div class="flex-1">
 					<h3 class="font-bold text-lg">Download My Data</h3>
 					<p class="mt-1 text-sm text-surface-600 dark:text-surface-400">
-						Receive a copy of all your personal data stored in the SveltyCMS system. The data will be provided in a structured JSON format for
-						portability.
+						Receive a copy of all your personal data stored in the SveltyCMS system. The data will
+						be provided in a structured JSON format for portability.
 					</p>
 					<Button variant="secondary" onclick={handleExportData} class="mt-4 w-full sm:w-auto">
 						<iconify-icon icon="mdi:download" class="me-2"></iconify-icon>
@@ -132,8 +133,8 @@
 					<div class="flex-1">
 						<h3 class="font-bold text-lg text-error-500">Delete & Anonymize My Account</h3>
 						<p class="mt-1 text-sm text-surface-600 dark:text-surface-400">
-							Exercise your "Right to Erasure". This will permanently anonymize your personal data and delete your account. This action is
-							irreversible.
+							Exercise your "Right to Erasure". This will permanently anonymize your personal data
+							and delete your account. This action is irreversible.
 						</p>
 						<Button variant="error" onclick={handleAnonymize} class="mt-4 w-full sm:w-auto">
 							<iconify-icon icon="mdi:alert-circle" class="me-2"></iconify-icon>
@@ -146,6 +147,6 @@
 	</div>
 
 	<footer class="flex justify-end pt-4 border-t border-surface-500/20">
-		<Button variant="surface" onclick={() => modalState.close()}> Close </Button>
+		<Button variant="surface" onclick={() => modalState.close()}>Close</Button>
 	</footer>
 </div>

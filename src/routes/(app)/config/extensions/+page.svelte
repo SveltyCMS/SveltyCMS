@@ -24,7 +24,7 @@
 		{ id: 'plugins', label: 'Plugins', icon: 'mdi:puzzle' },
 		{ id: 'widgets', label: 'Widgets', icon: 'mdi:widgets' },
 		{ id: 'themes', label: 'Themes', icon: 'ph:layout' },
-		{ id: 'marketplace', label: 'Marketplace', icon: 'mdi:store' },
+		{ id: 'marketplace', label: 'Marketplace', icon: 'mdi:store' }
 	] as const;
 </script>
 
@@ -36,9 +36,18 @@
 	backUrl="/config"
 >
 	<div data-testid="extensions-page" class="contents">
-		<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
-			<div class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-50">
-				<div class="flex gap-2" role="tablist" aria-label="Extension categories" data-testid="extensions-tabs">
+		<AdminCard
+			class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+		>
+			<div
+				class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-50"
+			>
+				<div
+					class="flex gap-2"
+					role="tablist"
+					aria-label="Extension categories"
+					data-testid="extensions-tabs"
+				>
 					{#each tabs as tab (tab.id)}
 						<Button
 							variant="ghost"
@@ -53,7 +62,9 @@
 							<iconify-icon icon={tab.icon} width="20" class="text-xl"></iconify-icon>
 							<span>{tab.label}</span>
 							{#if activeTab === tab.id}
-								<div class="absolute bottom-0 inset-s-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"></div>
+								<div
+									class="absolute bottom-0 inset-s-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"
+								></div>
 							{/if}
 						</Button>
 					{/each}
@@ -67,7 +78,9 @@
 				>
 					<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
 					<span>Marketplace</span>
-					<span class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase 'text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500">
+					<span
+						class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase 'text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
+					>
 						In-app
 					</span>
 				</button>

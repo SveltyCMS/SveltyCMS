@@ -16,7 +16,9 @@
 	import type { Schema } from '@src/content/types';
 
 	// Get collection names
-	const collectionNames = $derived(Object.values((collections as any).all as Record<string, Schema>).map((c) => c.name));
+	const collectionNames = $derived(
+		Object.values((collections as any).all as Record<string, Schema>).map((c) => c.name)
+	);
 	const collectionOptions = $derived(
 		collectionNames
 			.filter((name): name is string => name != null && name !== '')

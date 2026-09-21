@@ -87,14 +87,19 @@
 </script>
 
 {#if value}
-	<div class="logic-group rounded border border-surface-500/30 bg-surface-500/10 p-5 dark:border-surface-500/40 dark:bg-surface-900/70">
+	<div
+		class="logic-group rounded border border-surface-500/30 bg-surface-500/10 p-5 dark:border-surface-500/40 dark:bg-surface-900/70"
+	>
 		<!-- Header -->
 		<div class="mb-5 flex items-center justify-between">
 			<div class="flex items-center gap-3">
-				<Button variant="tertiary"
+				<Button
+					variant="tertiary"
 					onclick={() => toggleGroupType(value!)}
 					aria-label="toggle-condition-type"
-				 size="sm" class="font-mono tracking-wider px-4 {value.type === 'AND' ? '' : ''}">
+					size="sm"
+					class="font-mono tracking-wider px-4 {value.type === 'AND' ? '' : ''}"
+				>
 					{value.type}
 				</Button>
 				<span class="text-xs uppercase tracking-[1px] font-medium opacity-60">
@@ -103,18 +108,24 @@
 			</div>
 
 			<div class="flex gap-2">
-				<Button variant="surface"
+				<Button
+					variant="surface"
 					onclick={() => addRule(value!)}
 					aria-label="add-rule"
-				 size="sm" class="flex items-center gap-1.5">
+					size="sm"
+					class="flex items-center gap-1.5"
+				>
 					<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 					<span class="hidden sm:inline">Rule</span>
 				</Button>
 
-				<Button variant="surface"
+				<Button
+					variant="surface"
 					onclick={() => addGroup(value!)}
 					aria-label="add-sub-group"
-				 size="sm" class="flex items-center gap-1.5">
+					size="sm"
+					class="flex items-center gap-1.5"
+				>
 					<iconify-icon icon="mdi:group" width="16"></iconify-icon>
 					<span class="hidden sm:inline">Sub-group</span>
 				</Button>
@@ -132,7 +143,9 @@
 						</div>
 					{:else}
 						<!-- Single Rule -->
-						<div class="rule-row flex flex-wrap items-center gap-3 rounded bg-white p-3 shadow-sm dark:bg-surface-800">
+						<div
+							class="rule-row flex flex-wrap items-center gap-3 rounded bg-white p-3 shadow-sm dark:bg-surface-800"
+						>
 							<Select
 								bind:value={item.field}
 								size="sm"
@@ -163,10 +176,12 @@
 								aria-label="condition-value"
 							/>
 
-							<Button variant="ghost"
+							<Button
+								variant="ghost"
 								onclick={() => removeItem(value!, i)}
 								aria-label="remove-condition"
-							 class="p-0! min-w-0 text-error-600 hover:bg-error-500/10 dark:text-error-500">
+								class="p-0! min-w-0 text-error-600 hover:bg-error-500/10 dark:text-error-500"
+							>
 								<iconify-icon icon="mdi:trash-can-outline" width="19"></iconify-icon>
 							</Button>
 						</div>

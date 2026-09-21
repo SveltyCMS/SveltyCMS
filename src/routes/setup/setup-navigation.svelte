@@ -17,7 +17,12 @@ Features:
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Paraglide Messages
-	import { button_complete, button_next, button_previous, setup_progress_step_of } from '@src/paraglide/messages';
+	import {
+		button_complete,
+		button_next,
+		button_previous,
+		setup_progress_step_of
+	} from '@src/paraglide/messages';
 
 	const {
 		currentStep,
@@ -44,7 +49,9 @@ Features:
 				aria-valuemax="100"
 			></div>
 		</div>
-		<div class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-surface-500 sm:px-8">
+		<div
+			class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-surface-500 sm:px-8"
+		>
 			<span>Database Seeding Progress</span>
 			<span>{seedingProgress}%</span>
 		</div>
@@ -55,10 +62,12 @@ Features:
 		<div class="flex-1">
 			{#if currentStep > 0}
 				<SystemTooltip title={button_previous()} positioning={{ placement: 'top', gutter: 8 }}>
-					<Button variant="tertiary"
+					<Button
+						variant="tertiary"
 						onclick={() => onprev()}
 						aria-label={button_previous?.() || 'Go to previous step'}
-					 class="flex items-center gap-2">
+						class="flex items-center gap-2"
+					>
 						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
 						<span class="inline">{button_previous()}</span>
 					</Button>
@@ -69,21 +78,33 @@ Features:
 		<!-- Step Indicator -->
 		<div class="shrink-0 text-center text-sm font-medium">
 			<span class="sm:hidden">{currentStep + 1} / {totalSteps}</span>
-			<span class="hidden sm:inline">{setup_progress_step_of({ current: String(currentStep + 1), total: String(totalSteps) })}</span>
+			<span class="hidden sm:inline"
+				>{setup_progress_step_of({
+					current: String(currentStep + 1),
+					total: String(totalSteps)
+				})}</span
+			>
 		</div>
 
 		<!-- Next/Complete Button -->
 		<div class="flex flex-1 justify-end">
 			{#if currentStep < totalSteps - 1}
 				<SystemTooltip title={button_next()} positioning={{ placement: 'top', gutter: 8 }}>
-					<Button variant="tertiary"
+					<Button
+						variant="tertiary"
 						onclick={() => onnext()}
 						disabled={!canProceed || isLoading}
 						aria-disabled={!canProceed || isLoading}
 						aria-label={button_next?.() || 'Go to next step'}
-					 class="transition-all flex items-center gap-2 {!canProceed && !isLoading ? 'opacity-60' : ''}">
+						class="transition-all flex items-center gap-2 {!canProceed && !isLoading
+							? 'opacity-60'
+							: ''}"
+					>
 						{#if isLoading && currentStep === 0}
-							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
+							<div
+								class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"
+								role="status"
+							></div>
 							{#if canProceed}
 								<span class="inline">Seeding...</span>
 							{:else}
@@ -96,15 +117,23 @@ Features:
 					</Button>
 				</SystemTooltip>
 			{:else if currentStep === totalSteps - 1}
-				<SystemTooltip title={button_complete?.() || 'Complete'} positioning={{ placement: 'top', gutter: 8 }}>
-					<Button variant="tertiary"
+				<SystemTooltip
+					title={button_complete?.() || 'Complete'}
+					positioning={{ placement: 'top', gutter: 8 }}
+				>
+					<Button
+						variant="tertiary"
 						onclick={() => oncomplete()}
 						disabled={isLoading}
 						aria-disabled={isLoading}
 						aria-label={button_complete?.() || 'Complete setup'}
-					 class="transition-all flex items-center gap-2 {isLoading ? 'opacity-60' : ''}">
+						class="transition-all flex items-center gap-2 {isLoading ? 'opacity-60' : ''}"
+					>
 						{#if isLoading}
-							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
+							<div
+								class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"
+								role="status"
+							></div>
 							<span class="inline">Completing...</span>
 						{:else}
 							<span class="inline">{button_complete?.() || 'Complete'}</span>

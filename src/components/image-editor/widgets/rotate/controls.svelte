@@ -5,36 +5,36 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 -->
 <script lang="ts">
 	let {
-			rotationAngle,
-			isFlippedH = false,
-			isFlippedV = false,
-			showGrid = false,
-			snapToAngles = true,
-			onRotateLeft,
-			onRotateRight,
-			onRotationChange,
-			onFlipHorizontal,
-			onFlipVertical,
-			onStraighten,
-			onAutoStraighten,
-			onGridToggle,
-			onSnapToggle
-		}: {
-			rotationAngle: number;
-			isFlippedH?: boolean;
-			isFlippedV?: boolean;
-			showGrid?: boolean;
-			snapToAngles?: boolean;
-			onRotateLeft: () => void;
-			onRotateRight: () => void;
-			onRotationChange: (angle: number) => void;
-			onFlipHorizontal: () => void;
-			onFlipVertical: () => void;
-			onStraighten?: () => void;
-			onAutoStraighten?: () => void;
-			onGridToggle?: () => void;
-			onSnapToggle?: () => void;
-		} = $props();
+		rotationAngle,
+		isFlippedH = false,
+		isFlippedV = false,
+		showGrid = false,
+		snapToAngles = true,
+		onRotateLeft,
+		onRotateRight,
+		onRotationChange,
+		onFlipHorizontal,
+		onFlipVertical,
+		onStraighten,
+		onAutoStraighten,
+		onGridToggle,
+		onSnapToggle
+	}: {
+		rotationAngle: number;
+		isFlippedH?: boolean;
+		isFlippedV?: boolean;
+		showGrid?: boolean;
+		snapToAngles?: boolean;
+		onRotateLeft: () => void;
+		onRotateRight: () => void;
+		onRotationChange: (angle: number) => void;
+		onFlipHorizontal: () => void;
+		onFlipVertical: () => void;
+		onStraighten?: () => void;
+		onAutoStraighten?: () => void;
+		onGridToggle?: () => void;
+		onSnapToggle?: () => void;
+	} = $props();
 
 	const presetAngles = [-90, 0, 90, 180];
 
@@ -121,13 +121,35 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Rotate controls">
-	<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start" role="group" aria-label="Rotate and flip">
-		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full">
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onRotateLeft} title="Rotate left 90°" aria-label="Rotate left 90°">
+<div
+	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
+	role="toolbar"
+	aria-label="Rotate controls"
+>
+	<div
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start"
+		role="group"
+		aria-label="Rotate and flip"
+	>
+		<div
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+		>
+			<button
+				type="button"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				onclick={onRotateLeft}
+				title="Rotate left 90°"
+				aria-label="Rotate left 90°"
+			>
 				<iconify-icon icon="mdi:rotate-left" width="15" aria-hidden="true"></iconify-icon>
 			</button>
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onRotateRight} title="Rotate right 90°" aria-label="Rotate right 90°">
+			<button
+				type="button"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				onclick={onRotateRight}
+				title="Rotate right 90°"
+				aria-label="Rotate right 90°"
+			>
 				<iconify-icon icon="mdi:rotate-right" width="15" aria-hidden="true"></iconify-icon>
 			</button>
 			<button
@@ -154,7 +176,11 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 			</button>
 		</div>
 
-		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full" role="group" aria-label="Rotation presets">
+		<div
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+			role="group"
+			aria-label="Rotation presets"
+		>
 			{#each presetAngles as angle (angle)}
 				<button
 					type="button"
@@ -197,21 +223,40 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		{/if}
 
 		{#if onStraighten}
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onStraighten} title="Straighten (S)" aria-label="Straighten">
-				<iconify-icon icon="mdi:image-filter-center-focus-weak" width="15" aria-hidden="true"></iconify-icon>
+			<button
+				type="button"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				onclick={onStraighten}
+				title="Straighten (S)"
+				aria-label="Straighten"
+			>
+				<iconify-icon icon="mdi:image-filter-center-focus-weak" width="15" aria-hidden="true"
+				></iconify-icon>
 			</button>
 		{/if}
 
 		{#if onAutoStraighten}
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onAutoStraighten} title="Auto-straighten" aria-label="Auto-straighten">
+			<button
+				type="button"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				onclick={onAutoStraighten}
+				title="Auto-straighten"
+				aria-label="Auto-straighten"
+			>
 				<iconify-icon icon="mdi:auto-fix" width="15" aria-hidden="true"></iconify-icon>
 			</button>
 		{/if}
 
-		<div class="flex flex-[1_1_7rem] items-center justify-center min-w-24 max-w-56 mx-0.5 max-lg:basis-full max-lg:order-4 max-lg:max-w-none max-lg:mx-0">
+		<div
+			class="flex flex-[1_1_7rem] items-center justify-center min-w-24 max-w-56 mx-0.5 max-lg:basis-full max-lg:order-4 max-lg:max-w-none max-lg:mx-0"
+		>
 			<div class="relative w-full">
-				<div class="absolute top-1/2 start-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2" aria-hidden="true"></div>
-				<input aria-label="Rotation angle"
+				<div
+					class="absolute top-1/2 start-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2"
+					aria-hidden="true"
+				></div>
+				<input
+					aria-label="Rotation angle"
 					id="rotate-slider"
 					type="range"
 					min="-180"
@@ -228,8 +273,13 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 			</div>
 		</div>
 
-		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-2 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-5">
-			<span class="min-w-9 text-[11px] font-medium tabular-nums leading-7 text-[rgba(255,255,255,0.92)] text-center" aria-live="polite">{displayAngle}°</span>
+		<div
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-2 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-5"
+		>
+			<span
+				class="min-w-9 text-[11px] font-medium tabular-nums leading-7 text-[rgba(255,255,255,0.92)] text-center"
+				aria-live="polite">{displayAngle}°</span
+			>
 		</div>
 	</div>
 </div>

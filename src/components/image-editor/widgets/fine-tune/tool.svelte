@@ -49,7 +49,10 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 		if (activeState === 'finetune') {
 			updateToolbar(isMobile, adjustment, filters as unknown as Adjustments);
-		} else if (!activeState && isFinetuneToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
+		} else if (
+			!activeState &&
+			isFinetuneToolbarComponent(imageEditorStore.state.toolbarControls?.component)
+		) {
 			imageEditorStore.setToolbarControls(null);
 			imageEditorStore.compareSliderPosition = 0;
 		}
@@ -59,11 +62,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 		return component === FineTuneControls || component === FineTuneControlsMobile;
 	}
 
-	function updateToolbar(
-		isMobile: boolean,
-		adjustment: keyof Adjustments,
-		filters: Adjustments
-	) {
+	function updateToolbar(isMobile: boolean, adjustment: keyof Adjustments, filters: Adjustments) {
 		if (imageEditorStore.state.activeState !== 'finetune') {
 			return;
 		}
@@ -112,7 +111,8 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 									...preset.adjustments
 								};
 								const firstChangedKey =
-									(Object.keys(preset.adjustments)[0] as keyof Adjustments | undefined) ?? 'brightness';
+									(Object.keys(preset.adjustments)[0] as keyof Adjustments | undefined) ??
+									'brightness';
 								activeAdjustment = firstChangedKey;
 								const presetConfig = getAdjustmentConfig(firstChangedKey);
 								if (presetConfig) {

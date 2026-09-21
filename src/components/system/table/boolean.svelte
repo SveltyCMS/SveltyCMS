@@ -27,4 +27,6 @@
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->
-<Badge variant={value ? 'error' : 'primary'} rounded={false}>{value ? boolean_yes() : boolean_no()}</Badge>
+<Badge variant={value ? 'error' : 'primary'} rounded={false}
+	>{value ? boolean_yes() : boolean_no()}</Badge
+>

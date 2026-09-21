@@ -41,222 +41,223 @@ async loading, grouped options, configurable debounce, and clearable selection.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import { slide } from 'svelte/transition';
-import { onMount, type Snippet } from 'svelte';
-import { generateId } from '@utils/id-generator';
+	import { cn } from '@utils/cn';
+	import { slide } from 'svelte/transition';
+	import { onMount, type Snippet } from 'svelte';
+	import { generateId } from '@utils/id-generator';
 
-interface Option {
-	label: string;
-	value: any;
-	icon?: string;
-	disabled?: boolean;
-}
-
-interface Props {
-	value?: any;
-	options: Option[];
-	placeholder?: string;
-	disabled?: boolean;
-	allowCustom?: boolean;
-	class?: string;
-	onchange?: (value: any) => void;
-	label?: string;
-	error?: string;
-	// Phase 1 additions
-	clearable?: boolean;
-	hideEmptyState?: boolean;
-	// Phase 2 additions
-	groupBy?: (item: Option) => string;
-	debounceWait?: number;
-	loading?: boolean;
-	// Snippets
-	option?: Snippet<[{ item: Option, selected: boolean, active: boolean }]>;
-	empty?: Snippet;
-}
-
-let {
-	value = $bindable(),
-	options = [],
-	placeholder = 'Select...',
-	disabled = false,
-	allowCustom = false,
-	class: className = '',
-	onchange,
-	label,
-	error,
-	// Phase 1
-	clearable = false,
-	hideEmptyState = false,
-	// Phase 2
-	groupBy,
-	debounceWait = 0,
-	loading = false,
-	// Snippets
-	option: optionSnippet,
-	empty: emptySnippet
-}: Props = $props();
-
-let searchTerm = $state('');
-let debouncedSearchTerm = $state('');
-let isOpen = $state(false);
-let activeIndex = $state(-1);
-let listElement = $state<HTMLElement>();
-let inputElement = $state<HTMLInputElement>();
-let debounceTimer = $state<ReturnType<typeof setTimeout>>();
-
-// Debounce search term
-$effect(() => {
-	if (debounceWait <= 0) {
-		debouncedSearchTerm = searchTerm;
-		return;
+	interface Option {
+		label: string;
+		value: any;
+		icon?: string;
+		disabled?: boolean;
 	}
-	if (debounceTimer) clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(() => {
-		debouncedSearchTerm = searchTerm;
-	}, debounceWait);
-	return () => {
-		if (debounceTimer) clearTimeout(debounceTimer);
-	};
-});
 
-// Effective search term for filtering
-const effectiveSearch = $derived(
-	debounceWait > 0 ? debouncedSearchTerm : searchTerm
-);
+	interface Props {
+		value?: any;
+		options: Option[];
+		placeholder?: string;
+		disabled?: boolean;
+		allowCustom?: boolean;
+		class?: string;
+		onchange?: (value: any) => void;
+		label?: string;
+		error?: string;
+		// Phase 1 additions
+		clearable?: boolean;
+		hideEmptyState?: boolean;
+		// Phase 2 additions
+		groupBy?: (item: Option) => string;
+		debounceWait?: number;
+		loading?: boolean;
+		// Snippets
+		option?: Snippet<[{ item: Option; selected: boolean; active: boolean }]>;
+		empty?: Snippet;
+	}
 
-// Fuzzy search logic with deduplication
-const filteredOptions = $derived.by(() => {
-	const uniqueMap = new Map();
-	const baseOptions = options.filter(opt => {
-		if (opt.value !== undefined && !uniqueMap.has(opt.value)) {
-			uniqueMap.set(opt.value, true);
-			return true;
+	let {
+		value = $bindable(),
+		options = [],
+		placeholder = 'Select...',
+		disabled = false,
+		allowCustom = false,
+		class: className = '',
+		onchange,
+		label,
+		error,
+		// Phase 1
+		clearable = false,
+		hideEmptyState = false,
+		// Phase 2
+		groupBy,
+		debounceWait = 0,
+		loading = false,
+		// Snippets
+		option: optionSnippet,
+		empty: emptySnippet
+	}: Props = $props();
+
+	let searchTerm = $state('');
+	let debouncedSearchTerm = $state('');
+	let isOpen = $state(false);
+	let activeIndex = $state(-1);
+	let listElement = $state<HTMLElement>();
+	let inputElement = $state<HTMLInputElement>();
+	let debounceTimer = $state<ReturnType<typeof setTimeout>>();
+
+	// Debounce search term
+	$effect(() => {
+		if (debounceWait <= 0) {
+			debouncedSearchTerm = searchTerm;
+			return;
 		}
-		return false;
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			debouncedSearchTerm = searchTerm;
+		}, debounceWait);
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+		};
 	});
 
-	if (!effectiveSearch.trim()) return baseOptions;
-	const term = effectiveSearch.toLowerCase();
-	return baseOptions
-		.map(opt => {
-			const label = opt.label.toLowerCase();
-			let score = 0;
-			if (label === term) score = 100;
-			else if (label.startsWith(term)) score = 50;
-			else if (label.includes(term)) score = 25;
-			return { ...opt, score };
-		})
-		.filter(opt => opt.score > 0)
-		.sort((a, b) => b.score - a.score);
-});
+	// Effective search term for filtering
+	const effectiveSearch = $derived(debounceWait > 0 ? debouncedSearchTerm : searchTerm);
 
-// Grouped options when groupBy is provided
-const groupedOptions = $derived.by(() => {
-	if (!groupBy) return null;
-	const groups = new Map<string, Option[]>();
-	for (const opt of filteredOptions) {
-		const key = groupBy(opt);
-		if (!groups.has(key)) groups.set(key, []);
-		groups.get(key)!.push(opt);
+	// Fuzzy search logic with deduplication
+	const filteredOptions = $derived.by(() => {
+		const uniqueMap = new Map();
+		const baseOptions = options.filter((opt) => {
+			if (opt.value !== undefined && !uniqueMap.has(opt.value)) {
+				uniqueMap.set(opt.value, true);
+				return true;
+			}
+			return false;
+		});
+
+		if (!effectiveSearch.trim()) return baseOptions;
+		const term = effectiveSearch.toLowerCase();
+		return baseOptions
+			.map((opt) => {
+				const label = opt.label.toLowerCase();
+				let score = 0;
+				if (label === term) score = 100;
+				else if (label.startsWith(term)) score = 50;
+				else if (label.includes(term)) score = 25;
+				return { ...opt, score };
+			})
+			.filter((opt) => opt.score > 0)
+			.sort((a, b) => b.score - a.score);
+	});
+
+	// Grouped options when groupBy is provided
+	const groupedOptions = $derived.by(() => {
+		if (!groupBy) return null;
+		const groups = new Map<string, Option[]>();
+		for (const opt of filteredOptions) {
+			const key = groupBy(opt);
+			if (!groups.has(key)) groups.set(key, []);
+			groups.get(key)!.push(opt);
+		}
+		return Array.from(groups.entries()).map(([name, items]) => ({ name, items }));
+	});
+
+	// Flatten grouped options for keyboard navigation indexing
+	const flatFilteredOptions = $derived.by(() => {
+		if (!groupedOptions || !groupBy) return filteredOptions;
+		const flat: Option[] = [];
+		for (const group of groupedOptions) {
+			flat.push(...group.items);
+		}
+		return flat;
+	});
+
+	$effect(() => {
+		if (isOpen) {
+			activeIndex = -1;
+			inputElement?.focus();
+		}
+	});
+
+	function selectOption(opt: Option) {
+		if (opt.disabled) return;
+		value = opt.value;
+		searchTerm = opt.label;
+		debouncedSearchTerm = opt.label;
+		isOpen = false;
+		onchange?.(value);
 	}
-	return Array.from(groups.entries()).map(([name, items]) => ({ name, items }));
-});
 
-// Flatten grouped options for keyboard navigation indexing
-const flatFilteredOptions = $derived.by(() => {
-	if (!groupedOptions || !groupBy) return filteredOptions;
-	const flat: Option[] = [];
-	for (const group of groupedOptions) {
-		flat.push(...group.items);
-	}
-	return flat;
-});
-
-$effect(() => {
-	if (isOpen) {
-		activeIndex = -1;
+	function handleClear() {
+		value = undefined;
+		searchTerm = '';
+		debouncedSearchTerm = '';
+		onchange?.(undefined);
 		inputElement?.focus();
 	}
-});
 
-function selectOption(opt: Option) {
-	if (opt.disabled) return;
-	value = opt.value;
-	searchTerm = opt.label;
-	debouncedSearchTerm = opt.label;
-	isOpen = false;
-	onchange?.(value);
-}
+	function handleKeydown(e: KeyboardEvent) {
+		if (disabled) return;
 
-function handleClear() {
-	value = undefined;
-	searchTerm = '';
-	debouncedSearchTerm = '';
-	onchange?.(undefined);
-	inputElement?.focus();
-}
+		const optionsList = flatFilteredOptions;
 
-function handleKeydown(e: KeyboardEvent) {
-	if (disabled) return;
-
-	const optionsList = flatFilteredOptions;
-
-	if (e.key === 'ArrowDown') {
-		e.preventDefault();
-		isOpen = true;
-		activeIndex = optionsList.length > 0
-			? (activeIndex + 1) % optionsList.length
-			: -1;
-	} else if (e.key === 'ArrowUp') {
-		e.preventDefault();
-		isOpen = true;
-		activeIndex = optionsList.length > 0
-			? (activeIndex - 1 + optionsList.length) % optionsList.length
-			: -1;
-	} else if (e.key === 'Enter') {
-		e.preventDefault();
-		if (isOpen && activeIndex >= 0 && activeIndex < optionsList.length) {
-			selectOption(optionsList[activeIndex]);
-		} else if (allowCustom && searchTerm) {
-			value = searchTerm;
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			isOpen = true;
+			activeIndex = optionsList.length > 0 ? (activeIndex + 1) % optionsList.length : -1;
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			isOpen = true;
+			activeIndex =
+				optionsList.length > 0 ? (activeIndex - 1 + optionsList.length) % optionsList.length : -1;
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			if (isOpen && activeIndex >= 0 && activeIndex < optionsList.length) {
+				selectOption(optionsList[activeIndex]);
+			} else if (allowCustom && searchTerm) {
+				value = searchTerm;
+				isOpen = false;
+				onchange?.(value);
+			}
+		} else if (e.key === 'Escape') {
 			isOpen = false;
-			onchange?.(value);
-		}
-	} else if (e.key === 'Escape') {
-		isOpen = false;
-	}
-}
-
-function toggleDropdown() {
-	if (disabled) return;
-	isOpen = !isOpen;
-}
-
-function handleClickOutside(e: MouseEvent) {
-	if (isOpen && inputElement && !inputElement.contains(e.target as Node) && listElement && !listElement.contains(e.target as Node)) {
-		isOpen = false;
-	}
-}
-
-onMount(() => {
-	document.addEventListener('mousedown', handleClickOutside);
-	return () => document.removeEventListener('mousedown', handleClickOutside);
-});
-
-// Sync input search term with value label
-$effect(() => {
-	if (value !== undefined) {
-		const matched = options.find(o => o.value === value);
-		if (matched) {
-			searchTerm = matched.label;
-			debouncedSearchTerm = matched.label;
-		} else if (allowCustom) {
-			searchTerm = String(value);
-			debouncedSearchTerm = String(value);
 		}
 	}
-});
+
+	function toggleDropdown() {
+		if (disabled) return;
+		isOpen = !isOpen;
+	}
+
+	function handleClickOutside(e: MouseEvent) {
+		if (
+			isOpen &&
+			inputElement &&
+			!inputElement.contains(e.target as Node) &&
+			listElement &&
+			!listElement.contains(e.target as Node)
+		) {
+			isOpen = false;
+		}
+	}
+
+	onMount(() => {
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	});
+
+	// Sync input search term with value label
+	$effect(() => {
+		if (value !== undefined) {
+			const matched = options.find((o) => o.value === value);
+			if (matched) {
+				searchTerm = matched.label;
+				debouncedSearchTerm = matched.label;
+			} else if (allowCustom) {
+				searchTerm = String(value);
+				debouncedSearchTerm = String(value);
+			}
+		}
+	});
 
 	const id = generateId('combobox');
 </script>
@@ -269,7 +270,8 @@ $effect(() => {
 	{/if}
 
 	<div class="group relative">
-		<input aria-label="Input"
+		<input
+			aria-label="Input"
 			bind:this={inputElement}
 			{id}
 			type="text"
@@ -277,12 +279,13 @@ $effect(() => {
 			{placeholder}
 			{disabled}
 			class={cn(
-				"input w-full transition-all duration-200 rounded",
-				"focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500",
-				isOpen && "rounded-b-none",
-				error && "border-error-500 ring-error-500/20 focus:border-error-500 focus:ring-error-500/20",
-				disabled && "opacity-50 cursor-not-allowed",
-				clearable && value !== undefined && !disabled ? "pe-20" : "pe-10"
+				'input w-full transition-all duration-200 rounded',
+				'focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
+				isOpen && 'rounded-b-none',
+				error &&
+					'border-error-500 ring-error-500/20 focus:border-error-500 focus:ring-error-500/20',
+				disabled && 'opacity-50 cursor-not-allowed',
+				clearable && value !== undefined && !disabled ? 'pe-20' : 'pe-10'
 			)}
 			onfocus={() => (isOpen = true)}
 			onkeydown={handleKeydown}
@@ -312,20 +315,16 @@ $effect(() => {
 			class="absolute inset-e-2 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
 			onclick={toggleDropdown}
 			{disabled}
-			aria-label={isOpen ? "Close selection" : "Open selection"}
+			aria-label={isOpen ? 'Close selection' : 'Open selection'}
 			aria-expanded={isOpen}
 		>
 			{#if loading}
-				<iconify-icon
-					icon="mdi:loading"
-					width="20"
-					class="animate-spin"
-				></iconify-icon>
+				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
 			{:else}
 				<iconify-icon
 					icon="mdi:chevron-down"
 					width="20"
-					class={cn("transition-transform duration-200", isOpen && "rotate-180")}
+					class={cn('transition-transform duration-200', isOpen && 'rotate-180')}
 				></iconify-icon>
 			{/if}
 		</button>
@@ -350,7 +349,7 @@ $effect(() => {
 					<span class="text-sm">Loading...</span>
 				</div>
 
-			<!-- Grouped options -->
+				<!-- Grouped options -->
 			{:else if groupedOptions && groupBy}
 				{#each groupedOptions as group (group.name)}
 					<div
@@ -370,10 +369,12 @@ $effect(() => {
 							role="option"
 							aria-selected={selected}
 							class={cn(
-								"w-full text-start px-4 py-2 flex items-center gap-3 transition-colors",
-								active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-500/10 dark:hover:bg-surface-700/50",
-								selected && "text-tertiary-500 dark:text-primary-500 font-bold",
-								opt.disabled && "opacity-50 cursor-not-allowed"
+								'w-full text-start px-4 py-2 flex items-center gap-3 transition-colors',
+								active
+									? 'bg-tertiary-500 dark:bg-primary-500/10'
+									: 'hover:bg-surface-500/10 dark:hover:bg-surface-700/50',
+								selected && 'text-tertiary-500 dark:text-primary-500 font-bold',
+								opt.disabled && 'opacity-50 cursor-not-allowed'
 							)}
 							onclick={() => selectOption(opt)}
 							disabled={opt.disabled}
@@ -393,7 +394,7 @@ $effect(() => {
 					{/each}
 				{/each}
 
-			<!-- Flat options -->
+				<!-- Flat options -->
 			{:else if filteredOptions.length > 0}
 				{#each filteredOptions as opt, i (opt.value)}
 					{const active = i === activeIndex}
@@ -405,10 +406,12 @@ $effect(() => {
 						role="option"
 						aria-selected={selected}
 						class={cn(
-							"w-full text-start px-4 py-2 flex items-center gap-3 transition-colors",
-							active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-500/10 dark:hover:bg-surface-700/50",
-							selected && "text-tertiary-500 dark:text-primary-500 font-bold",
-							opt.disabled && "opacity-50 cursor-not-allowed"
+							'w-full text-start px-4 py-2 flex items-center gap-3 transition-colors',
+							active
+								? 'bg-tertiary-500 dark:bg-primary-500/10'
+								: 'hover:bg-surface-500/10 dark:hover:bg-surface-700/50',
+							selected && 'text-tertiary-500 dark:text-primary-500 font-bold',
+							opt.disabled && 'opacity-50 cursor-not-allowed'
 						)}
 						onclick={() => selectOption(opt)}
 						disabled={opt.disabled}
@@ -427,22 +430,22 @@ $effect(() => {
 					</button>
 				{/each}
 
-			<!-- Empty state -->
+				<!-- Empty state -->
 			{:else if !hideEmptyState}
 				{#if emptySnippet}
 					{@render emptySnippet()}
 				{:else}
-					<div class="px-4 py-3 text-sm text-surface-500 italic text-center">
-						No results found
-					</div>
+					<div class="px-4 py-3 text-sm text-surface-500 italic text-center">No results found</div>
 				{/if}
 
-			<!-- Loading with existing results -->
-			{#if loading && filteredOptions.length > 0}
-				<div class="border-t border-surface-100 dark:border-surface-500/40 px-4 py-2 flex items-center justify-center text-surface-400">
-					<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
-				</div>
-			{/if}
+				<!-- Loading with existing results -->
+				{#if loading && filteredOptions.length > 0}
+					<div
+						class="border-t border-surface-100 dark:border-surface-500/40 px-4 py-2 flex items-center justify-center text-surface-400"
+					>
+						<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	{/if}

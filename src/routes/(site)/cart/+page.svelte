@@ -7,7 +7,16 @@
 	import Button from '@components/ui/button.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
-	let cart = $state<{ items?: Array<{ productId: string; title: string; qty: number; sku: string; variantSku?: string }>; subtotal?: number } | null>(null);
+	let cart = $state<{
+		items?: Array<{
+			productId: string;
+			title: string;
+			qty: number;
+			sku: string;
+			variantSku?: string;
+		}>;
+		subtotal?: number;
+	} | null>(null);
 	let error = $state('');
 
 	async function load() {
@@ -43,15 +52,27 @@
 	{:else}
 		<ul class="mt-6 space-y-3" aria-label="Cart lines">
 			{#each cart.items as line (line.productId + (line.variantSku || ''))}
-				<li class="flex items-center justify-between gap-3 rounded border border-surface-500/30 px-3 py-2 dark:border-surface-500/40">
+				<li
+					class="flex items-center justify-between gap-3 rounded border border-surface-500/30 px-3 py-2 dark:border-surface-500/40"
+				>
 					<div>
 						<div class="font-medium">{line.title}</div>
 						<div class="font-mono text-xs text-surface-500">{line.sku}</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<Button variant="ghost" size="sm" aria-label="Decrease quantity" onclick={() => setQty(line, line.qty - 1)}>-</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Decrease quantity"
+							onclick={() => setQty(line, line.qty - 1)}>-</Button
+						>
 						<span class="tabular-nums">{line.qty}</span>
-						<Button variant="ghost" size="sm" aria-label="Increase quantity" onclick={() => setQty(line, line.qty + 1)}>+</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Increase quantity"
+							onclick={() => setQty(line, line.qty + 1)}>+</Button
+						>
 					</div>
 				</li>
 			{/each}

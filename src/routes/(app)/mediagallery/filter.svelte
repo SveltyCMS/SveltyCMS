@@ -17,28 +17,28 @@
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 
-interface Props {
-	globalSearchValue: string;
-	mediaTypes: { value: string; icon: string }[];
-	selectedMediaType: string;
-}
+	interface Props {
+		globalSearchValue: string;
+		mediaTypes: { value: string; icon: string }[];
+		selectedMediaType: string;
+	}
 
-let {
-	globalSearchValue = $bindable(),
-	selectedMediaType = $bindable(),
-	mediaTypes,
-}: Props = $props();
+	let {
+		globalSearchValue = $bindable(),
+		selectedMediaType = $bindable(),
+		mediaTypes
+	}: Props = $props();
 
-const mediaTypeOptions = $derived(
-	mediaTypes.map((type) => ({
-		value: type.value,
-		label: type.value.toUpperCase(),
-	})),
-);
+	const mediaTypeOptions = $derived(
+		mediaTypes.map((type) => ({
+			value: type.value,
+			label: type.value.toUpperCase()
+		}))
+	);
 
-function clearSearch() {
-	globalSearchValue = "";
-}
+	function clearSearch() {
+		globalSearchValue = '';
+	}
 </script>
 
 <div class="mb-8 flex w-full flex-col justify-center gap-4 md:hidden">

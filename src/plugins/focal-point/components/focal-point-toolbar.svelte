@@ -42,7 +42,9 @@ aspect ratio preview with draggable focal point.
 		}
 		isSearching = true;
 		try {
-			const res = await fetch(`/api/media?search=${encodeURIComponent(query)}&limit=6&mimeType=image`);
+			const res = await fetch(
+				`/api/media?search=${encodeURIComponent(query)}&limit=6&mimeType=image`
+			);
 			if (res.ok) {
 				const data = await res.json();
 				searchResults = (data.data || data || []).slice(0, 6);
@@ -71,22 +73,34 @@ aspect ratio preview with draggable focal point.
 	}
 </script>
 
-<div class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-5 shadow-sm dark:border-surface-500/40 dark:bg-surface-800">
+<div
+	class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-5 shadow-sm dark:border-surface-500/40 dark:bg-surface-800"
+>
 	<!-- Header -->
 	<div class="mb-4 flex items-center gap-3">
 		<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500/10">
 			<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-primary-500"></iconify-icon>
 		</div>
 		<div>
-			<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-50">Focal Point Preview</h4>
-			<p class="text-xs text-surface-500 dark:text-surface-400">See how images crop across aspect ratios</p>
+			<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-50">
+				Focal Point Preview
+			</h4>
+			<p class="text-xs text-surface-500 dark:text-surface-400">
+				See how images crop across aspect ratios
+			</p>
 		</div>
 	</div>
 
 	<!-- Search input -->
 	<div class="relative mb-3">
-		<label for="focal-point-search" class="mb-1 block text-xs font-medium text-surface-600 dark:text-surface-400">Search for an image</label>
-		<input id="focal-point-search" type="text"
+		<label
+			for="focal-point-search"
+			class="mb-1 block text-xs font-medium text-surface-600 dark:text-surface-400"
+			>Search for an image</label
+		>
+		<input
+			id="focal-point-search"
+			type="text"
 			placeholder="Type a filename..."
 			value={searchQuery}
 			oninput={handleSearchInput}
@@ -98,7 +112,8 @@ aspect ratio preview with draggable focal point.
 	<!-- Search results -->
 	{#if isSearching}
 		<div class="flex items-center justify-center py-4">
-			<iconify-icon icon="mdi:loading" width="20" class="animate-spin text-surface-400"></iconify-icon>
+			<iconify-icon icon="mdi:loading" width="20" class="animate-spin text-surface-400"
+			></iconify-icon>
 		</div>
 	{:else if searchResults.length > 0}
 		<div class="grid grid-cols-3 gap-2">
@@ -117,7 +132,9 @@ aspect ratio preview with draggable focal point.
 							loading="lazy"
 						/>
 					</div>
-					<div class="truncate px-1.5 py-1 text-[10px] font-medium text-surface-600 dark:text-surface-400">
+					<div
+						class="truncate px-1.5 py-1 text-[10px] font-medium text-surface-600 dark:text-surface-400"
+					>
 						{item.filename}
 					</div>
 				</button>
@@ -126,12 +143,16 @@ aspect ratio preview with draggable focal point.
 	{:else if searchQuery.length >= 2}
 		<p class="py-3 text-center text-xs text-surface-400">No images found for "{searchQuery}"</p>
 	{:else}
-		<p class="py-3 text-center text-xs text-surface-400">Type to search for an image, then click to preview its aspect ratios</p>
+		<p class="py-3 text-center text-xs text-surface-400">
+			Type to search for an image, then click to preview its aspect ratios
+		</p>
 	{/if}
 
 	<!-- Plugin version footer -->
 	<div class="mt-4 border-t border-surface-500/30 pt-3 dark:border-surface-500/40">
-		<p class="text-[10px] text-surface-400">Focal Point Plugin v1.0.0 — Part of SveltyCMS Media Suite</p>
+		<p class="text-[10px] text-surface-400">
+			Focal Point Plugin v1.0.0 — Part of SveltyCMS Media Suite
+		</p>
 	</div>
 </div>
 

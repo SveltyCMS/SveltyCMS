@@ -33,7 +33,10 @@
 	// Memoized per-slot loaders — see admin-zone.svelte for the rationale
 	// (inline {#await slot.component()} remounts on every parent re-render).
 	const slotLoaders = new Map<string, () => Promise<LazyComponent>>();
-	function componentLoader(slot: { id: string; component: () => Promise<LazyComponent> }): Promise<LazyComponent> {
+	function componentLoader(slot: {
+		id: string;
+		component: () => Promise<LazyComponent>;
+	}): Promise<LazyComponent> {
 		let loader = slotLoaders.get(slot.id);
 		if (!loader) {
 			loader = memoizeLazyLoader(slot.component);
@@ -47,9 +50,7 @@
 	// after first render never appear.
 	const slots = $derived.by(() => {
 		void slotRegistry.version;
-		return slotRegistry
-			.getSlots(name)
-			.filter((slot) => !slot.condition || slot.condition(props));
+		return slotRegistry.getSlots(name).filter((slot) => !slot.condition || slot.condition(props));
 	});
 </script>
 
@@ -59,13 +60,15 @@
 			{#await componentLoader(slot)}
 				<div class="h-20 w-full animate-pulse rounded bg-surface-500/10 dark:bg-surface-800"></div>
 			{:then Component}
-				{#if "default" in Component}
+				{#if 'default' in Component}
 					<Component.default {...props} {...slot.props} />
 				{:else}
 					<Component {...props} {...slot.props} />
 				{/if}
 			{:catch error}
-				<div class="rounded border border-error-500/50 bg-error-500/10 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500">
+				<div
+					class="rounded border border-error-500/50 bg-error-500/10 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500"
+				>
 					<strong>Slot Error ({slot.id}):</strong>
 					{error.message}
 				</div>

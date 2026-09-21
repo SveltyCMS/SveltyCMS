@@ -34,814 +34,850 @@ None (TreeView has its own keyboard navigation)
 <CollectionBuilder data={{ contentStructure, user, isAdmin }} />
 -->
 <script lang="ts">
-import { SvelteSet } from "svelte/reactivity";
-import type { ContentNode, DatabaseId } from "@src/databases/db-interface";
-import { nowISODateString } from "@src/utils/date";
-import { hasDuplicateSiblingName } from "@src/content";
-import { getDescendantIds } from "./collectionbuilder-utils";
-import { rethrow } from "@utils/error-handling";
-import {
-    button_save,
-    collection_add,
-    collection_addcategory,
-    collection_description,
-    collection_pagetitle,
-} from "@src/paraglide/messages";
-import TreeViewBoard from "@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte";
-// Stores
-import {
-    collections,
-    setCollection,
-    setCollectionValue,
-    setDraftContentStructure,
-    setContentStructure,
-} from '@src/stores/collection-store.svelte';
-import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
-import { useContent } from "@src/content";
-// Native UI Components
-import { toast } from "@src/stores/toast.svelte.ts";
-import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
-import Button from "@components/ui/button.svelte";
-import AdminPageShell from "@components/admin-page-shell.svelte";
-import Slot from "@components/system/slot.svelte";
-import AdminCard from "@components/admin-card.svelte";
-// Logger
-import { logger } from "@utils/logger";
-import { modalState } from "@utils/modal.svelte";
-import { showConfirm } from "@utils/modal.svelte";
-import { goto, invalidate } from "$app/navigation";
-import { registerHotkey } from "@src/utils/hotkeys";
-import { onMount, untrack } from "svelte";
+	import { SvelteSet } from 'svelte/reactivity';
+	import type { ContentNode, DatabaseId } from '@src/databases/db-interface';
+	import { nowISODateString } from '@src/utils/date';
+	import { hasDuplicateSiblingName } from '@src/content';
+	import { getDescendantIds } from './collectionbuilder-utils';
+	import { rethrow } from '@utils/error-handling';
+	import {
+		button_save,
+		collection_add,
+		collection_addcategory,
+		collection_description,
+		collection_pagetitle
+	} from '@src/paraglide/messages';
+	import TreeViewBoard from '@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte';
+	// Stores
+	import {
+		collections,
+		setCollection,
+		setCollectionValue,
+		setDraftContentStructure,
+		setContentStructure
+	} from '@src/stores/collection-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
+	import { useContent } from '@src/content';
+	// Native UI Components
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
+	import Button from '@components/ui/button.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import Slot from '@components/system/slot.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	// Logger
+	import { logger } from '@utils/logger';
+	import { modalState } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
+	import { goto, invalidate } from '$app/navigation';
+	import { registerHotkey } from '@src/utils/hotkeys';
+	import { onMount, untrack } from 'svelte';
 
-onMount(() => {
-    registerHotkey(
-        "mod+s",
-        () => {
-            if (!isLoading && Object.keys(nodesToSave).length > 0) {
-                handleSave();
-            }
-        },
-        "Save collection structure",
-    );
+	onMount(() => {
+		registerHotkey(
+			'mod+s',
+			() => {
+				if (!isLoading && Object.keys(nodesToSave).length > 0) {
+					handleSave();
+				}
+			},
+			'Save collection structure'
+		);
 
-    registerHotkey(
-        "mod+n",
-        () => {
-            if (isLoading) return;
-            const addBtn = document.querySelector<HTMLAnchorElement>(
-                '[data-testid="add-collection-button"]',
-            );
-            if (addBtn) {
-                addBtn.click();
-                return;
-            }
-            setupNewCollection();
-            // slop:suppress — keyboard-hotkey fallback navigation (no anchor target to preload)
-            goto(newCollectionHref);
-        },
-        "New collection"
-    );
-});
+		registerHotkey(
+			'mod+n',
+			() => {
+				if (isLoading) return;
+				const addBtn = document.querySelector<HTMLAnchorElement>(
+					'[data-testid="add-collection-button"]'
+				);
+				if (addBtn) {
+					addBtn.click();
+					return;
+				}
+				setupNewCollection();
+				// slop:suppress — keyboard-hotkey fallback navigation (no anchor target to preload)
+				goto(newCollectionHref);
+			},
+			'New collection'
+		);
+	});
 
-import ModalCategory from "./nested-content/modal-category.svelte";
-import ModalPreset from "./nested-content/modal-preset.svelte";
-import ModalQuickStart from "./nested-content/modal-quick-start.svelte";
-import ModalSchemaIngestion from "./nested-content/modal-schema-ingestion.svelte";
-import EmptyState from "./nested-content/empty-state.svelte";
-import { fade } from "svelte/transition";
+	import ModalCategory from './nested-content/modal-category.svelte';
+	import ModalPreset from './nested-content/modal-preset.svelte';
+	import ModalQuickStart from './nested-content/modal-quick-start.svelte';
+	import ModalSchemaIngestion from './nested-content/modal-schema-ingestion.svelte';
+	import EmptyState from './nested-content/empty-state.svelte';
+	import { fade } from 'svelte/transition';
 
-interface NodeOperation {
-    node: ContentNode;
-    type: "create" | "update" | "move" | "rename";
-}
+	interface NodeOperation {
+		node: ContentNode;
+		type: 'create' | 'update' | 'move' | 'rename';
+	}
 
-interface CategoryModalResponse {
-    newCategoryIcon: string;
-    newCategoryName: string;
-    newCategoryDescription?: string;
-}
+	interface CategoryModalResponse {
+		newCategoryIcon: string;
+		newCategoryName: string;
+		newCategoryDescription?: string;
+	}
 
-const { data } = $props();
-useContent();
+	const { data } = $props();
+	useContent();
 
-// Both values are replaced immutably so each drag produces one detached draft.
-let currentConfig: ContentNode[] = $state.raw([]);
-let nodesToSave: Record<string, NodeOperation> = $state.raw({});
-let isLoading = $state(false);
-let draftRevision = 0;
-/** Single category selected for "add collection" (only one at a time). */
-let selectedCategoryId = $state<string | null>(null);
-/** Incremented when immediate category operations intentionally adopt a server structure. */
-let treeVersion = $state(0);
+	// Both values are replaced immutably so each drag produces one detached draft.
+	let currentConfig: ContentNode[] = $state.raw([]);
+	let nodesToSave: Record<string, NodeOperation> = $state.raw({});
+	let isLoading = $state(false);
+	let draftRevision = 0;
+	/** Single category selected for "add collection" (only one at a time). */
+	let selectedCategoryId = $state<string | null>(null);
+	/** Incremented when immediate category operations intentionally adopt a server structure. */
+	let treeVersion = $state(0);
 
-let initializedFromPageData = false;
+	let initializedFromPageData = false;
 
-$effect(() => {
-    const structure = data.contentStructure as unknown as ContentNode[];
-    if (initializedFromPageData || !structure) return;
+	$effect(() => {
+		const structure = data.contentStructure as unknown as ContentNode[];
+		if (initializedFromPageData || !structure) return;
 
-    // Page data seeds the editor once. From this point until unmount, the local
-    // draft is the sole authority and only writes outward to the sidebar.
-    initializedFromPageData = true;
-    currentConfig = structure;
-    setContentStructure(structure);
-});
+		// Page data seeds the editor once. From this point until unmount, the local
+		// draft is the sole authority and only writes outward to the sidebar.
+		initializedFromPageData = true;
+		currentConfig = structure;
+		setContentStructure(structure);
+	});
 
-$effect(() => {
-    const sharedStructure = collections.contentStructure as ContentNode[];
-    if (!initializedFromPageData || !sharedStructure?.length) return;
+	$effect(() => {
+		const sharedStructure = collections.contentStructure as ContentNode[];
+		if (!initializedFromPageData || !sharedStructure?.length) return;
 
-    const hierarchySignature = (nodes: ContentNode[]) =>
-        nodes
-            .map((node) =>
-                `${String(node._id)}:${String(node.parentId ?? "")}:${node.order ?? 0}`,
-            )
-            .sort()
-            .join("|");
+		const hierarchySignature = (nodes: ContentNode[]) =>
+			nodes
+				.map((node) => `${String(node._id)}:${String(node.parentId ?? '')}:${node.order ?? 0}`)
+				.sort()
+				.join('|');
 
-    if (hierarchySignature(sharedStructure) === hierarchySignature(currentConfig)) return;
+		if (hierarchySignature(sharedStructure) === hierarchySignature(currentConfig)) return;
 
-    // The shared store rejects stale layout/SSE responses while a local draft is
-    // pending, so a different structure here is a legitimate sidebar edit.
-    currentConfig = $state.snapshot(sharedStructure) as ContentNode[];
-    treeVersion++;
-});
+		// The shared store rejects stale layout/SSE responses while a local draft is
+		// pending, so a different structure here is a legitimate sidebar edit.
+		currentConfig = $state.snapshot(sharedStructure) as ContentNode[];
+		treeVersion++;
+	});
 
-async function handleNodeUpdate(updatedNodes: ContentNode[]) {
-    logger.debug("[CollectionBuilder] Hierarchy updated via DnD");
-    const nextStructure = $state.snapshot(updatedNodes) as ContentNode[];
-    draftRevision++;
-    currentConfig = nextStructure;
+	async function handleNodeUpdate(updatedNodes: ContentNode[]) {
+		logger.debug('[CollectionBuilder] Hierarchy updated via DnD');
+		const nextStructure = $state.snapshot(updatedNodes) as ContentNode[];
+		draftRevision++;
+		currentConfig = nextStructure;
 
-    // Keep left sidebar (and any other contentStructure consumers) in sync immediately.
-    // Previously only save/delete called setContentStructure — DnD left the sidebar stale.
-    setDraftContentStructure(nextStructure);
+		// Keep left sidebar (and any other contentStructure consumers) in sync immediately.
+		// Previously only save/delete called setContentStructure — DnD left the sidebar stale.
+		setDraftContentStructure(nextStructure);
 
-    // Stage all nodes as one detached snapshot. The save request and visible
-    // draft now refer to the same DnD revision instead of accumulating mutable
-    // node references across several drag events.
-    const freshOps: Record<string, NodeOperation> = {};
-    for (const node of nextStructure) {
-        const id = node._id.toString();
-        const keepCreate = nodesToSave[id]?.type === "create";
+		// Stage all nodes as one detached snapshot. The save request and visible
+		// draft now refer to the same DnD revision instead of accumulating mutable
+		// node references across several drag events.
+		const freshOps: Record<string, NodeOperation> = {};
+		for (const node of nextStructure) {
+			const id = node._id.toString();
+			const keepCreate = nodesToSave[id]?.type === 'create';
 
-        // `nextStructure` is already a detached snapshot, so pending operations
-        // cannot retain proxies owned by an earlier drag.
-        const normalized =
-            node.nodeType === "category" && !node.source
-                ? { ...node, source: "builder" as const }
-                : node;
+			// `nextStructure` is already a detached snapshot, so pending operations
+			// cannot retain proxies owned by an earlier drag.
+			const normalized =
+				node.nodeType === 'category' && !node.source
+					? { ...node, source: 'builder' as const }
+					: node;
 
-        freshOps[id] = {
-            type: keepCreate ? "create" : "move",
-            node: normalized,
-        };
-    }
-    nodesToSave = freshOps;
-}
+			freshOps[id] = {
+				type: keepCreate ? 'create' : 'move',
+				node: normalized
+			};
+		}
+		nodesToSave = freshOps;
+	}
 
-async function doDelete(idsToDelete: string[]) {
-    try {
-        const { deleteContentNodes } = await import("./collectionbuilder.remote");
-        const result = await deleteContentNodes(idsToDelete);
-        if ("success" in result && result.success && result.contentStructure) {
-            const idSet = new SvelteSet(idsToDelete);
-            const confirmedStructure = result.contentStructure as unknown as ContentNode[];
-            if (confirmedStructure.some((node) => idSet.has(node._id?.toString() ?? ""))) {
-                throw new Error("Delete was not confirmed by the persisted structure");
-            }
-            currentConfig = confirmedStructure;
-            setDraftContentStructure(confirmedStructure);
-            // Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
-            await invalidate("app:content");
-            toast.success(
-                idsToDelete.length > 1
-                    ? "Category and attached items deleted"
-                    : "Item deleted successfully",
-            );
-        } else {
-            const message = (result as any).message ?? "Deletion failed";
-            logger.error("Delete failed", message);
-            toast.error(message);
-        }
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Deletion failed";
-        logger.error("Delete failed", message);
-        toast.error(message);
-    }
-}
+	async function doDelete(idsToDelete: string[]) {
+		try {
+			const { deleteContentNodes } = await import('./collectionbuilder.remote');
+			const result = await deleteContentNodes(idsToDelete);
+			if ('success' in result && result.success && result.contentStructure) {
+				const idSet = new SvelteSet(idsToDelete);
+				const confirmedStructure = result.contentStructure as unknown as ContentNode[];
+				if (confirmedStructure.some((node) => idSet.has(node._id?.toString() ?? ''))) {
+					throw new Error('Delete was not confirmed by the persisted structure');
+				}
+				currentConfig = confirmedStructure;
+				setDraftContentStructure(confirmedStructure);
+				// Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
+				await invalidate('app:content');
+				toast.success(
+					idsToDelete.length > 1
+						? 'Category and attached items deleted'
+						: 'Item deleted successfully'
+				);
+			} else {
+				const message = (result as any).message ?? 'Deletion failed';
+				logger.error('Delete failed', message);
+				toast.error(message);
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Deletion failed';
+			logger.error('Delete failed', message);
+			toast.error(message);
+		}
+	}
 
-function handleDeleteNode(node: Partial<ContentNode>) {
-    const nodeId = node._id?.toString();
-    if (!nodeId) {
-        return;
-    }
+	function handleDeleteNode(node: Partial<ContentNode>) {
+		const nodeId = node._id?.toString();
+		if (!nodeId) {
+			return;
+		}
 
-    const isCategory = node.nodeType === "category";
-    if (isCategory) {
-        const idsToDelete = getDescendantIds(nodeId, currentConfig);
-        const attachedCount = idsToDelete.length - 1; // exclude the category itself
-        const body =
-            attachedCount > 0
-                ? `Delete category "${node.name}" and all ${attachedCount} attached collection(s) and sub-categories? This action cannot be undone.`
-                : `Delete category "${node.name}"? This action cannot be undone.`;
+		const isCategory = node.nodeType === 'category';
+		if (isCategory) {
+			const idsToDelete = getDescendantIds(nodeId, currentConfig);
+			const attachedCount = idsToDelete.length - 1; // exclude the category itself
+			const body =
+				attachedCount > 0
+					? `Delete category "${node.name}" and all ${attachedCount} attached collection(s) and sub-categories? This action cannot be undone.`
+					: `Delete category "${node.name}"? This action cannot be undone.`;
 
-        showConfirm({
-            title: "Delete Category and Contents?",
-            body,
-            onConfirm: async () => {
-                try {
-                    isLoading = true;
-                    await doDelete(idsToDelete);
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    logger.error("Delete failed", msg);
-                    toast.error(msg || "Failed to delete");
-                } finally {
-                    isLoading = false;
-                }
-            },
-        });
-    } else {
-        showConfirm({
-            title: "Delete Item?",
-            body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
-            onConfirm: async () => {
-                try {
-                    isLoading = true;
-                    await doDelete([nodeId]);
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    logger.error("Delete failed", msg);
-                    toast.error(msg || "Failed to delete item");
-                } finally {
-                    isLoading = false;
-                }
-            },
-        });
-    }
-}
+			showConfirm({
+				title: 'Delete Category and Contents?',
+				body,
+				onConfirm: async () => {
+					try {
+						isLoading = true;
+						await doDelete(idsToDelete);
+					} catch (err) {
+						const msg = err instanceof Error ? err.message : String(err);
+						logger.error('Delete failed', msg);
+						toast.error(msg || 'Failed to delete');
+					} finally {
+						isLoading = false;
+					}
+				}
+			});
+		} else {
+			showConfirm({
+				title: 'Delete Item?',
+				body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
+				onConfirm: async () => {
+					try {
+						isLoading = true;
+						await doDelete([nodeId]);
+					} catch (err) {
+						const msg = err instanceof Error ? err.message : String(err);
+						logger.error('Delete failed', msg);
+						toast.error(msg || 'Failed to delete item');
+					} finally {
+						isLoading = false;
+					}
+				}
+			});
+		}
+	}
 
-function handleDuplicateNode(node: Partial<ContentNode>) {
-    if (!node._id) {
-        return;
-    }
-    const original = currentConfig.find(
-        (n) => n._id.toString() === node._id?.toString(),
-    );
-    if (!original) {
-        return;
-    }
+	function handleDuplicateNode(node: Partial<ContentNode>) {
+		if (!node._id) {
+			return;
+		}
+		const original = currentConfig.find((n) => n._id.toString() === node._id?.toString());
+		if (!original) {
+			return;
+		}
 
-    const isCategory = original.nodeType === "category";
-    if (isCategory) {
-        // Duplicate only the category (no attached collections)
-        const now = nowISODateString();
-        const newId = crypto.randomUUID() as unknown as DatabaseId;
-        const baseName = (original.name || "category")
-            .toString()
-            .replace(/\s+/g, "_");
-        const newName = `${baseName}_copy`;
-        const rootCount = currentConfig.filter((n) => !n.parentId).length;
-        const newNode: ContentNode = {
-            _id: newId,
-            name: newName,
-            icon: original.icon,
-            path: String(newId),
-            order: rootCount,
-            translations: original.translations ?? [],
-            description: original.description,
-            nodeType: original.nodeType,
-            source: original.source ?? "builder",
-            parentId: undefined,
-            updatedAt: now,
-            createdAt: now,
-        };
-        currentConfig = [...currentConfig, newNode];
-        setDraftContentStructure(currentConfig);
-        nodesToSave = {
-            ...nodesToSave,
-            [newNode._id?.toString() ?? ""]: { type: "create", node: newNode },
-        };
-        draftRevision++;
-        toast.success("Category duplicated. Click Save to persist.");
-        return;
-    }
+		const isCategory = original.nodeType === 'category';
+		if (isCategory) {
+			// Duplicate only the category (no attached collections)
+			const now = nowISODateString();
+			const newId = crypto.randomUUID() as unknown as DatabaseId;
+			const baseName = (original.name || 'category').toString().replace(/\s+/g, '_');
+			const newName = `${baseName}_copy`;
+			const rootCount = currentConfig.filter((n) => !n.parentId).length;
+			const newNode: ContentNode = {
+				_id: newId,
+				name: newName,
+				icon: original.icon,
+				path: String(newId),
+				order: rootCount,
+				translations: original.translations ?? [],
+				description: original.description,
+				nodeType: original.nodeType,
+				source: original.source ?? 'builder',
+				parentId: undefined,
+				updatedAt: now,
+				createdAt: now
+			};
+			currentConfig = [...currentConfig, newNode];
+			setDraftContentStructure(currentConfig);
+			nodesToSave = {
+				...nodesToSave,
+				[newNode._id?.toString() ?? '']: { type: 'create', node: newNode }
+			};
+			draftRevision++;
+			toast.success('Category duplicated. Click Save to persist.');
+			return;
+		}
 
-    // Single collection duplicate  use id-based path so DB and refresh keep stable path (not name-based)
-    const newId = crypto.randomUUID() as unknown as DatabaseId;
-    const baseName = (
-        original.name ||
-        (original.collectionDef as { name?: string })?.name ||
-        "copy"
-    )
-        .toString()
-        .replace(/\s+/g, "_");
-    const newName = `${baseName}_copy`;
-    const parentId = original.parentId as DatabaseId | undefined;
-    if (hasDuplicateSiblingName(currentConfig, parentId ?? undefined, newName)) {
-        toast.warning(
-            "A collection with this name already exists at this level. Please choose another name.",
-        );
-        return;
-    }
-    const idBasedPath =
-        parentId != null ? `${String(parentId)}.${String(newId)}` : String(newId);
+		// Single collection duplicate  use id-based path so DB and refresh keep stable path (not name-based)
+		const newId = crypto.randomUUID() as unknown as DatabaseId;
+		const baseName = (
+			original.name ||
+			(original.collectionDef as { name?: string })?.name ||
+			'copy'
+		)
+			.toString()
+			.replace(/\s+/g, '_');
+		const newName = `${baseName}_copy`;
+		const parentId = original.parentId as DatabaseId | undefined;
+		if (hasDuplicateSiblingName(currentConfig, parentId ?? undefined, newName)) {
+			toast.warning(
+				'A collection with this name already exists at this level. Please choose another name.'
+			);
+			return;
+		}
+		const idBasedPath = parentId != null ? `${String(parentId)}.${String(newId)}` : String(newId);
 
-    const now = nowISODateString();
-    const newNode: ContentNode = {
-        _id: newId,
-        name: newName,
-        icon: original.icon,
-        path: idBasedPath,
-        order: original.order,
-        translations: original.translations ?? [],
-        description: original.description,
-        nodeType: original.nodeType,
-        source: original.source,
-        parentId: parentId ?? undefined,
-        updatedAt: now,
-        createdAt: now,
-        collectionDef: original.collectionDef
-            ? ({ name: newName, path: idBasedPath } as ContentNode["collectionDef"])
-            : undefined,
-    };
+		const now = nowISODateString();
+		const newNode: ContentNode = {
+			_id: newId,
+			name: newName,
+			icon: original.icon,
+			path: idBasedPath,
+			order: original.order,
+			translations: original.translations ?? [],
+			description: original.description,
+			nodeType: original.nodeType,
+			source: original.source,
+			parentId: parentId ?? undefined,
+			updatedAt: now,
+			createdAt: now,
+			collectionDef: original.collectionDef
+				? ({ name: newName, path: idBasedPath } as ContentNode['collectionDef'])
+				: undefined
+		};
 
-    currentConfig = [...currentConfig, newNode];
-    setDraftContentStructure(currentConfig);
-    nodesToSave = {
-        ...nodesToSave,
-        [newId.toString()]: { type: "create", node: newNode },
-    };
-    draftRevision++;
-    toast.success("Item duplicated. Click Save to persist change.");
-}
+		currentConfig = [...currentConfig, newNode];
+		setDraftContentStructure(currentConfig);
+		nodesToSave = {
+			...nodesToSave,
+			[newId.toString()]: { type: 'create', node: newNode }
+		};
+		draftRevision++;
+		toast.success('Item duplicated. Click Save to persist change.');
+	}
 
-async function handleSave() {
-    const items = $state.snapshot(Object.values(nodesToSave)) as NodeOperation[];
-    if (items.length === 0) {
-        toast.info("No changes to save.");
-        return;
-    }
+	async function handleSave() {
+		const items = $state.snapshot(Object.values(nodesToSave)) as NodeOperation[];
+		if (items.length === 0) {
+			toast.info('No changes to save.');
+			return;
+		}
 
-    const submittedStructure = $state.snapshot(currentConfig) as ContentNode[];
-    const submittedRevision = draftRevision;
+		const submittedStructure = $state.snapshot(currentConfig) as ContentNode[];
+		const submittedRevision = draftRevision;
 
-    try {
-        isLoading = true;
+		try {
+			isLoading = true;
 
-        const { saveContentStructure } = await import("./collectionbuilder.remote");
-        const result = await saveContentStructure(items as any);
+			const { saveContentStructure } = await import('./collectionbuilder.remote');
+			const result = await saveContentStructure(items as any);
 
-        if ("success" in result && result.success && result.contentStructure) {
-            const userChangedDraftDuringSave = draftRevision !== submittedRevision;
+			if ('success' in result && result.success && result.contentStructure) {
+				const userChangedDraftDuringSave = draftRevision !== submittedRevision;
 
-            if (!userChangedDraftDuringSave) {
-                currentConfig = submittedStructure;
-                setDraftContentStructure(submittedStructure);
+				if (!userChangedDraftDuringSave) {
+					currentConfig = submittedStructure;
+					setDraftContentStructure(submittedStructure);
 
-                try {
-                    await invalidate("app:content");
-                } catch (error) {
-                    rethrow(error);
-                    logger.debug("[CollectionBuilder] Post-save layout refresh failed", error);
-                }
+					try {
+						await invalidate('app:content');
+					} catch (error) {
+						rethrow(error);
+						logger.debug('[CollectionBuilder] Post-save layout refresh failed', error);
+					}
 
-                // Layout invalidation may refresh the shared sidebar store. The
-                // builder draft remains authoritative for this mounted editor.
-                currentConfig = submittedStructure;
-                setDraftContentStructure(submittedStructure);
-                nodesToSave = {};
-                toast.success("Organization updated successfully");
-            } else {
-                // A later drag happened while the request was in flight. The
-                // submitted revision saved successfully; the newer draft remains.
-                setDraftContentStructure(currentConfig);
-                toast.success("Organization updated; newer changes remain unsaved.");
-            }
-        } else {
-            const message = (result as any).message ?? "Failed to save";
-            logger.error("Error saving categories:", message);
-            const isDuplicateName =
-                typeof message === "string" &&
-                (message.includes("already exists at this level") ||
-                    message.includes("already exists in the target category"));
-            if (isDuplicateName) {
-                toast.warning(message);
-            } else {
-                toast.error(message);
-            }
-        }
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error("Error saving categories:", msg);
-        toast.error(msg || "Failed to save configuration");
-    } finally {
-        isLoading = false;
-    }
-}
+					// Layout invalidation may refresh the shared sidebar store. The
+					// builder draft remains authoritative for this mounted editor.
+					currentConfig = submittedStructure;
+					setDraftContentStructure(submittedStructure);
+					nodesToSave = {};
+					toast.success('Organization updated successfully');
+				} else {
+					// A later drag happened while the request was in flight. The
+					// submitted revision saved successfully; the newer draft remains.
+					setDraftContentStructure(currentConfig);
+					toast.success('Organization updated; newer changes remain unsaved.');
+				}
+			} else {
+				const message = (result as any).message ?? 'Failed to save';
+				logger.error('Error saving categories:', message);
+				const isDuplicateName =
+					typeof message === 'string' &&
+					(message.includes('already exists at this level') ||
+						message.includes('already exists in the target category'));
+				if (isDuplicateName) {
+					toast.warning(message);
+				} else {
+					toast.error(message);
+				}
+			}
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			logger.error('Error saving categories:', msg);
+			toast.error(msg || 'Failed to save configuration');
+		} finally {
+			isLoading = false;
+		}
+	}
 
-function handleSelectCategory(node: { id: string; nodeType: string }): void {
-    if (node.nodeType !== "category") return;
-    // Toggle: same category clicked again  deselect; otherwise select (only one at a time)
-    selectedCategoryId = selectedCategoryId === node.id ? null : node.id;
-}
+	function handleSelectCategory(node: { id: string; nodeType: string }): void {
+		if (node.nodeType !== 'category') return;
+		// Toggle: same category clicked again  deselect; otherwise select (only one at a time)
+		selectedCategoryId = selectedCategoryId === node.id ? null : node.id;
+	}
 
-function handleClearCategorySelection(): void {
-    selectedCategoryId = null;
-}
+	function handleClearCategorySelection(): void {
+		selectedCategoryId = null;
+	}
 
-let newCollectionHref = $derived(
-    selectedCategoryId
-        ? `/config/collectionbuilder/new?parentId=${encodeURIComponent(selectedCategoryId)}`
-        : `/config/collectionbuilder/new`
-);
+	let newCollectionHref = $derived(
+		selectedCategoryId
+			? `/config/collectionbuilder/new?parentId=${encodeURIComponent(selectedCategoryId)}`
+			: `/config/collectionbuilder/new`
+	);
 
-function setupNewCollection(): void {
-    modeTransitionGuard.setMode("create");
-    const parentId = selectedCategoryId ?? undefined;
-    setCollectionValue({
-        name: "new",
-        icon: "",
-        description: "",
-        status: "unpublished",
-        slug: "",
-        fields: [],
-        ...(parentId && { parentId }),
-    });
-}
+	function setupNewCollection(): void {
+		modeTransitionGuard.setMode('create');
+		const parentId = selectedCategoryId ?? undefined;
+		setCollectionValue({
+			name: 'new',
+			icon: '',
+			description: '',
+			status: 'unpublished',
+			slug: '',
+			fields: [],
+			...(parentId && { parentId })
+		});
+	}
 
-/** Slugify name for path segment; ensure path is unique among currentConfig. */
-function uniquePathForCategory(name: string): string {
-    const slug =
-        name
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9-]/g, "") || "category";
-    const existingPaths = new SvelteSet(
-        currentConfig.map((n) => (n.path ?? "").toLowerCase()).filter(Boolean),
-    );
-    let path = `/${slug}`;
-    let n = 1;
-    while (existingPaths.has(path.toLowerCase())) {
-        path = `/${slug}-${n}`;
-        n += 1;
-    }
-    return path;
-}
+	/** Slugify name for path segment; ensure path is unique among currentConfig. */
+	function uniquePathForCategory(name: string): string {
+		const slug =
+			name
+				.trim()
+				.toLowerCase()
+				.replace(/\s+/g, '-')
+				.replace(/[^a-z0-9-]/g, '') || 'category';
+		const existingPaths = new SvelteSet(
+			currentConfig.map((n) => (n.path ?? '').toLowerCase()).filter(Boolean)
+		);
+		let path = `/${slug}`;
+		let n = 1;
+		while (existingPaths.has(path.toLowerCase())) {
+			path = `/${slug}-${n}`;
+			n += 1;
+		}
+		return path;
+	}
 
-function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = undefined): void {
-    modalState.trigger(
-        ModalCategory as any,
-        {
-            existingCategory: existingCategory as ContentNode | undefined,
-            title: existingCategory ? "Edit Category" : "Add New Category",
-            body: existingCategory
-                ? "Modify Category Details"
-: "Enter a name and icon for your new category",
-            size: "xl",
-        },
-        async (
-            response:
-                | CategoryModalResponse
-                | boolean
-                | { __categoryDeleted: true; contentStructure: ContentNode[] },
-        ) => {
-            // User cancelled
-            if (!response || typeof response === "boolean") {
-                return;
-            }
+	function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = undefined): void {
+		modalState.trigger(
+			ModalCategory as any,
+			{
+				existingCategory: existingCategory as ContentNode | undefined,
+				title: existingCategory ? 'Edit Category' : 'Add New Category',
+				body: existingCategory
+					? 'Modify Category Details'
+					: 'Enter a name and icon for your new category',
+				size: 'xl'
+			},
+			async (
+				response:
+					| CategoryModalResponse
+					| boolean
+					| { __categoryDeleted: true; contentStructure: ContentNode[] }
+			) => {
+				// User cancelled
+				if (!response || typeof response === 'boolean') {
+					return;
+				}
 
-            // Handle deletion result
-            if (
-                typeof response === "object" &&
-                "__categoryDeleted" in response &&
-                response.contentStructure
-            ) {
-                currentConfig = response.contentStructure;
-                toast.success("Category deleted successfully");
-                return;
-            }
+				// Handle deletion result
+				if (
+					typeof response === 'object' &&
+					'__categoryDeleted' in response &&
+					response.contentStructure
+				) {
+					currentConfig = response.contentStructure;
+					toast.success('Category deleted successfully');
+					return;
+				}
 
-            const form = response as CategoryModalResponse;
-            const nameTrimmed = form.newCategoryName.trim();
-            const icon = form.newCategoryIcon || "mdi:folder-outline";
+				const form = response as CategoryModalResponse;
+				const nameTrimmed = form.newCategoryName.trim();
+				const icon = form.newCategoryIcon || 'mdi:folder-outline';
 
-            // --- Immediate save via remote function (no staging) ---
-            isLoading = true;
-            try {
-                const { saveContentStructure } = await import("./collectionbuilder.remote");
+				// --- Immediate save via remote function (no staging) ---
+				isLoading = true;
+				try {
+					const { saveContentStructure } = await import('./collectionbuilder.remote');
 
-                if (existingCategory?._id) {
-                    // Edit existing category
-                    const updated = {
-                        ...existingCategory,
-                        name: form.newCategoryName,
-                        icon,
-                        description: form.newCategoryDescription ?? (existingCategory as any)?.description ?? "",
-                        updatedAt: nowISODateString(),
-                    } as ContentNode;
+					if (existingCategory?._id) {
+						// Edit existing category
+						const updated = {
+							...existingCategory,
+							name: form.newCategoryName,
+							icon,
+							description:
+								form.newCategoryDescription ?? (existingCategory as any)?.description ?? '',
+							updatedAt: nowISODateString()
+						} as ContentNode;
 
-                    const result = await saveContentStructure([
-                        { type: "rename", node: updated },
-                    ] as any);
+						const result = await saveContentStructure([{ type: 'rename', node: updated }] as any);
 
-                    if ("success" in result && result.success && result.contentStructure) {
-                        currentConfig = result.contentStructure as unknown as ContentNode[];
-                        setDraftContentStructure(currentConfig);
-                        treeVersion++;
-                        toast.success(`Category "${nameTrimmed}" updated successfully`);
-                        await invalidate("app:content");
-                    } else {
-                        const message = (result as any).message ?? "Failed to update category";
-                        // Check if it's a duplicate name error
-                        if (
-                            typeof message === "string" &&
-                            (message.includes("already exists") ||
-                                message.includes("duplicate"))
-                        ) {
-                            toast.warning(message);
-                        } else {
-                            logger.error("Error updating category:", message);
-                            toast.error(message);
-                        }
-                    }
-                } else {
-                    // Create new category — immediate save
-                    const newId = crypto.randomUUID() as unknown as DatabaseId;
-                    const path = uniquePathForCategory(form.newCategoryName);
-                    const newCategory: ContentNode = {
-                        _id: newId,
-                        name: form.newCategoryName,
-                        icon,
-                        path,
-                        order: currentConfig.length,
-                        translations: [],
-                        description: form.newCategoryDescription ?? "",
-                        updatedAt: nowISODateString(),
-                        createdAt: nowISODateString(),
-                        parentId: undefined,
-                        nodeType: "category",
-                        source: "builder",
-                    };
+						if ('success' in result && result.success && result.contentStructure) {
+							currentConfig = result.contentStructure as unknown as ContentNode[];
+							setDraftContentStructure(currentConfig);
+							treeVersion++;
+							toast.success(`Category "${nameTrimmed}" updated successfully`);
+							await invalidate('app:content');
+						} else {
+							const message = (result as any).message ?? 'Failed to update category';
+							// Check if it's a duplicate name error
+							if (
+								typeof message === 'string' &&
+								(message.includes('already exists') || message.includes('duplicate'))
+							) {
+								toast.warning(message);
+							} else {
+								logger.error('Error updating category:', message);
+								toast.error(message);
+							}
+						}
+					} else {
+						// Create new category — immediate save
+						const newId = crypto.randomUUID() as unknown as DatabaseId;
+						const path = uniquePathForCategory(form.newCategoryName);
+						const newCategory: ContentNode = {
+							_id: newId,
+							name: form.newCategoryName,
+							icon,
+							path,
+							order: currentConfig.length,
+							translations: [],
+							description: form.newCategoryDescription ?? '',
+							updatedAt: nowISODateString(),
+							createdAt: nowISODateString(),
+							parentId: undefined,
+							nodeType: 'category',
+							source: 'builder'
+						};
 
-                    const result = await saveContentStructure([
-                        { type: "create", node: newCategory },
-                    ] as any);
+						const result = await saveContentStructure([
+							{ type: 'create', node: newCategory }
+						] as any);
 
-                    if ("success" in result && result.success && result.contentStructure) {
-                        currentConfig = result.contentStructure as unknown as ContentNode[];
-                        setDraftContentStructure(currentConfig);
-                        treeVersion++;
-                        toast.success(`Category "${nameTrimmed}" created successfully`);
-                        await invalidate("app:content");
-                    } else {
-                        const message = (result as any).message ?? "Failed to create category";
-                        // Check if it's a duplicate name error
-                        if (
-                            typeof message === "string" &&
-                            (message.includes("already exists") ||
-                                message.includes("duplicate"))
-                        ) {
-                            toast.warning(message);
-                        } else {
-                            logger.error("Error creating category:", message);
-                            toast.error(message);
-                        }
-                    }
-                }
-            } catch (error) {
-                const msg = error instanceof Error ? error.message : String(error);
-                logger.error("Error saving category:", msg);
-                toast.error(msg || "Failed to save category");
-            } finally {
-                isLoading = false;
-            }
-        },
-    );
-}
+						if ('success' in result && result.success && result.contentStructure) {
+							currentConfig = result.contentStructure as unknown as ContentNode[];
+							setDraftContentStructure(currentConfig);
+							treeVersion++;
+							toast.success(`Category "${nameTrimmed}" created successfully`);
+							await invalidate('app:content');
+						} else {
+							const message = (result as any).message ?? 'Failed to create category';
+							// Check if it's a duplicate name error
+							if (
+								typeof message === 'string' &&
+								(message.includes('already exists') || message.includes('duplicate'))
+							) {
+								toast.warning(message);
+							} else {
+								logger.error('Error creating category:', message);
+								toast.error(message);
+							}
+						}
+					}
+				} catch (error) {
+					const msg = error instanceof Error ? error.message : String(error);
+					logger.error('Error saving category:', msg);
+					toast.error(msg || 'Failed to save category');
+				} finally {
+					isLoading = false;
+				}
+			}
+		);
+	}
 
-function modalLoadPreset(): void {
-    modalState.trigger(
-        ModalPreset as any,
-        {
-            title: "Load Starter Preset",
-            body: "Select a preset to load into your project. This will copy preset collections and build the project.",
-            size: "xl",
-        },
-        async (response: { presetId: string } | null) => {
-            if (!response || !response.presetId) return;
+	function modalLoadPreset(): void {
+		modalState.trigger(
+			ModalPreset as any,
+			{
+				title: 'Load Starter Preset',
+				body: 'Select a preset to load into your project. This will copy preset collections and build the project.',
+				size: 'xl'
+			},
+			async (response: { presetId: string } | null) => {
+				if (!response || !response.presetId) return;
 
-            try {
-                isLoading = true;
+				try {
+					isLoading = true;
 
-                const { installPreset } = await import("./collectionbuilder.remote");
-                const result = await installPreset(response.presetId);
+					const { installPreset } = await import('./collectionbuilder.remote');
+					const result = await installPreset(response.presetId);
 
-                if ("success" in result && result.success) {
-                    toast.success(`Preset ${response.presetId} loaded successfully`);
-                    // Soft refresh — preserves session, consent, and builder context
-                    await invalidate("app:content");
-                } else {
-                    const message = (result as any).message || "Failed to load preset";
-                    toast.error(message);
-                }
-            } catch (err) {
-                logger.error("Error loading preset:", err);
-                toast.error(
-                    err instanceof Error
-                        ? err.message
-                        : "An error occurred while loading preset",
-                );
-            } finally {
-                isLoading = false;
-            }
-        },
-    );
-}
+					if ('success' in result && result.success) {
+						toast.success(`Preset ${response.presetId} loaded successfully`);
+						// Soft refresh — preserves session, consent, and builder context
+						await invalidate('app:content');
+					} else {
+						const message = (result as any).message || 'Failed to load preset';
+						toast.error(message);
+					}
+				} catch (err) {
+					logger.error('Error loading preset:', err);
+					toast.error(
+						err instanceof Error ? err.message : 'An error occurred while loading preset'
+					);
+				} finally {
+					isLoading = false;
+				}
+			}
+		);
+	}
 
-    function modalQuickStart(): void {
-        modalState.trigger(
-            ModalQuickStart as any,
-            {
-                title: "Quick-Start Templates",
-                size: "xl",
-            },
-            async (response: { installed: boolean; collections?: string[] } | null) => {
-                if (!response || !response.installed) return;
-                // Soft refresh — no full reload (keeps consent + session state)
-                await invalidate("app:content");
-            },
-        );
-    }
+	function modalQuickStart(): void {
+		modalState.trigger(
+			ModalQuickStart as any,
+			{
+				title: 'Quick-Start Templates',
+				size: 'xl'
+			},
+			async (response: { installed: boolean; collections?: string[] } | null) => {
+				if (!response || !response.installed) return;
+				// Soft refresh — no full reload (keeps consent + session state)
+				await invalidate('app:content');
+			}
+		);
+	}
 
-    function modalIntrospectSchema(): void {
-        modalState.trigger(
-            ModalSchemaIngestion as any,
-            {
-                title: "Schema Ingestion & Database Introspection",
-                size: "xl",
-            },
-            async (response: { schema: import('./nested-content/ddl-schema-parser').ParsedSchemaResult } | null) => {
-                if (!response || !response.schema) return;
-                const { schema } = response;
-                // Pre-populate collection in collection store
-                setCollection({
-                    name: schema.name,
-                    slug: schema.slug,
-                    icon: schema.icon || "bi:collection",
-                    status: "unpublish",
-                    description: `Auto-generated from schema ingestion (${schema.fields.length} fields)`,
-                    fields: schema.fields.map((f, i) => ({
-                        id: i + 1,
-                        label: f.label,
-                        db_fieldName: f.db_fieldName,
-                        required: !!f.required,
-                        widget: {
-                            Name: f.widgetKey.charAt(0).toUpperCase() + f.widgetKey.slice(1),
-                            key: f.widgetKey,
-                            ...(f.defaults),
-                        },
-                    })),
-                } as any);
-                toast.success(`Schema ingested: ${schema.name} (${schema.fields.length} fields)`);
-                // slop:suppress — post-action redirect after schema-ingestion modal completes
-                goto(newCollectionHref);
-            },
-        );
-    }
+	function modalIntrospectSchema(): void {
+		modalState.trigger(
+			ModalSchemaIngestion as any,
+			{
+				title: 'Schema Ingestion & Database Introspection',
+				size: 'xl'
+			},
+			async (
+				response: { schema: import('./nested-content/ddl-schema-parser').ParsedSchemaResult } | null
+			) => {
+				if (!response || !response.schema) return;
+				const { schema } = response;
+				// Pre-populate collection in collection store
+				setCollection({
+					name: schema.name,
+					slug: schema.slug,
+					icon: schema.icon || 'bi:collection',
+					status: 'unpublish',
+					description: `Auto-generated from schema ingestion (${schema.fields.length} fields)`,
+					fields: schema.fields.map((f, i) => ({
+						id: i + 1,
+						label: f.label,
+						db_fieldName: f.db_fieldName,
+						required: !!f.required,
+						widget: {
+							Name: f.widgetKey.charAt(0).toUpperCase() + f.widgetKey.slice(1),
+							key: f.widgetKey,
+							...f.defaults
+						}
+					}))
+				} as any);
+				toast.success(`Schema ingested: ${schema.name} (${schema.fields.length} fields)`);
+				// slop:suppress — post-action redirect after schema-ingestion modal completes
+				goto(newCollectionHref);
+			}
+		);
+	}
 
-    $effect(() => {
-        untrack(() => {
-            setRouteContext({ isCollectionBuilder: true });
-        });
-        return () => {
-            untrack(() => {
-                setRouteContext({ isCollectionBuilder: false });
-            });
-        };
-    });
+	$effect(() => {
+		untrack(() => {
+			setRouteContext({ isCollectionBuilder: true });
+		});
+		return () => {
+			untrack(() => {
+				setRouteContext({ isCollectionBuilder: false });
+			});
+		};
+	});
 </script>
 
-<AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config" titleBorderless={true}>
-    {#snippet actions()}
-        {#if currentConfig.length > 0}
-            <Button variant="tertiary"
-                data-testid="save-structure-button"
-                onclick={handleSave}
-                disabled={isLoading || Object.keys(nodesToSave).length === 0}
-                title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
-                aria-keyshortcuts="mod+s"
-             size="md" class="flex items-center gap-1.5 px-4">
-                {#if isLoading}
-                    <iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-                {:else}
-                    <iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-                {/if}
-                <span>{button_save()}</span>
-            </Button>
-        {/if}
-    {/snippet}
+<AdminPageShell
+	title={collection_pagetitle()}
+	icon="mdi:database-cog-outline"
+	showBackButton={true}
+	backUrl="/config"
+	titleBorderless={true}
+>
+	{#snippet actions()}
+		{#if currentConfig.length > 0}
+			<Button
+				variant="tertiary"
+				data-testid="save-structure-button"
+				onclick={handleSave}
+				disabled={isLoading || Object.keys(nodesToSave).length === 0}
+				title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
+				aria-keyshortcuts="mod+s"
+				size="md"
+				class="flex items-center gap-1.5 px-4"
+			>
+				{#if isLoading}
+					<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+				{:else}
+					<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+				{/if}
+				<span>{button_save()}</span>
+			</Button>
+		{/if}
+	{/snippet}
 
-    {#if currentConfig.length > 0}
-        <AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 backdrop-blur-md shadow-xs">
-        <div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
-        <Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-44 justify-center" disabled={isLoading}>
-            <iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
-            <span>Quick Start</span>
-        </Button>
+	{#if currentConfig.length > 0}
+		<AdminCard
+			class="p-6 border border-surface-500/30 dark:border-surface-500/40 backdrop-blur-md shadow-xs"
+		>
+			<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
+				<Button
+					onclick={() => modalQuickStart()}
+					variant="secondary"
+					rounded={true}
+					size="lg"
+					class="group w-44 justify-center"
+					disabled={isLoading}
+				>
+					<iconify-icon
+						icon="mdi:magic-staff"
+						width="24"
+						class="transition-transform group-hover:rotate-12"
+					></iconify-icon>
+					<span>Quick Start</span>
+				</Button>
 
-        <Button
-            onclick={() => modalIntrospectSchema()}
-            variant="secondary"
-            rounded={true}
-            size="lg"
-            class="group w-52 justify-center"
-            disabled={isLoading}
-            data-testid="introspect-schema-button"
-        >
-            <iconify-icon icon="mdi:database-arrow-right" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
-            <span>Introspect / Ingest</span>
-        </Button>
+				<Button
+					onclick={() => modalIntrospectSchema()}
+					variant="secondary"
+					rounded={true}
+					size="lg"
+					class="group w-52 justify-center"
+					disabled={isLoading}
+					data-testid="introspect-schema-button"
+				>
+					<iconify-icon
+						icon="mdi:database-arrow-right"
+						width="24"
+						class="transition-transform group-hover:scale-110"
+					></iconify-icon>
+					<span>Introspect / Ingest</span>
+				</Button>
 
-        <Button
-            onclick={() => modalAddCategory()}
-            variant="tertiary"
-            rounded={true}
-            size="lg"
-            class="group w-44 justify-center"
-            disabled={isLoading}
-            data-testid="add-category-button"
-        >
-            <iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
-            <span>{collection_addcategory()}</span>
-        </Button>
+				<Button
+					onclick={() => modalAddCategory()}
+					variant="tertiary"
+					rounded={true}
+					size="lg"
+					class="group w-44 justify-center"
+					disabled={isLoading}
+					data-testid="add-category-button"
+				>
+					<iconify-icon
+						icon="mdi:folder-plus"
+						width="24"
+						class="transition-transform group-hover:scale-110"
+					></iconify-icon>
+					<span>{collection_addcategory()}</span>
+				</Button>
 
-        <Button
-            href={newCollectionHref}
-            data-preload="hover"
-            onclick={setupNewCollection}
-            variant="error"
-            rounded={true}
-            size="lg"
-            class="group w-44 justify-center"
-            disabled={isLoading}
-            data-testid="add-collection-button"
-            aria-keyshortcuts="Mod+N"
-        >
-            <iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
-            <span>{collection_add()}</span>
-        </Button>
+				<Button
+					href={newCollectionHref}
+					data-preload="hover"
+					onclick={setupNewCollection}
+					variant="error"
+					rounded={true}
+					size="lg"
+					class="group w-44 justify-center"
+					disabled={isLoading}
+					data-testid="add-collection-button"
+					aria-keyshortcuts="Mod+N"
+				>
+					<iconify-icon
+						icon="ic:round-plus"
+						width="24"
+						class="transition-transform group-hover:rotate-90"
+					></iconify-icon>
+					<span>{collection_add()}</span>
+				</Button>
 
-        {#if selectedCategoryId}
-            <Button
-                type="button"
-                onclick={handleClearCategorySelection}
-                variant="ghost"
-                class="flex items-center gap-1 text-surface-600 dark:text-surface-400"
-                disabled={isLoading}
-                aria-label="Clear category selection"
-            >
-                <iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
-                <span class="hidden sm:inline">Clear selection</span>
-            </Button>
-        {/if}
-    </div>
+				{#if selectedCategoryId}
+					<Button
+						type="button"
+						onclick={handleClearCategorySelection}
+						variant="ghost"
+						class="flex items-center gap-1 text-surface-600 dark:text-surface-400"
+						disabled={isLoading}
+						aria-label="Clear category selection"
+					>
+						<iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
+						<span class="hidden sm:inline">Clear selection</span>
+					</Button>
+				{/if}
+			</div>
 
-    <p class="text-center" role="note">
-        Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong>category</strong> (middle of the row) to nest; use the top/bottom edge to reorder as siblings. Layout changes require <strong>Save</strong> to persist.
-    </p>
+			<p class="text-center" role="note">
+				Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong
+					>category</strong
+				>
+				(middle of the row) to nest; use the top/bottom edge to reorder as siblings. Layout changes require
+				<strong>Save</strong> to persist.
+			</p>
 
-    <div class="max-h-[calc(100vh-120px)] overflow-auto" data-testid="collection-builder-board">
-        <div class="mx-auto w-full max-w-screen-2xl">
-            {#if Object.keys(nodesToSave).length > 0}
-                <div
-                    class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
-                    role="status"
-                    aria-live="polite"
-                >
-                    You have unsaved organizational changes. Click <strong>Save</strong> to persist.
-                </div>
-            {/if}
-            <p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{collection_description()}</p>
+			<div class="max-h-[calc(100vh-120px)] overflow-auto" data-testid="collection-builder-board">
+				<div class="mx-auto w-full max-w-screen-2xl">
+					{#if Object.keys(nodesToSave).length > 0}
+						<div
+							class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
+							role="status"
+							aria-live="polite"
+						>
+							You have unsaved organizational changes. Click <strong>Save</strong> to persist.
+						</div>
+					{/if}
+					<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">
+						{collection_description()}
+					</p>
 
-            <TreeViewBoard
-                contentNodes={currentConfig}
-                structureKey={treeVersion}
-                onNodeUpdate={handleNodeUpdate}
-                onEditCategory={modalAddCategory}
-                onDeleteNode={handleDeleteNode}
-                onDuplicateNode={handleDuplicateNode}
-                {selectedCategoryId}
-                onSelectCategory={handleSelectCategory}
-            />
-        </div>
-    </div>
-    </AdminCard>
-{:else}
-    <EmptyState onAddCollection={setupNewCollection} newCollectionHref={newCollectionHref} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} onQuickStart={modalQuickStart} />
-{/if}
+					<TreeViewBoard
+						contentNodes={currentConfig}
+						structureKey={treeVersion}
+						onNodeUpdate={handleNodeUpdate}
+						onEditCategory={modalAddCategory}
+						onDeleteNode={handleDeleteNode}
+						onDuplicateNode={handleDuplicateNode}
+						{selectedCategoryId}
+						onSelectCategory={handleSelectCategory}
+					/>
+				</div>
+			</div>
+		</AdminCard>
+	{:else}
+		<EmptyState
+			onAddCollection={setupNewCollection}
+			{newCollectionHref}
+			onAddCategory={() => modalAddCategory()}
+			onLoadPreset={modalLoadPreset}
+			onQuickStart={modalQuickStart}
+		/>
+	{/if}
 
-<Slot name="collection_builder" />
+	<Slot name="collection_builder" />
 </AdminPageShell>

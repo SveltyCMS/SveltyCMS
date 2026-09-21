@@ -89,7 +89,13 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { safeParse } from 'valibot';
 	async function testEmailConnection(cfg: {
-		host: string; port: number; user: string; password: string; from: string; secure: boolean; testEmail: string;
+		host: string;
+		port: number;
+		user: string;
+		password: string;
+		from: string;
+		secure: boolean;
+		testEmail: string;
 	}): Promise<{ success: boolean; error?: string }> {
 		const fd = new FormData();
 		fd.set('config', JSON.stringify(cfg));
@@ -97,7 +103,9 @@
 		const d = await r.json().catch(() => ({}));
 		// SvelteKit action responses are wrapped in { type, data }
 		const payload = d?.data ?? d;
-		return r.ok && payload?.success ? { success: true } : { success: false, error: payload?.error ?? 'Connection failed' };
+		return r.ok && payload?.success
+			? { success: true }
+			: { success: false, error: payload?.error ?? 'Connection failed' };
 	}
 
 	const { wizard } = setupStore;
@@ -260,8 +268,6 @@
 		}
 	}
 
-
-
 	// Watch for host changes and auto-detect provider
 	let lastDetectedHost = '';
 	$effect(() => {
@@ -337,7 +343,9 @@
 		if (wizard.emailSettings.host.includes('@')) {
 			return false;
 		}
-		return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(wizard.emailSettings.host);
+		return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(
+			wizard.emailSettings.host
+		);
 	});
 
 	// SMTP presets for dropdown
@@ -421,14 +429,14 @@
 
 		try {
 			const data = await testEmailConnection({
-					host: wizard.emailSettings.host,
-					port: effectivePort(),
-					user: wizard.emailSettings.user,
-					password: wizard.emailSettings.password,
-					from: wizard.emailSettings.from || wizard.emailSettings.user,
-					secure: effectiveSecure(),
-					testEmail: wizard.adminUser.email
-				});
+				host: wizard.emailSettings.host,
+				port: effectivePort(),
+				user: wizard.emailSettings.user,
+				password: wizard.emailSettings.password,
+				from: wizard.emailSettings.from || wizard.emailSettings.user,
+				secure: effectiveSecure(),
+				testEmail: wizard.adminUser.email
+			});
 
 			if (data.success) {
 				testSuccess = true;
@@ -454,12 +462,12 @@
 </script>
 
 <form
-		class="fade-in space-y-4"
-		onsubmit={(e) => {
-			e.preventDefault();
-			testConnection();
-		}}
-	>
+	class="fade-in space-y-4"
+	onsubmit={(e) => {
+		e.preventDefault();
+		testConnection();
+	}}
+>
 	<!-- Why SMTP is Needed -->
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
@@ -471,9 +479,15 @@
 			aria-expanded={showWhySmtp}
 			aria-controls="why-smtp-content"
 		>
-			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
+			<iconify-icon
+				icon="mdi:information"
+				class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500"
+				aria-hidden="true"
+			></iconify-icon>
 			<div class="flex-1">
-				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{setup_email_why_title()}</h3>
+				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">
+					{setup_email_why_title()}
+				</h3>
 			</div>
 			<iconify-icon
 				icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'}
@@ -502,7 +516,12 @@
 	<div class="space-y-2">
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:email-fast-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon
+					icon="mdi:email-fast-outline"
+					width="18"
+					class="text-tertiary-500 dark:text-primary-500"
+					aria-hidden="true"
+				></iconify-icon>
 				<span class="text-surface-900 dark:text-surface-50">{setup_email_provider()}</span>
 				<SystemTooltip title={setup_email_help_provider()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_provider()} />
@@ -530,8 +549,15 @@
 		<!-- SMTP Host -->
 		<label class="label" for="smtp-host">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50">{setup_email_host()} <span class="text-error-500">*</span></span>
+				<iconify-icon
+					icon="mdi:server-network"
+					width="18"
+					class="text-tertiary-500 dark:text-primary-500"
+					aria-hidden="true"
+				></iconify-icon>
+				<span class="text-surface-900 dark:text-surface-50"
+					>{setup_email_host()} <span class="text-error-500">*</span></span
+				>
 				<SystemTooltip title={setup_email_help_host()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_host()} />
 				</SystemTooltip>
@@ -560,8 +586,15 @@
 		<label class="label">
 			<div class="mb-1 flex items-center justify-between">
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="font-medium text-surface-900 dark:text-surface-50">{setup_email_port()} <span class="text-error-500">*</span></span>
+					<iconify-icon
+						icon="mdi:ethernet"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
+					<span class="font-medium text-surface-900 dark:text-surface-50"
+						>{setup_email_port()} <span class="text-error-500">*</span></span
+					>
 					<SystemTooltip title={setup_email_help_port()}>
 						<HelpIcon ariaLabel={setup_email_aria_help_port()} />
 					</SystemTooltip>
@@ -586,20 +619,26 @@
 						class="flex-1"
 					/>
 
-					<Button variant="outline"
+					<Button
+						variant="outline"
 						type="button"
 						aria-label={setup_email_aria_switch_standard()}
 						onclick={() => {
 							useCustomPort = false;
 							wizard.emailSettings.port = '587'; // Reset to default
 						}}
-					 size="sm" class="whitespace-nowrap border border-surface-500/30 dark:border-surface-600">
-						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"></iconify-icon>
+						size="sm"
+						class="whitespace-nowrap border border-surface-500/30 dark:border-surface-600"
+					>
+						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"
+						></iconify-icon>
 						{setup_email_button_use_standard()}
 					</Button>
 				</div>
 				{#if !displayErrors.port}
-					<span class="text-xs text-surface-600 dark:text-surface-50">{setup_email_port_custom_desc()}</span>
+					<span class="text-xs text-surface-600 dark:text-surface-50"
+						>{setup_email_port_custom_desc()}</span
+					>
 				{/if}
 			{:else}
 				<!-- Standard port dropdown -->
@@ -615,13 +654,16 @@
 						class="flex-1"
 					/>
 
-					<Button variant="outline"
+					<Button
+						variant="outline"
 						type="button"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
 						}}
-					 size="sm" class="dark:border-surface-600 whitespace-nowrap">
+						size="sm"
+						class="dark:border-surface-600 whitespace-nowrap"
+					>
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{setup_email_button_custom()}
 					</Button>
@@ -635,7 +677,9 @@
 								{setup_email_port_encrypted()}
 							</Badge>
 						{/if}
-						<span class="text-xs text-surface-600 dark:text-surface-50">{selectedPort.description}</span>
+						<span class="text-xs text-surface-600 dark:text-surface-50"
+							>{selectedPort.description}</span
+						>
 					</div>
 				{/if}
 			{/if}
@@ -644,8 +688,15 @@
 		<!-- SMTP User -->
 		<label class="label" for="smtp-user">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50">{setup_email_user()} <span class="text-error-500">*</span></span>
+				<iconify-icon
+					icon="mdi:account"
+					width="18"
+					class="text-tertiary-500 dark:text-primary-500"
+					aria-hidden="true"
+				></iconify-icon>
+				<span class="text-surface-900 dark:text-surface-50"
+					>{setup_email_user()} <span class="text-error-500">*</span></span
+				>
 				<SystemTooltip title={setup_email_help_user()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_user()} />
 				</SystemTooltip>
@@ -675,8 +726,15 @@
 		<!-- SMTP Password -->
 		<label class="label" for="smtp-password">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50">{setup_email_password()} <span class="text-error-500">*</span></span>
+				<iconify-icon
+					icon="mdi:key-variant"
+					width="18"
+					class="text-tertiary-500 dark:text-primary-500"
+					aria-hidden="true"
+				></iconify-icon>
+				<span class="text-surface-900 dark:text-surface-50"
+					>{setup_email_password()} <span class="text-error-500">*</span></span
+				>
 				<SystemTooltip title={setup_email_help_password()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_password()} />
 				</SystemTooltip>
@@ -703,12 +761,20 @@
 					error={displayErrors.password}
 					inputClass="pe-10"
 				/>
-				<Button variant="ghost"
+				<Button
+					variant="ghost"
 					type="button"
 					onclick={() => (showPassword = !showPassword)}
-					aria-label={showPassword ? setup_email_aria_hide_password() : setup_email_aria_show_password()}
-				 size="sm" class="p-0! min-w-0 absolute inset-e-0 top-0">
-					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-50"></iconify-icon>
+					aria-label={showPassword
+						? setup_email_aria_hide_password()
+						: setup_email_aria_show_password()}
+					size="sm"
+					class="p-0! min-w-0 absolute inset-e-0 top-0"
+				>
+					<iconify-icon
+						icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'}
+						class="text-lg text-surface-600 dark:text-surface-50"
+					></iconify-icon>
 				</Button>
 			</div>
 		</label>
@@ -716,7 +782,12 @@
 		<!-- From Email (Optional) -->
 		<label class="label md:col-span-2" for="smtp-from">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:email-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon
+					icon="mdi:email-outline"
+					width="18"
+					class="text-tertiary-500 dark:text-primary-500"
+					aria-hidden="true"
+				></iconify-icon>
 				<span class="text-surface-900 dark:text-surface-50">{setup_email_from()}</span>
 			</div>
 			<Input
@@ -737,7 +808,12 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<Button variant="tertiary" type="submit" disabled={!isFormValid || isTesting} class="dark: w-full">
+		<Button
+			variant="tertiary"
+			type="submit"
+			disabled={!isFormValid || isTesting}
+			class="dark: w-full"
+		>
 			<iconify-icon icon="mdi:email" class="me-2 text-xl"></iconify-icon>
 			{isTesting ? setup_email_testing() : setup_email_test_button()}
 		</Button>
@@ -749,24 +825,42 @@
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
 					<div class="flex-1">
-						<p class="font-semibold text-success-600 dark:text-success-400">{setup_email_connection_success()}</p>
+						<p class="font-semibold text-success-600 dark:text-success-400">
+							{setup_email_connection_success()}
+						</p>
 					</div>
 					<!-- Toggle button - visible only on mobile -->
-					<Button variant="ghost"
+					<Button
+						variant="ghost"
 						type="button"
 						onclick={() => (showSuccessDetails = !showSuccessDetails)}
-						aria-label={showSuccessDetails ? setup_email_button_hide_details() : setup_email_button_show_details()}
-					 size="sm" class="p-0! min-w-0 md:hidden">
-						<iconify-icon icon={showSuccessDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="text-xl"></iconify-icon>
+						aria-label={showSuccessDetails
+							? setup_email_button_hide_details()
+							: setup_email_button_show_details()}
+						size="sm"
+						class="p-0! min-w-0 md:hidden"
+					>
+						<iconify-icon
+							icon={showSuccessDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+							class="text-xl"
+						></iconify-icon>
 					</Button>
 				</div>
 
 				<!-- Collapsible details -->
-				<div class="mt-2 overflow-hidden transition-all" class:hidden={!showSuccessDetails} class:md:block={true}>
+				<div
+					class="mt-2 overflow-hidden transition-all"
+					class:hidden={!showSuccessDetails}
+					class:md:block={true}
+				>
 					{#if testEmailSent}
-						<p class="text-sm text-success-600 dark:text-success-400">{setup_email_test_sent_to({ email: wizard.adminUser.email })}</p>
+						<p class="text-sm text-success-600 dark:text-success-400">
+							{setup_email_test_sent_to({ email: wizard.adminUser.email })}
+						</p>
 					{/if}
-					<p class="mt-1 text-sm text-success-600 dark:text-success-400">{setup_email_settings_saved()}</p>
+					<p class="mt-1 text-sm text-success-600 dark:text-success-400">
+						{setup_email_settings_saved()}
+					</p>
 				</div>
 			</div>
 		{/if}

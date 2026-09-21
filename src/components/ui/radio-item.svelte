@@ -28,7 +28,7 @@ via Svelte context. Supports default, card, and button visual variants.
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import { cn } from '@utils/cn';
 	import { getContext } from 'svelte';
 	import type { RadioGroupContext } from './radio-group.svelte';
@@ -61,9 +61,22 @@ import { logger } from "@utils/logger";
 
 	const sizeTokens = $derived.by(() => {
 		switch (size) {
-			case 'sm': return { circle: 'size-4', icon: '8', text: 'text-xs', touch: 'min-h-[24px] min-w-[24px]' };
-			case 'lg': return { circle: 'size-6', icon: '14', text: 'text-base', touch: 'min-h-[32px] min-w-[32px]' };
-			default:   return { circle: 'size-5', icon: '10', text: 'text-sm', touch: 'min-h-[28px] min-w-[28px]' };
+			case 'sm':
+				return { circle: 'size-4', icon: '8', text: 'text-xs', touch: 'min-h-[24px] min-w-[24px]' };
+			case 'lg':
+				return {
+					circle: 'size-6',
+					icon: '14',
+					text: 'text-base',
+					touch: 'min-h-[32px] min-w-[32px]'
+				};
+			default:
+				return {
+					circle: 'size-5',
+					icon: '10',
+					text: 'text-sm',
+					touch: 'min-h-[28px] min-w-[28px]'
+				};
 		}
 	});
 
@@ -87,28 +100,40 @@ import { logger } from "@utils/logger";
 				: 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 hover:border-surface-500/30 dark:hover:border-surface-600',
 			ctx?.invalid && 'border-error-500!',
 			isDisabled && 'opacity-50 cursor-not-allowed',
-			!isDisabled && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2',
+			!isDisabled &&
+				'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2',
 			className
 		)}
 		onclick={handleSelect}
-		onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleSelect(); }}}
+		onkeydown={(e) => {
+			if (e.key === ' ' || e.key === 'Enter') {
+				e.preventDefault();
+				handleSelect();
+			}
+		}}
 	>
 		<span
 			class={cn(
 				'shrink-0 inline-flex items-center justify-center rounded-full border-2 transition-all',
 				sizeTokens.circle,
 				sizeTokens.touch,
-				checked ? 'border-tertiary-500 dark:border-primary-500' : 'border-surface-500/30 dark:border-surface-600',
+				checked
+					? 'border-tertiary-500 dark:border-primary-500'
+					: 'border-surface-500/30 dark:border-surface-600'
 			)}
 			aria-hidden="true"
 		>
 			{#if checked}
-				<span class="size-1/2 rounded-full bg-tertiary-500 dark:bg-primary-500 animate-in zoom-in duration-150"></span>
+				<span
+					class="size-1/2 rounded-full bg-tertiary-500 dark:bg-primary-500 animate-in zoom-in duration-150"
+				></span>
 			{/if}
 		</span>
 		<span class="flex flex-col gap-0.5">
 			{#if label}
-				<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}>{label}</span>
+				<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}
+					>{label}</span
+				>
 			{/if}
 			{#if description}
 				<span class="text-xs text-surface-500 dark:text-surface-400">{description}</span>
@@ -130,11 +155,17 @@ import { logger } from "@utils/logger";
 				? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400'
 				: 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-surface-600 dark:text-surface-400 hover:border-surface-500/30 dark:hover:border-surface-600',
 			isDisabled && 'opacity-50 cursor-not-allowed',
-			!isDisabled && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
+			!isDisabled &&
+				'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
 			className
 		)}
 		onclick={handleSelect}
-		onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleSelect(); }}}
+		onkeydown={(e) => {
+			if (e.key === ' ' || e.key === 'Enter') {
+				e.preventDefault();
+				handleSelect();
+			}
+		}}
 	>
 		{#if label}{label}{:else}{itemValue}{/if}
 	</button>
@@ -144,10 +175,10 @@ import { logger } from "@utils/logger";
 		class={cn(
 			'inline-flex items-center gap-2.5 select-none',
 			isDisabled ? 'opacity-50 cursor-not-allowed' : '',
-							className
-						)}
-					>
-						<input type="radio" aria-label={label || itemValue || 'Radio option'} />
+			className
+		)}
+	>
+		<input type="radio" aria-label={label || itemValue || 'Radio option'} />
 		<button
 			type="button"
 			role="radio"
@@ -158,20 +189,31 @@ import { logger } from "@utils/logger";
 				sizeTokens.circle,
 				sizeTokens.touch,
 				'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-900',
-				checked ? 'border-tertiary-500 dark:border-primary-500' : 'border-surface-500/30 dark:border-surface-600 hover:border-primary-500',
+				checked
+					? 'border-tertiary-500 dark:border-primary-500'
+					: 'border-surface-500/30 dark:border-surface-600 hover:border-primary-500',
 				ctx?.invalid && 'border-error-500!',
 				isDisabled && 'cursor-not-allowed'
 			)}
 			onclick={handleSelect}
-			onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleSelect(); }}}
+			onkeydown={(e) => {
+				if (e.key === ' ' || e.key === 'Enter') {
+					e.preventDefault();
+					handleSelect();
+				}
+			}}
 		>
 			{#if checked}
-				<span class="size-1/2 rounded-full bg-tertiary-500 dark:bg-primary-500 animate-in zoom-in duration-150"></span>
+				<span
+					class="size-1/2 rounded-full bg-tertiary-500 dark:bg-primary-500 animate-in zoom-in duration-150"
+				></span>
 			{/if}
 		</button>
 		<span class="flex flex-col gap-0.5">
 			{#if label}
-				<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}>{label}</span>
+				<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}
+					>{label}</span
+				>
 			{/if}
 			{#if description}
 				<span class="text-xs text-surface-500 dark:text-surface-400">{description}</span>

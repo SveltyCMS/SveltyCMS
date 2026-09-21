@@ -31,8 +31,7 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 	}
 
 	function updateToolbar() {
-		const isMobile =
-			imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint;
+		const isMobile = imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint;
 		const ControlsComponent = isMobile ? FocalPointControlsMobile : FocalPointControls;
 		const fp = storeState.focalPoint ?? { x: 50, y: 50 };
 
@@ -67,7 +66,10 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 			void storeState.focalPoint?.x;
 			void storeState.focalPoint?.y;
 			updateToolbar();
-		} else if (!activeState && isFocalToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
+		} else if (
+			!activeState &&
+			isFocalToolbarComponent(imageEditorStore.state.toolbarControls?.component)
+		) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
@@ -79,7 +81,9 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 			return;
 		}
 
-		const rect = ((e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)).getBoundingClientRect();
+		const rect = (
+			(e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)
+		).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
 
@@ -109,7 +113,9 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 			return;
 		}
 
-		const rect = ((e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)).getBoundingClientRect();
+		const rect = (
+			(e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)
+		).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
 		const centerX = width / 2 + translateX;
@@ -131,7 +137,15 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		isDraggingFocal = false;
 	}
 
-	const renderFocalPoint = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+	const renderFocalPoint = ({
+		context,
+		width,
+		height
+	}: {
+		context: CanvasRenderingContext2D;
+		width: number;
+		height: number;
+	}) => {
 		if (imageEditorStore.state.activeState !== 'focalpoint') {
 			return;
 		}

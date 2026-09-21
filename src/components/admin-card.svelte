@@ -34,13 +34,7 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 		preset?: 'filled' | 'tonal' | 'outlined';
 	};
 
-	let {
-		class: className,
-		children: content,
-		variant,
-		preset,
-		...rest
-	}: Props = $props();
+	let { class: className, children: content, variant, preset, ...rest }: Props = $props();
 
 	const useCard = $derived(Boolean(variant || preset));
 	const theme = getThemeContext();
@@ -54,8 +48,8 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 			'border-color: var(--admin-border-default, var(--color-surface-200))',
 			'background-color: var(--admin-bg-card, var(--color-surface-50))',
 			'color: var(--admin-text-body, var(--color-surface-900))',
-			`box-shadow: ${theme?.cardShadow ?? 'var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1))'}`,
-		].join('; '),
+			`box-shadow: ${theme?.cardShadow ?? 'var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1))'}`
+		].join('; ')
 	);
 </script>
 

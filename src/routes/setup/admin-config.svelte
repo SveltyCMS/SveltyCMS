@@ -114,8 +114,11 @@
 
 <div class="fade-in">
 	<div class="mb-4">
-		<p class="text-sm text-center md:text-start text-tertiary-500 dark:text-primary-500 sm:text-base">
-			{setup_help_admin_username?.() || 'Create your administrator account with full access to manage content, users, and system settings.'}
+		<p
+			class="text-sm text-center md:text-start text-tertiary-500 dark:text-primary-500 sm:text-base"
+		>
+			{setup_help_admin_username?.() ||
+				'Create your administrator account with full access to manage content, users, and system settings.'}
 		</p>
 	</div>
 
@@ -124,8 +127,15 @@
 			<!-- Username -->
 			<div>
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{form_username?.() || 'Username'}</span>
+					<iconify-icon
+						icon="mdi:account"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
+					<span class="text-surface-900 dark:text-surface-50"
+						>{form_username?.() || 'Username'}</span
+					>
 					<SystemTooltip title={setup_help_admin_username()}>
 						<HelpIcon ariaLabel={setup_help_admin_username?.() || 'Help: Username'} />
 					</SystemTooltip>
@@ -152,7 +162,12 @@
 			<!-- Email -->
 			<div>
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon
+						icon="mdi:email"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
 					<span class="text-surface-900 dark:text-surface-50">{form_email?.() || 'Email'}</span>
 					<SystemTooltip title={setup_help_admin_email()}>
 						<HelpIcon ariaLabel={setup_help_admin_email?.() || 'Help: Email'} />
@@ -180,7 +195,12 @@
 			<!-- Password -->
 			<div>
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon
+						icon="mdi:key-variant"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
 					<span class="text-surface-900 dark:text-surface-50">{form_password()}</span>
 					<SystemTooltip title={setup_help_admin_password()}>
 						<HelpIcon ariaLabel={setup_help_admin_password?.() || 'Help: Password'} />
@@ -208,7 +228,12 @@
 							aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 							class="w-full! h-full! p-0! min-w-0 text-surface-500! dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100"
 						>
-							<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'}
+								width="18"
+								height="18"
+								aria-hidden="true"
+							></iconify-icon>
 						</Button>
 					{/snippet}
 				</Input>
@@ -217,12 +242,36 @@
 				{#if adminUser.password}
 					{const score = Object.values(passwordRequirements).filter(Boolean).length}
 					<div class="space-y-4">
-						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 4 ? 'bg-tertiary-500 dark:bg-primary-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-success-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+						<div
+							class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+						>
+							<div
+								class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}"
+								style="width: 20%"
+								aria-hidden="true"
+							></div>
+							<div
+								class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}"
+								style="width: 20%"
+								aria-hidden="true"
+							></div>
+							<div
+								class="h-full transition-all duration-500 {score >= 3 ? 'bg-warning-500' : ''}"
+								style="width: 20%"
+								aria-hidden="true"
+							></div>
+							<div
+								class="h-full transition-all duration-500 {score >= 4
+									? 'bg-tertiary-500 dark:bg-primary-500'
+									: ''}"
+								style="width: 20%"
+								aria-hidden="true"
+							></div>
+							<div
+								class="h-full transition-all duration-500 {score >= 5 ? 'bg-success-500' : ''}"
+								style="width: 20%"
+								aria-hidden="true"
+							></div>
 						</div>
 						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
 							<span class={score >= 1 ? 'text-error-500' : 'text-surface-400'}>Weak</span>
@@ -231,16 +280,27 @@
 						</div>
 					</div>
 				{/if}
-
 			</div>
 
 			<!-- Confirm Password -->
 			<div>
-				<label for="admin-confirm-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{form_confirmpassword?.() || 'Confirm Password'}</span>
+				<label
+					for="admin-confirm-password"
+					class="mb-1 flex items-center gap-1 text-sm font-medium"
+				>
+					<iconify-icon
+						icon="mdi:key"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
+					<span class="text-surface-900 dark:text-surface-50"
+						>{form_confirmpassword?.() || 'Confirm Password'}</span
+					>
 					<SystemTooltip title={setup_help_admin_confirm_password()}>
-						<HelpIcon ariaLabel={setup_help_admin_confirm_password?.() || 'Help: Confirm Password'} />
+						<HelpIcon
+							ariaLabel={setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
+						/>
 					</SystemTooltip>
 				</label>
 
@@ -262,10 +322,17 @@
 							size="sm"
 							tabindex={-1}
 							onclick={() => (showConfirmPassword = !showConfirmPassword)}
-							aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+							aria-label={showConfirmPassword
+								? 'Hide password confirmation'
+								: 'Show password confirmation'}
 							class="w-full! h-full! p-0! min-w-0 text-surface-500! dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100"
 						>
-							<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'}
+								width="18"
+								height="18"
+								aria-hidden="true"
+							></iconify-icon>
 						</Button>
 					{/snippet}
 				</Input>
@@ -273,8 +340,13 @@
 		</div>
 
 		<!-- Password Requirements Box -->
-		<div class="mt-4 rounded border border-x-6 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800">
-			<h4 class="mb-2 text-center text-sm font-bold tracking-tight dark:text-white" id="password-reqs-heading">
+		<div
+			class="mt-4 rounded border border-x-6 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800"
+		>
+			<h4
+				class="mb-2 text-center text-sm font-bold tracking-tight dark:text-white"
+				id="password-reqs-heading"
+			>
 				{setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>
 			<ul class="space-y-2 text-sm" aria-labelledby="password-reqs-heading">
@@ -289,7 +361,8 @@
 							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.length}
-							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
+							></iconify-icon>
 						{/if}
 					</span>
 					{setup_help_admin_password_requirements_length?.() || 'Minimum 8 characters'}
@@ -306,7 +379,8 @@
 							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.letter}
-							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
+							></iconify-icon>
 						{/if}
 					</span>
 					{setup_help_admin_password_requirements_letter?.() || 'At least one letter (A-Z or a-z)'}
@@ -323,7 +397,8 @@
 							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.number}
-							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
+							></iconify-icon>
 						{/if}
 					</span>
 					{setup_help_admin_password_requirements_number?.() || 'At least one number (0-9)'}
@@ -340,10 +415,12 @@
 							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.special}
-							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
+							></iconify-icon>
 						{/if}
 					</span>
-					{setup_help_admin_password_requirements_character?.() || 'At least one special character (@$!%*#?&)'}
+					{setup_help_admin_password_requirements_character?.() ||
+						'At least one special character (@$!%*#?&)'}
 					<span class="sr-only">, {passwordRequirements.special ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
@@ -357,17 +434,26 @@
 							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.match}
-							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
+							></iconify-icon>
 						{/if}
 					</span>
 					{setup_help_admin_password_requirements_match?.() || 'Passwords match'}
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
-				<li class="mt-2 flex items-center justify-center border-t border-surface-500/40 pt-2 font-bold dark:border-surface-500/30 dark:text-white">
+				<li
+					class="mt-2 flex items-center justify-center border-t border-surface-500/40 pt-2 font-bold dark:border-surface-500/30 dark:text-white"
+				>
 					<span class="me-2 inline-flex h-5 w-5 items-center justify-center">
-						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="mdi:shield-check"
+							width="18"
+							class="text-error-500"
+							aria-hidden="true"
+						></iconify-icon>
 					</span>
-					{setup_help_admin_password_requirements_account_note?.() || 'This account will have full administrative privileges'}
+					{setup_help_admin_password_requirements_account_note?.() ||
+						'This account will have full administrative privileges'}
 				</li>
 			</ul>
 		</div>

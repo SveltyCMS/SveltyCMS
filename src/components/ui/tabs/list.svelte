@@ -27,11 +27,22 @@ scrollbar for clean overflow handling.
 	let { children, class: className = '' }: Props = $props();
 </script>
 
-<div class={cn("tabs-list flex border-b border-surface-500/30 dark:border-surface-500/40 mb-4 overflow-x-auto scrollbar-hide", className)} role="tablist">
+<div
+	class={cn(
+		'tabs-list flex border-b border-surface-500/30 dark:border-surface-500/40 mb-4 overflow-x-auto scrollbar-hide',
+		className
+	)}
+	role="tablist"
+>
 	{@render children?.()}
 </div>
 
 <style>
-	.scrollbar-hide::-webkit-scrollbar { display: none; }
-	.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
 </style>

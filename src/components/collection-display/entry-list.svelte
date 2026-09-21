@@ -63,7 +63,12 @@ bulk actions, and predictive preloading.
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
-	import type { EntryListProps, PaginationSettings, TableHeader, CollectionEntry } from '@src/content/types';
+	import type {
+		EntryListProps,
+		PaginationSettings,
+		TableHeader,
+		CollectionEntry
+	} from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { EntryList_no_collection, entrylist_all, entrylist_dnd } from '@src/paraglide/messages';
@@ -81,7 +86,12 @@ bulk actions, and predictive preloading.
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import Sanitize from '@src/utils/sanitize.svelte';
 	// Utils
-	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api';
+	import {
+		batchDeleteEntries,
+		deleteEntry,
+		invalidateCollectionCache,
+		updateEntryStatus
+	} from '@utils/api';
 	import { formatDisplayDate } from '@utils/date';
 	import { bulkEditEntries, cloneEntries, setEntriesStatus } from '@utils/entry-actions';
 	// Using iconify-icon web component
@@ -292,7 +302,10 @@ bulk actions, and predictive preloading.
 
 	function onVirtualScroll() {
 		if (scrollContainerEl) {
-			smartTable.virtual.onScroll(scrollContainerEl.scrollTop, scrollContainerEl.clientHeight || 600);
+			smartTable.virtual.onScroll(
+				scrollContainerEl.scrollTop,
+				scrollContainerEl.clientHeight || 600
+			);
 		}
 	}
 
@@ -434,7 +447,10 @@ bulk actions, and predictive preloading.
 	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
 	// =================================================================
 	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
-	const preloadedEntries = new SvelteMap<string, { data: any; timestamp: number; hoverCount: number }>();
+	const preloadedEntries = new SvelteMap<
+		string,
+		{ data: any; timestamp: number; hoverCount: number }
+	>();
 
 	const PRELOAD_CACHE_TTL = 30_000; // ms - keep preloaded data for 30 seconds
 
@@ -449,7 +465,10 @@ bulk actions, and predictive preloading.
 	// Detect connection speed
 	$effect(() => {
 		if (browser && 'connection' in navigator) {
-			const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+			const conn =
+				(navigator as any).connection ||
+				(navigator as any).mozConnection ||
+				(navigator as any).webkitConnection;
 			if (conn) {
 				const checkConnection = () => {
 					const effectiveType = conn.effectiveType;
@@ -572,7 +591,7 @@ bulk actions, and predictive preloading.
 
 		let targetIndex: number;
 		if (targetHeaderId) {
-			targetIndex = displayTableHeaders.findIndex(h => h.id === targetHeaderId);
+			targetIndex = displayTableHeaders.findIndex((h) => h.id === targetHeaderId);
 			if (state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = displayTableHeaders.length;
@@ -591,8 +610,6 @@ bulk actions, and predictive preloading.
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
-
-
 	// Pagination
 	const defaultPaginationSettings = (collectionId: string | null): PaginationSettings => ({
 		collectionId,
@@ -603,7 +620,9 @@ bulk actions, and predictive preloading.
 		filters: {}, // Will be populated by an effect based on tableHeaders
 		displayTableHeaders: []
 	});
-	let entryListPaginationSettings = $state(defaultPaginationSettings(collections.active?._id ?? null));
+	let entryListPaginationSettings = $state(
+		defaultPaginationSettings(collections.active?._id ?? null)
+	);
 
 	// Load settings from localStorage
 	$effect(() => {
@@ -794,7 +813,11 @@ bulk actions, and predictive preloading.
 		const settings = entryListPaginationSettings;
 
 		if (tableHeaders.length > 0) {
-			if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
+			if (
+				settings.collectionId === currentCollId &&
+				Array.isArray(settings.displayTableHeaders) &&
+				settings.displayTableHeaders.length > 0
+			) {
 				const schemaHeaderMap = new SvelteMap(tableHeaders.map((th) => [th.name, th]));
 				const reconciledHeaders: TableHeader[] = [];
 				const addedNames = new SvelteSet();
@@ -805,7 +828,10 @@ bulk actions, and predictive preloading.
 						reconciledHeaders.push({
 							...schemaHeader,
 							id: savedHeader.id || schemaHeader.id,
-							visible: typeof savedHeader.visible === 'boolean' ? savedHeader.visible : schemaHeader.visible
+							visible:
+								typeof savedHeader.visible === 'boolean'
+									? savedHeader.visible
+									: schemaHeader.visible
 						});
 						addedNames.add(savedHeader.name);
 					}
@@ -930,7 +956,8 @@ bulk actions, and predictive preloading.
 	};
 
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
-	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
+	const onUnpublish = () =>
+		setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
 	const onDraft = () => setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
@@ -955,7 +982,9 @@ bulk actions, and predictive preloading.
 							if (collId) {
 								const result = await batchDeleteEntries(collId, selectedIds);
 								if (result.success) {
-									toast.success(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`);
+									toast.success(
+										`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`
+									);
 								} else {
 									throw new Error('Batch delete failed');
 								}
@@ -971,7 +1000,9 @@ bulk actions, and predictive preloading.
 									return Promise.resolve();
 								})
 							);
-							toast.success(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`);
+							toast.success(
+								`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`
+							);
 						}
 					} else {
 						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
@@ -1007,7 +1038,9 @@ bulk actions, and predictive preloading.
 	};
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
-		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
+		displayTableHeaders = displayTableHeaders.map((h) =>
+			h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h
+		);
 	}
 
 	function resetViewSettings() {
@@ -1066,7 +1099,9 @@ bulk actions, and predictive preloading.
 		}
 
 		const headersToUse = visibleTableHeaders.length > 0 ? visibleTableHeaders : tableHeaders;
-		const headerLabels = headersToUse.map((h) => `"${(h.label || h.name || '').replace(/"/g, '""')}"`);
+		const headerLabels = headersToUse.map(
+			(h) => `"${(h.label || h.name || '').replace(/"/g, '""')}"`
+		);
 		const headerKeys = headersToUse.map((h) => h.name || h.id || '');
 
 		const rowsCsv = itemsToExport.map((item) => {
@@ -1092,7 +1127,9 @@ bulk actions, and predictive preloading.
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
 
-		toast.success(`Exported ${itemsToExport.length} ${itemsToExport.length === 1 ? 'entry' : 'entries'} to CSV`);
+		toast.success(
+			`Exported ${itemsToExport.length} ${itemsToExport.length === 1 ? 'entry' : 'entries'} to CSV`
+		);
 	}
 
 	// Keyboard Grid Navigation (ATAG / WCAG 2.2 AA)
@@ -1182,8 +1219,16 @@ bulk actions, and predictive preloading.
 
 <!--Table -->
 {#if !currentCollection}
-	<div class="dark:bg-error-500/10 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-500/10 p-8">
-		<svg aria-hidden="true" class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	<div
+		class="dark:bg-error-500/10 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-500/10 p-8"
+	>
+		<svg
+			aria-hidden="true"
+			class="mb-4 h-16 w-16 text-error-500"
+			fill="none"
+			stroke="currentColor"
+			viewBox="0 0 24 24"
+		>
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -1202,11 +1247,13 @@ bulk actions, and predictive preloading.
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
 		<div class="flex flex-1 items-center gap-3 min-w-0">
 			{#if ui.state.leftSidebar === 'hidden'}
-				<Button variant="outline"
+				<Button
+					variant="outline"
 					type="button"
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="open-sidebar"
-					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-surface-500/30 dark:border-surface-500/40">
+					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-surface-500/30 dark:border-surface-500/40"
+				>
 					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
 				</Button>
 			{/if}
@@ -1216,14 +1263,19 @@ bulk actions, and predictive preloading.
 					<span class="text-[11px] font-medium uppercase truncate">{categoryName}</span>
 				{/if}
 				<div class="flex items-center gap-2">
-					<iconify-icon icon={collectionIcon} width="22" class="text-primary-500 shrink-0"></iconify-icon>
+					<iconify-icon icon={collectionIcon} width="22" class="text-primary-500 shrink-0"
+					></iconify-icon>
 					{#if currentCollection?.name}
-						<h1 class="text-lg md:text-xl font-bold tracking-tight text-surface-900 dark:text-surface-50 truncate">
+						<h1
+							class="text-lg md:text-xl font-bold tracking-tight text-surface-900 dark:text-surface-50 truncate"
+						>
 							{currentCollection.name}
 						</h1>
 					{/if}
 					{#if collectionStats}
-						<span class="rounded-full bg-surface-200 dark:bg-surface-800 px-2 py-0.5 text-xs font-semibold text-surface-600 dark:text-surface-300">
+						<span
+							class="rounded-full bg-surface-200 dark:bg-surface-800 px-2 py-0.5 text-xs font-semibold text-surface-600 dark:text-surface-300"
+						>
 							{collectionStats.count}
 						</span>
 					{/if}
@@ -1257,11 +1309,13 @@ bulk actions, and predictive preloading.
 		<!-- Right: Action Buttons (Create / MultiButton) -->
 		<div class="flex flex-1 items-center justify-end gap-2">
 			<!-- Mobile Filter Toggle -->
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				type="button"
 				onclick={() => (expand = !expand)}
 				aria-label="expand-collapse-filters"
-				class="h-10 px-3 rounded-xl sm:hidden border border-surface-500/30 dark:border-surface-500/40">
+				class="h-10 px-3 rounded-xl sm:hidden border border-surface-500/30 dark:border-surface-500/40"
+			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="20"></iconify-icon>
 			</Button>
 
@@ -1287,7 +1341,9 @@ bulk actions, and predictive preloading.
 
 	<!-- Mobile Expanded Filters -->
 	{#if expand}
-		<div class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800">
+		<div
+			class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800"
+		>
 			<TableFilter
 				bind:globalSearchValue
 				bind:filterShow
@@ -1318,14 +1374,21 @@ bulk actions, and predictive preloading.
 
 	{#if columnShow}
 		<!-- Column order -->
-		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-secondary-500/10 p-2 text-center dark:bg-surface-700">
+		<div
+			class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-secondary-500/10 p-2 text-center dark:bg-surface-700"
+		>
 			<div class="text-sm dark:text-primary-500">{entrylist_dnd()}</div>
 			<!-- Select All Columns -->
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
 					<Checkbox bind:checked={selectAllColumns.value} label={entrylist_all()} />
 
-					<Button variant="outline" onclick={resetViewSettings} aria-label="reset-view" class="bg-surface-400 text-white">
+					<Button
+						variant="outline"
+						onclick={resetViewSettings}
+						aria-label="reset-view"
+						class="bg-surface-400 text-white"
+					>
 						<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
 						Reset View
 					</Button>
@@ -1348,17 +1411,26 @@ bulk actions, and predictive preloading.
 						<div
 							animate:flip={{ duration: 300 }}
 							use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
-							use:droppable={{ container: 'columns', callbacks: { onDrop: handleColumnDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }}
+							use:droppable={{
+								container: 'columns',
+								callbacks: { onDrop: handleColumnDrop },
+								direction: 'horizontal',
+								attributes: { dragOverClass: 'bg-secondary-200' }
+							}}
 							data-header-id={header.id}
 							role="listitem"
 							tabindex="0"
 							aria-label={`Column: ${header.label}. Press Space to grab, arrows to move.`}
 						>
-							<Button variant="tertiary"
+							<Button
+								variant="tertiary"
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}
 								aria-label="toggle-column-visibility"
-							 class="chip {header.visible ? '' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
+								class="chip {header.visible
+									? ''
+									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
+							>
 								{#if header.visible}
 									<iconify-icon icon="fa:check" width={24} class="me-1"></iconify-icon>
 								{/if}
@@ -1381,383 +1453,455 @@ bulk actions, and predictive preloading.
 			manageScroll={false}
 			currentPage={serverPagination.currentPage}
 			rowsPerPage={serverPagination.pageSize}
-			pagesCount={pagesCount}
-			totalItems={totalItems}
-			onUpdatePage={onUpdatePage}
-			onUpdateRowsPerPage={onUpdateRowsPerPage}
+			{pagesCount}
+			{totalItems}
+			{onUpdatePage}
+			{onUpdateRowsPerPage}
 			urlPageParam="page"
 			class="min-h-0 flex-1"
 		>
 			{#snippet emptyAction()}
-				<Button variant="outline" size="sm" onclick={onClearAllFilters} aria-label="Clear all filters">
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={onClearAllFilters}
+					aria-label="Clear all filters"
+				>
 					Clear filters
 				</Button>
 			{/snippet}
 
-		{#if smartTable.viewMode === 'card'}
-			<!-- Card View Grid -->
-			<div
-				bind:this={scrollContainerEl}
-				onscroll={onVirtualScroll}
-				class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto p-3"
-				tabindex="0"
-				role="grid"
-				aria-label="Collection entries card grid"
-				onkeydown={handleTableKeydown}
-			>
-				{#if filterShow && visibleTableHeaders.length > 0}
-					<div class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900">
-						<SmartFilterRow
-							headers={visibleTableHeaders}
-							definitions={smartFilter.definitions}
-							filters={smartFilter.filters}
-							activeFilters={smartFilter.activeFilters}
-							onFilterChange={onFilterChange}
-							onClearAll={onClearAllFilters}
-							onClearFilter={onClearFilter}
-							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-							advancedCount={advancedFilterClauses.length}
-						/>
-					</div>
-				{/if}
+			{#if smartTable.viewMode === 'card'}
+				<!-- Card View Grid -->
+				<div
+					bind:this={scrollContainerEl}
+					onscroll={onVirtualScroll}
+					class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto p-3"
+					tabindex="0"
+					role="grid"
+					aria-label="Collection entries card grid"
+					onkeydown={handleTableKeydown}
+				>
+					{#if filterShow && visibleTableHeaders.length > 0}
+						<div
+							class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
+						>
+							<SmartFilterRow
+								headers={visibleTableHeaders}
+								definitions={smartFilter.definitions}
+								filters={smartFilter.filters}
+								activeFilters={smartFilter.activeFilters}
+								{onFilterChange}
+								onClearAll={onClearAllFilters}
+								{onClearFilter}
+								onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+								advancedCount={advancedFilterClauses.length}
+							/>
+						</div>
+					{/if}
 
-				{#if tableData.length > 0}
-					<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-						{#each visibleRows as entry, index (entry._id)}
-							{@const rowId = String(entry._id ?? '')}
-							{@const rowSelected = smartTable.isSelected(rowId)}
-							{@const isFocused = focusedRowIndex === index}
-							<div
-								class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer {rowSelected
-									? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
-									: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-primary-500/50 hover:shadow-md'} {isFocused
-									? 'ring-2 ring-primary-500 ring-offset-2'
-									: ''}"
-								role="row"
-								tabindex={isFocused ? 0 : -1}
-								onclick={(e) => {
-									const target = e.target as HTMLElement | null;
-									if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-									const originalEntry = tableData.find((item: CollectionEntry) => item._id === entry._id);
-									if (originalEntry) {
-										modeTransitionGuard.setMode('edit');
-										setCollectionValue(originalEntry);
-										reflectModeInURL('edit', originalEntry._id as string);
-									}
-								}}
-							>
-								<!-- Top: Checkbox, Title/ID, Status -->
-								<div class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5">
-									<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
-										<Checkbox
-											checked={rowSelected}
-											onchange={() => smartTable.toggleSelect(rowId)}
-											label="Select entry {rowId}"
-											hideLabel
-										/>
-										<span class="text-xs font-bold text-surface-900 dark:text-surface-100 truncate">
-											{String(entry[(visibleTableHeaders[0]?.name as any)] || entry._id || 'Entry')}
-										</span>
-									</div>
-									<div data-prevent-row-click>
-										<Status value={entry.status || entry.raw_status || 'draft'} />
-									</div>
-								</div>
-
-								<!-- Body: Key Fields -->
-								<div class="my-3 space-y-1.5 text-xs text-surface-600 dark:text-surface-400">
-									{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
-										{@const fieldName = (header as TableHeader).name || ''}
-										<div class="flex items-center justify-between gap-2">
-											<span class="font-medium text-surface-500 capitalize truncate">{header.label}:</span>
-											<span class="font-semibold text-surface-600 dark:text-surface-400 truncate max-w-[60%]">
-												{String((entry as any)[fieldName] ?? '-')}
+					{#if tableData.length > 0}
+						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+							{#each visibleRows as entry, index (entry._id)}
+								{@const rowId = String(entry._id ?? '')}
+								{@const rowSelected = smartTable.isSelected(rowId)}
+								{@const isFocused = focusedRowIndex === index}
+								<div
+									class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer {rowSelected
+										? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
+										: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-primary-500/50 hover:shadow-md'} {isFocused
+										? 'ring-2 ring-primary-500 ring-offset-2'
+										: ''}"
+									role="row"
+									tabindex={isFocused ? 0 : -1}
+									onclick={(e) => {
+										const target = e.target as HTMLElement | null;
+										if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+										const originalEntry = tableData.find(
+											(item: CollectionEntry) => item._id === entry._id
+										);
+										if (originalEntry) {
+											modeTransitionGuard.setMode('edit');
+											setCollectionValue(originalEntry);
+											reflectModeInURL('edit', originalEntry._id as string);
+										}
+									}}
+								>
+									<!-- Top: Checkbox, Title/ID, Status -->
+									<div
+										class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5"
+									>
+										<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
+											<Checkbox
+												checked={rowSelected}
+												onchange={() => smartTable.toggleSelect(rowId)}
+												label="Select entry {rowId}"
+												hideLabel
+											/>
+											<span
+												class="text-xs font-bold text-surface-900 dark:text-surface-100 truncate"
+											>
+												{String(entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry')}
 											</span>
 										</div>
-									{/each}
-								</div>
+										<div data-prevent-row-click>
+											<Status value={entry.status || entry.raw_status || 'draft'} />
+										</div>
+									</div>
 
-								<!-- Footer: Quick Actions -->
-								<div class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400">
-									<span class="text-[11px]">
-										{formatDisplayDate((entry.updatedAt as string) || (entry.createdAt as string) || '')}
-									</span>
-									<Button
-										variant="ghost"
-										size="sm"
-										class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
-										onclick={() => {
-											modeTransitionGuard.setMode('edit');
-											setCollectionValue(entry);
-											reflectModeInURL('edit', entry._id as string);
-										}}
+									<!-- Body: Key Fields -->
+									<div class="my-3 space-y-1.5 text-xs text-surface-600 dark:text-surface-400">
+										{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
+											{@const fieldName = (header as TableHeader).name || ''}
+											<div class="flex items-center justify-between gap-2">
+												<span class="font-medium text-surface-500 capitalize truncate"
+													>{header.label}:</span
+												>
+												<span
+													class="font-semibold text-surface-600 dark:text-surface-400 truncate max-w-[60%]"
+												>
+													{String((entry as any)[fieldName] ?? '-')}
+												</span>
+											</div>
+										{/each}
+									</div>
+
+									<!-- Footer: Quick Actions -->
+									<div
+										class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400"
 									>
-										<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
-										Edit
-									</Button>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{:else}
-					<div class="p-8 text-center text-surface-500 dark:text-surface-400">No results found.</div>
-				{/if}
-			</div>
-		{:else}
-		<div
-			bind:this={scrollContainerEl}
-			onscroll={onVirtualScroll}
-			onkeydown={handleTableKeydown}
-			tabindex="0"
-			role="region"
-			aria-label="Collection entries table"
-			class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-surface-500/30 dark:border-surface-500/40 shadow-xs focus:outline-hidden"
-		>
-			<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
-				<!-- Table Header -->
-				<thead class={SMART_TABLE_THEAD}>
-					{#if filterShow && visibleTableHeaders.length > 0}
-						<SmartFilterRow
-							headers={visibleTableHeaders}
-							definitions={smartFilter.definitions}
-							filters={smartFilter.filters}
-							activeFilters={smartFilter.activeFilters}
-							onFilterChange={onFilterChange}
-							onClearAll={onClearAllFilters}
-							onClearFilter={onClearFilter}
-							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-							advancedCount={advancedFilterClauses.length}
-						/>
-					{/if}
-
-					<tr class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/90">
-						<TableIcons
-							cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
-							checked={SelectAll.value}
-							onCheck={(checked: boolean) => {
-								SelectAll.value = checked;
-							}}
-						/>
-
-						{#each visibleTableHeaders as header (header.id)}
-							{@const colKey = ((header as TableHeader).name || header.id) as string}
-							{@const rankInfo = smartTable.getSortRank(colKey)}
-							{@const isActiveSort = rankInfo !== null}
-							<th
-								class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-surface-600 dark:text-surface-400 {cellPaddingClass}"
-								style={smartTable.getColumnWidthStyle(colKey)}
-								aria-sort={isActiveSort
-									? rankInfo.direction === 1
-										? 'ascending'
-										: rankInfo.direction === -1
-											? 'descending'
-											: 'none'
-									: 'none'}
-							>
-								<button
-									type="button"
-									class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold text-xs tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
-										? 'text-primary-600 dark:text-primary-400 font-bold'
-										: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
-									onclick={(e) => onSortChange(colKey, e.shiftKey)}
-									aria-label="Sort by {(header as TableHeader).label}"
-									title="Click to sort, Shift+Click to compose secondary sorts"
-								>
-									<span class="truncate">{(header as TableHeader).label}</span>
-									{#if isActiveSort}
-										{#if smartTable.multiSort.length > 1}
-											<span class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold">
-												{rankInfo.rank}
-											</span>
-										{/if}
-										{@const sortIcon = rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-										<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"></iconify-icon>
-									{/if}
-								</button>
-								<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-surface-200/60 dark:divide-surface-800/60">
-					{#if useRowVirtualization && spacerTop > 0}
-						<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
-					{/if}
-					{#if tableData.length > 0}
-						{#each visibleRows as entry, index (entry._id)}
-							{@const rowId = String(entry._id ?? '')}
-							{@const rowSelected = smartTable.isSelected(rowId)}
-							{@const isFocused = focusedRowIndex === index}
-							<tr
-								class="transition-colors duration-150 {rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : 'hover:bg-surface-500/10 dark:hover:bg-surface-800/50'} {isFocused ? 'ring-2 ring-primary-500 ring-inset' : ''}"
-								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
-								role="row"
-								aria-selected={rowSelected}
-								tabindex={isFocused ? 0 : -1}
-								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
-								onmouseleave={handleRowHoverEnd}
-								onclick={(e) => {
-									const target = e.target as HTMLElement | null;
-									if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-									const originalEntry = tableData.find((item: CollectionEntry) => item._id === entry._id);
-									if (originalEntry) {
-										modeTransitionGuard.setMode("edit");
-										setCollectionValue(originalEntry);
-										reflectModeInURL("edit", originalEntry._id as string);
-									}
-								}}
-							>
-								<TableIcons
-									cellClass={`w-10 text-center ${pinCellClass('start')} ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
-									checked={rowSelected}
-									onCheck={() => {
-										if (rowId) smartTable.toggleSelect(rowId);
-									}}
-								/>
-								{#if visibleTableHeaders}
-									{#each visibleTableHeaders as header, colIdx (header.id)}
-										{@const cellKey = ((header as TableHeader).name || header.id) as string}
-										{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
-										<td
-											role="gridcell"
-											aria-colindex={colIdx + 2}
-											class="text-center {cellPaddingClass} text-xs sm:text-sm text-surface-600 dark:text-surface-400 {(header as TableHeader).name !== 'status'
-												? 'cursor-pointer transition-colors duration-150 hover:bg-surface-200/50 dark:hover:bg-surface-700/50'
-												: ''} {isFocusedCell ? 'ring-2 ring-primary-500 ring-inset' : ''}"
-											style={smartTable.getColumnWidthStyle(cellKey)}
-											onclick={async () => {
-												if ((header as TableHeader).name === 'status') {
-													// Handle single entry status change with modal (same style as multibutton)
-													const currentStatus = entry.status || entry.raw_status || 'draft';
-													let nextStatus;
-
-													// Define status progression logic using StatusTypes
-													switch (currentStatus) {
-														case StatusTypes.draft:
-															nextStatus = StatusTypes.publish;
-															break;
-														case StatusTypes.publish:
-															nextStatus = StatusTypes.unpublish;
-															break;
-														case StatusTypes.unpublish:
-															nextStatus = StatusTypes.publish;
-															break;
-														case StatusTypes.schedule:
-															nextStatus = StatusTypes.publish;
-															break;
-														default:
-															nextStatus = StatusTypes.publish;
-															break;
-													}
-
-													// Create modal with same styling as multibutton modals
-													showStatusChangeConfirm({
-														status: String(nextStatus),
-														count: 1,
-														onConfirm: async () => {
-															try {
-																const collId = collections.active?._id;
-																if (!collId) return;
-																const result = await updateEntryStatus(collId, entry._id as string, String(nextStatus));
-																if (result.success) {
-																	toast.success(`Entry status updated to ${nextStatus}`);
-																	onActionSuccess();
-																} else {
-																	toast.error(result.error || 'Failed to update entry status');
-																}
-															} catch (error) {
-																logger.error('Error updating entry status:', error);
-																toast.error('An error occurred while updating entry status');
-															}
-														}
-													});
-												} else {
-													// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
-													const originalEntry = tableData.find((e: CollectionEntry) => e._id === entry._id);
-													if (originalEntry) {
-														// 1. Check cache & load if needed
-														// Navigate to edit mode - this triggers SSR to load full multilingual data
-														// List view has language-projected data, edit mode needs all languages
-
-														// 2. Update stores INSTANTLY (no waiting)
-														// The URL pattern document mandates GUI-First: state first, URL second
-														modeTransitionGuard.setMode("edit");
-														setCollectionValue(originalEntry);
-
-														// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
-														reflectModeInURL("edit", originalEntry._id as string);
-
-														logger.debug(`[Edit] Loading full data for entry ${originalEntry._id}`);
-													}
-												}
+										<span class="text-[11px]">
+											{formatDisplayDate(
+												(entry.updatedAt as string) || (entry.createdAt as string) || ''
+											)}
+										</span>
+										<Button
+											variant="ghost"
+											size="sm"
+											class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
+											onclick={() => {
+												modeTransitionGuard.setMode('edit');
+												setCollectionValue(entry);
+												reflectModeInURL('edit', entry._id as string);
 											}}
 										>
-											<SystemTooltip title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}>
-												{#if (header as TableHeader).name === 'status'}
-													<div class="flex w-full items-center justify-center"><Status value={entry.status || entry.raw_status || 'draft'} /></div>
-												{:else if (header as TableHeader).component}
-													<!-- Dynamic Plugin Component Injection -->
-													{const pluginId = ((header as TableHeader).id || '').split('-')[0]}
-
-													<PluginComponent
-														{pluginId}
-														componentName={(header as TableHeader).component || ''}
-														{...mapPluginProps((header as TableHeader).props, entry)}
-														compact={true}
-													/>
-												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
-													<div class="flex flex-col text-xs">
-														<div class="font-semibold">
-															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, undefined, {
-																year: 'numeric',
-																month: 'short',
-																day: 'numeric'
-															})}
-														</div>
-														<div class="text-surface-500 dark:text-surface-400">
-															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, undefined, {
-																hour: '2-digit',
-																minute: '2-digit',
-																second: '2-digit',
-																hour12: false
-															})}
-														</div>
-													</div>
-												{:else if (header as TableHeader).widgetName}
-													<EntryListCell
-														widgetName={(header as TableHeader).widgetName}
-														fieldName={(header as TableHeader).name || ''}
-														value={(entry as any)[(header as TableHeader).name || '']}
-														contentLanguage={currentLanguage}
-														compact={true}
-													/>
-												{:else}
-													<Sanitize html={String((entry as any)[(header as TableHeader).name || ''] || '-')} profile="strict" />
-												{/if}
-											</SystemTooltip>
-										</td>
-									{/each}
-								{/if}
-							</tr>
-						{/each}
-						{#if useRowVirtualization && spacerBottom > 0}
-							<tr style="height: {spacerBottom}px" aria-hidden="true"></tr>
-						{/if}
+											<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
+											Edit
+										</Button>
+									</div>
+								</div>
+							{/each}
+						</div>
 					{:else}
-						<tr>
-							<td colspan={visibleTableHeaders.length + 1} class="p-4 text-center text-surface-500 dark:text-surface-50">No results found.</td>
-						</tr>
+						<div class="p-8 text-center text-surface-500 dark:text-surface-400">
+							No results found.
+						</div>
 					{/if}
-				</tbody>
-			</table>
-		</div>
-		{/if}
+				</div>
+			{:else}
+				<div
+					bind:this={scrollContainerEl}
+					onscroll={onVirtualScroll}
+					onkeydown={handleTableKeydown}
+					tabindex="0"
+					role="region"
+					aria-label="Collection entries table"
+					class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-surface-500/30 dark:border-surface-500/40 shadow-xs focus:outline-hidden"
+				>
+					<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
+						<!-- Table Header -->
+						<thead class={SMART_TABLE_THEAD}>
+							{#if filterShow && visibleTableHeaders.length > 0}
+								<SmartFilterRow
+									headers={visibleTableHeaders}
+									definitions={smartFilter.definitions}
+									filters={smartFilter.filters}
+									activeFilters={smartFilter.activeFilters}
+									{onFilterChange}
+									onClearAll={onClearAllFilters}
+									{onClearFilter}
+									onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+									advancedCount={advancedFilterClauses.length}
+								/>
+							{/if}
+
+							<tr
+								class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/90"
+							>
+								<TableIcons
+									cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
+									checked={SelectAll.value}
+									onCheck={(checked: boolean) => {
+										SelectAll.value = checked;
+									}}
+								/>
+
+								{#each visibleTableHeaders as header (header.id)}
+									{@const colKey = ((header as TableHeader).name || header.id) as string}
+									{@const rankInfo = smartTable.getSortRank(colKey)}
+									{@const isActiveSort = rankInfo !== null}
+									<th
+										class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-surface-600 dark:text-surface-400 {cellPaddingClass}"
+										style={smartTable.getColumnWidthStyle(colKey)}
+										aria-sort={isActiveSort
+											? rankInfo.direction === 1
+												? 'ascending'
+												: rankInfo.direction === -1
+													? 'descending'
+													: 'none'
+											: 'none'}
+									>
+										<button
+											type="button"
+											class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold text-xs tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
+												? 'text-primary-600 dark:text-primary-400 font-bold'
+												: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
+											onclick={(e) => onSortChange(colKey, e.shiftKey)}
+											aria-label="Sort by {(header as TableHeader).label}"
+											title="Click to sort, Shift+Click to compose secondary sorts"
+										>
+											<span class="truncate">{(header as TableHeader).label}</span>
+											{#if isActiveSort}
+												{#if smartTable.multiSort.length > 1}
+													<span
+														class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold"
+													>
+														{rankInfo.rank}
+													</span>
+												{/if}
+												{@const sortIcon =
+													rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+												<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"
+												></iconify-icon>
+											{/if}
+										</button>
+										<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
+									</th>
+								{/each}
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-surface-200/60 dark:divide-surface-800/60">
+							{#if useRowVirtualization && spacerTop > 0}
+								<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
+							{/if}
+							{#if tableData.length > 0}
+								{#each visibleRows as entry, index (entry._id)}
+									{@const rowId = String(entry._id ?? '')}
+									{@const rowSelected = smartTable.isSelected(rowId)}
+									{@const isFocused = focusedRowIndex === index}
+									<tr
+										class="transition-colors duration-150 {rowSelected
+											? 'bg-primary-500/10 dark:bg-primary-500/20'
+											: 'hover:bg-surface-500/10 dark:hover:bg-surface-800/50'} {isFocused
+											? 'ring-2 ring-primary-500 ring-inset'
+											: ''}"
+										style={useRowVirtualization
+											? 'content-visibility: auto; contain-intrinsic-size: 48px;'
+											: undefined}
+										role="row"
+										aria-selected={rowSelected}
+										tabindex={isFocused ? 0 : -1}
+										onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
+										onmouseleave={handleRowHoverEnd}
+										onclick={(e) => {
+											const target = e.target as HTMLElement | null;
+											if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+											const originalEntry = tableData.find(
+												(item: CollectionEntry) => item._id === entry._id
+											);
+											if (originalEntry) {
+												modeTransitionGuard.setMode('edit');
+												setCollectionValue(originalEntry);
+												reflectModeInURL('edit', originalEntry._id as string);
+											}
+										}}
+									>
+										<TableIcons
+											cellClass={`w-10 text-center ${pinCellClass('start')} ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
+											checked={rowSelected}
+											onCheck={() => {
+												if (rowId) smartTable.toggleSelect(rowId);
+											}}
+										/>
+										{#if visibleTableHeaders}
+											{#each visibleTableHeaders as header, colIdx (header.id)}
+												{@const cellKey = ((header as TableHeader).name || header.id) as string}
+												{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
+												<td
+													role="gridcell"
+													aria-colindex={colIdx + 2}
+													class="text-center {cellPaddingClass} text-xs sm:text-sm text-surface-600 dark:text-surface-400 {(
+														header as TableHeader
+													).name !== 'status'
+														? 'cursor-pointer transition-colors duration-150 hover:bg-surface-200/50 dark:hover:bg-surface-700/50'
+														: ''} {isFocusedCell ? 'ring-2 ring-primary-500 ring-inset' : ''}"
+													style={smartTable.getColumnWidthStyle(cellKey)}
+													onclick={async () => {
+														if ((header as TableHeader).name === 'status') {
+															// Handle single entry status change with modal (same style as multibutton)
+															const currentStatus = entry.status || entry.raw_status || 'draft';
+															let nextStatus;
+
+															// Define status progression logic using StatusTypes
+															switch (currentStatus) {
+																case StatusTypes.draft:
+																	nextStatus = StatusTypes.publish;
+																	break;
+																case StatusTypes.publish:
+																	nextStatus = StatusTypes.unpublish;
+																	break;
+																case StatusTypes.unpublish:
+																	nextStatus = StatusTypes.publish;
+																	break;
+																case StatusTypes.schedule:
+																	nextStatus = StatusTypes.publish;
+																	break;
+																default:
+																	nextStatus = StatusTypes.publish;
+																	break;
+															}
+
+															// Create modal with same styling as multibutton modals
+															showStatusChangeConfirm({
+																status: String(nextStatus),
+																count: 1,
+																onConfirm: async () => {
+																	try {
+																		const collId = collections.active?._id;
+																		if (!collId) return;
+																		const result = await updateEntryStatus(
+																			collId,
+																			entry._id as string,
+																			String(nextStatus)
+																		);
+																		if (result.success) {
+																			toast.success(`Entry status updated to ${nextStatus}`);
+																			onActionSuccess();
+																		} else {
+																			toast.error(result.error || 'Failed to update entry status');
+																		}
+																	} catch (error) {
+																		logger.error('Error updating entry status:', error);
+																		toast.error('An error occurred while updating entry status');
+																	}
+																}
+															});
+														} else {
+															// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
+															const originalEntry = tableData.find(
+																(e: CollectionEntry) => e._id === entry._id
+															);
+															if (originalEntry) {
+																// 1. Check cache & load if needed
+																// Navigate to edit mode - this triggers SSR to load full multilingual data
+																// List view has language-projected data, edit mode needs all languages
+
+																// 2. Update stores INSTANTLY (no waiting)
+																// The URL pattern document mandates GUI-First: state first, URL second
+																modeTransitionGuard.setMode('edit');
+																setCollectionValue(originalEntry);
+
+																// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
+																reflectModeInURL('edit', originalEntry._id as string);
+
+																logger.debug(
+																	`[Edit] Loading full data for entry ${originalEntry._id}`
+																);
+															}
+														}
+													}}
+												>
+													<SystemTooltip
+														title={(header as TableHeader).name !== 'status'
+															? 'Click to edit this entry'
+															: 'Click to change status'}
+													>
+														{#if (header as TableHeader).name === 'status'}
+															<div class="flex w-full items-center justify-center">
+																<Status value={entry.status || entry.raw_status || 'draft'} />
+															</div>
+														{:else if (header as TableHeader).component}
+															<!-- Dynamic Plugin Component Injection -->
+															{const pluginId = ((header as TableHeader).id || '').split('-')[0]}
+
+															<PluginComponent
+																{pluginId}
+																componentName={(header as TableHeader).component || ''}
+																{...mapPluginProps((header as TableHeader).props, entry)}
+																compact={true}
+															/>
+														{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
+															<div class="flex flex-col text-xs">
+																<div class="font-semibold">
+																	{formatDisplayDate(
+																		(entry as any)[(header as TableHeader).name || ''] as string,
+																		undefined,
+																		{
+																			year: 'numeric',
+																			month: 'short',
+																			day: 'numeric'
+																		}
+																	)}
+																</div>
+																<div class="text-surface-500 dark:text-surface-400">
+																	{formatDisplayDate(
+																		(entry as any)[(header as TableHeader).name || ''] as string,
+																		undefined,
+																		{
+																			hour: '2-digit',
+																			minute: '2-digit',
+																			second: '2-digit',
+																			hour12: false
+																		}
+																	)}
+																</div>
+															</div>
+														{:else if (header as TableHeader).widgetName}
+															<EntryListCell
+																widgetName={(header as TableHeader).widgetName}
+																fieldName={(header as TableHeader).name || ''}
+																value={(entry as any)[(header as TableHeader).name || '']}
+																contentLanguage={currentLanguage}
+																compact={true}
+															/>
+														{:else}
+															<Sanitize
+																html={String(
+																	(entry as any)[(header as TableHeader).name || ''] || '-'
+																)}
+																profile="strict"
+															/>
+														{/if}
+													</SystemTooltip>
+												</td>
+											{/each}
+										{/if}
+									</tr>
+								{/each}
+								{#if useRowVirtualization && spacerBottom > 0}
+									<tr style="height: {spacerBottom}px" aria-hidden="true"></tr>
+								{/if}
+							{:else}
+								<tr>
+									<td
+										colspan={visibleTableHeaders.length + 1}
+										class="p-4 text-center text-surface-500 dark:text-surface-50"
+										>No results found.</td
+									>
+								</tr>
+							{/if}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		</SmartTableShell>
 	{:else}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				{currentCollection?.name ? EntryList_no_collection({ name: currentCollection.name }) : 'No collection selected or collection is empty.'}
+				{currentCollection?.name
+					? EntryList_no_collection({ name: currentCollection.name })
+					: 'No collection selected or collection is empty.'}
 			</p>
 		</div>
 	{/if}

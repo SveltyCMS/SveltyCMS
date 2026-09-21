@@ -5,12 +5,12 @@
 -->
 
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "System Health",
-	icon: "mdi:heart-pulse",
-	description: "Monitor system services and overall health",
-	defaultSize: { w: 2, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'System Health',
+		icon: 'mdi:heart-pulse',
+		description: 'Monitor system services and overall health',
+		defaultSize: { w: 2, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -76,21 +76,31 @@ export const widgetMeta = {
 
 	const overallColor = $derived.by(() => {
 		switch (health?.overallStatus) {
-			case 'READY': return 'text-success-600 dark:text-success-400';
-			case 'DEGRADED': return 'text-warning-600 dark:text-warning-400';
-			case 'FAILED': return 'text-error-600 dark:text-error-400';
-			case 'INITIALIZING': return 'text-tertiary-600 dark:text-tertiary-400';
-			default: return 'text-surface-500';
+			case 'READY':
+				return 'text-success-600 dark:text-success-400';
+			case 'DEGRADED':
+				return 'text-warning-600 dark:text-warning-400';
+			case 'FAILED':
+				return 'text-error-600 dark:text-error-400';
+			case 'INITIALIZING':
+				return 'text-tertiary-600 dark:text-tertiary-400';
+			default:
+				return 'text-surface-500';
 		}
 	});
 
 	function getStateIcon(state: SystemState): string {
 		switch (state) {
-			case 'READY': return 'mdi:check-circle';
-			case 'DEGRADED': return 'mdi:alert-circle';
-			case 'FAILED': return 'mdi:close-circle';
-			case 'INITIALIZING': return 'mdi:loading';
-			default: return 'mdi:pause-circle';
+			case 'READY':
+				return 'mdi:check-circle';
+			case 'DEGRADED':
+				return 'mdi:alert-circle';
+			case 'FAILED':
+				return 'mdi:close-circle';
+			case 'INITIALIZING':
+				return 'mdi:loading';
+			default:
+				return 'mdi:pause-circle';
 		}
 	}
 
@@ -102,9 +112,7 @@ export const widgetMeta = {
 	}
 
 	function formatServiceName(name: string): string {
-		return name
-			.replace(/([A-Z])/g, ' $1')
-			.replace(/^./, str => str.toUpperCase());
+		return name.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
 	}
 
 	async function reinitializeSystem() {
@@ -124,7 +132,9 @@ export const widgetMeta = {
 				throw new Error('Reinitialization failed');
 			}
 		} catch (err) {
-			toast.error(`Reinitialization failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+			toast.error(
+				`Reinitialization failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+			);
 		}
 	}
 
@@ -165,12 +175,18 @@ export const widgetMeta = {
 		{#if !healthData}
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
+					<div
+						class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
+					></div>
 					<p class="text-sm">{dashboard_health_checking()}</p>
 				</div>
 			</div>
 		{:else}
-			<div class="flex h-full flex-col justify-between" role="region" aria-label={dashboard_health_aria()}>
+			<div
+				class="flex h-full flex-col justify-between"
+				role="region"
+				aria-label={dashboard_health_aria()}
+			>
 				{#if size.h === 1}
 					<!-- Compact mode layout -->
 					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-9">
@@ -180,20 +196,34 @@ export const widgetMeta = {
 								class="text-lg {overallColor}"
 							></iconify-icon>
 							<div>
-								<span class="font-semibold capitalize {overallColor}">{healthData.overallStatus}</span>
-								<span class="text-surface-500 dark:text-surface-400 ms-1">{dashboard_health_uptime()} {formatUptime(healthData.uptime)}</span>
+								<span class="font-semibold capitalize {overallColor}"
+									>{healthData.overallStatus}</span
+								>
+								<span class="text-surface-500 dark:text-surface-400 ms-1"
+									>{dashboard_health_uptime()} {formatUptime(healthData.uptime)}</span
+								>
 							</div>
 						</div>
 
 						<div class="flex items-center gap-2 font-medium text-surface-600 dark:text-surface-400">
 							{#each Object.entries(healthData.components).slice(0, 3) as [name, service] (name)}
-								<div class="flex items-center gap-1" title={`${formatServiceName(name)}: ${service.status}`}>
+								<div
+									class="flex items-center gap-1"
+									title={`${formatServiceName(name)}: ${service.status}`}
+								>
 									<span class="relative flex h-1.5 w-1.5">
-										<span class="relative inline-flex rounded-full h-1.5 w-1.5
-											{service.status === 'healthy' ? 'bg-success-500' :
-											 service.status === 'unhealthy' ? 'bg-error-500' : 'bg-warning-500'}"></span>
+										<span
+											class="relative inline-flex rounded-full h-1.5 w-1.5
+											{service.status === 'healthy'
+												? 'bg-success-500'
+												: service.status === 'unhealthy'
+													? 'bg-error-500'
+													: 'bg-warning-500'}"
+										></span>
 									</span>
-									<span class="text-[10px] opacity-80">{formatServiceName(name).substring(0, 2)}</span>
+									<span class="text-[10px] opacity-80"
+										>{formatServiceName(name).substring(0, 2)}</span
+									>
 								</div>
 							{/each}
 						</div>
@@ -234,18 +264,29 @@ export const widgetMeta = {
 							{#each Object.entries(healthData.components) as [name, service] (name)}
 								{const latency = service.performance?.latency}
 								{const history = latencyHistory[name] || []}
-								<div class="rounded-2xl bg-surface-500/10 dark:bg-surface-800/40 p-3 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between gap-3">
+								<div
+									class="rounded-2xl bg-surface-500/10 dark:bg-surface-800/40 p-3 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between gap-3"
+								>
 									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-1.5">
 											{#if name === 'database' && service.status === 'healthy'}
 												<span class="relative flex h-2 w-2">
-													<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-400 opacity-75"></span>
-													<span class="relative inline-flex rounded-full h-2 w-2 bg-success-500"></span>
+													<span
+														class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-400 opacity-75"
+													></span>
+													<span class="relative inline-flex rounded-full h-2 w-2 bg-success-500"
+													></span>
 												</span>
 											{/if}
-											<span class="text-sm font-semibold truncate text-surface-600 dark:text-surface-100">{formatServiceName(name)}</span>
+											<span
+												class="text-sm font-semibold truncate text-surface-600 dark:text-surface-100"
+												>{formatServiceName(name)}</span
+											>
 										</div>
-										<div class="text-xs text-surface-500 dark:text-surface-400 line-clamp-1 mt-0.5" title={service.message}>
+										<div
+											class="text-xs text-surface-500 dark:text-surface-400 line-clamp-1 mt-0.5"
+											title={service.message}
+										>
 											{service.message}
 										</div>
 									</div>
@@ -258,10 +299,23 @@ export const widgetMeta = {
 												x: (i / Math.max(1, history.length - 1)) * 40,
 												y: 14 - (val / maxVal) * 12
 											}))}
-											{const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
-											<div class="w-10 h-4 opacity-70 hidden sm:block" aria-hidden="true" title={dashboard_health_latency_trend()}>
+											{const linePath = points
+												.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+												.join(' ')}
+											<div
+												class="w-10 h-4 opacity-70 hidden sm:block"
+												aria-hidden="true"
+												title={dashboard_health_latency_trend()}
+											>
 												<svg viewBox="0 0 40 14" class="w-full h-full overflow-visible">
-													<path d={linePath} fill="none" stroke="rgb(16, 185, 129)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+													<path
+														d={linePath}
+														fill="none"
+														stroke="rgb(16, 185, 129)"
+														stroke-width="1.2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+													/>
 												</svg>
 											</div>
 										{/if}
@@ -269,7 +323,11 @@ export const widgetMeta = {
 										<div class="flex flex-col items-end gap-0.5">
 											<Badge
 												size="sm"
-												variant={service.status === 'healthy' ? 'success' : service.status === 'unhealthy' ? 'error' : 'warning'}
+												variant={service.status === 'healthy'
+													? 'success'
+													: service.status === 'unhealthy'
+														? 'error'
+														: 'warning'}
 												preset="tonal"
 												class="font-medium"
 											>

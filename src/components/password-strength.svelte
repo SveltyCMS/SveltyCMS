@@ -86,7 +86,9 @@ Visual password strength indicator with match validation and accessibility featu
 		}
 
 		// Complexity bonus (excluding hasMinLength)
-		const complexityCount = Object.entries(checks).filter(([key, value]) => key !== 'hasMinLength' && value).length;
+		const complexityCount = Object.entries(checks).filter(
+			([key, value]) => key !== 'hasMinLength' && value
+		).length;
 
 		score += Math.floor(complexityCount / 2);
 
@@ -128,16 +130,19 @@ Visual password strength indicator with match validation and accessibility featu
 	}
 
 	// Derived values
-	const longerPassword = $derived(password.length >= confirmPassword.length ? password : confirmPassword);
+	const longerPassword = $derived(
+		password.length >= confirmPassword.length ? password : confirmPassword
+	);
 
 	const score = $derived(calculateScore(longerPassword, complexityChecks));
 	const feedback = $derived(FEEDBACK_MESSAGES[score] || 'Unknown');
 	const scoreColor = $derived(COLOR_CLASSES[score] || COLOR_CLASSES[0]);
 	const showStrength = $derived(password.length > 0 || confirmPassword.length > 0);
 	const percentage = $derived(Math.min(100, (longerPassword.length / GREEN_LENGTH) * 100));
-	const passwordsMatch = $derived(password === confirmPassword && confirmPassword.length > 0 && password.length > 0);
+	const passwordsMatch = $derived(
+		password === confirmPassword && confirmPassword.length > 0 && password.length > 0
+	);
 	const showMatchIndicator = $derived(confirmPassword.length > 0 && password.length > 0);
-
 
 	// Count met requirements
 	const metRequirements = $derived(Object.values(complexityChecks).filter(Boolean).length);
@@ -191,7 +196,9 @@ Visual password strength indicator with match validation and accessibility featu
 				aria-valuemin={0}
 				aria-valuemax={100}
 				aria-label={strengthLabel()}
-				class="h-full rounded-sm transition-all {prefersReducedMotion ? 'duration-0' : 'duration-500 ease-out'} {scoreColor}"
+				class="h-full rounded-sm transition-all {prefersReducedMotion
+					? 'duration-0'
+					: 'duration-500 ease-out'} {scoreColor}"
 				style="width: {percentage}%;"
 			>
 				<!-- Strength text -->
@@ -226,7 +233,8 @@ Visual password strength indicator with match validation and accessibility featu
 					<div class="flex items-center gap-2">
 						<span class="text-xs text-gray-500 dark:text-gray-400"> Strength </span>
 						{#if showRequirements}
-							<Button variant="ghost"
+							<Button
+								variant="ghost"
 								size="sm"
 								type="button"
 								onclick={toggleRequirements}
@@ -256,11 +264,12 @@ Visual password strength indicator with match validation and accessibility featu
 			<div class="flex shrink-0 gap-1" role="presentation" aria-hidden="true">
 				{#each [0, 1, 2] as barIndex (barIndex)}
 					<div
-						class="h-1.5 w-8 rounded-full transition-all {prefersReducedMotion ? 'duration-0' : 'duration-400 ease-out'} {getBarColor(
-							barIndex,
-							score
-						)}"
-						style="transform: scale({barIndex < score ? 1 : 0.8}); opacity: {barIndex <= score ? 1 : 0.3};"
+						class="h-1.5 w-8 rounded-full transition-all {prefersReducedMotion
+							? 'duration-0'
+							: 'duration-400 ease-out'} {getBarColor(barIndex, score)}"
+						style="transform: scale({barIndex < score ? 1 : 0.8}); opacity: {barIndex <= score
+							? 1
+							: 0.3};"
 					></div>
 				{/each}
 			</div>
@@ -273,7 +282,9 @@ Visual password strength indicator with match validation and accessibility featu
 				class="rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
 				transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
-				<h4 class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">Password Requirements</h4>
+				<h4 class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+					Password Requirements
+				</h4>
 				<ul class="space-y-1 text-xs" role="list">
 					<li class="flex items-center gap-2">
 						<span
@@ -284,7 +295,11 @@ Visual password strength indicator with match validation and accessibility featu
 						>
 							{complexityChecks.hasMinLength ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasMinLength ? 'text-success-600 dark:text-success-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span
+							class={complexityChecks.hasMinLength
+								? 'text-success-600 dark:text-success-400'
+								: 'text-gray-600 dark:text-gray-400'}
+						>
 							At least {MIN_PASSWORD_LENGTH} characters
 						</span>
 					</li>
@@ -297,7 +312,11 @@ Visual password strength indicator with match validation and accessibility featu
 						>
 							{complexityChecks.hasUpper ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasUpper ? 'text-success-600 dark:text-success-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span
+							class={complexityChecks.hasUpper
+								? 'text-success-600 dark:text-success-400'
+								: 'text-gray-600 dark:text-gray-400'}
+						>
 							One uppercase letter
 						</span>
 					</li>
@@ -310,7 +329,11 @@ Visual password strength indicator with match validation and accessibility featu
 						>
 							{complexityChecks.hasLower ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasLower ? 'text-success-600 dark:text-success-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span
+							class={complexityChecks.hasLower
+								? 'text-success-600 dark:text-success-400'
+								: 'text-gray-600 dark:text-gray-400'}
+						>
 							One lowercase letter
 						</span>
 					</li>
@@ -323,7 +346,13 @@ Visual password strength indicator with match validation and accessibility featu
 						>
 							{complexityChecks.hasNumber ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasNumber ? 'text-success-600 dark:text-success-400' : 'text-gray-600 dark:text-gray-400'}> One number </span>
+						<span
+							class={complexityChecks.hasNumber
+								? 'text-success-600 dark:text-success-400'
+								: 'text-gray-600 dark:text-gray-400'}
+						>
+							One number
+						</span>
 					</li>
 					<li class="flex items-center gap-2">
 						<span
@@ -334,7 +363,11 @@ Visual password strength indicator with match validation and accessibility featu
 						>
 							{complexityChecks.hasSpecial ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasSpecial ? 'text-success-600 dark:text-success-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span
+							class={complexityChecks.hasSpecial
+								? 'text-success-600 dark:text-success-400'
+								: 'text-gray-600 dark:text-gray-400'}
+						>
 							One special character (!@#$%^&*)
 						</span>
 					</li>

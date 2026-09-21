@@ -36,7 +36,9 @@
 			{score}
 		</div>
 	{:else}
-		<div class="flex h-8 w-12 items-center justify-center rounded-full bg-slate-100 text-[10px] uppercase text-slate-400">
+		<div
+			class="flex h-8 w-12 items-center justify-center rounded-full bg-slate-100 text-[10px] uppercase text-slate-400"
+		>
 			N/A
 		</div>
 	{/if}

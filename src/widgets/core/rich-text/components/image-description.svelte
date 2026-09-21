@@ -27,7 +27,13 @@
 		value?: string;
 	}
 
-	let { show = false, value: propValue = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
+	let {
+		show = false,
+		value: propValue = '',
+		key = '',
+		active = $bindable(''),
+		onSubmit
+	}: Props = $props();
 
 	let localValue = $state<string | undefined>(undefined);
 
@@ -71,7 +77,13 @@
 </script>
 
 <div class:hidden={!show} class="relative">
-	<Button variant="outline" onclick={handleClick} aria-label="Description" size="sm" class="flex items-center">
+	<Button
+		variant="outline"
+		onclick={handleClick}
+		aria-label="Description"
+		size="sm"
+		class="flex items-center"
+	>
 		<iconify-icon icon="material-symbols:description" width={24}></iconify-icon>
 
 		<span class="hidden sm:inline">Description</span>
@@ -97,5 +109,4 @@
 		width: 250px;
 		transform: translate(-50%);
 	}
-
 </style>

@@ -52,18 +52,23 @@ Renders a group of fields, allowing for nested data structures.
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800',
-			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
+			container:
+				'rounded border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800',
+			header:
+				'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
 			content: 'p-4'
 		},
 		bordered: {
 			container: 'rounded border border-gray-300 dark:border-gray-600',
-			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
+			header:
+				'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
 			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
 		}
 	};
 
-	const variant = $derived(variantClasses[(field as any).variant as keyof typeof variantClasses] || variantClasses.default);
+	const variant = $derived(
+		variantClasses[(field as any).variant as keyof typeof variantClasses] || variantClasses.default
+	);
 
 	// Collapsible state with manual override
 	let manualCollapsed = $state<boolean | null>(null);
@@ -80,24 +85,27 @@ Renders a group of fields, allowing for nested data structures.
 	<!-- Header -->
 	{#if (field as any).groupTitle || (field as any).collapsible}
 		<Button variant="outline">
-			type="button"
-			onclick={toggleCollapse}
+			type="button" onclick={toggleCollapse}
 			disabled={!(field as any).collapsible}
 			aria-expanded={!isCollapsed}
-			aria-controls="{fieldName}-content"
-			class="flex w-full items-center justify-between p-3 {variant.header} {(field as any).collapsible
-				? 'hover:bg-black/5 dark:hover:bg-white/5'
-				: ''}"
-		>
+			aria-controls="{fieldName}-content" class="flex w-full items-center justify-between p-3 {variant.header}
+			{(field as any).collapsible ? 'hover:bg-black/5 dark:hover:bg-white/5' : ''}" >
 			<h4 class="text-base font-semibold">{(field as any).groupTitle || field.label}</h4>
 			{#if (field as any).collapsible}
-				<iconify-icon icon="mdi:chevron-down" width="20" class="transition-transform duration-200 {isCollapsed ? 'rotate-180' : ''}"></iconify-icon>
+				<iconify-icon
+					icon="mdi:chevron-down"
+					width="20"
+					class="transition-transform duration-200 {isCollapsed ? 'rotate-180' : ''}"
+				></iconify-icon>
 			{/if}
 		</Button>
 	{/if}
 
 	<!-- Content -->
-	<div id="{fieldName}-content" class="{variant.content} transition-all duration-200 {isCollapsed ? 'hidden' : 'block'}">
+	<div
+		id="{fieldName}-content"
+		class="{variant.content} transition-all duration-200 {isCollapsed ? 'hidden' : 'block'}"
+	>
 		{#if (field as any).fields && (field as any).fields.length > 0}
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				{#each (field as any).fields as subField, index (subField.db_fieldName || subField.name || index)}
@@ -105,13 +113,25 @@ Renders a group of fields, allowing for nested data structures.
 					{const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
 					{const widgetLoader = getWidgetLoader(widgetName)}
 
-					<div class="col-span-1 {(subField as any).width ? `lg:col-span-${(subField as any).width}` : ''} w-full">
+					<div
+						class="col-span-1 {(subField as any).width
+							? `lg:col-span-${(subField as any).width}`
+							: ''} w-full"
+					>
 						{#if widgetLoader && value}
-							<WidgetLoader loader={widgetLoader} field={subField as any} bind:value={value[subFieldName]} {tenantId} {collectionName} />
+							<WidgetLoader
+								loader={widgetLoader}
+								field={subField as any}
+								bind:value={value[subFieldName]}
+								{tenantId}
+								{collectionName}
+							/>
 						{:else if !value}
 							<p class="text-error-500">Group value is missing</p>
 						{:else}
-							<div class="rounded border border-error-500 p-2 text-error-500">Widget not found: {widgetName}</div>
+							<div class="rounded border border-error-500 p-2 text-error-500">
+								Widget not found: {widgetName}
+							</div>
 						{/if}
 					</div>
 				{/each}

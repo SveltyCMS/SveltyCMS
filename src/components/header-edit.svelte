@@ -28,18 +28,21 @@
 -->
 
 <script lang="ts">
-
-import { ui } from '@src/stores/ui-store.svelte';
-import { contentLanguage } from '@src/stores/locale-store.svelte';
-import { validationStore } from '@src/stores/validation-store.svelte';
-import Button from '@components/ui/button.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
+	import Button from '@components/ui/button.svelte';
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import { formatDateTime } from '@utils/format-date';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
-	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
+	import {
+		status_publish,
+		status_unpublish,
+		validation_fix_before_save
+	} from '@src/paraglide/messages';
 	import { setCollectionValue, collections } from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
@@ -81,7 +84,9 @@ import Button from '@components/ui/button.svelte';
 	let tempData = $state<Record<string, CollectionEntry>>({});
 
 	// Schedule (not used in current logic – kept if needed later)
-	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+	let scheduleTimestamp = $derived(
+		currentEntry?._scheduled ? Number(currentEntry._scheduled) : null
+	);
 
 	// Status toggle state & disable logic
 	let publishToggle = $derived(collections.isPublish);
@@ -93,7 +98,9 @@ import Button from '@components/ui/button.svelte';
 
 	// Next button visibility (menu wizard)
 	let showNextButton = $derived(
-		ui.wizard.shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
+		ui.wizard.shouldShowNextButton &&
+			currentMode === 'create' &&
+			(currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
 	);
 
 	// --- Effects ---
@@ -163,7 +170,7 @@ import Button from '@components/ui/button.svelte';
 				collectionId: currentCollection?._id as string,
 				entryId: entryData._id as string,
 				targetStatus: (entryData._scheduledAction as string) || StatusTypes.publish,
-				entryPath: (entryData as any).path || undefined,
+				entryPath: (entryData as any).path || undefined
 			};
 
 			const res = await fetch('/api/system-jobs', {
@@ -172,8 +179,8 @@ import Button from '@components/ui/button.svelte';
 				body: JSON.stringify({
 					taskType: 'status-transition',
 					payload,
-					runAt: new Date(scheduledTs).toISOString(),
-				}),
+					runAt: new Date(scheduledTs).toISOString()
+				})
 			});
 
 			if (!res.ok) {
@@ -261,8 +268,8 @@ import Button from '@components/ui/button.svelte';
 				if (result.success) {
 					toast.success('Entry cloned successfully.');
 					invalidateCollectionCache(currentCollection._id);
-						modeTransitionGuard.setMode('view');
-					} else {
+					modeTransitionGuard.setMode('view');
+				} else {
 					toast.error(result.error || 'Failed to clone');
 				}
 			}
@@ -287,21 +294,29 @@ import Button from '@components/ui/button.svelte';
 >
 	<div class="flex items-center gap-2 flex-1 min-w-0">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={() => ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed')}
 				aria-label="Toggle sidebar"
-			 class="p-0! min-w-0 shrink-0">
+				class="p-0! min-w-0 shrink-0"
+			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 		{/if}
 
 		<div class="shrink-0 flex items-center ms-2">
-			<iconify-icon icon={currentCollection?.icon ?? 'mdi:file-document'} width="24" class="text-error-500"></iconify-icon>
+			<iconify-icon
+				icon={currentCollection?.icon ?? 'mdi:file-document'}
+				width="24"
+				class="text-error-500"
+			></iconify-icon>
 		</div>
 
 		{#if currentCollection?.name && currentMode !== 'view'}
 			<div class="ms-2 flex-1 min-w-0">
-				<div class="text-xs uppercase opacity-70 dark:opacity-100 dark:text-white leading-none">{currentMode}</div>
+				<div class="text-xs uppercase opacity-70 dark:opacity-100 dark:text-white leading-none">
+					{currentMode}
+				</div>
 				<div class="text-sm font-bold capitalize truncate leading-tight">
 					<span class="text-tertiary-500 dark:text-primary-500">{currentCollection.name}</span>
 				</div>
@@ -315,15 +330,22 @@ import Button from '@components/ui/button.svelte';
 			{#if showMore}
 				<TranslationStatus />
 				{#if ['edit', 'create'].includes(currentMode)}
-					<Button variant="tertiary"
+					<Button
+						variant="tertiary"
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
 						aria-label="Save"
-					 class="p-0! min-w-0">
+						class="p-0! min-w-0"
+					>
 						<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 					</Button>
 				{/if}
-				<Button variant="tertiary" onclick={() => (showMore = false)} aria-label="Show less" class="p-0! min-w-0">
+				<Button
+					variant="tertiary"
+					onclick={() => (showMore = false)}
+					aria-label="Show less"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</Button>
 			{:else}
@@ -335,17 +357,24 @@ import Button from '@components/ui/button.svelte';
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</Button>
 					{:else}
-						<Button variant="tertiary"
+						<Button
+							variant="tertiary"
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
 							aria-label="Save"
-						 class="p-0! min-w-0">
+							class="p-0! min-w-0"
+						>
 							<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 						</Button>
 					{/if}
 				{/if}
 
-				<Button variant="outline" onclick={() => (showMore = true)} aria-label="Show more" class="p-0! min-w-0">
+				<Button
+					variant="outline"
+					onclick={() => (showMore = true)}
+					aria-label="Show more"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</Button>
 			{/if}
@@ -355,7 +384,12 @@ import Button from '@components/ui/button.svelte';
 		{/if}
 
 		{#if !ui.wizard.headerActionButton}
-			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
+			<Button
+				variant="outline"
+				onclick={cancel}
+				aria-label="Cancel"
+				class="rounded-full p-0! min-w-0"
+			>
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</Button>
 		{/if}
@@ -368,14 +402,25 @@ import Button from '@components/ui/button.svelte';
 			<!-- Status Toggle -->
 			<div class="flex flex-col items-center">
 				<Toggle value={publishToggle} disabled={disableStatusToggle} onToggle={toggleStatus} />
-				<span class="mt-1 text-xs" class:text-tertiary-500={publishToggle} class:dark:text-primary-500={publishToggle} class:text-error-500={!publishToggle}>
+				<span
+					class="mt-1 text-xs"
+					class:text-tertiary-500={publishToggle}
+					class:dark:text-primary-500={publishToggle}
+					class:text-error-500={!publishToggle}
+				>
 					{publishToggle ? status_publish() : status_unpublish()}
 				</span>
 			</div>
 
 			<!-- Delete -->
 			<div class="flex flex-col items-center">
-				<Button variant="ghost" onclick={openDelete} disabled={!canDelete} aria-label="Delete" class="p-0! min-w-0 gradient-error">
+				<Button
+					variant="ghost"
+					onclick={openDelete}
+					disabled={!canDelete}
+					aria-label="Delete"
+					class="p-0! min-w-0 gradient-error"
+				>
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 				</Button>
 			</div>
@@ -383,14 +428,26 @@ import Button from '@components/ui/button.svelte';
 			{#if ['edit', 'create'].includes(currentMode)}
 				<!-- Schedule -->
 				<div class="flex flex-col items-center">
-					<Button variant="ghost" onclick={openSchedule} disabled={!canWrite} aria-label="Schedule" class="p-0! min-w-0 gradient-pink">
+					<Button
+						variant="ghost"
+						onclick={openSchedule}
+						disabled={!canWrite}
+						aria-label="Schedule"
+						class="p-0! min-w-0 gradient-pink"
+					>
 						<iconify-icon icon="bi:clock" width="24"></iconify-icon>
 					</Button>
 				</div>
 
 				<!-- Clone -->
 				<div class="flex flex-col items-center">
-					<Button variant="ghost" onclick={openClone} disabled={!canWrite || !canCreate} aria-label="Clone" class="p-0! min-w-0 gradient-secondary">
+					<Button
+						variant="ghost"
+						onclick={openClone}
+						disabled={!canWrite || !canCreate}
+						aria-label="Clone"
+						class="p-0! min-w-0 gradient-secondary"
+					>
 						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>
 					</Button>
 				</div>
@@ -401,12 +458,20 @@ import Button from '@components/ui/button.svelte';
 
 		<!-- User -->
 		<div class="space-y-1 text-xs">
-			<p>Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>
+			<p>
+				Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold"
+					>{getDisplayName(currentEntry?.createdBy)}</span
+				>
+			</p>
 			{#if currentEntry?.updatedBy}
-				<p class="text-tertiary-500 dark:text-primary-500">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
+				<p class="text-tertiary-500 dark:text-primary-500">
+					Last updated by: {getDisplayName(currentEntry?.updatedBy)}
+				</p>
 			{/if}
 			{#if scheduleTimestamp}
-				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {formatDateTime(scheduleTimestamp)}</p>
+				<p class="text-tertiary-500 dark:text-primary-500">
+					Will publish on: {formatDateTime(scheduleTimestamp)}
+				</p>
 			{/if}
 		</div>
 	</div>

@@ -40,7 +40,9 @@ Renders: "Option Two" (looks up label from field.options)
 		if (value === null || value === undefined) {
 			return '–';
 		}
-		const selectedOption = field.options?.find((opt: { label: string; value: string | number }) => opt.value === value);
+		const selectedOption = field.options?.find(
+			(opt: { label: string; value: string | number }) => opt.value === value
+		);
 		return selectedOption?.label || String(value); // Fallback to showing the raw value
 	});
 </script>

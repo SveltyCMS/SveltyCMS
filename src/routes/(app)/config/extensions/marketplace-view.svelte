@@ -40,7 +40,7 @@
 	}
 
 	let { initialItems = [] }: { initialItems?: CatalogItem[] } = $props();
-		
+
 	let items = $state<CatalogItem[]>([]);
 	$effect(() => {
 		items = [...initialItems];
@@ -63,7 +63,7 @@
 		{ value: 'widget', label: 'Widgets' },
 		{ value: 'dashboard', label: 'Dashboard widgets' },
 		{ value: 'theme', label: 'Themes' },
-		{ value: 'preset', label: 'Presets' },
+		{ value: 'preset', label: 'Presets' }
 	];
 
 	async function loadCatalog() {
@@ -73,7 +73,7 @@
 			if (query.trim()) params.set('search', query.trim());
 			if (typeFilter !== 'all') params.set('type', typeFilter);
 			const res = await fetch(`/api/marketplace?${params.toString()}`, {
-				headers: { Accept: 'application/json' },
+				headers: { Accept: 'application/json' }
 			});
 			if (!res.ok) {
 				throw new Error(`HTTP ${res.status}`);
@@ -82,11 +82,12 @@
 			const payload = body?.data ?? body;
 			items = Array.isArray(payload?.items) ? payload.items : [];
 			remoteAvailable = !!payload?.remoteAvailable;
-			source = payload?.source === 'remote' ? 'remote' : payload?.source === 'mixed' ? 'mixed' : 'local';
+			source =
+				payload?.source === 'remote' ? 'remote' : payload?.source === 'mixed' ? 'mixed' : 'local';
 		} catch (err) {
 			toast.error({
 				title: 'Marketplace',
-				description: err instanceof Error ? err.message : 'Failed to load catalog',
+				description: err instanceof Error ? err.message : 'Failed to load catalog'
 			});
 		} finally {
 			loading = false;
@@ -242,11 +243,7 @@
 									size="sm"
 									data-testid={`marketplace-license-${item.id}`}
 								>
-									{item.license === 'free'
-										? 'Free'
-										: item.license === 'paid'
-											? 'Paid'
-											: 'Freemium'}
+									{item.license === 'free' ? 'Free' : item.license === 'paid' ? 'Paid' : 'Freemium'}
 								</Badge>
 							{/if}
 							{#if item.price != null && item.price > 0}
@@ -331,12 +328,18 @@
 			data-testid="marketplace-license-key"
 		/>
 		<div class="flex flex-wrap gap-2">
-			<Button variant="primary" onclick={() => submitLicense()} data-testid="marketplace-license-save">
+			<Button
+				variant="primary"
+				onclick={() => submitLicense()}
+				data-testid="marketplace-license-save"
+			>
 				Save and install
 			</Button>
 			{#if licenseTarget}
 				<a
-					href="https://marketplace.sveltycms.com/checkout?package={encodeURIComponent(licenseTarget.id)}"
+					href="https://marketplace.sveltycms.com/checkout?package={encodeURIComponent(
+						licenseTarget.id
+					)}"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="text-sm text-tertiary-600 underline dark:text-primary-400 self-center"

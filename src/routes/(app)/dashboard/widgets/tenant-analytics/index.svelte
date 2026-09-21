@@ -15,12 +15,12 @@
 - Quota-progress bar for storage utilization
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Tenant Analytics",
-	icon: "mdi:chart-bar",
-	description: "Per-tenant usage statistics — storage, users, collections, and activity",
-	defaultSize: { w: 2, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Tenant Analytics',
+		icon: 'mdi:chart-bar',
+		description: 'Per-tenant usage statistics — storage, users, collections, and activity',
+		defaultSize: { w: 2, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -138,19 +138,25 @@ export const widgetMeta = {
 				<!-- Top stat cards -->
 				<div class="grid grid-cols-3 gap-2">
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Users</div>
+						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							Users
+						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.users.total)}
 						</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Collections</div>
+						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							Collections
+						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.collections)}
 						</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Entries</div>
+						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							Entries
+						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.contentEntries)}
 						</div>
@@ -160,10 +166,16 @@ export const widgetMeta = {
 				<!-- Storage + Activity row -->
 				<div class="grid grid-cols-2 gap-2 flex-1">
 					<!-- Storage Card -->
-					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between">
+					<div
+						class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between"
+					>
 						<div>
-							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Storage</div>
-							<div class="mt-1 text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
+							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+								Storage
+							</div>
+							<div
+								class="mt-1 text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100"
+							>
 								{analytics.storage?.formatted ?? '0 B'}
 							</div>
 							<div class="text-xs text-surface-500">{statValue(analytics.media.total)} files</div>
@@ -174,18 +186,34 @@ export const widgetMeta = {
 								<span>Quota</span>
 								<span>{quotaPercentage.toFixed(0)}%</span>
 							</div>
-							<div class="h-1.5 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" role="progressbar" aria-valuenow={quotaPercentage} aria-valuemin={0} aria-valuemax={100} aria-label="Storage quota usage">
-								<div class="h-full transition-all duration-300 {quotaColorClass(quotaPercentage)}" style="width: {quotaPercentage}%"></div>
+							<div
+								class="h-1.5 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+								role="progressbar"
+								aria-valuenow={quotaPercentage}
+								aria-valuemin={0}
+								aria-valuemax={100}
+								aria-label="Storage quota usage"
+							>
+								<div
+									class="h-full transition-all duration-300 {quotaColorClass(quotaPercentage)}"
+									style="width: {quotaPercentage}%"
+								></div>
 							</div>
 						</div>
 					</div>
 
 					<!-- Activity Card -->
-					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between">
+					<div
+						class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between"
+					>
 						<div>
-							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Activity</div>
+							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+								Activity
+							</div>
 							<div class="mt-2 flex items-baseline gap-1">
-								<span class="text-3xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
+								<span
+									class="text-3xl font-bold tabular-nums text-surface-900 dark:text-surface-100"
+								>
 									{statValue(analytics.recentRequests?.last24h)}
 								</span>
 								<span class="text-xs text-surface-500">requests</span>
@@ -199,8 +227,11 @@ export const widgetMeta = {
 				</div>
 
 				<!-- Summary row -->
-				<div class="flex items-center gap-2 rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40">
-					<iconify-icon icon="mdi:information-outline" class="shrink-0 text-surface-400"></iconify-icon>
+				<div
+					class="flex items-center gap-2 rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40"
+				>
+					<iconify-icon icon="mdi:information-outline" class="shrink-0 text-surface-400"
+					></iconify-icon>
 					<span class="text-surface-600 dark:text-surface-400">
 						All metrics are scoped to your organization.
 					</span>

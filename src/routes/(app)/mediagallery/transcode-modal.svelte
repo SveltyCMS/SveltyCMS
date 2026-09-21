@@ -3,69 +3,73 @@
 @component Advanced Video Transcoding Interface
  -->
 <script lang="ts">
-import { toast } from "@src/stores/toast.svelte.ts";
-import { logger } from "@utils/logger";
-import { clientJsonHeaders } from "@utils/security/client-csrf";
-import { slide } from "svelte/transition";
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { slide } from 'svelte/transition';
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
 
-interface Props {
-	video: { _id: string; filename: string; url: string };
-	onClose: () => void;
-}
+	interface Props {
+		video: { _id: string; filename: string; url: string };
+		onClose: () => void;
+	}
 
-let { video, onClose }: Props = $props();
+	let { video, onClose }: Props = $props();
 
-let format = $state<"hls" | "mp4">("hls");
-let resolutions = $state(["1080p", "720p", "480p"]);
-let bitrate = $state("auto");
-let isProcessing = $state(false);
-let progress = $state(0);
+	let format = $state<'hls' | 'mp4'>('hls');
+	let resolutions = $state(['1080p', '720p', '480p']);
+	let bitrate = $state('auto');
+	let isProcessing = $state(false);
+	let progress = $state(0);
 
-const availableResolutions = ["1080p", "720p", "480p", "360p"];
+	const availableResolutions = ['1080p', '720p', '480p', '360p'];
 
-async function startTranscoding() {
-	isProcessing = true;
-	progress = 0;
+	async function startTranscoding() {
+		isProcessing = true;
+		progress = 0;
 
-	try {
-		const response = await fetch("/api/media/transcode", {
-			method: "POST",
-			headers: clientJsonHeaders(),
-			body: JSON.stringify({
-				mediaId: video._id,
-				format,
-				resolutions,
-				bitrate,
-			}),
-		});
+		try {
+			const response = await fetch('/api/media/transcode', {
+				method: 'POST',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({
+					mediaId: video._id,
+					format,
+					resolutions,
+					bitrate
+				})
+			});
 
-		if (response.ok) {
-			toast.success("Transcoding started. You will be notified when complete.");
-			onClose();
-		} else {
-			throw new Error("Failed to start transcoding");
+			if (response.ok) {
+				toast.success('Transcoding started. You will be notified when complete.');
+				onClose();
+			} else {
+				throw new Error('Failed to start transcoding');
+			}
+		} catch (err) {
+			logger.error('Transcode error', err);
+			toast.error('Transcoding failed to start.');
+		} finally {
+			isProcessing = false;
 		}
-	} catch (err) {
-		logger.error("Transcode error", err);
-		toast.error("Transcoding failed to start.");
-	} finally {
-		isProcessing = false;
 	}
-}
 
-function toggleResolution(res: string) {
-	if (resolutions.includes(res)) {
-		resolutions = resolutions.filter((r) => r !== res);
-	} else {
-		resolutions = [...resolutions, res];
+	function toggleResolution(res: string) {
+		if (resolutions.includes(res)) {
+			resolutions = resolutions.filter((r) => r !== res);
+		} else {
+			resolutions = [...resolutions, res];
+		}
 	}
-}
 </script>
 
-<div class="p-6 space-y-6 bg-surface-500/10 dark:bg-surface-900 rounded-2xl max-w-xl mx-auto shadow-2xl border border-surface-500/30 dark:border-surface-500/40">
-	<div class="flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40 pb-4">
+<div
+	class="p-6 space-y-6 bg-surface-500/10 dark:bg-surface-900 rounded-2xl max-w-xl mx-auto shadow-2xl border border-surface-500/30 dark:border-surface-500/40"
+>
+	<div
+		class="flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40 pb-4"
+	>
 		<div>
 			<h2 class="text-xl font-bold text-tertiary-500 dark:text-primary-500 flex items-center gap-2">
 				<iconify-icon icon="mdi:video-processing" width="24"></iconify-icon>
@@ -81,16 +85,21 @@ function toggleResolution(res: string) {
 	<div class="grid grid-cols-2 gap-6">
 		<!-- Output Format -->
 		<div class="space-y-2">
-			<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Output Format</span>
+			<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Output Format</span
+			>
 			<div class="flex gap-2">
-				<Button variant="tertiary"
-					onclick={() => format = 'hls'}
-				 class="flex-1 {format === 'hls' ? ' dark: ' : ' '}">
+				<Button
+					variant="tertiary"
+					onclick={() => (format = 'hls')}
+					class="flex-1 {format === 'hls' ? ' dark: ' : ' '}"
+				>
 					HLS (Adaptive)
 				</Button>
-				<Button variant="tertiary"
-					onclick={() => format = 'mp4'}
-				 class="flex-1 {format === 'mp4' ? ' dark: ' : ' '}">
+				<Button
+					variant="tertiary"
+					onclick={() => (format = 'mp4')}
+					class="flex-1 {format === 'mp4' ? ' dark: ' : ' '}"
+				>
 					MP4 (Fixed)
 				</Button>
 			</div>
@@ -106,7 +115,7 @@ function toggleResolution(res: string) {
 					{ value: 'auto', label: 'Auto-Optimize' },
 					{ value: 'high', label: 'High (8Mbps)' },
 					{ value: 'medium', label: 'Medium (4Mbps)' },
-					{ value: 'low', label: 'Low (1.5Mbps)' },
+					{ value: 'low', label: 'Low (1.5Mbps)' }
 				]}
 			/>
 		</div>
@@ -114,12 +123,17 @@ function toggleResolution(res: string) {
 
 	<!-- Resolutions -->
 	<div class="space-y-3">
-		<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Resolutions to Generate</span>
+		<span class="block text-sm font-bold uppercase tracking-widest opacity-60"
+			>Resolutions to Generate</span
+		>
 		<div class="flex flex-wrap gap-2">
 			{#each availableResolutions as res (res)}
-				<Button variant="secondary"
+				<Button
+					variant="secondary"
 					onclick={() => toggleResolution(res)}
-				 size="sm" class="px-4 {resolutions.includes(res) ? ' ' : ' '}">
+					size="sm"
+					class="px-4 {resolutions.includes(res) ? ' ' : ' '}"
+				>
 					{res}
 				</Button>
 			{/each}
@@ -134,17 +148,22 @@ function toggleResolution(res: string) {
 				<span>{progress}%</span>
 			</div>
 			<div class="h-2 w-full bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
-				<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-500" style:width="{progress}%"></div>
+				<div
+					class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-500"
+					style:width="{progress}%"
+				></div>
 			</div>
 		</div>
 	{/if}
 
 	<div class="flex gap-3 pt-4">
 		<Button variant="surface" onclick={onClose} class="flex-1">Cancel</Button>
-		<Button variant="tertiary"
+		<Button
+			variant="tertiary"
 			onclick={startTranscoding}
 			disabled={isProcessing || resolutions.length === 0}
-		 class="dark: flex-1 gap-2">
+			class="dark: flex-1 gap-2"
+		>
 			{#if isProcessing}
 				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
 			{:else}

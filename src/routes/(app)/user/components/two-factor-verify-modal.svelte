@@ -134,19 +134,27 @@ This modal			class="input text-center font-mono tracking-wider"
 
 <div class="max-w-md p-6">
 	<div class="mb-6 text-center">
-		<div class="mb-4"><iconify-icon icon="mdi:shield-lock" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon></div>
+		<div class="mb-4">
+			<iconify-icon
+				icon="mdi:shield-lock"
+				width="48"
+				class="text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
+		</div>
 
 		<h4 class="h4 mb-2">{title || twofa_verify_title()}</h4>
 
 		<p class="text-surface-600 dark:text-surface-400">
-			{description || (useBackupCode ? twofa_backup_verify_description() : twofa_verify_description())}
+			{description ||
+				(useBackupCode ? twofa_backup_verify_description() : twofa_verify_description())}
 		</p>
 	</div>
 
 	<!-- Code Input -->
 	<div class="mb-6">
 		<div class="relative">
-			<input aria-label="Input"
+			<input
+				aria-label="Input"
 				type="text"
 				bind:value={code}
 				oninput={handleInput}
@@ -172,7 +180,11 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Toggle Code Type -->
 	<div class="mb-6 text-center">
-		<button aria-label="Verify code" onclick={toggleCodeType} class="text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600">
+		<button
+			aria-label="Verify code"
+			onclick={toggleCodeType}
+			class="text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600"
+		>
 			{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 		</button>
 	</div>
@@ -181,10 +193,15 @@ This modal			class="input text-center font-mono tracking-wider"
 	<div class="flex gap-3">
 		<Button variant="surface" onclick={cancelVerification} class="flex-1">{button_cancel()}</Button>
 
-		<Button variant="tertiary"
+		<Button
+			variant="tertiary"
 			onclick={submitCode}
-			disabled={!code.trim() || isVerifying || (!useBackupCode && code.length !== 6) || (useBackupCode && code.length < 8)}
-		 class="dark: flex-1">
+			disabled={!code.trim() ||
+				isVerifying ||
+				(!useBackupCode && code.length !== 6) ||
+				(useBackupCode && code.length < 8)}
+			class="dark: flex-1"
+		>
 			{#if isVerifying}
 				<iconify-icon icon="mdi:loading" width="20" class="me-2 animate-spin"></iconify-icon>
 				{twofa_verifying()}

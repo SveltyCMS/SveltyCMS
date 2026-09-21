@@ -13,7 +13,11 @@ Relies on the centralized `themeStore` for state and logic.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { setThemePreference, themeStore, useSystemPreference } from '@src/stores/theme-store.svelte.ts';
+	import {
+		setThemePreference,
+		themeStore,
+		useSystemPreference
+	} from '@src/stores/theme-store.svelte.ts';
 
 	interface Props {
 		buttonClass?: string;
@@ -30,7 +34,7 @@ Relies on the centralized `themeStore` for state and logic.
 		buttonClass = variant === 'ghost' || variant === 'transparent'
 			? 'text-black dark:text-white'
 			: 'preset-outlined-surface-500 rounded-full dark:text-white',
-		iconSize = 22,
+		iconSize = 22
 	}: Props = $props();
 
 	const icon = $derived(
@@ -38,7 +42,7 @@ Relies on the centralized `themeStore` for state and logic.
 			? 'mdi:white-balance-sunny'
 			: themeStore.themePreference === 'dark'
 				? 'mdi:moon-waning-crescent'
-				: 'mdi:theme-light-dark',
+				: 'mdi:theme-light-dark'
 	);
 
 	const tooltipText = $derived(
@@ -46,7 +50,7 @@ Relies on the centralized `themeStore` for state and logic.
 			? 'System theme (click for Light)'
 			: themeStore.themePreference === 'light'
 				? 'Light theme (click for Dark)'
-				: 'Dark theme (click for System)',
+				: 'Dark theme (click for System)'
 	);
 
 	function cycleTheme() {
@@ -59,7 +63,7 @@ Relies on the centralized `themeStore` for state and logic.
 
 {#snippet toggleButton()}
 	<Button
-		variant={variant}
+		{variant}
 		onclick={cycleTheme}
 		aria-label="Toggle theme"
 		class={`${buttonClass} p-0! min-w-0`}

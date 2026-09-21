@@ -38,7 +38,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// 🛡️ REFINED TYPE GUARDS: Prevent collisions between User and Token
 	const isUser = (row: any): row is User => {
-		return !!row && typeof row === 'object' && '_id' in row && ('username' in row || 'role' in row) && !('token' in row);
+		return (
+			!!row &&
+			typeof row === 'object' &&
+			'_id' in row &&
+			('username' in row || 'role' in row) &&
+			!('token' in row)
+		);
 	};
 	const isToken = (row: any): row is Token => {
 		return !!row && typeof row === 'object' && 'token' in row;
@@ -47,7 +53,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Props
-	let { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onUpdate = () => {} } = $props();
+	let {
+		selectedRows,
+		type = 'user',
+		totalUsers = 0,
+		currentUser = null,
+		onUpdate = () => {}
+	} = $props();
 
 	// State
 	let listboxValue = $state<ActionType>('edit');
@@ -60,7 +72,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Helper to get identifier for display
-	const getDisplayIdentifier = (row: any) => isUser(row) ? row.username : (row as Token).email;
+	const getDisplayIdentifier = (row: any) => (isUser(row) ? row.username : (row as Token).email);
 
 	// Handle click outside to close dropdown
 	function handleClickOutside(event: MouseEvent) {
@@ -78,7 +90,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Normalize selection to a safe array
-	const safeSelectedRows = $derived(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []);
+	const safeSelectedRows = $derived(
+		Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []
+	);
 
 	// Derived values
 	const isDisabled = $derived(safeSelectedRows.length === 0);
@@ -87,7 +101,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	const currentBlockState = $derived.by(() => {
 		if (safeSelectedRows.length === 0) return null;
 
-		const items = type === 'user' ? safeSelectedRows.filter(isUser) : safeSelectedRows.filter(isToken);
+		const items =
+			type === 'user' ? safeSelectedRows.filter(isUser) : safeSelectedRows.filter(isToken);
 		if (items.length === 0) return null;
 
 		const blockedCount = items.filter((i) => i.blocked).length;
@@ -100,19 +115,30 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Check if a specific action should be disabled for the current selection
 	const disabledMap = $derived.by(() => {
-		const map: Record<ActionType, boolean> = { edit: false, delete: false, block: false, unblock: false };
-		if (safeSelectedRows.length === 0) return { edit: true, delete: true, block: true, unblock: true };
+		const map: Record<ActionType, boolean> = {
+			edit: false,
+			delete: false,
+			block: false,
+			unblock: false
+		};
+		if (safeSelectedRows.length === 0)
+			return { edit: true, delete: true, block: true, unblock: true };
 
 		// 1. Edit: only one row allowed
 		map.edit = safeSelectedRows.length !== 1;
 
 		// 2. Delete: depend on selection and total counts
 		if (type === 'user') {
-			const isSelfSelected = safeSelectedRows.some((r) => isUser(r) && currentUser && r._id === currentUser._id);
-			const isLastUser = totalUsers <= 1 || (isSelfSelected && safeSelectedRows.length >= totalUsers);
+			const isSelfSelected = safeSelectedRows.some(
+				(r) => isUser(r) && currentUser && r._id === currentUser._id
+			);
+			const isLastUser =
+				totalUsers <= 1 || (isSelfSelected && safeSelectedRows.length >= totalUsers);
 
 			// System protection: admins cannot be blocked or deleted via UI (safety first)
-			const adminsSelected = safeSelectedRows.some((r) => isUser(r) && (r.role === 'admin' || r.isAdmin));
+			const adminsSelected = safeSelectedRows.some(
+				(r) => isUser(r) && (r.role === 'admin' || r.isAdmin)
+			);
 
 			map.delete = isLastUser || adminsSelected;
 
@@ -190,9 +216,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			buttonClass: 'gradient-primary',
 			iconValue: 'bi:pencil-fill',
 			label: 'Edit',
-			modalTitle: () => (type === 'user' ? usermodaluser_edittitle() : multibuttontoken_modaltitle()),
+			modalTitle: () =>
+				type === 'user' ? usermodaluser_edittitle() : multibuttontoken_modaltitle(),
 			modalBody: () => (type === 'user' ? usermodaluser_editbody() : multibuttontoken_modalbody()),
-			endpoint: () => (type === 'user' ? '/api/user/update-user-attributes' : `/api/token/${(safeSelectedRows[0] as Token).token}`),
+			endpoint: () =>
+				type === 'user'
+					? '/api/user/update-user-attributes'
+					: `/api/token/${(safeSelectedRows[0] as Token).token}`,
 			method: () => 'PUT',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
 			toastBackground: 'gradient-primary'
@@ -256,8 +286,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			const body =
 				type === 'user'
 					? { userIds: safeSelectedRows.map((r) => (r as User)._id), action }
-					// Use _id (the list exposes the hashed token value, not the raw credential).
-					: { tokenIds: safeSelectedRows.map((r) => (r as Token)._id), action };
+					: // Use _id (the list exposes the hashed token value, not the raw credential).
+						{ tokenIds: safeSelectedRows.map((r) => (r as Token)._id), action };
 
 			const res = await fetch(config.endpoint(), {
 				method: config.method(),
@@ -269,7 +299,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			if (!res.ok || data.success === false) throw new Error(data.message || 'Operation failed');
 
 			toast.success({ description: data.message || config.toastMessage() });
-			onUpdate({ ids: type === 'user' ? (body as any).userIds : (body as any).tokenIds, action, type });
+			onUpdate({
+				ids: type === 'user' ? (body as any).userIds : (body as any).tokenIds,
+				action,
+				type
+			});
 			await refreshAll();
 		} catch (error) {
 			toast.error({ description: error instanceof Error ? error.message : 'An error occurred' });
@@ -279,7 +313,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	async function handleAction(action: ActionType) {
 		if (isDisabled) return;
 		if (disabledMap[action]) {
-			const reason = action === 'edit' ? `Please select only one ${type}` : `Action restricted for this selection`;
+			const reason =
+				action === 'edit'
+					? `Please select only one ${type}`
+					: `Action restricted for this selection`;
 			toast.warning(reason);
 			return;
 		}
@@ -341,7 +378,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	function handleDropdownKeydown(event: KeyboardEvent) {
 		if (!isDropdownOpen) return;
-		const items = Array.from(document.querySelectorAll('[role="menu"] button:not(:disabled)')) as HTMLElement[];
+		const items = Array.from(
+			document.querySelectorAll('[role="menu"] button:not(:disabled)')
+		) as HTMLElement[];
 		const idx = items.indexOf(document.activeElement as HTMLElement);
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
@@ -357,7 +396,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <div class="relative flex items-center" bind:this={dropdownRef}>
 	<div
-		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled ? 'active:scale-95' : ''} rounded-s-full rounded-e-md border border-white/20 {isDropdownOpen ? 'ring-2 ring-primary-500/50' : ''}"
+		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled
+			? 'active:scale-95'
+			: ''} rounded-s-full rounded-e-md border border-white/20 {isDropdownOpen
+			? 'ring-2 ring-primary-500/50'
+			: ''}"
 		role="group"
 	>
 		<!-- Main Action Button -->
@@ -367,7 +410,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			disabled={isDisabled || disabledMap[listboxValue]}
 			aria-label="Execute {actionConfig[listboxValue].label} action"
 			title="Execute {actionConfig[listboxValue].label} action"
-			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-s-full rounded-e-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
+			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled &&
+			!disabledMap[listboxValue]
+				? 'active:scale-95'
+				: 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue]
+				.buttonClass} text-white rounded-s-full rounded-e-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
 			<span class="uppercase tracking-wider">{actionConfig[listboxValue].label}</span>
@@ -386,7 +433,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label="Toggle bulk actions menu"
 			title="Select action"
-			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-e-md {!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
+			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-e-md {!isDisabled
+				? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer'
+				: 'opacity-50 pointer-events-none'}"
 		>
 			<iconify-icon icon="mdi:chevron-down" width={24}></iconify-icon>
 		</button>
@@ -412,18 +461,26 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 									e.stopPropagation();
 									handleOptionClick(action);
 								}}
-								disabled={disabled}
+								{disabled}
 								aria-label="Select {action} action"
 								role="menuitem"
-								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-start text-white transition-all duration-200 hover:bg-white/5 {disabled ? 'opacity-20 cursor-not-allowed grayscale' : ''}"
+								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-start text-white transition-all duration-200 hover:bg-white/5 {disabled
+									? 'opacity-20 cursor-not-allowed grayscale'
+									: ''}"
 							>
 								<!-- Hover Indicator -->
 								{#if !disabled}
-									<div class="absolute inset-0 {config.buttonClass} opacity-0 transition-opacity duration-200 group-hover/item:opacity-100"></div>
+									<div
+										class="absolute inset-0 {config.buttonClass} opacity-0 transition-opacity duration-200 group-hover/item:opacity-100"
+									></div>
 								{/if}
 
 								<!-- Icon -->
-								<div class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform {!disabled ? 'group-hover/item:scale-110' : ''}">
+								<div
+									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform {!disabled
+										? 'group-hover/item:scale-110'
+										: ''}"
+								>
 									<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
 								</div>
 
@@ -432,7 +489,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 								<!-- Current Selection Indicator -->
 								{#if listboxValue === action}
-									<iconify-icon icon="mdi:check" width={18} class="relative z-10 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<iconify-icon
+										icon="mdi:check"
+										width={18}
+										class="relative z-10 text-tertiary-500 dark:text-primary-500"
+									></iconify-icon>
 								{/if}
 							</button>
 						</li>

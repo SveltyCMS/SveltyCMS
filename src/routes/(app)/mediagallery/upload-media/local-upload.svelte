@@ -16,339 +16,339 @@
 
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-// Using iconify-icon web component
-import { logger } from "@utils/logger";
-import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { goto } from "$app/navigation";
-import { optimizeImage } from "@src/utils/media/webgpu-processor";
-import { uploadMediaFilesHandle } from "@utils/media/upload-client";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	// Using iconify-icon web component
+	import { logger } from '@utils/logger';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { goto } from '$app/navigation';
+	import { optimizeImage } from '@src/utils/media/webgpu-processor';
+	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
 	import Button from '@components/ui/button.svelte';
 
-interface Props {
-	folder?: string;
-	onUploadComplete?: () => void;
-	redirectOnSuccess?: boolean;
-}
+	interface Props {
+		folder?: string;
+		onUploadComplete?: () => void;
+		redirectOnSuccess?: boolean;
+	}
 
-const {
-	onUploadComplete = () => {},
-	redirectOnSuccess = true,
-	folder = "global",
-}: Props = $props();
+	const {
+		onUploadComplete = () => {},
+		redirectOnSuccess = true,
+		folder = 'global'
+	}: Props = $props();
 
-let files: File[] = $state([]);
-let input: HTMLInputElement | null = $state(null);
-let dropZone: HTMLDivElement | null = $state(null);
-let uploadProgress = $state(0);
-let uploadSpeed = $state(0);
-let uploadFileLabel = $state("");
-let isUploading = $state(false);
-let uploadCancel: (() => void) | null = $state(null);
-let optimizeBeforeUpload = $state(true); // Default to on for 2026 performance
-let optimizationStats = $state({ saved: 0, count: 0 });
+	let files: File[] = $state([]);
+	let input: HTMLInputElement | null = $state(null);
+	let dropZone: HTMLDivElement | null = $state(null);
+	let uploadProgress = $state(0);
+	let uploadSpeed = $state(0);
+	let uploadFileLabel = $state('');
+	let isUploading = $state(false);
+	let uploadCancel: (() => void) | null = $state(null);
+	let optimizeBeforeUpload = $state(true); // Default to on for 2026 performance
+	let optimizationStats = $state({ saved: 0, count: 0 });
 
-// Internal state moved from ModalUploadMedia
-// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-let fileSet = $state(new SvelteSet<string>());
+	// Internal state moved from ModalUploadMedia
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let fileSet = $state(new SvelteSet<string>());
 
-// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-let objectUrls = $state(new SvelteMap<string, string>());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let objectUrls = $state(new SvelteMap<string, string>());
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_TYPES = [
-	"image/jpeg",
-	"image/png",
-	"image/gif",
-	"image/webp",
-	"image/svg+xml",
-	"video/mp4",
-	"video/webm",
-	"audio/mpeg",
-	"audio/wav",
-	"application/pdf",
-	"application/msword",
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
+	const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+	const ALLOWED_TYPES = [
+		'image/jpeg',
+		'image/png',
+		'image/gif',
+		'image/webp',
+		'image/svg+xml',
+		'video/mp4',
+		'video/webm',
+		'audio/mpeg',
+		'audio/wav',
+		'application/pdf',
+		'application/msword',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+	];
 
-// Async Thumbnail Generation Effect
-$effect(() => {
-	const currentFiles = files;
-	let isActive = true;
+	// Async Thumbnail Generation Effect
+	$effect(() => {
+		const currentFiles = files;
+		let isActive = true;
 
-	async function generateThumbnails() {
-		for (const file of currentFiles) {
-			if (!isActive) {
-				return;
+		async function generateThumbnails() {
+			for (const file of currentFiles) {
+				if (!isActive) {
+					return;
+				}
+
+				const fileKey = `${file.name}-${file.size}`;
+
+				// Skip if we already have a URL for this file
+				if (
+					!objectUrls.has(fileKey) &&
+					(file.type?.startsWith('image/') || file.type?.startsWith('audio/'))
+				) {
+					const url = URL.createObjectURL(file);
+					objectUrls.set(fileKey, url);
+
+					// Yield to main thread to allow UI rendering
+					await new Promise((resolve) => requestAnimationFrame(resolve));
+				}
 			}
 
-			const fileKey = `${file.name}-${file.size}`;
-
-			// Skip if we already have a URL for this file
-			if (
-				!objectUrls.has(fileKey) &&
-				(file.type?.startsWith("image/") || file.type?.startsWith("audio/"))
-			) {
-				const url = URL.createObjectURL(file);
-				objectUrls.set(fileKey, url);
-
-				// Yield to main thread to allow UI rendering
-				await new Promise((resolve) => requestAnimationFrame(resolve));
-			}
-		}
-
-		// Cleanup phase: Remove URLs for files that are no longer present
-		if (isActive) {
-			const currentFileKeys = new Set(
-				currentFiles.map((f) => `${f.name}-${f.size}`),
-			);
-			for (const [key, url] of objectUrls) {
-				if (!currentFileKeys.has(key)) {
-					URL.revokeObjectURL(url);
-					objectUrls.delete(key);
+			// Cleanup phase: Remove URLs for files that are no longer present
+			if (isActive) {
+				const currentFileKeys = new Set(currentFiles.map((f) => `${f.name}-${f.size}`));
+				for (const [key, url] of objectUrls) {
+					if (!currentFileKeys.has(key)) {
+						URL.revokeObjectURL(url);
+						objectUrls.delete(key);
+					}
 				}
 			}
 		}
-	}
 
-	generateThumbnails();
+		generateThumbnails();
 
-	return () => {
-		isActive = false;
-	};
-});
-
-// Cleanup on destroy
-$effect(() => {
-	return () => {
-		objectUrls.forEach((url) => URL.revokeObjectURL(url));
-	};
-});
-
-// Helper: Get icon string
-function getFileIcon(file: File): string {
-	const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-	switch (true) {
-		case file.type?.startsWith("image/"):
-			return "fa-solid:image";
-		case file.type?.startsWith("video/"):
-			return "fa-solid:video";
-		case file.type?.startsWith("audio/"):
-			return "fa-solid:play-circle";
-		case fileExt === ".pdf":
-			return "vscode-icons:file-type-pdf2";
-		case fileExt === ".doc" || fileExt === ".docx" || fileExt === ".docm":
-			return "vscode-icons:file-type-word";
-		case fileExt === ".ppt" || fileExt === ".pptx":
-			return "vscode-icons:file-type-powerpoint";
-		case fileExt === ".xls" || fileExt === ".xlsx":
-			return "vscode-icons:file-type-excel";
-		case fileExt === ".txt":
-			return "fa-solid:file-lines";
-		case fileExt === ".zip" || fileExt === ".rar":
-			return "fa-solid:file-zipper";
-		default:
-			return "vscode-icons:file";
-	}
-}
-
-// Format MIME type for display
-function formatMimeType(mime: string | undefined = undefined): string {
-	if (!mime) {
-		return "Unknown";
-	}
-	const parts = mime.split("/");
-	return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
-}
-
-function validateAndAddFiles(newFiles: File[]) {
-	if (!newFiles || newFiles.length === 0) {
-		toast.warning({ description: "No files selected or recognized for upload" });
-		return;
-	}
-
-	const validFiles: File[] = [];
-	const errors: string[] = [];
-
-	newFiles.forEach((file) => {
-		if (file.size > MAX_FILE_SIZE) {
-			errors.push(`${file.name} exceeds maximum file size of 50MB`);
-		} else if (ALLOWED_TYPES.includes(file.type)) {
-			// Check for duplicates
-			const fileKey = `${file.name}-${file.size}`;
-			if (!fileSet.has(fileKey)) {
-				validFiles.push(file);
-				fileSet.add(fileKey);
-			}
-		} else {
-			errors.push(`${file.name} is not an allowed file type`);
-		}
+		return () => {
+			isActive = false;
+		};
 	});
 
-	if (errors.length > 0) {
-		toast.error({ description: errors.join("\n") });
-	}
-
-	if (validFiles.length > 0) {
-		files = [...files, ...validFiles];
-	} else if (errors.length === 0) {
-		toast.warning({ description: "No new files to upload (all files already added)" });
-	}
-}
-
-function handleFileDrop(event: DragEvent) {
-	event.preventDefault();
-	dropZone?.style.removeProperty("border-color");
-	if (!event.dataTransfer || !event.dataTransfer.files || event.dataTransfer.files.length === 0) {
-		toast.warning({ description: "No files recognized in drop" });
-		return;
-	}
-	validateAndAddFiles(Array.from(event.dataTransfer.files));
-}
-
-function onChange() {
-	if (!input?.files) {
-		return;
-	}
-	validateAndAddFiles(Array.from(input.files));
-	if (input) {
-		input.value = "";
-	}
-}
-
-function handleDragOver(e: DragEvent) {
-	e.preventDefault();
-	e.stopPropagation();
-	if (dropZone) {
-		dropZone.style.borderColor = "#5fd317";
-	}
-}
-
-function handleDragLeave(e: DragEvent) {
-	e.preventDefault();
-	e.stopPropagation();
-	dropZone?.style.removeProperty("border-color");
-}
-
-function handleDeleteFile(file: File) {
-	const fileKey = `${file.name}-${file.size}`;
-	files = files.filter((f) => f !== file);
-	fileSet.delete(fileKey);
-}
-
-function handleCancel() {
-	files = [];
-	fileSet.clear();
-	// Revoke immediately
-	objectUrls.forEach((url) => URL.revokeObjectURL(url));
-	objectUrls.clear();
-}
-
-// Format bytes for display
-function formatBytes(bytes: number): string {
-	if (bytes === 0) {
-		return "0 Bytes";
-	}
-	const k = 1024;
-	const sizes = ["Bytes", "KB", "MB", "GB"];
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
-}
-
-async function uploadLocalFiles() {
-	if (files.length === 0) {
-		toast.warning("No files selected for upload");
-		return;
-	}
-
-	isUploading = true;
-	uploadProgress = 0;
-	const startTime = Date.now();
-
-    // --- WebGPU OPTIMIZATION STEP ---
-    let filesToUpload = [...files];
-    if (optimizeBeforeUpload) {
-        toast.info("Optimizing media via WebGPU...");
-        const optimized = [];
-        for (const file of files) {
-            if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
-                try {
-                    const result = await optimizeImage(file);
-                    optimized.push(result.file);
-                    optimizationStats.saved += (file.size - result.processedSize);
-                    optimizationStats.count++;
-                } catch (err) {
-                    logger.warn(`Optimization failed for ${file.name}, using original.`, err);
-                    optimized.push(file);
-                }
-            } else {
-                optimized.push(file);
-            }
-        }
-        filesToUpload = optimized;
-        if (optimizationStats.count > 0) {
-            toast.success(`Optimized ${optimizationStats.count} images. Saved ${(optimizationStats.saved / 1024).toFixed(2)} KB`);
-        }
-    }
-
-	const controller = new AbortController();
-	let lastProgressLoaded = 0;
-	const handle = uploadMediaFilesHandle(filesToUpload, {
-		formActionUrl: "/mediagallery?/upload",
-		folder,
-		sequential: filesToUpload.length > 1,
-		signal: controller.signal,
-		onProgress: (percent) => {
-			uploadProgress = percent;
-			const currentTime = Date.now();
-			const timeDiff = (currentTime - startTime) / 1000;
-			const estimatedLoaded =
-				(percent / 100) * filesToUpload.reduce((sum, file) => sum + file.size, 0);
-			const loadedDiff = estimatedLoaded - lastProgressLoaded;
-			uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
-			lastProgressLoaded = estimatedLoaded;
-		},
-		onFileProgress: (fp) => {
-			uploadProgress = fp.overallPercent;
-			uploadFileLabel =
-				filesToUpload.length > 1
-					? `${fp.fileIndex + 1}/${fp.fileCount}: ${fp.fileName}`
-					: fp.fileName;
-		},
+	// Cleanup on destroy
+	$effect(() => {
+		return () => {
+			objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		};
 	});
-	uploadCancel = () => {
-		controller.abort();
-		handle.cancel();
-	};
 
-	try {
-		const result = await handle.promise;
-
-		if (result.aborted) {
-			toast.info("Upload cancelled");
-		} else if (result.success) {
-			toast.success("Files uploaded successfully");
-			handleCancel();
-			onUploadComplete();
-			if (redirectOnSuccess) {
-				goto("/mediagallery", { refreshAll: true });
-			}
-		} else {
-			throw new Error(result.message || "Upload failed");
+	// Helper: Get icon string
+	function getFileIcon(file: File): string {
+		const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+		switch (true) {
+			case file.type?.startsWith('image/'):
+				return 'fa-solid:image';
+			case file.type?.startsWith('video/'):
+				return 'fa-solid:video';
+			case file.type?.startsWith('audio/'):
+				return 'fa-solid:play-circle';
+			case fileExt === '.pdf':
+				return 'vscode-icons:file-type-pdf2';
+			case fileExt === '.doc' || fileExt === '.docx' || fileExt === '.docm':
+				return 'vscode-icons:file-type-word';
+			case fileExt === '.ppt' || fileExt === '.pptx':
+				return 'vscode-icons:file-type-powerpoint';
+			case fileExt === '.xls' || fileExt === '.xlsx':
+				return 'vscode-icons:file-type-excel';
+			case fileExt === '.txt':
+				return 'fa-solid:file-lines';
+			case fileExt === '.zip' || fileExt === '.rar':
+				return 'fa-solid:file-zipper';
+			default:
+				return 'vscode-icons:file';
 		}
-	} catch (error) {
-		logger.error("Error uploading files:", error);
-		toast.error({
-			description: `Error uploading files: ${error instanceof Error ? error.message : "Unknown error"}`,
+	}
+
+	// Format MIME type for display
+	function formatMimeType(mime: string | undefined = undefined): string {
+		if (!mime) {
+			return 'Unknown';
+		}
+		const parts = mime.split('/');
+		return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
+	}
+
+	function validateAndAddFiles(newFiles: File[]) {
+		if (!newFiles || newFiles.length === 0) {
+			toast.warning({ description: 'No files selected or recognized for upload' });
+			return;
+		}
+
+		const validFiles: File[] = [];
+		const errors: string[] = [];
+
+		newFiles.forEach((file) => {
+			if (file.size > MAX_FILE_SIZE) {
+				errors.push(`${file.name} exceeds maximum file size of 50MB`);
+			} else if (ALLOWED_TYPES.includes(file.type)) {
+				// Check for duplicates
+				const fileKey = `${file.name}-${file.size}`;
+				if (!fileSet.has(fileKey)) {
+					validFiles.push(file);
+					fileSet.add(fileKey);
+				}
+			} else {
+				errors.push(`${file.name} is not an allowed file type`);
+			}
 		});
-	} finally {
-		isUploading = false;
-		uploadCancel = null;
-		uploadProgress = 0;
-		uploadFileLabel = "";
+
+		if (errors.length > 0) {
+			toast.error({ description: errors.join('\n') });
+		}
+
+		if (validFiles.length > 0) {
+			files = [...files, ...validFiles];
+		} else if (errors.length === 0) {
+			toast.warning({ description: 'No new files to upload (all files already added)' });
+		}
 	}
-}
+
+	function handleFileDrop(event: DragEvent) {
+		event.preventDefault();
+		dropZone?.style.removeProperty('border-color');
+		if (!event.dataTransfer || !event.dataTransfer.files || event.dataTransfer.files.length === 0) {
+			toast.warning({ description: 'No files recognized in drop' });
+			return;
+		}
+		validateAndAddFiles(Array.from(event.dataTransfer.files));
+	}
+
+	function onChange() {
+		if (!input?.files) {
+			return;
+		}
+		validateAndAddFiles(Array.from(input.files));
+		if (input) {
+			input.value = '';
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (dropZone) {
+			dropZone.style.borderColor = '#5fd317';
+		}
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		dropZone?.style.removeProperty('border-color');
+	}
+
+	function handleDeleteFile(file: File) {
+		const fileKey = `${file.name}-${file.size}`;
+		files = files.filter((f) => f !== file);
+		fileSet.delete(fileKey);
+	}
+
+	function handleCancel() {
+		files = [];
+		fileSet.clear();
+		// Revoke immediately
+		objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		objectUrls.clear();
+	}
+
+	// Format bytes for display
+	function formatBytes(bytes: number): string {
+		if (bytes === 0) {
+			return '0 Bytes';
+		}
+		const k = 1024;
+		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+	}
+
+	async function uploadLocalFiles() {
+		if (files.length === 0) {
+			toast.warning('No files selected for upload');
+			return;
+		}
+
+		isUploading = true;
+		uploadProgress = 0;
+		const startTime = Date.now();
+
+		// --- WebGPU OPTIMIZATION STEP ---
+		let filesToUpload = [...files];
+		if (optimizeBeforeUpload) {
+			toast.info('Optimizing media via WebGPU...');
+			const optimized = [];
+			for (const file of files) {
+				if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+					try {
+						const result = await optimizeImage(file);
+						optimized.push(result.file);
+						optimizationStats.saved += file.size - result.processedSize;
+						optimizationStats.count++;
+					} catch (err) {
+						logger.warn(`Optimization failed for ${file.name}, using original.`, err);
+						optimized.push(file);
+					}
+				} else {
+					optimized.push(file);
+				}
+			}
+			filesToUpload = optimized;
+			if (optimizationStats.count > 0) {
+				toast.success(
+					`Optimized ${optimizationStats.count} images. Saved ${(optimizationStats.saved / 1024).toFixed(2)} KB`
+				);
+			}
+		}
+
+		const controller = new AbortController();
+		let lastProgressLoaded = 0;
+		const handle = uploadMediaFilesHandle(filesToUpload, {
+			formActionUrl: '/mediagallery?/upload',
+			folder,
+			sequential: filesToUpload.length > 1,
+			signal: controller.signal,
+			onProgress: (percent) => {
+				uploadProgress = percent;
+				const currentTime = Date.now();
+				const timeDiff = (currentTime - startTime) / 1000;
+				const estimatedLoaded =
+					(percent / 100) * filesToUpload.reduce((sum, file) => sum + file.size, 0);
+				const loadedDiff = estimatedLoaded - lastProgressLoaded;
+				uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
+				lastProgressLoaded = estimatedLoaded;
+			},
+			onFileProgress: (fp) => {
+				uploadProgress = fp.overallPercent;
+				uploadFileLabel =
+					filesToUpload.length > 1
+						? `${fp.fileIndex + 1}/${fp.fileCount}: ${fp.fileName}`
+						: fp.fileName;
+			}
+		});
+		uploadCancel = () => {
+			controller.abort();
+			handle.cancel();
+		};
+
+		try {
+			const result = await handle.promise;
+
+			if (result.aborted) {
+				toast.info('Upload cancelled');
+			} else if (result.success) {
+				toast.success('Files uploaded successfully');
+				handleCancel();
+				onUploadComplete();
+				if (redirectOnSuccess) {
+					goto('/mediagallery', { refreshAll: true });
+				}
+			} else {
+				throw new Error(result.message || 'Upload failed');
+			}
+		} catch (error) {
+			logger.error('Error uploading files:', error);
+			toast.error({
+				description: `Error uploading files: ${error instanceof Error ? error.message : 'Unknown error'}`
+			});
+		} finally {
+			isUploading = false;
+			uploadCancel = null;
+			uploadProgress = 0;
+			uploadFileLabel = '';
+		}
+	}
 </script>
 
 {#if files.length === 0}
@@ -363,7 +363,8 @@ async function uploadLocalFiles() {
 		aria-label="File drop zone"
 	>
 		<div class="flex w-full flex-col items-center gap-4 p-4 sm:flex-row">
-			<iconify-icon icon="fa6-solid:file-arrow-up" width={32} class="shrink-0 sm:w-12"></iconify-icon>
+			<iconify-icon icon="fa6-solid:file-arrow-up" width={32} class="shrink-0 sm:w-12"
+			></iconify-icon>
 
 			<div class="min-w-0 flex-1 space-y-4 text-center sm:text-start">
 				<p class="font-bold">
@@ -372,17 +373,24 @@ async function uploadLocalFiles() {
 				</p>
 
 				<label class="flex items-center gap-2 cursor-pointer justify-center mt-2 sm:justify-start">
-					<input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm"  aria-label="Input" />
+					<input
+						type="checkbox"
+						bind:checked={optimizeBeforeUpload}
+						class="checkbox checkbox-sm"
+						aria-label="Input"
+					/>
 					<span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
 				</label>
 
 				<p class="text-sm opacity-75">Multiple files allowed</p>
 
-				<Button variant="tertiary"
+				<Button
+					variant="tertiary"
 					type="button"
 					onclick={() => input?.click()}
 					disabled={isUploading}
-				 class="mt-3 dark:">
+					class="mt-3 dark:"
+				>
 					Browse Files
 				</Button>
 
@@ -392,13 +400,23 @@ async function uploadLocalFiles() {
 		</div>
 
 		<!-- File Input -->
-		<input bind:this={input} type="file" class="sr-only" hidden multiple onchange={onChange} aria-hidden="true" tabindex="-1"  aria-label="Input" />
+		<input
+			bind:this={input}
+			type="file"
+			class="sr-only"
+			hidden
+			multiple
+			onchange={onChange}
+			aria-hidden="true"
+			tabindex="-1"
+			aria-label="Input"
+		/>
 	</div>
 {:else}
 	<div class="mb-5 text-center sm:text-start">
 		<p class="text-center text-tertiary-500 dark:text-primary-500">
-			This area facilitates the queuing and previewing of media files before they are officially uploaded to the gallery. Verify your selection below,
-			then confirm to complete the transfer.
+			This area facilitates the queuing and previewing of media files before they are officially
+			uploaded to the gallery. Verify your selection below, then confirm to complete the transfer.
 		</p>
 	</div>
 	<!-- Grid View State -->
@@ -410,12 +428,21 @@ async function uploadLocalFiles() {
 				{const previewUrl = objectUrls.get(fileKey)}
 				{const iconName = getFileIcon(file)}
 
-				<div class="group relative overflow-hidden rounded border border-surface-500/30 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
+				<div
+					class="group relative overflow-hidden rounded border border-surface-500/30 shadow-sm transition-all hover:shadow-md dark:border-surface-50"
+				>
 					<!-- Delete button -->
 					<div class="absolute inset-e-1 top-1 z-10 flex cursor-pointer shadow-sm">
 						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
-							<Button variant="ghost" type="button" onclick={() => handleDeleteFile(file)} aria-label="Remove file" class="p-0! min-w-0 bg-error-500 rounded-full">
-								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"></iconify-icon>
+							<Button
+								variant="ghost"
+								type="button"
+								onclick={() => handleDeleteFile(file)}
+								aria-label="Remove file"
+								class="p-0! min-w-0 bg-error-500 rounded-full"
+							>
+								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"
+								></iconify-icon>
 							</Button>
 						</SystemTooltip>
 					</div>
@@ -436,7 +463,11 @@ async function uploadLocalFiles() {
 					<!-- Media Filename -->
 					<div class="w-full px-2 py-1 text-center h-10 flex flex-col justify-center">
 						<SystemTooltip title={file.name} positioning={{ placement: 'top' }}>
-							<div class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere">{file.name}</div>
+							<div
+								class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere"
+							>
+								{file.name}
+							</div>
 						</SystemTooltip>
 					</div>
 
@@ -444,14 +475,18 @@ async function uploadLocalFiles() {
 					<div class="flex grow items-center justify-between p-1 text-white font-bold">
 						<!-- Type -->
 						<SystemTooltip title={file.type} positioning={{ placement: 'top' }}>
-							<div class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex items-center gap-1 overflow-hidden">
+							<div
+								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex items-center gap-1 overflow-hidden"
+							>
 								<iconify-icon icon={iconName} width="12"></iconify-icon>
 								<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
 							</div>
 						</SystemTooltip>
 						<!-- Size -->
 						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
-							<p class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex shrink-0 items-center gap-1 text-[10px]">
+							<p
+								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex shrink-0 items-center gap-1 text-[10px]"
+							>
 								<span class="">{(file.size / 1024).toFixed(2)}</span>
 								KB
 							</p>
@@ -461,19 +496,39 @@ async function uploadLocalFiles() {
 			{/each}
 
 			<!-- Add File Card -->
-			<Button variant="surface" type="button" onclick={() => input?.click()} class="flex-col items-center gap-2">
+			<Button
+				variant="surface"
+				type="button"
+				onclick={() => input?.click()}
+				class="flex-col items-center gap-2"
+			>
 				<iconify-icon icon="mingcute:add-fill" width={24}></iconify-icon>
 				<span class="font-bold">Add Files</span>
 			</Button>
 		</div>
 
 		<!-- Hidden Input for Add Card -->
-		<input bind:this={input} type="file" class="hidden" multiple onchange={onChange}  aria-label="Input" />
+		<input
+			bind:this={input}
+			type="file"
+			class="hidden"
+			multiple
+			onchange={onChange}
+			aria-label="Input"
+		/>
 
 		<!-- Actions Footer -->
-		<div class="flex items-center justify-between border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
+		<div
+			class="flex items-center justify-between border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
+		>
 			<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
-			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading} class="dark:">
+			<Button
+				variant="tertiary"
+				type="button"
+				onclick={uploadLocalFiles}
+				disabled={isUploading}
+				class="dark:"
+			>
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					<span class="truncate">Uploading... {uploadProgress}%</span>
@@ -486,9 +541,11 @@ async function uploadLocalFiles() {
 	</div>
 {/if}
 
-	<!-- Upload Progress Overlay (Optional, or keep inline in button) -->
-	{#if isUploading}
-		<div class="mt-4 w-full overflow-x-auto rounded border border-surface-500 bg-surface-500/10 p-4 dark:bg-surface-700">
+<!-- Upload Progress Overlay (Optional, or keep inline in button) -->
+{#if isUploading}
+	<div
+		class="mt-4 w-full overflow-x-auto rounded border border-surface-500 bg-surface-500/10 p-4 dark:bg-surface-700"
+	>
 		<!-- Progress Bar -->
 		<div
 			class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600"
@@ -498,9 +555,14 @@ async function uploadLocalFiles() {
 			aria-valuemin={0}
 			aria-valuemax={100}
 		>
-			<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300" style="width: {uploadProgress}%"></div>
+			<div
+				class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300"
+				style="width: {uploadProgress}%"
+			></div>
 		</div>
-		<div class="flex flex-wrap items-center justify-between gap-2 text-xs text-surface-600 dark:text-surface-50">
+		<div
+			class="flex flex-wrap items-center justify-between gap-2 text-xs text-surface-600 dark:text-surface-50"
+		>
 			<span>Speed: {formatBytes(uploadSpeed)}/s</span>
 			{#if uploadFileLabel}
 				<span class="max-w-48 truncate" title={uploadFileLabel}>{uploadFileLabel}</span>

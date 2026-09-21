@@ -21,7 +21,9 @@
 	<Text style="font-size: 16px;">
 		Hello {user.firstName || user.username},
 	</Text>
-	<Text style="font-size: 16px;">This email is to confirm that the password for your account has been successfully changed.</Text>
+	<Text style="font-size: 16px;"
+		>This email is to confirm that the password for your account has been successfully changed.</Text
+	>
 </Section>
 
 <Section>

@@ -177,7 +177,10 @@ Features:
 	});
 </script>
 
-<div class="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 p-4 sm:p-6" data-testid="modal-user-sessions">
+<div
+	class="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 p-4 sm:p-6"
+	data-testid="modal-user-sessions"
+>
 	<!-- Header with user context -->
 	<div class="flex items-center justify-between border-b border-surface-500/20 pb-4">
 		<div class="flex items-center gap-3">
@@ -217,12 +220,16 @@ Features:
 	<div class="flex min-h-56 max-h-96 flex-col gap-2 overflow-y-auto pe-1">
 		{#if loading}
 			<div class="flex flex-1 items-center justify-center py-8 text-surface-500">
-				<iconify-icon icon="mdi:loading" width="28" class="animate-spin text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:loading" width="28" class="animate-spin text-primary-500"
+				></iconify-icon>
 				<span class="ms-2 text-sm">Loading active sessions...</span>
 			</div>
 		{:else if sessions.length === 0}
-			<div class="flex flex-1 flex-col items-center justify-center py-10 text-center text-surface-500">
-				<iconify-icon icon="mdi:shield-check-outline" width="36" class="mb-2 text-success-500"></iconify-icon>
+			<div
+				class="flex flex-1 flex-col items-center justify-center py-10 text-center text-surface-500"
+			>
+				<iconify-icon icon="mdi:shield-check-outline" width="36" class="mb-2 text-success-500"
+				></iconify-icon>
 				<p class="text-sm font-medium">No active sessions found.</p>
 				<p class="text-xs opacity-75">This user has no logged-in devices currently active.</p>
 			</div>
@@ -233,7 +240,9 @@ Features:
 					class="flex items-center justify-between gap-3 rounded-lg border border-surface-500/20 bg-surface-500/10 p-3 transition-colors hover:bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800/40 dark:hover:bg-surface-800/80"
 				>
 					<div class="flex items-center gap-3 min-w-0">
-						<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-500/10 text-surface-700 dark:bg-surface-700 dark:text-surface-200">
+						<div
+							class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-500/10 text-surface-700 dark:bg-surface-700 dark:text-surface-200"
+						>
 							<iconify-icon icon={info.icon} width="22"></iconify-icon>
 						</div>
 						<div class="min-w-0">
@@ -242,13 +251,17 @@ Features:
 									{info.browser} on {info.device}
 								</span>
 								{#if s.isCurrent}
-									<Badge preset="tonal" color="success" size="sm">
-										Current Device
-									</Badge>
+									<Badge preset="tonal" color="success" size="sm">Current Device</Badge>
 								{/if}
 							</div>
-							<div class="flex flex-wrap items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
-								<span>IP: <span class="font-mono font-medium">{s.ip || s.ipAddress || '127.0.0.1'}</span></span>
+							<div
+								class="flex flex-wrap items-center gap-2 text-xs text-surface-500 dark:text-surface-400"
+							>
+								<span
+									>IP: <span class="font-mono font-medium"
+										>{s.ip || s.ipAddress || '127.0.0.1'}</span
+									></span
+								>
 								<span>•</span>
 								<span>Last active: {formatTime(s.lastAccess || s.lastActiveAt)}</span>
 							</div>
@@ -298,8 +311,6 @@ Features:
 				</Button>
 			{/if}
 		</div>
-		<Button variant="secondary" size="md" type="button" onclick={() => close()}>
-			Close
-		</Button>
+		<Button variant="secondary" size="md" type="button" onclick={() => close()}>Close</Button>
 	</div>
 </div>

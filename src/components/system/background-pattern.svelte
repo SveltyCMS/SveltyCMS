@@ -48,8 +48,20 @@ and configurable quality settings for weaker devices.
 		autoDetectPerformance = true // Automatically adjust quality based on device
 	} = $props<{
 		background?: 'white' | '#242728';
-		startDirection?: 'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight';
-		endDirection?: 'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight';
+		startDirection?:
+			| 'TopLeft'
+			| 'TopRight'
+			| 'MiddleLeft'
+			| 'MiddleRight'
+			| 'BottomLeft'
+			| 'BottomRight';
+		endDirection?:
+			| 'TopLeft'
+			| 'TopRight'
+			| 'MiddleLeft'
+			| 'MiddleRight'
+			| 'BottomLeft'
+			| 'BottomRight';
 		animationDirection?: 'normal' | 'reverse';
 		quality?: 'low' | 'medium' | 'high';
 		autoDetectPerformance?: boolean;
@@ -198,7 +210,10 @@ and configurable quality settings for weaker devices.
 				d: generatePath(startDirection, endDirection, i, i % 2 === 0 ? 1 : -1),
 				width: 0.8 + i * 0.1,
 				opacity: baseOpacity,
-				color: background === 'white' ? `rgba(15,23,42,${baseOpacity})` : `rgba(255,255,255,${baseOpacity})`
+				color:
+					background === 'white'
+						? `rgba(15,23,42,${baseOpacity})`
+						: `rgba(255,255,255,${baseOpacity})`
 			};
 		})
 	);
@@ -301,7 +316,9 @@ and configurable quality settings for weaker devices.
 		const staggerDelay = pathIndex * 0.1;
 		const adjustedProgress = Math.max(0, Math.min(1, progress - staggerDelay));
 
-		return animationDirection === 'reverse' ? 1000 * adjustedProgress : 1000 * (1 - adjustedProgress);
+		return animationDirection === 'reverse'
+			? 1000 * adjustedProgress
+			: 1000 * (1 - adjustedProgress);
 	}
 </script>
 

@@ -23,64 +23,64 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 -->
 
 <script lang="ts">
-import PasswordStrength from "@src/components/password-strength.svelte";
-import SiteName from "@src/components/site-name.svelte";
-// Components
-import FloatingPaths from "@src/components/system/floating-paths.svelte";
-import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
-import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@components/ui/floating-input.svelte";
-import Input from "@components/ui/input.svelte";
-import Button from "@components/ui/button.svelte";
-// ParaglideJS
-import {
-	button_back,
-	confirm_password,
-	email,
-	form_confirmpassword,
-	form_password,
-	form_required,
-	form_resetpassword,
-	form_signin,
-	signin_forgottenpassword,
-	signin_forgottontoast,
-	signin_savenewpassword,
-	twofa_code_placeholder,
-	twofa_error_invalid_code,
-	twofa_use_authenticator,
-	twofa_use_backup_code,
-	twofa_verify_button,
-	twofa_verify_description,
-	twofa_verify_title,
-	twofa_verifying,
-} from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { globalLoadingStore, loadingOperations } from "@src/stores/loading-store.svelte.ts";
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { Form } from "@utils/form.svelte.ts";
-import { logger } from "@utils/logger";
-import { forgotFormSchema, loginFormSchema, resetFormSchema } from "@utils/schemas";
-import { browser } from "$app/env";
-import { goto, preloadData } from "$app/navigation";
-// Stores
-import { page } from "$app/state";
-import type { PageData } from "../$types";
-import type { LoginBranding } from "@utils/theme-merge";
-import SigninIcon from "./icons/signin-icon.svelte";
-import OauthLogin from "./oauth-login.svelte";
-import { fade } from 'svelte/transition';
-import { base64UrlToBuffer, bufferToBase64Url } from "@utils/webauthn-client";
+	import PasswordStrength from '@src/components/password-strength.svelte';
+	import SiteName from '@src/components/site-name.svelte';
+	// Components
+	import FloatingPaths from '@src/components/system/floating-paths.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Button from '@components/ui/button.svelte';
+	// ParaglideJS
+	import {
+		button_back,
+		confirm_password,
+		email,
+		form_confirmpassword,
+		form_password,
+		form_required,
+		form_resetpassword,
+		form_signin,
+		signin_forgottenpassword,
+		signin_forgottontoast,
+		signin_savenewpassword,
+		twofa_code_placeholder,
+		twofa_error_invalid_code,
+		twofa_use_authenticator,
+		twofa_use_backup_code,
+		twofa_verify_button,
+		twofa_verify_description,
+		twofa_verify_title,
+		twofa_verifying
+	} from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { Form } from '@utils/form.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { forgotFormSchema, loginFormSchema, resetFormSchema } from '@utils/schemas';
+	import { browser } from '$app/env';
+	import { goto, preloadData } from '$app/navigation';
+	// Stores
+	import { page } from '$app/state';
+	import type { PageData } from '../$types';
+	import type { LoginBranding } from '@utils/theme-merge';
+	import SigninIcon from './icons/signin-icon.svelte';
+	import OauthLogin from './oauth-login.svelte';
+	import { fade } from 'svelte/transition';
+	import { base64UrlToBuffer, bufferToBase64Url } from '@utils/webauthn-client';
 
-// Props
-const {
+	// Props
+	const {
 		active = $bindable(undefined),
 		onClick = () => {},
 		onPointerEnter: onPointerEnterProp = () => {},
 		onBack = () => {},
-		firstCollectionPath = "",
-		redirectTo = "",
-		branding = undefined,
+		firstCollectionPath = '',
+		redirectTo = '',
+		branding = undefined
 	}: {
 		active?: number;
 		onClick?: () => void;
@@ -91,526 +91,556 @@ const {
 		branding?: LoginBranding;
 	} = $props();
 
-const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCMS");
-const brandedLogin = $derived(branding?.brandedLogin ?? false);
-const brandedVariant = $derived(branding?.variant ?? "bordered");
+	const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || 'SveltyCMS');
+	const brandedLogin = $derived(branding?.brandedLogin ?? false);
+	const brandedVariant = $derived(branding?.variant ?? 'bordered');
 
-// State management
-let P_WFORGOT = $state(false);
-let P_WRESET = $state(false);
-let P_WMAGIC = $state(false);
-let isPasskeyLoading = $state(false);
+	// State management
+	let P_WFORGOT = $state(false);
+	let P_WRESET = $state(false);
+	let P_WMAGIC = $state(false);
+	let isPasskeyLoading = $state(false);
 
-// let not const — const prevents $state reassignment so the
-// password-visibility toggle silently broke.
-let showPassword = $state(false);
+	// let not const — const prevents $state reassignment so the
+	// password-visibility toggle silently broke.
+	let showPassword = $state(false);
 
-//  Separate formElement refs per form so wiggle targets the end one.
-let loginFormElement: HTMLFormElement | null = $state(null);
-let forgotFormElement: HTMLFormElement | null = $state(null);
-let resetFormElement: HTMLFormElement | null = $state(null);
-let magicFormElement: HTMLFormElement | null = $state(null);
+	//  Separate formElement refs per form so wiggle targets the end one.
+	let loginFormElement: HTMLFormElement | null = $state(null);
+	let forgotFormElement: HTMLFormElement | null = $state(null);
+	let resetFormElement: HTMLFormElement | null = $state(null);
+	let magicFormElement: HTMLFormElement | null = $state(null);
 
-const isInteractiveCard = $derived(active === undefined);
-const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
-const pageData = page.data as PageData;
+	const isInteractiveCard = $derived(active === undefined);
+	const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
+	const pageData = page.data as PageData;
 
-// Generated PageData unions (OptionalUnion) drop the ssoProviders key — read it
-// through an intersection like the loginBranding cast in login/+page.svelte.
-type SsoProvider = import("@src/databases/auth/sso-session").PublicSsoProvider;
-const ssoProviders = $derived(
-	(pageData as PageData & { ssoProviders?: SsoProvider[] }).ssoProviders,
-);
+	// Generated PageData unions (OptionalUnion) drop the ssoProviders key — read it
+	// through an intersection like the loginBranding cast in login/+page.svelte.
+	type SsoProvider = import('@src/databases/auth/sso-session').PublicSsoProvider;
+	const ssoProviders = $derived(
+		(pageData as PageData & { ssoProviders?: SsoProvider[] }).ssoProviders
+	);
 
-// Use page.url (reactive) instead of a static window.location.href snapshot.
-const currentUrl = $derived(browser ? page.url : null);
+	// Use page.url (reactive) instead of a static window.location.href snapshot.
+	const currentUrl = $derived(browser ? page.url : null);
 
-// Spinner / auth state
-let isSubmitting = $state(false);
-let isAuthenticating = $state(false);
+	// Spinner / auth state
+	let isSubmitting = $state(false);
+	let isAuthenticating = $state(false);
 
-// 2FA state
-let requires2FA = $state(false);
-let twoFAUserId = $state("");
-let twoFACode = $state("");
-let twoFAPendingToken = $state("");
-let useBackupCode = $state(false);
-let isVerifying2FA = $state(false);
+	// 2FA state
+	let requires2FA = $state(false);
+	let twoFAUserId = $state('');
+	let twoFACode = $state('');
+	let twoFAPendingToken = $state('');
+	let useBackupCode = $state(false);
+	let isVerifying2FA = $state(false);
 
-let prefetched = $state(false);
+	let prefetched = $state(false);
 
-async function prefetchFirstCollection() {
-	if (prefetched || !firstCollectionPath) return;
-	prefetched = true;
-	try {
-		await preloadData(firstCollectionPath);
-	} catch (error) {
-		logger.warn("Prefetch failed:", error);
+	async function prefetchFirstCollection() {
+		if (prefetched || !firstCollectionPath) return;
+		prefetched = true;
+		try {
+			await preloadData(firstCollectionPath);
+		} catch (error) {
+			logger.warn('Prefetch failed:', error);
+		}
 	}
-}
 
-// ---------------------------------------------------------------------------
-// Utility — wiggle animation helper
-// ---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
+	// Utility — wiggle animation helper
+	// ---------------------------------------------------------------------------
 
-function wiggle(el: HTMLFormElement | null) {
-	if (!el) return;
-	el.classList.add("wiggle");
-	setTimeout(() => el.classList.remove("wiggle"), 300);
-}
+	function wiggle(el: HTMLFormElement | null) {
+		if (!el) return;
+		el.classList.add('wiggle');
+		setTimeout(() => el.classList.remove('wiggle'), 300);
+	}
 
-// ---------------------------------------------------------------------------
-// Dynamic Auth Methods Checking
-// ---------------------------------------------------------------------------
-let allowedMethods = $state({
-	hasPassword: true,
-	hasPasskey: false,
-	hasMagicLink: false,
-	hasOAuth: false,
-});
-let checkTimeout: ReturnType<typeof setTimeout> | undefined;
+	// ---------------------------------------------------------------------------
+	// Dynamic Auth Methods Checking
+	// ---------------------------------------------------------------------------
+	let allowedMethods = $state({
+		hasPassword: true,
+		hasPasskey: false,
+		hasMagicLink: false,
+		hasOAuth: false
+	});
+	let checkTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	function onEmailInput() {
-	if (checkTimeout) clearTimeout(checkTimeout);
-	checkTimeout = setTimeout(async () => {
-		const email = (loginForm.data.email || "").trim().toLowerCase();
-		if (!email || !email.includes('@')) {
-			allowedMethods = { hasPassword: true, hasPasskey: false, hasMagicLink: false, hasOAuth: false };
-			return;
-		}
-		try {
-			const { checkAuthMethods } = await import("../auth.remote");
-			const res = await checkAuthMethods(email);
-			if (res.success) {
-				allowedMethods = { ...allowedMethods, ...res };
+		if (checkTimeout) clearTimeout(checkTimeout);
+		checkTimeout = setTimeout(async () => {
+			const email = (loginForm.data.email || '').trim().toLowerCase();
+			if (!email || !email.includes('@')) {
+				allowedMethods = {
+					hasPassword: true,
+					hasPasskey: false,
+					hasMagicLink: false,
+					hasOAuth: false
+				};
+				return;
 			}
-		} catch (e) {
-			logger.warn("Failed to check auth methods", e);
-		}
-	}, 400);
-}
-
-// ---------------------------------------------------------------------------
-// Login form
-// ---------------------------------------------------------------------------
-
-const loginForm = new Form({ email: "", password: "", isToken: false }, loginFormSchema);
-
-// Stable per-device id for the session policy (one active session per device).
-// Persisted in localStorage so a re-login on the same device evicts the old
-// session instead of stacking concurrent sessions.
-let deviceId: string | undefined;
-if (typeof localStorage !== "undefined") {
-	try {
-		deviceId = localStorage.getItem("sveltycms-device-id") || "";
-		if (!deviceId) {
-			deviceId = crypto.randomUUID();
-			localStorage.setItem("sveltycms-device-id", deviceId);
-		}
-	} catch {
-		deviceId = undefined;
+			try {
+				const { checkAuthMethods } = await import('../auth.remote');
+				const res = await checkAuthMethods(email);
+				if (res.success) {
+					allowedMethods = { ...allowedMethods, ...res };
+				}
+			} catch (e) {
+				logger.warn('Failed to check auth methods', e);
+			}
+		}, 400);
 	}
-}
+
+	// ---------------------------------------------------------------------------
+	// Login form
+	// ---------------------------------------------------------------------------
+
+	const loginForm = new Form({ email: '', password: '', isToken: false }, loginFormSchema);
+
+	// Stable per-device id for the session policy (one active session per device).
+	// Persisted in localStorage so a re-login on the same device evicts the old
+	// session instead of stacking concurrent sessions.
+	let deviceId: string | undefined;
+	if (typeof localStorage !== 'undefined') {
+		try {
+			deviceId = localStorage.getItem('sveltycms-device-id') || '';
+			if (!deviceId) {
+				deviceId = crypto.randomUUID();
+				localStorage.setItem('sveltycms-device-id', deviceId);
+			}
+		} catch {
+			deviceId = undefined;
+		}
+	}
 
 	async function handleLoginSubmit(event: Event) {
 		event.preventDefault();
-	if (loginForm.data.email) {
-		loginForm.data.email = loginForm.data.email.toLowerCase();
-	}
+		if (loginForm.data.email) {
+			loginForm.data.email = loginForm.data.email.toLowerCase();
+		}
 
-	if (!loginForm.validate()) {
-		wiggle(loginFormElement);
-		return;
-	}
+		if (!loginForm.validate()) {
+			wiggle(loginFormElement);
+			return;
+		}
 
-	isSubmitting = true;
-	isAuthenticating = true;
-	globalLoadingStore.startLoading(loadingOperations.authentication);
+		isSubmitting = true;
+		isAuthenticating = true;
+		globalLoadingStore.startLoading(loadingOperations.authentication);
 
-	try {
-		const { signIn: remoteSignIn } = await import("../auth.remote");
-		const result = (await remoteSignIn({
-			email: loginForm.data.email,
-			password: loginForm.data.password,
-			isToken: loginForm.data.isToken,
-			deviceId,
-			redirect: redirectTo || undefined,
-		})) as any;
+		try {
+			const { signIn: remoteSignIn } = await import('../auth.remote');
+			const result = (await remoteSignIn({
+				email: loginForm.data.email,
+				password: loginForm.data.password,
+				isToken: loginForm.data.isToken,
+				deviceId,
+				redirect: redirectTo || undefined
+			})) as any;
 
-		if (result.requires2FA) {
-			requires2FA = true;
-			twoFAUserId = result.userId || "";
-			twoFAPendingToken = result.pending2faToken || "";
+			if (result.requires2FA) {
+				requires2FA = true;
+				twoFAUserId = result.userId || '';
+				twoFAPendingToken = result.pending2faToken || '';
+				isAuthenticating = false;
+				globalLoadingStore.stopLoading(loadingOperations.authentication);
+				toast.warning({
+					title: 'Two-Factor Authentication Required',
+					description: 'Please enter your authentication code to continue'
+				});
+				import('svelte').then(({ tick }) => {
+					tick().then(() => document.getElementById('twofa-code')?.focus());
+				});
+				return;
+			}
+
+			if (result.success && result.redirectPath) {
+				sessionStorage.setItem(
+					'flashMessage',
+					JSON.stringify({
+						type: 'success',
+						title: 'Welcome Back!',
+						description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
+						duration: 4000
+					})
+				);
+				await goto(result.redirectPath, { refreshAll: true });
+				return;
+			}
+
+			toast.error({
+				title: 'Sign In Failed',
+				description: result.message || 'Invalid email or password'
+			});
+			wiggle(loginFormElement);
+		} catch (error: any) {
+			const errorMessage = error?.message || 'An unexpected error occurred';
+			toast.error({ title: 'Sign In Failed', description: errorMessage });
+			wiggle(loginFormElement);
+		} finally {
+			isSubmitting = false;
 			isAuthenticating = false;
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
-			toast.warning({
-				title: "Two-Factor Authentication Required",
-				description: "Please enter your authentication code to continue",
+		}
+	}
+
+	// ---------------------------------------------------------------------------
+	// Forgot password form
+	// ---------------------------------------------------------------------------
+
+	const forgotForm = new Form({ email: '' }, forgotFormSchema);
+
+	// ---------------------------------------------------------------------------
+	// Magic Link form
+	// ---------------------------------------------------------------------------
+
+	const magicForm = new Form({ email: '' }, forgotFormSchema);
+
+	async function handlePasskeySignIn() {
+		if (!browser) return;
+		const email = (loginForm.data.email || '').trim().toLowerCase();
+		if (!email) {
+			toast.error({
+				title: 'Email required',
+				description: 'Enter your email above, then use Passkey sign-in.'
 			});
-			import("svelte").then(({ tick }) => {
-				tick().then(() => document.getElementById("twofa-code")?.focus());
+			return;
+		}
+		if (!window.PublicKeyCredential) {
+			toast.error({
+				title: 'Unsupported',
+				description: 'Passkeys are not supported in this browser.'
 			});
 			return;
 		}
 
-		if (result.success && result.redirectPath) {
-			sessionStorage.setItem(
-				"flashMessage",
-				JSON.stringify({
-					type: "success",
-					title: "Welcome Back!",
-					description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
-					duration: 4000,
-				})
-			);
-			await goto(result.redirectPath, { refreshAll: true });
-			return;
-		}
+		isPasskeyLoading = true;
+		try {
+			const { getPasskeyAuthOptions, verifyPasskeyAuth } = await import('../auth.remote');
+			const opts = await getPasskeyAuthOptions({ email });
+			if (!opts.success || !opts.options) {
+				toast.error({
+					title: 'Passkey unavailable',
+					description: opts.message || 'No passkey found for this account.'
+				});
+				return;
+			}
 
-		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
-		wiggle(loginFormElement);
-	} catch (error: any) {
-		const errorMessage = error?.message || "An unexpected error occurred";
-		toast.error({ title: "Sign In Failed", description: errorMessage });
-		wiggle(loginFormElement);
-	} finally {
-		isSubmitting = false;
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Forgot password form
-// ---------------------------------------------------------------------------
-
-const forgotForm = new Form({ email: "" }, forgotFormSchema);
-
-// ---------------------------------------------------------------------------
-// Magic Link form
-// ---------------------------------------------------------------------------
-
-const magicForm = new Form({ email: "" }, forgotFormSchema);
-
-async function handlePasskeySignIn() {
-	if (!browser) return;
-	const email = (loginForm.data.email || "").trim().toLowerCase();
-	if (!email) {
-		toast.error({ title: "Email required", description: "Enter your email above, then use Passkey sign-in." });
-		return;
-	}
-	if (!window.PublicKeyCredential) {
-		toast.error({ title: "Unsupported", description: "Passkeys are not supported in this browser." });
-		return;
-	}
-
-	isPasskeyLoading = true;
-	try {
-		const { getPasskeyAuthOptions, verifyPasskeyAuth } = await import("../auth.remote");
-		const opts = await getPasskeyAuthOptions({ email });
-		if (!opts.success || !opts.options) {
-			toast.error({ title: "Passkey unavailable", description: opts.message || "No passkey found for this account." });
-			return;
-		}
-
-		const credential = (await navigator.credentials.get({
+			const credential = (await navigator.credentials.get({
 				publicKey: {
 					...opts.options,
 					challenge: base64UrlToBuffer(opts.options.challenge) as BufferSource,
 					allowCredentials: opts.options.allowCredentials?.map((c) => ({
-												type: 'public-key' as const,
-												id: base64UrlToBuffer(c.id),
-												transports: c.transports as AuthenticatorTransport[] | undefined,
-											})) as PublicKeyCredentialDescriptor[],
-				},
+						type: 'public-key' as const,
+						id: base64UrlToBuffer(c.id),
+						transports: c.transports as AuthenticatorTransport[] | undefined
+					})) as PublicKeyCredentialDescriptor[]
+				}
 			})) as PublicKeyCredential | null;
 
-		if (!credential) {
-			toast.error({ title: "Cancelled", description: "Passkey sign-in was cancelled." });
+			if (!credential) {
+				toast.error({ title: 'Cancelled', description: 'Passkey sign-in was cancelled.' });
+				return;
+			}
+
+			const response = credential.response as AuthenticatorAssertionResponse;
+			const result = await verifyPasskeyAuth({
+				email,
+				assertion: {
+					id: credential.id,
+					rawId: bufferToBase64Url(credential.rawId),
+					type: credential.type,
+					response: {
+						authenticatorData: bufferToBase64Url(response.authenticatorData),
+						clientDataJSON: bufferToBase64Url(response.clientDataJSON),
+						signature: bufferToBase64Url(response.signature)
+					}
+				}
+			});
+
+			if (result.success && result.redirectPath) {
+				await goto(result.redirectPath, { refreshAll: true });
+			} else {
+				toast.error({
+					title: 'Passkey failed',
+					description: result.message || 'Authentication failed.'
+				});
+			}
+		} catch (error: any) {
+			toast.error({
+				title: 'Passkey error',
+				description: error?.message || 'Passkey authentication failed.'
+			});
+		} finally {
+			isPasskeyLoading = false;
+		}
+	}
+
+	async function handleMagicSubmit(event: Event) {
+		event.preventDefault();
+		if (magicForm.data.email) {
+			magicForm.data.email = magicForm.data.email.toLowerCase();
+		}
+		if (!magicForm.validate()) {
+			wiggle(magicFormElement);
 			return;
 		}
+		isSubmitting = true;
 
-		const response = credential.response as AuthenticatorAssertionResponse;
-		const result = await verifyPasskeyAuth({
-			email,
-			assertion: {
-				id: credential.id,
-				rawId: bufferToBase64Url(credential.rawId),
-				type: credential.type,
-				response: {
-					authenticatorData: bufferToBase64Url(response.authenticatorData),
-					clientDataJSON: bufferToBase64Url(response.clientDataJSON),
-					signature: bufferToBase64Url(response.signature),
-				},
-			},
-		});
-
-		if (result.success && result.redirectPath) {
-			await goto(result.redirectPath, { refreshAll: true });
-		} else {
-			toast.error({ title: "Passkey failed", description: result.message || "Authentication failed." });
+		try {
+			const { requestMagicLink } = await import('../auth.remote');
+			const result = await requestMagicLink({ email: magicForm.data.email });
+			isSubmitting = false;
+			if (result.success) {
+				toast.success({
+					title: 'Magic Link Sent',
+					description: result.message || 'Please check your inbox for the sign-in link.'
+				});
+				P_WMAGIC = false;
+			} else {
+				toast.error({
+					title: 'Request Failed',
+					description: result.message || 'Failed to send magic link'
+				});
+			}
+		} catch (error: any) {
+			isSubmitting = false;
+			const errorMessage = error?.message || 'Failed to request magic link';
+			toast.error({ title: 'Request Failed', description: errorMessage });
+			wiggle(magicFormElement);
 		}
-	} catch (error: any) {
-		toast.error({ title: "Passkey error", description: error?.message || "Passkey authentication failed." });
-	} finally {
-		isPasskeyLoading = false;
 	}
-}
 
-async function handleMagicSubmit(event: Event) {
-	event.preventDefault();
-	if (magicForm.data.email) {
-		magicForm.data.email = magicForm.data.email.toLowerCase();
-	}
-	if (!magicForm.validate()) {
-		wiggle(magicFormElement);
-		return;
-	}
-	isSubmitting = true;
-
-	try {
-		const { requestMagicLink } = await import("../auth.remote");
-		const result = await requestMagicLink({ email: magicForm.data.email });
-		isSubmitting = false;
-		if (result.success) {
-			toast.success({ title: "Magic Link Sent", description: result.message || "Please check your inbox for the sign-in link." });
-			P_WMAGIC = false;
-		} else {
-			toast.error({ title: "Request Failed", description: result.message || "Failed to send magic link" });
+	async function handleForgotSubmit(event: Event) {
+		event.preventDefault();
+		if (forgotForm.data.email) {
+			forgotForm.data.email = forgotForm.data.email.toLowerCase();
 		}
-	} catch (error: any) {
-		isSubmitting = false;
-		const errorMessage = error?.message || "Failed to request magic link";
-		toast.error({ title: "Request Failed", description: errorMessage });
-		wiggle(magicFormElement);
-	}
-}
-
-
-async function handleForgotSubmit(event: Event) {
-	event.preventDefault();
-	if (forgotForm.data.email) {
-		forgotForm.data.email = forgotForm.data.email.toLowerCase();
-	}
-	if (!forgotForm.validate()) {
-		wiggle(forgotFormElement);
-		return;
-	}
-	isSubmitting = true;
-
-	try {
-		const { forgotPW: remoteForgotPW } = await import("../auth.remote");
-		const result: any = await remoteForgotPW({ email: forgotForm.data.email });
-		isSubmitting = false;
-
-		if (result.smtpConfigured === false && result.resetLink) {
-			// No SMTP configured — pre-fill the reset form so user can reset immediately.
-			// The reset link is also printed in the server terminal for sharing.
-			const url = new URL(result.resetLink as string);
-			resetForm.data.token = url.searchParams.get("token") || "";
-			resetForm.data.email = url.searchParams.get("email") || "";
-			P_WRESET = true;
-			toast.info({
-				description:
-					"SMTP not configured. Enter a new password below to reset.",
-				duration: 10000,
-			});
-		} else {
-			P_WRESET = true;
-			toast.success({ description: signin_forgottontoast() });
+		if (!forgotForm.validate()) {
+			wiggle(forgotFormElement);
+			return;
 		}
-	} catch (error: any) {
-		isSubmitting = false;
-		const errorMessage = error?.message || "Password reset failed";
-		toast.error({ title: "Reset Failed", description: errorMessage });
-		wiggle(forgotFormElement);
+		isSubmitting = true;
+
+		try {
+			const { forgotPW: remoteForgotPW } = await import('../auth.remote');
+			const result: any = await remoteForgotPW({ email: forgotForm.data.email });
+			isSubmitting = false;
+
+			if (result.smtpConfigured === false && result.resetLink) {
+				// No SMTP configured — pre-fill the reset form so user can reset immediately.
+				// The reset link is also printed in the server terminal for sharing.
+				const url = new URL(result.resetLink as string);
+				resetForm.data.token = url.searchParams.get('token') || '';
+				resetForm.data.email = url.searchParams.get('email') || '';
+				P_WRESET = true;
+				toast.info({
+					description: 'SMTP not configured. Enter a new password below to reset.',
+					duration: 10000
+				});
+			} else {
+				P_WRESET = true;
+				toast.success({ description: signin_forgottontoast() });
+			}
+		} catch (error: any) {
+			isSubmitting = false;
+			const errorMessage = error?.message || 'Password reset failed';
+			toast.error({ title: 'Reset Failed', description: errorMessage });
+			wiggle(forgotFormElement);
+		}
 	}
-}
 
-// ---------------------------------------------------------------------------
-// Reset password form
-// ---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
+	// Reset password form
+	// ---------------------------------------------------------------------------
 
-const resetForm = new Form(
-	{ password: "", confirmPassword: "", token: "", email: "" },
-	resetFormSchema,
-);
+	const resetForm = new Form(
+		{ password: '', confirmPassword: '', token: '', email: '' },
+		resetFormSchema
+	);
 
-async function handleResetSubmit(event: Event) {
-	event.preventDefault();
-	if (!resetForm.validate()) {
-		wiggle(resetFormElement);
-		return;
-	}
-	isSubmitting = true;
-	globalLoadingStore.startLoading(loadingOperations.authentication);
-	try {
-		const { resetPW: remoteResetPW } = await import("../auth.remote");
-		const result = (await remoteResetPW({
-			password: resetForm.data.password,
-			confirmPassword: resetForm.data.confirmPassword,
-			token: resetForm.data.token,
-			email: resetForm.data.email
-		})) as any;
-		isSubmitting = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
-
-		if (!result?.success) {
-			const code = result?.code as string | undefined;
-			const description =
-				code === "TOKEN_EXPIRED"
-					? "This reset link has expired. Request a new one from “Forgot password”."
-					: code === "TOKEN_ALREADY_CONSUMED"
-						? "This reset link was already used. Request a new one if you still need access."
-						: result?.message || "Failed to reset password.";
-			toast.error({
-				title:
-					code === "TOKEN_EXPIRED"
-						? "Link expired"
-						: code === "TOKEN_ALREADY_CONSUMED"
-							? "Link already used"
-							: "Reset Failed",
-				description,
-			});
+	async function handleResetSubmit(event: Event) {
+		event.preventDefault();
+		if (!resetForm.validate()) {
 			wiggle(resetFormElement);
 			return;
 		}
+		isSubmitting = true;
+		globalLoadingStore.startLoading(loadingOperations.authentication);
+		try {
+			const { resetPW: remoteResetPW } = await import('../auth.remote');
+			const result = (await remoteResetPW({
+				password: resetForm.data.password,
+				confirmPassword: resetForm.data.confirmPassword,
+				token: resetForm.data.token,
+				email: resetForm.data.email
+			})) as any;
+			isSubmitting = false;
+			globalLoadingStore.stopLoading(loadingOperations.authentication);
 
-		P_WRESET = false;
-		P_WFORGOT = false;
-		toast.success({
-			title: "Password Reset Successful",
-			description: "You can now sign in with your new password",
-		});
-		if (result.redirectPath) {
-			goto(result.redirectPath);
+			if (!result?.success) {
+				const code = result?.code as string | undefined;
+				const description =
+					code === 'TOKEN_EXPIRED'
+						? 'This reset link has expired. Request a new one from “Forgot password”.'
+						: code === 'TOKEN_ALREADY_CONSUMED'
+							? 'This reset link was already used. Request a new one if you still need access.'
+							: result?.message || 'Failed to reset password.';
+				toast.error({
+					title:
+						code === 'TOKEN_EXPIRED'
+							? 'Link expired'
+							: code === 'TOKEN_ALREADY_CONSUMED'
+								? 'Link already used'
+								: 'Reset Failed',
+					description
+				});
+				wiggle(resetFormElement);
+				return;
+			}
+
+			P_WRESET = false;
+			P_WFORGOT = false;
+			toast.success({
+				title: 'Password Reset Successful',
+				description: 'You can now sign in with your new password'
+			});
+			if (result.redirectPath) {
+				goto(result.redirectPath);
+			}
+		} catch (error: any) {
+			isSubmitting = false;
+			globalLoadingStore.stopLoading(loadingOperations.authentication);
+			toast.error({
+				title: 'Reset Failed',
+				description: error?.message || 'Failed to reset password.'
+			});
+			wiggle(resetFormElement);
 		}
-	} catch (error: any) {
-		isSubmitting = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
-		toast.error({
-			title: "Reset Failed",
-			description: error?.message || "Failed to reset password."
-		});
-		wiggle(resetFormElement);
-	}
-}
-
-async function submitTwoFA() {
-	if (!twoFACode.trim() || isVerifying2FA) return;
-
-	if (!useBackupCode && twoFACode.length !== 6) {
-		toast.error({ description: twofa_error_invalid_code() });
-		return;
-	}
-	if (useBackupCode && twoFACode.length < 8) {
-		toast.error({ description: "Invalid backup code format" });
-		return;
 	}
 
-	isVerifying2FA = true;
-	try {
-		const { verify2FA } = await import("../auth.remote");
-		const result = (await verify2FA({
-			userId: twoFAUserId,
-			code: twoFACode,
-			pending2faToken: twoFAPendingToken || undefined,
-		})) as any;
-		isVerifying2FA = false;
-		if (result.success && result.redirectPath) {
-				toast.success({ title: "Verification Successful", description: "Redirecting…" });
+	async function submitTwoFA() {
+		if (!twoFACode.trim() || isVerifying2FA) return;
+
+		if (!useBackupCode && twoFACode.length !== 6) {
+			toast.error({ description: twofa_error_invalid_code() });
+			return;
+		}
+		if (useBackupCode && twoFACode.length < 8) {
+			toast.error({ description: 'Invalid backup code format' });
+			return;
+		}
+
+		isVerifying2FA = true;
+		try {
+			const { verify2FA } = await import('../auth.remote');
+			const result = (await verify2FA({
+				userId: twoFAUserId,
+				code: twoFACode,
+				pending2faToken: twoFAPendingToken || undefined
+			})) as any;
+			isVerifying2FA = false;
+			if (result.success && result.redirectPath) {
+				toast.success({ title: 'Verification Successful', description: 'Redirecting…' });
 				await goto(result.redirectPath, { refreshAll: true });
 				return;
+			}
+			toast.error({ description: result.message || twofa_error_invalid_code() });
+			twoFACode = '';
+		} catch (e: any) {
+			isVerifying2FA = false;
+			toast.error({ description: e?.message || twofa_error_invalid_code() });
+			twoFACode = '';
 		}
-		toast.error({ description: result.message || twofa_error_invalid_code() });
-		twoFACode = "";
-	} catch (e: any) {
+	}
+
+	function handle2FAInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		let value = input.value;
+		if (useBackupCode) {
+			value = value
+				.replace(/[^a-zA-Z0-9]/g, '')
+				.toLowerCase()
+				.slice(0, 10);
+		} else {
+			value = value.replace(/\D/g, '').slice(0, 6);
+		}
+		twoFACode = value;
+	}
+
+	function toggle2FACodeType() {
+		useBackupCode = !useBackupCode;
+		twoFACode = '';
+	}
+
+	function back2FAToLogin() {
+		requires2FA = false;
+		twoFAUserId = '';
+		twoFACode = '';
+		twoFAPendingToken = '';
+		useBackupCode = false;
 		isVerifying2FA = false;
-		toast.error({ description: e?.message || twofa_error_invalid_code() });
-		twoFACode = "";
 	}
-}
 
-function handle2FAInput(event: Event) {
-	const input = event.target as HTMLInputElement;
-	let value = input.value;
-	if (useBackupCode) {
-		value = value.replace(/[^a-zA-Z0-9]/g, "").toLowerCase().slice(0, 10);
-	} else {
-		value = value.replace(/\D/g, "").slice(0, 6);
+	// ---------------------------------------------------------------------------
+	// URL token effect — populates reset form from query params
+	// ---------------------------------------------------------------------------
+
+	// Derived from reactive page.url instead of a stale window.location snapshot.
+	$effect(() => {
+		if (!currentUrl) return;
+		const tokenParam = currentUrl.searchParams.get('token') || '';
+		const emailParam = currentUrl.searchParams.get('email') || '';
+		if (tokenParam && emailParam) {
+			resetForm.data.token = tokenParam;
+			resetForm.data.email = emailParam;
+			P_WFORGOT = true;
+			P_WRESET = true;
+		}
+	});
+
+	// ---------------------------------------------------------------------------
+	// Event handlers
+	// ---------------------------------------------------------------------------
+
+	function handleBack(event: Event) {
+		event.stopPropagation();
+		if (P_WFORGOT && P_WRESET) {
+			P_WRESET = false;
+		} else if (P_WFORGOT) {
+			P_WFORGOT = false;
+		} else if (P_WMAGIC) {
+			P_WMAGIC = false;
+		} else {
+			onBack();
+		}
 	}
-	twoFACode = value;
-}
 
-function toggle2FACodeType() {
-	useBackupCode = !useBackupCode;
-	twoFACode = "";
-}
+	function handleFormClick(event: Event) {
+		event.stopPropagation();
+		onClick();
+	}
 
-function back2FAToLogin() {
-	requires2FA = false;
-	twoFAUserId = "";
-	twoFACode = "";
-	twoFAPendingToken = "";
-	useBackupCode = false;
-	isVerifying2FA = false;
-}
-
-// ---------------------------------------------------------------------------
-// URL token effect — populates reset form from query params
-// ---------------------------------------------------------------------------
-
-// Derived from reactive page.url instead of a stale window.location snapshot.
-$effect(() => {
-	if (!currentUrl) return;
-	const tokenParam = currentUrl.searchParams.get("token") || "";
-	const emailParam = currentUrl.searchParams.get("email") || "";
-	if (tokenParam && emailParam) {
-		resetForm.data.token = tokenParam;
-		resetForm.data.email = emailParam;
+	function handleForgotPassword(event: Event) {
+		event.stopPropagation();
 		P_WFORGOT = true;
-		P_WRESET = true;
-	}
-});
-
-// ---------------------------------------------------------------------------
-// Event handlers
-// ---------------------------------------------------------------------------
-
-function handleBack(event: Event) {
-	event.stopPropagation();
-	if (P_WFORGOT && P_WRESET) {
 		P_WRESET = false;
-	} else if (P_WFORGOT) {
-		P_WFORGOT = false;
-	} else if (P_WMAGIC) {
-		P_WMAGIC = false;
-	} else {
-		onBack();
 	}
-}
 
-function handleFormClick(event: Event) {
-	event.stopPropagation();
-	onClick();
-}
+	// Class computations
+	const isActive = $derived(active === 0);
+	const isInactive = $derived(active !== undefined && active !== 0);
+	const isHover = $derived(active === undefined || active === 1);
+	const baseClasses = 'hover relative flex items-center';
 
-function handleForgotPassword(event: Event) {
-	event.stopPropagation();
-	P_WFORGOT = true;
-	P_WRESET = false;
-}
-
-// Class computations
-const isActive = $derived(active === 0);
-const isInactive = $derived(active !== undefined && active !== 0);
-const isHover = $derived(active === undefined || active === 1);
-const baseClasses = "hover relative flex items-center";
-
-// Prefetch first collection data when active
-$effect(() => {
-	if (active === 0) prefetchFirstCollection();
-});
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 0) prefetchFirstCollection();
+	});
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -626,23 +656,33 @@ $effect(() => {
 	class:hover={isHover}
 >
 	{#if active === 0}
-		<div transition:fade={{ duration: 250 }} class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+		<div
+			transition:fade={{ duration: 250 }}
+			class="relative flex min-h-screen w-full items-center justify-center overflow-hidden"
+		>
 			{#if screen.isDesktop}
 				<div class="absolute inset-0 z-0">
 					<FloatingPaths position={1} background="white" />
 					<FloatingPaths position={-1} background="white" />
 				</div>
 			{/if}
-			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+			<div
+				class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"
+			>
 				<SveltyCMSLogoFull {siteName} />
 			</div>
 			<div
-				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin && brandedVariant === 'elevated'
+				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin &&
+				brandedVariant === 'elevated'
 					? 'bg-white shadow-xl border border-surface-500/30'
 					: 'bg-white/0'}"
 				class:hide={active !== 0}
 			>
-				<a href="#signin-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-in form</a>
+				<a
+					href="#signin-form"
+					class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black"
+					>Skip to sign-in form</a
+				>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
 					<h1 class="text-3xl font-bold text-black lg:text-4xl">
@@ -674,7 +714,12 @@ $effect(() => {
 							aria-label={button_back()}
 							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40"
 						>
-							<iconify-icon icon="ri:arrow-left-line" width={24} class="text-black" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon="ri:arrow-left-line"
+								width={24}
+								class="text-black"
+								aria-hidden="true"
+							></iconify-icon>
 						</Button>
 					</div>
 				</div>
@@ -741,7 +786,9 @@ $effect(() => {
 						</form>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto transition-all">
+							<div
+								class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto transition-all"
+							>
 								<Button
 									type="button"
 									variant="surface"
@@ -755,36 +802,44 @@ $effect(() => {
 								</Button>
 
 								{#if allowedMethods.hasOAuth || pageData.showGoogleOAuth || pageData.showGithubOAuth || (ssoProviders && ssoProviders.length > 0)}
-								<div class="animate-fade-in w-full sm:w-auto">
-									<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} ssoProviders={ssoProviders} {firstCollectionPath} />
-								</div>
+									<div class="animate-fade-in w-full sm:w-auto">
+										<OauthLogin
+											showGoogleOAuth={pageData.showGoogleOAuth}
+											showGithubOAuth={pageData.showGithubOAuth}
+											{ssoProviders}
+											{firstCollectionPath}
+										/>
+									</div>
 								{/if}
 							</div>
 
 							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto gap-2">
 								{#if pageData.showPasskey}
-								<Button
-									type="button"
-									variant="outline"
-									class="w-full sm:w-auto text-black! flex items-center justify-center gap-1.5"
-									aria-label="Sign in with Passkey or Biometrics"
-									onclick={handlePasskeySignIn}
-									loading={isPasskeyLoading}
-								>
-									<iconify-icon icon="mdi:fingerprint" width={18} aria-hidden="true"></iconify-icon>
-									Passkey
-								</Button>
+									<Button
+										type="button"
+										variant="outline"
+										class="w-full sm:w-auto text-black! flex items-center justify-center gap-1.5"
+										aria-label="Sign in with Passkey or Biometrics"
+										onclick={handlePasskeySignIn}
+										loading={isPasskeyLoading}
+									>
+										<iconify-icon icon="mdi:fingerprint" width={18} aria-hidden="true"
+										></iconify-icon>
+										Passkey
+									</Button>
 								{/if}
 								{#if pageData.showMagicLink}
-								<Button
-									type="button"
-									variant="outline"
-									class="w-full sm:w-auto text-black!"
-									aria-label="Sign in via Magic Link"
-									onclick={() => { P_WMAGIC = true; }}
-								>
-									Magic Link
-								</Button>
+									<Button
+										type="button"
+										variant="outline"
+										class="w-full sm:w-auto text-black!"
+										aria-label="Sign in via Magic Link"
+										onclick={() => {
+											P_WMAGIC = true;
+										}}
+									>
+										Magic Link
+									</Button>
 								{/if}
 								<Button
 									type="button"
@@ -804,14 +859,18 @@ $effect(() => {
 					<!-- Two-Factor Authentication panel                        -->
 					<!-- ------------------------------------------------------- -->
 					{#if requires2FA}
-						<div class="flex w-full flex-col gap-4" role="region" aria-label="Two-factor authentication">
+						<div
+							class="flex w-full flex-col gap-4"
+							role="region"
+							aria-label="Two-factor authentication"
+						>
 							<div class="text-center">
 								<div class="mb-3">
 									<iconify-icon icon="mdi:shield-key" width={24} aria-hidden="true"></iconify-icon>
 								</div>
 								<h3 class="h3 mb-2">{twofa_verify_title()}</h3>
 								<p class="text-sm text-surface-600 dark:text-surface-400">
-									{useBackupCode ? "Enter your backup recovery code:" : twofa_verify_description()}
+									{useBackupCode ? 'Enter your backup recovery code:' : twofa_verify_description()}
 								</p>
 							</div>
 
@@ -823,16 +882,21 @@ $effect(() => {
 										id="twofa-code"
 										bind:value={twoFACode}
 										oninput={handle2FAInput}
-										onkeydown={(e) => e.key === "Enter" && submitTwoFA()}
-										placeholder={useBackupCode ? "Enter backup code" : twofa_code_placeholder()}
-										aria-label={useBackupCode ? "Backup recovery code" : "Authenticator code"}
-										class="text-center font-mono tracking-wider {!useBackupCode ? 'text-2xl' : 'text-lg'}"
+										onkeydown={(e) => e.key === 'Enter' && submitTwoFA()}
+										placeholder={useBackupCode ? 'Enter backup code' : twofa_code_placeholder()}
+										aria-label={useBackupCode ? 'Backup recovery code' : 'Authenticator code'}
+										class="text-center font-mono tracking-wider {!useBackupCode
+											? 'text-2xl'
+											: 'text-lg'}"
 										maxlength={useBackupCode ? 10 : 6}
 										autocomplete="one-time-code"
-										inputmode={useBackupCode ? "text" : "numeric"}
+										inputmode={useBackupCode ? 'text' : 'numeric'}
 									/>
 									{#if useBackupCode}
-										<div class="mt-1 text-center text-xs text-surface-600 dark:text-surface-400" aria-live="polite">
+										<div
+											class="mt-1 text-center text-xs text-surface-600 dark:text-surface-400"
+											aria-live="polite"
+										>
 											{twoFACode.length}/10
 										</div>
 									{/if}
@@ -847,39 +911,50 @@ $effect(() => {
 										aria-label={useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 									>
 										{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
-										</Button>
+									</Button>
 								</div>
 
 								<div class="flex gap-3">
-									<Button variant="surface"
+									<Button
+										variant="surface"
 										type="button"
 										onclick={back2FAToLogin}
 										aria-label={button_back()}
-									 class="flex-1">
-										<iconify-icon icon="mdi:arrow-left" width={20} class="me-2" aria-hidden="true"></iconify-icon>
+										class="flex-1"
+									>
+										<iconify-icon icon="mdi:arrow-left" width={20} class="me-2" aria-hidden="true"
+										></iconify-icon>
 										{button_back()}
 									</Button>
 
-									<Button variant="tertiary"
-																				type="button"
-																				onclick={submitTwoFA}
-																				disabled={!twoFACode.trim() ||
-																					isVerifying2FA ||
-																					(!useBackupCode && twoFACode.length !== 6) ||
-																					(useBackupCode && twoFACode.length < 8)}
-																				aria-label={twofa_verify_button()}
-																			 class="flex-1">
+									<Button
+										variant="tertiary"
+										type="button"
+										onclick={submitTwoFA}
+										disabled={!twoFACode.trim() ||
+											isVerifying2FA ||
+											(!useBackupCode && twoFACode.length !== 6) ||
+											(useBackupCode && twoFACode.length < 8)}
+										aria-label={twofa_verify_button()}
+										class="flex-1"
+									>
 										{#if isVerifying2FA}
-											<div class="me-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+											<div
+												class="me-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+											></div>
 											{twofa_verifying()}
 										{:else}
-											<iconify-icon icon="mdi:check" width={20} class="me-2" aria-hidden="true"></iconify-icon>
+											<iconify-icon icon="mdi:check" width={20} class="me-2" aria-hidden="true"
+											></iconify-icon>
 											{twofa_verify_button()}
 										{/if}
 									</Button>
 								</div>
 
-								<div class="mt-2 text-center text-xs text-surface-600 dark:text-surface-400" aria-live="polite">
+								<div
+									class="mt-2 text-center text-xs text-surface-600 dark:text-surface-400"
+									aria-live="polite"
+								>
 									{#if !useBackupCode}
 										<p>Enter the 6-digit code from your authenticator app</p>
 									{:else}
@@ -919,22 +994,32 @@ $effect(() => {
 						/>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="submit"
 								aria-label={form_resetpassword()}
-							 class="text-white w-full sm:w-auto">
+								class="text-white w-full sm:w-auto"
+							>
 								{form_resetpassword()}
 								{#if isSubmitting}
-									<div class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+									<div
+										class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
+									></div>
 								{/if}
 							</Button>
 
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="button"
 								aria-label="Back to sign in"
-								onclick={() => { P_WFORGOT = false; P_WRESET = false; }}
-								class="p-0! min-w-0 rounded-full">
-								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
+								onclick={() => {
+									P_WFORGOT = false;
+									P_WRESET = false;
+								}}
+								class="p-0! min-w-0 rounded-full"
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"
+								></iconify-icon>
 							</Button>
 						</div>
 					</form>
@@ -968,22 +1053,31 @@ $effect(() => {
 						/>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="submit"
 								aria-label="Send Magic Link"
-								class="text-white w-full sm:w-auto">
+								class="text-white w-full sm:w-auto"
+							>
 								Send Magic Link
 								{#if isSubmitting}
-									<div class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+									<div
+										class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
+									></div>
 								{/if}
 							</Button>
 
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="button"
 								aria-label="Back to sign in"
-								onclick={() => { P_WMAGIC = false; }}
-								class="p-0! min-w-0 rounded-full">
-								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
+								onclick={() => {
+									P_WMAGIC = false;
+								}}
+								class="p-0! min-w-0 rounded-full"
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"
+								></iconify-icon>
 							</Button>
 						</div>
 					</form>
@@ -1050,22 +1144,32 @@ $effect(() => {
 						/>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="submit"
 								aria-label={signin_savenewpassword()}
-							 class="mt-6 text-white w-full sm:w-auto">
+								class="mt-6 text-white w-full sm:w-auto"
+							>
 								{signin_savenewpassword()}
 								{#if isSubmitting}
-									<div class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+									<div
+										class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
+									></div>
 								{/if}
 							</Button>
 
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="button"
 								aria-label={button_back()}
-								onclick={() => { P_WFORGOT = false; P_WRESET = false; }}
-							 class="p-0! min-w-0">
-								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
+								onclick={() => {
+									P_WFORGOT = false;
+									P_WRESET = false;
+								}}
+								class="p-0! min-w-0"
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"
+								></iconify-icon>
 							</Button>
 						</div>
 					</form>
@@ -1087,7 +1191,9 @@ $effect(() => {
 		flex-grow: 1;
 		width: var(--width);
 		background: white;
-		transition: width 0.15s ease-out, border-radius 0.15s ease-out;
+		transition:
+			width 0.15s ease-out,
+			border-radius 0.15s ease-out;
 	}
 	.active {
 		--width: 90%;
@@ -1105,15 +1211,32 @@ $effect(() => {
 		animation: wiggle 0.3s forwards;
 	}
 	@keyframes wiggle {
-		from { transform: translateX(0); }
-		25% { transform: translateX(150px); }
-		50% { transform: translateX(-75px); }
-		75% { transform: translateX(200px); }
-		100% { transform: translateX(0px); }
+		from {
+			transform: translateX(0);
+		}
+		25% {
+			transform: translateX(150px);
+		}
+		50% {
+			transform: translateX(-75px);
+		}
+		75% {
+			transform: translateX(200px);
+		}
+		100% {
+			transform: translateX(0px);
+		}
 	}
 	@media (prefers-reduced-motion: reduce) {
-		:global(.wiggle) { animation: none !important; }
-		section { transition: none !important; }
-		.hover:hover { width: var(--width) !important; border-radius: 0 !important; }
+		:global(.wiggle) {
+			animation: none !important;
+		}
+		section {
+			transition: none !important;
+		}
+		.hover:hover {
+			width: var(--width) !important;
+			border-radius: 0 !important;
+		}
 	}
 </style>

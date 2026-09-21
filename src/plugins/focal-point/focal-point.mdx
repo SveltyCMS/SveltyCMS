@@ -143,18 +143,18 @@ The `AspectPreview` component (located in `src/components/media/aspect-preview.s
 
 ```svelte
 <script>
-  import AspectPreview from '@components/media/aspect-preview.svelte';
+  import AspectPreview from "@components/media/aspect-preview.svelte";
 </script>
 
 <AspectPreview
   imageUrl="/files/uploads/hero.jpg"
   focalPoint={{ x: 35, y: 60 }}
   ratios={[
-    { label: '16:9', width: 16, height: 9 },
-    { label: '1:1', width: 1, height: 1 },
+    { label: "16:9", width: 16, height: 9 },
+    { label: "1:1", width: 1, height: 1 },
   ]}
   interactive={true}
-  onFocalChange={(fp) => console.log('New focal point:', fp)}
+  onFocalChange={(fp) => console.log("New focal point:", fp)}
 />
 ```
 

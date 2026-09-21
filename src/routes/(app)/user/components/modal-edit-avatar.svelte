@@ -14,8 +14,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import Button from '@components/ui/button.svelte';
 	// Lucide icons
 
-	import Avatar from "@components/ui/avatar.svelte";
-	import FileUpload from "@components/ui/file-upload.svelte";
+	import Avatar from '@components/ui/avatar.svelte';
+	import FileUpload from '@components/ui/file-upload.svelte';
 	// ParaglideJS
 	import {
 		button_cancel,
@@ -24,7 +24,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		modaledit_avatar_alt,
 		modaledit_avatar_click_upload,
 		modaledit_avatarfilesallowed,
-		modaledit_avatarfilesize,
+		modaledit_avatarfilesize
 	} from '@src/paraglide/messages';
 	// Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -81,7 +81,14 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		return `/files/${src}?t=${Date.now()}`;
 	});
 
-	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
+	const imageTypes = [
+		'image/jpeg',
+		'image/png',
+		'image/webp',
+		'image/avif',
+		'image/svg+xml',
+		'image/gif'
+	];
 	const MAX_FILE_SIZE = 5_242_880; // 5MB
 	const COMPRESSION_THRESHOLD = 1024 * 1024; // 1MB - compress files larger than this
 
@@ -255,26 +262,26 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 		try {
 			// Compress large files first
-				const processedFile = await compressFile(file);
+			const processedFile = await compressFile(file);
 
-				// Create FormData
-				const formData = new FormData();
-				formData.append('avatar', processedFile);
+			// Create FormData
+			const formData = new FormData();
+			formData.append('avatar', processedFile);
 
-				// Upload with fetch
-				const response = await fetch('/api/user/save-avatar', {
-					method: 'POST',
-					headers: { 'X-CSRF-Token': page.data.csrfToken || '' },
-					body: formData
-				});
+			// Upload with fetch
+			const response = await fetch('/api/user/save-avatar', {
+				method: 'POST',
+				headers: { 'X-CSRF-Token': page.data.csrfToken || '' },
+				body: formData
+			});
 
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 
-				await response.json();
+			await response.json();
 
-				// Avatar updated on server — refreshAll below will refresh page.data.user
+			// Avatar updated on server — refreshAll below will refresh page.data.user
 
 			// Refresh all data to ensure consistency
 			await refreshAll();
@@ -286,8 +293,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			logger.error('Avatar upload failed:', error);
 			imageLoadError = true;
 			toast.error(
-				error instanceof Error ? error.message : String(error) ||
-					'Failed to update avatar',
+				error instanceof Error ? error.message : String(error) || 'Failed to update avatar'
 			);
 			// Revert preview on error
 			previewUrl = null;
@@ -313,11 +319,14 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				// User confirmed - proceed with deletion
 				try {
 					const currentAvatar = page.data.user?.avatar ?? '/Default_User.svg';
-				logger.info('Attempting to delete avatar:', currentAvatar);
+					logger.info('Attempting to delete avatar:', currentAvatar);
 
 					const response = await fetch('/api/user/delete-avatar', {
 						method: 'DELETE',
-						headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken || '' },
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': page.data.csrfToken || ''
+						},
 						body: JSON.stringify({ avatarUrl: currentAvatar })
 					});
 
@@ -325,7 +334,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 					if (response.ok && result.success) {
 						// Avatar deleted on server — refreshAll below will refresh page.data.user
-							previewUrl = null;
+						previewUrl = null;
 
 						// Show success message
 						toast.success('Avatar Deleted');
@@ -356,11 +365,23 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 <div class="modal-avatar space-y-4">
 	<form class="modal-form {cForm}">
-		<div class="grid grid-cols-1 grid-rows-{page.data.user?.avatar ? '1' : '2'} items-center justify-center">
-			<FileUpload bind:files accept={acceptMime} multiple={false} onchange={onFileChange} class="border-none! p-0! w-full">
+		<div
+			class="grid grid-cols-1 grid-rows-{page.data.user?.avatar
+				? '1'
+				: '2'} items-center justify-center"
+		>
+			<FileUpload
+				bind:files
+				accept={acceptMime}
+				multiple={false}
+				onchange={onFileChange}
+				class="border-none! p-0! w-full"
+			>
 				<div class="flex flex-col items-center gap-4 w-full">
 					<!-- Avatar Trigger (Clickable) -->
-					<div class="outline-none relative mx-auto mb-3 cursor-pointer rounded-full focus:ring-2 focus:ring-primary-500">
+					<div
+						class="outline-none relative mx-auto mb-3 cursor-pointer rounded-full focus:ring-2 focus:ring-primary-500"
+					>
 						<Avatar
 							src={displayAvatar}
 							alt={modaledit_avatar_alt()}
@@ -371,13 +392,17 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 						<!-- Hover/Focus overlay cue when not uploading -->
 						{#if !isUploading}
-							<div class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white focus-within:flex hover:flex">
+							<div
+								class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white focus-within:flex hover:flex"
+							>
 								<span class="text-xs font-medium">{modaledit_avatar_click_upload()}</span>
 							</div>
 						{/if}
 
 						{#if isUploading}
-							<div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+							<div
+								class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60"
+							>
 								<div class="text-sm font-medium text-white">...</div>
 							</div>
 						{/if}
@@ -394,13 +419,17 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			</FileUpload>
 		</div>
 		{#if !files.length && !isUploading}
-			<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{modaledit_avatarfilesize()}</small>
+			<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500"
+				>{modaledit_avatarfilesize()}</small
+			>
 		{/if}
 		<!-- Progress Bar -->
 		{#if isUploading}
 			<div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
 				<div class="flex flex-col items-center gap-2">
-					<div class="h-16 w-16 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+					<div
+						class="h-16 w-16 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+					></div>
 					{#if uploadProgress > 0}
 						<span class="text-sm font-bold text-white">{uploadProgress}%</span>
 					{/if}
@@ -412,7 +441,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
 		<!-- Delete Avatar -->
 		{#if page.data.user?.avatar && page.data.user.avatar !== '/Default_User.svg'}
-			<Button variant="error" type="button" onclick={deleteAvatar} aria-label="Delete Avatar" data-testid="delete-avatar-btn">
+			<Button
+				variant="error"
+				type="button"
+				onclick={deleteAvatar}
+				aria-label="Delete Avatar"
+				data-testid="delete-avatar-btn"
+			>
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 
 				<span class="hidden sm:block">{button_delete()}</span>
@@ -423,9 +458,16 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		{/if}
 		<div class="flex justify-between gap-2">
 			<!-- Cancel -->
-			<Button variant="outline" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</Button>
+			<Button variant="outline" onclick={() => modalState.close()} disabled={isUploading}
+				>{button_cancel()}</Button
+			>
 			<!-- Save -->
-			<Button variant="tertiary" onclick={onFormSubmit} disabled={!files.length || isUploading} class="dark:preset-filled-primary-500">
+			<Button
+				variant="tertiary"
+				onclick={onFormSubmit}
+				disabled={!files.length || isUploading}
+				class="dark:preset-filled-primary-500"
+			>
 				{#if isUploading}
 					<div class="me-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Uploading...

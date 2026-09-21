@@ -25,7 +25,10 @@ functionality for image editing and basic file information display.
 	import Button from '@components/ui/button.svelte';
 	type Any = any;
 
-	import { IMAGE_EDITOR_MODAL_CLASSES, IMAGE_EDITOR_MODAL_SIZE } from '@src/components/image-editor/image-editor-modal.ts';
+	import {
+		IMAGE_EDITOR_MODAL_CLASSES,
+		IMAGE_EDITOR_MODAL_SIZE
+	} from '@src/components/image-editor/image-editor-modal.ts';
 	// Components
 	import FileUpload from '@components/ui/file-upload.svelte';
 	import type { ISODateString } from '@src/content/types';
@@ -61,23 +64,53 @@ functionality for image editing and basic file information display.
 	let debounceTimeout: number | undefined;
 
 	// Define props
-	let { field, value = $bindable<File | MediaImage | undefined>(), collectionName, tenantId } = $props(); // 'value' is the bindable prop
+	let {
+		field,
+		value = $bindable<File | MediaImage | undefined>(),
+		collectionName,
+		tenantId
+	} = $props(); // 'value' is the bindable prop
 
 	// Extract watermark preset from field configuration
-	const watermarkPreset = $derived((field as Record<string, unknown>).watermark as WatermarkOptions | undefined);
+	const watermarkPreset = $derived(
+		(field as Record<string, unknown>).watermark as WatermarkOptions | undefined
+	);
 
 	// Effect to initialize 'value' if it's undefined and a default is available
 	// This runs after the component has initialized and 'value' would have received its initial binding
 	$effect(() => {
-		if (value === undefined && (collections.activeValue as Record<string, unknown>)[getFieldName(field)] !== undefined) {
-			value = (collections.activeValue as Record<string, unknown>)[getFieldName(field)] as File | MediaImage;
+		if (
+			value === undefined &&
+			(collections.activeValue as Record<string, unknown>)[getFieldName(field)] !== undefined
+		) {
+			value = (collections.activeValue as Record<string, unknown>)[getFieldName(field)] as
+				| File
+				| MediaImage;
 		}
 	});
 
 	// Define validation schema
-	import { check, instance, number, object, parse, pipe, record, string, union, type ValiError } from 'valibot';
+	import {
+		check,
+		instance,
+		number,
+		object,
+		parse,
+		pipe,
+		record,
+		string,
+		union,
+		type ValiError
+	} from 'valibot';
 
-	const validImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'];
+	const validImageTypes = [
+		'image/png',
+		'image/jpeg',
+		'image/gif',
+		'image/webp',
+		'image/avif',
+		'image/svg+xml'
+	];
 
 	const fileSchema = pipe(
 		instance(File),
@@ -132,15 +165,14 @@ functionality for image editing and basic file information display.
 
 	async function openImageEditor() {
 		if (!value) return;
-		const { default: ImageEditorModal } = await import(
-			'@src/components/image-editor/image-editor-modal.svelte'
-		);
+		const { default: ImageEditorModal } =
+			await import('@src/components/image-editor/image-editor-modal.svelte');
 		modalState.trigger(ImageEditorModal as any, {
 			image: value,
 			watermarkPreset,
 			onsave: handleEditorSave,
 			size: IMAGE_EDITOR_MODAL_SIZE,
-			modalClasses: IMAGE_EDITOR_MODAL_CLASSES,
+			modalClasses: IMAGE_EDITOR_MODAL_CLASSES
 		});
 	}
 
@@ -246,7 +278,10 @@ functionality for image editing and basic file information display.
 		}
 	}
 
-	const dynamicFolder = $derived((field as any).folder || (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global'));
+	const dynamicFolder = $derived(
+		(field as any).folder ||
+			(collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')
+	);
 
 	import { getWidgetData } from './widget-data';
 
@@ -270,7 +305,10 @@ functionality for image editing and basic file information display.
 <div class="relative mb-4 min-h-1">
 	{#if !value}
 		<!-- File Input -->
-		<div class="rounded border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
+		<div
+			class="rounded border-2 border-dashed border-transparent"
+			class:!border-error-500={!!validationError}
+		>
 			<FileUpload multiple={field.multiupload} onchange={validateInput} />
 		</div>
 	{:else}
@@ -284,12 +322,16 @@ functionality for image editing and basic file information display.
 				<div class="flex items-center justify-between gap-2">
 					<p class="text-start">
 						{widget_ImageUpload_Name()}
-						<span class="text-tertiary-500 dark:text-primary-500">{value instanceof File ? value.name : (value as MediaImage).path}</span>
+						<span class="text-tertiary-500 dark:text-primary-500"
+							>{value instanceof File ? value.name : (value as MediaImage).path}</span
+						>
 					</p>
 
 					<p class="text-start">
 						{widget_ImageUpload_Size()}
-						<span class="text-tertiary-500 dark:text-primary-500">{((value.size ?? 0) / 1024).toFixed(2)} KB</span>
+						<span class="text-tertiary-500 dark:text-primary-500"
+							>{((value.size ?? 0) / 1024).toFixed(2)} KB</span
+						>
 					</p>
 				</div>
 				<!-- Image and Actions Container -->
@@ -297,8 +339,12 @@ functionality for image editing and basic file information display.
 					{#if !isFlipped}
 						<div class="relative col-span-11 m-auto" bind:this={containerRef}>
 							<img
-								src={value instanceof File ? URL.createObjectURL(value) : value.thumbnails?.sm?.url || value.url}
-								alt={value instanceof File ? value.name : (value.metadata?.altText || value.originalFilename || 'Media preview')}
+								src={value instanceof File
+									? URL.createObjectURL(value)
+									: value.thumbnails?.sm?.url || value.url}
+								alt={value instanceof File
+									? value.name
+									: value.metadata?.altText || value.originalFilename || 'Media preview'}
 								class="max-h-50 max-w-125 rounded"
 							/>
 							{#if value && !(value instanceof File)}
@@ -322,11 +368,23 @@ functionality for image editing and basic file information display.
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).path}</p>
 							<p class="">{widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
+								{formatDateString(
+									getTimestamp(
+										(value as Any) instanceof File
+											? (value as Any).lastModified
+											: (value as Any).createdAt
+									)
+								)}
 							</p>
 							<p class="">{widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
+								{formatDateString(
+									getTimestamp(
+										(value as Any) instanceof File
+											? (value as Any).lastModified
+											: (value as Any).updatedAt
+									)
+								)}
 							</p>
 
 							{#if !(value instanceof File) && value.metadata?.aiTags?.length}
@@ -343,23 +401,49 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						{#if focalPointPluginEnabled && value && !(value instanceof File)}
-							<Button variant="outline" onclick={() => { showAspectPreview = true; }} aria-label="Aspect ratio preview" title="Aspect ratio preview" class="p-0! min-w-0">
+							<Button
+								variant="outline"
+								onclick={() => {
+									showAspectPreview = true;
+								}}
+								aria-label="Aspect ratio preview"
+								title="Aspect ratio preview"
+								class="p-0! min-w-0"
+							>
 								<iconify-icon icon="mdi:aspect-ratio" width={20}></iconify-icon>
 							</Button>
 						{/if}
 
 						<!-- Edit -->
-						<Button variant="outline" onclick={openImageEditor} aria-label="Edit image" title="Edit image" class="p-0! min-w-0">
+						<Button
+							variant="outline"
+							onclick={openImageEditor}
+							aria-label="Edit image"
+							title="Edit image"
+							class="p-0! min-w-0"
+						>
 							<iconify-icon icon="material-symbols:edit" width={24}></iconify-icon>
 						</Button>
 
 						<!-- Flip -->
-						<Button variant="outline" onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" title="Flip details" class="p-0! min-w-0">
+						<Button
+							variant="outline"
+							onclick={() => (isFlipped = !isFlipped)}
+							aria-label="Flip"
+							title="Flip details"
+							class="p-0! min-w-0"
+						>
 							<iconify-icon icon="uiw:reload" width={24}></iconify-icon>
 						</Button>
 
 						<!-- Delete -->
-						<Button variant="outline" onclick={() => (value = undefined)} aria-label="Delete" title="Delete image" class="p-0! min-w-0">
+						<Button
+							variant="outline"
+							onclick={() => (value = undefined)}
+							aria-label="Delete"
+							title="Delete image"
+							class="p-0! min-w-0"
+						>
 							<iconify-icon icon="material-symbols:delete-outline" width={30}></iconify-icon>
 						</Button>
 					</div>
@@ -370,7 +454,11 @@ functionality for image editing and basic file information display.
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">
+		<p
+			id={`${getFieldName(field)}-error`}
+			class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500"
+			role="alert"
+		>
 			{validationError}
 		</p>
 	{/if}
@@ -380,6 +468,8 @@ functionality for image editing and basic file information display.
 	<AspectPreviewModal
 		media={value}
 		show={showAspectPreview}
-		onClose={() => { showAspectPreview = false; }}
+		onClose={() => {
+			showAspectPreview = false;
+		}}
 	/>
 {/if}

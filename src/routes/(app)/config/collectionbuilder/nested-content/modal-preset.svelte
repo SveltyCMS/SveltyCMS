@@ -4,32 +4,32 @@
 **This component displays a modal for selecting a preset**
 -->
 <script lang="ts">
-import PresetSelector from "@src/routes/setup/preset-selector.svelte";
-import { PRESETS } from "@src/routes/setup/presets";
+	import PresetSelector from '@src/routes/setup/preset-selector.svelte';
+	import { PRESETS } from '@src/routes/setup/presets';
 	import Button from '@components/ui/button.svelte';
 
-interface Props {
-	close?: (result?: any) => void;
-}
-
-const { close }: Props = $props();
-
-let selectedPreset = $state("blank");
-let isSubmitting = $state(false);
-
-async function onSubmit(event: Event) {
-	event.preventDefault();
-	if (!selectedPreset || selectedPreset === "blank") {
-		close?.(null);
-		return;
+	interface Props {
+		close?: (result?: any) => void;
 	}
 
-	isSubmitting = true;
-	close?.({ presetId: selectedPreset });
-}
+	const { close }: Props = $props();
 
-// Base Classes for native modal
-const cForm = "space-y-4";
+	let selectedPreset = $state('blank');
+	let isSubmitting = $state(false);
+
+	async function onSubmit(event: Event) {
+		event.preventDefault();
+		if (!selectedPreset || selectedPreset === 'blank') {
+			close?.(null);
+			return;
+		}
+
+		isSubmitting = true;
+		close?.({ presetId: selectedPreset });
+	}
+
+	// Base Classes for native modal
+	const cForm = 'space-y-4';
 </script>
 
 <div class="modal-example-form space-y-4">
@@ -37,11 +37,15 @@ const cForm = "space-y-4";
 		<PresetSelector presets={PRESETS} bind:selected={selectedPreset} />
 
 		<footer class="modal-footer flex justify-end pt-4 border-t border-surface-500/20 gap-2">
-			<Button variant="outline" type="button" onclick={() => close?.(null)} disabled={isSubmitting}> Cancel </Button>
-			<Button variant="tertiary"
+			<Button variant="outline" type="button" onclick={() => close?.(null)} disabled={isSubmitting}>
+				Cancel
+			</Button>
+			<Button
+				variant="tertiary"
 				type="submit"
 				disabled={isSubmitting || selectedPreset === 'blank'}
-			 class="dark:">
+				class="dark:"
+			>
 				Load Preset
 			</Button>
 		</footer>

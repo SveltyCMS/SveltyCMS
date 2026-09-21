@@ -21,9 +21,9 @@
 -->
 
 <script lang="ts">
-import { button_cancel } from "@src/paraglide/messages";
-import { modalState } from "@utils/modal.svelte";
-import type { SvelteComponent } from "svelte";
+	import { button_cancel } from '@src/paraglide/messages';
+	import { modalState } from '@utils/modal.svelte';
+	import type { SvelteComponent } from 'svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
@@ -31,102 +31,102 @@ import type { SvelteComponent } from "svelte";
 	import Select from '@components/ui/select.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 
-interface Props {
-	currentGroupName: string;
-	currentRoleId: string;
-	isEditMode: boolean;
-	/** Optional host bridge (legacy); prefer `close` from DialogManager */
-	parent?: { onClose?: () => void } | SvelteComponent | null;
-	/** Injected by dialog-manager as modalState.close.bind(modalState) */
-	close?: (value?: unknown) => void;
-	roleDescription: string;
-	roleName: string;
-	selectedPermissions?: string[];
-	permissions?: import("@src/databases/auth/types").Permission[];
-	roles?: import("@src/databases/auth/types").Role[];
-}
-
-const {
-	parent = null,
-	close: closeModal,
-	isEditMode,
-	currentRoleId,
-	roleName,
-	roleDescription,
-	currentGroupName,
-	selectedPermissions = [],
-	permissions = [],
-	roles = [],
-}: Props = $props();
-
-function dismiss(value: unknown = false) {
-	if (typeof closeModal === "function") {
-		closeModal(value);
-		return;
+	interface Props {
+		currentGroupName: string;
+		currentRoleId: string;
+		isEditMode: boolean;
+		/** Optional host bridge (legacy); prefer `close` from DialogManager */
+		parent?: { onClose?: () => void } | SvelteComponent | null;
+		/** Injected by dialog-manager as modalState.close.bind(modalState) */
+		close?: (value?: unknown) => void;
+		roleDescription: string;
+		roleName: string;
+		selectedPermissions?: string[];
+		permissions?: import('@src/databases/auth/types').Permission[];
+		roles?: import('@src/databases/auth/types').Role[];
 	}
-	const p = parent as { onClose?: (v?: unknown) => void } | null;
-	if (p && typeof p.onClose === "function") {
-		p.onClose(value);
-		return;
-	}
-	modalState.close(value);
-}
 
-let formName = $state("");
-let formDescription = $state("");
-let localSelectedPermissions = $state<string[]>([]);
-let permSearch = $state("");
-let copyFromRoleId = $state("");
-
-$effect(() => {
-	formName = roleName;
-	formDescription = roleDescription;
-	localSelectedPermissions = [...selectedPermissions];
-});
-
-const filteredPermissions = $derived(
-	permissions.filter(
-		(p) =>
-			p.name.toLowerCase().includes(permSearch.toLowerCase()) ||
-			p._id.toLowerCase().includes(permSearch.toLowerCase()),
-	),
-);
-
-const copyRoleOptions = $derived(
-	roles
-		.filter((r) => r._id !== currentRoleId && !r.isAdmin)
-		.map((r) => ({ value: r._id, label: r.name }))
-);
-
-function togglePermission(id: string) {
-	if (localSelectedPermissions.includes(id)) {
-		localSelectedPermissions = localSelectedPermissions.filter((p) => p !== id);
-	} else {
-		localSelectedPermissions = [...localSelectedPermissions, id];
-	}
-}
-
-function handleCopyPermissions(roleId: string) {
-	if (!roleId) return;
-	const sourceRole = roles.find((r) => r._id === roleId);
-	if (sourceRole) {
-		localSelectedPermissions = [...sourceRole.permissions];
-	}
-	copyFromRoleId = "";
-}
-
-function onFormSubmit(event: SubmitEvent): void {
-	event.preventDefault();
-	if (!formName?.trim()) return;
-
-	dismiss({
-		roleName: formName.trim(),
-		roleDescription: formDescription,
-		currentGroupName,
-		selectedPermissions: localSelectedPermissions,
+	const {
+		parent = null,
+		close: closeModal,
+		isEditMode,
 		currentRoleId,
+		roleName,
+		roleDescription,
+		currentGroupName,
+		selectedPermissions = [],
+		permissions = [],
+		roles = []
+	}: Props = $props();
+
+	function dismiss(value: unknown = false) {
+		if (typeof closeModal === 'function') {
+			closeModal(value);
+			return;
+		}
+		const p = parent as { onClose?: (v?: unknown) => void } | null;
+		if (p && typeof p.onClose === 'function') {
+			p.onClose(value);
+			return;
+		}
+		modalState.close(value);
+	}
+
+	let formName = $state('');
+	let formDescription = $state('');
+	let localSelectedPermissions = $state<string[]>([]);
+	let permSearch = $state('');
+	let copyFromRoleId = $state('');
+
+	$effect(() => {
+		formName = roleName;
+		formDescription = roleDescription;
+		localSelectedPermissions = [...selectedPermissions];
 	});
-}
+
+	const filteredPermissions = $derived(
+		permissions.filter(
+			(p) =>
+				p.name.toLowerCase().includes(permSearch.toLowerCase()) ||
+				p._id.toLowerCase().includes(permSearch.toLowerCase())
+		)
+	);
+
+	const copyRoleOptions = $derived(
+		roles
+			.filter((r) => r._id !== currentRoleId && !r.isAdmin)
+			.map((r) => ({ value: r._id, label: r.name }))
+	);
+
+	function togglePermission(id: string) {
+		if (localSelectedPermissions.includes(id)) {
+			localSelectedPermissions = localSelectedPermissions.filter((p) => p !== id);
+		} else {
+			localSelectedPermissions = [...localSelectedPermissions, id];
+		}
+	}
+
+	function handleCopyPermissions(roleId: string) {
+		if (!roleId) return;
+		const sourceRole = roles.find((r) => r._id === roleId);
+		if (sourceRole) {
+			localSelectedPermissions = [...sourceRole.permissions];
+		}
+		copyFromRoleId = '';
+	}
+
+	function onFormSubmit(event: SubmitEvent): void {
+		event.preventDefault();
+		if (!formName?.trim()) return;
+
+		dismiss({
+			roleName: formName.trim(),
+			roleDescription: formDescription,
+			currentGroupName,
+			selectedPermissions: localSelectedPermissions,
+			currentRoleId
+		});
+	}
 </script>
 
 <AdminCard
@@ -182,7 +182,9 @@ function onFormSubmit(event: SubmitEvent): void {
 				</div>
 			</div>
 
-			<div class="card h-48 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/20">
+			<div
+				class="card h-48 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/20"
+			>
 				{#each filteredPermissions as perm (perm._id)}
 					<div class="p-1 hover:bg-surface-500/40 dark:hover:bg-surface-900/20 rounded">
 						<Checkbox
@@ -202,12 +204,7 @@ function onFormSubmit(event: SubmitEvent): void {
 		<Button variant="ghost" onclick={() => dismiss(false)} data-testid="role-modal-cancel">
 			{button_cancel()}
 		</Button>
-		<Button
-			variant="primary"
-			type="submit"
-			form="roleForm"
-			data-testid="role-modal-submit"
-		>
+		<Button variant="primary" type="submit" form="roleForm" data-testid="role-modal-submit">
 			{isEditMode ? 'Update' : 'Create'}
 		</Button>
 	</footer>

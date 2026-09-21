@@ -99,9 +99,12 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 
 	const sizeTokens = $derived.by(() => {
 		switch (size) {
-			case 'sm': return { height: 'h-8', text: 'text-xs', padding: 'px-2 py-1', icon: '14' };
-			case 'lg': return { height: 'h-12', text: 'text-base', padding: 'px-4 py-3', icon: '20' };
-			default:   return { height: 'h-10', text: 'text-sm', padding: 'px-3 py-2', icon: '16' };
+			case 'sm':
+				return { height: 'h-8', text: 'text-xs', padding: 'px-2 py-1', icon: '14' };
+			case 'lg':
+				return { height: 'h-12', text: 'text-base', padding: 'px-4 py-3', icon: '20' };
+			default:
+				return { height: 'h-10', text: 'text-sm', padding: 'px-3 py-2', icon: '16' };
 		}
 	});
 
@@ -116,11 +119,12 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{#if variant === 'floating' && label}
 		<!-- Floating label variant -->
 		<div class="relative">
-			<select aria-label={effectiveAriaLabel}
+			<select
+				aria-label={effectiveAriaLabel}
 				id={generatedId}
 				{disabled}
 				{required}
-				bind:value={value}
+				bind:value
 				onchange={handleChange}
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}
@@ -184,11 +188,12 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		{/if}
 
 		<div class="relative">
-			<select aria-label={effectiveAriaLabel}
+			<select
+				aria-label={effectiveAriaLabel}
 				id={generatedId}
 				{disabled}
 				{required}
-				bind:value={value}
+				bind:value
 				onchange={handleChange}
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}

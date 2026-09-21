@@ -19,25 +19,21 @@ and aria-current page indicator.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
+	import { cn } from '@utils/cn';
 
-interface Crumb {
-	label: string;
-	icon?: string;
-	href?: string;
-}
+	interface Crumb {
+		label: string;
+		icon?: string;
+		href?: string;
+	}
 
-interface Props {
-	items: Crumb[];
-	separator?: string;
-	class?: string;
-}
+	interface Props {
+		items: Crumb[];
+		separator?: string;
+		class?: string;
+	}
 
-let {
-	items = [],
-	separator = 'mdi:chevron-right',
-	class: className
-}: Props = $props();
+	let { items = [], separator = 'mdi:chevron-right', class: className }: Props = $props();
 </script>
 
 <nav aria-label="Breadcrumb" class={cn('flex py-3', className)}>
@@ -62,8 +58,8 @@ let {
 				{:else}
 					<span
 						class={cn(
-							"flex items-center gap-1.5 font-bold",
-							isLast ? "text-surface-900 dark:text-white" : "text-surface-500"
+							'flex items-center gap-1.5 font-bold',
+							isLast ? 'text-surface-900 dark:text-white' : 'text-surface-500'
 						)}
 						aria-current={isLast ? 'page' : undefined}
 					>

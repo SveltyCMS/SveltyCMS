@@ -28,8 +28,8 @@
 	// Using explicit ALLOWED_TAGS/ALLOWED_ATTR avoids CVE-2026-65902 (hook mutation
 	// on defaults) and reduces attack surface vs. DOMPurify's default allowlist.
 	const TOAST_SANITIZE_CONFIG = {
-		ALLOWED_TAGS: ["b", "strong", "i", "em", "u", "br", "code", "a"],
-		ALLOWED_ATTR: ["href", "title", "rel", "target"],
+		ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'br', 'code', 'a'],
+		ALLOWED_ATTR: ['href', 'title', 'rel', 'target']
 	};
 
 	let sanitize = $state<(str: string) => string>((str) => str);
@@ -100,15 +100,15 @@
 					error: 'bg-error-600 text-white border-error-500',
 					warning: 'bg-warning-500 text-white border-warning-500',
 					info: 'bg-tertiary-600 text-white border-tertiary-500',
-					loading: 'bg-surface-700 text-white border-surface-500',
-			  }
+					loading: 'bg-surface-700 text-white border-surface-500'
+				}
 			: {
 					success: 'bg-primary-500 text-white',
 					error: 'bg-error-500 text-white',
 					warning: 'bg-warning-500 text-white',
 					info: 'bg-info-500 text-white',
-					loading: 'bg-slate-500 text-white',
-			  }
+					loading: 'bg-slate-500 text-white'
+				}
 	);
 
 	const icons: Record<ToastType, string> = {
@@ -120,7 +120,9 @@
 	};
 
 	// Get per-toast position or fall back to container position
-	function getToastPosition(toastPosition: ToastPosition | undefined = undefined): Exclude<ToastPosition, 'responsive'> {
+	function getToastPosition(
+		toastPosition: ToastPosition | undefined = undefined
+	): Exclude<ToastPosition, 'responsive'> {
 		return toast.getEffectivePosition(toastPosition ?? position);
 	}
 
@@ -184,7 +186,9 @@
 {#if toast.toasts.length > 0}
 	<div
 		data-toast-region
-		class="fixed z-9999 flex flex-col gap-2 {positionClasses[effectivePosition]} pointer-events-none w-full sm:w-auto px-4 sm:px-0"
+		class="fixed z-9999 flex flex-col gap-2 {positionClasses[
+			effectivePosition
+		]} pointer-events-none w-full sm:w-auto px-4 sm:px-0"
 		role="region"
 		aria-label="Notifications"
 		aria-live="polite"
@@ -201,7 +205,9 @@
 				animate:flip={{ duration: 300 }}
 				in:fly={{ ...animDir, duration: 300 }}
 				out:fade={{ duration: 200 }}
-				class="pointer-events-auto w-full sm:w-80 shadow-lg rounded overflow-hidden border {styles[t.type]}"
+				class="pointer-events-auto w-full sm:w-80 shadow-lg rounded overflow-hidden border {styles[
+					t.type
+				]}"
 				class:mt-2={toastPos.includes('top')}
 				class:mb-2={toastPos.includes('bottom')}
 				onmouseenter={() => handleMouseEnter(t.id)}
@@ -215,7 +221,10 @@
 			>
 				<div class="p-3 sm:p-4">
 					<div class="flex items-start gap-3">
-						<iconify-icon icon={icons[t.type]} class="shrink-0 text-lg sm:text-xl {t.type === 'loading' ? 'animate-spin' : ''}"></iconify-icon>
+						<iconify-icon
+							icon={icons[t.type]}
+							class="shrink-0 text-lg sm:text-xl {t.type === 'loading' ? 'animate-spin' : ''}"
+						></iconify-icon>
 
 						<div class="flex-1 min-w-0">
 							{#if t.title}
@@ -253,7 +262,10 @@
 
 				{#if t.duration !== Infinity && !isToastPaused(t.id)}
 					<div class="h-1 bg-black/20 pointer-events-none">
-						<div class="h-full bg-white/40 origin-left" style="animation: shrink {t.remainingTime}ms linear forwards"></div>
+						<div
+							class="h-full bg-white/40 origin-left"
+							style="animation: shrink {t.remainingTime}ms linear forwards"
+						></div>
 					</div>
 				{/if}
 			</div>

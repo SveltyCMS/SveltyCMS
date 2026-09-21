@@ -64,7 +64,10 @@
 {:else}
 	<h1 class="text-2xl font-bold">{order.orderNumber}</h1>
 	<p class="mt-1 capitalize text-surface-500">{order.status}</p>
-	<p class="mt-2 tabular-nums font-semibold">{Number(order.total || 0).toFixed(2)} {order.currency || ''}</p>
+	<p class="mt-2 tabular-nums font-semibold">
+		{Number(order.total || 0).toFixed(2)}
+		{order.currency || ''}
+	</p>
 	{#if message}
 		<p class="mt-2 text-sm" role="status">{message}</p>
 	{/if}
@@ -85,7 +88,10 @@
 		<ul class="mt-2 space-y-1">
 			{#each downloads as file (file.token)}
 				<li>
-					<a href="/api/commerce/downloads?token={encodeURIComponent(file.token)}" class="text-primary-600">{file.title}</a>
+					<a
+						href="/api/commerce/downloads?token={encodeURIComponent(file.token)}"
+						class="text-primary-600">{file.title}</a
+					>
 				</li>
 			{/each}
 		</ul>

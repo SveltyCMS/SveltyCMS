@@ -76,7 +76,10 @@
 				let oldClosest: HTMLElement;
 
 				clone.onpointermove = (e) => {
-					if (e.clientY < container!.offsetTop || e.clientY > container!.offsetTop + container!.offsetHeight - 60) {
+					if (
+						e.clientY < container!.offsetTop ||
+						e.clientY > container!.offsetTop + container!.offsetHeight - 60
+					) {
 						if (e.clientY < container!.offsetTop) {
 							container?.scrollBy(0, -5);
 						} else {
@@ -94,12 +97,17 @@
 								};
 							})
 							.filter((el) => el.el !== clone);
-						targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+						targets.sort((a, b) =>
+							Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1
+						);
 						const closest = targets[0];
 						if (closest.el === node) {
 							return;
 						}
-						const closestIndex = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+						const closestIndex = Number.parseInt(
+							closest.el.getAttribute('data-index') as string,
+							10
+						);
 						const cloneIndex = Number.parseInt(clone.getAttribute('data-index') as string, 10);
 
 						if (oldClosest) {
@@ -119,7 +127,9 @@
 				clone.onpointerup = (e) => {
 					node.style.opacity = '1';
 					clone.releasePointerCapture(pointerID);
-					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+					targets.sort((a, b) =>
+						Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1
+					);
 					const closest = targets[0];
 					let closestIndex = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
 					const cloneIndex = Number.parseInt(clone.getAttribute('data-index') as string, 10);
@@ -197,33 +207,55 @@
 				<p>widget: {field.widget.Name}</p>
 				<p>label: {field.label}</p>
 			</div>
-			<Button variant="ghost" size="sm" onclick={(e: MouseEvent) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute inset-e-1.25 top-1.25">
-					<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
-				</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				onclick={(e: MouseEvent) => handleFieldDelete(field, e)}
+				aria-label="Delete widget"
+				class="absolute inset-e-1.25 top-1.25"
+			>
+				<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
+			</Button>
 		</div>
 	{/each}
 </div>
 
 {#if currentField}
-	<AddWidget {fields} field={currentField as any} addField={false} selected_widget={currentFieldKey} editField={true} />
+	<AddWidget
+		{fields}
+		field={currentField as any}
+		addField={false}
+		selected_widget={currentFieldKey}
+		editField={true}
+	/>
 {/if}
 
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 inset-s-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {ui.state
-			.leftSidebar === 'full'
+		class="fixed -top-16 inset-s-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {ui
+			.state.leftSidebar === 'full'
 			? 'inset-s-55'
 			: 'inset-s-0'}"
 	>
-		<div class="fixed top-0 flex items-center justify-between {ui.state.leftSidebar === 'full' ? 'inset-s-55 w-full' : 'inset-s-0 w-screen'}">
+		<div
+			class="fixed top-0 flex items-center justify-between {ui.state.leftSidebar === 'full'
+				? 'inset-s-55 w-full'
+				: 'inset-s-0 w-screen'}"
+		>
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" />
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<Button variant="tertiary" aria-label="Save" onclick={handleSave} class="dark:">Save</Button>
+				<Button variant="tertiary" aria-label="Save" onclick={handleSave} class="dark:">Save</Button
+				>
 				<!-- Cancel Button -->
-				<Button variant="outline" aria-label="Cancel" onclick={handleCancel} class="p-0! min-w-0 me-2">
+				<Button
+					variant="outline"
+					aria-label="Cancel"
+					onclick={handleCancel}
+					class="p-0! min-w-0 me-2"
+				>
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 				</Button>
 			</div>

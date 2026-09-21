@@ -32,7 +32,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 		fieldsWithIssues = [],
 		missingWidgets = [],
 		onActivateWidgets = () => {},
-		onDismiss = undefined,
+		onDismiss = undefined
 	} = $props();
 
 	let dismissed = $state(false);
@@ -47,7 +47,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 		onActivateWidgets();
 		logger.debug('[WidgetValidationWarning] Activate widgets requested', {
 			collectionName,
-			widgetsToActivate: missingWidgets,
+			widgetsToActivate: missingWidgets
 		});
 	}
 </script>
@@ -60,12 +60,22 @@ Provides clear information about the issue and actionable steps to resolve it.
 	>
 		<!-- Header -->
 		<div class="mb-3 flex items-center gap-3">
-			<iconify-icon icon="mdi:alert-circle" width="24" class="shrink-0 text-warning-600 dark:text-warning-400"></iconify-icon>
+			<iconify-icon
+				icon="mdi:alert-circle"
+				width="24"
+				class="shrink-0 text-warning-600 dark:text-warning-400"
+			></iconify-icon>
 			<h4 class="flex-1 text-lg font-semibold text-warning-600 dark:text-warning-400">
 				Inactive Widgets Detected in "{collectionName}"
 			</h4>
 			{#if onDismiss}
-				<Button variant="ghost" type="button" onclick={handleDismiss} aria-label="Dismiss warning" class="p-0! min-w-0">
+				<Button
+					variant="ghost"
+					type="button"
+					onclick={handleDismiss}
+					aria-label="Dismiss warning"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</Button>
 			{/if}
@@ -79,13 +89,21 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 			<ul class="space-y-1">
 				{#each fieldsWithIssues as field (field.fieldName)}
-					<li class="border-b border-warning-500/30 py-1 text-warning-600 dark:border-warning-500/20 dark:text-warning-400 last:border-b-0">
-						<strong>{field.fieldName}</strong>: Widget <code class="rounded bg-warning-500/10 px-1 py-0.5 font-mono text-xs dark:bg-warning-500/20">{field.widget}</code> is inactive
+					<li
+						class="border-b border-warning-500/30 py-1 text-warning-600 dark:border-warning-500/20 dark:text-warning-400 last:border-b-0"
+					>
+						<strong>{field.fieldName}</strong>: Widget
+						<code
+							class="rounded bg-warning-500/10 px-1 py-0.5 font-mono text-xs dark:bg-warning-500/20"
+							>{field.widget}</code
+						> is inactive
 					</li>
 				{/each}
 			</ul>
 
-			<p class="rounded border-s-4 border-warning-500 bg-warning-500/10 p-3 text-sm text-warning-600 dark:border-warning-500 dark:bg-warning-500/10 dark:text-warning-400">
+			<p
+				class="rounded border-s-4 border-warning-500 bg-warning-500/10 p-3 text-sm text-warning-600 dark:border-warning-500 dark:bg-warning-500/10 dark:text-warning-400"
+			>
 				Content for these fields will not display properly until the widgets are activated.
 				<strong>Editing entries may result in data loss for these fields.</strong>
 			</p>

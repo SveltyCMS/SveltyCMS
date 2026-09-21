@@ -30,31 +30,33 @@ canManage: boolean;
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
-// Using iconify-icon web component
-interface Props {
-	canManage: boolean;
-	onToggle: (name: string) => void;
-	onUninstall?: (name: string) => void;
-	widget: {
-		name: string;
-		icon: string;
-		description?: string;
-		isCore: boolean;
-		isActive: boolean;
-		dependencies: string[];
-		canDisable: boolean;
-		pillar?: {
-			input?: { exists: boolean };
-			display?: { exists: boolean };
+	// Using iconify-icon web component
+	interface Props {
+		canManage: boolean;
+		onToggle: (name: string) => void;
+		onUninstall?: (name: string) => void;
+		widget: {
+			name: string;
+			icon: string;
+			description?: string;
+			isCore: boolean;
+			isActive: boolean;
+			dependencies: string[];
+			canDisable: boolean;
+			pillar?: {
+				input?: { exists: boolean };
+				display?: { exists: boolean };
+			};
+			hasValidation?: boolean;
 		};
-		hasValidation?: boolean;
-	};
-}
+	}
 
-const { widget, onToggle, onUninstall, canManage }: Props = $props();
+	const { widget, onToggle, onUninstall, canManage }: Props = $props();
 </script>
 
-<div class="card border border-surface-500/30 dark:text-surface-50 transition-shadow hover:shadow-lg">
+<div
+	class="card border border-surface-500/30 dark:text-surface-50 transition-shadow hover:shadow-lg"
+>
 	<!-- Widget Header -->
 	<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
 		<div class="flex min-w-0 flex-1 items-start gap-4">
@@ -78,7 +80,9 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 					{/if}
 				</div>
 				{#if widget.description}
-					<p class="text-sm text-surface-600 dark:text-surface-50 line-clamp-2">{widget.description}</p>
+					<p class="text-sm text-surface-600 dark:text-surface-50 line-clamp-2">
+						{widget.description}
+					</p>
 				{/if}
 
 				<!-- 3-Pillar Architecture Indicators -->
@@ -116,13 +120,17 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 			<!-- Toggle Active Status -->
 			{#if widget.isCore}
 				<!-- Core widgets are always active and cannot be deactivated -->
-				<Badge preset="tonal" color="primary" title="Core widgets are always active">Always Active</Badge>
+				<Badge preset="tonal" color="primary" title="Core widgets are always active"
+					>Always Active</Badge
+				>
 			{:else if canManage && widget.canDisable}
-				<Button variant="error"
+				<Button
+					variant="error"
 					type="button"
 					onclick={() => onToggle(widget.name)}
 					data-testid="widget-toggle-{widget.name}"
-					size="sm">
+					size="sm"
+				>
 					{widget.isActive ? 'Deactivate' : 'Activate'}
 				</Button>
 			{:else if !widget.canDisable}
@@ -131,7 +139,13 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 
 			<!-- Uninstall (only for inactive custom widgets) -->
 			{#if canManage && !widget.isCore && !widget.isActive && onUninstall}
-				<Button variant="surface" type="button" onclick={() => onUninstall?.(widget.name)} title="Uninstall widget" class="p-0! min-w-0">
+				<Button
+					variant="surface"
+					type="button"
+					onclick={() => onUninstall?.(widget.name)}
+					title="Uninstall widget"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="mdi:trash-can-outline" width="20" class="text-lg"></iconify-icon>
 				</Button>
 			{/if}

@@ -94,7 +94,10 @@
 		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
 		<span class="hidden sm:inline">Views</span>
 		{#if views.length > 0}
-			<span class="rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold dark:bg-primary-500/20">{views.length}</span>
+			<span
+				class="rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold dark:bg-primary-500/20"
+				>{views.length}</span
+			>
 		{/if}
 	</Button>
 
@@ -106,7 +109,8 @@
 			aria-label="Saved views"
 		>
 			<div class="mb-2 flex gap-1">
-				<input aria-label="New view name"
+				<input
+					aria-label="New view name"
 					type="text"
 					class="input input-sm flex-1 rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 					placeholder="View name…"
@@ -115,7 +119,13 @@
 						if (e.key === 'Enter') handleSave();
 					}}
 				/>
-				<Button variant="primary" size="sm" type="button" onclick={handleSave} aria-label="Save current view">
+				<Button
+					variant="primary"
+					size="sm"
+					type="button"
+					onclick={handleSave}
+					aria-label="Save current view"
+				>
 					Save
 				</Button>
 			</div>
@@ -139,7 +149,12 @@
 									class="shrink-0 rounded p-0.5 text-surface-400 hover:bg-error-500/10 hover:text-error-500 cursor-pointer"
 									aria-label="Delete view {view.name}"
 									onclick={(e) => handleDelete(view.id, e)}
-									onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); handleDelete(view.id, e as unknown as MouseEvent); } }}
+									onkeydown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.stopPropagation();
+											handleDelete(view.id, e as unknown as MouseEvent);
+										}
+									}}
 								>
 									<iconify-icon icon="mdi:close" width={14}></iconify-icon>
 								</span>

@@ -85,13 +85,23 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 
 <div class="watermark-controls-mobile" role="toolbar" aria-label="Watermark controls">
 	<div class="watermark-mobile-strip" role="group" aria-label="Watermark actions">
-		<button type="button" class="watermark-mobile-pill" onclick={onAddImage} aria-label="Add image watermark">
+		<button
+			type="button"
+			class="watermark-mobile-pill"
+			onclick={onAddImage}
+			aria-label="Add image watermark"
+		>
 			<iconify-icon icon="mdi:image-plus" width="14" aria-hidden="true"></iconify-icon>
 			<span>Image</span>
 		</button>
 
 		{#if onAddText}
-			<button type="button" class="watermark-mobile-pill" onclick={onAddText} aria-label="Add text watermark">
+			<button
+				type="button"
+				class="watermark-mobile-pill"
+				onclick={onAddText}
+				aria-label="Add text watermark"
+			>
 				<iconify-icon icon="mdi:text-box-plus" width="14" aria-hidden="true"></iconify-icon>
 				<span>Text{watermarkCount > 0 ? ` (${watermarkCount})` : ''}</span>
 			</button>
@@ -143,7 +153,9 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 
 	{#if hasSelection}
 		<div class="watermark-mobile-position-wrap" role="group" aria-label="Watermark position">
-			<span class="watermark-mobile-group-label watermark-mobile-position-label" aria-hidden="true">Position</span>
+			<span class="watermark-mobile-group-label watermark-mobile-position-label" aria-hidden="true"
+				>Position</span
+			>
 			<div class="watermark-mobile-position-grid">
 				{#each positions as pos (pos.value)}
 					<button

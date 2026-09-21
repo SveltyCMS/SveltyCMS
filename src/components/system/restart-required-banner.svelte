@@ -43,7 +43,9 @@ Displays a prominent banner when server restart is required with countdown and s
 		}
 
 		if (!skipConfirmation) {
-			const confirmed = confirm('Are you sure you want to restart the server? This will temporarily interrupt service.');
+			const confirmed = confirm(
+				'Are you sure you want to restart the server? This will temporarily interrupt service.'
+			);
 			if (!confirmed) {
 				return;
 			}
@@ -145,14 +147,18 @@ Displays a prominent banner when server restart is required with countdown and s
 					<iconify-icon
 						icon="mdi:alert-circle"
 						width="32"
-						class="text-warning-900 dark:text-warning-100 {!prefersReducedMotion ? 'animate-pulse' : ''}"
+						class="text-warning-900 dark:text-warning-100 {!prefersReducedMotion
+							? 'animate-pulse'
+							: ''}"
 						aria-hidden="true"
 					></iconify-icon>
 				</div>
 
 				<div>
 					<p class="font-bold text-warning-900 dark:text-warning-100">Server Restart Required</p>
-					<p class="mt-1 text-sm text-warning-800 dark:text-warning-200">Configuration changes need a server restart to take effect.</p>
+					<p class="mt-1 text-sm text-warning-800 dark:text-warning-200">
+						Configuration changes need a server restart to take effect.
+					</p>
 
 					{#if countdown !== null}
 						<p
@@ -169,7 +175,9 @@ Displays a prominent banner when server restart is required with countdown and s
 			<div class="flex flex-wrap items-center gap-2">
 				{#if countdown !== null}
 					<!-- Cancel countdown -->
-					<Button variant="outline" onclick={stopCountdown} disabled={isRestarting} size="sm">Cancel Auto-Restart</Button>
+					<Button variant="outline" onclick={stopCountdown} disabled={isRestarting} size="sm"
+						>Cancel Auto-Restart</Button
+					>
 				{:else}
 					<!-- Start countdown -->
 					<Button variant="outline" onclick={startCountdown} disabled={isRestarting} size="sm">
@@ -179,9 +187,17 @@ Displays a prominent banner when server restart is required with countdown and s
 				{/if}
 
 				<!-- Restart now -->
-				<Button variant="error" onclick={() => restartServer(false)} disabled={isRestarting} aria-label="Restart server now" size="sm">
+				<Button
+					variant="error"
+					onclick={() => restartServer(false)}
+					disabled={isRestarting}
+					aria-label="Restart server now"
+					size="sm"
+				>
 					{#if isRestarting}
-						<div class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+						<div
+							class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+						></div>
 						<span>Restarting...</span>
 					{:else}
 						<iconify-icon icon="mdi:restart" width="18"></iconify-icon>
@@ -190,12 +206,14 @@ Displays a prominent banner when server restart is required with countdown and s
 				</Button>
 
 				<!-- Dismiss -->
-				<Button variant="outline"
+				<Button
+					variant="outline"
 					onclick={dismiss}
 					aria-label="Dismiss restart reminder"
 					disabled={isRestarting}
 					title="Dismiss (you can restart manually later)"
-				 class="p-0! min-w-0">
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</Button>
 			</div>
@@ -203,7 +221,10 @@ Displays a prominent banner when server restart is required with countdown and s
 
 		<!-- Progress bar for countdown -->
 		{#if countdown !== null && countdown < AUTO_RESTART_SECONDS}
-			<div class="absolute bottom-0 inset-s-0 inset-e-0 h-1 bg-warning-900/20" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+			<div
+				class="absolute bottom-0 inset-s-0 inset-e-0 h-1 bg-warning-900/20"
+				transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+			>
 				<div
 					class="h-full bg-error-500 transition-all duration-1000 ease-linear"
 					style="width: {((AUTO_RESTART_SECONDS - countdown) / AUTO_RESTART_SECONDS) * 100}%"

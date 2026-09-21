@@ -16,7 +16,12 @@
 	});
 </script>
 
-<AdminPageShell title={plugin_pages_title()} icon="mdi:puzzle" showBackButton={true} backUrl="/config">
+<AdminPageShell
+	title={plugin_pages_title()}
+	icon="mdi:puzzle"
+	showBackButton={true}
+	backUrl="/config"
+>
 	{#if navItems.length > 0}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="plugin-pages-index">
 			{#each navItems as item (item.id)}
@@ -27,9 +32,15 @@
 						class="flex items-center gap-3 no-underline!"
 						aria-label={item.label}
 					>
-						<iconify-icon icon={item.icon} width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon
+							icon={item.icon}
+							width="22"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
 						<div class="min-w-0">
-							<div class="text-sm font-semibold text-surface-900 dark:text-surface-100">{item.label}</div>
+							<div class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+								{item.label}
+							</div>
 							<div class="text-xs text-surface-500">{item.group}</div>
 						</div>
 					</a>

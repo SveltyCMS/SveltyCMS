@@ -103,11 +103,14 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 <!-- Mobile-optimized layout -->
 <div class="blur-controls flex w-full flex-wrap items-center gap-2 lg:gap-3">
 	<!-- Add Region Button -->
-	<Button variant="tertiary"
+	<Button
+		variant="tertiary"
 		onclick={onAddRegion}
 		title="Add Blur Region (Click on image)"
 		aria-label="Add blur region"
-	 size="sm" class="shrink-0">
+		size="sm"
+		class="shrink-0"
+	>
 		<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
 		<span class="hidden sm:inline">Add Region</span>
 	</Button>
@@ -126,21 +129,25 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="control-group">
 		<span class="control-label">Shape:</span>
 		<div class="btn-group-compact" role="radiogroup" aria-label="Blur shape">
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={() => onShapeChange('rectangle')}
 				title="Rectangle (R)"
 				aria-label="Rectangle shape"
 				aria-pressed={shape === 'rectangle'}
-			 size="sm">
+				size="sm"
+			>
 				<iconify-icon icon="mdi:crop-square" width="18"></iconify-icon>
 				<span class="sr-only">Rectangle</span>
 			</Button>
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={() => onShapeChange('ellipse')}
 				title="Ellipse (E)"
 				aria-label="Ellipse shape"
 				aria-pressed={shape === 'ellipse'}
-			 size="sm">
+				size="sm"
+			>
 				<iconify-icon icon="mdi:circle-outline" width="18"></iconify-icon>
 				<span class="sr-only">Ellipse</span>
 			</Button>
@@ -153,21 +160,25 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="control-group">
 		<span class="control-label">Effect:</span>
 		<div class="btn-group-compact" role="radiogroup" aria-label="Blur pattern">
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={() => onPatternChange('blur')}
 				title="Blur (B)"
 				aria-label="Blur effect"
 				aria-pressed={pattern === 'blur'}
-			 size="sm">
+				size="sm"
+			>
 				<iconify-icon icon="mdi:blur" width="18"></iconify-icon>
 				<span class="hidden md:inline ms-1">Blur</span>
 			</Button>
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={() => onPatternChange('pixelate')}
 				title="Pixelate (P)"
 				aria-label="Pixelate effect"
 				aria-pressed={pattern === 'pixelate'}
-			 size="sm">
+				size="sm"
+			>
 				<iconify-icon icon="mdi:grid" width="18"></iconify-icon>
 				<span class="hidden md:inline ms-1">Pixelate</span>
 			</Button>
@@ -180,7 +191,8 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="control-group flex-1 min-w-50 max-w-75">
 		<label class="control-label" for="blur-strength-slider"> {strengthLabel}: </label>
 		<div class="flex items-center gap-2">
-			<input aria-label="Blur sigma"
+			<input
+				aria-label="Blur sigma"
 				id="blur-strength-slider"
 				type="range"
 				min={minStrength}
@@ -193,7 +205,9 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 				aria-valuemax={maxStrength}
 				aria-valuenow={blurStrength}
 			/>
-			<Badge variant="outline" class="w-12 text-center text-xs font-mono shrink-0"> {blurStrength} </Badge>
+			<Badge variant="outline" class="w-12 text-center text-xs font-mono shrink-0">
+				{blurStrength}
+			</Badge>
 		</div>
 	</div>
 
@@ -206,30 +220,52 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="control-group">
 		<span class="control-label sr-only">Transform:</span>
 		<div class="btn-group-compact">
-			<Button variant="ghost" onclick={onRotateLeft} title="Rotate Left" aria-label="Rotate region left" disabled={!hasActiveRegion} size="sm" class="p-0! min-w-0">
+			<Button
+				variant="ghost"
+				onclick={onRotateLeft}
+				title="Rotate Left"
+				aria-label="Rotate region left"
+				disabled={!hasActiveRegion}
+				size="sm"
+				class="p-0! min-w-0"
+			>
 				<iconify-icon icon="mdi:rotate-left" width="18"></iconify-icon>
 			</Button>
-			<Button variant="ghost" onclick={onRotateRight} title="Rotate Right" aria-label="Rotate region right" disabled={!hasActiveRegion} size="sm" class="p-0! min-w-0">
+			<Button
+				variant="ghost"
+				onclick={onRotateRight}
+				title="Rotate Right"
+				aria-label="Rotate region right"
+				disabled={!hasActiveRegion}
+				size="sm"
+				class="p-0! min-w-0"
+			>
 				<iconify-icon icon="mdi:rotate-right" width="18"></iconify-icon>
 			</Button>
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				onclick={onFlipHorizontal}
 				title="Flip Horizontal"
 				aria-label="Flip region horizontally"
 				disabled={!hasActiveRegion}
-			 size="sm" class="p-0! min-w-0">
+				size="sm"
+				class="p-0! min-w-0"
+			>
 				<iconify-icon icon="mdi:flip-horizontal" width="18"></iconify-icon>
 			</Button>
 		</div>
 	</div>
 
 	<!-- Delete Button -->
-	<Button variant="error"
+	<Button
+		variant="error"
 		onclick={onDeleteRegion}
 		title="Delete Selected Region (Delete)"
 		aria-label="Delete selected region"
 		disabled={!hasActiveRegion}
-	 size="sm" class="shrink-0">
+		size="sm"
+		class="shrink-0"
+	>
 		<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 		<span class="hidden md:inline">Delete</span>
 	</Button>
@@ -301,7 +337,6 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	:global(.dark) .btn-group-compact {
 		border-color: var(--color-surface-600);
 	}
-
 
 	.sr-only {
 		position: absolute;

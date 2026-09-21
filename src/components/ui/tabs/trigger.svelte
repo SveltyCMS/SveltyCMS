@@ -37,7 +37,13 @@ and active border indicator. Receives context from parent Tabs component.
 		[key: string]: any;
 	}
 
-	let { value: triggerValue, disabled = false, children, class: className = '', ...rest }: Props = $props();
+	let {
+		value: triggerValue,
+		disabled = false,
+		children,
+		class: className = '',
+		...rest
+	}: Props = $props();
 
 	const context = getContext<TabsContext>('TABS_CONTEXT');
 	const active = $derived(context?.value === triggerValue);

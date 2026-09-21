@@ -59,8 +59,16 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Convert ISO string to YYYY-MM-DD format for native input
 
-	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
-	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[LANGUAGE] ?? '') : ((value as string) ?? ''));
+	const LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
+	const safeValue = $derived(
+		field.translated
+			? ((value as Record<string, string>)?.[LANGUAGE] ?? '')
+			: ((value as string) ?? '')
+	);
 
 	const inputValue = $derived.by(() => {
 		if (!safeValue) {
@@ -109,13 +117,19 @@ Part of the Three Pillars Architecture for widget system.
 
 				// Validate min date constraint
 				if (field.minDate && selectedDate < new Date(field.minDate as string | Date)) {
-					validationStore.setError(fieldName, `Date must be on or after ${formatDate(field.minDate as string | Date)}`);
+					validationStore.setError(
+						fieldName,
+						`Date must be on or after ${formatDate(field.minDate as string | Date)}`
+					);
 					return;
 				}
 
 				// Validate max date constraint
 				if (field.maxDate && selectedDate > new Date(field.maxDate as string | Date)) {
-					validationStore.setError(fieldName, `Date must be on or before ${formatDate(field.maxDate as string | Date)}`);
+					validationStore.setError(
+						fieldName,
+						`Date must be on or before ${formatDate(field.maxDate as string | Date)}`
+					);
 					return;
 				}
 
@@ -152,7 +166,10 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="relative mb-4 min-h-10 w-full">
 	<SystemTooltip title={error || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div
+			class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+			role="group"
+		>
 			<Input
 				bind:inputRef
 				type="date"
@@ -169,7 +186,11 @@ Part of the Three Pillars Architecture for widget system.
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!error}
-				aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
+				aria-describedby={error
+					? `${field.db_fieldName}-error`
+					: field.helper
+						? `${field.db_fieldName}-helper`
+						: undefined}
 				aria-required={field.required}
 				data-testid="date-input"
 			/>
@@ -186,7 +207,12 @@ Part of the Three Pillars Architecture for widget system.
 
 	<!-- Error Message -->
 	{#if error}
-		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p
+			id={`${field.db_fieldName}-error`}
+			class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500"
+			role="alert"
+			aria-live="polite"
+		>
 			{error}
 		</p>
 	{/if}

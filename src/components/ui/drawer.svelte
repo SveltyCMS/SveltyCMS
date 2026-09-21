@@ -74,31 +74,39 @@ configurable position, and full focus management via `useDialog`.
 		// svelte-ignore state_referenced_locally
 		onopen,
 		// svelte-ignore state_referenced_locally
-		onclose,
+		onclose
 	});
 
 	const positionClasses: Record<string, string> = {
 		left: 'left-0 right-auto h-full w-80',
 		right: 'right-0 left-auto h-full w-80',
 		top: 'top-0 bottom-auto w-full h-80',
-		bottom: 'bottom-0 top-auto w-full h-80',
+		bottom: 'bottom-0 top-auto w-full h-80'
 	};
 
 	const flyParams = $derived.by(() => {
 		switch (position) {
-			case 'left': return { x: -320, duration: 300 };
-			case 'right': return { x: 320, duration: 300 };
-			case 'top': return { y: -320, duration: 300 };
-			case 'bottom': return { y: 320, duration: 300 };
-			default: return { x: 320, duration: 300 };
+			case 'left':
+				return { x: -320, duration: 300 };
+			case 'right':
+				return { x: 320, duration: 300 };
+			case 'top':
+				return { y: -320, duration: 300 };
+			case 'bottom':
+				return { y: 320, duration: 300 };
+			default:
+				return { x: 320, duration: 300 };
 		}
 	});
 
 	const colorClasses: Record<string, string> = {
 		surface: 'bg-(--admin-bg-overlay) border-(--admin-border-default)',
-		primary: 'bg-primary-500/10 dark:bg-primary-500/10 border-primary-500/30 dark:border-primary-500/40',
-		secondary: 'bg-secondary-500/10 dark:bg-secondary-500/10 border-secondary-500/30 dark:border-secondary-500/40',
-		tertiary: 'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500/30 dark:border-tertiary-500/40',
+		primary:
+			'bg-primary-500/10 dark:bg-primary-500/10 border-primary-500/30 dark:border-primary-500/40',
+		secondary:
+			'bg-secondary-500/10 dark:bg-secondary-500/10 border-secondary-500/30 dark:border-secondary-500/40',
+		tertiary:
+			'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500/30 dark:border-tertiary-500/40'
 	};
 </script>
 
@@ -110,7 +118,7 @@ configurable position, and full focus management via `useDialog`.
 		onkeydown={dialog.onKeydown}
 		class={cn(
 			'fixed inset-0 z-101 bg-transparent border-0 p-0 overflow-hidden backdrop:bg-(--admin-bg-backdrop) backdrop:backdrop-blur-sm',
-			'open:flex flex-col',
+			'open:flex flex-col'
 		)}
 		{...dialog.dialogAria}
 		aria-modal="true"
@@ -125,13 +133,15 @@ configurable position, and full focus management via `useDialog`.
 					colorClasses[color],
 					positionClasses[position],
 					size,
-					className,
+					className
 				)}
 				transition:fly={flyParams}
 				tabindex="-1"
 			>
 				<!-- Header -->
-				<header class="flex items-center justify-between p-4 border-b border-(--admin-border-default) shrink-0">
+				<header
+					class="flex items-center justify-between p-4 border-b border-(--admin-border-default) shrink-0"
+				>
 					<div>
 						{#if title}
 							<h3 class="text-lg font-bold text-surface-900 dark:text-white">{title}</h3>
@@ -156,7 +166,9 @@ configurable position, and full focus management via `useDialog`.
 
 				<!-- Footer -->
 				{#if footer}
-					<footer class="p-4 bg-(--admin-bg-page) border-t border-(--admin-border-default) flex justify-end gap-3 shrink-0">
+					<footer
+						class="p-4 bg-(--admin-bg-page) border-t border-(--admin-border-default) flex justify-end gap-3 shrink-0"
+					>
 						{@render footer()}
 					</footer>
 				{/if}
@@ -171,8 +183,12 @@ configurable position, and full focus management via `useDialog`.
 	}
 
 	@keyframes fade-in {
-		from { opacity: 0; }
-		to { opacity: 1; }
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
 	dialog:focus {

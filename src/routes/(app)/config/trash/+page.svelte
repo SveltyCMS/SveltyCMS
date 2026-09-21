@@ -9,76 +9,71 @@
 - Control-risk data-testids for E2E
 -->
 <script lang="ts">
-import { fly } from "svelte/transition";
-import { onMount } from "svelte";
-import { toast } from "@src/stores/toast.svelte";
-import { showConfirm } from "@utils/modal.svelte";
-import { formatDisplayDate } from "@utils/date";
-import Badge from "@components/ui/badge.svelte";
-import Button from "@components/ui/button.svelte";
-import Loader from "@components/ui/loader.svelte";
-import AdminCard from "@components/admin-card.svelte";
-import AdminPageShell from "@components/admin-page-shell.svelte";
-import {
-	button_refresh,
-	trash_aria_loading,
-	trash_aria_refresh,
-	trash_aria_restore,
-	trash_empty_description,
-	trash_empty_title,
-	trash_load_failed,
-	trash_page_description,
-	trash_page_title,
-	trash_restore_button,
-	trash_restore_confirm_body,
-	trash_restore_confirm_title,
-	trash_restore_failed,
-	trash_restore_success,
-	trash_th_actions,
-	trash_th_collection,
-	trash_th_content,
-	trash_th_deleted_at,
-	trash_th_deleted_by,
-} from "@src/paraglide/messages";
-import {
-	listTrash,
-	restoreTrashItem,
-	unwrapTrashList,
-	type TrashItem,
-} from "./trash-api";
+	import { fly } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import { toast } from '@src/stores/toast.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
+	import { formatDisplayDate } from '@utils/date';
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import {
+		button_refresh,
+		trash_aria_loading,
+		trash_aria_refresh,
+		trash_aria_restore,
+		trash_empty_description,
+		trash_empty_title,
+		trash_load_failed,
+		trash_page_description,
+		trash_page_title,
+		trash_restore_button,
+		trash_restore_confirm_body,
+		trash_restore_confirm_title,
+		trash_restore_failed,
+		trash_restore_success,
+		trash_th_actions,
+		trash_th_collection,
+		trash_th_content,
+		trash_th_deleted_at,
+		trash_th_deleted_by
+	} from '@src/paraglide/messages';
+	import { listTrash, restoreTrashItem, unwrapTrashList, type TrashItem } from './trash-api';
 
-let trashedItems = $state<TrashItem[]>([]);
-let isLoading = $state(true);
+	let trashedItems = $state<TrashItem[]>([]);
+	let isLoading = $state(true);
 
-async function loadTrash() {
-	isLoading = true;
-	const response = await listTrash();
-	if (response.success) {
-		trashedItems = unwrapTrashList(response);
-	} else {
-		toast.error(response.message || trash_load_failed());
+	async function loadTrash() {
+		isLoading = true;
+		const response = await listTrash();
+		if (response.success) {
+			trashedItems = unwrapTrashList(response);
+		} else {
+			toast.error(response.message || trash_load_failed());
+		}
+		isLoading = false;
 	}
-	isLoading = false;
-}
 
-function restoreItem(collectionId: string, entryId: string, label: string) {
-	showConfirm({
-		title: trash_restore_confirm_title(),
-		body: trash_restore_confirm_body({ label }),
-		onConfirm: async () => {
-			const response = await restoreTrashItem(collectionId, entryId);
+	function restoreItem(collectionId: string, entryId: string, label: string) {
+		showConfirm({
+			title: trash_restore_confirm_title(),
+			body: trash_restore_confirm_body({ label }),
+			onConfirm: async () => {
+				const response = await restoreTrashItem(collectionId, entryId);
 
-			if (response.success) {
-				toast.success(trash_restore_success());
-				await loadTrash();
-			} else {
-				toast.error(response.message || trash_restore_failed());
+				if (response.success) {
+					toast.success(trash_restore_success());
+					await loadTrash();
+				} else {
+					toast.error(response.message || trash_restore_failed());
+				}
 			}
-		},
-	});
-}
+		});
+	}
 
-onMount(loadTrash);
+	onMount(loadTrash);
 </script>
 
 <AdminPageShell
@@ -115,7 +110,8 @@ onMount(loadTrash);
 					class="p-12 text-center border-dashed border-2 border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 					data-testid="trash-empty"
 				>
-					<iconify-icon icon="mdi:trash-can-outline" width="64" class="mx-auto mb-4 opacity-20"></iconify-icon>
+					<iconify-icon icon="mdi:trash-can-outline" width="64" class="mx-auto mb-4 opacity-20"
+					></iconify-icon>
 					<h3 class="text-xl font-semibold">{trash_empty_title()}</h3>
 					<p class="text-surface-500">{trash_empty_description()}</p>
 				</AdminCard>
@@ -152,8 +148,8 @@ onMount(loadTrash);
 										<td class="py-3">
 											<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 										</td>
-										<td class="py-3">{formatDisplayDate(item.deletedAt || "")}</td>
-										<td class="py-3">{item.deletedBy || "System"}</td>
+										<td class="py-3">{formatDisplayDate(item.deletedAt || '')}</td>
+										<td class="py-3">{item.deletedBy || 'System'}</td>
 										<td class="py-3 text-end">
 											<Button
 												variant="tertiary"
@@ -161,7 +157,7 @@ onMount(loadTrash);
 													restoreItem(
 														item.collectionId,
 														item._id,
-														item.title || item.name || item._id,
+														item.title || item.name || item._id
 													)}
 												size="sm"
 												leadingIcon="mdi:restore"

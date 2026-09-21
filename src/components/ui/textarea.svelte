@@ -80,7 +80,8 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 		</label>
 	{/if}
 
-	<textarea aria-label={label || undefined}
+	<textarea
+		aria-label={label || undefined}
 		{id}
 		{rows}
 		class={cn(baseStyles, error && errorStyles, textareaClass)}
@@ -88,8 +89,7 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 		bind:value
 		aria-invalid={!!error}
 		aria-describedby={errorId}
-		{...rest}
-	></textarea>
+		{...rest}></textarea>
 
 	{#if error}
 		<p id={errorId} class="text-[0.8rem] font-medium text-error-500" role="alert">{error}</p>

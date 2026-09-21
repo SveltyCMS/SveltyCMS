@@ -16,7 +16,13 @@
 		htmlTitle?: string;
 	}
 
-	const { htmlTitle, body = 'Are you sure?', buttonTextConfirm = 'Confirm', buttonTextCancel = 'Cancel', close }: Props = $props();
+	const {
+		htmlTitle,
+		body = 'Are you sure?',
+		buttonTextConfirm = 'Confirm',
+		buttonTextCancel = 'Cancel',
+		close
+	}: Props = $props();
 
 	function onConfirm() {
 		close?.(true);
@@ -32,7 +38,9 @@
 		<h3 class="h3 font-bold text-center"><Sanitize html={htmlTitle} profile="strict" /></h3>
 	{/if}
 	{#if body}
-		<p class="text-surface-600 dark:text-surface-50 text-center"><Sanitize html={body} profile="strict" /></p>
+		<p class="text-surface-600 dark:text-surface-50 text-center">
+			<Sanitize html={body} profile="strict" />
+		</p>
 	{/if}
 
 	<div class="flex justify-between gap-4 pt-4">
@@ -46,12 +54,7 @@
 				{buttonTextCancel}
 			</Button>
 		{/if}
-		<Button
-			variant="tertiary"
-			onclick={onConfirm}
-			class="dark:"
-			data-testid="modal-confirm"
-		>
+		<Button variant="tertiary" onclick={onConfirm} class="dark:" data-testid="modal-confirm">
 			{buttonTextConfirm}
 		</Button>
 	</div>

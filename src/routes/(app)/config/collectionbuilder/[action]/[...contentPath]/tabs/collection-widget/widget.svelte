@@ -4,236 +4,233 @@
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
-import { ui } from '@src/stores/ui-store.svelte';
-import {
-	button_edit,
-	button_previous,
-	button_save,
-	collection_widgetfield_addFields,
-	collection_widgetfield_addrequired,
-	collection_widgetfield_drag,
-} from "@src/paraglide/messages";
-import {
-	collections,
-	setCollectionValue,
-	setTargetWidget,
-} from "@src/stores/collection-store.svelte";
-import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
-// Native UI Components
-import { modalState } from "@utils/modal.svelte";
-// Using iconify-icon web component
-import { getGuiFields } from "@utils/schema/field-utils";
-import { draggable, droppable } from '@thisux/sveltednd';
-import type { DragDropState } from '@thisux/sveltednd';
-import { untrack } from 'svelte';
-// Stores
-import { page } from "$app/state";
-import ModalSelectWidget from "./modal-select-widget.svelte";
-import ModalWidgetForm from "./modal-widget-form.svelte";
-import Button from '@components/ui/button.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import {
+		button_edit,
+		button_previous,
+		button_save,
+		collection_widgetfield_addFields,
+		collection_widgetfield_addrequired,
+		collection_widgetfield_drag
+	} from '@src/paraglide/messages';
+	import {
+		collections,
+		setCollectionValue,
+		setTargetWidget
+	} from '@src/stores/collection-store.svelte';
+	import { getWidgetFunction } from '@src/stores/widget-store.svelte.ts';
+	// Native UI Components
+	import { modalState } from '@utils/modal.svelte';
+	// Using iconify-icon web component
+	import { getGuiFields } from '@utils/schema/field-utils';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
+	import { untrack } from 'svelte';
+	// Stores
+	import { page } from '$app/state';
+	import ModalSelectWidget from './modal-select-widget.svelte';
+	import ModalWidgetForm from './modal-widget-form.svelte';
+	import Button from '@components/ui/button.svelte';
 
-interface Props {
-	"on:save"?: () => void;
-}
+	interface Props {
+		'on:save'?: () => void;
+	}
 
-// Field interface
-interface Field {
-	db_fieldName?: string;
-	icon?: string;
-	id: number;
-	label: string;
-	permissions: Record<string, Record<string, boolean>>;
-	widget: {
-		Name: string;
-		key?: string;
-		GuiFields?: Record<string, unknown>;
-	};
-	[key: string]: unknown;
-}
-
-const { "on:save": onSave = () => {} }: Props = $props() as Props;
-
-// Extract the collection name from the URL (route param [...contentPath])
-const contentTypes = page.params.contentPath ?? "";
-
-// Fields state with proper typing
-let fields = $state<Field[]>(
-	((collections.activeValue.fields as any[]) || []).map((field, index) => {
-		const baseField = {
-			id: index + 1,
-			label: field.label || "",
-			widget: field.widget || { Name: "", key: "" },
-			permissions: field.permissions || {},
+	// Field interface
+	interface Field {
+		db_fieldName?: string;
+		icon?: string;
+		id: number;
+		label: string;
+		permissions: Record<string, Record<string, boolean>>;
+		widget: {
+			Name: string;
+			key?: string;
+			GuiFields?: Record<string, unknown>;
 		};
-		return { ...field, ...baseField };
-	}),
-);
+		[key: string]: unknown;
+	}
 
-// Effect to update fields when collection value changes
-$effect.root(() => {
-	fields = ((collections.activeValue.fields as any[]) || []).map(
-		(field, index) => {
+	const { 'on:save': onSave = () => {} }: Props = $props() as Props;
+
+	// Extract the collection name from the URL (route param [...contentPath])
+	const contentTypes = page.params.contentPath ?? '';
+
+	// Fields state with proper typing
+	let fields = $state<Field[]>(
+		((collections.activeValue.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
-				label: field.label || "",
-				widget: field.widget || { Name: "", key: "" },
-				permissions: field.permissions || {},
+				label: field.label || '',
+				widget: field.widget || { Name: '', key: '' },
+				permissions: field.permissions || {}
 			};
 			return { ...field, ...baseField };
-		},
+		})
 	);
-});
+
+	// Effect to update fields when collection value changes
+	$effect.root(() => {
+		fields = ((collections.activeValue.fields as any[]) || []).map((field, index) => {
+			const baseField = {
+				id: index + 1,
+				label: field.label || '',
+				widget: field.widget || { Name: '', key: '' },
+				permissions: field.permissions || {}
+			};
+			return { ...field, ...baseField };
+		});
+	});
 
 	const handleFieldDrop = (state: DragDropState<Field>) => {
-	const dragged = state.draggedItem;
-	if (!dragged) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
 
-	const fromIndex = fields.indexOf(dragged);
-	if (fromIndex < 0) return;
+		const fromIndex = fields.indexOf(dragged);
+		if (fromIndex < 0) return;
 
-	// Find target item via DOM data attribute
-	const targetEl = state.targetElement?.closest('[data-field-label]') as HTMLElement | null;
-	const targetLabel = targetEl?.dataset?.fieldLabel;
+		// Find target item via DOM data attribute
+		const targetEl = state.targetElement?.closest('[data-field-label]') as HTMLElement | null;
+		const targetLabel = targetEl?.dataset?.fieldLabel;
 
-	let targetIndex: number;
-	if (targetLabel) {
-		targetIndex = fields.findIndex(f => f.label === targetLabel);
-		if (state.dropPosition === 'after') targetIndex++;
-	} else {
-		targetIndex = fields.length;
-	}
-	targetIndex = Math.max(0, Math.min(targetIndex, fields.length));
-
-	if (fromIndex === targetIndex) return;
-
-	fields = untrack(() => {
-		const newFields = [...fields];
-		newFields.splice(fromIndex, 1);
-		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-		newFields.splice(adjusted, 0, dragged);
-		return newFields;
-	});
-
-	// Persist to store
-	setCollectionValue({
-		...collections.activeValue,
-		fields,
-	});
-};
-
-// Modal 2 to Edit a selected widget
-function modalWidgetForm(selectedWidget: Field): void {
-	if (selectedWidget.permissions === undefined) {
-		selectedWidget.permissions = {};
-	}
-	setTargetWidget(selectedWidget);
-	modalState.trigger(
-		ModalWidgetForm as any,
-		{
-			title: "Define your Widget",
-			body: "Setup your widget and then press Save.",
-			value: selectedWidget,
-		},
-		(r: Field | null) => {
-			if (!r) {
-				return;
-			}
-			// Find the index of the existing widget based on its ID
-			const existingIndex = fields.findIndex((widget) => widget.id === r.id);
-
-			if (existingIndex !== -1) {
-				// If the existing widget is found, update its properties
-				const updatedField = { ...fields[existingIndex], ...r };
-				fields = [
-					...fields.slice(0, existingIndex),
-					updatedField,
-					...fields.slice(existingIndex + 1),
-				];
-				setCollectionValue({
-					...collections.activeValue,
-					fields,
-				});
-			} else {
-				// If the existing widget is not found, add it as a new widget
-				const newField = { ...r, id: fields.length + 1 };
-				fields = [...fields, newField];
-				setCollectionValue({
-					...collections.activeValue,
-					fields,
-				});
-			}
-		},
-	);
-}
-
-// Modal 1 to choose a widget
-function modalSelectWidget(selected?: Field): void {
-	modalState.trigger(
-		ModalSelectWidget as any,
-		{
-			title: "Select a Widget",
-			body: "Select your widget and then press submit.",
-			value: selected,
-		},
-		(r: { selectedWidget: string } | null) => {
-			if (!r) {
-				return;
-			}
-			const { selectedWidget } = r;
-			const widget = {
-				widget: { key: selectedWidget, Name: selectedWidget },
-				permissions: {},
-			};
-			setTargetWidget(widget as any);
-			modalWidgetForm(widget as Field);
-		},
-	);
-}
-
-// Function to save data by sending a POST request
-async function handleCollectionSave() {
-	fields = fields.map((field) => {
-		const widgetInstance = getWidgetFunction(field.widget.Name);
-		const guiSchema = widgetInstance?.GuiSchema;
-		if (!guiSchema) {
-			return field;
+		let targetIndex: number;
+		if (targetLabel) {
+			targetIndex = fields.findIndex((f) => f.label === targetLabel);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = fields.length;
 		}
+		targetIndex = Math.max(0, Math.min(targetIndex, fields.length));
 
-		// Preserve existing non-primitive GuiFields content — rebuilding from an
-		// empty getGuiFields() and copying only primitives silently drops any
-		// array/object options stored by a widget (latent data loss).
-		const previousGuiFields = field.widget.GuiFields ?? {};
-		const GUI_FIELDS = getGuiFields(
-			{ key: field.widget.Name },
-			guiSchema as any,
+		if (fromIndex === targetIndex) return;
+
+		fields = untrack(() => {
+			const newFields = [...fields];
+			newFields.splice(fromIndex, 1);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			newFields.splice(adjusted, 0, dragged);
+			return newFields;
+		});
+
+		// Persist to store
+		setCollectionValue({
+			...collections.activeValue,
+			fields
+		});
+	};
+
+	// Modal 2 to Edit a selected widget
+	function modalWidgetForm(selectedWidget: Field): void {
+		if (selectedWidget.permissions === undefined) {
+			selectedWidget.permissions = {};
+		}
+		setTargetWidget(selectedWidget);
+		modalState.trigger(
+			ModalWidgetForm as any,
+			{
+				title: 'Define your Widget',
+				body: 'Setup your widget and then press Save.',
+				value: selectedWidget
+			},
+			(r: Field | null) => {
+				if (!r) {
+					return;
+				}
+				// Find the index of the existing widget based on its ID
+				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
+
+				if (existingIndex !== -1) {
+					// If the existing widget is found, update its properties
+					const updatedField = { ...fields[existingIndex], ...r };
+					fields = [
+						...fields.slice(0, existingIndex),
+						updatedField,
+						...fields.slice(existingIndex + 1)
+					];
+					setCollectionValue({
+						...collections.activeValue,
+						fields
+					});
+				} else {
+					// If the existing widget is not found, add it as a new widget
+					const newField = { ...r, id: fields.length + 1 };
+					fields = [...fields, newField];
+					setCollectionValue({
+						...collections.activeValue,
+						fields
+					});
+				}
+			}
 		);
-		for (const [property, value] of Object.entries(field)) {
-			if (typeof value !== "object" && property !== "id") {
-				GUI_FIELDS[property] = value;
-			}
-		}
-		// Re-merge previously stored non-primitive options (arrays, nested objects).
-		for (const [property, value] of Object.entries(previousGuiFields)) {
-			if (typeof value === "object" && value !== null && GUI_FIELDS[property] === undefined) {
-				GUI_FIELDS[property] = value;
-			}
-		}
-		field.widget.GuiFields = GUI_FIELDS;
-		return field;
-	});
+	}
 
-	// Update the collection fields
-	setCollectionValue({
-		...collections.activeValue,
-		fields,
-	});
+	// Modal 1 to choose a widget
+	function modalSelectWidget(selected?: Field): void {
+		modalState.trigger(
+			ModalSelectWidget as any,
+			{
+				title: 'Select a Widget',
+				body: 'Select your widget and then press submit.',
+				value: selected
+			},
+			(r: { selectedWidget: string } | null) => {
+				if (!r) {
+					return;
+				}
+				const { selectedWidget } = r;
+				const widget = {
+					widget: { key: selectedWidget, Name: selectedWidget },
+					permissions: {}
+				};
+				setTargetWidget(widget as any);
+				modalWidgetForm(widget as Field);
+			}
+		);
+	}
 
-	onSave();
-}
+	// Function to save data by sending a POST request
+	async function handleCollectionSave() {
+		fields = fields.map((field) => {
+			const widgetInstance = getWidgetFunction(field.widget.Name);
+			const guiSchema = widgetInstance?.GuiSchema;
+			if (!guiSchema) {
+				return field;
+			}
+
+			// Preserve existing non-primitive GuiFields content — rebuilding from an
+			// empty getGuiFields() and copying only primitives silently drops any
+			// array/object options stored by a widget (latent data loss).
+			const previousGuiFields = field.widget.GuiFields ?? {};
+			const GUI_FIELDS = getGuiFields({ key: field.widget.Name }, guiSchema as any);
+			for (const [property, value] of Object.entries(field)) {
+				if (typeof value !== 'object' && property !== 'id') {
+					GUI_FIELDS[property] = value;
+				}
+			}
+			// Re-merge previously stored non-primitive options (arrays, nested objects).
+			for (const [property, value] of Object.entries(previousGuiFields)) {
+				if (typeof value === 'object' && value !== null && GUI_FIELDS[property] === undefined) {
+					GUI_FIELDS[property] = value;
+				}
+			}
+			field.widget.GuiFields = GUI_FIELDS;
+			return field;
+		});
+
+		// Update the collection fields
+		setCollectionValue({
+			...collections.activeValue,
+			fields
+		});
+
+		onSave();
+	}
 </script>
 
 <div class="flex flex-col">
-	<div class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500">
+	<div
+		class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500"
+	>
 		<p>
 			{collection_widgetfield_addrequired()}
 			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span>
@@ -241,7 +238,12 @@ async function handleCollectionSave() {
 		</p>
 		<p class="mb-2">{collection_widgetfield_drag()}</p>
 	</div>
-	<div style="max-height: 55vh !important;" class="overflow-y-auto" role="table" aria-label="Field list">
+	<div
+		style="max-height: 55vh !important;"
+		class="overflow-y-auto"
+		role="table"
+		aria-label="Field list"
+	>
 		<section
 			use:droppable={{
 				container: 'widget-fields',
@@ -257,22 +259,40 @@ async function handleCollectionSave() {
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					use:draggable={{ container: 'widget-fields', dragData: field, keyboard: true }}
-					use:droppable={{ container: 'widget-fields', callbacks: { onDrop: handleFieldDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
+					use:droppable={{
+						container: 'widget-fields',
+						callbacks: { onDrop: handleFieldDrop },
+						direction: 'vertical',
+						attributes: { dragOverClass: 'bg-secondary-200' }
+					}}
 					data-field-label={field.label}
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
 					role="listitem"
 					tabindex="0"
 					aria-label="Field: {field.label}. Press Space to grab, arrows to move."
 				>
-					<div class="preset-ghost-tertiary-500 inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
+					<div
+						class="preset-ghost-tertiary-500 inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-10 w-10 rounded-full dark:preset-ghost-primary-500"
+						role="cell"
+					>
+						{field.id}
+					</div>
 
-					<div role="cell" class="flex justify-center"><iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon></div>
+					<div role="cell" class="flex justify-center">
+						<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
+					</div>
 					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
 					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" " role="cell">{field.widget?.key}</div>
 
 					<div role="cell" class="flex justify-end">
-						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="p-0! min-w-0 ms-auto">
+						<Button
+							variant="ghost"
+							type="button"
+							onclick={() => modalWidgetForm(field)}
+							aria-label={button_edit()}
+							class="p-0! min-w-0 ms-auto"
+						>
 							<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
 						</Button>
 					</div>
@@ -282,14 +302,23 @@ async function handleCollectionSave() {
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<Button variant="tertiary" onclick={() => modalSelectWidget()}>{collection_widgetfield_addFields()} </Button>
+			<Button variant="tertiary" onclick={() => modalSelectWidget()}
+				>{collection_widgetfield_addFields()}
+			</Button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<Button variant="secondary" type="button" onclick={() => (ui.wizard.tabSetState = 1)} class="mt-2 justify-end">{button_previous()}</Button>
-			<Button variant="tertiary"
+			<Button
+				variant="secondary"
+				type="button"
+				onclick={() => (ui.wizard.tabSetState = 1)}
+				class="mt-2 justify-end">{button_previous()}</Button
+			>
+			<Button
+				variant="tertiary"
 				type="button"
 				onclick={handleCollectionSave}
-			 class="mt-2 justify-end dark: dark:text-black">
+				class="mt-2 justify-end dark: dark:text-black"
+			>
 				{button_save()}
 			</Button>
 		</div>

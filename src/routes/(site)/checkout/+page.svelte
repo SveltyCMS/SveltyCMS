@@ -60,15 +60,45 @@
 
 	{#if !orderId}
 		<form class="mt-6 space-y-4" onsubmit={placeOrder}>
-			<Input type="email" bind:value={email} required aria-label="Email" placeholder="you@example.com" />
+			<Input
+				type="email"
+				bind:value={email}
+				required
+				aria-label="Email"
+				placeholder="you@example.com"
+			/>
 			{#if !skipShipping}
 				<Input bind:value={country} aria-label="Country (ISO)" placeholder="DE" />
 			{/if}
 			<fieldset class="space-y-2">
 				<legend class="text-sm font-medium">Payment</legend>
-				<label class="flex items-center gap-2 text-sm"><input type="radio" name="pay" value="stripe" bind:group={paymentMethod} aria-label="Card (Stripe)" /> Card (Stripe)</label>
-				<label class="flex items-center gap-2 text-sm"><input type="radio" name="pay" value="cod" bind:group={paymentMethod} aria-label="Cash on delivery" /> Cash on delivery</label>
-				<label class="flex items-center gap-2 text-sm"><input type="radio" name="pay" value="bank_transfer" bind:group={paymentMethod} aria-label="Bank transfer" /> Bank transfer</label>
+				<label class="flex items-center gap-2 text-sm"
+					><input
+						type="radio"
+						name="pay"
+						value="stripe"
+						bind:group={paymentMethod}
+						aria-label="Card (Stripe)"
+					/> Card (Stripe)</label
+				>
+				<label class="flex items-center gap-2 text-sm"
+					><input
+						type="radio"
+						name="pay"
+						value="cod"
+						bind:group={paymentMethod}
+						aria-label="Cash on delivery"
+					/> Cash on delivery</label
+				>
+				<label class="flex items-center gap-2 text-sm"
+					><input
+						type="radio"
+						name="pay"
+						value="bank_transfer"
+						bind:group={paymentMethod}
+						aria-label="Bank transfer"
+					/> Bank transfer</label
+				>
 			</fieldset>
 			<Button type="submit" variant="primary">Place order</Button>
 		</form>
@@ -77,7 +107,11 @@
 			<PaymentForm {orderId} displayAmount={totalCents} displayCurrency={currency} />
 		</div>
 	{:else}
-		<p class="mt-6 text-sm" role="status">Order placed. {instructions || 'We will confirm payment separately.'}</p>
-		<a class="mt-3 inline-block text-sm text-primary-600" href="/account/orders/{orderId}">View order</a>
+		<p class="mt-6 text-sm" role="status">
+			Order placed. {instructions || 'We will confirm payment separately.'}
+		</p>
+		<a class="mt-3 inline-block text-sm text-primary-600" href="/account/orders/{orderId}"
+			>View order</a
+		>
 	{/if}
 </section>

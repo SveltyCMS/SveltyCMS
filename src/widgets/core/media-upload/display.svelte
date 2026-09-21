@@ -17,7 +17,7 @@ Renders selected media files as thumbnails for display purposes.
 - **Semantic Colors**: Uses theme-defined semantic colors for borders and backgrounds.
 -->
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import type { MediaFile } from './types';
 	import Badge from '@components/ui/badge.svelte';
 

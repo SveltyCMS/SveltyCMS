@@ -4,87 +4,88 @@
 -->
 
 <script lang="ts">
-// Components
-import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@components/ui/floating-input.svelte";
-// ParaglideJS
-import {
-	button_cancel,
-	button_send,
-	oauth_entertoken,
-	oauth_signup,
-	registration_token,
-	signup_registrationtoken,
-} from "@src/paraglide/messages";
-// Stores
-import {
-	globalLoadingStore,
-	loadingOperations,
-} from "@src/stores/loading-store.svelte.ts";
-import type { PageData } from "./$types";
+	// Components
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
+	// ParaglideJS
+	import {
+		button_cancel,
+		button_send,
+		oauth_entertoken,
+		oauth_signup,
+		registration_token,
+		signup_registrationtoken
+	} from '@src/paraglide/messages';
+	// Stores
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	import type { PageData } from './$types';
 	import Button from '@components/ui/button.svelte';
 
-interface Props {
-	data: PageData;
-}
-
-const { data }: Props = $props();
-
-let token = $state("");
-let formError = $state("");
-const isFormValid = $derived(
-	!data.requiresToken || (token.length >= 16 && token.length <= 48),
-);
-
-// Handle form submission
-async function handleSubmit(event: SubmitEvent) {
-	event.preventDefault();
-	if (data.requiresToken && !isFormValid) {
-		formError = "Invalid token length";
-		return;
+	interface Props {
+		data: PageData;
 	}
 
-	formError = "";
+	const { data }: Props = $props();
 
-	await globalLoadingStore
-		.withLoading(
-			loadingOperations.authentication,
-			async () => {
-				const form = event.target as HTMLFormElement;
-				const formData = new FormData(form);
-				const response = await fetch(form.action, {
-					method: "POST",
-					body: formData,
-				});
+	let token = $state('');
+	let formError = $state('');
+	const isFormValid = $derived(!data.requiresToken || (token.length >= 16 && token.length <= 48));
 
-				if (!response.ok) {
-					throw new Error("OAuth authentication failed");
-				}
-				// Redirect will be handled by the server
-			},
-			"OAuth.handleSubmit",
-		)
-		.catch((error) => {
-			formError =
-				error instanceof Error ? error.message : "Authentication failed";
-		});
-}
+	// Handle form submission
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		if (data.requiresToken && !isFormValid) {
+			formError = 'Invalid token length';
+			return;
+		}
 
-// Handle cancel button
-function handleCancel() {
-	window.history.back();
-}
+		formError = '';
+
+		await globalLoadingStore
+			.withLoading(
+				loadingOperations.authentication,
+				async () => {
+					const form = event.target as HTMLFormElement;
+					const formData = new FormData(form);
+					const response = await fetch(form.action, {
+						method: 'POST',
+						body: formData
+					});
+
+					if (!response.ok) {
+						throw new Error('OAuth authentication failed');
+					}
+					// Redirect will be handled by the server
+				},
+				'OAuth.handleSubmit'
+			)
+			.catch((error) => {
+				formError = error instanceof Error ? error.message : 'Authentication failed';
+			});
+	}
+
+	// Handle cancel button
+	function handleCancel() {
+		window.history.back();
+	}
 </script>
 
 <div class="grid h-full w-full place-items-center bg-[#242728]">
-	<form class="m-2 flex flex-col items-center gap-2 rounded border border-surface-500/30 bg-white p-2 shadow-xs sm:p-6 dark:border-surface-500/40 dark:bg-surface-900" method="post" action="?/OAuth" onsubmit={handleSubmit}>
+	<form
+		class="m-2 flex flex-col items-center gap-2 rounded border border-surface-500/30 bg-white p-2 shadow-xs sm:p-6 dark:border-surface-500/40 dark:bg-surface-900"
+		method="post"
+		action="?/OAuth"
+		onsubmit={handleSubmit}
+	>
 		<!-- CSS Logo -->
 		<SveltyCMSLogoFull />
 
 		{#if data.requiresToken}
 			<!-- Token Input Form -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">{oauth_entertoken()}</h2>
+				<h2 class="mb-2 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">
+					{oauth_entertoken()}
+				</h2>
 				<FloatingInput
 					id="token"
 					name="token"
@@ -111,14 +112,18 @@ function handleCancel() {
 
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<Button variant="outline" type="button" onclick={handleCancel} aria-label={button_cancel()}>{button_cancel()}</Button>
+			<Button variant="outline" type="button" onclick={handleCancel} aria-label={button_cancel()}
+				>{button_cancel()}</Button
+			>
 
 			<!-- Submit Button -->
-			<Button variant="primary"
+			<Button
+				variant="primary"
 				type="submit"
 				disabled={!isFormValid || globalLoadingStore.isLoading}
 				aria-label={button_send()}
-			 class="items-center">
+				class="items-center"
+			>
 				<iconify-icon icon="flat-color-icons:google" width={24} aria-hidden="true"></iconify-icon>
 				<span>{oauth_signup()}</span>
 			</Button>

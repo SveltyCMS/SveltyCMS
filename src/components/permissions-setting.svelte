@@ -104,17 +104,24 @@ Advanced permission management interface with bulk actions and presets.
 		admin: {
 			name: 'Administrator',
 			description: 'Full access to everything',
-			permissions: Object.fromEntries(Object.values(PermissionAction).map((action) => [action, true]))
+			permissions: Object.fromEntries(
+				Object.values(PermissionAction).map((action) => [action, true])
+			)
 		}
 	};
 
 	// Initialize permissions with all roles
-	function initializePermissions(currentPermissions: PermissionsMap, availableRoles: Role[]): PermissionsMap {
+	function initializePermissions(
+		currentPermissions: PermissionsMap,
+		availableRoles: Role[]
+	): PermissionsMap {
 		const initialized: PermissionsMap = { ...currentPermissions };
 
 		availableRoles.forEach((role) => {
 			if (!initialized[role._id]) {
-				initialized[role._id] = Object.fromEntries(Object.values(PermissionAction).map((action) => [action, true]));
+				initialized[role._id] = Object.fromEntries(
+					Object.values(PermissionAction).map((action) => [action, true])
+				);
 			}
 		});
 
@@ -185,7 +192,9 @@ Advanced permission management interface with bulk actions and presets.
 			return;
 		}
 
-		permissionsState[roleId] = Object.fromEntries(Object.values(PermissionAction).map((action) => [action, value]));
+		permissionsState[roleId] = Object.fromEntries(
+			Object.values(PermissionAction).map((action) => [action, value])
+		);
 
 		saveToHistory();
 		updateParent();
@@ -254,32 +263,34 @@ Advanced permission management interface with bulk actions and presets.
 	function triggerImport() {
 		fileInput?.click();
 	}
-		async function handleImport(event: Event) {
-			const input = event.target as HTMLInputElement;
-			const file = input.files?.[0];
+	async function handleImport(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
 
-			if (!file) return;
+		if (!file) return;
 
-			try {
-				const text = await file.text();
-				const imported = JSON.parse(text);
-				permissionsState = { ...permissionsState, ...imported };
-				saveToHistory();
-				updateParent();
-				toast.success('Permissions imported successfully');
-			} catch {
-				toast.error('Failed to import permissions');
-				error = 'Invalid permissions file';
-			} finally {
-				// Reset so same file can be re-selected
-				if (input) input.value = '';
-			}
+		try {
+			const text = await file.text();
+			const imported = JSON.parse(text);
+			permissionsState = { ...permissionsState, ...imported };
+			saveToHistory();
+			updateParent();
+			toast.success('Permissions imported successfully');
+		} catch {
+			toast.error('Failed to import permissions');
+			error = 'Invalid permissions file';
+		} finally {
+			// Reset so same file can be re-selected
+			if (input) input.value = '';
 		}
+	}
 
 	// Filter roles
 	const filteredRoles = $derived(
 		roles.filter(
-			(role) => role.name.toLowerCase().includes(searchQuery.toLowerCase()) || role.description?.toLowerCase().includes(searchQuery.toLowerCase())
+			(role) =>
+				role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				role.description?.toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
 
@@ -320,7 +331,9 @@ Advanced permission management interface with bulk actions and presets.
 				<p class="font-semibold">Error</p>
 				<p class="mt-1 text-sm">{error}</p>
 			</div>
-			<Button variant="error" onclick={() => (error = null)} aria-label="Dismiss error" size="sm">Dismiss</Button>
+			<Button variant="error" onclick={() => (error = null)} aria-label="Dismiss error" size="sm"
+				>Dismiss</Button
+			>
 		</div>
 	</div>
 {:else}
@@ -329,45 +342,80 @@ Advanced permission management interface with bulk actions and presets.
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<!-- Search -->
 			<div class="flex-1">
-				<FloatingInput bind:value={searchQuery} label="Search roles..." icon="mdi:magnify" aria-label="Search roles" />
+				<FloatingInput
+					bind:value={searchQuery}
+					label="Search roles..."
+					icon="mdi:magnify"
+					aria-label="Search roles"
+				/>
 			</div>
 
 			<!-- Actions -->
 			<div class="flex flex-wrap gap-2">
 				<!-- Undo/Redo -->
-				<Button variant="outline" onclick={undo} disabled={!canUndo} title="Undo" aria-label="Undo last change" size="sm">
+				<Button
+					variant="outline"
+					onclick={undo}
+					disabled={!canUndo}
+					title="Undo"
+					aria-label="Undo last change"
+					size="sm"
+				>
 					<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
 				</Button>
-				<Button variant="outline" onclick={redo} disabled={!canRedo} title="Redo" aria-label="Redo last change" size="sm">
+				<Button
+					variant="outline"
+					onclick={redo}
+					disabled={!canRedo}
+					title="Redo"
+					aria-label="Redo last change"
+					size="sm"
+				>
 					<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
 				</Button>
 
 				<!-- Bulk Actions Toggle -->
-				<Button variant="primary" onclick={() => (showBulkActions = !showBulkActions)} aria-expanded={showBulkActions} size="sm" class="dark:">
+				<Button
+					variant="primary"
+					onclick={() => (showBulkActions = !showBulkActions)}
+					aria-expanded={showBulkActions}
+					size="sm"
+					class="dark:"
+				>
 					<iconify-icon icon="mdi:cog-box" width="18"></iconify-icon>
 					Bulk Actions
 				</Button>
 
 				<!-- Export -->
-				<Button variant="primary"
+				<Button
+					variant="primary"
 					onclick={exportPermissions}
 					title="Export permissions"
 					aria-label="Export permissions as JSON"
-				 size="sm" class="dark:">
+					size="sm"
+					class="dark:"
+				>
 					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
 				</Button>
 
 				<!-- Import -->
-				<Button variant="warning" size="sm" onclick={triggerImport} aria-label="Import permissions from JSON">
+				<Button
+					variant="warning"
+					size="sm"
+					onclick={triggerImport}
+					aria-label="Import permissions from JSON"
+				>
 					<iconify-icon icon="mdi:upload" width="18"></iconify-icon>
 				</Button>
 				<label for="import-permissions-file" class="hidden">Import permissions file</label>
-									<input type="file" id="import-permissions-file"
-															accept=".json"
-															class="hidden"
+				<input
+					type="file"
+					id="import-permissions-file"
+					accept=".json"
+					class="hidden"
 					bind:this={fileInput}
 					onchange={handleImport}
-										/>
+				/>
 			</div>
 		</div>
 
@@ -381,19 +429,23 @@ Advanced permission management interface with bulk actions and presets.
 				<div class="flex flex-wrap gap-2">
 					{#each Object.values(PermissionAction) as action (action)}
 						<div class="flex gap-1">
-							<Button variant="success"
+							<Button
+								variant="success"
 								onclick={() => setPermissionForAllRoles(action, true)}
 								title={`Enable ${action} for all roles`}
 								aria-label={`Enable ${action} for all roles`}
-							 size="sm">
+								size="sm"
+							>
 								<iconify-icon icon={actionIcons[action]} width="16"></iconify-icon>
 								✓
 							</Button>
-							<Button variant="error"
+							<Button
+								variant="error"
 								onclick={() => setPermissionForAllRoles(action, false)}
 								title={`Disable ${action} for all roles`}
 								aria-label={`Disable ${action} for all roles`}
-							 size="sm">
+								size="sm"
+							>
 								<iconify-icon icon={actionIcons[action]} width="16"></iconify-icon>
 								✗
 							</Button>
@@ -417,7 +469,8 @@ Advanced permission management interface with bulk actions and presets.
 						{#each Object.values(PermissionAction) as action (action)}
 							<th scope="col" class="px-4 py-3 text-center">
 								<div class="flex flex-col items-center gap-1">
-									<iconify-icon icon={actionIcons[action]} width="20" aria-hidden="true"></iconify-icon>
+									<iconify-icon icon={actionIcons[action]} width="20" aria-hidden="true"
+									></iconify-icon>
 									<span class="text-xs">{action}</span>
 								</div>
 							</th>
@@ -434,13 +487,17 @@ Advanced permission management interface with bulk actions and presets.
 									<div class="flex items-center gap-2">
 										<span class="font-semibold">{role.name}</span>
 										{#if role.isAdmin}
-											<Badge variant="tertiary" class="text-xs"> Admin </Badge>
+											<Badge variant="tertiary" class="text-xs">Admin</Badge>
 										{/if}
 									</div>
 									{#if role.description}
-										<span class="text-xs text-surface-600 dark:text-surface-50"> {role.description} </span>
+										<span class="text-xs text-surface-600 dark:text-surface-50">
+											{role.description}
+										</span>
 									{/if}
-									<span class="text-xs font-medium text-tertiary-500 dark:text-primary-500"> {countEnabledPermissions(role._id)}/{totalActions} enabled </span>
+									<span class="text-xs font-medium text-tertiary-500 dark:text-primary-500">
+										{countEnabledPermissions(role._id)}/{totalActions} enabled
+									</span>
 								</div>
 							</th>
 
@@ -453,9 +510,18 @@ Advanced permission management interface with bulk actions and presets.
 										disabled={role.isAdmin}
 										aria-label={`${permissionsState[role._id]?.[action] ? 'Disable' : 'Enable'} ${action} for ${role.name}`}
 										data-testid={`perm-${role._id}-${action}`}
-										class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150 {permissionsState[role._id]?.[action] ? 'bg-success-500 text-white hover:bg-success-600' : 'bg-surface-200 text-surface-400 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-500 dark:hover:bg-surface-600'} {role.isAdmin ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:scale-110'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+										class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150 {permissionsState[
+											role._id
+										]?.[action]
+											? 'bg-success-500 text-white hover:bg-success-600'
+											: 'bg-surface-200 text-surface-400 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-500 dark:hover:bg-surface-600'} {role.isAdmin
+											? 'cursor-not-allowed opacity-40'
+											: 'cursor-pointer hover:scale-110'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 									>
-										<iconify-icon icon={permissionsState[role._id]?.[action] ? 'mdi:check' : 'mdi:close'} width="16"></iconify-icon>
+										<iconify-icon
+											icon={permissionsState[role._id]?.[action] ? 'mdi:check' : 'mdi:close'}
+											width="16"
+										></iconify-icon>
 									</Button>
 								</td>
 							{/each}
@@ -463,20 +529,25 @@ Advanced permission management interface with bulk actions and presets.
 							<!-- Row Actions -->
 							<td class="px-4 py-3 text-center">
 								<div class="flex justify-center gap-1">
-									<Button variant="primary"
+									<Button
+										variant="primary"
 										onclick={() => setAllPermissionsForRole(role._id, true)}
 										disabled={role.isAdmin}
 										title="Enable all"
 										aria-label={`Enable all permissions for ${role.name}`}
-									 size="sm" class="dark:">
+										size="sm"
+										class="dark:"
+									>
 										✓ All
 									</Button>
-									<Button variant="error"
+									<Button
+										variant="error"
 										onclick={() => setAllPermissionsForRole(role._id, false)}
 										disabled={role.isAdmin}
 										title="Disable all"
 										aria-label={`Disable all permissions for ${role.name}`}
-									 size="sm">
+										size="sm"
+									>
 										✗ All
 									</Button>
 
@@ -494,7 +565,10 @@ Advanced permission management interface with bulk actions and presets.
 										class="w-auto"
 										placeholder="Preset..."
 										allowEmptySelection={true}
-										options={Object.entries(presets).map(([key, preset]) => ({ value: key, label: preset.name }))}
+										options={Object.entries(presets).map(([key, preset]) => ({
+											value: key,
+											label: preset.name
+										}))}
 										label={`Apply preset to ${role.name}`}
 									/>
 								</div>
@@ -512,7 +586,9 @@ Advanced permission management interface with bulk actions and presets.
 				transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
 				<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-surface-600 dark:text-surface-50">No roles match your search for "<span class="font-medium">{searchQuery}</span>"</p>
+				<p class="text-surface-600 dark:text-surface-50">
+					No roles match your search for "<span class="font-medium">{searchQuery}</span>"
+				</p>
 			</div>
 		{/if}
 	</div>

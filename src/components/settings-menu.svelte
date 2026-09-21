@@ -21,7 +21,7 @@ Sidebar navigation for System Settings
 		settings_no_results,
 		settings_search_aria,
 		settings_search_placeholder,
-		settings_search_short,
+		settings_search_short
 	} from '@src/paraglide/messages';
 
 	// Props
@@ -33,7 +33,9 @@ Sidebar navigation for System Settings
 	// Derived
 	const user = $derived(page.data.user);
 	const isAdmin = $derived(checkIsAdmin(user));
-	const availableGroups: SettingGroup[] = $derived(getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name)));
+	const availableGroups: SettingGroup[] = $derived(
+		getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name))
+	);
 	const selectedGroupId = $derived(page.url.searchParams.get('group'));
 
 	// Filter logic
@@ -50,14 +52,17 @@ Sidebar navigation for System Settings
 				return true;
 			}
 			if (
-				group.fields.some((field) => field.label.toLowerCase().includes(lowerCaseSearchTerm) || field.key.toLowerCase().includes(lowerCaseSearchTerm))
+				group.fields.some(
+					(field) =>
+						field.label.toLowerCase().includes(lowerCaseSearchTerm) ||
+						field.key.toLowerCase().includes(lowerCaseSearchTerm)
+				)
 			) {
 				return true;
 			}
 			return false;
 		});
 	});
-
 </script>
 
 <div class="mt-2 flex flex-col h-full bg-transparent">
@@ -70,7 +75,9 @@ Sidebar navigation for System Settings
 			placeholder={isFullSidebar ? settings_search_placeholder() : settings_search_short()}
 			class="w-full {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
 		/>
-		<div class="absolute inset-e-0 top-0 flex h-full items-center pe-3 pointer-events-none text-surface-400">
+		<div
+			class="absolute inset-e-0 top-0 flex h-full items-center pe-3 pointer-events-none text-surface-400"
+		>
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>
 	</div>
@@ -78,7 +85,12 @@ Sidebar navigation for System Settings
 	<!-- Groups List -->
 	<div class="flex-1 overflow-y-auto px-1 space-y-1 flex flex-col settings-list">
 		{#each filteredGroups as group (group.id)}
-			<SystemTooltip title={group.name} positioning={{ placement: 'right-end', gutter: 15 }} contentClass="!text-sm" triggerClass="block w-full">
+			<SystemTooltip
+				title={group.name}
+				positioning={{ placement: 'right-end', gutter: 15 }}
+				contentClass="!text-sm"
+				triggerClass="block w-full"
+			>
 				<a
 					href={`/config/system-settings?group=${group.id}`}
 					data-sveltekit-preload-data="hover"
@@ -90,13 +102,19 @@ Sidebar navigation for System Settings
 				>
 					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-2'} overflow-hidden">
 						<GroupIcon icon={group.icon} class="text-xl" />
-						<span class="text-sm font-medium truncate w-full text-start {isFullSidebar ? '' : 'hidden sm:block'}">{group.name}</span>
+						<span
+							class="text-sm font-medium truncate w-full text-start {isFullSidebar
+								? ''
+								: 'hidden sm:block'}">{group.name}</span
+						>
 					</div>
 
 					{#if isFullSidebar}
 						<div class="flex items-center gap-1">
 							{#if groupsNeedingConfig.has(group.id)}
-								<span class="text-lg text-warning-500" title={settings_needs_configuration()}>⚠️</span>
+								<span class="text-lg text-warning-500" title={settings_needs_configuration()}
+									>⚠️</span
+								>
 							{/if}
 						</div>
 					{:else if groupsNeedingConfig.has(group.id)}

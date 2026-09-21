@@ -26,50 +26,54 @@ and transparent browser indicator trick for consistent cross-browser appearance.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import { generateId } from '@utils/id-generator';
+	import { cn } from '@utils/cn';
+	import { generateId } from '@utils/id-generator';
 
-interface Props {
-	value?: string;
-	type?: 'date' | 'datetime-local' | 'time';
-	label?: string;
-	min?: string;
-	max?: string;
-	disabled?: boolean;
-	required?: boolean;
-	error?: string;
-	description?: string;
-	class?: string;
-	onchange?: (value: string) => void;
-}
+	interface Props {
+		value?: string;
+		type?: 'date' | 'datetime-local' | 'time';
+		label?: string;
+		min?: string;
+		max?: string;
+		disabled?: boolean;
+		required?: boolean;
+		error?: string;
+		description?: string;
+		class?: string;
+		onchange?: (value: string) => void;
+	}
 
-let {
-	value = $bindable(''),
-	type = 'date',
-	label,
-	min,
-	max,
-	disabled = false,
-	required = false,
-	error = '',
-	description = '',
-	class: className = '',
-	onchange
-}: Props = $props();
+	let {
+		value = $bindable(''),
+		type = 'date',
+		label,
+		min,
+		max,
+		disabled = false,
+		required = false,
+		error = '',
+		description = '',
+		class: className = '',
+		onchange
+	}: Props = $props();
 
-const id = generateId('date-picker');
-const errorId = $derived(error ? `${id}-error` : undefined);
-const descriptionId = $derived(description ? `${id}-description` : undefined);
-const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') || undefined);
+	const id = generateId('date-picker');
+	const errorId = $derived(error ? `${id}-error` : undefined);
+	const descriptionId = $derived(description ? `${id}-description` : undefined);
+	const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') || undefined);
 
-const classes = $derived(cn(
-	'input px-3 py-2 rounded border transition-all duration-200 w-full',
-	'bg-surface-500/10 dark:bg-surface-900',
-	error ? 'border-error-500 focus:ring-error-500/20 focus:border-error-500' : 'border-surface-500/30 dark:border-surface-500/40 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
-	'focus:ring-2',
-	disabled && 'opacity-50 cursor-not-allowed grayscale',
-	className
-));
+	const classes = $derived(
+		cn(
+			'input px-3 py-2 rounded border transition-all duration-200 w-full',
+			'bg-surface-500/10 dark:bg-surface-900',
+			error
+				? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
+				: 'border-surface-500/30 dark:border-surface-500/40 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
+			'focus:ring-2',
+			disabled && 'opacity-50 cursor-not-allowed grayscale',
+			className
+		)
+	);
 </script>
 
 <div class="space-y-1 w-full">
@@ -80,7 +84,8 @@ const classes = $derived(cn(
 	{/if}
 
 	<div class="relative group">
-		<input aria-label={label || undefined}
+		<input
+			aria-label={label || undefined}
 			{id}
 			{type}
 			bind:value
@@ -96,13 +101,18 @@ const classes = $derived(cn(
 		/>
 
 		<!-- Decorative Calendar Icon (Internal to input area if possible, or overlay) -->
-		<div class="absolute inset-e-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-		<iconify-icon icon={type === 'time' ? 'mdi:clock-outline' : 'mdi:calendar'} width="20"></iconify-icon>
+		<div
+			class="absolute inset-e-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity"
+		>
+			<iconify-icon icon={type === 'time' ? 'mdi:clock-outline' : 'mdi:calendar'} width="20"
+			></iconify-icon>
 		</div>
 	</div>
 
 	{#if description && !error}
-		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 ps-1">{description}</p>
+		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 ps-1">
+			{description}
+		</p>
 	{/if}
 
 	{#if error}
@@ -111,17 +121,17 @@ const classes = $derived(cn(
 </div>
 
 <style>
-/* Custom styling to hide the default browser calendar icon if desired, or just style around it */
-::-webkit-calendar-picker-indicator {
-    background: transparent;
-    bottom: 0;
-    color: transparent;
-    cursor: pointer;
-    height: auto;
-    left: 0;
-    position: absolute;
-    right: 30px;
-    top: 0;
-    width: auto;
-}
+	/* Custom styling to hide the default browser calendar icon if desired, or just style around it */
+	::-webkit-calendar-picker-indicator {
+		background: transparent;
+		bottom: 0;
+		color: transparent;
+		cursor: pointer;
+		height: auto;
+		left: 0;
+		position: absolute;
+		right: 30px;
+		top: 0;
+		width: auto;
+	}
 </style>

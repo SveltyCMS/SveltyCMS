@@ -99,7 +99,6 @@ for the image editor canvas with reactive rendering.
 	// --- Web Worker for Filter Processing ---
 	let _filterWorker: Worker | null = $state(null);
 
-
 	// --- Touch gesture state for pinch-to-zoom and two-finger pan ---
 	let touchStartDistance = $state(0);
 	let touchStartZoom = $state(1);
@@ -131,7 +130,10 @@ for the image editor canvas with reactive rendering.
 		}
 	}
 
-	function getRegionOffsets(imageElement: HTMLImageElement, crop: { x: number; y: number; width: number; height: number } | null) {
+	function getRegionOffsets(
+		imageElement: HTMLImageElement,
+		crop: { x: number; y: number; width: number; height: number } | null
+	) {
 		if (crop) {
 			return {
 				offsetX: -crop.x - crop.width / 2,
@@ -182,7 +184,6 @@ for the image editor canvas with reactive rendering.
 	}
 
 	// --- Compare Slider: toggle via toolbar button (state in store) ---
-
 
 	// --- Touch Gestures (Mobile-First Polish) ---
 
@@ -367,7 +368,12 @@ for the image editor canvas with reactive rendering.
 		return parts.join(' ');
 	}
 
-	function applySharpness(canvasContext: CanvasRenderingContext2D, width: number, height: number, filters: Record<string, number>) {
+	function applySharpness(
+		canvasContext: CanvasRenderingContext2D,
+		width: number,
+		height: number,
+		filters: Record<string, number>
+	) {
 		const sharpness = filters.sharpness ?? 0;
 		const clarity = filters.clarity ?? 0;
 		const strength = sharpness / 72 + clarity / 92;
@@ -436,7 +442,8 @@ for the image editor canvas with reactive rendering.
 					for (let kx = -1; kx <= 1; kx++) {
 						const px = Math.max(0, Math.min(width - 1, x + kx));
 						const sourceIndex = (py * width + px) * 4;
-						const weight = kx === 0 && ky === 0 ? centerWeight : kx === 0 || ky === 0 ? sideWeight : 0;
+						const weight =
+							kx === 0 && ky === 0 ? centerWeight : kx === 0 || ky === 0 ? sideWeight : 0;
 						red += data[sourceIndex] * weight;
 						green += data[sourceIndex + 1] * weight;
 						blue += data[sourceIndex + 2] * weight;
@@ -474,7 +481,13 @@ for the image editor canvas with reactive rendering.
 			return;
 		}
 
-		context.drawImage(imageElement, -imageElement.width / 2, -imageElement.height / 2, imageElement.width, imageElement.height);
+		context.drawImage(
+			imageElement,
+			-imageElement.width / 2,
+			-imageElement.height / 2,
+			imageElement.width,
+			imageElement.height
+		);
 	}
 
 	function drawBlurRegions(
@@ -521,8 +534,28 @@ for the image editor canvas with reactive rendering.
 	}
 
 	// Main image render function
-	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
-		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters, blurRegions, compareSliderPosition } = storeState;
+	const renderImage = ({
+		context,
+		width,
+		height
+	}: {
+		context: CanvasRenderingContext2D;
+		width: number;
+		height: number;
+	}) => {
+		const {
+			imageElement,
+			zoom,
+			rotation,
+			flipH,
+			flipV,
+			translateX,
+			translateY,
+			crop,
+			filters,
+			blurRegions,
+			compareSliderPosition
+		} = storeState;
 
 		context.fillStyle = resolveCanvasBackground();
 		context.fillRect(0, 0, width, height);
@@ -537,7 +570,19 @@ for the image editor canvas with reactive rendering.
 
 		const isComparing = compareSliderPosition > 0;
 		const activeFilters = isComparing
-			? { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, exposure: 0, highlights: 0, shadows: 0, clarity: 0, vibrance: 0, sharpness: 0 }
+			? {
+					brightness: 0,
+					contrast: 0,
+					saturation: 0,
+					temperature: 0,
+					tint: 0,
+					exposure: 0,
+					highlights: 0,
+					shadows: 0,
+					clarity: 0,
+					vibrance: 0,
+					sharpness: 0
+				}
 			: filters;
 
 		if (isComparing) {
@@ -567,7 +612,12 @@ for the image editor canvas with reactive rendering.
 			if (editedFilterString) context.filter = editedFilterString;
 			drawSourceImage(context, imageElement, drawCrop);
 			applySharpness(context, width, height, filters);
-			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], drawCrop);
+			drawBlurRegions(
+				context,
+				imageElement,
+				Array.isArray(blurRegions) ? blurRegions : [],
+				drawCrop
+			);
 			context.restore();
 
 			// Draw divider line
@@ -591,7 +641,12 @@ for the image editor canvas with reactive rendering.
 			if (filterString) context.filter = filterString;
 			drawSourceImage(context, imageElement, drawCrop);
 			applySharpness(context, width, height, activeFilters);
-			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], drawCrop);
+			drawBlurRegions(
+				context,
+				imageElement,
+				Array.isArray(blurRegions) ? blurRegions : [],
+				drawCrop
+			);
 			context.restore();
 		}
 	};
@@ -601,7 +656,9 @@ for the image editor canvas with reactive rendering.
 
 		// Initialize Web Worker for filter processing (offloads sharpness to background thread)
 		try {
-			_filterWorker = new Worker(new URL('./workers/filter.worker.ts', import.meta.url), { type: 'module' });
+			_filterWorker = new Worker(new URL('./workers/filter.worker.ts', import.meta.url), {
+				type: 'module'
+			});
 		} catch (_err) {
 			// Fall back to main thread silently
 		}
@@ -622,13 +679,12 @@ for the image editor canvas with reactive rendering.
 		return () => {
 			resizeObserver?.disconnect();
 			_filterWorker?.terminate();
-			;
 		};
 	});
 </script>
 
 <div
-		class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none min-h-0 h-full bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none"
+	class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none min-h-0 h-full bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none"
 	role="region"
 	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
@@ -636,32 +692,35 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none {isDragging ? 'bg-primary-500/10' : ''}"
-	class:border-2={isDragging}
-	class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
-	class:border-dashed={isDragging}
-	class:dark:bg-primary-900={isDragging}
-	ondragover={handleDragOver}
-	ondragleave={handleDragLeave}
-	ondrop={handleDrop}
-	onmousedown={handleMouseDown}
-	onmousemove={handleMouseMove}
-	onmouseup={handleMouseUp}
-	onmouseleave={handleMouseUp}
-	onwheel={handleWheel}
-	ontouchstart={handleTouchStart}
-	ontouchmove={handleTouchMove}
-	ontouchend={handleTouchEnd}
-	ontouchcancel={handleTouchEnd}
-	onkeydown={(e) => {
-		// Basic keyboard support for pan/zoom
-		if (e.key === '+' || e.key === '=') {
-			imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
-		} else if (e.key === '-' || e.key === '_') {
-			imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
-		}
-	}}
-	aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
+		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none {isDragging
+			? 'bg-primary-500/10'
+			: ''}"
+		class:border-2={isDragging}
+		class:border-tertiary-500={isDragging}
+		class:dark:border-primary-500={isDragging}
+		class:border-dashed={isDragging}
+		class:dark:bg-primary-900={isDragging}
+		ondragover={handleDragOver}
+		ondragleave={handleDragLeave}
+		ondrop={handleDrop}
+		onmousedown={handleMouseDown}
+		onmousemove={handleMouseMove}
+		onmouseup={handleMouseUp}
+		onmouseleave={handleMouseUp}
+		onwheel={handleWheel}
+		ontouchstart={handleTouchStart}
+		ontouchmove={handleTouchMove}
+		ontouchend={handleTouchEnd}
+		ontouchcancel={handleTouchEnd}
+		onkeydown={(e) => {
+			// Basic keyboard support for pan/zoom
+			if (e.key === '+' || e.key === '=') {
+				imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
+			} else if (e.key === '-' || e.key === '_') {
+				imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
+			}
+		}}
+		aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
 	>
 		{#if containerWidth > 0 && containerHeight > 0}
 			<Canvas
@@ -679,31 +738,56 @@ for the image editor canvas with reactive rendering.
 
 	<!-- Visual Feedback for Container Issues -->
 	{#if mounted && (containerWidth === 0 || containerHeight === 0)}
-		<div class="absolute inset-0 flex items-center justify-center bg-warning-500/90 dark:bg-warning-900/90 z-30 pointer-events-none">
+		<div
+			class="absolute inset-0 flex items-center justify-center bg-warning-500/90 dark:bg-warning-900/90 z-30 pointer-events-none"
+		>
 			<div class="text-center p-4">
 				<iconify-icon icon="mdi:alert" width="32" class="text-warning-600 mb-2"></iconify-icon>
-				<p class="text-sm text-warning-600 dark:text-warning-400">Canvas container has no size. Check parent layout.</p>
-				<p class="text-xs text-warning-600 dark:text-warning-400 mt-1">Size: {containerWidth}×{containerHeight}</p>
+				<p class="text-sm text-warning-600 dark:text-warning-400">
+					Canvas container has no size. Check parent layout.
+				</p>
+				<p class="text-xs text-warning-600 dark:text-warning-400 mt-1">
+					Size: {containerWidth}×{containerHeight}
+				</p>
 			</div>
 		</div>
 	{/if}
 
 	<!-- Empty state overlay - shown when no image -->
 	{#if !hasImage}
-		<div class="empty-state pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[rgba(8,8,8,0.5)] backdrop-blur-lg">
-			<div class="empty-state-content flex max-w-md flex-col items-center gap-6 p-8 text-center max-md:p-6">
+		<div
+			class="empty-state pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[rgba(8,8,8,0.5)] backdrop-blur-lg"
+		>
+			<div
+				class="empty-state-content flex max-w-md flex-col items-center gap-6 p-8 text-center max-md:p-6"
+			>
 				<div
 					class="empty-icon flex h-20 w-20 items-center justify-center rounded-full bg-surface-200 ring-4 ring-surface-300 dark:bg-surface-700 dark:ring-surface-600 max-md:h-16 max-md:w-16"
 				>
-					<iconify-icon icon="mdi:image-plus" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+					<iconify-icon
+						icon="mdi:image-plus"
+						width="48"
+						class="text-surface-400 dark:text-surface-500"
+					></iconify-icon>
 				</div>
 				<div class="empty-text">
-					<h3 class="mb-2 text-lg font-medium text-surface-600 dark:text-surface-400 max-md:text-base">No Image Selected</h3>
-					<p class="text-sm text-surface-500 dark:text-surface-50 max-md:text-xs">Upload an image to start editing</p>
+					<h3
+						class="mb-2 text-lg font-medium text-surface-600 dark:text-surface-400 max-md:text-base"
+					>
+						No Image Selected
+					</h3>
+					<p class="text-sm text-surface-500 dark:text-surface-50 max-md:text-xs">
+						Upload an image to start editing
+					</p>
 				</div>
 
 				<div class="pointer-events-auto">
-					<Button variant="tertiary" onclick={() => onupload?.()} aria-label="Upload image" class="gap-2">
+					<Button
+						variant="tertiary"
+						onclick={() => onupload?.()}
+						aria-label="Upload image"
+						class="gap-2"
+					>
 						<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 						<span>Upload Image</span>
 					</Button>
@@ -712,11 +796,15 @@ for the image editor canvas with reactive rendering.
 				<div class="empty-hints flex flex-col gap-2 mt-2">
 					<div class="hint-item flex items-center justify-center gap-2">
 						<iconify-icon icon="mdi:gesture-tap" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]"> Drag & drop supported </span>
+						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]">
+							Drag & drop supported
+						</span>
 					</div>
 					<div class="hint-item flex items-center justify-center gap-2">
 						<iconify-icon icon="mdi:file-image" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]"> PNG, JPG, WebP, GIF </span>
+						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]">
+							PNG, JPG, WebP, GIF
+						</span>
 					</div>
 				</div>
 			</div>
@@ -729,15 +817,24 @@ for the image editor canvas with reactive rendering.
 			class="loading-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-500/80 backdrop-blur-sm dark:bg-surface-900/80 z-20"
 			transition:fade={{ duration: 200 }}
 		>
-			<div class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800">
-				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<div
+				class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800"
+			>
+				<iconify-icon
+					icon="mdi:loading"
+					width="32"
+					class="animate-spin text-tertiary-500 dark:text-primary-500"
+				></iconify-icon>
 			</div>
 			<span class="text-sm text-surface-600 dark:text-surface-400">{loadingMessage}</span>
 
 			<!-- Add progress bar if available -->
 			{#if loadingProgress !== undefined}
 				<div class="w-64 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden mt-2">
-					<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300" style="width: {loadingProgress}%"></div>
+					<div
+						class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300"
+						style="width: {loadingProgress}%"
+					></div>
 				</div>
 			{/if}
 		</div>

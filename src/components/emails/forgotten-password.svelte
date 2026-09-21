@@ -7,11 +7,29 @@
 <script lang="ts">
 	// @ts-nocheck
 
-	import { forgottenpassword_ignore, forgottenpassword_resetbutton, forgottenpassword_token, forgottenpassword_valid } from '@src/paraglide/messages';
+	import {
+		forgottenpassword_ignore,
+		forgottenpassword_resetbutton,
+		forgottenpassword_token,
+		forgottenpassword_valid
+	} from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { ReadableExpireIn } from '@utils/date';
-	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import {
+		Body,
+		Button,
+		Container,
+		Head,
+		Heading,
+		Hr,
+		Html,
+		Img,
+		Link,
+		Preview,
+		Section,
+		Text
+	} from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 
 	interface Props {
@@ -22,7 +40,13 @@
 		token: string;
 	}
 
-	const { email = '', token, resetLink, expiresIn, languageTag = locale.systemLanguage }: Props = $props();
+	const {
+		email = '',
+		token,
+		resetLink,
+		expiresIn,
+		languageTag = locale.systemLanguage
+	}: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD
@@ -41,7 +65,11 @@
 		<Container style="font-size: 16px;">
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? (publicEnv?.HOST_DEV ?? 'http://localhost:5173') : (publicEnv?.HOST_PROD ?? '')}>
+				<Link
+					href={dev
+						? (publicEnv?.HOST_DEV ?? 'http://localhost:5173')
+						: (publicEnv?.HOST_PROD ?? '')}
+				>
 					<Img
 						src={logoSrc}
 						alt={`${publicEnv?.SITE_NAME ?? 'SveltyCMS'} logo`}
@@ -86,7 +114,8 @@
 							href={resetLink}
 							pX={24}
 							pY={12}
-							style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;">
+							style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;"
+						>
 							{forgottenpassword_resetbutton()}
 						</Button>
 					</center>
@@ -98,7 +127,9 @@
 				<Section>
 					<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 						<Link href="https://SveltyCMS.com">
-							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+							Your <span style="color:#111;">Svelty</span><span
+								style="color:#22c55e;font-weight:bold;">CMS</span
+							>
 							team
 						</Link>
 					</Text>

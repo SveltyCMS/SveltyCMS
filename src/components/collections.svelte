@@ -18,18 +18,21 @@ Provides an organized interface for navigating hierarchical content structures.
 -->
 
 <script lang="ts">
-
-import { contentLanguage } from '@src/stores/locale-store.svelte';
-			import AdminCard from '@components/admin-card.svelte';
-			import Button from '@components/ui/button.svelte';
-			import Input from '@components/ui/input.svelte';
-			import Loader from '@components/ui/loader.svelte';
-			import Select from '@components/ui/select.svelte';
-			import TreeView from '@components/ui/tree-view.svelte';
-			import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import Select from '@components/ui/select.svelte';
+	import TreeView from '@components/ui/tree-view.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
-	import { applyRemoteContentStructure, collections, setDraftContentStructure } from '@src/stores/collection-store.svelte.ts';
+	import {
+		applyRemoteContentStructure,
+		collections,
+		setDraftContentStructure
+	} from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -61,7 +64,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		collections_reset_order,
 		collections_search,
 		collections_search_aria,
-		collections_search_title,
+		collections_search_title
 	} from '@src/paraglide/messages';
 
 	interface ExtendedContentNode extends ContentNode {
@@ -104,7 +107,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	// Next-navigation hint computed server-side by the behavioral learner
 	const predictedNextPath = $derived.by(() => {
 		const raw = (page.data as { predictedNextPath?: string | null } | undefined)?.predictedNextPath;
-		return raw && raw.length > 1 ? raw.replace(/\/+$/, '') : (raw || '');
+		return raw && raw.length > 1 ? raw.replace(/\/+$/, '') : raw || '';
 	});
 
 	// Mutable state
@@ -201,7 +204,10 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			if (!focusables.length) return;
 			const first = focusables[0] as HTMLElement;
 			const last = focusables[focusables.length - 1] as HTMLElement;
-			if ((e.shiftKey && document.activeElement === first) || (!e.shiftKey && document.activeElement === last)) {
+			if (
+				(e.shiftKey && document.activeElement === first) ||
+				(!e.shiftKey && document.activeElement === last)
+			) {
 				(e.shiftKey ? last : first).focus();
 				e.preventDefault();
 			}
@@ -214,7 +220,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 	// Compute all unique tags for filter dropdown
 	const allTags = $derived(collectionMetadata.getAllUniqueTags());
-	const tagFilterOptions = $derived(allTags.map(t => ({ value: t, label: t })));
+	const tagFilterOptions = $derived(allTags.map((t) => ({ value: t, label: t })));
 
 	function openTagEditor(collectionId: string, label: string) {
 		activeCollectionIdForTagging = collectionId;
@@ -224,7 +230,10 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	}
 
 	function saveTags() {
-		const parsed = currentTagsInput.split(',').map(t => t.trim()).filter(Boolean);
+		const parsed = currentTagsInput
+			.split(',')
+			.map((t) => t.trim())
+			.filter(Boolean);
 		collectionMetadata.setTags(activeCollectionIdForTagging, parsed);
 		showTagModal = false;
 	}
@@ -277,7 +286,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				[StatusTypes.delete]: 'bg-error-500',
 				[StatusTypes.unpublish]: 'bg-warning-400'
 			};
-			return status ? (map[status] ?? 'bg-tertiary-500 dark:bg-primary-500') : 'bg-tertiary-500 dark:bg-primary-500';
+			return status
+				? (map[status] ?? 'bg-tertiary-500 dark:bg-primary-500')
+				: 'bg-tertiary-500 dark:bg-primary-500';
 		}
 
 		// Effective order: override wins
@@ -285,14 +296,15 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			orderOverrides.get(node._id) ?? node.order ?? 0;
 
 		function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-			const translation = node.translations?.find(t => t.languageTag === currentLanguage);
+			const translation = node.translations?.find((t) => t.languageTag === currentLanguage);
 			const label = translation?.translationName || node.name;
 			const isCategory = node.nodeType === 'category';
 			const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
 
 			let hasInactiveWidgets = false;
 			if (!isCategory && node.collectionDef?.fields) {
-				hasInactiveWidgets = !validateSchemaWidgets(node.collectionDef as Schema, activeWidgetList).valid;
+				hasInactiveWidgets = !validateSchemaWidgets(node.collectionDef as Schema, activeWidgetList)
+					.valid;
 			}
 
 			let children: CollectionTreeNode[] | undefined;
@@ -301,7 +313,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				const sortedChildren = [...node.children].sort(
 					(a, b) => getEffectiveOrder(a) - getEffectiveOrder(b)
 				);
-				children = sortedChildren.map(c => mapToTreeNode(c, depth + 1));
+				children = sortedChildren.map((c) => mapToTreeNode(c, depth + 1));
 			}
 
 			let badge: CollectionTreeNode['badge'];
@@ -324,23 +336,27 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			const isFav = collectionMetadata.isFavorite(node._id);
 
 			const actions = [
-				...(isCategory ? [] : [
-					{
-						icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
-						label: isPinned ? 'Unpin' : 'Pin Collection',
-						colorClass: isPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
-						onClick: (_: any, e: MouseEvent) => {
-							e.stopPropagation();
-							pinnedStore.togglePin({
-								id: node._id,
-								name: label,
-								type: 'collection',
-								path: `/${currentLanguage}${node.path || `/${node._id}`}`,
-								icon: node.icon || 'bi:collection'
-							});
-						}
-					}
-				]),
+				...(isCategory
+					? []
+					: [
+							{
+								icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+								label: isPinned ? 'Unpin' : 'Pin Collection',
+								colorClass: isPinned
+									? 'text-tertiary-500 dark:text-primary-500'
+									: 'text-surface-500',
+								onClick: (_: any, e: MouseEvent) => {
+									e.stopPropagation();
+									pinnedStore.togglePin({
+										id: node._id,
+										name: label,
+										type: 'collection',
+										path: `/${currentLanguage}${node.path || `/${node._id}`}`,
+										icon: node.icon || 'bi:collection'
+									});
+								}
+							}
+						]),
 				{
 					icon: isFav ? 'bi:star-fill' : 'bi:star',
 					label: isFav ? 'Remove Favorite' : 'Add Favorite',
@@ -362,9 +378,17 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			];
 
 			const nodePath = isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`;
-			const normalizedNodePath = nodePath ? (nodePath.length > 1 ? nodePath.replace(/\/+$/, '') : nodePath) : '';
+			const normalizedNodePath = nodePath
+				? nodePath.length > 1
+					? nodePath.replace(/\/+$/, '')
+					: nodePath
+				: '';
 			const isPredicted = Boolean(predictedNextPath && normalizedNodePath === predictedNextPath);
-			const preloadStrategy: 'hover' | 'smart' | undefined = isPredicted ? 'smart' : (nodePath ? 'hover' : undefined);
+			const preloadStrategy: 'hover' | 'smart' | undefined = isPredicted
+				? 'smart'
+				: nodePath
+					? 'hover'
+					: undefined;
 
 			return {
 				id: node._id,
@@ -427,7 +451,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 					const parent = nodeMapLocal.get(String(node.parentId));
 					if (parent) {
 						parent.children = parent.children || [];
-						if (!parent.children.some(c => String(c._id) === String(node._id))) {
+						if (!parent.children.some((c) => String(c._id) === String(node._id))) {
 							parent.children.push(node);
 						}
 					} else {
@@ -441,15 +465,11 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		}
 
 		const nested = buildTree(structure as ExtendedContentNode[]);
-		const filtered = nested
-			.map(filterNode)
-			.filter((n): n is ExtendedContentNode => n !== null);
+		const filtered = nested.map(filterNode).filter((n): n is ExtendedContentNode => n !== null);
 
 		// Top-level sort uses effective order
-		const sorted = [...filtered].sort(
-			(a, b) => getEffectiveOrder(a) - getEffectiveOrder(b)
-		);
-		return sorted.map(n => mapToTreeNode(n));
+		const sorted = [...filtered].sort((a, b) => getEffectiveOrder(a) - getEffectiveOrder(b));
+		return sorted.map((n) => mapToTreeNode(n));
 	});
 
 	// === Drag & Drop: sibling reorder + category reparent (inside) ===
@@ -476,7 +496,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	function handleTreeReorder(
 		draggedId: string,
 		targetId: string,
-		position: 'before' | 'after' | 'inside',
+		position: 'before' | 'after' | 'inside'
 	) {
 		if (draggedId === targetId) return;
 
@@ -500,11 +520,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 		const oldParentId = dragged.parentId != null ? String(dragged.parentId) : null;
 		const newParentId: string | null =
-			intent === 'inside'
-				? targetId
-				: target.parentId != null
-					? String(target.parentId)
-					: null;
+			intent === 'inside' ? targetId : target.parentId != null ? String(target.parentId) : null;
 
 		const siblingsOf = (parentId: string | null) =>
 			Array.from(byId.values())
@@ -561,7 +577,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				id: String(n._id),
 				parentId: n.parentId != null ? String(n.parentId) : null,
 				order: orderOverrides.get(String(n._id)) ?? n.order ?? 0,
-				path: n.path || String(n._id),
+				path: n.path || String(n._id)
 			}));
 			try {
 				const res = await fetch('/api/content-structure', {
@@ -569,8 +585,8 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 					headers: clientJsonHeaders(),
 					body: JSON.stringify({
 						action: 'reorderContentStructure',
-						items,
-					}),
+						items
+					})
 				});
 				if (!res.ok) {
 					const body = await res.json().catch(() => ({}));
@@ -602,7 +618,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				await fetch('/api/collections/reorder', {
 					method: 'POST',
 					headers: clientJsonHeaders(),
-					body: JSON.stringify({ order }),
+					body: JSON.stringify({ order })
 				});
 			} catch {
 				/* non-critical display order */
@@ -624,7 +640,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		fetch('/api/collections/reorder', {
 			method: 'POST',
 			headers: clientJsonHeaders(),
-			body: JSON.stringify({ order: {} }),
+			body: JSON.stringify({ order: {} })
 		}).catch(() => {});
 	}
 
@@ -647,9 +663,11 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		modeTransitionGuard.setMode('view');
 		ui.wizard.shouldShowNextButton = true;
 
-		document.dispatchEvent(new CustomEvent('clearEntryListCache', {
-			detail: { resetState: true, reason: 'collection-switch' }
-		}));
+		document.dispatchEvent(
+			new CustomEvent('clearEntryListCache', {
+				detail: { resetState: true, reason: 'collection-switch' }
+			})
+		);
 
 		navigate(`/${currentLanguage}${node.path || `/${node._id}`}`, same);
 	}
@@ -659,7 +677,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	<!-- Collections Section Header with Quick-Add -->
 	{#if isFullSidebar}
 		<div class="flex items-center justify-between px-1 pb-0.5">
-			<span class="text-[11px] font-bold uppercase tracking-wider text-surface-500">{button_Collections()}</span>
+			<span class="text-[11px] font-bold uppercase tracking-wider text-surface-500"
+				>{button_Collections()}</span
+			>
 			<SystemTooltip title={collections_manage()} positioning={{ placement: 'right' }}>
 				<a
 					href="/config/collectionbuilder"
@@ -681,12 +701,13 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				variant="outline"
 				type="button"
 				size="sm"
-				onclick={() => showOnlyFavorites = !showOnlyFavorites}
+				onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
 				class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
 					? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
 					: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
 			>
-				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
+				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"
+				></iconify-icon>
 				<span>{collections_favorites()}</span>
 			</Button>
 
@@ -772,9 +793,17 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 	<!-- Custom Order Banner -->
 	{#if orderOverrides.size > 0}
-		<div class="flex items-center justify-between rounded bg-tertiary-500/10 px-3 py-1.5 text-xs text-tertiary-600 dark:text-tertiary-400">
+		<div
+			class="flex items-center justify-between rounded bg-tertiary-500/10 px-3 py-1.5 text-xs text-tertiary-600 dark:text-tertiary-400"
+		>
 			<span>{collections_custom_order()}</span>
-			<Button variant="ghost" type="button" size="sm" onclick={resetCustomOrder} class="text-xs px-2">
+			<Button
+				variant="ghost"
+				type="button"
+				size="sm"
+				onclick={resetCustomOrder}
+				class="text-xs px-2"
+			>
 				{collections_reset_order()}
 			</Button>
 		</div>
@@ -787,21 +816,35 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			{#if !isFullSidebar}
 				{#if !widgets.isLoaded}
 					<div class="flex items-center justify-center py-3 text-surface-500">
-						<div class="h-5 w-5 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"></div>
+						<div
+							class="h-5 w-5 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"
+						></div>
 					</div>
 				{/if}
 			{:else}
-				<div class="flex flex-col items-center justify-center gap-3 p-6 text-center text-surface-900 dark:text-white">
+				<div
+					class="flex flex-col items-center justify-center gap-3 p-6 text-center text-surface-900 dark:text-white"
+				>
 					{#if !widgets.isLoaded}
-						<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"></div>
+						<div
+							class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"
+						></div>
 						<p class="text-xs text-surface-600 dark:text-surface-400">{collections_loading()}</p>
 					{:else if search || showOnlyFavorites || selectedTagFilter}
 						<iconify-icon icon="bi:search" width={28} class="text-surface-400"></iconify-icon>
 						<p class="text-sm text-surface-900 dark:text-white">{collections_none_match()}</p>
-						<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}>{collections_clear_filters()}</Button>
+						<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}
+							>{collections_clear_filters()}</Button
+						>
 					{:else}
-						<iconify-icon icon="bi:collection" width={32} class="opacity-60 text-surface-400 dark:text-surface-400"></iconify-icon>
-						<p class="text-sm font-semibold text-surface-900 dark:text-white">{collections_none_found()}</p>
+						<iconify-icon
+							icon="bi:collection"
+							width={32}
+							class="opacity-60 text-surface-400 dark:text-surface-400"
+						></iconify-icon>
+						<p class="text-sm font-semibold text-surface-900 dark:text-white">
+							{collections_none_found()}
+						</p>
 						<a
 							href="/config/collectionbuilder"
 							class="inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-500 no-underline!"
@@ -814,7 +857,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			{/if}
 		{:else if !widgets.isLoaded}
 			<div class="flex h-24 items-center justify-center">
-				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"></div>
+				<div
+					class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"
+				></div>
 			</div>
 		{:else}
 			<TreeView
@@ -833,30 +878,53 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 
 <!-- Tag Modal -->
 {#if showTagModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-		role="dialog" aria-modal="true" aria-labelledby="tag-modal-title" tabindex="-1" onkeydown={handleModalKeyDown}>
-		<AdminCard class="w-full max-w-md p-6 bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 shadow-2xl relative">
-			<Button variant="ghost"
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="tag-modal-title"
+		tabindex="-1"
+		onkeydown={handleModalKeyDown}
+	>
+		<AdminCard
+			class="w-full max-w-md p-6 bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 shadow-2xl relative"
+		>
+			<Button
+				variant="ghost"
 				type="button"
-				onclick={() => showTagModal = false}
-				class="absolute top-4 inset-e-4 p-0! min-w-0 rounded-full text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800">
+				onclick={() => (showTagModal = false)}
+				class="absolute top-4 inset-e-4 p-0! min-w-0 rounded-full text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800"
+			>
 				<iconify-icon icon="bi:x" width="20"></iconify-icon>
 			</Button>
 
-			<h3 id="tag-modal-title" class="text-lg font-bold text-surface-900 dark:text-white mb-2">Manage Tags</h3>
+			<h3 id="tag-modal-title" class="text-lg font-bold text-surface-900 dark:text-white mb-2">
+				Manage Tags
+			</h3>
 			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
-				Tags for <span class="font-semibold text-tertiary-500 dark:text-primary-500">{activeCollectionLabelForTagging}</span>
+				Tags for <span class="font-semibold text-tertiary-500 dark:text-primary-500"
+					>{activeCollectionLabelForTagging}</span
+				>
 			</p>
 
 			<div class="space-y-4">
-				<Input bind:value={currentTagsInput} label="Tags" placeholder="e.g. news, blog, features" aria-describedby="tags-help" />
-				<span id="tags-help" class="text-[11px] text-surface-400 mt-1 block">Separate multiple tags with a comma.</span>
+				<Input
+					bind:value={currentTagsInput}
+					label="Tags"
+					placeholder="e.g. news, blog, features"
+					aria-describedby="tags-help"
+				/>
+				<span id="tags-help" class="text-[11px] text-surface-400 mt-1 block"
+					>Separate multiple tags with a comma.</span
+				>
 
 				{#if collectionMetadata.getTags(activeCollectionIdForTagging).length}
 					<div class="flex flex-wrap gap-1.5 mt-3">
 						{#each collectionMetadata.getTags(activeCollectionIdForTagging) as tag, i (i)}
 							{@const color = getTagColor(tag)}
-							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {color.bg} {color.text} border {color.border}">
+							<span
+								class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {color.bg} {color.text} border {color.border}"
+							>
 								{tag}
 								<Button
 									variant="ghost"
@@ -864,18 +932,22 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 									type="button"
 									onclick={() => {
 										collectionMetadata.removeTag(activeCollectionIdForTagging, tag);
-										currentTagsInput = collectionMetadata.getTags(activeCollectionIdForTagging).join(', ');
+										currentTagsInput = collectionMetadata
+											.getTags(activeCollectionIdForTagging)
+											.join(', ');
 									}}
 									class="rounded-full p-0.5 hover:text-error-500"
-									aria-label="Remove tag {tag}"
-								>&times;</Button>
+									aria-label="Remove tag {tag}">&times;</Button
+								>
 							</span>
 						{/each}
 					</div>
 				{/if}
 
 				<div class="flex justify-end gap-2 mt-6">
-					<Button variant="outline" type="button" onclick={() => showTagModal = false}>Cancel</Button>
+					<Button variant="outline" type="button" onclick={() => (showTagModal = false)}
+						>Cancel</Button
+					>
 					<Button variant="tertiary" type="button" onclick={saveTags}>Save</Button>
 				</div>
 			</div>
@@ -888,7 +960,9 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		scrollbar-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent) transparent;
 		scrollbar-width: thin;
 	}
-	.collections-list::-webkit-scrollbar { width: 4px; }
+	.collections-list::-webkit-scrollbar {
+		width: 4px;
+	}
 	.collections-list::-webkit-scrollbar-thumb {
 		background-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent);
 		border-radius: 2px;

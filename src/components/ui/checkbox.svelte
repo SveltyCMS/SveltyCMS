@@ -96,9 +96,30 @@ keyboard navigation, and motion-respecting transitions.
 	// Size tokens
 	const sizeTokens = $derived.by(() => {
 		switch (size) {
-			case 'sm': return { box: 'size-4', icon: '12', text: 'text-xs', gap: 'gap-2', touch: 'min-h-[24px] min-w-[24px]' };
-			case 'lg': return { box: 'size-6', icon: '20', text: 'text-base', gap: 'gap-3', touch: 'min-h-[32px] min-w-[32px]' };
-			default:   return { box: 'size-5', icon: '16', text: 'text-sm', gap: 'gap-2.5', touch: 'min-h-[28px] min-w-[28px]' };
+			case 'sm':
+				return {
+					box: 'size-4',
+					icon: '12',
+					text: 'text-xs',
+					gap: 'gap-2',
+					touch: 'min-h-[24px] min-w-[24px]'
+				};
+			case 'lg':
+				return {
+					box: 'size-6',
+					icon: '20',
+					text: 'text-base',
+					gap: 'gap-3',
+					touch: 'min-h-[32px] min-w-[32px]'
+				};
+			default:
+				return {
+					box: 'size-5',
+					icon: '16',
+					text: 'text-sm',
+					gap: 'gap-2.5',
+					touch: 'min-h-[28px] min-w-[28px]'
+				};
 		}
 	});
 
@@ -131,7 +152,9 @@ keyboard navigation, and motion-respecting transitions.
 	$effect(() => {
 		const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
 		prefersReducedMotion = mq.matches;
-		const handler = (e: MediaQueryListEvent) => { prefersReducedMotion = e.matches; };
+		const handler = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
 		mq.addEventListener('change', handler);
 		return () => mq.removeEventListener('change', handler);
 	});
@@ -149,7 +172,8 @@ keyboard navigation, and motion-respecting transitions.
 		role="group"
 	>
 		<!-- Hidden native checkbox for form/AT compatibility -->
-		<input aria-label={label || undefined}
+		<input
+			aria-label={label || undefined}
 			type="checkbox"
 			id={generatedId}
 			{name}
@@ -196,15 +220,23 @@ keyboard navigation, and motion-respecting transitions.
 					{#if isIndeterminate}
 						<iconify-icon icon="mdi:minus" width={sizeTokens.icon} class="shrink-0"></iconify-icon>
 					{:else if showCheck}
-						<iconify-icon icon="mdi:check" width={sizeTokens.icon} class={cn('shrink-0', !prefersReducedMotion && 'animate-in zoom-in duration-150')}></iconify-icon>
+						<iconify-icon
+							icon="mdi:check"
+							width={sizeTokens.icon}
+							class={cn('shrink-0', !prefersReducedMotion && 'animate-in zoom-in duration-150')}
+						></iconify-icon>
 					{/if}
 				</span>
 				<span class="flex flex-col gap-0.5">
 					{#if label}
-						<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}>{label}</span>
+						<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}
+							>{label}</span
+						>
 					{/if}
 					{#if description}
-						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400">{description}</span>
+						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400"
+							>{description}</span
+						>
 					{/if}
 				</span>
 			</label>
@@ -229,14 +261,30 @@ keyboard navigation, and motion-respecting transitions.
 				{#if isIndeterminate}
 					<iconify-icon icon="mdi:minus" width={sizeTokens.icon} class="shrink-0"></iconify-icon>
 				{:else if showCheck}
-					<iconify-icon icon="mdi:check" width={sizeTokens.icon} class={cn('shrink-0', !prefersReducedMotion && 'animate-in zoom-in duration-150')}></iconify-icon>
+					<iconify-icon
+						icon="mdi:check"
+						width={sizeTokens.icon}
+						class={cn('shrink-0', !prefersReducedMotion && 'animate-in zoom-in duration-150')}
+					></iconify-icon>
 				{/if}
 			</label>
 
 			{#if label || description}
-				<label for={generatedId} class={cn('flex flex-col gap-0.5', hideLabel && 'sr-only', disabled && 'cursor-not-allowed')}>
+				<label
+					for={generatedId}
+					class={cn(
+						'flex flex-col gap-0.5',
+						hideLabel && 'sr-only',
+						disabled && 'cursor-not-allowed'
+					)}
+				>
 					{#if label}
-						<span class={cn('font-medium text-surface-900 dark:text-surface-100 leading-tight', sizeTokens.text)}>
+						<span
+							class={cn(
+								'font-medium text-surface-900 dark:text-surface-100 leading-tight',
+								sizeTokens.text
+							)}
+						>
 							{label}
 							{#if required}
 								<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
@@ -244,7 +292,9 @@ keyboard navigation, and motion-respecting transitions.
 						</span>
 					{/if}
 					{#if description}
-						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400">{description}</span>
+						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400"
+							>{description}</span
+						>
 					{/if}
 				</label>
 			{/if}

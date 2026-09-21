@@ -6,13 +6,13 @@
 -->
 
 <script lang="ts">
-	import AdminCard from "@components/admin-card.svelte";
-	import Button from "@components/ui/button.svelte";
-	import Badge from "@components/ui/badge.svelte";
-	import Input from "@components/ui/input.svelte";
-	import Select from "@components/ui/select.svelte";
-	import { toast } from "@src/stores/toast.svelte.ts";
-	import { clientJsonHeaders } from "@utils/security/client-csrf";
+	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
 	interface Props {
 		collections: Array<{ id: string; name: string; icon?: string }>;
@@ -21,7 +21,7 @@
 	interface FilterRow {
 		id: string;
 		field: string;
-		operator: "eq" | "ne" | "contains" | "gt" | "lt" | "in";
+		operator: 'eq' | 'ne' | 'contains' | 'gt' | 'lt' | 'in';
 		value: string;
 	}
 
@@ -29,13 +29,12 @@
 
 	// Active configuration state
 	let customCollection = $state<string | null>(null);
-	const selectedCollection = $derived(customCollection ?? (collections[0]?.id || "posts"));
+	const selectedCollection = $derived(customCollection ?? (collections[0]?.id || 'posts'));
 	let filters = $state<FilterRow[]>([
-
-		{ id: "1", field: "status", operator: "eq", value: "published" },
+		{ id: '1', field: 'status', operator: 'eq', value: 'published' }
 	]);
-	let sortField = $state<string>("createdAt");
-	let sortOrder = $state<"desc" | "asc">("desc");
+	let sortField = $state<string>('createdAt');
+	let sortOrder = $state<'desc' | 'asc'>('desc');
 	let limit = $state<number>(20);
 	let skip = $state<number>(0);
 
@@ -50,7 +49,7 @@
 		const params = new URLSearchParams();
 		for (const f of filters) {
 			if (f.field.trim() && f.value.trim()) {
-				if (f.operator === "eq") {
+				if (f.operator === 'eq') {
 					params.set(`filter[${f.field}]`, f.value);
 				} else {
 					params.set(`filter[${f.field}][${f.operator}]`, f.value);
@@ -58,13 +57,13 @@
 			}
 		}
 		if (sortField) {
-			params.set("sort", `${sortOrder === "desc" ? "-" : ""}${sortField}`);
+			params.set('sort', `${sortOrder === 'desc' ? '-' : ''}${sortField}`);
 		}
-		if (limit) params.set("limit", String(limit));
-		if (skip > 0) params.set("skip", String(skip));
+		if (limit) params.set('limit', String(limit));
+		if (skip > 0) params.set('skip', String(skip));
 
 		const query = params.toString();
-		return `/api/collections/${selectedCollection}/entries${query ? `?${query}` : ""}`;
+		return `/api/collections/${selectedCollection}/entries${query ? `?${query}` : ''}`;
 	});
 
 	// Generated GraphQL query
@@ -72,7 +71,7 @@
 		const filterArgs = filters
 			.filter((f) => f.field.trim() && f.value.trim())
 			.map((f) => `${f.field}: { ${f.operator}: "${f.value}" }`)
-			.join(", ");
+			.join(', ');
 
 		return `query Get${selectedCollection.charAt(0).toUpperCase() + selectedCollection.slice(1)}Entries {
   ${selectedCollection}(
@@ -94,10 +93,10 @@
 			...filters,
 			{
 				id: Math.random().toString(36).substring(2, 9),
-				field: "title",
-				operator: "contains",
-				value: "",
-			},
+				field: 'title',
+				operator: 'contains',
+				value: ''
+			}
 		];
 	}
 
@@ -114,8 +113,8 @@
 
 		try {
 			const res = await fetch(generatedRestUrl, {
-				method: "GET",
-				headers: clientJsonHeaders(),
+				method: 'GET',
+				headers: clientJsonHeaders()
 			});
 			executeDuration = Math.round(performance.now() - t0);
 			executeStatus = res.status;
@@ -156,7 +155,10 @@
 
 				<!-- Target Collection -->
 				<div class="space-y-1.5">
-					<label for="query-collection-select" class="block text-xs font-semibold text-surface-600 dark:text-surface-400">
+					<label
+						for="query-collection-select"
+						class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					>
 						Target Collection
 					</label>
 					<Select
@@ -165,7 +167,6 @@
 						options={collections.map((c) => ({ value: c.id, label: `${c.name} (${c.id})` }))}
 						onchange={(val: string) => (customCollection = val)}
 					/>
-
 				</div>
 
 				<!-- Filters Section -->
@@ -182,7 +183,9 @@
 
 					<div class="space-y-2">
 						{#each filters as filter (filter.id)}
-							<div class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2.5 rounded-lg bg-surface-500/10 border border-surface-500/30">
+							<div
+								class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2.5 rounded-lg bg-surface-500/10 border border-surface-500/30"
+							>
 								<Input
 									bind:value={filter.field}
 									placeholder="field (e.g. status)"
@@ -191,20 +194,16 @@
 								<Select
 									value={filter.operator}
 									options={[
-										{ value: "eq", label: "= Equals" },
-										{ value: "ne", label: "≠ Not Equals" },
-										{ value: "contains", label: "∼ Contains" },
-										{ value: "gt", label: "> Greater Than" },
-										{ value: "lt", label: "< Less Than" },
-										{ value: "in", label: "∈ In List" },
+										{ value: 'eq', label: '= Equals' },
+										{ value: 'ne', label: '≠ Not Equals' },
+										{ value: 'contains', label: '∼ Contains' },
+										{ value: 'gt', label: '> Greater Than' },
+										{ value: 'lt', label: '< Less Than' },
+										{ value: 'in', label: '∈ In List' }
 									]}
-									onchange={(val: string) => (filter.operator = val as FilterRow["operator"])}
+									onchange={(val: string) => (filter.operator = val as FilterRow['operator'])}
 								/>
-								<Input
-									bind:value={filter.value}
-									placeholder="value"
-									class="text-xs"
-								/>
+								<Input bind:value={filter.value} placeholder="value" class="text-xs" />
 								<Button
 									variant="ghost"
 									size="sm"
@@ -218,7 +217,9 @@
 						{/each}
 
 						{#if filters.length === 0}
-							<div class="p-4 text-center rounded-lg border border-dashed border-surface-500/30 text-xs text-surface-500">
+							<div
+								class="p-4 text-center rounded-lg border border-dashed border-surface-500/30 text-xs text-surface-500"
+							>
 								No active filters. All entries in the collection will be queried.
 							</div>
 						{/if}
@@ -228,29 +229,38 @@
 				<!-- Sorting & Pagination -->
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-surface-500/20">
 					<div class="space-y-1.5">
-						<label for="query-sort-field" class="block text-xs font-semibold text-surface-600 dark:text-surface-400">
+						<label
+							for="query-sort-field"
+							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						>
 							Sort Field
 						</label>
 						<Input id="query-sort-field" bind:value={sortField} class="text-xs font-mono" />
 					</div>
 
 					<div class="space-y-1.5">
-						<label for="query-sort-order" class="block text-xs font-semibold text-surface-600 dark:text-surface-400">
+						<label
+							for="query-sort-order"
+							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						>
 							Order
 						</label>
 						<Select
 							id="query-sort-order"
 							value={sortOrder}
 							options={[
-								{ value: "desc", label: "Descending (Newest first)" },
-								{ value: "asc", label: "Ascending (Oldest first)" },
+								{ value: 'desc', label: 'Descending (Newest first)' },
+								{ value: 'asc', label: 'Ascending (Oldest first)' }
 							]}
-							onchange={(val: string) => (sortOrder = val as "desc" | "asc")}
+							onchange={(val: string) => (sortOrder = val as 'desc' | 'asc')}
 						/>
 					</div>
 
 					<div class="space-y-1.5">
-						<label for="query-limit-input" class="block text-xs font-semibold text-surface-600 dark:text-surface-400">
+						<label
+							for="query-limit-input"
+							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						>
 							Limit (Max rows)
 						</label>
 						<Input
@@ -266,11 +276,7 @@
 
 				<!-- Action Buttons -->
 				<div class="flex items-center gap-3 pt-2">
-					<Button
-						variant="primary"
-						disabled={isExecuting}
-						onclick={executeQuery}
-					>
+					<Button variant="primary" disabled={isExecuting} onclick={executeQuery}>
 						{#if isExecuting}
 							<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 							Executing Query...
@@ -279,10 +285,7 @@
 							Run Query Now
 						{/if}
 					</Button>
-					<Button
-						variant="outline"
-						onclick={() => copyToClipboard(generatedRestUrl, "REST URL")}
-					>
+					<Button variant="outline" onclick={() => copyToClipboard(generatedRestUrl, 'REST URL')}>
 						<iconify-icon icon="mdi:content-copy" width="16" class="me-1.5"></iconify-icon>
 						Copy REST URL
 					</Button>
@@ -303,7 +306,9 @@
 					<Badge variant="tertiary" size="sm">GET</Badge>
 				</div>
 
-				<div class="p-3 rounded-lg bg-surface-900 text-xs font-mono text-surface-100 overflow-x-auto break-all">
+				<div
+					class="p-3 rounded-lg bg-surface-900 text-xs font-mono text-surface-100 overflow-x-auto break-all"
+				>
 					{generatedRestUrl}
 				</div>
 
@@ -314,14 +319,15 @@
 					<button
 						type="button"
 						class="text-xs text-primary-500 hover:underline flex items-center gap-1"
-						onclick={() => copyToClipboard(generatedGraphql, "GraphQL Query")}
+						onclick={() => copyToClipboard(generatedGraphql, 'GraphQL Query')}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
 						Copy
 					</button>
 				</div>
 
-				<pre class="p-3 rounded-lg bg-surface-900 text-xs font-mono text-surface-100 overflow-x-auto">{generatedGraphql}</pre>
+				<pre
+					class="p-3 rounded-lg bg-surface-900 text-xs font-mono text-surface-100 overflow-x-auto">{generatedGraphql}</pre>
 			</div>
 		</AdminCard>
 
@@ -334,7 +340,7 @@
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if executeStatus !== null}
-							<Badge variant={executeStatus === 200 ? "success" : "error"} size="sm">
+							<Badge variant={executeStatus === 200 ? 'success' : 'error'} size="sm">
 								HTTP {executeStatus}
 							</Badge>
 						{/if}
@@ -346,7 +352,7 @@
 						{#if executeResponse}
 							<button
 								type="button"
-								onclick={() => copyToClipboard(executeResponse || "", "Response")}
+								onclick={() => copyToClipboard(executeResponse || '', 'Response')}
 								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label="Copy Response JSON"
 							>
@@ -356,7 +362,9 @@
 					</div>
 				</div>
 
-				<div class="p-3 rounded-lg bg-surface-900 text-xs font-mono text-surface-100 overflow-x-auto max-h-80">
+				<div
+					class="p-3 rounded-lg bg-surface-900 text-xs font-mono text-surface-100 overflow-x-auto max-h-80"
+				>
 					{#if isExecuting}
 						<div class="flex items-center justify-center py-8 text-surface-400">
 							<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>

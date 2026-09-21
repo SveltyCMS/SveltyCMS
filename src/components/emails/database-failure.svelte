@@ -8,7 +8,20 @@
 	 */
 
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import {
+		Body,
+		Button,
+		Container,
+		Head,
+		Heading,
+		Hr,
+		Html,
+		Img,
+		Link,
+		Preview,
+		Section,
+		Text
+	} from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 	import { formatDateTime } from '@utils/format-date';
 
@@ -72,30 +85,47 @@
 
 	<Preview preview="Critical database failure detected on {sitename}" />
 
-	<Body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif; background-color: #f6f9fc;">
+	<Body
+		style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif; background-color: #f6f9fc;"
+	>
 		<Container
 			style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px;"
 		>
 			<!-- Header Section with Red Alert Background -->
 			<Section style="background-color: #dc2626; padding: 32px 24px; text-align: center;">
 				<Link href={hostLink}>
-					<Img src={logoSrc} alt="{sitename} logo" width="120" height="auto" style="margin: 0 auto 16px; display: block;" />
+					<Img
+						src={logoSrc}
+						alt="{sitename} logo"
+						width="120"
+						height="auto"
+						style="margin: 0 auto 16px; display: block;"
+					/>
 				</Link>
-				<Heading style="color: #ffffff; font-size: 28px; font-weight: bold; margin: 0 0 8px;">🚨 Critical Database Alert</Heading>
+				<Heading style="color: #ffffff; font-size: 28px; font-weight: bold; margin: 0 0 8px;"
+					>🚨 Critical Database Alert</Heading
+				>
 				<Text style="color: #ffffff; font-size: 16px; margin: 0; opacity: 0.95;">{sitename}</Text>
 			</Section>
 
 			<!-- Alert Message Box -->
-			<Section style="padding: 24px; background-color: #fef2f2; border-left: 4px solid #dc2626; margin: 24px;">
-				<Text style="color: #dc2626; font-size: 18px; font-weight: bold; margin: 0 0 8px;">Database Connection Failure</Text>
+			<Section
+				style="padding: 24px; background-color: #fef2f2; border-left: 4px solid #dc2626; margin: 24px;"
+			>
+				<Text style="color: #dc2626; font-size: 18px; font-weight: bold; margin: 0 0 8px;"
+					>Database Connection Failure</Text
+				>
 				<Text style="color: #991b1b; font-size: 14px; margin: 0; line-height: 1.5;">
-					The database connection has failed and automatic recovery attempts were unsuccessful. Immediate action is required.
+					The database connection has failed and automatic recovery attempts were unsuccessful.
+					Immediate action is required.
 				</Text>
 			</Section>
 
 			<!-- Error Details Section -->
 			<Section style="padding: 0 24px 24px;">
-				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;">Error Details</Heading>
+				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
+					>Error Details</Heading
+				>
 
 				<!-- Error Code -->
 				<Row style="margin-bottom: 12px;">
@@ -103,7 +133,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Error Code:</Text>
 					</Column>
 					<Column style="width: 60%; padding: 8px 0; vertical-align: top;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{error.code}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{error.code}</Text
+						>
 					</Column>
 				</Row>
 
@@ -113,7 +145,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Message:</Text>
 					</Column>
 					<Column style="width: 60%; padding: 8px 0; vertical-align: top;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{error.message}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{error.message}</Text
+						>
 					</Column>
 				</Row>
 
@@ -123,7 +157,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Timestamp:</Text>
 					</Column>
 					<Column style="width: 60%; padding: 8px 0; vertical-align: top;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{formatDateTime(timestamp, languageTag)}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{formatDateTime(timestamp, languageTag)}</Text
+						>
 					</Column>
 				</Row>
 			</Section>
@@ -132,23 +168,33 @@
 
 			<!-- Recovery Attempts Section -->
 			<Section style="padding: 0 24px 24px;">
-				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;">Recovery Attempts</Heading>
+				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
+					>Recovery Attempts</Heading
+				>
 
 				<Row style="margin-bottom: 12px;">
 					<Column style="width: 60%; padding: 8px 12px 8px 0;">
-						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Total Reconnection Attempts:</Text>
+						<Text style="color: #6b7280; font-size: 14px; margin: 0;"
+							>Total Reconnection Attempts:</Text
+						>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{metrics.totalReconnections}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{metrics.totalReconnections}</Text
+						>
 					</Column>
 				</Row>
 
 				<Row style="margin-bottom: 12px;">
 					<Column style="width: 60%; padding: 8px 12px 8px 0;">
-						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Successful Reconnections:</Text>
+						<Text style="color: #6b7280; font-size: 14px; margin: 0;"
+							>Successful Reconnections:</Text
+						>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{metrics.successfulReconnections}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{metrics.successfulReconnections}</Text
+						>
 					</Column>
 				</Row>
 
@@ -157,7 +203,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Failed Retries:</Text>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{metrics.failedRetries}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{metrics.failedRetries}</Text
+						>
 					</Column>
 				</Row>
 
@@ -166,7 +214,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Average Recovery Time:</Text>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{metrics.averageRecoveryTime}ms</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{metrics.averageRecoveryTime}ms</Text
+						>
 					</Column>
 				</Row>
 
@@ -175,7 +225,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Last Failure:</Text>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{formatDateTime(metrics.lastFailureTime, languageTag)}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{formatDateTime(metrics.lastFailureTime, languageTag)}</Text
+						>
 					</Column>
 				</Row>
 			</Section>
@@ -184,7 +236,9 @@
 
 			<!-- System Status Section -->
 			<Section style="padding: 0 24px 24px;">
-				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;">System Status</Heading>
+				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
+					>System Status</Heading
+				>
 
 				<Row style="margin-bottom: 12px;">
 					<Column style="width: 50%; padding: 8px 12px 8px 0;">
@@ -217,7 +271,9 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Database Message:</Text>
 					</Column>
 					<Column style="width: 50%; padding: 8px 0; vertical-align: top;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{systemState.databaseMessage}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"
+							>{systemState.databaseMessage}</Text
+						>
 					</Column>
 				</Row>
 			</Section>
@@ -225,18 +281,31 @@
 			<Hr style="margin: 24px; border-color: #e5e7eb;" />
 
 			<!-- Action Required Section -->
-			<Section style="padding: 24px; background-color: #fffbeb; border-left: 4px solid #f59e0b; margin: 24px;">
-				<Heading style="color: #92400e; font-size: 18px; font-weight: 600; margin: 0 0 12px;">Action Required</Heading>
-				<Text style="color: #92400e; font-size: 14px; margin: 0 0 12px;">Please take the following steps:</Text>
+			<Section
+				style="padding: 24px; background-color: #fffbeb; border-left: 4px solid #f59e0b; margin: 24px;"
+			>
+				<Heading style="color: #92400e; font-size: 18px; font-weight: 600; margin: 0 0 12px;"
+					>Action Required</Heading
+				>
+				<Text style="color: #92400e; font-size: 14px; margin: 0 0 12px;"
+					>Please take the following steps:</Text
+				>
 
-				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">1. Check if MongoDB/PostgreSQL service is running</Text>
+				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
+					>1. Check if MongoDB/PostgreSQL service is running</Text
+				>
 				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
 					>2. Verify database credentials and connection settings</Text
 				>
-				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">3. Review server logs for detailed error information</Text
+				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
+					>3. Review server logs for detailed error information</Text
 				>
-				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">4. Check database server disk space and resources</Text>
-				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">5. Verify network connectivity to database server</Text>
+				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
+					>4. Check database server disk space and resources</Text
+				>
+				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
+					>5. Verify network connectivity to database server</Text
+				>
 				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
 					>6. Consider restoring from backup if database is corrupted</Text
 				>
@@ -248,7 +317,8 @@
 					href="{hostLink}/dashboard"
 					pX={32}
 					pY={14}
-					style="background-color: #dc2626; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 16px; text-decoration: none; display: inline-block;">
+					style="background-color: #dc2626; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 16px; text-decoration: none; display: inline-block;"
+				>
 					Go to Dashboard
 				</Button>
 			</Section>
@@ -258,8 +328,8 @@
 			<!-- Footer -->
 			<Section style="padding: 24px; text-align: center;">
 				<Text style="color: #6b7280; font-size: 12px; margin: 0 0 8px;">
-					This is an automated alert from <strong>{sitename}</strong>. If you continue to receive these alerts, please investigate the database
-					infrastructure immediately.
+					This is an automated alert from <strong>{sitename}</strong>. If you continue to receive
+					these alerts, please investigate the database infrastructure immediately.
 				</Text>
 				<Text style="color: #6b7280; font-size: 12px; margin: 0;">Server: {hostLink}</Text>
 			</Section>

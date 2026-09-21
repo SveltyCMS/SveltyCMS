@@ -115,13 +115,20 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 	];
 
 	const availableFields = $derived.by(() => {
-		const schemaFields = (fields || []).map((f) => {
-			const typed = f as { db_fieldName?: string; label?: string; widget?: { Name?: string }; type?: string };
-			const name = typed.db_fieldName || getFieldName(f as FieldInstance, false);
-			const label = typed.label || name;
-			const widgetName = (typed.widget?.Name || typed.type || 'input').toLowerCase();
-			return { name, label, widgetName };
-		}).filter((f) => f.name);
+		const schemaFields = (fields || [])
+			.map((f) => {
+				const typed = f as {
+					db_fieldName?: string;
+					label?: string;
+					widget?: { Name?: string };
+					type?: string;
+				};
+				const name = typed.db_fieldName || getFieldName(f as FieldInstance, false);
+				const label = typed.label || name;
+				const widgetName = (typed.widget?.Name || typed.type || 'input').toLowerCase();
+				return { name, label, widgetName };
+			})
+			.filter((f) => f.name);
 
 		return [...SYSTEM_FIELDS, ...schemaFields];
 	});
@@ -143,7 +150,10 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 	function createEmptyClause(): AdvancedFilterClause {
 		const defaultField = availableFields[0]?.name || 'status';
 		return {
-			id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `clause-${Date.now()}-${Math.floor(performance.now() * 1000)}`,
+			id:
+				typeof crypto !== 'undefined' && crypto.randomUUID
+					? crypto.randomUUID()
+					: `clause-${Date.now()}-${Math.floor(performance.now() * 1000)}`,
 			field: defaultField,
 			operator: 'equals',
 			value: ''
@@ -194,7 +204,9 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		const validClauses = clauses.filter((c) => c.field && (isNoValueOperator(c.operator) || c.value.trim().length > 0));
+		const validClauses = clauses.filter(
+			(c) => c.field && (isNoValueOperator(c.operator) || c.value.trim().length > 0)
+		);
 		onApply(validClauses, conjunction);
 		isOpen = false;
 	}
@@ -227,7 +239,10 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 		>
 			<header class="flex items-center justify-between border-b border-surface-500/20 pb-3">
 				<div>
-					<h3 id="adv-filter-title" class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
+					<h3
+						id="adv-filter-title"
+						class="text-lg font-bold text-tertiary-500 dark:text-primary-500"
+					>
 						Advanced Filters
 					</h3>
 					<p class="text-xs text-surface-500 dark:text-surface-400">
@@ -249,8 +264,12 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 
 			<!-- Conjunction switch -->
 			<div class="flex items-center gap-3 py-1">
-				<span class="text-xs font-semibold uppercase text-surface-600 dark:text-surface-400">Match:</span>
-				<div class="inline-flex rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-900">
+				<span class="text-xs font-semibold uppercase text-surface-600 dark:text-surface-400"
+					>Match:</span
+				>
+				<div
+					class="inline-flex rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-900"
+				>
 					<button
 						type="button"
 						class="px-3 py-1 text-xs font-medium rounded-md transition-colors {conjunction === 'AND'
@@ -277,7 +296,9 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 				{#each clauses as clause, index (clause.id)}
 					{@const ops = getOperatorsForField(clause.field)}
 					{@const noValue = isNoValueOperator(clause.operator)}
-					<div class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg border border-surface-500/20 bg-surface-500/10 dark:bg-surface-900/20">
+					<div
+						class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg border border-surface-500/20 bg-surface-500/10 dark:bg-surface-900/20"
+					>
 						<span class="text-xs font-bold text-surface-400 w-6 text-center shrink-0">
 							{index + 1}.
 						</span>
@@ -329,7 +350,8 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 							aria-label={`Remove condition ${index + 1}`}
 							title="Remove condition"
 						>
-							<iconify-icon icon="material-symbols:delete-outline-rounded" width="18"></iconify-icon>
+							<iconify-icon icon="material-symbols:delete-outline-rounded" width="18"
+							></iconify-icon>
 						</button>
 					</div>
 				{/each}
@@ -371,13 +393,7 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 						>
 							Cancel
 						</Button>
-						<Button
-							variant="primary"
-							size="sm"
-							type="submit"
-						>
-							Apply Filters
-						</Button>
+						<Button variant="primary" size="sm" type="submit">Apply Filters</Button>
 					</div>
 				</footer>
 			</form>

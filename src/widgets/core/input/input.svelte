@@ -56,7 +56,13 @@
 	}
 
 	// ✅ ENHANCEMENT: Auto-enable validateOnMount for required fields to instantly disable save button
-	let { field, value = $bindable(), validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+	let {
+		field,
+		value = $bindable(),
+		validateOnChange = true,
+		validateOnBlur = true,
+		debounceMs = 300
+	}: Props = $props();
 
 	// New derived state for validateOnMount
 	// Disable immediate validation for required fields to prevent error spam on new entries
@@ -71,12 +77,20 @@
 	}
 
 	// Use current content language for translated fields, default for non-translated
-	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
 	// Safe value access with fallback
-	let safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[LANGUAGE] ?? '') : ((value as string) ?? ''));
+	let safeValue = $derived(
+		field.translated
+			? ((value as Record<string, string>)?.[LANGUAGE] ?? '')
+			: ((value as string) ?? '')
+	);
 
 	// Character count
 	let count = $derived(safeValue?.length ?? 0);
@@ -141,12 +155,15 @@
 
 			try {
 				// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
-				const result = handleWidgetValidation(() => parse(validationSchema, field.translated ? (value ?? undefined) : currentValue), {
-					fieldName,
-					updateStore: true,
-					requireTouch: false,
-					isTouched
-				});
+				const result = handleWidgetValidation(
+					() => parse(validationSchema, field.translated ? (value ?? undefined) : currentValue),
+					{
+						fieldName,
+						updateStore: true,
+						requireTouch: false,
+						isTouched
+					}
+				);
 				return result.valid ? null : (result.message ?? null);
 			} catch (error) {
 				logger.error('Validation error:', error);
@@ -242,7 +259,10 @@
 
 <div class="relative mb-4 min-h-10 w-full">
 	<SystemTooltip title={validationError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div
+			class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+			role="group"
+		>
 			{#if field?.prefix}
 				<div
 					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
@@ -265,7 +285,9 @@
 				oninvalid={(e) => e.preventDefault()}
 				name={field?.db_fieldName}
 				id={field?.db_fieldName}
-				placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
+				placeholder={(field?.placeholder && field?.placeholder !== ''
+					? field?.placeholder
+					: field?.db_fieldName) as string | undefined}
 				required={field?.required as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
@@ -275,14 +297,22 @@
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!validationError}
-				aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
+				aria-describedby={validationError
+					? `${fieldName}-error`
+					: field.helper
+						? `${fieldName}-helper`
+						: undefined}
 				aria-required={field?.required}
 				data-testid="text-input"
 			/>
 
 			<!-- suffix and count -->
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
-				<div class="flex items-center bg-surface-500/10 px-2 dark:bg-surface-800" role="status" aria-live="polite">
+				<div
+					class="flex items-center bg-surface-500/10 px-2 dark:bg-surface-800"
+					role="status"
+					aria-live="polite"
+				>
 					{#if field?.count || field?.minLength || field?.maxLength}
 						<Badge variant={badgeVariant} class="me-1" aria-label="Character count">
 							{#if field?.count && field?.minLength && field?.maxLength}
@@ -305,7 +335,10 @@
 						</Badge>
 					{/if}
 					{#if field?.suffix}
-						<span class="text-surface-600 dark:text-surface-400" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+						<span
+							class="text-surface-600 dark:text-surface-400"
+							aria-label={`${field.suffix} suffix`}>{field?.suffix}</span
+						>
 					{/if}
 				</div>
 			{/if}
@@ -313,7 +346,9 @@
 			<!-- Validation indicator -->
 			{#if isValidating}
 				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Validating">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+					<div
+						class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+					></div>
 				</div>
 			{/if}
 		</div>
@@ -323,7 +358,12 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p
+			id={`${fieldName}-error`}
+			class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500"
+			role="alert"
+			aria-live="polite"
+		>
 			{validationError}
 		</p>
 	{/if}

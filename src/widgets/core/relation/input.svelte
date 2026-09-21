@@ -27,7 +27,7 @@ Interactive selector with "Select" button and clear functionality
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -112,12 +112,18 @@ import { logger } from "@utils/logger";
 	<div class="flex flex-wrap gap-2">
 		{#each selectedEntries as entry (entry._id)}
 			<Badge variant="surface" class="flex items-center gap-2 p-2">
-				<span>{entry[field.displayField as string]?.[lang] || entry[field.displayField as string] || '...'}</span>
-				<Button variant="ghost"
+				<span
+					>{entry[field.displayField as string]?.[lang] ||
+						entry[field.displayField as string] ||
+						'...'}</span
+				>
+				<Button
+					variant="ghost"
 					onclick={() => removeItem(entry._id)}
 					type="button"
 					aria-label="Remove"
-				 class="p-0! min-w-0 rounded-full w-4 h-4 bg-error-500/20 text-error-500 hover:bg-error-500 hover:text-white">
+					class="p-0! min-w-0 rounded-full w-4 h-4 bg-error-500/20 text-error-500 hover:bg-error-500 hover:text-white"
+				>
 					<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 				</Button>
 			</Badge>
@@ -125,8 +131,18 @@ import { logger } from "@utils/logger";
 	</div>
 
 	<div class="actions mt-2">
-		<Button onclick={openRelationModal} variant="primary" size="sm" leadingIcon="mdi:plus" aria-label="Select Entry">
-			{field.multiple ? 'Add Entries' : selectedEntries.length > 0 ? 'Change Selection' : 'Select Entry'}
+		<Button
+			onclick={openRelationModal}
+			variant="primary"
+			size="sm"
+			leadingIcon="mdi:plus"
+			aria-label="Select Entry"
+		>
+			{field.multiple
+				? 'Add Entries'
+				: selectedEntries.length > 0
+					? 'Change Selection'
+					: 'Select Entry'}
 		</Button>
 	</div>
 

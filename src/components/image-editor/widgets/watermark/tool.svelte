@@ -4,7 +4,7 @@
 Watermark tool with full text and image watermark support.
 -->
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import { generateUUID } from '@utils/native-utils';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
@@ -42,7 +42,9 @@ import { logger } from "@utils/logger";
 	const storeState = imageEditorStore.state;
 
 	// Get watermarks from store (ensure it's always an array)
-	const watermarks = $derived(Array.isArray(storeState.watermarks) ? storeState.watermarks as WatermarkItem[] : []);
+	const watermarks = $derived(
+		Array.isArray(storeState.watermarks) ? (storeState.watermarks as WatermarkItem[]) : []
+	);
 
 	// Generate unique ID
 	function generateId(): string {
@@ -58,7 +60,10 @@ import { logger } from "@utils/logger";
 
 	function syncTextWatermarkSize(item: WatermarkItem, sizePercent: number) {
 		const scale = sizePercent / 100;
-		const fontSize = Math.max(TEXT_MIN_FONT_SIZE, Math.min(TEXT_MAX_FONT_SIZE, Math.round(TEXT_BASE_FONT_SIZE * scale)));
+		const fontSize = Math.max(
+			TEXT_MIN_FONT_SIZE,
+			Math.min(TEXT_MAX_FONT_SIZE, Math.round(TEXT_BASE_FONT_SIZE * scale))
+		);
 		const { width, height } = measureTextWatermark(item.text || 'Watermark', fontSize);
 		return {
 			...item,
@@ -74,7 +79,10 @@ import { logger } from "@utils/logger";
 		if (!img) return;
 
 		const id = generateId();
-		const { width, height } = measureTextWatermark(textDraft.trim() || 'Watermark', TEXT_BASE_FONT_SIZE);
+		const { width, height } = measureTextWatermark(
+			textDraft.trim() || 'Watermark',
+			TEXT_BASE_FONT_SIZE
+		);
 		const newWatermark: WatermarkItem = {
 			id,
 			type: 'text',
@@ -127,7 +135,8 @@ import { logger } from "@utils/logger";
 				const imageElement = storeState.imageElement;
 				if (!imageElement) return;
 
-				const scale = Math.min(imageElement.width / img.width, imageElement.height / img.height) * 0.3;
+				const scale =
+					Math.min(imageElement.width / img.width, imageElement.height / img.height) * 0.3;
 				const id = generateId();
 
 				const newWatermark: WatermarkItem = {
@@ -239,8 +248,7 @@ import { logger } from "@utils/logger";
 	}
 
 	function updateToolbar() {
-		const isMobile =
-			imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint;
+		const isMobile = imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint;
 		const ControlsComponent = isMobile ? WatermarkControlsMobile : WatermarkControls;
 
 		const baseProps = {
@@ -310,7 +318,10 @@ import { logger } from "@utils/logger";
 			void isTiled;
 			void watermarks.length;
 			updateToolbar();
-		} else if (!activeState && isWatermarkToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
+		} else if (
+			!activeState &&
+			isWatermarkToolbarComponent(imageEditorStore.state.toolbarControls?.component)
+		) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
@@ -376,8 +387,14 @@ import { logger } from "@utils/logger";
 			};
 		}
 
-		const newX = Math.max(0, Math.min(imageElement.width - selectedWatermark.width, ix - dragOffset.x));
-		const newY = Math.max(0, Math.min(imageElement.height - selectedWatermark.height, iy - dragOffset.y));
+		const newX = Math.max(
+			0,
+			Math.min(imageElement.width - selectedWatermark.width, ix - dragOffset.x)
+		);
+		const newY = Math.max(
+			0,
+			Math.min(imageElement.height - selectedWatermark.height, iy - dragOffset.y)
+		);
 
 		storeState.watermarks = watermarks.map((w) =>
 			w.id === selectedId ? { ...w, x: newX, y: newY } : w
@@ -392,7 +409,15 @@ import { logger } from "@utils/logger";
 		}
 	}
 
-	const renderWatermarks = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+	const renderWatermarks = ({
+		context,
+		width,
+		height
+	}: {
+		context: CanvasRenderingContext2D;
+		width: number;
+		height: number;
+	}) => {
 		const { zoom, translateX, translateY, imageElement } = storeState;
 		if (!imageElement) return;
 

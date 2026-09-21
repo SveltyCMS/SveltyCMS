@@ -71,18 +71,28 @@
 	}
 </script>
 
-<div class="fixed -top-16 inset-s-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
+<div
+	class="fixed -top-16 inset-s-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900"
+>
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" />
-		<Button variant="outline" type="button" onclick={handleCancel} aria-label="Cancel" class="p-0! min-w-0 me-2">
+		<Button
+			variant="outline"
+			type="button"
+			onclick={handleCancel}
+			aria-label="Cancel"
+			class="p-0! min-w-0 me-2"
+		>
 			<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 		</Button>
 	</div>
 
 	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
-			<Button variant="ghost" onclick={handleCancel} aria-label="Cancel" class="mb-5 ms-auto me-10">X</Button>
-			<Dropdown options={widget_keys.map(k => ({ label: k, value: k }))} value={selected_widget}>
+			<Button variant="ghost" onclick={handleCancel} aria-label="Cancel" class="mb-5 ms-auto me-10"
+				>X</Button
+			>
+			<Dropdown options={widget_keys.map((k) => ({ label: k, value: k }))} value={selected_widget}>
 				{#snippet trigger()}
 					<Button variant="outline">Select Widget</Button>
 				{/snippet}
@@ -90,9 +100,13 @@
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">
-			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
+			<p class="text-wxl mb-3 text-center">
+				Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span>
+			</p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
-				<Button variant="tertiary" onclick={handleSave} class="dark:">Save {selected_widget} Widget</Button>
+				<Button variant="tertiary" onclick={handleSave} class="dark:"
+					>Save {selected_widget} Widget</Button
+				>
 				<Button variant="outline" onclick={handleWidgetCancel} class="dark:">Cancel</Button>
 			</div>
 

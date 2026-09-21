@@ -11,254 +11,255 @@ Features:
 - Integrated marketplace tab
 -->
 <script lang="ts">
-import { widgets as widgetRegistry } from "@src/stores/widget-store.svelte.ts";
-import { logger } from "@utils/logger";
-// Using iconify-icon web component
-import { onMount } from "svelte";
-import WidgetCard from "./widget-card.svelte";
+	import { widgets as widgetRegistry } from '@src/stores/widget-store.svelte.ts';
+	import { logger } from '@utils/logger';
+	// Using iconify-icon web component
+	import { onMount } from 'svelte';
+	import WidgetCard from './widget-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
-import {
-	listWidgets,
-	unwrapWidgetList,
-	setWidgetStatus,
-	uninstallWidget as apiUninstallWidget,
-} from "./widgets-api";
+	import {
+		listWidgets,
+		unwrapWidgetList,
+		setWidgetStatus,
+		uninstallWidget as apiUninstallWidget
+	} from './widgets-api';
 
-// Props
-const { data }: { data: any } = $props();
+	// Props
+	const { data }: { data: any } = $props();
 
-// Define the Widget type
+	// Define the Widget type
 	interface Widget {
-	canDisable: boolean;
-	dependencies: string[];
-	description?: string;
-	icon: string;
-	isActive: boolean;
-	isCore: boolean;
-	name: string;
-	pillar?: {
-		input?: { exists: boolean };
-		display?: { exists: boolean };
-	};
-}
-
-// State
-let widgets: Widget[] = $state([]);
-let isLoading = $state(true);
-let searchQuery = $state("");
-let activeFilter = $state("all");
-let activeTab = $state("installed");
-let error: string | null = $state(null);
-
-// Get tenant info from page data or user session
-const tenantId = $derived(
-	data?.user?.tenantId || data?.tenantId || "default-tenant",
-);
-
-// User permissions
-const userRole = $derived(data?.user?.role || "user");
-const userPermissions = $derived(data?.user?.permissions || []);
-const canManageWidgets = $derived(
-	userRole === "admin" ||
-		userRole === "super-admin" ||
-		userPermissions.includes("manage_widgets") ||
-		userPermissions.includes("widget_management"),
-);
-
-// Computed stats
-const stats = $derived({
-	total: widgets.length,
-	core: widgets.filter((w) => w.isCore).length,
-	custom: widgets.filter((w) => !w.isCore).length,
-	active: widgets.filter((w) => w.isActive).length,
-	inactive: widgets.filter((w) => !w.isActive).length,
-	withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
-	withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length,
-});
-
-// Filtered widgets
-const filteredWidgets = $derived(
-	widgets.filter((widget) => {
-		// Search filter
-		const matchesSearch =
-			searchQuery === "" ||
-			widget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			widget.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
-		// Category filter
-		let matchesFilter = false;
-		switch (activeFilter) {
-			case "all":
-				matchesFilter = true;
-				break;
-			case "core":
-				matchesFilter = widget.isCore;
-				break;
-			case "custom":
-				matchesFilter = !widget.isCore;
-				break;
-			case "active":
-				matchesFilter = widget.isActive;
-				break;
-			case "inactive":
-				matchesFilter = !widget.isActive;
-				break;
-		}
-
-		return matchesSearch && matchesFilter;
-	}),
-);
-
-onMount(() => {
-	loadWidgets();
-
-	// Keyboard shortcuts
-	const handleKeyboard = (e: KeyboardEvent) => {
-		// Ctrl/Cmd + F: Focus search
-		if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-			e.preventDefault();
-			(document.querySelector('input[type="text"]') as HTMLElement)?.focus();
-		}
-		// Escape: Clear search
-		if (e.key === "Escape" && searchQuery) {
-			searchQuery = "";
-		}
-	};
-
-	window.addEventListener("keydown", handleKeyboard);
-
-	return () => {
-		window.removeEventListener("keydown", handleKeyboard);
-	};
-});
-
-async function loadWidgets() {
-	isLoading = true;
-	error = null;
-
-	try {
-		const result = await listWidgets();
-		if (!result.success) {
-			throw new Error(result.message || "Failed to load widgets");
-		}
-		widgets = unwrapWidgetList(result).map((w) => ({
-			name: w.name,
-			icon: w.icon ?? 'mdi:puzzle',
-			isCore: w.isCore ?? false,
-			isActive: w.isActive,
-			canDisable: w.canDisable ?? true,
-			dependencies: w.dependencies ?? [],
-			description: w.description,
-			pillar: w.pillar,
-		}));
-
-		logger.debug("Loaded widgets:", {
-			total: widgets.length,
-			core: widgets.filter((w) => w.isCore).length,
-			custom: widgets.filter((w) => !w.isCore).length,
-		});
-	} catch (err) {
-		error = err instanceof Error ? err.message : "Failed to load widgets";
-		logger.error("Error loading widgets:", err);
-	} finally {
-		isLoading = false;
-	}
-}
-
-async function toggleWidget(widgetName: string) {
-	if (!canManageWidgets) {
-		alert(
-			"You do not have permission to manage widgets. Contact your administrator.",
-		);
-		return;
+		canDisable: boolean;
+		dependencies: string[];
+		description?: string;
+		icon: string;
+		isActive: boolean;
+		isCore: boolean;
+		name: string;
+		pillar?: {
+			input?: { exists: boolean };
+			display?: { exists: boolean };
+		};
 	}
 
-	try {
-		const widget = widgets.find((w) => w.name === widgetName);
-		if (!widget) {
+	// State
+	let widgets: Widget[] = $state([]);
+	let isLoading = $state(true);
+	let searchQuery = $state('');
+	let activeFilter = $state('all');
+	let activeTab = $state('installed');
+	let error: string | null = $state(null);
+
+	// Get tenant info from page data or user session
+	const tenantId = $derived(data?.user?.tenantId || data?.tenantId || 'default-tenant');
+
+	// User permissions
+	const userRole = $derived(data?.user?.role || 'user');
+	const userPermissions = $derived(data?.user?.permissions || []);
+	const canManageWidgets = $derived(
+		userRole === 'admin' ||
+			userRole === 'super-admin' ||
+			userPermissions.includes('manage_widgets') ||
+			userPermissions.includes('widget_management')
+	);
+
+	// Computed stats
+	const stats = $derived({
+		total: widgets.length,
+		core: widgets.filter((w) => w.isCore).length,
+		custom: widgets.filter((w) => !w.isCore).length,
+		active: widgets.filter((w) => w.isActive).length,
+		inactive: widgets.filter((w) => !w.isActive).length,
+		withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
+		withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length
+	});
+
+	// Filtered widgets
+	const filteredWidgets = $derived(
+		widgets.filter((widget) => {
+			// Search filter
+			const matchesSearch =
+				searchQuery === '' ||
+				widget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				widget.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+			// Category filter
+			let matchesFilter = false;
+			switch (activeFilter) {
+				case 'all':
+					matchesFilter = true;
+					break;
+				case 'core':
+					matchesFilter = widget.isCore;
+					break;
+				case 'custom':
+					matchesFilter = !widget.isCore;
+					break;
+				case 'active':
+					matchesFilter = widget.isActive;
+					break;
+				case 'inactive':
+					matchesFilter = !widget.isActive;
+					break;
+			}
+
+			return matchesSearch && matchesFilter;
+		})
+	);
+
+	onMount(() => {
+		loadWidgets();
+
+		// Keyboard shortcuts
+		const handleKeyboard = (e: KeyboardEvent) => {
+			// Ctrl/Cmd + F: Focus search
+			if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+				e.preventDefault();
+				(document.querySelector('input[type="text"]') as HTMLElement)?.focus();
+			}
+			// Escape: Clear search
+			if (e.key === 'Escape' && searchQuery) {
+				searchQuery = '';
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyboard);
+
+		return () => {
+			window.removeEventListener('keydown', handleKeyboard);
+		};
+	});
+
+	async function loadWidgets() {
+		isLoading = true;
+		error = null;
+
+		try {
+			const result = await listWidgets();
+			if (!result.success) {
+				throw new Error(result.message || 'Failed to load widgets');
+			}
+			widgets = unwrapWidgetList(result).map((w) => ({
+				name: w.name,
+				icon: w.icon ?? 'mdi:puzzle',
+				isCore: w.isCore ?? false,
+				isActive: w.isActive,
+				canDisable: w.canDisable ?? true,
+				dependencies: w.dependencies ?? [],
+				description: w.description,
+				pillar: w.pillar
+			}));
+
+			logger.debug('Loaded widgets:', {
+				total: widgets.length,
+				core: widgets.filter((w) => w.isCore).length,
+				custom: widgets.filter((w) => !w.isCore).length
+			});
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load widgets';
+			logger.error('Error loading widgets:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function toggleWidget(widgetName: string) {
+		if (!canManageWidgets) {
+			alert('You do not have permission to manage widgets. Contact your administrator.');
 			return;
 		}
 
-		const newStatus = !widget.isActive;
-		const response = await setWidgetStatus(widgetName, newStatus, tenantId);
-		if (!response.success) {
-			throw new Error(response.message || "Failed to update widget status");
+		try {
+			const widget = widgets.find((w) => w.name === widgetName);
+			if (!widget) {
+				return;
+			}
+
+			const newStatus = !widget.isActive;
+			const response = await setWidgetStatus(widgetName, newStatus, tenantId);
+			if (!response.success) {
+				throw new Error(response.message || 'Failed to update widget status');
+			}
+
+			// Force refresh: Clear cache and reload widget store + widget list
+			await widgetRegistry.initialize(tenantId);
+			await loadWidgets();
+
+			logger.debug(
+				`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`
+			);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to update widget status';
+			logger.error('Error toggling widget:', err);
+			alert(`Error: ${message}`);
+		}
+	}
+
+	async function uninstallWidget(widgetName: string) {
+		if (!canManageWidgets) {
+			alert('You do not have permission to uninstall widgets. Contact your administrator.');
+			return;
 		}
 
-		// Force refresh: Clear cache and reload widget store + widget list
-		await widgetRegistry.initialize(tenantId);
-		await loadWidgets();
-
-		logger.debug(
-			`Widget ${widgetName} ${newStatus ? "activated" : "deactivated"} - Store and UI refreshed`,
-		);
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "Failed to update widget status";
-		logger.error("Error toggling widget:", err);
-		alert(`Error: ${message}`);
-	}
-}
-
-async function uninstallWidget(widgetName: string) {
-	if (!canManageWidgets) {
-		alert(
-			"You do not have permission to uninstall widgets. Contact your administrator.",
-		);
-		return;
-	}
-
-	if (
-		!confirm(`Are you sure you want to uninstall the widget "${widgetName}"?`)
-	) {
-		return;
-	}
-
-	try {
-		const response = await apiUninstallWidget(widgetName, tenantId);
-		if (!response.success) {
-			throw new Error(response.message || "Failed to uninstall widget");
+		if (!confirm(`Are you sure you want to uninstall the widget "${widgetName}"?`)) {
+			return;
 		}
 
-		await loadWidgets();
-		logger.debug(`Widget ${widgetName} uninstalled`);
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "Failed to uninstall widget";
-		logger.error("Error uninstalling widget:", err);
-		alert(`Error: ${message}`);
+		try {
+			const response = await apiUninstallWidget(widgetName, tenantId);
+			if (!response.success) {
+				throw new Error(response.message || 'Failed to uninstall widget');
+			}
+
+			await loadWidgets();
+			logger.debug(`Widget ${widgetName} uninstalled`);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to uninstall widget';
+			logger.error('Error uninstalling widget:', err);
+			alert(`Error: ${message}`);
+		}
 	}
-}
 </script>
 
 <div class="wrapper h-full max-h-screen space-y-6 overflow-y-auto p-4 pb-16">
 	{#if isLoading}
 		<div class="flex items-center justify-center p-8">
-			<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-600 border-t-transparent"></div>
+			<div
+				class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-600 border-t-transparent"
+			></div>
 			<span class="ms-3 text-lg">Loading widgets...</span>
 		</div>
 	{:else if error}
 		<div class="rounded border border-error-500/20 bg-error-500/10 p-4 dark:bg-error-900/20">
 			<div class="flex items-start gap-3">
-				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-error-600"></iconify-icon>
+				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-error-600"
+				></iconify-icon>
 				<div>
 					<h3 class="font-semibold text-error-600 dark:text-error-400">Error Loading Widgets</h3>
 					<p class="text-error-600 dark:text-error-400">{error}</p>
-					<button onclick={() => loadWidgets()} class="mt-2 rounded bg-error-500 px-3 py-1 text-sm text-white hover:bg-error-600">Retry</button>
+					<button
+						onclick={() => loadWidgets()}
+						class="mt-2 rounded bg-error-500 px-3 py-1 text-sm text-white hover:bg-error-600"
+						>Retry</button
+					>
 				</div>
 			</div>
 		</div>
 	{:else}
 		<!-- Permission Notice -->
 		{#if !canManageWidgets}
-			<div class="rounded border border-warning-500/20 bg-warning-500/10 p-4 dark:bg-warning-900/20">
+			<div
+				class="rounded border border-warning-500/20 bg-warning-500/10 p-4 dark:bg-warning-900/20"
+			>
 				<div class="flex items-start gap-3">
-					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-warning-600"></iconify-icon>
+					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-warning-600"
+					></iconify-icon>
 					<div>
 						<h3 class="font-semibold text-warning-600 dark:text-warning-400">Limited Access</h3>
 						<p class="text-warning-600 dark:text-warning-400">
-							You have read-only access to widget management. Contact your administrator to request widget management permissions.
+							You have read-only access to widget management. Contact your administrator to request
+							widget management permissions.
 						</p>
 					</div>
 				</div>
@@ -266,7 +267,11 @@ async function uninstallWidget(widgetName: string) {
 		{/if}
 
 		<!-- Tab Navigation -->
-		<div class="flex gap-2 border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Widget Categories">
+		<div
+			class="flex gap-2 border-b border-gray-200 dark:border-gray-700"
+			role="tablist"
+			aria-label="Widget Categories"
+		>
 			<button
 				onclick={() => (activeTab = 'installed')}
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'installed'
@@ -295,7 +300,9 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:store" width="24" class="text-xl"></iconify-icon>
 					<span>Marketplace</span>
-					<span class="rounded-full bg-tertiary-500/10 px-2 py-0.5 text-xs font-medium text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400">
+					<span
+						class="rounded-full bg-tertiary-500/10 px-2 py-0.5 text-xs font-medium text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400"
+					>
 						Coming Soon
 					</span>
 				</div>
@@ -306,52 +313,82 @@ async function uninstallWidget(widgetName: string) {
 			<!-- Summary Cards with Colored Backgrounds and Tooltips -->
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
 				<!-- Total Widgets -->
-				<div class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20">
-					<Button variant="ghost"
+				<div
+					class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20"
+				>
+					<Button
+						variant="ghost"
 						aria-label="Information about total widgets"
 						title="All registered widgets in the system (core + custom)"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400">
+						class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400"
+					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
+						<iconify-icon
+							icon="mdi:widgets"
+							width="24"
+							class="text-2xl text-tertiary-600 dark:text-tertiary-400"
+						></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">Total</h3>
-							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">{stats.total}</p>
+							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">
+								{stats.total}
+							</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- Active Widgets -->
-				<div class="relative rounded bg-success-500/10 p-4 shadow-sm transition-all hover:bg-success-500/10 dark:bg-success-900/20 dark:hover:bg-success-900/20">
-					<Button variant="ghost"
+				<div
+					class="relative rounded bg-success-500/10 p-4 shadow-sm transition-all hover:bg-success-500/10 dark:bg-success-900/20 dark:hover:bg-success-900/20"
+				>
+					<Button
+						variant="ghost"
 						aria-label="Information about active widgets"
 						title="Widgets currently enabled and available for use in collections"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-500 dark:text-primary-500">
+						class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-500 dark:text-primary-500"
+					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:check-circle" width="24" class="text-2xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon
+							icon="mdi:check-circle"
+							width="24"
+							class="text-2xl text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">Active</h3>
-							<p class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">{stats.active}</p>
+							<p class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">
+								{stats.active}
+							</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- Core Widgets -->
-				<div class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20">
-					<Button variant="ghost"
+				<div
+					class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20"
+				>
+					<Button
+						variant="ghost"
 						aria-label="Information about core widgets"
 						title="Essential system widgets that are always active and cannot be disabled"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400">
+						class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400"
+					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
+						<iconify-icon
+							icon="mdi:puzzle"
+							width="24"
+							class="text-2xl text-tertiary-600 dark:text-tertiary-400"
+						></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">Core</h3>
-							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">{stats.core}</p>
+							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">
+								{stats.core}
+							</p>
 						</div>
 					</div>
 				</div>
@@ -360,17 +397,25 @@ async function uninstallWidget(widgetName: string) {
 				<div
 					class="relative rounded bg-warning-500/10 p-4 shadow-sm transition-all hover:bg-warning-500/10 dark:bg-warning-900/20 dark:hover:bg-warning-900/20"
 				>
-					<Button variant="ghost"
+					<Button
+						variant="ghost"
 						aria-label="Information about custom widgets"
 						title="Optional widgets that can be toggled on/off as needed"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-warning-600 dark:text-warning-400">
+						class="p-0! min-w-0 absolute inset-e-2 top-2 text-warning-600 dark:text-warning-400"
+					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-warning-600 dark:text-warning-400"></iconify-icon>
+						<iconify-icon
+							icon="mdi:puzzle-plus"
+							width="24"
+							class="text-2xl text-warning-600 dark:text-warning-400"
+						></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-warning-600 dark:text-warning-400">Custom</h3>
-							<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">{stats.custom}</p>
+							<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">
+								{stats.custom}
+							</p>
 						</div>
 					</div>
 				</div>
@@ -382,7 +427,10 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
-						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute inset-s-3 top-1/2 -translate-y-1/2 text-gray-400"
+						<iconify-icon
+							icon="mdi:magnify"
+							width="24"
+							class="pointer-events-none absolute inset-s-3 top-1/2 -translate-y-1/2 text-gray-400"
 						></iconify-icon>
 						<Input
 							type="search"
@@ -406,10 +454,12 @@ async function uninstallWidget(widgetName: string) {
 				<!-- Badges Counts -->
 				<div class="flex flex-wrap gap-2">
 					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter (filter.value)}
-						<Button variant="tertiary"
+						<Button
+							variant="tertiary"
 							onclick={() => (activeFilter = filter.value)}
 							aria-label={`${filter.label} widgets (${filter.count})`}
-							class={activeFilter === filter.value ? 'text-white' : ''}>
+							class={activeFilter === filter.value ? 'text-white' : ''}
+						>
 							<iconify-icon icon={filter.icon} width="20"></iconify-icon>
 							<span>{filter.label}</span>
 							<span
@@ -429,8 +479,11 @@ async function uninstallWidget(widgetName: string) {
 					<div
 						class="col-span-full rounded border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
 					>
-						<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-gray-400"></iconify-icon>
-						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No Widgets Found</h3>
+						<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-gray-400"
+						></iconify-icon>
+						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+							No Widgets Found
+						</h3>
 						<p class="mt-2 text-gray-600 dark:text-gray-400">
 							{#if searchQuery}
 								No widgets match your search "<strong>{searchQuery}</strong>"
@@ -456,35 +509,64 @@ async function uninstallWidget(widgetName: string) {
 					</div>
 				{:else}
 					{#each filteredWidgets as widget (widget.name)}
-						<WidgetCard {widget} onToggle={toggleWidget} onUninstall={uninstallWidget} canManage={canManageWidgets} />
+						<WidgetCard
+							{widget}
+							onToggle={toggleWidget}
+							onUninstall={uninstallWidget}
+							canManage={canManageWidgets}
+						/>
 					{/each}
 				{/if}
 			</div>
 		{:else}
 			<!-- Marketplace Tab -->
-			<div class="rounded border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800"
+			>
 				<div class="mx-auto max-w-md">
-					<iconify-icon icon="mdi:store" width="64" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
+					<iconify-icon
+						icon="mdi:store"
+						width="64"
+						class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
+						Marketplace Coming Soon
+					</h3>
 					<p class="mt-2 text-gray-600 dark:text-gray-400">
-						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
-						functionality.
+						The Widget Marketplace will allow you to discover, install, and manage premium and
+						community widgets to extend your SveltyCMS functionality.
 					</p>
 					<div class="mt-6 space-y-2 text-start">
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon
+								icon="mdi:check"
+								width="20"
+								class="mt-0.5 text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							<span>Browse hundreds of widgets across multiple categories</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon
+								icon="mdi:check"
+								width="20"
+								class="mt-0.5 text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							<span>One-click installation and automatic updates</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon
+								icon="mdi:check"
+								width="20"
+								class="mt-0.5 text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							<span>Community ratings and reviews</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon
+								icon="mdi:check"
+								width="20"
+								class="mt-0.5 text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							<span>Support for both free and premium widgets</span>
 						</div>
 					</div>

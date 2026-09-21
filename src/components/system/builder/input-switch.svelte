@@ -32,7 +32,12 @@ Features:
 		return Object.keys(res).length === 0 ? undefined : res;
 	}
 	// Props from parent
-	let { value = $bindable(null), icon = $bindable(null), permissions = $bindable(null), ...props } = $props();
+	let {
+		value = $bindable(null),
+		icon = $bindable(null),
+		permissions = $bindable(null),
+		...props
+	} = $props();
 
 	$effect(() => {
 		if (props.key === 'display' && value?.default === true) {
@@ -72,5 +77,12 @@ Features:
 </script>
 
 {#if WidgetComponent}
-	<WidgetComponent bind:value bind:icon bind:permissions on:update={updateParent} label={props.key} theme="dark" />
+	<WidgetComponent
+		bind:value
+		bind:icon
+		bind:permissions
+		on:update={updateParent}
+		label={props.key}
+		theme="dark"
+	/>
 {/if}

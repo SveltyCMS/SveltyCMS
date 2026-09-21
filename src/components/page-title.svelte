@@ -47,7 +47,10 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { floatingNavStore, type NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
+	import {
+		floatingNavStore,
+		type NavFavoriteColor
+	} from '@src/stores/floating-nav-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { page } from '$app/state';
 
@@ -154,11 +157,14 @@
 	data-testid="admin-page-title"
 	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between ps-5 pe-2 pt-2 backdrop-blur-sm
 		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
-	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless ? '' : 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"
+	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless
+		? ''
+		: 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"
 >
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
@@ -172,7 +178,9 @@
 			<div class="flex min-w-0 items-center gap-1">
 				<h1
 					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold"
-					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
+					style="font-size: {compact
+						? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)'
+						: 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
 					aria-live="polite"
 					data-cms-field="pageTitle"
 					data-cms-type="text"
@@ -187,9 +195,17 @@
 						></iconify-icon>
 					{/if}
 
-					<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
+					<span
+						class:block={truncate}
+						class:overflow-hidden={truncate}
+						class:text-ellipsis={truncate}
+						class:whitespace-nowrap={truncate}
+					>
 						{#each titleParts as part, i (i)}
-							<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}>{part}</span>
+							<span
+								class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}
+								>{part}</span
+							>
 						{/each}
 					</span>
 				</h1>
@@ -204,15 +220,24 @@
 						disabled={isFixedNavItem}
 						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited
 							? 'text-warning-500 opacity-100'
-							: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem ? 'cursor-default' : ''}"
+							: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
+							? 'cursor-default'
+							: ''}"
 						style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
 					>
-						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
+							width={compact ? '18' : '20'}
+							aria-hidden="true"
+						></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
 			{#if description}
-				<span class="mt-0.5 text-xs font-medium {compact ? '' : 'opacity-50'}" style="color: var(--admin-text-muted)">{description}</span>
+				<span
+					class="mt-0.5 text-xs font-medium {compact ? '' : 'opacity-50'}"
+					style="color: var(--admin-text-muted)">{description}</span
+				>
 			{/if}
 		</div>
 	</div>
@@ -235,19 +260,24 @@
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}
 					>
-						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"
+						></iconify-icon>
 					</a>
 				</SystemTooltip>
 			{:else}
-				<Button variant="outline"
+				<Button
+					variant="outline"
 					onclick={(e: MouseEvent) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
 					rounded={true}
-					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact ? 'h-9 w-9' : 'h-10 w-10'}"
+					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact
+						? 'h-9 w-9'
+						: 'h-10 w-10'}"
 					data-cms-action="back"
 				>
-					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"
+					></iconify-icon>
 				</Button>
 			{/if}
 		{/if}

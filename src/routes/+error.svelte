@@ -16,67 +16,64 @@
 -->
 
 <script lang="ts">
-// Stores
+	// Stores
 
-import SiteName from "@src/components/site-name.svelte";
-import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
-import {
-	db_error_description,
-	db_error_title,
-	error_gofrontpage,
-	error_page_moved,
-	error_pagenotfound,
-	error_skip_content,
-	error_wrong,
-} from "@src/paraglide/messages";
-import { page } from "$app/state";
-import { locale } from "@src/stores/locale-store.svelte";
+	import SiteName from '@src/components/site-name.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
+	import {
+		db_error_description,
+		db_error_title,
+		error_gofrontpage,
+		error_page_moved,
+		error_pagenotfound,
+		error_skip_content,
+		error_wrong
+	} from '@src/paraglide/messages';
+	import { page } from '$app/state';
+	import { locale } from '@src/stores/locale-store.svelte';
 
-const size = 140;
-const font = 0.9;
-const repeat = 3;
-const separator = " • ";
+	const size = 140;
+	const font = 0.9;
+	const repeat = 3;
+	const separator = ' • ';
 
-const siteName = page.data?.settings?.SITE_NAME || "SveltyCMS";
-const combinedString = Array.from(
-	{ length: repeat },
-	() => siteName + separator,
-).join("");
-const array: string[] = combinedString.split("").filter((char) => char !== " ");
-const patternLength = array.length / repeat;
+	const siteName = page.data?.settings?.SITE_NAME || 'SveltyCMS';
+	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
+	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
+	const patternLength = array.length / repeat;
 
-function isCMSChar(index: number): boolean {
-	const posInPattern = index % patternLength;
-	return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
-}
+	function isCMSChar(index: number): boolean {
+		const posInPattern = index % patternLength;
+		return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
+	}
 
-// Dynamic Error Handling logic
-const msg = (page.error?.message || "").toLowerCase();
-const isDatabaseError =
-	page.status === 503 &&
-	(msg.includes("database") ||
-		msg.includes("connection") ||
-		msg.includes("failed to initialize"));
-const isSetupMode = page.status === 503 && msg.includes("setup");
-const isRateLimited = page.status === 429;
+	// Dynamic Error Handling logic
+	const msg = (page.error?.message || '').toLowerCase();
+	const isDatabaseError =
+		page.status === 503 &&
+		(msg.includes('database') ||
+			msg.includes('connection') ||
+			msg.includes('failed to initialize'));
+	const isSetupMode = page.status === 503 && msg.includes('setup');
+	const isRateLimited = page.status === 429;
 
-const errorTitle = isDatabaseError
-	? db_error_title()
-	: page.status === 404
-		? error_pagenotfound()
-		: isRateLimited
-			? "Too Many Requests"
-			: "Error";
-
-const errorSummary = isDatabaseError
-	? db_error_description()
-	: isSetupMode
-		? "System in Setup Mode"
+	const errorTitle = isDatabaseError
+		? db_error_title()
 		: page.status === 404
 			? error_pagenotfound()
 			: isRateLimited
-				? "Slow down — you're sending requests too quickly. Please wait and try again."
-				: error_wrong();
+				? 'Too Many Requests'
+				: 'Error';
+
+	const errorSummary = isDatabaseError
+		? db_error_description()
+		: isSetupMode
+			? 'System in Setup Mode'
+			: page.status === 404
+				? error_pagenotfound()
+				: isRateLimited
+					? "Slow down — you're sending requests too quickly. Please wait and try again."
+					: error_wrong();
 </script>
 
 <svelte:head><title>{page.status} - {errorTitle} | {siteName}</title></svelte:head>
@@ -96,13 +93,21 @@ const errorSummary = isDatabaseError
 		</a>
 
 		<!-- Decorative Logo Section -->
-		<div class="relative mb-12 grid place-items-center" style="width: {size}px; height: {size}px;" aria-hidden="true">
+		<div
+			class="relative mb-12 grid place-items-center"
+			style="width: {size}px; height: {size}px;"
+			aria-hidden="true"
+		>
 			<!-- Rotating SiteName -->
-			<div class="animate-[spin_20s_linear_infinite] absolute inset-0 flex items-center justify-center" style="font-size: {font}em;">
+			<div
+				class="animate-[spin_20s_linear_infinite] absolute inset-0 flex items-center justify-center"
+				style="font-size: {font}em;"
+			>
 				{#each array as char, index (index)}
 					<div
 						class="absolute inset-s-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
-						style="transform: translateX(-50%) rotate({(360 / array.length) * index}deg); transform-origin: center {size / 2}px;"
+						style="transform: translateX(-50%) rotate({(360 / array.length) *
+							index}deg); transform-origin: center {size / 2}px;"
 					>
 						<SiteName {char} textClass={isCMSChar(index) ? 'text-primary-500' : 'text-white'} />
 					</div>
@@ -110,14 +115,21 @@ const errorSummary = isDatabaseError
 			</div>
 
 			<!-- Site Logo - Static, not rotating -->
-			<div class="pointer-events-none z-10 absolute inset-0 flex items-center justify-center"><SveltyCMSLogo className="text-error-500 w-20 h-20" size={80} /></div>
+			<div class="pointer-events-none z-10 absolute inset-0 flex items-center justify-center">
+				<SveltyCMSLogo className="text-error-500 w-20 h-20" size={80} />
+			</div>
 		</div>
 
 		<!-- Error Content -->
 		<div id="error-content" class="flex flex-col items-center space-y-6 text-center">
 			<!-- Error Status - Announced first to screen readers -->
 			<div role="alert" aria-live="assertive" class="relative">
-				<h1 id="error-heading" class="text-8xl font-extrabold tracking-wider text-white sm:text-9xl">{page.status}</h1>
+				<h1
+					id="error-heading"
+					class="text-8xl font-extrabold tracking-wider text-white sm:text-9xl"
+				>
+					{page.status}
+				</h1>
 
 				<!-- Error URL Banner -->
 				<div
@@ -163,7 +175,12 @@ const errorSummary = isDatabaseError
 					class="inline-flex items-center gap-2 rounded-full border-2 border-surface-500 bg-transparent px-8 py-4 font-bold uppercase text-white transition-all hover:border-white hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-surface-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
 				>
 					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M10 19l-7-7m0 0l7-7m-7 7h18"
+						/>
 					</svg>
 					Go Back
 				</button>

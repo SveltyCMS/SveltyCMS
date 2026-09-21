@@ -171,7 +171,9 @@ Intelligent text highlighting with character limits and expand/collapse function
 	<!-- Render text segments -->
 	{#each textSegments as segment, index (index)}
 		{#if segment.isHighlighted}
-			<mark class="rounded px-1 py-0.5 {highlightClass}" title="Highlighted match"> {segment.text} </mark>
+			<mark class="rounded px-1 py-0.5 {highlightClass}" title="Highlighted match">
+				{segment.text}
+			</mark>
 		{:else}
 			<span>{segment.text}</span>
 		{/if}
@@ -180,7 +182,8 @@ Intelligent text highlighting with character limits and expand/collapse function
 	<!-- Show More/Less button -->
 	{#if needsTruncation}
 		<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }} class="inline">
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				size="sm"
 				type="button"
 				onclick={toggleText}
@@ -189,7 +192,11 @@ Intelligent text highlighting with character limits and expand/collapse function
 				class="ms-1"
 			>
 				{isExpanded ? 'Show Less' : 'Show More'}
-				<iconify-icon icon={isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16" aria-hidden="true"></iconify-icon>
+				<iconify-icon
+					icon={isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+					width="16"
+					aria-hidden="true"
+				></iconify-icon>
 			</Button>
 		</div>
 	{/if}
@@ -197,10 +204,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 	<!-- Match count indicator (if searching) -->
 	{#if term && matchCount > 0}
 		<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }} class="inline">
-			<Badge variant="tertiary"
-				title="Number of matches found"
-				class="ms-2"
-			>
+			<Badge variant="tertiary" title="Number of matches found" class="ms-2">
 				<iconify-icon icon="mdi:magnify" width="12" aria-hidden="true"></iconify-icon>
 				{matchCount}
 				match{matchCount !== 1 ? 'es' : ''}
@@ -216,7 +220,9 @@ Intelligent text highlighting with character limits and expand/collapse function
 			found.
 		{/if}
 		{#if needsTruncation}
-			Text is {isExpanded ? 'fully expanded' : 'truncated'}. Press button to {isExpanded ? 'collapse' : 'expand'}.
+			Text is {isExpanded ? 'fully expanded' : 'truncated'}. Press button to {isExpanded
+				? 'collapse'
+				: 'expand'}.
 		{/if}
 	</span>
 </div>

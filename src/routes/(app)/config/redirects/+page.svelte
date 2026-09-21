@@ -27,7 +27,7 @@
 		filterRedirectsByQuery,
 		toRedirectPayload,
 		validateRedirectDraft,
-		type RedirectDraft,
+		type RedirectDraft
 	} from './redirects-utils';
 
 	let { data } = $props();
@@ -49,12 +49,12 @@
 		{ value: '301', label: '301 Permanent' },
 		{ value: '302', label: '302 Temporary' },
 		{ value: '307', label: '307 Temporary (keep method)' },
-		{ value: '308', label: '308 Permanent (keep method)' },
+		{ value: '308', label: '308 Permanent (keep method)' }
 	];
 
 	const statusOptions = [
 		{ value: 'true', label: 'Active' },
-		{ value: 'false', label: 'Inactive' },
+		{ value: 'false', label: 'Inactive' }
 	];
 
 	function openModal(redirect: (RedirectDraft & { _id?: string }) | null = null) {
@@ -66,7 +66,7 @@
 					to: redirect.to,
 					type: redirect.type ?? 301,
 					active: redirect.active !== false,
-					isRegex: Boolean(redirect.isRegex),
+					isRegex: Boolean(redirect.isRegex)
 				}
 			: { from: '', to: '', type: 301, active: true, isRegex: false };
 		formFrom = selectedRedirect?.from || '';
@@ -97,7 +97,7 @@
 			to: formTo,
 			type: selectedRedirect.type,
 			active: selectedRedirect.active,
-			isRegex: selectedRedirect.isRegex,
+			isRegex: selectedRedirect.isRegex
 		};
 		const payload = toRedirectPayload(draft);
 		const errors = validateRedirectDraft(payload);
@@ -115,14 +115,14 @@
 				to: payload.to,
 				type: payload.type,
 				active: payload.active,
-				isRegex: payload.isRegex,
+				isRegex: payload.isRegex
 			});
 			toast.success({ description: 'Redirect saved' });
 			closeModal();
 			await refreshAll();
 		} catch (err) {
 			toast.error({
-				description: err instanceof Error ? err.message : 'Failed to save redirect',
+				description: err instanceof Error ? err.message : 'Failed to save redirect'
 			});
 		} finally {
 			saving = false;
@@ -146,10 +146,10 @@
 					await refreshAll();
 				} catch (err) {
 					toast.error({
-						description: err instanceof Error ? err.message : 'Failed to delete redirect',
+						description: err instanceof Error ? err.message : 'Failed to delete redirect'
 					});
 				}
-			},
+			}
 		});
 	}
 </script>
@@ -224,7 +224,9 @@
 								<td class="py-3 font-mono text-xs">{redirect.from}</td>
 								<td class="py-3 font-mono text-xs">{redirect.to}</td>
 								<td class="py-3">
-									<Badge variant={redirect.type === 301 || redirect.type === 308 ? 'success' : 'warning'}>
+									<Badge
+										variant={redirect.type === 301 || redirect.type === 308 ? 'success' : 'warning'}
+									>
 										{redirect.type}
 									</Badge>
 								</td>
@@ -342,12 +344,7 @@
 					>
 						Cancel
 					</Button>
-					<Button
-						variant="tertiary"
-						type="submit"
-						disabled={saving}
-						data-testid="redirect-save"
-					>
+					<Button variant="tertiary" type="submit" disabled={saving} data-testid="redirect-save">
 						{saving ? 'Saving...' : button_save()}
 					</Button>
 				</div>

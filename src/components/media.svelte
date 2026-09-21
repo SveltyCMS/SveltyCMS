@@ -35,10 +35,10 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 <script lang="ts">
 	import AdminCard from '@components/admin-card.svelte';
-			import Button from '@components/ui/button.svelte';
-			import Checkbox from '@components/ui/checkbox.svelte';
-			import Input from '@components/ui/input.svelte';
-			import Select from '@components/ui/select.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { mediagallery_nomedia } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -66,7 +66,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	const sortOptions = [
 		{ value: 'name', label: 'Sort by Name' },
 		{ value: 'date', label: 'Sort by Date' },
-		{ value: 'size', label: 'Sort by Size' },
+		{ value: 'size', label: 'Sort by Size' }
 	];
 
 	// State
@@ -230,7 +230,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 					const res = await fetch('/api/media/delete', {
 						method: 'POST',
 						headers: clientJsonHeaders(),
-						body: JSON.stringify({ id: file._id || file.filename }),
+						body: JSON.stringify({ id: file._id || file.filename })
 					});
 					if (!res.ok) throw new Error(`HTTP ${res.status}`);
 					return file.filename;
@@ -251,7 +251,9 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		const succeeded = [...toDelete].filter((f) => !selectedFiles.has(f.filename)).length;
 		isDeleting = false;
 		if (succeeded < toDelete.length) {
-			alert(`Deleted ${succeeded} of ${toDelete.length} files. ${toDelete.length - succeeded} failed.`);
+			alert(
+				`Deleted ${succeeded} of ${toDelete.length} files. ${toDelete.length - succeeded} failed.`
+			);
 		}
 		// Refresh the file list
 		await fetchMedia();
@@ -325,37 +327,57 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</label>
 
 		<!-- Search -->
-		<Input aria-label="Search media"
-				type="search"
-				bind:value={search}
-				oninput={handleSearch}
-				placeholder="Search files..."
-				inputClass="input flex-1"
-				id="media-search"
-				disabled={isLoading}
-			/>
+		<Input
+			aria-label="Search media"
+			type="search"
+			bind:value={search}
+			oninput={handleSearch}
+			placeholder="Search files..."
+			inputClass="input flex-1"
+			id="media-search"
+			disabled={isLoading}
+		/>
 
 		<!-- View mode toggle -->
-		<div class="flex gap-1 rounded border border-surface-500/30 p-1 dark:border-surface-600" role="group" aria-label="View mode">
-			<Button variant="tertiary"
+		<div
+			class="flex gap-1 rounded border border-surface-500/30 p-1 dark:border-surface-600"
+			role="group"
+			aria-label="View mode"
+		>
+			<Button
+				variant="tertiary"
 				onclick={() => (currentViewMode.value = 'grid')}
 				aria-label="Grid view"
 				aria-pressed={currentViewMode.value === 'grid'}
-			 class="p-0! min-w-0 {currentViewMode.value === 'grid' ? '' : ''}">
+				class="p-0! min-w-0 {currentViewMode.value === 'grid' ? '' : ''}"
+			>
 				<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
 			</Button>
-			<Button variant="tertiary"
+			<Button
+				variant="tertiary"
 				onclick={() => (currentViewMode.value = 'list')}
 				aria-label="List view"
 				aria-pressed={currentViewMode.value === 'list'}
-			 class="p-0! min-w-0 {currentViewMode.value === 'list' ? '' : ''}">
+				class="p-0! min-w-0 {currentViewMode.value === 'list' ? '' : ''}"
+			>
 				<iconify-icon icon="mdi:view-list" width="18"></iconify-icon>
 			</Button>
 		</div>
 
 		<!-- Refresh -->
-		<Button variant="primary" onclick={fetchMedia} disabled={isLoading} aria-label="Refresh media" size="sm" class="dark:">
-			<iconify-icon icon="mdi:refresh" width="20" class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
+		<Button
+			variant="primary"
+			onclick={fetchMedia}
+			disabled={isLoading}
+			aria-label="Refresh media"
+			size="sm"
+			class="dark:"
+		>
+			<iconify-icon
+				icon="mdi:refresh"
+				width="20"
+				class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}
+			></iconify-icon>
 		</Button>
 
 		<!-- Sort dropdown -->
@@ -367,11 +389,14 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			class="w-auto"
 		/>
 
-		<Button variant="outline"
+		<Button
+			variant="outline"
 			onclick={() => (sortAscending = !sortAscending)}
 			aria-label={sortAscending ? 'Sort descending' : 'Sort ascending'}
-		 class="p-0! min-w-0">
-			<iconify-icon icon={sortAscending ? 'mdi:sort-ascending' : 'mdi:sort-descending'} width="20"></iconify-icon>
+			class="p-0! min-w-0"
+		>
+			<iconify-icon icon={sortAscending ? 'mdi:sort-ascending' : 'mdi:sort-descending'} width="20"
+			></iconify-icon>
 		</Button>
 	</div>
 
@@ -381,10 +406,14 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			class="flex items-center justify-between rounded border-s-4 border-tertiary-500 dark:border-primary-500 bg-primary-500/10 p-3 dark:bg-primary-900/20"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
-			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
+			<span class="text-sm font-medium">
+				{selectedCount} file{selectedCount !== 1 ? 's' : ''} selected
+			</span>
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={clearSelection} size="sm">Clear</Button>
-				<Button variant="tertiary" onclick={confirmSelection} size="sm" class="dark:">Confirm Selection</Button>
+				<Button variant="tertiary" onclick={confirmSelection} size="sm" class="dark:"
+					>Confirm Selection</Button
+				>
 				<Button
 					variant="error"
 					onclick={bulkDelete}
@@ -392,7 +421,11 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 					size="sm"
 					aria-label="Delete selected files"
 				>
-					<iconify-icon icon={isDeleting ? 'mdi:loading' : 'mdi:delete'} width="16" class={isDeleting && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
+					<iconify-icon
+						icon={isDeleting ? 'mdi:loading' : 'mdi:delete'}
+						width="16"
+						class={isDeleting && !prefersReducedMotion ? 'animate-spin' : ''}
+					></iconify-icon>
 					{isDeleting ? `Deleting ${deleteProgress}/${selectedCount}...` : 'Delete'}
 				</Button>
 			</div>
@@ -401,15 +434,23 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 	<!-- Loading state -->
 	{#if isLoading}
-		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+		<div
+			class="flex flex-1 items-center justify-center"
+			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+		>
 			<div class="flex flex-col items-center gap-3">
-				<div class="h-12 w-12 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+				<div
+					class="h-12 w-12 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+				></div>
 				<p class="text-lg text-tertiary-500 dark:text-primary-500">Loading media...</p>
 			</div>
 		</div>
 	{:else if error}
 		<!-- Error state -->
-		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+		<div
+			class="flex flex-1 items-center justify-center"
+			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+		>
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
@@ -418,10 +459,15 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</div>
 	{:else if !hasFiles}
 		<!-- Empty state -->
-		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+		<div
+			class="flex flex-1 items-center justify-center"
+			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+		>
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:image-off" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-lg text-surface-600 dark:text-surface-50">{search ? `No media found for "${search}"` : mediagallery_nomedia()}</p>
+				<p class="text-lg text-surface-600 dark:text-surface-50">
+					{search ? `No media found for "${search}"` : mediagallery_nomedia()}
+				</p>
 			</div>
 		</div>
 	{:else}
@@ -436,11 +482,13 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			{#each filteredFiles as file, index (file.filename)}
 				{const selected = isSelected(file.filename)}
 				<AdminCard
-						class="group relative flex {currentViewMode.value === 'list'
-							? 'flex-row items-center'
-							: 'flex-col'} overflow-hidden transition-all duration-200 {selected ? 'ring-4 ring-primary-500' : ''}"
-						role="listitem"
-					>
+					class="group relative flex {currentViewMode.value === 'list'
+						? 'flex-row items-center'
+						: 'flex-col'} overflow-hidden transition-all duration-200 {selected
+						? 'ring-4 ring-primary-500'
+						: ''}"
+					role="listitem"
+				>
 					{#if multiple}
 						<!-- Selection checkbox -->
 						<div class="absolute inset-s-2 top-2 z-10">
@@ -455,26 +503,35 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 					<!-- Header -->
 					<div class="relative z-10 flex w-full items-center bg-surface-700/90 backdrop-blur-sm">
-						<Button variant="outline"
+						<Button
+							variant="outline"
 							onclick={(e: MouseEvent) => toggleInfo(e, index)}
 							aria-label={`${isInfoShown(index) ? 'Hide' : 'Show'} info for ${file.filename}`}
 							aria-pressed={isInfoShown(index)}
 							type="button"
-						 size="sm" class="m-1 p-1 hover:bg-surface-600">
-							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							size="sm"
+							class="m-1 p-1 hover:bg-surface-600"
+						>
+							<iconify-icon
+								icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'}
+								width="20"
+								class="text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 						</Button>
-						<p class="flex-1 truncate pe-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
+						<p class="flex-1 truncate pe-2 text-center text-sm text-white" title={file.filename}>
+							{file.filename}
+						</p>
 					</div>
 
 					<!-- Content -->
 					<Button
-							variant="ghost"
-							onclick={() => toggleSelection(file)}
-							onkeydown={(e: KeyboardEvent) => handleKeydown(e, file)}
-							aria-label={`${selected ? 'Deselect' : 'Select'} ${file.filename}`}
-							class="flex flex-1 items-center justify-center p-4 transition-transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-2 focus:outline-primary-500"
-							type="button"
-						>
+						variant="ghost"
+						onclick={() => toggleSelection(file)}
+						onkeydown={(e: KeyboardEvent) => handleKeydown(e, file)}
+						aria-label={`${selected ? 'Deselect' : 'Select'} ${file.filename}`}
+						class="flex flex-1 items-center justify-center p-4 transition-transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-2 focus:outline-primary-500"
+						type="button"
+					>
 						{#if !isInfoShown(index)}
 							<!-- Thumbnail view -->
 							<img

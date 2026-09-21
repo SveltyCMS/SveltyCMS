@@ -16,39 +16,39 @@
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
-import { preloadData } from "$app/navigation";
-import Button from '@components/ui/button.svelte';
-import type { PublicSsoProvider } from "@src/databases/auth/sso-session";
+	import { logger } from '@utils/logger';
+	import { preloadData } from '$app/navigation';
+	import Button from '@components/ui/button.svelte';
+	import type { PublicSsoProvider } from '@src/databases/auth/sso-session';
 
-const {
-	showGoogleOAuth = true,
-	showGithubOAuth = true,
-	ssoProviders = [],
-	firstCollectionPath = "",
-}: {
-	showGoogleOAuth?: boolean;
-	showGithubOAuth?: boolean;
-	ssoProviders?: PublicSsoProvider[];
-	firstCollectionPath?: string;
-} = $props();
+	const {
+		showGoogleOAuth = true,
+		showGithubOAuth = true,
+		ssoProviders = [],
+		firstCollectionPath = ''
+	}: {
+		showGoogleOAuth?: boolean;
+		showGithubOAuth?: boolean;
+		ssoProviders?: PublicSsoProvider[];
+		firstCollectionPath?: string;
+	} = $props();
 
-let prefetched = $state(false);
+	let prefetched = $state(false);
 
-/**
- * Parent already has firstCollectionPath from the load function.
- * Use it directly instead of firing a ?/prefetch server action on every hover.
- * This eliminates an unnecessary server round-trip.
- */
-async function prefetchFirstCollection() {
-	if (prefetched || !firstCollectionPath) return;
-	prefetched = true;
-	try {
-		await preloadData(firstCollectionPath);
-	} catch (error) {
-		logger.error("OAuth prefetch failed:", error);
+	/**
+	 * Parent already has firstCollectionPath from the load function.
+	 * Use it directly instead of firing a ?/prefetch server action on every hover.
+	 * This eliminates an unnecessary server round-trip.
+	 */
+	async function prefetchFirstCollection() {
+		if (prefetched || !firstCollectionPath) return;
+		prefetched = true;
+		try {
+			await preloadData(firstCollectionPath);
+		} catch (error) {
+			logger.error('OAuth prefetch failed:', error);
+		}
 	}
-}
 </script>
 
 <div class="flex flex-col gap-2 w-full sm:w-auto">
@@ -59,12 +59,14 @@ async function prefetchFirstCollection() {
 			method="post"
 			class="flex flex-col items-center justify-center w-full"
 		>
-			<Button variant="surface"
+			<Button
+				variant="surface"
 				form="google-oauth-login"
 				type="submit"
 				aria-label="Sign in with Google"
 				onmouseenter={prefetchFirstCollection}
-			 class="w-full">
+				class="w-full"
+			>
 				<iconify-icon icon="flat-color-icons:google" width={24} aria-hidden="true"></iconify-icon>
 				<span>Sign in with Google</span>
 			</Button>
@@ -78,12 +80,14 @@ async function prefetchFirstCollection() {
 			method="post"
 			class="flex flex-col items-center justify-center w-full"
 		>
-			<Button variant="surface"
+			<Button
+				variant="surface"
 				form="github-oauth-login"
 				type="submit"
 				aria-label="Sign in with GitHub"
 				onmouseenter={prefetchFirstCollection}
-			 class="w-full">
+				class="w-full"
+			>
 				<iconify-icon icon="mdi:github" width={24} aria-hidden="true"></iconify-icon>
 				<span>Sign in with GitHub</span>
 			</Button>

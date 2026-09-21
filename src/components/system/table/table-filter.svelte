@@ -104,7 +104,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	});
 
 	// Function to close all open states except the specified one
-	function closeOpenStates(except: 'search' | 'filter' | 'column' | 'density' | undefined = undefined) {
+	function closeOpenStates(
+		except: 'search' | 'filter' | 'column' | 'density' | undefined = undefined
+	) {
 		if (except !== 'search') {
 			searchShow = false;
 		}
@@ -145,7 +147,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 
 <!-- Expanding Search -->
 {#if searchShow}
-	<div class="input-group input-group-divider grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50">
+	<div
+		class="input-group input-group-divider grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50"
+	>
 		<FloatingInput
 			autofocus={searchShow}
 			bind:value={globalSearchValue}
@@ -155,7 +159,8 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
 			inputClass="h-full border-none bg-transparent dark:text-surface-50 dark:bg-surface-800"
 		/>
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			onclick={() => {
 				globalSearchValue = '';
 				searchShow = false;
@@ -167,62 +172,71 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				}
 			}}
 			aria-label={table_clear_search()}
-		 class="w-10 flex items-center justify-center">
+			class="w-10 flex items-center justify-center"
+		>
 			<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
 		</Button>
 	</div>
 {:else}
 	<SystemTooltip title={table_search_toggle()}>
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				searchShow = !searchShow;
 				if (searchShow) closeOpenStates('search');
 			}}
 			aria-label={table_search_toggle()}
-		 class="rounded-full">
+			class="rounded-full"
+		>
 			<iconify-icon icon="material-symbols:search-rounded" width={24}></iconify-icon>
 		</Button>
 	</SystemTooltip>
 
 	<!-- Filter -->
 	<SystemTooltip title={table_filter_toggle()}>
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				filterShow = !filterShow;
 				if (filterShow) closeOpenStates('filter');
 			}}
 			aria-label={table_filter_toggle()}
-		 class="rounded-full">
+			class="rounded-full"
+		>
 			<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
 		</Button>
 	</SystemTooltip>
 
 	<!-- Column Order & Visibility -->
 	<SystemTooltip title={table_column_toggle()}>
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				columnShow = !columnShow;
 				if (columnShow) closeOpenStates('column');
 			}}
 			aria-label={table_column_toggle()}
-		 class="rounded-full">
+			class="rounded-full"
+		>
 			<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
 		</Button>
 	</SystemTooltip>
 
 	<!-- Spacing/Density -->
 	<SystemTooltip title={table_density_label({ density: getDensityDisplayName() })}>
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				cycleDensity();
 				closeOpenStates('density');
 			}}
 			aria-label={table_density_toggle()}
-		 class="rounded-full">
+			class="rounded-full"
+		>
 			<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
 		</Button>
 	</SystemTooltip>
@@ -241,7 +255,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				class="rounded-full"
 			>
 				<iconify-icon
-					icon={viewMode === 'table' ? 'material-symbols:grid-view-rounded' : 'material-symbols:table-rows-rounded'}
+					icon={viewMode === 'table'
+						? 'material-symbols:grid-view-rounded'
+						: 'material-symbols:table-rows-rounded'}
 					width={24}
 				></iconify-icon>
 			</Button>

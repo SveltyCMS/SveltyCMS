@@ -18,49 +18,51 @@
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import { slide } from 'svelte/transition';
-import { onMount } from 'svelte';
-import type { Snippet } from 'svelte';
-import type { HTMLAttributes } from 'svelte/elements';
+	import { cn } from '@utils/cn';
+	import { slide } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-type Props = HTMLAttributes<HTMLDivElement> & {
-	open?: boolean;
-	disabled?: boolean;
-	trigger: Snippet;
-	children: Snippet;
-	direction?: 'vertical' | 'horizontal';
-	class?: string;
-};
+	type Props = HTMLAttributes<HTMLDivElement> & {
+		open?: boolean;
+		disabled?: boolean;
+		trigger: Snippet;
+		children: Snippet;
+		direction?: 'vertical' | 'horizontal';
+		class?: string;
+	};
 
-let {
-	open = $bindable(false),
-	disabled = false,
-	trigger,
-	children,
-	direction = 'vertical',
-	class: className,
-	...rest
-}: Props = $props();
+	let {
+		open = $bindable(false),
+		disabled = false,
+		trigger,
+		children,
+		direction = 'vertical',
+		class: className,
+		...rest
+	}: Props = $props();
 
-let prefersReducedMotion = $state(false);
+	let prefersReducedMotion = $state(false);
 
-onMount(() => {
-	const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-	prefersReducedMotion = mq.matches;
-	const handler = (e: MediaQueryListEvent) => { prefersReducedMotion = e.matches; };
-	mq.addEventListener('change', handler);
-	return () => mq.removeEventListener('change', handler);
-});
+	onMount(() => {
+		const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mq.matches;
+		const handler = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+		mq.addEventListener('change', handler);
+		return () => mq.removeEventListener('change', handler);
+	});
 
-const uid = $props.id();
-const contentId = `collapsible-${uid}`;
-const slideDuration = $derived(prefersReducedMotion ? 0 : 200);
+	const uid = $props.id();
+	const contentId = `collapsible-${uid}`;
+	const slideDuration = $derived(prefersReducedMotion ? 0 : 200);
 
-function toggle() {
-	if (disabled) return;
-	open = !open;
-}
+	function toggle() {
+		if (disabled) return;
+		open = !open;
+	}
 </script>
 
 <div class={cn('flex flex-col overflow-hidden', className)} {...rest}>

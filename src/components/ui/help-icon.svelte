@@ -9,7 +9,10 @@
 	import Button from './button.svelte';
 	import { cn } from '@utils/cn';
 
-	let { ariaLabel = 'Field information', class: className }: { ariaLabel?: string; class?: string } = $props();
+	let {
+		ariaLabel = 'Field information',
+		class: className
+	}: { ariaLabel?: string; class?: string } = $props();
 </script>
 
 <Button
@@ -19,7 +22,7 @@
 	aria-label={ariaLabel}
 	class={cn(
 		'inline-flex h-auto w-auto shrink-0 items-center justify-center p-0! min-w-0 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500',
-		className,
+		className
 	)}
 >
 	<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>

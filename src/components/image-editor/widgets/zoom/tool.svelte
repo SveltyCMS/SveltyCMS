@@ -61,14 +61,16 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 		if (!imageElement) {
 			return;
 		}
-		const baseZoom = typeof storeState.zoom === 'number' && storeState.zoom > 0 ? storeState.zoom : 1;
+		const baseZoom =
+			typeof storeState.zoom === 'number' && storeState.zoom > 0 ? storeState.zoom : 1;
 		setZoom(Math.max(0.35, Math.min(baseZoom, 1)));
 		storeState.translateX = 0;
 		storeState.translateY = 0;
 	}
 
 	function fillScreen() {
-		const baseZoom = typeof storeState.zoom === 'number' && storeState.zoom > 0 ? storeState.zoom : 1;
+		const baseZoom =
+			typeof storeState.zoom === 'number' && storeState.zoom > 0 ? storeState.zoom : 1;
 		setZoom(Math.min(5, Math.max(baseZoom * 1.18, 1.1)));
 		storeState.translateX = 0;
 		storeState.translateY = 0;

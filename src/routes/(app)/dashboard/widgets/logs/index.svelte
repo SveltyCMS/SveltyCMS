@@ -16,12 +16,12 @@
 - Color-coded severity icons and text
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "System Logs",
-	icon: "mdi:text-box-outline",
-	description: "Recent system activity with filtering and search",
-	defaultSize: { w: 2, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'System Logs',
+		icon: 'mdi:text-box-outline',
+		description: 'Recent system activity with filtering and search',
+		defaultSize: { w: 2, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -92,28 +92,40 @@ export const widgetMeta = {
 
 	function levelBg(lvl: string): string {
 		switch ((lvl || '').toLowerCase()) {
-			case 'error': return 'bg-error-500/10 dark:bg-error-900/20';
-			case 'warn': return 'bg-warning-500/10 dark:bg-warning-900/20';
-			case 'info': return 'bg-tertiary-500/10 dark:bg-primary-900/20';
-			default: return 'bg-surface-500/10 dark:bg-surface-800';
+			case 'error':
+				return 'bg-error-500/10 dark:bg-error-900/20';
+			case 'warn':
+				return 'bg-warning-500/10 dark:bg-warning-900/20';
+			case 'info':
+				return 'bg-tertiary-500/10 dark:bg-primary-900/20';
+			default:
+				return 'bg-surface-500/10 dark:bg-surface-800';
 		}
 	}
 
 	function levelCls(lvl: string): string {
 		switch ((lvl || '').toLowerCase()) {
-			case 'error': return 'text-error-500';
-			case 'warn': return 'text-warning-500';
-			case 'info': return 'text-tertiary-500 dark:text-primary-400';
-			default: return 'text-surface-400';
+			case 'error':
+				return 'text-error-500';
+			case 'warn':
+				return 'text-warning-500';
+			case 'info':
+				return 'text-tertiary-500 dark:text-primary-400';
+			default:
+				return 'text-surface-400';
 		}
 	}
 
 	function levelIcon(lvl: string): string {
 		switch ((lvl || '').toLowerCase()) {
-			case 'error': return 'mdi:alert-circle';
-			case 'warn': return 'mdi:alert';
-			case 'info': return 'mdi:information';
-			default: return 'mdi:text-box-outline';
+			case 'error':
+				return 'mdi:alert-circle';
+			case 'warn':
+				return 'mdi:alert';
+			case 'info':
+				return 'mdi:information';
+			default:
+				return 'mdi:text-box-outline';
 		}
 	}
 
@@ -165,32 +177,34 @@ export const widgetMeta = {
 			<!-- Controls (rich layout only) -->
 			<div class="mb-3 flex flex-wrap items-center gap-2">
 				<div class="w-28">
-					<Select
-						label={widget_logs_level()}
-						bind:value={filterLevel}
-						options={levels}
-						size="sm"
-					/>
+					<Select label={widget_logs_level()} bind:value={filterLevel} options={levels} size="sm" />
 				</div>
 
 				<div class="relative flex-1 min-w-30">
-					<input aria-label={widget_logs_search_label()}
+					<input
+						aria-label={widget_logs_search_label()}
 						type="text"
 						bind:value={searchTerm}
 						placeholder={widget_logs_search_ph()}
 						class="w-full rounded border border-surface-500/30 bg-surface-500/10 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
 					/>
-					<iconify-icon icon="mdi:magnify" width="14" class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"  ></iconify-icon>
+					<iconify-icon
+						icon="mdi:magnify"
+						width="14"
+						class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"
+					></iconify-icon>
 				</div>
 
 				{#if isLicensed}
-					<input aria-label={widget_logs_date_from()}
+					<input
+						aria-label={widget_logs_date_from()}
 						type="date"
 						bind:value={startDate}
 						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
 					/>
 					<span class="text-xs text-surface-400">–</span>
-					<input aria-label={widget_logs_date_to()}
+					<input
+						aria-label={widget_logs_date_to()}
 						type="date"
 						bind:value={endDate}
 						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
@@ -201,18 +215,26 @@ export const widgetMeta = {
 
 		<!-- Premium upgrade banner for date range filtering -->
 		{#if !isLicensed && !isCompact}
-			<div class="mt-2 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between">
+			<div
+				class="mt-2 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between"
+			>
 				<span class="text-xs text-warning-600 dark:text-warning-400">
 					<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"></iconify-icon>
 					{widget_logs_premium_notice()}
 				</span>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3">{widget_logs_upgrade()}</a>
+				<a
+					href="https://marketplace.sveltycms.com"
+					target="_blank"
+					class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3"
+					>{widget_logs_upgrade()}</a
+				>
 			</div>
 		{/if}
 
 		{#if filtered.length === 0}
 			<div class="flex h-full flex-col items-center justify-center text-center">
-				<iconify-icon icon="mdi:text-box-remove-outline" class="text-4xl opacity-20 mb-3"  ></iconify-icon>
+				<iconify-icon icon="mdi:text-box-remove-outline" class="text-4xl opacity-20 mb-3"
+				></iconify-icon>
 				<div class="text-sm font-medium text-surface-500">
 					{#if searchTerm || filterLevel !== 'all' || startDate || endDate}
 						{widget_logs_no_match()}
@@ -224,17 +246,24 @@ export const widgetMeta = {
 		{:else if isCompact}
 			<!-- Compact (h:1): horizontal scroll of log chips -->
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500">{widget_logs_count({ count: filtered.length })}</span>
+				<span class="shrink-0 text-xs font-semibold text-surface-500"
+					>{widget_logs_count({ count: filtered.length })}</span
+				>
 				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each filtered.slice(0, 12) as log (log.timestamp + log.message)}
 						<button
 							onclick={() => toggleExpand(log.timestamp + log.message)}
-							class="flex shrink-0 items-center gap-1 rounded-full {levelBg(log.level)} px-2 py-0.5 hover:opacity-80 transition-opacity"
+							class="flex shrink-0 items-center gap-1 rounded-full {levelBg(
+								log.level
+							)} px-2 py-0.5 hover:opacity-80 transition-opacity"
 							title="{log.level.toUpperCase()}: {log.message}"
 						>
-							<iconify-icon icon={levelIcon(log.level)} class="text-xs {levelCls(log.level)}" ></iconify-icon>
-							<span class="max-w-20 truncate text-[10px] font-medium text-surface-600 dark:text-surface-400">
+							<iconify-icon icon={levelIcon(log.level)} class="text-xs {levelCls(log.level)}"
+							></iconify-icon>
+							<span
+								class="max-w-20 truncate text-[10px] font-medium text-surface-600 dark:text-surface-400"
+							>
 								{log.message}
 							</span>
 						</button>
@@ -257,18 +286,29 @@ export const widgetMeta = {
 						></iconify-icon>
 						<div class="min-w-0 flex-1">
 							<div class="flex items-baseline gap-2">
-								<span class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
+								<span
+									class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
+								>
 									{formatTime(log.timestamp)}
 								</span>
 								<span class="text-xs font-semibold uppercase tracking-wider {levelCls(log.level)}">
 									{log.level}
 								</span>
 							</div>
-							<p class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-400 {isOpen ? '' : 'line-clamp-2'}">
+							<p
+								class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-400 {isOpen
+									? ''
+									: 'line-clamp-2'}"
+							>
 								{log.message}
 							</p>
 							{#if isOpen && log.args && log.args.length > 0}
-								<pre class="mt-2 overflow-x-auto rounded bg-surface-500/10 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(log.args, null, 2)}</pre>
+								<pre
+									class="mt-2 overflow-x-auto rounded bg-surface-500/10 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(
+										log.args,
+										null,
+										2
+									)}</pre>
 							{/if}
 						</div>
 						<iconify-icon
@@ -279,14 +319,27 @@ export const widgetMeta = {
 				{/each}
 			</div>
 		{/if}
-		{/snippet}
+	{/snippet}
 </BaseWidget>
 
 <style>
-	.scrollbar-none { scrollbar-width: none; }
-	.scrollbar-none::-webkit-scrollbar { display: none; }
-	.custom-scroll::-webkit-scrollbar { width: 4px; }
-	.custom-scroll::-webkit-scrollbar-track { background: transparent; }
-	.custom-scroll::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.25); border-radius: 9999px; }
-	.custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.45); }
+	.scrollbar-none {
+		scrollbar-width: none;
+	}
+	.scrollbar-none::-webkit-scrollbar {
+		display: none;
+	}
+	.custom-scroll::-webkit-scrollbar {
+		width: 4px;
+	}
+	.custom-scroll::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scroll::-webkit-scrollbar-thumb {
+		background: rgba(156, 163, 175, 0.25);
+		border-radius: 9999px;
+	}
+	.custom-scroll::-webkit-scrollbar-thumb:hover {
+		background: rgba(156, 163, 175, 0.45);
+	}
 </style>

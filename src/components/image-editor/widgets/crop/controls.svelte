@@ -10,18 +10,18 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	// `crop` and `onCropChange` props are still passed by tool.svelte but only consumed by
 	// the temporarily hidden numeric inputs — uncomment them together with that block.
 	let {
-			// crop,
-			onCropShapeChange,
-			onAspectRatio,
-			// onCropChange,
-			cropShape
-		}: {
-			crop?: { x: number; y: number; width: number; height: number };
-			onCropShapeChange: (shape: CropShape) => void;
-			onAspectRatio: (ratio: number | null) => void;
-			onCropChange?: (nextCrop: { x: number; y: number; width: number; height: number }) => void;
-			cropShape: CropShape;
-		} = $props();
+		// crop,
+		onCropShapeChange,
+		onAspectRatio,
+		// onCropChange,
+		cropShape
+	}: {
+		crop?: { x: number; y: number; width: number; height: number };
+		onCropShapeChange: (shape: CropShape) => void;
+		onAspectRatio: (ratio: number | null) => void;
+		onCropChange?: (nextCrop: { x: number; y: number; width: number; height: number }) => void;
+		cropShape: CropShape;
+	} = $props();
 
 	interface AspectPreset {
 		label: string;
@@ -111,8 +111,14 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Crop controls">
-	<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+<div
+	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
+	role="toolbar"
+	aria-label="Crop controls"
+>
+	<div
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+	>
 		{#each aspectPresets as preset, i (preset.label)}
 			<button
 				type="button"

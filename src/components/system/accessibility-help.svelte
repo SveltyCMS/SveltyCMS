@@ -38,7 +38,9 @@
 	function focusTrap(node: HTMLElement): ActionReturn {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'Tab') {
-				const focusableElements = node.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+				const focusableElements = node.querySelectorAll(
+					'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+				);
 				const firstElement = focusableElements[0] as HTMLElement;
 				const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
@@ -85,29 +87,47 @@
 	tabindex="-1"
 >
 	<h2 id="a11y-dialog-title" class="sr-only">Accessibility Help</h2>
-	<p id="a11y-dialog-desc" class="sr-only">Information about keyboard shortcuts, screen reader support, and accessibility features in SveltyCMS</p>
+	<p id="a11y-dialog-desc" class="sr-only">
+		Information about keyboard shortcuts, screen reader support, and accessibility features in
+		SveltyCMS
+	</p>
 
 	<!-- Header -->
-	<div class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:border-surface-500/40">
+	<div
+		class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:border-surface-500/40"
+	>
 		<div>
 			<h3 class="h3 flex items-center gap-2 font-bold">
-				<iconify-icon icon="mdi:accessibility" width="24" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon
+					icon="mdi:accessibility"
+					width="24"
+					class="text-tertiary-500 dark:text-primary-500"
+					aria-hidden="true"
+				></iconify-icon>
 				Accessibility Help
 			</h3>
 			<p class="text-sm text-surface-500">WCAG 2.2 AA & ATAG 2.0 Compliance</p>
 		</div>
-		<Button variant="ghost" onclick={close} aria-label="Close accessibility help dialog" class="p-0! min-w-0 rounded-full">
+		<Button
+			variant="ghost"
+			onclick={close}
+			aria-label="Close accessibility help dialog"
+			class="p-0! min-w-0 rounded-full"
+		>
 			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 		</Button>
 	</div>
 
 	<!-- Introduction -->
 	<section aria-labelledby="intro-heading" class="space-y-3">
-		<h4 id="intro-heading" class="h4 font-semibold dark:text-white">About Accessibility in SveltyCMS</h4>
+		<h4 id="intro-heading" class="h4 font-semibold dark:text-white">
+			About Accessibility in SveltyCMS
+		</h4>
 		<p class="text-surface-600 dark:text-surface-400">
 			SveltyCMS is designed to meet <strong>WCAG 2.2 Level AA</strong> for the user interface and
 			<strong>ATAG 2.0 Level AA</strong>
-			as an authoring tool. This ensures both the CMS interface and the content it produces are accessible to all users.
+			as an authoring tool. This ensures both the CMS interface and the content it produces are accessible
+			to all users.
 		</p>
 	</section>
 
@@ -120,10 +140,14 @@
 
 		<div class="overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40">
 			<table class="w-full text-sm" aria-describedby="keyboard-table-desc">
-				<caption id="keyboard-table-desc" class="sr-only"> Keyboard shortcuts available in SveltyCMS </caption>
+				<caption id="keyboard-table-desc" class="sr-only">
+					Keyboard shortcuts available in SveltyCMS
+				</caption>
 				<thead class="bg-surface-500/10 dark:bg-surface-800">
 					<tr>
-						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Key / Combination</th>
+						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white"
+							>Key / Combination</th
+						>
 						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Action</th>
 					</tr>
 				</thead>
@@ -131,7 +155,9 @@
 					{#each shortcuts as { key, desc }, i (i)}
 						<tr class="hover:bg-surface-500/10 dark:hover:bg-surface-800/50">
 							<td class="px-4 py-3">
-								<kbd class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white">
+								<kbd
+									class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white"
+								>
 									{key}
 								</kbd>
 							</td>
@@ -144,7 +170,10 @@
 
 		<p class="text-xs text-surface-500">
 			Tip: Press
-			<kbd class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white">?</kbd>
+			<kbd
+				class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white"
+				>?</kbd
+			>
 			anywhere in the application to reopen this help.
 		</p>
 	</section>
@@ -157,8 +186,12 @@
 		</h4>
 
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<div class="rounded border border-primary-500/30 bg-primary-500/10 p-4 dark:border-primary-500/40 dark:bg-primary-900/20">
-				<h5 class="mb-2 font-semibold text-primary-600 dark:text-primary-400">Part A: Accessible Interface</h5>
+			<div
+				class="rounded border border-primary-500/30 bg-primary-500/10 p-4 dark:border-primary-500/40 dark:bg-primary-900/20"
+			>
+				<h5 class="mb-2 font-semibold text-primary-600 dark:text-primary-400">
+					Part A: Accessible Interface
+				</h5>
 				<ul class="space-y-1 text-sm text-primary-600 dark:text-primary-400">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
@@ -175,8 +208,12 @@
 				</ul>
 			</div>
 
-			<div class="rounded border border-success-500/20 bg-success-500/10 p-4 dark:border-success-500/40 dark:bg-success-900/20">
-				<h5 class="mb-2 font-semibold text-success-600 dark:text-success-400">Part B: Accessible Content</h5>
+			<div
+				class="rounded border border-success-500/20 bg-success-500/10 p-4 dark:border-success-500/40 dark:bg-success-900/20"
+			>
+				<h5 class="mb-2 font-semibold text-success-600 dark:text-success-400">
+					Part B: Accessible Content
+				</h5>
 				<ul class="space-y-1 text-sm text-success-600 dark:text-success-400">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
@@ -211,7 +248,8 @@
 
 	<!-- Footer Actions -->
 	<div class="flex justify-between pt-2">
-		<Button variant="outline"
+		<Button
+			variant="outline"
 			onclick={() => {
 				if (onRequestFeedback) onRequestFeedback();
 				if (close) close();
@@ -221,6 +259,8 @@
 			<iconify-icon icon="mdi:message-text" width="16" class="me-2"></iconify-icon>
 			Give Feedback
 		</Button>
-		<Button variant="tertiary" onclick={close} aria-label="close-dialog" class="dark:">Close Dialog</Button>
+		<Button variant="tertiary" onclick={close} aria-label="close-dialog" class="dark:"
+			>Close Dialog</Button
+		>
 	</div>
 </div>

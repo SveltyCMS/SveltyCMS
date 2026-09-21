@@ -104,30 +104,40 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 <section class="flex flex-col gap-3 overflow-hidden w-full">
 	<div class="flex items-center justify-between mb-1">
 		<div class="flex gap-2.5 items-center">
-			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<iconify-icon
+				icon="mdi:package-variant-closed"
+				width="22"
+				class="text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
 			<h3 class="text-[1.05rem] font-semibold text-dark dark:text-white">Project Blueprint</h3>
-			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
+			<SystemTooltip
+				title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings."
+			>
 				<HelpIcon ariaLabel="Help: Project Blueprint" />
 			</SystemTooltip>
 		</div>
 
 		<div class="flex gap-1.5">
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				type="button"
 				onclick={() => scrollBy(-1)}
 				aria-label="Scroll start"
 				disabled={!canScrollLeft}
 				rounded
-			 class="p-0! min-w-0! size-8! preset-filled-surface-500 disabled:hidden">
+				class="p-0! min-w-0! size-8! preset-filled-surface-500 disabled:hidden"
+			>
 				<iconify-icon icon="mdi:chevron-left" width="20"></iconify-icon>
 			</Button>
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				type="button"
 				onclick={() => scrollBy(1)}
 				aria-label="Scroll end"
 				disabled={!canScrollRight}
 				rounded
-			 class="p-0! min-w-0! size-8! preset-filled-surface-500 disabled:hidden">
+				class="p-0! min-w-0! size-8! preset-filled-surface-500 disabled:hidden"
+			>
 				<iconify-icon icon="mdi:chevron-right" width="20"></iconify-icon>
 			</Button>
 		</div>
@@ -163,14 +173,24 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					aria-selected={selected === preset.id}
 					aria-label={preset.title}
 					class="relative flex flex-col flex-none w-70 p-4! h-auto! items-stretch! justify-start! font-normal! overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250! hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
-						preset.id
-							? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
-							: 'bg-white! dark:bg-surface-800! border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
+					preset.id
+						? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
+						: 'bg-white! dark:bg-surface-800! border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
-						<iconify-icon icon={preset.icon} width="22" class={selected === preset.id ? 'text-white dark:text-white' : 'text-tertiary-500 dark:text-primary-500'}></iconify-icon>
-						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id ? 'text-white dark:text-white' : 'text-surface-900 dark:text-surface-50'}">{preset.title}</span>
+						<iconify-icon
+							icon={preset.icon}
+							width="22"
+							class={selected === preset.id
+								? 'text-white dark:text-white'
+								: 'text-tertiary-500 dark:text-primary-500'}
+						></iconify-icon>
+						<span
+							class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id
+								? 'text-white dark:text-white'
+								: 'text-surface-900 dark:text-surface-50'}">{preset.title}</span
+						>
 
 						{#if preset.recommended}
 							<Badge
@@ -182,7 +202,11 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 							</Badge>
 						{:else if preset.complexity}
 							<Badge
-								variant={preset.complexity === 'simple' ? 'tertiary' : preset.complexity === 'moderate' ? 'warning' : 'error'}
+								variant={preset.complexity === 'simple'
+									? 'tertiary'
+									: preset.complexity === 'moderate'
+										? 'warning'
+										: 'error'}
 								preset="tonal"
 								size="sm"
 								class="absolute top-1 inset-e-1 shrink-0"
@@ -192,7 +216,13 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 						{/if}
 					</div>
 
-					<div class="line-clamp-3 text-xs leading-relaxed {selected === preset.id ? 'text-white/90 dark:text-white/90' : 'text-black/60 dark:text-white/40'}">{preset.description}</div>
+					<div
+						class="line-clamp-3 text-xs leading-relaxed {selected === preset.id
+							? 'text-white/90 dark:text-white/90'
+							: 'text-black/60 dark:text-white/40'}"
+					>
+						{preset.description}
+					</div>
 
 					<div class="flex flex-wrap gap-1 mt-auto">
 						{#each preset.features.slice(0, 2) as f (f)}
@@ -216,7 +246,11 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="24" class="absolute inset-e-1 bottom-2 text-white dark:text-white"></iconify-icon>
+						<iconify-icon
+							icon="mdi:check-circle"
+							width="24"
+							class="absolute inset-e-1 bottom-2 text-white dark:text-white"
+						></iconify-icon>
 					{/if}
 				</Button>
 			{/each}
@@ -234,7 +268,8 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 			<Button
 				type="button"
 				variant="transparent"
-				class="w-1.5 h-1.5! p-0! min-w-0! cursor-pointer border-none rounded-full! transition-all duration-250! bg-black/15! dark:bg-white/20! {visibleIndex === i
+				class="w-1.5 h-1.5! p-0! min-w-0! cursor-pointer border-none rounded-full! transition-all duration-250! bg-black/15! dark:bg-white/20! {visibleIndex ===
+				i
 					? 'w-4.5! rounded-[3px]! bg-tertiary-500! dark:bg-primary-500! '
 					: ''}"
 				aria-label={`Select preset ${preset.name || i + 1}`}
@@ -248,11 +283,14 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 
 	<p class="mb-1 text-[0.71rem] italic text-center text-surface-900 dark:text-surface-50">
 		{#if selected === 'blank'}
-			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
+			"Blank Project" selected — start with a clean slate. No collections will be added
+			automatically.
 		{:else if selected === 'website'}
-			"Website Starter" selected — SvelteKit frontend, Svedit page design, and a published homepage will be ready after setup.
+			"Website Starter" selected — SvelteKit frontend, Svedit page design, and a published homepage
+			will be ready after setup.
 		{:else if selected}
-			"{presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.
+			"{presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections
+			added automatically after setup.
 		{:else}
 			No preset — configure collections manually after setup.
 		{/if}

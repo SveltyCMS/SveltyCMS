@@ -32,8 +32,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	const hasTags = $derived(
 		isImage &&
 			!!(
-				(file as MediaImage).metadata?.tags?.length ||
-				(file as MediaImage).metadata?.aiTags?.length
+				(file as MediaImage).metadata?.tags?.length || (file as MediaImage).metadata?.aiTags?.length
 			)
 	);
 
@@ -95,7 +94,11 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flex justify-end" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+<div
+	class="flex justify-end"
+	onclick={(e) => e.stopPropagation()}
+	onkeydown={(e) => e.stopPropagation()}
+>
 	<span bind:this={triggerEl} class="inline-flex">
 		<Button
 			variant="ghost"
@@ -123,18 +126,38 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
 			>
-				<button type="button" role="menuitem" class={menuItemClass} onclick={() => closeAndRun(onDetails)}>
-					<iconify-icon icon="mdi:information-outline" width="16" class="shrink-0 text-primary-500"></iconify-icon>
+				<button
+					type="button"
+					role="menuitem"
+					class={menuItemClass}
+					onclick={() => closeAndRun(onDetails)}
+				>
+					<iconify-icon icon="mdi:information-outline" width="16" class="shrink-0 text-primary-500"
+					></iconify-icon>
 					<span>Details</span>
 				</button>
 
-				<button type="button" role="menuitem" class={menuItemClass} onclick={() => closeAndRun(onEdit)}>
-					<iconify-icon icon="mdi:pencil" width="16" class="shrink-0 text-surface-500 dark:text-surface-400"></iconify-icon>
+				<button
+					type="button"
+					role="menuitem"
+					class={menuItemClass}
+					onclick={() => closeAndRun(onEdit)}
+				>
+					<iconify-icon
+						icon="mdi:pencil"
+						width="16"
+						class="shrink-0 text-surface-500 dark:text-surface-400"
+					></iconify-icon>
 					<span>Edit</span>
 				</button>
 
 				{#if isImage}
-					<button type="button" role="menuitem" class={menuItemClass} onclick={() => closeAndRun(onTags)}>
+					<button
+						type="button"
+						role="menuitem"
+						class={menuItemClass}
+						onclick={() => closeAndRun(onTags)}
+					>
 						<iconify-icon
 							icon={hasTags ? 'mdi:tag' : 'mdi:tag-outline'}
 							width="16"

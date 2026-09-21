@@ -44,7 +44,7 @@ aspect-preview plugin and Drupal's focal point preview.
 		{ label: '1:1', width: 1, height: 1 },
 		{ label: '2:3', width: 2, height: 3 },
 		{ label: '9:16', width: 9, height: 16 },
-		{ label: '21:9', width: 21, height: 9 },
+		{ label: '21:9', width: 21, height: 9 }
 	];
 
 	let {
@@ -53,7 +53,7 @@ aspect-preview plugin and Drupal's focal point preview.
 		ratios = DEFAULT_RATIOS,
 		onFocalChange = (_fp: { x: number; y: number }) => {},
 		interactive = false,
-		readonly = false,
+		readonly = false
 	}: {
 		imageUrl: string;
 		focalPoint?: { x: number; y: number };
@@ -70,7 +70,7 @@ aspect-preview plugin and Drupal's focal point preview.
 		const rect = container.getBoundingClientRect();
 		return {
 			x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
-			y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+			y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
 		};
 	}
 
@@ -101,10 +101,22 @@ aspect-preview plugin and Drupal's focal point preview.
 		let nx = focalPoint.x;
 		let ny = focalPoint.y;
 		switch (e.key) {
-			case 'ArrowLeft':  nx = Math.max(0, nx - step); changed = true; break;
-			case 'ArrowRight': nx = Math.min(100, nx + step); changed = true; break;
-			case 'ArrowUp':    ny = Math.max(0, ny - step); changed = true; break;
-			case 'ArrowDown':  ny = Math.min(100, ny + step); changed = true; break;
+			case 'ArrowLeft':
+				nx = Math.max(0, nx - step);
+				changed = true;
+				break;
+			case 'ArrowRight':
+				nx = Math.min(100, nx + step);
+				changed = true;
+				break;
+			case 'ArrowUp':
+				ny = Math.max(0, ny - step);
+				changed = true;
+				break;
+			case 'ArrowDown':
+				ny = Math.min(100, ny + step);
+				changed = true;
+				break;
 		}
 		if (changed) {
 			e.preventDefault();
@@ -143,7 +155,9 @@ aspect-preview plugin and Drupal's focal point preview.
 					aria-valuemin={interactive ? 0 : undefined}
 					aria-valuemax={interactive ? 100 : undefined}
 					aria-valuenow={interactive ? Math.round(focalPoint.x) : undefined}
-					aria-valuetext={interactive ? `Focal point at ${Math.round(focalPoint.x)}%, ${Math.round(focalPoint.y)}%` : undefined}
+					aria-valuetext={interactive
+						? `Focal point at ${Math.round(focalPoint.x)}%, ${Math.round(focalPoint.y)}%`
+						: undefined}
 					tabindex={interactive ? 0 : undefined}
 					onkeydown={handleKeyDown}
 				>
@@ -170,20 +184,26 @@ aspect-preview plugin and Drupal's focal point preview.
 							class="pointer-events-none absolute z-10 transition-all duration-75"
 							style="left: {focalPoint.x}%; top: {focalPoint.y}%; transform: translate(-50%, -50%);"
 						>
-							<div class="h-2.5 w-2.5 rounded-full border-2 border-white bg-primary-500/60 shadow-[0_0_6px_rgba(0,0,0,0.5)]"></div>
+							<div
+								class="h-2.5 w-2.5 rounded-full border-2 border-white bg-primary-500/60 shadow-[0_0_6px_rgba(0,0,0,0.5)]"
+							></div>
 						</div>
 					{/if}
 				</div>
 
 				<!-- Ratio label -->
-				<div class="px-2 py-1.5 text-center text-xs font-semibold text-surface-600 dark:text-surface-400">
+				<div
+					class="px-2 py-1.5 text-center text-xs font-semibold text-surface-600 dark:text-surface-400"
+				>
 					{ratio.label}
 				</div>
 			</div>
 		{/each}
 	</div>
 {:else}
-	<div class="flex items-center justify-center rounded-lg border-2 border-dashed border-surface-500/30 p-8 dark:border-surface-600">
+	<div
+		class="flex items-center justify-center rounded-lg border-2 border-dashed border-surface-500/30 p-8 dark:border-surface-600"
+	>
 		<p class="text-sm text-surface-500 dark:text-surface-400">No image to preview</p>
 	</div>
 {/if}

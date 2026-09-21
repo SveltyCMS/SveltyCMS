@@ -20,43 +20,63 @@
 -->
 
 <script lang="ts">
-import Tabs from "@components/ui/tabs";
-import AdminPageShell from "@components/admin-page-shell.svelte";
-import { uploadMedia_title, uploadMedia_local_upload, uploadMedia_remote_upload } from "@src/paraglide/messages";
-import { goto } from "$app/navigation";
-import LocalUpload from "./local-upload.svelte";
-import RemoteUpload from "./remote-upload.svelte";
+	import Tabs from '@components/ui/tabs';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import {
+		uploadMedia_title,
+		uploadMedia_local_upload,
+		uploadMedia_remote_upload
+	} from '@src/paraglide/messages';
+	import { goto } from '$app/navigation';
+	import LocalUpload from './local-upload.svelte';
+	import RemoteUpload from './remote-upload.svelte';
 
-let tabSet = $state("0");
+	let tabSet = $state('0');
 
-function handleUploadComplete() {
-	// slop:suppress — post-action redirect after upload completes, not primary navigation
-	goto("/mediagallery");
-}
+	function handleUploadComplete() {
+		// slop:suppress — post-action redirect after upload completes, not primary navigation
+		goto('/mediagallery');
+	}
 </script>
 
-<AdminPageShell title={uploadMedia_title()} icon="bi:images" showBackButton={true} backUrl="/mediagallery">
-<div class="wrapper" data-testid="upload-media-page">
-	<Tabs bind:value={tabSet}>
-		<Tabs.List class="flex border-b border-surface-200-800 font-bold" {...{ 'data-testid': 'upload-media-tabs' }}>
-			<Tabs.Trigger value="0" class="flex-1" data-testid="upload-tab-local">
-				<div class="flex items-center justify-center gap-2 py-4">
-					<iconify-icon icon="mdi:database" width="24"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_local_upload()}</p>
-				</div>
-			</Tabs.Trigger>
-			<Tabs.Trigger value="1" class="flex-1" data-testid="upload-tab-remote">
-				<div class="flex items-center justify-center gap-2 py-4">
-					<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_remote_upload()}</p>
-				</div>
-			</Tabs.Trigger>
+<AdminPageShell
+	title={uploadMedia_title()}
+	icon="bi:images"
+	showBackButton={true}
+	backUrl="/mediagallery"
+>
+	<div class="wrapper" data-testid="upload-media-page">
+		<Tabs bind:value={tabSet}>
+			<Tabs.List
+				class="flex border-b border-surface-200-800 font-bold"
+				{...{ 'data-testid': 'upload-media-tabs' }}
+			>
+				<Tabs.Trigger value="0" class="flex-1" data-testid="upload-tab-local">
+					<div class="flex items-center justify-center gap-2 py-4">
+						<iconify-icon icon="mdi:database" width="24"></iconify-icon>
+						<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_local_upload()}</p>
+					</div>
+				</Tabs.Trigger>
+				<Tabs.Trigger value="1" class="flex-1" data-testid="upload-tab-remote">
+					<div class="flex items-center justify-center gap-2 py-4">
+						<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
+						<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_remote_upload()}</p>
+					</div>
+				</Tabs.Trigger>
 
-			<Tabs.Indicator />
-		</Tabs.List>
+				<Tabs.Indicator />
+			</Tabs.List>
 
-		<Tabs.Content value="0"><div class="p-4"><LocalUpload onUploadComplete={handleUploadComplete} /></div></Tabs.Content>
-		<Tabs.Content value="1"><div class="p-4"><RemoteUpload onUploadComplete={handleUploadComplete} /></div></Tabs.Content>
-	</Tabs>
-</div>
+			<Tabs.Content value="0"
+				><div class="p-4">
+					<LocalUpload onUploadComplete={handleUploadComplete} />
+				</div></Tabs.Content
+			>
+			<Tabs.Content value="1"
+				><div class="p-4">
+					<RemoteUpload onUploadComplete={handleUploadComplete} />
+				</div></Tabs.Content
+			>
+		</Tabs>
+	</div>
 </AdminPageShell>

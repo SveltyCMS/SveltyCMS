@@ -8,7 +8,7 @@
 - Stable data-testids
 -->
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { togglePlugin } from './plugins-api';
@@ -48,7 +48,7 @@ import { logger } from "@utils/logger";
 			return;
 		}
 		toast.info(
-			`Configuration for ${plugin.displayName} — open System Settings or the plugin panel when available.`,
+			`Configuration for ${plugin.displayName} — open System Settings or the plugin panel when available.`
 		);
 	}
 </script>
@@ -72,20 +72,29 @@ import { logger } from "@utils/logger";
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
-						<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-500/10 dark:bg-surface-900/50">
-							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<div
+							class="flex h-12 w-12 items-center justify-center rounded bg-surface-500/10 dark:bg-surface-900/50"
+						>
+							<iconify-icon
+								icon={plugin.icon || 'mdi:puzzle'}
+								width="32"
+								class="text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 						</div>
 						<div>
 							<div class="flex items-center gap-2">
 								<h3 class="font-bold">{plugin.displayName}</h3>
 								{#if plugin.missingConfig}
 									<div class="group relative">
-										<iconify-icon icon="mdi:alert-circle" width="18" class="text-warning-500"></iconify-icon>
+										<iconify-icon icon="mdi:alert-circle" width="18" class="text-warning-500"
+										></iconify-icon>
 										<div
 											class="absolute bottom-full inset-s-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
 										>
 											Missing Configuration
-											<div class="absolute -bottom-1 inset-s-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"></div>
+											<div
+												class="absolute -bottom-1 inset-s-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"
+											></div>
 										</div>
 									</div>
 								{/if}
@@ -112,9 +121,13 @@ import { logger } from "@utils/logger";
 						</button>
 					</div>
 				</div>
-				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">{plugin.description}</p>
+				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">
+					{plugin.description}
+				</p>
 
-				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-500/40">
+				<div
+					class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-500/40"
+				>
 					<Button
 						variant="surface"
 						onclick={() => handleConfigure(plugin)}

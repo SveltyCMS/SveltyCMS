@@ -15,10 +15,10 @@
 
 <script lang="ts" module>
 	export const widgetMeta = {
-		name: "TODO List",
-		icon: "mdi:checkbox-marked-outline",
-		description: "Interactive admin task manager for tracking pending CMS tasks.",
-		defaultSize: { w: 1, h: 1 },
+		name: 'TODO List',
+		icon: 'mdi:checkbox-marked-outline',
+		description: 'Interactive admin task manager for tracking pending CMS tasks.',
+		defaultSize: { w: 1, h: 1 }
 	};
 </script>
 
@@ -64,38 +64,65 @@
 	}
 </script>
 
-<div class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3">
+<div
+	class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4"
+>
+	<div
+		class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3"
+	>
 		<div class="flex items-center gap-2">
-			<iconify-icon icon="mdi:checkbox-marked-outline" width="20" class="text-primary-500"></iconify-icon>
+			<iconify-icon icon="mdi:checkbox-marked-outline" width="20" class="text-primary-500"
+			></iconify-icon>
 			<h3 class="font-bold text-sm text-surface-900 dark:text-white">{widget_todo_title()}</h3>
 		</div>
-		<Badge variant="primary" size="sm">{widget_todo_open_count({ count: todos.filter((t) => !t.done).length })}</Badge>
+		<Badge variant="primary" size="sm"
+			>{widget_todo_open_count({ count: todos.filter((t) => !t.done).length })}</Badge
+		>
 	</div>
 
-	<form onsubmit={(e) => { e.preventDefault(); addTodo(); }} class="flex gap-2">
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			addTodo();
+		}}
+		class="flex gap-2"
+	>
 		<Input
 			bind:value={newTodoText}
 			placeholder={widget_todo_placeholder()}
 			inputClass="w-full px-3 py-1.5 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-xs text-surface-900 dark:text-white"
 			aria-label={widget_todo_new_task()}
 		/>
-		<Button type="submit" variant="primary" size="sm" class="shrink-0">{widget_todo_add_btn()}</Button>
+		<Button type="submit" variant="primary" size="sm" class="shrink-0"
+			>{widget_todo_add_btn()}</Button
+		>
 	</form>
 
 	<div class="space-y-1.5 max-h-48 overflow-y-auto pe-1">
 		{#each todos as todo (todo.id)}
-			<div class="flex items-center justify-between p-2 rounded-xl bg-surface-500/10 dark:bg-surface-900/50 border border-surface-100 dark:border-surface-500/40 group text-xs">
+			<div
+				class="flex items-center justify-between p-2 rounded-xl bg-surface-500/10 dark:bg-surface-900/50 border border-surface-100 dark:border-surface-500/40 group text-xs"
+			>
 				<Button
 					type="button"
 					variant="ghost"
 					size="sm"
 					onclick={() => toggleTodo(todo.id)}
 					class="flex items-center gap-2 text-start flex-1 cursor-pointer"
-					aria-label={todo.done ? widget_todo_mark_open({ text: todo.text }) : widget_todo_mark_done({ text: todo.text })}
+					aria-label={todo.done
+						? widget_todo_mark_open({ text: todo.text })
+						: widget_todo_mark_done({ text: todo.text })}
 				>
-					<iconify-icon icon={todo.done ? 'mdi:check-circle' : 'mdi:checkbox-blank-circle-outline'} width="16" class={todo.done ? 'text-success-500' : 'text-surface-400'}></iconify-icon>
-					<span class={todo.done ? 'line-through text-surface-400' : 'text-surface-600 dark:text-surface-400 font-medium'}>{todo.text}</span>
+					<iconify-icon
+						icon={todo.done ? 'mdi:check-circle' : 'mdi:checkbox-blank-circle-outline'}
+						width="16"
+						class={todo.done ? 'text-success-500' : 'text-surface-400'}
+					></iconify-icon>
+					<span
+						class={todo.done
+							? 'line-through text-surface-400'
+							: 'text-surface-600 dark:text-surface-400 font-medium'}>{todo.text}</span
+					>
 				</Button>
 				<Button
 					type="button"

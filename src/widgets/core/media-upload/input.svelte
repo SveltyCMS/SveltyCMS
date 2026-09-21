@@ -25,7 +25,7 @@
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import { getMimeType, isAllowedUploadMime } from '@utils/media/media-utils';
-	import Portal from "@components/ui/portal.svelte";
+	import Portal from '@components/ui/portal.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
@@ -123,7 +123,10 @@
 							type: found.mimeType,
 							size: found.size,
 							url: normalizePath(found.path),
-							thumbnailUrl: normalizePath(found.thumbnails?.md?.url) || normalizePath(found.thumbnails?.sm?.url) || normalizePath(found.path),
+							thumbnailUrl:
+								normalizePath(found.thumbnails?.md?.url) ||
+								normalizePath(found.thumbnails?.sm?.url) ||
+								normalizePath(found.path),
 							aiTags: found.metadata?.aiTags || []
 						} as any);
 					}
@@ -245,7 +248,7 @@
 
 		let targetIndex: number;
 		if (targetFileId) {
-			targetIndex = selectedFiles.findIndex(f => f._id === targetFileId);
+			targetIndex = selectedFiles.findIndex((f) => f._id === targetFileId);
 			if (state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = selectedFiles.length;
@@ -263,9 +266,13 @@
 	}
 </script>
 
-<div class="min-h-30 rounded border-2 border-dashed border-surface-500/30 p-4 dark:border-surface-600" class:!border-error-500={error}>
+<div
+	class="min-h-30 rounded border-2 border-dashed border-surface-500/30 p-4 dark:border-surface-600"
+	class:!border-error-500={error}
+>
 	{#if selectedFiles.length > 0}
-		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4"
+		<div
+			class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4"
 			use:droppable={{
 				container: 'media-grid',
 				callbacks: { onDrop: handleMediaDrop },
@@ -293,7 +300,9 @@
 						{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
 							<img src={file.thumbnailUrl} alt={file.name} class="h-30 w-full object-cover" />
 						{:else}
-							<div class="flex h-30 w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800">
+							<div
+								class="flex h-30 w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800"
+							>
 								<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
 							</div>
 						{/if}
@@ -314,7 +323,10 @@
 					{#if focalPointPluginEnabled && file.type?.startsWith('image/')}
 						<button
 							type="button"
-							onclick={(e) => { e.stopPropagation(); aspectPreviewFile = file; }}
+							onclick={(e) => {
+								e.stopPropagation();
+								aspectPreviewFile = file;
+							}}
 							class="absolute inset-e-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 							aria-label={`Preview aspect ratios for ${file.name}`}
 							title="Aspect Ratio Preview"
@@ -342,40 +354,51 @@
 		class="w-full rounded border-none bg-surface-500/10 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
 	>
 		<span class="block text-center font-medium">
-			{selectedFiles.length > 0 ? field.placeholder || 'Change Media' : field.placeholder || '+ Add Media'}
+			{selectedFiles.length > 0
+				? field.placeholder || 'Change Media'
+				: field.placeholder || '+ Add Media'}
 		</span>
 	</button>
 
 	{#if error}
-		<p class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
+		<p class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">
+			{error}
+		</p>
 	{/if}
 </div>
 
-	{#if showMediaLibrary}
-		<Portal>
-			<div class="fixed inset-0 z-99999 bg-black/70 p-4 backdrop-blur-sm">
-				<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-500/10 shadow-2xl dark:bg-surface-900">
-					<MediaLibraryModal
-						standalone={true}
-						allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
-						folder={((field as { folder?: string }).folder ?? (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')) as string}
-						onConfirm={handleMediaSelection}
-						onClose={closeMediaLibrary}
-					/>
-				</div>
+{#if showMediaLibrary}
+	<Portal>
+		<div class="fixed inset-0 z-99999 bg-black/70 p-4 backdrop-blur-sm">
+			<div
+				class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-500/10 shadow-2xl dark:bg-surface-900"
+			>
+				<MediaLibraryModal
+					standalone={true}
+					allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
+					folder={((field as { folder?: string }).folder ??
+						(collectionName
+							? `collections/${collectionName.toLowerCase()}`
+							: tenantId || 'global')) as string}
+					onConfirm={handleMediaSelection}
+					onClose={closeMediaLibrary}
+				/>
 			</div>
-		</Portal>
-	{/if}
+		</div>
+	</Portal>
+{/if}
 
-	{#if focalPointPluginEnabled && aspectPreviewFile}
-		<AspectPreviewModal
-			media={{
-				_id: aspectPreviewFile._id,
-				url: aspectPreviewFile.url,
-				thumbnails: { md: { url: aspectPreviewFile.thumbnailUrl } },
-				filename: aspectPreviewFile.name,
-			}}
-			show={aspectPreviewFile !== null}
-			onClose={() => { aspectPreviewFile = null; }}
-		/>
-	{/if}
+{#if focalPointPluginEnabled && aspectPreviewFile}
+	<AspectPreviewModal
+		media={{
+			_id: aspectPreviewFile._id,
+			url: aspectPreviewFile.url,
+			thumbnails: { md: { url: aspectPreviewFile.thumbnailUrl } },
+			filename: aspectPreviewFile.name
+		}}
+		show={aspectPreviewFile !== null}
+		onClose={() => {
+			aspectPreviewFile = null;
+		}}
+	/>
+{/if}

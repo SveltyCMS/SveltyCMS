@@ -106,7 +106,11 @@
 				let rawCollections: any[] = [];
 				if (Array.isArray(response.data)) {
 					rawCollections = response.data;
-				} else if (response.data && typeof response.data === 'object' && 'collections' in response.data) {
+				} else if (
+					response.data &&
+					typeof response.data === 'object' &&
+					'collections' in response.data
+				) {
 					rawCollections = (response.data as any).collections || [];
 				}
 
@@ -326,12 +330,23 @@
 		</div>
 
 		<div class="flex gap-3">
-			<Button variant="outline" onclick={() => (showExportModal = true)} disabled={loading} aria-label="Export data">
+			<Button
+				variant="outline"
+				onclick={() => (showExportModal = true)}
+				disabled={loading}
+				aria-label="Export data"
+			>
 				<iconify-icon icon="mdi:export" width={24}></iconify-icon>
 				Export Data
 			</Button>
 
-			<Button variant="primary" onclick={() => (showImportModal = true)} disabled={loading} aria-label="Import data" class="dark:">
+			<Button
+				variant="primary"
+				onclick={() => (showImportModal = true)}
+				disabled={loading}
+				aria-label="Import data"
+				class="dark:"
+			>
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
 				Import Data
 			</Button>
@@ -341,23 +356,39 @@
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
 		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 inline-flex items-center justify-center rounded-full me-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
+				<div
+					class="preset-filled-tertiary-500 inline-flex items-center justify-center rounded-full me-3"
+				>
+					<iconify-icon icon="mdi:database-export" width={24}></iconify-icon>
+				</div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
 				</div>
 			</div>
 
-			<Button variant="outline" onclick={exportAllData} disabled={loading} aria-label="Export all collections" class="mt-4 w-full">Export Everything</Button>
+			<Button
+				variant="outline"
+				onclick={exportAllData}
+				disabled={loading}
+				aria-label="Export all collections"
+				class="mt-4 w-full">Export Everything</Button
+			>
 		</div>
 
 		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center rounded-full me-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
+				<div
+					class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center rounded-full me-3"
+				>
+					<iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon>
+				</div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
-						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span>
+						<span class="font-semibold text-tertiary-500 dark:text-primary-500"
+							>{collections.length}</span
+						>
 						collections available
 					</p>
 				</div>
@@ -371,7 +402,9 @@
 					</div>
 				{/each}
 				{#if collections.length > 3}
-					<p class="text-xs text-surface-600 dark:text-surface-400">...and {collections.length - 3} more</p>
+					<p class="text-xs text-surface-600 dark:text-surface-400">
+						...and {collections.length - 3} more
+					</p>
 				{/if}
 			</div>
 		</div>
@@ -386,7 +419,6 @@
 			<Progress value={exportProgress || importProgress} />
 		</div>
 	{/if}
-
 </div>
 
 {#if showExportModal}
@@ -396,31 +428,60 @@
 		aria-modal="true"
 		aria-labelledby="export-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
+		<div
+			class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800"
+		>
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="export-modal-title" class="text-lg font-semibold">Export Collections</h3>
-				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Close export modal" class="p-0! min-w-0">
+				<Button
+					variant="outline"
+					onclick={() => (showExportModal = false)}
+					aria-label="Close export modal"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
 				</Button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
-					<Select id="export-format" bind:value={exportOptions.format} label="Export Format" options={[{value: 'json', label: 'JSON'}, {value: 'ndjson', label: 'NDJSON'}, {value: 'csv', label: 'CSV'}]} />
+					<Select
+						id="export-format"
+						bind:value={exportOptions.format}
+						label="Export Format"
+						options={[
+							{ value: 'json', label: 'JSON' },
+							{ value: 'ndjson', label: 'NDJSON' },
+							{ value: 'csv', label: 'CSV' }
+						]}
+					/>
 				</div>
 
 				<div>
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="flex gap-2">
-							<Button variant="outline" onclick={selectAllCollections} aria-label="Select all collections">Select All</Button>
-							<Button variant="outline" onclick={clearCollectionSelection} aria-label="Clear collection selection">Clear All</Button>
+							<Button
+								variant="outline"
+								onclick={selectAllCollections}
+								aria-label="Select all collections">Select All</Button
+							>
+							<Button
+								variant="outline"
+								onclick={clearCollectionSelection}
+								aria-label="Clear collection selection">Clear All</Button
+							>
 						</div>
 					</div>
 
-					<div class="max-h-48 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
+					<div
+						class="max-h-48 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700"
+					>
 						{#each collections as collection (collection.id)}
 							<label class="flex cursor-pointer items-center gap-3 py-2">
-								<Checkbox checked={exportOptions.collections.includes(String(collection.id))} onchange={() => toggleCollectionSelection(String(collection.id))} />
+								<Checkbox
+									checked={exportOptions.collections.includes(String(collection.id))}
+									onchange={() => toggleCollectionSelection(String(collection.id))}
+								/>
 
 								<div class="font-medium">
 									{collection.label}
@@ -437,18 +498,31 @@
 				<div class="space-y-4">
 					<Toggle bind:value={exportOptions.includeMetadata} label="Include Metadata" />
 					<div>
-						<label for="export-limit" class="mb-2 block text-sm font-medium">Limit (optional)</label>
-						<Input id="export-limit" type="text" bind:value={exportLimitString} placeholder="Leave empty for all records" />
+						<label for="export-limit" class="mb-2 block text-sm font-medium">Limit (optional)</label
+						>
+						<Input
+							id="export-limit"
+							type="text"
+							bind:value={exportLimitString}
+							placeholder="Leave empty for all records"
+						/>
 					</div>
 				</div>
 			</div>
 
 			<div class="flex justify-end gap-3 border-t bg-surface-500/10 p-6 dark:bg-surface-700">
-				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Cancel export">Cancel</Button>
-				<Button variant="tertiary" aria-label="Export selected collections"
+				<Button
+					variant="outline"
+					onclick={() => (showExportModal = false)}
+					aria-label="Cancel export">Cancel</Button
+				>
+				<Button
+					variant="tertiary"
+					aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
 					disabled={loading || exportOptions.collections.length === 0}
-				 class="dark:">
+					class="dark:"
+				>
 					Export Selected
 				</Button>
 			</div>
@@ -463,22 +537,43 @@
 		aria-modal="true"
 		aria-labelledby="import-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
+		<div
+			class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800"
+		>
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="import-modal-title" class="text-lg font-semibold">Import Collections</h3>
-				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Close import modal" class="p-0! min-w-0">
+				<Button
+					variant="outline"
+					onclick={() => (showImportModal = false)}
+					aria-label="Close import modal"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
 				</Button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
 					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
-					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:me-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10" />
+					<input
+						id="import-file"
+						type="file"
+						bind:files={importFiles}
+						accept=".json,.csv"
+						class="block w-full text-sm text-gray-500 file:me-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10"
+					/>
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 
 				<div>
-					<Select id="import-format" bind:value={importOptions.format} label="Data Format" options={[{value: 'json', label: 'JSON'}, {value: 'csv', label: 'CSV'}]} />
+					<Select
+						id="import-format"
+						bind:value={importOptions.format}
+						label="Data Format"
+						options={[
+							{ value: 'json', label: 'JSON' },
+							{ value: 'csv', label: 'CSV' }
+						]}
+					/>
 				</div>
 
 				<div class="space-y-4">
@@ -487,14 +582,29 @@
 					<Toggle bind:value={importOptions.skipInvalid} label="Skip Invalid Entries" />
 					<div>
 						<label for="import-batch-size" class="mb-2 block text-sm font-medium">Batch Size</label>
-						<Input id="import-batch-size" type="text" bind:value={importBatchSizeString} placeholder="100" />
+						<Input
+							id="import-batch-size"
+							type="text"
+							bind:value={importBatchSizeString}
+							placeholder="100"
+						/>
 					</div>
 				</div>
 			</div>
 
 			<div class="flex justify-end gap-3 border-t bg-surface-500/10 p-6 dark:bg-surface-700">
-				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Cancel import">Cancel</Button>
-				<Button variant="tertiary" onclick={handleImport} disabled={loading || !importFiles} aria-label="Import data from file" class="dark:">Import Data</Button>
+				<Button
+					variant="outline"
+					onclick={() => (showImportModal = false)}
+					aria-label="Cancel import">Cancel</Button
+				>
+				<Button
+					variant="tertiary"
+					onclick={handleImport}
+					disabled={loading || !importFiles}
+					aria-label="Import data from file"
+					class="dark:">Import Data</Button
+				>
 			</div>
 		</div>
 	</div>
@@ -502,10 +612,17 @@
 
 {#if showResultsModal && importResult}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
+		<div
+			class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800"
+		>
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
-				<Button variant="outline" onclick={() => (showResultsModal = false)} aria-label="Close results" size="sm">
+				<Button
+					variant="outline"
+					onclick={() => (showResultsModal = false)}
+					aria-label="Close results"
+					size="sm"
+				>
 					<iconify-icon icon="mdi:close" width={24} aria-hidden="true"></iconify-icon>
 					Close
 				</Button>
@@ -516,7 +633,9 @@
 						<h3 class="mb-3 font-semibold">Import Summary</h3>
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
-								<div class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">{importResult.totalImported}</div>
+								<div class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">
+									{importResult.totalImported}
+								</div>
 								<div class="text-sm text-gray-600">Imported</div>
 							</div>
 							<div>
@@ -538,7 +657,8 @@
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
 										<div class="flex gap-4 text-sm">
-											<span class="text-tertiary-500 dark:text-primary-500">+{result.imported}</span>
+											<span class="text-tertiary-500 dark:text-primary-500">+{result.imported}</span
+											>
 											<span class="text-waring-500">~{result.skipped}</span>
 											<span class="text-error-500">!{result.errors.length}</span>
 										</div>
@@ -547,13 +667,19 @@
 									{#if result.errors.length > 0}
 										<div class="text-sm">
 											<details>
-												<summary class="cursor-pointer text-error-600">{result.errors.length} errors</summary>
+												<summary class="cursor-pointer text-error-600"
+													>{result.errors.length} errors</summary
+												>
 												<div class="mt-2 space-y-1">
 													{#each result.errors.slice(0, 5) as error (error.index)}
-														<div class="text-xs text-gray-600">Line {error.index + 1}: {error.error}</div>
+														<div class="text-xs text-gray-600">
+															Line {error.index + 1}: {error.error}
+														</div>
 													{/each}
 													{#if result.errors.length > 5}
-														<div class="text-xs text-gray-500">...and {result.errors.length - 5} more errors</div>
+														<div class="text-xs text-gray-500">
+															...and {result.errors.length - 5} more errors
+														</div>
 													{/if}
 												</div>
 											</details>
@@ -567,7 +693,11 @@
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-500/10 p-6 dark:bg-surface-700">
-				<Button variant="primary" onclick={() => (showResultsModal = false)} aria-label="Close import results">Close</Button>
+				<Button
+					variant="primary"
+					onclick={() => (showResultsModal = false)}
+					aria-label="Close import results">Close</Button
+				>
 			</div>
 		</div>
 	</div>

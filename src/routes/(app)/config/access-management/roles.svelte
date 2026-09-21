@@ -17,192 +17,182 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-import { toast } from "@src/stores/toast.svelte.ts";
-import type { Role } from "@src/databases/auth/types";
-import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
-import { modalState } from "@utils/modal.svelte";
-import { SvelteSet } from "svelte/reactivity";
-import { untrack } from 'svelte';
-import { draggable, droppable } from '@thisux/sveltednd';
-import type { DragDropState } from '@thisux/sveltednd';
-import RoleModal from "./role-modal.svelte";
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import type { Role } from '@src/databases/auth/types';
+	import type { DatabaseId, ISODateString } from '@src/databases/db-interface';
+	import { modalState } from '@utils/modal.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { untrack } from 'svelte';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
+	import RoleModal from './role-modal.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 
-interface Props {
-	roleData: any;
-	setRoleData: (data: any) => void;
-	updateModifiedCount?: (count: number) => void;
-	permissions?: import("@src/databases/auth/types").Permission[];
-}
-
-let {
-	roleData,
-	setRoleData,
-	updateModifiedCount,
-	permissions = [],
-}: Props = $props();
-
-let roles: (Role & { id: string })[] = $state([]);
-let roleSearchTerm = $state("");
-let error = $state<string | null>(null);
-
-const filteredRoles = $derived(
-	roles.filter(
-		(r) =>
-			r.name.toLowerCase().includes(roleSearchTerm.toLowerCase()) ||
-			r.description?.toLowerCase().includes(roleSearchTerm.toLowerCase()),
-	),
-);
-
-const modifiedRoles = new SvelteSet<string>();
-let selectedRoles = new SvelteSet<string>();
-
-let isEditMode = $state(false);
-let currentRoleId: string | null = $state(null);
-let currentGroupName = $state("");
-
-$effect(() => {
-	if (roles.length === 0 && roleData.length > 0) {
-		const rolesWithId = roleData.map((role: Role) => ({
-			...role,
-			id: role._id,
-		}));
-		roles = rolesWithId;
+	interface Props {
+		roleData: any;
+		setRoleData: (data: any) => void;
+		updateModifiedCount?: (count: number) => void;
+		permissions?: import('@src/databases/auth/types').Permission[];
 	}
-});
 
-const openModal = (role: Role | null = null, groupName = "") => {
-	isEditMode = !!role;
-	currentRoleId = role ? role._id : null;
-	currentGroupName = groupName || "";
+	let { roleData, setRoleData, updateModifiedCount, permissions = [] }: Props = $props();
 
-	// response is the 3rd arg to trigger() — must not be buried in props
-	// (close() only invokes active.response, not props.response)
-	modalState.trigger(
-		RoleModal as any,
-		{
-			isEditMode,
-			currentRoleId,
-			roleName: role?.name || "",
-			roleDescription: role?.description || "",
-			currentGroupName,
-			selectedPermissions: role?.permissions || [],
-			permissions,
-			roles,
-			// cancel button uses parent.onClose — DialogManager only passes `close`
-			parent: {
-				onClose: () => modalState.close(false),
-			},
-			title: isEditMode ? "Edit Role" : "Create Role",
-		},
-		(formData: any) => {
-			if (formData) {
-				saveRole(formData);
-			}
-		},
+	let roles: (Role & { id: string })[] = $state([]);
+	let roleSearchTerm = $state('');
+	let error = $state<string | null>(null);
+
+	const filteredRoles = $derived(
+		roles.filter(
+			(r) =>
+				r.name.toLowerCase().includes(roleSearchTerm.toLowerCase()) ||
+				r.description?.toLowerCase().includes(roleSearchTerm.toLowerCase())
+		)
 	);
-};
 
-const saveRole = async (role: {
-	roleName: string;
-	roleDescription: string;
-	currentGroupName: string;
-	selectedPermissions: string[];
-	currentRoleId: string | null;
-}) => {
-	const {
-		roleName,
-		roleDescription,
-		currentGroupName,
-		selectedPermissions,
-		currentRoleId,
-	} = role;
-	if (!roleName) {
-		return;
-	}
+	const modifiedRoles = new SvelteSet<string>();
+	let selectedRoles = new SvelteSet<string>();
 
-	const roleId = currentRoleId ?? crypto.randomUUID().replace(/-/g, "");
-	const newRole = {
-		_id: roleId as DatabaseId,
-		id: roleId,
-		name: roleName,
-		description: roleDescription,
-		groupName: currentGroupName,
-		permissions: selectedPermissions,
-		createdAt: new Date().toISOString() as ISODateString,
-		updatedAt: new Date().toISOString() as ISODateString,
+	let isEditMode = $state(false);
+	let currentRoleId: string | null = $state(null);
+	let currentGroupName = $state('');
+
+	$effect(() => {
+		if (roles.length === 0 && roleData.length > 0) {
+			const rolesWithId = roleData.map((role: Role) => ({
+				...role,
+				id: role._id
+			}));
+			roles = rolesWithId;
+		}
+	});
+
+	const openModal = (role: Role | null = null, groupName = '') => {
+		isEditMode = !!role;
+		currentRoleId = role ? role._id : null;
+		currentGroupName = groupName || '';
+
+		// response is the 3rd arg to trigger() — must not be buried in props
+		// (close() only invokes active.response, not props.response)
+		modalState.trigger(
+			RoleModal as any,
+			{
+				isEditMode,
+				currentRoleId,
+				roleName: role?.name || '',
+				roleDescription: role?.description || '',
+				currentGroupName,
+				selectedPermissions: role?.permissions || [],
+				permissions,
+				roles,
+				// cancel button uses parent.onClose — DialogManager only passes `close`
+				parent: {
+					onClose: () => modalState.close(false)
+				},
+				title: isEditMode ? 'Edit Role' : 'Create Role'
+			},
+			(formData: any) => {
+				if (formData) {
+					saveRole(formData);
+				}
+			}
+		);
 	};
 
-	if (!isEditMode) {
-		roles = [...roles, newRole];
-		modifiedRoles.add(roleId);
-		toast.info("Role added. Save to apply.");
-	} else if (currentRoleId) {
-		const index = roles.findIndex((r) => r._id === currentRoleId);
-		roles[index] = newRole;
-		roles = [...roles];
-		modifiedRoles.add(currentRoleId);
-		toast.info("Role updated. Save to apply.");
-	}
-
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-
-	if (updateModifiedCount) {
-		updateModifiedCount(modifiedRoles.size);
-	}
-};
-
-const deleteSelectedRoles = async () => {
-	for (const roleId of selectedRoles) {
-		const index = roles.findIndex((cur: { _id: string }) => cur._id === roleId);
-		if (index !== -1) {
-			roles.splice(index, 1);
-			modifiedRoles.add(roleId);
+	const saveRole = async (role: {
+		roleName: string;
+		roleDescription: string;
+		currentGroupName: string;
+		selectedPermissions: string[];
+		currentRoleId: string | null;
+	}) => {
+		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } =
+			role;
+		if (!roleName) {
+			return;
 		}
-	}
-	roles = [...roles];
-	selectedRoles.clear();
-	toast.info("Roles deleted. Save to apply.");
 
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
+		const roleId = currentRoleId ?? crypto.randomUUID().replace(/-/g, '');
+		const newRole = {
+			_id: roleId as DatabaseId,
+			id: roleId,
+			name: roleName,
+			description: roleDescription,
+			groupName: currentGroupName,
+			permissions: selectedPermissions,
+			createdAt: new Date().toISOString() as ISODateString,
+			updatedAt: new Date().toISOString() as ISODateString
+		};
 
-	if (updateModifiedCount) {
-		updateModifiedCount(modifiedRoles.size);
-	}
-};
+		if (!isEditMode) {
+			roles = [...roles, newRole];
+			modifiedRoles.add(roleId);
+			toast.info('Role added. Save to apply.');
+		} else if (currentRoleId) {
+			const index = roles.findIndex((r) => r._id === currentRoleId);
+			roles[index] = newRole;
+			roles = [...roles];
+			modifiedRoles.add(currentRoleId);
+			toast.info('Role updated. Save to apply.');
+		}
 
-const toggleRoleSelection = (roleId: string) => {
-	if (selectedRoles.has(roleId)) {
-		selectedRoles.delete(roleId);
-	} else {
-		selectedRoles.add(roleId);
-	}
-};
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+
+		if (updateModifiedCount) {
+			updateModifiedCount(modifiedRoles.size);
+		}
+	};
+
+	const deleteSelectedRoles = async () => {
+		for (const roleId of selectedRoles) {
+			const index = roles.findIndex((cur: { _id: string }) => cur._id === roleId);
+			if (index !== -1) {
+				roles.splice(index, 1);
+				modifiedRoles.add(roleId);
+			}
+		}
+		roles = [...roles];
+		selectedRoles.clear();
+		toast.info('Roles deleted. Save to apply.');
+
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+
+		if (updateModifiedCount) {
+			updateModifiedCount(modifiedRoles.size);
+		}
+	};
+
+	const toggleRoleSelection = (roleId: string) => {
+		if (selectedRoles.has(roleId)) {
+			selectedRoles.delete(roleId);
+		} else {
+			selectedRoles.add(roleId);
+		}
+	};
 
 	function handleRoleDrop(state: DragDropState<Role & { id: string }>) {
 		const dragged = state.draggedItem;
 		if (!dragged) return;
 
-			const fromIndex = roles.indexOf(dragged);
-			if (fromIndex < 0) return;
-			const targetEl = state.targetElement?.closest('[data-role-id]') as HTMLElement | null;
-			const targetRoleId = targetEl?.dataset?.roleId;
+		const fromIndex = roles.indexOf(dragged);
+		if (fromIndex < 0) return;
+		const targetEl = state.targetElement?.closest('[data-role-id]') as HTMLElement | null;
+		const targetRoleId = targetEl?.dataset?.roleId;
 
-			let targetIndex: number;
-			if (targetRoleId) {
-				targetIndex = roles.findIndex(r => (r._id || r.id) === targetRoleId);
-				if (state.dropPosition === 'after') targetIndex++;
-			} else {
-				targetIndex = roles.length;
-			}
-						targetIndex = Math.max(0, Math.min(targetIndex, roles.length));
+		let targetIndex: number;
+		if (targetRoleId) {
+			targetIndex = roles.findIndex((r) => (r._id || r.id) === targetRoleId);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = roles.length;
+		}
+		targetIndex = Math.max(0, Math.min(targetIndex, roles.length));
 
-			if (fromIndex === targetIndex) return;
+		if (fromIndex === targetIndex) return;
 		let movedRole: (Role & { id: string }) | undefined;
 		roles = untrack(() => {
 			const newRoles = [...roles];
@@ -215,16 +205,16 @@ const toggleRoleSelection = (roleId: string) => {
 		setRoleData(cleanedRoles);
 		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
 	}
-
-
 </script>
+
 {#if error}
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>
 
 	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
-		Manage user roles and their access permissions. You can create, edit, or delete roles and assign specific permissions to them.
+		Manage user roles and their access permissions. You can create, edit, or delete roles and assign
+		specific permissions to them.
 	</p>
 
 	<div class="wrapper my-4">
@@ -250,7 +240,10 @@ const toggleRoleSelection = (roleId: string) => {
 			</div>
 
 			<div class="relative w-full max-w-sm">
-				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50"></iconify-icon>
+				<iconify-icon
+					icon="mdi:magnify"
+					class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50"
+				></iconify-icon>
 				<Input
 					bind:value={roleSearchTerm}
 					placeholder="Search roles..."
@@ -267,15 +260,11 @@ const toggleRoleSelection = (roleId: string) => {
 			{:else}
 				<div class="rounded-8">
 					<p class="sr-only" id="roles-dnd-instructions">
-						Press Enter or Space to select a role for reordering. Use Up and Down arrow keys to move the selected role. Press Enter or Space again to
-						drop.
+						Press Enter or Space to select a role for reordering. Use Up and Down arrow keys to move
+						the selected role. Press Enter or Space again to drop.
 					</p>
 					<!-- Droppable only on items (v0.7.0) — nested list+item droppables cause callback ambiguity -->
-					<ul
-						class="list-none space-y-2"
-						aria-describedby="roles-dnd-instructions"
-						role="list"
-					>
+					<ul class="list-none space-y-2" aria-describedby="roles-dnd-instructions" role="list">
 						{#each filteredRoles as role (role.id)}
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<li
@@ -312,20 +301,33 @@ const toggleRoleSelection = (roleId: string) => {
 									{/if}
 
 									<div class="flex flex-col">
-										<span class="flex items-center text-lg font-bold text-tertiary-500 dark:text-primary-500">
+										<span
+											class="flex items-center text-lg font-bold text-tertiary-500 dark:text-primary-500"
+										>
 											{role.name}
 											{#if role.isAdmin}
-												<Badge preset="filled" color="secondary" size="sm" class="ms-2">Admin</Badge>
+												<Badge preset="filled" color="secondary" size="sm" class="ms-2">Admin</Badge
+												>
 											{/if}
 										</span>
-										<span class="text-xs opacity-60 md:hidden">{role.description || 'No description'}</span>
+										<span class="text-xs opacity-60 md:hidden"
+											>{role.description || 'No description'}</span
+										>
 									</div>
 								</div>
 
-								<p class="mt-2 hidden text-sm opacity-70 md:ms-4 md:mt-0 md:block flex-1">{role.description}</p>
+								<p class="mt-2 hidden text-sm opacity-70 md:ms-4 md:mt-0 md:block flex-1">
+									{role.description}
+								</p>
 
 								<div class="flex gap-2">
-									<Button variant="surface" onclick={() => openModal(role)} aria-label={`Edit role ${role.name}`} size="sm" leadingIcon="mdi:pencil">
+									<Button
+										variant="surface"
+										onclick={() => openModal(role)}
+										aria-label={`Edit role ${role.name}`}
+										size="sm"
+										leadingIcon="mdi:pencil"
+									>
 										Edit
 									</Button>
 								</div>
@@ -337,4 +339,3 @@ const toggleRoleSelection = (roleId: string) => {
 		</div>
 	</div>
 {/if}
-

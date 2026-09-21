@@ -60,7 +60,12 @@ Mobile blur controls — compact centered action strip; strength slider lives in
 			Cancel
 		</button>
 
-		<button type="button" class="blur-mobile-pill blur-mobile-pill-apply" onclick={onApply} aria-label="Apply blur">
+		<button
+			type="button"
+			class="blur-mobile-pill blur-mobile-pill-apply"
+			onclick={onApply}
+			aria-label="Apply blur"
+		>
 			Apply
 		</button>
 	</div>

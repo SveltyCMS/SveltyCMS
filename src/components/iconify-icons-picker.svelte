@@ -356,7 +356,10 @@ Advanced icon picker with search, pagination, and favorites.
 		icon = fullIconName;
 
 		// Add to recent (avoiding duplicates)
-		recentSelections = [fullIconName, ...recentSelections.filter((i) => i !== fullIconName)].slice(0, MAX_RECENT);
+		recentSelections = [fullIconName, ...recentSelections.filter((i) => i !== fullIconName)].slice(
+			0,
+			MAX_RECENT
+		);
 
 		showDropdown = false;
 		toast.success(`Icon selected: ${fullIconName}`);
@@ -528,20 +531,20 @@ Advanced icon picker with search, pagination, and favorites.
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.9 }}
 		>
 			<Button
-					variant="ghost"
-					type="button"
-					onclick={() => {
-						if (hideSearchInput) {
-							showDropdown = !showDropdown;
-							if (showDropdown) handleFocus();
-						}
-					}}
-					class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-500/10 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
-						? 'pointer-events-none'
-						: ''}"
-					aria-expanded={hideSearchInput ? showDropdown : undefined}
-					aria-label={hideSearchInput ? 'Change icon (click to browse)' : 'Selected icon'}
-				>
+				variant="ghost"
+				type="button"
+				onclick={() => {
+					if (hideSearchInput) {
+						showDropdown = !showDropdown;
+						if (showDropdown) handleFocus();
+					}
+				}}
+				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-500/10 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
+					? 'pointer-events-none'
+					: ''}"
+				aria-expanded={hideSearchInput ? showDropdown : undefined}
+				aria-label={hideSearchInput ? 'Change icon (click to browse)' : 'Selected icon'}
+			>
 				<iconify-icon
 					icon={iconselected}
 					width={previewSize}
@@ -550,42 +553,55 @@ Advanced icon picker with search, pagination, and favorites.
 				></iconify-icon>
 				<div class="min-w-0 flex-1 overflow-hidden">
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
-					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</p>
+					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">
+						{iconselected}
+					</p>
 				</div>
 			</Button>
 
 			<div class="flex shrink-0 gap-1">
-				<Button variant="outline"
+				<Button
+					variant="outline"
 					onclick={() => toggleFavorite(iconselected)}
 					type="button"
 					aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 					title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-				 class="p-0! min-w-0 transition-all hover:scale-110">
-					<iconify-icon icon={isFavorite ? 'mdi:heart' : 'mdi:heart-outline'} width="22" class={isFavorite ? 'text-error-500' : ''}></iconify-icon>
+					class="p-0! min-w-0 transition-all hover:scale-110"
+				>
+					<iconify-icon
+						icon={isFavorite ? 'mdi:heart' : 'mdi:heart-outline'}
+						width="22"
+						class={isFavorite ? 'text-error-500' : ''}
+					></iconify-icon>
 				</Button>
 
-				<Button variant="outline"
+				<Button
+					variant="outline"
 					onclick={copyIconName}
 					type="button"
 					aria-label="Copy icon name"
 					title="Copy icon name"
-				 class="p-0! min-w-0 transition-all hover:scale-110">
+					class="p-0! min-w-0 transition-all hover:scale-110"
+				>
 					<iconify-icon icon="mdi:content-copy" width="22"></iconify-icon>
 				</Button>
 
-				<Button variant="error"
+				<Button
+					variant="error"
 					onclick={removeIcon}
 					type="button"
 					aria-label="Remove selected icon"
 					title="Remove icon"
-				 class="p-0! min-w-0 transition-all hover:scale-110">
+					class="p-0! min-w-0 transition-all hover:scale-110"
+				>
 					<iconify-icon icon="mdi:close" width="22"></iconify-icon>
 				</Button>
 			</div>
 		</div>
 	{:else if hideSearchInput}
 		<!-- No icon selected: clickable placeholder to open dropdown (no extra button) -->
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				showDropdown = true;
@@ -620,7 +636,8 @@ Advanced icon picker with search, pagination, and favorites.
 				aria-describedby={searchError ? 'search-error' : undefined}
 			/>
 			{#if searchQuery}
-				<Button variant="ghost"
+				<Button
+					variant="ghost"
 					type="button"
 					class="absolute inset-e-2 top-1/2 -translate-y-1/2 p-0! min-w-0"
 					onclick={() => {
@@ -657,59 +674,72 @@ Advanced icon picker with search, pagination, and favorites.
 			class="mt-2 overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
 			role="region"
 			aria-label="Icon picker dropdown"
-			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.95, opacity: 0 }}
-			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.95, opacity: 0 }}
+			in:scale={{
+				duration: prefersReducedMotion ? 0 : 200,
+				easing: quintOut,
+				start: 0.95,
+				opacity: 0
+			}}
+			out:scale={{
+				duration: prefersReducedMotion ? 0 : 150,
+				easing: quintOut,
+				start: 0.95,
+				opacity: 0
+			}}
 		>
 			<!-- Tabs -->
 			<div class="flex border-b border-surface-500/30 dark:text-surface-50" role="tablist">
 				<Button
+					variant="ghost"
+					type="button"
+					id="icon-tab-search"
+					role="tab"
+					aria-selected={activeTab === 'search'}
+					onclick={() => switchTab('search')}
+					class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
+						? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+						: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+				>
+					Search
+				</Button>
+				{#if showFavorites && hasFavorites}
+					<Button
 						variant="ghost"
 						type="button"
-						id="icon-tab-search"
+						id="icon-tab-favorites"
 						role="tab"
-						aria-selected={activeTab === 'search'}
-						onclick={() => switchTab('search')}
-						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
+						aria-selected={activeTab === 'favorites'}
+						onclick={() => switchTab('favorites')}
+						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
 							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 					>
-						Search
+						Favorites ({favorites.length})
 					</Button>
-					{#if showFavorites && hasFavorites}
-						<Button
-							variant="ghost"
-							type="button"
-							id="icon-tab-favorites"
-							role="tab"
-							aria-selected={activeTab === 'favorites'}
-							onclick={() => switchTab('favorites')}
-							class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
-								? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
-						>
-							Favorites ({favorites.length})
-						</Button>
-					{/if}
-					{#if hasRecent}
-						<Button
-							variant="ghost"
-							type="button"
-							id="icon-tab-recent"
-							role="tab"
-							aria-selected={activeTab === 'recent'}
-							onclick={() => switchTab('recent')}
-							class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
-								? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
-						>
-							Recent ({recentSelections.length})
-						</Button>
-					{/if}
+				{/if}
+				{#if hasRecent}
+					<Button
+						variant="ghost"
+						type="button"
+						id="icon-tab-recent"
+						role="tab"
+						aria-selected={activeTab === 'recent'}
+						onclick={() => switchTab('recent')}
+						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
+							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+					>
+						Recent ({recentSelections.length})
+					</Button>
+				{/if}
 			</div>
 
 			<!-- Library selector (only for search tab) -->
 			{#if activeTab === 'search'}
-				<div class="border-b border-surface-500/30 p-4 dark:text-surface-50" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
+				<div
+					class="border-b border-surface-500/30 p-4 dark:text-surface-50"
+					transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
+				>
 					<Select
 						bind:value={selectedLibrary}
 						onchange={() => {
@@ -734,9 +764,14 @@ Advanced icon picker with search, pagination, and favorites.
 			<div class="h-80 overflow-y-auto p-4" onscroll={handleScroll}>
 				{#if isLoading && icons.length === 0}
 					<!-- Loading state (initial) -->
-					<div class="flex justify-center py-12" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+					<div
+						class="flex justify-center py-12"
+						in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+					>
 						<div class="flex flex-col items-center gap-3">
-							<div class="h-10 w-10 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+							<div
+								class="h-10 w-10 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+							></div>
 							<p class="text-sm text-surface-600 dark:text-surface-50">Loading icons...</p>
 						</div>
 					</div>
@@ -764,11 +799,16 @@ Advanced icon picker with search, pagination, and favorites.
 								id={`icon-option-${index}`}
 								aria-label={`Select icon ${fullIconName}`}
 							>
-								<iconify-icon icon={fullIconName} width="24" aria-hidden="true" class="transition-colors duration-200 group-hover:text-tertiary-500 dark:text-primary-500"
+								<iconify-icon
+									icon={fullIconName}
+									width="24"
+									aria-hidden="true"
+									class="transition-colors duration-200 group-hover:text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
 
 								{#if activeTab === 'favorites'}
-									<Button variant="ghost"
+									<Button
+										variant="ghost"
 										onclick={(e: MouseEvent) => {
 											e.stopPropagation();
 											toggleFavorite(icon);
@@ -776,7 +816,8 @@ Advanced icon picker with search, pagination, and favorites.
 										class="absolute inset-e-0 top-0 opacity-0 transition-opacity group-hover:opacity-100 p-0! min-w-0"
 										aria-label="Remove from favorites"
 									>
-										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"></iconify-icon>
+										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"
+										></iconify-icon>
 									</Button>
 								{/if}
 							</div>
@@ -785,7 +826,11 @@ Advanced icon picker with search, pagination, and favorites.
 						<!-- Infinite Scroll Loading Indicator -->
 						{#if isLoading}
 							<div class="col-span-full py-4 text-center">
-								<iconify-icon icon="eos-icons:loading" class="animate-spin text-surface-400" width="24"></iconify-icon>
+								<iconify-icon
+									icon="eos-icons:loading"
+									class="animate-spin text-surface-400"
+									width="24"
+								></iconify-icon>
 							</div>
 						{/if}
 
@@ -796,15 +841,32 @@ Advanced icon picker with search, pagination, and favorites.
 					</div>
 				{:else if hasSearchQuery && activeTab === 'search'}
 					<!-- No results -->
-					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
-						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400" aria-hidden="true"></iconify-icon>
-						<p class="text-surface-600 dark:text-surface-50">No icons found for "<span class="font-medium">{searchQuery}</span>"</p>
+					<div
+						class="flex flex-col items-center gap-3 py-12 text-center"
+						in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+					>
+						<iconify-icon
+							icon="mdi:magnify-close"
+							width="48"
+							class="text-surface-400"
+							aria-hidden="true"
+						></iconify-icon>
+						<p class="text-surface-600 dark:text-surface-50">
+							No icons found for "<span class="font-medium">{searchQuery}</span>"
+						</p>
 					</div>
 				{:else}
 					<!-- Empty state -->
-					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+					<div
+						class="flex flex-col items-center gap-3 py-12 text-center"
+						in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+					>
 						<iconify-icon
-							icon={activeTab === 'favorites' ? 'mdi:heart-outline' : activeTab === 'recent' ? 'mdi:history' : 'mdi:magnify'}
+							icon={activeTab === 'favorites'
+								? 'mdi:heart-outline'
+								: activeTab === 'recent'
+									? 'mdi:history'
+									: 'mdi:magnify'}
 							width="48"
 							class="text-surface-400"
 							aria-hidden="true"

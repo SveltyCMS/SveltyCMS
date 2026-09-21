@@ -1,7 +1,7 @@
 <script lang="ts">
-import type { ComponentRenderProps } from "json-render-svelte";
+	import type { ComponentRenderProps } from 'json-render-svelte';
 
-let { children }: ComponentRenderProps = $props();
+	let { children }: ComponentRenderProps = $props();
 </script>
 
 <div class="flex flex-col gap-4 w-full">

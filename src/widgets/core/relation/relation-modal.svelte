@@ -29,12 +29,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		selectedIds?: string[];
 	}
 
-	let { 
-		collectionID, 
-		displayField, 
-		multiple = false, 
-		selectedIds = [] 
-	}: Props = $props();
+	let { collectionID, displayField, multiple = false, selectedIds = [] }: Props = $props();
 
 	// State
 	let searchQuery = $state('');
@@ -125,16 +120,26 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	}
 </script>
 
-<div class="relation-modal flex flex-col gap-6 p-2 text-surface-900 dark:text-white max-h-[80vh] w-full max-w-2xl overflow-hidden" in:adminFade={{ duration: 200 }}>
+<div
+	class="relation-modal flex flex-col gap-6 p-2 text-surface-900 dark:text-white max-h-[80vh] w-full max-w-2xl overflow-hidden"
+	in:adminFade={{ duration: 200 }}
+>
 	<!-- Header -->
 	<header class="flex items-center justify-between border-b border-surface-500/20 pb-4">
 		<div class="flex flex-col gap-1">
 			<h3 class="text-xl font-bold tracking-tight">Select Related Entries</h3>
-			<p class="text-sm opacity-60">Collection: <span class="font-mono text-tertiary-500 dark:text-primary-500">{collectionID}</span></p>
+			<p class="text-sm opacity-60">
+				Collection: <span class="font-mono text-tertiary-500 dark:text-primary-500"
+					>{collectionID}</span
+				>
+			</p>
 		</div>
 		<div class="hidden sm:flex items-center gap-2">
 			{#if selected.size > 0}
-				<span class="chip preset-tonal-tertiary" transition:adminSlide={{ duration: 200, distance: 24 }}>
+				<span
+					class="chip preset-tonal-tertiary"
+					transition:adminSlide={{ duration: 200, distance: 24 }}
+				>
 					{selected.size} selected
 				</span>
 			{/if}
@@ -154,11 +159,17 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	</div>
 
 	<!-- List -->
-	<div class="list-container relative flex-1 min-h-75 overflow-y-auto rounded border border-surface-500/20 bg-surface-500/50 p-2 dark:bg-surface-900/50">
+	<div
+		class="list-container relative flex-1 min-h-75 overflow-y-auto rounded border border-surface-500/20 bg-surface-500/50 p-2 dark:bg-surface-900/50"
+	>
 		{#if loading}
 			<div class="flex h-full items-center justify-center py-12" in:adminFade>
 				<div class="flex flex-col items-center gap-4">
-					<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon="line-md:loading-twotone-loop"
+						width="48"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 					<span class="text-sm font-medium animate-pulse">Fetching collection data...</span>
 				</div>
 			</div>
@@ -184,21 +195,25 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					{const idStr = id.toString()}
 					{const isSelected = selected.has(idStr)}
 					<Button variant="outline">
-						type="button"
-						class="flex w-full items-center gap-3 rounded p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus-visible:ring-2 focus-visible:ring-primary-500"
-						class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
+						type="button" class="flex w-full items-center gap-3 rounded p-3 text-start
+						transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800
+						focus-visible:ring-2 focus-visible:ring-primary-500" class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
 						class:text-white={isSelected}
 						onclick={() => toggleSelection(idStr)}
-					>
-						<div class="flex h-6 w-6 items-center justify-center rounded border border-surface-500/30 bg-white/10">
+						>
+						<div
+							class="flex h-6 w-6 items-center justify-center rounded border border-surface-500/30 bg-white/10"
+						>
 							{#if isSelected}
 								<iconify-icon icon="fa:check" width="14" transition:adminFade></iconify-icon>
 							{/if}
 						</div>
-						
+
 						<div class="flex flex-col overflow-hidden">
 							<span class="truncate font-medium">{entry[displayField] || idStr}</span>
-							<span class="truncate text-xs opacity-50 font-mono" class:text-white={isSelected}>{idStr}</span>
+							<span class="truncate text-xs opacity-50 font-mono" class:text-white={isSelected}
+								>{idStr}</span
+							>
 						</div>
 					</Button>
 				{/each}
@@ -208,18 +223,12 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 
 	<!-- Footer -->
 	<footer class="flex items-center justify-between border-t border-surface-500/20 pt-4">
-		<Button variant="outline"
-			type="button"
-			onclick={handleCancel}
-		>
+		<Button variant="outline" type="button" onclick={handleCancel}>
 			{button_cancel()}
 		</Button>
-		
+
 		<div class="flex items-center gap-3">
-			<Button variant="tertiary"
-				type="button"
-				onclick={handleSave}
-			 class="dark:">
+			<Button variant="tertiary" type="button" onclick={handleSave} class="dark:">
 				<iconify-icon icon="mdi:check" class="me-1"></iconify-icon>
 				{button_save()}
 			</Button>
@@ -231,7 +240,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	.relation-modal {
 		backdrop-filter: blur(16px);
 	}
-	
+
 	/* Smooth scrollbar for the list */
 	.list-container::-webkit-scrollbar {
 		width: 6px;

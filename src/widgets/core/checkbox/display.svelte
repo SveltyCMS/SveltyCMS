@@ -55,6 +55,12 @@ Part of the CMS widget system.
 		</svg>
 	{:else}
 		<!-- Dash for unchecked/null -->
-		<span class="select-none text-lg text-surface-400 dark:text-surface-500" aria-label="Unchecked" role="img"> − </span>
+		<span
+			class="select-none text-lg text-surface-400 dark:text-surface-500"
+			aria-label="Unchecked"
+			role="img"
+		>
+			−
+		</span>
 	{/if}
 </div>

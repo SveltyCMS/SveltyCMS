@@ -16,10 +16,10 @@ Selecting a template auto-creates the collections using the installTemplateColle
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
-	import { PRESETS } from "@src/routes/setup/presets";
-	import { toast } from "@src/stores/toast.svelte.ts";
-	import { logger } from "@utils/logger";
-	import { scale } from "svelte/transition";
+	import { PRESETS } from '@src/routes/setup/presets';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { scale } from 'svelte/transition';
 
 	interface Props {
 		close?: (result?: { installed: boolean; collections?: string[] } | null) => void;
@@ -44,37 +44,37 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 		try {
 			isSubmitting = true;
-				const { installTemplateCollections } = await import("../collectionbuilder.remote");
-				const result = await installTemplateCollections(selectedPreset);
+			const { installTemplateCollections } = await import('../collectionbuilder.remote');
+			const result = await installTemplateCollections(selectedPreset);
 
-			if ("success" in result && result.success) {
-				toast.success(result.message ?? "Collections created successfully");
+			if ('success' in result && result.success) {
+				toast.success(result.message ?? 'Collections created successfully');
 				close?.({ installed: true, collections: (result as any).collections ?? [] });
 			} else {
-				const message = (result as any).message ?? "Failed to install template";
+				const message = (result as any).message ?? 'Failed to install template';
 				toast.error(message);
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			logger.error("Quick-Start template install failed:", msg);
-			toast.error(msg || "An error occurred while installing the template");
+			logger.error('Quick-Start template install failed:', msg);
+			toast.error(msg || 'An error occurred while installing the template');
 		} finally {
 			isSubmitting = false;
 		}
 	}
 
 	function getComplexityVariant(
-		complexity: string | undefined = undefined,
-	): "tertiary" | "warning" | "error" | "surface" {
+		complexity: string | undefined = undefined
+	): 'tertiary' | 'warning' | 'error' | 'surface' {
 		switch (complexity) {
-			case "simple":
-				return "tertiary";
-			case "moderate":
-				return "warning";
-			case "advanced":
-				return "error";
+			case 'simple':
+				return 'tertiary';
+			case 'moderate':
+				return 'warning';
+			case 'advanced':
+				return 'error';
 			default:
-				return "surface";
+				return 'surface';
 		}
 	}
 </script>
@@ -82,11 +82,16 @@ Selecting a template auto-creates the collections using the installTemplateColle
 <div class="modal-quick-start space-y-5" role="dialog" aria-describedby="quick-start-desc">
 	<!-- Description -->
 	<p id="quick-start-desc" class="text-sm text-surface-600 dark:text-surface-400">
-		Choose a pre-built template to instantly create collections for your {availablePresets.length} available templates
+		Choose a pre-built template to instantly create collections for your {availablePresets.length} available
+		templates
 	</p>
 
 	<!-- Template Grid -->
-	<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label="Template selection">
+	<div
+		class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+		role="radiogroup"
+		aria-label="Template selection"
+	>
 		{#each availablePresets as preset (preset.id)}
 			{@const isSelected = selectedPreset === preset.id}
 			{@const collections = preset.collections ?? []}
@@ -97,7 +102,12 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				onclick={() => selectPreset(preset.id)}
 				onmouseenter={() => (hoveredPreset = preset.id)}
 				onmouseleave={() => (hoveredPreset = null)}
-				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPreset(preset.id); } }}
+				onkeydown={(e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						selectPreset(preset.id);
+					}
+				}}
 				class="relative flex flex-col rounded-lg border-2 p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] {isSelected
 					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/6 dark:bg-primary-500/8 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
 					: hoveredPreset === preset.id
@@ -108,40 +118,71 @@ Selecting a template auto-creates the collections using the installTemplateColle
 			>
 				<!-- Icon, Title & Selection -->
 				<div class="mb-3 flex items-start gap-2.5">
-					<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 dark:bg-primary-500/10">
-						<iconify-icon icon={preset.icon} width="20" class="text-tertiary-600 dark:text-primary-400" aria-hidden="true"></iconify-icon>
+					<div
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 dark:bg-primary-500/10"
+					>
+						<iconify-icon
+							icon={preset.icon}
+							width="20"
+							class="text-tertiary-600 dark:text-primary-400"
+							aria-hidden="true"
+						></iconify-icon>
 					</div>
 					<div class="min-w-0 flex-1">
-						<h3 class="truncate text-sm font-semibold text-surface-900 dark:text-white">{preset.title}</h3>
+						<h3 class="truncate text-sm font-semibold text-surface-900 dark:text-white">
+							{preset.title}
+						</h3>
 						<div class="mt-1 flex flex-wrap items-center gap-1.5">
 							{#if preset.recommended}
 								<Badge variant="tertiary" preset="tonal" size="sm">Recommended</Badge>
 							{/if}
 							<Badge variant={getComplexityVariant(preset.complexity)} preset="tonal" size="sm">
-								{preset.complexity ?? "moderate"}
+								{preset.complexity ?? 'moderate'}
 							</Badge>
 						</div>
 					</div>
 					{#if isSelected}
-						<iconify-icon icon="mdi:check-circle" width="22" class="shrink-0 text-tertiary-500 dark:text-primary-400" in:scale={{ duration: 150 }} aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="mdi:check-circle"
+							width="22"
+							class="shrink-0 text-tertiary-500 dark:text-primary-400"
+							in:scale={{ duration: 150 }}
+							aria-hidden="true"
+						></iconify-icon>
 					{/if}
 				</div>
 
 				<!-- Description -->
-				<p class="mb-3 text-xs leading-relaxed text-surface-600 dark:text-surface-400">{preset.description}</p>
+				<p class="mb-3 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
+					{preset.description}
+				</p>
 
 				<!-- Collections Preview -->
-				<div class="mt-auto space-y-1.5 border-t border-surface-100 pt-3 dark:border-surface-500/40">
-					<span class="text-xs font-medium text-surface-500 dark:text-surface-400">Creates {collections.length} collection{collections.length !== 1 ? 's' : ''}:</span>
+				<div
+					class="mt-auto space-y-1.5 border-t border-surface-100 pt-3 dark:border-surface-500/40"
+				>
+					<span class="text-xs font-medium text-surface-500 dark:text-surface-400"
+						>Creates {collections.length} collection{collections.length !== 1 ? 's' : ''}:</span
+					>
 					<div class="flex flex-wrap gap-1">
 						{#each collections.slice(0, 4) as col (col.name)}
-							<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-200">
-								<iconify-icon icon={col.icon} width="12" class="text-tertiary-500 dark:text-primary-400" aria-hidden="true"></iconify-icon>
+							<span
+								class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-200"
+							>
+								<iconify-icon
+									icon={col.icon}
+									width="12"
+									class="text-tertiary-500 dark:text-primary-400"
+									aria-hidden="true"
+								></iconify-icon>
 								{col.label}
 							</span>
 						{/each}
 						{#if collections.length > 4}
-							<span class="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-500 dark:bg-surface-700 dark:text-surface-400">+{collections.length - 4} more</span>
+							<span
+								class="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-500 dark:bg-surface-700 dark:text-surface-400"
+								>+{collections.length - 4} more</span
+							>
 						{/if}
 					</div>
 				</div>
@@ -150,8 +191,11 @@ Selecting a template auto-creates the collections using the installTemplateColle
 	</div>
 
 	<!-- Footer Actions -->
-	<footer class="flex items-center justify-end gap-3 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
-		<Button variant="ghost"
+	<footer
+		class="flex items-center justify-end gap-3 border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
+	>
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => close?.(null)}
 			disabled={isSubmitting}
@@ -159,14 +203,16 @@ Selecting a template auto-creates the collections using the installTemplateColle
 		>
 			Cancel
 		</Button>
-		<Button variant="tertiary"
+		<Button
+			variant="tertiary"
 			type="button"
 			onclick={handleInstall}
 			disabled={isSubmitting || !selectedPreset}
 			aria-label="Install selected template collections"
 		>
 			{#if isSubmitting}
-				<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"
+				></iconify-icon>
 				Installing...
 			{:else}
 				<iconify-icon icon="mdi:magic-staff" width="18" aria-hidden="true"></iconify-icon>

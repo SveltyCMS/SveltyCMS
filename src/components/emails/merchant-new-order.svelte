@@ -3,7 +3,16 @@
 @component Merchant new-order alert.
 -->
 <script lang="ts">
-	import { Body, Container, Head, Heading, Html, Preview, Section, Text } from '@better-svelte-email/components';
+	import {
+		Body,
+		Container,
+		Head,
+		Heading,
+		Html,
+		Preview,
+		Section,
+		Text
+	} from '@better-svelte-email/components';
 
 	interface Props {
 		orderNumber?: string;

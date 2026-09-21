@@ -38,9 +38,7 @@ Visible when `?debug=table` or `forceShow` is true.
 		forceShow?: boolean;
 	} = $props();
 
-	const show = $derived(
-		forceShow || page.url.searchParams.get('debug') === 'table'
-	);
+	const show = $derived(forceShow || page.url.searchParams.get('debug') === 'table');
 
 	// Prefer SSR prop; client-side buffer is empty unless samples were recorded in-browser
 	const summary = $derived.by((): ListMetricsSummary | null => {

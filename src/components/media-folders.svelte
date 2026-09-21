@@ -36,7 +36,7 @@ Uses the same shared TreeView as collections:
 		MEDIA_DROP_OK,
 		MEDIA_DROP_SAME,
 		moveMediaToFolder,
-		type MediaDragData,
+		type MediaDragData
 	} from '@utils/media/media-dnd';
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -67,7 +67,7 @@ Uses the same shared TreeView as collections:
 
 	/** True only while a media-gallery card (not a folder-reorder drag) is in flight */
 	const isMediaDragActive = $derived(
-		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER,
+		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
 	);
 
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -174,7 +174,7 @@ Uses the same shared TreeView as collections:
 			order: 0,
 			depth: 0,
 			children: [],
-			onClick: () => selectFolder('root'),
+			onClick: () => selectFolder('root')
 		};
 
 		if (folders.length === 0) {
@@ -215,12 +215,12 @@ Uses the same shared TreeView as collections:
 										name: f.name,
 										type: 'folder',
 										path: `/mediagallery?folderId=${f.id}`,
-										icon: 'mdi:folder-outline',
+										icon: 'mdi:folder-outline'
 									});
-								},
-							},
+								}
+							}
 						]
-					: undefined,
+					: undefined
 			});
 		});
 
@@ -280,7 +280,7 @@ Uses the same shared TreeView as collections:
 	async function reorder(
 		draggedId: string,
 		targetId: string,
-		position: 'before' | 'after' | 'inside',
+		position: 'before' | 'after' | 'inside'
 	): Promise<void> {
 		if (!isEditMode || draggedId === 'root' || draggedId === targetId) return;
 
@@ -312,7 +312,7 @@ Uses the same shared TreeView as collections:
 			.filter((f) =>
 				newParentId == null
 					? !f.parentId && f.id !== draggedId
-					: f.parentId === newParentId && f.id !== draggedId,
+					: f.parentId === newParentId && f.id !== draggedId
 			)
 			.sort((a, b) => a.order - b.order);
 
@@ -337,13 +337,13 @@ Uses the same shared TreeView as collections:
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken ?? '',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
 				},
 				body: JSON.stringify({
 					action: 'reorder',
 					parentId: newParentId,
-					orderUpdates,
-				}),
+					orderUpdates
+				})
 			});
 
 			if (!res.ok) throw new Error('Failed');
@@ -355,10 +355,7 @@ Uses the same shared TreeView as collections:
 		}
 	}
 
-	async function handleMediaFolderDrop(
-		nodeId: string,
-		state: unknown,
-	): Promise<void> {
+	async function handleMediaFolderDrop(nodeId: string, state: unknown): Promise<void> {
 		const drag = state as DragDropState<MediaDragData>;
 		const ids = drag.draggedItem?.ids ?? [];
 		if (!ids.length) {
@@ -381,7 +378,7 @@ Uses the same shared TreeView as collections:
 
 		try {
 			const moved = await moveMediaToFolder(ids, targetId, {
-				csrfToken: page.data.csrfToken,
+				csrfToken: page.data.csrfToken
 			});
 			const folderLabel =
 				nodeId === 'root'
@@ -390,7 +387,7 @@ Uses the same shared TreeView as collections:
 			toast.success(
 				moved.movedCount === 1
 					? `Moved 1 item to ${folderLabel}`
-					: `Moved ${moved.movedCount} items to ${folderLabel}`,
+					: `Moved ${moved.movedCount} items to ${folderLabel}`
 			);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Move failed';
@@ -408,7 +405,7 @@ Uses the same shared TreeView as collections:
 		isSameTarget: (nodeId) => activeFolderId === nodeId,
 		onDrop: handleMediaFolderDrop,
 		onDragEnter: onFolderDragEnter,
-		onDragLeave: onFolderDragLeave,
+		onDragLeave: onFolderDragLeave
 	}));
 
 	$effect(() => {
@@ -491,11 +488,13 @@ Uses the same shared TreeView as collections:
 	{/if}
 
 	{#if isEditMode && isSidebarFull}
-		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-600 dark:text-warning-400">
+		<div
+			class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-600 dark:text-warning-400"
+		>
 			<iconify-icon icon="bi:info-circle" width={24}></iconify-icon>
 			<p>
-				Drag folders to reorder. Drop onto the <strong>middle</strong> of a folder to nest (same as
-				collections). Use pin actions for quick access.
+				Drag folders to reorder. Drop onto the <strong>middle</strong> of a folder to nest (same as collections).
+				Use pin actions for quick access.
 			</p>
 		</div>
 	{/if}
@@ -504,7 +503,9 @@ Uses the same shared TreeView as collections:
 		{#if isLoading && folders.length === 0}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
 				<div class="flex gap-2">
-					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+					<div
+						class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500"
+					></div>
 					<div
 						class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.1s]"
 					></div>

@@ -84,7 +84,13 @@ refreshed by one mechanism: the hourly interval below.
 	const CHECK_INTERVAL_MS = 1000 * 60 * 60;
 
 	/** What the check resolved to; `loading` until the first response arrives. */
-	type CheckOutcome = 'loading' | 'current' | 'update' | 'remote-error' | 'unreachable' | 'unavailable';
+	type CheckOutcome =
+		| 'loading'
+		| 'current'
+		| 'update'
+		| 'remote-error'
+		| 'unreachable'
+		| 'unavailable';
 
 	interface CheckState {
 		error: string | null;
@@ -96,23 +102,53 @@ refreshed by one mechanism: the hourly interval below.
 	}
 
 	/** Icon, message and severity per outcome — the only per-outcome presentation data. */
-	const PRESENTATION: Record<CheckOutcome, { icon: string; message: string; severity: Severity }> = {
-		loading: { icon: 'mdi:loading', message: 'Checking for updates...', severity: 'unknown' },
-		current: { icon: 'mdi:check-circle', message: 'You are up to date', severity: 'success' },
-		update: { icon: 'mdi:information', message: 'Update available', severity: 'warning' },
-		'remote-error': { icon: 'mdi:wifi-off', message: 'Could not check for updates', severity: 'warning' },
-		unreachable: { icon: 'mdi:alert-octagon', message: 'Update check failed', severity: 'critical' },
-		unavailable: { icon: 'mdi:shield-off', message: 'Version check unavailable', severity: 'info' }
-	};
+	const PRESENTATION: Record<CheckOutcome, { icon: string; message: string; severity: Severity }> =
+		{
+			loading: { icon: 'mdi:loading', message: 'Checking for updates...', severity: 'unknown' },
+			current: { icon: 'mdi:check-circle', message: 'You are up to date', severity: 'success' },
+			update: { icon: 'mdi:information', message: 'Update available', severity: 'warning' },
+			'remote-error': {
+				icon: 'mdi:wifi-off',
+				message: 'Could not check for updates',
+				severity: 'warning'
+			},
+			unreachable: {
+				icon: 'mdi:alert-octagon',
+				message: 'Update check failed',
+				severity: 'critical'
+			},
+			unavailable: {
+				icon: 'mdi:shield-off',
+				message: 'Version check unavailable',
+				severity: 'info'
+			}
+		};
 
 	/** Rendered Badge variant, status dot and transparent-overlay classes per severity. */
-	const SEVERITY_STYLES: Record<Severity, { badge: BadgeKind; dot: string; transparent: string }> = {
-		success: { badge: 'success', dot: 'bg-tertiary-500 dark:bg-primary-500', transparent: 'bg-tertiary-500 dark:bg-primary-500/20 text-success-600 dark:text-success-400' },
-		warning: { badge: 'warning', dot: 'bg-warning-500', transparent: 'bg-warning-500/20 text-warning-600 dark:text-warning-400' },
-		critical: { badge: 'error', dot: 'bg-error-500', transparent: 'bg-error-500/20 text-black' },
-		info: { badge: 'surface', dot: 'bg-surface-500', transparent: 'bg-surface-900/10 dark:text-white' },
-		unknown: { badge: 'surface', dot: 'bg-surface-500', transparent: 'bg-surface-900/10 dark:text-white' }
-	};
+	const SEVERITY_STYLES: Record<Severity, { badge: BadgeKind; dot: string; transparent: string }> =
+		{
+			success: {
+				badge: 'success',
+				dot: 'bg-tertiary-500 dark:bg-primary-500',
+				transparent: 'bg-tertiary-500 dark:bg-primary-500/20 text-success-600 dark:text-success-400'
+			},
+			warning: {
+				badge: 'warning',
+				dot: 'bg-warning-500',
+				transparent: 'bg-warning-500/20 text-warning-600 dark:text-warning-400'
+			},
+			critical: { badge: 'error', dot: 'bg-error-500', transparent: 'bg-error-500/20 text-black' },
+			info: {
+				badge: 'surface',
+				dot: 'bg-surface-500',
+				transparent: 'bg-surface-900/10 dark:text-white'
+			},
+			unknown: {
+				badge: 'surface',
+				dot: 'bg-surface-500',
+				transparent: 'bg-surface-900/10 dark:text-white'
+			}
+		};
 
 	/** Informational fill for `VersionStatus.badgeColor`; the rendered badge uses `variant`. */
 	const SEVERITY_FILL: Record<Severity, string> = {
@@ -136,7 +172,9 @@ refreshed by one mechanism: the hourly interval below.
 	const presentation = $derived(PRESENTATION[state.outcome]);
 	const severityStyle = $derived(SEVERITY_STYLES[presentation.severity]);
 	const githubVersion = $derived(
-		state.outcome === 'update' && state.latestVersion ? state.latestVersion : state.remoteVersion || pkg
+		state.outcome === 'update' && state.latestVersion
+			? state.latestVersion
+			: state.remoteVersion || pkg
 	);
 	const isLoading = $derived(state.outcome === 'loading');
 	const versionStatusMessage = $derived(
@@ -179,10 +217,22 @@ refreshed by one mechanism: the hourly interval below.
 		const lastChecked = Date.now();
 
 		if (!data) {
-			return { error: 'No data received', lastChecked, latestVersion: null, outcome: 'unavailable', remoteVersion: null };
+			return {
+				error: 'No data received',
+				lastChecked,
+				latestVersion: null,
+				outcome: 'unavailable',
+				remoteVersion: null
+			};
 		}
 		if (data.error) {
-			return { error: data.error, lastChecked, latestVersion: null, outcome: 'remote-error', remoteVersion: data.currentVersion || null };
+			return {
+				error: data.error,
+				lastChecked,
+				latestVersion: null,
+				outcome: 'remote-error',
+				remoteVersion: data.currentVersion || null
+			};
 		}
 		return {
 			error: null,
@@ -209,7 +259,13 @@ refreshed by one mechanism: the hourly interval below.
 		} catch (err) {
 			const message = err instanceof Error ? err.message || err.name : 'Unknown error';
 			logger.debug(`[VersionCheck] Update check failed: ${message}`);
-			state = { error: message, lastChecked: Date.now(), latestVersion: null, outcome: 'unreachable', remoteVersion: null };
+			state = {
+				error: message,
+				lastChecked: Date.now(),
+				latestVersion: null,
+				outcome: 'unreachable',
+				remoteVersion: null
+			};
 		} finally {
 			if (!isLoading) onStatusChange?.(versionStatus);
 		}
@@ -242,7 +298,9 @@ refreshed by one mechanism: the hourly interval below.
 
 			{#if !isLoading && presentation.severity === 'critical'}
 				<span class="flex h-2 w-2">
-					<span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75 motion-reduce:hidden"></span>
+					<span
+						class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75 motion-reduce:hidden"
+					></span>
 					<span class="relative inline-flex h-2 w-2 rounded-full bg-error-500"></span>
 				</span>
 			{/if}
@@ -275,7 +333,8 @@ refreshed by one mechanism: the hourly interval below.
 
 				<!-- Status indicator dot (only show when check is complete) -->
 				{#if !compact && !isLoading && presentation.severity !== 'unknown'}
-					<span class="inline-block h-2 w-2 rounded-full {severityStyle.dot}" aria-hidden="true"></span>
+					<span class="inline-block h-2 w-2 rounded-full {severityStyle.dot}" aria-hidden="true"
+					></span>
 				{/if}
 			</Badge>
 		</SystemTooltip>

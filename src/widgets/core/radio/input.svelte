@@ -49,7 +49,11 @@ Renders radio group with options from field.options array
 	} = $props();
 
 	const fieldId = $derived(field.db_fieldName);
-	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
 	// Local state to bind the radio group to
 	let localValue = $state<string | number | null>(null);
@@ -61,7 +65,10 @@ Renders radio group with options from field.options array
 
 		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
 			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
-		} else if (!field.translated && (typeof parentVal === 'string' || typeof parentVal === 'number')) {
+		} else if (
+			!field.translated &&
+			(typeof parentVal === 'string' || typeof parentVal === 'number')
+		) {
 			extracted = parentVal;
 		}
 
@@ -102,7 +109,8 @@ Renders radio group with options from field.options array
 		<div class="flex flex-col gap-y-2">
 			{#each field.options || [] as option (option.value)}
 				<label class="flex items-center gap-2 text-base text-surface-600 dark:text-surface-50">
-					<input aria-label="Radio value"
+					<input
+						aria-label="Radio value"
 						type="radio"
 						name={field.db_fieldName}
 						group={localValue}
@@ -119,6 +127,8 @@ Renders radio group with options from field.options array
 	</fieldset>
 	<!-- Error message -->
 	{#if error}
-		<p id={`${fieldId}-error`} class="mt-2 text-center text-xs text-error-500" role="alert">{error}</p>
+		<p id={`${fieldId}-error`} class="mt-2 text-center text-xs text-error-500" role="alert">
+			{error}
+		</p>
 	{/if}
 </div>

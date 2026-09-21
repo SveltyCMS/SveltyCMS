@@ -41,7 +41,9 @@ Allows users to add text, arrows, rectangles, and circles to images.
 	const storeState = imageEditorStore.state;
 
 	// Ensure annotations is always an array
-	const annotations = $derived(Array.isArray(storeState.annotations) ? storeState.annotations as Annotation[] : []);
+	const annotations = $derived(
+		Array.isArray(storeState.annotations) ? (storeState.annotations as Annotation[]) : []
+	);
 
 	// Generate unique ID
 	function generateId(): string {
@@ -98,7 +100,9 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		}
 
 		storeState.annotations = annotations.map((ann) =>
-			ann.id === selectedAnnotationId && ann.type === 'text' ? { ...ann, text: text || 'Text' } : ann
+			ann.id === selectedAnnotationId && ann.type === 'text'
+				? { ...ann, text: text || 'Text' }
+				: ann
 		);
 	}
 
@@ -330,9 +334,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 			const maxY = Math.max(startPoint.y, endPoint.y);
 
 			if (currentTool === 'arrow') {
-				if (
-					Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y) < minSize
-				) {
+				if (Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y) < minSize) {
 					isDrawing = false;
 					return;
 				}
@@ -456,7 +458,10 @@ Allows users to add text, arrows, rectangles, and circles to images.
 
 		if (activeState === 'annotate') {
 			updateToolbar(isMobile, tool, stroke, fill, draft, hasSelection, selectedType);
-		} else if (!activeState && isAnnotateToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
+		} else if (
+			!activeState &&
+			isAnnotateToolbarComponent(imageEditorStore.state.toolbarControls?.component)
+		) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
@@ -518,7 +523,15 @@ Allows users to add text, arrows, rectangles, and circles to images.
 	}
 
 	// Render function
-	const renderAnnotations = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+	const renderAnnotations = ({
+		context,
+		width,
+		height
+	}: {
+		context: CanvasRenderingContext2D;
+		width: number;
+		height: number;
+	}) => {
 		const { zoom, translateX, translateY, imageElement } = storeState;
 		if (!imageElement) return;
 
@@ -579,9 +592,15 @@ Allows users to add text, arrows, rectangles, and circles to images.
 						const headLength = 15;
 						context.beginPath();
 						context.moveTo(ax2, ay2);
-						context.lineTo(ax2 - headLength * Math.cos(angle - Math.PI / 6), ay2 - headLength * Math.sin(angle - Math.PI / 6));
+						context.lineTo(
+							ax2 - headLength * Math.cos(angle - Math.PI / 6),
+							ay2 - headLength * Math.sin(angle - Math.PI / 6)
+						);
 						context.moveTo(ax2, ay2);
-						context.lineTo(ax2 - headLength * Math.cos(angle + Math.PI / 6), ay2 - headLength * Math.sin(angle + Math.PI / 6));
+						context.lineTo(
+							ax2 - headLength * Math.cos(angle + Math.PI / 6),
+							ay2 - headLength * Math.sin(angle + Math.PI / 6)
+						);
 						context.stroke();
 					}
 					break;
@@ -593,7 +612,12 @@ Allows users to add text, arrows, rectangles, and circles to images.
 				context.strokeStyle = '#3b82f6';
 				context.lineWidth = 2 / zoom;
 				if (ann.type === 'rect') {
-					context.strokeRect(ann.x! + offsetX - 5, ann.y! + offsetY - 5, ann.width! + 10, ann.height! + 10);
+					context.strokeRect(
+						ann.x! + offsetX - 5,
+						ann.y! + offsetY - 5,
+						ann.width! + 10,
+						ann.height! + 10
+					);
 				} else if (ann.type === 'circle') {
 					context.beginPath();
 					context.arc(ann.x + offsetX, ann.y + offsetY, ann.radius! + 5, 0, Math.PI * 2);
@@ -637,7 +661,12 @@ Allows users to add text, arrows, rectangles, and circles to images.
 				context.lineTo(ex, ey);
 				context.stroke();
 			} else if (currentTool === 'rectangle') {
-				context.strokeRect(Math.min(sx, ex), Math.min(sy, ey), Math.abs(ex - sx), Math.abs(ey - sy));
+				context.strokeRect(
+					Math.min(sx, ex),
+					Math.min(sy, ey),
+					Math.abs(ex - sx),
+					Math.abs(ey - sy)
+				);
 			} else if (currentTool === 'circle') {
 				const radius = Math.sqrt(Math.pow(ex - sx, 2) + Math.pow(ey - sy, 2)) / 2;
 				const cx = (sx + ex) / 2;

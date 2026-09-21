@@ -5,17 +5,17 @@
 @props {object} data - Server load data containing endpoints and collection list.
 -->
 <script lang="ts">
-	import AdminPageShell from "@components/admin-page-shell.svelte";
-	import AdminCard from "@components/admin-card.svelte";
-	import Button from "@components/ui/button.svelte";
-	import Badge from "@components/ui/badge.svelte";
-	import Input from "@components/ui/input.svelte";
-	import Textarea from "@components/ui/textarea.svelte";
-	import Select from "@components/ui/select.svelte";
-	import { toast } from "@src/stores/toast.svelte.ts";
-	import { clientJsonHeaders } from "@utils/security/client-csrf";
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
+	import Select from '@components/ui/select.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
-	import VisualQueryBuilder from "./visual-query-builder.svelte";
+	import VisualQueryBuilder from './visual-query-builder.svelte';
 
 	interface Props {
 		data: {
@@ -29,14 +29,13 @@
 
 	let { data }: Props = $props();
 
-	type Tab = "builder" | "rest" | "graphql" | "codegen";
-	let activeTab = $state<Tab>("builder");
-
+	type Tab = 'builder' | 'rest' | 'graphql' | 'codegen';
+	let activeTab = $state<Tab>('builder');
 
 	// ── REST State ──
-	let restMethod = $state<"GET" | "POST">("GET");
-	let restEndpoint = $state("/api/openapi.json");
-	let restBody = $state("");
+	let restMethod = $state<'GET' | 'POST'>('GET');
+	let restEndpoint = $state('/api/openapi.json');
+	let restBody = $state('');
 	let restLoading = $state(false);
 	let restResponse = $state<string | null>(null);
 	let restStatus = $state<number | null>(null);
@@ -55,7 +54,7 @@
   }
 }`;
 	let gqlQuery = $state(DEFAULT_GQL_QUERY);
-	let gqlVariables = $state("{}");
+	let gqlVariables = $state('{}');
 	let gqlLoading = $state(false);
 	let gqlResponse = $state<string | null>(null);
 	let gqlStatus = $state<number | null>(null);
@@ -63,8 +62,8 @@
 
 	// ── CodeGen State ──
 	let customCollection = $state<string | null>(null);
-	const selectedCollection = $derived(customCollection ?? (data.collections[0]?.id || "system"));
-	let selectedSnippetType = $state<"curl" | "typescript" | "python" | "localcms">("typescript");
+	const selectedCollection = $derived(customCollection ?? (data.collections[0]?.id || 'system'));
+	let selectedSnippetType = $state<'curl' | 'typescript' | 'python' | 'localcms'>('typescript');
 
 	async function executeRestQuery() {
 		restLoading = true;
@@ -76,9 +75,9 @@
 		try {
 			const options: RequestInit = {
 				method: restMethod,
-				headers: clientJsonHeaders(),
+				headers: clientJsonHeaders()
 			};
-			if (restMethod === "POST" && restBody.trim()) {
+			if (restMethod === 'POST' && restBody.trim()) {
 				options.body = restBody;
 			}
 			const res = await fetch(restEndpoint, options);
@@ -112,19 +111,19 @@
 				try {
 					parsedVariables = JSON.parse(gqlVariables);
 				} catch (e: unknown) {
-					toast.error("GraphQL variables must be valid JSON");
+					toast.error('GraphQL variables must be valid JSON');
 					gqlLoading = false;
 					return;
 				}
 			}
 
 			const res = await fetch(data.graphqlEndpoint, {
-				method: "POST",
+				method: 'POST',
 				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					query: gqlQuery,
-					variables: parsedVariables,
-				}),
+					variables: parsedVariables
+				})
 			});
 
 			gqlDuration = Math.round(performance.now() - t0);
@@ -141,7 +140,7 @@
 	}
 
 	function copyToClipboard(text: string, label: string) {
-		if (typeof navigator !== "undefined" && navigator.clipboard) {
+		if (typeof navigator !== 'undefined' && navigator.clipboard) {
 			navigator.clipboard.writeText(text);
 			toast.success(`${label} copied to clipboard`);
 		}
@@ -149,14 +148,14 @@
 
 	const generatedSnippet = $derived.by(() => {
 		const col = selectedCollection;
-		if (selectedSnippetType === "curl") {
+		if (selectedSnippetType === 'curl') {
 			return `# Query ${col} collection via cURL
 curl -X GET "http://localhost:5173/api/content/${col}" \\
   -H "Accept: application/json" \\
   -H "Cookie: token=YOUR_SESSION_TOKEN"`;
 		}
 
-		if (selectedSnippetType === "typescript") {
+		if (selectedSnippetType === 'typescript') {
 			return `// Fetch ${col} using modern TypeScript / fetch
 interface ApiResponse<T> {
   success: boolean;
@@ -179,7 +178,7 @@ export async function fetch${col.charAt(0).toUpperCase() + col.slice(1)}() {
 }`;
 		}
 
-		if (selectedSnippetType === "python") {
+		if (selectedSnippetType === 'python') {
 			return `# Fetch ${col} using Python requests
 import requests
 
@@ -241,32 +240,44 @@ export const load: PageServerLoad = async ({ locals }) => {
 	<div class="mb-6 flex border-b border-surface-500/20 overflow-x-auto">
 		<button
 			type="button"
-			onclick={() => (activeTab = "builder")}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab === 'builder' ? 'border-primary-500 text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
+			onclick={() => (activeTab = 'builder')}
+			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
+			'builder'
+				? 'border-primary-500 text-primary-500'
+				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
 		>
 			<iconify-icon icon="mdi:database-search-outline" width="18"></iconify-icon>
 			Visual Query Builder
 		</button>
 		<button
 			type="button"
-			onclick={() => (activeTab = "rest")}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab === 'rest' ? 'border-primary-500 text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
+			onclick={() => (activeTab = 'rest')}
+			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
+			'rest'
+				? 'border-primary-500 text-primary-500'
+				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
 		>
 			<iconify-icon icon="mdi:swap-horizontal-bold" width="18"></iconify-icon>
 			REST / OpenAPI
 		</button>
 		<button
 			type="button"
-			onclick={() => (activeTab = "graphql")}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab === 'graphql' ? 'border-primary-500 text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
+			onclick={() => (activeTab = 'graphql')}
+			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
+			'graphql'
+				? 'border-primary-500 text-primary-500'
+				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
 		>
 			<iconify-icon icon="teenyicons:graphql-solid" width="16"></iconify-icon>
 			GraphQL Console
 		</button>
 		<button
 			type="button"
-			onclick={() => (activeTab = "codegen")}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab === 'codegen' ? 'border-primary-500 text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
+			onclick={() => (activeTab = 'codegen')}
+			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
+			'codegen'
+				? 'border-primary-500 text-primary-500'
+				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
 		>
 			<iconify-icon icon="mdi:code-tags" width="18"></iconify-icon>
 			SDK & Code Snippets
@@ -274,13 +285,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	</div>
 
 	<!-- TAB 0: Visual Query Builder -->
-	{#if activeTab === "builder"}
+	{#if activeTab === 'builder'}
 		<VisualQueryBuilder collections={data.collections} />
 	{/if}
 
 	<!-- TAB 1: REST API / OpenAPI -->
-	{#if activeTab === "rest"}
-
+	{#if activeTab === 'rest'}
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Request Form -->
 			<AdminCard>
@@ -295,10 +305,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 							<Select
 								value={restMethod}
 								options={[
-									{ value: "GET", label: "GET" },
-									{ value: "POST", label: "POST" },
+									{ value: 'GET', label: 'GET' },
+									{ value: 'POST', label: 'POST' }
 								]}
-								onchange={(val: string) => (restMethod = val as "GET" | "POST")}
+								onchange={(val: string) => (restMethod = val as 'GET' | 'POST')}
 							/>
 						</div>
 						<div class="flex-1">
@@ -314,14 +324,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 						<span class="text-xs text-surface-500">Quick Presets:</span>
 						<button
 							type="button"
-							onclick={() => { restMethod = "GET"; restEndpoint = "/api/openapi.json"; }}
+							onclick={() => {
+								restMethod = 'GET';
+								restEndpoint = '/api/openapi.json';
+							}}
 							class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 						>
 							OpenAPI Spec
 						</button>
 						<button
 							type="button"
-							onclick={() => { restMethod = "GET"; restEndpoint = "/api/system/version"; }}
+							onclick={() => {
+								restMethod = 'GET';
+								restEndpoint = '/api/system/version';
+							}}
 							class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 						>
 							System Version
@@ -329,7 +345,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 						{#each data.collections.slice(0, 3) as col (col.id)}
 							<button
 								type="button"
-								onclick={() => { restMethod = "GET"; restEndpoint = `/api/content/${col.id}`; }}
+								onclick={() => {
+									restMethod = 'GET';
+									restEndpoint = `/api/content/${col.id}`;
+								}}
 								class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 							>
 								{col.name}
@@ -338,7 +357,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 
 					<!-- Request Body (for POST) -->
-					{#if restMethod === "POST"}
+					{#if restMethod === 'POST'}
 						<div class="space-y-1">
 							<label for="rest-body-input" class="block text-xs font-medium text-surface-500">
 								Request Body (JSON)
@@ -347,7 +366,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								id="rest-body-input"
 								value={restBody}
 								rows={6}
-								placeholder={"{\n  \"field\": \"value\"\n}"}
+								placeholder={'{\n  "field": "value"\n}'}
 								oninput={(e) => (restBody = (e.target as HTMLTextAreaElement).value)}
 							/>
 						</div>
@@ -374,12 +393,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<!-- Response Viewer -->
 			<AdminCard>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
-						Response
-					</h3>
+					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">Response</h3>
 					<div class="flex items-center gap-2">
 						{#if restStatus !== null}
-							<Badge variant={restStatus >= 200 && restStatus < 300 ? "success" : "error"} size="sm">
+							<Badge
+								variant={restStatus >= 200 && restStatus < 300 ? 'success' : 'error'}
+								size="sm"
+							>
 								Status: {restStatus}
 							</Badge>
 						{/if}
@@ -391,7 +411,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						{#if restResponse}
 							<button
 								type="button"
-								onclick={() => copyToClipboard(restResponse || "", "Response")}
+								onclick={() => copyToClipboard(restResponse || '', 'Response')}
 								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label="Copy response payload"
 							>
@@ -401,7 +421,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 				</div>
 
-				<div class="relative min-h-65 rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125">
+				<div
+					class="relative min-h-65 rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125"
+				>
 					{#if restLoading}
 						<div class="flex h-full min-h-55 items-center justify-center text-surface-400">
 							<iconify-icon icon="mdi:loading" width="28" class="animate-spin"></iconify-icon>
@@ -419,7 +441,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	{/if}
 
 	<!-- TAB 2: GraphQL Console -->
-	{#if activeTab === "graphql"}
+	{#if activeTab === 'graphql'}
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Query Editor -->
 			<AdminCard>
@@ -474,7 +496,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 						<Button
 							variant="secondary"
-							onclick={() => { gqlQuery = DEFAULT_GQL_QUERY; gqlVariables = "{}"; }}
+							onclick={() => {
+								gqlQuery = DEFAULT_GQL_QUERY;
+								gqlVariables = '{}';
+							}}
 						>
 							Reset Example
 						</Button>
@@ -490,7 +515,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if gqlStatus !== null}
-							<Badge variant={gqlStatus === 200 ? "success" : "error"} size="sm">
+							<Badge variant={gqlStatus === 200 ? 'success' : 'error'} size="sm">
 								Status: {gqlStatus}
 							</Badge>
 						{/if}
@@ -502,7 +527,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						{#if gqlResponse}
 							<button
 								type="button"
-								onclick={() => copyToClipboard(gqlResponse || "", "GraphQL Result")}
+								onclick={() => copyToClipboard(gqlResponse || '', 'GraphQL Result')}
 								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label="Copy GraphQL response"
 							>
@@ -512,7 +537,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 				</div>
 
-				<div class="relative min-h- rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125">
+				<div
+					class="relative min-h- rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125"
+				>
 					{#if gqlLoading}
 						<div class="flex h-full min-h- items-center justify-center text-surface-400">
 							<iconify-icon icon="mdi:loading" width="28" class="animate-spin"></iconify-icon>
@@ -530,15 +557,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	{/if}
 
 	<!-- TAB 3: Code Generator -->
-	{#if activeTab === "codegen"}
+	{#if activeTab === 'codegen'}
 		<AdminCard>
-			<div class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-500/15 pb-4">
+			<div
+				class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-500/15 pb-4"
+			>
 				<div>
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
 						Client SDK & Query Generator
 					</h3>
 					<p class="text-xs text-surface-500">
-						Copy-pasteable code examples for integrating SveltyCMS into external frontend frameworks or internal server actions.
+						Copy-pasteable code examples for integrating SveltyCMS into external frontend frameworks
+						or internal server actions.
 					</p>
 				</div>
 
@@ -554,32 +584,46 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 
 					<!-- Language Selector -->
-					<div class="flex items-center gap-1 rounded-lg border border-surface-500/20 bg-surface-500/10 p-1 dark:bg-surface-800">
+					<div
+						class="flex items-center gap-1 rounded-lg border border-surface-500/20 bg-surface-500/10 p-1 dark:bg-surface-800"
+					>
 						<button
 							type="button"
-							onclick={() => (selectedSnippetType = "typescript")}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType === 'typescript' ? 'bg-primary-500 text-white' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+							onclick={() => (selectedSnippetType = 'typescript')}
+							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
+							'typescript'
+								? 'bg-primary-500 text-white'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
 							TypeScript
 						</button>
 						<button
 							type="button"
-							onclick={() => (selectedSnippetType = "localcms")}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType === 'localcms' ? 'bg-primary-500 text-white' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+							onclick={() => (selectedSnippetType = 'localcms')}
+							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
+							'localcms'
+								? 'bg-primary-500 text-white'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
 							LocalCMS (SvelteKit)
 						</button>
 						<button
 							type="button"
-							onclick={() => (selectedSnippetType = "curl")}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType === 'curl' ? 'bg-primary-500 text-white' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+							onclick={() => (selectedSnippetType = 'curl')}
+							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
+							'curl'
+								? 'bg-primary-500 text-white'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
 							cURL
 						</button>
 						<button
 							type="button"
-							onclick={() => (selectedSnippetType = "python")}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType === 'python' ? 'bg-primary-500 text-white' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+							onclick={() => (selectedSnippetType = 'python')}
+							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
+							'python'
+								? 'bg-primary-500 text-white'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
 							Python
 						</button>
@@ -588,12 +632,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			</div>
 
 			<!-- Generated Snippet Display -->
-			<div class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100">
+			<div
+				class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100"
+			>
 				<div class="absolute top-3 inset-e-3">
 					<Button
 						variant="secondary"
 						size="sm"
-						onclick={() => copyToClipboard(generatedSnippet, "Code snippet")}
+						onclick={() => copyToClipboard(generatedSnippet, 'Code snippet')}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14" class="me-1.5"></iconify-icon>
 						Copy Code

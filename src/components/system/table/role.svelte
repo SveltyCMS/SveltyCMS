@@ -31,7 +31,8 @@
 		// Fallback: case-insensitive name match
 		if (!role) role = roles.find((r: Role) => r.name?.toLowerCase() === roleId?.toLowerCase());
 		// Fallback: partial name match (e.g. "admin" → "Administrator")
-		if (!role) role = roles.find((r: Role) => r.name?.toLowerCase().includes(roleId?.toLowerCase()));
+		if (!role)
+			role = roles.find((r: Role) => r.name?.toLowerCase().includes(roleId?.toLowerCase()));
 		return role;
 	};
 

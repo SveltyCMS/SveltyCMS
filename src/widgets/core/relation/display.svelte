@@ -26,11 +26,12 @@ Renders: "Article Title" (fetched from related entry's display field)
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import type { FieldType } from './';
 	import { fetchRelatedEntries, isHydratedRelation } from './fetch-related';
 
-	const { field, value }: { field: FieldType; value: string | string[] | null | undefined } = $props();
+	const { field, value }: { field: FieldType; value: string | string[] | null | undefined } =
+		$props();
 
 	// Local state for the resolved entry's display text.
 	let displayText = $state('Loading...');
@@ -50,7 +51,7 @@ import { logger } from "@utils/logger";
 		if (!field.collection || !field.displayField) return [];
 		try {
 			const rows = await fetchRelatedEntries(String(field.collection), ids, [
-				field.displayField as string,
+				field.displayField as string
 			]);
 			const byId = new Map(rows.map((row) => [String(row._id ?? ''), row]));
 			const labels: string[] = [];
@@ -121,10 +122,13 @@ import { logger } from "@utils/logger";
 </script>
 
 {#snippet ghostRelation()}
-	<span bind:this={elementRef} class="ghost-relation transition-opacity duration-300" class:opacity-50={!hasFetched}>
+	<span
+		bind:this={elementRef}
+		class="ghost-relation transition-opacity duration-300"
+		class:opacity-50={!hasFetched}
+	>
 		{displayText}
 	</span>
 {/snippet}
 
 {@render ghostRelation()}
-

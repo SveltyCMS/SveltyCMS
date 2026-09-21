@@ -212,22 +212,34 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			transition:scale={{ duration: prefersReducedMotion ? 0 : 300, start: 0.9 }}
 		>
 			<!-- Top text -->
-			<p id="loading-title" class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white">{loadingText.top}</p>
+			<p
+				id="loading-title"
+				class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white"
+			>
+				{loadingText.top}
+			</p>
 
 			<!-- Logo with animation -->
-			<div class="flex items-center justify-center {prefersReducedMotion ? '' : 'animate-pulse'}" aria-hidden="true">
+			<div
+				class="flex items-center justify-center {prefersReducedMotion ? '' : 'animate-pulse'}"
+				aria-hidden="true"
+			>
 				<SveltyCMSLogo className="w-16 p-1" fill="red" />
 			</div>
 
 			<!-- Bottom text -->
-			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">{loadingText.bottom}</p>
+			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">
+				{loadingText.bottom}
+			</p>
 
 			<!-- Progress bar (if available) -->
 			{#if hasProgress}
 				<div class="w-full" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<div class="mb-1 flex items-center justify-between text-xs">
 						<span class="text-gray-600 dark:text-gray-400">Progress</span>
-						<span class="font-medium text-tertiary-500 dark:text-primary-500">{Math.round(progress!)}%</span>
+						<span class="font-medium text-tertiary-500 dark:text-primary-500"
+							>{Math.round(progress!)}%</span
+						>
 					</div>
 					<div
 						class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
@@ -246,7 +258,10 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 			<!-- Elapsed time (after 3 seconds) -->
 			{#if elapsedTime > 3000}
-				<div class="text-xs text-gray-500 dark:text-gray-400" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+				<div
+					class="text-xs text-gray-500 dark:text-gray-400"
+					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+				>
 					Elapsed: {formatElapsedTime(elapsedTime)}
 				</div>
 			{/if}
@@ -254,10 +269,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			<!-- Cancel button (if cancellable) -->
 			{#if canCancel}
 				<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
-					<Button variant="error"
-						onclick={handleCancel}
-						type="button"
-					 size="sm" class="mt-2">
+					<Button variant="error" onclick={handleCancel} type="button" size="sm" class="mt-2">
 						Cancel
 					</Button>
 				</div>

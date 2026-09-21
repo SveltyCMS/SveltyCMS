@@ -10,6 +10,17 @@
   "arrowParens": "always",
   "endOfLine": "lf",
   "insertFinalNewline": true,
+  "overrides": [
+    {
+      "files": ["**/*.svelte"],
+      "options": {
+        "svelte": {},
+        "useTabs": true,
+        "singleQuote": true,
+        "trailingComma": "none"
+      }
+    }
+  ],
   "ignorePatterns": [
     "node_modules/**",
     "build/**",

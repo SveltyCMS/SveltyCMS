@@ -68,7 +68,7 @@ focus restoration.
 		offset: 12,
 		padding: 10,
 		enabled: () => open,
-		showArrow: () => arrow,
+		showArrow: () => arrow
 	});
 
 	// Click outside + Escape dismissal with focus restoration
@@ -115,8 +115,18 @@ focus restoration.
 		}
 	});
 
-	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : (typeof tabindex === 'string' ? parseInt(tabindex, 10) : tabindex)));
-	const activeRole = $derived(hasFocusableDescendant ? undefined : (role === null ? undefined : role));
+	const activeTabindex = $derived(
+		hasFocusableDescendant
+			? undefined
+			: tabindex === null
+				? undefined
+				: typeof tabindex === 'string'
+					? parseInt(tabindex, 10)
+					: tabindex
+	);
+	const activeRole = $derived(
+		hasFocusableDescendant ? undefined : role === null ? undefined : role
+	);
 
 	function toggle() {
 		open = !open;
@@ -132,12 +142,15 @@ focus restoration.
 <div
 	bind:this={referenceEl}
 	class="inline-block"
-	onclick={(e) => { e.stopPropagation(); toggle(); }}
+	onclick={(e) => {
+		e.stopPropagation();
+		toggle();
+	}}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}
 	role={activeRole}
 	tabindex={activeTabindex}
 	{...floating.triggerAria}
-	aria-haspopup={hasFocusableDescendant ? undefined : "true"}
+	aria-haspopup={hasFocusableDescendant ? undefined : 'true'}
 	aria-expanded={hasFocusableDescendant ? undefined : open}
 	{...rest}
 >

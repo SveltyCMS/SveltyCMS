@@ -41,12 +41,12 @@
 	import { maxValue, minValue, nullable, number as numberSchema, parse, pipe } from 'valibot';
 	import type { FieldType } from '.';
 
-	let { 
-		field, 
+	let {
+		field,
 		value = $bindable(),
-		error 
-	}: { 
-		field: FieldType; 
+		error
+	}: {
+		field: FieldType;
 		value?: number | Record<string, number | null> | null | undefined;
 		error?: string | null;
 	} = $props();
@@ -59,7 +59,7 @@
 		if (!inputRef) return;
 		const inst = tokenTarget(inputRef, {
 			name: fieldName,
-			label: (field.label as string),
+			label: field.label as string,
 			collection: (field as any).collection
 		});
 		return () => inst.destroy();
@@ -74,15 +74,17 @@
 
 	const numberSchemaVal = $derived.by(() => {
 		let schema: any = numberSchema('Value must be a number');
-		if (typeof field.min === 'number') schema = pipe(schema, minValue(field.min, `Min: ${field.min}`));
-		if (typeof field.max === 'number') schema = pipe(schema, maxValue(field.max, `Max: ${field.max}`));
+		if (typeof field.min === 'number')
+			schema = pipe(schema, minValue(field.min, `Min: ${field.min}`));
+		if (typeof field.max === 'number')
+			schema = pipe(schema, maxValue(field.max, `Max: ${field.max}`));
 		return field.required ? schema : nullable(schema);
 	});
 
 	function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
 		const raw = e.currentTarget.value;
 		const numeric = raw === '' ? null : parseFloat(raw);
-		
+
 		if (field.translated) {
 			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: numeric };
 		} else {
@@ -106,20 +108,25 @@
 </script>
 
 <div class="number-widget flex flex-col gap-1">
-	<div 
+	<div
 		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-500 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>
 		{#if field.prefix}
-			<span class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium">
+			<span
+				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+			>
 				{field.prefix}
 			</span>
 		{/if}
 
-		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
-			<iconify-icon icon="mdi:numeric" width="18" class="text-surface-400 me-2" aria-hidden="true"></iconify-icon>
+		<div
+			class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0"
+		>
+			<iconify-icon icon="mdi:numeric" width="18" class="text-surface-400 me-2" aria-hidden="true"
+			></iconify-icon>
 			<Input
 				bind:inputRef
 				type="number"
@@ -139,24 +146,30 @@
 		</div>
 
 		{#if field.suffix}
-			<span class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium">
+			<span
+				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+			>
 				{field.suffix}
 			</span>
 		{/if}
 
 		{#if safeValue !== null}
-			<Button variant="ghost" 
+			<Button
+				variant="ghost"
 				type="button"
 				onclick={handleClear}
 				aria-label="Clear value"
 				title="Clear"
-			 class="min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
+				class="min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100"
+			>
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</Button>
 		{/if}
 	</div>
 
 	{#if error}
-		<p id="{fieldName}-error" class="text-[10px] font-medium text-error-500 px-1" role="alert">{error}</p>
+		<p id="{fieldName}-error" class="text-[10px] font-medium text-error-500 px-1" role="alert">
+			{error}
+		</p>
 	{/if}
 </div>

@@ -5,12 +5,12 @@
 -->
 
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Identity Sync",
-	icon: "mdi:cloud-sync",
-	description: "Monitor SCIM identity synchronization status",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Identity Sync',
+		icon: 'mdi:cloud-sync',
+		description: 'Monitor SCIM identity synchronization status',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -87,158 +87,243 @@ export const widgetMeta = {
 </script>
 
 {#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
+	<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+		<div
+			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
+		>
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+				{widget_premium_extension()}
+			</h3>
+			<p class="text-xs text-surface-500 mt-1 mb-3">{widget_premium_trial_expired()}</p>
+			<a
+				href="https://marketplace.sveltycms.com"
+				target="_blank"
+				class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500"
+				>{widget_premium_upgrade_license()}</a
+			>
+		</div>
+	</BaseWidget>
+{:else}
 	<BaseWidget
 		{label}
 		{theme}
+		endpoint="/api/dashboard/scim"
+		pollInterval={15000}
 		{icon}
 		{widgetId}
 		{size}
 		{onSizeChange}
 		onCloseRequest={onRemove}
+		onDataLoaded={updateSyncHistory}
 	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">{widget_premium_extension()}</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">{widget_premium_trial_expired()}</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500">{widget_premium_upgrade_license()}</a>
-		</div>
-	</BaseWidget>
-{:else}
-<BaseWidget
-	{label}
-	{theme}
-	endpoint="/api/dashboard/scim"
-	pollInterval={15000}
-	{icon}
-	{widgetId}
-	{size}
-	{onSizeChange}
-	onCloseRequest={onRemove}
-	onDataLoaded={updateSyncHistory}
->
-	{#snippet children({ data })}
-		{const scim = data as ScimMetrics | null}
+		{#snippet children({ data })}
+			{const scim = data as ScimMetrics | null}
 
-		{#if !scim}
-			<div class="flex h-full items-center justify-center">
-				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
-					<p class="text-sm">{widget_scim_connecting()}</p>
+			{#if !scim}
+				<div class="flex h-full items-center justify-center">
+					<div class="flex flex-col items-center gap-3 text-surface-500">
+						<div
+							class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
+						></div>
+						<p class="text-sm">{widget_scim_connecting()}</p>
+					</div>
 				</div>
-			</div>
-		{:else}
-			{const points = syncHistory.map((val: number, i: number) => ({
-				x: (i / Math.max(1, syncHistory.length - 1)) * 80,
-				y: 18 - (Math.min(50, val) / 50) * 14 - 2 // Normalized trend height
-			}))}
-			{const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+			{:else}
+				{const points = syncHistory.map((val: number, i: number) => ({
+					x: (i / Math.max(1, syncHistory.length - 1)) * 80,
+					y: 18 - (Math.min(50, val) / 50) * 14 - 2 // Normalized trend height
+				}))}
+				{const linePath = points
+					.map(
+						(p: { x: number; y: number }, i: number) =>
+							`${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`
+					)
+					.join(' ')}
 
-			<div class="flex h-full flex-col justify-between" role="region" aria-label={widget_scim_stats_aria()}>
-				{#if size.h === 1}
-					<!-- Compact single-row layout -->
-					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-9">
-						<div class="flex items-center gap-2">
-							<div class="relative flex h-2.5 w-2.5">
-								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {scim.status === 'healthy' ? 'bg-success-400' : scim.status === 'degraded' ? 'bg-warning-400' : 'bg-error-400'}"></span>
-								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {scim.status === 'healthy' ? 'bg-success-500' : scim.status === 'degraded' ? 'bg-warning-500' : 'bg-error-500'}"></span>
+				<div
+					class="flex h-full flex-col justify-between"
+					role="region"
+					aria-label={widget_scim_stats_aria()}
+				>
+					{#if size.h === 1}
+						<!-- Compact single-row layout -->
+						<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-9">
+							<div class="flex items-center gap-2">
+								<div class="relative flex h-2.5 w-2.5">
+									<span
+										class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {scim.status ===
+										'healthy'
+											? 'bg-success-400'
+											: scim.status === 'degraded'
+												? 'bg-warning-400'
+												: 'bg-error-400'}"
+									></span>
+									<span
+										class="relative inline-flex rounded-full h-2.5 w-2.5 {scim.status === 'healthy'
+											? 'bg-success-500'
+											: scim.status === 'degraded'
+												? 'bg-warning-500'
+												: 'bg-error-500'}"
+									></span>
+								</div>
+								<span
+									class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy'
+										? 'text-success-600 dark:text-success-400'
+										: scim.status === 'degraded'
+											? 'text-warning-600 dark:text-warning-400'
+											: 'text-error-500'}">{scim.status}</span
+								>
 							</div>
-							<span class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy' ? 'text-success-600 dark:text-success-400' : scim.status === 'degraded' ? 'text-warning-600 dark:text-warning-400' : 'text-error-500'}">{scim.status}</span>
-						</div>
-						<div class="flex items-center gap-2 text-end">
-							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{scim.activeUsers} {widget_scim_active_users()}</span>
-							{#if scim.syncedToday > 0}
-								<span class="text-gray-400 dark:text-gray-500">{widget_scim_today({ count: scim.syncedToday })}</span>
-							{/if}
-						</div>
-					</div>
-				{:else}
-					<!-- Status Header -->
-					<div class="flex items-center gap-3">
-						<div class="relative">
-							<div class="h-4 w-4 rounded-full {scim.status === 'healthy' ? 'bg-success-500' : scim.status === 'degraded' ? 'bg-warning-500' : 'bg-error-500'}"></div>
-							<div class="absolute inset-0 h-4 w-4 rounded-full {scim.status === 'healthy' ? 'bg-success-500' : scim.status === 'degraded' ? 'bg-warning-500' : 'bg-error-500'} animate-ping opacity-75"></div>
-						</div>
-						<div>
-							<div class="text-xl font-bold capitalize {scim.status === 'healthy' ? 'text-success-600 dark:text-success-400' : scim.status === 'degraded' ? 'text-warning-600 dark:text-warning-400' : 'text-error-600'}">
-								{scim.status}
+							<div class="flex items-center gap-2 text-end">
+								<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums"
+									>{scim.activeUsers} {widget_scim_active_users()}</span
+								>
+								{#if scim.syncedToday > 0}
+									<span class="text-gray-400 dark:text-gray-500"
+										>{widget_scim_today({ count: scim.syncedToday })}</span
+									>
+								{/if}
 							</div>
-							<div class="text-xs text-surface-500 dark:text-surface-400">{widget_scim_sync_status()}</div>
 						</div>
-					</div>
+					{:else}
+						<!-- Status Header -->
+						<div class="flex items-center gap-3">
+							<div class="relative">
+								<div
+									class="h-4 w-4 rounded-full {scim.status === 'healthy'
+										? 'bg-success-500'
+										: scim.status === 'degraded'
+											? 'bg-warning-500'
+											: 'bg-error-500'}"
+								></div>
+								<div
+									class="absolute inset-0 h-4 w-4 rounded-full {scim.status === 'healthy'
+										? 'bg-success-500'
+										: scim.status === 'degraded'
+											? 'bg-warning-500'
+											: 'bg-error-500'} animate-ping opacity-75"
+								></div>
+							</div>
+							<div>
+								<div
+									class="text-xl font-bold capitalize {scim.status === 'healthy'
+										? 'text-success-600 dark:text-success-400'
+										: scim.status === 'degraded'
+											? 'text-warning-600 dark:text-warning-400'
+											: 'text-error-600'}"
+								>
+									{scim.status}
+								</div>
+								<div class="text-xs text-surface-500 dark:text-surface-400">
+									{widget_scim_sync_status()}
+								</div>
+							</div>
+						</div>
 
-					<!-- Main Stats -->
-					<div class="my-4 grid grid-cols-2 gap-3.5">
-						<div class="rounded-2xl bg-surface-500/10 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-gray-800">
-							<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
-								{scim.activeUsers}
+						<!-- Main Stats -->
+						<div class="my-4 grid grid-cols-2 gap-3.5">
+							<div
+								class="rounded-2xl bg-surface-500/10 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-gray-800"
+							>
+								<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
+									{scim.activeUsers}
+								</div>
+								<div
+									class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1"
+								>
+									{widget_scim_active_users()}
+								</div>
 							</div>
-							<div class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1">{widget_scim_active_users()}</div>
+
+							<div
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 border border-transparent dark:border-gray-800 flex flex-col justify-between items-center relative overflow-hidden"
+							>
+								<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
+									{scim.syncedToday}
+								</div>
+								<div
+									class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1"
+								>
+									{widget_scim_synced_today()}
+								</div>
+
+								<!-- Client-side mini sparkline for trend -->
+								{#if syncHistory.length > 1}
+									<div class="w-20 h-4 overflow-visible mt-1.5 opacity-80 shrink-0">
+										<svg viewBox="0 0 80 18" class="w-full h-full overflow-visible">
+											<path
+												d={linePath}
+												fill="none"
+												stroke-width="1.8"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												class={scim.status === 'healthy'
+													? 'stroke-success-500'
+													: 'stroke-warning-500'}
+											/>
+										</svg>
+									</div>
+								{/if}
+							</div>
 						</div>
 
-						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 border border-transparent dark:border-gray-800 flex flex-col justify-between items-center relative overflow-hidden">
-							<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
-								{scim.syncedToday}
+						<!-- Details -->
+						<div class="space-y-2 text-sm pt-2">
+							<div class="flex justify-between items-center py-1">
+								<span class="text-surface-500 dark:text-surface-400">{widget_scim_last_sync()}</span
+								>
+								<span
+									class="font-medium font-mono text-surface-600 dark:text-surface-400 tabular-nums"
+									>{scim.lastSync}</span
+								>
 							</div>
-							<div class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1">{widget_scim_synced_today()}</div>
+							<div
+								class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2"
+							>
+								<span class="text-surface-500 dark:text-surface-400">{widget_scim_provider()}</span>
+								<span class="font-mono text-tertiary-600 dark:text-primary-500 font-semibold"
+									>{scim.provider}</span
+								>
+							</div>
 
-							<!-- Client-side mini sparkline for trend -->
-							{#if syncHistory.length > 1}
-								<div class="w-20 h-4 overflow-visible mt-1.5 opacity-80 shrink-0">
-									<svg viewBox="0 0 80 18" class="w-full h-full overflow-visible">
-										<path
-											d={linePath}
-											fill="none"
-											stroke-width="1.8"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											class={scim.status === 'healthy' ? 'stroke-success-500' : 'stroke-warning-500'}
-										/>
-									</svg>
+							{#if scim.lastError}
+								<div
+									class="text-xs text-error-500 bg-error-500/10 dark:bg-error-900/20 p-2.5 rounded border border-error-500/30 dark:border-error-500/40 mt-1"
+								>
+									{scim.lastError}
 								</div>
 							{/if}
 						</div>
-					</div>
 
-					<!-- Details -->
-					<div class="space-y-2 text-sm pt-2">
-						<div class="flex justify-between items-center py-1">
-							<span class="text-surface-500 dark:text-surface-400">{widget_scim_last_sync()}</span>
-							<span class="font-medium font-mono text-surface-600 dark:text-surface-400 tabular-nums">{scim.lastSync}</span>
-						</div>
-						<div class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2">
-							<span class="text-surface-500 dark:text-surface-400">{widget_scim_provider()}</span>
-							<span class="font-mono text-tertiary-600 dark:text-primary-500 font-semibold">{scim.provider}</span>
-						</div>
-
-						{#if scim.lastError}
-							<div class="text-xs text-error-500 bg-error-500/10 dark:bg-error-900/20 p-2.5 rounded border border-error-500/30 dark:border-error-500/40 mt-1">
-								{scim.lastError}
+						<!-- Health Footer -->
+						<div class="mt-auto pt-3 border-t border-surface-100 dark:border-surface-500/40">
+							<div class="flex items-center gap-2 text-sm font-medium">
+								<iconify-icon
+									icon={scim.endpointsHealthy ? 'mdi:check-circle' : 'mdi:alert-circle'}
+									width={18}
+									class={scim.endpointsHealthy ? 'text-success-500' : 'text-warning-500'}
+								></iconify-icon>
+								<span
+									class={scim.endpointsHealthy
+										? 'text-success-600 dark:text-success-400'
+										: 'text-warning-600'}
+								>
+									{scim.endpointsHealthy ? widget_scim_all_healthy() : widget_scim_some_degraded()}
+								</span>
 							</div>
-						{/if}
-					</div>
-
-					<!-- Health Footer -->
-					<div class="mt-auto pt-3 border-t border-surface-100 dark:border-surface-500/40">
-						<div class="flex items-center gap-2 text-sm font-medium">
-							<iconify-icon
-								icon={scim.endpointsHealthy ? "mdi:check-circle" : "mdi:alert-circle"}
-								width={18}
-								class={scim.endpointsHealthy ? 'text-success-500' : 'text-warning-500'}
-							></iconify-icon>
-							<span class={scim.endpointsHealthy ? 'text-success-600 dark:text-success-400' : 'text-warning-600'}>
-								{scim.endpointsHealthy ? widget_scim_all_healthy() : widget_scim_some_degraded()}
-							</span>
 						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-	{/snippet}
-</BaseWidget>
+					{/if}
+				</div>
+			{/if}
+		{/snippet}
+	</BaseWidget>
 {/if}
 
 <style>
 	path {
-		transition: d 0.5s ease-in-out, stroke 0.3s;
+		transition:
+			d 0.5s ease-in-out,
+			stroke 0.3s;
 	}
 </style>

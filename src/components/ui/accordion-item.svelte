@@ -19,73 +19,76 @@
 -->
 
 <script lang="ts">
-import { getContext } from 'svelte';
-import { cn } from '@utils/cn';
-import Collapsible from './collapsible.svelte';
+	import { getContext } from 'svelte';
+	import { cn } from '@utils/cn';
+	import Collapsible from './collapsible.svelte';
 
-interface Props {
-	id?: string;
-	title: string;
-	icon?: string;
-	disabled?: boolean;
-	open?: boolean;
-	class?: string;
-	children: import('svelte').Snippet;
-}
-
-const uid = $props.id();
-let {
-	id = uid,
-	title,
-	icon,
-	disabled = false,
-	open = $bindable(false),
-	class: className,
-	children
-}: Props = $props();
-
-const context = getContext<{ activeId: string | null, setActive: (id: string | null) => void, autoclose: boolean }>('accordion');
-
-// Sync from context (parent accordion) to open state
-$effect(() => {
-	if (context && context.activeId === id) {
-		open = true;
-	} else if (context && context.autoclose && context.activeId !== id) {
-		open = false;
+	interface Props {
+		id?: string;
+		title: string;
+		icon?: string;
+		disabled?: boolean;
+		open?: boolean;
+		class?: string;
+		children: import('svelte').Snippet;
 	}
-});
 
-// Sync from open state to context (parent accordion)
-$effect(() => {
-	if (open) {
-		if (context && context.activeId !== id) {
-			context.setActive(id);
-		}
-	} else {
+	const uid = $props.id();
+	let {
+		id = uid,
+		title,
+		icon,
+		disabled = false,
+		open = $bindable(false),
+		class: className,
+		children
+	}: Props = $props();
+
+	const context = getContext<{
+		activeId: string | null;
+		setActive: (id: string | null) => void;
+		autoclose: boolean;
+	}>('accordion');
+
+	// Sync from context (parent accordion) to open state
+	$effect(() => {
 		if (context && context.activeId === id) {
-			context.setActive(null);
+			open = true;
+		} else if (context && context.autoclose && context.activeId !== id) {
+			open = false;
 		}
-	}
-});
+	});
+
+	// Sync from open state to context (parent accordion)
+	$effect(() => {
+		if (open) {
+			if (context && context.activeId !== id) {
+				context.setActive(id);
+			}
+		} else {
+			if (context && context.activeId === id) {
+				context.setActive(null);
+			}
+		}
+	});
 </script>
 
 <div class={cn('w-full', className)}>
-	<Collapsible
-		bind:open
-		{disabled}
-		class="w-full"
-	>
+	<Collapsible bind:open {disabled} class="w-full">
 		{#snippet trigger()}
 			<div
 				class={cn(
 					'flex items-center justify-between w-full p-4 text-start transition-colors focus:outline-none focus:ring-1 focus:ring-primary-500',
-					open ? 'bg-surface-500/10 dark:bg-surface-800/50' : 'hover:bg-surface-500/10 dark:hover:bg-surface-800/20',
+					open
+						? 'bg-surface-500/10 dark:bg-surface-800/50'
+						: 'hover:bg-surface-500/10 dark:hover:bg-surface-800/20',
 					disabled ? 'opacity-50 cursor-not-allowed' : ''
 				)}
 			>
 				<div class="flex items-center gap-3">
 					{#if icon}
-						<iconify-icon icon={icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon {icon} width="20" class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
 					{/if}
 					<span class="font-bold text-surface-900 dark:text-white">{title}</span>
 				</div>

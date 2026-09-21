@@ -38,7 +38,9 @@ Provides actionable information for developers and administrators.
 
 	// Log the missing widget for debugging
 	$effect(() => {
-		logger.warn(`[MissingWidget] Widget "${widgetName}" is missing for field "${fieldLabel}" (${fieldName})`);
+		logger.warn(
+			`[MissingWidget] Widget "${widgetName}" is missing for field "${fieldLabel}" (${fieldName})`
+		);
 	});
 
 	// Determine the appropriate message based on environment
@@ -52,7 +54,13 @@ Provides actionable information for developers and administrators.
 >
 	<!-- Icon and Title -->
 	<div class="mb-2 flex items-start gap-3">
-		<svg class="h-6 w-6 shrink-0 text-warning-600 dark:text-warning-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+		<svg
+			class="h-6 w-6 shrink-0 text-warning-600 dark:text-warning-400"
+			fill="none"
+			viewBox="0 0 24 24"
+			stroke="currentColor"
+			aria-hidden="true"
+		>
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -66,14 +74,17 @@ Provides actionable information for developers and administrators.
 
 			<!-- Main error message -->
 			<p class="mt-1 text-sm text-warning-600 dark:text-warning-400">
-				The widget <strong>"{widgetName}"</strong> is not available for the field <strong>"{fieldLabel}"</strong>.
+				The widget <strong>"{widgetName}"</strong> is not available for the field
+				<strong>"{fieldLabel}"</strong>.
 			</p>
 		</div>
 	</div>
 
 	<!-- Debug Information (Development Only) -->
 	{#if showDebugInfo && isDevelopment}
-		<div class="mt-3 space-y-2 rounded border border-warning-500/30 bg-warning-500/10 p-3 text-xs font-mono dark:border-warning-500/40 dark:bg-warning-900">
+		<div
+			class="mt-3 space-y-2 rounded border border-warning-500/30 bg-warning-500/10 p-3 text-xs font-mono dark:border-warning-500/40 dark:bg-warning-900"
+		>
 			<div class="flex gap-2">
 				<span class="font-semibold text-warning-600 dark:text-warning-400">Widget:</span>
 				<span class="text-warning-600 dark:text-warning-400">{widgetName}</span>
@@ -98,7 +109,11 @@ Provides actionable information for developers and administrators.
 				<span class="mt-0.5">•</span>
 				<span
 					>Check if the widget is installed and activated in
-					<a href="/config/widgetManagement" class="underline hover:text-warning-900 dark:hover:text-warning-100">Widget Management</a></span
+					<a
+						href="/config/widgetManagement"
+						class="underline hover:text-warning-900 dark:hover:text-warning-100"
+						>Widget Management</a
+					></span
 				>
 			</li>
 			<li class="flex items-start gap-2">

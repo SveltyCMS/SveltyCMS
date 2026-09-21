@@ -23,258 +23,256 @@
 -->
 
 <script lang="ts">
-import PasswordStrength from "@src/components/password-strength.svelte";
-import SiteName from "@src/components/site-name.svelte";
-// Components
-import FloatingPaths from "@src/components/system/floating-paths.svelte";
-import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
-import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@components/ui/floating-input.svelte";
-import Button from "@components/ui/button.svelte";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-// ParaglideJS
-import {
-	confirm_password,
-	email,
-	form_confirmpassword,
-	form_password,
-	form_required,
-	form_signup,
-	registration_token,
-	username,
-} from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { Form } from "@utils/form.svelte.ts";
-import { signUpFormSchema } from "@utils/schemas";
-import { logger } from "@utils/logger";
-import { browser } from "$app/env";
-import { preloadData } from "$app/navigation";
-// Stores
-import { page } from "$app/state";
-import type { PageData } from "../$types";
-import type { LoginBranding } from "@utils/theme-merge";
-import SignupIcon from "./icons/signup-icon.svelte";
-import { fade } from 'svelte/transition';
+	import PasswordStrength from '@src/components/password-strength.svelte';
+	import SiteName from '@src/components/site-name.svelte';
+	// Components
+	import FloatingPaths from '@src/components/system/floating-paths.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Button from '@components/ui/button.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	// ParaglideJS
+	import {
+		confirm_password,
+		email,
+		form_confirmpassword,
+		form_password,
+		form_required,
+		form_signup,
+		registration_token,
+		username
+	} from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { Form } from '@utils/form.svelte.ts';
+	import { signUpFormSchema } from '@utils/schemas';
+	import { logger } from '@utils/logger';
+	import { browser } from '$app/env';
+	import { preloadData } from '$app/navigation';
+	// Stores
+	import { page } from '$app/state';
+	import type { PageData } from '../$types';
+	import type { LoginBranding } from '@utils/theme-merge';
+	import SignupIcon from './icons/signup-icon.svelte';
+	import { fade } from 'svelte/transition';
 
-// Props
-const {
-	active = $bindable(undefined),
-	isInviteFlow = false,
-	token = "",
-	invitedEmail = "",
-	inviteError = "",
-	onClick = () => {},
-	onPointerEnter = () => {},
-	onBack = () => {},
-	firstCollectionPath = "",
-	branding = undefined,
-}: {
-	active?: number;
-	isInviteFlow?: boolean;
-	token?: string;
-	invitedEmail?: string;
-	inviteError?: string;
-	onClick?: () => void;
-	onPointerEnter?: () => void;
-	onBack?: () => void;
-	firstCollectionPath?: string;
-	branding?: LoginBranding;
-} = $props();
+	// Props
+	const {
+		active = $bindable(undefined),
+		isInviteFlow = false,
+		token = '',
+		invitedEmail = '',
+		inviteError = '',
+		onClick = () => {},
+		onPointerEnter = () => {},
+		onBack = () => {},
+		firstCollectionPath = '',
+		branding = undefined
+	}: {
+		active?: number;
+		isInviteFlow?: boolean;
+		token?: string;
+		invitedEmail?: string;
+		inviteError?: string;
+		onClick?: () => void;
+		onPointerEnter?: () => void;
+		onBack?: () => void;
+		firstCollectionPath?: string;
+		branding?: LoginBranding;
+	} = $props();
 
-const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCMS");
-const brandedLogin = $derived(branding?.brandedLogin ?? false);
-const brandedVariant = $derived(branding?.variant ?? "bordered");
+	const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || 'SveltyCMS');
+	const brandedLogin = $derived(branding?.brandedLogin ?? false);
+	const brandedVariant = $derived(branding?.variant ?? 'bordered');
 
-const pageData = $derived(page.data as PageData);
-const hasAdminUser = $derived(pageData?.hasAdminUser ?? false);
-const showGoogleOAuth = $derived(pageData?.showGoogleOAuth ?? false);
-const showGithubOAuth = $derived(pageData?.showGithubOAuth ?? false);
-const ssoProviders = $derived(pageData?.ssoProviders || []);
-const hasExistingOAuthUsers = $derived(pageData?.hasExistingOAuthUsers ?? false);
+	const pageData = $derived(page.data as PageData);
+	const hasAdminUser = $derived(pageData?.hasAdminUser ?? false);
+	const showGoogleOAuth = $derived(pageData?.showGoogleOAuth ?? false);
+	const showGithubOAuth = $derived(pageData?.showGithubOAuth ?? false);
+	const ssoProviders = $derived(pageData?.ssoProviders || []);
+	const hasExistingOAuthUsers = $derived(pageData?.hasExistingOAuthUsers ?? false);
 
-// isOpenSignup: true whenever demoMode is active (multiTenant OR single-tenant).
-// This is the only scenario where a registration token is not required.
-// Requires +page.server.ts load to return: isOpenSignup: !!demoMode
-const isOpenSignup = $derived(Boolean(pageData?.isOpenSignup));
+	// isOpenSignup: true whenever demoMode is active (multiTenant OR single-tenant).
+	// This is the only scenario where a registration token is not required.
+	// Requires +page.server.ts load to return: isOpenSignup: !!demoMode
+	const isOpenSignup = $derived(Boolean(pageData?.isOpenSignup));
 
-const isInteractiveCard = $derived(active === undefined);
-const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
-let formElement: HTMLFormElement | null = $state(null);
-let showPassword = $state(false);
-let isSubmitting = $state(false);
-let isRedirecting = $state(false);
+	const isInteractiveCard = $derived(active === undefined);
+	const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
+	let formElement: HTMLFormElement | null = $state(null);
+	let showPassword = $state(false);
+	let isSubmitting = $state(false);
+	let isRedirecting = $state(false);
 
-let prefetched = $state(false);
+	let prefetched = $state(false);
 
-async function prefetchFirstCollection() {
-	if (prefetched || !firstCollectionPath) {
-		return;
+	async function prefetchFirstCollection() {
+		if (prefetched || !firstCollectionPath) {
+			return;
+		}
+		prefetched = true;
+
+		try {
+			await preloadData(firstCollectionPath);
+		} catch (error) {
+			logger.error('Prefetch failed:', error);
+		}
 	}
-	prefetched = true;
 
-	try {
-		await preloadData(firstCollectionPath);
-	} catch (error) {
-		logger.error("Prefetch failed:", error);
-	}
-}
+	// Pre-calculate tab indices (removed)
 
-// Pre-calculate tab indices (removed)
+	// Form setup
+	const signUpForm = new Form(
+		{ username: '', email: '', password: '', confirm_password: '', token: '' },
+		signUpFormSchema
+	);
 
-// Form setup
-const signUpForm = new Form(
-	{ username: "", email: "", password: "", confirm_password: "", token: "" },
-	signUpFormSchema,
-);
+	async function handleSignUpSubmit(event: Event) {
+		event.preventDefault();
+		if (Object.keys(signUpForm.errors).length > 0) {
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+			}, 300);
+			return;
+		}
+		isSubmitting = true;
 
-async function handleSignUpSubmit(event: Event) {
-	event.preventDefault();
-	if (Object.keys(signUpForm.errors).length > 0) {
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-		return;
-	}
-	isSubmitting = true;
+		try {
+			const { signUp: remoteSignUp } = await import('../auth.remote');
+			const result = (await remoteSignUp({
+				email: signUpForm.data.email,
+				username: signUpForm.data.username,
+				password: signUpForm.data.password,
+				confirm_password: signUpForm.data.confirm_password,
+				token: signUpForm.data.token
+			})) as any;
 
-	try {
-		const { signUp: remoteSignUp } = await import("../auth.remote");
-		const result = (await remoteSignUp({
-			email: signUpForm.data.email,
-			username: signUpForm.data.username,
-			password: signUpForm.data.password,
-			confirm_password: signUpForm.data.confirm_password,
-			token: signUpForm.data.token
-		})) as any;
+			isSubmitting = false;
 
-		isSubmitting = false;
+			if (result.success && result.redirectPath) {
+				isRedirecting = true;
+				toast.success({
+					title: 'Account Created!',
+					description: 'Welcome to SveltyCMS. Redirecting to your dashboard...'
+				});
+				window.location.href = result.redirectPath;
+				return;
+			}
 
-		if (result.success && result.redirectPath) {
-			isRedirecting = true;
-			toast.success({
-				title: "Account Created!",
-				description: "Welcome to SveltyCMS. Redirecting to your dashboard...",
+			toast.error({
+				title: 'Sign Up Failed',
+				description: result.message || 'Failed to create account'
 			});
-			window.location.href = result.redirectPath;
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+			}, 300);
+		} catch (error: any) {
+			isSubmitting = false;
+			isRedirecting = false;
+			toast.error({
+				title: 'Sign Up Failed',
+				description: error?.message || 'An unexpected error occurred'
+			});
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+			}, 300);
+		}
+	}
+
+	// Reactive form values for easier access
+	const currentFormToken = $derived(signUpForm.data.token);
+
+	// URL parameter handling - update params when URL changes
+	const params = $derived(
+		browser ? new URL(window.location.href).searchParams : new URLSearchParams('')
+	);
+
+	// Initialize form with invite data when in invite flow
+	$effect(() => {
+		if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
+			signUpForm.data.email = invitedEmail;
+		}
+		if (isInviteFlow && token && signUpForm.data.token !== token) {
+			signUpForm.data.token = token;
+		}
+		// Handle URL parameters for invite tokens (both new and legacy formats)
+		if (browser && !isInviteFlow) {
+			const inviteToken = params.get('invite_token') || params.get('regToken');
+			if (inviteToken && inviteToken !== signUpForm.data.token) {
+				signUpForm.data.token = inviteToken;
+			}
+		}
+		// Also check if the form was pre-filled by the server (invalid token case)
+		if (browser && signUpForm.data.token && !isInviteFlow) {
+			logger.debug('Form token pre-filled by server:', signUpForm.data.token);
+		}
+	});
+
+	// Event handlers
+	function handleOAuth(provider: 'google' | 'github') {
+		// All users require invite tokens (first user goes through /setup).
+		// In open-signup demo mode (multiTenant + demoMode), OAuth is also permitted without a token.
+		if (!(isInviteFlow || isOpenSignup || hasExistingOAuthUsers || currentFormToken)) {
+			toast.error({
+				title: 'Invitation Required',
+				description:
+					'Please enter your invitation token before using Google OAuth. OAuth registration requires an invitation from an administrator.'
+			});
 			return;
 		}
 
-		toast.error({
-			title: "Sign Up Failed",
-			description: result.message || "Failed to create account",
-		});
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-	} catch (error: any) {
-		isSubmitting = false;
-		isRedirecting = false;
-		toast.error({
-			title: "Sign Up Failed",
-			description: error?.message || "An unexpected error occurred",
-		});
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-	}
-}
+		const form = document.createElement('form');
+		form.method = 'post';
 
-// Reactive form values for easier access
-const currentFormToken = $derived(signUpForm.data.token);
-
-// URL parameter handling - update params when URL changes
-const params = $derived(
-	browser
-		? new URL(window.location.href).searchParams
-		: new URLSearchParams(""),
-);
-
-// Initialize form with invite data when in invite flow
-$effect(() => {
-	if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
-		signUpForm.data.email = invitedEmail;
-	}
-	if (isInviteFlow && token && signUpForm.data.token !== token) {
-		signUpForm.data.token = token;
-	}
-	// Handle URL parameters for invite tokens (both new and legacy formats)
-	if (browser && !isInviteFlow) {
-		const inviteToken = params.get("invite_token") || params.get("regToken");
-		if (inviteToken && inviteToken !== signUpForm.data.token) {
-			signUpForm.data.token = inviteToken;
+		// Use signInOAuth action when in invite flow to preserve invite token
+		const actionBase = provider === 'github' ? '?/signInOAuthGithub' : '?/signInOAuth';
+		if (isInviteFlow && token) {
+			// Build the action URL with the invite token as a query parameter
+			form.action = `${actionBase}&invite_token=${encodeURIComponent(token)}`;
+		} else if (currentFormToken) {
+			// User has entered a token in the form, pass it along
+			form.action = `${actionBase}&invite_token=${encodeURIComponent(currentFormToken)}`;
+		} else {
+			form.action = actionBase;
 		}
-	}
-	// Also check if the form was pre-filled by the server (invalid token case)
-	if (browser && signUpForm.data.token && !isInviteFlow) {
-		logger.debug("Form token pre-filled by server:", signUpForm.data.token);
-	}
-});
 
-// Event handlers
-function handleOAuth(provider: "google" | "github") {
-	// All users require invite tokens (first user goes through /setup).
-	// In open-signup demo mode (multiTenant + demoMode), OAuth is also permitted without a token.
-	if (!(isInviteFlow || isOpenSignup || hasExistingOAuthUsers || currentFormToken)) {
-		toast.error({
-			title: "Invitation Required",
-			description:
-				"Please enter your invitation token before using Google OAuth. OAuth registration requires an invitation from an administrator.",
-		});
-		return;
+		document.body.appendChild(form);
+		form.submit();
+		document.body.removeChild(form);
 	}
 
-	const form = document.createElement("form");
-	form.method = "post";
-
-	// Use signInOAuth action when in invite flow to preserve invite token
-	const actionBase = provider === "github" ? "?/signInOAuthGithub" : "?/signInOAuth";
-	if (isInviteFlow && token) {
-		// Build the action URL with the invite token as a query parameter
-		form.action = `${actionBase}&invite_token=${encodeURIComponent(token)}`;
-	} else if (currentFormToken) {
-		// User has entered a token in the form, pass it along
-		form.action = `${actionBase}&invite_token=${encodeURIComponent(currentFormToken)}`;
-	} else {
-		form.action = actionBase;
+	function handleBack(event: Event) {
+		event.stopPropagation();
+		onBack();
 	}
 
-	document.body.appendChild(form);
-	form.submit();
-	document.body.removeChild(form);
-}
-
-function handleBack(event: Event) {
-	event.stopPropagation();
-	onBack();
-}
-
-function handlePointerEnter() {
-	onPointerEnter();
-}
-
-function handleFormClick(event: Event) {
-	event.stopPropagation();
-	onClick();
-}
-
-// Class computations
-const isActive = $derived(active === 1);
-const isInactive = $derived(active !== undefined && active !== 1);
-const isHover = $derived(active === undefined || active === 0);
-
-const baseClasses = "hover relative flex items-center overflow-y-auto";
-
-// Prefetch first collection data when active
-$effect(() => {
-	if (active === 1) {
-		prefetchFirstCollection();
+	function handlePointerEnter() {
+		onPointerEnter();
 	}
-});
+
+	function handleFormClick(event: Event) {
+		event.stopPropagation();
+		onClick();
+	}
+
+	// Class computations
+	const isActive = $derived(active === 1);
+	const isInactive = $derived(active !== undefined && active !== 1);
+	const isHover = $derived(active === undefined || active === 0);
+
+	const baseClasses = 'hover relative flex items-center overflow-y-auto';
+
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 1) {
+			prefetchFirstCollection();
+		}
+	});
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -290,7 +288,10 @@ $effect(() => {
 	class:hover={isHover}
 >
 	{#if active === 1}
-		<div transition:fade={{ duration: 250 }} class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+		<div
+			transition:fade={{ duration: 250 }}
+			class="relative flex min-h-screen w-full items-center justify-center overflow-hidden"
+		>
 			{#if screen.isDesktop}
 				<div class="absolute inset-0 z-0">
 					<FloatingPaths position={1} background="dark" mirrorAnimation />
@@ -298,16 +299,23 @@ $effect(() => {
 				</div>
 			{/if}
 			<!-- CSS Logo -->
-			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+			<div
+				class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"
+			>
 				<SveltyCMSLogoFull {siteName} />
 			</div>
 			<div
-				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin && brandedVariant === 'elevated'
+				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin &&
+				brandedVariant === 'elevated'
 					? 'bg-surface-900/95 shadow-xl border border-surface-500/40'
 					: 'bg-surface-900/0'}"
 				class:hide={active !== 1}
 			>
-				<a href="#signup-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-up form</a>
+				<a
+					href="#signup-form"
+					class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black"
+					>Skip to sign-up form</a
+				>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
 
@@ -394,7 +402,9 @@ $effect(() => {
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
 					{#if isInviteFlow}
-						<span class="text-xs text-tertiary-500 dark:text-primary-500">? Email pre-filled from invitation</span>
+						<span class="text-xs text-tertiary-500 dark:text-primary-500"
+							>? Email pre-filled from invitation</span
+						>
 					{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
@@ -444,7 +454,10 @@ $effect(() => {
 						errorMessage={signUpForm.errors.confirm_password?.[0] || ''}
 					/>
 					<!-- Password Strength Indicator -->
-					<PasswordStrength password={signUpForm.data.password} confirmPassword={signUpForm.data.confirm_password} />
+					<PasswordStrength
+						password={signUpForm.data.password}
+						confirmPassword={signUpForm.data.confirm_password}
+					/>
 
 					<!-- Registration Token
 						 Hidden in open-signup mode (demoMode). Only rendered when a token is required. -->
@@ -470,12 +483,16 @@ $effect(() => {
 							/>
 						</div>
 						{#if signUpForm.data.token && inviteError}
-							<span class="text-xs text-warning-400">Token was pre-filled from URL and will be validated against the server</span>
+							<span class="text-xs text-warning-400"
+								>Token was pre-filled from URL and will be validated against the server</span
+							>
 						{/if}
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
-						<input type="hidden" name="token" value={token}  aria-label="Input" />
-						<span class="text-xs text-tertiary-500 dark:text-primary-500">Using invitation token</span>
+						<input type="hidden" name="token" value={token} aria-label="Input" />
+						<span class="text-xs text-tertiary-500 dark:text-primary-500"
+							>Using invitation token</span
+						>
 					{/if}
 
 					{#if inviteError && !signUpForm.data.token}
@@ -516,7 +533,7 @@ $effect(() => {
 									<Button
 										type="button"
 										variant="outline"
-										onclick={() => handleOAuth("google")}
+										onclick={() => handleOAuth('google')}
 										aria-label="Google OAuth"
 										rounded={true}
 										class="w-10 h-10 p-0 flex items-center justify-center border-surface-600! hover:bg-surface-800"
@@ -529,7 +546,7 @@ $effect(() => {
 									<Button
 										type="button"
 										variant="outline"
-										onclick={() => handleOAuth("github")}
+										onclick={() => handleOAuth('github')}
 										aria-label="GitHub OAuth"
 										rounded={true}
 										class="w-10 h-10 p-0 flex items-center justify-center border-surface-600! hover:bg-surface-800 text-white"
@@ -553,10 +570,13 @@ $effect(() => {
 
 						{#if !isInviteFlow && hasAdminUser && !hasExistingOAuthUsers}
 							<p class="mt-2 text-xs text-surface-400">
-								?? Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
+								?? Note: Both email/password and Google OAuth registration require an invitation
+								token from an administrator.
 							</p>
 						{:else if !isInviteFlow && hasExistingOAuthUsers}
-							<p class="mt-2 text-xs text-surface-400">?? Note: New user registration requires an invitation token from an administrator.</p>
+							<p class="mt-2 text-xs text-surface-400">
+								?? Note: New user registration requires an invitation token from an administrator.
+							</p>
 						{/if}
 					{/if}
 				</form>
@@ -577,7 +597,9 @@ $effect(() => {
 		flex-grow: 1;
 		width: var(--width);
 		background: #242728;
-		transition: width 0.15s ease-out, border-radius 0.15s ease-out;
+		transition:
+			width 0.15s ease-out,
+			border-radius 0.15s ease-out;
 	}
 	.active {
 		--width: 90%;
@@ -612,8 +634,15 @@ $effect(() => {
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {
-		:global(.wiggle) { animation: none !important; }
-		section { transition: none !important; }
-		.hover:hover { width: var(--width) !important; border-radius: 0 !important; }
+		:global(.wiggle) {
+			animation: none !important;
+		}
+		section {
+			transition: none !important;
+		}
+		.hover:hover {
+			width: var(--width) !important;
+			border-radius: 0 !important;
+		}
 	}
 </style>

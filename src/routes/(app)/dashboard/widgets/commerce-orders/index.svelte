@@ -83,9 +83,13 @@
 	} = $props();
 
 	const isCompact = $derived(size.h === 1);
-	const trialLocked = $derived(Boolean(licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense));
+	const trialLocked = $derived(
+		Boolean(licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense)
+	);
 	const trialDays = $derived(
-		licenseStatus?.active && !licenseStatus.hasLicense && typeof licenseStatus.daysRemaining === 'number'
+		licenseStatus?.active &&
+			!licenseStatus.hasLicense &&
+			typeof licenseStatus.daysRemaining === 'number'
 			? licenseStatus.daysRemaining
 			: null
 	);
@@ -134,37 +138,59 @@
 		{#snippet children({ data })}
 			{@const payload = data as OrdersPayload | null}
 			{#if !payload}
-				<div class="flex h-full items-center justify-center text-xs text-surface-500">{widget_commerce_orders_loading()}</div>
+				<div class="flex h-full items-center justify-center text-xs text-surface-500">
+					{widget_commerce_orders_loading()}
+				</div>
 			{:else if !payload.available}
 				<div class="flex h-full flex-col items-center justify-center px-3 text-center">
 					<iconify-icon icon="mdi:cart-off" class="mb-2 text-3xl text-surface-400"></iconify-icon>
-					<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">{widget_commerce_orders_no_collection()}</p>
+					<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">
+						{widget_commerce_orders_no_collection()}
+					</p>
 					<p class="mt-1 text-[11px] text-surface-500">{widget_commerce_orders_enable_preset()}</p>
 				</div>
 			{:else if isCompact}
 				<div class="flex h-full items-center gap-3 overflow-hidden px-1">
-					<span class="text-lg font-bold tabular-nums text-surface-600 dark:text-surface-100">{payload.total}</span>
+					<span class="text-lg font-bold tabular-nums text-surface-600 dark:text-surface-100"
+						>{payload.total}</span
+					>
 					<span class="text-xs text-surface-500">{widget_commerce_orders_recent_orders()}</span>
 				</div>
 			{:else}
 				<div class="flex h-full min-h-0 flex-col gap-2">
 					{#if trialDays !== null}
-						<p class="text-[10px] text-warning-600 dark:text-warning-400">{widget_commerce_orders_trial_remaining({ count: trialDays })}</p>
+						<p class="text-[10px] text-warning-600 dark:text-warning-400">
+							{widget_commerce_orders_trial_remaining({ count: trialDays })}
+						</p>
 					{/if}
 					<div class="flex flex-wrap gap-1.5">
 						{#each Object.entries(payload.byStatus) as [status, count] (status)}
-							<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-200">
+							<span
+								class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+							>
 								<span class="h-1.5 w-1.5 rounded-full {statusClass(status)}"></span>
-								{status} {count}
+								{status}
+								{count}
 							</span>
 						{/each}
 					</div>
-					<ul class="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label={widget_commerce_orders_recent_aria()}>
+					<ul
+						class="min-h-0 flex-1 space-y-1 overflow-y-auto"
+						aria-label={widget_commerce_orders_recent_aria()}
+					>
 						{#each payload.recent as order (order.id)}
-							<li class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800/60">
+							<li
+								class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800/60"
+							>
 								<div class="min-w-0">
-									<div class="truncate font-medium text-surface-600 dark:text-surface-100">{order.orderNumber}</div>
-									<div class="truncate text-[10px] text-surface-500">{order.customerEmail || widget_commerce_orders_guest()} · {order.createdAt ? formatRelativeDate(order.createdAt) : '—'}</div>
+									<div class="truncate font-medium text-surface-600 dark:text-surface-100">
+										{order.orderNumber}
+									</div>
+									<div class="truncate text-[10px] text-surface-500">
+										{order.customerEmail || widget_commerce_orders_guest()} · {order.createdAt
+											? formatRelativeDate(order.createdAt)
+											: '—'}
+									</div>
 								</div>
 								<div class="shrink-0 text-end">
 									<div class="tabular-nums font-semibold">{formatTotal(order.total)}</div>
@@ -172,7 +198,9 @@
 								</div>
 							</li>
 						{:else}
-							<li class="py-4 text-center text-[11px] text-surface-500">{widget_commerce_orders_none()}</li>
+							<li class="py-4 text-center text-[11px] text-surface-500">
+								{widget_commerce_orders_none()}
+							</li>
 						{/each}
 					</ul>
 				</div>

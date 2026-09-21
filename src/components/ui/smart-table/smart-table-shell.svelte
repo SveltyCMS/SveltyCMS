@@ -91,7 +91,12 @@ empty/loading, and pagination stay consistent.
 	{#if loading}
 		<SmartTableLoading />
 	{:else if empty}
-		<SmartTableEmpty title={emptyTitle} description={emptyDescription} icon={emptyIcon} action={emptyAction} />
+		<SmartTableEmpty
+			title={emptyTitle}
+			description={emptyDescription}
+			icon={emptyIcon}
+			action={emptyAction}
+		/>
 	{:else if manageScroll}
 		<div class={cn(SMART_TABLE_SCROLL, scrollClass)}>
 			{@render children?.()}

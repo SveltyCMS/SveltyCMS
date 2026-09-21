@@ -15,11 +15,17 @@ Efficiently manages user data updates with validation, role selection, and delet
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// Paraglide Messages
-	import { button_cancel, button_delete, button_save, form_confirmpassword, modaleditform_newpassword } from '@src/paraglide/messages';
+	import {
+		button_cancel,
+		button_delete,
+		button_save,
+		form_confirmpassword,
+		modaleditform_newpassword
+	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { editUserSchema } from '@utils/schemas';
 	import { modalState } from '@utils/modal.svelte';
@@ -31,7 +37,11 @@ import { logger } from "@utils/logger";
 	const isFirstUser = page.data.isFirstUser;
 
 	import { Form } from '@root/src/utils/form.svelte.ts';
-	import { updateProfile, verifyPassword as verifyPw, deleteUser as deleteUserRemote } from '../user.remote';
+	import {
+		updateProfile,
+		verifyPassword as verifyPw,
+		deleteUser as deleteUserRemote
+	} from '../user.remote';
 	import { isAdmin } from '@src/databases/auth/constants';
 
 	// Props
@@ -45,7 +55,13 @@ import { logger } from "@utils/logger";
 		user_id?: string | null;
 		username?: string | null;
 	}
-	const { isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
+	const {
+		isGivenData = false,
+		username = null,
+		email = null,
+		role = null,
+		user_id = null
+	}: Props = $props();
 
 	// Store initialization
 
@@ -100,8 +116,10 @@ import { logger } from "@utils/logger";
 			changes.push('username');
 		}
 		if (!isOwnProfile && editForm.data.role !== originalData.role) {
-			const oldRole = roles?.find((r: any) => r._id === originalData.role)?.name || originalData.role;
-			const newRole = roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role;
+			const oldRole =
+				roles?.find((r: any) => r._id === originalData.role)?.name || originalData.role;
+			const newRole =
+				roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role;
 			changes.push(`role (${oldRole} → ${newRole})`);
 		}
 		if (editForm.data.password && editForm.data.password.trim() !== '') {
@@ -131,9 +149,7 @@ import { logger } from "@utils/logger";
 			// Own profile: send "self" so the API always resolves to session user
 			// (avoids stale page.data.user._id after re-seed / multi-tab races).
 			const resolvedUserId =
-				isOwnProfile || !editForm.data.user_id
-					? 'self'
-					: String(editForm.data.user_id);
+				isOwnProfile || !editForm.data.user_id ? 'self' : String(editForm.data.user_id);
 
 			const result = await updateProfile({
 				user_id: resolvedUserId,
@@ -229,7 +245,11 @@ import { logger } from "@utils/logger";
 </script>
 
 <div class="modal-example-form space-y-4 text-surface-900 dark:text-surface-100">
-	<form class="modal-form {cForm} grid grid-cols-1 gap-4" id="change_user_form" onsubmit={onFormSubmit}>
+	<form
+		class="modal-form {cForm} grid grid-cols-1 gap-4"
+		id="change_user_form"
+		onsubmit={onFormSubmit}
+	>
 		<!-- Username -->
 		<FloatingInput
 			type="text"
@@ -265,9 +285,12 @@ import { logger } from "@utils/logger";
 		<!-- Password Change Section -->
 		{#if canChangePassword}
 			{#if !isOwnProfile && user?.isAdmin}
-				<div class="mb-4 rounded bg-warning-500/10 p-3 text-sm text-warning-600 dark:bg-warning-900/20 dark:text-warning-400">
+				<div
+					class="mb-4 rounded bg-warning-500/10 p-3 text-sm text-warning-600 dark:bg-warning-900/20 dark:text-warning-400"
+				>
 					<div class="flex">
-						<iconify-icon icon="mdi:information" width={16} class="me-2 mt-0.5 shrink-0"></iconify-icon>
+						<iconify-icon icon="mdi:information" width={16} class="me-2 mt-0.5 shrink-0"
+						></iconify-icon>
 						<div>
 							<strong>Admin Password Reset:</strong>
 							You are setting a new password for this user. Leave empty to keep current password unchanged.
@@ -293,7 +316,9 @@ import { logger } from "@utils/logger";
 					}}
 					autocomplete="current-password"
 					icon="mdi:key"
-					textColor={isCurrentPasswordValidated ? 'text-tertiary-500 dark:text-primary-500' : 'text-tertiary-500 dark:text-white'}
+					textColor={isCurrentPasswordValidated
+						? 'text-tertiary-500 dark:text-primary-500'
+						: 'text-tertiary-500 dark:text-white'}
 					passwordIconColor="text-tertiary-500 dark:text-white"
 					invalid={!!editForm.errors.currentPassword?.length}
 					errorMessage={editForm.errors.currentPassword?.[0]}
@@ -301,7 +326,10 @@ import { logger } from "@utils/logger";
 			{/if}
 
 			<!-- Password field -->
-			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
+			<div
+				class:opacity-50={isOwnProfile && !isCurrentPasswordValidated}
+				class="transition-opacity duration-200"
+			>
 				<FloatingInput
 					type="security"
 					name="security"
@@ -321,7 +349,10 @@ import { logger } from "@utils/logger";
 			</div>
 
 			<!-- Password Confirm -->
-			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
+			<div
+				class:opacity-50={isOwnProfile && !isCurrentPasswordValidated}
+				class="transition-opacity duration-200"
+			>
 				<FloatingInput
 					type="security"
 					name="confirm_password"
@@ -349,68 +380,88 @@ import { logger } from "@utils/logger";
 		{/if}
 		<!-- Role Select -->
 		{#if !isOwnProfile}
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
-					<div class="flex-auto">
-						<div class="flex flex-wrap justify-center gap-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
-							{#if roles && roles.length > 0}
-								{#each roles as r (r._id)}
-									<Button
-										variant="outline"
-										type="button"
-										role="radio"
-										aria-checked={editForm.data.role === r._id}
-										tabindex={editForm.data.role === r._id ? 0 : -1}
-										class="chip {editForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
-										onclick={() => (editForm.data.role = r._id)}
-										onkeydown={(e: KeyboardEvent) => {
-											if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
-												e.preventDefault();
-												const next = (roles.indexOf(r) + 1) % roles.length;
-												editForm.data.role = roles[next]._id;
-												((e.currentTarget as HTMLElement).parentElement?.children[next] as HTMLElement).focus();
-											} else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) {
-												e.preventDefault();
-												const prev = (roles.indexOf(r) - 1 + roles.length) % roles.length;
-												editForm.data.role = roles[prev]._id;
-												((e.currentTarget as HTMLElement).parentElement?.children[prev] as HTMLElement).focus();
-											}
-										}}
-									>
-										{#if editForm.data.role === r._id}
-											<iconify-icon icon="fa:check" width={16}></iconify-icon>
-										{/if}
-										<span class="capitalize">{r.name}</span>
-									</Button>
-								{/each}
-							{/if}
-						</div>
+			<div class="flex flex-col gap-2 sm:flex-row">
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
+				<div class="flex-auto">
+					<div
+						class="flex flex-wrap justify-center gap-2 sm:justify-start"
+						role="radiogroup"
+						aria-label="Select Role"
+					>
+						{#if roles && roles.length > 0}
+							{#each roles as r (r._id)}
+								<Button
+									variant="outline"
+									type="button"
+									role="radio"
+									aria-checked={editForm.data.role === r._id}
+									tabindex={editForm.data.role === r._id ? 0 : -1}
+									class="chip {editForm.data.role === r._id
+										? 'preset-filled-tertiary-500'
+										: 'preset-ghost-secondary-500'}"
+									onclick={() => (editForm.data.role = r._id)}
+									onkeydown={(e: KeyboardEvent) => {
+										if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
+											e.preventDefault();
+											const next = (roles.indexOf(r) + 1) % roles.length;
+											editForm.data.role = roles[next]._id;
+											(
+												(e.currentTarget as HTMLElement).parentElement?.children[
+													next
+												] as HTMLElement
+											).focus();
+										} else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) {
+											e.preventDefault();
+											const prev = (roles.indexOf(r) - 1 + roles.length) % roles.length;
+											editForm.data.role = roles[prev]._id;
+											(
+												(e.currentTarget as HTMLElement).parentElement?.children[
+													prev
+												] as HTMLElement
+											).focus();
+										}
+									}}
+								>
+									{#if editForm.data.role === r._id}
+										<iconify-icon icon="fa:check" width={16}></iconify-icon>
+									{/if}
+									<span class="capitalize">{r.name}</span>
+								</Button>
+							{/each}
+						{/if}
 					</div>
 				</div>
-			{:else}
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
-					<div class="flex-auto">
-						<div class="rounded bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-							<div class="flex items-center">
-								<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
-								<div>
-									<strong>Current Role:</strong>
-									{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}
-									<br />
-									<em>You cannot change your own role for security reasons.</em>
-								</div>
+			</div>
+		{:else}
+			<div class="flex flex-col gap-2 sm:flex-row">
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
+				<div class="flex-auto">
+					<div
+						class="rounded bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+					>
+						<div class="flex items-center">
+							<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
+							<div>
+								<strong>Current Role:</strong>
+								{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}
+								<br />
+								<em>You cannot change your own role for security reasons.</em>
 							</div>
 						</div>
 					</div>
 				</div>
-			{/if}
-		</form>
+			</div>
+		{/if}
+	</form>
 
-	<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4">
+	<footer
+		class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4"
+	>
 		<div class="flex items-center gap-4">
 			<!-- Cancel -->
-			<Button variant="outline" type="button" onclick={() => modalState.close()}>{button_cancel()}</Button>
+			<Button variant="outline" type="button" onclick={() => modalState.close()}
+				>{button_cancel()}</Button
+			>
 
 			<!-- Delete User Button (only if perm allows) -->
 			{#if showDeleteButton}
@@ -422,6 +473,8 @@ import { logger } from "@utils/logger";
 		</div>
 
 		<!-- Save -->
-		<Button variant="tertiary" type="submit" form="change_user_form" class="dark:">{button_save()}</Button>
+		<Button variant="tertiary" type="submit" form="change_user_form" class="dark:"
+			>{button_save()}</Button
+		>
 	</footer>
 </div>

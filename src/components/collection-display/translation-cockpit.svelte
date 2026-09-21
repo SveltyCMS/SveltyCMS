@@ -22,12 +22,16 @@ Features:
 	import type { Locale } from '@src/paraglide/runtime';
 	import { collections, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { contentLanguage, systemLanguage, translationProgress } from '@src/stores/locale-store.svelte';
+	import {
+		contentLanguage,
+		systemLanguage,
+		translationProgress
+	} from '@src/stores/locale-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import {
 		computeDocumentTranslationSummary,
 		getStatusToken,
-		type TranslationProgressSummary,
+		type TranslationProgressSummary
 	} from '@utils/translation-analytics';
 	import { getLanguageName } from '@utils/language-utils';
 	import { applySystemLanguage, mergeSystemLanguages } from '@utils/system-locale';
@@ -44,7 +48,7 @@ Features:
 		translation_cockpit_translating,
 		translation_cockpit_jump_field,
 		translation_cockpit_all_complete,
-		translation_cockpit_missing_fields,
+		translation_cockpit_missing_fields
 	} from '@src/paraglide/messages';
 
 	interface Props {
@@ -118,7 +122,13 @@ Features:
 			const el = document.getElementById(`field-container-${fieldName}`);
 			if (el) {
 				el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-				el.classList.add('ring-4', 'ring-primary-500/50', 'rounded-xl', 'transition-all', 'duration-500');
+				el.classList.add(
+					'ring-4',
+					'ring-primary-500/50',
+					'rounded-xl',
+					'transition-all',
+					'duration-500'
+				);
 				setTimeout(() => {
 					el.classList.remove('ring-4', 'ring-primary-500/50');
 				}, 2500);
@@ -213,7 +223,9 @@ Features:
 		try {
 			const count = await translateFieldsForLocale(targetLocale);
 			if (count > 0) {
-				toast.success(`Translated ${count} field${count === 1 ? '' : 's'} into ${getLanguageName(targetLocale as Locale)}`);
+				toast.success(
+					`Translated ${count} field${count === 1 ? '' : 's'} into ${getLanguageName(targetLocale as Locale)}`
+				);
 			} else {
 				toast.info(`No missing fields with ${sourceLanguage.toUpperCase()} source text found`);
 			}
@@ -244,7 +256,9 @@ Features:
 			if (totalCount > 0) {
 				toast.success(`Completed auto-translation: ${totalCount} fields updated`);
 			} else {
-				toast.info(`No missing translations found for available ${sourceLanguage.toUpperCase()} content`);
+				toast.info(
+					`No missing translations found for available ${sourceLanguage.toUpperCase()} content`
+				);
 			}
 		} catch (err) {
 			toast.error('Global auto-translation encountered an error');
@@ -259,12 +273,17 @@ Features:
 <Modal bind:open title={translation_cockpit_title()} size="lg" color="surface">
 	<div class="space-y-6 p-1">
 		<!-- Dual-Lens Language Control Bar -->
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-surface-500/10 border border-surface-500/30">
+		<div
+			class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-surface-500/10 border border-surface-500/30"
+		>
 			<!-- Lens 1: Admin Interface (systemLanguage) -->
 			<div class="space-y-1.5">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:monitor-dashboard" class="text-primary-500" width="18"></iconify-icon>
-					<span class="text-xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+					<iconify-icon icon="mdi:monitor-dashboard" class="text-primary-500" width="18"
+					></iconify-icon>
+					<span
+						class="text-xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+					>
 						{translation_cockpit_admin_lang()}
 					</span>
 				</div>
@@ -281,7 +300,9 @@ Features:
 			<div class="space-y-1.5">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:translate" class="text-tertiary-500" width="18"></iconify-icon>
-					<span class="text-xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+					<span
+						class="text-xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+					>
 						{translation_cockpit_source_lang()}
 					</span>
 				</div>
@@ -309,7 +330,8 @@ Features:
 						{translation_cockpit_content_readiness()}
 					</h4>
 					<p class="text-xs text-surface-600 dark:text-surface-400">
-						Tracking {summary.translatableFieldsCount} translatable fields across {activeLocales.length} active languages.
+						Tracking {summary.translatableFieldsCount} translatable fields across {activeLocales.length}
+						active languages.
 					</p>
 				</div>
 			</div>
@@ -345,8 +367,11 @@ Features:
 
 		<!-- Live Translation Status Notification -->
 		{#if isBatchTranslating}
-			<div class="p-3 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center gap-2.5 text-xs font-medium text-primary-600 dark:text-primary-400 animate-pulse">
-				<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500 shrink-0" width="18"></iconify-icon>
+			<div
+				class="p-3 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center gap-2.5 text-xs font-medium text-primary-600 dark:text-primary-400 animate-pulse"
+			>
+				<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500 shrink-0" width="18"
+				></iconify-icon>
 				<span>{translationStatusText || translation_cockpit_translating()}</span>
 			</div>
 		{/if}
@@ -399,7 +424,9 @@ Features:
 									</div>
 									<div class="text-xs text-surface-600 dark:text-surface-400">
 										{#if missing.length === 0}
-											<span class="text-success-500 font-medium">{translation_cockpit_all_complete()}</span>
+											<span class="text-success-500 font-medium"
+												>{translation_cockpit_all_complete()}</span
+											>
 										{:else}
 											<span class="text-surface-600 dark:text-surface-400">
 												{translation_cockpit_missing_fields({ count: missing.length })}
@@ -421,7 +448,8 @@ Features:
 										onclick={() => handleAutoTranslateLanguage(locale)}
 									>
 										{#if isThisTranslating}
-											<iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
+											<iconify-icon icon="mdi:loading" class="animate-spin" width="14"
+											></iconify-icon>
 										{:else}
 											<iconify-icon icon="mdi:auto-fix" width="14"></iconify-icon>
 										{/if}
@@ -457,7 +485,8 @@ Features:
 										aria-label="{translation_cockpit_jump_field()} {fieldName}"
 									>
 										<span>{fieldName}</span>
-										<iconify-icon icon="mdi:arrow-top-right" width="10" aria-hidden="true"></iconify-icon>
+										<iconify-icon icon="mdi:arrow-top-right" width="10" aria-hidden="true"
+										></iconify-icon>
 									</button>
 								{/each}
 							</div>

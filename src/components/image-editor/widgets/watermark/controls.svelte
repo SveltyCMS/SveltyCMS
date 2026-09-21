@@ -5,40 +5,40 @@ Pintura-style watermark bottom dock controls.
 -->
 <script lang="ts">
 	let {
-			onAddImage,
-			onAddText,
-			onDeleteWatermark,
-			onPositionChange,
-			onOpacityChange,
-			onSizeChange,
-			onTileToggle,
-			hasSelection,
-			selectedType = null,
-			textDraft = 'Watermark',
-			onTextDraftChange,
-			onApplyText,
-			currentOpacity = 0.8,
-			currentSize = 100,
-			isTiled = false,
-			watermarkCount = 0
-		}: {
-			onAddImage: () => void;
-			onAddText?: () => void;
-			onDeleteWatermark: () => void;
-			onPositionChange: (position: string) => void;
-			onOpacityChange?: (opacity: number) => void;
-			onSizeChange?: (size: number) => void;
-			onTileToggle?: () => void;
-			hasSelection: boolean;
-			selectedType?: 'text' | 'image' | null;
-			textDraft?: string;
-			onTextDraftChange?: (value: string) => void;
-			onApplyText?: () => void;
-			currentOpacity?: number;
-			currentSize?: number;
-			isTiled?: boolean;
-			watermarkCount?: number;
-		} = $props();
+		onAddImage,
+		onAddText,
+		onDeleteWatermark,
+		onPositionChange,
+		onOpacityChange,
+		onSizeChange,
+		onTileToggle,
+		hasSelection,
+		selectedType = null,
+		textDraft = 'Watermark',
+		onTextDraftChange,
+		onApplyText,
+		currentOpacity = 0.8,
+		currentSize = 100,
+		isTiled = false,
+		watermarkCount = 0
+	}: {
+		onAddImage: () => void;
+		onAddText?: () => void;
+		onDeleteWatermark: () => void;
+		onPositionChange: (position: string) => void;
+		onOpacityChange?: (opacity: number) => void;
+		onSizeChange?: (size: number) => void;
+		onTileToggle?: () => void;
+		hasSelection: boolean;
+		selectedType?: 'text' | 'image' | null;
+		textDraft?: string;
+		onTextDraftChange?: (value: string) => void;
+		onApplyText?: () => void;
+		currentOpacity?: number;
+		currentSize?: number;
+		isTiled?: boolean;
+		watermarkCount?: number;
+	} = $props();
 
 	const positions = [
 		{ label: '↖', value: 'northwest', title: 'Top Left' },
@@ -94,22 +94,40 @@ Pintura-style watermark bottom dock controls.
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Watermark controls">
-	<div class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
-		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onAddImage} title="Add image watermark (I)">
+<div
+	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
+	role="toolbar"
+	aria-label="Watermark controls"
+>
+	<div
+		class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+	>
+		<button
+			type="button"
+			class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+			onclick={onAddImage}
+			title="Add image watermark (I)"
+		>
 			<iconify-icon icon="mdi:image-plus" width="15" aria-hidden="true"></iconify-icon>
 			<span>Add image</span>
 		</button>
 
 		{#if onAddText}
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onAddText} title="Add text watermark (T)">
+			<button
+				type="button"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				onclick={onAddText}
+				title="Add text watermark (T)"
+			>
 				<iconify-icon icon="mdi:text-box-plus" width="15" aria-hidden="true"></iconify-icon>
 				<span>Add text</span>
 			</button>
 		{/if}
 
 		{#if watermarkCount > 0}
-			<span class="text-[9px] font-semibold text-[rgba(255,255,255,0.45)]">{watermarkCount} active</span>
+			<span class="text-[9px] font-semibold text-[rgba(255,255,255,0.45)]"
+				>{watermarkCount} active</span
+			>
 		{/if}
 
 		{#if hasSelection}
@@ -127,9 +145,15 @@ Pintura-style watermark bottom dock controls.
 	</div>
 
 	{#if selectedType === 'text' && onTextDraftChange}
-		<div class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
-			<label class="text-[11px] font-normal text-[rgba(255,255,255,0.45)] lowercase" for="watermark-text">text</label>
-			<input aria-label="Opacity"
+		<div
+			class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+		>
+			<label
+				class="text-[11px] font-normal text-[rgba(255,255,255,0.45)] lowercase"
+				for="watermark-text">text</label
+			>
+			<input
+				aria-label="Opacity"
 				id="watermark-text"
 				type="text"
 				class="h-7 px-2 text-[11px] font-medium text-white bg-white/6 border border-white/10 rounded-md outline-none focus:border-white/25 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [[type=number]]:[-moz-appearance:textfield] [[type=number]]:[appearance:textfield] min-w-40 flex-1"
@@ -137,16 +161,24 @@ Pintura-style watermark bottom dock controls.
 				placeholder="Watermark text"
 				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
 			/>
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium whitespace-nowrap cursor-pointer rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35 text-white bg-white/10 border-white/[0.14]" onclick={onApplyText || (() => undefined)}>
+			<button
+				type="button"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium whitespace-nowrap cursor-pointer rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35 text-white bg-white/10 border-white/[0.14]"
+				onclick={onApplyText || (() => undefined)}
+			>
 				Apply
 			</button>
 		</div>
 	{/if}
 
 	{#if hasSelection}
-		<div class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+		<div
+			class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+		>
 			<span class="text-[11px] font-normal text-[rgba(255,255,255,0.45)] lowercase">position</span>
-			<div class="flex-[0_0_auto] grid grid-cols-3 gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-lg">
+			<div
+				class="flex-[0_0_auto] grid grid-cols-3 gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-lg"
+			>
 				{#each positions as pos (pos.value)}
 					<button
 						type="button"
@@ -162,15 +194,22 @@ Pintura-style watermark bottom dock controls.
 		</div>
 
 		{#if onOpacityChange || onSizeChange || onTileToggle}
-			<div class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+			<div
+				class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+			>
 				{#if onOpacityChange}
 					<div class="flex flex-col gap-1 w-full flex-[1_1_10rem] max-w-64 mx-0">
 						<div class="flex items-center justify-between">
-							<span class="text-[11px] font-normal text-[rgba(255,255,255,0.45)] lowercase">opacity</span>
-							<span class="min-w-8 text-xs font-medium text-end text-white">{Math.round(currentOpacity * 100)}%</span>
+							<span class="text-[11px] font-normal text-[rgba(255,255,255,0.45)] lowercase"
+								>opacity</span
+							>
+							<span class="min-w-8 text-xs font-medium text-end text-white"
+								>{Math.round(currentOpacity * 100)}%</span
+							>
 						</div>
 						<div class="flex gap-2.5 items-center">
-							<input aria-label="Scale"
+							<input
+								aria-label="Scale"
 								type="range"
 								min="0"
 								max="1"

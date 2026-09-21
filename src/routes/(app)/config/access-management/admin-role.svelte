@@ -18,98 +18,95 @@ It provides functionality to:
 -->
 
 <script lang="ts">
-// Types
-import type { Role } from "@src/databases/auth/types";
-// Components
-import { toast } from "@src/stores/toast.svelte.ts";
-import { showConfirm } from "@utils/modal.svelte";
-import { tick } from "svelte";
+	// Types
+	import type { Role } from '@src/databases/auth/types';
+	// Components
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { showConfirm } from '@utils/modal.svelte';
+	import { tick } from 'svelte';
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
 
-const { roleData, setRoleData } = $props();
+	const { roleData, setRoleData } = $props();
 
-// Reactive state
-const error = $state(null);
-let currentAdminRole: string | null = $state(null);
-let currentAdminName: string | null = $state(null);
-let isSaving = $state(false);
-let notification: string | null = $state(null); // Explicitly type as string | null
-let selectedAdminRole: string = $state('');
+	// Reactive state
+	const error = $state(null);
+	let currentAdminRole: string | null = $state(null);
+	let currentAdminName: string | null = $state(null);
+	let isSaving = $state(false);
+	let notification: string | null = $state(null); // Explicitly type as string | null
+	let selectedAdminRole: string = $state('');
 
-// Derived state for computed values
-const availableRoles = $derived(
-	roleData.filter((role: Role) => role._id !== currentAdminRole),
-);
-const adminRoleOptions = $derived(
-	availableRoles.map((role: Role) => ({
-		value: role._id,
-		label: role.name,
-	})),
-);
-const hasChanges = $derived(selectedAdminRole !== currentAdminRole);
+	// Derived state for computed values
+	const availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));
+	const adminRoleOptions = $derived(
+		availableRoles.map((role: Role) => ({
+			value: role._id,
+			label: role.name
+		}))
+	);
+	const hasChanges = $derived(selectedAdminRole !== currentAdminRole);
 
-// Initialize component data (run once)
-$effect(() => {
-	// Only initialize if data hasn't been loaded yet
-	if (!currentAdminRole && roleData.length > 0) {
-		const currentAdmin = roleData.find((role: Role) => role.isAdmin === true);
-		if (currentAdmin) {
-			currentAdminRole = currentAdmin._id;
-			currentAdminName = currentAdmin.name;
-			selectedAdminRole = currentAdmin._id;
-		}
-	}
-});
-
-// Function to save the new admin role
-const saveAdminRole = async () => {
-	const newRole = roleData.find((r: Role) => r._id === selectedAdminRole);
-	const newRoleName = newRole?.name || selectedAdminRole;
-
-	showConfirm({
-		title: "Change Administrator Role",
-		body: `Are you sure you want to change the Administrator Role to "${newRoleName}"? This is a critical security action that will change who has full system access.`,
-		onConfirm: async () => {
-			try {
-				isSaving = true;
-				notification = null;
-
-				// Ensure DOM updates before save process begins
-				await tick();
-
-				currentAdminRole = selectedAdminRole;
-				try {
-					const result = roleData.map((cur: Role) => {
-						if (cur._id === selectedAdminRole) {
-							currentAdminName = cur.name;
-							return { ...cur, isAdmin: true };
-						}
-						if (cur.isAdmin === true) {
-							return { ...cur, isAdmin: false };
-						}
-						return cur;
-					});
-					setRoleData(result);
-				} catch (_error) {
-					toast.error("Network error occurred while updating config file");
-				}
-				notification =
-					'Admin role changed. Click "Save" at the top to apply changes.';
-				toast.success("Admin role updated locally.");
-			} catch (err) {
-				notification = `Failed to save admin role: ${err instanceof Error ? err.message : String(err)}`;
-			} finally {
-				isSaving = false;
+	// Initialize component data (run once)
+	$effect(() => {
+		// Only initialize if data hasn't been loaded yet
+		if (!currentAdminRole && roleData.length > 0) {
+			const currentAdmin = roleData.find((role: Role) => role.isAdmin === true);
+			if (currentAdmin) {
+				currentAdminRole = currentAdmin._id;
+				currentAdminName = currentAdmin.name;
+				selectedAdminRole = currentAdmin._id;
 			}
-		},
+		}
 	});
-};
 
-// Function to cancel changes and reset the selected role to the current admin role
-const cancelChanges = () => {
-	selectedAdminRole = currentAdminRole ?? '';
-};
+	// Function to save the new admin role
+	const saveAdminRole = async () => {
+		const newRole = roleData.find((r: Role) => r._id === selectedAdminRole);
+		const newRoleName = newRole?.name || selectedAdminRole;
+
+		showConfirm({
+			title: 'Change Administrator Role',
+			body: `Are you sure you want to change the Administrator Role to "${newRoleName}"? This is a critical security action that will change who has full system access.`,
+			onConfirm: async () => {
+				try {
+					isSaving = true;
+					notification = null;
+
+					// Ensure DOM updates before save process begins
+					await tick();
+
+					currentAdminRole = selectedAdminRole;
+					try {
+						const result = roleData.map((cur: Role) => {
+							if (cur._id === selectedAdminRole) {
+								currentAdminName = cur.name;
+								return { ...cur, isAdmin: true };
+							}
+							if (cur.isAdmin === true) {
+								return { ...cur, isAdmin: false };
+							}
+							return cur;
+						});
+						setRoleData(result);
+					} catch (_error) {
+						toast.error('Network error occurred while updating config file');
+					}
+					notification = 'Admin role changed. Click "Save" at the top to apply changes.';
+					toast.success('Admin role updated locally.');
+				} catch (err) {
+					notification = `Failed to save admin role: ${err instanceof Error ? err.message : String(err)}`;
+				} finally {
+					isSaving = false;
+				}
+			}
+		});
+	};
+
+	// Function to cancel changes and reset the selected role to the current admin role
+	const cancelChanges = () => {
+		selectedAdminRole = currentAdminRole ?? '';
+	};
 </script>
 
 {#if error}
@@ -117,12 +114,15 @@ const cancelChanges = () => {
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>
 	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
-		Please select a new role for the administrator from the dropdown below. Your changes will take effect after you click "Save Changes".
+		Please select a new role for the administrator from the dropdown below. Your changes will take
+		effect after you click "Save Changes".
 	</p>
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-start">
-			Current Admin Role: <span class="ms-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
+			Current Admin Role: <span class="ms-2 text-tertiary-500 dark:text-primary-500"
+				>{currentAdminName}</span
+			>
 		</p>
 
 		<!-- Dropdown to select admin role -->
@@ -137,7 +137,9 @@ const cancelChanges = () => {
 		{#if hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-start">
-				Selected Admin Role ID: <span class="ms-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
+				Selected Admin Role ID: <span class="ms-2 text-tertiary-500 dark:text-primary-500"
+					>{selectedAdminRole}</span
+				>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->

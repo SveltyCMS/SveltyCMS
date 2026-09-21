@@ -38,11 +38,18 @@
 </script>
 
 <!-- CSS Logo - Removed <a> tag to prevent navigation interference -->
-<div class="absolute inset-s-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+<div
+	class="absolute inset-s-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
+>
 	<!--White Inner Background -->
 	<div class="relative flex h-42.5 w-42.5 items-center justify-center rounded-full bg-white">
 		<!-- Red circle -->
-		<svg aria-hidden="true" width="160" height="160" class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg
+			aria-hidden="true"
+			width="160"
+			height="160"
+			class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform"
+		>
 			<circle
 				cx="80"
 				cy="80"
@@ -67,7 +74,12 @@
 		</svg>
 
 		<!-- Black circle -->
-		<svg aria-hidden="true" width="170" height="170" class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg
+			aria-hidden="true"
+			width="170"
+			height="170"
+			class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform"
+		>
 			<circle
 				cx="85"
 				cy="85"
@@ -90,12 +102,16 @@
 			/>
 		</svg>
 
-		<div class="absolute inset-s-1/2 top-17.5 flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
+		<div
+			class="absolute inset-s-1/2 top-17.5 flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center"
+		>
 			<!-- Logo -->
 			<Logo fill="red" className="w-14 h-14" />
 
 			<!-- PUBLIC SITENAME -->
-			<div class="-mt-2 text-3xl font-bold"><SiteName {siteName} highlight="CMS" textClass="text-black" /></div>
+			<div class="-mt-2 text-3xl font-bold">
+				<SiteName {siteName} highlight="CMS" textClass="text-black" />
+			</div>
 			<!-- Slogan -->
 			<div class="-mt-px text-[13px] font-bold text-surface-500">{slogan}</div>
 		</div>

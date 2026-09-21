@@ -44,7 +44,9 @@ Trigger and Content components. Supports fluid width and onValueChange callback.
 	}: Props = $props();
 
 	setContext<TabsContext>('TABS_CONTEXT', {
-		get value() { return value; },
+		get value() {
+			return value;
+		},
 		setTab: (val) => {
 			value = val;
 			onValueChange?.({ value: val });
@@ -52,6 +54,6 @@ Trigger and Content components. Supports fluid width and onValueChange callback.
 	});
 </script>
 
-<div class={cn("tabs-container flex flex-col", className, fluid && "w-full")}>
+<div class={cn('tabs-container flex flex-col', className, fluid && 'w-full')}>
 	{@render children?.()}
 </div>

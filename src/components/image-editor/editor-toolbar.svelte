@@ -58,14 +58,18 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<header class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-[--editor-chrome-bg] border-b border-[--editor-chrome-border]" role="toolbar" aria-label="Image editor">
+<header
+	class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-[--editor-chrome-bg] border-b border-[--editor-chrome-border]"
+	role="toolbar"
+	aria-label="Image editor"
+>
 	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-[--editor-control-h]">
 		<div class="flex gap-1.5 items-center justify-self-start">
 			<Slot name="image_editor_tool" inline />
 			<button
-					type="button"
-					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
-					class:editor-toolbar-solo-btn-active={isComparing}
+				type="button"
+				class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
+				class:editor-toolbar-solo-btn-active={isComparing}
 				onclick={toggleCompare}
 				title="Compare before / after"
 				aria-pressed={isComparing}
@@ -76,7 +80,9 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 		</div>
 
 		<div class="flex gap-1.5 items-center justify-self-center">
-			<div class="inline-flex gap-0.5 items-center px-0.75 py-0.5 rounded-full border border-[--editor-chrome-border] bg-[--editor-chrome-elevated]">
+			<div
+				class="inline-flex gap-0.5 items-center px-0.75 py-0.5 rounded-full border border-[--editor-chrome-border] bg-[--editor-chrome-elevated]"
+			>
 				<button
 					type="button"
 					class="inline-flex items-center justify-center size-[--editor-control-h] p-0 text-[--editor-chrome-text] cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-[--editor-chrome-text-hover] hover:not-disabled:bg-white/8 disabled:cursor-not-allowed disabled:opacity-28"
@@ -100,9 +106,17 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					<iconify-icon icon="mdi:redo" width="18" aria-hidden="true"></iconify-icon>
 				</button>
 
-				<div class="editor-toolbar-divider shrink-0 w-px h-5 mx-0.5 bg-[--editor-chrome-border]" aria-hidden="true"></div>
+				<div
+					class="editor-toolbar-divider shrink-0 w-px h-5 mx-0.5 bg-[--editor-chrome-border]"
+					aria-hidden="true"
+				></div>
 
-				<div class="zoom-pill inline-flex items-center overflow-hidden bg-transparent border-none rounded-full" style="height:calc(var(--editor-control-h, 2.25rem) - 0.25rem)" role="group" aria-label="Zoom controls">
+				<div
+					class="zoom-pill inline-flex items-center overflow-hidden bg-transparent border-none rounded-full"
+					style="height:calc(var(--editor-control-h, 2.25rem) - 0.25rem)"
+					role="group"
+					aria-label="Zoom controls"
+				>
 					<button
 						type="button"
 						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-active] hover:bg-white/8 hover:rounded-full"
@@ -148,7 +162,8 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				aria-keyshortcuts="Mod+S"
 			>
 				{#if isSaving}
-					<iconify-icon icon="mdi:loading" width="16" class="animate-spin" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:loading" width="16" class="animate-spin" aria-hidden="true"
+					></iconify-icon>
 				{/if}
 				<span>Done</span>
 			</button>
@@ -157,15 +172,15 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 	{#if imageEditorStore.state.error}
 		<div
-				class="editor-toolbar-error absolute inset-s-1/2 top-[calc(100%+0.375rem)] z-50 flex gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-[rgba(220,38,38,0.94)] rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.35)] -translate-x-1/2"
+			class="editor-toolbar-error absolute inset-s-1/2 top-[calc(100%+0.375rem)] z-50 flex gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-[rgba(220,38,38,0.94)] rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.35)] -translate-x-1/2"
 			transition:fade={{ duration: 200 }}
 			role="alert"
 		>
 			<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
 			<span>{imageEditorStore.state.error}</span>
 			<button
-					type="button"
-					class="editor-toolbar-error-dismiss inline-flex p-0.5 text-inherit cursor-pointer bg-transparent border-none rounded-full opacity-85 hover:opacity-100 hover:bg-white/15"
+				type="button"
+				class="editor-toolbar-error-dismiss inline-flex p-0.5 text-inherit cursor-pointer bg-transparent border-none rounded-full opacity-85 hover:opacity-100 hover:bg-white/15"
 				onclick={() => imageEditorStore.setError(null)}
 				aria-label="Dismiss error"
 			>

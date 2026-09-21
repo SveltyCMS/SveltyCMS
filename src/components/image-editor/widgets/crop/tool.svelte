@@ -39,7 +39,10 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 			updateToolbar(viewportWidth < imageEditorStore.mobileBreakpoint, shape);
 		} else {
 			lastCropActive = false;
-			if (!activeState && isCropToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
+			if (
+				!activeState &&
+				isCropToolbarComponent(imageEditorStore.state.toolbarControls?.component)
+			) {
 				imageEditorStore.setToolbarControls(null);
 			}
 		}
@@ -539,7 +542,8 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 
 		return handles.find(
 			(h) =>
-				Math.abs(h.hx - screenX) <= handleHitRadius() && Math.abs(h.hy - screenY) <= handleHitRadius()
+				Math.abs(h.hx - screenX) <= handleHitRadius() &&
+				Math.abs(h.hy - screenY) <= handleHitRadius()
 		);
 	}
 
@@ -630,7 +634,15 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 		isPanningImage = false;
 	}
 
-	const renderCropUI = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+	const renderCropUI = ({
+		context,
+		width,
+		height
+	}: {
+		context: CanvasRenderingContext2D;
+		width: number;
+		height: number;
+	}) => {
 		if (imageEditorStore.state.activeState !== 'crop' || !storeState.imageElement) {
 			return;
 		}

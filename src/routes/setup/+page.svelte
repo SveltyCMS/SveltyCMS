@@ -67,7 +67,13 @@
 	let { data: _data } = $props();
 	// Stores
 	const wizard = setupStore.wizard;
-	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, completeSetup } = setupStore;
+	const {
+		load: loadStore,
+		clear: clearStore,
+		setupPersistence: setupPersistenceFn,
+		validateStep,
+		completeSetup
+	} = setupStore;
 
 	// --- 1. COMPONENT IMPORTS ---
 	let showDbPassword = $state(false);
@@ -158,12 +164,14 @@
 		return JSON.stringify(wizard) !== initialDataSnapshot;
 	});
 	const systemLanguages = $derived.by(() => {
-		return mergeSystemLanguages(wizard.systemSettings.systemLanguages, availableLocales).sort((a: string, b: string) =>
-			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
+		return mergeSystemLanguages(wizard.systemSettings.systemLanguages, availableLocales).sort(
+			(a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
 		);
 	});
 	const isFullUri = $derived(() => {
-		return wizard.dbConfig.host.includes('mongodb://') || wizard.dbConfig.host.includes('mongodb+srv://');
+		return (
+			wizard.dbConfig.host.includes('mongodb://') || wizard.dbConfig.host.includes('mongodb+srv://')
+		);
 	});
 
 	// STEPPER CONFIG
@@ -206,7 +214,11 @@
 
 	async function nextStep() {
 		if (!setupStore.canProceed) {
-			if (wizard.currentStep === 2 && wizard.systemSettings.useRedis && !setupStore.wizard.redisTestPassed) {
+			if (
+				wizard.currentStep === 2 &&
+				wizard.systemSettings.useRedis &&
+				!setupStore.wizard.redisTestPassed
+			) {
 				import('@src/stores/toast.svelte.ts').then(({ toast }) => {
 					toast.error('Please test your Redis connection before proceeding.');
 				});
@@ -220,7 +232,10 @@
 			// Seeding is now triggered automatically by the store when the test passes.
 			// If it's already in progress or done, we just move to the next step.
 		}
-		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) {
+		if (
+			(wizard.currentStep === 1 || wizard.currentStep === 2) &&
+			!validateStep(wizard.currentStep, true)
+		) {
 			return;
 		}
 		if (wizard.currentStep < totalSteps - 1) {
@@ -283,7 +298,9 @@
 
 	<div class="flex min-h-0 flex-1 overflow-clip">
 		<!-- Left Sidebar: shared Stepper + legend (desktop) -->
-		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-(--admin-border-default) bg-(--admin-bg-card) lg:flex xl:w-72">
+		<aside
+			class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-(--admin-border-default) bg-(--admin-bg-card) lg:flex xl:w-72"
+		>
 			<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-4">
 				<div class="min-h-0 flex-1 overflow-x-hidden pe-1">
 					<Stepper
@@ -296,8 +313,12 @@
 						onStepClick={selectSetupStep}
 					/>
 				</div>
-				<div class="mt-auto shrink-0 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
-					<h4 class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-surface-600 dark:text-surface-400">
+				<div
+					class="mt-auto shrink-0 border-t border-surface-500/30 pt-6 dark:border-surface-500/40"
+				>
+					<h4
+						class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-surface-600 dark:text-surface-400"
+					>
 						Legend
 					</h4>
 					<div class="flex items-end justify-between gap-4">
@@ -328,9 +349,13 @@
 			 Redis / multi-tenant expand scrolls inside step-content and cannot reflow
 			 the navigation. overflow-clip (not hidden) so browser focus-scrolling
 			 can never drag the footer. -->
-		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip bg-surface-500/10 dark:bg-surface-900">
+		<main
+			class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip bg-surface-500/10 dark:bg-surface-900"
+		>
 			<!-- Mobile Stepper (shared UI Stepper) -->
-			<div class="z-10 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card) p-4 lg:hidden">
+			<div
+				class="z-10 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card) p-4 lg:hidden"
+			>
 				<Stepper
 					{steps}
 					currentStep={wizard.currentStep}
@@ -366,158 +391,233 @@
 						/>
 					</div>
 
-				{#key wizard.currentStep}
-					<div
-						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-6 shadow-sm"
-						in:adminPage={{ duration: 200, rise: 6 }}
-					>
-						{#if wizard.currentStep === 0}
-							<DatabaseConfig
-								bind:dbConfig={wizard.dbConfig}
-								validationErrors={wizard.validationErrors}
-								isLoading={wizard.isLoading}
-								bind:showDbPassword
-								toggleDbPassword={() => (showDbPassword = !showDbPassword)}
-								testDatabaseConnection={setupStore.testDatabaseConnection}
-								dbConfigChangedSinceTest={setupStore.dbConfigChangedSinceTest}
-								clearDbTestError={() => {
-									wizard.lastDbTestResult = null;
-									wizard.errorMessage = '';
-								}}
-								bind:this={dbConfigComponent}
-							/>
-						{:else if wizard.currentStep === 1}
-							<AdminConfig
-								bind:adminUser={wizard.adminUser}
-								validationErrors={wizard.validationErrors}
-								passwordRequirements={setupStore.passwordRequirements}
-								checkPasswordRequirements={() => {
-									/* now handled by derived rune */
-								}}
-								onnext={nextStep}
-							/>
-						{:else if wizard.currentStep === 2}
-							<SystemConfig
-								bind:systemSettings={wizard.systemSettings}
-								redisAvailable={wizard.redisAvailable}
-								validationErrors={wizard.validationErrors}
-							/>
-						{:else if wizard.currentStep === 3}
-							<EmailConfig />
-						{:else if wizard.currentStep === 4}
-							<ReviewConfig
-								dbConfig={wizard.dbConfig}
-								adminUser={wizard.adminUser}
-								systemSettings={wizard.systemSettings}
-								emailSettings={wizard.emailSettings}
-							/>
-						{/if}
+					{#key wizard.currentStep}
+						<div
+							class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-6 shadow-sm"
+							in:adminPage={{ duration: 200, rise: 6 }}
+						>
+							{#if wizard.currentStep === 0}
+								<DatabaseConfig
+									bind:dbConfig={wizard.dbConfig}
+									validationErrors={wizard.validationErrors}
+									isLoading={wizard.isLoading}
+									bind:showDbPassword
+									toggleDbPassword={() => (showDbPassword = !showDbPassword)}
+									testDatabaseConnection={setupStore.testDatabaseConnection}
+									dbConfigChangedSinceTest={setupStore.dbConfigChangedSinceTest}
+									clearDbTestError={() => {
+										wizard.lastDbTestResult = null;
+										wizard.errorMessage = '';
+									}}
+									bind:this={dbConfigComponent}
+								/>
+							{:else if wizard.currentStep === 1}
+								<AdminConfig
+									bind:adminUser={wizard.adminUser}
+									validationErrors={wizard.validationErrors}
+									passwordRequirements={setupStore.passwordRequirements}
+									checkPasswordRequirements={() => {
+										/* now handled by derived rune */
+									}}
+									onnext={nextStep}
+								/>
+							{:else if wizard.currentStep === 2}
+								<SystemConfig
+									bind:systemSettings={wizard.systemSettings}
+									redisAvailable={wizard.redisAvailable}
+									validationErrors={wizard.validationErrors}
+								/>
+							{:else if wizard.currentStep === 3}
+								<EmailConfig />
+							{:else if wizard.currentStep === 4}
+								<ReviewConfig
+									dbConfig={wizard.dbConfig}
+									adminUser={wizard.adminUser}
+									systemSettings={wizard.systemSettings}
+									emailSettings={wizard.emailSettings}
+								/>
+							{/if}
 
-						{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
-							<div
-								class="mt-6 flex flex-col rounded border-s-4 p-0 text-sm overflow-hidden"
-								class:border-primary-500={!!wizard.successMessage}
-								class:border-error-500={!!wizard.errorMessage}
-								aria-live="polite"
-								aria-atomic="true"
-							>
+							{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
 								<div
-									class="flex items-center gap-2 px-4 py-3 {wizard.successMessage
-										? 'bg-success-500/10 text-primary-600 dark:text-primary-400'
-										: ''} {wizard.errorMessage
-										? 'bg-error-500/10 text-error-600 dark:text-error-400'
-										: ''}"
+									class="mt-6 flex flex-col rounded border-s-4 p-0 text-sm overflow-hidden"
+									class:border-primary-500={!!wizard.successMessage}
+									class:border-error-500={!!wizard.errorMessage}
+									aria-live="polite"
+									aria-atomic="true"
 								>
-									<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										{#if wizard.successMessage}
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-										{:else}
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-										{/if}
-									</svg>
-									<div class="flex-1">
-										{#if wizard.errorMessage}
-											<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{wizard.errorMessage}</span>{/if}
-										{:else}
-											{wizard.successMessage}
-										{/if}
-									</div>
-									<div class="flex gap-2">
-										<Button variant="outline"
-											type="button"
-											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
-										 size="sm" class="text-surface-900 dark:text-surface-50 flex items-center gap-1">
-											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
-											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
-										</Button>
-										<Button variant="outline"
+									<div
+										class="flex items-center gap-2 px-4 py-3 {wizard.successMessage
+											? 'bg-success-500/10 text-primary-600 dark:text-primary-400'
+											: ''} {wizard.errorMessage
+											? 'bg-error-500/10 text-error-600 dark:text-error-400'
+											: ''}"
+									>
+										<svg
+											class="h-5 w-5 shrink-0"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											{#if wizard.successMessage}
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M5 13l4 4L19 7"
+												/>
+											{:else}
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+												/>
+											{/if}
+										</svg>
+										<div class="flex-1">
+											{#if wizard.errorMessage}
+												<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span
+														class="font-normal">{wizard.errorMessage}</span
+													>{/if}
+											{:else}
+												{wizard.successMessage}
+											{/if}
+										</div>
+										<div class="flex gap-2">
+											<Button
+												variant="outline"
+												type="button"
+												onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
+												size="sm"
+												class="text-surface-900 dark:text-surface-50 flex items-center gap-1"
+											>
+												<iconify-icon
+													icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+													class="h-4 w-4"
+												></iconify-icon>
+												<span class="hidden sm:inline"
+													>{wizard.showDbDetails
+														? setup_db_test_details_hide()
+														: setup_db_test_details_show()}</span
+												>
+											</Button>
+											<Button
+												variant="outline"
 												type="button"
 												aria-label="Close message"
 												onclick={setupStore.clearDbTestError}
 												rounded
-											 size="sm" class="p-0! min-w-0 h-7 w-7">
-											<iconify-icon icon="mdi:close" size="16" class="dark:text-white"></iconify-icon>
-										</Button>
+												size="sm"
+												class="p-0! min-w-0 h-7 w-7"
+											>
+												<iconify-icon icon="mdi:close" size="16" class="dark:text-white"
+												></iconify-icon>
+											</Button>
+										</div>
 									</div>
-								</div>
-								{#if wizard.showDbDetails && wizard.lastDbTestResult}
-									<div class="border-t border-surface-500/30 bg-secondary-500/50 text-xs dark:border-surface-500/40 dark:bg-surface-900/50">
-										<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
-											<div class="flex flex-col">
-												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
-											</div>
-											<div class="flex flex-col">
-												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{setup_db_test_engine()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.type}</span>
-											</div>
-											<div class="flex flex-col">
-												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_host()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span>
-											</div>
-											{#if !isFullUri}
+									{#if wizard.showDbDetails && wizard.lastDbTestResult}
+										<div
+											class="border-t border-surface-500/30 bg-secondary-500/50 text-xs dark:border-surface-500/40 dark:bg-surface-900/50"
+										>
+											<div
+												class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6"
+											>
 												<div class="flex flex-col">
-													<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_port()}:</span>
-													<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.port}</span>
+													<span
+														class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+														>{setup_db_test_latency()}:</span
+													>
+													<span class="text-tertiary-500 dark:text-primary-500 font-bold"
+														>{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span
+													>
 												</div>
-											{/if}
-											<div class="flex flex-col">
-												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_database()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span>
-											</div>
-											{#if wizard.dbConfig.user}
 												<div class="flex flex-col">
-													<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_user?.() || setup_db_test_user()}:</span>
-													<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span>
+													<span
+														class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+														>{setup_db_test_engine()}:</span
+													>
+													<span class="text-tertiary-500 dark:text-primary-500 font-bold"
+														>{wizard.dbConfig.type}</span
+													>
+												</div>
+												<div class="flex flex-col">
+													<span
+														class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+														>{label_host()}:</span
+													>
+													<span
+														class="text-tertiary-500 dark:text-primary-500 font-bold truncate"
+														title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span
+													>
+												</div>
+												{#if !isFullUri}
+													<div class="flex flex-col">
+														<span
+															class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+															>{label_port()}:</span
+														>
+														<span class="text-tertiary-500 dark:text-primary-500 font-bold"
+															>{wizard.dbConfig.port}</span
+														>
+													</div>
+												{/if}
+												<div class="flex flex-col">
+													<span
+														class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+														>{label_database()}:</span
+													>
+													<span
+														class="text-tertiary-500 dark:text-primary-500 font-bold truncate"
+														title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span
+													>
+												</div>
+												{#if wizard.dbConfig.user}
+													<div class="flex flex-col">
+														<span
+															class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+															>{label_user?.() || setup_db_test_user()}:</span
+														>
+														<span
+															class="text-tertiary-500 dark:text-primary-500 font-bold truncate"
+															title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span
+														>
+													</div>
+												{/if}
+											</div>
+											{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
+												<div
+													class="border-t border-surface-500/30 p-4 dark:border-surface-500/40 bg-warning-500/30 dark:bg-warning-900/10"
+												>
+													<div
+														class="flex items-center gap-2 font-bold text-warning-600 dark:text-warning-400 mb-2"
+													>
+														<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"
+														></iconify-icon>
+														<span class="uppercase tracking-widest text-[10px]"
+															>Troubleshooting Suggestions</span
+														>
+													</div>
+													<div class="space-y-2">
+														{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
+															<div class="flex gap-2 text-surface-600 dark:text-surface-400">
+																<span class="shrink-0 text-warning-500">•</span>
+																<span>{step.replace(/^\d+\.\s*/, '')}</span>
+															</div>
+														{/each}
+													</div>
 												</div>
 											{/if}
 										</div>
-										{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
-											<div class="border-t border-surface-500/30 p-4 dark:border-surface-500/40 bg-warning-500/30 dark:bg-warning-900/10">
-												<div class="flex items-center gap-2 font-bold text-warning-600 dark:text-warning-400 mb-2">
-													<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
-													<span class="uppercase tracking-widest text-[10px]">Troubleshooting Suggestions</span>
-												</div>
-												<div class="space-y-2">
-													{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
-														<div class="flex gap-2 text-surface-600 dark:text-surface-400">
-															<span class="shrink-0 text-warning-500">•</span>
-															<span>{step.replace(/^\d+\.\s*/, '')}</span>
-														</div>
-													{/each}
-												</div>
-											</div>
-										{/if}
-									</div>
-								{/if}
-							</div>
-						{/if}
+									{/if}
+								</div>
+							{/if}
 						</div>
 					{/key}
-					</div>
 				</div>
+			</div>
 
-				<!-- Navigation Footer — in-flow flex child (shrink-0). The step content
+			<!-- Navigation Footer — in-flow flex child (shrink-0). The step content
 					 above is the only scroll container, so expand/collapse (Redis,
 					 multi-tenant) can never reflow or reposition the navigation.
 					 An absolute footer here was dragged by <main>'s focus-scroll

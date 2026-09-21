@@ -18,7 +18,11 @@
 
 	let { field, value = $bindable(), error }: Props = $props();
 
-	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
 	// Local state to bind the select to
 	let localValue = $state<string>('');
@@ -48,7 +52,10 @@
 		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
 			const raw = (parentVal as Record<string, any>)[LANGUAGE];
 			extracted = raw == null ? '' : String(raw);
-		} else if (!field.translated && (typeof parentVal === 'string' || typeof parentVal === 'number')) {
+		} else if (
+			!field.translated &&
+			(typeof parentVal === 'string' || typeof parentVal === 'number')
+		) {
 			extracted = String(parentVal);
 		}
 

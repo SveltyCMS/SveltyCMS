@@ -23,7 +23,12 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 <script lang="ts">
 	// Settings helper
 
-	import { login_Happy_Holi, login_happy_diwali, login_happy_navratri, login_new_year } from '@src/paraglide/messages';
+	import {
+		login_Happy_Holi,
+		login_happy_diwali,
+		login_happy_navratri,
+		login_new_year
+	} from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Svelte 5 reactive Date
 	import { SvelteDate } from 'svelte/reactivity';
@@ -41,7 +46,12 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		const T = k / 1236.85;
 
 		// New moon time (simplified Meeus formula)
-		const JDE = 2_451_550.097_66 + 29.530_588_861 * k + 0.000_154_37 * T * T - 0.000_000_15 * T * T * T + 0.000_000_000_73 * T * T * T * T;
+		const JDE =
+			2_451_550.097_66 +
+			29.530_588_861 * k +
+			0.000_154_37 * T * T -
+			0.000_000_15 * T * T * T +
+			0.000_000_000_73 * T * T * T * T;
 
 		// Convert back to Gregorian date
 		const jd = Math.floor(JDE + 0.5);
@@ -101,7 +111,11 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		approxDate.setDate(cny.getDate() + 29.53 * 7.5);
 
 		// Find nearest full moon
-		return findFullMoonNear(approxDate.getFullYear(), approxDate.getMonth() + 1, approxDate.getDate());
+		return findFullMoonNear(
+			approxDate.getFullYear(),
+			approxDate.getMonth() + 1,
+			approxDate.getDate()
+		);
 	}
 
 	// =====================================================================
@@ -224,17 +238,29 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	let isValentine = $derived(currentDate.getMonth() === 1 && currentDate.getDate() === 14);
 	let isMayDay = $derived(currentDate.getMonth() === 4 && currentDate.getDate() === 1);
 	let isHalloween = $derived(currentDate.getMonth() === 9 && currentDate.getDate() === 31);
-	let isChristmas = $derived(currentDate.getMonth() === 11 && (currentDate.getDate() === 24 || currentDate.getDate() === 25));
+	let isChristmas = $derived(
+		currentDate.getMonth() === 11 && (currentDate.getDate() === 24 || currentDate.getDate() === 25)
+	);
 
 	// Calculated festivals (with tolerance windows)
 	let isEaster = $derived(isDateInRange(currentDate, easterSunday, eastertideEndDate));
-	let isChineseNewYear = $derived(Math.abs(currentDate.getTime() - chineseNewYear.getTime()) < 3 * 24 * 60 * 60 * 1000); // 3 days
-	let isMidAutumnFestival = $derived(currentDate.toDateString() === midAutumnFestival.toDateString());
-	let isDragonBoatFestival = $derived(currentDate.toDateString() === dragonBoatFestival.toDateString());
+	let isChineseNewYear = $derived(
+		Math.abs(currentDate.getTime() - chineseNewYear.getTime()) < 3 * 24 * 60 * 60 * 1000
+	); // 3 days
+	let isMidAutumnFestival = $derived(
+		currentDate.toDateString() === midAutumnFestival.toDateString()
+	);
+	let isDragonBoatFestival = $derived(
+		currentDate.toDateString() === dragonBoatFestival.toDateString()
+	);
 	let isCherryBlossom = $derived(isCherryBlossomSeason(currentDate));
-	let isDiwali = $derived(Math.abs(currentDate.getTime() - diwali.getTime()) < 5 * 24 * 60 * 60 * 1000); // 5 days
+	let isDiwali = $derived(
+		Math.abs(currentDate.getTime() - diwali.getTime()) < 5 * 24 * 60 * 60 * 1000
+	); // 5 days
 	let isHoli = $derived(Math.abs(currentDate.getTime() - holi.getTime()) < 2 * 24 * 60 * 60 * 1000); // 2 days
-	let isNavratri = $derived(Math.abs(currentDate.getTime() - navratri.getTime()) < 9 * 24 * 60 * 60 * 1000); // 9 days
+	let isNavratri = $derived(
+		Math.abs(currentDate.getTime() - navratri.getTime()) < 9 * 24 * 60 * 60 * 1000
+	); // 9 days
 
 	// Settings
 	let seasonsEnabled = $derived(publicEnv.SEASONS === true);
@@ -252,11 +278,15 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<!-- New Year with Confetti -->
 			<div class="pointer-events-none fixed inset-0 z-50 flex justify-center"></div>
 
-			<p class="absolute -top-28 inset-s-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500">
+			<p
+				class="absolute -top-28 inset-s-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500"
+			>
 				{login_new_year()}
 			</p>
 
-			<p class="absolute inset-s-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-5xl font-bold text-error-500">
+			<p
+				class="absolute inset-s-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-5xl font-bold text-error-500"
+			>
 				{currentDate.getFullYear()}
 			</p>
 		{/if}
@@ -264,11 +294,21 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isValentine}
 			<!-- Valentine's Day -->
 			<div class="absolute -top-28 inset-s-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="mdi:heart" width="40" class="absolute -inset-s-15 -top-2.5 text-error-600"></iconify-icon>
-				<iconify-icon icon="mdi:cards-heart" width="40" class="absolute -inset-e-15 -top-5 text-pink-500"></iconify-icon>
+				<iconify-icon
+					icon="mdi:heart"
+					width="40"
+					class="absolute -inset-s-15 -top-2.5 text-error-600"
+				></iconify-icon>
+				<iconify-icon
+					icon="mdi:cards-heart"
+					width="40"
+					class="absolute -inset-e-15 -top-5 text-pink-500"
+				></iconify-icon>
 			</div>
 
-			<p class="absolute inset-s-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-pink-500">
+			<p
+				class="absolute inset-s-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-pink-500"
+			>
 				Happy Valentine's Day
 			</p>
 		{/if}
@@ -276,30 +316,60 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isEaster}
 			<!-- Easter -->
 			<div class="absolute -top-24 inset-s-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-4.5 inset-e-2 -rotate-25 text-tertiary-500"></iconify-icon>
-				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-6.25 inset-s-0 rotate-12 text-warning-500"></iconify-icon>
-				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-1.25 inset-e-10 -rotate-32 text-success-500"></iconify-icon>
-				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-7.75 inset-s-8 rotate-32 text-error-500"></iconify-icon>
+				<iconify-icon
+					icon="mdi:egg-easter"
+					width="40"
+					class="absolute -top-4.5 inset-e-2 -rotate-25 text-tertiary-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="game-icons:easter-egg"
+					width="40"
+					class="absolute -top-6.25 inset-s-0 rotate-12 text-warning-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="game-icons:high-grass"
+					width="40"
+					class="absolute -top-1.25 inset-e-10 -rotate-32 text-success-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="mdi:easter"
+					width="70"
+					class="absolute -top-7.75 inset-s-8 rotate-32 text-error-500"
+				></iconify-icon>
 			</div>
 		{/if}
 
 		{#if isMayDay}
 			<!-- May Day -->
 			<div class="absolute -top-24 inset-s-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="noto:tulip" width="60" class="absolute -inset-s-4 -top-11.25 rotate-12"></iconify-icon>
-				<iconify-icon icon="fluent-emoji:tulip" width="40" class="absolute -top-3.5 inset-e-5 -rotate-12"></iconify-icon>
-				<iconify-icon icon="noto:sunflower" width="50" class="absolute -top-4 inset-s-10 rotate-6"></iconify-icon>
+				<iconify-icon icon="noto:tulip" width="60" class="absolute -inset-s-4 -top-11.25 rotate-12"
+				></iconify-icon>
+				<iconify-icon
+					icon="fluent-emoji:tulip"
+					width="40"
+					class="absolute -top-3.5 inset-e-5 -rotate-12"
+				></iconify-icon>
+				<iconify-icon icon="noto:sunflower" width="50" class="absolute -top-4 inset-s-10 rotate-6"
+				></iconify-icon>
 			</div>
 		{/if}
 
 		{#if isHalloween}
 			<!-- Halloween -->
-			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-50 inset-s-1/2 -translate-x-1/2 -translate-y-1/2" />
+			<img
+				src="/seasons/Halloween.avif"
+				alt="Spider"
+				class="absolute -bottom-50 inset-s-1/2 -translate-x-1/2 -translate-y-1/2"
+			/>
 		{/if}
 
 		{#if isChristmas}
 			<!-- Christmas -->
-			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -inset-e-26.25 -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2" />
+			<img
+				src="/seasons/SantaHat.avif"
+				alt="Santa hat"
+				class="absolute -inset-e-26.25 -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2"
+			/>
 		{/if}
 	{/if}
 
@@ -307,33 +377,57 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:lantern" width="40" class="absolute -inset-s-15 -top-5 text-error-600"></iconify-icon>
-				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -inset-e-15 -top-5"></iconify-icon>
+				<iconify-icon
+					icon="noto:lantern"
+					width="40"
+					class="absolute -inset-s-15 -top-5 text-error-600"
+				></iconify-icon>
+				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -inset-e-15 -top-5"
+				></iconify-icon>
 			</div>
-			<p class="absolute -inset-s-10 -top-12.5 justify-center whitespace-nowrap text-2xl font-bold text-error-600">{login_new_year()}</p>
+			<p
+				class="absolute -inset-s-10 -top-12.5 justify-center whitespace-nowrap text-2xl font-bold text-error-600"
+			>
+				{login_new_year()}
+			</p>
 		{/if}
 
 		{#if isCherryBlossom}
 			<!-- Cherry Blossom Season -->
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:cherry-blossom" width="40" class="absolute -inset-s-15 -top-5 text-pink-400"></iconify-icon>
-				<iconify-icon icon="noto:cherry-blossom" width="60" class="absolute -inset-e-35 top-10 text-pink-300"></iconify-icon>
-				<iconify-icon icon="noto:white-flower" width="60" class="absolute -inset-s-35 top-10 text-pink-300"></iconify-icon>
+				<iconify-icon
+					icon="noto:cherry-blossom"
+					width="40"
+					class="absolute -inset-s-15 -top-5 text-pink-400"
+				></iconify-icon>
+				<iconify-icon
+					icon="noto:cherry-blossom"
+					width="60"
+					class="absolute -inset-e-35 top-10 text-pink-300"
+				></iconify-icon>
+				<iconify-icon
+					icon="noto:white-flower"
+					width="60"
+					class="absolute -inset-s-35 top-10 text-pink-300"
+				></iconify-icon>
 			</div>
 		{/if}
 
 		{#if isDragonBoatFestival}
 			<!-- Dragon Boat Festival -->
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:dragon" width="100" class="absolute inset-s-0 -top-8.75 rotate-12"></iconify-icon>
+				<iconify-icon icon="noto:dragon" width="100" class="absolute inset-s-0 -top-8.75 rotate-12"
+				></iconify-icon>
 			</div>
 		{/if}
 
 		{#if isMidAutumnFestival}
 			<!-- Mid-Autumn Festival -->
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:full-moon" width="80" class="absolute -inset-s-25 -top-2.5"></iconify-icon>
-				<iconify-icon icon="noto:moon-cake" width="60" class="absolute -inset-e-30 top-55"></iconify-icon>
+				<iconify-icon icon="noto:full-moon" width="80" class="absolute -inset-s-25 -top-2.5"
+				></iconify-icon>
+				<iconify-icon icon="noto:moon-cake" width="60" class="absolute -inset-e-30 top-55"
+				></iconify-icon>
 			</div>
 		{/if}
 	{/if}
@@ -342,11 +436,22 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isDiwali}
 			<!-- Diwali -->
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute inset-s-30 top-47.5"></iconify-icon>
-				<iconify-icon icon="noto:sparkles" width="50" class="absolute -inset-e-40 top-30 text-warning-500"></iconify-icon>
-				<iconify-icon icon="noto:sparkles" width="50" class="absolute -inset-e-50 top-25 rotate-90 text-warning-500"></iconify-icon>
+				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute inset-s-30 top-47.5"
+				></iconify-icon>
+				<iconify-icon
+					icon="noto:sparkles"
+					width="50"
+					class="absolute -inset-e-40 top-30 text-warning-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="noto:sparkles"
+					width="50"
+					class="absolute -inset-e-50 top-25 rotate-90 text-warning-500"
+				></iconify-icon>
 			</div>
-			<p class="absolute -inset-s-2.5 top-42.5 justify-center whitespace-nowrap text-3xl font-bold italic text-warning-600">
+			<p
+				class="absolute -inset-s-2.5 top-42.5 justify-center whitespace-nowrap text-3xl font-bold italic text-warning-600"
+			>
 				{login_happy_diwali()}
 			</p>
 		{/if}
@@ -355,19 +460,47 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<!-- Holi -->
 			<div class="absolute inset-0 flex">
 				<!-- Powder effects with gradients -->
-				<div class="h-full w-full translate-y-8 bg-linear-to-b from-error-300/80 via-error-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-linear-to-b from-warning-200/80 via-warning-300/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-linear-to-b from-success-300/80 via-success-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-linear-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-linear-to-b from-tertiary-300/80 via-tertiary-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-linear-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
+				<div
+					class="h-full w-full translate-y-8 bg-linear-to-b from-error-300/80 via-error-400/80 to-transparent blur-xl"
+				></div>
+				<div
+					class="h-full w-full translate-y-12 bg-linear-to-b from-warning-200/80 via-warning-300/80 to-transparent blur-xl"
+				></div>
+				<div
+					class="h-full w-full translate-y-8 bg-linear-to-b from-success-300/80 via-success-400/80 to-transparent blur-xl"
+				></div>
+				<div
+					class="h-full w-full translate-y-12 bg-linear-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"
+				></div>
+				<div
+					class="h-full w-full translate-y-8 bg-linear-to-b from-tertiary-300/80 via-tertiary-400/80 to-transparent blur-xl"
+				></div>
+				<div
+					class="h-full w-full translate-y-12 bg-linear-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"
+				></div>
 			</div>
 
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:balloon" width="40" class="absolute -inset-s-15 -top-5 text-purple-500"></iconify-icon>
-				<iconify-icon icon="noto:balloon" width="50" class="absolute inset-e-15 top-5 text-success-500"></iconify-icon>
-				<iconify-icon icon="game-icons:powder" width="50" class="absolute -inset-e-37.5 top-55 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<iconify-icon icon="game-icons:powder" width="30" class="absolute -inset-e-30 top-55 -rotate-12 text-warning-500"></iconify-icon>
+				<iconify-icon
+					icon="noto:balloon"
+					width="40"
+					class="absolute -inset-s-15 -top-5 text-purple-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="noto:balloon"
+					width="50"
+					class="absolute inset-e-15 top-5 text-success-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="game-icons:powder"
+					width="50"
+					class="absolute -inset-e-37.5 top-55 text-tertiary-500 dark:text-primary-500"
+				></iconify-icon>
+				<iconify-icon
+					icon="game-icons:powder"
+					width="30"
+					class="absolute -inset-e-30 top-55 -rotate-12 text-warning-500"
+				></iconify-icon>
 			</div>
 			<p
 				class="absolute -inset-s-7.5 top-42.5 justify-center bg-linear-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
@@ -379,9 +512,12 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isNavratri}
 			<!-- Navratri -->
 			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:prayer-beads" width="40" class="absolute -inset-s-25 top-7.5"></iconify-icon>
-				<iconify-icon icon="token-branded:starl" width="40" class="absolute -inset-e-15 -top-5"></iconify-icon>
-				<iconify-icon icon="token-branded:starl" width="60" class="absolute -inset-e-40 top-12.5"></iconify-icon>
+				<iconify-icon icon="noto:prayer-beads" width="40" class="absolute -inset-s-25 top-7.5"
+				></iconify-icon>
+				<iconify-icon icon="token-branded:starl" width="40" class="absolute -inset-e-15 -top-5"
+				></iconify-icon>
+				<iconify-icon icon="token-branded:starl" width="60" class="absolute -inset-e-40 top-12.5"
+				></iconify-icon>
 			</div>
 
 			<p

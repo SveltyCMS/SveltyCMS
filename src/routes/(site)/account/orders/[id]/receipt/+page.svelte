@@ -31,6 +31,8 @@
 			{/each}
 		</ul>
 		<p class="mt-4 font-semibold tabular-nums">Total {Number(order.total || 0).toFixed(2)}</p>
-		<button type="button" class="mt-6 text-sm underline print:hidden" onclick={() => window.print()}>Print / save as PDF</button>
+		<button type="button" class="mt-6 text-sm underline print:hidden" onclick={() => window.print()}
+			>Print / save as PDF</button
+		>
 	</article>
 {/if}

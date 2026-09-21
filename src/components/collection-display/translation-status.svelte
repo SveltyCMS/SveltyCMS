@@ -16,7 +16,7 @@ FIXES:
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	// Native UI Components
-	import Dropdown from "@components/ui/dropdown.svelte";
+	import Dropdown from '@components/ui/dropdown.svelte';
 	// Components
 	import Progress from '@components/ui/progress.svelte';
 	// Paraglide Messages
@@ -178,7 +178,11 @@ FIXES:
 	}
 
 	// Initialize translation progress
-	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }): void {
+	function initializeTranslationProgress(currentCollection: {
+		fields: unknown[];
+		name?: unknown;
+		_id?: string;
+	}): void {
 		const newProgress: typeof translationProgress.value = { show: false };
 
 		for (const lang of availableLanguages) {
@@ -325,7 +329,12 @@ FIXES:
 
 	// Dropdown positioning handled by UI Menu
 	function handleLanguageChange(selectedLanguage: Locale): void {
-		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
+		logger.debug(
+			'[TranslationStatus] Language change:',
+			contentLanguage.value,
+			'→',
+			selectedLanguage
+		);
 		contentLanguage.set(selectedLanguage);
 
 		// Handle View Mode Navigation (previously handleViewModeLanguageChange)
@@ -412,7 +421,12 @@ FIXES:
 		const currentCollection = collections.active;
 		const currentCollectionValue = collections.activeValue as Record<string, any>;
 
-		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
+		if (
+			currentCollection?.fields &&
+			currentCollectionValue &&
+			Object.keys(currentCollectionValue).length > 0 &&
+			isInitialized
+		) {
 			const currentStr = JSON.stringify(currentCollectionValue);
 			if (currentStr !== lastCollectionValueStr) {
 				logger.debug('[TranslationStatus] Collection value changed, updating progress');
@@ -426,16 +440,24 @@ FIXES:
 <div class="translation-status-container relative mt-1 inline-block text-start">
 	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
 		{#snippet trigger()}
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				aria-label="Toggle language menu"
-			 class="rounded-full flex w-full items-center gap-1 p-1.5 transition-all hover:scale-105">
+				class="rounded-full flex w-full items-center gap-1 p-1.5 transition-all hover:scale-105"
+			>
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
-				<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
+				<iconify-icon
+					icon="mdi:chevron-down"
+					class="h-5 w-5 transition-transform duration-200"
+					aria-hidden="true"
+				></iconify-icon>
 			</Button>
 		{/snippet}
 
-		<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-500/30 dark:border-surface-50 mb-1">
+		<div
+			class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-500/30 dark:border-surface-50 mb-1"
+		>
 			{applayout_contentlanguage()}
 		</div>
 
@@ -445,11 +467,18 @@ FIXES:
 
 			<Button
 				variant="ghost"
-				class="w-full text-start p-2 flex items-center gap-2 rounded transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400'}"
+				class="w-full text-start p-2 flex items-center gap-2 rounded transition-colors {isActive
+					? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold'
+					: 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400'}"
 				onclick={() => handleLanguageChange(lang as Locale)}
-			 aria-label="Switch language to {getLanguageName(lang)}">
+				aria-label="Switch language to {getLanguageName(lang)}"
+			>
 				<div class="flex w-full items-center justify-between gap-2">
-					<span class="font-medium transition-colors duration-200 {isActive ? 'text-tertiary-500 dark:text-primary-500' : ''}">
+					<span
+						class="font-medium transition-colors duration-200 {isActive
+							? 'text-tertiary-500 dark:text-primary-500'
+							: ''}"
+					>
 						<span class="md:hidden">{lang.toUpperCase()}</span>
 						<span class="hidden md:inline">{getLanguageName(lang)}</span>
 					</span>
@@ -463,7 +492,10 @@ FIXES:
 								<span class="min-w-8 text-end text-sm font-semibold"> {percentage}% </span>
 							</div>
 						{:else}
-							<span class="hidden text-xs font-normal text-tertiary-500 dark:text-primary-500 md:inline">{lang.toUpperCase()}</span>
+							<span
+								class="hidden text-xs font-normal text-tertiary-500 dark:text-primary-500 md:inline"
+								>{lang.toUpperCase()}</span
+							>
 						{/if}
 
 						{#if isActive}
@@ -477,7 +509,9 @@ FIXES:
 		{#if !isViewMode && showProgress}
 			<div class="border-t border-surface-500/30 dark:border-surface-50 my-1"></div>
 			<div class="px-4 py-2">
-				<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">{translationsstatus_completed()}</div>
+				<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
+					{translationsstatus_completed()}
+				</div>
 				<div class="flex items-center justify-between gap-3">
 					{#if overallPercentage}
 						<div class="flex-1">
@@ -488,7 +522,9 @@ FIXES:
 							/>
 						</div>
 					{/if}
-					<span class="min-w-10 text-end text-sm font-bold {getTextColor(overallPercentage)}"> {overallPercentage}% </span>
+					<span class="min-w-10 text-end text-sm font-bold {getTextColor(overallPercentage)}">
+						{overallPercentage}%
+					</span>
 				</div>
 			</div>
 		{/if}
@@ -513,6 +549,7 @@ FIXES:
 
 	<TranslationCockpit bind:open={isCockpitOpen} />
 
-	<div class="mt-0.5 transition-all duration-300"><!-- External progress bar removed to prevent header overflow --></div>
+	<div class="mt-0.5 transition-all duration-300">
+		<!-- External progress bar removed to prevent header overflow -->
+	</div>
 </div>
-

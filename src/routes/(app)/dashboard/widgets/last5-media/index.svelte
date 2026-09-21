@@ -16,12 +16,12 @@
 - Modern card styling with hover micro-animations
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Last 5 Media",
-	icon: "mdi:image-multiple-outline",
-	description: "Recently uploaded media files with thumbnail previews",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Last 5 Media',
+		icon: 'mdi:image-multiple-outline',
+		description: 'Recently uploaded media files with thumbnail previews',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -127,13 +127,16 @@ export const widgetMeta = {
 
 		{#if files.length === 0}
 			<div class="flex h-full flex-col items-center justify-center text-center">
-				<iconify-icon icon="mdi:file-image-remove-outline" class="text-4xl opacity-20 mb-3"  ></iconify-icon>
+				<iconify-icon icon="mdi:file-image-remove-outline" class="text-4xl opacity-20 mb-3"
+				></iconify-icon>
 				<div class="text-sm font-medium text-surface-500">{widget_media_no_files()}</div>
 				<div class="text-xs text-surface-400 mt-1">{widget_media_files_appear()}</div>
 			</div>
 		{:else if isCompact}
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500">{widget_media_files_count({ count: files.length })}</span>
+				<span class="shrink-0 text-xs font-semibold text-surface-500"
+					>{widget_media_files_count({ count: files.length })}</span
+				>
 				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each files.slice(0, 8) as f (f.id)}
@@ -143,11 +146,18 @@ export const widgetMeta = {
 							title="{fileName(f)} · {fmtSize(f.size)}"
 						>
 							{#if thumbnailUrl(f)}
-								<img src={thumbnailUrl(f)!} alt="" class="h-5 w-5 rounded-full object-cover" loading="lazy" />
+								<img
+									src={thumbnailUrl(f)!}
+									alt=""
+									class="h-5 w-5 rounded-full object-cover"
+									loading="lazy"
+								/>
 							{:else}
-								<iconify-icon icon={fileIcon(f)} class="text-sm {fileColor(f)}" ></iconify-icon>
+								<iconify-icon icon={fileIcon(f)} class="text-sm {fileColor(f)}"></iconify-icon>
 							{/if}
-							<span class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400">
+							<span
+								class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400"
+							>
 								{fileName(f)}
 							</span>
 						</a>
@@ -174,20 +184,27 @@ export const widgetMeta = {
 										loading="lazy"
 									/>
 									{#if isVideo(f)}
-										<div class="absolute inset-0 flex items-center justify-center rounded bg-black/30">
-											<iconify-icon icon="mdi:play-circle" class="text-lg text-white/90"  ></iconify-icon>
+										<div
+											class="absolute inset-0 flex items-center justify-center rounded bg-black/30"
+										>
+											<iconify-icon icon="mdi:play-circle" class="text-lg text-white/90"
+											></iconify-icon>
 										</div>
 									{/if}
 								{:else}
-									<div class="flex h-10 w-10 items-center justify-center rounded bg-surface-500/10 dark:bg-surface-700">
-										<iconify-icon icon={fileIcon(f)} class="text-xl {fileColor(f)}"  ></iconify-icon>
+									<div
+										class="flex h-10 w-10 items-center justify-center rounded bg-surface-500/10 dark:bg-surface-700"
+									>
+										<iconify-icon icon={fileIcon(f)} class="text-xl {fileColor(f)}"></iconify-icon>
 									</div>
 								{/if}
 							</div>
 
 							<!-- Info -->
 							<div class="min-w-0 flex-1">
-								<div class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors">
+								<div
+									class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
+								>
 									{fileName(f)}
 								</div>
 								<div class="mt-0.5 flex items-center gap-2 text-xs text-surface-500">
@@ -198,7 +215,9 @@ export const widgetMeta = {
 							</div>
 
 							<!-- Date -->
-							<div class="shrink-0 text-end text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
+							<div
+								class="shrink-0 text-end text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
+							>
 								{fileDate(f)}
 							</div>
 						</a>
@@ -210,10 +229,23 @@ export const widgetMeta = {
 </BaseWidget>
 
 <style>
-	.scrollbar-none { scrollbar-width: none; }
-	.scrollbar-none::-webkit-scrollbar { display: none; }
-	.custom-scroll::-webkit-scrollbar { width: 4px; }
-	.custom-scroll::-webkit-scrollbar-track { background: transparent; }
-	.custom-scroll::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.25); border-radius: 9999px; }
-	.custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.45); }
+	.scrollbar-none {
+		scrollbar-width: none;
+	}
+	.scrollbar-none::-webkit-scrollbar {
+		display: none;
+	}
+	.custom-scroll::-webkit-scrollbar {
+		width: 4px;
+	}
+	.custom-scroll::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scroll::-webkit-scrollbar-thumb {
+		background: rgba(156, 163, 175, 0.25);
+		border-radius: 9999px;
+	}
+	.custom-scroll::-webkit-scrollbar-thumb:hover {
+		background: rgba(156, 163, 175, 0.45);
+	}
 </style>

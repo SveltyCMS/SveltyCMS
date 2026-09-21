@@ -13,1101 +13,1327 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-			import Input from '@components/ui/input.svelte';
-			import Select from '@components/ui/select.svelte';
-			import Badge from '@components/ui/badge.svelte';
-			import Tabs from '@components/ui/tabs.svelte';
-  import { fade } from "svelte/transition";
-  import { formatBytes } from "@utils/file";
-  import { toast } from "@src/stores/toast.svelte.ts";
-  import { mediaUrl } from "@utils/media/media-utils";
-  import { debounce } from "@utils/debounce";
-  import { refreshAll } from '$app/navigation';
-  import { clientJsonHeaders } from "@utils/security/client-csrf";
-  import { formatDate, formatDateTime } from "@utils/format-date";
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Tabs from '@components/ui/tabs.svelte';
+	import { fade } from 'svelte/transition';
+	import { formatBytes } from '@utils/file';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { mediaUrl } from '@utils/media/media-utils';
+	import { debounce } from '@utils/debounce';
+	import { refreshAll } from '$app/navigation';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { formatDate, formatDateTime } from '@utils/format-date';
 
-  // Props
-  let {
-    file = $bindable(null),
-    onUpdate = () => {},
-    onEdit = undefined,
-    onDelete = undefined,
-    close = () => {},
-  }: {
-    file: any;
-    onUpdate?: (updatedFile: any) => void;
-    onEdit?: (file: any) => void;
-    onDelete?: (file: any) => void;
-    close?: () => void;
-  } = $props();
+	// Props
+	let {
+		file = $bindable(null),
+		onUpdate = () => {},
+		onEdit = undefined,
+		onDelete = undefined,
+		close = () => {}
+	}: {
+		file: any;
+		onUpdate?: (updatedFile: any) => void;
+		onEdit?: (file: any) => void;
+		onDelete?: (file: any) => void;
+		close?: () => void;
+	} = $props();
 
-  	// Tab State
-  	let activeTab = $state<"info" | "versions" | "references" | "share">("info");
+	// Tab State
+	let activeTab = $state<'info' | 'versions' | 'references' | 'share'>('info');
 
-  // Info Tab State
-  let newTagInput = $state("");
-  let isSavingTags = $state(false);
+	// Info Tab State
+	let newTagInput = $state('');
+	let isSavingTags = $state(false);
 
-  	// Inline editable asset fields
-  	let isEditingName = $state(false);
-  	let editName = $state('');
-  	let nameSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	// Inline editable asset fields
+	let isEditingName = $state(false);
+	let editName = $state('');
+	let nameSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  	let isEditingAlt = $state(false);
-  	let editAlt = $state('');
-  	let altSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	let isEditingAlt = $state(false);
+	let editAlt = $state('');
+	let altSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  	let isEditingCaption = $state(false);
-  	let editCaption = $state('');
-  	let captionSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	let isEditingCaption = $state(false);
+	let editCaption = $state('');
+	let captionSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  	// 🛡️ Debounced auto-save: fires 300ms after user stops typing.
-  	// Eliminates the manual-save-button antipattern (aphex #246).
-  	const debouncedSaveAlt = debounce.create(async () => {
-  		if (!file?._id || !isEditingAlt) return;
-  		altSaveStatus = 'saving';
-  		try {
-  			const response = await fetch(`/api/media/${file._id}`, {
-  				method: 'PATCH',
-  				headers: clientJsonHeaders(),
-  				body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
-  			});
-  			const body = await response.json();
-  			if (response.ok) {
-  				file = body?.data ?? body ?? file;
-  				onUpdate(file);
-  				altSaveStatus = 'saved';
-  			} else {
-  				toast.error(body?.error || 'Failed to save alt text');
-  				altSaveStatus = 'idle';
-  			}
-  		} catch (err: any) {
-  			toast.error(err?.message || 'Failed to save alt text');
-  			altSaveStatus = 'idle';
-  		}
-  	}, 300);
+	// 🛡️ Debounced auto-save: fires 300ms after user stops typing.
+	// Eliminates the manual-save-button antipattern (aphex #246).
+	const debouncedSaveAlt = debounce.create(async () => {
+		if (!file?._id || !isEditingAlt) return;
+		altSaveStatus = 'saving';
+		try {
+			const response = await fetch(`/api/media/${file._id}`, {
+				method: 'PATCH',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } })
+			});
+			const body = await response.json();
+			if (response.ok) {
+				file = body?.data ?? body ?? file;
+				onUpdate(file);
+				altSaveStatus = 'saved';
+			} else {
+				toast.error(body?.error || 'Failed to save alt text');
+				altSaveStatus = 'idle';
+			}
+		} catch (err: any) {
+			toast.error(err?.message || 'Failed to save alt text');
+			altSaveStatus = 'idle';
+		}
+	}, 300);
 
-  	const debouncedSaveName = debounce.create(async () => {
-  		if (!file?._id || !isEditingName) return;
-  		nameSaveStatus = 'saving';
-  		try {
-  			const response = await fetch(`/api/media/${file._id}`, {
-  				method: 'PATCH',
-  				headers: clientJsonHeaders(),
-  				body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
-  			});
-  			const body = await response.json();
-  			if (response.ok) {
-  				file = body?.data ?? body ?? file;
-  				onUpdate(file);
-  				nameSaveStatus = 'saved';
-  			} else {
-  				toast.error(body?.error || 'Failed to save name');
-  				nameSaveStatus = 'idle';
-  			}
-  		} catch (err: any) {
-  			toast.error(err?.message || 'Failed to save name');
-  			nameSaveStatus = 'idle';
-  		}
-  	}, 300);
+	const debouncedSaveName = debounce.create(async () => {
+		if (!file?._id || !isEditingName) return;
+		nameSaveStatus = 'saving';
+		try {
+			const response = await fetch(`/api/media/${file._id}`, {
+				method: 'PATCH',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({ metadata: { ...file.metadata, name: editName } })
+			});
+			const body = await response.json();
+			if (response.ok) {
+				file = body?.data ?? body ?? file;
+				onUpdate(file);
+				nameSaveStatus = 'saved';
+			} else {
+				toast.error(body?.error || 'Failed to save name');
+				nameSaveStatus = 'idle';
+			}
+		} catch (err: any) {
+			toast.error(err?.message || 'Failed to save name');
+			nameSaveStatus = 'idle';
+		}
+	}, 300);
 
-  	const debouncedSaveCaption = debounce.create(async () => {
-  		if (!file?._id || !isEditingCaption) return;
-  		captionSaveStatus = 'saving';
-  		try {
-  			const response = await fetch(`/api/media/${file._id}`, {
-  				method: 'PATCH',
-  				headers: clientJsonHeaders(),
-  				body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
-  			});
-  			const body = await response.json();
-  			if (response.ok) {
-  				file = body?.data ?? body ?? file;
-  				onUpdate(file);
-  				captionSaveStatus = 'saved';
-  			} else {
-  				toast.error(body?.error || 'Failed to save caption');
-  				captionSaveStatus = 'idle';
-  			}
-  		} catch (err: any) {
-  			toast.error(err?.message || 'Failed to save caption');
-  			captionSaveStatus = 'idle';
-  		}
-  	}, 300);
+	const debouncedSaveCaption = debounce.create(async () => {
+		if (!file?._id || !isEditingCaption) return;
+		captionSaveStatus = 'saving';
+		try {
+			const response = await fetch(`/api/media/${file._id}`, {
+				method: 'PATCH',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } })
+			});
+			const body = await response.json();
+			if (response.ok) {
+				file = body?.data ?? body ?? file;
+				onUpdate(file);
+				captionSaveStatus = 'saved';
+			} else {
+				toast.error(body?.error || 'Failed to save caption');
+				captionSaveStatus = 'idle';
+			}
+		} catch (err: any) {
+			toast.error(err?.message || 'Failed to save caption');
+			captionSaveStatus = 'idle';
+		}
+	}, 300);
 
-  // Versions Tab State
-  let isUploadingVersion = $state(false);
-  let isRestoringVersion = $state(false);
-  let isComparingVersions = $state(false);
-  let compareFrom = $state("");
-  let compareTo = $state("");
-  let compareResult = $state<{
-    changes: Array<{ field: string; type: string; oldValue?: unknown; newValue?: unknown }>;
-    contentChanged: boolean;
-    metadataChanged: boolean;
-    sizeDifference: number;
-    fromVersion: number;
-    toVersion: number;
-  } | null>(null);
-  let fileInputEl = $state<HTMLInputElement | null>(null);
+	// Versions Tab State
+	let isUploadingVersion = $state(false);
+	let isRestoringVersion = $state(false);
+	let isComparingVersions = $state(false);
+	let compareFrom = $state('');
+	let compareTo = $state('');
+	let compareResult = $state<{
+		changes: Array<{ field: string; type: string; oldValue?: unknown; newValue?: unknown }>;
+		contentChanged: boolean;
+		metadataChanged: boolean;
+		sizeDifference: number;
+		fromVersion: number;
+		toVersion: number;
+	} | null>(null);
+	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-  const versionOptions = $derived(
-    (file?.versions || []).map((ver: { version: number; size: number; createdAt: string }) => ({
-      value: String(ver.version),
-      label: `v${ver.version} · ${formatBytes(ver.size)} · ${formatDate(ver.createdAt)}`,
-    })),
-  );
+	const versionOptions = $derived(
+		(file?.versions || []).map((ver: { version: number; size: number; createdAt: string }) => ({
+			value: String(ver.version),
+			label: `v${ver.version} · ${formatBytes(ver.size)} · ${formatDate(ver.createdAt)}`
+		}))
+	);
 
-  // References Tab State
-  let isScanningRefs = $state(false);
-  let references = $state<any[]>([]);
+	// References Tab State
+	let isScanningRefs = $state(false);
+	let references = $state<any[]>([]);
 
-  // Share Tab State
-  let expiryHours = $state<number | null>(24);
-  let expiryHoursValue = $state('24');
+	// Share Tab State
+	let expiryHours = $state<number | null>(24);
+	let expiryHoursValue = $state('24');
 
-  function handleExpiryChange(val: string) {
-    expiryHours = val === 'never' ? null : Number(val);
-  }
-  let sharePassword = $state("");
-  let isCreatingShare = $state(false);
+	function handleExpiryChange(val: string) {
+		expiryHours = val === 'never' ? null : Number(val);
+	}
+	let sharePassword = $state('');
+	let isCreatingShare = $state(false);
 
-  // Helper for MIME display
-  function formatMime(mime: string | undefined = undefined) {
-    if (!mime) return "Unknown";
-    return mime.split("/")[1]?.toUpperCase() || mime.toUpperCase();
-  }
+	// Helper for MIME display
+	function formatMime(mime: string | undefined = undefined) {
+		if (!mime) return 'Unknown';
+		return mime.split('/')[1]?.toUpperCase() || mime.toUpperCase();
+	}
 
-  // Load references automatically when tab switches to references
-  $effect(() => {
-    if (activeTab === "references" && file?._id) {
-      scanReferences();
-    }
-  });
+	// Load references automatically when tab switches to references
+	$effect(() => {
+		if (activeTab === 'references' && file?._id) {
+			scanReferences();
+		}
+	});
 
-  // ── Inline editable asset field helpers ─────────────────────────────────────
-  // Only the "start editing" setters remain: saving is handled by the debounced
-  // auto-save above (debouncedSaveName/Alt/Caption + *SaveStatus). The old manual
-  // saveName/saveAlt/saveCaption were left behind by a merge — unreferenced, and
-  // still assigning isSavingName/Alt/Caption flags that no longer exist.
-  function startEditName() {
-    editName = file.metadata?.name || file.filename || '';
-    isEditingName = true;
-  }
+	// ── Inline editable asset field helpers ─────────────────────────────────────
+	// Only the "start editing" setters remain: saving is handled by the debounced
+	// auto-save above (debouncedSaveName/Alt/Caption + *SaveStatus). The old manual
+	// saveName/saveAlt/saveCaption were left behind by a merge — unreferenced, and
+	// still assigning isSavingName/Alt/Caption flags that no longer exist.
+	function startEditName() {
+		editName = file.metadata?.name || file.filename || '';
+		isEditingName = true;
+	}
 
-  function startEditAlt() {
-    editAlt = file.metadata?.alt || '';
-    isEditingAlt = true;
-  }
+	function startEditAlt() {
+		editAlt = file.metadata?.alt || '';
+		isEditingAlt = true;
+	}
 
-  function startEditCaption() {
-    editCaption = file.metadata?.caption || '';
-    isEditingCaption = true;
-  }
+	function startEditCaption() {
+		editCaption = file.metadata?.caption || '';
+		isEditingCaption = true;
+	}
 
-  // ── Info Tab logic ──────────────────────────────────────────────────────────
-  async function handleAddTag(e: KeyboardEvent | MouseEvent) {
-    if (e instanceof KeyboardEvent && e.key !== "Enter") return;
-    if (!newTagInput.trim() || !file?._id) return;
+	// ── Info Tab logic ──────────────────────────────────────────────────────────
+	async function handleAddTag(e: KeyboardEvent | MouseEvent) {
+		if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
+		if (!newTagInput.trim() || !file?._id) return;
 
-    isSavingTags = true;
-    try {
-      const currentTags = file.metadata?.tags || [];
-      if (currentTags.includes(newTagInput.trim())) {
-        toast.error("Tag already exists");
-        return;
-      }
+		isSavingTags = true;
+		try {
+			const currentTags = file.metadata?.tags || [];
+			if (currentTags.includes(newTagInput.trim())) {
+				toast.error('Tag already exists');
+				return;
+			}
 
-      const updatedMetadata = {
-        ...file.metadata,
-        tags: [...currentTags, newTagInput.trim()],
-      };
+			const updatedMetadata = {
+				...file.metadata,
+				tags: [...currentTags, newTagInput.trim()]
+			};
 
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: "PATCH",
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({ metadata: updatedMetadata }),
-      });
+			const response = await fetch(`/api/media/${file._id}`, {
+				method: 'PATCH',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({ metadata: updatedMetadata })
+			});
 
-      const body = await response.json();
-      if (response.ok && body.success) {
-        file = { ...file, metadata: updatedMetadata };
-        onUpdate(file);
-        newTagInput = "";
-        await refreshAll();
-        toast.success("Tag added successfully");
-      } else {
-        toast.error(body?.message || "Failed to add tag");
-      }
-    } catch (err) {
-      toast.error("An error occurred while adding tag");
-    } finally {
-      isSavingTags = false;
-    }
-  }
+			const body = await response.json();
+			if (response.ok && body.success) {
+				file = { ...file, metadata: updatedMetadata };
+				onUpdate(file);
+				newTagInput = '';
+				await refreshAll();
+				toast.success('Tag added successfully');
+			} else {
+				toast.error(body?.message || 'Failed to add tag');
+			}
+		} catch (err) {
+			toast.error('An error occurred while adding tag');
+		} finally {
+			isSavingTags = false;
+		}
+	}
 
-  async function handleRemoveTag(tagToRemove: string) {
-    if (!file?._id) return;
+	async function handleRemoveTag(tagToRemove: string) {
+		if (!file?._id) return;
 
-    try {
-      const currentTags = file.metadata?.tags || [];
-      const updatedMetadata = {
-        ...file.metadata,
-        tags: currentTags.filter((t: string) => t !== tagToRemove),
-      };
+		try {
+			const currentTags = file.metadata?.tags || [];
+			const updatedMetadata = {
+				...file.metadata,
+				tags: currentTags.filter((t: string) => t !== tagToRemove)
+			};
 
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: "PATCH",
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({ metadata: updatedMetadata }),
-      });
+			const response = await fetch(`/api/media/${file._id}`, {
+				method: 'PATCH',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({ metadata: updatedMetadata })
+			});
 
-      const body = await response.json();
-      if (response.ok && body.success) {
-        file = { ...file, metadata: updatedMetadata };
-        onUpdate(file);
-        await refreshAll();
-        toast.success("Tag removed");
-      } else {
-        toast.error(body?.message || "Failed to remove tag");
-      }
-    } catch (err) {
-      toast.error("An error occurred while removing tag");
-    }
-  }
+			const body = await response.json();
+			if (response.ok && body.success) {
+				file = { ...file, metadata: updatedMetadata };
+				onUpdate(file);
+				await refreshAll();
+				toast.success('Tag removed');
+			} else {
+				toast.error(body?.message || 'Failed to remove tag');
+			}
+		} catch (err) {
+			toast.error('An error occurred while removing tag');
+		}
+	}
 
-  // ── Versioning Tab logic ───────────────────────────────────────────────────
-  function triggerFileInput() {
-    fileInputEl?.click();
-  }
+	// ── Versioning Tab logic ───────────────────────────────────────────────────
+	function triggerFileInput() {
+		fileInputEl?.click();
+	}
 
-  async function handleVersionUpload(e: Event) {
-    const input = e.target as HTMLInputElement;
-    if (!input.files?.length || !file?._id) return;
+	async function handleVersionUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (!input.files?.length || !file?._id) return;
 
-    isUploadingVersion = true;
-    const formData = new FormData();
-    formData.append("file", input.files[0]);
+		isUploadingVersion = true;
+		const formData = new FormData();
+		formData.append('file', input.files[0]);
 
-    try {
-      const response = await fetch(`/api/media/version/${file._id}`, {
-        method: "POST",
-        // Token-only header: setting Content-Type here would break the multipart boundary
-        headers: { "X-CSRF-Token": clientJsonHeaders()["X-CSRF-Token"] || "" },
-        body: formData,
-      });
+		try {
+			const response = await fetch(`/api/media/version/${file._id}`, {
+				method: 'POST',
+				// Token-only header: setting Content-Type here would break the multipart boundary
+				headers: { 'X-CSRF-Token': clientJsonHeaders()['X-CSRF-Token'] || '' },
+				body: formData
+			});
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          toast.success("New version uploaded successfully");
-        }
-      } else {
-        const err = await response.json().catch(() => ({}));
-        toast.error(err.message || "Failed to upload version");
-      }
-    } catch (err) {
-      toast.error("An error occurred during version upload");
-    } finally {
-      isUploadingVersion = false;
-      input.value = ""; // reset file input
-    }
-  }
+			if (response.ok) {
+				const body = await response.json();
+				if (body.success) {
+					file = body.data;
+					onUpdate(file);
+					toast.success('New version uploaded successfully');
+				}
+			} else {
+				const err = await response.json().catch(() => ({}));
+				toast.error(err.message || 'Failed to upload version');
+			}
+		} catch (err) {
+			toast.error('An error occurred during version upload');
+		} finally {
+			isUploadingVersion = false;
+			input.value = ''; // reset file input
+		}
+	}
 
-  async function handleCompareVersions() {
-    if (!file?._id || !compareFrom || !compareTo) {
-      toast.warning("Select two versions to compare");
-      return;
-    }
-    if (compareFrom === compareTo) {
-      toast.warning("Select two different versions");
-      return;
-    }
+	async function handleCompareVersions() {
+		if (!file?._id || !compareFrom || !compareTo) {
+			toast.warning('Select two versions to compare');
+			return;
+		}
+		if (compareFrom === compareTo) {
+			toast.warning('Select two different versions');
+			return;
+		}
 
-    isComparingVersions = true;
-    compareResult = null;
-    try {
-      const response = await fetch(
-        `/api/media/version/${file._id}/compare?from=${compareFrom}&to=${compareTo}`,
-      );
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          compareResult = body.data;
-        }
-      } else {
-        const err = await response.json().catch(() => ({}));
-        toast.error(err.message || "Failed to compare versions");
-      }
-    } catch {
-      toast.error("An error occurred while comparing versions");
-    } finally {
-      isComparingVersions = false;
-    }
-  }
+		isComparingVersions = true;
+		compareResult = null;
+		try {
+			const response = await fetch(
+				`/api/media/version/${file._id}/compare?from=${compareFrom}&to=${compareTo}`
+			);
+			if (response.ok) {
+				const body = await response.json();
+				if (body.success) {
+					compareResult = body.data;
+				}
+			} else {
+				const err = await response.json().catch(() => ({}));
+				toast.error(err.message || 'Failed to compare versions');
+			}
+		} catch {
+			toast.error('An error occurred while comparing versions');
+		} finally {
+			isComparingVersions = false;
+		}
+	}
 
-  async function handleRestoreVersion(versionNumber: number) {
-    if (!file?._id) return;
+	async function handleRestoreVersion(versionNumber: number) {
+		if (!file?._id) return;
 
-    isRestoringVersion = true;
-    try {
-      const response = await fetch(`/api/media/version/${file._id}/restore`, {
-        method: "POST",
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({ versionNumber }),
-      });
+		isRestoringVersion = true;
+		try {
+			const response = await fetch(`/api/media/version/${file._id}/restore`, {
+				method: 'POST',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({ versionNumber })
+			});
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          toast.success(`Successfully restored version #${versionNumber}`);
-        }
-      } else {
-        const err = await response.json().catch(() => ({}));
-        toast.error(err.message || "Failed to restore version");
-      }
-    } catch (err) {
-      toast.error("An error occurred during version restore");
-    } finally {
-      isRestoringVersion = false;
-    }
-  }
+			if (response.ok) {
+				const body = await response.json();
+				if (body.success) {
+					file = body.data;
+					onUpdate(file);
+					toast.success(`Successfully restored version #${versionNumber}`);
+				}
+			} else {
+				const err = await response.json().catch(() => ({}));
+				toast.error(err.message || 'Failed to restore version');
+			}
+		} catch (err) {
+			toast.error('An error occurred during version restore');
+		} finally {
+			isRestoringVersion = false;
+		}
+	}
 
-  // ── References Tab logic ───────────────────────────────────────────────────
-  async function scanReferences() {
-    if (!file?._id) return;
+	// ── References Tab logic ───────────────────────────────────────────────────
+	async function scanReferences() {
+		if (!file?._id) return;
 
-    isScanningRefs = true;
-    try {
-      const response = await fetch(`/api/media/references/${file._id}`);
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          references = body.data || [];
-        }
-      } else {
-        toast.error("Failed to load references scan");
-      }
-    } catch (err) {
-      toast.error("An error occurred scanning references");
-    } finally {
-      isScanningRefs = false;
-    }
-  }
+		isScanningRefs = true;
+		try {
+			const response = await fetch(`/api/media/references/${file._id}`);
+			if (response.ok) {
+				const body = await response.json();
+				if (body.success) {
+					references = body.data || [];
+				}
+			} else {
+				toast.error('Failed to load references scan');
+			}
+		} catch (err) {
+			toast.error('An error occurred scanning references');
+		} finally {
+			isScanningRefs = false;
+		}
+	}
 
-  // ── Share Tab logic ────────────────────────────────────────────────────────
-  async function handleGenerateShareLink() {
-    if (!file?._id) return;
+	// ── Share Tab logic ────────────────────────────────────────────────────────
+	async function handleGenerateShareLink() {
+		if (!file?._id) return;
 
-    isCreatingShare = true;
-    try {
-      const response = await fetch(`/api/media/share/${file._id}`, {
-        method: "POST",
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({
-          expiryHours: expiryHours,
-          password: sharePassword.trim() || undefined,
-        }),
-      });
+		isCreatingShare = true;
+		try {
+			const response = await fetch(`/api/media/share/${file._id}`, {
+				method: 'POST',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({
+					expiryHours: expiryHours,
+					password: sharePassword.trim() || undefined
+				})
+			});
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          // reload the media file to get updated share lists
-          const reloadRes = await fetch(`/api/media/${file._id}`);
-          const reloadBody = await reloadRes.json();
-          if (reloadBody.success) {
-            file = reloadBody.data;
-            onUpdate(file);
-          }
-          sharePassword = "";
-          toast.success("Public share link generated!");
-        }
-      } else {
-        toast.error("Failed to generate share link");
-      }
-    } catch (err) {
-      toast.error("An error occurred generating share link");
-    } finally {
-      isCreatingShare = false;
-    }
-  }
+			if (response.ok) {
+				const body = await response.json();
+				if (body.success) {
+					// reload the media file to get updated share lists
+					const reloadRes = await fetch(`/api/media/${file._id}`);
+					const reloadBody = await reloadRes.json();
+					if (reloadBody.success) {
+						file = reloadBody.data;
+						onUpdate(file);
+					}
+					sharePassword = '';
+					toast.success('Public share link generated!');
+				}
+			} else {
+				toast.error('Failed to generate share link');
+			}
+		} catch (err) {
+			toast.error('An error occurred generating share link');
+		} finally {
+			isCreatingShare = false;
+		}
+	}
 
-  async function handleRevokeShareLink(token: string) {
-    if (!file?._id) return;
+	async function handleRevokeShareLink(token: string) {
+		if (!file?._id) return;
 
-    try {
-      const response = await fetch(`/api/media/share/${file._id}/${token}`, {
-        method: "DELETE",
-        headers: clientJsonHeaders(),
-      });
+		try {
+			const response = await fetch(`/api/media/share/${file._id}/${token}`, {
+				method: 'DELETE',
+				headers: clientJsonHeaders()
+			});
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file.metadata.sharedLinks = file.metadata.sharedLinks.filter((l: any) => l.token !== token);
-          onUpdate(file);
-          toast.success("Share link revoked");
-        }
-      } else {
-        toast.error("Failed to revoke share link");
-      }
-    } catch (err) {
-      toast.error("An error occurred revoking share link");
-    }
-  }
+			if (response.ok) {
+				const body = await response.json();
+				if (body.success) {
+					file.metadata.sharedLinks = file.metadata.sharedLinks.filter(
+						(l: any) => l.token !== token
+					);
+					onUpdate(file);
+					toast.success('Share link revoked');
+				}
+			} else {
+				toast.error('Failed to revoke share link');
+			}
+		} catch (err) {
+			toast.error('An error occurred revoking share link');
+		}
+	}
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(
-      () => toast.success("Copied to clipboard!"),
-      () => toast.error("Failed to copy link"),
-    );
-  }
+	function copyToClipboard(text: string) {
+		navigator.clipboard.writeText(text).then(
+			() => toast.success('Copied to clipboard!'),
+			() => toast.error('Failed to copy link')
+		);
+	}
 
-  function getShareLinkUrl(token: string) {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/share/${token}?id=${file._id}`;
-  }
+	function getShareLinkUrl(token: string) {
+		if (typeof window === 'undefined') return '';
+		return `${window.location.origin}/share/${token}?id=${file._id}`;
+	}
 
-  function isExpired(expiry: string | null | undefined = undefined) {
-    if (!expiry) return false;
-    return new Date() > new Date(expiry);
-  }
+	function isExpired(expiry: string | null | undefined = undefined) {
+		if (!expiry) return false;
+		return new Date() > new Date(expiry);
+	}
 
-  const tabs = $derived([
-    { id: 'info' as const, label: 'Info & Tags', shortLabel: 'Info' },
-    { id: 'versions' as const, label: `Versions (${file.versions?.length || 0})`, shortLabel: `Ver. (${file.versions?.length || 0})` },
-    { id: 'references' as const, label: 'Usage', shortLabel: 'Usage' },
-    { id: 'share' as const, label: `Share (${file.metadata?.sharedLinks?.length || 0})`, shortLabel: `Share (${file.metadata?.sharedLinks?.length || 0})` },
-  ]);
+	const tabs = $derived([
+		{ id: 'info' as const, label: 'Info & Tags', shortLabel: 'Info' },
+		{
+			id: 'versions' as const,
+			label: `Versions (${file.versions?.length || 0})`,
+			shortLabel: `Ver. (${file.versions?.length || 0})`
+		},
+		{ id: 'references' as const, label: 'Usage', shortLabel: 'Usage' },
+		{
+			id: 'share' as const,
+			label: `Share (${file.metadata?.sharedLinks?.length || 0})`,
+			shortLabel: `Share (${file.metadata?.sharedLinks?.length || 0})`
+		}
+	]);
 </script>
 
 <div
-  class="media-details-modal flex w-full min-w-0 max-w-none flex-col gap-0 overflow-hidden text-surface-900 max-md:px-4 max-md:pb-4 md:gap-4 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100"
-  data-testid="media-details-modal"
+	class="media-details-modal flex w-full min-w-0 max-w-none flex-col gap-0 overflow-hidden text-surface-900 max-md:px-4 max-md:pb-4 md:gap-4 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100"
+	data-testid="media-details-modal"
 >
-  <!-- Mobile header: filename + close (sticky, full-bleed background) -->
-  <div
-    class="sticky top-0 z-10 -mx-4 flex shrink-0 items-center justify-between gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 backdrop-blur-sm md:hidden dark:border-surface-500/40 dark:bg-surface-900/95"
-  >
-    <div class="min-w-0 flex-1">
-      <h2 class="truncate text-base font-semibold text-surface-600 dark:text-surface-100" title={file.filename}>
-        {file.filename}
-      </h2>
-      <p class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400">{file._id}</p>
-    </div>
-    <Button variant="ghost" onclick={close} aria-label="Close modal" class="h-9 w-9 min-w-9 shrink-0 p-0!">
-      <iconify-icon icon="mdi:close" width="18"></iconify-icon>
-    </Button>
-  </div>
+	<!-- Mobile header: filename + close (sticky, full-bleed background) -->
+	<div
+		class="sticky top-0 z-10 -mx-4 flex shrink-0 items-center justify-between gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 backdrop-blur-sm md:hidden dark:border-surface-500/40 dark:bg-surface-900/95"
+	>
+		<div class="min-w-0 flex-1">
+			<h2
+				class="truncate text-base font-semibold text-surface-600 dark:text-surface-100"
+				title={file.filename}
+			>
+				{file.filename}
+			</h2>
+			<p class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400">
+				{file._id}
+			</p>
+		</div>
+		<Button
+			variant="ghost"
+			onclick={close}
+			aria-label="Close modal"
+			class="h-9 w-9 min-w-9 shrink-0 p-0!"
+		>
+			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+		</Button>
+	</div>
 
-  <!-- Asset preview -->
-  <div
-    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-500/30 bg-surface-500/10 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-72 lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-500/40 dark:bg-surface-900/20"
-  >
-    {#if file.type === 'image'}
-      <div
-        class="media-checkerboard flex max-h-[min(30dvh,11rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
-        style:background-color={file.metadata?.dominantColor || undefined}
-      >
-        <img
-          src={mediaUrl(file)}
-          alt={file.filename}
-          class="max-h-full max-w-full object-contain"
-          style:object-position={file.metadata?.focalPoint ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%` : 'center'}
-          crossorigin="anonymous"
-        />
-      </div>
-    {:else if file.type === 'video'}
-      <video
-        src={mediaUrl(file)}
-        controls
-        class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
-      >
-        <track kind="captions" />
-      </video>
-    {:else if file.type === 'audio'}
-      <div class="flex w-full max-w-sm flex-col items-center gap-4 py-4">
-        <div class="rounded-full border border-surface-500/30 bg-surface-500/10 p-5 text-primary-500 dark:border-surface-500/40 dark:bg-surface-800">
-          <iconify-icon icon="mdi:music-note" width="40"></iconify-icon>
-        </div>
-        <audio src={mediaUrl(file)} controls class="w-full"></audio>
-      </div>
-    {:else}
-      <div class="flex flex-col items-center gap-3 py-6">
-        <div class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-6 text-surface-500 dark:border-surface-500/40 dark:bg-surface-800">
-          <iconify-icon icon="mdi:file-document-outline" width="48"></iconify-icon>
-        </div>
-        <span class="font-mono text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400">{formatMime(file.mimeType)}</span>
-      </div>
-    {/if}
+	<!-- Asset preview -->
+	<div
+		class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-500/30 bg-surface-500/10 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-72 lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-500/40 dark:bg-surface-900/20"
+	>
+		{#if file.type === 'image'}
+			<div
+				class="media-checkerboard flex max-h-[min(30dvh,11rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+				style:background-color={file.metadata?.dominantColor || undefined}
+			>
+				<img
+					src={mediaUrl(file)}
+					alt={file.filename}
+					class="max-h-full max-w-full object-contain"
+					style:object-position={file.metadata?.focalPoint
+						? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+						: 'center'}
+					crossorigin="anonymous"
+				/>
+			</div>
+		{:else if file.type === 'video'}
+			<video
+				src={mediaUrl(file)}
+				controls
+				class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+			>
+				<track kind="captions" />
+			</video>
+		{:else if file.type === 'audio'}
+			<div class="flex w-full max-w-sm flex-col items-center gap-4 py-4">
+				<div
+					class="rounded-full border border-surface-500/30 bg-surface-500/10 p-5 text-primary-500 dark:border-surface-500/40 dark:bg-surface-800"
+				>
+					<iconify-icon icon="mdi:music-note" width="40"></iconify-icon>
+				</div>
+				<audio src={mediaUrl(file)} controls class="w-full"></audio>
+			</div>
+		{:else}
+			<div class="flex flex-col items-center gap-3 py-6">
+				<div
+					class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-6 text-surface-500 dark:border-surface-500/40 dark:bg-surface-800"
+				>
+					<iconify-icon icon="mdi:file-document-outline" width="48"></iconify-icon>
+				</div>
+				<span
+					class="font-mono text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400"
+					>{formatMime(file.mimeType)}</span
+				>
+			</div>
+		{/if}
 
-    <div class="mt-3 flex w-full flex-col items-stretch gap-2 sm:mt-4 sm:items-center">
-      <Button
-        variant="surface"
-        size="sm"
-        href={mediaUrl(file)}
-        download={file.filename}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="h-9 w-full gap-1.5 sm:w-auto"
-      >
-        <iconify-icon icon="mdi:download-outline" width="16"></iconify-icon>
-        <span>Download Original</span>
-      </Button>
+		<div class="mt-3 flex w-full flex-col items-stretch gap-2 sm:mt-4 sm:items-center">
+			<Button
+				variant="surface"
+				size="sm"
+				href={mediaUrl(file)}
+				download={file.filename}
+				target="_blank"
+				rel="noopener noreferrer"
+				class="h-9 w-full gap-1.5 sm:w-auto"
+			>
+				<iconify-icon icon="mdi:download-outline" width="16"></iconify-icon>
+				<span>Download Original</span>
+			</Button>
 
-      {#if onEdit || onDelete}
-        <div
-          class="flex w-full gap-1.5 md:hidden"
-          data-testid="media-details-mobile-actions"
-          role="toolbar"
-          aria-label="Asset actions"
-        >
-          {#if onEdit && file.type === 'image'}
-            <Button
-              variant="surface"
-              size="sm"
-              class="h-9 min-w-0 flex-1 gap-1.5"
-              onclick={() => onEdit?.(file)}
-              aria-label="Edit {file.filename}"
-            >
-              <iconify-icon icon="mdi:pencil" width="16"></iconify-icon>
-              <span>Edit</span>
-            </Button>
-          {/if}
-          <Button
-            variant="surface"
-            size="sm"
-            class="h-9 min-w-0 flex-1 gap-1.5"
-            onclick={() => (activeTab = 'info')}
-            aria-label="Manage tags for {file.filename}"
-          >
-            <iconify-icon icon="mdi:tag-outline" width="16"></iconify-icon>
-            <span>Tags</span>
-          </Button>
-          {#if onDelete}
-            <Button
-              variant="ghost"
-              size="sm"
-              class="h-9 min-w-0 flex-1 gap-1.5 text-error-600 hover:bg-error-500/10 dark:text-error-400"
-              onclick={() => onDelete?.(file)}
-              aria-label="Delete {file.filename}"
-            >
-              <iconify-icon icon="mdi:trash-can-outline" width="16"></iconify-icon>
-              <span>Delete</span>
-            </Button>
-          {/if}
-        </div>
-      {/if}
-    </div>
-  </div>
+			{#if onEdit || onDelete}
+				<div
+					class="flex w-full gap-1.5 md:hidden"
+					data-testid="media-details-mobile-actions"
+					role="toolbar"
+					aria-label="Asset actions"
+				>
+					{#if onEdit && file.type === 'image'}
+						<Button
+							variant="surface"
+							size="sm"
+							class="h-9 min-w-0 flex-1 gap-1.5"
+							onclick={() => onEdit?.(file)}
+							aria-label="Edit {file.filename}"
+						>
+							<iconify-icon icon="mdi:pencil" width="16"></iconify-icon>
+							<span>Edit</span>
+						</Button>
+					{/if}
+					<Button
+						variant="surface"
+						size="sm"
+						class="h-9 min-w-0 flex-1 gap-1.5"
+						onclick={() => (activeTab = 'info')}
+						aria-label="Manage tags for {file.filename}"
+					>
+						<iconify-icon icon="mdi:tag-outline" width="16"></iconify-icon>
+						<span>Tags</span>
+					</Button>
+					{#if onDelete}
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-9 min-w-0 flex-1 gap-1.5 text-error-600 hover:bg-error-500/10 dark:text-error-400"
+							onclick={() => onDelete?.(file)}
+							aria-label="Delete {file.filename}"
+						>
+							<iconify-icon icon="mdi:trash-can-outline" width="16"></iconify-icon>
+							<span>Delete</span>
+						</Button>
+					{/if}
+				</div>
+			{/if}
+		</div>
+	</div>
 
-  <!-- Details panel -->
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:pt-3">
-    <div class="mb-3 hidden shrink-0 items-start justify-between gap-3 border-b border-surface-500/30 pb-3 md:flex dark:border-surface-500/40">
-      <div class="min-w-0 flex-1">
-        <h2 class="truncate text-base font-semibold text-surface-600 sm:text-lg dark:text-surface-100" title={file.filename}>
-          {file.filename}
-        </h2>
-        <p class="mt-1 truncate font-mono text-[10px] text-surface-500 sm:text-[11px] dark:text-surface-400">{file._id}</p>
-      </div>
-      <Button variant="ghost" onclick={close} aria-label="Close modal" class="h-9 w-9 min-w-9 shrink-0 p-0!">
-        <iconify-icon icon="mdi:close" width="18"></iconify-icon>
-      </Button>
-    </div>
+	<!-- Details panel -->
+	<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:pt-3">
+		<div
+			class="mb-3 hidden shrink-0 items-start justify-between gap-3 border-b border-surface-500/30 pb-3 md:flex dark:border-surface-500/40"
+		>
+			<div class="min-w-0 flex-1">
+				<h2
+					class="truncate text-base font-semibold text-surface-600 sm:text-lg dark:text-surface-100"
+					title={file.filename}
+				>
+					{file.filename}
+				</h2>
+				<p
+					class="mt-1 truncate font-mono text-[10px] text-surface-500 sm:text-[11px] dark:text-surface-400"
+				>
+					{file._id}
+				</p>
+			</div>
+			<Button
+				variant="ghost"
+				onclick={close}
+				aria-label="Close modal"
+				class="h-9 w-9 min-w-9 shrink-0 p-0!"
+			>
+				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+			</Button>
+		</div>
 
-    <Tabs tabs={tabs} bind:activeTab variant="underline" ariaLabel="Media details sections" />
+		<Tabs {tabs} bind:activeTab variant="underline" ariaLabel="Media details sections" />
 
-    <div class="min-h-0 flex-1 overflow-y-auto pe-0 sm:pe-1">
-      {#if activeTab === 'info'}
-        <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <!-- Editable Asset Fields -->
-          <div class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60">
-            <dl class="space-y-3">
-              <!-- Asset Name -->
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">Name</dt>
-                <dd class="min-w-0">
-                  {#if isEditingName}
-                    <div class="flex items-center gap-1.5">
-                      <Input
-                        type="text"
-                        bind:value={editName}
-                        class="flex-1"
-                        oninput={() => { nameSaveStatus = 'saving'; debouncedSaveName(); }}
-                        onkeydown={(e) => { if (e.key === 'Escape') { debouncedSaveName.cancel(); isEditingName = false; } }}
-                      />
-                      {#if nameSaveStatus === 'saving'}
-                        <iconify-icon icon="mdi:loading" class="animate-spin text-surface-400" width="14"></iconify-icon>
-                      {:else if nameSaveStatus === 'saved'}
-                        <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
-                      {/if}
-                    </div>
-                  {:else}
-                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100" onclick={startEditName} aria-label="Edit asset name">{file.metadata?.name || file.filename || 'Untitled'}</Button>
-                  {/if}
-                </dd>
-              </div>
+		<div class="min-h-0 flex-1 overflow-y-auto pe-0 sm:pe-1">
+			{#if activeTab === 'info'}
+				<div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
+					<!-- Editable Asset Fields -->
+					<div
+						class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60"
+					>
+						<dl class="space-y-3">
+							<!-- Asset Name -->
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">
+									Name
+								</dt>
+								<dd class="min-w-0">
+									{#if isEditingName}
+										<div class="flex items-center gap-1.5">
+											<Input
+												type="text"
+												bind:value={editName}
+												class="flex-1"
+												oninput={() => {
+													nameSaveStatus = 'saving';
+													debouncedSaveName();
+												}}
+												onkeydown={(e) => {
+													if (e.key === 'Escape') {
+														debouncedSaveName.cancel();
+														isEditingName = false;
+													}
+												}}
+											/>
+											{#if nameSaveStatus === 'saving'}
+												<iconify-icon
+													icon="mdi:loading"
+													class="animate-spin text-surface-400"
+													width="14"
+												></iconify-icon>
+											{:else if nameSaveStatus === 'saved'}
+												<iconify-icon icon="mdi:check" width="14" class="text-success-500"
+												></iconify-icon>
+											{/if}
+										</div>
+									{:else}
+										<Button
+											variant="ghost"
+											class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100"
+											onclick={startEditName}
+											aria-label="Edit asset name"
+											>{file.metadata?.name || file.filename || 'Untitled'}</Button
+										>
+									{/if}
+								</dd>
+							</div>
 
-              <!-- Alt Text (images only) -->
-              {#if file.type === 'image'}
-                <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                  <dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">Alt Text</dt>
-                  <dd class="min-w-0">
-                    {#if isEditingAlt}
-                      <div class="flex items-center gap-1.5">
-                        <Input
-                          type="text"
-                          bind:value={editAlt}
-                          class="flex-1"
-                          oninput={() => { altSaveStatus = 'saving'; debouncedSaveAlt(); }}
-                          onkeydown={(e) => { if (e.key === 'Escape') { debouncedSaveAlt.cancel(); isEditingAlt = false; } }}
-                        />
-                        {#if altSaveStatus === 'saving'}
-                          <iconify-icon icon="mdi:loading" class="animate-spin text-surface-400" width="14"></iconify-icon>
-                        {:else if altSaveStatus === 'saved'}
-                          <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
-                        {/if}
-                      </div>
-                    {:else}
-                      <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100" onclick={startEditAlt} aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button>
-                    {/if}
-                  </dd>
-                </div>
-              {/if}
+							<!-- Alt Text (images only) -->
+							{#if file.type === 'image'}
+								<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+									<dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">
+										Alt Text
+									</dt>
+									<dd class="min-w-0">
+										{#if isEditingAlt}
+											<div class="flex items-center gap-1.5">
+												<Input
+													type="text"
+													bind:value={editAlt}
+													class="flex-1"
+													oninput={() => {
+														altSaveStatus = 'saving';
+														debouncedSaveAlt();
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Escape') {
+															debouncedSaveAlt.cancel();
+															isEditingAlt = false;
+														}
+													}}
+												/>
+												{#if altSaveStatus === 'saving'}
+													<iconify-icon
+														icon="mdi:loading"
+														class="animate-spin text-surface-400"
+														width="14"
+													></iconify-icon>
+												{:else if altSaveStatus === 'saved'}
+													<iconify-icon icon="mdi:check" width="14" class="text-success-500"
+													></iconify-icon>
+												{/if}
+											</div>
+										{:else}
+											<Button
+												variant="ghost"
+												class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100"
+												onclick={startEditAlt}
+												aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button
+											>
+										{/if}
+									</dd>
+								</div>
+							{/if}
 
-              <!-- Caption -->
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">Caption</dt>
-                <dd class="min-w-0">
-                  {#if isEditingCaption}
-                    <div class="flex items-center gap-1.5">
-                      <Input
-                        type="text"
-                        bind:value={editCaption}
-                        class="flex-1"
-                        oninput={() => { captionSaveStatus = 'saving'; debouncedSaveCaption(); }}
-                        onkeydown={(e) => { if (e.key === 'Escape') { debouncedSaveCaption.cancel(); isEditingCaption = false; } }}
-                      />
-                      {#if captionSaveStatus === 'saving'}
-                        <iconify-icon icon="mdi:loading" class="animate-spin text-surface-400" width="14"></iconify-icon>
-                      {:else if captionSaveStatus === 'saved'}
-                        <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
-                      {/if}
-                    </div>
-                  {:else}
-                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100" onclick={startEditCaption} aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button>
-                  {/if}
-                </dd>
-              </div>
-            </dl>
-          </div>
+							<!-- Caption -->
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">
+									Caption
+								</dt>
+								<dd class="min-w-0">
+									{#if isEditingCaption}
+										<div class="flex items-center gap-1.5">
+											<Input
+												type="text"
+												bind:value={editCaption}
+												class="flex-1"
+												oninput={() => {
+													captionSaveStatus = 'saving';
+													debouncedSaveCaption();
+												}}
+												onkeydown={(e) => {
+													if (e.key === 'Escape') {
+														debouncedSaveCaption.cancel();
+														isEditingCaption = false;
+													}
+												}}
+											/>
+											{#if captionSaveStatus === 'saving'}
+												<iconify-icon
+													icon="mdi:loading"
+													class="animate-spin text-surface-400"
+													width="14"
+												></iconify-icon>
+											{:else if captionSaveStatus === 'saved'}
+												<iconify-icon icon="mdi:check" width="14" class="text-success-500"
+												></iconify-icon>
+											{/if}
+										</div>
+									{:else}
+										<Button
+											variant="ghost"
+											class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100"
+											onclick={startEditCaption}
+											aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button
+										>
+									{/if}
+								</dd>
+							</div>
+						</dl>
+					</div>
 
-          <div class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs dark:border-surface-500/40 dark:bg-surface-900/60">
-            <dl class="space-y-2.5">
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="text-surface-500 dark:text-surface-400">Mime-Type</dt>
-                <dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">{file.mimeType}</dd>
-              </div>
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="text-surface-500 dark:text-surface-400">File Size</dt>
-                <dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">{formatBytes(file.size)}</dd>
-              </div>
-              {#if file.width && file.height}
-                <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                  <dt class="text-surface-500 dark:text-surface-400">Dimensions</dt>
-                  <dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">{file.width} × {file.height} px</dd>
-                </div>
-              {/if}
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="text-surface-500 dark:text-surface-400">Folder</dt>
-                <dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">{file.folder || 'global'}</dd>
-              </div>
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="text-surface-500 dark:text-surface-400">Created</dt>
-                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{formatDateTime(file.createdAt)}</dd>
-              </div>
-              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-                <dt class="text-surface-500 dark:text-surface-400">Updated</dt>
-                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{formatDateTime(file.updatedAt)}</dd>
-              </div>
-            </dl>
-          </div>
+					<div
+						class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs dark:border-surface-500/40 dark:bg-surface-900/60"
+					>
+						<dl class="space-y-2.5">
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="text-surface-500 dark:text-surface-400">Mime-Type</dt>
+								<dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">
+									{file.mimeType}
+								</dd>
+							</div>
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="text-surface-500 dark:text-surface-400">File Size</dt>
+								<dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">
+									{formatBytes(file.size)}
+								</dd>
+							</div>
+							{#if file.width && file.height}
+								<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+									<dt class="text-surface-500 dark:text-surface-400">Dimensions</dt>
+									<dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">
+										{file.width} × {file.height} px
+									</dd>
+								</div>
+							{/if}
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="text-surface-500 dark:text-surface-400">Folder</dt>
+								<dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">
+									{file.folder || 'global'}
+								</dd>
+							</div>
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="text-surface-500 dark:text-surface-400">Created</dt>
+								<dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">
+									{formatDateTime(file.createdAt)}
+								</dd>
+							</div>
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="text-surface-500 dark:text-surface-400">Updated</dt>
+								<dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">
+									{formatDateTime(file.updatedAt)}
+								</dd>
+							</div>
+						</dl>
+					</div>
 
-          <div>
-            <h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">Asset Tags</h3>
+					<div>
+						<h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">
+							Asset Tags
+						</h3>
 
-            <div class="mb-3 flex flex-wrap gap-1.5">
-              {#each file.metadata?.tags || [] as tag (tag)}
-                <Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
-                  <span>{tag}</span>
-                  <Button variant="ghost" size="sm" class="rounded-full p-0.5" onclick={() => handleRemoveTag(tag)} aria-label="Remove tag {tag}">
-                    <iconify-icon icon="mdi:close" width="12"></iconify-icon>
-                  </Button>
-                </Badge>
-              {:else}
-                <span class="text-xs text-surface-500 dark:text-surface-400">No tags added yet.</span>
-              {/each}
-            </div>
+						<div class="mb-3 flex flex-wrap gap-1.5">
+							{#each file.metadata?.tags || [] as tag (tag)}
+								<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
+									<span>{tag}</span>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="rounded-full p-0.5"
+										onclick={() => handleRemoveTag(tag)}
+										aria-label="Remove tag {tag}"
+									>
+										<iconify-icon icon="mdi:close" width="12"></iconify-icon>
+									</Button>
+								</Badge>
+							{:else}
+								<span class="text-xs text-surface-500 dark:text-surface-400"
+									>No tags added yet.</span
+								>
+							{/each}
+						</div>
 
-            <div class="flex items-center gap-2">
-              <Input
-                type="text"
-                bind:value={newTagInput}
-                onkeydown={handleAddTag}
-                placeholder="Add tag…"
-                aria-label="Add tag"
-                inputClass="h-9 text-sm"
-                class="min-w-0 flex-1"
-                disabled={isSavingTags}
-              />
-              <Button
-                variant="surface"
-                size="sm"
-                onclick={handleAddTag}
-                disabled={isSavingTags || !newTagInput.trim()}
-                aria-label="Add tag"
-                class="h-9 shrink-0 px-3"
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-        </div>
+						<div class="flex items-center gap-2">
+							<Input
+								type="text"
+								bind:value={newTagInput}
+								onkeydown={handleAddTag}
+								placeholder="Add tag…"
+								aria-label="Add tag"
+								inputClass="h-9 text-sm"
+								class="min-w-0 flex-1"
+								disabled={isSavingTags}
+							/>
+							<Button
+								variant="surface"
+								size="sm"
+								onclick={handleAddTag}
+								disabled={isSavingTags || !newTagInput.trim()}
+								aria-label="Add tag"
+								class="h-9 shrink-0 px-3"
+							>
+								Add
+							</Button>
+						</div>
+					</div>
+				</div>
+			{:else if activeTab === 'versions'}
+				<div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
+					<div
+						class="flex flex-col items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-900/60"
+					>
+						<iconify-icon icon="mdi:cloud-upload-outline" width="28" class="text-surface-400"
+						></iconify-icon>
+						<div>
+							<h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">
+								Replace or Update File
+							</h4>
+							<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+								Upload a new file. The current name is preserved and the old version is stored in
+								history.
+							</p>
+						</div>
 
-      {:else if activeTab === 'versions'}
-        <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <div class="flex flex-col items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-900/60">
-            <iconify-icon icon="mdi:cloud-upload-outline" width="28" class="text-surface-400"></iconify-icon>
-            <div>
-              <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">Replace or Update File</h4>
-              <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Upload a new file. The current name is preserved and the old version is stored in history.</p>
-            </div>
+						<input
+							aria-label="Upload new version"
+							type="file"
+							bind:this={fileInputEl}
+							onchange={handleVersionUpload}
+							class="hidden"
+						/>
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={triggerFileInput}
+							disabled={isUploadingVersion}
+							aria-label="Upload new version"
+							class="h-9 gap-1.5"
+						>
+							{#if isUploadingVersion}
+								<iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
+								<span>Uploading…</span>
+							{:else}
+								<iconify-icon icon="mdi:upload" width="16"></iconify-icon>
+								<span>Upload New Version</span>
+							{/if}
+						</Button>
+					</div>
 
-		<input aria-label="Upload new version"
-			type="file"
-			bind:this={fileInputEl}
-			onchange={handleVersionUpload}
-			class="hidden"
-		/>
-            <Button
-              variant="surface"
-              size="sm"
-              onclick={triggerFileInput}
-              disabled={isUploadingVersion}
-              aria-label="Upload new version"
-              class="h-9 gap-1.5"
-            >
-              {#if isUploadingVersion}
-                <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
-                <span>Uploading…</span>
-              {:else}
-                <iconify-icon icon="mdi:upload" width="16"></iconify-icon>
-                <span>Upload New Version</span>
-              {/if}
-            </Button>
-          </div>
+					{#if (file.versions?.length || 0) >= 2}
+						<div
+							class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/60"
+						>
+							<h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">
+								Compare Versions
+							</h3>
+							<p class="mb-3 text-xs text-surface-500 dark:text-surface-400">
+								Diff two historical versions to inspect content, metadata, and size changes.
+							</p>
 
-          {#if (file.versions?.length || 0) >= 2}
-            <div class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/60">
-              <h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">Compare Versions</h3>
-              <p class="mb-3 text-xs text-surface-500 dark:text-surface-400">Diff two historical versions to inspect content, metadata, and size changes.</p>
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<Select
+									bind:value={compareFrom}
+									label="From"
+									size="sm"
+									placeholder="Select version…"
+									options={versionOptions}
+								/>
+								<Select
+									bind:value={compareTo}
+									label="To"
+									size="sm"
+									placeholder="Select version…"
+									options={versionOptions}
+								/>
+							</div>
 
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Select
-                  bind:value={compareFrom}
-                  label="From"
-                  size="sm"
-                  placeholder="Select version…"
-                  options={versionOptions}
-                />
-                <Select
-                  bind:value={compareTo}
-                  label="To"
-                  size="sm"
-                  placeholder="Select version…"
-                  options={versionOptions}
-                />
-              </div>
+							<Button
+								variant="surface"
+								size="sm"
+								onclick={handleCompareVersions}
+								disabled={isComparingVersions || !compareFrom || !compareTo}
+								aria-label="Compare selected versions"
+								class="mt-3 h-9 gap-1.5"
+							>
+								{#if isComparingVersions}
+									<iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
+									<span>Comparing…</span>
+								{:else}
+									<iconify-icon icon="mdi:file-compare" width="16"></iconify-icon>
+									<span>Compare</span>
+								{/if}
+							</Button>
 
-              <Button
-                variant="surface"
-                size="sm"
-                onclick={handleCompareVersions}
-                disabled={isComparingVersions || !compareFrom || !compareTo}
-                aria-label="Compare selected versions"
-                class="mt-3 h-9 gap-1.5"
-              >
-                {#if isComparingVersions}
-                  <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
-                  <span>Comparing…</span>
-                {:else}
-                  <iconify-icon icon="mdi:file-compare" width="16"></iconify-icon>
-                  <span>Compare</span>
-                {/if}
-              </Button>
+							{#if compareResult}
+								<div
+									class="mt-4 rounded-lg border border-surface-500/30 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900/20"
+								>
+									<div class="mb-3 flex flex-wrap gap-2">
+										<Badge variant={compareResult.contentChanged ? 'warning' : 'success'} size="sm">
+											{compareResult.contentChanged ? 'Content changed' : 'Content identical'}
+										</Badge>
+										<Badge
+											variant={compareResult.metadataChanged ? 'warning' : 'surface'}
+											size="sm"
+										>
+											{compareResult.metadataChanged ? 'Metadata changed' : 'Metadata unchanged'}
+										</Badge>
+										<Badge variant="surface" size="sm">
+											Size delta: {compareResult.sizeDifference >= 0 ? '+' : ''}{formatBytes(
+												Math.abs(compareResult.sizeDifference)
+											)}
+										</Badge>
+									</div>
 
-              {#if compareResult}
-                <div class="mt-4 rounded-lg border border-surface-500/30 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900/20">
-                  <div class="mb-3 flex flex-wrap gap-2">
-                    <Badge variant={compareResult.contentChanged ? "warning" : "success"} size="sm">
-                      {compareResult.contentChanged ? "Content changed" : "Content identical"}
-                    </Badge>
-                    <Badge variant={compareResult.metadataChanged ? "warning" : "surface"} size="sm">
-                      {compareResult.metadataChanged ? "Metadata changed" : "Metadata unchanged"}
-                    </Badge>
-                    <Badge variant="surface" size="sm">
-                      Size delta: {compareResult.sizeDifference >= 0 ? "+" : ""}{formatBytes(Math.abs(compareResult.sizeDifference))}
-                    </Badge>
-                  </div>
+									{#if compareResult.changes.length > 0}
+										<div class="flex flex-col gap-2">
+											{#each compareResult.changes as change (change.field + change.type)}
+												<div
+													class="rounded border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40"
+												>
+													<p class="font-semibold text-surface-600 dark:text-surface-100">
+														{change.field}
+														<span class="ms-1 font-normal text-surface-500">({change.type})</span>
+													</p>
+													{#if change.oldValue !== undefined || change.newValue !== undefined}
+														<p
+															class="mt-1 font-mono text-[11px] text-surface-500 dark:text-surface-400"
+														>
+															{#if change.oldValue !== undefined}
+																<span class="text-error-500 line-through"
+																	>{String(change.oldValue)}</span
+																>
+															{/if}
+															{#if change.oldValue !== undefined && change.newValue !== undefined}
+																<span class="mx-1">→</span>
+															{/if}
+															{#if change.newValue !== undefined}
+																<span class="text-success-600 dark:text-success-400"
+																	>{String(change.newValue)}</span
+																>
+															{/if}
+														</p>
+													{/if}
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<p class="text-xs text-surface-500 dark:text-surface-400">
+											No field-level differences detected.
+										</p>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
 
-                  {#if compareResult.changes.length > 0}
-                    <div class="flex flex-col gap-2">
-                      {#each compareResult.changes as change (change.field + change.type)}
-                        <div class="rounded border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40">
-                          <p class="font-semibold text-surface-600 dark:text-surface-100">
-                            {change.field}
-                            <span class="ms-1 font-normal text-surface-500">({change.type})</span>
-                          </p>
-                          {#if change.oldValue !== undefined || change.newValue !== undefined}
-                            <p class="mt-1 font-mono text-[11px] text-surface-500 dark:text-surface-400">
-                              {#if change.oldValue !== undefined}
-                                <span class="text-error-500 line-through">{String(change.oldValue)}</span>
-                              {/if}
-                              {#if change.oldValue !== undefined && change.newValue !== undefined}
-                                <span class="mx-1">→</span>
-                              {/if}
-                              {#if change.newValue !== undefined}
-                                <span class="text-success-600 dark:text-success-400">{String(change.newValue)}</span>
-                              {/if}
-                            </p>
-                          {/if}
-                        </div>
-                      {/each}
-                    </div>
-                  {:else}
-                    <p class="text-xs text-surface-500 dark:text-surface-400">No field-level differences detected.</p>
-                  {/if}
-                </div>
-              {/if}
-            </div>
-          {/if}
+					<div>
+						<h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">
+							Version History
+						</h3>
+						<div class="flex flex-col gap-2">
+							<div
+								class="flex flex-col gap-3 rounded-lg border border-primary-500/20 bg-primary-500/10 p-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div class="flex min-w-0 items-center gap-3">
+									<Badge variant="primary" size="sm">Active</Badge>
+									<div class="min-w-0">
+										<p
+											class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100"
+										>
+											{file.filename}
+										</p>
+										<p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
+											Current · {formatBytes(file.size)} · {formatDateTime(file.updatedAt)}
+										</p>
+									</div>
+								</div>
+							</div>
 
-          <div>
-            <h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">Version History</h3>
-            <div class="flex flex-col gap-2">
-              <div class="flex flex-col gap-3 rounded-lg border border-primary-500/20 bg-primary-500/10 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex min-w-0 items-center gap-3">
-                  <Badge variant="primary" size="sm">Active</Badge>
-                  <div class="min-w-0">
-                    <p class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100">{file.filename}</p>
-                    <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Current · {formatBytes(file.size)} · {formatDateTime(file.updatedAt)}</p>
-                  </div>
-                </div>
-              </div>
+							{#each file.versions || [] as ver (ver.version)}
+								<div
+									class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-500/40 dark:bg-surface-900/60"
+								>
+									<div class="flex min-w-0 items-center gap-3">
+										<Badge variant="surface" size="sm">v{ver.version}</Badge>
+										<div class="min-w-0">
+											<p
+												class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100"
+												title={ver.filename}
+											>
+												{ver.filename}
+											</p>
+											<p
+												class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400"
+											>
+												{formatBytes(ver.size)} · {formatDateTime(ver.createdAt)}
+												{#if ver.createdBy}
+													· {ver.createdBy}
+												{/if}
+											</p>
+										</div>
+									</div>
 
-              {#each file.versions || [] as ver (ver.version)}
-                <div class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-500/40 dark:bg-surface-900/60">
-                  <div class="flex min-w-0 items-center gap-3">
-                    <Badge variant="surface" size="sm">v{ver.version}</Badge>
-                    <div class="min-w-0">
-                      <p class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100" title={ver.filename}>{ver.filename}</p>
-                      <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
-                        {formatBytes(ver.size)} · {formatDateTime(ver.createdAt)}
-                        {#if ver.createdBy}
-                          · {ver.createdBy}
-                        {/if}
-                      </p>
-                    </div>
-                  </div>
+									<div class="flex shrink-0 gap-2 self-end sm:self-auto">
+										<Button
+											variant="ghost"
+											size="sm"
+											href={mediaUrl({ url: ver.path } as any)}
+											download={ver.filename}
+											title="Download version"
+											aria-label="Download version"
+											class="h-8 w-8 min-w-8 p-0!"
+										>
+											<iconify-icon icon="mdi:download-outline" width="14"></iconify-icon>
+										</Button>
+										<Button
+											variant="surface"
+											size="sm"
+											onclick={() => handleRestoreVersion(ver.version)}
+											disabled={isRestoringVersion}
+											aria-label="Restore version"
+											class="h-8 px-3"
+										>
+											Restore
+										</Button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				</div>
+			{:else if activeTab === 'references'}
+				<div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
+					{#if isScanningRefs}
+						<div class="flex flex-col items-center justify-center gap-3 p-8">
+							<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="28"
+							></iconify-icon>
+							<span class="text-xs text-surface-500 dark:text-surface-400"
+								>Scanning collections for usage references…</span
+							>
+						</div>
+					{:else}
+						<div>
+							<h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">
+								Usage Scanner
+							</h3>
+							<p class="mb-4 text-xs text-surface-500 dark:text-surface-400">
+								Lists all content entries where this media asset is referenced.
+							</p>
 
-                  <div class="flex shrink-0 gap-2 self-end sm:self-auto">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      href={mediaUrl({ url: ver.path } as any)}
-                      download={ver.filename}
-                      title="Download version"
-                      aria-label="Download version"
-                      class="h-8 w-8 min-w-8 p-0!"
-                    >
-                      <iconify-icon icon="mdi:download-outline" width="14"></iconify-icon>
-                    </Button>
-                    <Button
-                      variant="surface"
-                      size="sm"
-                      onclick={() => handleRestoreVersion(ver.version)}
-                      disabled={isRestoringVersion}
-                      aria-label="Restore version"
-                      class="h-8 px-3"
-                    >
-                      Restore
-                    </Button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        </div>
+							<div class="flex flex-col gap-2">
+								{#each references as ref (ref.entryId)}
+									<div
+										class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-500/40 dark:bg-surface-900/60"
+									>
+										<div class="min-w-0">
+											<span
+												class="text-[10px] font-semibold uppercase tracking-wide text-primary-500"
+												>{ref.collection}</span
+											>
+											<p class="mt-0.5 text-xs font-medium text-surface-600 dark:text-surface-100">
+												Field: <span class="font-mono">{ref.field}</span>
+											</p>
+											<p
+												class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400"
+											>
+												Entry ID: {ref.entryId}
+											</p>
+										</div>
 
-      {:else if activeTab === 'references'}
-        <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          {#if isScanningRefs}
-            <div class="flex flex-col items-center justify-center gap-3 p-8">
-              <iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="28"></iconify-icon>
-              <span class="text-xs text-surface-500 dark:text-surface-400">Scanning collections for usage references…</span>
-            </div>
-          {:else}
-            <div>
-              <h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">Usage Scanner</h3>
-              <p class="mb-4 text-xs text-surface-500 dark:text-surface-400">Lists all content entries where this media asset is referenced.</p>
+										<Button
+											variant="surface"
+											size="sm"
+											href="/content/{ref.collection}/{ref.entryId}"
+											class="h-8 shrink-0 self-end px-3 sm:self-auto"
+										>
+											Go to Entry
+										</Button>
+									</div>
+								{:else}
+									<div
+										class="rounded-lg border border-dashed border-surface-500/30 p-4 dark:border-surface-500/40 sm:p-6 sm:text-center"
+									>
+										<iconify-icon
+											icon="mdi:link-variant-off"
+											width="28"
+											class="mb-2 text-surface-400"
+										></iconify-icon>
+										<p class="text-xs text-surface-500 dark:text-surface-400">
+											This asset is not referenced in any collections.
+										</p>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+			{:else if activeTab === 'share'}
+				<div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
+					<div
+						class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/60"
+					>
+						<h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">
+							Create Expiring Public Link
+						</h4>
 
-              <div class="flex flex-col gap-2">
-                {#each references as ref (ref.entryId)}
-                  <div class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-500/40 dark:bg-surface-900/60">
-                    <div class="min-w-0">
-                      <span class="text-[10px] font-semibold uppercase tracking-wide text-primary-500">{ref.collection}</span>
-                      <p class="mt-0.5 text-xs font-medium text-surface-600 dark:text-surface-100">Field: <span class="font-mono">{ref.field}</span></p>
-                      <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Entry ID: {ref.entryId}</p>
-                    </div>
+						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<Select
+								bind:value={expiryHoursValue}
+								onchange={handleExpiryChange}
+								label="Expiration"
+								size="sm"
+								placeholder="Select expiration…"
+								options={[
+									{ value: '1', label: '1 Hour' },
+									{ value: '24', label: '24 Hours (1 Day)' },
+									{ value: '168', label: '168 Hours (7 Days)' },
+									{ value: 'never', label: 'Never Expires' }
+								]}
+							/>
+							<Input
+								type="password"
+								bind:value={sharePassword}
+								label="Password (optional)"
+								inputClass="h-9 text-sm"
+								placeholder="Set password…"
+								aria-label="Share password"
+							/>
+						</div>
 
-                    <Button
-                      variant="surface"
-                      size="sm"
-                      href="/content/{ref.collection}/{ref.entryId}"
-                      class="h-8 shrink-0 self-end px-3 sm:self-auto"
-                    >
-                      Go to Entry
-                    </Button>
-                  </div>
-                {:else}
-                  <div class="rounded-lg border border-dashed border-surface-500/30 p-4 dark:border-surface-500/40 sm:p-6 sm:text-center">
-                    <iconify-icon icon="mdi:link-variant-off" width="28" class="mb-2 text-surface-400"></iconify-icon>
-                    <p class="text-xs text-surface-500 dark:text-surface-400">This asset is not referenced in any collections.</p>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        </div>
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={handleGenerateShareLink}
+							disabled={isCreatingShare}
+							aria-label="Generate sharing link"
+							class="h-9 w-full gap-1.5"
+						>
+							{#if isCreatingShare}
+								<iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
+								<span>Generating…</span>
+							{:else}
+								<iconify-icon icon="mdi:link-variant" width="16"></iconify-icon>
+								<span>Generate Sharing Link</span>
+							{/if}
+						</Button>
+					</div>
 
-      {:else if activeTab === 'share'}
-        <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <div class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/60">
-            <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">Create Expiring Public Link</h4>
+					<div>
+						<h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">
+							Active Sharing Links
+						</h3>
+						<div class="flex flex-col gap-2">
+							{#each file.metadata?.sharedLinks || [] as link (link.url || link)}
+								{const expired = isExpired(link.expiry)}
+								<div
+									class="flex flex-col gap-2 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60"
+								>
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<div class="flex items-center gap-2">
+											<span
+												class="h-2 w-2 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"
+											></span>
+											<span
+												class="font-mono text-[10px] uppercase text-surface-600 dark:text-surface-400"
+												>{expired ? 'Expired' : 'Active'}</span
+											>
+											{#if link.passwordHash}
+												<iconify-icon
+													icon="mdi:lock"
+													width="14"
+													class="text-warning-500"
+													title="Password protected"
+												></iconify-icon>
+											{/if}
+										</div>
+										<span class="font-mono text-[10px] text-surface-500 dark:text-surface-400"
+											>Downloads: {link.downloadCount || 0}</span
+										>
+									</div>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Select
-                bind:value={expiryHoursValue}
-                onchange={handleExpiryChange}
-                label="Expiration"
-                size="sm"
-                placeholder="Select expiration…"
-                options={[
-                  { value: '1', label: '1 Hour' },
-                  { value: '24', label: '24 Hours (1 Day)' },
-                  { value: '168', label: '168 Hours (7 Days)' },
-                  { value: 'never', label: 'Never Expires' }
-                ]}
-              />
-              <Input
-                type="password"
-                bind:value={sharePassword}
-                label="Password (optional)"
-                inputClass="h-9 text-sm"
-                placeholder="Set password…"
-                aria-label="Share password"
-              />
-            </div>
+									<div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+										<Input
+											type="text"
+											value={getShareLinkUrl(link.token)}
+											readonly
+											label="Share URL"
+											inputClass="h-9 text-[11px] font-mono"
+											aria-label="Share link URL"
+											class="min-w-0 flex-1"
+										/>
+										<div class="flex shrink-0 gap-2 self-stretch sm:self-auto">
+											<Button
+												variant="surface"
+												size="sm"
+												onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
+												title="Copy share link"
+												aria-label="Copy share link"
+												class="h-9 flex-1 px-3 sm:flex-none"
+											>
+												Copy
+											</Button>
+											<Button
+												variant="error"
+												size="sm"
+												onclick={() => handleRevokeShareLink(link.token)}
+												title="Revoke share link"
+												aria-label="Revoke share link"
+												class="h-9 flex-1 px-3 sm:flex-none"
+											>
+												Revoke
+											</Button>
+										</div>
+									</div>
 
-            <Button
-              variant="surface"
-              size="sm"
-              onclick={handleGenerateShareLink}
-              disabled={isCreatingShare}
-              aria-label="Generate sharing link"
-              class="h-9 w-full gap-1.5"
-            >
-              {#if isCreatingShare}
-                <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
-                <span>Generating…</span>
-              {:else}
-                <iconify-icon icon="mdi:link-variant" width="16"></iconify-icon>
-                <span>Generate Sharing Link</span>
-              {/if}
-            </Button>
-          </div>
-
-          <div>
-            <h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">Active Sharing Links</h3>
-            <div class="flex flex-col gap-2">
-              {#each file.metadata?.sharedLinks || [] as link (link.url || link)}
-                {const expired = isExpired(link.expiry)}
-                <div class="flex flex-col gap-2 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60">
-                  <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                      <span class="h-2 w-2 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"></span>
-                      <span class="font-mono text-[10px] uppercase text-surface-600 dark:text-surface-400">{expired ? 'Expired' : 'Active'}</span>
-                      {#if link.passwordHash}
-                        <iconify-icon icon="mdi:lock" width="14" class="text-warning-500" title="Password protected"></iconify-icon>
-                      {/if}
-                    </div>
-                    <span class="font-mono text-[10px] text-surface-500 dark:text-surface-400">Downloads: {link.downloadCount || 0}</span>
-                  </div>
-
-                  <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-                    <Input
-                      type="text"
-                      value={getShareLinkUrl(link.token)}
-                      readonly
-                      label="Share URL"
-                      inputClass="h-9 text-[11px] font-mono"
-                      aria-label="Share link URL"
-                      class="min-w-0 flex-1"
-                    />
-                    <div class="flex shrink-0 gap-2 self-stretch sm:self-auto">
-                      <Button
-                        variant="surface"
-                        size="sm"
-                        onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
-                        title="Copy share link"
-                        aria-label="Copy share link"
-                        class="h-9 flex-1 px-3 sm:flex-none"
-                      >
-                        Copy
-                      </Button>
-                      <Button
-                        variant="error"
-                        size="sm"
-                        onclick={() => handleRevokeShareLink(link.token)}
-                        title="Revoke share link"
-                        aria-label="Revoke share link"
-                        class="h-9 flex-1 px-3 sm:flex-none"
-                      >
-                        Revoke
-                      </Button>
-                    </div>
-                  </div>
-
-                  {#if link.expiry}
-                    <div class="font-mono text-[10px] text-surface-500 dark:text-surface-400">
-                      Expires: {formatDateTime(link.expiry)}
-                    </div>
-                  {/if}
-                </div>
-              {:else}
-                <div class="py-4 text-center text-xs text-surface-500 dark:text-surface-400">No active share links.</div>
-              {/each}
-            </div>
-          </div>
-        </div>
-      {/if}
-    </div>
-  </div>
+									{#if link.expiry}
+										<div class="font-mono text-[10px] text-surface-500 dark:text-surface-400">
+											Expires: {formatDateTime(link.expiry)}
+										</div>
+									{/if}
+								</div>
+							{:else}
+								<div class="py-4 text-center text-xs text-surface-500 dark:text-surface-400">
+									No active share links.
+								</div>
+							{/each}
+						</div>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</div>
 </div>
 
 <style>

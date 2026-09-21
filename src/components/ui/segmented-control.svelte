@@ -20,28 +20,28 @@
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import type { HTMLAttributes } from 'svelte/elements';
+	import { cn } from '@utils/cn';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-type Option = {
-	label: string;
-	value: any;
-	icon?: string;
-	disabled?: boolean;
-};
+	type Option = {
+		label: string;
+		value: any;
+		icon?: string;
+		disabled?: boolean;
+	};
 
-type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value' | 'onchange'> & {
-	options: Option[];
-	value: any;
-	name?: string;
-	disabled?: boolean;
-	rounded?: string;
-	class?: string;
-	onchange?: (value: any) => void;
-};
+	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value' | 'onchange'> & {
+		options: Option[];
+		value: any;
+		name?: string;
+		disabled?: boolean;
+		rounded?: string;
+		class?: string;
+		onchange?: (value: any) => void;
+	};
 
-const uid = $props.id();
-let {
+	const uid = $props.id();
+	let {
 		options = [],
 		value = $bindable(),
 		name = uid,
@@ -52,84 +52,86 @@ let {
 		...rest
 	}: Props = $props();
 
-const segmentClasses = $derived(cn(
-		'flex bg-surface-200/50 dark:bg-surface-800/50 p-1',
-		disabled && 'opacity-50 pointer-events-none',
-		className
-	));
+	const segmentClasses = $derived(
+		cn(
+			'flex bg-surface-200/50 dark:bg-surface-800/50 p-1',
+			disabled && 'opacity-50 pointer-events-none',
+			className
+		)
+	);
 
-let containerElement: HTMLDivElement | undefined = $state();
-let activeIndex = $derived(options.findIndex(opt => opt.value === value));
+	let containerElement: HTMLDivElement | undefined = $state();
+	let activeIndex = $derived(options.findIndex((opt) => opt.value === value));
 
-function select(val: any) {
-	if (disabled) return;
-	value = val;
-	onchange?.(val);
-}
-
-function handleKeyDown(e: KeyboardEvent, index: number) {
-	if (disabled) return;
-	let newIndex = index;
-	if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-		e.preventDefault();
-		newIndex = (index + 1) % options.length;
-		let count = 0;
-		while (options[newIndex]?.disabled && count < options.length) {
-			newIndex = (newIndex + 1) % options.length;
-			count++;
-		}
-	} else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-		e.preventDefault();
-		newIndex = (index - 1 + options.length) % options.length;
-		let count = 0;
-		while (options[newIndex]?.disabled && count < options.length) {
-			newIndex = (newIndex - 1 + options.length) % options.length;
-			count++;
-		}
-	} else {
-		return;
+	function select(val: any) {
+		if (disabled) return;
+		value = val;
+		onchange?.(val);
 	}
 
-	if (newIndex !== index && options[newIndex] && !options[newIndex].disabled) {
-		select(options[newIndex].value);
-		// Focus the new button programmatically
-		const buttons = containerElement?.querySelectorAll('button');
-		if (buttons && buttons[newIndex]) {
-			(buttons[newIndex] as HTMLButtonElement).focus();
+	function handleKeyDown(e: KeyboardEvent, index: number) {
+		if (disabled) return;
+		let newIndex = index;
+		if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+			e.preventDefault();
+			newIndex = (index + 1) % options.length;
+			let count = 0;
+			while (options[newIndex]?.disabled && count < options.length) {
+				newIndex = (newIndex + 1) % options.length;
+				count++;
+			}
+		} else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+			e.preventDefault();
+			newIndex = (index - 1 + options.length) % options.length;
+			let count = 0;
+			while (options[newIndex]?.disabled && count < options.length) {
+				newIndex = (newIndex - 1 + options.length) % options.length;
+				count++;
+			}
+		} else {
+			return;
+		}
+
+		if (newIndex !== index && options[newIndex] && !options[newIndex].disabled) {
+			select(options[newIndex].value);
+			// Focus the new button programmatically
+			const buttons = containerElement?.querySelectorAll('button');
+			if (buttons && buttons[newIndex]) {
+				(buttons[newIndex] as HTMLButtonElement).focus();
+			}
 		}
 	}
-}
 </script>
 
 <div
-		bind:this={containerElement}
-		class={segmentClasses}
-		style="border-radius: {rounded}"
-		role="radiogroup"
-		aria-label={rest['aria-label'] || 'Segmented Control'}
-		{...rest}
-	>
+	bind:this={containerElement}
+	class={segmentClasses}
+	style="border-radius: {rounded}"
+	role="radiogroup"
+	aria-label={rest['aria-label'] || 'Segmented Control'}
+	{...rest}
+>
 	<input type="hidden" {name} {value} />
 
 	{#each options as option, i (i)}
 		{const active = value === option.value}
 		{const isTabFocusable = active || (activeIndex === -1 && i === 0)}
 		<button
-				type="button"
-				role="radio"
-				aria-checked={active}
-				tabindex={isTabFocusable ? 0 : -1}
-				disabled={disabled || option.disabled}
-				class={cn(
-					'flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200',
-					active
-						? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm'
-						: 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white'
-				)}
-				style="border-radius: {rounded}"
-				onclick={() => select(option.value)}
-				onkeydown={(e) => handleKeyDown(e, i)}
-			>
+			type="button"
+			role="radio"
+			aria-checked={active}
+			tabindex={isTabFocusable ? 0 : -1}
+			disabled={disabled || option.disabled}
+			class={cn(
+				'flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200',
+				active
+					? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm'
+					: 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white'
+			)}
+			style="border-radius: {rounded}"
+			onclick={() => select(option.value)}
+			onkeydown={(e) => handleKeyDown(e, i)}
+		>
 			{#if option.icon}
 				<iconify-icon icon={option.icon} class="size-4"></iconify-icon>
 			{/if}

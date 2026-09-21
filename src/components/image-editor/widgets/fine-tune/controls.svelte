@@ -5,11 +5,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 -->
 <script lang="ts">
 	import type { Adjustments } from './adjustments';
-	import {
-		FILTER_PRESETS,
-		getAdjustmentConfig,
-		getAdjustmentsByCategory,
-	} from './adjustments';
+	import { FILTER_PRESETS, getAdjustmentConfig, getAdjustmentsByCategory } from './adjustments';
 
 	const {
 		activeAdjustment,
@@ -24,7 +20,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		onPresetApply,
 		onReset,
 		onCompareToggle,
-		onAutoAdjust,
+		onAutoAdjust
 	}: {
 		activeAdjustment: keyof Adjustments;
 		activeCategory?: string;
@@ -47,7 +43,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		basic: 'mdi:tune-variant',
 		tone: 'mdi:gradient-vertical',
 		color: 'mdi:palette',
-		detail: 'mdi:details',
+		detail: 'mdi:details'
 	};
 
 	let showPresetsPanel = $state(false);
@@ -109,10 +105,20 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex flex-col flex-[0_0_auto] gap-1.5 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Fine-tune controls">
+<div
+	class="flex flex-col flex-[0_0_auto] gap-1.5 items-stretch w-full min-w-0 h-auto leading-none"
+	role="toolbar"
+	aria-label="Fine-tune controls"
+>
 	{#if onCategoryChange}
-		<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5" role="tablist" aria-label="Adjustment categories">
-			<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0">
+		<div
+			class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5"
+			role="tablist"
+			aria-label="Adjustment categories"
+		>
+			<div
+				class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0"
+			>
 				{#each categories as cat (cat)}
 					<button
 						type="button"
@@ -143,7 +149,12 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 			{/if}
 
 			{#if onAutoAdjust}
-				<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onAutoAdjust} title="Auto adjust (Shift+A)">
+				<button
+					type="button"
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+					onclick={onAutoAdjust}
+					title="Auto adjust (Shift+A)"
+				>
 					<iconify-icon icon="mdi:auto-fix" width="15" aria-hidden="true"></iconify-icon>
 					<span>Auto</span>
 				</button>
@@ -166,7 +177,9 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 	{/if}
 
 	{#if showPresetsPanel && onPresetApply}
-		<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5">
+		<div
+			class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5"
+		>
 			{#each FILTER_PRESETS as preset (preset.name)}
 				<button
 					type="button"
@@ -185,8 +198,14 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		</div>
 	{/if}
 
-	<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start" role="group" aria-label="Adjustments">
-		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0">
+	<div
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start"
+		role="group"
+		aria-label="Adjustments"
+	>
+		<div
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0"
+		>
 			{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj (adj.key)}
 				{@const adjConfig = getAdjustmentConfig(adj.key)}
 				{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
@@ -203,16 +222,24 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 					<iconify-icon icon={adj.icon} width="15" aria-hidden="true"></iconify-icon>
 					<span>{adj.label}</span>
 					{#if hasChange}
-						<span class="text-[9px] font-semibold text-[rgba(255,255,255,0.45)]">{(adjustments?.[adj.key] ?? 0) > 0 ? '+' : ''}{adjustments?.[adj.key] ?? 0}</span>
+						<span class="text-[9px] font-semibold text-[rgba(255,255,255,0.45)]"
+							>{(adjustments?.[adj.key] ?? 0) > 0 ? '+' : ''}{adjustments?.[adj.key] ?? 0}</span
+						>
 					{/if}
 				</button>
 			{/each}
 		</div>
 
-		<div class="flex flex-[1_1_7rem] items-center justify-center min-w-24 max-w-56 mx-0.5 max-lg:basis-full max-lg:order-2 max-lg:max-w-none max-lg:mx-0">
+		<div
+			class="flex flex-[1_1_7rem] items-center justify-center min-w-24 max-w-56 mx-0.5 max-lg:basis-full max-lg:order-2 max-lg:max-w-none max-lg:mx-0"
+		>
 			<div class="relative w-full">
-				<div class="absolute top-1/2 start-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2" aria-hidden="true"></div>
-				<input aria-label={config?.label ?? 'Adjustment'}
+				<div
+					class="absolute top-1/2 start-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2"
+					aria-hidden="true"
+				></div>
+				<input
+					aria-label={config?.label ?? 'Adjustment'}
 					type="range"
 					{min}
 					{max}
@@ -228,7 +255,9 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 			</div>
 		</div>
 
-		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-3">
+		<div
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-3"
+		>
 			<button
 				type="button"
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
@@ -241,8 +270,14 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 			</button>
 		</div>
 
-		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-2 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-4">
-			<span class="min-w-8 text-[11px] font-medium tabular-nums leading-7 text-center text-[rgba(255,255,255,0.55)]" class:text-[rgba(255,255,255,0.92)]={value !== 0} aria-live="polite">{displayValue}</span>
+		<div
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-2 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-4"
+		>
+			<span
+				class="min-w-8 text-[11px] font-medium tabular-nums leading-7 text-center text-[rgba(255,255,255,0.55)]"
+				class:text-[rgba(255,255,255,0.92)]={value !== 0}
+				aria-live="polite">{displayValue}</span
+			>
 		</div>
 	</div>
 </div>

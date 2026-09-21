@@ -13,206 +13,212 @@
 -->
 
 <script lang="ts">
-import { untrack } from "svelte";
-import { logger } from "@utils/logger";
-import {
-	createSmartTable,
-	pinCellClass,
-	SMART_TABLE,
-	SMART_TABLE_ROW_HOVER,
-	SMART_TABLE_ROW_SELECTED,
-	SMART_TABLE_TD,
-	SMART_TABLE_TH,
-	SMART_TABLE_THEAD,
-} from "@components/ui/smart-table";
-import SmartTableShell from "@components/ui/smart-table/smart-table-shell.svelte";
-import ColumnResizeHandle from "@components/ui/smart-table/column-resize-handle.svelte";
-import MediaTableRowMenu from "./media-table-row-menu.svelte";
-import { mediaDisplayUrl } from "@utils/media/media-utils";
-import type { MediaBase, MediaImage } from "@utils/media/media-models";
-import { draggable } from "@thisux/sveltednd";
-import {
-	MEDIA_DRAG_CONTAINER,
-	resolveMediaDragIds,
-	suppressNativeDragGhost,
-} from "@utils/media/media-dnd";
-import { liftAndCarry } from "@utils/media/media-lift-drag";
-import { formatBytes } from "@utils/file";
-import { SvelteSet } from "svelte/reactivity";
-import Checkbox from "@components/ui/checkbox.svelte";
+	import { untrack } from 'svelte';
+	import { logger } from '@utils/logger';
+	import {
+		createSmartTable,
+		pinCellClass,
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_ROW_SELECTED,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table';
+	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
+	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
+	import MediaTableRowMenu from './media-table-row-menu.svelte';
+	import { mediaDisplayUrl } from '@utils/media/media-utils';
+	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import { draggable } from '@thisux/sveltednd';
+	import {
+		MEDIA_DRAG_CONTAINER,
+		resolveMediaDragIds,
+		suppressNativeDragGhost
+	} from '@utils/media/media-dnd';
+	import { liftAndCarry } from '@utils/media/media-lift-drag';
+	import { formatBytes } from '@utils/file';
+	import { SvelteSet } from 'svelte/reactivity';
+	import Checkbox from '@components/ui/checkbox.svelte';
 
-interface Props {
-	filteredFiles?: (MediaBase | MediaImage)[];
-	isSelectionMode?: boolean;
-	selectedFiles: SvelteSet<string>;
-	publishedMediaIds?: SvelteSet<string>;
-	ondeleteImage?: (file: MediaBase | MediaImage) => void;
-	onEditImage?: (file: MediaImage) => void;
-	onUpdateImage?: (file: MediaImage) => void;
-	onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
-}
-
-let {
-	filteredFiles = [],
-	isSelectionMode = false,
-	selectedFiles = $bindable(),
-	publishedMediaIds = $bindable(new SvelteSet<string>()),
-	ondeleteImage = () => {},
-	onEditImage = () => {},
-	onUpdateImage = () => {},
-	onOpenFileDetails = () => {},
-}: Props = $props();
-
-let failedImages = $state(new SvelteSet<string>());
-let showTagModal = $state(false);
-let taggingFile = $state<MediaImage | null>(null);
-
-// Client-mode smart table: local page/sort for filtered gallery slice
-const smartTable = (() => {
-  try {
-    return createSmartTable({
-      mode: "client",
-      pageSize: 10,
-      layoutKey: "media-gallery-table",
-      getRowId: (row) => {
-        const r = row as unknown as MediaBase | MediaImage;
-        return String(r._id?.toString() || r.filename || "");
-      },
-    });
-  } catch (err) {
-    logger.error("[MediaTable] createSmartTable failed:", err);
-    // Return a minimal stub so the component doesn't crash entirely
-    return {
-      rows: [],
-      columns: [],
-      visibleColumns: [],
-      pinned: { start: [], center: [], end: [], ordered: [] },
-      density: "normal" as const,
-      sort: { sortedBy: "", isSorted: 0 },
-      pagination: { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
-      selectedIds: new Set<string>(),
-      selectedCount: 0,
-      hasSelections: false,
-      allSelected: false,
-      someSelected: false,
-      isEmpty: true,
-      mode: "client" as const,
-      virtual: { enabled: false, startIndex: 0, endIndex: 0, visibleRows: [], spacerTop: 0, spacerBottom: 0, onScroll: () => {} },
-      cellPaddingClass: "!p-2",
-      columnWidths: {},
-      setRows: () => {},
-      setColumns: () => {},
-      setPaginationMeta: () => {},
-      setDensity: () => {},
-      setSort: () => {},
-      setPage: () => {},
-      setPageSize: () => {},
-      toggleSelect: () => {},
-      toggleSelectIndex: () => {},
-      setSelectAll: () => {},
-      clearSelection: () => {},
-      isSelected: () => false,
-      getSelectedRows: () => [],
-      getSelectedIds: () => [],
-      setColumnVisible: () => {},
-      setColumnPin: () => {},
-      setColumnWidth: () => {},
-      getColumnWidthStyle: () => undefined,
-      reorderColumns: () => {},
-      persistLayout: () => {},
-      getRowId: (row: any, i: number) => String(row?._id || row?.id || i),
-    };
-  }
-})();
-
-// Columns are static — set once on mount, not reactive to filteredFiles
-smartTable.setColumns([
-	{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
-	{ key: "preview", label: "Preview", sortable: false, align: "start" },
-	{ key: "filename", label: "Name", sortable: true, align: "start" },
-	{ key: "size", label: "Size", sortable: true, align: "end" },
-	{ key: "type", label: "Type", sortable: true, align: "end" },
-	{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
-]);
-
-$effect(() => {
-	// Read outside untrack so the effect actually depends on filteredFiles —
-	// reading it only inside untrack leaves the effect with no dependencies and
-	// it would run once on mount, freezing the table on search/filter/upload.
-	const files = filteredFiles;
-	untrack(() => smartTable.setRows(files as unknown as Record<string, unknown>[]));
-});
-
-const paginatedFiles = $derived(smartTable.rows as unknown as (MediaBase | MediaImage)[]);
-const currentPage = $derived(smartTable.pagination.currentPage);
-const rowsPerPage = $derived(smartTable.pagination.pageSize);
-const pagesCount = $derived(smartTable.pagination.pagesCount);
-const totalItems = $derived(smartTable.pagination.totalItems);
-
-function openTagEditor(file: MediaImage) {
-	taggingFile = file;
-	showTagModal = true;
-}
-
-function typeLabel(file: MediaBase | MediaImage): string {
-		return ((file as MediaImage).mimeType?.split("/")[1] || file.type || "file").toString();
-}
-
-const pageFileIds = $derived(
-	paginatedFiles.map((file) => file._id?.toString() || file.filename),
-);
-
-const allPageSelected = $derived(
-	pageFileIds.length > 0 && pageFileIds.every((id) => selectedFiles.has(id)),
-);
-
-const somePageSelected = $derived(
-	pageFileIds.some((id) => selectedFiles.has(id)) && !allPageSelected,
-);
-
-const headerCheckboxState = $derived(
-	allPageSelected ? true : somePageSelected ? "indeterminate" : false,
-);
-
-function toggleSelectAll() {
-	if (allPageSelected) {
-		for (const id of pageFileIds) selectedFiles.delete(id);
-	} else {
-		for (const id of pageFileIds) selectedFiles.add(id);
+	interface Props {
+		filteredFiles?: (MediaBase | MediaImage)[];
+		isSelectionMode?: boolean;
+		selectedFiles: SvelteSet<string>;
+		publishedMediaIds?: SvelteSet<string>;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		onEditImage?: (file: MediaImage) => void;
+		onUpdateImage?: (file: MediaImage) => void;
+		onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 	}
-}
 
-function toggleSelection(file: MediaBase | MediaImage) {
-	const fileId = file._id?.toString() || file.filename;
-	if (selectedFiles.has(fileId)) {
-		selectedFiles.delete(fileId);
-	} else {
-		selectedFiles.add(fileId);
+	let {
+		filteredFiles = [],
+		isSelectionMode = false,
+		selectedFiles = $bindable(),
+		publishedMediaIds = $bindable(new SvelteSet<string>()),
+		ondeleteImage = () => {},
+		onEditImage = () => {},
+		onUpdateImage = () => {},
+		onOpenFileDetails = () => {}
+	}: Props = $props();
+
+	let failedImages = $state(new SvelteSet<string>());
+	let showTagModal = $state(false);
+	let taggingFile = $state<MediaImage | null>(null);
+
+	// Client-mode smart table: local page/sort for filtered gallery slice
+	const smartTable = (() => {
+		try {
+			return createSmartTable({
+				mode: 'client',
+				pageSize: 10,
+				layoutKey: 'media-gallery-table',
+				getRowId: (row) => {
+					const r = row as unknown as MediaBase | MediaImage;
+					return String(r._id?.toString() || r.filename || '');
+				}
+			});
+		} catch (err) {
+			logger.error('[MediaTable] createSmartTable failed:', err);
+			// Return a minimal stub so the component doesn't crash entirely
+			return {
+				rows: [],
+				columns: [],
+				visibleColumns: [],
+				pinned: { start: [], center: [], end: [], ordered: [] },
+				density: 'normal' as const,
+				sort: { sortedBy: '', isSorted: 0 },
+				pagination: { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
+				selectedIds: new Set<string>(),
+				selectedCount: 0,
+				hasSelections: false,
+				allSelected: false,
+				someSelected: false,
+				isEmpty: true,
+				mode: 'client' as const,
+				virtual: {
+					enabled: false,
+					startIndex: 0,
+					endIndex: 0,
+					visibleRows: [],
+					spacerTop: 0,
+					spacerBottom: 0,
+					onScroll: () => {}
+				},
+				cellPaddingClass: '!p-2',
+				columnWidths: {},
+				setRows: () => {},
+				setColumns: () => {},
+				setPaginationMeta: () => {},
+				setDensity: () => {},
+				setSort: () => {},
+				setPage: () => {},
+				setPageSize: () => {},
+				toggleSelect: () => {},
+				toggleSelectIndex: () => {},
+				setSelectAll: () => {},
+				clearSelection: () => {},
+				isSelected: () => false,
+				getSelectedRows: () => [],
+				getSelectedIds: () => [],
+				setColumnVisible: () => {},
+				setColumnPin: () => {},
+				setColumnWidth: () => {},
+				getColumnWidthStyle: () => undefined,
+				reorderColumns: () => {},
+				persistLayout: () => {},
+				getRowId: (row: any, i: number) => String(row?._id || row?.id || i)
+			};
+		}
+	})();
+
+	// Columns are static — set once on mount, not reactive to filteredFiles
+	smartTable.setColumns([
+		{ key: '_select', label: '', sortable: false, pin: 'start', align: 'center' },
+		{ key: 'preview', label: 'Preview', sortable: false, align: 'start' },
+		{ key: 'filename', label: 'Name', sortable: true, align: 'start' },
+		{ key: 'size', label: 'Size', sortable: true, align: 'end' },
+		{ key: 'type', label: 'Type', sortable: true, align: 'end' },
+		{ key: '_actions', label: 'Actions', sortable: false, pin: 'end', align: 'end' }
+	]);
+
+	$effect(() => {
+		// Read outside untrack so the effect actually depends on filteredFiles —
+		// reading it only inside untrack leaves the effect with no dependencies and
+		// it would run once on mount, freezing the table on search/filter/upload.
+		const files = filteredFiles;
+		untrack(() => smartTable.setRows(files as unknown as Record<string, unknown>[]));
+	});
+
+	const paginatedFiles = $derived(smartTable.rows as unknown as (MediaBase | MediaImage)[]);
+	const currentPage = $derived(smartTable.pagination.currentPage);
+	const rowsPerPage = $derived(smartTable.pagination.pageSize);
+	const pagesCount = $derived(smartTable.pagination.pagesCount);
+	const totalItems = $derived(smartTable.pagination.totalItems);
+
+	function openTagEditor(file: MediaImage) {
+		taggingFile = file;
+		showTagModal = true;
 	}
-}
 
-function handleRowClick(file: MediaBase | MediaImage) {
-	if (!isSelectionMode) {
-		onOpenFileDetails(file);
+	function typeLabel(file: MediaBase | MediaImage): string {
+		return ((file as MediaImage).mimeType?.split('/')[1] || file.type || 'file').toString();
 	}
-}
 
-function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
-	if (e.key === "Enter" || e.key === " ") {
-		e.preventDefault();
+	const pageFileIds = $derived(paginatedFiles.map((file) => file._id?.toString() || file.filename));
+
+	const allPageSelected = $derived(
+		pageFileIds.length > 0 && pageFileIds.every((id) => selectedFiles.has(id))
+	);
+
+	const somePageSelected = $derived(
+		pageFileIds.some((id) => selectedFiles.has(id)) && !allPageSelected
+	);
+
+	const headerCheckboxState = $derived(
+		allPageSelected ? true : somePageSelected ? 'indeterminate' : false
+	);
+
+	function toggleSelectAll() {
+		if (allPageSelected) {
+			for (const id of pageFileIds) selectedFiles.delete(id);
+		} else {
+			for (const id of pageFileIds) selectedFiles.add(id);
+		}
+	}
+
+	function toggleSelection(file: MediaBase | MediaImage) {
+		const fileId = file._id?.toString() || file.filename;
+		if (selectedFiles.has(fileId)) {
+			selectedFiles.delete(fileId);
+		} else {
+			selectedFiles.add(fileId);
+		}
+	}
+
+	function handleRowClick(file: MediaBase | MediaImage) {
 		if (!isSelectionMode) {
 			onOpenFileDetails(file);
 		}
 	}
-}
 
-function onUpdatePage(page: number) {
-	smartTable.setPage(page);
-}
+	function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			if (!isSelectionMode) {
+				onOpenFileDetails(file);
+			}
+		}
+	}
 
-function onUpdateRowsPerPage(rows: number) {
-	smartTable.setPageSize(rows);
-}
+	function onUpdatePage(page: number) {
+		smartTable.setPage(page);
+	}
+
+	function onUpdateRowsPerPage(rows: number) {
+		smartTable.setPageSize(rows);
+	}
 </script>
 
 <div class="h-full min-h-0 w-full p-2 sm:p-3" data-testid="media-table">
@@ -221,94 +227,372 @@ function onUpdateRowsPerPage(rows: number) {
 		emptyTitle="No media found"
 		emptyDescription="Try adjusting your search or filter."
 		emptyIcon="mdi:image-search-outline"
-		currentPage={currentPage}
-		rowsPerPage={rowsPerPage}
-		pagesCount={pagesCount}
-		totalItems={totalItems}
-		onUpdatePage={onUpdatePage}
-		onUpdateRowsPerPage={onUpdateRowsPerPage}
+		{currentPage}
+		{rowsPerPage}
+		{pagesCount}
+		{totalItems}
+		{onUpdatePage}
+		{onUpdateRowsPerPage}
 		scrollClass="media-table-scroll"
 	>
 		<!-- Mobile: compact list rows (no table — fits viewport without scroll) -->
 		<div class="flex flex-col md:hidden" role="table" aria-label="Media files">
+			<div
+				class="{SMART_TABLE_THEAD} flex items-center gap-3 px-2 py-2.5 backdrop-blur-sm"
+				role="row"
+			>
 				<div
-					class="{SMART_TABLE_THEAD} flex items-center gap-3 px-2 py-2.5 backdrop-blur-sm"
-					role="row"
+					class="shrink-0"
+					role="columnheader"
+					tabindex="-1"
+					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+					}}
 				>
-					<div class="shrink-0" role="columnheader" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
+					<Checkbox
+						class="w-auto"
+						checked={headerCheckboxState}
+						onchange={toggleSelectAll}
+						label="Select all on this page"
+						hideLabel
+						size="sm"
+					/>
+				</div>
+				<div class="w-10 shrink-0" role="columnheader" aria-hidden="true"></div>
+				<div
+					class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500"
+					role="columnheader"
+				>
+					Name
+				</div>
+				<div
+					class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500"
+					role="columnheader"
+				>
+					<span class="sr-only">Actions</span>
+				</div>
+			</div>
+
+			{#each paginatedFiles as file (file._id || file.filename)}
+				{@const fileId = file._id?.toString() || file.filename}
+				{@const isSelected = selectedFiles.has(fileId)}
+
+				<div
+					class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
+							{isSelected ? `border-s-primary-500 ${SMART_TABLE_ROW_SELECTED}` : SMART_TABLE_ROW_HOVER}"
+					role="row"
+					tabindex="0"
+					aria-selected={isSelected}
+					use:liftAndCarry={{
+						container: MEDIA_DRAG_CONTAINER,
+						dragData: {
+							ids: resolveMediaDragIds(fileId, selectedFiles),
+							preview: {
+								filename: file.filename,
+								url: file.type === 'image' ? mediaDisplayUrl(file, 'thumbnail') : undefined,
+								type: file.type
+							}
+						},
+						interactive: ['[data-no-drag]'],
+						attributes: { draggingClass: 'opacity-50' }
+					}}
+					ondragstart={suppressNativeDragGhost}
+					title="Drag to a folder or breadcrumb to move"
+					onclick={() => handleRowClick(file)}
+					onkeydown={(e) => handleKeyDown(e, file)}
+				>
+					<div
+						class="shrink-0"
+						data-no-drag
+						role="cell"
+						tabindex="-1"
+						onclick={(e) => e.stopPropagation()}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
+					>
 						<Checkbox
 							class="w-auto"
-							checked={headerCheckboxState}
-							onchange={toggleSelectAll}
-							label="Select all on this page"
+							checked={isSelected}
+							onchange={() => toggleSelection(file)}
+							label="Select {file.filename}"
 							hideLabel
 							size="sm"
 						/>
 					</div>
-					<div class="w-10 shrink-0" role="columnheader" aria-hidden="true"></div>
-					<div class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
-						Name
-					</div>
-					<div class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
-						<span class="sr-only">Actions</span>
-					</div>
-				</div>
 
-				{#each paginatedFiles as file (file._id || file.filename)}
-					{@const fileId = file._id?.toString() || file.filename}
-					{@const isSelected = selectedFiles.has(fileId)}
+					<div class="shrink-0" role="cell">
+						<div
+							class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded"
+						>
+							{#if file.type === 'image' && !failedImages.has(fileId)}
+								<img
+									src={mediaDisplayUrl(file, 'thumbnail')}
+									alt=""
+									class="pointer-events-none h-full w-full object-cover"
+									loading="lazy"
+									decoding="async"
+									draggable="false"
+									crossorigin="anonymous"
+									onerror={() => failedImages.add(fileId)}
+								/>
+							{:else if file.type === 'image'}
+								<iconify-icon
+									icon="mdi:image-off-outline"
+									width="18"
+									class="text-surface-400 dark:text-surface-500"
+								></iconify-icon>
+							{:else}
+								<iconify-icon
+									icon="mdi:file-document-outline"
+									width="18"
+									class="text-surface-400 dark:text-surface-500"
+								></iconify-icon>
+							{/if}
+						</div>
+					</div>
+
+					<div class="min-w-0 flex-1 overflow-hidden pe-1" role="cell">
+						<div class="truncate text-sm font-medium leading-snug" title={file.filename}>
+							{file.filename}
+						</div>
+						<div
+							class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400"
+							title={(file as MediaImage).path}
+						>
+							{formatBytes((file as MediaImage).size)} · {typeLabel(file).toUpperCase()}
+						</div>
+					</div>
 
 					<div
-						class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
-							{isSelected ? `border-s-primary-500 ${SMART_TABLE_ROW_SELECTED}` : SMART_TABLE_ROW_HOVER}"
-						role="row"
-						tabindex="0"
-						aria-selected={isSelected}
-						use:liftAndCarry={{
-							container: MEDIA_DRAG_CONTAINER,
-							dragData: {
-								ids: resolveMediaDragIds(fileId, selectedFiles),
-								preview: { filename: file.filename, url: file.type === 'image' ? mediaDisplayUrl(file, "thumbnail") : undefined, type: file.type },
-							},
-							interactive: ['[data-no-drag]'],
-							attributes: { draggingClass: 'opacity-50' },
+						class="shrink-0"
+						data-no-drag
+						role="cell"
+						tabindex="-1"
+						onclick={(e) => e.stopPropagation()}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
 						}}
-						ondragstart={suppressNativeDragGhost}
-						title="Drag to a folder or breadcrumb to move"
-						onclick={() => handleRowClick(file)}
-						onkeydown={(e) => handleKeyDown(e, file)}
 					>
-						<div class="shrink-0" data-no-drag role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
+						<MediaTableRowMenu
+							{file}
+							onDetails={() => onOpenFileDetails(file)}
+							onEdit={() => onEditImage(file as MediaImage)}
+							onTags={() => openTagEditor(file as MediaImage)}
+							onDelete={() => ondeleteImage(file)}
+						/>
+					</div>
+				</div>
+			{/each}
+		</div>
+
+		<!-- Desktop: full table (shared Smart Table chrome) -->
+		<table class="media-table {SMART_TABLE} hidden md:table lg:table-fixed">
+			<colgroup>
+				<col class="media-table-col-select" style={smartTable.getColumnWidthStyle('_select')} />
+				<col class="media-table-col-preview" style={smartTable.getColumnWidthStyle('preview')} />
+				<col class="media-table-col-name" style={smartTable.getColumnWidthStyle('filename')} />
+				<col class="media-table-col-size" style={smartTable.getColumnWidthStyle('size')} />
+				<col class="media-table-col-type" style={smartTable.getColumnWidthStyle('type')} />
+				<col class="media-table-col-actions" style={smartTable.getColumnWidthStyle('_actions')} />
+			</colgroup>
+			<thead class="{SMART_TABLE_THEAD} backdrop-blur-sm">
+				<tr class="text-[10px] font-semibold uppercase tracking-wider">
+					<th
+						class="media-table-select {SMART_TABLE_TH} {pinCellClass('start')} w-9 shrink-0"
+						onclick={(e) => e.stopPropagation()}
+					>
+						<div class="flex justify-center">
 							<Checkbox
 								class="w-auto"
-								checked={isSelected}
-								onchange={() => toggleSelection(file)}
-								label="Select {file.filename}"
+								checked={headerCheckboxState}
+								onchange={toggleSelectAll}
+								label="Select all on this page"
 								hideLabel
 								size="sm"
 							/>
 						</div>
+					</th>
+					<th
+						class="media-table-preview relative {SMART_TABLE_TH} w-16 shrink-0 text-start!"
+						style={smartTable.getColumnWidthStyle('preview')}
+					>
+						<span>Preview</span>
+						<ColumnResizeHandle columnKey="preview" onResize={smartTable.setColumnWidth} />
+					</th>
+					<th
+						class="media-table-name relative {SMART_TABLE_TH} min-w-0 text-start!"
+						style={smartTable.getColumnWidthStyle('filename')}
+					>
+						<button
+							type="button"
+							class="font-semibold uppercase"
+							onclick={() => smartTable.setSort('filename')}
+						>
+							Name
+							{#if smartTable.sort.sortedBy === 'filename' && smartTable.sort.isSorted !== 0}
+								<iconify-icon
+									icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+									width="14"
+									class="ms-0.5 inline"
+								></iconify-icon>
+							{/if}
+						</button>
+						<ColumnResizeHandle columnKey="filename" onResize={smartTable.setColumnWidth} />
+					</th>
+					<th
+						class="media-table-size relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! sm:table-cell"
+						style={smartTable.getColumnWidthStyle('size')}
+					>
+						<button
+							type="button"
+							class="font-semibold uppercase"
+							onclick={() => smartTable.setSort('size')}
+						>
+							Size
+							{#if smartTable.sort.sortedBy === 'size' && smartTable.sort.isSorted !== 0}
+								<iconify-icon
+									icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+									width="14"
+									class="ms-0.5 inline"
+								></iconify-icon>
+							{/if}
+						</button>
+						<ColumnResizeHandle columnKey="size" onResize={smartTable.setColumnWidth} />
+					</th>
+					<th
+						class="media-table-type relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! md:table-cell"
+						style={smartTable.getColumnWidthStyle('type')}
+					>
+						<button
+							type="button"
+							class="font-semibold uppercase"
+							onclick={() => smartTable.setSort('type')}
+						>
+							Type
+							{#if smartTable.sort.sortedBy === 'type' && smartTable.sort.isSorted !== 0}
+								<iconify-icon
+									icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+									width="14"
+									class="ms-0.5 inline"
+								></iconify-icon>
+							{/if}
+						</button>
+						<ColumnResizeHandle columnKey="type" onResize={smartTable.setColumnWidth} />
+					</th>
+					<th
+						class="media-table-actions {SMART_TABLE_TH} {pinCellClass(
+							'end'
+						)} w-11 shrink-0 text-end!">Actions</th
+					>
+				</tr>
+			</thead>
 
-						<div class="shrink-0" role="cell">
-							<div class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded">
+			<tbody>
+				{#each paginatedFiles as file (file._id || file.filename)}
+					{@const fileId = file._id?.toString() || file.filename}
+					{@const isSelected = selectedFiles.has(fileId)}
+
+					<tr
+						class="group cursor-grab border-b border-surface-500/30 align-middle active:cursor-grabbing dark:border-surface-500/40
+								{isSelected ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
+						onclick={() => handleRowClick(file)}
+						onkeydown={(e) => handleKeyDown(e, file)}
+						tabindex="0"
+						aria-selected={isSelected}
+						use:draggable={{
+							container: MEDIA_DRAG_CONTAINER,
+							dragData: {
+								ids: resolveMediaDragIds(fileId, selectedFiles),
+								preview: {
+									filename: file.filename,
+									url: file.type === 'image' ? mediaDisplayUrl(file, 'thumbnail') : undefined,
+									type: file.type
+								}
+							},
+							interactive: ['[data-no-drag]'],
+							attributes: { draggingClass: 'opacity-50' }
+						}}
+						ondragstart={suppressNativeDragGhost}
+						title="Drag to a folder or breadcrumb to move"
+					>
+						<td
+							class="media-table-select {SMART_TABLE_TD} {pinCellClass(
+								'start'
+							)} w-9 shrink-0 border-s-2! {isSelected
+								? 'border-s-primary-500!'
+								: 'border-s-transparent!'}"
+							data-no-drag
+							onclick={(e) => e.stopPropagation()}
+						>
+							<div class="flex justify-center">
+								<Checkbox
+									class="w-auto"
+									checked={isSelected}
+									onchange={() => toggleSelection(file)}
+									label="Select {file.filename}"
+									hideLabel
+									size="sm"
+								/>
+							</div>
+						</td>
+						<td class="media-table-preview {SMART_TABLE_TD} w-16 shrink-0">
+							<div
+								class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12"
+							>
 								{#if file.type === 'image' && !failedImages.has(fileId)}
-									<img src={mediaDisplayUrl(file, "thumbnail")} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" decoding="async" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
+									<img
+										src={mediaDisplayUrl(file, 'thumbnail')}
+										alt=""
+										class="pointer-events-none h-full w-full object-cover"
+										loading="lazy"
+										decoding="async"
+										draggable="false"
+										crossorigin="anonymous"
+										onerror={() => failedImages.add(fileId)}
+									/>
 								{:else if file.type === 'image'}
-									<iconify-icon icon="mdi:image-off-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+									<iconify-icon
+										icon="mdi:image-off-outline"
+										width="20"
+										class="text-surface-400 dark:text-surface-500"
+									></iconify-icon>
 								{:else}
-									<iconify-icon icon="mdi:file-document-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+									<iconify-icon
+										icon="mdi:file-document-outline"
+										width="20"
+										class="text-surface-400 dark:text-surface-500"
+									></iconify-icon>
 								{/if}
 							</div>
-						</div>
-
-						<div class="min-w-0 flex-1 overflow-hidden pe-1" role="cell">
-							<div class="truncate text-sm font-medium leading-snug" title={file.filename}>{file.filename}</div>
-							<div class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400" title={(file as MediaImage).path}>
-								{formatBytes((file as MediaImage).size)} · {typeLabel(file).toUpperCase()}
+						</td>
+						<td class="media-table-name {SMART_TABLE_TD} min-w-0 overflow-hidden text-start!">
+							<div class="truncate text-sm font-medium" title={file.filename}>{file.filename}</div>
+							<div
+								class="media-table-path hidden font-mono text-[10px] text-surface-500 sm:block dark:text-surface-400"
+								title={(file as MediaImage).path}
+							>
+								{(file as MediaImage).path}
 							</div>
-						</div>
-
-						<div class="shrink-0" data-no-drag role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
+						</td>
+						<td
+							class="media-table-size {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! font-mono text-xs tabular-nums text-surface-500 dark:text-surface-400 sm:table-cell"
+						>
+							{formatBytes((file as MediaImage).size)}
+						</td>
+						<td
+							class="media-table-type {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! md:table-cell"
+						>
+							<span class="font-mono text-[10px] uppercase text-surface-500 dark:text-surface-400"
+								>{typeLabel(file)}</span
+							>
+						</td>
+						<td
+							class="media-table-actions {SMART_TABLE_TD} {pinCellClass('end')} w-11 shrink-0"
+							data-no-drag
+							onclick={(e) => e.stopPropagation()}
+						>
 							<MediaTableRowMenu
 								{file}
 								onDetails={() => onOpenFileDetails(file)}
@@ -316,295 +600,171 @@ function onUpdateRowsPerPage(rows: number) {
 								onTags={() => openTagEditor(file as MediaImage)}
 								onDelete={() => ondeleteImage(file)}
 							/>
-						</div>
-					</div>
-				{/each}
-			</div>
-
-			<!-- Desktop: full table (shared Smart Table chrome) -->
-			<table class="media-table {SMART_TABLE} hidden md:table lg:table-fixed">
-				<colgroup>
-					<col class="media-table-col-select" style={smartTable.getColumnWidthStyle('_select')} />
-					<col class="media-table-col-preview" style={smartTable.getColumnWidthStyle('preview')} />
-					<col class="media-table-col-name" style={smartTable.getColumnWidthStyle('filename')} />
-					<col class="media-table-col-size" style={smartTable.getColumnWidthStyle('size')} />
-					<col class="media-table-col-type" style={smartTable.getColumnWidthStyle('type')} />
-					<col class="media-table-col-actions" style={smartTable.getColumnWidthStyle('_actions')} />
-				</colgroup>
-				<thead class="{SMART_TABLE_THEAD} backdrop-blur-sm">
-					<tr class="text-[10px] font-semibold uppercase tracking-wider">
-						<th class="media-table-select {SMART_TABLE_TH} {pinCellClass('start')} w-9 shrink-0" onclick={(e) => e.stopPropagation()}>
-							<div class="flex justify-center">
-								<Checkbox
-									class="w-auto"
-									checked={headerCheckboxState}
-									onchange={toggleSelectAll}
-									label="Select all on this page"
-									hideLabel
-									size="sm"
-								/>
-							</div>
-						</th>
-						<th class="media-table-preview relative {SMART_TABLE_TH} w-16 shrink-0 text-start!" style={smartTable.getColumnWidthStyle('preview')}>
-							<span>Preview</span>
-							<ColumnResizeHandle columnKey="preview" onResize={smartTable.setColumnWidth} />
-						</th>
-						<th class="media-table-name relative {SMART_TABLE_TH} min-w-0 text-start!" style={smartTable.getColumnWidthStyle('filename')}>
-							<button type="button" class="font-semibold uppercase" onclick={() => smartTable.setSort('filename')}>
-								Name
-								{#if smartTable.sort.sortedBy === 'filename' && smartTable.sort.isSorted !== 0}
-									<iconify-icon icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'} width="14" class="ms-0.5 inline"></iconify-icon>
-								{/if}
-							</button>
-							<ColumnResizeHandle columnKey="filename" onResize={smartTable.setColumnWidth} />
-						</th>
-						<th class="media-table-size relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! sm:table-cell" style={smartTable.getColumnWidthStyle('size')}>
-							<button type="button" class="font-semibold uppercase" onclick={() => smartTable.setSort('size')}>
-								Size
-								{#if smartTable.sort.sortedBy === 'size' && smartTable.sort.isSorted !== 0}
-									<iconify-icon icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'} width="14" class="ms-0.5 inline"></iconify-icon>
-								{/if}
-							</button>
-							<ColumnResizeHandle columnKey="size" onResize={smartTable.setColumnWidth} />
-						</th>
-						<th class="media-table-type relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! md:table-cell" style={smartTable.getColumnWidthStyle('type')}>
-							<button type="button" class="font-semibold uppercase" onclick={() => smartTable.setSort('type')}>
-								Type
-								{#if smartTable.sort.sortedBy === 'type' && smartTable.sort.isSorted !== 0}
-									<iconify-icon icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'} width="14" class="ms-0.5 inline"></iconify-icon>
-								{/if}
-							</button>
-							<ColumnResizeHandle columnKey="type" onResize={smartTable.setColumnWidth} />
-						</th>
-						<th class="media-table-actions {SMART_TABLE_TH} {pinCellClass('end')} w-11 shrink-0 text-end!">Actions</th>
+						</td>
 					</tr>
-				</thead>
-
-				<tbody>
-					{#each paginatedFiles as file (file._id || file.filename)}
-						{@const fileId = file._id?.toString() || file.filename}
-						{@const isSelected = selectedFiles.has(fileId)}
-
-						<tr
-							class="group cursor-grab border-b border-surface-500/30 align-middle active:cursor-grabbing dark:border-surface-500/40
-								{isSelected ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
-							onclick={() => handleRowClick(file)}
-							onkeydown={(e) => handleKeyDown(e, file)}
-							tabindex="0"
-							aria-selected={isSelected}
-							use:draggable={{
-								container: MEDIA_DRAG_CONTAINER,
-								dragData: {
-									ids: resolveMediaDragIds(fileId, selectedFiles),
-									preview: { filename: file.filename, url: file.type === 'image' ? mediaDisplayUrl(file, "thumbnail") : undefined, type: file.type },
-								},
-								interactive: ['[data-no-drag]'],
-								attributes: { draggingClass: 'opacity-50' },
-							}}
-							ondragstart={suppressNativeDragGhost}
-							title="Drag to a folder or breadcrumb to move"
-						>
-							<td
-								class="media-table-select {SMART_TABLE_TD} {pinCellClass('start')} w-9 shrink-0 border-s-2! {isSelected ? 'border-s-primary-500!' : 'border-s-transparent!'}"
-								data-no-drag
-								onclick={(e) => e.stopPropagation()}
-							>
-								<div class="flex justify-center">
-									<Checkbox
-										class="w-auto"
-										checked={isSelected}
-										onchange={() => toggleSelection(file)}
-										label="Select {file.filename}"
-										hideLabel
-										size="sm"
-									/>
-								</div>
-							</td>
-							<td class="media-table-preview {SMART_TABLE_TD} w-16 shrink-0">
-								<div class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12">
-									{#if file.type === 'image' && !failedImages.has(fileId)}
-										<img src={mediaDisplayUrl(file, "thumbnail")} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" decoding="async" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
-									{:else if file.type === 'image'}
-										<iconify-icon icon="mdi:image-off-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
-									{:else}
-										<iconify-icon icon="mdi:file-document-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
-									{/if}
-								</div>
-							</td>
-							<td class="media-table-name {SMART_TABLE_TD} min-w-0 overflow-hidden text-start!">
-								<div class="truncate text-sm font-medium" title={file.filename}>{file.filename}</div>
-								<div class="media-table-path hidden font-mono text-[10px] text-surface-500 sm:block dark:text-surface-400" title={(file as MediaImage).path}>{(file as MediaImage).path}</div>
-							</td>
-							<td class="media-table-size {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! font-mono text-xs tabular-nums text-surface-500 dark:text-surface-400 sm:table-cell">
-								{formatBytes((file as MediaImage).size)}
-							</td>
-							<td class="media-table-type {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! md:table-cell">
-								<span class="font-mono text-[10px] uppercase text-surface-500 dark:text-surface-400">{typeLabel(file)}</span>
-							</td>
-							<td class="media-table-actions {SMART_TABLE_TD} {pinCellClass('end')} w-11 shrink-0" data-no-drag onclick={(e) => e.stopPropagation()}>
-								<MediaTableRowMenu
-									{file}
-									onDetails={() => onOpenFileDetails(file)}
-									onEdit={() => onEditImage(file as MediaImage)}
-									onTags={() => openTagEditor(file as MediaImage)}
-									onDelete={() => ondeleteImage(file)}
-								/>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+				{/each}
+			</tbody>
+		</table>
 	</SmartTableShell>
 </div>
 
 {#if showTagModal}
-	{#await import("@src/components/media/tag-editor/tag-editor-modal.svelte") then mod}
-		<mod.default bind:show={showTagModal} bind:file={taggingFile} onUpdate={onUpdateImage} hideGenerate={true} />
+	{#await import('@src/components/media/tag-editor/tag-editor-modal.svelte') then mod}
+		<mod.default
+			bind:show={showTagModal}
+			bind:file={taggingFile}
+			onUpdate={onUpdateImage}
+			hideGenerate={true}
+		/>
 	{/await}
 {/if}
 
 <style>
-  .media-table {
-    --media-table-gap: 0.75rem;
-    --media-table-gap-wide: 1rem;
-  }
+	.media-table {
+		--media-table-gap: 0.75rem;
+		--media-table-gap-wide: 1rem;
+	}
 
-  /* Name column always absorbs leftover space; truncates instead of collapsing */
-  .media-table-col-name {
-    width: auto;
-    min-width: 0;
-  }
+	/* Name column always absorbs leftover space; truncates instead of collapsing */
+	.media-table-col-name {
+		width: auto;
+		min-width: 0;
+	}
 
-  .media-table-name {
-    min-width: 0;
-    overflow: hidden;
-  }
+	.media-table-name {
+		min-width: 0;
+		overflow: hidden;
+	}
 
-  .media-table-select,
-  .media-table-preview,
-  .media-table-name,
-  .media-table-type {
-    padding-inline-end: var(--media-table-gap);
-  }
+	.media-table-select,
+	.media-table-preview,
+	.media-table-name,
+	.media-table-type {
+		padding-inline-end: var(--media-table-gap);
+	}
 
-  .media-table-size {
-    padding-inline-end: var(--media-table-gap-wide);
-  }
+	.media-table-size {
+		padding-inline-end: var(--media-table-gap-wide);
+	}
 
-  .media-table-actions {
-    padding-inline-start: 0.25rem;
-    white-space: nowrap;
-  }
+	.media-table-actions {
+		padding-inline-start: 0.25rem;
+		white-space: nowrap;
+	}
 
-  /* Hidden columns must not reserve width on small tablet */
-  @media (max-width: 639px) {
-    .media-table-col-size {
-      width: 0;
-    }
-  }
+	/* Hidden columns must not reserve width on small tablet */
+	@media (max-width: 639px) {
+		.media-table-col-size {
+			width: 0;
+		}
+	}
 
-  @media (max-width: 767px) {
-    .media-table-col-type {
-      width: 0;
-    }
-  }
+	@media (max-width: 767px) {
+		.media-table-col-type {
+			width: 0;
+		}
+	}
 
-  @media (min-width: 640px) {
-    .media-table {
-      --media-table-gap: 1.5rem;
-      --media-table-gap-wide: 2rem;
-    }
-  }
+	@media (min-width: 640px) {
+		.media-table {
+			--media-table-gap: 1.5rem;
+			--media-table-gap-wide: 2rem;
+		}
+	}
 
-  @media (min-width: 768px) {
-    .media-table {
-      --media-table-gap: 2rem;
-      --media-table-gap-wide: 2.5rem;
-    }
-  }
+	@media (min-width: 768px) {
+		.media-table {
+			--media-table-gap: 2rem;
+			--media-table-gap-wide: 2.5rem;
+		}
+	}
 
-  @media (min-width: 1024px) {
-    .media-table {
-      --media-table-gap: 3.5rem;
-      --media-table-gap-wide: 4.5rem;
-    }
+	@media (min-width: 1024px) {
+		.media-table {
+			--media-table-gap: 3.5rem;
+			--media-table-gap-wide: 4.5rem;
+		}
 
-    .media-table-col-select {
-      width: 6.5rem;
-    }
+		.media-table-col-select {
+			width: 6.5rem;
+		}
 
-    .media-table-col-preview {
-      width: 7.5rem;
-    }
+		.media-table-col-preview {
+			width: 7.5rem;
+		}
 
-    .media-table-col-size {
-      width: 8.5rem;
-    }
+		.media-table-col-size {
+			width: 8.5rem;
+		}
 
-    .media-table-col-type {
-      width: 7.5rem;
-    }
+		.media-table-col-type {
+			width: 7.5rem;
+		}
 
-    .media-table-col-actions {
-      width: 6.5rem;
-    }
+		.media-table-col-actions {
+			width: 6.5rem;
+		}
 
-    .media-table-name {
-      width: 100%;
-      max-width: 0;
-    }
-  }
+		.media-table-name {
+			width: 100%;
+			max-width: 0;
+		}
+	}
 
-  @media (min-width: 1280px) {
-    .media-table {
-      --media-table-gap: 4rem;
-      --media-table-gap-wide: 5rem;
-    }
-  }
+	@media (min-width: 1280px) {
+		.media-table {
+			--media-table-gap: 4rem;
+			--media-table-gap-wide: 5rem;
+		}
+	}
 
-  .media-table-path {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+	.media-table-path {
+		max-width: 200px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 
-  .media-thumb-checkerboard {
-    background-color: var(--color-surface-100);
-    background-image:
-      linear-gradient(45deg, var(--color-surface-200) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--color-surface-200) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--color-surface-200) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--color-surface-200) 75%);
-    background-size: 8px 8px;
-    background-position: 0 0, 0 4px, 4px -4px, -4px 0;
-  }
+	.media-thumb-checkerboard {
+		background-color: var(--color-surface-100);
+		background-image:
+			linear-gradient(45deg, var(--color-surface-200) 25%, transparent 25%),
+			linear-gradient(-45deg, var(--color-surface-200) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, var(--color-surface-200) 75%),
+			linear-gradient(-45deg, transparent 75%, var(--color-surface-200) 75%);
+		background-size: 8px 8px;
+		background-position:
+			0 0,
+			0 4px,
+			4px -4px,
+			-4px 0;
+	}
 
-  :global(.dark) .media-thumb-checkerboard {
-    background-color: var(--color-surface-900);
-    background-image:
-      linear-gradient(45deg, var(--color-surface-800) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--color-surface-800) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--color-surface-800) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--color-surface-800) 75%);
-  }
+	:global(.dark) .media-thumb-checkerboard {
+		background-color: var(--color-surface-900);
+		background-image:
+			linear-gradient(45deg, var(--color-surface-800) 25%, transparent 25%),
+			linear-gradient(-45deg, var(--color-surface-800) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, var(--color-surface-800) 75%),
+			linear-gradient(-45deg, transparent 75%, var(--color-surface-800) 75%);
+	}
 
-  .media-table-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-surface-300) transparent;
-  }
+	.media-table-scroll {
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-surface-300) transparent;
+	}
 
-  .media-table-scroll::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
+	.media-table-scroll::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
 
-  .media-table-scroll::-webkit-scrollbar-thumb {
-    border-radius: 4px;
-    background: var(--color-surface-300);
-  }
+	.media-table-scroll::-webkit-scrollbar-thumb {
+		border-radius: 4px;
+		background: var(--color-surface-300);
+	}
 
-  :global(.dark) .media-table-scroll::-webkit-scrollbar-thumb {
-    background: var(--color-surface-700);
-  }
+	:global(.dark) .media-table-scroll::-webkit-scrollbar-thumb {
+		background: var(--color-surface-700);
+	}
 </style>

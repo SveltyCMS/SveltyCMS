@@ -90,7 +90,8 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 	function handleNumberPart(header: TableHeader, part: 'min' | 'max', raw: string) {
 		const name = header.name || '';
 		const current = parseNumberRange(filters[name] ?? '');
-		const next = part === 'min' ? encodeNumberRange(raw, current.max) : encodeNumberRange(current.min, raw);
+		const next =
+			part === 'min' ? encodeNumberRange(raw, current.max) : encodeNumberRange(current.min, raw);
 		onFilterChange(name, next);
 	}
 
@@ -146,7 +147,9 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 						<iconify-icon icon="carbon:filter-edit" width={14}></iconify-icon>
 						Advanced
 						{#if advancedCount > 0}
-							<span class="rounded-full bg-primary-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
+							<span
+								class="rounded-full bg-primary-500 text-white px-1.5 py-0.2 text-[10px] font-bold"
+							>
 								{advancedCount}
 							</span>
 						{/if}
@@ -177,7 +180,9 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 	</tr>
 {/if}
 
-<tr class="border-b border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900">
+<tr
+	class="border-b border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
+>
 	<th class="w-10 overflow-hidden p-1 align-middle">
 		{#if showClearInFirstCell && hasActive}
 			<Button
@@ -207,7 +212,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 						placeholder={def?.label ?? header.label}
 						allowEmptySelection={true}
 						options={def?.options ?? []}
-						value={value}
+						{value}
 						onchange={(v) => onFilterChange(name, v)}
 						class="w-full min-w-0"
 						aria-label="Filter {def?.label ?? header.label}"
@@ -215,39 +220,49 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				{:else if type === 'date'}
 					<label class="flex w-full min-w-0 flex-col gap-0.5 text-start">
 						<span class="sr-only">Filter {def?.label ?? header.label} by date</span>
-						<input aria-label="Filter {def?.label ?? header.label}"
+						<input
+							aria-label="Filter {def?.label ?? header.label}"
 							type="date"
 							class="h-8 w-full min-w-0 rounded border border-surface-500/30 bg-white px-2 text-xs text-surface-800 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100"
-							value={value}
+							{value}
 							oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}
 						/>
 					</label>
 				{:else if type === 'numberRange'}
 					{@const range = parseNumberRange(value)}
-					<div class="flex w-full min-w-0 items-center gap-1" role="group" aria-label="Filter {def?.label ?? header.label} range">
-						<input aria-label={`${def?.label ?? header.label} minimum`}
+					<div
+						class="flex w-full min-w-0 items-center gap-1"
+						role="group"
+						aria-label="Filter {def?.label ?? header.label} range"
+					>
+						<input
+							aria-label={`${def?.label ?? header.label} minimum`}
 							type="number"
 							inputmode="decimal"
 							placeholder="Min"
 							class="h-8 w-1/2 min-w-0 rounded border border-surface-500/30 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100"
 							value={range.min}
-							oninput={(e) => handleNumberPart(header, 'min', (e.currentTarget as HTMLInputElement).value)}
+							oninput={(e) =>
+								handleNumberPart(header, 'min', (e.currentTarget as HTMLInputElement).value)}
 						/>
 						<span class="text-surface-400" aria-hidden="true">–</span>
-						<input aria-label={`${def?.label ?? header.label} maximum`}
+						<input
+							aria-label={`${def?.label ?? header.label} maximum`}
 							type="number"
 							inputmode="decimal"
 							placeholder="Max"
 							class="h-8 w-1/2 min-w-0 rounded border border-surface-500/30 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100"
 							value={range.max}
-							oninput={(e) => handleNumberPart(header, 'max', (e.currentTarget as HTMLInputElement).value)}
+							oninput={(e) =>
+								handleNumberPart(header, 'max', (e.currentTarget as HTMLInputElement).value)}
 						/>
 					</div>
 				{:else}
-					<input aria-label={`Filter ${def?.label ?? header.label}`}
+					<input
+						aria-label={`Filter ${def?.label ?? header.label}`}
 						type="search"
-						name={name}
-						value={value}
+						{name}
+						{value}
 						placeholder={def?.label ?? header.label}
 						class="h-8 w-full min-w-0 rounded border border-surface-500/30 bg-white px-2 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
 						oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}

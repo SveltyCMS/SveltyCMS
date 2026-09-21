@@ -42,8 +42,11 @@ Features:
 	}
 
 	function getDeviceLabel(authenticator: Authenticator, idx: number): string {
-		const type = authenticator.credentialDeviceType === 'multiDevice' ? 'Passkey (Synced)' : 'Device Passkey';
-		const date = authenticator.createdAt ? formatDateTime(authenticator.createdAt, { dateStyle: 'medium' }) : `Key #${idx + 1}`;
+		const type =
+			authenticator.credentialDeviceType === 'multiDevice' ? 'Passkey (Synced)' : 'Device Passkey';
+		const date = authenticator.createdAt
+			? formatDateTime(authenticator.createdAt, { dateStyle: 'medium' })
+			: `Key #${idx + 1}`;
 		return `${type} · ${date}`;
 	}
 
@@ -138,10 +141,16 @@ Features:
 					const res = await revokePasskey({ credentialID });
 					if (res.success) {
 						authenticators = authenticators.filter((a) => a.credentialID !== credentialID);
-						toast.success({ title: 'Passkey Revoked', description: 'The passkey has been removed.' });
+						toast.success({
+							title: 'Passkey Revoked',
+							description: 'The passkey has been removed.'
+						});
 						onSuccess?.();
 					} else {
-						toast.error({ title: 'Revocation Failed', description: res.error || 'Failed to remove passkey.' });
+						toast.error({
+							title: 'Revocation Failed',
+							description: res.error || 'Failed to remove passkey.'
+						});
 					}
 				} catch (err: unknown) {
 					toast.error({
@@ -160,11 +169,15 @@ Features:
 	<!-- Header -->
 	<div class="flex items-start justify-between gap-4 border-b border-surface-500/20 pb-4">
 		<div class="flex items-center gap-3">
-			<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500/10 text-primary-500 dark:bg-primary-500/20">
+			<div
+				class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500/10 text-primary-500 dark:bg-primary-500/20"
+			>
 				<iconify-icon icon="mdi:fingerprint" width={24} aria-hidden="true"></iconify-icon>
 			</div>
 			<div>
-				<h2 class="text-lg font-bold text-surface-900 dark:text-surface-100">Passkeys &amp; Biometrics</h2>
+				<h2 class="text-lg font-bold text-surface-900 dark:text-surface-100">
+					Passkeys &amp; Biometrics
+				</h2>
 				<p class="text-xs text-surface-500">
 					Sign in securely using Touch ID, Face ID, Windows Hello, or hardware security keys.
 				</p>
@@ -183,39 +196,57 @@ Features:
 	<!-- Passkey list -->
 	<div class="space-y-3">
 		<div class="flex items-center justify-between">
-			<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-500">Registered Authenticators</h3>
+			<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-500">
+				Registered Authenticators
+			</h3>
 			<Badge variant="surface" size="sm">
 				{authenticators.length} registered
 			</Badge>
 		</div>
 
 		{#if authenticators.length === 0}
-			<div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-500/30 p-8 text-center">
+			<div
+				class="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-500/30 p-8 text-center"
+			>
 				<div class="mb-2 text-surface-400">
 					<iconify-icon icon="mdi:key-outline" width={36} aria-hidden="true"></iconify-icon>
 				</div>
-				<p class="text-sm font-medium text-surface-600 dark:text-surface-400">No Passkeys configured</p>
+				<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+					No Passkeys configured
+				</p>
 				<p class="mt-1 max-w-sm text-xs text-surface-500">
-					Add a passkey to enable instant, zero-password sign-in with your fingerprint, face, or security key.
+					Add a passkey to enable instant, zero-password sign-in with your fingerprint, face, or
+					security key.
 				</p>
 			</div>
 		{:else}
-			<div class="divide-y divide-surface-500/15 rounded-xl border border-surface-500/20 bg-surface-500/10">
+			<div
+				class="divide-y divide-surface-500/15 rounded-xl border border-surface-500/20 bg-surface-500/10"
+			>
 				{#each authenticators as auth, idx (auth.credentialID)}
 					<div class="flex items-center justify-between p-3.5">
 						<div class="flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-500/10 text-surface-600 dark:text-surface-400">
-								<iconify-icon icon={getDeviceIcon(auth.credentialDeviceType, auth.transports)} width={20} aria-hidden="true"></iconify-icon>
+							<div
+								class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-500/10 text-surface-600 dark:text-surface-400"
+							>
+								<iconify-icon
+									icon={getDeviceIcon(auth.credentialDeviceType, auth.transports)}
+									width={20}
+									aria-hidden="true"
+								></iconify-icon>
 							</div>
 							<div>
 								<p class="text-sm font-semibold text-surface-900 dark:text-surface-100">
 									{getDeviceLabel(auth, idx)}
 								</p>
 								<div class="flex items-center gap-2 text-xs text-surface-500">
-									<span class="font-mono text-[11px] opacity-75">{auth.credentialID.slice(0, 12)}…</span>
+									<span class="font-mono text-[11px] opacity-75"
+										>{auth.credentialID.slice(0, 12)}…</span
+									>
 									{#if auth.credentialBackedUp}
 										<span class="inline-flex items-center gap-0.5 text-success-500">
-											<iconify-icon icon="mdi:check-circle-outline" width={12} aria-hidden="true"></iconify-icon>
+											<iconify-icon icon="mdi:check-circle-outline" width={12} aria-hidden="true"
+											></iconify-icon>
 											Synced
 										</span>
 									{/if}
@@ -230,7 +261,8 @@ Features:
 							loading={isRevoking === auth.credentialID}
 							onclick={() => handleRevokePasskey(auth.credentialID)}
 						>
-							<iconify-icon icon="mdi:trash-can-outline" width={16} aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:trash-can-outline" width={16} aria-hidden="true"
+							></iconify-icon>
 							Revoke
 						</Button>
 					</div>
@@ -240,13 +272,10 @@ Features:
 	</div>
 
 	<!-- Footer / Actions -->
-	<div class="flex flex-col-reverse justify-end gap-2 border-t border-surface-500/20 pt-4 sm:flex-row">
-		<Button
-			variant="outline"
-			type="button"
-			onclick={() => modalState.close()}
-			aria-label="Cancel"
-		>
+	<div
+		class="flex flex-col-reverse justify-end gap-2 border-t border-surface-500/20 pt-4 sm:flex-row"
+	>
+		<Button variant="outline" type="button" onclick={() => modalState.close()} aria-label="Cancel">
 			Close
 		</Button>
 		<Button

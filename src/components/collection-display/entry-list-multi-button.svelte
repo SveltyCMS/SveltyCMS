@@ -50,7 +50,16 @@
 	import { scale } from 'svelte/transition';
 
 	// --- Types ---
-	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete' | 'bulk-edit' | 'export';
+	type ActionType =
+		| 'create'
+		| 'publish'
+		| 'unpublish'
+		| 'draft'
+		| 'schedule'
+		| 'clone'
+		| 'delete'
+		| 'bulk-edit'
+		| 'export';
 	type DangerLevel = 'low' | 'medium' | 'high';
 
 	interface ActionConfig {
@@ -226,7 +235,9 @@
 	const stats = $derived.by(() => {
 		const items = selectedItems || [];
 		const published = items.filter((i: any) => i.status === StatusTypes.publish).length;
-		const drafts = items.filter((i: any) => (i.status || i.raw_status) === StatusTypes.draft).length;
+		const drafts = items.filter(
+			(i: any) => (i.status || i.raw_status) === StatusTypes.draft
+		).length;
 		return { published, drafts, total: items.length };
 	});
 
@@ -258,7 +269,11 @@
 				if (config.type === 'publish' && stats.published === selectedCount) {
 					return false;
 				}
-				if (config.type === 'unpublish' && stats.drafts === selectedCount && stats.published === 0) {
+				if (
+					config.type === 'unpublish' &&
+					stats.drafts === selectedCount &&
+					stats.published === 0
+				) {
 					return false;
 				}
 				if (config.type === 'draft' && stats.drafts === selectedCount) {
@@ -276,18 +291,18 @@
 	$effect(() => {
 		if (isCollectionEmpty) {
 			ui.listboxValueState = 'create';
-						manualActionSet = false;
-						return;
-					}
+			manualActionSet = false;
+			return;
+		}
 
-					if (manualActionSet) {
+		if (manualActionSet) {
 			return;
 		}
 
 		if (!hasSelections) {
 			if (currentAction !== 'create') {
 				ui.listboxValueState = 'create';
-							}
+			}
 			return;
 		}
 
@@ -295,11 +310,11 @@
 		if (stats.published > 0 && stats.published === selectedCount) {
 			if (currentAction !== 'unpublish') {
 				ui.listboxValueState = 'unpublish';
-							}
+			}
 		} else if (currentAction !== 'publish') {
 			// Mixed or Drafts: prioritize Publish
 			ui.listboxValueState = 'publish';
-					}
+		}
 	});
 
 	// Connection awareness
@@ -308,7 +323,8 @@
 			const conn = (navigator as any).connection;
 			if (conn) {
 				const checkConnection = () => {
-					isSlowConnection = conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g';
+					isSlowConnection =
+						conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g';
 				};
 				checkConnection();
 				conn.addEventListener('change', checkConnection);
@@ -390,13 +406,17 @@
 			if (!config.shortcutKey) {
 				return false;
 			}
-			return e.key.toLowerCase() === config.shortcutKey.toLowerCase() || e.key === config.shortcutKey;
+			return (
+				e.key.toLowerCase() === config.shortcutKey.toLowerCase() || e.key === config.shortcutKey
+			);
 		});
 
 		if (matchedConfig) {
 			e.preventDefault();
 			if (matchedConfig.requiresSelection && !hasSelections) {
-				logger.debug(`[MultiButton] Keyboard shortcut ${matchedConfig.shortcut} requires selection`);
+				logger.debug(
+					`[MultiButton] Keyboard shortcut ${matchedConfig.shortcut} requires selection`
+				);
 				return;
 			}
 			handleAction(matchedConfig.type);
@@ -499,19 +519,32 @@
 <!-- Multi-button group -->
 <div class="relative flex items-center gap-2" bind:this={dropdownRef}>
 	<!-- Archive Toggle -->
-	<SystemTooltip title={showDeleted ? entrylist_multibutton_show_active() : entrylist_multibutton_show_archived()}>
-		<Button variant="ghost"
+	<SystemTooltip
+		title={showDeleted
+			? entrylist_multibutton_show_active()
+			: entrylist_multibutton_show_archived()}
+	>
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={() => (showDeleted = !showDeleted)}
-			aria-label={showDeleted ? entrylist_multibutton_viewing_archived() : entrylist_multibutton_viewing_active()}
+			aria-label={showDeleted
+				? entrylist_multibutton_viewing_archived()
+				: entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
-			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted ? 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700' : 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}">
-			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"></iconify-icon>
+			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted
+				? 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
+				: 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}"
+		>
+			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"
+			></iconify-icon>
 		</Button>
 	</SystemTooltip>
 
 	<!-- Main Action / Split Button Group -->
-	<div class="relative flex items-center shadow-lg rounded-xl overflow-visible transition-all duration-200">
+	<div
+		class="relative flex items-center shadow-lg rounded-xl overflow-visible transition-all duration-200"
+	>
 		{#if !hasSelections}
 			<!-- Single Action Button (e.g. Create New) when no entries are selected -->
 			<Button
@@ -528,7 +561,9 @@
 				aria-busy={isProcessing}
 			>
 				{#if isProcessing}
-					<div class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"></div>
+					<div
+						class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+					></div>
 				{:else}
 					<iconify-icon icon={currentConfig.icon} width="20"></iconify-icon>
 				{/if}
@@ -551,7 +586,9 @@
 					aria-busy={isProcessing}
 				>
 					{#if isProcessing}
-						<div class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"></div>
+						<div
+							class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+						></div>
 					{:else}
 						<iconify-icon icon={currentConfig.icon} width="20"></iconify-icon>
 					{/if}
@@ -616,7 +653,12 @@
 									<div
 										class="relative z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-surface-700/60 ring-1 ring-white/10 transition-transform group-hover/item:scale-105"
 									>
-										<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-primary-400' : 'text-surface-300'}
+										<iconify-icon
+											icon={config.icon}
+											width="16"
+											class={hoveredAction === config.type
+												? 'text-primary-400'
+												: 'text-surface-300'}
 										></iconify-icon>
 									</div>
 

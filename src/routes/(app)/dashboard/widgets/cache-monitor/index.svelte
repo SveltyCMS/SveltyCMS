@@ -15,12 +15,12 @@
 - Category-level monitoring (auth, api, etc.)
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Cache Performance",
-	icon: "mdi:cached",
-	description: "Monitor cache efficiency and size",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Cache Performance',
+		icon: 'mdi:cached',
+		description: 'Monitor cache efficiency and size',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -108,150 +108,179 @@ export const widgetMeta = {
 </script>
 
 {#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
+	<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+		<div
+			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
+		>
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+				{dashboard_ext_premium()}
+			</h3>
+			<p class="text-xs text-surface-500 mt-1 mb-3">{dashboard_ext_trial_expired()}</p>
+			<a
+				href="https://marketplace.sveltycms.com"
+				target="_blank"
+				class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500"
+				>{dashboard_ext_upgrade_arrow()}</a
+			>
+		</div>
+	</BaseWidget>
+{:else}
 	<BaseWidget
 		{label}
 		{theme}
+		endpoint="/api/dashboard/cache-metrics"
+		pollInterval={30000}
 		{icon}
 		{widgetId}
 		{size}
 		{onSizeChange}
 		onCloseRequest={onRemove}
 	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">{dashboard_ext_premium()}</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">{dashboard_ext_trial_expired()}</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500">{dashboard_ext_upgrade_arrow()}</a>
-		</div>
-	</BaseWidget>
-{:else}
-<BaseWidget
-	{label}
-	{theme}
-	endpoint="/api/dashboard/cache-metrics"
-	pollInterval={30000}
-	{icon}
-	{widgetId}
-	{size}
-	{onSizeChange}
-	onCloseRequest={onRemove}
->
-	{#snippet children({ data })}
-		{const cache = data as CacheResponse | null}
-		{const hasData = cache?.overall != null}
+		{#snippet children({ data })}
+			{const cache = data as CacheResponse | null}
+			{const hasData = cache?.overall != null}
 
-		{#if !hasData}
-			<!-- ===== Empty / Loading ===== -->
-			<div class="flex h-full flex-col items-center justify-center text-center">
-				<iconify-icon icon="mdi:cached" class="text-4xl opacity-20 mb-3" ></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">{dashboard_cache_no_data()}</div>
-				<div class="text-xs text-surface-400 mt-1">{dashboard_cache_metrics_flow()}</div>
-			</div>
-		{:else if isCompact}
-			{const o = cache.overall}
-			<!-- ===== Compact (h:1) ===== -->
-			<div class="flex h-full items-center gap-3 overflow-hidden">
-				<!-- Hit rate badge -->
-				<div class="flex shrink-0 items-center gap-1.5">
-					<span class="text-lg font-bold tabular-nums {hitRateClass(o.hitRate)}">
-						{o.hitRate.toFixed(0)}%
-					</span>
-					<span class="text-xs text-surface-500">{dashboard_cache_hit_rate()}</span>
+			{#if !hasData}
+				<!-- ===== Empty / Loading ===== -->
+				<div class="flex h-full flex-col items-center justify-center text-center">
+					<iconify-icon icon="mdi:cached" class="text-4xl opacity-20 mb-3"></iconify-icon>
+					<div class="text-sm font-medium text-surface-500">{dashboard_cache_no_data()}</div>
+					<div class="text-xs text-surface-400 mt-1">{dashboard_cache_metrics_flow()}</div>
 				</div>
-
-				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
-
-				<!-- Mini progress bar -->
-				<div class="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-					<div class="h-full rounded-full transition-all duration-700 {barColor(o.hitRate)}" style="width: {Math.max(6, o.hitRate)}%"></div>
-				</div>
-
-				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
-
-				<!-- Inline stats -->
-				<div class="flex items-center gap-3 text-xs">
-					<span class="tabular-nums text-surface-500">
-						<span class="text-success-500 font-medium">{fmtNum(o.hits)}</span> {dashboard_cache_hits().toLowerCase()}
-					</span>
-					<span class="tabular-nums text-surface-500">
-						<span class="text-error-500 font-medium">{fmtNum(o.misses)}</span> {dashboard_cache_misses().toLowerCase()}
-					</span>
-					<span class="tabular-nums font-medium text-tertiary-500">{fmtSize(o.size)}</span>
-				</div>
-			</div>
-		{:else}
-			{const o = cache.overall}
-			<!-- ===== Rich (h:2+) ===== -->
-			<div class="flex h-full flex-col space-y-3">
-				<!-- Overall Summary -->
-				<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-					<div class="flex items-center justify-between mb-2">
-						<span class="text-xs font-semibold uppercase tracking-wider text-surface-400">{dashboard_cache_overall()}</span>
-						<span class="text-xs font-medium text-tertiary-500 tabular-nums">{fmtSize(o.size)}</span>
-					</div>
-
-					<div class="flex items-baseline justify-between mb-2">
-						<span class="text-2xl font-semibold tabular-nums {hitRateClass(o.hitRate)}">
-							{o.hitRate.toFixed(1)}%
+			{:else if isCompact}
+				{const o = cache.overall}
+				<!-- ===== Compact (h:1) ===== -->
+				<div class="flex h-full items-center gap-3 overflow-hidden">
+					<!-- Hit rate badge -->
+					<div class="flex shrink-0 items-center gap-1.5">
+						<span class="text-lg font-bold tabular-nums {hitRateClass(o.hitRate)}">
+							{o.hitRate.toFixed(0)}%
 						</span>
-						<span class="text-xs text-surface-400">{dashboard_cache_hit_rate()}</span>
+						<span class="text-xs text-surface-500">{dashboard_cache_hit_rate()}</span>
 					</div>
 
-					<div class="h-2.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700 mb-3">
-						<div class="h-full rounded-full transition-all duration-700 {barColor(o.hitRate)}" style="width: {Math.max(8, o.hitRate)}%"></div>
+					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+
+					<!-- Mini progress bar -->
+					<div
+						class="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+					>
+						<div
+							class="h-full rounded-full transition-all duration-700 {barColor(o.hitRate)}"
+							style="width: {Math.max(6, o.hitRate)}%"
+						></div>
 					</div>
 
-					<div class="grid grid-cols-4 gap-2 text-center text-xs">
-						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold text-success-500 tabular-nums">{fmtNum(o.hits)}</div>
-							<div class="text-[10px] text-surface-500">{dashboard_cache_hits()}</div>
-						</div>
-						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold text-error-500 tabular-nums">{fmtNum(o.misses)}</div>
-							<div class="text-[10px] text-surface-500">{dashboard_cache_misses()}</div>
-						</div>
-						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold tabular-nums">{fmtNum(o.sets ?? 0)}</div>
-							<div class="text-[10px] text-surface-500">{dashboard_cache_sets()}</div>
-						</div>
-						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold tabular-nums">{fmtNum(o.deletes ?? 0)}</div>
-							<div class="text-[10px] text-surface-500">{dashboard_cache_evictions()}</div>
-						</div>
+					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+
+					<!-- Inline stats -->
+					<div class="flex items-center gap-3 text-xs">
+						<span class="tabular-nums text-surface-500">
+							<span class="text-success-500 font-medium">{fmtNum(o.hits)}</span>
+							{dashboard_cache_hits().toLowerCase()}
+						</span>
+						<span class="tabular-nums text-surface-500">
+							<span class="text-error-500 font-medium">{fmtNum(o.misses)}</span>
+							{dashboard_cache_misses().toLowerCase()}
+						</span>
+						<span class="tabular-nums font-medium text-tertiary-500">{fmtSize(o.size)}</span>
 					</div>
 				</div>
+			{:else}
+				{const o = cache.overall}
+				<!-- ===== Rich (h:2+) ===== -->
+				<div class="flex h-full flex-col space-y-3">
+					<!-- Overall Summary -->
+					<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-semibold uppercase tracking-wider text-surface-400"
+								>{dashboard_cache_overall()}</span
+							>
+							<span class="text-xs font-medium text-tertiary-500 tabular-nums"
+								>{fmtSize(o.size)}</span
+							>
+						</div>
 
-				<!-- Per-Category Breakdown -->
-				{#if cache.byCategory && Object.keys(cache.byCategory).length > 0}
-					<div class="flex-1 space-y-2 overflow-y-auto pe-0.5 custom-scroll">
-						{#each Object.entries(cache.byCategory) as [cat, s] (cat)}
-							<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-								<div class="flex items-center justify-between mb-2">
-									<span class="text-xs font-semibold capitalize text-surface-600 dark:text-surface-400">{cat}</span>
-									<span class="text-xs tabular-nums text-tertiary-500">{fmtSize(s.size)}</span>
+						<div class="flex items-baseline justify-between mb-2">
+							<span class="text-2xl font-semibold tabular-nums {hitRateClass(o.hitRate)}">
+								{o.hitRate.toFixed(1)}%
+							</span>
+							<span class="text-xs text-surface-400">{dashboard_cache_hit_rate()}</span>
+						</div>
+
+						<div
+							class="h-2.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700 mb-3"
+						>
+							<div
+								class="h-full rounded-full transition-all duration-700 {barColor(o.hitRate)}"
+								style="width: {Math.max(8, o.hitRate)}%"
+							></div>
+						</div>
+
+						<div class="grid grid-cols-4 gap-2 text-center text-xs">
+							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
+								<div class="font-mono font-semibold text-success-500 tabular-nums">
+									{fmtNum(o.hits)}
 								</div>
+								<div class="text-[10px] text-surface-500">{dashboard_cache_hits()}</div>
+							</div>
+							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
+								<div class="font-mono font-semibold text-error-500 tabular-nums">
+									{fmtNum(o.misses)}
+								</div>
+								<div class="text-[10px] text-surface-500">{dashboard_cache_misses()}</div>
+							</div>
+							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
+								<div class="font-mono font-semibold tabular-nums">{fmtNum(o.sets ?? 0)}</div>
+								<div class="text-[10px] text-surface-500">{dashboard_cache_sets()}</div>
+							</div>
+							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
+								<div class="font-mono font-semibold tabular-nums">{fmtNum(o.deletes ?? 0)}</div>
+								<div class="text-[10px] text-surface-500">{dashboard_cache_evictions()}</div>
+							</div>
+						</div>
+					</div>
 
-								<div class="flex items-center justify-between mb-2">
-									<span class="text-lg font-semibold tabular-nums {hitRateClass(s.hitRate)}">
-										{s.hitRate.toFixed(1)}%
-									</span>
-									<div class="flex gap-3 text-[11px] text-surface-500">
-										<span>{fmtNum(s.hits)} {dashboard_cache_hits().toLowerCase()}</span>
-										<span>{fmtNum(s.misses)} {dashboard_cache_misses().toLowerCase()}</span>
+					<!-- Per-Category Breakdown -->
+					{#if cache.byCategory && Object.keys(cache.byCategory).length > 0}
+						<div class="flex-1 space-y-2 overflow-y-auto pe-0.5 custom-scroll">
+							{#each Object.entries(cache.byCategory) as [cat, s] (cat)}
+								<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
+									<div class="flex items-center justify-between mb-2">
+										<span
+											class="text-xs font-semibold capitalize text-surface-600 dark:text-surface-400"
+											>{cat}</span
+										>
+										<span class="text-xs tabular-nums text-tertiary-500">{fmtSize(s.size)}</span>
+									</div>
+
+									<div class="flex items-center justify-between mb-2">
+										<span class="text-lg font-semibold tabular-nums {hitRateClass(s.hitRate)}">
+											{s.hitRate.toFixed(1)}%
+										</span>
+										<div class="flex gap-3 text-[11px] text-surface-500">
+											<span>{fmtNum(s.hits)} {dashboard_cache_hits().toLowerCase()}</span>
+											<span>{fmtNum(s.misses)} {dashboard_cache_misses().toLowerCase()}</span>
+										</div>
+									</div>
+
+									<div
+										class="h-1.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+									>
+										<div
+											class="h-full rounded-full transition-all duration-700 {barColor(s.hitRate)}"
+											style="width: {Math.max(6, s.hitRate)}%"
+										></div>
 									</div>
 								</div>
-
-								<div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-									<div class="h-full rounded-full transition-all duration-700 {barColor(s.hitRate)}" style="width: {Math.max(6, s.hitRate)}%"></div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		{/if}
-	{/snippet}
-</BaseWidget>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+		{/snippet}
+	</BaseWidget>
 {/if}
 
 <style>

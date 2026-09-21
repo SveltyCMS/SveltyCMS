@@ -7,10 +7,29 @@
 <script lang="ts">
 	// @ts-nocheck
 
-	import { usertoken_button, usertoken_email, usertoken_role, usertoken_token, usertoken_valid } from '@src/paraglide/messages';
+	import {
+		usertoken_button,
+		usertoken_email,
+		usertoken_role,
+		usertoken_token,
+		usertoken_valid
+	} from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
-	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import {
+		Body,
+		Button,
+		Container,
+		Head,
+		Heading,
+		Hr,
+		Html,
+		Img,
+		Link,
+		Preview,
+		Section,
+		Text
+	} from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 
 	interface Props {
@@ -22,7 +41,14 @@
 		tokenLink?: string;
 	}
 
-	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = locale.systemLanguage }: Props = $props();
+	const {
+		email = '',
+		role = '',
+		token = '',
+		tokenLink = '',
+		expiresInLabel = '',
+		languageTag = locale.systemLanguage
+	}: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD
@@ -42,7 +68,11 @@
 		<Container>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? (publicEnv?.HOST_DEV ?? 'http://localhost:5173') : (publicEnv?.HOST_PROD ?? '')}>
+				<Link
+					href={dev
+						? (publicEnv?.HOST_DEV ?? 'http://localhost:5173')
+						: (publicEnv?.HOST_PROD ?? '')}
+				>
 					<Img
 						src={logoSrc}
 						alt={`${publicEnv?.SITE_NAME ?? 'SveltyCMS'} logo`}
@@ -58,13 +88,18 @@
 				<Text>Hello there,</Text>
 
 				<Text>
-					You have been invited to join <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong> as a
+					You have been invited to join <strong
+						>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong
+					>
+					as a
 					<strong>{role}</strong>. Please click the button below to create your account.
 				</Text>
 			</Section>
 
 			<!-- User Information Box -->
-			<Section style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
+			<Section
+				style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;"
+			>
 				<Text style="font-size: 14px; line-height: 1.5;">
 					<strong>{usertoken_email()}</strong>
 					{email}<br />
@@ -80,26 +115,33 @@
 
 			<!-- CTA Button -->
 			<Section style="text-align: center;">
-				<Text style="text-align: center; font-weight: bold; font-size: 16px;">{usertoken_button()}</Text>
+				<Text style="text-align: center; font-weight: bold; font-size: 16px;"
+					>{usertoken_button()}</Text
+				>
 				<center>
 					<Button
 						href={tokenLink || '#'}
 						pX={24}
 						pY={12}
-						style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;">
+						style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;"
+					>
 						Accept Invitation & Create Account
 					</Button>
 				</center>
 			</Section>
 
-			<Section><Text>This invitation is valid for a limited time and can only be used once.</Text></Section>
+			<Section
+				><Text>This invitation is valid for a limited time and can only be used once.</Text
+				></Section
+			>
 
 			<!-- Fallback information for printed emails -->
 			<Section>
 				<Hr />
 				<Text style="font-size: 12px; color: #666;">
 					<strong>Can't click the link?</strong>
-					Go to {publicEnv?.HOST_PROD || publicEnv?.HOST_DEV || 'your site'} and use the token above during signup.
+					Go to {publicEnv?.HOST_PROD || publicEnv?.HOST_DEV || 'your site'} and use the token above during
+					signup.
 				</Text>
 			</Section>
 
@@ -109,7 +151,9 @@
 			<Section>
 				<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 					<Link href="https://SveltyCMS.com">
-						Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+						Your <span style="color:#111;">Svelty</span><span
+							style="color:#22c55e;font-weight:bold;">CMS</span
+						>
 						team
 					</Link>
 				</Text>

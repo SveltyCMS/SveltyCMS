@@ -46,7 +46,12 @@ import SiteName from './site-name.svelte';
 		textClass?: string;
 	}
 
-	const { char = null, siteName: propSiteName, highlight, textClass = 'text-black dark:text-white' }: Props = $props();
+	const {
+		char = null,
+		siteName: propSiteName,
+		highlight,
+		textClass = 'text-black dark:text-white'
+	}: Props = $props();
 
 	// Get site name dynamically from global settings store (updates live!)
 	// Fallback chain: prop → live store → default (removed page.data access which causes SSR issues)

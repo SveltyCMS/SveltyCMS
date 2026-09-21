@@ -12,27 +12,24 @@ Features:
 - Delete cascade support for editing existing categories
 -->
 <script lang="ts">
-	import { SvelteSet } from "svelte/reactivity";
-	import IconifyIconsPicker from "@src/components/iconify-icons-picker.svelte";
+	import { SvelteSet } from 'svelte/reactivity';
+	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 	import {
 		button_cancel,
 		button_delete,
 		button_save,
 		modalcategory_categoryname,
-		modalcategory_placeholder,
-	} from "@src/paraglide/messages";
+		modalcategory_placeholder
+	} from '@src/paraglide/messages';
 
 	// Stores
-	import {
-		collections,
-		setContentStructure,
-	} from "@src/stores/collection-store.svelte";
-	import { logger } from "@utils/logger";
-	import { invalidate } from "$app/navigation";
+	import { collections, setContentStructure } from '@src/stores/collection-store.svelte';
+	import { logger } from '@utils/logger';
+	import { invalidate } from '$app/navigation';
 
-	import type { ContentNode } from "@root/src/databases/db-interface";
-	import Button from "@components/ui/button.svelte";
-	import Input from "@components/ui/input.svelte";
+	import type { ContentNode } from '@root/src/databases/db-interface';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 
 	interface Props {
 		body?: string;
@@ -52,26 +49,26 @@ Features:
 		newCategoryDescription: string;
 	}
 
-	const DEFAULT_ICON = "mdi:folder-outline";
+	const DEFAULT_ICON = 'mdi:folder-outline';
 
-	const { existingCategory = { name: "", icon: "" }, close }: Props = $props();
+	const { existingCategory = { name: '', icon: '' }, close }: Props = $props();
 
 	// State variables for form and UI
 	const formData = $state<FormData>({
-		newCategoryName: "",
-		newCategoryIcon: "",
-		newCategoryDescription: "",
+		newCategoryName: '',
+		newCategoryIcon: '',
+		newCategoryDescription: ''
 	});
-	let categoryIconSearch = $state("");
+	let categoryIconSearch = $state('');
 	let isSubmitting = $state(false);
 	let formError = $state<string | null>(null);
 	let validationErrors = $state<Record<string, string>>({});
 
 	// Populate form when editing
 	$effect(() => {
-		formData.newCategoryName = existingCategory.name ?? "";
+		formData.newCategoryName = existingCategory.name ?? '';
 		formData.newCategoryIcon = existingCategory.icon || DEFAULT_ICON;
-		formData.newCategoryDescription = (existingCategory as any)?.description ?? "";
+		formData.newCategoryDescription = (existingCategory as any)?.description ?? '';
 	});
 
 	/** Collect category id and all descendant node ids (for cascade delete; server deletes attached collections and their .ts files). */
@@ -82,7 +79,7 @@ Features:
 			idSet.add(id);
 			flat
 				.filter((n) => n.parentId?.toString() === id)
-				.forEach((n) => add(n._id?.toString() ?? ""));
+				.forEach((n) => add(n._id?.toString() ?? ''));
 		};
 		add(categoryId);
 		return Array.from(idSet);
@@ -96,13 +93,13 @@ Features:
 		const errors: Record<string, string> = {};
 
 		if (!formData.newCategoryName.trim()) {
-			errors.name = "Category name is required";
+			errors.name = 'Category name is required';
 		} else if (formData.newCategoryName.length < 2) {
-			errors.name = "Category name must be at least 2 characters";
+			errors.name = 'Category name must be at least 2 characters';
 		}
 
 		if (!formData.newCategoryIcon.trim()) {
-			errors.icon = "Icon is required";
+			errors.icon = 'Icon is required';
 		}
 
 		validationErrors = errors;
@@ -115,7 +112,7 @@ Features:
 	async function onFormSubmit(event: Event): Promise<void> {
 		event.preventDefault();
 		if (!validateForm()) {
-			logger.error("Form validation failed.", validationErrors);
+			logger.error('Form validation failed.', validationErrors);
 			return;
 		}
 
@@ -131,9 +128,8 @@ Features:
 				close(formData);
 			}
 		} catch (error) {
-			logger.error("Error submitting category form:", error);
-			formError =
-				error instanceof Error ? error.message : "Error submitting form";
+			logger.error('Error submitting category form:', error);
+			formError = error instanceof Error ? error.message : 'Error submitting form';
 		} finally {
 			isSubmitting = false;
 		}
@@ -146,7 +142,7 @@ Features:
 	async function deleteCategory(): Promise<void> {
 		const categoryId = existingCategory._id?.toString();
 		if (!categoryId) {
-			formError = "Category has no ID";
+			formError = 'Category has no ID';
 			return;
 		}
 
@@ -166,24 +162,23 @@ Features:
 		formError = null;
 
 		try {
-			const { deleteContentNodes } = await import("../collectionbuilder.remote");
+			const { deleteContentNodes } = await import('../collectionbuilder.remote');
 			const result = await deleteContentNodes([categoryId]);
 
-			if ("success" in result && result.success) {
+			if ('success' in result && result.success) {
 				const newStructure = flat.filter(
-					(n) => !new SvelteSet(idsToDelete).has(n._id?.toString() ?? ""),
+					(n) => !new SvelteSet(idsToDelete).has(n._id?.toString() ?? '')
 				);
 				setContentStructure(newStructure);
-				await invalidate("app:content");
+				await invalidate('app:content');
 				close?.({ __categoryDeleted: true, contentStructure: newStructure });
 			} else {
-				const message = (result as any).message ?? "Deletion failed";
+				const message = (result as any).message ?? 'Deletion failed';
 				formError = message;
 			}
 		} catch (error) {
-			logger.error("Error deleting category:", error);
-			formError =
-				error instanceof Error ? error.message : "Failed to delete category";
+			logger.error('Error deleting category:', error);
+			formError = error instanceof Error ? error.message : 'Failed to delete category';
 		} finally {
 			isSubmitting = false;
 		}
@@ -196,7 +191,10 @@ Features:
 
 <div class="modal-category-container">
 	{#if formError}
-		<div class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-600 dark:text-error-400" role="alert">
+		<div
+			class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-600 dark:text-error-400"
+			role="alert"
+		>
 			{formError}
 		</div>
 	{/if}
@@ -207,7 +205,9 @@ Features:
 			<!-- Left column: Form fields (3/5 width) -->
 			<div class="flex flex-col gap-4 md:col-span-3">
 				<div class="space-y-4">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">
+					<h3
+						class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
+					>
 						Category Details
 					</h3>
 
@@ -240,8 +240,8 @@ Features:
 						value={formData.newCategoryName
 							.trim()
 							.toLowerCase()
-							.replace(/\s+/g, "-")
-							.replace(/[^a-z0-9-]/g, "") || "category"}
+							.replace(/\s+/g, '-')
+							.replace(/[^a-z0-9-]/g, '') || 'category'}
 						label="Path (auto-generated)"
 						disabled={true}
 						class="opacity-70"
@@ -254,7 +254,9 @@ Features:
 			<div class="flex flex-col gap-4 md:col-span-2">
 				<!-- Icon Picker -->
 				<div class="space-y-3">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">
+					<h3
+						class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
+					>
 						Icon
 					</h3>
 
@@ -262,7 +264,9 @@ Features:
 						<span class="mb-2 block text-sm font-medium text-surface-600 dark:text-surface-400">
 							Choose an icon
 						</span>
-						<div class="min-h-[220px] rounded-lg border border-surface-500/30 bg-surface-500/10 p-2 dark:border-surface-500/40 dark:bg-surface-800/40">
+						<div
+							class="min-h-[220px] rounded-lg border border-surface-500/30 bg-surface-500/10 p-2 dark:border-surface-500/40 dark:bg-surface-800/40"
+						>
 							<IconifyIconsPicker
 								bind:iconselected={formData.newCategoryIcon}
 								icon={previewIcon}
@@ -270,26 +274,33 @@ Features:
 							/>
 						</div>
 						{#if validationErrors.icon}
-							<span id="icon-error" class="mt-1 block text-xs text-error-500">{validationErrors.icon}</span>
+							<span id="icon-error" class="mt-1 block text-xs text-error-500"
+								>{validationErrors.icon}</span
+							>
 						{/if}
 					</div>
 				</div>
 
 				<!-- Live Preview -->
 				<div class="space-y-3">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">
+					<h3
+						class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
+					>
 						Preview
 					</h3>
 					<div
 						class="flex items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-800/40"
 						data-testid="category-preview"
 					>
-						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400">
-							<iconify-icon icon={previewIcon} width="28" height="28" aria-hidden="true"></iconify-icon>
+						<div
+							class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400"
+						>
+							<iconify-icon icon={previewIcon} width="28" height="28" aria-hidden="true"
+							></iconify-icon>
 						</div>
 						<div class="min-w-0 flex-1">
 							<div class="truncate text-base font-semibold text-surface-900 dark:text-white">
-								{formData.newCategoryName || "Category name"}
+								{formData.newCategoryName || 'Category name'}
 							</div>
 							{#if formData.newCategoryDescription}
 								<div class="truncate text-xs text-surface-500 dark:text-surface-400">
@@ -303,7 +314,11 @@ Features:
 		</div>
 
 		<!-- Footer -->
-		<footer class="flex items-center border-t border-surface-500/30 pt-4 dark:border-surface-500/40 {isEditing ? 'justify-between' : 'justify-end'}">
+		<footer
+			class="flex items-center border-t border-surface-500/30 pt-4 dark:border-surface-500/40 {isEditing
+				? 'justify-between'
+				: 'justify-end'}"
+		>
 			{#if isEditing}
 				<Button
 					variant="error"

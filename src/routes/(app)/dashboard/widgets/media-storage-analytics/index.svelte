@@ -14,12 +14,12 @@
 - Actionable insight cards from storage analytics API
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Media Storage",
-	icon: "mdi:chart-pie",
-	description: "Media library storage analytics, quota usage, and insights",
-	defaultSize: { w: 2, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Media Storage',
+		icon: 'mdi:chart-pie',
+		description: 'Media library storage analytics, quota usage, and insights',
+		defaultSize: { w: 2, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -100,7 +100,8 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{const analytics = ((data as { success?: boolean; data?: MediaAnalytics })?.data ?? data) as MediaAnalytics | null}
+		{const analytics = ((data as { success?: boolean; data?: MediaAnalytics })?.data ??
+			data) as MediaAnalytics | null}
 
 		{#if !analytics?.total}
 			<div class="flex h-full flex-col items-center justify-center text-center">
@@ -114,11 +115,21 @@ export const widgetMeta = {
 					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
 						{analytics.total.formattedSize}
 					</div>
-					<div class="text-xs text-surface-500">{widget_media_files_count({ count: analytics.total.files })}</div>
+					<div class="text-xs text-surface-500">
+						{widget_media_files_count({ count: analytics.total.files })}
+					</div>
 				</div>
 				<div class="shrink-0 text-end">
-					<div class="text-xs font-semibold uppercase tracking-wide text-surface-500">{widget_mediastorage_quota()}</div>
-					<div class="text-sm font-bold tabular-nums {analytics.quota.status === 'critical' ? 'text-error-500' : analytics.quota.status === 'warning' ? 'text-warning-500' : 'text-success-500'}">
+					<div class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+						{widget_mediastorage_quota()}
+					</div>
+					<div
+						class="text-sm font-bold tabular-nums {analytics.quota.status === 'critical'
+							? 'text-error-500'
+							: analytics.quota.status === 'warning'
+								? 'text-warning-500'
+								: 'text-success-500'}"
+					>
 						{analytics.quota.percentage.toFixed(0)}%
 					</div>
 				</div>
@@ -127,42 +138,83 @@ export const widgetMeta = {
 			<div class="flex h-full flex-col gap-3">
 				<div class="grid grid-cols-2 gap-3">
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">{widget_mediastorage_total()}</div>
+						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							{widget_mediastorage_total()}
+						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{analytics.total.formattedSize}
 						</div>
-						<div class="mt-0.5 text-xs text-surface-500">{widget_media_files_count({ count: analytics.total.files })}</div>
+						<div class="mt-0.5 text-xs text-surface-500">
+							{widget_media_files_count({ count: analytics.total.files })}
+						</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">{widget_mediastorage_quota_used()}</div>
-						<div class="mt-1 text-xl font-bold tabular-nums {analytics.quota.status === 'critical' ? 'text-error-500' : analytics.quota.status === 'warning' ? 'text-warning-500' : 'text-success-500'}">
+						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							{widget_mediastorage_quota_used()}
+						</div>
+						<div
+							class="mt-1 text-xl font-bold tabular-nums {analytics.quota.status === 'critical'
+								? 'text-error-500'
+								: analytics.quota.status === 'warning'
+									? 'text-warning-500'
+									: 'text-success-500'}"
+						>
 							{analytics.quota.percentage.toFixed(1)}%
 						</div>
-						<div class="mt-0.5 text-xs text-surface-500">{widget_mediastorage_free({ size: formatBytes(analytics.quota.available) })}</div>
+						<div class="mt-0.5 text-xs text-surface-500">
+							{widget_mediastorage_free({ size: formatBytes(analytics.quota.available) })}
+						</div>
 					</div>
 				</div>
 
 				<div>
-					<div class="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+					<div
+						class="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-surface-500"
+					>
 						<span>{widget_mediastorage_quota()}</span>
 						<span class="capitalize">{analytics.quota.status}</span>
 					</div>
-					<div class="h-2 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" role="progressbar" aria-valuenow={analytics.quota.percentage} aria-valuemin={0} aria-valuemax={100} aria-label={widget_mediastorage_quota_usage_aria()}>
-						<div class="h-full transition-all duration-300 {quotaColor(analytics.quota.status)}" style="width: {Math.min(100, analytics.quota.percentage)}%"></div>
+					<div
+						class="h-2 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+						role="progressbar"
+						aria-valuenow={analytics.quota.percentage}
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-label={widget_mediastorage_quota_usage_aria()}
+					>
+						<div
+							class="h-full transition-all duration-300 {quotaColor(analytics.quota.status)}"
+							style="width: {Math.min(100, analytics.quota.percentage)}%"
+						></div>
 					</div>
 				</div>
 
 				{#if analytics.byType.length > 0}
 					<div class="min-h-0 flex-1 overflow-y-auto">
-						<div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-surface-500">{widget_mediastorage_top_types()}</div>
+						<div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							{widget_mediastorage_top_types()}
+						</div>
 						<div class="space-y-1.5">
 							{#each analytics.byType.slice(0, 4) as item (item.type)}
-								<div class="flex items-center gap-2 rounded-xl bg-surface-500/10 px-3 py-2 dark:bg-surface-800/60">
+								<div
+									class="flex items-center gap-2 rounded-xl bg-surface-500/10 px-3 py-2 dark:bg-surface-800/60"
+								>
 									<div class="min-w-0 flex-1">
-										<div class="truncate text-sm font-medium capitalize text-surface-600 dark:text-surface-100">{item.type}</div>
-										<div class="text-[11px] text-surface-500">{widget_mediastorage_files_size({ count: item.count, size: formatBytes(item.size) })}</div>
+										<div
+											class="truncate text-sm font-medium capitalize text-surface-600 dark:text-surface-100"
+										>
+											{item.type}
+										</div>
+										<div class="text-[11px] text-surface-500">
+											{widget_mediastorage_files_size({
+												count: item.count,
+												size: formatBytes(item.size)
+											})}
+										</div>
 									</div>
-									<div class="shrink-0 text-xs font-semibold tabular-nums text-surface-500">{item.pct.toFixed(0)}%</div>
+									<div class="shrink-0 text-xs font-semibold tabular-nums text-surface-500">
+										{item.pct.toFixed(0)}%
+									</div>
 								</div>
 							{/each}
 						</div>
@@ -170,11 +222,18 @@ export const widgetMeta = {
 				{/if}
 
 				{#if analytics.insights[0]}
-					<div class="rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40">
+					<div
+						class="rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40"
+					>
 						<div class="flex items-start gap-2">
-							<iconify-icon icon={insightIcon(analytics.insights[0].type)} class="mt-0.5 shrink-0 text-surface-500"></iconify-icon>
+							<iconify-icon
+								icon={insightIcon(analytics.insights[0].type)}
+								class="mt-0.5 shrink-0 text-surface-500"
+							></iconify-icon>
 							<div class="min-w-0">
-								<div class="font-semibold text-surface-600 dark:text-surface-100">{analytics.insights[0].title}</div>
+								<div class="font-semibold text-surface-600 dark:text-surface-100">
+									{analytics.insights[0].title}
+								</div>
 								<div class="mt-0.5 text-surface-500">{analytics.insights[0].desc}</div>
 							</div>
 						</div>

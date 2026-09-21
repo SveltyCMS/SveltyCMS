@@ -13,11 +13,11 @@ This component acts as an intercept layer. It either renders a fully dynamic JSO
 -->
 
 <script lang="ts">
-import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
-import { sveltyRegistry } from "@src/services/json-render/catalog";
-import type { Snippet } from "svelte";
-import { logger } from "@utils/logger";
-import { clientJsonHeaders } from "@utils/security/client-csrf";
+	import { Renderer, JSONUIProvider, type Spec } from 'json-render-svelte';
+	import { sveltyRegistry } from '@src/services/json-render/catalog';
+	import type { Snippet } from 'svelte';
+	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import {
@@ -27,56 +27,59 @@ import { clientJsonHeaders } from "@utils/security/client-csrf";
 		widget_generative_update
 	} from '@src/paraglide/messages';
 
-interface Props {
-	spec?: Spec | null;
-	context?: Record<string, unknown>;
-	children?: Snippet;
-}
-
-let { spec = null, context = {}, children }: Props = $props();
-
-let prompt = $state("");
-let isRegenerating = $state(false);
-let currentSpec = $state<Spec | null>(null);
-
-// Sync with incoming spec prop
-$effect(() => {
-	if (spec) currentSpec = spec;
-});
-
-async function handleRegenerate() {
-	if (!prompt.trim()) return;
-	isRegenerating = true;
-	try {
-		const response = await fetch("/api/ai/generate-layout", {
-			method: "POST",
-			headers: clientJsonHeaders(),
-			body: JSON.stringify({
-				prompt: prompt,
-				contextRules:
-					"Connect to mcp.sveltycms.com for live context. Return only valid JSON.",
-			}),
-		});
-		const result = await response.json();
-		if (result.spec) {
-			currentSpec = result.spec;
-			logger.info("AI Dashboard updated via Knowledge Core.");
-		}
-	} catch (error) {
-		logger.error("Regeneration failed:", error);
-	} finally {
-		isRegenerating = false;
+	interface Props {
+		spec?: Spec | null;
+		context?: Record<string, unknown>;
+		children?: Snippet;
 	}
-}
+
+	let { spec = null, context = {}, children }: Props = $props();
+
+	let prompt = $state('');
+	let isRegenerating = $state(false);
+	let currentSpec = $state<Spec | null>(null);
+
+	// Sync with incoming spec prop
+	$effect(() => {
+		if (spec) currentSpec = spec;
+	});
+
+	async function handleRegenerate() {
+		if (!prompt.trim()) return;
+		isRegenerating = true;
+		try {
+			const response = await fetch('/api/ai/generate-layout', {
+				method: 'POST',
+				headers: clientJsonHeaders(),
+				body: JSON.stringify({
+					prompt: prompt,
+					contextRules: 'Connect to mcp.sveltycms.com for live context. Return only valid JSON.'
+				})
+			});
+			const result = await response.json();
+			if (result.spec) {
+				currentSpec = result.spec;
+				logger.info('AI Dashboard updated via Knowledge Core.');
+			}
+		} catch (error) {
+			logger.error('Regeneration failed:', error);
+		} finally {
+			isRegenerating = false;
+		}
+	}
 </script>
 
 <div class="generative-dashboard-container w-full h-full animate-fade-in relative">
 	{#if currentSpec}
 		<!-- AI Driven Layout Header -->
 		<div class="flex flex-col gap-4 mb-6">
-			<div class="flex items-center justify-between gap-4 p-4 rounded bg-surface-100-900 border border-surface-200-800 shadow-sm">
+			<div
+				class="flex items-center justify-between gap-4 p-4 rounded bg-surface-100-900 border border-surface-200-800 shadow-sm"
+			>
 				<div class="flex items-center gap-3">
-					<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded shadow-inner">
+					<div
+						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded shadow-inner"
+					>
 						<iconify-icon icon="mdi:robot-outline" width="24" class="text-white"></iconify-icon>
 					</div>
 					<div>
@@ -96,10 +99,13 @@ async function handleRegenerate() {
 						inputClass="pe-24 rounded-full"
 						onkeydown={(e) => e.key === 'Enter' && handleRegenerate()}
 					/>
-					<Button variant="tertiary"
+					<Button
+						variant="tertiary"
 						onclick={handleRegenerate}
 						disabled={isRegenerating}
-					 size="sm" class="absolute inset-e-1 top-1 bottom-1 px-4 rounded-full">
+						size="sm"
+						class="absolute inset-e-1 top-1 bottom-1 px-4 rounded-full"
+					>
 						{#if isRegenerating}
 							<iconify-icon icon="mdi:loading" class="animate-spin" width="18"></iconify-icon>
 						{:else}
@@ -111,9 +117,10 @@ async function handleRegenerate() {
 		</div>
 
 		<!-- AI Content -->
-		<div class="p-4 rounded-2xl bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-white/20 shadow-xl min-h-100">
+		<div
+			class="p-4 rounded-2xl bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-white/20 shadow-xl min-h-100"
+		>
 			<JSONUIProvider initialState={context}>
-
 				<Renderer registry={sveltyRegistry} spec={currentSpec} />
 			</JSONUIProvider>
 		</div>

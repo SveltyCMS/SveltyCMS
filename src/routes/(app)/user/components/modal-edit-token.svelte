@@ -111,7 +111,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 	// State for the newly created token
 	let createdToken = $state('');
-	let invitationLink = $derived(createdToken ? `${page.url.origin}/login?invite_token=${createdToken}` : '');
+	let invitationLink = $derived(
+		createdToken ? `${page.url.origin}/login?invite_token=${createdToken}` : ''
+	);
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
@@ -124,7 +126,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 		try {
 			const isEditMode = !!tokenForm.data.token;
-			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/create-token';
+			const endpoint = isEditMode
+				? `/api/token/${tokenForm.data.token}`
+				: '/api/token/create-token';
 			const method = isEditMode ? 'PUT' : 'POST';
 
 			const body = isEditMode
@@ -174,7 +178,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 				});
 			} else {
 				// Success - email sent
-				toast.success({ title: 'Success', description: isEditMode ? 'Token updated' : 'User token created' });
+				toast.success({
+					title: 'Success',
+					description: isEditMode ? 'Token updated' : 'User token created'
+				});
 			}
 
 			// Invalidate data first
@@ -259,15 +266,32 @@ It handles token creation, updates, and deletion with proper validation and erro
 <div class="modal-example-form space-y-4 text-black dark:text-white p-4">
 	{#if createdToken}
 		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
-			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">Invitation Token Created</h3>
-			<p class="text-sm opacity-80">Since email delivery might be disabled or delayed, you can provide this link to the user directly:</p>
+			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">
+				Invitation Token Created
+			</h3>
+			<p class="text-sm opacity-80">
+				Since email delivery might be disabled or delayed, you can provide this link to the user
+				directly:
+			</p>
 
 			<div class="flex flex-col gap-4">
 				<label class="label">
 					<span class="text-xs uppercase font-bold opacity-60">Invitation Link</span>
 					<div class="flex gap-2 mt-1">
-						<input aria-label="Token name" type="text" readonly value={invitationLink} class="input flex-1" />
-						<Button variant="primary" type="button" onclick={() => copyToClipboard(invitationLink, 'Link')} aria-label="Copy invitation link" class="shrink-0">
+						<input
+							aria-label="Token name"
+							type="text"
+							readonly
+							value={invitationLink}
+							class="input flex-1"
+						/>
+						<Button
+							variant="primary"
+							type="button"
+							onclick={() => copyToClipboard(invitationLink, 'Link')}
+							aria-label="Copy invitation link"
+							class="shrink-0"
+						>
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 						</Button>
 					</div>
@@ -276,8 +300,20 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<label class="label">
 					<span class="text-xs uppercase font-bold opacity-60">Raw Token</span>
 					<div class="flex gap-2 mt-1">
-						<input aria-label="Token value" type="text" readonly value={createdToken} class="input flex-1" />
-						<Button variant="outline" type="button" onclick={() => copyToClipboard(createdToken, 'Token')} aria-label="Copy raw token" class="shrink-0">
+						<input
+							aria-label="Token value"
+							type="text"
+							readonly
+							value={createdToken}
+							class="input flex-1"
+						/>
+						<Button
+							variant="outline"
+							type="button"
+							onclick={() => copyToClipboard(createdToken, 'Token')}
+							aria-label="Copy raw token"
+							class="shrink-0"
+						>
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 						</Button>
 					</div>
@@ -285,7 +321,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</div>
 
 			<div class="flex justify-end pt-4">
-				<Button variant="outline" type="button" onclick={() => close?.({ success: true })} class="px-8">Close</Button>
+				<Button
+					variant="outline"
+					type="button"
+					onclick={() => close?.({ success: true })}
+					class="px-8">Close</Button
+				>
 			</div>
 		</div>
 	{:else}
@@ -305,7 +346,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				errorMessage={tokenForm.errors.email?.[0]}
 			/>
 			<!-- Token field (hidden but still submitted with form) -->
-			<input bind:value={tokenForm.data.token} type="hidden" name="token"  aria-label="Input" />
+			<input bind:value={tokenForm.data.token} type="hidden" name="token" aria-label="Input" />
 
 			<!-- User Role -->
 			<div class="flex flex-col gap-2 sm:flex-row items-center">
@@ -347,15 +388,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 						{ value: '2 days', label: '2 Days (default)' },
 						{ value: '1 week', label: '1 Week' },
 						{ value: '2 weeks', label: '2 Weeks' },
-						{ value: '1 month', label: '1 Month' },
+						{ value: '1 month', label: '1 Month' }
 					]}
 				/>
 			</div>
 
-			<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-6 mt-2">
+			<footer
+				class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-6 mt-2"
+			>
 				<div class="flex items-center gap-4">
 					<!-- Cancel -->
-					<Button variant="outline" type="button" onclick={() => modalState.close()}>{button_cancel()}</Button>
+					<Button variant="outline" type="button" onclick={() => modalState.close()}
+						>{button_cancel()}</Button
+					>
 
 					<!-- Delete - Only show for existing tokens -->
 					{#if tokenForm.data.token}

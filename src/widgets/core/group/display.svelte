@@ -46,18 +46,23 @@ Renders grouped content in a read-only display format with collapsible functiona
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
-			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
+			container:
+				'rounded border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
+			header:
+				'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
 			content: 'p-4'
 		},
 		bordered: {
 			container: 'rounded border border-gray-300 dark:border-gray-600',
-			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
+			header:
+				'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
 			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
 		}
 	};
 
-	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
+	const variant = $derived(
+		variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default
+	);
 
 	// State for collapsible functionality
 	let localIsCollapsed = $state<boolean | undefined>(undefined);
@@ -95,27 +100,35 @@ Renders grouped content in a read-only display format with collapsible functiona
 	{#if field.groupTitle || field.collapsible}
 		{#if field.collapsible}
 			<Button variant="outline">
-				type="button"
-				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
+				type="button" class="flex w-full items-center justify-between p-3 transition-colors
+				duration-200 {variant.header}
+				{field.collapsible
 					? 'hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:hover:bg-gray-700'
-					: ''}"
-				aria-expanded={!isCollapsed.value}
+					: ''}" aria-expanded={!isCollapsed.value}
 				aria-controls={`${fieldName}-content`}
 				onclick={toggleCollapse}
 				onkeydown={handleKeyDown}
-			>
+				>
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">{field.groupTitle}</h4>
+					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+						{field.groupTitle}
+					</h4>
 				{/if}
 
-				<div class="transition-transform duration-200 ease-in-out {isCollapsed.value ? 'rotate-180' : ''}">
+				<div
+					class="transition-transform duration-200 ease-in-out {isCollapsed.value
+						? 'rotate-180'
+						: ''}"
+				>
 					<iconify-icon icon="mdi:chevron-down" width={18}></iconify-icon>
 				</div>
 			</Button>
 		{:else}
 			<div class="flex items-center justify-between p-3 {variant.header}">
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">{field.groupTitle}</h4>
+					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+						{field.groupTitle}
+					</h4>
 				{/if}
 			</div>
 		{/if}
@@ -131,12 +144,21 @@ Renders grouped content in a read-only display format with collapsible functiona
 		{#if children}
 			{@render children()}
 		{:else if value && Object.keys(value).length > 0}
-			<div class="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
-				<pre class="whitespace-pre-wrap font-mono text-sm text-gray-700 dark:text-gray-300">{JSON.stringify(value, null, 2)}</pre>
+			<div
+				class="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900"
+			>
+				<pre
+					class="whitespace-pre-wrap font-mono text-sm text-gray-700 dark:text-gray-300">{JSON.stringify(
+						value,
+						null,
+						2
+					)}</pre>
 			</div>
 		{:else}
 			<div class="flex items-center justify-center px-4 py-6">
-				<p class="text-center text-sm italic text-gray-500 dark:text-gray-400">No content in this group</p>
+				<p class="text-center text-sm italic text-gray-500 dark:text-gray-400">
+					No content in this group
+				</p>
 			</div>
 		{/if}
 	</div>

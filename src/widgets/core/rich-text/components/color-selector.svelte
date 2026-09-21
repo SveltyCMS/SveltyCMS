@@ -29,7 +29,13 @@
 		show?: boolean;
 	}
 
-	let { color = $bindable(''), show = true, key = 'color-selector', active = $bindable(''), onChange }: Props = $props();
+	let {
+		color = $bindable(''),
+		show = true,
+		key = 'color-selector',
+		active = $bindable(''),
+		onChange
+	}: Props = $props();
 
 	let expanded = $state(false);
 	let wrapperRef = $state<HTMLDivElement | null>(null);
@@ -112,19 +118,27 @@
 </script>
 
 <div class="wrapper" class:hidden={!show} bind:this={wrapperRef}>
-	<Button variant="outline"
+	<Button
+		variant="outline"
 		type="button"
 		onclick={toggle}
 		onkeydown={(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && toggle()}
 		aria-label="Select color"
 		aria-expanded={expanded}
 		aria-controls="color-palette-{key}"
-	 size="sm" class="selected arrow">
+		size="sm"
+		class="selected arrow"
+	>
 		<iconify-icon icon="fluent-mdl2:color-solid" width={24}></iconify-icon>
 	</Button>
 	{#if expanded}
 		<div id="color-palette-{key}" class="palette" use:setPosition>
-			<ColorPicker bind:hex={color} components={ChromeVariant} sliderDirection="horizontal" isDialog={false} />
+			<ColorPicker
+				bind:hex={color}
+				components={ChromeVariant}
+				sliderDirection="horizontal"
+				isDialog={false}
+			/>
 		</div>
 	{/if}
 </div>

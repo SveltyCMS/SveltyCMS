@@ -81,7 +81,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		// svelte-ignore state_referenced_locally
 		onopen,
 		// svelte-ignore state_referenced_locally
-		onclose,
+		onclose
 	});
 
 	const isFullscreen = $derived(size === 'fullscreen');
@@ -93,10 +93,10 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		md: 'max-w-lg',
 		lg: 'max-w-2xl',
 		xl: 'max-w-4xl',
-	'2xl': 'max-w-7xl',
+		'2xl': 'max-w-7xl',
 		editor:
 			'w-[min(96vw,82rem)] min-w-[min(96vw,82rem)] max-w-[min(96vw,82rem)] h-[min(90dvh,52rem)] min-h-[min(90dvh,52rem)] max-h-[90dvh] max-md:w-full max-md:min-w-full max-md:max-w-none max-md:h-full max-md:min-h-full max-md:max-h-none m-auto max-md:m-0 shrink-0 max-md:shrink max-md:grow grow-0 max-md:grow overflow-hidden rounded-none border-0',
-		fullscreen: 'h-[100dvh] max-h-[100dvh] w-full max-w-none rounded-none border-0 m-0',
+		fullscreen: 'h-[100dvh] max-h-[100dvh] w-full max-w-none rounded-none border-0 m-0'
 	};
 
 	// `surface` is the default and by far the most used. It reads the shared overlay
@@ -105,12 +105,17 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	// could never follow. The semantic colours keep their explicit ramps.
 	const colorClasses: Record<string, string> = {
 		surface: 'bg-(--admin-bg-overlay) border-(--admin-border-default)',
-		primary: 'bg-primary-500/10 dark:bg-primary-500/10 border-primary-500/30 dark:border-primary-500/40',
-		secondary: 'bg-secondary-500/10 dark:bg-secondary-500/10 border-secondary-500/30 dark:border-secondary-500/40',
-		tertiary: 'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500/30 dark:border-tertiary-500/40',
-		success: 'bg-success-500/10 dark:bg-success-500/10 border-success-500/30 dark:border-surface-500/40',
-		warning: 'bg-warning-500/10 dark:bg-warning-500/10 border-warning-500/30 dark:border-surface-500/40',
-		error: 'bg-error-500/10 dark:bg-error-500/10 border-error-500/30 dark:border-surface-500/40',
+		primary:
+			'bg-primary-500/10 dark:bg-primary-500/10 border-primary-500/30 dark:border-primary-500/40',
+		secondary:
+			'bg-secondary-500/10 dark:bg-secondary-500/10 border-secondary-500/30 dark:border-secondary-500/40',
+		tertiary:
+			'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500/30 dark:border-tertiary-500/40',
+		success:
+			'bg-success-500/10 dark:bg-success-500/10 border-success-500/30 dark:border-surface-500/40',
+		warning:
+			'bg-warning-500/10 dark:bg-warning-500/10 border-warning-500/30 dark:border-surface-500/40',
+		error: 'bg-error-500/10 dark:bg-error-500/10 border-error-500/30 dark:border-surface-500/40'
 	};
 </script>
 
@@ -129,7 +134,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				: isEditorShell
 					? 'open:flex m-auto max-md:m-0 max-md:h-dvh max-md:max-h-dvh max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-hidden p-0 max-md:p-0'
 					: 'open:flex m-auto items-center justify-center overflow-visible p-4 sm:p-6 lg:p-8',
-			dialogClass,
+			dialogClass
 		)}
 		{...dialog.dialogAria}
 		aria-modal="true"
@@ -146,17 +151,25 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				isExpandedBody ? 'h-full min-h-0' : 'm-auto',
 				sizeClasses[size],
 				isEditorShell ? 'text-white border-0 ring-0 outline-none' : colorClasses[color],
-				className,
+				className
 			)}
 			tabindex="-1"
 		>
 			<!-- Header -->
 			{#if header || title}
-				<header class={cn('flex items-center justify-between border-b border-(--admin-border-default) p-4 shrink-0', headerClass)}>
+				<header
+					class={cn(
+						'flex items-center justify-between border-b border-(--admin-border-default) p-4 shrink-0',
+						headerClass
+					)}
+				>
 					{#if header}
 						{@render header()}
 					{:else}
-						<h3 id={title ? 'modal-title' : undefined} class="h4 font-bold tracking-tight text-surface-900 dark:text-white">
+						<h3
+							id={title ? 'modal-title' : undefined}
+							class="h4 font-bold tracking-tight text-surface-900 dark:text-white"
+						>
 							{title}
 						</h3>
 					{/if}
@@ -173,11 +186,15 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			{/if}
 
 			<!-- Body -->
-			<div class={cn(
-				'flex-1 min-h-0',
-				isExpandedBody ? 'flex h-full flex-col overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
-				contentClass,
-			)}>
+			<div
+				class={cn(
+					'flex-1 min-h-0',
+					isExpandedBody
+						? 'flex h-full flex-col overflow-hidden p-0'
+						: 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
+					contentClass
+				)}
+			>
 				{#if children}
 					{@render children()}
 				{/if}
@@ -185,7 +202,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 
 			<!-- Footer -->
 			{#if footer}
-				<footer class="p-4 bg-(--admin-bg-page) border-t border-(--admin-border-default) flex justify-end gap-3 shrink-0">
+				<footer
+					class="p-4 bg-(--admin-bg-page) border-t border-(--admin-border-default) flex justify-end gap-3 shrink-0"
+				>
 					{@render footer()}
 				</footer>
 			{/if}
@@ -193,15 +212,15 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	</dialog>
 </Portal>
 
-	<style>
-		dialog::backdrop {
-			animation: fade-in 0.3s ease-out forwards;
-		}
+<style>
+	dialog::backdrop {
+		animation: fade-in 0.3s ease-out forwards;
+	}
 
-		/* Prevent scroll chaining — scrolling past modal bounds stays inside modal */
-		dialog {
-			overscroll-behavior: contain;
-		}
+	/* Prevent scroll chaining — scrolling past modal bounds stays inside modal */
+	dialog {
+		overscroll-behavior: contain;
+	}
 
 	dialog[data-fullscreen='true'][open] > div,
 	dialog[data-editor='true'][open] > div {
@@ -209,13 +228,17 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	}
 
 	@keyframes fade-in {
-		from { opacity: 0; }
-		to { opacity: 1; }
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
-		dialog[open] > div {
-			animation: zoom-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-		}
+	dialog[open] > div {
+		animation: zoom-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	}
 
 	dialog:focus {
 		outline: none;

@@ -40,7 +40,13 @@
 		onClose?: () => void;
 	}
 
-	let { allowedTypes = [], folder = 'global', standalone = false, onConfirm, onClose }: Props = $props();
+	let {
+		allowedTypes = [],
+		folder = 'global',
+		standalone = false,
+		onConfirm,
+		onClose
+	}: Props = $props();
 
 	let activeTab = $state<'library' | 'local' | 'remote'>('library');
 	let files = $state<(MediaBase | MediaImage)[]>([]);
@@ -54,7 +60,7 @@
 	}
 
 	function getPreviewUrl(file: MediaBase | MediaImage): string {
-		return mediaDisplayUrl(file, "sm") || mediaUrl(file as MediaItem);
+		return mediaDisplayUrl(file, 'sm') || mediaUrl(file as MediaItem);
 	}
 
 	function getFileType(file: MediaBase | MediaImage) {
@@ -67,17 +73,37 @@
 		}
 
 		const item = rawItem as Record<string, unknown>;
-		const filename = typeof item.filename === 'string' ? item.filename : typeof item.name === 'string' ? item.name : '';
-		const url = typeof item.url === 'string' ? item.url : typeof item.path === 'string' ? item.path : '';
-		const mimeType = typeof item.mimeType === 'string' ? item.mimeType : typeof item.type === 'string' && item.type.includes('/') ? item.type : '';
-		const normalizedType = typeof item.type === 'string' && item.type !== 'file' ? item.type : mimeType ? mimeType.split('/')[0] : 'file';
+		const filename =
+			typeof item.filename === 'string'
+				? item.filename
+				: typeof item.name === 'string'
+					? item.name
+					: '';
+		const url =
+			typeof item.url === 'string' ? item.url : typeof item.path === 'string' ? item.path : '';
+		const mimeType =
+			typeof item.mimeType === 'string'
+				? item.mimeType
+				: typeof item.type === 'string' && item.type.includes('/')
+					? item.type
+					: '';
+		const normalizedType =
+			typeof item.type === 'string' && item.type !== 'file'
+				? item.type
+				: mimeType
+					? mimeType.split('/')[0]
+					: 'file';
 
 		if (!filename || !url) {
 			return null;
 		}
 
-		const createdAt = (typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()) as ISODateString;
-		const updatedAt = (typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString()) as ISODateString;
+		const createdAt = (
+			typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()
+		) as ISODateString;
+		const updatedAt = (
+			typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString()
+		) as ISODateString;
 
 		return {
 			...(item as unknown as MediaBase),
@@ -106,9 +132,16 @@
 			}
 			const data = await response.json();
 			logger.debug('Fetched media files:', data);
-			const mediaItems: unknown[] =
-				Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.data?.items) ? data.data.items : [];
-			files = mediaItems.map((mediaItem: unknown) => normalizeMediaItem(mediaItem)).filter((item): item is MediaBase | MediaImage => item !== null);
+			const mediaItems: unknown[] = Array.isArray(data)
+				? data
+				: Array.isArray(data?.data)
+					? data.data
+					: Array.isArray(data?.data?.items)
+						? data.data.items
+						: [];
+			files = mediaItems
+				.map((mediaItem: unknown) => normalizeMediaItem(mediaItem))
+				.filter((item): item is MediaBase | MediaImage => item !== null);
 		} catch (e) {
 			logger.error('Error fetching media for modal:', e);
 			error = 'Failed to load media library.';
@@ -142,26 +175,42 @@
 </script>
 
 {#if standalone || modalState.active}
-	<div class="modal-media-library flex min-h-[78vh] w-full min-w-0 flex-1 self-stretch flex-col bg-white p-3 shadow-xl dark:bg-surface-800 sm:p-4 lg:min-h-[82vh]">
+	<div
+		class="modal-media-library flex min-h-[78vh] w-full min-w-0 flex-1 self-stretch flex-col bg-white p-3 shadow-xl dark:bg-surface-800 sm:p-4 lg:min-h-[82vh]"
+	>
 		<header class="flex-none border-b border-surface-500/30 pb-3 mb-4 dark:border-surface-600">
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<h2 class="text-lg font-bold text-tertiary-500 dark:text-primary-500 sm:text-xl">Media Library</h2>
+				<h2 class="text-lg font-bold text-tertiary-500 dark:text-primary-500 sm:text-xl">
+					Media Library
+				</h2>
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-				<Button variant="tertiary"
-										onclick={() => (activeTab = 'local')}
-									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? '' : 'preset-outlined-surface-500'}">
-					Local Upload
-				</Button>
-				<Button variant="tertiary"
-										onclick={() => (activeTab = 'library')}
-									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? '' : 'preset-outlined-surface-500'}">
-					Library
-				</Button>
-				<Button variant="tertiary"
-										onclick={() => (activeTab = 'remote')}
-									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? '' : 'preset-outlined-surface-500'}">
-					Remote Upload
-				</Button>
+					<Button
+						variant="tertiary"
+						onclick={() => (activeTab = 'local')}
+						class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local'
+							? ''
+							: 'preset-outlined-surface-500'}"
+					>
+						Local Upload
+					</Button>
+					<Button
+						variant="tertiary"
+						onclick={() => (activeTab = 'library')}
+						class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library'
+							? ''
+							: 'preset-outlined-surface-500'}"
+					>
+						Library
+					</Button>
+					<Button
+						variant="tertiary"
+						onclick={() => (activeTab = 'remote')}
+						class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote'
+							? ''
+							: 'preset-outlined-surface-500'}"
+					>
+						Remote Upload
+					</Button>
 				</div>
 			</div>
 		</header>
@@ -179,7 +228,11 @@
 			{:else if activeTab === 'library'}
 				{#if isLoading}
 					<div class="flex h-full items-center justify-center">
-						<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon
+							icon="line-md:loading-twotone-loop"
+							width="48"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
 					</div>
 				{:else if error}
 					<div class="flex h-full flex-col items-center justify-center text-error-500">
@@ -189,14 +242,19 @@
 					</div>
 				{:else}
 					{#if files.length === 0}
-						<div class="flex h-full items-center justify-center text-center text-tertiary-500 dark:text-primary-500">
+						<div
+							class="flex h-full items-center justify-center text-center text-tertiary-500 dark:text-primary-500"
+						>
 							<div>
-								<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
+								<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"
+								></iconify-icon>
 								<p class="text-lg">No media found</p>
 							</div>
 						</div>
 					{:else}
-						<div class="grid grid-cols-1 items-start gap-4 content-start auto-rows-max sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+						<div
+							class="grid grid-cols-1 items-start gap-4 content-start auto-rows-max sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4"
+						>
 							{#each files as file (getFileId(file))}
 								{const fileId = getFileId(file)}
 								{const isSelected = selectedFiles.has(fileId)}
@@ -216,7 +274,9 @@
 									aria-pressed={isSelected}
 									aria-label={`Select ${file.filename}`}
 								>
-									<div class="relative h-50 w-full overflow-hidden bg-surface-500/10 dark:bg-surface-800 sm:h-60">
+									<div
+										class="relative h-50 w-full overflow-hidden bg-surface-500/10 dark:bg-surface-800 sm:h-60"
+									>
 										{#if getPreviewUrl(file)}
 											<img
 												src={getPreviewUrl(file)}
@@ -235,23 +295,42 @@
 												style="opacity: 0; transition: opacity 0.3s ease;"
 											/>
 										{:else}
-											<div class="flex h-full w-full items-center justify-center text-surface-300 dark:text-surface-600">
+											<div
+												class="flex h-full w-full items-center justify-center text-surface-300 dark:text-surface-600"
+											>
 												<iconify-icon icon="bi:exclamation-triangle-fill" width={48}></iconify-icon>
 											</div>
 										{/if}
 
-										<div class="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+										<div
+											class="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+										></div>
 										{#if isSelected}
-											<div class="absolute inset-e-2 top-2 rounded-full bg-tertiary-500 dark:bg-primary-500 px-2 py-1 text-[10px] font-bold text-white shadow-md">
+											<div
+												class="absolute inset-e-2 top-2 rounded-full bg-tertiary-500 dark:bg-primary-500 px-2 py-1 text-[10px] font-bold text-white shadow-md"
+											>
 												Selected
 											</div>
 										{/if}
 									</div>
 
-									<div class="relative flex flex-1 flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900">
-										<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>{file.filename}</div>
-										<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
-											<span class="font-mono">{(file as any).size ? `${Math.round((file as any).size / 1024)} KB` : '0 KB'}</span>
+									<div
+										class="relative flex flex-1 flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900"
+									>
+										<div
+											class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100"
+											title={file.filename}
+										>
+											{file.filename}
+										</div>
+										<div
+											class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400"
+										>
+											<span class="font-mono"
+												>{(file as any).size
+													? `${Math.round((file as any).size / 1024)} KB`
+													: '0 KB'}</span
+											>
 											<span class="uppercase tracking-wide">{getFileType(file)}</span>
 										</div>
 									</div>
@@ -271,8 +350,12 @@
 			{/if}
 		</main>
 
-		<footer class="mt-4 flex flex-col gap-2 border-t border-surface-500/30 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end">
-			<Button variant="outline" type="button" onclick={handleClose} class="w-full sm:w-auto">Cancel</Button>
+		<footer
+			class="mt-4 flex flex-col gap-2 border-t border-surface-500/30 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end"
+		>
+			<Button variant="outline" type="button" onclick={handleClose} class="w-full sm:w-auto"
+				>Cancel</Button
+			>
 			{#if activeTab === 'library' && selectedFiles.size > 0}
 				<Button variant="tertiary" type="button" onclick={handleConfirm} class="w-full sm:w-auto">
 					Select {selectedFiles.size} Item{selectedFiles.size > 1 ? 's' : ''}

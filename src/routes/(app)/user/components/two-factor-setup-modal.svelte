@@ -67,7 +67,15 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		title?: string;
 	}
 
-	const { parent = { regionFooter: 'modal-footer p-4' }, qrCodeUrl, secret, backupCodes, title, body, close }: Props = $props();
+	const {
+		parent = { regionFooter: 'modal-footer p-4' },
+		qrCodeUrl,
+		secret,
+		backupCodes,
+		title,
+		body,
+		close
+	}: Props = $props();
 
 	// State
 	let verificationCode = $state('');
@@ -163,9 +171,13 @@ This modal displays the QR code for setting up 2FA and handles verification.
 </script>
 
 <div class="modal-example-form {cBase}">
-	<header class={`text-center dark:text-primary-500 ${cHeader}`}>{title ?? '(title missing)'}</header>
+	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+		{title ?? '(title missing)'}
+	</header>
 
-	<article class="text-center text-sm text-black dark:text-white">{body ?? '(body missing)'}</article>
+	<article class="text-center text-sm text-black dark:text-white">
+		{body ?? '(body missing)'}
+	</article>
 
 	{#if currentStep === 'setup'}
 		<!-- Setup Form -->
@@ -183,15 +195,22 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 				<!-- Manual Entry Section (Always Visible) -->
 				<div class="rounded bg-surface-500/10 p-4 dark:bg-surface-700">
-					<p class="mb-3 text-sm font-medium text-surface-600 dark:text-surface-400">{twofa_manual_entry_description()}</p>
+					<p class="mb-3 text-sm font-medium text-surface-600 dark:text-surface-400">
+						{twofa_manual_entry_description()}
+					</p>
 					<div class="flex items-center gap-2">
-						<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600"> {formatSecret(secret)} </code>
-						<Button variant="surface"
+						<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600">
+							{formatSecret(secret)}
+						</code>
+						<Button
+							variant="surface"
 							type="button"
 							onclick={() => copyToClipboard(secret)}
 							title={button_copy()}
 							aria-label={button_copy()}
-						 size="sm" class="-primary-500">
+							size="sm"
+							class="-primary-500"
+						>
 							<iconify-icon icon="mdi:content-copy" width="24"></iconify-icon>
 						</Button>
 					</div>
@@ -199,11 +218,15 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 				<!-- Verification Code Input -->
 				<div>
-					<label for="verification-code" class="mb-2 block text-sm font-medium text-black dark:text-white">
+					<label
+						for="verification-code"
+						class="mb-2 block text-sm font-medium text-black dark:text-white"
+					>
 						{twofa_verify_setup_description()}
 					</label>
 					<div class="relative">
-						<input aria-label="Verification code"
+						<input
+							aria-label="Verification code"
 							id="verification-code"
 							type="text"
 							bind:value={verificationCode}
@@ -227,9 +250,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		<!-- Setup Complete -->
 		<div class="modal-form {cForm}">
 			<div class="text-center">
-				<div class="mb-4"><iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon></div>
+				<div class="mb-4">
+					<iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"
+					></iconify-icon>
+				</div>
 
-				<p class="mb-6 text-surface-600 dark:text-surface-400">{twofa_setup_complete_description()}</p>
+				<p class="mb-6 text-surface-600 dark:text-surface-400">
+					{twofa_setup_complete_description()}
+				</p>
 			</div>
 
 			<!-- Backup Codes (Always Visible) -->
@@ -245,20 +273,33 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 					<div class="mb-3 grid grid-cols-2 gap-2">
 						{#each backupCodes as code (code)}
-							<div class="rounded bg-surface-200 p-2 text-center font-mono text-sm dark:bg-surface-700">{code}</div>
+							<div
+								class="rounded bg-surface-200 p-2 text-center font-mono text-sm dark:bg-surface-700"
+							>
+								{code}
+							</div>
 						{/each}
 					</div>
 
 					<div class="mb-3 flex justify-center">
-						<Button variant="surface" type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} size="sm" class="-primary-500">
+						<Button
+							variant="surface"
+							type="button"
+							onclick={() => copyToClipboard(backupCodes.join('\n'))}
+							size="sm"
+							class="-primary-500"
+						>
 							<iconify-icon icon="mdi:content-copy" width="24" class="me-1"></iconify-icon>
 							{button_copy_all()}
 						</Button>
 					</div>
 
 					<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3">
-						<iconify-icon icon="mdi:alert" width="16" class="mt-0.5 shrink-0 text-warning-600"></iconify-icon>
-						<p class="text-sm text-warning-600 dark:text-warning-400">{twofa_backup_codes_warning()}</p>
+						<iconify-icon icon="mdi:alert" width="16" class="mt-0.5 shrink-0 text-warning-600"
+						></iconify-icon>
+						<p class="text-sm text-warning-600 dark:text-warning-400">
+							{twofa_backup_codes_warning()}
+						</p>
 					</div>
 				</div>
 			{/if}
@@ -269,11 +310,13 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		{#if currentStep === 'setup'}
 			<!-- Setup Footer -->
 			<Button variant="outline" type="button" onclick={cancelSetup}>{button_cancel()}</Button>
-			<Button variant="tertiary"
+			<Button
+				variant="tertiary"
 				type="submit"
 				form="twofa-form"
 				disabled={verificationCode.length !== 6 || isVerifying}
-			class={parent?.buttonPositive ?? ''}>
+				class={parent?.buttonPositive ?? ''}
+			>
 				{#if isVerifying}
 					<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
 					{twofa_verifying()}
@@ -285,7 +328,12 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		{:else}
 			<!-- Complete Footer -->
 			<Button variant="outline" type="button" onclick={cancelSetup}>{button_cancel()}</Button>
-			<Button variant="success" type="button" onclick={completeSetup} class={parent?.buttonPositive ?? ''}>">
+			<Button
+				variant="success"
+				type="button"
+				onclick={completeSetup}
+				class={parent?.buttonPositive ?? ''}
+				>">
 				<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 				{button_complete()}
 			</Button>

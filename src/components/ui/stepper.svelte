@@ -35,7 +35,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 </script>
 
 <script lang="ts">
-	import type { Snippet } from "svelte";
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		steps?: StepperStep[];
@@ -44,9 +44,9 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 		completedSteps?: Set<number> | boolean[];
 		/** When set, overrides default click rules (Setup wizard). */
 		stepClickable?: boolean[];
-		orientation?: "horizontal" | "vertical";
+		orientation?: 'horizontal' | 'vertical';
 		/** `setup` matches Setup Wizard chrome (minimal visual change for setup). */
-		variant?: "default" | "setup";
+		variant?: 'default' | 'setup';
 		compact?: boolean;
 		/** Truncate labels to first word (setup mobile strip). */
 		mobileTruncate?: boolean;
@@ -62,14 +62,14 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 		currentStep = 0,
 		completedSteps = new Set<number>(),
 		stepClickable,
-		orientation = "vertical",
-		variant = "default",
+		orientation = 'vertical',
+		variant = 'default',
 		compact = false,
 		mobileTruncate = false,
 		showLines = true,
-		class: className = "",
+		class: className = '',
 		onStepClick = (_index: number) => {},
-		footer,
+		footer
 	}: Props = $props();
 
 	function isCompleted(index: number): boolean {
@@ -85,7 +85,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 	}
 
 	function displayLabel(step: StepperStep): string {
-		if (mobileTruncate) return step.label.split(" ")[0] ?? step.label;
+		if (mobileTruncate) return step.label.split(' ')[0] ?? step.label;
 		return step.label;
 	}
 
@@ -96,48 +96,46 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 	function indicatorClass(index: number): string {
 		const done = isCompleted(index);
 		const current = index === currentStep;
-		if (variant === "setup") {
-			if (done) return "bg-tertiary-500 dark:bg-primary-500 text-white";
-			if (current) return "bg-error-500 text-white shadow-xl";
-			return orientation === "vertical"
-				? "bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600"
-				: "bg-surface-200 text-surface-500 dark:bg-surface-500/10 dark:text-surface-50";
+		if (variant === 'setup') {
+			if (done) return 'bg-tertiary-500 dark:bg-primary-500 text-white';
+			if (current) return 'bg-error-500 text-white shadow-xl';
+			return orientation === 'vertical'
+				? 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'
+				: 'bg-surface-200 text-surface-500 dark:bg-surface-500/10 dark:text-surface-50';
 		}
-		if (done) return "bg-success-500 text-white";
-		if (current) return "bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110";
-		return "bg-surface-200 dark:bg-surface-700 text-surface-500";
+		if (done) return 'bg-success-500 text-white';
+		if (current) return 'bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110';
+		return 'bg-surface-200 dark:bg-surface-700 text-surface-500';
 	}
 
 	function labelClass(index: number): string {
-		if (variant === "setup") {
-			if (index < currentStep) return "text-slate-800 dark:text-slate-200";
-			if (index === currentStep) return "text-slate-900 dark:text-white";
-			return "text-slate-400 dark:text-slate-600";
+		if (variant === 'setup') {
+			if (index < currentStep) return 'text-slate-800 dark:text-slate-200';
+			if (index === currentStep) return 'text-slate-900 dark:text-white';
+			return 'text-slate-400 dark:text-slate-600';
 		}
-		if (index === currentStep) return "text-tertiary-600 dark:text-primary-600";
-		return "text-surface-900 dark:text-surface-100";
+		if (index === currentStep) return 'text-tertiary-600 dark:text-primary-600';
+		return 'text-surface-900 dark:text-surface-100';
 	}
 
 	function descClass(index: number): string {
-		if (variant === "setup") {
-			if (index < currentStep) return "text-slate-500 dark:text-slate-400";
-			if (index === currentStep) return "text-slate-600 dark:text-slate-300";
-			return "text-slate-400 dark:text-slate-600";
+		if (variant === 'setup') {
+			if (index < currentStep) return 'text-slate-500 dark:text-slate-400';
+			if (index === currentStep) return 'text-slate-600 dark:text-slate-300';
+			return 'text-slate-400 dark:text-slate-600';
 		}
-		return "text-surface-500";
+		return 'text-surface-500';
 	}
 
 	function lineCompletedClass(index: number): string {
 		if (!isCompleted(index)) {
-			return variant === "setup"
-				? orientation === "horizontal"
-					? "border-t-2 border-dashed border-slate-200 bg-transparent"
-					: "border-s-2 border-dashed border-slate-200 bg-transparent"
-				: "bg-surface-200 dark:bg-surface-700";
+			return variant === 'setup'
+				? orientation === 'horizontal'
+					? 'border-t-2 border-dashed border-slate-200 bg-transparent'
+					: 'border-s-2 border-dashed border-slate-200 bg-transparent'
+				: 'bg-surface-200 dark:bg-surface-700';
 		}
-		return variant === "setup"
-			? "bg-tertiary-500 dark:bg-primary-500"
-			: "bg-success-500";
+		return variant === 'setup' ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-success-500';
 	}
 </script>
 
@@ -165,13 +163,13 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 					? `flex items-start gap-4 text-start ${compact ? 'p-2' : variant === 'setup' ? 'p-4' : 'p-3'}`
 					: `flex flex-col items-center text-center ${compact ? 'p-1 gap-1' : 'p-2 gap-2 sm:p-3'}`}
 					{current && variant === 'default' && !compact
-						? 'bg-tertiary-500/10 dark:bg-primary-500/20 ring-1 ring-primary-500/40'
-						: ''}
+					? 'bg-tertiary-500/10 dark:bg-primary-500/20 ring-1 ring-primary-500/40'
+					: ''}
 					{clickable
-						? variant === 'setup' && orientation === 'vertical'
-							? 'hover:bg-slate-50 dark:hover:bg-slate-800/70 cursor-pointer'
-							: 'hover:bg-surface-500/10 dark:hover:bg-surface-800 cursor-pointer'
-						: 'cursor-not-allowed opacity-50'}"
+					? variant === 'setup' && orientation === 'vertical'
+						? 'hover:bg-slate-50 dark:hover:bg-slate-800/70 cursor-pointer'
+						: 'hover:bg-surface-500/10 dark:hover:bg-surface-800 cursor-pointer'
+					: 'cursor-not-allowed opacity-50'}"
 				onclick={() => clickable && onStepClick(i)}
 				disabled={!clickable}
 				aria-current={current ? 'step' : undefined}
@@ -225,23 +223,21 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 				{#if orientation === 'vertical'}
 					<div
 						class="pointer-events-none absolute z-0 w-0.5
-							{variant === 'setup'
-							? 'inset-s-[1.65rem] top-14 h-[calc(100%-3.5rem)]'
-							: 'inset-s-7 top-11 h-6'}
+							{variant === 'setup' ? 'inset-s-[1.65rem] top-14 h-[calc(100%-3.5rem)]' : 'inset-s-7 top-11 h-6'}
 							{lineCompletedClass(i)}"
 						aria-hidden="true"
 					></div>
 				{:else if orientation === 'horizontal' && variant === 'setup'}
 					<div
 						class="pointer-events-none absolute inset-s-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {lineCompletedClass(
-							i,
+							i
 						)}"
 						aria-hidden="true"
 					></div>
 				{:else if orientation === 'horizontal'}
 					<div
 						class="pointer-events-none absolute top-5 inset-s-[calc(50%+1rem)] inset-e-[calc(-50%+1rem)] -z-10 hidden h-0.5 sm:block {isCompleted(
-							i,
+							i
 						)
 							? 'bg-success-500'
 							: 'bg-surface-200 dark:bg-surface-700'}"

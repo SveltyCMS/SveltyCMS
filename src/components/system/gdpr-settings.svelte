@@ -17,7 +17,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import GroupIcon from '@src/components/group-icon.svelte';
-		import Input from '@components/ui/input.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import type { SettingGroup } from '../../routes/(app)/config/system-settings/settings-groups';
@@ -114,13 +114,20 @@
 	</div>
 
 	<!-- Info Alert -->
-	<div class="alert preset-filled-tertiary-500 dark:preset-filled-primary-500/10 border-s-4 border-tertiary-500 dark:border-primary-500 rounded p-4 mb-6">
+	<div
+		class="alert preset-filled-tertiary-500 dark:preset-filled-primary-500/10 border-s-4 border-tertiary-500 dark:border-primary-500 rounded p-4 mb-6"
+	>
 		<div class="flex items-start gap-3">
-			<iconify-icon icon="mdi:shield-check" width="24" class="text-tertiary-500 dark:text-primary-500 mt-0.5"></iconify-icon>
+			<iconify-icon
+				icon="mdi:shield-check"
+				width="24"
+				class="text-tertiary-500 dark:text-primary-500 mt-0.5"
+			></iconify-icon>
 			<div>
 				<h3 class="font-bold text-sm">Compliance Tools</h3>
 				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1">
-					These tools perform permanent actions to comply with GDPR Articles 17 & 20. All actions are strictly logged in the Audit Trail.
+					These tools perform permanent actions to comply with GDPR Articles 17 & 20. All actions
+					are strictly logged in the Audit Trail.
 				</p>
 			</div>
 		</div>
@@ -129,22 +136,26 @@
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 		<!-- Data Export (Article 20) -->
 		<AdminCard class="p-6 rounded space-y-4" preset="tonal" variant="surface">
-						<div class="flex items-center gap-3 mb-2">
-							<div class="p-2 rounded-full bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500"><iconify-icon icon="mdi:database-export" width="24"></iconify-icon></div>
-							<div>
-								<h3 class="font-bold">Data Portability</h3>
-								<p class="text-xs opacity-70">Export all user data to JSON</p>
-							</div>
-						</div>
+			<div class="flex items-center gap-3 mb-2">
+				<div
+					class="p-2 rounded-full bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500"
+				>
+					<iconify-icon icon="mdi:database-export" width="24"></iconify-icon>
+				</div>
+				<div>
+					<h3 class="font-bold">Data Portability</h3>
+					<p class="text-xs opacity-70">Export all user data to JSON</p>
+				</div>
+			</div>
 
-			<Input
-				label="User ID"
-				type="text"
-				placeholder="Enter User ID..."
-				bind:value={userIdExport}
-			/>
+			<Input label="User ID" type="text" placeholder="Enter User ID..." bind:value={userIdExport} />
 
-			<Button variant="tertiary" disabled={!userIdExport || loadingExport} onclick={handleExport} class="w-full">
+			<Button
+				variant="tertiary"
+				disabled={!userIdExport || loadingExport}
+				onclick={handleExport}
+				class="w-full"
+			>
 				{#if loadingExport}
 					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Exporting...
@@ -152,17 +163,19 @@
 					Download JSON
 				{/if}
 			</Button>
-				</AdminCard>
+		</AdminCard>
 
-				<!-- Right to Erasure (Article 17) -->
+		<!-- Right to Erasure (Article 17) -->
 		<AdminCard class="p-6 rounded space-y-4" preset="tonal" variant="surface">
-						<div class="flex items-center gap-3 mb-2">
-							<div class="p-2 rounded-full bg-error-500/10 text-error-500"><iconify-icon icon="mdi:account-remove" width="24"></iconify-icon></div>
-							<div>
-								<h3 class="font-bold">Right to Erasure</h3>
-								<p class="text-xs opacity-70">Permanently anonymize user</p>
-							</div>
-						</div>
+			<div class="flex items-center gap-3 mb-2">
+				<div class="p-2 rounded-full bg-error-500/10 text-error-500">
+					<iconify-icon icon="mdi:account-remove" width="24"></iconify-icon>
+				</div>
+				<div>
+					<h3 class="font-bold">Right to Erasure</h3>
+					<p class="text-xs opacity-70">Permanently anonymize user</p>
+				</div>
+			</div>
 
 			<Input
 				label="User ID"
@@ -171,10 +184,12 @@
 				bind:value={userIdAnonymize}
 			/>
 
-			<Button variant="error"
+			<Button
+				variant="error"
 				disabled={!userIdAnonymize || loadingAnonymize}
 				onclick={handleAnonymize}
-			 class="{confirmAnonymize ? ' ' : ' '} w-full transition-all">
+				class="{confirmAnonymize ? ' ' : ' '} w-full transition-all"
+			>
 				{#if loadingAnonymize}
 					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Processing...
@@ -185,8 +200,10 @@
 				{/if}
 			</Button>
 			{#if confirmAnonymize}
-				<p class="text-xs text-center text-error-500 animate-pulse">Click again to confirm. This action cannot be undone.</p>
+				<p class="text-xs text-center text-error-500 animate-pulse">
+					Click again to confirm. This action cannot be undone.
+				</p>
 			{/if}
-			</AdminCard>
-		</div>
+		</AdminCard>
 	</div>
+</div>

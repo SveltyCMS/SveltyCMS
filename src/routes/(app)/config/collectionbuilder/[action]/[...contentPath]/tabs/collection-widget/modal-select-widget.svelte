@@ -5,67 +5,80 @@
 -->
 
 <script lang="ts">
-// Using iconify-icon web component
-// Modern widget system
-import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { logger } from "@utils/logger";
-// Native UI Components Stores
-import { modalState } from "@utils/modal.svelte";
-import { onMount } from "svelte";
+	// Using iconify-icon web component
+	// Modern widget system
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
+	import { logger } from '@utils/logger';
+	// Native UI Components Stores
+	import { modalState } from '@utils/modal.svelte';
+	import { onMount } from 'svelte';
 	import Button from '@components/ui/button.svelte';
 
-// Props
-interface Props {
-	/** Exposes parent props to this component. */
-	parent?: any;
-	/** Close handler injected by DialogManager. */
-	close?: (result?: any) => void;
-}
-const { close }: Props = $props();
-
-// Define the search term variable
-let searchTerm: string = $state("");
-
-// Get available widgets from the modern store
-const availableWidgets = $derived(widgets.widgetFunctions || {});
-
-// Initialize widgets on mount
-onMount(async () => {
-	await widgets.initialize();
-});
-
-// We've created a custom submit function to pass the response and close the modal.
-function onFormSubmit(selected: any): void {
-	if (selected !== null) {
-		// close the modal and pass response
-		modalState.close({ selectedWidget: selected });
-	} else {
-		logger.error("No widget selected");
+	// Props
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent?: any;
+		/** Close handler injected by DialogManager. */
+		close?: (result?: any) => void;
 	}
-}
+	const { close }: Props = $props();
 
-// Base Classes
-const cBase =
-	"card p-6 w-[95vw] max-w-7xl h-[90vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800";
-const cHeader =
-	"text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white";
+	// Define the search term variable
+	let searchTerm: string = $state('');
 
-// Tooltip not needed with new card design showing description
+	// Get available widgets from the modern store
+	const availableWidgets = $derived(widgets.widgetFunctions || {});
+
+	// Initialize widgets on mount
+	onMount(async () => {
+		await widgets.initialize();
+	});
+
+	// We've created a custom submit function to pass the response and close the modal.
+	function onFormSubmit(selected: any): void {
+		if (selected !== null) {
+			// close the modal and pass response
+			modalState.close({ selectedWidget: selected });
+		} else {
+			logger.error('No widget selected');
+		}
+	}
+
+	// Base Classes
+	const cBase =
+		'card p-6 w-[95vw] max-w-7xl h-[90vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800';
+	const cHeader = 'text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white';
+
+	// Tooltip not needed with new card design showing description
 </script>
 
 {#if modalState.active}
 	<div class={cBase}>
-		<header class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:text-surface-50">
+		<header
+			class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:text-surface-50"
+		>
 			<h2 class={cHeader}>{modalState.active?.props?.title || 'Select Widget'}</h2>
-			<Button variant="outline" onclick={() => (close ? close() : modalState.close())} aria-label="Close modal" class="p-0! min-w-0">
+			<Button
+				variant="outline"
+				onclick={() => (close ? close() : modalState.close())}
+				aria-label="Close modal"
+				class="p-0! min-w-0"
+			>
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 			</Button>
 		</header>
 
 		<!-- Search -->
 		<div class="relative my-4">
-			<iconify-icon icon="mdi:magnify" width="24" class="absolute inset-s-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-			<input type="text" aria-label="Search widgets" data-testid="select-widget-search"
+			<iconify-icon
+				icon="mdi:magnify"
+				width="24"
+				class="absolute inset-s-4 top-1/2 -translate-y-1/2 text-surface-400"
+			></iconify-icon>
+			<input
+				type="text"
+				aria-label="Search widgets"
+				data-testid="select-widget-search"
 				placeholder="Search widgets..."
 				class="input h-12 w-full ps-12 text-lg"
 				bind:value={searchTerm}
@@ -84,11 +97,17 @@ const cHeader =
 								? widgets.marketplaceWidgets
 								: []}
 
-				{const filteredKeys = categoryKeys.filter((key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()))}
+				{const filteredKeys = categoryKeys.filter(
+					(key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase())
+				)}
 
 				{#if filteredKeys.length > 0}
 					<div class="mb-8 last:mb-0">
-						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">{category} Widgets</h3>
+						<h3
+							class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50"
+						>
+							{category} Widgets
+						</h3>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 							{#each filteredKeys as item (item)}
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}
@@ -103,13 +122,16 @@ const cHeader =
 											<div
 												class="flex h-12 w-12 items-center justify-center rounded bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
 											>
-												<iconify-icon icon={availableWidgets[item]?.Icon || 'mdi:puzzle'} width="28"></iconify-icon>
+												<iconify-icon icon={availableWidgets[item]?.Icon || 'mdi:puzzle'} width="28"
+												></iconify-icon>
 											</div>
 											<!-- Optional: Add specific badges here if metadata existed -->
 										</div>
 
 										<div>
-											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-500">
+											<h3
+												class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-500"
+											>
 												{item}
 											</h3>
 											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-50">
@@ -125,9 +147,9 @@ const cHeader =
 			{/each}
 
 			<!-- Empty State -->
-			{#if [...widgets.coreWidgets, ...widgets.customWidgets, ...widgets.marketplaceWidgets].filter((key) => key
-					.toLowerCase()
-					.includes(searchTerm.toLowerCase())).length === 0}
+			{#if [...widgets.coreWidgets, ...widgets.customWidgets, ...widgets.marketplaceWidgets].filter( (key) => key
+						.toLowerCase()
+						.includes(searchTerm.toLowerCase()) ).length === 0}
 				<div class="flex flex-col items-center justify-center py-20 opacity-50">
 					<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
 					<p class="text-xl">No widgets found for "{searchTerm}"</p>

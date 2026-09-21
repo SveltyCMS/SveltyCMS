@@ -16,21 +16,21 @@
 -->
 
 <script lang="ts">
-import { browser } from "$app/env";
-import type { PageData } from "./$types";
+	import { browser } from '$app/env';
+	import type { PageData } from './$types';
 
-// props
-interface Props {
-	data: PageData;
-}
+	// props
+	interface Props {
+		data: PageData;
+	}
 
-const { data }: Props = $props();
+	const { data }: Props = $props();
 
-// Use $derived to ensure reactivity
-const emailList = $derived({
-	...data,
-	path: data.path ?? null,
-});
+	// Use $derived to ensure reactivity
+	const emailList = $derived({
+		...data,
+		path: data.path ?? null
+	});
 </script>
 
 {#if emailList.files && emailList.files.length}
@@ -57,6 +57,10 @@ const emailList = $derived({
 	{/if}
 {:else}
 	<div class="p-8 text-center text-gray-500">
-		<p>No email templates found in <code class="rounded bg-gray-100 px-1 py-0.5">/src/components/emails</code>.</p>
+		<p>
+			No email templates found in <code class="rounded bg-gray-100 px-1 py-0.5"
+				>/src/components/emails</code
+			>.
+		</p>
 	</div>
 {/if}

@@ -220,12 +220,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		if (dbConfig.type === 'sqlite') {
 			dbConfig.host = 'config/database';
 			dbConfig.port = '';
-			if (!dbConfig.name || dbConfig.name.toLowerCase() === 'sveltycms' || dbConfig.name.toLowerCase() === 'sveltycms.db') {
+			if (
+				!dbConfig.name ||
+				dbConfig.name.toLowerCase() === 'sveltycms' ||
+				dbConfig.name.toLowerCase() === 'sveltycms.db'
+			) {
 				dbConfig.name = 'sveltycms.db';
 			}
 		} else {
 			// Non-SQLite database types
-			if (dbConfig.host === 'config/database' || !dbConfig.host || (isAtlas && dbConfig.host === 'localhost')) {
+			if (
+				dbConfig.host === 'config/database' ||
+				!dbConfig.host ||
+				(isAtlas && dbConfig.host === 'localhost')
+			) {
 				dbConfig.host = isAtlas ? '' : 'localhost';
 			}
 			if (
@@ -274,12 +282,18 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 <div class="fade-in">
 	<div class="mb-4 sm:mb-6">
-		<p class="text-center md:text-start text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
+		<p
+			class="text-center md:text-start text-sm text-tertiary-500 dark:text-primary-500 sm:text-base"
+		>
+			{setup_database_intro()}
+		</p>
 	</div>
 
 	<!-- MongoDB Atlas Helper Message -->
 	{#if dbConfig.type === 'mongodb+srv'}
-		<div class="mb-6 rounded border border-tertiary-500/20 bg-tertiary-500/10 dark:border-tertiary-500/30 dark:bg-tertiary-500/10">
+		<div
+			class="mb-6 rounded border border-tertiary-500/20 bg-tertiary-500/10 dark:border-tertiary-500/30 dark:bg-tertiary-500/10"
+		>
 			<Button
 				variant="transparent"
 				type="button"
@@ -289,23 +303,40 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				class="flex w-full! items-center justify-between! p-4! h-auto! text-start text-tertiary-600! dark:text-tertiary-400 font-normal!"
 			>
 				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:information" width="20" class="shrink-0" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:information" width="20" class="shrink-0" aria-hidden="true"
+					></iconify-icon>
 					<span class="font-semibold">MongoDB Atlas Quick Setup</span>
 				</div>
-				<iconify-icon icon={showAtlasHelper ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="24" aria-hidden="true"></iconify-icon>
+				<iconify-icon
+					icon={showAtlasHelper ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+					width="24"
+					aria-hidden="true"
+				></iconify-icon>
 			</Button>
 
 			{#if showAtlasHelper}
-				<div id="atlas-helper-content" class="border-t border-tertiary-500/30 p-4 pt-3 text-tertiary-600 dark:border-tertiary-500/40 dark:text-tertiary-400">
-					<p class="text-sm">To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:</p>
+				<div
+					id="atlas-helper-content"
+					class="border-t border-tertiary-500/30 p-4 pt-3 text-tertiary-600 dark:border-tertiary-500/40 dark:text-tertiary-400"
+				>
+					<p class="text-sm">
+						To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:
+					</p>
 					<ul class="mt-2 space-y-1 text-sm">
 						<li class="flex items-start gap-2">
 							<span class="text-tertiary-500 dark:text-primary-500">1.</span>
-							<span>In MongoDB Atlas, click <strong>"Connect"</strong> → <strong>"Compass"</strong> or <strong>"VS Code"</strong></span>
+							<span
+								>In MongoDB Atlas, click <strong>"Connect"</strong> → <strong>"Compass"</strong> or
+								<strong>"VS Code"</strong></span
+							>
 						</li>
 						<li class="flex items-start gap-2">
 							<span class="text-tertiary-500 dark:text-primary-500">2.</span>
-							<span>Copy the connection string: <code class="text-xs">mongodb+srv://username:password@cluster0.abcde.mongodb.net/</code></span>
+							<span
+								>Copy the connection string: <code class="text-xs"
+									>mongodb+srv://username:password@cluster0.abcde.mongodb.net/</code
+								></span
+							>
 						</li>
 						<li class="flex items-start gap-2">
 							<span class="text-tertiary-500 dark:text-primary-500">3.</span>
@@ -313,7 +344,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</li>
 					</ul>
 					<p class="mt-2 text-xs italic">
-						💡 The Host field will show only the cluster hostname (e.g., <code>cluster0.abcde.mongodb.net</code>) after parsing.
+						💡 The Host field will show only the cluster hostname (e.g., <code
+							>cluster0.abcde.mongodb.net</code
+						>) after parsing.
 					</p>
 				</div>
 			{/if}
@@ -321,7 +354,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	{/if}
 
 	{#if dbConfig.type === 'mysql'}
-		<div class="mb-6 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 text-tertiary-600 dark:border-tertiary-500/40 dark:bg-tertiary-500/10 dark:text-tertiary-400">
+		<div
+			class="mb-6 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 text-tertiary-600 dark:border-tertiary-500/40 dark:bg-tertiary-500/10 dark:text-tertiary-400"
+		>
 			<p class="font-semibold">{setup_db_coming_soon()}</p>
 			<p class="mt-1">{setup_db_postgres_mysql_note()}</p>
 			<p class="mt-2">{setup_db_postgres_mysql_timeline()}</p>
@@ -337,24 +372,42 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<div>
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon
+						icon="mdi:database"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
 					<span class="text-surface-900 dark:text-surface-50">{setup_label_database_type()}</span>
 					<SystemTooltip title={setup_help_database_type()}>
 						<HelpIcon ariaLabel="Help: Database Type" />
 					</SystemTooltip>
 				</label>
 
-				<Select id="db-type" bind:value={dbConfig.type} options={dbTypeOptions} placeholder="Select database type..." onchange={() => handleTypeChange()} />
+				<Select
+					id="db-type"
+					bind:value={dbConfig.type}
+					options={dbTypeOptions}
+					placeholder="Select database type..."
+					onchange={() => handleTypeChange()}
+				/>
 			</div>
 
 			{#if isInstallingDriver}
-				<div class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500" role="status">
-					<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
+				<div
+					class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500"
+					role="status"
+				>
+					<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"
+					></iconify-icon>
 					<span>Installing database driver...</span>
 				</div>
 			{/if}
 			{#if installSuccess}
-				<div class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500" role="status">
+				<div
+					class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500"
+					role="status"
+				>
 					<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
 					<span>{installSuccess}</span>
 				</div>
@@ -363,14 +416,22 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<Alert variant="error" title="Driver Installation Failed" class="mt-2">
 					<p>{installError}</p>
 					<p class="mt-2 text-xs">
-						You can install the driver manually or continue with the setup (connection test will show installation instructions).
+						You can install the driver manually or continue with the setup (connection test will
+						show installation instructions).
 					</p>
 				</Alert>
 			{/if}
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{isAtlas ? 'Atlas Cluster Host' : setup_database_host()}</span>
+					<iconify-icon
+						icon="mdi:server-network"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
+					<span class="text-surface-900 dark:text-surface-50"
+						>{isAtlas ? 'Atlas Cluster Host' : setup_database_host()}</span
+					>
 					<SystemTooltip title={setup_help_database_host()}>
 						<HelpIcon ariaLabel="Help: Host" />
 					</SystemTooltip>
@@ -389,7 +450,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						handleBlur('host');
 					}}
 					onpaste={handleHostPaste}
-					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net' : setup_database_host_placeholder?.() || 'localhost'}
+					placeholder={isAtlas
+						? 'cluster0.abcde.mongodb.net'
+						: setup_database_host_placeholder?.() || 'localhost'}
 					error={displayErrors.host}
 					required
 				/>
@@ -403,7 +466,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							<span class="font-medium">Connection string parsed!</span>
 						</div>
 						<p class="mt-1 text-xs">
-							Hostname, username, and password have been automatically extracted. Please verify the values and replace
+							Hostname, username, and password have been automatically extracted. Please verify the
+							values and replace
 							<code>&lt;db_password&gt;</code>
 							placeholder if needed.
 						</p>
@@ -414,7 +478,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{#if !isAtlas && dbConfig.type !== 'sqlite'}
 				<div>
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="mdi:ethernet"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
 						<span class="text-surface-900 dark:text-surface-50">{setup_database_port()}</span>
 						<SystemTooltip title={setup_help_database_port()}>
 							<HelpIcon ariaLabel="Help: Port" />
@@ -435,7 +504,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{/if}
 			<div>
 				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon
+						icon="mdi:database-outline"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
 					<span class="text-surface-900 dark:text-surface-50">{setup_database_name()}</span>
 					<SystemTooltip title={setup_help_database_name()}>
 						<HelpIcon ariaLabel="Help: Database Name" />
@@ -462,7 +536,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{#if dbConfig.type !== 'sqlite'}
 				<div>
 					<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="mdi:account-key"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
 						<span class="text-surface-900 dark:text-surface-50">{setup_database_user()}</span>
 						<SystemTooltip title={setup_help_database_user()}>
 							<HelpIcon ariaLabel="Help: Database User" />
@@ -489,7 +568,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 				<div>
 					<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="mdi:key-variant"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
 						<span class="text-surface-900 dark:text-surface-50">{setup_database_password()}</span>
 						<SystemTooltip title={setup_help_database_password()}>
 							<HelpIcon ariaLabel="Help: Database Password" />
@@ -522,27 +606,38 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							class="absolute inset-e-0 top-0 min-w-10 p-0!"
 							aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 						>
-							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'}
+								width="18"
+								height="18"
+								aria-hidden="true"
+							></iconify-icon>
 						</Button>
 					</div>
 				</div>
 			{/if}
 		</div>
 		<div class="mb-4">
-		<Button
-			variant="transparent"
-			type="button"
-			onclick={() => (showAdvanced = !showAdvanced)}
-			class="flex items-center gap-2 text-sm font-semibold! text-surface-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors p-0! h-auto! justify-start! min-w-0!"
-		>
-			<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"></iconify-icon>
-			Advanced Database Options (Clustering & Scaling)
-		</Button>
+			<Button
+				variant="transparent"
+				type="button"
+				onclick={() => (showAdvanced = !showAdvanced)}
+				class="flex items-center gap-2 text-sm font-semibold! text-surface-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors p-0! h-auto! justify-start! min-w-0!"
+			>
+				<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
+				></iconify-icon>
+				Advanced Database Options (Clustering & Scaling)
+			</Button>
 
 			{#if showAdvanced}
-				<div class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300">
+				<div
+					class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300"
+				>
 					<div class="flex flex-col gap-2">
-						<label for="replica-urls" class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-surface-400">
+						<label
+							for="replica-urls"
+							class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-surface-400"
+						>
 							<iconify-icon icon="mdi:database-import" width="16"></iconify-icon>
 							Regional Read Replicas (Optional)
 						</label>
@@ -558,13 +653,17 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 									placeholder="postgresql://user:pass@replica-host:5432/db?region=us-east"
 									class="flex-1"
 								/>
-								<Button variant="ghost"
+								<Button
+									variant="ghost"
 									type="button"
 									aria-label="Remove replica"
 									onclick={() => {
-										dbConfig.replicaUrls = dbConfig.replicaUrls.filter((_: string, i: number) => i !== index);
+										dbConfig.replicaUrls = dbConfig.replicaUrls.filter(
+											(_: string, i: number) => i !== index
+										);
 									}}
-								 class="p-0! min-w-0 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all">
+									class="p-0! min-w-0 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
+								>
 									<iconify-icon icon="mdi:close" width="16"></iconify-icon>
 								</Button>
 							</div>
@@ -588,11 +687,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		</div>
 
 		{#if !unsupportedDbSelected}
-			<Button variant="tertiary"
+			<Button
+				variant="tertiary"
 				type="submit"
 				disabled={isLoading}
-				aria-label={isLoading ? 'Testing database connection, please wait' : 'Test database connection'}
-			 class="w-full dark:">
+				aria-label={isLoading
+					? 'Testing database connection, please wait'
+					: 'Test database connection'}
+				class="w-full dark:"
+			>
 				{#if isLoading}
 					<div
 						class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"
@@ -607,7 +710,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		{/if}
 		{#if dbConfigChangedSinceTest}
 			<Alert variant="warning" class="mt-2 text-xs">
-				{setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
+				{setup_help_database_type?.() ||
+					'Database settings changed since last successful test. Please re-test to proceed.'}
 			</Alert>
 		{/if}
 	</form>

@@ -93,7 +93,12 @@ Features:
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/language-utils';
 	import { getTextDirection } from '@utils/string';
-	import { BUNDLED_SYSTEM_LOCALES, isCompiledSystemLocale, isIso6391LanguageCode, languageBase } from '@utils/system-locale';
+	import {
+		BUNDLED_SYSTEM_LOCALES,
+		isCompiledSystemLocale,
+		isIso6391LanguageCode,
+		languageBase
+	} from '@utils/system-locale';
 	import { logger } from '@utils/logger';
 	import { safeParse } from 'valibot';
 	// Components
@@ -155,10 +160,15 @@ Features:
 
 	// System languages
 	function removeSystemLang(code: string) {
-		if (code === systemSettings.defaultSystemLanguage && systemSettings.systemLanguages.length === 1) {
+		if (
+			code === systemSettings.defaultSystemLanguage &&
+			systemSettings.systemLanguages.length === 1
+		) {
 			return;
 		}
-		systemSettings.systemLanguages = systemSettings.systemLanguages.filter((c: string) => c !== code);
+		systemSettings.systemLanguages = systemSettings.systemLanguages.filter(
+			(c: string) => c !== code
+		);
 		if (!systemSettings.systemLanguages.includes(systemSettings.defaultSystemLanguage)) {
 			systemSettings.defaultSystemLanguage = systemSettings.systemLanguages[0] || 'en';
 		}
@@ -211,10 +221,15 @@ Features:
 
 	// Content languages
 	function removeContentLang(code: string) {
-		if (code === systemSettings.defaultContentLanguage && systemSettings.contentLanguages.length === 1) {
+		if (
+			code === systemSettings.defaultContentLanguage &&
+			systemSettings.contentLanguages.length === 1
+		) {
 			return;
 		}
-		systemSettings.contentLanguages = systemSettings.contentLanguages.filter((c: string) => c !== code);
+		systemSettings.contentLanguages = systemSettings.contentLanguages.filter(
+			(c: string) => c !== code
+		);
 		if (!systemSettings.contentLanguages.includes(systemSettings.defaultContentLanguage)) {
 			systemSettings.defaultContentLanguage = systemSettings.contentLanguages[0] || '';
 		}
@@ -311,7 +326,9 @@ Features:
 		contentAvailable = iso6391.filter(
 			(lang) =>
 				!systemSettings.contentLanguages.includes(lang.code) &&
-				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
+				(lang.code.toLowerCase().includes(search) ||
+					lang.name.toLowerCase().includes(search) ||
+					lang.native.toLowerCase().includes(search))
 		);
 	});
 
@@ -349,12 +366,18 @@ Features:
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in w-full min-w-0">
 	<div class="mb-6">
-		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_system_intro()}</p>
+		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">
+			{setup_system_intro()}
+		</p>
 	</div>
 
 	<div class="space-y-2">
 		{#if redisAvailable && !systemSettings.useRedis}
-			<Alert variant="info" title="Performance Optimization Detected" class="animate-in fade-in slide-in-from-top-4 duration-500">
+			<Alert
+				variant="info"
+				title="Performance Optimization Detected"
+				class="animate-in fade-in slide-in-from-top-4 duration-500"
+			>
 				<div class="flex items-center justify-between gap-4">
 					<div class="flex items-center gap-2">
 						<Badge variant="error" class="uppercase">Recommended</Badge>
@@ -372,14 +395,17 @@ Features:
 					</Button>
 				</div>
 				<p class="mt-1 text-sm leading-relaxed italic">
-					A local Redis server was detected on this system. <br />Enabling Redis caching can speed up data access by up to <strong>50x</strong>
+					A local Redis server was detected on this system. <br />Enabling Redis caching can speed
+					up data access by up to <strong>50x</strong>
 					by reducing database load.
 				</p>
 			</Alert>
 		{/if}
 
 		<!-- Project Blueprint -->
-		<section class="mb-2"><PresetSelector {presets} bind:selected={systemSettings.preset} /></section>
+		<section class="mb-2">
+			<PresetSelector {presets} bind:selected={systemSettings.preset} />
+		</section>
 
 		<!-- Basic Site Settings -->
 		<section class="space-y-4">
@@ -387,8 +413,15 @@ Features:
 				<!-- Site Name -->
 				<div class="flex flex-col gap-1">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_system_site_name?.() || 'CMS Name'}</span>
+						<iconify-icon
+							icon="mdi:web"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_system_site_name?.() || 'CMS Name'}</span
+						>
 						<SystemTooltip title={setup_help_site_name()}>
 							<HelpIcon ariaLabel={setup_help_site_name_aria()} />
 						</SystemTooltip>
@@ -408,8 +441,15 @@ Features:
 				<!-- Production URL -->
 				<div class="flex flex-col gap-1">
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_system_host_prod?.() || 'Production URL'}</span>
+						<iconify-icon
+							icon="mdi:earth"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_system_host_prod?.() || 'Production URL'}</span
+						>
 						<SystemTooltip title={setup_help_host_prod?.() || 'The production URL...'}>
 							<HelpIcon ariaLabel={setup_help_host_prod_aria()} />
 						</SystemTooltip>
@@ -427,48 +467,64 @@ Features:
 				</div>
 
 				<!-- Timezone -->
-					<div class="flex flex-col gap-1">
-						<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
-							<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="text-surface-900 dark:text-surface-50">{setup_system_timezone?.() || 'Timezone'}</span>
-							<SystemTooltip title={setup_help_timezone?.() || 'Default system timezone'}>
-								<HelpIcon ariaLabel={setup_help_timezone_aria()} />
-							</SystemTooltip>
-						</label>
-
-						<Dropdown
-							options={timezoneOptions}
-							bind:value={systemSettings.timezone}
-							onchange={() => handleBlur('timezone')}
-							closeOnSelect={true}
-							searchable={true}
-							searchPlaceholder={setup_search_placeholder?.() || 'Search timezones...'}
-							emptyMessage={setup_help_no_matches?.() || 'No matches found'}
-							position="bottom"
+				<div class="flex flex-col gap-1">
+					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon
+							icon="mdi:clock-outline"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_system_timezone?.() || 'Timezone'}</span
 						>
-							{#snippet trigger()}
-								<Button
-									variant="outline"
-									class="w-full h-10 justify-between border-(--admin-border-default) bg-(--admin-bg-input) text-(--admin-text-body) font-normal px-3 py-2"
+						<SystemTooltip title={setup_help_timezone?.() || 'Default system timezone'}>
+							<HelpIcon ariaLabel={setup_help_timezone_aria()} />
+						</SystemTooltip>
+					</label>
+
+					<Dropdown
+						options={timezoneOptions}
+						bind:value={systemSettings.timezone}
+						onchange={() => handleBlur('timezone')}
+						closeOnSelect={true}
+						searchable={true}
+						searchPlaceholder={setup_search_placeholder?.() || 'Search timezones...'}
+						emptyMessage={setup_help_no_matches?.() || 'No matches found'}
+						position="bottom"
+					>
+						{#snippet trigger()}
+							<Button
+								variant="outline"
+								class="w-full h-10 justify-between border-(--admin-border-default) bg-(--admin-bg-input) text-(--admin-text-body) font-normal px-3 py-2"
+							>
+								<span class="truncate text-sm"
+									>{systemSettings.timezone || setup_select_timezone()}</span
 								>
-									<span class="truncate text-sm">{systemSettings.timezone || setup_select_timezone()}</span>
-									<iconify-icon icon="mdi:chevron-down" width="16" class="ms-auto shrink-0 text-surface-400"></iconify-icon>
-								</Button>
-							{/snippet}
-						</Dropdown>
-						{#if displayErrors.timezone}
-							<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
-						{/if}
-					</div>
+								<iconify-icon
+									icon="mdi:chevron-down"
+									width="16"
+									class="ms-auto shrink-0 text-surface-400"
+								></iconify-icon>
+							</Button>
+						{/snippet}
+					</Dropdown>
+					{#if displayErrors.timezone}
+						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">
+							{displayErrors.timezone}
+						</div>
+					{/if}
+				</div>
 
 				<!-- Password Minimum Length -->
 				<!-- Min Password Length moved to system settings page -->
 				<div class="hidden">
-					<input aria-label="Site name"
-												id="password-min-length"
-												bind:value={systemSettings.passwordMinLength}
-												type="number"
-																		/>
+					<input
+						aria-label="Site name"
+						id="password-min-length"
+						bind:value={systemSettings.passwordMinLength}
+						type="number"
+					/>
 				</div>
 			</div>
 
@@ -476,20 +532,37 @@ Features:
 				<!-- Media Storage Configuration -->
 				<div class="space-y-2">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_system_media_type?.() || 'Media Storage Type'}</span>
+						<iconify-icon
+							icon="mdi:cloud-outline"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_system_media_type?.() || 'Media Storage Type'}</span
+						>
 						<SystemTooltip title={setup_help_media_type?.() || setup_help_media_path()}>
 							<HelpIcon ariaLabel="Help: Media Storage Type" />
 						</SystemTooltip>
 					</label>
 
-					<Select id="media-storage-type" bind:value={systemSettings.mediaStorageType} options={mediaStorageOptions} placeholder="Select storage type..." />
+					<Select
+						id="media-storage-type"
+						bind:value={systemSettings.mediaStorageType}
+						options={mediaStorageOptions}
+						placeholder="Select storage type..."
+					/>
 				</div>
 
 				<!-- Media Folder Path -->
 				<div class="space-y-2">
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="mdi:folder"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
 						<span class="text-surface-900 dark:text-surface-50">
 							{systemSettings.mediaStorageType === 'local'
 								? setup_system_media_folder_local?.() || 'Media Folder Path'
@@ -511,9 +584,13 @@ Features:
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
-						<div class="rounded border border-warning-500/50 bg-warning-500/50 p-3 dark:border-warning-500/40 dark:bg-warning-900/20" role="status">
+						<div
+							class="rounded border border-warning-500/50 bg-warning-500/50 p-3 dark:border-warning-500/40 dark:bg-warning-900/20"
+							role="status"
+						>
 							<p class="flex items-center gap-1 text-xs text-warning-600 dark:text-warning-400">
-								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
+								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"
+								></iconify-icon>
 								<strong>{setup_note_cloud_credentials?.() || 'Note:'}</strong>
 							</p>
 						</div>
@@ -528,14 +605,23 @@ Features:
 				<!-- Default System Language -->
 				<div class="space-y-2 rounded border border-surface-500/30 dark:border-white/5 p-4">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_label_default_system_language?.() || 'Default System Language'}</span>
+						<iconify-icon
+							icon="mdi:translate"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_label_default_system_language?.() || 'Default System Language'}</span
+						>
 						<SystemTooltip title={setup_help_default_system_language()}>
 							<HelpIcon ariaLabel={setup_help_default_system_language_aria()} />
 						</SystemTooltip>
 					</label>
 
-					<p class="text-[10px] text-surface-500 dark:text-white/40" id="system-lang-help">{setup_system_lang_primary_help()}</p>
+					<p class="text-[10px] text-surface-500 dark:text-white/40" id="system-lang-help">
+						{setup_system_lang_primary_help()}
+					</p>
 
 					<Select
 						id="default-system-lang"
@@ -545,28 +631,39 @@ Features:
 					/>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="text-surface-900 dark:text-surface-50">{setup_label_system_languages?.() || 'System Languages'}</span>
+							<iconify-icon
+								icon="mdi:translate-variant"
+								width="14"
+								class="text-tertiary-500 dark:text-primary-500"
+								aria-hidden="true"
+							></iconify-icon>
+							<span class="text-surface-900 dark:text-surface-50"
+								>{setup_label_system_languages?.() || 'System Languages'}</span
+							>
 							<SystemTooltip title={setup_help_system_languages()}>
 								<HelpIcon ariaLabel={setup_help_system_languages_aria()} />
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-white/20 p-2">
+						<div
+							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-white/20 p-2"
+						>
 							{#each systemSettings.systemLanguages as lang (lang)}
-								<Badge
-									variant="tertiary"
-									size="lg"
-									class="group dark:preset-filled-primary-500"
-								>
+								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
 									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if getTextDirection(lang) === 'rtl'}
-										<span class="text-[9px] font-bold uppercase opacity-80">{setup_badge_rtl()}</span>
+										<span class="text-[9px] font-bold uppercase opacity-80"
+											>{setup_badge_rtl()}</span
+										>
 									{/if}
 									{#if isCompiledSystemLocale(lang)}
-										<span class="text-[9px] font-bold uppercase opacity-80">{setup_badge_translated()}</span>
+										<span class="text-[9px] font-bold uppercase opacity-80"
+											>{setup_badge_translated()}</span
+										>
 									{:else}
-										<span class="text-[9px] font-bold uppercase opacity-80">{setup_badge_english_ui()}</span>
+										<span class="text-[9px] font-bold uppercase opacity-80"
+											>{setup_badge_english_ui()}</span
+										>
 									{/if}
 									{#if systemSettings.systemLanguages.length > 1}
 										<Button
@@ -582,7 +679,8 @@ Features:
 								</Badge>
 							{/each}
 							{#if (BUNDLED_SYSTEM_LOCALES as readonly string[]).filter((c) => !systemSettings.systemLanguages.includes(c)).length > 0}
-								<Button variant="surface"
+								<Button
+									variant="surface"
 									type="button"
 									onclick={openSystemPicker}
 									aria-label={setup_aria_add_system_language()}
@@ -591,7 +689,8 @@ Features:
 									aria-controls="system-lang-picker"
 									rounded
 									size="sm"
-									class="flex items-center gap-1">
+									class="flex items-center gap-1"
+								>
 									<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 									{button_add?.() || 'Add'}
 								</Button>
@@ -615,7 +714,11 @@ Features:
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if systemAvailable.length === 0}
-											<p class="px-1 py-2 text-center text-[11px] text-surface-400 dark:text-white/40">{setup_help_no_matches?.() || 'No matches'}</p>
+											<p
+												class="px-1 py-2 text-center text-[11px] text-surface-400 dark:text-white/40"
+											>
+												{setup_help_no_matches?.() || 'No matches'}
+											</p>
 										{/if}
 										{#each systemAvailable as sug (sug.code)}
 											<Button
@@ -626,12 +729,21 @@ Features:
 												aria-label="Add language: {sug.name}"
 											>
 												<span class="text-surface-900 dark:text-surface-50"
-													>{sug.name} ({sug.code.toUpperCase()}) <span class="text-surface-500 dark:text-white/40">- {sug.native}</span></span
+													>{sug.name} ({sug.code.toUpperCase()})
+													<span class="text-surface-500 dark:text-white/40">- {sug.native}</span
+													></span
 												>
 												{#if getTextDirection(sug.code) === 'rtl'}
-													<span class="text-[9px] font-bold uppercase text-tertiary-500 dark:text-primary-500">{setup_badge_rtl()}</span>
+													<span
+														class="text-[9px] font-bold uppercase text-tertiary-500 dark:text-primary-500"
+														>{setup_badge_rtl()}</span
+													>
 												{/if}
-												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+												<iconify-icon
+													icon="mdi:plus-circle-outline"
+													width="14"
+													class="text-tertiary-500 dark:text-primary-500"
+													aria-hidden="true"
 												></iconify-icon>
 											</Button>
 										{/each}
@@ -639,20 +751,30 @@ Features:
 								</div>
 							{/if}
 						</div>
-						<p class="mt-2 text-[10px] leading-relaxed text-surface-500 dark:text-white/40">{setup_note_machine_translate()}</p>
+						<p class="mt-2 text-[10px] leading-relaxed text-surface-500 dark:text-white/40">
+							{setup_note_machine_translate()}
+						</p>
 					</div>
 				</div>
 				<!-- Default Content Language -->
 				<div class="space-y-2 rounded border border-surface-500/30 dark:border-white/5 p-4">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+						<iconify-icon
+							icon="mdi:book-open-page-variant"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_label_default_content_language?.() || 'Default Content Language'}</span>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_label_default_content_language?.() || 'Default Content Language'}</span
+						>
 						<SystemTooltip title={setup_help_default_content_language()}>
 							<HelpIcon ariaLabel={setup_help_default_content_language_aria()} />
 						</SystemTooltip>
 					</div>
-					<p class="text-[10px] text-surface-500 dark:text-white/40" id="content-lang-help">{setup_content_lang_primary_help()}</p>
+					<p class="text-[10px] text-surface-500 dark:text-white/40" id="content-lang-help">
+						{setup_content_lang_primary_help()}
+					</p>
 					<Select
 						bind:value={systemSettings.defaultContentLanguage}
 						options={contentLanguageOptions}
@@ -662,8 +784,15 @@ Features:
 					/>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="text-surface-900 dark:text-surface-50">{setup_label_content_languages?.() || 'Content Languages'}</span>
+							<iconify-icon
+								icon="mdi:book-multiple"
+								width="14"
+								class="text-tertiary-500 dark:text-primary-500"
+								aria-hidden="true"
+							></iconify-icon>
+							<span class="text-surface-900 dark:text-surface-50"
+								>{setup_label_content_languages?.() || 'Content Languages'}</span
+							>
 							<SystemTooltip title={setup_help_content_languages()}>
 								<HelpIcon ariaLabel={setup_help_content_languages_aria()} />
 							</SystemTooltip>
@@ -675,11 +804,7 @@ Features:
 								: 'border-surface-500/30 dark:border-white/20 '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
-								<Badge
-									variant="tertiary"
-									size="lg"
-									class="group dark:preset-filled-primary-500"
-								>
+								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
 									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
 										<Button
@@ -694,7 +819,8 @@ Features:
 									{/if}
 								</Badge>
 							{/each}
-							<Button variant="surface"
+							<Button
+								variant="surface"
 								type="button"
 								onclick={openContentPicker}
 								aria-label={setup_aria_add_content_language()}
@@ -703,7 +829,8 @@ Features:
 								aria-controls="content-lang-picker"
 								rounded
 								size="sm"
-								class="flex items-center gap-1">
+								class="flex items-center gap-1"
+							>
 								<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 								{button_add?.() || 'Add'}
 							</Button>
@@ -726,7 +853,9 @@ Features:
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
-											<p class="px-1 py-2 text-center text-[11px] text-white/40">{setup_help_no_matches?.() || 'No matches'}</p>
+											<p class="px-1 py-2 text-center text-[11px] text-white/40">
+												{setup_help_no_matches?.() || 'No matches'}
+											</p>
 										{/if}
 										{#each contentAvailable as sug (sug.code)}
 											<Button
@@ -737,9 +866,15 @@ Features:
 												aria-label="Add content language: {sug.name}"
 											>
 												<span class="text-surface-900 dark:text-surface-50"
-													>{sug.name} ({sug.code.toUpperCase()}) <span class="text-surface-500 dark:text-white/40">- {sug.native}</span></span
+													>{sug.name} ({sug.code.toUpperCase()})
+													<span class="text-surface-500 dark:text-white/40">- {sug.native}</span
+													></span
 												>
-												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+												<iconify-icon
+													icon="mdi:plus-circle-outline"
+													width="14"
+													class="text-tertiary-500 dark:text-primary-500"
+													aria-hidden="true"
 												></iconify-icon>
 											</Button>
 										{/each}
@@ -748,7 +883,9 @@ Features:
 							{/if}
 						</div>
 						{#if displayErrors.contentLanguages}
-							<div class="mt-1 text-xs text-error-500" role="alert">{displayErrors.contentLanguages}</div>
+							<div class="mt-1 text-xs text-error-500" role="alert">
+								{displayErrors.contentLanguages}
+							</div>
 						{/if}
 					</div>
 				</div>
@@ -756,8 +893,13 @@ Features:
 		</section>
 
 		<!-- System Infrastructure / Mode -->
-		<section id="infrastructure-section" class="mt-4 border-t border-surface-500/30 dark:border-white/10 pt-4">
-			<h4 class="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-primary-500 mb-4">
+		<section
+			id="infrastructure-section"
+			class="mt-4 border-t border-surface-500/30 dark:border-white/10 pt-4"
+		>
+			<h4
+				class="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-primary-500 mb-4"
+			>
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
 				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
 			</h4>
@@ -767,7 +909,8 @@ Features:
 				<Checkbox
 					bind:checked={systemSettings.multiTenant}
 					label={setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
-					description={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}
+					description={setup_system_multi_tenant_desc?.() ||
+						'Enables support for multiple isolated tenants...'}
 					variant="card"
 					onchange={(checked) => {
 						if (!checked && systemSettings.demoMode) {
@@ -781,7 +924,10 @@ Features:
 					<Checkbox
 						bind:checked={systemSettings.demoMode}
 						label={setup_system_demo_mode?.() || 'Demo Mode'}
-						description={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
+						description={(
+							setup_system_demo_mode_desc?.() ||
+							'Warning: Creates ephemeral environments for visitors.'
+						).replace(/<\/?[^>]+(>|$)/g, '')}
 						variant="card"
 						onchange={(checked) => {
 							if (checked && !systemSettings.multiTenant) {
@@ -790,7 +936,9 @@ Features:
 						}}
 					/>
 					<span
-						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant ? 'text-warning-600 dark:text-warning-400' : 'invisible'}"
+						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant
+							? 'text-warning-600 dark:text-warning-400'
+							: 'invisible'}"
 						aria-hidden={!(systemSettings.demoMode && !systemSettings.multiTenant)}
 					>
 						({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
@@ -799,10 +947,14 @@ Features:
 			</div>
 		</section>
 
-
 		<!-- Redis Caching — expand/collapse stays inside step-content scroll; footer is absolute in +page -->
-		<section id="redis-section" class="mt-4 border-t border-surface-500/30 pt-4 dark:border-white/10">
-			<div class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20">
+		<section
+			id="redis-section"
+			class="mt-4 border-t border-surface-500/30 pt-4 dark:border-white/10"
+		>
+			<div
+				class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
+			>
 				<div class="flex items-center justify-between gap-4">
 					<Checkbox
 						bind:checked={systemSettings.useRedis}
@@ -812,12 +964,16 @@ Features:
 					/>
 					{#if systemSettings.useRedis}
 						{#if setupStore.wizard.redisTestPassed}
-							<span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-500">
+							<span
+								class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-500"
+							>
 								<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
 								Connected
 							</span>
 						{:else}
-							<span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-semibold text-warning-600 dark:text-warning-400">
+							<span
+								class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-semibold text-warning-600 dark:text-warning-400"
+							>
 								<iconify-icon icon="mdi:clock-outline" width="14"></iconify-icon>
 								Pending Test
 							</span>
@@ -826,7 +982,9 @@ Features:
 				</div>
 
 				{#if systemSettings.useRedis}
-					<div class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
+					<div
+						class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
+					>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 							<Input
 								id="redis-host"
@@ -867,7 +1025,8 @@ Features:
 									<iconify-icon icon="line-md:loading-twotone-loop" width="16"></iconify-icon>
 									<span>Testing Connection...</span>
 								{:else if setupStore.wizard.redisTestPassed}
-									<iconify-icon icon="mdi:check-bold" width="16" class="text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:check-bold" width="16" class="text-primary-500"
+									></iconify-icon>
 									<span>{setup_db_test_redis_success?.() || 'Connected - Re-test'}</span>
 								{:else}
 									<iconify-icon icon="mdi:flash-outline" width="16"></iconify-icon>
@@ -897,19 +1056,30 @@ Features:
 				aria-label={showScaling ? 'Collapse enterprise scaling' : 'Expand enterprise scaling'}
 			>
 				<div class="flex items-center gap-2">
-					<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'}
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 					<span>Advanced: Enterprise Scaling (Cloudflare CDN)</span>
 				</div>
 				<div class="flex items-center gap-2 text-xs font-normal">
 					<span>{showScaling ? 'Collapse' : 'Expand'}</span>
-					<iconify-icon icon={showScaling ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18" class="transition-transform duration-200"></iconify-icon>
+					<iconify-icon
+						icon={showScaling ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+						width="18"
+						class="transition-transform duration-200"
+					></iconify-icon>
 				</div>
 			</Button>
 
 			{#if showScaling}
-				<div class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300">
+				<div
+					class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300"
+				>
 					<p class="text-xs text-surface-500 dark:text-white/40">
-						Configure native CDN purging to synchronize global edge nodes instantly upon content updates.
+						Configure native CDN purging to synchronize global edge nodes instantly upon content
+						updates.
 					</p>
 
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -940,13 +1110,12 @@ Features:
 							size="sm"
 						/>
 						<p class="text-[10px] text-warning-500 italic mt-1">
-							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag support.
+							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag
+							support.
 						</p>
 					</div>
 				</div>
 			{/if}
 		</div>
-
-
 	</div>
 </form>

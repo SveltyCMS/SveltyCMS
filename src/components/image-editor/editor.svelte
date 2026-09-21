@@ -19,7 +19,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	const MOBILE_BREAKPOINT = imageEditorStore.mobileBreakpoint;
 	const isMobileEditor = $derived(imageEditorStore.state.viewportWidth < MOBILE_BREAKPOINT);
 
-
 	interface Props {
 		focalPoint?: { x: number; y: number };
 		imageFile?: File | null;
@@ -65,7 +64,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 	const activeState = $derived(imageEditorStore.state.activeState);
 	const hasImage = $derived(!!storeState.imageElement);
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
-	const activeToolInstance = $derived.by(() => (activeState ? toolInstances[activeState] ?? null : null));
+	const activeToolInstance = $derived.by(() =>
+		activeState ? (toolInstances[activeState] ?? null) : null
+	);
 	let lastActiveToolState = '';
 	let bottomDockRef = $state<HTMLDivElement | undefined>(undefined);
 	let dockHeight = $state(0);
@@ -119,10 +120,36 @@ Comprehensive image editing interface with svelte-canvas integration.
 	registerHotkey('mod+z', () => imageEditorStore.handleUndo(), 'Undo last edit');
 	registerHotkey('mod+shift+z', () => imageEditorStore.handleRedo(), 'Redo last edit');
 	registerHotkey('escape', () => oncancel(), 'Cancel editing');
-	registerHotkey('=', () => { imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15); }, 'Zoom in');
-	registerHotkey('+', () => { imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15); }, 'Zoom in');
-	registerHotkey('-', () => { imageEditorStore.state.zoom = Math.max(0.1, imageEditorStore.state.zoom / 1.15); }, 'Zoom out');
-	registerHotkey('0', () => { imageEditorStore.state.zoom = 1; imageEditorStore.state.translateX = 0; imageEditorStore.state.translateY = 0; }, 'Reset zoom');
+	registerHotkey(
+		'=',
+		() => {
+			imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15);
+		},
+		'Zoom in'
+	);
+	registerHotkey(
+		'+',
+		() => {
+			imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15);
+		},
+		'Zoom in'
+	);
+	registerHotkey(
+		'-',
+		() => {
+			imageEditorStore.state.zoom = Math.max(0.1, imageEditorStore.state.zoom / 1.15);
+		},
+		'Zoom out'
+	);
+	registerHotkey(
+		'0',
+		() => {
+			imageEditorStore.state.zoom = 1;
+			imageEditorStore.state.translateX = 0;
+			imageEditorStore.state.translateY = 0;
+		},
+		'Reset zoom'
+	);
 
 	// Note: keydown listener is registered in the second onMount below alongside store setup.
 	// The duplicate onMount block was removed to prevent double-registration.
@@ -173,9 +200,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			return;
 		}
 
-		const loadKey = file
-			? `file:${file.name}:${file.size}:${file.lastModified}`
-			: `src:${src}`;
+		const loadKey = file ? `file:${file.name}:${file.size}:${file.lastModified}` : `src:${src}`;
 
 		if (loadKey === lastLoadKey) {
 			return;
@@ -235,7 +260,12 @@ Comprehensive image editing interface with svelte-canvas integration.
 		isProcessing = false;
 	}
 
-	function loadImage(imageSrc: string, file: File | undefined = undefined, retryAttempt = 0, activeGeneration: number | undefined = undefined) {
+	function loadImage(
+		imageSrc: string,
+		file: File | undefined = undefined,
+		retryAttempt = 0,
+		activeGeneration: number | undefined = undefined
+	) {
 		let cleanedSrc = imageSrc;
 		// Handle duplicate /files/ paths correctly, allowing dynamic paths via regex
 		cleanedSrc = cleanedSrc.replace(/(?:\/files)+\//g, '/files/');
@@ -257,7 +287,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 		const safetyTimer = setTimeout(() => {
 			if (generation !== loadGeneration) return;
 			if (isProcessing) {
-				logger.warn('[ImageEditor] loadImage safety timeout triggered — forcing isProcessing=false');
+				logger.warn(
+					'[ImageEditor] loadImage safety timeout triggered — forcing isProcessing=false'
+				);
 				isProcessing = false;
 			}
 		}, 15_000);
@@ -289,7 +321,11 @@ Comprehensive image editing interface with svelte-canvas integration.
 		// Guard against events with detached targets (e.g. in embedded browser contexts)
 		if (!event?.target || !(event.target as Node).ownerDocument) return;
 		const target = event.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+		if (
+			target.tagName === 'INPUT' ||
+			target.tagName === 'TEXTAREA' ||
+			target.contentEditable === 'true'
+		) {
 			return;
 		}
 
@@ -308,8 +344,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	export function handleCancel() {
 		handleCancelActiveTool();
 	}
-
-
 
 	// --- RENDER LOGIC (For Canvas Preview) ---
 	// Client-side rendering functions (normalizeCropRect, buildFilterString, etc.)
@@ -352,7 +386,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 							y: Math.round(crop.y),
 							width: Math.round(crop.width),
 							height: Math.round(crop.height),
-							shape: crop.shape ?? "rect"
+							shape: crop.shape ?? 'rect'
 						}
 					: undefined,
 				filters,
@@ -407,11 +441,18 @@ Comprehensive image editing interface with svelte-canvas integration.
 	aria-busy={isProcessing}
 >
 	{#if error}
-		<div class="error-banner bg-error-500/10 border-s-4 border-error-500 p-4 text-error-600 dark:bg-error-900/20 dark:text-error-400" role="alert">
+		<div
+			class="error-banner bg-error-500/10 border-s-4 border-error-500 p-4 text-error-600 dark:bg-error-900/20 dark:text-error-400"
+			role="alert"
+		>
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 				<span>{error}</span>
-				<button onclick={() => (error = null)} class="ms-auto text-error-600 hover:text-error-600" aria-label="Dismiss error">
+				<button
+					onclick={() => (error = null)}
+					class="ms-auto text-error-600 hover:text-error-600"
+					aria-label="Dismiss error"
+				>
 					<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 				</button>
 			</div>
@@ -419,9 +460,15 @@ Comprehensive image editing interface with svelte-canvas integration.
 	{/if}
 
 	{#if isProcessing}
-		<div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+		>
 			<div class="text-white flex flex-col items-center gap-2">
-				<iconify-icon icon="mdi:loading" class="animate-spin text-tertiary-500 dark:text-primary-500" width="48"></iconify-icon>
+				<iconify-icon
+					icon="mdi:loading"
+					class="animate-spin text-tertiary-500 dark:text-primary-500"
+					width="48"
+				></iconify-icon>
 				<p class="font-medium">Processing image...</p>
 			</div>
 		</div>
@@ -429,19 +476,18 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 	<div class="editor-layout flex min-h-0 min-w-0 flex-1 overflow-hidden items-stretch">
 		{#if !isMobileEditor}
-			<EditorSidebar
-				hasImage={hasImage}
-				onToolSelect={(tool) => imageEditorStore.switchTool(tool)}
-			/>
+			<EditorSidebar {hasImage} onToolSelect={(tool) => imageEditorStore.switchTool(tool)} />
 		{/if}
 
 		<div
-				class="editor-workspace relative min-h-0 min-w-0 flex-1 overflow-hidden"
+			class="editor-workspace relative min-h-0 min-w-0 flex-1 overflow-hidden"
 			style:--editor-dock-h="{isMobileEditor ? 0 : dockHeight}px"
 		>
 			<div class="editor-canvas-slot flex min-h-0 flex-col overflow-hidden">
 				<div class="canvas-wrapper relative flex min-h-0 flex-1 flex-col">
-					<div class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none">
+					<div
+						class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none"
+					>
 						<EditorCanvas
 							bind:containerRef
 							bind:containerWidth
@@ -453,7 +499,10 @@ Comprehensive image editing interface with svelte-canvas integration.
 							{#if hasImage}
 								{#each editorWidgets as widget (widget.key)}
 									{const Component = widget.tool}
-									<Component bind:this={toolInstances[widget.key]} onCancel={() => imageEditorStore.cancelActiveTool()} />
+									<Component
+										bind:this={toolInstances[widget.key]}
+										onCancel={() => imageEditorStore.cancelActiveTool()}
+									/>
 								{/each}
 							{/if}
 						</EditorCanvas>
@@ -510,7 +559,12 @@ Comprehensive image editing interface with svelte-canvas integration.
 		box-shadow: none;
 		outline: none;
 		background:
-			radial-gradient(ellipse 100% 100% at 50% 50%, transparent 78%, rgba(10, 10, 10, 0.28) 90%, rgba(10, 10, 10, 0.72) 100%),
+			radial-gradient(
+				ellipse 100% 100% at 50% 50%,
+				transparent 78%,
+				rgba(10, 10, 10, 0.28) 90%,
+				rgba(10, 10, 10, 0.72) 100%
+			),
 			linear-gradient(to bottom, rgba(10, 10, 10, 0.5) 0%, transparent 8%),
 			linear-gradient(to right, rgba(10, 10, 10, 0.35) 0%, transparent 6%),
 			linear-gradient(to left, rgba(10, 10, 10, 0.35) 0%, transparent 6%);

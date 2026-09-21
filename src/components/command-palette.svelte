@@ -103,10 +103,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
 
 	// ─── i18n helpers ───────────────────────────────────────────────────────
-	type MsgFn = (
-		inputs?: Record<string, string | number>,
-		options?: { locale?: string }
-	) => string;
+	type MsgFn = (inputs?: Record<string, string | number>, options?: { locale?: string }) => string;
 
 	/**
 	 * Statically-keyed message map — named imports (not `import * as m`) let
@@ -187,10 +184,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			}
 		}
 		if (params) {
-			return Object.entries(params).reduce(
-				(s, [k, v]) => s.replace(`{${k}}`, String(v)),
-				fallback
-			);
+			return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), fallback);
 		}
 		return fallback;
 	}
@@ -207,9 +201,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	function resolveAllLocales(key: string, fallback: string): string[] {
 		const out = new Set<string>();
 		out.add(fallback);
-		const localeList = Array.isArray(paraglideLocales)
-			? [...paraglideLocales]
-			: ['en', 'de'];
+		const localeList = Array.isArray(paraglideLocales) ? [...paraglideLocales] : ['en', 'de'];
 		for (const locale of localeList) {
 			try {
 				out.add(msg(key, fallback, undefined, String(locale)));
@@ -253,7 +245,12 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		const pluginEntries = pluginIndexToEntries(globalSearch.entries);
 		// Dedupe by id / path
 		const map = new Map<string, CommandPaletteEntry>();
-		for (const e of [...staticEntries, ...collectionEntries, ...pluginEntries, ...semanticEntries]) {
+		for (const e of [
+			...staticEntries,
+			...collectionEntries,
+			...pluginEntries,
+			...semanticEntries
+		]) {
 			const key = e.id || e.path || e.title;
 			if (!map.has(key)) map.set(key, e);
 		}
@@ -389,8 +386,9 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 
 	function recentsKey(): string {
 		const tenantId = (page.data as { tenantId?: string | null })?.tenantId;
-		const userId = (page.data as { user?: { id?: string; _id?: string } })?.user?.id
-			?? (page.data as { user?: { _id?: string } })?.user?._id;
+		const userId =
+			(page.data as { user?: { id?: string; _id?: string } })?.user?.id ??
+			(page.data as { user?: { _id?: string } })?.user?._id;
 		return recentsStorageKey(tenantId, userId);
 	}
 
@@ -407,9 +405,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 
 	function executeItem(item: RankedPaletteItem) {
 		const triggerKey = item.triggerKey;
-		const triggerActions = triggerKey
-			? item.entry.triggers?.[triggerKey]?.action
-			: undefined;
+		const triggerActions = triggerKey ? item.entry.triggers?.[triggerKey]?.action : undefined;
 
 		// Navigation is handled by the anchor (data-preload="hover") so SvelteKit's
 		// speculative preloading pipeline stays in charge — no goto() for primary nav.
@@ -528,8 +524,11 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 
 	/** Group consecutive items for section headers while keeping flat keyboard index. */
 	const displayGroups = $derived.by(() => {
-		const groups: { section: RankedPaletteItem['section']; startIndex: number; items: RankedPaletteItem[] }[] =
-			[];
+		const groups: {
+			section: RankedPaletteItem['section'];
+			startIndex: number;
+			items: RankedPaletteItem[];
+		}[] = [];
 		let current: (typeof groups)[0] | null = null;
 		rankedItems.forEach((item, index) => {
 			if (!current || current.section !== item.section) {
@@ -559,19 +558,18 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	});
 
 	const isMac =
-		typeof navigator !== 'undefined' &&
-		/Mac|iPod|iPhone|iPad/.test(navigator.userAgent || '');
+		typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent || '');
 	const modLabel = isMac ? '⌘' : 'Ctrl';
 </script>
 
 <!-- Backdrop -->
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-1000 bg-surface-900/50 backdrop-blur-sm dark:bg-black/60"
-		onclick={closePalette}
-		aria-hidden="true"
-		transition:fade={{ duration: prefersReducedMotion ? 0 : 150 }}
-	></div>
+<div
+	class="fixed inset-0 z-1000 bg-surface-900/50 backdrop-blur-sm dark:bg-black/60"
+	onclick={closePalette}
+	aria-hidden="true"
+	transition:fade={{ duration: prefersReducedMotion ? 0 : 150 }}
+></div>
 
 <!-- Screen reader status -->
 <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">{statusMessage}</div>
@@ -625,9 +623,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			aria-label={msg('global_search_aria_label', 'Global search')}
 			aria-controls="palette-results"
 			aria-autocomplete="list"
-			aria-activedescendant={rankedItems.length
-				? `palette-result-${selectedIndex}`
-				: undefined}
+			aria-activedescendant={rankedItems.length ? `palette-result-${selectedIndex}` : undefined}
 			aria-busy={isSearching}
 			placeholder={msg('global_search_placeholder', 'Search pages, collections, actions…')}
 			inputClass="h-12 w-full border-0 bg-transparent py-3 text-base text-surface-900 shadow-none outline-none ring-0 focus-visible:ring-0 dark:text-surface-50 dark:placeholder:text-surface-400"

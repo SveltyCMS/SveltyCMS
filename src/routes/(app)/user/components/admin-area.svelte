@@ -44,7 +44,7 @@
 	}
 
 	// Components
-	import Avatar from "@components/ui/avatar.svelte";
+	import Avatar from '@components/ui/avatar.svelte';
 
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import Role from '@src/components/system/table/role.svelte';
@@ -116,7 +116,11 @@
 	}
 
 	// Props - Using API for scalability
-	const { currentUser = null, isMultiTenant = false, roles = [] }: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
+	const {
+		currentUser = null,
+		isMultiTenant = false,
+		roles = []
+	}: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
 
 	// Core view state (must exist before smartTable onQueryChange can fetch)
 	let showUserList = $state(true);
@@ -138,14 +142,13 @@
 	}
 
 	function openUserSessions(targetUser: User) {
-		modalState.trigger(
-			ModalUserSessions as any,
-			{ user: targetUser },
-			() => {}
-		);
+		modalState.trigger(ModalUserSessions as any, { user: targetUser }, () => {});
 	}
 
-	function getSavedViewSnapshot(): Omit<SmartTableSavedView, 'id' | 'createdAt' | 'updatedAt' | 'name'> {
+	function getSavedViewSnapshot(): Omit<
+		SmartTableSavedView,
+		'id' | 'createdAt' | 'updatedAt' | 'name'
+	> {
 		return {
 			filters: { activeFacet },
 			search: globalSearchValue,
@@ -369,11 +372,13 @@
 		// them (effect_update_depth_exceeded).
 		const targetLayoutKey = showUserList ? 'admin-area-users' : 'admin-area-tokens';
 		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
-		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
-					// Essential columns only visible by default — rest available via column toggle
-					const essentialKeys = showUserList
-						? ['avatar', 'email', 'username', 'role', 'createdAt', 'blocked']
-						: ['email', 'role', 'token', 'expires', 'createdAt', 'blocked'];
+		const relevantHeaders = isMultiTenant
+			? baseHeaders
+			: baseHeaders.filter((h) => h.key !== 'tenantId');
+		// Essential columns only visible by default — rest available via column toggle
+		const essentialKeys = showUserList
+			? ['avatar', 'email', 'username', 'role', 'createdAt', 'blocked']
+			: ['email', 'role', 'token', 'expires', 'createdAt', 'blocked'];
 		const newHeaders = relevantHeaders.map((header) => ({
 			label: header.label,
 			key: header.key,
@@ -589,7 +594,9 @@
 				// Optimistic update on current smartTable page
 				smartTable.setRows(
 					smartTable.rows.map((item: Record<string, unknown>) =>
-						isUser(item as TableDataType) && (item as unknown as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
+						isUser(item as TableDataType) && (item as unknown as User)._id === user._id
+							? { ...item, blocked: !item.blocked }
+							: item
 					) as TableDataType[]
 				);
 				toast.success(`User ${actionPastTense} successfully`);
@@ -658,7 +665,9 @@
 			if (result.success) {
 				smartTable.setRows(
 					smartTable.rows.map((item: Record<string, unknown>) =>
-						isToken(item as TableDataType) && (item as unknown as Token).token === token.token ? { ...item, blocked: !item.blocked } : item
+						isToken(item as TableDataType) && (item as unknown as Token).token === token.token
+							? { ...item, blocked: !item.blocked }
+							: item
 					) as TableDataType[]
 				);
 				toast.success(`Token ${actionPastTense} successfully`);
@@ -705,381 +714,457 @@
 	}
 
 	function showView(view: string) {
-		if (view === 'users') { showUserList = true; showUsertoken = false; }
-		else { showUsertoken = true; showUserList = false; }
+		if (view === 'users') {
+			showUserList = true;
+			showUsertoken = false;
+		} else {
+			showUsertoken = true;
+			showUserList = false;
+		}
 	}
 </script>
 
-	<AdminCard
-		data-testid="user-admin-area"
-		class="flex flex-col border border-surface-500/30 bg-white shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
-	>
-		<!-- Header: Tabs + Invite button -->
-		<div class="flex items-center justify-between gap-3 px-4 pt-3">
-			<div class="flex border-b border-surface-500/30 dark:border-surface-500/40 grow" role="tablist" aria-label="User management views">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={showUserList}
-					data-testid="admin-tab-users"
-					onclick={() => showView('users')}
-					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
-				>
-					<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
-					Users
-					<Badge preset="tonal" color="secondary" size="sm" class="ms-1">{systemUserCount}</Badge>
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={showUsertoken}
-					data-testid="admin-tab-tokens"
-					onclick={() => showView('tokens')}
-					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
-				>
-					<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
-					Invitations
-				</button>
-			</div>
-			<Button
-				variant="surface" size="sm"
-				onclick={modalTokenUser}
-				aria-label={adminarea_emailtoken()}
-				data-testid="email-registration-token-btn"
-				leadingIcon="material-symbols:mail"
-			>
-				Invite User
-			</Button>
-		</div>
-
-		<!-- Toolbar -->
-		<div class={SMART_TABLE_TOOLBAR}>
-			<div class="order-3 flex items-center gap-2 sm:order-2">
-				<TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
-				<SmartTableSavedViewsMenu
-					scope={viewsScope}
-					getSnapshot={getSavedViewSnapshot}
-					onApply={applySavedView}
-				/>
-				<SmartTableMetricsBadge source={showUserList ? 'UserManagement.list' : 'Tokens.list'} />
-			</div>
-
-			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton
-					{selectedRows}
-					type={showUserList ? 'user' : 'token'}
-					totalUsers={showUserList ? systemUserCount : totalItems}
-					{currentUser}
-					onUpdate={handleBatchUpdate}
-				/>
-			</div>
-		</div>
-
-		{#if showUserList}
-			<!-- Facet Chips -->
-			<div class="flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-xs">
-				<button
-					type="button"
-					onclick={() => selectFacet('all')}
-					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'all' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
-				>
-					<span>All</span>
-					<span class="opacity-70">({systemUserCount})</span>
-				</button>
-				<button
-					type="button"
-					onclick={() => selectFacet('admin')}
-					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'admin' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
-				>
-					<iconify-icon icon="mdi:shield-crown-outline" width="14" class="text-tertiary-500 dark:text-primary-400"></iconify-icon>
-					<span>Admins</span>
-				</button>
-				<button
-					type="button"
-					onclick={() => selectFacet('user')}
-					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'user' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
-				>
-					<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
-					<span>Users</span>
-				</button>
-				<button
-					type="button"
-					onclick={() => selectFacet('active')}
-					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'active' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
-				>
-					<span class="size-1.5 rounded-full bg-success-500"></span>
-					<span>Active</span>
-				</button>
-				<button
-					type="button"
-					onclick={() => selectFacet('blocked')}
-					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'blocked' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
-				>
-					<span class="size-1.5 rounded-full bg-error-500"></span>
-					<span>Blocked</span>
-				</button>
-			</div>
-		{/if}
-
-		{#if columnShow && (tableData?.length || filterShow)}
-			<div class={SMART_TABLE_COLUMN_MANAGER}>
-				<div class="my-2 flex w-full items-center justify-center gap-1">
-					<label class="me-2">
-						<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} aria-label="Input" />
-						{entrylist_all()}
-					</label>
-
-					{#each displayTableHeaders as header (header.id)}
-						<Button
-							variant={header.visible ? 'secondary' : 'ghost'}
-							size="sm"
-							type="button"
-							onclick={() => {
-								displayTableHeaders = displayTableHeaders.map((h: TableHeader) =>
-									h.id === header.id ? { ...h, visible: !h.visible } : h
-								);
-								selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
-							}}
-							class="text-xs"
-						>
-							{#if header.visible}
-								<iconify-icon icon="fa:check" width={12} class="me-1"></iconify-icon>
-							{/if}
-							{header.label}
-						</Button>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		<SmartTableShell
-			empty={!tableData || tableData.length === 0}
-			emptyTitle={showUserList ? adminarea_nouser() : adminarea_notoken()}
-			emptyDescription="Adjust search or create a new record."
-			emptyIcon={showUserList ? 'mdi:account-off-outline' : 'mdi:key-off-outline'}
-			showPagination={!!(tableData && tableData.length > 0)}
-			currentPage={currentPage}
-			rowsPerPage={rowsPerPage}
-			pagesCount={pagesCount}
-			totalItems={totalItems}
-			onUpdatePage={(page: number) => smartTable.setPage(page)}
-			onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
+<AdminCard
+	data-testid="user-admin-area"
+	class="flex flex-col border border-surface-500/30 bg-white shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+>
+	<!-- Header: Tabs + Invite button -->
+	<div class="flex items-center justify-between gap-3 px-4 pt-3">
+		<div
+			class="flex border-b border-surface-500/30 dark:border-surface-500/40 grow"
+			role="tablist"
+			aria-label="User management views"
 		>
-				<table class="{SMART_TABLE} {density === 'compact' ? 'table-compact' : density === 'comfortable' ? 'table-comfortable' : ''}">
-					<thead class={SMART_TABLE_THEAD}>
-						<tr
-							class="border-b border-surface-500/30 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+			<button
+				type="button"
+				role="tab"
+				aria-selected={showUserList}
+				data-testid="admin-tab-users"
+				onclick={() => showView('users')}
+				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList
+					? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+			>
+				<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
+				Users
+				<Badge preset="tonal" color="secondary" size="sm" class="ms-1">{systemUserCount}</Badge>
+			</button>
+			<button
+				type="button"
+				role="tab"
+				aria-selected={showUsertoken}
+				data-testid="admin-tab-tokens"
+				onclick={() => showView('tokens')}
+				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken
+					? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+			>
+				<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
+				Invitations
+			</button>
+		</div>
+		<Button
+			variant="surface"
+			size="sm"
+			onclick={modalTokenUser}
+			aria-label={adminarea_emailtoken()}
+			data-testid="email-registration-token-btn"
+			leadingIcon="material-symbols:mail"
+		>
+			Invite User
+		</Button>
+	</div>
+
+	<!-- Toolbar -->
+	<div class={SMART_TABLE_TOOLBAR}>
+		<div class="order-3 flex items-center gap-2 sm:order-2">
+			<TableFilter
+				bind:globalSearchValue
+				bind:searchShow
+				bind:filterShow
+				bind:columnShow
+				bind:density
+			/>
+			<SmartTableSavedViewsMenu
+				scope={viewsScope}
+				getSnapshot={getSavedViewSnapshot}
+				onApply={applySavedView}
+			/>
+			<SmartTableMetricsBadge source={showUserList ? 'UserManagement.list' : 'Tokens.list'} />
+		</div>
+
+		<div class="order-2 flex items-center justify-center sm:order-3">
+			<Multibutton
+				{selectedRows}
+				type={showUserList ? 'user' : 'token'}
+				totalUsers={showUserList ? systemUserCount : totalItems}
+				{currentUser}
+				onUpdate={handleBatchUpdate}
+			/>
+		</div>
+	</div>
+
+	{#if showUserList}
+		<!-- Facet Chips -->
+		<div class="flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-xs">
+			<button
+				type="button"
+				onclick={() => selectFacet('all')}
+				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+				'all'
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+			>
+				<span>All</span>
+				<span class="opacity-70">({systemUserCount})</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => selectFacet('admin')}
+				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+				'admin'
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+			>
+				<iconify-icon
+					icon="mdi:shield-crown-outline"
+					width="14"
+					class="text-tertiary-500 dark:text-primary-400"
+				></iconify-icon>
+				<span>Admins</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => selectFacet('user')}
+				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+				'user'
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+			>
+				<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
+				<span>Users</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => selectFacet('active')}
+				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+				'active'
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+			>
+				<span class="size-1.5 rounded-full bg-success-500"></span>
+				<span>Active</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => selectFacet('blocked')}
+				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+				'blocked'
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+			>
+				<span class="size-1.5 rounded-full bg-error-500"></span>
+				<span>Blocked</span>
+			</button>
+		</div>
+	{/if}
+
+	{#if columnShow && (tableData?.length || filterShow)}
+		<div class={SMART_TABLE_COLUMN_MANAGER}>
+			<div class="my-2 flex w-full items-center justify-center gap-1">
+				<label class="me-2">
+					<input
+						type="checkbox"
+						bind:checked={selectAllColumns}
+						onclick={handleCheckboxChange}
+						aria-label="Input"
+					/>
+					{entrylist_all()}
+				</label>
+
+				{#each displayTableHeaders as header (header.id)}
+					<Button
+						variant={header.visible ? 'secondary' : 'ghost'}
+						size="sm"
+						type="button"
+						onclick={() => {
+							displayTableHeaders = displayTableHeaders.map((h: TableHeader) =>
+								h.id === header.id ? { ...h, visible: !h.visible } : h
+							);
+							selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
+						}}
+						class="text-xs"
+					>
+						{#if header.visible}
+							<iconify-icon icon="fa:check" width={12} class="me-1"></iconify-icon>
+						{/if}
+						{header.label}
+					</Button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<SmartTableShell
+		empty={!tableData || tableData.length === 0}
+		emptyTitle={showUserList ? adminarea_nouser() : adminarea_notoken()}
+		emptyDescription="Adjust search or create a new record."
+		emptyIcon={showUserList ? 'mdi:account-off-outline' : 'mdi:key-off-outline'}
+		showPagination={!!(tableData && tableData.length > 0)}
+		{currentPage}
+		{rowsPerPage}
+		{pagesCount}
+		{totalItems}
+		onUpdatePage={(page: number) => smartTable.setPage(page)}
+		onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
+	>
+		<table
+			class="{SMART_TABLE} {density === 'compact'
+				? 'table-compact'
+				: density === 'comfortable'
+					? 'table-comfortable'
+					: ''}"
+		>
+			<thead class={SMART_TABLE_THEAD}>
+				<tr
+					class="border-b border-surface-500/30 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+				>
+					<TableIcons
+						cellClass="w-10 text-center border-e border-surface-500/30 dark:border-surface-600 {pinCellClass(
+							'start'
+						)}"
+						checked={selectAll.value}
+						onCheck={(checked: boolean) => {
+							selectAll.value = checked;
+						}}
+					/>
+
+					{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
+						{@const colKey = String(header.key)}
+						<th
+							class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800/50"
+							style={smartTable.getColumnWidthStyle(colKey)}
+							aria-sort={sorting.sortedBy === header.key
+								? sorting.isSorted === 1
+									? 'ascending'
+									: 'descending'
+								: 'none'}
+							onclick={() => smartTable.setSort(colKey)}
 						>
-							<TableIcons
-								cellClass="w-10 text-center border-e border-surface-500/30 dark:border-surface-600 {pinCellClass('start')}"
-								checked={selectAll.value}
-								onCheck={(checked: boolean) => {
-									selectAll.value = checked;
-								}}
-							/>
+							<div class="flex items-center justify-center gap-1">
+								{header.label}
+								{#if sorting.sortedBy === header.key && sorting.isSorted !== 0}
+									<iconify-icon
+										icon="material-symbols:arrow-upward-rounded"
+										width={18}
+										class="origin-center duration-300 ease-in-out {sorting.isSorted === -1
+											? 'rotate-180'
+											: ''}"
+									></iconify-icon>
+								{/if}
+							</div>
+							<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
+						</th>
+					{/each}
+				</tr>
+			</thead>
 
-							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-								{@const colKey = String(header.key)}
-								<th
-									class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800/50"
-									style={smartTable.getColumnWidthStyle(colKey)}
-									aria-sort={sorting.sortedBy === header.key
-										? sorting.isSorted === 1
-											? 'ascending'
-											: 'descending'
-										: 'none'}
-									onclick={() => smartTable.setSort(colKey)}
-								>
-									<div class="flex items-center justify-center gap-1">
-										{header.label}
-										{#if sorting.sortedBy === header.key && sorting.isSorted !== 0}
-											<iconify-icon
-												icon="material-symbols:arrow-upward-rounded"
-												width={18}
-												class="origin-center duration-300 ease-in-out {sorting.isSorted === -1 ? 'rotate-180' : ''}"
-											></iconify-icon>
-										{/if}
-									</div>
-									<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
-								</th>
-							{/each}
-						</tr>
-					</thead>
-
-					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-						{#each tableData as row, index (getAdminRowId(row) || index)}
-							{@const rowId = getAdminRowId(row)}
-							{@const rowSelected = smartTable.isSelected(rowId)}
-							{const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
-							{const isConsumed = isToken(row) && row.consumed}
-							{const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
-							<tr
-								class="{isExpired || isConsumed
-									? 'bg-surface-500/10 opacity-60 dark:bg-surface-900/20'
-									: ''} {isExpired ? 'bg-error-500/10 dark:bg-error-900/10' : ''} {rowSelected
-									? SMART_TABLE_ROW_SELECTED
-									: showUsertoken
-										? `cursor-pointer ${SMART_TABLE_ROW_HOVER}`
-										: SMART_TABLE_ROW_HOVER}"
-								onclick={(event) => {
-									// Only handle click if it's on a token row and not on the checkbox
-									if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {
-										if (isToken(row)) editToken(row);
-									}
-								}}
-							>
-								<TableIcons
-									cellClass="{SMART_TABLE_TD} border-e {pinCellClass('start')}"
-									checked={rowSelected}
-									onCheck={() => {
-										if (rowId) smartTable.toggleSelect(rowId);
-									}}
-								/>
-								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-									<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(String(header.key))}>
-										{#if header.key === 'blocked'}
-											{#if showUserList}
-												<button
+			<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+				{#each tableData as row, index (getAdminRowId(row) || index)}
+					{@const rowId = getAdminRowId(row)}
+					{@const rowSelected = smartTable.isSelected(rowId)}
+					{const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
+					{const isConsumed = isToken(row) && row.consumed}
+					{const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
+					<tr
+						class="{isExpired || isConsumed
+							? 'bg-surface-500/10 opacity-60 dark:bg-surface-900/20'
+							: ''} {isExpired ? 'bg-error-500/10 dark:bg-error-900/10' : ''} {rowSelected
+							? SMART_TABLE_ROW_SELECTED
+							: showUsertoken
+								? `cursor-pointer ${SMART_TABLE_ROW_HOVER}`
+								: SMART_TABLE_ROW_HOVER}"
+						onclick={(event) => {
+							// Only handle click if it's on a token row and not on the checkbox
+							if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {
+								if (isToken(row)) editToken(row);
+							}
+						}}
+					>
+						<TableIcons
+							cellClass="{SMART_TABLE_TD} border-e {pinCellClass('start')}"
+							checked={rowSelected}
+							onCheck={() => {
+								if (rowId) smartTable.toggleSelect(rowId);
+							}}
+						/>
+						{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
+							<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(String(header.key))}>
+								{#if header.key === 'blocked'}
+									{#if showUserList}
+										<button
+											type="button"
+											onclick={() => isUser(row) && toggleUserBlocked(row)}
+											aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
+											class="cursor-pointer"
+										>
+											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
+												{row.blocked ? 'Blocked' : 'Active'}
+											</Badge>
+										</button>
+									{:else}
+										<button
+											type="button"
+											onclick={(event: MouseEvent) => {
+												event.stopPropagation();
+												if (isToken(row)) toggleTokenBlocked(row);
+											}}
+											aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
+											class="cursor-pointer"
+										>
+											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
+												{row.blocked ? 'Blocked' : 'Active'}
+											</Badge>
+										</button>
+									{/if}
+								{:else if showUserList && header.key === 'avatar'}
+									<Avatar
+										src={currentUser && isUser(row) && row._id === currentUser._id
+											? normalizeAvatarUrl(currentUser.avatar ?? '/Default_User.svg')
+											: isUser(row) && header.key === 'avatar'
+												? normalizeAvatarUrl(row.avatar)
+												: '/Default_User.svg'}
+										initials="Usr"
+										size="size-10"
+										class="rounded-full border border-surface-500/30"
+									/>
+								{:else if header.key === 'role'}
+									<Role
+										value={isUser(row) && header.key === 'role'
+											? row.role
+											: isToken(row) && header.key === 'role'
+												? (row.role ?? '')
+												: ''}
+										{roles}
+									/>
+								{:else if header.key === '_id'}
+									<!-- User ID with clipboard functionality and active sessions modal -->
+									<div class="flex items-center justify-center gap-1.5">
+										<span class="font-mono text-sm"
+											>{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span
+										>
+										<SystemTooltip title="Copy User ID to clipboard">
+											<Button
+												variant="ghost"
+												type="button"
+												aria-label="Copy User ID"
+												onclick={(event: MouseEvent) => {
+													event.stopPropagation();
+													const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
+													navigator.clipboard
+														.writeText(val)
+														.then(() => {
+															toast.success('User ID copied to clipboard');
+														})
+														.catch(() => {
+															toast.error('Failed to copy');
+														});
+												}}
+												class="p-0! min-w-0 preset-ghost"
+											>
+												<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
+											</Button>
+										</SystemTooltip>
+										{#if showUserList && isUser(row)}
+											<SystemTooltip title="Manage Active Sessions">
+												<Button
+													variant="ghost"
 													type="button"
-													onclick={() => isUser(row) && toggleUserBlocked(row)}
-													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
-													class="cursor-pointer"
-												>
-													<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
-														{row.blocked ? 'Blocked' : 'Active'}
-													</Badge>
-												</button>
-											{:else}
-												<button
-													type="button"
+													aria-label="Manage active sessions"
 													onclick={(event: MouseEvent) => {
 														event.stopPropagation();
-														if (isToken(row)) toggleTokenBlocked(row);
+														openUserSessions(row);
 													}}
-													aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
-													class="cursor-pointer"
+													class="p-0! min-w-0 preset-ghost text-primary-500 hover:text-primary-600 dark:text-primary-400"
 												>
-													<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
-														{row.blocked ? 'Blocked' : 'Active'}
-													</Badge>
-												</button>
-											{/if}
-										{:else if showUserList && header.key === 'avatar'}
-											<Avatar
-												src={currentUser && isUser(row) && row._id === currentUser._id
-													? normalizeAvatarUrl(currentUser.avatar ?? '/Default_User.svg')
-													: isUser(row) && header.key === 'avatar'
-														? normalizeAvatarUrl(row.avatar)
-														: '/Default_User.svg'}
-												initials="Usr"
-												size="size-10"
-												class="rounded-full border border-surface-500/30"
-											/>
-										{:else if header.key === 'role'}
-											<Role
-												value={isUser(row) && header.key === 'role' ? row.role : isToken(row) && header.key === 'role' ? (row.role ?? '') : ''}
-												{roles}
-											/>
-										{:else if header.key === '_id'}
-											<!-- User ID with clipboard functionality and active sessions modal -->
-											<div class="flex items-center justify-center gap-1.5">
-												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
-												<SystemTooltip title="Copy User ID to clipboard">
-													<Button
-														variant="ghost"
-														type="button"
-														aria-label="Copy User ID"
-														onclick={(event: MouseEvent) => {
-															event.stopPropagation();
-															const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
-															navigator.clipboard
-																.writeText(val)
-																.then(() => {
-																	toast.success('User ID copied to clipboard');
-																})
-																.catch(() => {
-																	toast.error('Failed to copy');
-																});
-														}}
-													 class="p-0! min-w-0 preset-ghost">
-														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
-													</Button>
-												</SystemTooltip>
-												{#if showUserList && isUser(row)}
-													<SystemTooltip title="Manage Active Sessions">
-														<Button
-															variant="ghost"
-															type="button"
-															aria-label="Manage active sessions"
-															onclick={(event: MouseEvent) => {
-																event.stopPropagation();
-																openUserSessions(row);
-															}}
-															class="p-0! min-w-0 preset-ghost text-primary-500 hover:text-primary-600 dark:text-primary-400"
-														>
-															<iconify-icon icon="mdi:devices" width={18}></iconify-icon>
-														</Button>
-													</SystemTooltip>
-												{/if}
-											</div>
-										{:else if header.key === 'token'}
-											<!-- Token with clipboard functionality -->
-											<div class="flex items-center justify-center gap-2">
-												<span class="max-w-50 truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
-												<SystemTooltip title="Copy Token to clipboard">
-													<Button
-														variant="ghost"
-														type="button"
-														aria-label="Copy Token"
-														onclick={(event: MouseEvent) => {
-															event.stopPropagation();
-															const val = isToken(row) && header.key === 'token' ? row.token : '';
-															navigator.clipboard
-																.writeText(val)
-																.then(() => {
-																	toast.success('Token copied to clipboard');
-																})
-																.catch(() => {
-																	toast.error('Failed to copy');
-																});
-														}}
-													 class="p-0! min-w-0 preset-ghost">
-														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
-													</Button>
-												</SystemTooltip>
-											</div>
-										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(String(header.key))}
-											{formatDate(isUser(row) ? row[header.key as keyof User] : isToken(row) ? row[header.key as keyof Token] : undefined)}
-										{:else if header.key === 'expires'}
-											{#if isToken(row)}
-												{#if row.consumed}
-													<span class="font-bold text-tertiary-500 dark:text-primary-500 flex items-center justify-center gap-1">
-														<iconify-icon icon="mdi:check-circle" width={18}></iconify-icon>
-														{adminarea_consumed()}
-													</span>
-												{:else if row.expires}
-													{const isTokenExpired = checkTokenExpired(row)}
-													{const remainingTime = getRemainingTime(row.expires)}
-													<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
-														{remainingTime}
-														{#if isTokenExpired}
-															<iconify-icon icon="material-symbols:warning" width={24} class="ms-1 text-error-500"></iconify-icon>
-														{/if}
-													</span>
-												{:else}
-													-
-												{/if}
-											{:else}
-												-
-											{/if}
-										{:else}
-											{getDisplayValue(row, header)}
+													<iconify-icon icon="mdi:devices" width={18}></iconify-icon>
+												</Button>
+											</SystemTooltip>
 										{/if}
-									</td>
-								{/each}
-							</tr>
+									</div>
+								{:else if header.key === 'token'}
+									<!-- Token with clipboard functionality -->
+									<div class="flex items-center justify-center gap-2">
+										<span class="max-w-50 truncate font-mono text-sm"
+											>{isToken(row) && header.key === 'token' ? row.token : '-'}</span
+										>
+										<SystemTooltip title="Copy Token to clipboard">
+											<Button
+												variant="ghost"
+												type="button"
+												aria-label="Copy Token"
+												onclick={(event: MouseEvent) => {
+													event.stopPropagation();
+													const val = isToken(row) && header.key === 'token' ? row.token : '';
+													navigator.clipboard
+														.writeText(val)
+														.then(() => {
+															toast.success('Token copied to clipboard');
+														})
+														.catch(() => {
+															toast.error('Failed to copy');
+														});
+												}}
+												class="p-0! min-w-0 preset-ghost"
+											>
+												<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
+											</Button>
+										</SystemTooltip>
+									</div>
+								{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(String(header.key))}
+									{formatDate(
+										isUser(row)
+											? row[header.key as keyof User]
+											: isToken(row)
+												? row[header.key as keyof Token]
+												: undefined
+									)}
+								{:else if header.key === 'expires'}
+									{#if isToken(row)}
+										{#if row.consumed}
+											<span
+												class="font-bold text-tertiary-500 dark:text-primary-500 flex items-center justify-center gap-1"
+											>
+												<iconify-icon icon="mdi:check-circle" width={18}></iconify-icon>
+												{adminarea_consumed()}
+											</span>
+										{:else if row.expires}
+											{const isTokenExpired = checkTokenExpired(row)}
+											{const remainingTime = getRemainingTime(row.expires)}
+											<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
+												{remainingTime}
+												{#if isTokenExpired}
+													<iconify-icon
+														icon="material-symbols:warning"
+														width={24}
+														class="ms-1 text-error-500"
+													></iconify-icon>
+												{/if}
+											</span>
+										{:else}
+											-
+										{/if}
+									{:else}
+										-
+									{/if}
+								{:else}
+									{getDisplayValue(row, header)}
+								{/if}
+							</td>
 						{/each}
-					</tbody>
-				</table>
-		</SmartTableShell>
-	</AdminCard>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</SmartTableShell>
+</AdminCard>

@@ -13,92 +13,92 @@ Features:
 - Roving tabindex for accessibility
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { screen } from "@src/stores/screen-size-store.svelte.ts";
-import { collectionMetadata, getTagColor } from "@src/stores/collection-metadata-store.svelte";
-import type { TreeViewItem } from "./tree-view-board.svelte";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte.ts';
+	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
+	import type { TreeViewItem } from './tree-view-board.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 
-interface Props {
-	isOpen?: boolean;
-	item: TreeViewItem & { hasChildren?: boolean; children?: TreeViewItem[] };
-	/** When true, this category is the one selected for "add collection" (visual highlight). */
-	isSelectedCategory?: boolean;
-	onDelete?: (item: TreeViewItem) => void;
-	onDuplicate?: (item: TreeViewItem) => void;
-	onEditCategory: (item: TreeViewItem) => void;
-	onEditTags?: (item: TreeViewItem) => void;
-	/** Called when category row is clicked (toggle selection for add-collection target). */
-	onSelectCategory?: () => void;
-	// Roving tabindex for keyboard navigation
-	tabindex?: number;
-	toggle?: () => void;
-}
-
-let {
-	item,
-	isOpen,
-	isSelectedCategory = false,
-	toggle,
-	onEditCategory,
-	onEditTags,
-	onDelete,
-	onDuplicate,
-	onSelectCategory,
-	tabindex = -1,
-}: Props = $props();
-
-const isFav = $derived(collectionMetadata.isFavorite(item.id));
-const tags = $derived(collectionMetadata.getTags(item.id));
-
-// Computed properties
-const name = $derived(item.name || "Untitled");
-const icon = $derived(
-	item.icon || (item.nodeType === "category" ? "bi:folder" : "bi:collection"),
-);
-const isCategory = $derived(item.nodeType === "category");
-const childCount = $derived(Array.isArray(item.children) ? item.children.length : 0);
-
-// Visual hierarchy only. No transitions or transforms: the row must stay
-// geometrically still so drag targeting is predictable.
-const base =
-	"group w-full min-h-[48px] p-2 sm:p-3 rounded flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 overflow-hidden border-2";
-
-const containerClass = $derived(
-	isCategory && isSelectedCategory
-		? `${base} bg-primary-500/20 dark:bg-primary-600/25 border-primary-500`
-		: isCategory
-			? `${base} bg-tertiary-500/10 border-tertiary-500/30 hover:border-tertiary-500`
-			: `${base} bg-surface-500/10 dark:bg-surface-700 border-surface-500/40 hover:border-surface-500`,
-);
-
-const iconClass = $derived(isCategory ? "text-tertiary-500" : "text-error-500");
-
-function activate() {
-	// Category row click = toggle selection (highlight); expand/collapse via chevron only
-	if (isCategory && onSelectCategory) {
-		onSelectCategory();
-		return;
+	interface Props {
+		isOpen?: boolean;
+		item: TreeViewItem & { hasChildren?: boolean; children?: TreeViewItem[] };
+		/** When true, this category is the one selected for "add collection" (visual highlight). */
+		isSelectedCategory?: boolean;
+		onDelete?: (item: TreeViewItem) => void;
+		onDuplicate?: (item: TreeViewItem) => void;
+		onEditCategory: (item: TreeViewItem) => void;
+		onEditTags?: (item: TreeViewItem) => void;
+		/** Called when category row is clicked (toggle selection for add-collection target). */
+		onSelectCategory?: () => void;
+		// Roving tabindex for keyboard navigation
+		tabindex?: number;
+		toggle?: () => void;
 	}
-	toggle?.();
-}
 
-function handleClick(e: MouseEvent) {
-	if ((e.target as HTMLElement).closest("button, a[href], .drag-handle")) {
-		return;
+	let {
+		item,
+		isOpen,
+		isSelectedCategory = false,
+		toggle,
+		onEditCategory,
+		onEditTags,
+		onDelete,
+		onDuplicate,
+		onSelectCategory,
+		tabindex = -1
+	}: Props = $props();
+
+	const isFav = $derived(collectionMetadata.isFavorite(item.id));
+	const tags = $derived(collectionMetadata.getTags(item.id));
+
+	// Computed properties
+	const name = $derived(item.name || 'Untitled');
+	const icon = $derived(
+		item.icon || (item.nodeType === 'category' ? 'bi:folder' : 'bi:collection')
+	);
+	const isCategory = $derived(item.nodeType === 'category');
+	const childCount = $derived(Array.isArray(item.children) ? item.children.length : 0);
+
+	// Visual hierarchy only. No transitions or transforms: the row must stay
+	// geometrically still so drag targeting is predictable.
+	const base =
+		'group w-full min-h-[48px] p-2 sm:p-3 rounded flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 overflow-hidden border-2';
+
+	const containerClass = $derived(
+		isCategory && isSelectedCategory
+			? `${base} bg-primary-500/20 dark:bg-primary-600/25 border-primary-500`
+			: isCategory
+				? `${base} bg-tertiary-500/10 border-tertiary-500/30 hover:border-tertiary-500`
+				: `${base} bg-surface-500/10 dark:bg-surface-700 border-surface-500/40 hover:border-surface-500`
+	);
+
+	const iconClass = $derived(isCategory ? 'text-tertiary-500' : 'text-error-500');
+
+	function activate() {
+		// Category row click = toggle selection (highlight); expand/collapse via chevron only
+		if (isCategory && onSelectCategory) {
+			onSelectCategory();
+			return;
+		}
+		toggle?.();
 	}
-	activate();
-}
 
-// Enter/Space activate the row the same way a click does. Navigation and
-// reordering keys are owned by the tree container, so they must bubble.
-function handleKeyDown(e: KeyboardEvent) {
-	if (e.key !== "Enter" && e.key !== " ") return;
-	if ((e.target as HTMLElement).closest("button, a[href]")) return;
-	e.preventDefault();
-	activate();
-}
+	function handleClick(e: MouseEvent) {
+		if ((e.target as HTMLElement).closest('button, a[href], .drag-handle')) {
+			return;
+		}
+		activate();
+	}
+
+	// Enter/Space activate the row the same way a click does. Navigation and
+	// reordering keys are owned by the tree container, so they must bubble.
+	function handleKeyDown(e: KeyboardEvent) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		if ((e.target as HTMLElement).closest('button, a[href]')) return;
+		e.preventDefault();
+		activate();
+	}
 </script>
 
 <div
@@ -113,15 +113,20 @@ function handleKeyDown(e: KeyboardEvent) {
 >
 	<!-- Expand/Collapse Toggle -->
 	{#if item.hasChildren || isCategory}
-		<Button variant="transparent"
+		<Button
+			variant="transparent"
 			type="button"
 			onclick={(e: MouseEvent) => {
 				e.stopPropagation();
 				toggle?.();
 			}}
 			aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
-		 class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80">
-			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" aria-hidden="true"
+			class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+		>
+			<iconify-icon
+				icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'}
+				width="20"
+				aria-hidden="true"
 			></iconify-icon>
 		</Button>
 	{:else}
@@ -143,22 +148,30 @@ function handleKeyDown(e: KeyboardEvent) {
 			<iconify-icon
 				icon={isFav ? 'bi:star-fill' : 'bi:star'}
 				width="18"
-				class={isFav ? 'text-warning-500' : 'text-surface-400 dark:text-surface-500 opacity-40 hover:opacity-100'}
+				class={isFav
+					? 'text-warning-500'
+					: 'text-surface-400 dark:text-surface-500 opacity-40 hover:opacity-100'}
 			></iconify-icon>
 		</Button>
 	</SystemTooltip>
 
 	<!-- Icon -->
-	<div class="relative"><iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon></div>
+	<div class="relative">
+		<iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon>
+	</div>
 
 	<!-- Name & Badge: flexible width for responsiveness -->
 	<div class="flex flex-1 flex-col gap-1 min-w-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
-			<span class="font-bold text-xs sm:text-base leading-none truncate max-w-37.5 sm:max-w-95" title={name}>{name}</span>
+			<span
+				class="font-bold text-xs sm:text-base leading-none truncate max-w-37.5 sm:max-w-95"
+				title={name}>{name}</span
+			>
 			{#if isCategory}
 				<Badge variant="tertiary" size="sm" rounded={false}>Category</Badge>
 				<span class="text-xs text-surface-500 dark:text-surface-400 font-medium">
-					{childCount} {childCount === 1 ? 'item' : 'items'}
+					{childCount}
+					{childCount === 1 ? 'item' : 'items'}
 				</span>
 			{:else}
 				<Badge variant="error" size="sm" rounded={false}>Collection</Badge>
@@ -168,7 +181,9 @@ function handleKeyDown(e: KeyboardEvent) {
 				<div class="flex items-center gap-1 flex-wrap">
 					{#each tags as tag (tag)}
 						{@const color = getTagColor(tag)}
-						<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full {color.bg} {color.text} border {color.border}">
+						<span
+							class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full {color.bg} {color.text} border {color.border}"
+						>
 							{tag}
 						</span>
 					{/each}
@@ -177,7 +192,13 @@ function handleKeyDown(e: KeyboardEvent) {
 
 			<!-- Slug - Hidden on mobile to save space -->
 			{#if item.slug}
-				<Badge variant="surface" size="sm" rounded={false} class="hidden sm:inline-flex font-mono ms-auto opacity-80 shadow-sm" aria-label="URL slug">
+				<Badge
+					variant="surface"
+					size="sm"
+					rounded={false}
+					class="hidden sm:inline-flex font-mono ms-auto opacity-80 shadow-sm"
+					aria-label="URL slug"
+				>
 					{item.slug}
 				</Badge>
 			{/if}
@@ -187,7 +208,10 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Description: hidden on small screens -->
 	{#if screen.isDesktop && item.description}
 		<div class="flex-1 px-4 min-w-0 hidden md:flex justify-start">
-			<span class="italic text-sm opacity-70 truncate w-full max-w-160 md:max-w-300 text-start" title={item.description}>
+			<span
+				class="italic text-sm opacity-70 truncate w-full max-w-160 md:max-w-300 text-start"
+				title={item.description}
+			>
 				{item.description}
 			</span>
 		</div>
@@ -207,21 +231,32 @@ function handleKeyDown(e: KeyboardEvent) {
 				aria-label="Manage tags for {name}"
 				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
-				<iconify-icon icon="bi:tag" width={20} class="text-surface-500 hover:text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<iconify-icon
+					icon="bi:tag"
+					width={20}
+					class="text-surface-500 hover:text-tertiary-500 dark:text-primary-500"
+				></iconify-icon>
 			</Button>
 		</SystemTooltip>
 
 		<SystemTooltip title="Edit">
 			{#if isCategory}
-				<Button variant="transparent"
+				<Button
+					variant="transparent"
 					type="button"
 					onclick={(e: MouseEvent) => {
 						e.stopPropagation();
 						onEditCategory(item);
 					}}
 					aria-label="Edit {name}"
-				 class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80">
-					<iconify-icon icon="mdi:pencil" width={22} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+				>
+					<iconify-icon
+						icon="mdi:pencil"
+						width={22}
+						aria-hidden="true"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 				</Button>
 			{:else}
 				<Button
@@ -233,36 +268,46 @@ function handleKeyDown(e: KeyboardEvent) {
 					onclick={(e: MouseEvent) => e.stopPropagation()}
 					aria-label="Edit {name}"
 				>
-					<iconify-icon icon="mdi:pencil" width={22} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon="mdi:pencil"
+						width={22}
+						aria-hidden="true"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 				</Button>
 			{/if}
 		</SystemTooltip>
 
 		<!-- Duplicate -->
 		<SystemTooltip title="Duplicate">
-			<Button variant="transparent"
+			<Button
+				variant="transparent"
 				type="button"
 				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					onDuplicate?.(item);
 				}}
 				aria-label="Duplicate {name}"
-			 class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80">
+				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+			>
 				<iconify-icon icon="mdi:content-copy" width={22} aria-hidden="true"></iconify-icon>
 			</Button>
 		</SystemTooltip>
 
 		<!-- Delete -->
 		<SystemTooltip title="Delete">
-			<Button variant="transparent"
+			<Button
+				variant="transparent"
 				type="button"
 				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					onDelete?.(item);
 				}}
 				aria-label="Delete {name}"
-			 class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80">
-				<iconify-icon icon="mdi:delete" width={22} aria-hidden="true" class="text-error-500"></iconify-icon>
+				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+			>
+				<iconify-icon icon="mdi:delete" width={22} aria-hidden="true" class="text-error-500"
+				></iconify-icon>
 			</Button>
 		</SystemTooltip>
 

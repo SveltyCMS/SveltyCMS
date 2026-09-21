@@ -46,7 +46,9 @@
 	let scheduleDateOnly = $state('');
 	let scheduleTimeOnly = $state('');
 	// Access meta prop through modalState.active
-	let action: ActionType = $state((modalState.active?.props?.meta?.initialAction as ActionType) || 'publish');
+	let action: ActionType = $state(
+		(modalState.active?.props?.meta?.initialAction as ActionType) || 'publish'
+	);
 	let errorMessage = $state('');
 
 	const scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
@@ -98,8 +100,18 @@
 </script>
 
 {#if modalState.active}
-	<AdminCard class="modal-schedule {cBase}" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
-		<header id="schedule-modal-title" class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}>Schedule Entry</header>
+	<AdminCard
+		class="modal-schedule {cBase}"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="schedule-modal-title"
+	>
+		<header
+			id="schedule-modal-title"
+			class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}
+		>
+			Schedule Entry
+		</header>
 		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
 
 		<form
@@ -111,7 +123,13 @@
 		>
 			<!-- Date and Time Inputs -->
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<Input type="date" label="Date" bind:value={scheduleDateOnly} min={new Date().toISOString().slice(0, 10)} required />
+				<Input
+					type="date"
+					label="Date"
+					bind:value={scheduleDateOnly}
+					min={new Date().toISOString().slice(0, 10)}
+					required
+				/>
 				<Input type="time" label="Time" bind:value={scheduleTimeOnly} required />
 			</div>
 
@@ -126,9 +144,14 @@
 
 		<footer class="modal-footer flex items-center justify-end gap-4">
 			<Button variant="outline" onclick={() => modalState.close()}>{button_cancel()}</Button>
-			<Button variant="tertiary" onclick={() => handleSubmission()} disabled={!isFormValid} class="dark:preset-filled-primary-500">
-								{entrylist_multibutton_schedule()}
-							</Button>
+			<Button
+				variant="tertiary"
+				onclick={() => handleSubmission()}
+				disabled={!isFormValid}
+				class="dark:preset-filled-primary-500"
+			>
+				{entrylist_multibutton_schedule()}
+			</Button>
 		</footer>
 	</AdminCard>
 {/if}

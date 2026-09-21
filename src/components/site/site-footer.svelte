@@ -4,19 +4,21 @@
 -->
 
 <script lang="ts">
-  interface Props {
-    siteName: string;
-  }
+	interface Props {
+		siteName: string;
+	}
 
-  let { siteName }: Props = $props();
+	let { siteName }: Props = $props();
 </script>
 
-<footer class="mt-auto border-t border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900">
-  <div class="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-surface-500 sm:px-6">
-    <p>
-      {siteName} — powered by
-      <a href="https://sveltycms.com" class="text-primary-500 hover:underline">SveltyCMS</a>
-    </p>
-    <p class="mt-1 text-xs">Optional SvelteKit site starter · headless-ready</p>
-  </div>
+<footer
+	class="mt-auto border-t border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
+>
+	<div class="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-surface-500 sm:px-6">
+		<p>
+			{siteName} — powered by
+			<a href="https://sveltycms.com" class="text-primary-500 hover:underline">SveltyCMS</a>
+		</p>
+		<p class="mt-1 text-xs">Optional SvelteKit site starter · headless-ready</p>
+	</div>
 </footer>

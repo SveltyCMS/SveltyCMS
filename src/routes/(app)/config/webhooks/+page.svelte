@@ -13,163 +13,163 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 - Control-risk data-testids only (golden E2E anchors)
 -->
 <script lang="ts">
-import type { Webhook } from "@src/services/background/webhook-service";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { showConfirm } from "@utils/modal.svelte";
-import { onMount } from "svelte";
-import { fade, slide } from "svelte/transition";
-import Badge from "@components/ui/badge.svelte";
-import Button from "@components/ui/button.svelte";
-import Checkbox from "@components/ui/checkbox.svelte";
-import Input from "@components/ui/input.svelte";
-import Loader from "@components/ui/loader.svelte";
-import AdminCard from "@components/admin-card.svelte";
-import AdminPageShell from "@components/admin-page-shell.svelte";
-import {
-	WEBHOOK_EVENT_TYPES,
-	filterWebhooksByQuery,
-	validateWebhookDraft,
-	type WebhookDraft,
-} from "./webhooks-utils";
-import {
-	deleteWebhook as apiDeleteWebhook,
-	listWebhooks,
-	saveWebhook as apiSaveWebhook,
-	testWebhookDelivery,
-	unwrapWebhookList,
-} from "./webhooks-api";
+	import type { Webhook } from '@src/services/background/webhook-service';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { showConfirm } from '@utils/modal.svelte';
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import {
+		WEBHOOK_EVENT_TYPES,
+		filterWebhooksByQuery,
+		validateWebhookDraft,
+		type WebhookDraft
+	} from './webhooks-utils';
+	import {
+		deleteWebhook as apiDeleteWebhook,
+		listWebhooks,
+		saveWebhook as apiSaveWebhook,
+		testWebhookDelivery,
+		unwrapWebhookList
+	} from './webhooks-api';
 
-let webhooks: Webhook[] = $state([]);
-let isLoading = $state(true);
-let isSaving = $state(false);
-let showModal = $state(false);
-let editingWebhook: Partial<Webhook> | null = $state(null);
-let formErrors = $state<Record<string, string>>({});
-let searchQuery = $state("");
+	let webhooks: Webhook[] = $state([]);
+	let isLoading = $state(true);
+	let isSaving = $state(false);
+	let showModal = $state(false);
+	let editingWebhook: Partial<Webhook> | null = $state(null);
+	let formErrors = $state<Record<string, string>>({});
+	let searchQuery = $state('');
 
-const filteredWebhooks = $derived(filterWebhooksByQuery(webhooks, searchQuery));
+	const filteredWebhooks = $derived(filterWebhooksByQuery(webhooks, searchQuery));
 
-async function loadWebhooks() {
-	isLoading = true;
-	try {
-		const result = await listWebhooks();
-		if (result.success) {
-			webhooks = unwrapWebhookList(result);
-		} else {
-			toast.error(result.message || "Failed to load webhooks");
-		}
-	} catch {
-		toast.error("Error loading webhooks");
-	} finally {
-		isLoading = false;
-	}
-}
-
-async function saveWebhook() {
-	if (!editingWebhook) return;
-	const draft: WebhookDraft = {
-		id: editingWebhook.id,
-		name: editingWebhook.name || "",
-		url: editingWebhook.url || "",
-		active: editingWebhook.active !== false,
-		events: (editingWebhook.events as string[]) || [],
-		secret: editingWebhook.secret,
-	};
-	const errors = validateWebhookDraft(draft);
-	formErrors = errors;
-	if (Object.keys(errors).length > 0) {
-		toast.warning({ description: Object.values(errors)[0] });
-		return;
-	}
-
-	isSaving = true;
-	try {
-		const result = await apiSaveWebhook({
-			...editingWebhook,
-			name: draft.name.trim(),
-			url: draft.url.trim(),
-			active: draft.active,
-			events: draft.events as Webhook["events"],
-			secret: draft.secret,
-		});
-		if (result.success) {
-			toast.success(`Webhook ${draft.id ? "updated" : "created"} successfully`);
-			showModal = false;
-			formErrors = {};
-			await loadWebhooks();
-		} else {
-			toast.error(result.message || "Failed to save webhook");
-		}
-	} catch {
-		toast.error("Error saving webhook");
-	} finally {
-		isSaving = false;
-	}
-}
-
-function confirmDelete(webhook: Webhook) {
-	showConfirm({
-		title: "Delete Webhook",
-		body: `Delete webhook <strong>${webhook.name}</strong>? Outbound deliveries will stop.`,
-		onConfirm: async () => {
-			try {
-				const result = await apiDeleteWebhook(webhook.id);
-				if (result.success) {
-					toast.success("Webhook deleted");
-					await loadWebhooks();
-				} else {
-					toast.error(result.message || "Failed to delete");
-				}
-			} catch {
-				toast.error("Error deleting webhook");
+	async function loadWebhooks() {
+		isLoading = true;
+		try {
+			const result = await listWebhooks();
+			if (result.success) {
+				webhooks = unwrapWebhookList(result);
+			} else {
+				toast.error(result.message || 'Failed to load webhooks');
 			}
-		},
-	});
-}
-
-async function testWebhook(webhook: Webhook) {
-	toast.info(`Sending test payload to ${webhook.name}...`);
-	try {
-		const result = await testWebhookDelivery(webhook.id);
-		if (result.success) {
-			toast.success("Test webhook sent successfully!");
-		} else {
-			toast.error(result.message || "Webhook test failed");
+		} catch {
+			toast.error('Error loading webhooks');
+		} finally {
+			isLoading = false;
 		}
-	} catch {
-		toast.error("Error testing webhook");
 	}
-}
 
-function openAddModal() {
-	editingWebhook = {
-		name: "",
-		url: "",
-		active: true,
-		events: ["entry:publish"],
-		secret: crypto.randomUUID().replace(/-/g, ""),
-	};
-	formErrors = {};
-	showModal = true;
-}
+	async function saveWebhook() {
+		if (!editingWebhook) return;
+		const draft: WebhookDraft = {
+			id: editingWebhook.id,
+			name: editingWebhook.name || '',
+			url: editingWebhook.url || '',
+			active: editingWebhook.active !== false,
+			events: (editingWebhook.events as string[]) || [],
+			secret: editingWebhook.secret
+		};
+		const errors = validateWebhookDraft(draft);
+		formErrors = errors;
+		if (Object.keys(errors).length > 0) {
+			toast.warning({ description: Object.values(errors)[0] });
+			return;
+		}
 
-function openEditModal(webhook: Webhook) {
-	editingWebhook = { ...webhook };
-	formErrors = {};
-	showModal = true;
-}
-
-function toggleEvent(event: string) {
-	if (!editingWebhook) return;
-	const events = editingWebhook.events || [];
-	if (events.includes(event as never)) {
-		editingWebhook.events = events.filter((e) => e !== event);
-	} else {
-		editingWebhook.events = [...events, event as never];
+		isSaving = true;
+		try {
+			const result = await apiSaveWebhook({
+				...editingWebhook,
+				name: draft.name.trim(),
+				url: draft.url.trim(),
+				active: draft.active,
+				events: draft.events as Webhook['events'],
+				secret: draft.secret
+			});
+			if (result.success) {
+				toast.success(`Webhook ${draft.id ? 'updated' : 'created'} successfully`);
+				showModal = false;
+				formErrors = {};
+				await loadWebhooks();
+			} else {
+				toast.error(result.message || 'Failed to save webhook');
+			}
+		} catch {
+			toast.error('Error saving webhook');
+		} finally {
+			isSaving = false;
+		}
 	}
-}
 
-onMount(loadWebhooks);
+	function confirmDelete(webhook: Webhook) {
+		showConfirm({
+			title: 'Delete Webhook',
+			body: `Delete webhook <strong>${webhook.name}</strong>? Outbound deliveries will stop.`,
+			onConfirm: async () => {
+				try {
+					const result = await apiDeleteWebhook(webhook.id);
+					if (result.success) {
+						toast.success('Webhook deleted');
+						await loadWebhooks();
+					} else {
+						toast.error(result.message || 'Failed to delete');
+					}
+				} catch {
+					toast.error('Error deleting webhook');
+				}
+			}
+		});
+	}
+
+	async function testWebhook(webhook: Webhook) {
+		toast.info(`Sending test payload to ${webhook.name}...`);
+		try {
+			const result = await testWebhookDelivery(webhook.id);
+			if (result.success) {
+				toast.success('Test webhook sent successfully!');
+			} else {
+				toast.error(result.message || 'Webhook test failed');
+			}
+		} catch {
+			toast.error('Error testing webhook');
+		}
+	}
+
+	function openAddModal() {
+		editingWebhook = {
+			name: '',
+			url: '',
+			active: true,
+			events: ['entry:publish'],
+			secret: crypto.randomUUID().replace(/-/g, '')
+		};
+		formErrors = {};
+		showModal = true;
+	}
+
+	function openEditModal(webhook: Webhook) {
+		editingWebhook = { ...webhook };
+		formErrors = {};
+		showModal = true;
+	}
+
+	function toggleEvent(event: string) {
+		if (!editingWebhook) return;
+		const events = editingWebhook.events || [];
+		if (events.includes(event as never)) {
+			editingWebhook.events = events.filter((e) => e !== event);
+		} else {
+			editingWebhook.events = [...events, event as never];
+		}
+	}
+
+	onMount(loadWebhooks);
 </script>
 
 <AdminPageShell
@@ -205,7 +205,9 @@ onMount(loadWebhooks);
 
 	<div data-testid="webhooks-page" class="contents">
 		{#if isLoading}
-			<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
+			<AdminCard
+				class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+			>
 				<div class="flex flex-col items-center justify-center py-20" data-testid="webhooks-loading">
 					<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Loading webhooks" />
 				</div>
@@ -233,7 +235,12 @@ onMount(loadWebhooks);
 						<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
 						<h3 class="h3 font-bold">No Webhooks Configured</h3>
 						<p class="mb-6 opacity-60">Add a webhook to start integrating with external systems.</p>
-						<Button variant="tertiary" onclick={openAddModal} aria-label="Add webhook" data-testid="webhooks-empty-cta">
+						<Button
+							variant="tertiary"
+							onclick={openAddModal}
+							aria-label="Add webhook"
+							data-testid="webhooks-empty-cta"
+						>
 							Get Started
 						</Button>
 					</AdminCard>
@@ -261,7 +268,9 @@ onMount(loadWebhooks);
 											{#if webhook.active}
 												<Badge variant="success" size="sm" class="uppercase">Active</Badge>
 											{:else}
-												<Badge preset="tonal" color="surface" size="sm" class="uppercase">Disabled</Badge>
+												<Badge preset="tonal" color="surface" size="sm" class="uppercase"
+													>Disabled</Badge
+												>
 											{/if}
 										</div>
 										<div class="text-xs font-mono opacity-60 truncate mb-2">{webhook.url}</div>
@@ -334,9 +343,11 @@ onMount(loadWebhooks);
 				aria-labelledby="webhook-modal-title"
 				data-testid="webhooks-modal"
 			>
-				<header class="p-4 border-b border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center bg-surface-200 dark:bg-surface-900">
+				<header
+					class="p-4 border-b border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center bg-surface-200 dark:bg-surface-900"
+				>
 					<h3 id="webhook-modal-title" class="h3 font-bold">
-						{activeWebhook.id ? "Edit Webhook" : "Add New Webhook"}
+						{activeWebhook.id ? 'Edit Webhook' : 'Add New Webhook'}
 					</h3>
 					<Button
 						variant="ghost"
@@ -370,7 +381,9 @@ onMount(loadWebhooks);
 
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-1">
-							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400">Secret Key (HMAC-SHA256)</span>
+							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+								>Secret Key (HMAC-SHA256)</span
+							>
 							<div class="flex gap-1">
 								<Input
 									type="text"
@@ -382,7 +395,8 @@ onMount(loadWebhooks);
 								/>
 								<Button
 									variant="ghost"
-									onclick={() => activeWebhook && (activeWebhook.secret = crypto.randomUUID().replace(/-/g, ""))}
+									onclick={() =>
+										activeWebhook && (activeWebhook.secret = crypto.randomUUID().replace(/-/g, ''))}
 									aria-label="Regenerate secret"
 									size="sm"
 									data-testid="webhook-regenerate-secret"
@@ -390,7 +404,9 @@ onMount(loadWebhooks);
 									<iconify-icon icon="mdi:refresh"></iconify-icon>
 								</Button>
 							</div>
-							<p class="text-[10px] opacity-60 mt-1 italic">Used to sign payloads for security verify.</p>
+							<p class="text-[10px] opacity-60 mt-1 italic">
+								Used to sign payloads for security verify.
+							</p>
 						</div>
 
 						<div class="space-y-2">
@@ -408,7 +424,9 @@ onMount(loadWebhooks);
 						<p class="text-xs opacity-60 mb-2">Select which events should trigger this webhook.</p>
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 							{#each WEBHOOK_EVENT_TYPES as event (event)}
-								<div class="hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors">
+								<div
+									class="hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors"
+								>
 									<Checkbox
 										checked={activeWebhook.events?.includes(event as never) ?? false}
 										onchange={() => toggleEvent(event)}
@@ -420,8 +438,15 @@ onMount(loadWebhooks);
 					</div>
 				</section>
 
-				<footer class="p-4 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-end gap-2 bg-surface-500/10 dark:bg-surface-900">
-					<Button variant="ghost" onclick={() => (showModal = false)} aria-label="Cancel editing" data-testid="webhook-cancel">
+				<footer
+					class="p-4 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-end gap-2 bg-surface-500/10 dark:bg-surface-900"
+				>
+					<Button
+						variant="ghost"
+						onclick={() => (showModal = false)}
+						aria-label="Cancel editing"
+						data-testid="webhook-cancel"
+					>
 						Cancel
 					</Button>
 					<Button
@@ -435,7 +460,9 @@ onMount(loadWebhooks);
 						{#if !isSaving}
 							<iconify-icon icon="mdi:content-save"></iconify-icon>
 						{/if}
-						<span>{isSaving ? "Saving..." : activeWebhook.id ? "Save Changes" : "Create Webhook"}</span>
+						<span
+							>{isSaving ? 'Saving...' : activeWebhook.id ? 'Save Changes' : 'Create Webhook'}</span
+						>
 					</Button>
 				</footer>
 			</AdminCard>

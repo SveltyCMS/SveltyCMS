@@ -3,7 +3,16 @@
 @component Customer order confirmation (better-svelte-email).
 -->
 <script lang="ts">
-	import { Body, Container, Head, Heading, Html, Preview, Section, Text } from '@better-svelte-email/components';
+	import {
+		Body,
+		Container,
+		Head,
+		Heading,
+		Html,
+		Preview,
+		Section,
+		Text
+	} from '@better-svelte-email/components';
 
 	interface Props {
 		orderNumber?: string;

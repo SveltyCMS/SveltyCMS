@@ -40,7 +40,10 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	let fillPickerRef = $state<HTMLInputElement | null>(null);
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') {
+		if (
+			(e.target as HTMLElement)?.tagName === 'INPUT' ||
+			(e.target as HTMLElement)?.tagName === 'TEXTAREA'
+		) {
 			return;
 		}
 
@@ -157,7 +160,8 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	</div>
 
 	<!-- Fixed anchor for native pickers — keeps system UI on-screen on mobile -->
-	<input aria-label="Font size"
+	<input
+		aria-label="Font size"
 		bind:this={strokePickerRef}
 		type="color"
 		class="annotate-hidden-color-input"
@@ -166,7 +170,8 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		tabindex="-1"
 		aria-hidden="true"
 	/>
-	<input aria-label="Stroke width"
+	<input
+		aria-label="Stroke width"
 		bind:this={fillPickerRef}
 		type="color"
 		class="annotate-hidden-color-input"
@@ -299,7 +304,12 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 
 	.annotate-mobile-swatch-btn-transparent {
 		background:
-			linear-gradient(135deg, rgba(255, 255, 255, 0.14) 46%, rgba(255, 255, 255, 0.45) 48%, rgba(255, 255, 255, 0.14) 50%),
+			linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.14) 46%,
+				rgba(255, 255, 255, 0.45) 48%,
+				rgba(255, 255, 255, 0.14) 50%
+			),
 			rgba(255, 255, 255, 0.06);
 	}
 

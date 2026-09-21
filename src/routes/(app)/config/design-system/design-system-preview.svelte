@@ -19,69 +19,77 @@ so preview stays in sync with Layout & Visual Style tabs.
 -->
 
 <script lang="ts">
-	import AdminCard from "@components/admin-card.svelte";
-	import Badge from "@components/ui/badge.svelte";
-	import Button from "@components/ui/button.svelte";
-	import Input from "@components/ui/input.svelte";
-	import Select from "@components/ui/select.svelte";
-	import Textarea from "@components/ui/textarea.svelte";
-	import Toggle from "@components/ui/toggle.svelte";
-	import ThemeToggle from "@components/theme-toggle.svelte";
-	import { adminFade, adminPage, adminSlide, adminStagger } from "@utils/admin-transitions";
-	import { getThemeContext } from "@components/ui/theme-context.svelte";
-	import type { AdminTheme } from "@components/ui/theme-context.svelte";
+	import AdminCard from '@components/admin-card.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
+	import ThemeToggle from '@components/theme-toggle.svelte';
+	import { adminFade, adminPage, adminSlide, adminStagger } from '@utils/admin-transitions';
+	import { getThemeContext } from '@components/ui/theme-context.svelte';
+	import type { AdminTheme } from '@components/ui/theme-context.svelte';
 
-	const PALETTES = ["primary", "secondary", "tertiary", "success", "warning", "error", "surface"] as const;
-	const KEY_SHADES = ["50", "500", "950"] as const;
+	const PALETTES = [
+		'primary',
+		'secondary',
+		'tertiary',
+		'success',
+		'warning',
+		'error',
+		'surface'
+	] as const;
+	const KEY_SHADES = ['50', '500', '950'] as const;
 
 	const BUTTON_VARIANTS = [
-		"primary",
-		"secondary",
-		"tertiary",
-		"surface",
-		"success",
-		"warning",
-		"error",
-		"ghost",
-		"outline",
+		'primary',
+		'secondary',
+		'tertiary',
+		'surface',
+		'success',
+		'warning',
+		'error',
+		'ghost',
+		'outline'
 	] as const;
 
 	const densityOptions = [
-		{ value: "compact", label: "Compact" },
-		{ value: "cozy", label: "Cozy" },
-		{ value: "spacious", label: "Spacious" },
+		{ value: 'compact', label: 'Compact' },
+		{ value: 'cozy', label: 'Cozy' },
+		{ value: 'spacious', label: 'Spacious' }
 	];
 
 	const variantOptions = [
-		{ value: "flat", label: "Flat" },
-		{ value: "bordered", label: "Bordered" },
-		{ value: "elevated", label: "Elevated" },
+		{ value: 'flat', label: 'Flat' },
+		{ value: 'bordered', label: 'Bordered' },
+		{ value: 'elevated', label: 'Elevated' }
 	];
 
 	const selectOptions = [
-		{ value: "draft", label: "Draft" },
-		{ value: "published", label: "Published" },
-		{ value: "scheduled", label: "Scheduled" },
+		{ value: 'draft', label: 'Draft' },
+		{ value: 'published', label: 'Published' },
+		{ value: 'scheduled', label: 'Scheduled' }
 	];
 
 	interface Props {
-		density?: "compact" | "cozy" | "spacious";
-		variant?: "flat" | "bordered" | "elevated";
+		density?: 'compact' | 'cozy' | 'spacious';
+		variant?: 'flat' | 'bordered' | 'elevated';
 		showAppearanceLink?: boolean;
 	}
 
 	let {
-		density = $bindable<"compact" | "cozy" | "spacious">("cozy"),
-		variant = $bindable<"flat" | "bordered" | "elevated">("bordered"),
-		showAppearanceLink = false,
+		density = $bindable<'compact' | 'cozy' | 'spacious'>('cozy'),
+		variant = $bindable<'flat' | 'bordered' | 'elevated'>('bordered'),
+		showAppearanceLink = false
 	}: Props = $props();
 
 	const liveTheme = getThemeContext() as AdminTheme | undefined;
 
-	let sampleInput = $state("Sample value");
-	let sampleSelect = $state("draft");
+	let sampleInput = $state('Sample value');
+	let sampleSelect = $state('draft');
 	let sampleToggle = $state(true);
-	let sampleTextarea = $state("Helper text and labels adapt to density.");
+	let sampleTextarea = $state('Helper text and labels adapt to density.');
 
 	// Motion showcase — increment the key to replay every demo transition.
 	let motionDemoKey = $state(0);
@@ -90,27 +98,27 @@ so preview stays in sync with Layout & Visual Style tabs.
 	const structuralTokens = $derived(
 		liveTheme
 			? [
-					{ label: "Sidebar width", value: liveTheme.sidebarWidth },
-					{ label: "Header height", value: liveTheme.headerHeight },
-					{ label: "Sticky bar height", value: liveTheme.stickyBarHeight },
-					{ label: "Card radius", value: liveTheme.radiusCard },
-					{ label: "Input radius", value: liveTheme.radiusInput },
-					{ label: "Button radius", value: liveTheme.radiusButton },
-					{ label: "Density scale", value: String(liveTheme.densityScale) },
-					{ label: "Card shadow", value: liveTheme.cardShadow },
-					{ label: "Card border", value: liveTheme.cardBorder },
+					{ label: 'Sidebar width', value: liveTheme.sidebarWidth },
+					{ label: 'Header height', value: liveTheme.headerHeight },
+					{ label: 'Sticky bar height', value: liveTheme.stickyBarHeight },
+					{ label: 'Card radius', value: liveTheme.radiusCard },
+					{ label: 'Input radius', value: liveTheme.radiusInput },
+					{ label: 'Button radius', value: liveTheme.radiusButton },
+					{ label: 'Density scale', value: String(liveTheme.densityScale) },
+					{ label: 'Card shadow', value: liveTheme.cardShadow },
+					{ label: 'Card border', value: liveTheme.cardBorder }
 				]
-			: [],
+			: []
 	);
 
 	const semanticRoles = [
-		{ label: "Page", varName: "--admin-bg-page" },
-		{ label: "Card", varName: "--admin-bg-card" },
-		{ label: "Sidebar", varName: "--admin-bg-sidebar" },
-		{ label: "Border", varName: "--admin-border-default" },
-		{ label: "Subtle border", varName: "--admin-border-subtle" },
-		{ label: "Body text", varName: "--admin-text-body" },
-		{ label: "Muted text", varName: "--admin-text-muted" },
+		{ label: 'Page', varName: '--admin-bg-page' },
+		{ label: 'Card', varName: '--admin-bg-card' },
+		{ label: 'Sidebar', varName: '--admin-bg-sidebar' },
+		{ label: 'Border', varName: '--admin-border-default' },
+		{ label: 'Subtle border', varName: '--admin-border-subtle' },
+		{ label: 'Body text', varName: '--admin-text-body' },
+		{ label: 'Muted text', varName: '--admin-text-muted' }
 	] as const;
 
 	$effect(() => {
@@ -123,8 +131,12 @@ so preview stays in sync with Layout & Visual Style tabs.
 <div class="space-y-6" data-testid="design-system-preview">
 	<!-- Controls -->
 	<AdminCard class="p-5">
-		<h2 class="mb-4 flex items-center gap-2 text-base font-bold" style="color: var(--admin-text-body)">
-			<iconify-icon icon="mdi:tune-vertical" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+		<h2
+			class="mb-4 flex items-center gap-2 text-base font-bold"
+			style="color: var(--admin-text-body)"
+		>
+			<iconify-icon icon="mdi:tune-vertical" class="text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
 			Playground controls
 		</h2>
 		<div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -136,7 +148,11 @@ so preview stays in sync with Layout & Visual Style tabs.
 			</div>
 			{#if showAppearanceLink}
 				<div class="flex gap-2">
-					<Button variant="outline" href="/config/design-system?tab=style" leadingIcon="mdi:palette-outline">
+					<Button
+						variant="outline"
+						href="/config/design-system?tab=style"
+						leadingIcon="mdi:palette-outline"
+					>
 						Appearance
 					</Button>
 				</div>
@@ -146,10 +162,12 @@ so preview stays in sync with Layout & Visual Style tabs.
 
 	<!-- Semantic surface roles -->
 	<AdminCard class="p-5">
-		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">Admin surface roles</h2>
+		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
+			Admin surface roles
+		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			Semantic <code class="text-xs">--admin-*</code> roles for page/card elevation. Shadows still follow card
-			variant (flat / bordered / elevated).
+			Semantic <code class="text-xs">--admin-*</code> roles for page/card elevation. Shadows still follow
+			card variant (flat / bordered / elevated).
 		</p>
 		<div class="flex flex-wrap gap-3">
 			{#each semanticRoles as role (role.varName)}
@@ -167,15 +185,20 @@ so preview stays in sync with Layout & Visual Style tabs.
 
 	<!-- Color tokens -->
 	<AdminCard class="p-5">
-		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">Semantic palettes</h2>
+		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
+			Semantic palettes
+		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			Tailwind utilities map to <code class="text-xs">--color-{"{palette}"}-{"{shade}"}</code> tokens. Override at
-			runtime via Appearance or <code class="text-xs">/themes/*.json</code>.
+			Tailwind utilities map to <code class="text-xs">--color-{'{palette}'}-{'{shade}'}</code>
+			tokens. Override at runtime via Appearance or <code class="text-xs">/themes/*.json</code>.
 		</p>
 		<div class="space-y-4">
 			{#each PALETTES as palette (palette)}
 				<div>
-					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">
+					<div
+						class="mb-2 text-xs font-semibold uppercase tracking-wider"
+						style="color: var(--admin-text-muted)"
+					>
 						{palette}
 					</div>
 					<div class="flex flex-wrap gap-2">
@@ -249,7 +272,9 @@ so preview stays in sync with Layout & Visual Style tabs.
 			</AdminCard>
 			<AdminCard class="p-4" variant="tertiary" preset="tonal">
 				<p class="text-sm font-medium">Tonal Card</p>
-				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">Via Card preset passthrough.</p>
+				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">
+					Via Card preset passthrough.
+				</p>
 			</AdminCard>
 			<AdminCard class="p-4" variant="primary" preset="outlined">
 				<p class="text-sm font-medium">Outlined Card</p>
@@ -260,13 +285,21 @@ so preview stays in sync with Layout & Visual Style tabs.
 
 	<!-- Motion & transitions -->
 	<AdminCard class="p-5">
-		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">Motion & transitions</h2>
+		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
+			Motion & transitions
+		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			Shared transitions from <code class="text-xs">@utils/admin-transitions</code> — all drop to 0ms under
-			<code class="text-xs">prefers-reduced-motion</code>. Page entry uses <code class="text-xs">adminPage</code> on
-			every route, grids use <code class="text-xs">adminStagger</code>, drawers use <code class="text-xs">adminSlide</code>.
+			Shared transitions from <code class="text-xs">@utils/admin-transitions</code> — all drop to
+			0ms under
+			<code class="text-xs">prefers-reduced-motion</code>. Page entry uses
+			<code class="text-xs">adminPage</code>
+			on every route, grids use <code class="text-xs">adminStagger</code>, drawers use
+			<code class="text-xs">adminSlide</code>.
 		</p>
-		<div class="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]" style="color: var(--admin-text-muted)">
+		<div
+			class="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]"
+			style="color: var(--admin-text-muted)"
+		>
 			<span><code class="text-xs">--admin-motion-fast</code> 150ms</span>
 			<span><code class="text-xs">--admin-motion-base</code> 200ms</span>
 			<span><code class="text-xs">--admin-motion-slow</code> 300ms</span>
@@ -274,13 +307,20 @@ so preview stays in sync with Layout & Visual Style tabs.
 		</div>
 
 		<div class="mb-3">
-			<Button variant="tertiary" size="sm" onclick={replayMotion} leadingIcon="mdi:replay">Replay all</Button>
+			<Button variant="tertiary" size="sm" onclick={replayMotion} leadingIcon="mdi:replay"
+				>Replay all</Button
+			>
 		</div>
 
 		{#key motionDemoKey}
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<div>
-					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminPage — page entry</div>
+					<div
+						class="mb-2 text-xs font-semibold uppercase tracking-wider"
+						style="color: var(--admin-text-muted)"
+					>
+						adminPage — page entry
+					</div>
 					<div
 						in:adminPage={{ duration: 240, rise: 8 }}
 						class="rounded-md border px-4 py-3 text-sm"
@@ -291,7 +331,12 @@ so preview stays in sync with Layout & Visual Style tabs.
 				</div>
 
 				<div>
-					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminFade — reveals</div>
+					<div
+						class="mb-2 text-xs font-semibold uppercase tracking-wider"
+						style="color: var(--admin-text-muted)"
+					>
+						adminFade — reveals
+					</div>
 					<div
 						in:adminFade={{ duration: 200 }}
 						class="rounded-md border px-4 py-3 text-sm"
@@ -302,7 +347,12 @@ so preview stays in sync with Layout & Visual Style tabs.
 				</div>
 
 				<div>
-					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminSlide — drawers</div>
+					<div
+						class="mb-2 text-xs font-semibold uppercase tracking-wider"
+						style="color: var(--admin-text-muted)"
+					>
+						adminSlide — drawers
+					</div>
 					<div
 						in:adminSlide={{ duration: 240, distance: 48 }}
 						class="rounded-md border px-4 py-3 text-sm"
@@ -313,7 +363,12 @@ so preview stays in sync with Layout & Visual Style tabs.
 				</div>
 
 				<div>
-					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminStagger — grids</div>
+					<div
+						class="mb-2 text-xs font-semibold uppercase tracking-wider"
+						style="color: var(--admin-text-muted)"
+					>
+						adminStagger — grids
+					</div>
 					<div class="flex flex-col gap-2">
 						{#each ['first', 'second', 'third', 'fourth'] as item, i (item)}
 							<div
@@ -332,23 +387,33 @@ so preview stays in sync with Layout & Visual Style tabs.
 
 	<!-- Structural tokens -->
 	<AdminCard class="p-5">
-		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">Structural tokens</h2>
+		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
+			Structural tokens
+		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
 			<code class="text-xs">--admin-*</code> values from AdminTheme (density: {density}, variant: {variant}).
 		</p>
 		<div class="overflow-x-auto">
 			<table class="w-full border-collapse text-sm">
 				<thead>
-					<tr class="border-b text-start text-xs uppercase tracking-wider" style="border-color: var(--admin-border-default); color: var(--admin-text-muted)">
+					<tr
+						class="border-b text-start text-xs uppercase tracking-wider"
+						style="border-color: var(--admin-border-default); color: var(--admin-text-muted)"
+					>
 						<th class="pb-3 pe-4 font-semibold">Token</th>
 						<th class="pb-3 font-semibold">Resolved value</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y" style="--tw-divide-opacity: 1; border-color: var(--admin-border-subtle)">
+				<tbody
+					class="divide-y"
+					style="--tw-divide-opacity: 1; border-color: var(--admin-border-subtle)"
+				>
 					{#each structuralTokens as row (row.label)}
 						<tr style="color: var(--admin-text-body)">
 							<td class="py-2 pe-4 font-medium">{row.label}</td>
-							<td class="py-2 font-mono text-xs" style="color: var(--admin-text-muted)">{row.value}</td>
+							<td class="py-2 font-mono text-xs" style="color: var(--admin-text-muted)"
+								>{row.value}</td
+							>
 						</tr>
 					{/each}
 				</tbody>

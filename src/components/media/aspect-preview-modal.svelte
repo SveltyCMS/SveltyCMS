@@ -44,19 +44,14 @@ with interactive focal point adjustment that persists to the server.
 		onSave?: (focalPoint: { x: number; y: number }) => void;
 	}
 
-	let {
-		media,
-		show = $bindable(false),
-		onClose,
-		onSave,
-	}: Props = $props();
+	let { media, show = $bindable(false), onClose, onSave }: Props = $props();
 
 	let focalPoint = $state({ x: 50, y: 50 });
 	let isSaving = $state(false);
 
 	// Derive the best available image URL (prefer medium thumbnail for performance)
 	const imageUrl = $derived(
-		media?.thumbnails?.md?.url || media?.thumbnails?.sm?.url || media?.url || '',
+		media?.thumbnails?.md?.url || media?.thumbnails?.sm?.url || media?.url || ''
 	);
 
 	// Reset focal point when media changes
@@ -64,18 +59,27 @@ with interactive focal point adjustment that persists to the server.
 		if (show && media) {
 			focalPoint = {
 				x: media.metadata?.focalPoint?.x ?? 50,
-				y: media.metadata?.focalPoint?.y ?? 50,
+				y: media.metadata?.focalPoint?.y ?? 50
 			};
 		}
 	});
 
 	onMount(() => {
-		registerHotkey('mod+s', () => {
-			if (show) handleSave();
-		}, 'Save focal point from aspect preview');
-		registerHotkey('escape', () => {
-			if (show) handleClose();
-		}, 'Close aspect preview', false);
+		registerHotkey(
+			'mod+s',
+			() => {
+				if (show) handleSave();
+			},
+			'Save focal point from aspect preview'
+		);
+		registerHotkey(
+			'escape',
+			() => {
+				if (show) handleClose();
+			},
+			'Close aspect preview',
+			false
+		);
 	});
 
 	function handleFocalChange(fp: { x: number; y: number }) {
@@ -131,11 +135,20 @@ with interactive focal point adjustment that persists to the server.
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
-			<header class="flex shrink-0 items-center justify-between border-b border-surface-500/30 px-5 py-4 dark:border-surface-500/40">
+			<header
+				class="flex shrink-0 items-center justify-between border-b border-surface-500/30 px-5 py-4 dark:border-surface-500/40"
+			>
 				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:aspect-ratio" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon="mdi:aspect-ratio"
+						width="24"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 					<div>
-						<h3 id="aspect-preview-title" class="text-lg font-semibold text-surface-900 dark:text-surface-50">
+						<h3
+							id="aspect-preview-title"
+							class="text-lg font-semibold text-surface-900 dark:text-surface-50"
+						>
 							Aspect Ratio Preview
 						</h3>
 						<p class="text-xs text-surface-500 dark:text-surface-400">
@@ -152,25 +165,35 @@ with interactive focal point adjustment that persists to the server.
 			<div class="flex-1 overflow-y-auto px-5 py-4">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 					<span class="text-sm text-surface-600 dark:text-surface-400">
-						See how this image crops to different aspect ratios. The focal point ensures the important area stays visible.
+						See how this image crops to different aspect ratios. The focal point ensures the
+						important area stays visible.
 					</span>
 					<!-- Focal point coordinates -->
-					<div class="rounded bg-surface-200 px-2 py-0.5 font-mono text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">
+					<div
+						class="rounded bg-surface-200 px-2 py-0.5 font-mono text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300"
+					>
 						X: {focalPoint.x.toFixed(0)}% &nbsp; Y: {focalPoint.y.toFixed(0)}%
 					</div>
 				</div>
 
 				<AspectPreview
 					{imageUrl}
-					focalPoint={focalPoint}
+					{focalPoint}
 					onFocalChange={handleFocalChange}
 					interactive={true}
 				/>
 			</div>
 
 			<!-- Footer -->
-			<footer class="flex shrink-0 items-center justify-between border-t border-surface-500/30 px-5 py-3 dark:border-surface-500/40">
-				<Button variant="outline" onclick={() => { focalPoint = { x: 50, y: 50 }; }}>
+			<footer
+				class="flex shrink-0 items-center justify-between border-t border-surface-500/30 px-5 py-3 dark:border-surface-500/40"
+			>
+				<Button
+					variant="outline"
+					onclick={() => {
+						focalPoint = { x: 50, y: 50 };
+					}}
+				>
 					<iconify-icon icon="mdi:target" width="16"></iconify-icon>
 					<span>Reset to Center</span>
 				</Button>

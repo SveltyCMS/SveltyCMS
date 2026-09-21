@@ -58,7 +58,12 @@
 		if (!Array.isArray(fields)) return [];
 		return fields
 			.map((f) => {
-				const typed = f as { db_fieldName?: string; label?: string; widget?: { Name?: string }; type?: string };
+				const typed = f as {
+					db_fieldName?: string;
+					label?: string;
+					widget?: { Name?: string };
+					type?: string;
+				};
 				const name = typed.db_fieldName || getFieldName(f as FieldInstance, false);
 				const label = typed.label || name;
 				const widgetName = (typed.widget?.Name || typed.type || 'input').toLowerCase();
@@ -87,9 +92,7 @@
 		}
 	});
 
-	const activeField = $derived(
-		editableFields.find((f) => f.name === selectedFieldName) || null
-	);
+	const activeField = $derived(editableFields.find((f) => f.name === selectedFieldName) || null);
 
 	const isBooleanField = $derived(
 		activeField?.widgetName === 'checkbox' || activeField?.widgetName === 'boolean'
@@ -97,8 +100,8 @@
 
 	const isNumberField = $derived(
 		activeField?.widgetName === 'number' ||
-		activeField?.widgetName === 'currency' ||
-		activeField?.widgetName === 'price'
+			activeField?.widgetName === 'currency' ||
+			activeField?.widgetName === 'price'
 	);
 
 	const isDateField = $derived(
@@ -165,32 +168,25 @@
 			aria-labelledby="bulk-edit-title"
 		>
 			<header class="space-y-1">
-				<h3
-					id="bulk-edit-title"
-					class="text-lg font-bold text-tertiary-500 dark:text-primary-500"
-				>
+				<h3 id="bulk-edit-title" class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					Bulk Edit Entries
 				</h3>
 				<p class="text-xs text-surface-500 dark:text-surface-400">
-					Updating <span class="font-bold text-tertiary-500 dark:text-primary-500">{selectedCount}</span> selected {selectedCount === 1 ? 'entry' : 'entries'}.
+					Updating <span class="font-bold text-tertiary-500 dark:text-primary-500"
+						>{selectedCount}</span
+					>
+					selected {selectedCount === 1 ? 'entry' : 'entries'}.
 				</p>
 			</header>
 
 			<form class="space-y-4" onsubmit={handleSubmit}>
 				{#if editableFields.length > 0}
-					<Select
-						label="Target Field"
-						bind:value={selectedFieldName}
-						options={fieldOptions}
-					/>
+					<Select label="Target Field" bind:value={selectedFieldName} options={fieldOptions} />
 
 					{#if activeField}
 						<div class="space-y-1">
 							{#if isBooleanField}
-								<Checkbox
-									bind:checked={fieldValueBoolean}
-									label={activeField.label}
-								/>
+								<Checkbox bind:checked={fieldValueBoolean} label={activeField.label} />
 							{:else if isNumberField}
 								<Input
 									type="number"
@@ -224,12 +220,7 @@
 				{/if}
 
 				<footer class="flex items-center justify-end gap-3 pt-2">
-					<Button
-						variant="outline"
-						type="button"
-						onclick={closeModal}
-						disabled={isSubmitting}
-					>
+					<Button variant="outline" type="button" onclick={closeModal} disabled={isSubmitting}>
 						Cancel
 					</Button>
 					<Button

@@ -46,10 +46,13 @@ Renders: "1,234,567.89" (US) or "1.234.567,89" (German) based on system language
 	});
 </script>
 
-<div class="number-display inline-flex items-center gap-1.5 font-semibold text-surface-900 dark:text-surface-50">
+<div
+	class="number-display inline-flex items-center gap-1.5 font-semibold text-surface-900 dark:text-surface-50"
+>
 	{#if typeof value === 'number'}
-		<iconify-icon icon="mdi:numeric" width="16" class="text-surface-400 dark:text-surface-500"></iconify-icon>
-		
+		<iconify-icon icon="mdi:numeric" width="16" class="text-surface-400 dark:text-surface-500"
+		></iconify-icon>
+
 		{#if (field as any)?.prefix}
 			<span class="text-xs text-surface-400 font-normal">{(field as any).prefix}</span>
 		{/if}

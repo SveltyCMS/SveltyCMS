@@ -174,11 +174,15 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		showCreateOption &&
 			allowCustomValue &&
 			keyword.trim() &&
-			!filteredOptions.some((opt) => (caseSensitive ? opt === keyword : opt.toLowerCase() === keyword.toLowerCase()))
+			!filteredOptions.some((opt) =>
+				caseSensitive ? opt === keyword : opt.toLowerCase() === keyword.toLowerCase()
+			)
 	);
 
 	// Combined display options (filtered + create option)
-	const displayOptions = $derived(shouldShowCreateOption ? [...filteredOptions, `Create: "${keyword}"`] : filteredOptions);
+	const displayOptions = $derived(
+		shouldShowCreateOption ? [...filteredOptions, `Create: "${keyword}"`] : filteredOptions
+	);
 
 	const hasOptions = $derived(displayOptions.length > 0);
 	const showNoResults = $derived(keyword.trim() && !hasOptions && !isLoading);
@@ -208,7 +212,10 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	// Add to recent selections
 	function addToRecent(option: string) {
-		recentSelections = [option, ...recentSelections.filter((item) => item !== option)].slice(0, MAX_RECENT);
+		recentSelections = [option, ...recentSelections.filter((item) => item !== option)].slice(
+			0,
+			MAX_RECENT
+		);
 	}
 
 	// Clear selection
@@ -346,7 +353,12 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 	// Click outside handler
 	function handleClickOutside(event: MouseEvent) {
 		const target = event.target as HTMLElement;
-		if (dropdownElement && !dropdownElement.contains(target) && inputElement && !inputElement.contains(target)) {
+		if (
+			dropdownElement &&
+			!dropdownElement.contains(target) &&
+			inputElement &&
+			!inputElement.contains(target)
+		) {
 			showDropdown = false;
 			selectedIndex = -1;
 		}
@@ -403,7 +415,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			id="autocomplete-input"
 			bind:inputRef={inputElement}
 			bind:value={keyword}
-			placeholder={placeholder}
+			{placeholder}
 			{disabled}
 			class={className}
 			inputClass="pe-20 transition-all duration-200 placeholder:text-surface-600 dark:placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
@@ -425,27 +437,35 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			<!-- Clear button -->
 			{#if keyword && !disabled}
 				<div transition:scale={{ duration: prefersReducedMotion ? 0 : 200 }}>
-					<Button variant="ghost"
+					<Button
+						variant="ghost"
 						type="button"
 						onclick={clearSelection}
 						aria-label="Clear selection"
 						tabindex="-1"
-					 class="p-0! min-w-0 rounded-full transition-all hover:scale-110 hover:bg-error-500/10 hover:text-error-500">
+						class="p-0! min-w-0 rounded-full transition-all hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
+					>
 						<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
 					</Button>
 				</div>
 			{/if}
 
 			<!-- Dropdown toggle -->
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				type="button"
 				onclick={toggleDropdown}
 				aria-label={showDropdown ? 'Close options' : 'Show options'}
 				aria-controls="autocomplete-list"
 				{disabled}
 				tabindex="-1"
-			 class="p-0! min-w-0 transition-all hover:scale-110">
-				<iconify-icon icon="mdi:chevron-down" width="24" class="transition-transform duration-200 {showDropdown ? 'rotate-180' : ''}"></iconify-icon>
+				class="p-0! min-w-0 transition-all hover:scale-110"
+			>
+				<iconify-icon
+					icon="mdi:chevron-down"
+					width="24"
+					class="transition-transform duration-200 {showDropdown ? 'rotate-180' : ''}"
+				></iconify-icon>
 			</Button>
 		</div>
 	</div>
@@ -459,15 +479,27 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			<!-- Loading state -->
 			{#if isLoading}
 				<div class="flex items-center justify-center gap-2 p-4">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+					<div
+						class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+					></div>
 					<span class="text-sm text-surface-600 dark:text-surface-50">Loading...</span>
 				</div>
 			{:else if hasOptions}
 				<!-- Options list -->
-				<ul bind:this={listElement} id="autocomplete-list" class="max-h-60 overflow-y-auto" role="listbox" aria-label="Available options">
+				<ul
+					bind:this={listElement}
+					id="autocomplete-list"
+					class="max-h-60 overflow-y-auto"
+					role="listbox"
+					aria-label="Available options"
+				>
 					{#if !keyword.trim() && recentSelections.length > 0}
 						<!-- Recent selections header -->
-						<li class="border-b border-surface-500/30 px-4 py-2 text-xs font-semibold text-surface-600 dark:text-surface-50">Recent Selections</li>
+						<li
+							class="border-b border-surface-500/30 px-4 py-2 text-xs font-semibold text-surface-600 dark:text-surface-50"
+						>
+							Recent Selections
+						</li>
 					{/if}
 
 					{#each displayOptions as option, index (option)}
@@ -480,7 +512,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 							aria-selected={isSelected}
 							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-start transition-colors last:border-b-0 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:text-surface-50 {isSelected
 								? 'bg-tertiary-500 dark:bg-primary-500/20'
-								: ''} {isCreateOption ? 'font-medium text-tertiary-500 dark:text-primary-500' : 'text-surface-900 dark:text-surface-100'}"
+								: ''} {isCreateOption
+								? 'font-medium text-tertiary-500 dark:text-primary-500'
+								: 'text-surface-900 dark:text-surface-100'}"
 							onmousedown={(e) => handleOptionMouseDown(option, e)}
 							onmouseenter={() => (selectedIndex = index)}
 						>
@@ -490,7 +524,12 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 								{/if}
 								<span class="flex-1">{option}</span>
 								{#if isSelected}
-									<iconify-icon icon="mdi:check" width="18" aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<iconify-icon
+										icon="mdi:check"
+										width="18"
+										aria-hidden="true"
+										class="text-tertiary-500 dark:text-primary-500"
+									></iconify-icon>
 								{/if}
 							</div>
 						</li>
@@ -504,10 +543,23 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					role="status"
 					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>
-					<iconify-icon icon="mdi:magnify-close" width="32" class="text-surface-400" aria-hidden="true"></iconify-icon>
-					<p class="text-sm text-surface-600 dark:text-surface-50">No results found for "<span class="font-medium">{keyword}</span>"</p>
+					<iconify-icon
+						icon="mdi:magnify-close"
+						width="32"
+						class="text-surface-400"
+						aria-hidden="true"
+					></iconify-icon>
+					<p class="text-sm text-surface-600 dark:text-surface-50">
+						No results found for "<span class="font-medium">{keyword}</span>"
+					</p>
 					{#if allowCustomValue}
-						<Button variant="outline" type="button" onclick={() => selectOption(keyword)} size="sm" class="mt-2">Use custom value</Button>
+						<Button
+							variant="outline"
+							type="button"
+							onclick={() => selectOption(keyword)}
+							size="sm"
+							class="mt-2">Use custom value</Button
+						>
 					{/if}
 				</div>
 			{/if}

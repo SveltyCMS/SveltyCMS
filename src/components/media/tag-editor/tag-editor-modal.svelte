@@ -14,7 +14,7 @@ Features:
 	import Input from '@components/ui/input.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import ToastContainer from '@src/components/toast-container.svelte';
-	import { page } from "$app/state";
+	import { page } from '$app/state';
 	import { refreshAll } from '$app/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -22,26 +22,26 @@ Features:
 	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
-			show = $bindable(),
-			file = $bindable(null),
-			onUpdate = () => {},
-			hideGenerate = false
-		}: {
-			show: boolean;
-			file: MediaImage | null;
-			onUpdate?: (updatedFile: MediaImage) => void;
-			hideGenerate?: boolean;
-		} = $props();
+		show = $bindable(),
+		file = $bindable(null),
+		onUpdate = () => {},
+		hideGenerate = false
+	}: {
+		show: boolean;
+		file: MediaImage | null;
+		onUpdate?: (updatedFile: MediaImage) => void;
+		hideGenerate?: boolean;
+	} = $props();
 
 	let newTagInput = $state('');
 	let isGenerating = $state(false);
 	let isSaving = $state(false);
 
 	let editingTag = $state<{
-			type: 'ai' | 'user';
-			index: number;
-			value: string;
-		} | null>(null);
+		type: 'ai' | 'user';
+		index: number;
+		value: string;
+	} | null>(null);
 
 	function getImageUrl(activeFile: MediaImage) {
 		const thumbs = activeFile.thumbnails || {};
@@ -109,7 +109,13 @@ Features:
 				throw new Error(result.message || result.error);
 			}
 
-			file = { ...file, metadata: { ...file.metadata, aiTags: [...(file.metadata?.aiTags || []), newTagInput.trim()] } };
+			file = {
+				...file,
+				metadata: {
+					...file.metadata,
+					aiTags: [...(file.metadata?.aiTags || []), newTagInput.trim()]
+				}
+			};
 			onUpdate(file);
 			newTagInput = '';
 			await refreshAll();
@@ -266,10 +272,17 @@ Features:
 				<div
 					class="media-checkerboard flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-500/30 md:h-12 md:w-12 dark:border-surface-500/40"
 				>
-					<img src={getImageUrl(activeFile)} alt="" class="h-full w-full object-cover" crossorigin="anonymous" />
+					<img
+						src={getImageUrl(activeFile)}
+						alt=""
+						class="h-full w-full object-cover"
+						crossorigin="anonymous"
+					/>
 				</div>
 				<div class="min-w-0 flex-1">
-					<p class="text-[10px] font-bold uppercase tracking-[0.08em] text-surface-500 dark:text-surface-400">
+					<p
+						class="text-[10px] font-bold uppercase tracking-[0.08em] text-surface-500 dark:text-surface-400"
+					>
 						Manage Tags
 					</p>
 					<p
@@ -278,7 +291,9 @@ Features:
 					>
 						{activeFile.filename}
 					</p>
-					<p class="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400">
+					<p
+						class="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400"
+					>
 						{formatMimeType(activeFile.mimeType)}
 						{#if pendingCount > 0 || savedCount > 0}
 							<span class="text-surface-400 dark:text-surface-500"> · </span>
@@ -295,11 +310,16 @@ Features:
 				data-testid="tag-editor-body"
 			>
 				<!-- AI / Pending -->
-				<section class="flex flex-col gap-2.5 border-b border-surface-500/30 pb-3 md:gap-3 md:pb-4 dark:border-surface-500/40">
+				<section
+					class="flex flex-col gap-2.5 border-b border-surface-500/30 pb-3 md:gap-3 md:pb-4 dark:border-surface-500/40"
+				>
 					<div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
 						<div class="min-w-0">
-							<h3 class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-100">
-								<iconify-icon icon="mdi:robot-outline" width="16" class="shrink-0 text-primary-500"></iconify-icon>
+							<h3
+								class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-100"
+							>
+								<iconify-icon icon="mdi:robot-outline" width="16" class="shrink-0 text-primary-500"
+								></iconify-icon>
 								<span>AI / Pending</span>
 								{#if pendingCount > 0}
 									<Badge variant="primary" preset="tonal" size="sm">{pendingCount}</Badge>
@@ -346,17 +366,31 @@ Features:
 									/>
 								{:else}
 									<Badge variant="primary" preset="tonal" size="sm" class="gap-1 pe-1">
-										<Button variant="ghost" size="sm" class="max-w-34 truncate" onclick={() => (editingTag = { type: 'ai', index: i, value: tag })} aria-label="Edit tag {tag}">
+										<Button
+											variant="ghost"
+											size="sm"
+											class="max-w-34 truncate"
+											onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
+											aria-label="Edit tag {tag}"
+										>
 											{tag}
 										</Button>
-										<Button variant="ghost" size="sm" class="rounded-full p-0.5" onclick={() => removeTag(tag, 'ai')} aria-label="Remove tag {tag}">
+										<Button
+											variant="ghost"
+											size="sm"
+											class="rounded-full p-0.5"
+											onclick={() => removeTag(tag, 'ai')}
+											aria-label="Remove tag {tag}"
+										>
 											<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 										</Button>
 									</Badge>
 								{/if}
 							{/each}
 						{:else}
-							<span class="text-xs text-surface-500 dark:text-surface-400">No pending tags yet.</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400"
+								>No pending tags yet.</span
+							>
 						{/if}
 					</div>
 
@@ -405,7 +439,9 @@ Features:
 				<section class="flex flex-col gap-2.5 pt-3 md:gap-3 md:pt-4">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
-							<h3 class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-100">
+							<h3
+								class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-100"
+							>
 								<span>Saved Tags</span>
 								{#if savedCount > 0}
 									<Badge variant="surface" preset="tonal" size="sm">{savedCount}</Badge>
@@ -435,17 +471,31 @@ Features:
 									/>
 								{:else}
 									<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
-										<Button variant="ghost" size="sm" class="max-w-34 truncate" onclick={() => (editingTag = { type: 'user', index: i, value: tag })} aria-label="Edit tag {tag}">
+										<Button
+											variant="ghost"
+											size="sm"
+											class="max-w-34 truncate"
+											onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
+											aria-label="Edit tag {tag}"
+										>
 											{tag}
 										</Button>
-										<Button variant="ghost" size="sm" class="rounded-full p-0.5" onclick={() => removeTag(tag, 'user')} aria-label="Remove tag {tag}">
+										<Button
+											variant="ghost"
+											size="sm"
+											class="rounded-full p-0.5"
+											onclick={() => removeTag(tag, 'user')}
+											aria-label="Remove tag {tag}"
+										>
 											<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 										</Button>
 									</Badge>
 								{/if}
 							{/each}
 						{:else}
-							<span class="text-xs text-surface-500 dark:text-surface-400">No saved tags on this file.</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400"
+								>No saved tags on this file.</span
+							>
 						{/if}
 					</div>
 				</section>

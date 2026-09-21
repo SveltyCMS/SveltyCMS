@@ -16,26 +16,26 @@ in their original position as the fallback.
 </StickyActions>
 -->
 <script lang="ts">
-  import { ui } from "@src/stores/ui-store.svelte";
-  import { getThemeContext } from "./theme-context.svelte";
-  import { onMount } from "svelte";
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { getThemeContext } from './theme-context.svelte';
+	import { onMount } from 'svelte';
 
-  let { children }: { children: import("svelte").Snippet } = $props();
+	let { children }: { children: import('svelte').Snippet } = $props();
 
-  const theme = getThemeContext();
-  // When the theme's sticky action bar is enabled, the layout renders the
-  // registered content at the viewport bottom — rendering it in place too
-  // would duplicate the actions (settings pages showed the same bar twice).
-  const stickyBarEnabled = $derived(theme?.features?.stickyActionBar ?? false);
+	const theme = getThemeContext();
+	// When the theme's sticky action bar is enabled, the layout renders the
+	// registered content at the viewport bottom — rendering it in place too
+	// would duplicate the actions (settings pages showed the same bar twice).
+	const stickyBarEnabled = $derived(theme?.features?.stickyActionBar ?? false);
 
-  onMount(() => {
-    ui.stickyActionContent = children;
-    return () => {
-      ui.stickyActionContent = null;
-    };
-  });
+	onMount(() => {
+		ui.stickyActionContent = children;
+		return () => {
+			ui.stickyActionContent = null;
+		};
+	});
 </script>
 
 {#if !stickyBarEnabled}
-  {@render children()}
+	{@render children()}
 {/if}

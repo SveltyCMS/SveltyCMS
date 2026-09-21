@@ -6,7 +6,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	// Native UI
-	import Dropdown from "@components/ui/dropdown.svelte";
+	import Dropdown from '@components/ui/dropdown.svelte';
 
 	// Components
 	import SiteName from '@src/components/site-name.svelte';
@@ -15,7 +15,11 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
 	// Paraglide Messages
-	import { applayout_accessibility_help, applayout_systemlanguage, setup_heading_subtitle } from '@src/paraglide/messages';
+	import {
+		applayout_accessibility_help,
+		applayout_systemlanguage,
+		setup_heading_subtitle
+	} from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/language-utils';
 	// Utils
 	import { modalState } from '@utils/modal.svelte';
@@ -29,7 +33,10 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			.filter((lang: string) => lang !== currentLanguageTag)
 			.filter((lang: string) => {
 				const searchLower = langSearch.toLowerCase();
-				return getLanguageName(lang).toLowerCase().includes(searchLower) || lang.toLowerCase().includes(searchLower);
+				return (
+					getLanguageName(lang).toLowerCase().includes(searchLower) ||
+					lang.toLowerCase().includes(searchLower)
+				);
 			})
 	);
 
@@ -39,20 +46,29 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	}
 </script>
 
-<div
-	class="shrink-0 bg-white p-2 dark:bg-surface-800 dark:text-surface-50"
->
+<div class="shrink-0 bg-white p-2 dark:bg-surface-800 dark:text-surface-50">
 	<!-- Row 1: Branding and Controls (Grid on desktop, flex on mobile) -->
 	<div class="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-center lg:gap-4">
 		<!-- Branding: Left on desktop, between on mobile -->
 		<div class="flex items-center justify-between lg:justify-start">
 			<div class="flex items-center gap-2 sm:gap-4">
-				<a aria-label="SveltyCMS home" href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer" class="shrink-0">
+				<a
+					aria-label="SveltyCMS home"
+					href="https://github.com/SveltyCMS/SveltyCMS"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="shrink-0"
+				>
 					<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-9 w-auto sm:h-12" />
 				</a>
 				<div class="flex min-w-0 flex-col justify-center overflow-hidden">
 					<h1 class="truncate text-lg font-bold leading-none sm:text-2xl lg:text-3xl">
-						<a aria-label="Documentation" href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
+						<a
+							aria-label="Documentation"
+							href="https://github.com/SveltyCMS/SveltyCMS"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
 							<SiteName {siteName} highlight="CMS" />
 						</a>
 					</h1>
@@ -66,15 +82,22 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 					<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 						<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-[75vw] max-w-64">
 							{#snippet trigger()}
-								<Button variant="outline" type="button" class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1 dark:text-white">
+								<Button
+									variant="outline"
+									type="button"
+									class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1 dark:text-white"
+								>
 									<span class="text-[10px] font-bold sm:text-sm">
 										<span class="hidden xs:inline">{getLanguageName(currentLanguageTag)}</span>
 										<span class="xs:hidden">{currentLanguageTag.toUpperCase()}</span>
 									</span>
-									<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
+									<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"
+									></iconify-icon>
 								</Button>
 							{/snippet}
-							<div class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
+							<div
+								class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2"
+							>
 								{applayout_systemlanguage()}
 							</div>
 							<div class="custom-scrollbar max-h-64 overflow-y-auto">
@@ -86,7 +109,9 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 										class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors font-normal!"
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+										<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500"
+											>{lang.toUpperCase()}</span
+										>
 									</Button>
 								{/each}
 							</div>
@@ -99,7 +124,9 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 
 		<!-- Center: Subtitle (Desktop only) -->
 		<div class="hidden lg:flex justify-center">
-			<p class="text-center text-sm leading-snug dark:text-white xl:text-base font-medium opacity-80">
+			<p
+				class="text-center text-sm leading-snug dark:text-white xl:text-base font-medium opacity-80"
+			>
 				{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
 			</p>
 		</div>
@@ -111,12 +138,19 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 					<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-64">
 						{#snippet trigger()}
-							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1 dark:text-white">
+							<Button
+								variant="outline"
+								type="button"
+								class="h-10 rounded px-3 gap-1 dark:text-white"
+							>
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
-								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
+								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"
+								></iconify-icon>
 							</Button>
 						{/snippet}
-						<div class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
+						<div
+							class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2"
+						>
 							{applayout_systemlanguage()}
 						</div>
 						<div class="custom-scrollbar max-h-64 overflow-y-auto">
@@ -128,7 +162,9 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 									class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors font-normal!"
 								>
 									<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-									<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+									<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500"
+										>{lang.toUpperCase()}</span
+									>
 								</Button>
 							{/each}
 						</div>
@@ -137,7 +173,13 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			</div>
 
 			<SystemTooltip title={applayout_accessibility_help()}>
-				<Button variant="outline" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label={applayout_accessibility_help()} class="h-10 w-10 rounded text-surface-900 dark:text-surface-50">
+				<Button
+					variant="outline"
+					type="button"
+					onclick={() => modalState.trigger(AccessibilityHelp)}
+					aria-label={applayout_accessibility_help()}
+					class="h-10 w-10 rounded text-surface-900 dark:text-surface-50"
+				>
 					<iconify-icon icon="mdi:accessibility" width="20"></iconify-icon>
 				</Button>
 			</SystemTooltip>
@@ -148,6 +190,8 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 
 	<!-- Row 2: Description (Mobile only) -->
 	<div class="mt-2 lg:hidden">
-		<p class="text-center text-xs leading-snug dark:text-white sm:text-base">{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}</p>
+		<p class="text-center text-xs leading-snug dark:text-white sm:text-base">
+			{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
+		</p>
 	</div>
 </div>

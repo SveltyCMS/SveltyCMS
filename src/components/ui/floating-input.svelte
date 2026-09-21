@@ -27,154 +27,157 @@ full ARIA validation linkage, and transparent background support for overlays.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import 'iconify-icon';
+	import { cn } from '@utils/cn';
+	import 'iconify-icon';
 
-interface Props {
-	value?: string;
-	showPassword?: boolean;
-	disabled?: boolean;
-	icon?: string;
-	iconColor?: string;
-	inputClass?: string;
-	label?: string;
-	labelClass?: string;
-	minlength?: number;
-	maxlength?: number;
-	name?: string;
-	required?: boolean;
-	passwordIconColor?: string;
-	textColor?: string;
-	type?: 'text' | 'email' | 'security';
-	tabindex?: number;
-	id?: string;
-	autocomplete?: any;
-	autocapitalize?: any;
-	spellcheck?: boolean;
-	autofocus?: boolean;
-	invalid?: boolean;
-	errorMessage?: string;
-	bgTransparent?: boolean;
-	white?: boolean;
-	onClick?: (e: MouseEvent) => void;
-	onInput?: (val: string) => void;
-	onkeydown?: (e: KeyboardEvent) => void;
-	onPaste?: (e: ClipboardEvent) => void;
-	[key: string]: any;
-}
-
-let {
-	value = $bindable(''),
-	showPassword = $bindable(false),
-	disabled = false,
-	icon = '',
-	iconColor = 'gray',
-	inputClass = '',
-	label = '',
-	labelClass = '',
-	minlength,
-	maxlength,
-	name = '',
-	required = false,
-	passwordIconColor = 'gray',
-	textColor = '',
-	type = 'text',
-	tabindex = 0,
-	id = '',
-	autocomplete,
-	autocapitalize = 'none',
-	spellcheck = false,
-	autofocus = false,
-	invalid = false,
-	errorMessage = '',
-	bgTransparent = false,
-	white = false,
-	onClick,
-	onInput,
-	onkeydown,
-	onPaste,
-	...rest
-}: Props = $props();
-
-let inputElement = $state<HTMLInputElement | null>(null);
-const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId');
-const currentId = $derived(id || generatedId);
-const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type === 'security' ? 'password' : type);
-/** 22px — 18px icon + 4px breathing room */
-const inputPaddingStart = $derived(icon ? 'ps-7' : 'ps-2');
-const labelStart = $derived(icon ? 'start-5' : 'start-2');
-/** Legacy `textColor` literals are rendered as inline colors; anything else is a Tailwind class string */
-const colorLiteral = $derived(textColor === 'black' || textColor === 'white');
-const colorClass = $derived(textColor && !colorLiteral ? textColor : '');
-
-$effect(() => {
-	if (autofocus && inputElement) {
-		inputElement.focus();
+	interface Props {
+		value?: string;
+		showPassword?: boolean;
+		disabled?: boolean;
+		icon?: string;
+		iconColor?: string;
+		inputClass?: string;
+		label?: string;
+		labelClass?: string;
+		minlength?: number;
+		maxlength?: number;
+		name?: string;
+		required?: boolean;
+		passwordIconColor?: string;
+		textColor?: string;
+		type?: 'text' | 'email' | 'security';
+		tabindex?: number;
+		id?: string;
+		autocomplete?: any;
+		autocapitalize?: any;
+		spellcheck?: boolean;
+		autofocus?: boolean;
+		invalid?: boolean;
+		errorMessage?: string;
+		bgTransparent?: boolean;
+		white?: boolean;
+		onClick?: (e: MouseEvent) => void;
+		onInput?: (val: string) => void;
+		onkeydown?: (e: KeyboardEvent) => void;
+		onPaste?: (e: ClipboardEvent) => void;
+		[key: string]: any;
 	}
-});
 
-function togglePasswordVisibility(event: Event): void {
-	event.preventDefault();
-	showPassword = !showPassword;
-}
+	let {
+		value = $bindable(''),
+		showPassword = $bindable(false),
+		disabled = false,
+		icon = '',
+		iconColor = 'gray',
+		inputClass = '',
+		label = '',
+		labelClass = '',
+		minlength,
+		maxlength,
+		name = '',
+		required = false,
+		passwordIconColor = 'gray',
+		textColor = '',
+		type = 'text',
+		tabindex = 0,
+		id = '',
+		autocomplete,
+		autocapitalize = 'none',
+		spellcheck = false,
+		autofocus = false,
+		invalid = false,
+		errorMessage = '',
+		bgTransparent = false,
+		white = false,
+		onClick,
+		onInput,
+		onkeydown,
+		onPaste,
+		...rest
+	}: Props = $props();
 
-function handleIconKeyDown(event: KeyboardEvent): void {
-	if (event.key === 'Enter' || event.key === ' ') {
-		event.preventDefault();
-		togglePasswordVisibility(event);
-	}
-}
+	let inputElement = $state<HTMLInputElement | null>(null);
+	const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId');
+	const currentId = $derived(id || generatedId);
+	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
+	const effectiveType = $derived(
+		showPassword && type === 'security' ? 'text' : type === 'security' ? 'password' : type
+	);
+	/** 22px — 18px icon + 4px breathing room */
+	const inputPaddingStart = $derived(icon ? 'ps-7' : 'ps-2');
+	const labelStart = $derived(icon ? 'start-5' : 'start-2');
+	/** Legacy `textColor` literals are rendered as inline colors; anything else is a Tailwind class string */
+	const colorLiteral = $derived(textColor === 'black' || textColor === 'white');
+	const colorClass = $derived(textColor && !colorLiteral ? textColor : '');
 
-/**
- * Sanitizes pasted clipboard content before insertion.
- * Strips null bytes, control characters (except \t, \n, \r),
- * limits length to prevent paste-bombing, and trims whitespace.
- */
-function handlePaste(e: ClipboardEvent) {
-	e.preventDefault();
-
-	const pastedText = e.clipboardData?.getData('text/plain');
-	if (!pastedText) return;
-
-	// Sanitize: strip null bytes and control chars (except tab, newline, carriage return)
-	const sanitized = Array.from(pastedText)
-		.filter((c) => {
-			const code = c.charCodeAt(0);
-			return code > 0x1F || code === 0x09 || code === 0x0A || code === 0x0D;
-		})
-		.join('')
-		.slice(0, 10000)
-		.trim();
-
-	if (!sanitized) return;
-
-	// Insert sanitized text at cursor position
-	const input = inputElement;
-	if (!input) return;
-
-	const start = input.selectionStart ?? 0;
-	const end = input.selectionEnd ?? 0;
-	const currentValue = value;
-	const newValue = currentValue.slice(0, start) + sanitized + currentValue.slice(end);
-	value = newValue;
-
-	// Restore cursor position after the inserted text
-	requestAnimationFrame(() => {
-		const newPos = start + sanitized.length;
-		input.setSelectionRange(newPos, newPos);
+	$effect(() => {
+		if (autofocus && inputElement) {
+			inputElement.focus();
+		}
 	});
 
-	e.stopPropagation();
+	function togglePasswordVisibility(event: Event): void {
+		event.preventDefault();
+		showPassword = !showPassword;
+	}
 
-	// Call external onPaste prop so consumers can add additional behavior
-	onPaste?.(e);
-}
+	function handleIconKeyDown(event: KeyboardEvent): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			togglePasswordVisibility(event);
+		}
+	}
+
+	/**
+	 * Sanitizes pasted clipboard content before insertion.
+	 * Strips null bytes, control characters (except \t, \n, \r),
+	 * limits length to prevent paste-bombing, and trims whitespace.
+	 */
+	function handlePaste(e: ClipboardEvent) {
+		e.preventDefault();
+
+		const pastedText = e.clipboardData?.getData('text/plain');
+		if (!pastedText) return;
+
+		// Sanitize: strip null bytes and control chars (except tab, newline, carriage return)
+		const sanitized = Array.from(pastedText)
+			.filter((c) => {
+				const code = c.charCodeAt(0);
+				return code > 0x1f || code === 0x09 || code === 0x0a || code === 0x0d;
+			})
+			.join('')
+			.slice(0, 10000)
+			.trim();
+
+		if (!sanitized) return;
+
+		// Insert sanitized text at cursor position
+		const input = inputElement;
+		if (!input) return;
+
+		const start = input.selectionStart ?? 0;
+		const end = input.selectionEnd ?? 0;
+		const currentValue = value;
+		const newValue = currentValue.slice(0, start) + sanitized + currentValue.slice(end);
+		value = newValue;
+
+		// Restore cursor position after the inserted text
+		requestAnimationFrame(() => {
+			const newPos = start + sanitized.length;
+			input.setSelectionRange(newPos, newPos);
+		});
+
+		e.stopPropagation();
+
+		// Call external onPaste prop so consumers can add additional behavior
+		onPaste?.(e);
+	}
 </script>
 
-<div class={cn("relative w-full", bgTransparent && "bg-transparent")}>
+<div class={cn('relative w-full', bgTransparent && 'bg-transparent')}>
 	<div class="group relative flex w-full items-center" role="group" aria-labelledby={currentId}>
-		<input aria-label={label || undefined}
+		<input
+			aria-label={label || undefined}
 			bind:this={inputElement}
 			bind:value
 			{name}
@@ -205,11 +208,15 @@ function handlePaste(e: ClipboardEvent) {
 								: textColor === 'white'
 									? 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
 									: 'bg-surface-500/10 text-surface-900 focus:bg-surface-500/10 focus:text-surface-900 dark:bg-[#242728] dark:text-white dark:focus:bg-[#242728] dark:focus:text-white',
-							colorClass,
-					  ),
+							colorClass
+						),
 				invalid && 'border-error-500! dark:border-error-500!',
 				type === 'security' && 'pe-10',
-				textColor === 'black' ? 'autofill-light' : textColor === 'white' ? 'autofill-dark' : 'autofill-theme',
+				textColor === 'black'
+					? 'autofill-light'
+					: textColor === 'white'
+						? 'autofill-dark'
+						: 'autofill-theme',
 				inputClass
 			)}
 			style={colorLiteral ? `color: ${textColor}` : undefined}
@@ -223,12 +230,8 @@ function handlePaste(e: ClipboardEvent) {
 				{icon}
 				width="18"
 				class={cn(
-					"absolute inset-s-0 top-3",
-					bgTransparent
-						? "text-white"
-						: iconColor
-							? ""
-							: "text-surface-500 dark:text-surface-50"
+					'absolute inset-s-0 top-3',
+					bgTransparent ? 'text-white' : iconColor ? '' : 'text-surface-500 dark:text-surface-50'
 				)}
 				style={iconColor ? `color: ${iconColor}` : undefined}
 				aria-hidden="true"
@@ -243,12 +246,12 @@ function handlePaste(e: ClipboardEvent) {
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
 				class={cn(
-										"absolute inset-e-2 top-3 hover:opacity-75 focus:outline-none",
+					'absolute inset-e-2 top-3 hover:opacity-75 focus:outline-none',
 					bgTransparent
-						? "text-white"
+						? 'text-white'
 						: passwordIconColor
-							? ""
-							: "text-surface-500 dark:text-surface-50"
+							? ''
+							: 'text-surface-500 dark:text-surface-50'
 				)}
 				style={passwordIconColor ? `color: ${passwordIconColor}` : undefined}
 				width="24"
@@ -261,15 +264,15 @@ function handlePaste(e: ClipboardEvent) {
 			<label
 				for={currentId}
 				class={cn(
-					"pointer-events-none absolute top-2.5 origin-start transform text-base transition-all duration-200 ease-in-out",
+					'pointer-events-none absolute top-2.5 origin-start transform text-base transition-all duration-200 ease-in-out',
 					labelStart,
-					"peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-placeholder-shown:text-base",
-					"peer-focus:-translate-y-2 peer-focus:scale-75",
-					"peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75",
+					'peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-placeholder-shown:text-base',
+					'peer-focus:-translate-y-2 peer-focus:scale-75',
+					'peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75',
 					bgTransparent
-						? "text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white"
-						: "text-surface-600 peer-focus:text-tertiary-600 peer-not-placeholder-shown:text-tertiary-600",
-					invalid && "text-error-500!",
+						? 'text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white'
+						: 'text-surface-600 peer-focus:text-tertiary-600 peer-not-placeholder-shown:text-tertiary-600',
+					invalid && 'text-error-500!',
 					labelClass
 				)}
 			>

@@ -287,7 +287,12 @@ Home button and Settings available.
 			}
 
 			// Snap to nearest edge
-			const DISTANCES = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
+			const DISTANCES = [
+				buttonInfo.x,
+				window.innerWidth - buttonInfo.x,
+				buttonInfo.y,
+				window.innerHeight - buttonInfo.y
+			];
 
 			const NEAREST_EDGE_INDEX = DISTANCES.indexOf(Math.min(...DISTANCES));
 			let promise: Promise<void> = Promise.resolve();
@@ -303,13 +308,18 @@ Home button and Settings available.
 					});
 					break;
 				case 1: // Right edge
-					promise = motion([buttonInfo.x], [window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN)], motionMs, async (t) => {
-						buttonInfo.x = t[0];
-						await tick();
-						if (firstLine) {
-							firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+					promise = motion(
+						[buttonInfo.x],
+						[window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN)],
+						motionMs,
+						async (t) => {
+							buttonInfo.x = t[0];
+							await tick();
+							if (firstLine) {
+								firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+							}
 						}
-					});
+					);
 					break;
 				case 2: // Top edge
 					promise = motion([buttonInfo.y], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
@@ -321,13 +331,18 @@ Home button and Settings available.
 					});
 					break;
 				case 3: // Bottom edge
-					promise = motion([buttonInfo.y], [window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)], motionMs, async (t) => {
-						buttonInfo.y = t[0];
-						await tick();
-						if (firstLine) {
-							firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+					promise = motion(
+						[buttonInfo.y],
+						[window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)],
+						motionMs,
+						async (t) => {
+							buttonInfo.y = t[0];
+							await tick();
+							if (firstLine) {
+								firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+							}
 						}
-					});
+					);
 					break;
 			}
 
@@ -375,7 +390,10 @@ Home button and Settings available.
 		}
 	}
 
-	function keepAlive(_node: HTMLElement, { delay = 0, duration = 200, easing: easingFn = linear } = {}) {
+	function keepAlive(
+		_node: HTMLElement,
+		{ delay = 0, duration = 200, easing: easingFn = linear } = {}
+	) {
 		return { delay, duration, easing: easingFn, css: (_: number) => '' };
 	}
 
@@ -413,7 +431,10 @@ Home button and Settings available.
 
 	const centerEndpoint = $derived(endpoints[0]);
 	/** Only Home (+ optional fixed Settings spoke) — show a quieter “empty” ring. */
-	const isMinimalMenu = $derived(spokeEndpoints.length <= 1 && spokeEndpoints.every((s) => s.id === 'settings' || s.id === 'config'));
+	const isMinimalMenu = $derived(
+		spokeEndpoints.length <= 1 &&
+			spokeEndpoints.every((s) => s.id === 'settings' || s.id === 'config')
+	);
 </script>
 
 <!-- FloatingNav: Draggable button with radial menu, keyboard nav, reduced motion, ARIA -->
@@ -425,16 +446,19 @@ Home button and Settings available.
 	triggerClass="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 !pointer-events-auto"
 	triggerStyle="{browser
 		? (() => {
-			const clampedX = Math.min(Math.max(buttonInfo.x, BUTTON_RADIUS + EDGE_MARGIN), window.innerWidth - BUTTON_RADIUS - EDGE_MARGIN);
-			const clampedY = Math.min(buttonInfo.y, window.innerHeight - BUTTON_RADIUS);
-			const yPct = (clampedY / window.innerHeight) * 100;
-			if (isRightToLeft()) {
-				const rightPct = ((window.innerWidth - clampedX) / window.innerWidth) * 100;
-				return `top:${yPct}%; right:${rightPct}%;`;
-			}
-			const leftPct = (clampedX / window.innerWidth) * 100;
-			return `top:${yPct}%; left:${leftPct}%;`;
-		})()
+				const clampedX = Math.min(
+					Math.max(buttonInfo.x, BUTTON_RADIUS + EDGE_MARGIN),
+					window.innerWidth - BUTTON_RADIUS - EDGE_MARGIN
+				);
+				const clampedY = Math.min(buttonInfo.y, window.innerHeight - BUTTON_RADIUS);
+				const yPct = (clampedY / window.innerHeight) * 100;
+				if (isRightToLeft()) {
+					const rightPct = ((window.innerWidth - clampedX) / window.innerWidth) * 100;
+					return `top:${yPct}%; right:${rightPct}%;`;
+				}
+				const leftPct = (clampedX / window.innerWidth) * 100;
+				return `top:${yPct}%; left:${leftPct}%;`;
+			})()
 		: ''}
 	              width:{BUTTON_RADIUS * 2}px;
 	              height:{BUTTON_RADIUS * 2}px"
@@ -458,85 +482,100 @@ Home button and Settings available.
 	</div>
 </SystemTooltip>
 
-	{#if showRoutes}
-			<div out:keepAlive|local class="fixed inset-s-0 top-0 z-9999999">
-			<Button variant="ghost" onclick={closeMenu} class="fixed inset-s-0 top-0 z-9999999" aria-label="Close navigation overlay">
-		<svg
-			bind:this={svg}
-			xmlns="http://www.w3.org/2000/svg"
-			use:setDash
-			aria-hidden="true"
-			class="pointer-events-none fixed inset-s-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
+{#if showRoutes}
+	<div out:keepAlive|local class="fixed inset-s-0 top-0 z-9999999">
+		<Button
+			variant="ghost"
+			onclick={closeMenu}
+			class="fixed inset-s-0 top-0 z-9999999"
+			aria-label="Close navigation overlay"
 		>
-			<!-- FAB → center Home line always present -->
-			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
-			{#each spokesWithPos as endpoint (endpoint.id)}
-				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
-			{/each}
-		</svg>
+			<svg
+				bind:this={svg}
+				xmlns="http://www.w3.org/2000/svg"
+				use:setDash
+				aria-hidden="true"
+				class="pointer-events-none fixed inset-s-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
+			>
+				<!-- FAB → center Home line always present -->
+				<line
+					bind:this={firstLine}
+					x1={buttonInfo.x}
+					y1={buttonInfo.y}
+					x2={center.x}
+					y2={center.y}
+				/>
+				{#each spokesWithPos as endpoint (endpoint.id)}
+					<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
+				{/each}
+			</svg>
 
-		<!-- Empty / minimal ring: still draw the circle so the menu feels intentional -->
-		<div
-			transition:fade
-			aria-hidden="true"
-			class="absolute inset-s-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
-			class:opacity-60={isMinimalMenu && spokeEndpoints.length === 0}
-			style="top:{center.y}px;
+			<!-- Empty / minimal ring: still draw the circle so the menu feels intentional -->
+			<div
+				transition:fade
+				aria-hidden="true"
+				class="absolute inset-s-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+				class:opacity-60={isMinimalMenu && spokeEndpoints.length === 0}
+				style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
 			       height:{MENU_RADIUS * 2}px"
-		></div>
+			></div>
 
-		<!-- Fixed center: Home (always) -->
-		<SystemTooltip
-			title={centerEndpoint?.tooltip || 'Home'}
-			contentClass="z-[99999999]"
-			positioning={{ placement: 'top' }}
-			triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
-			triggerStyle="top:{center.y}px; left:{center.x}px"
-		>
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-			<a
-				bind:this={circles[0]}
-				href={centerEndpoint?.path || '/'}
-				target={centerEndpoint?.external ? '_blank' : undefined}
-				rel={centerEndpoint?.external ? 'noopener noreferrer' : undefined}
-				data-preload={centerEndpoint?.external ? undefined : 'hover'}
-				onclick={handleNavigateHome}
-				aria-label={centerEndpoint?.tooltip || 'Home'}
-				class="h-full w-full flex items-center justify-center"
-			>
-				<iconify-icon width="32" style="color:white" icon={centerEndpoint?.icon || 'solar:home-bold'}></iconify-icon>
-			</a>
-		</SystemTooltip>
-
-		{#each spokesWithPos as endpoint, index (endpoint.id)}
+			<!-- Fixed center: Home (always) -->
 			<SystemTooltip
-				title={endpoint.tooltip}
+				title={centerEndpoint?.tooltip || 'Home'}
 				contentClass="z-[99999999]"
 				positioning={{ placement: 'top' }}
-				triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
-					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
-				triggerStyle="top:{endpoint.y}px; left:{endpoint.x}px"
+				triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
+				triggerStyle="top:{center.y}px; left:{center.x}px"
 			>
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 				<a
-					bind:this={circles[index + 1]}
-					href={endpoint.path}
-					target={endpoint.external ? '_blank' : undefined}
-					rel={endpoint.external ? 'noopener noreferrer' : undefined}
-					data-preload={endpoint.external ? undefined : 'hover'}
-					onclick={handleNavigateToEndpoint}
-					aria-label={endpoint.tooltip}
+					bind:this={circles[0]}
+					href={centerEndpoint?.path || '/'}
+					target={centerEndpoint?.external ? '_blank' : undefined}
+					rel={centerEndpoint?.external ? 'noopener noreferrer' : undefined}
+					data-preload={centerEndpoint?.external ? undefined : 'hover'}
+					onclick={handleNavigateHome}
+					aria-label={centerEndpoint?.tooltip || 'Home'}
 					class="h-full w-full flex items-center justify-center"
 				>
-					<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
+					<iconify-icon
+						width="32"
+						style="color:white"
+						icon={centerEndpoint?.icon || 'solar:home-bold'}
+					></iconify-icon>
 				</a>
 			</SystemTooltip>
-		{/each}
-	</Button>
-		</div>
-	{/if}
+
+			{#each spokesWithPos as endpoint, index (endpoint.id)}
+				<SystemTooltip
+					title={endpoint.tooltip}
+					contentClass="z-[99999999]"
+					positioning={{ placement: 'top' }}
+					triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
+						'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
+					triggerStyle="top:{endpoint.y}px; left:{endpoint.x}px"
+				>
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+					<a
+						bind:this={circles[index + 1]}
+						href={endpoint.path}
+						target={endpoint.external ? '_blank' : undefined}
+						rel={endpoint.external ? 'noopener noreferrer' : undefined}
+						data-preload={endpoint.external ? undefined : 'hover'}
+						onclick={handleNavigateToEndpoint}
+						aria-label={endpoint.tooltip}
+						class="h-full w-full flex items-center justify-center"
+					>
+						<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
+					</a>
+				</SystemTooltip>
+			{/each}
+		</Button>
+	</div>
+{/if}
 
 <style lang="postcss">
 	@keyframes showEndPoints {

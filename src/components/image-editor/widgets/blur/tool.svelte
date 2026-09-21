@@ -30,7 +30,9 @@ Blur tool with interactive rectangular redaction regions.
 	const MIN_REGION = 48;
 
 	// Ensure blurRegions is always an array
-	const blurRegions = $derived(Array.isArray(storeState.blurRegions) ? storeState.blurRegions as BlurRegion[] : []);
+	const blurRegions = $derived(
+		Array.isArray(storeState.blurRegions) ? (storeState.blurRegions as BlurRegion[]) : []
+	);
 
 	// Generate unique ID
 	function generateId(): string {
@@ -189,7 +191,10 @@ Blur tool with interactive rectangular redaction regions.
 		} else {
 			activeId = null;
 			showRegionChrome = true;
-			if (!activeState && isBlurToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
+			if (
+				!activeState &&
+				isBlurToolbarComponent(imageEditorStore.state.toolbarControls?.component)
+			) {
 				imageEditorStore.setToolbarControls(null);
 			}
 		}
@@ -351,7 +356,12 @@ Blur tool with interactive rectangular redaction regions.
 
 		// Find clicked region
 		for (const region of blurRegions) {
-			if (pos.x >= region.x && pos.x <= region.x + region.width && pos.y >= region.y && pos.y <= region.y + region.height) {
+			if (
+				pos.x >= region.x &&
+				pos.x <= region.x + region.width &&
+				pos.y >= region.y &&
+				pos.y <= region.y + region.height
+			) {
 				activeId = region.id;
 				showRegionChrome = true;
 				isDragging = true;
@@ -440,10 +450,22 @@ Blur tool with interactive rectangular redaction regions.
 		resizeHandle = null;
 	}
 
-	const renderBlurRegions = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+	const renderBlurRegions = ({
+		context,
+		width,
+		height
+	}: {
+		context: CanvasRenderingContext2D;
+		width: number;
+		height: number;
+	}) => {
 		canvasSize = { width, height };
 
-		if (imageEditorStore.state.activeState !== 'blur' || blurRegions.length === 0 || !showRegionChrome) {
+		if (
+			imageEditorStore.state.activeState !== 'blur' ||
+			blurRegions.length === 0 ||
+			!showRegionChrome
+		) {
 			return;
 		}
 

@@ -108,9 +108,7 @@ charges order grandTotal (F1). Display amount is optional UI only.
 	}
 
 	const display = $derived(
-		typeof displayAmount === 'number'
-			? formatMoney(displayAmount, displayCurrency)
-			: ''
+		typeof displayAmount === 'number' ? formatMoney(displayAmount, displayCurrency) : ''
 	);
 </script>
 
@@ -133,7 +131,14 @@ charges order grandTotal (F1). Display amount is optional UI only.
 			<p class="text-xs font-medium text-error-500" role="alert">{error}</p>
 		{/if}
 
-		<Button aria-label={label} variant="primary" class="w-full" onclick={handlePayment} loading={processing} disabled={!stripe || !orderId}>
+		<Button
+			aria-label={label}
+			variant="primary"
+			class="w-full"
+			onclick={handlePayment}
+			loading={processing}
+			disabled={!stripe || !orderId}
+		>
 			{label}{display ? ` — ${display}` : ''}
 		</Button>
 

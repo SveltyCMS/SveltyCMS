@@ -51,7 +51,8 @@
 <ul class="mt-4 space-y-2 text-sm">
 	{#each addresses as addr (addr._id)}
 		<li class="rounded border border-surface-500/30 p-3 dark:border-surface-500/40">
-			{addr.line1}, {addr.city} {addr.postal}, {addr.country}
+			{addr.line1}, {addr.city}
+			{addr.postal}, {addr.country}
 		</li>
 	{/each}
 </ul>

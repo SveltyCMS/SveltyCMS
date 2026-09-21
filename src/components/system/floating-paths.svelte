@@ -54,7 +54,7 @@ creating organic layered motion from the first frame.
 			width: 0.05 + i * 0.01,
 			duration: 19 + r1 * 16,
 			phaseOffset: r2,
-			strokeOpacity: 0.1 + i * 0.03,
+			strokeOpacity: 0.1 + i * 0.03
 		};
 	});
 
@@ -64,8 +64,8 @@ creating organic layered motion from the first frame.
 			config,
 			pathLength: 0.3,
 			opacity: 0.3,
-			pathOffset: 0,
-		})),
+			pathOffset: 0
+		}))
 	);
 
 	onMount(() => {
@@ -83,7 +83,7 @@ creating organic layered motion from the first frame.
 			for (let i = 0; i < paths.length; i++) {
 				const p = paths[i];
 				const { duration, phaseOffset } = p.config;
-				const progress = ((elapsed / duration) + phaseOffset) % 1;
+				const progress = (elapsed / duration + phaseOffset) % 1;
 				const cosWave = 0.5 * (1 - Math.cos(progress * Math.PI * 2));
 				const triangleWave = progress < 0.5 ? progress * 2 : 2 - progress * 2;
 
@@ -103,7 +103,9 @@ creating organic layered motion from the first frame.
 <div class="pointer-events-none absolute inset-0">
 	<svg
 		aria-hidden="true"
-		class="h-full w-full {background === 'white' ? 'text-slate-950' : 'text-white'} {mirrorAnimation ? '-scale-x-100' : ''}"
+		class="h-full w-full {background === 'white' ? 'text-slate-950' : 'text-white'} {mirrorAnimation
+			? '-scale-x-100'
+			: ''}"
 		viewBox="0 0 696 316"
 		stroke-linecap="round"
 		fill="transparent"

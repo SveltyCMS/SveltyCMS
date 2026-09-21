@@ -5,7 +5,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let orders = $state<Array<{ _id: string; orderNumber: string; status: string; total: number; createdAt: string }>>([]);
+	let orders = $state<
+		Array<{ _id: string; orderNumber: string; status: string; total: number; createdAt: string }>
+	>([]);
 	let error = $state('');
 
 	onMount(async () => {
@@ -27,9 +29,13 @@
 {:else}
 	<ul class="mt-6 space-y-2" aria-label="Past orders">
 		{#each orders as order (order._id)}
-			<li class="flex items-center justify-between rounded border border-surface-500/30 px-3 py-2 dark:border-surface-500/40">
+			<li
+				class="flex items-center justify-between rounded border border-surface-500/30 px-3 py-2 dark:border-surface-500/40"
+			>
 				<div>
-					<a href="/account/orders/{order._id}" class="font-medium" data-preload="smart">{order.orderNumber}</a>
+					<a href="/account/orders/{order._id}" class="font-medium" data-preload="smart"
+						>{order.orderNumber}</a
+					>
 					<div class="text-xs capitalize text-surface-500">{order.status}</div>
 				</div>
 				<div class="tabular-nums">{Number(order.total || 0).toFixed(2)}</div>

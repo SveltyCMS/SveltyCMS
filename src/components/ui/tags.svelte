@@ -25,77 +25,77 @@ detection, max tag limit, and configurable Badge preset/color.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import { generateId } from '@utils/id-generator';
-import Badge from './badge.svelte';
-import { fade, scale } from 'svelte/transition';
+	import { cn } from '@utils/cn';
+	import { generateId } from '@utils/id-generator';
+	import Badge from './badge.svelte';
+	import { fade, scale } from 'svelte/transition';
 	import Button from '@components/ui/button.svelte';
 
-interface Props {
-	tags?: string[];
-	placeholder?: string;
-	allowDuplicates?: boolean;
-	validation?: (tag: string) => boolean;
-	onchange?: (tags: string[]) => void;
-	maxTags?: number;
-	disabled?: boolean;
-	variant?: 'filled' | 'tonal' | 'outlined' | 'glass';
-	color?: 'primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error';
-	class?: string;
-	label?: string;
-}
+	interface Props {
+		tags?: string[];
+		placeholder?: string;
+		allowDuplicates?: boolean;
+		validation?: (tag: string) => boolean;
+		onchange?: (tags: string[]) => void;
+		maxTags?: number;
+		disabled?: boolean;
+		variant?: 'filled' | 'tonal' | 'outlined' | 'glass';
+		color?: 'primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error';
+		class?: string;
+		label?: string;
+	}
 
-let {
-	tags = $bindable([]),
-	placeholder = 'Add tag...',
-	allowDuplicates = false,
-	validation,
-	onchange,
-	maxTags,
-	disabled = false,
-	variant = 'tonal',
-	color = 'surface',
-	class: className = '',
-	label
-}: Props = $props();
+	let {
+		tags = $bindable([]),
+		placeholder = 'Add tag...',
+		allowDuplicates = false,
+		validation,
+		onchange,
+		maxTags,
+		disabled = false,
+		variant = 'tonal',
+		color = 'surface',
+		class: className = '',
+		label
+	}: Props = $props();
 
-let inputValue = $state('');
-let inputElement = $state<HTMLInputElement>();
-const id = generateId('tags');
+	let inputValue = $state('');
+	let inputElement = $state<HTMLInputElement>();
+	const id = generateId('tags');
 
-function addTag(tag: string) {
-	if (disabled || !tag.trim()) return;
-	if (maxTags && tags.length >= maxTags) return;
+	function addTag(tag: string) {
+		if (disabled || !tag.trim()) return;
+		if (maxTags && tags.length >= maxTags) return;
 
-	const trimmed = tag.trim();
-	if (!allowDuplicates && tags.includes(trimmed)) {
+		const trimmed = tag.trim();
+		if (!allowDuplicates && tags.includes(trimmed)) {
+			inputValue = '';
+			return;
+		}
+
+		if (validation && !validation(trimmed)) return;
+
+		tags = [...tags, trimmed];
 		inputValue = '';
-		return;
+		onchange?.(tags);
 	}
 
-	if (validation && !validation(trimmed)) return;
-
-	tags = [...tags, trimmed];
-	inputValue = '';
-	onchange?.(tags);
-}
-
-function removeTag(index: number) {
-	if (disabled) return;
-	tags = tags.filter((_, i) => i !== index);
-	onchange?.(tags);
-}
-
-function handleKeydown(e: KeyboardEvent) {
-	if (disabled) return;
-
-	if (e.key === 'Enter' || e.key === ',') {
-		e.preventDefault();
-		addTag(inputValue);
-	} else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
-		removeTag(tags.length - 1);
+	function removeTag(index: number) {
+		if (disabled) return;
+		tags = tags.filter((_, i) => i !== index);
+		onchange?.(tags);
 	}
-}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (disabled) return;
+
+		if (e.key === 'Enter' || e.key === ',') {
+			e.preventDefault();
+			addTag(inputValue);
+		} else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+			removeTag(tags.length - 1);
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-1.5 w-full">
@@ -119,16 +119,21 @@ function handleKeydown(e: KeyboardEvent) {
 			<div in:scale={{ duration: 150 }} out:fade={{ duration: 100 }}>
 				<Badge
 					preset={variant as any}
-					color={color}
+					{color}
 					class="flex items-center gap-1.5 ps-2 pe-1 py-0.5 group"
 				>
 					<span>{tag}</span>
 					{#if !disabled}
-						<Button variant="ghost"
+						<Button
+							variant="ghost"
 							type="button"
-							onclick={(e: MouseEvent) => { e.stopPropagation(); removeTag(i); }}
+							onclick={(e: MouseEvent) => {
+								e.stopPropagation();
+								removeTag(i);
+							}}
 							aria-label={`Remove ${tag}`}
-						 class="p-0! min-w-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full">
+							class="p-0! min-w-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
+						>
 							<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 						</Button>
 					{/if}
@@ -136,7 +141,8 @@ function handleKeydown(e: KeyboardEvent) {
 			</div>
 		{/each}
 
-		<input aria-label="Input"
+		<input
+			aria-label="Input"
 			bind:this={inputElement}
 			{id}
 			type="text"

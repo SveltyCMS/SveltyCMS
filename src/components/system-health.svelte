@@ -94,9 +94,13 @@ Displays real-time system state and individual service health with comprehensive
 	const serviceEntries = $derived(Object.entries(services));
 	const serviceCount = $derived(serviceEntries.length);
 
-	const healthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'healthy').length);
+	const healthyServices = $derived(
+		serviceEntries.filter(([, service]) => service.status === 'healthy').length
+	);
 
-	const unhealthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'unhealthy').length);
+	const unhealthyServices = $derived(
+		serviceEntries.filter(([, service]) => service.status === 'unhealthy').length
+	);
 
 	const formattedLastChecked = $derived(
 		formatDisplayDate(lastChecked, undefined, {
@@ -106,9 +110,15 @@ Displays real-time system state and individual service health with comprehensive
 		})
 	);
 
-	const apiHealthUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/api/system?action=health` : '/api/system?action=health');
+	const apiHealthUrl = $derived(
+		typeof window !== 'undefined'
+			? `${window.location.origin}/api/system?action=health`
+			: '/api/system?action=health'
+	);
 
-	const healthPercentage = $derived(serviceCount > 0 ? Math.round((healthyServices / serviceCount) * 100) : 0);
+	const healthPercentage = $derived(
+		serviceCount > 0 ? Math.round((healthyServices / serviceCount) * 100) : 0
+	);
 
 	// Subscribe to store with proper cleanup
 	$effect(() => {
@@ -166,7 +176,8 @@ Displays real-time system state and individual service health with comprehensive
 				// Update local reactive state from API response
 				currentState = data.overallStatus;
 				services = data.components || {};
-				initializationStartedAt = data.initializationStartedAt || data.uptime ? Date.now() - data.uptime : null;
+				initializationStartedAt =
+					data.initializationStartedAt || data.uptime ? Date.now() - data.uptime : null;
 				lastChecked = new Date().toISOString();
 				retryCount = 0; // Reset on success
 			} else if (!response.ok) {
@@ -177,7 +188,9 @@ Displays real-time system state and individual service health with comprehensive
 
 			if (retryCount < MAX_RETRIES) {
 				retryCount++;
-				toast.warning('Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})', { duration: 2000 });
+				toast.warning('Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})', {
+					duration: 2000
+				});
 
 				// Exponential backoff
 				setTimeout(() => fetchHealth(), 1000 * 2 ** retryCount);
@@ -196,7 +209,9 @@ Displays real-time system state and individual service health with comprehensive
 			return;
 		}
 
-		const confirmed = confirm('Are you sure you want to reinitialize the system? This may cause temporary downtime.');
+		const confirmed = confirm(
+			'Are you sure you want to reinitialize the system? This may cause temporary downtime.'
+		);
 		if (!confirmed) {
 			return;
 		}
@@ -217,7 +232,9 @@ Displays real-time system state and individual service health with comprehensive
 
 			if (response.ok) {
 				const result = await response.json();
-				toast.success(result.message || `System reinitialized: ${result.status}`, { duration: 5000 });
+				toast.success(result.message || `System reinitialized: ${result.status}`, {
+					duration: 5000
+				});
 
 				// Wait a bit before fetching health
 				setTimeout(() => fetchHealth(), 1000);
@@ -359,30 +376,46 @@ Displays real-time system state and individual service health with comprehensive
 						></span>
 					{/if}
 				</h3>
-				<p class="text-sm opacity-70">Status: <span class={`font-bold ${getStateColor(currentState)}`}>{currentState}</span></p>
+				<p class="text-sm opacity-70">
+					Status: <span class={`font-bold ${getStateColor(currentState)}`}>{currentState}</span>
+				</p>
 			</div>
 		</div>
 
 		<div class="flex flex-wrap items-center gap-2">
-			<Checkbox checked={autoRefresh} onchange={(checked: boolean) => (autoRefresh = checked)} label="Auto-refresh" />
+			<Checkbox
+				checked={autoRefresh}
+				onchange={(checked: boolean) => (autoRefresh = checked)}
+				label="Auto-refresh"
+			/>
 
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={fetchHealth}
 				disabled={isLoading}
 				title="Refresh now"
 				aria-label="Refresh system health"
 			>
-				<span class="text-lg {isLoading && !prefersReducedMotion ? 'animate-spin' : ''}" role="img" aria-hidden="true"> 🔄 </span>
+				<span
+					class="text-lg {isLoading && !prefersReducedMotion ? 'animate-spin' : ''}"
+					role="img"
+					aria-hidden="true"
+				>
+					🔄
+				</span>
 			</Button>
 
-			<Button variant="outline"
+			<Button
+				variant="outline"
 				onclick={reinitializeSystem}
 				disabled={isReinitializing || isLoading}
 				title="Reinitialize system"
 				aria-label="Reinitialize system"
 			>
 				{#if isReinitializing}
-					<span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+					<span
+						class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+					></span>
 				{:else}
 					<span class="text-lg" role="img" aria-hidden="true">⚡</span>
 				{/if}
@@ -413,7 +446,13 @@ Displays real-time system state and individual service health with comprehensive
 
 		<AdminCard class="preset-outlined-surface-500 p-3">
 			<p class="text-xs opacity-70">Health</p>
-			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-tertiary-500 dark:text-primary-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
+			<p
+				class="text-lg font-bold {healthPercentage >= 80
+					? 'text-tertiary-500 dark:text-primary-500'
+					: healthPercentage >= 50
+						? 'text-warning-500'
+						: 'text-error-500'}"
+			>
 				{healthPercentage}%
 			</p>
 		</AdminCard>
@@ -445,7 +484,7 @@ Displays real-time system state and individual service health with comprehensive
 		<div class="flex items-center justify-between">
 			<h4 class="h4 text-sm font-semibold opacity-70">Service Status</h4>
 			{#if unhealthyServices > 0}
-				<Badge variant="error" class="text-xs"> {unhealthyServices} unhealthy </Badge>
+				<Badge variant="error" class="text-xs">{unhealthyServices} unhealthy</Badge>
 			{/if}
 		</div>
 
@@ -474,7 +513,9 @@ Displays real-time system state and individual service health with comprehensive
 							<p class="text-sm font-semibold">{formatServiceName(name)}</p>
 							<p class="truncate text-xs opacity-70" title={service.message}>{service.message}</p>
 							{#if service.error}
-								<p class="mt-1 truncate text-xs text-error-500" title={service.error}>Error: {service.error}</p>
+								<p class="mt-1 truncate text-xs text-error-500" title={service.error}>
+									Error: {service.error}
+								</p>
 							{/if}
 							{#if service.lastChecked}
 								<p class="mt-1 text-[10px] opacity-50">
@@ -492,17 +533,21 @@ Displays real-time system state and individual service health with comprehensive
 	<!-- API Health Endpoint Info -->
 	<AdminCard class="preset-outlined-surface-500 p-3">
 		<details class="space-y-2">
-			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100">API Health Endpoint</summary>
+			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100"
+				>API Health Endpoint</summary
+			>
 			<div class="space-y-2 text-xs opacity-70">
 				<p>For external monitoring, use:</p>
 				<div class="flex items-center gap-2">
 					<code class="code flex-1 p-2">{apiHealthUrl}</code>
-					<Button variant="primary"
+					<Button
+						variant="primary"
 						type="button"
 						onclick={copyEndpoint}
 						title="Copy to clipboard"
 						aria-label="Copy endpoint URL to clipboard"
-					 class="p-0! min-w-0 dark:">
+						class="p-0! min-w-0 dark:"
+					>
 						{#if copiedEndpoint}
 							✓
 						{:else}

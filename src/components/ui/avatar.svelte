@@ -23,63 +23,62 @@ and configurable size/rounded shape.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import type { Snippet } from 'svelte';
-import type { HTMLAttributes } from 'svelte/elements';
+	import { cn } from '@utils/cn';
+	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-type Props = HTMLAttributes<HTMLDivElement> & {
-	src?: string;
-	alt?: string;
-	initials?: string;
-	fallback?: Snippet;
-	size?: string;
-	rounded?: string;
-	class?: string;
-};
+	type Props = HTMLAttributes<HTMLDivElement> & {
+		src?: string;
+		alt?: string;
+		initials?: string;
+		fallback?: Snippet;
+		size?: string;
+		rounded?: string;
+		class?: string;
+	};
 
-let {
-	src,
-	alt = '',
-	initials,
-	fallback,
-	size = 'size-8',
-	rounded = 'rounded-full',
-	class: className,
-	...restProps
-}: Props = $props();
+	let {
+		src,
+		alt = '',
+		initials,
+		fallback,
+		size = 'size-8',
+		rounded = 'rounded-full',
+		class: className,
+		...restProps
+	}: Props = $props();
 
-let status = $state<'loading' | 'loaded' | 'error'>('loading');
+	let status = $state<'loading' | 'loaded' | 'error'>('loading');
 
-$effect(() => {
-	const currentSrc = src;
-	if (currentSrc) {
-		status = 'loading';
-		const img = new Image();
-		img.src = currentSrc;
-		img.onload = () => (status = 'loaded');
-		img.onerror = () => (status = 'error');
-	} else {
-		status = 'error';
-	}
-});
+	$effect(() => {
+		const currentSrc = src;
+		if (currentSrc) {
+			status = 'loading';
+			const img = new Image();
+			img.src = currentSrc;
+			img.onload = () => (status = 'loaded');
+			img.onerror = () => (status = 'error');
+		} else {
+			status = 'error';
+		}
+	});
 
-const classes = $derived(cn(
-	'relative flex shrink-0 overflow-hidden',
-	size,
-	rounded,
-	className
-));
+	const classes = $derived(cn('relative flex shrink-0 overflow-hidden', size, rounded, className));
 </script>
 
 <div class={classes} role="img" aria-label={alt || initials || 'Avatar'} {...restProps}>
 	{#if status === 'loaded' && src}
-		<img src={src} alt={alt} class="aspect-square h-full w-full object-cover" crossorigin="anonymous" />
+		<img {src} {alt} class="aspect-square h-full w-full object-cover" crossorigin="anonymous" />
 	{:else if fallback}
-		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium">
+		<div
+			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium"
+		>
 			{@render fallback()}
 		</div>
 	{:else if initials}
-		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium uppercase">
+		<div
+			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium uppercase"
+		>
 			{initials}
 		</div>
 	{:else}

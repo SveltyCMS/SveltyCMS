@@ -65,23 +65,26 @@ This component provides a tooltip for any element.
 		tabindex = 0
 	}: Props = $props();
 
-	const TOOLTIP_CLASS = 'rounded bg-surface-900 dark:bg-white px-3 py-1.5 text-[11px] font-medium shadow-2xl text-white dark:text-surface-900 border border-white/10 dark:border-black/5';
+	const TOOLTIP_CLASS =
+		'rounded bg-surface-900 dark:bg-white px-3 py-1.5 text-[11px] font-medium shadow-2xl text-white dark:text-surface-900 border border-white/10 dark:border-black/5';
 
 	// Native UI Tooltip
-	import Tooltip from "@components/ui/tooltip.svelte";
+	import Tooltip from '@components/ui/tooltip.svelte';
 
-	const resolvedTriggerClass = $derived(`p-0 m-0 border-none ${!triggerClass ? 'bg-transparent' : ''} ${wFull ? 'block w-full' : 'inline-block'} ${triggerClass}`);
+	const resolvedTriggerClass = $derived(
+		`p-0 m-0 border-none ${!triggerClass ? 'bg-transparent' : ''} ${wFull ? 'block w-full' : 'inline-block'} ${triggerClass}`
+	);
 </script>
 
-	<Tooltip
-		{title}
-		{positioning}
-		class={`${TOOLTIP_CLASS} ${contentClass}`}
-		triggerClass={resolvedTriggerClass}
-		style={triggerStyle}
-		{role}
-		{tabindex}
-	>
+<Tooltip
+	{title}
+	{positioning}
+	class={`${TOOLTIP_CLASS} ${contentClass}`}
+	triggerClass={resolvedTriggerClass}
+	style={triggerStyle}
+	{role}
+	{tabindex}
+>
 	{#snippet children()}
 		{@render childrenProp?.()}
 	{/snippet}

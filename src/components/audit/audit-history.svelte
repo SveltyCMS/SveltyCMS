@@ -52,7 +52,7 @@
 
 	// Derive target ID from current entry or props
 	let targetId = $derived(
-		entryId ?? (collections.activeValue as Record<string, unknown>)?._id as string | undefined,
+		entryId ?? ((collections.activeValue as Record<string, unknown>)?._id as string | undefined)
 	);
 
 	/** Load audit logs for the current/target entry */
@@ -96,7 +96,7 @@
 					brokenAt: null,
 					totalEntries: 0,
 					tamperedEntries: 0,
-					details: ['Unexpected verification response'],
+					details: ['Unexpected verification response']
 				};
 			}
 		} catch (err) {
@@ -105,7 +105,7 @@
 				brokenAt: null,
 				totalEntries: 0,
 				tamperedEntries: 0,
-				details: [String(err)],
+				details: [String(err)]
 			};
 		} finally {
 			isVerifying = false;
@@ -122,10 +122,10 @@
 				month: 'short',
 				day: '2-digit',
 				hour: '2-digit',
-				minute: '2-digit',
+				minute: '2-digit'
 			},
 			undefined,
-			ts,
+			ts
 		);
 	}
 
@@ -148,9 +148,7 @@
 <div class="audit-history flex flex-col gap-3">
 	<!-- Header with verify button -->
 	<div class="flex items-center justify-between">
-		<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
-			Audit History
-		</h3>
+		<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Audit History</h3>
 		<Button
 			variant="ghost"
 			onclick={handleVerifyChain}
@@ -188,7 +186,8 @@
 				<div class="flex flex-col gap-1">
 					<div class="flex items-center gap-1.5 font-semibold">
 						<span>⚠️</span>
-						Chain Broken at entry #{verifyResult.brokenAt ?? '?'} — {verifyResult.tamperedEntries} of {verifyResult.totalEntries} entries tampered
+						Chain Broken at entry #{verifyResult.brokenAt ?? '?'} — {verifyResult.tamperedEntries} of
+						{verifyResult.totalEntries} entries tampered
 					</div>
 					{#if verifyResult.details && verifyResult.details.length > 0}
 						<div class="mt-1 space-y-0.5 ps-4">
@@ -215,9 +214,7 @@
 			{error}
 		</div>
 	{:else if logs.length === 0 && targetId}
-		<div class="py-4 text-center text-xs text-surface-400">
-			No audit logs found for this entry.
-		</div>
+		<div class="py-4 text-center text-xs text-surface-400">No audit logs found for this entry.</div>
 	{:else if !targetId}
 		<div class="py-4 text-center text-xs text-surface-400">
 			Select an entry to view its audit history.
@@ -227,20 +224,20 @@
 		<div class="flex flex-col gap-0">
 			{#each logs as log, index (log._id ?? index)}
 				{@const isLast = index === logs.length - 1}
-				{@const previousHash = (log as unknown as Record<string, unknown>).previousHash as string | undefined}
-				{@const chainHash = (log as unknown as Record<string, unknown>).chainHash as string | undefined}
+				{@const previousHash = (log as unknown as Record<string, unknown>).previousHash as
+					string | undefined}
+				{@const chainHash = (log as unknown as Record<string, unknown>).chainHash as
+					string | undefined}
 				{@const hasChain = Boolean(previousHash && chainHash)}
 
 				<div class="flex gap-2">
 					<!-- Chain indicator dots -->
 					<div class="flex shrink-0 flex-col items-center" style="width: 16px;">
 						<div
-							class="{hasChain
+							class={hasChain
 								? 'h-2.5 w-2.5 rounded-full border border-tertiary-500 bg-tertiary-200 dark:border-tertiary-600 dark:bg-tertiary-800'
-								: 'h-2.5 w-2.5 rounded-full border border-surface-500/30 bg-surface-500/10 dark:border-surface-600 dark:bg-surface-800'}"
-							title="{hasChain
-								? `Chain: ${chainHash!.slice(0, 16)}...`
-								: 'No chain data'}"
+								: 'h-2.5 w-2.5 rounded-full border border-surface-500/30 bg-surface-500/10 dark:border-surface-600 dark:bg-surface-800'}
+							title={hasChain ? `Chain: ${chainHash!.slice(0, 16)}...` : 'No chain data'}
 						></div>
 						{#if !isLast}
 							<div class="h-full min-h-5 w-px bg-surface-300 dark:bg-surface-600"></div>
@@ -250,9 +247,7 @@
 					<!-- Log entry content -->
 					<div class="flex flex-1 flex-col gap-0.5 pb-3">
 						<div class="flex items-center gap-1.5 text-xs">
-							<span
-								class="font-semibold text-tertiary-600 dark:text-tertiary-400"
-							>
+							<span class="font-semibold text-tertiary-600 dark:text-tertiary-400">
 								{log.action}
 							</span>
 							<span class="text-[10px] text-surface-400">
@@ -260,7 +255,9 @@
 							</span>
 						</div>
 
-						<div class="flex flex-wrap items-center gap-1 text-[11px] text-surface-500 dark:text-surface-400">
+						<div
+							class="flex flex-wrap items-center gap-1 text-[11px] text-surface-500 dark:text-surface-400"
+						>
 							{#if log.actorEmail}
 								<span class="font-medium">{log.actorEmail}</span>
 							{/if}
@@ -279,7 +276,10 @@
 
 						<!-- Chain hash preview -->
 						{#if hasChain}
-							<div class="mt-0.5 font-mono text-[9px] text-surface-300 dark:text-surface-600" title={chainHash}>
+							<div
+								class="mt-0.5 font-mono text-[9px] text-surface-300 dark:text-surface-600"
+								title={chainHash}
+							>
 								← {previousHash!.slice(0, 8)}... | {chainHash!.slice(0, 8)}...
 							</div>
 						{/if}

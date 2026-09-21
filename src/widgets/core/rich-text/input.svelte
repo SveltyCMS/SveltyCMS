@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import { quintOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 
@@ -469,9 +469,7 @@ import { logger } from "@utils/logger";
 
 	// Undo/redo arrows are directional — mirror them in RTL layouts.
 	function mirrorDirIcon(icon: string): string {
-		return icon === 'arrow-u-left-top' || icon === 'arrow-u-right-top'
-			? 'rtl:-scale-x-[-1]'
-			: '';
+		return icon === 'arrow-u-left-top' || icon === 'arrow-u-right-top' ? 'rtl:-scale-x-[-1]' : '';
 	}
 
 	onMount(() => {
@@ -499,7 +497,10 @@ import { logger } from "@utils/logger";
 					return;
 				}
 				const newContent = {
-					title: (field.translated ? (value as Record<string, RichTextData>)?.[lang]?.title : (value as RichTextData)?.title) || '',
+					title:
+						(field.translated
+							? (value as Record<string, RichTextData>)?.[lang]?.title
+							: (value as RichTextData)?.title) || '',
 					content: editor.isEmpty ? '' : editor.getHTML()
 				};
 
@@ -582,18 +583,28 @@ import { logger } from "@utils/logger";
 		<div class="w-full flex max-w-none flex-wrap items-center gap-2 py-1">
 			{#each toolbarGroups as group, groupIdx (groupIdx)}
 				{#if !group.condition || group.condition()}
-					<div class="btn-group border border-surface-500/30 dark:border-surface-500/40 overflow-hidden">
+					<div
+						class="btn-group border border-surface-500/30 dark:border-surface-500/40 overflow-hidden"
+					>
 						{#each group.buttons as btn (btn.label)}
 							{#if btn.type === 'dropdown'}
 								<div class="relative">
 									<SystemTooltip title={btn.label}>
-										<Button variant="tertiary"
+										<Button
+											variant="tertiary"
 											type="button"
 											onclick={(e: MouseEvent) => toggleDropdown(btn.label, e)}
 											aria-label={btn.label}
-										 class="{editorStateVersion && activeDropdown === btn.label ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'} flex items-center gap-2">
+											class="{editorStateVersion && activeDropdown === btn.label
+												? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
+												: 'preset-tonal'} flex items-center gap-2"
+										>
 											{#if btn.icon}
-												<iconify-icon icon="mdi:{btn.icon}" width="20" class={mirrorDirIcon(btn.icon)}></iconify-icon>
+												<iconify-icon
+													icon="mdi:{btn.icon}"
+													width="20"
+													class={mirrorDirIcon(btn.icon)}
+												></iconify-icon>
 											{/if}
 											{#if !btn.icon || btn.label !== 'Table'}
 												<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
@@ -607,7 +618,9 @@ import { logger } from "@utils/logger";
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
-													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-400 text-center">
+													<div
+														class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-400 text-center"
+													>
 														{hoverRows || 1}
 														x {hoverCols || 1}
 													</div>
@@ -623,7 +636,8 @@ import { logger } from "@utils/logger";
 														{#each new Array(5) as _, r (r)}
 															{#each new Array(5) as _, c (c)}
 																<button
-																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
+																	class="w-8 h-8 rounded-sm border transition-colors {r <
+																		hoverRows && c < hoverCols
 																		? 'bg-tertiary-500/10 border-tertiary-500 dark:bg-tertiary-600 dark:border-tertiary-400'
 																		: 'bg-surface-500/10 border-surface-500/30 dark:bg-surface-700 dark:border-surface-600'}"
 																	aria-label="{r + 1} by {c + 1} table"
@@ -640,7 +654,11 @@ import { logger } from "@utils/logger";
 																		editor
 																			?.chain()
 																			.focus()
-																			.insertTable({ rows: r + 1, cols: c + 1, withHeaderRow: true })
+																			.insertTable({
+																				rows: r + 1,
+																				cols: c + 1,
+																				withHeaderRow: true
+																			})
 																			.run();
 																		closeDropdowns();
 																	}}
@@ -657,7 +675,8 @@ import { logger } from "@utils/logger";
 															editor?.chain().focus().unsetColor().run();
 															closeDropdowns();
 														}}
-													aria-label="reset-color">
+														aria-label="reset-color"
+													>
 														<iconify-icon icon="mdi:format-color-clear" width="18"></iconify-icon>
 														Reset Color
 													</button>
@@ -678,15 +697,22 @@ import { logger } from "@utils/logger";
 														{/each}
 													</div>
 
-													<div class="relative pt-2 border-t border-surface-500/30 dark:border-surface-500/40">
+													<div
+														class="relative pt-2 border-t border-surface-500/30 dark:border-surface-500/40"
+													>
 														<div class="relative w-full h-8 group overflow-hidden rounded">
 															<div
 																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-error-500 via-success-500 to-tertiary-500 opacity-90 group-hover:opacity-100 transition-opacity"
 															>
-																<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"></iconify-icon>
+																<iconify-icon
+																	icon="mdi:palette"
+																	class="text-white drop-shadow-md"
+																	width="18"
+																></iconify-icon>
 															</div>
-															<input aria-label="Link URL"
-										type="color"
+															<input
+																aria-label="Link URL"
+																type="color"
 																class="absolute inset-0 w-full h-full opacity-0"
 																onchange={handleColorChange}
 																onclick={(e) => e.stopPropagation()}
@@ -699,8 +725,8 @@ import { logger } from "@utils/logger";
 												<div class="p-2 w-64">
 													<div class="flex flex-col gap-2">
 														<Input
-										type="url"
-										aria-label="Link URL"
+															type="url"
+															aria-label="Link URL"
 															bind:value={linkUrl}
 															placeholder="https://example.com"
 															class="w-full space-y-0"
@@ -708,8 +734,18 @@ import { logger } from "@utils/logger";
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
 														/>
 														<div class="flex justify-end gap-2">
-															<Button variant="secondary" size="sm" onclick={closeDropdowns} aria-label="cancel-link-setup">Cancel</Button>
-															<Button variant="primary" size="sm" onclick={setLink} aria-label="set-link">Set Link</Button>
+															<Button
+																variant="secondary"
+																size="sm"
+																onclick={closeDropdowns}
+																aria-label="cancel-link-setup">Cancel</Button
+															>
+															<Button
+																variant="primary"
+																size="sm"
+																onclick={setLink}
+																aria-label="set-link">Set Link</Button
+															>
 														</div>
 													</div>
 												</div>
@@ -717,8 +753,8 @@ import { logger } from "@utils/logger";
 												<div class="p-2 w-64">
 													<div class="flex flex-col gap-2">
 														<Input
-										type="url"
-										aria-label="Video URL"
+															type="url"
+															aria-label="Video URL"
 															bind:value={videoUrl}
 															placeholder="YouTube URL"
 															class="w-full space-y-0"
@@ -726,8 +762,18 @@ import { logger } from "@utils/logger";
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
 														/>
 														<div class="flex justify-end gap-2">
-															<Button variant="secondary" size="sm" onclick={closeDropdowns} aria-label="cancel-video-embed">Cancel</Button>
-															<Button variant="primary" size="sm" onclick={setVideo} aria-label="embed-video">Embed</Button>
+															<Button
+																variant="secondary"
+																size="sm"
+																onclick={closeDropdowns}
+																aria-label="cancel-video-embed">Cancel</Button
+															>
+															<Button
+																variant="primary"
+																size="sm"
+																onclick={setVideo}
+																aria-label="embed-video">Embed</Button
+															>
 														</div>
 													</div>
 												</div>
@@ -753,12 +799,17 @@ import { logger } from "@utils/logger";
 								</div>
 							{:else}
 								<SystemTooltip title={btn.label}>
-									<Button variant="tertiary"
+									<Button
+										variant="tertiary"
 										type="button"
 										aria-label={btn.label}
 										onclick={btn.cmd}
-									class="p-0! min-w-0 {editorStateVersion && btn.active?.() ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'}">
-										<iconify-icon icon="mdi:{btn.icon}" width="24" class={mirrorDirIcon(btn.icon)}></iconify-icon>
+										class="p-0! min-w-0 {editorStateVersion && btn.active?.()
+											? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
+											: 'preset-tonal'}"
+									>
+										<iconify-icon icon="mdi:{btn.icon}" width="24" class={mirrorDirIcon(btn.icon)}
+										></iconify-icon>
 									</Button>
 								</SystemTooltip>
 							{/if}
@@ -776,7 +827,9 @@ import { logger } from "@utils/logger";
 		bind:this={element}
 		dir={editorDir}
 		onclick={() => editor?.chain().focus().run()}
-		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 leading-relaxed cursor-text {showSource ? 'hidden' : ''}"
+		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 leading-relaxed cursor-text {showSource
+			? 'hidden'
+			: ''}"
 	>
 		<!-- Tiptap content -->
 	</div>
@@ -788,7 +841,8 @@ import { logger } from "@utils/logger";
 		The onInsert handler then redirects the inserted token to the actual Tiptap editor.
 		This prevents the Token Picker from opening whenever the user just clicks into the editor to type.
 	-->
-	<input aria-label="Image URL"
+	<input
+		aria-label="Image URL"
 		type="text"
 		id={field.db_fieldName}
 		class="sr-only"
@@ -806,14 +860,14 @@ import { logger } from "@utils/logger";
 	/>
 
 	{#if showSource}
-		<textarea aria-label="Image alt text"
+		<textarea
+			aria-label="Image alt text"
 			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
 				const content = (e.target as HTMLTextAreaElement).value;
 				editor?.commands.setContent(content, { emitUpdate: true });
-			}}
-		></textarea>
+			}}></textarea>
 	{/if}
 
 	<style>
@@ -890,7 +944,9 @@ import { logger } from "@utils/logger";
 
 	<!-- Error -->
 	{#if error}
-		<div class="border-t border-error-500/30 bg-error-500/10 dark:border-error-500/40 dark:bg-error-900/20 px-8 py-4 text-sm text-error-600 dark:text-error-400">
+		<div
+			class="border-t border-error-500/30 bg-error-500/10 dark:border-error-500/40 dark:bg-error-900/20 px-8 py-4 text-sm text-error-600 dark:text-error-400"
+		>
 			{error}
 		</div>
 	{/if}
@@ -917,7 +973,9 @@ import { logger } from "@utils/logger";
 				}
 			}}
 		>
-			<div class="w-full max-w-lg rounded-2xl border border-surface-500/30 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl">
+			<div
+				class="w-full max-w-lg rounded-2xl border border-surface-500/30 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl"
+			>
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button
@@ -926,7 +984,8 @@ import { logger } from "@utils/logger";
 							editor?.chain().focus().setHardBreak().run();
 							showSlashMenu = false;
 						}}
-					aria-label="insert-hard-break">
+						aria-label="insert-hard-break"
+					>
 						<iconify-icon icon="mdi:arrow-down-bold" width="22"></iconify-icon>
 						<div class="text-start">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
@@ -940,11 +999,14 @@ import { logger } from "@utils/logger";
 								editor?.chain().focus().insertContent('/ai ');
 								showSlashMenu = false;
 							}}
-						aria-label="ask-ai">
+							aria-label="ask-ai"
+						>
 							<iconify-icon icon="mdi:sparkles" width="22"></iconify-icon>
 							<div class="text-start">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
-								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>
+								<div class="text-sm text-surface-500 dark:text-surface-50">
+									Generate or rewrite with AI
+								</div>
 							</div>
 						</button>
 					{/if}
@@ -953,10 +1015,11 @@ import { logger } from "@utils/logger";
 		</div>
 	{/if}
 
-<input aria-label="Link text"
-	bind:this={colorInput}
-	type="color"
-	class="hidden"
-	onchange={handleColorChange}
-/>
+	<input
+		aria-label="Link text"
+		bind:this={colorInput}
+		type="color"
+		class="hidden"
+		onchange={handleColorChange}
+	/>
 </div>

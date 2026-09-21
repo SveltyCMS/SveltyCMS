@@ -149,39 +149,46 @@
 
 <div class="relative {className}" class:hidden={!show} bind:this={dropdownRef}>
 	<div bind:this={buttonWrapperRef} class="contents">
-	<Button
-		variant="primary"
-		type="button"
-		onclick={toggleExpanded}
-		onkeydown={(e: KeyboardEvent) => {
-			if (e.key === 'ArrowDown') {
-				open(0);
-				e.preventDefault();
-			} else if (e.key === 'ArrowUp') {
-				open(items.length - 1);
-				e.preventDefault();
-			} else if (e.key === 'Enter' || e.key === ' ') {
-				open();
-				e.preventDefault();
-			}
-		}}
-		class="flex w-fit items-center gap-1 rounded"
-		aria-haspopup="true"
-		aria-expanded={expanded}
-		aria-controls={listboxId}
-		id={`${dropdownId}-button`}
-		aria-label={label || undefined}
-	>
-		{#if getButtonIcon()}
-			{#await import(`@lucide/svelte/icons/${getButtonIcon()}`) then _module}
-				{const Icon = _module.default}
-				<Icon size={18} class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'} />
-			{/await}
-		{/if}
-		<span class="hidden text-sm sm:inline" class:text-tertiary-50={!!getActiveItem()} class:text-surface-800={!getActiveItem()}
-			>{getButtonText()}</span
+		<Button
+			variant="primary"
+			type="button"
+			onclick={toggleExpanded}
+			onkeydown={(e: KeyboardEvent) => {
+				if (e.key === 'ArrowDown') {
+					open(0);
+					e.preventDefault();
+				} else if (e.key === 'ArrowUp') {
+					open(items.length - 1);
+					e.preventDefault();
+				} else if (e.key === 'Enter' || e.key === ' ') {
+					open();
+					e.preventDefault();
+				}
+			}}
+			class="flex w-fit items-center gap-1 rounded"
+			aria-haspopup="true"
+			aria-expanded={expanded}
+			aria-controls={listboxId}
+			id={`${dropdownId}-button`}
+			aria-label={label || undefined}
 		>
-	</Button>
+			{#if getButtonIcon()}
+				{#await import(`@lucide/svelte/icons/${getButtonIcon()}`) then _module}
+					{const Icon = _module.default}
+					<Icon
+						size={18}
+						class={getActiveItem()
+							? 'text-tertiary-50 dark:text-tertiary-300'
+							: 'text-surface-800 dark:text-surface-200'}
+					/>
+				{/await}
+			{/if}
+			<span
+				class="hidden text-sm sm:inline"
+				class:text-tertiary-50={!!getActiveItem()}
+				class:text-surface-800={!getActiveItem()}>{getButtonText()}</span
+			>
+		</Button>
 	</div>
 
 	{#if expanded}
@@ -226,12 +233,12 @@
 							e.preventDefault();
 						}
 					}}
-					class="flex w-full items-center gap-2 px-3 py-2 text-start text-surface-700 hover:bg-surface-200/70 focus:bg-tertiary-500/20 focus:outline-none dark:text-white dark:hover:bg-surface-600/60 dark:focus:bg-tertiary-400/25"
+					class="flex w-full items-center gap-2 px-3 py-2 text-start text-surface-700 hover:bg-surface-200/70
+					focus:bg-tertiary-500/20 focus:outline-none dark:text-white dark:hover:bg-surface-600/60 dark:focus:bg-tertiary-400/25"
 					class:active={item.active && item.active()}
-					role="menuitem"
-					tabindex={i === focusedIndex ? 0 : -1}
+					role="menuitem" tabindex={i === focusedIndex ? 0 : -1}
 					aria-current={item.active && item.active() ? 'true' : undefined}
-				>
+					>
 					{#if item.active && item.active()}
 						<iconify-icon icon="mdi:check" width={16}></iconify-icon>
 					{:else if item.icon}
@@ -248,5 +255,4 @@
 </div>
 
 <style>
-
 </style>

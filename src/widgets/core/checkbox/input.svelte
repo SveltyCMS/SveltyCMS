@@ -56,7 +56,8 @@ Renders a checkbox with label, color, size, and helper text from field props
 <div class="mb-4">
 	<div class="flex flex-col gap-y-2">
 		<label class="flex items-center gap-2 text-base text-surface-600 dark:text-surface-50">
-			<input aria-label="Checkbox"
+			<input
+				aria-label="Checkbox"
 				type="checkbox"
 				id={field.db_fieldName}
 				name={field.db_fieldName}

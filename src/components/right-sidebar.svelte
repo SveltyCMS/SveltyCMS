@@ -12,10 +12,9 @@
 -->
 
 <script lang="ts">
-
-import { ui } from '@src/stores/ui-store.svelte';
-import { validationStore } from '@src/stores/validation-store.svelte';
-import Button from '@components/ui/button.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
+	import Button from '@components/ui/button.svelte';
 	// Components
 	import Toggle from '@components/ui/toggle.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -73,7 +72,9 @@ import Button from '@components/ui/button.svelte';
 	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
 	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
 
-	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+	let scheduleTimestamp = $derived(
+		currentEntry?._scheduled ? Number(currentEntry._scheduled) : null
+	);
 
 	// --- Permissions & UI logic ---
 	let showSidebar = $derived(['edit', 'create'].includes(currentMode) && canWrite);
@@ -81,8 +82,8 @@ import Button from '@components/ui/button.svelte';
 	// Theme-aware: show collections in end sidebar?
 	const themeCtx = getThemeContext();
 	const showCollectionsHere = $derived(
-		(themeCtx?.features?.layoutRegions?.collections === 'right' ||
-		 themeCtx?.features?.layoutRegions?.collections === 'both')
+		themeCtx?.features?.layoutRegions?.collections === 'right' ||
+			themeCtx?.features?.layoutRegions?.collections === 'both'
 	);
 
 	let shouldDisableStatusToggle = $derived(
@@ -91,7 +92,9 @@ import Button from '@components/ui/button.svelte';
 			collections.isStatusLoading
 	);
 
-	let isMenuCollection = $derived(currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu');
+	let isMenuCollection = $derived(
+		currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu'
+	);
 
 	// --- Next button handling ---
 	// Restore logic for MegaMenu wizard support
@@ -196,7 +199,7 @@ import Button from '@components/ui/button.svelte';
 				collectionId: currentCollection?._id as string,
 				entryId: entryData._id as string,
 				targetStatus: entryData._scheduledAction || StatusTypes.publish,
-				entryPath: (entryData as any).path || undefined,
+				entryPath: (entryData as any).path || undefined
 			};
 
 			const res = await fetch('/api/system-jobs', {
@@ -205,8 +208,8 @@ import Button from '@components/ui/button.svelte';
 				body: JSON.stringify({
 					taskType: 'status-transition',
 					payload,
-					runAt: new Date(scheduledTs).toISOString(),
-				}),
+					runAt: new Date(scheduledTs).toISOString()
+				})
 			});
 
 			if (!res.ok) {
@@ -283,137 +286,178 @@ import Button from '@components/ui/button.svelte';
 		{/if}
 
 		{#if showSidebar}
-		<!-- Special "Next" button for Menu wizard -->
-		{#if ui.wizard.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-			<Button variant="tertiary" type="button" onclick={nextAction!} class="w-full gap-2 shadow-lg">
-				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
-				{button_next()}
-			</Button>
-		{:else}
-			<!-- Main actions -->
-			<header class="flex flex-col gap-3">
-				<Button variant="primary"
+			<!-- Special "Next" button for Menu wizard -->
+			{#if ui.wizard.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
+				<Button
+					variant="tertiary"
 					type="button"
-					onclick={save}
-					disabled={!isFormValid || !canWrite}
-					aria-label="Save"
-					title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
-				 class="w-full gap-2 shadow-lg transition-all">
-					<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
-					{button_save()}
+					onclick={nextAction!}
+					class="w-full gap-2 shadow-lg"
+				>
+					<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
+					{button_next()}
 				</Button>
+			{:else}
+				<!-- Main actions -->
+				<header class="flex flex-col gap-3">
+					<Button
+						variant="primary"
+						type="button"
+						onclick={save}
+						disabled={!isFormValid || !canWrite}
+						aria-label="Save"
+						title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
+						class="w-full gap-2 shadow-lg transition-all"
+					>
+						<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
+						{button_save()}
+					</Button>
 
-				<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
-					<Toggle
-						value={collections.isPublish}
-						label={collections.isPublish ? status_publish() : status_unpublish()}
-						labelColor={collections.isPublish ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
-						iconOn="ic:baseline-check-circle"
-						iconOff="material-symbols:close"
-						disabled={shouldDisableStatusToggle}
-						onToggle={toggleStatus}
-					/>
-				</div>
-
-				{#if currentMode === 'edit'}
-					<div class="flex w-full flex-col gap-2">
-						<Button variant="outline"
-							type="button"
-							onclick={handleClone}
-							disabled={!canCreate}
-						 class="gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md">
-							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
-							Clone <span class="font-semibold text-white">{currentCollection?.name}</span>
-						</Button>
-
-						<Button variant="error" type="button" onclick={handleDelete} disabled={!canDelete} class="w-full gap-2 shadow-md">
-							<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
-							{button_delete()}
-						</Button>
+					<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
+						<Toggle
+							value={collections.isPublish}
+							label={collections.isPublish ? status_publish() : status_unpublish()}
+							labelColor={collections.isPublish
+								? 'text-tertiary-500 dark:text-primary-500'
+								: 'text-error-500'}
+							iconOn="ic:baseline-check-circle"
+							iconOff="material-symbols:close"
+							disabled={shouldDisableStatusToggle}
+							onToggle={toggleStatus}
+						/>
 					</div>
-				{/if}
-			</header>
 
-			<Slot name="entry_edit_sidebar" props={{ collection: currentCollection, currentEntry }} />
+					{#if currentMode === 'edit'}
+						<div class="flex w-full flex-col gap-2">
+							<Button
+								variant="outline"
+								type="button"
+								onclick={handleClone}
+								disabled={!canCreate}
+								class="gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md"
+							>
+								<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
+								Clone <span class="font-semibold text-white">{currentCollection?.name}</span>
+							</Button>
 
-			<main class="mt-6 flex w-full flex-col gap-4 text-start">
-				<div class="border-b border-surface-500/30 pb-2 dark:border-surface-600">
-					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">{siedabar_publish_options()}</h3>
-				</div>
+							<Button
+								variant="error"
+								type="button"
+								onclick={handleDelete}
+								disabled={!canDelete}
+								class="w-full gap-2 shadow-md"
+							>
+								<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
+								{button_delete()}
+							</Button>
+						</div>
+					{/if}
+				</header>
 
-				<div class="space-y-2">
+				<Slot name="entry_edit_sidebar" props={{ collection: currentCollection, currentEntry }} />
+
+				<main class="mt-6 flex w-full flex-col gap-4 text-start">
+					<div class="border-b border-surface-500/30 pb-2 dark:border-surface-600">
+						<h3
+							class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500"
+						>
+							{siedabar_publish_options()}
+						</h3>
+					</div>
+
+					<div class="space-y-2">
 						{#if scheduleTimestamp}
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_will_publish_on()}</p>
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+								{sidebar_will_publish_on()}
+							</p>
 							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
 								{formatDisplayDate(scheduleTimestamp)}
 							</p>
 						{/if}
-						<Button variant="outline"
+						<Button
+							variant="outline"
 							onclick={openSchedule}
-						 class="w-full justify-start gap-2 text-start text-surface-600 dark:text-surface-100">
+							class="w-full justify-start gap-2 text-start text-surface-600 dark:text-surface-100"
+						>
 							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 							<span class="text-sm font-medium text-surface-600 dark:text-surface-100">
 								{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
 							</span>
 						</Button>
 						{#if scheduleTimestamp}
-							<Button variant="error"
+							<Button
+								variant="error"
 								onclick={() => {
-									collections.activeValue = { ...currentEntry!, _scheduled: undefined, status: StatusTypes.draft };
+									collections.activeValue = {
+										...currentEntry!,
+										_scheduled: undefined,
+										status: StatusTypes.draft
+									};
 									toast.success('Schedule cancelled');
 								}}
-							 class="w-full justify-start gap-2 text-start text-sm">
+								class="w-full justify-start gap-2 text-start text-sm"
+							>
 								<iconify-icon icon="material-symbols:cancel" width="16"></iconify-icon>
 								<span>Cancel Schedule</span>
 							</Button>
 						{/if}
-				</div>
-
-				<div class="space-y-3">
-					<div class="space-y-1">
-						<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_createdby()}</p>
-						<div class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800">
-							<span class="text-sm font-semibold text-surface-600 dark:text-surface-100"> {getDisplayName(currentEntry?.createdBy as string)} </span>
-						</div>
 					</div>
 
-					{#if currentEntry?.updatedBy}
+					<div class="space-y-3">
 						<div class="space-y-1">
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Last updated by</p>
-							<div class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800">
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+								{sidebar_createdby()}
+							</p>
+							<div
+								class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800"
+							>
 								<span class="text-sm font-semibold text-surface-600 dark:text-surface-100">
-									{getDisplayName(currentEntry?.updatedBy as string)}
+									{getDisplayName(currentEntry?.createdBy as string)}
 								</span>
 							</div>
 						</div>
+
+						{#if currentEntry?.updatedBy}
+							<div class="space-y-1">
+								<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+									Last updated by
+								</p>
+								<div
+									class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800"
+								>
+									<span class="text-sm font-semibold text-surface-600 dark:text-surface-100">
+										{getDisplayName(currentEntry?.updatedBy as string)}
+									</span>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</main>
+
+				<footer class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-600">
+					<div class="space-y-2 text-xs">
+						<div class="flex items-center justify-between">
+							<span class="font-medium capitalize">Created:</span>
+							<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
+						</div>
+						<div class="flex items-center justify-between">
+							<span class="font-medium capitalize">Updated:</span>
+							<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
+						</div>
+					</div>
+
+					{#if currentMode === 'create'}
+						<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
+							{formatDisplayDate(Date.now(), undefined, {
+								year: 'numeric',
+								month: 'short',
+								day: 'numeric',
+								hour: '2-digit',
+								minute: '2-digit'
+							})}
+						</div>
 					{/if}
-				</div>
-			</main>
-
-			<footer class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-600">
-				<div class="space-y-2 text-xs">
-					<div class="flex items-center justify-between">
-						<span class="font-medium capitalize">Created:</span>
-						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
-					</div>
-					<div class="flex items-center justify-between">
-						<span class="font-medium capitalize">Updated:</span>
-						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
-					</div>
-				</div>
-
-				{#if currentMode === 'create'}
-					<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
-						{formatDisplayDate(Date.now(), undefined, {
-							year: 'numeric',
-							month: 'short',
-							day: 'numeric',
-							hour: '2-digit',
-							minute: '2-digit'
-						})}
-					</div>
-				{/if}
-			</footer>
+				</footer>
 			{/if}
 		{/if}
 	</div>

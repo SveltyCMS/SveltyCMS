@@ -15,66 +15,77 @@ Shows authored guidance content, widget documentation, and usage tips.
 -->
 
 <script lang="ts">
-  import Button from '@components/ui/button.svelte';
-  import { helpStore } from "./help-state.svelte";
-  import { slide } from "svelte/transition";
+	import Button from '@components/ui/button.svelte';
+	import { helpStore } from './help-state.svelte';
+	import { slide } from 'svelte/transition';
 
-  let { open = false }: { open?: boolean } = $props();
+	let { open = false }: { open?: boolean } = $props();
 
-  const currentBrief = $derived(helpStore.getCurrentBrief());
-  const context = $derived(helpStore.currentContext);
-  const isBeginner = $derived(helpStore.beginnerMode);
+	const currentBrief = $derived(helpStore.getCurrentBrief());
+	const context = $derived(helpStore.currentContext);
+	const isBeginner = $derived(helpStore.beginnerMode);
 </script>
 
 {#if open && context.fieldName}
-  <div
-    class="fixed inset-y-0 inset-e-0 z-50 w-80 border-s border-surface-500/30 bg-white shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
-    transition:slide={{ duration: 200 }}
-    role="complementary"
-    aria-label="Field help"
-  >
-    <div class="flex items-center justify-between border-b border-surface-500/30 p-3 dark:border-surface-500/40">
-      <h3 class="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">
-        {context.fieldName?.replace(/_/g, " ")}
-      </h3>
-      <Button variant="ghost" onclick={() => helpStore.helpPanelOpen = false} aria-label="Close help panel" class="rounded p-1">
-        <iconify-icon icon="mdi:close" width="20"></iconify-icon>
-      </Button>
-    </div>
+	<div
+		class="fixed inset-y-0 inset-e-0 z-50 w-80 border-s border-surface-500/30 bg-white shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
+		transition:slide={{ duration: 200 }}
+		role="complementary"
+		aria-label="Field help"
+	>
+		<div
+			class="flex items-center justify-between border-b border-surface-500/30 p-3 dark:border-surface-500/40"
+		>
+			<h3 class="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">
+				{context.fieldName?.replace(/_/g, ' ')}
+			</h3>
+			<Button
+				variant="ghost"
+				onclick={() => (helpStore.helpPanelOpen = false)}
+				aria-label="Close help panel"
+				class="rounded p-1"
+			>
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			</Button>
+		</div>
 
-    <div class="overflow-y-auto p-4 text-sm text-surface-600 dark:text-surface-400">
-      {#if isBeginner}
-        <div class="mb-3 rounded bg-tertiary-500/10 p-2 text-xs text-tertiary-600 dark:bg-tertiary-500/10 dark:text-tertiary-400">
-          <iconify-icon icon="mdi:school" width="14" class="me-1 inline"></iconify-icon>
-          Beginner mode enabled — simplified guidance shown
-        </div>
-      {/if}
+		<div class="overflow-y-auto p-4 text-sm text-surface-600 dark:text-surface-400">
+			{#if isBeginner}
+				<div
+					class="mb-3 rounded bg-tertiary-500/10 p-2 text-xs text-tertiary-600 dark:bg-tertiary-500/10 dark:text-tertiary-400"
+				>
+					<iconify-icon icon="mdi:school" width="14" class="me-1 inline"></iconify-icon>
+					Beginner mode enabled — simplified guidance shown
+				</div>
+			{/if}
 
-      {#if currentBrief}
-        <div class="prose prose-sm max-w-none dark:prose-invert">
-          {currentBrief.content}
-        </div>
-      {:else if context.widgetType}
-        <div class="space-y-3">
-          <p class="text-xs text-surface-500">
-            Widget: <code class="rounded bg-surface-500/10 px-1 dark:bg-surface-800">{context.widgetType}</code>
-          </p>
-          <p class="text-xs text-surface-400 italic">
-            No authored guidance for this field yet.
-            Ask your admin to add author briefs in Configuration → Author Guidance.
-          </p>
-        </div>
-      {:else}
-        <p class="text-xs text-surface-400 italic">
-          Select a field to see contextual guidance.
-        </p>
-      {/if}
+			{#if currentBrief}
+				<div class="prose prose-sm max-w-none dark:prose-invert">
+					{currentBrief.content}
+				</div>
+			{:else if context.widgetType}
+				<div class="space-y-3">
+					<p class="text-xs text-surface-500">
+						Widget: <code class="rounded bg-surface-500/10 px-1 dark:bg-surface-800"
+							>{context.widgetType}</code
+						>
+					</p>
+					<p class="text-xs text-surface-400 italic">
+						No authored guidance for this field yet. Ask your admin to add author briefs in
+						Configuration → Author Guidance.
+					</p>
+				</div>
+			{:else}
+				<p class="text-xs text-surface-400 italic">Select a field to see contextual guidance.</p>
+			{/if}
 
-      {#if context.schemaId}
-        <div class="mt-4 border-t border-surface-500/30 pt-3 text-xs text-surface-400 dark:border-surface-500/40">
-          Schema: <code class="text-surface-500">{context.schemaId}</code>
-        </div>
-      {/if}
-    </div>
-  </div>
+			{#if context.schemaId}
+				<div
+					class="mt-4 border-t border-surface-500/30 pt-3 text-xs text-surface-400 dark:border-surface-500/40"
+				>
+					Schema: <code class="text-surface-500">{context.schemaId}</code>
+				</div>
+			{/if}
+		</div>
+	</div>
 {/if}

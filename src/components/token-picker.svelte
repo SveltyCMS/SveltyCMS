@@ -12,7 +12,7 @@
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -59,13 +59,17 @@ import { logger } from "@utils/logger";
 	});
 
 	// Derived data
-	let groupedTokens = $derived(TokenRegistry.getTokens(collections.active ?? undefined, page.data?.user));
+	let groupedTokens = $derived(
+		TokenRegistry.getTokens(collections.active ?? undefined, page.data?.user)
+	);
 
 	let filteredGroups = $derived.by(() => {
 		const q = search.toLowerCase();
 		const result: Record<string, TokenDefinition[]> = {};
 		for (const [cat, tokens] of Object.entries(groupedTokens)) {
-			const filtered = tokens.filter((t) => t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q));
+			const filtered = tokens.filter(
+				(t) => t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q)
+			);
 			if (filtered.length > 0) {
 				result[cat] = filtered;
 			}
@@ -74,7 +78,11 @@ import { logger } from "@utils/logger";
 	});
 
 	let availableModifiers = $derived(
-		selectedToken ? modifierMetadata.filter((m) => m.accepts.includes(selectedToken!.type) || m.accepts.includes('any')) : []
+		selectedToken
+			? modifierMetadata.filter(
+					(m) => m.accepts.includes(selectedToken!.type) || m.accepts.includes('any')
+				)
+			: []
 	);
 
 	let tokenResult = $derived.by(() => {
@@ -85,7 +93,9 @@ import { logger } from "@utils/logger";
 		selectedModifiers.forEach((mod) => {
 			str += ` | ${mod.def.name}`;
 			if (mod.args.length > 0 && mod.args.some((a) => a !== undefined && a !== '')) {
-				const argStr = mod.args.map((a) => (typeof a === 'string' ? `'${a}'` : String(a))).join(',');
+				const argStr = mod.args
+					.map((a) => (typeof a === 'string' ? `'${a}'` : String(a)))
+					.join(',');
 				str += `(${argStr})`;
 			}
 		});
@@ -169,7 +179,9 @@ import { logger } from "@utils/logger";
 					if (!modDef) {
 						return null;
 					}
-					const rawArgs = m[2] ? m[2].split(',').map((s: string) => s.trim().replace(/^['"]|['"]$/g, '')) : [];
+					const rawArgs = m[2]
+						? m[2].split(',').map((s: string) => s.trim().replace(/^['"]|['"]$/g, ''))
+						: [];
 					const args = modDef.args.map((a, i) => rawArgs[i] ?? a.default);
 					return { def: modDef, args };
 				})
@@ -188,7 +200,8 @@ import { logger } from "@utils/logger";
 			} else if (!editablePreview && active?.element) {
 				const el = active.element;
 				const start = el.selectionStart ?? el.value.length;
-				editablePreview = el.value.slice(0, start) + currentToken + el.value.slice(el.selectionEnd ?? start);
+				editablePreview =
+					el.value.slice(0, start) + currentToken + el.value.slice(el.selectionEnd ?? start);
 			} else if (!editablePreview) {
 				editablePreview = currentToken;
 			}
@@ -316,17 +329,29 @@ import { logger } from "@utils/logger";
 				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					{mode === 'configure' ? 'Configure Token' : 'Select Token'}
 					<span class="text-sm font-normal opacity-70">for</span>
-					<Badge variant="secondary" preset="tonal"> {activeInput.current?.field.label || activeInput.current?.field.name || 'Field'} </Badge>
+					<Badge variant="secondary" preset="tonal">
+						{activeInput.current?.field.label || activeInput.current?.field.name || 'Field'}
+					</Badge>
 				</h3>
 			</div>
-			<Button variant="outline" onclick={() => activeInput.set(null)} aria-label="Close" class="p-0! min-w-0">
+			<Button
+				variant="outline"
+				onclick={() => activeInput.set(null)}
+				aria-label="Close"
+				class="p-0! min-w-0"
+			>
 				<iconify-icon icon="mdi:close"></iconify-icon>
 			</Button>
 		</header>
 
 		{#if mode === 'list'}
 			<div class="mb-4">
-				<FloatingInput bind:value={search} label="Search tokens..." icon="mdi:magnify" aria-label="Search tokens" />
+				<FloatingInput
+					bind:value={search}
+					label="Search tokens..."
+					icon="mdi:magnify"
+					aria-label="Search tokens"
+				/>
 			</div>
 
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pe-1">
@@ -336,12 +361,16 @@ import { logger } from "@utils/logger";
 							variant="ghost"
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
 							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
-						 aria-label="Toggle {cat} category">
+							aria-label="Toggle {cat} category"
+						>
 							<div class="flex items-center gap-2">
 								<iconify-icon icon={icons[cat]}></iconify-icon>
 								<span>{cat}</span>
 							</div>
-							<iconify-icon icon="mdi:chevron-down" class="transition-transform {openCategories[cat] || search ? 'rotate-180' : ''}"></iconify-icon>
+							<iconify-icon
+								icon="mdi:chevron-down"
+								class="transition-transform {openCategories[cat] || search ? 'rotate-180' : ''}"
+							></iconify-icon>
 						</Button>
 
 						{#if openCategories[cat] || search}
@@ -360,21 +389,30 @@ import { logger } from "@utils/logger";
 												<code class="code text-[10px] opacity-70">{t.token}</code>
 											</div>
 											<div class="flex items-center gap-1">
-												<Badge variant="secondary" preset="tonal" class="text-[10px] uppercase">{t.type}</Badge>
-												<Button variant="outline"
+												<Badge variant="secondary" preset="tonal" class="text-[10px] uppercase"
+													>{t.type}</Badge
+												>
+												<Button
+													variant="outline"
 													onclick={(e: MouseEvent) => toggleInfo(t.token, e)}
 													aria-label="More information"
 													title="Info"
-												 class="p-0! min-w-0">
+													class="p-0! min-w-0"
+												>
 													<iconify-icon icon="mdi:information-outline"></iconify-icon>
 												</Button>
 											</div>
 										</div>
 
 										{#if showInfo[t.token]}
-											<div transition:slide class="mt-2 border-t border-surface-500/20 pt-2 text-xs">
+											<div
+												transition:slide
+												class="mt-2 border-t border-surface-500/20 pt-2 text-xs"
+											>
 												<p class="mb-2 opacity-80">{t.description}</p>
-												<code class="code block overflow-x-auto p-2"> {t.example || `{{ ${t.token} }}`} </code>
+												<code class="code block overflow-x-auto p-2">
+													{t.example || `{{ ${t.token} }}`}
+												</code>
 											</div>
 										{/if}
 									</AdminCard>
@@ -387,9 +425,13 @@ import { logger } from "@utils/logger";
 		{:else if selectedToken}
 			<div class="flex-1 space-y-4 overflow-y-auto pe-2">
 				<!-- Token Info -->
-				<div class="card preset-tonal-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
+				<div
+					class="card preset-tonal-primary border border-tertiary-500 dark:border-primary-500/30 p-4"
+				>
 					<div class="mb-2 flex items-center justify-between">
-						<div class="text-lg font-bold text-primary-600 dark:text-primary-500">{selectedToken.name}</div>
+						<div class="text-lg font-bold text-primary-600 dark:text-primary-500">
+							{selectedToken.name}
+						</div>
 						<Badge variant="primary">{selectedToken.type}</Badge>
 					</div>
 					<code class="code mb-2 block">{selectedToken.token}</code>
@@ -404,10 +446,12 @@ import { logger } from "@utils/logger";
 							<div class="card preset-outlined-surface-500 group relative p-3">
 								<div class="mb-2 flex items-center justify-between">
 									<span class="font-bold text-secondary-500">{mod.def.label}</span>
-									<Button variant="error"
+									<Button
+										variant="error"
 										onclick={() => removeModifier(i)}
 										aria-label="Remove modifier"
-									 class="p-0! min-w-0 text-error-500">
+										class="p-0! min-w-0 text-error-500"
+									>
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 									</Button>
 								</div>
@@ -421,12 +465,25 @@ import { logger } from "@utils/logger";
 														label={arg.name}
 														size="sm"
 														placeholder="Select..."
-														options={(arg.options ?? []).map((opt) => ({ value: String(opt), label: String(opt) }))}
+														options={(arg.options ?? []).map((opt) => ({
+															value: String(opt),
+															label: String(opt)
+														}))}
 													/>
 												{:else if arg.type === 'number'}
-													<Input type="number" bind:value={mod.args[argIdx] as number} label={arg.name} inputClass="h-8 text-xs" />
+													<Input
+														type="number"
+														bind:value={mod.args[argIdx] as number}
+														label={arg.name}
+														inputClass="h-8 text-xs"
+													/>
 												{:else}
-													<Input type="text" bind:value={mod.args[argIdx] as string} label={arg.name} inputClass="h-8 text-xs" />
+													<Input
+														type="text"
+														bind:value={mod.args[argIdx] as string}
+														label={arg.name}
+														inputClass="h-8 text-xs"
+													/>
 												{/if}
 											</div>
 										{/each}
@@ -442,7 +499,12 @@ import { logger } from "@utils/logger";
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m (m.name)}
-							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:bg-surface-500/10 dark:hover:bg-surface-700">
+							<Button
+								variant="surface"
+								onclick={() => addModifier(m)}
+								aria-label="Add {m.label} modifier"
+								class="chip hover:bg-surface-500/10 dark:hover:bg-surface-700"
+							>
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
 							</Button>
@@ -458,7 +520,8 @@ import { logger } from "@utils/logger";
 			<div class="mt-4 space-y-3 border-t border-surface-500/30 pt-4">
 				<div>
 					<div class="mb-1 text-[10px] uppercase opacity-50">Token Editor</div>
-					<Textarea aria-label="Token value"
+					<Textarea
+						aria-label="Token value"
 						bind:value={editablePreview}
 						rows={3}
 						class="rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
@@ -471,15 +534,27 @@ import { logger } from "@utils/logger";
 					{#if isLoadingPreview}
 						<div class="card preset-tonal-surface-500 animate-pulse p-3 text-sm">Resolving...</div>
 					{:else}
-						<div class="card preset-tonal-secondary p-3 text-sm font-bold">{resolvedPreview || '(Empty)'}</div>
+						<div class="card preset-tonal-secondary p-3 text-sm font-bold">
+							{resolvedPreview || '(Empty)'}
+						</div>
 					{/if}
 				</div>
 
 				<div class="flex gap-2">
-					<Button variant="surface" onclick={deleteToken} title="Clear input" aria-label="Clear token">
+					<Button
+						variant="surface"
+						onclick={deleteToken}
+						title="Clear input"
+						aria-label="Clear token"
+					>
 						<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 					</Button>
-					<Button variant="surface" onclick={addAnotherToken} aria-label="Add another token" class="flex-1">
+					<Button
+						variant="surface"
+						onclick={addAnotherToken}
+						aria-label="Add another token"
+						class="flex-1"
+					>
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
 					</Button>

@@ -113,13 +113,27 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 	const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') || undefined);
 
 	setContext<RadioGroupContext>('RADIO_GROUP', {
-		get value() { return value; },
-		get name() { return groupName; },
-		get disabled() { return disabled; },
-		get required() { return required; },
-		get invalid() { return invalid; },
-		get size() { return size; },
-		get variant() { return variant; },
+		get value() {
+			return value;
+		},
+		get name() {
+			return groupName;
+		},
+		get disabled() {
+			return disabled;
+		},
+		get required() {
+			return required;
+		},
+		get invalid() {
+			return invalid;
+		},
+		get size() {
+			return size;
+		},
+		get variant() {
+			return variant;
+		},
 		selectValue
 	});
 </script>
@@ -140,14 +154,13 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 	{/if}
 
 	{#if description}
-		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 -mt-1.5 mb-1">{description}</p>
+		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 -mt-1.5 mb-1">
+			{description}
+		</p>
 	{/if}
 
 	<div
-		class={cn(
-			'flex gap-2',
-			orientation === 'horizontal' ? 'flex-row flex-wrap' : 'flex-col',
-		)}
+		class={cn('flex gap-2', orientation === 'horizontal' ? 'flex-row flex-wrap' : 'flex-col')}
 		role="radiogroup"
 		aria-labelledby={label ? legendId : undefined}
 		aria-required={required}

@@ -31,7 +31,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - full Svelte 5 runes
 -->
 
-	<script lang="ts">
+<script lang="ts">
 	import PageTitle from '@components/page-title.svelte';
 	import AdminZone from '@src/components/system/admin-zone.svelte';
 	import type { NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
@@ -73,7 +73,6 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 	}: Props = $props();
 
 	const spaceClass = $derived(`space-y-${spaceY}`);
-
 </script>
 
 <div

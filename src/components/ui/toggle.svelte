@@ -85,7 +85,8 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 
 <div class={cn('flex gap-3 items-start md:items-center', className)} {...rest}>
 	<div class="relative flex h-full items-center">
-		<input aria-label="Input"
+		<input
+			aria-label="Input"
 			type="checkbox"
 			class="peer sr-only"
 			bind:checked={value}
@@ -116,10 +117,19 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 					<iconify-icon
 						icon={value ? iconOn : iconOff}
 						width={sizes[size].icon}
-						class={cn(value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500', disabled && 'text-surface-600')}
+						class={cn(
+							value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500',
+							disabled && 'text-surface-600'
+						)}
 					></iconify-icon>
 				{:else}
-					<span class={cn('text-[10px] font-bold', value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500', disabled && 'text-surface-600')}>
+					<span
+						class={cn(
+							'text-[10px] font-bold',
+							value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500',
+							disabled && 'text-surface-600'
+						)}
+					>
 						{value ? 'ON' : 'OFF'}
 					</span>
 				{/if}
@@ -133,7 +143,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 				<label
 					for={id}
 					class={cn(
-						"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+						'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
 						value ? 'text-tertiary-500 dark:text-primary-500' : labelColor
 					)}
 				>

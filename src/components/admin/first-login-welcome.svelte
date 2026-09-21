@@ -47,7 +47,8 @@
 		{
 			id: 'data-management',
 			title: 'Data Import & Export',
-			description: 'Backup and restore your content with our import/export tools. Essential for data migration and backups.',
+			description:
+				'Backup and restore your content with our import/export tools. Essential for data migration and backups.',
 			icon: 'mdi:database-import',
 			action: 'Open Import/Export',
 			completed: false
@@ -55,7 +56,8 @@
 		{
 			id: 'collections',
 			title: 'Create Collections',
-			description: 'Build your content structure by creating collections. These define the types of content you can manage.',
+			description:
+				'Build your content structure by creating collections. These define the types of content you can manage.',
 			icon: 'mdi:folder-plus',
 			action: 'Create Collection',
 			actionUrl: '/config/collectionbuilder/create',
@@ -64,7 +66,8 @@
 		{
 			id: 'users',
 			title: 'Manage Users',
-			description: 'Invite team members and manage user permissions to collaborate on your content.',
+			description:
+				'Invite team members and manage user permissions to collaborate on your content.',
 			icon: 'mdi:account-group',
 			action: 'Manage Users',
 			actionUrl: '/config/access-management',
@@ -73,7 +76,8 @@
 		{
 			id: 'settings',
 			title: 'System Settings',
-			description: 'Configure your site settings, themes, and system preferences to match your needs.',
+			description:
+				'Configure your site settings, themes, and system preferences to match your needs.',
 			icon: 'mdi:cog',
 			action: 'Open Settings',
 			actionUrl: '/config/systemsetting',
@@ -155,18 +159,30 @@
 	>
 		<!-- Header -->
 		<div class="mb-8 text-center">
-			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-tertiary-500/10 dark:bg-tertiary-900">
-				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-tertiary-600 dark:text-tertiary-400" aria-hidden="true"></iconify-icon>
+			<div
+				class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-tertiary-500/10 dark:bg-tertiary-900"
+			>
+				<iconify-icon
+					icon="mdi:rocket-launch"
+					width={40}
+					class="text-tertiary-600 dark:text-tertiary-400"
+					aria-hidden="true"
+				></iconify-icon>
 			</div>
-			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Congratulations, {user?.username || 'Admin'}!</h2>
-			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
+			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+				Congratulations, {user?.username || 'Admin'}!
+			</h2>
+			<p class="text-gray-600 dark:text-gray-400">
+				Your SveltyCMS installation is ready. Let's get you started with the essential features.
+			</p>
 		</div>
 
 		<!-- Progress Indicator -->
 		<div class="mb-8 flex justify-center">
 			<div class="flex gap-2">
 				{#each welcomeSteps as step, index (index)}
-					<Button aria-label="Go to step {index + 1}: {step.title}"
+					<Button
+						aria-label="Go to step {index + 1}: {step.title}"
 						variant="ghost"
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
 							? 'bg-tertiary-600'
@@ -184,8 +200,15 @@
 			{const step = welcomeSteps[currentStep]}
 			<div class="step-content">
 				<div class="mb-6 text-center">
-					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-						<iconify-icon icon={step.icon} width="32" class="text-gray-600 dark:text-gray-400" aria-hidden="true"></iconify-icon>
+					<div
+						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+					>
+						<iconify-icon
+							icon={step.icon}
+							width="32"
+							class="text-gray-600 dark:text-gray-400"
+							aria-hidden="true"
+						></iconify-icon>
 					</div>
 					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h3>
 					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">{step.description}</p>
@@ -211,9 +234,15 @@
 				{#if step.id === 'data-management'}
 					<div class="mb-6 rounded bg-tertiary-500/10 p-4 dark:bg-tertiary-900/20">
 						<div class="flex items-start gap-3">
-							<iconify-icon icon="mdi:information" width={20} class="mt-0.5 text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
+							<iconify-icon
+								icon="mdi:information"
+								width={20}
+								class="mt-0.5 text-tertiary-600 dark:text-tertiary-400"
+							></iconify-icon>
 							<div class="text-sm">
-								<p class="mb-1 font-medium text-tertiary-600 dark:text-tertiary-400">Data Management Tips</p>
+								<p class="mb-1 font-medium text-tertiary-600 dark:text-tertiary-400">
+									Data Management Tips
+								</p>
 								<ul class="space-y-1 text-tertiary-600 dark:text-tertiary-400">
 									<li>• Regular backups protect your content from data loss</li>
 									<li>• Export collections before major system changes</li>
@@ -263,14 +292,19 @@
 	<!-- Footer -->
 	<div class="flex w-full items-center justify-between">
 		<div class="flex gap-2">
-						<Button onclick={previousStep} variant="ghost" disabled={currentStep === 0} aria-label="Previous step">
+			<Button
+				onclick={previousStep}
+				variant="ghost"
+				disabled={currentStep === 0}
+				aria-label="Previous step"
+			>
 				<iconify-icon icon="mdi:chevron-left" width={16} class="me-1"></iconify-icon>
 				Previous
 			</Button>
 		</div>
 
 		<div class="flex gap-2">
-						<Button onclick={dismissWelcome} variant="ghost" aria-label="Skip tour">Skip Tour</Button>
+			<Button onclick={dismissWelcome} variant="ghost" aria-label="Skip tour">Skip Tour</Button>
 
 			{#if currentStep < welcomeSteps.length - 1}
 				<Button onclick={nextStep} variant="secondary" aria-label="Next step">
@@ -278,7 +312,13 @@
 					<iconify-icon icon="mdi:chevron-right" width={16} class="ms-1"></iconify-icon>
 				</Button>
 			{:else}
-				<Button href="/dashboard" data-preload="hover" onclick={goToDashboard} variant="primary" aria-label="Go to dashboard">
+				<Button
+					href="/dashboard"
+					data-preload="hover"
+					onclick={goToDashboard}
+					variant="primary"
+					aria-label="Go to dashboard"
+				>
 					Go to Dashboard
 					<iconify-icon icon="mdi:view-dashboard" width={16} class="ms-2"></iconify-icon>
 				</Button>
@@ -296,20 +336,28 @@
 		>
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<Button variant="outline" onclick={() => (showImportExport = false)} aria-label="Close" size="sm">
+				<Button
+					variant="outline"
+					onclick={() => (showImportExport = false)}
+					aria-label="Close"
+					size="sm"
+				>
 					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
 				</Button>
 			</div>
 
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
-			<div class="flex items-center justify-between border-t bg-surface-500/10 p-6 dark:bg-surface-700">
+			<div
+				class="flex items-center justify-between border-t bg-surface-500/10 p-6 dark:bg-surface-700"
+			>
 				<div class="text-sm text-gray-600 dark:text-gray-400">
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex gap-2">
-										<Button aria-label="Done with import/export"
+					<Button
+						aria-label="Done with import/export"
 						onclick={() => {
 							showImportExport = false;
 							markStepCompleted('data-management');

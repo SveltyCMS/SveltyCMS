@@ -4,127 +4,122 @@
 -->
 
 <script lang="ts">
-import type { DatabaseId } from "@src/content/types";
-import type { Theme } from "@src/databases/db-interface";
-import { marketplace } from "@src/paraglide/messages";
-import { themeStore, updateTheme } from "@src/stores/theme-store.svelte";
-import { dateToISODateString } from "@utils/date";
+	import type { DatabaseId } from '@src/content/types';
+	import type { Theme } from '@src/databases/db-interface';
+	import { marketplace } from '@src/paraglide/messages';
+	import { themeStore, updateTheme } from '@src/stores/theme-store.svelte';
+	import { dateToISODateString } from '@utils/date';
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
 
-let selectedTheme = $state<any | null>(null);
-let livePreviewTheme = $state<any | null>(null);
+	let selectedTheme = $state<any | null>(null);
+	let livePreviewTheme = $state<any | null>(null);
 
-// This will hold the custom themes
-let customThemes = $state<Theme[]>([]);
+	// This will hold the custom themes
+	let customThemes = $state<Theme[]>([]);
 
-// Load custom themes dynamically
-loadCustomThemes();
+	// Load custom themes dynamically
+	loadCustomThemes();
 
-async function loadCustomThemes() {
-	// Use Vite's glob feature to load all theme.css files from the custom themes directory
-	// Path adjusted relative to this file: ../themes/custom -> ../../themes/custom ?
-	// Actually import.meta.glob is relative to the file.
-	// Originally: ../themes/custom/*/theme.css from src/routes/(app)/config/themeManagement/+page.svelte
-	// Now: src/routes/(app)/config/extensions/ThemesView.svelte
-	/*
+	async function loadCustomThemes() {
+		// Use Vite's glob feature to load all theme.css files from the custom themes directory
+		// Path adjusted relative to this file: ../themes/custom -> ../../themes/custom ?
+		// Actually import.meta.glob is relative to the file.
+		// Originally: ../themes/custom/*/theme.css from src/routes/(app)/config/themeManagement/+page.svelte
+		// Now: src/routes/(app)/config/extensions/ThemesView.svelte
+		/*
 	LEAN-OUT CANDIDATE (tracked in docs/project/roadmap-2026.mdx): this eager glob
 	pulls every custom theme's CSS into the extensions page chunk. Only the theme
 	*paths* are needed here — a lazy glob (or `Object.keys()` of a query-only glob)
 	would keep the CSS out of the bundle entirely.
 */
-// slop:suppress — tracked as lean-out candidate; move to a lazy glob before shipping more themes
-const customThemesFiles = import.meta.glob(
-	"../../../../themes/custom/*/theme.css",
-	{ eager: true },
-);
+		// slop:suppress — tracked as lean-out candidate; move to a lazy glob before shipping more themes
+		const customThemesFiles = import.meta.glob('../../../../themes/custom/*/theme.css', {
+			eager: true
+		});
 
-	// Convert the imported files to Theme objects
-	customThemes = Object.entries(customThemesFiles).map(
-		([key, value], index) => {
+		// Convert the imported files to Theme objects
+		customThemes = Object.entries(customThemesFiles).map(([key, value], index) => {
 			const nowIso = dateToISODateString(new Date());
 			return {
 				_id: `custom-theme-${index}` as unknown as DatabaseId,
-				name: key.split("/")[3],
+				name: key.split('/')[3],
 				path: value as string,
 				isDefault: false,
 				isActive: false,
-				config: { tailwindConfigPath: "", assetsPath: "" },
+				config: { tailwindConfigPath: '', assetsPath: '' },
 				createdAt: nowIso,
-				updatedAt: nowIso,
+				updatedAt: nowIso
 			} as Theme;
-		},
-	);
-}
-
-// Combine default theme with dynamically loaded custom themes
-const themes = $derived([
-	{
-		_id: "default-theme" as unknown as DatabaseId,
-		name: "SveltyCMSTheme",
-		path: "/path/to/default/theme.css",
-		isDefault: true,
-		isActive: true,
-		config: { tailwindConfigPath: "", assetsPath: "" },
-		createdAt: dateToISODateString(new Date()),
-		updatedAt: dateToISODateString(new Date()),
-	} as Theme,
-	...customThemes,
-]);
-
-// Effects for theme changes
-$effect.root(() => {
-	if (selectedTheme) {
-		updateTheme(selectedTheme.name);
+		});
 	}
-});
 
-$effect.root(() => {
-	if (livePreviewTheme) {
-		updateTheme(livePreviewTheme.name);
-	}
-});
+	// Combine default theme with dynamically loaded custom themes
+	const themes = $derived([
+		{
+			_id: 'default-theme' as unknown as DatabaseId,
+			name: 'SveltyCMSTheme',
+			path: '/path/to/default/theme.css',
+			isDefault: true,
+			isActive: true,
+			config: { tailwindConfigPath: '', assetsPath: '' },
+			createdAt: dateToISODateString(new Date()),
+			updatedAt: dateToISODateString(new Date())
+		} as Theme,
+		...customThemes
+	]);
 
-// Initialize selectedTheme with current theme
-$effect.root(() => {
-	if (themeStore.currentTheme) {
-		selectedTheme = themeStore.currentTheme;
-	}
-});
+	// Effects for theme changes
+	$effect.root(() => {
+		if (selectedTheme) {
+			updateTheme(selectedTheme.name);
+		}
+	});
 
-function applyTheme(theme: Theme) {
-	selectedTheme = theme;
-	livePreviewTheme = null;
-}
+	$effect.root(() => {
+		if (livePreviewTheme) {
+			updateTheme(livePreviewTheme.name);
+		}
+	});
 
-function previewThemeChange(theme: Theme) {
-	livePreviewTheme = theme;
-}
+	// Initialize selectedTheme with current theme
+	$effect.root(() => {
+		if (themeStore.currentTheme) {
+			selectedTheme = themeStore.currentTheme;
+		}
+	});
 
-function resetPreview() {
-	livePreviewTheme = null;
-	if (selectedTheme) {
-		updateTheme(selectedTheme.name);
-	}
-}
-
-function handleThemeChange() {
-	if (selectedTheme) {
-		applyTheme(selectedTheme);
-	}
-}
-
-const themeOptions = $derived(
-	themes.map((theme) => ({ value: theme._id, label: theme.name }))
-);
-
-function handleThemeSelect(themeId: string) {
-	const theme = themes.find((t) => t._id === themeId);
-	if (theme) {
+	function applyTheme(theme: Theme) {
 		selectedTheme = theme;
-		handleThemeChange();
+		livePreviewTheme = null;
 	}
-}
+
+	function previewThemeChange(theme: Theme) {
+		livePreviewTheme = theme;
+	}
+
+	function resetPreview() {
+		livePreviewTheme = null;
+		if (selectedTheme) {
+			updateTheme(selectedTheme.name);
+		}
+	}
+
+	function handleThemeChange() {
+		if (selectedTheme) {
+			applyTheme(selectedTheme);
+		}
+	}
+
+	const themeOptions = $derived(themes.map((theme) => ({ value: theme._id, label: theme.name })));
+
+	function handleThemeSelect(themeId: string) {
+		const theme = themes.find((t) => t._id === themeId);
+		if (theme) {
+			selectedTheme = theme;
+			handleThemeChange();
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -166,7 +161,8 @@ function handleThemeSelect(themeId: string) {
 			{:else}
 				<div class="text-center sm:text-start">
 					<p class="mb-4 text-surface-500 dark:text-surface-50">
-						There are currently no custom themes available. Visit the SveltyCMS marketplace to find new themes.
+						There are currently no custom themes available. Visit the SveltyCMS marketplace to find
+						new themes.
 					</p>
 					<!-- Market Place -->
 					<Button

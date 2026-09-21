@@ -15,12 +15,12 @@
 - Modern card styling with hover micro-animations
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Audit Log",
-	icon: "mdi:history",
-	description: "Monitor system activity and security events",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Audit Log',
+		icon: 'mdi:history',
+		description: 'Monitor system activity and security events',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -81,10 +81,14 @@ export const widgetMeta = {
 
 	function actionIcon(action: string): string {
 		const a = (action || '').toLowerCase();
-		if (a.includes('create') || a.includes('add') || a.includes('insert')) return 'mdi:plus-circle-outline';
-		if (a.includes('update') || a.includes('edit') || a.includes('modify')) return 'mdi:pencil-outline';
-		if (a.includes('delete') || a.includes('remove') || a.includes('destroy')) return 'mdi:trash-can-outline';
-		if (a.includes('login') || a.includes('auth') || a.includes('session')) return 'mdi:account-key-outline';
+		if (a.includes('create') || a.includes('add') || a.includes('insert'))
+			return 'mdi:plus-circle-outline';
+		if (a.includes('update') || a.includes('edit') || a.includes('modify'))
+			return 'mdi:pencil-outline';
+		if (a.includes('delete') || a.includes('remove') || a.includes('destroy'))
+			return 'mdi:trash-can-outline';
+		if (a.includes('login') || a.includes('auth') || a.includes('session'))
+			return 'mdi:account-key-outline';
 		if (a.includes('logout')) return 'mdi:logout';
 		if (a.includes('config') || a.includes('setting')) return 'mdi:cog-outline';
 		if (a.includes('publish')) return 'mdi:cloud-upload-outline';
@@ -96,7 +100,8 @@ export const widgetMeta = {
 		const a = (action || '').toLowerCase();
 		if (a.includes('create') || a.includes('add')) return 'text-success-600 dark:text-success-400';
 		if (a.includes('delete') || a.includes('remove')) return 'text-error-500';
-		if (a.includes('update') || a.includes('edit')) return 'text-tertiary-600 dark:text-primary-400';
+		if (a.includes('update') || a.includes('edit'))
+			return 'text-tertiary-600 dark:text-primary-400';
 		if (a.includes('login') || a.includes('auth')) return 'text-primary-600 dark:text-primary-400';
 		return 'text-surface-600 dark:text-surface-400';
 	}
@@ -140,17 +145,26 @@ export const widgetMeta = {
 		{:else if isCompact}
 			<!-- ===== Compact (h:1) ===== -->
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500">{widget_audit_events_count({ count: logs.length })}</span>
+				<span class="shrink-0 text-xs font-semibold text-surface-500"
+					>{widget_audit_events_count({ count: logs.length })}</span
+				>
 				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each logs.slice(0, 8) as log (log._id || log.timestamp)}
 						<a
 							href="/config/monitor"
 							class="flex shrink-0 items-center gap-1 rounded-full bg-surface-500/10 px-2 py-1 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-							title="{log.action} — {actorName(log.actorEmail || log.userEmail)} · {formatTime(log.timestamp)}"
+							title="{log.action} — {actorName(log.actorEmail || log.userEmail)} · {formatTime(
+								log.timestamp
+							)}"
 						>
-							<iconify-icon icon={actionIcon(log.action)} class="text-sm {actionColor(log.action, log.result)}" ></iconify-icon>
-							<span class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400">
+							<iconify-icon
+								icon={actionIcon(log.action)}
+								class="text-sm {actionColor(log.action, log.result)}"
+							></iconify-icon>
+							<span
+								class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400"
+							>
 								{log.action || log.eventType}
 							</span>
 						</a>
@@ -160,7 +174,11 @@ export const widgetMeta = {
 		{:else}
 			<!-- ===== Rich (h:2+) ===== -->
 			<div class="flex h-full flex-col">
-				<div class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll" role="list" aria-label={widget_audit_entries_aria()}>
+				<div
+					class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll"
+					role="list"
+					aria-label={widget_audit_entries_aria()}
+				>
 					{#each logs as log (log._id || log.timestamp)}
 						<a
 							href="/config/monitor"
@@ -178,10 +196,14 @@ export const widgetMeta = {
 							<!-- Content -->
 							<div class="min-w-0 flex-1">
 								<div class="flex items-baseline justify-between gap-2">
-									<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors">
+									<span
+										class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
+									>
 										{log.action || log.eventType || widget_audit_system_event()}
 									</span>
-									<span class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
+									<span
+										class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
+									>
 										{formatTime(log.timestamp)}
 									</span>
 								</div>
@@ -191,7 +213,11 @@ export const widgetMeta = {
 										{actorName(log.actorEmail || log.userEmail)}
 									</span>
 									{#if log.result}
-										<span class="rounded-full px-1.5 py-px text-[10px] font-medium {resultBadgeClass(log.result)}">
+										<span
+											class="rounded-full px-1.5 py-px text-[10px] font-medium {resultBadgeClass(
+												log.result
+											)}"
+										>
 											{log.result}
 										</span>
 									{/if}
@@ -210,12 +236,19 @@ export const widgetMeta = {
 
 		<!-- Premium upgrade banner -->
 		{#if !isLicensed && !isCompact}
-			<div class="mt-2 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between">
+			<div
+				class="mt-2 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between"
+			>
 				<span class="text-xs text-warning-600 dark:text-warning-400">
 					<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"></iconify-icon>
 					{widget_audit_premium_notice()}
 				</span>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3">{widget_audit_upgrade()}</a>
+				<a
+					href="https://marketplace.sveltycms.com"
+					target="_blank"
+					class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3"
+					>{widget_audit_upgrade()}</a
+				>
 			</div>
 		{/if}
 	{/snippet}

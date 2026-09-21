@@ -63,7 +63,12 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 
 		<span class="focal-mobile-divider" aria-hidden="true"></span>
 
-		<button type="button" class="focal-mobile-pill" onclick={handleReset} aria-label="Reset focal point to center">
+		<button
+			type="button"
+			class="focal-mobile-pill"
+			onclick={handleReset}
+			aria-label="Reset focal point to center"
+		>
 			Reset
 		</button>
 	</div>

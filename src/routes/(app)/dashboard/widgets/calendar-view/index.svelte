@@ -16,10 +16,11 @@
 
 <script lang="ts" module>
 	export const widgetMeta = {
-		name: "Calendar View",
-		icon: "mdi:calendar-month-outline",
-		description: "Interactive monthly calendar widget for tracking scheduled events and content milestones.",
-		defaultSize: { w: 2, h: 2 },
+		name: 'Calendar View',
+		icon: 'mdi:calendar-month-outline',
+		description:
+			'Interactive monthly calendar widget for tracking scheduled events and content milestones.',
+		defaultSize: { w: 2, h: 2 }
 	};
 </script>
 
@@ -34,8 +35,16 @@
 
 	let selectedDate = $state(new Date());
 	let events = $state<{ dateStr: string; title: string; type: string }[]>([
-		{ dateStr: new Date().toISOString().split('T')[0], title: 'Product Launch Release', type: 'release' },
-		{ dateStr: new Date(Date.now() + 86400000).toISOString().split('T')[0], title: 'Team Sync Meeting', type: 'meeting' }
+		{
+			dateStr: new Date().toISOString().split('T')[0],
+			title: 'Product Launch Release',
+			type: 'release'
+		},
+		{
+			dateStr: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+			title: 'Team Sync Meeting',
+			type: 'meeting'
+		}
 	]);
 
 	const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -59,18 +68,37 @@
 	}
 </script>
 
-<div class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3">
+<div
+	class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4"
+>
+	<div
+		class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3"
+	>
 		<div class="flex items-center gap-2">
-			<iconify-icon icon="mdi:calendar-month-outline" width="20" class="text-warning-500"></iconify-icon>
+			<iconify-icon icon="mdi:calendar-month-outline" width="20" class="text-warning-500"
+			></iconify-icon>
 			<h3 class="font-bold text-sm text-surface-900 dark:text-white">{widget_calendar_title()}</h3>
 		</div>
 		<div class="flex items-center gap-1">
-			<Button type="button" variant="ghost" size="sm" onclick={prevMonth} aria-label={widget_calendar_prev_month()}>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onclick={prevMonth}
+				aria-label={widget_calendar_prev_month()}
+			>
 				<iconify-icon icon="mdi:chevron-left" width="18"></iconify-icon>
 			</Button>
-			<span class="text-xs font-bold text-surface-900 dark:text-white px-1">{monthName} {currentYear}</span>
-			<Button type="button" variant="ghost" size="sm" onclick={nextMonth} aria-label={widget_calendar_next_month()}>
+			<span class="text-xs font-bold text-surface-900 dark:text-white px-1"
+				>{monthName} {currentYear}</span
+			>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onclick={nextMonth}
+				aria-label={widget_calendar_next_month()}
+			>
 				<iconify-icon icon="mdi:chevron-right" width="18"></iconify-icon>
 			</Button>
 		</div>
@@ -91,7 +119,11 @@
 			{@const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`}
 			{@const hasEvent = events.some((e) => e.dateStr === dateStr)}
 			{@const isToday = new Date().toISOString().split('T')[0] === dateStr}
-			<div class="h-7 flex items-center justify-center rounded-lg text-xs font-semibold relative transition-all {isToday ? 'bg-primary-500 text-white shadow-md' : 'text-surface-700 dark:text-surface-300 hover:bg-surface-500/10 dark:hover:bg-surface-700'}">
+			<div
+				class="h-7 flex items-center justify-center rounded-lg text-xs font-semibold relative transition-all {isToday
+					? 'bg-primary-500 text-white shadow-md'
+					: 'text-surface-700 dark:text-surface-300 hover:bg-surface-500/10 dark:hover:bg-surface-700'}"
+			>
 				{dayNum}
 				{#if hasEvent && !isToday}
 					<span class="absolute bottom-1 w-1 h-1 bg-warning-500 rounded-full"></span>

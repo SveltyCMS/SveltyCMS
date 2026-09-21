@@ -57,7 +57,9 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 	$effect(() => {
 		const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
 		prefersReducedMotion = mq.matches;
-		const handler = (e: MediaQueryListEvent) => { prefersReducedMotion = e.matches; };
+		const handler = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
 		mq.addEventListener('change', handler);
 		return () => mq.removeEventListener('change', handler);
 	});
@@ -67,18 +69,28 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 
 	const defaultDims = $derived.by(() => {
 		switch (variant) {
-			case 'circle': return { w: width || 'size-10', h: height || 'size-10' };
-			case 'card': return { w: width || 'w-full', h: height || 'h-48' };
-			case 'image': return { w: width || 'w-full', h: height || 'h-48' };
-			case 'rect': return { w: width || 'w-full', h: height || 'h-4' };
-			default: return { w: width || 'w-full', h: height || 'h-4' };
+			case 'circle':
+				return { w: width || 'size-10', h: height || 'size-10' };
+			case 'card':
+				return { w: width || 'w-full', h: height || 'h-48' };
+			case 'image':
+				return { w: width || 'w-full', h: height || 'h-48' };
+			case 'rect':
+				return { w: width || 'w-full', h: height || 'h-4' };
+			default:
+				return { w: width || 'w-full', h: height || 'h-4' };
 		}
 	});
 
 	const isCircle = $derived(variant === 'circle');
 </script>
 
-<div role="status" aria-label={ariaLabel} aria-busy="true" class={cn('flex flex-col gap-2', variant === 'text' && 'w-full', className)}>
+<div
+	role="status"
+	aria-label={ariaLabel}
+	aria-busy="true"
+	class={cn('flex flex-col gap-2', variant === 'text' && 'w-full', className)}
+>
 	{#if variant === 'text'}
 		{#each Array(lines) as _, i (i)}
 			{const isLast = i === lines - 1}
@@ -101,19 +113,26 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 			</div>
 		</div>
 	{:else if variant === 'image'}
-		<div class={cn(baseClass, shimmerClass, defaultDims.w, defaultDims.h, 'rounded flex items-center justify-center')}>
-			<iconify-icon icon="mdi:image-outline" width="48" class="text-surface-300 dark:text-surface-600" aria-hidden="true"></iconify-icon>
-		</div>
-	{:else}
-		<!-- circle or rect -->
 		<div
 			class={cn(
 				baseClass,
 				shimmerClass,
 				defaultDims.w,
 				defaultDims.h,
-				isCircle && 'rounded-full'
+				'rounded flex items-center justify-center'
 			)}
+		>
+			<iconify-icon
+				icon="mdi:image-outline"
+				width="48"
+				class="text-surface-300 dark:text-surface-600"
+				aria-hidden="true"
+			></iconify-icon>
+		</div>
+	{:else}
+		<!-- circle or rect -->
+		<div
+			class={cn(baseClass, shimmerClass, defaultDims.w, defaultDims.h, isCircle && 'rounded-full')}
 		></div>
 	{/if}
 

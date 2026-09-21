@@ -47,11 +47,16 @@
 	});
 </script>
 
-<div class="grid grid-cols-2 items-center gap-x-2 border-t border-surface-500 py-2 text-[12px] leading-tight">
+<div
+	class="grid grid-cols-2 items-center gap-x-2 border-t border-surface-500 py-2 text-[12px] leading-tight"
+>
 	<!-- Labels -->
 	{#each Object.keys(dates) as key (key)}
 		<div class="font-bold">
-			<span class="capitalize">{key}</span>: <span class="font-normal text-surface-600 dark:text-surface-50">by {user?.username || 'Unknown'}</span>
+			<span class="capitalize">{key}</span>:
+			<span class="font-normal text-surface-600 dark:text-surface-50"
+				>by {user?.username || 'Unknown'}</span
+			>
 		</div>
 	{/each}
 

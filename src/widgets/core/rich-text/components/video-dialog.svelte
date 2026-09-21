@@ -39,7 +39,8 @@
 
 		// SECURITY: Validate YouTube URL to prevent XSS
 		// Only allow youtube.com and youtu.be URLs (HTTPS only)
-		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
+		const youtubePattern =
+			/^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
 
 		if (youtubeUrl && editor) {
 			if (youtubePattern.test(youtubeUrl)) {
@@ -68,7 +69,12 @@
 </script>
 
 {#if show}
-	<div transition:fade={{ duration: 150 }} class="fixed inset-0 z-40 bg-black/30" onclick={close} role="presentation"></div>
+	<div
+		transition:fade={{ duration: 150 }}
+		class="fixed inset-0 z-40 bg-black/30"
+		onclick={close}
+		role="presentation"
+	></div>
 
 	<div
 		transition:fade={{ duration: 150 }}
@@ -77,15 +83,30 @@
 		aria-labelledby="video-dialog-title"
 		class="fixed inset-s-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform rounded bg-white p-6 shadow-xl"
 	>
-		<Button variant="ghost" type="button" onclick={close} aria-label="Close" class="p-0! min-w-0 absolute inset-e-4 top-4">
+		<Button
+			variant="ghost"
+			type="button"
+			onclick={close}
+			aria-label="Close"
+			class="p-0! min-w-0 absolute inset-e-4 top-4"
+		>
 			<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
 		</Button>
 
 		<h3 id="video-dialog-title" class="mb-4 text-lg font-medium">Add Video</h3>
 
 		{#if insertUrl}
-			<form onsubmit={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
-				<FloatingInput bind:value={youtubeUrl} autofocus={true} textColor="black" name="Youtube URL" label="Youtube URL" />
+			<form
+				onsubmit={handleSubmit}
+				class="relative mt-2 flex flex-col items-center justify-center gap-4"
+			>
+				<FloatingInput
+					bind:value={youtubeUrl}
+					autofocus={true}
+					textColor="black"
+					name="Youtube URL"
+					label="Youtube URL"
+				/>
 				<Button type="submit" variant="primary" class="w-full">Add Video</Button>
 			</form>
 		{:else}
@@ -94,7 +115,9 @@
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
 					<Button variant="outline" class="w-full" disabled>Browse locally</Button>
-					<Button variant="secondary" class="w-full" onclick={() => (insertUrl = true)}>YouTube</Button>
+					<Button variant="secondary" class="w-full" onclick={() => (insertUrl = true)}
+						>YouTube</Button
+					>
 				</div>
 			</div>
 		{/if}

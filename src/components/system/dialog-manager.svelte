@@ -71,7 +71,9 @@
 <Modal bind:open {title} {size} class={modalClasses} {dialogClass} {contentClass}>
 	{#if ActiveComponent}
 		<div
-			class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor' ? 'flex h-full flex-1 flex-col' : ''}"
+			class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor'
+				? 'flex h-full flex-1 flex-col'
+				: ''}"
 		>
 			<ActiveComponent
 				{...componentProps}

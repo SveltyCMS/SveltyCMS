@@ -126,7 +126,10 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/setup', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' }
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': (page.data as any)?.csrfToken || ''
+				}
 			});
 
 			const result = await response.json();
@@ -173,7 +176,10 @@ This component provides a user interface for managing 2FA settings:
 			// verify-setup completes enrollment; /verify is for login-time checks only
 			const response = await fetch('/api/auth/2fa/verify-setup', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': (page.data as any)?.csrfToken || ''
+				},
 				body: JSON.stringify({
 					code: verificationCode,
 					verificationCode,
@@ -224,7 +230,10 @@ This component provides a user interface for managing 2FA settings:
 				try {
 					const response = await fetch('/api/auth/2fa/disable', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': (page.data as any)?.csrfToken || ''
+						},
 						body: JSON.stringify({ code })
 					});
 
@@ -257,7 +266,10 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/backup-codes', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' }
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': (page.data as any)?.csrfToken || ''
+				}
 			});
 
 			const result = await response.json();
@@ -283,15 +295,21 @@ This component provides a user interface for managing 2FA settings:
 
 <!-- Main Modal Component -->
 <div class="modal-2fa flex flex-col h-full space-y-3">
-	<header class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader} shrink-0`}>{title ?? twofa_title()}</header>
+	<header class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader} shrink-0`}>
+		{title ?? twofa_title()}
+	</header>
 
 	<article class="shrink-0 text-center text-sm">{body ?? twofa_description()}</article>
 
 	<form class="modal-form {cForm} flex-1 min-h-0">
 		<!-- Status Section -->
-		<div class="mb-4 flex items-center justify-between rounded bg-surface-500/10 p-3 dark:bg-surface-700">
+		<div
+			class="mb-4 flex items-center justify-between rounded bg-surface-500/10 p-3 dark:bg-surface-700"
+		>
 			<div class="flex items-center gap-3">
-				<div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
+				<div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/20">
+					<iconify-icon icon="mdi:shield-check" width={24}></iconify-icon>
+				</div>
 				<div>
 					<p class="text-sm font-semibold">{twofa_title()}</p>
 					<p class="text-xs text-surface-600 dark:text-surface-400">{twofa_description()}</p>
@@ -299,7 +317,8 @@ This component provides a user interface for managing 2FA settings:
 			</div>
 			<!-- Status badge - aligned end -->
 			<Badge variant={is2FAEnabled ? 'success' : 'surface'}>
-				<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width={24}></iconify-icon>
+				<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width={24}
+				></iconify-icon>
 				{is2FAEnabled ? twofa_status_enabled() : twofa_status_disabled()}
 			</Badge>
 		</div>
@@ -308,9 +327,11 @@ This component provides a user interface for managing 2FA settings:
 			{#if isLoading && !setupData}
 				<!-- Loading state -->
 				<div class="flex flex-col items-center justify-center gap-4 py-8">
-									<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
-									<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_setting_up()}</p>
-								</div>
+					<div
+						class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"
+					></div>
+					<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_setting_up()}</p>
+				</div>
 			{:else if loadError && !setupData}
 				<!-- Error state with retry -->
 				<div class="flex flex-col items-center justify-center gap-3 py-8">
@@ -339,7 +360,12 @@ This component provides a user interface for managing 2FA settings:
 						<!-- QR Code -->
 						<div class="flex justify-center rounded bg-white p-4 dark:bg-white">
 							{#if setupData.otpauthUrl}
-								<QrCode value={setupData.otpauthUrl} size={150} color="#000000" backgroundColor="#ffffff" />
+								<QrCode
+									value={setupData.otpauthUrl}
+									size={150}
+									color="#000000"
+									backgroundColor="#ffffff"
+								/>
 							{:else}
 								<div class="flex h-32 w-32 items-center justify-center bg-surface-200">
 									<p class="text-xs text-surface-600">QR Code</p>
@@ -354,8 +380,12 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="secondary" size="sm">2</Badge>
 							{twofa_show_secret()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_manual_entry_description()}</p>
-						<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700"><code class="break-all text-sm">{setupData.secret}</code></div>
+						<p class="text-sm text-surface-600 dark:text-surface-400">
+							{twofa_manual_entry_description()}
+						</p>
+						<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700">
+							<code class="break-all text-sm">{setupData.secret}</code>
+						</div>
 					</div>
 
 					<!-- Step 3: Verify -->
@@ -364,7 +394,9 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="tertiary" size="sm">3</Badge>
 							{twofa_verify_setup_title()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_verify_setup_description()}</p>
+						<p class="text-sm text-surface-600 dark:text-surface-400">
+							{twofa_verify_setup_description()}
+						</p>
 
 						<Input
 							label={twofa_code_placeholder()}
@@ -420,16 +452,27 @@ This component provides a user interface for managing 2FA settings:
 		{/if}
 	</form>
 
-	<footer class="modal-footer mt-4 flex shrink-0 justify-end gap-2 pt-4 border-t border-surface-500/20">
+	<footer
+		class="modal-footer mt-4 flex shrink-0 justify-end gap-2 pt-4 border-t border-surface-500/20"
+	>
 		<!-- Close button -->
-		<Button variant="outline" onclick={() => close?.()} disabled={isLoading}>{button_cancel()}</Button>
+		<Button variant="outline" onclick={() => close?.()} disabled={isLoading}
+			>{button_cancel()}</Button
+		>
 
 		<!-- Action buttons -->
 		{#if !is2FAEnabled && setupData}
 			<!-- Verify button when setting up -->
-			<Button variant="tertiary" onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="dark:">
+			<Button
+				variant="tertiary"
+				onclick={verify2FA}
+				disabled={isLoading || !verificationCode || verificationCode.length !== 6}
+				class="dark:"
+			>
 				{#if isLoading}
-					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+					<div
+						class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+					></div>
 					{twofa_verifying()}
 				{:else}
 					<iconify-icon icon="mdi:check-circle" width={20} class="me-2"></iconify-icon>
@@ -438,19 +481,28 @@ This component provides a user interface for managing 2FA settings:
 			</Button>
 		{:else if is2FAEnabled}
 			<!-- Management buttons when 2FA is enabled -->
-			<Button variant="surface" onclick={generateBackupCodes} disabled={isLoading} class="-secondary-500">
+			<Button
+				variant="surface"
+				onclick={generateBackupCodes}
+				disabled={isLoading}
+				class="-secondary-500"
+			>
 				{#if isLoading}
-					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+					<div
+						class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+					></div>
 					{twofa_generating_codes()}
 				{:else}
 					<iconify-icon icon="mdi:key-variant" width={24}></iconify-icon>
 					{twofa_generate_backup_codes()}
 				{/if}
 			</Button>
-	
+
 			<Button variant="error" onclick={disable2FA} disabled={isLoading}>
 				{#if isLoading}
-					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+					<div
+						class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+					></div>
 					{twofa_disabling()}
 				{:else}
 					<iconify-icon icon="mdi:shield-remove" width={24}></iconify-icon>

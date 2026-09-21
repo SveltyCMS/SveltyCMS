@@ -5,12 +5,12 @@
 -->
 
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Performance Monitor",
-	icon: "mdi:chart-line",
-	description: "Track system performance metrics",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Performance Monitor',
+		icon: 'mdi:chart-line',
+		description: 'Track system performance metrics',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">
@@ -68,9 +68,8 @@ export const widgetMeta = {
 		const metrics = newData as HealthMetrics | null;
 		if (!metrics?.requests) return;
 
-		const rate = metrics.requests.total > 0
-			? (metrics.requests.errors / metrics.requests.total) * 100
-			: 0;
+		const rate =
+			metrics.requests.total > 0 ? (metrics.requests.errors / metrics.requests.total) * 100 : 0;
 
 		errorHistory.push(rate);
 		if (errorHistory.length > HISTORY_MAX_POINTS) {
@@ -97,196 +96,273 @@ export const widgetMeta = {
 </script>
 
 {#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
+	<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+		<div
+			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
+		>
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+				Premium Extension
+			</h3>
+			<p class="text-xs text-surface-500 mt-1 mb-3">
+				Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.
+			</p>
+			<a
+				href="https://marketplace.sveltycms.com"
+				target="_blank"
+				class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500"
+				>Upgrade License &rarr;</a
+			>
+		</div>
+	</BaseWidget>
+{:else}
 	<BaseWidget
 		{label}
 		{theme}
+		endpoint="/api/dashboard/metrics?detailed=true"
+		pollInterval={10000}
 		{icon}
 		{widgetId}
 		{size}
 		{onSizeChange}
 		onCloseRequest={onRemove}
+		onDataLoaded={updateMetricsHistory}
 	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Premium Extension</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500">Upgrade License &rarr;</a>
-		</div>
-	</BaseWidget>
-{:else}
-<BaseWidget
-	{label}
-	{theme}
-	endpoint="/api/dashboard/metrics?detailed=true"
-	pollInterval={10000}
-	{icon}
-	{widgetId}
-	{size}
-	{onSizeChange}
-	onCloseRequest={onRemove}
-	onDataLoaded={updateMetricsHistory}
->
-	{#snippet children({ data })}
-		{const metrics = data as HealthMetrics | null}
+		{#snippet children({ data })}
+			{const metrics = data as HealthMetrics | null}
 
-		{#if !metrics}
-			<div class="flex h-full items-center justify-center">
-				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
-					<p class="text-sm">Loading performance metrics...</p>
-				</div>
-			</div>
-		{:else}
-			{const errorRate = metrics.requests?.total > 0
-				? (metrics.requests.errors / metrics.requests.total) * 100
-				: 0}
-			{const cacheHitRate = (metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0
-				? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100
-				: 0}
-			{const authSuccessRate = metrics.auth?.validations > 0
-				? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100
-				: 100}
-
-			{const points = errorHistory.map((val: number, i: number) => ({
-				x: (i / Math.max(1, errorHistory.length - 1)) * 110,
-				y: 24 - (Math.min(10, val) / 10) * 18 - 3 // Normalise 0-10% scale for visual precision
-			}))}
-			{const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
-
-			<div class="flex h-full flex-col space-y-4" role="region" aria-label="Performance stats">
-				{#if size.h === 1}
-					<!-- Compact single-row layout -->
-					<div class="grid grid-cols-3 gap-2">
-						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
-							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Errors</div>
-							<div class="text-xl font-bold tabular-nums {getErrorColor(errorRate)} mt-0.5">
-								{errorRate.toFixed(1)}%
-							</div>
-						</div>
-						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
-							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Cache</div>
-							<div class="text-xl font-bold tabular-nums text-tertiary-500 mt-0.5">
-								{cacheHitRate.toFixed(1)}%
-							</div>
-						</div>
-						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
-							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Sessions</div>
-							<div class="text-xl font-bold tabular-nums text-violet-500 mt-0.5">
-								{metrics.sessions?.active ?? 0}
-							</div>
-						</div>
+			{#if !metrics}
+				<div class="flex h-full items-center justify-center">
+					<div class="flex flex-col items-center gap-3 text-surface-500">
+						<div
+							class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
+						></div>
+						<p class="text-sm">Loading performance metrics...</p>
 					</div>
-				{:else}
-					<!-- Key Health Indicators -->
-					<div class="grid grid-cols-2 gap-3">
-						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800 flex justify-between items-end">
-							<div>
-								<div class="text-xs font-semibold text-surface-500 mb-1">Error Rate</div>
-								<div class="text-3xl font-bold tabular-nums {getErrorColor(errorRate)}">
+				</div>
+			{:else}
+				{const errorRate =
+					metrics.requests?.total > 0
+						? (metrics.requests.errors / metrics.requests.total) * 100
+						: 0}
+				{const cacheHitRate =
+					(metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0
+						? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100
+						: 0}
+				{const authSuccessRate =
+					metrics.auth?.validations > 0
+						? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100
+						: 100}
+
+				{const points = errorHistory.map((val: number, i: number) => ({
+					x: (i / Math.max(1, errorHistory.length - 1)) * 110,
+					y: 24 - (Math.min(10, val) / 10) * 18 - 3 // Normalise 0-10% scale for visual precision
+				}))}
+				{const linePath = points
+					.map(
+						(p: { x: number; y: number }, i: number) =>
+							`${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`
+					)
+					.join(' ')}
+
+				<div class="flex h-full flex-col space-y-4" role="region" aria-label="Performance stats">
+					{#if size.h === 1}
+						<!-- Compact single-row layout -->
+						<div class="grid grid-cols-3 gap-2">
+							<div
+								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
+							>
+								<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
+									Errors
+								</div>
+								<div class="text-xl font-bold tabular-nums {getErrorColor(errorRate)} mt-0.5">
 									{errorRate.toFixed(1)}%
 								</div>
-								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">Last 10k requests</div>
+							</div>
+							<div
+								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
+							>
+								<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
+									Cache
+								</div>
+								<div class="text-xl font-bold tabular-nums text-tertiary-500 mt-0.5">
+									{cacheHitRate.toFixed(1)}%
+								</div>
+							</div>
+							<div
+								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
+							>
+								<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
+									Sessions
+								</div>
+								<div class="text-xl font-bold tabular-nums text-violet-500 mt-0.5">
+									{metrics.sessions?.active ?? 0}
+								</div>
+							</div>
+						</div>
+					{:else}
+						<!-- Key Health Indicators -->
+						<div class="grid grid-cols-2 gap-3">
+							<div
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800 flex justify-between items-end"
+							>
+								<div>
+									<div class="text-xs font-semibold text-surface-500 mb-1">Error Rate</div>
+									<div class="text-3xl font-bold tabular-nums {getErrorColor(errorRate)}">
+										{errorRate.toFixed(1)}%
+									</div>
+									<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+										Last 10k requests
+									</div>
+								</div>
+
+								{#if errorHistory.length > 1}
+									<div class="w-27.5 h-8 overflow-visible pb-1 pe-1 shrink-0">
+										<svg viewBox="0 0 110 24" class="w-full h-full overflow-visible">
+											<path
+												d={linePath}
+												fill="none"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												class={errorRate > 5
+													? 'stroke-error-500'
+													: errorRate > 2
+														? 'stroke-warning-500'
+														: 'stroke-success-500'}
+											/>
+										</svg>
+									</div>
+								{/if}
 							</div>
 
-							{#if errorHistory.length > 1}
-								<div class="w-27.5 h-8 overflow-visible pb-1 pe-1 shrink-0">
-									<svg viewBox="0 0 110 24" class="w-full h-full overflow-visible">
-										<path
-											d={linePath}
-											fill="none"
-											stroke-width="2"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											class={errorRate > 5 ? 'stroke-error-500' : errorRate > 2 ? 'stroke-warning-500' : 'stroke-success-500'}
-										/>
-									</svg>
+							<div
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
+							>
+								<div class="text-xs font-semibold text-surface-500 mb-1">Cache Hit Rate</div>
+								<div class="text-3xl font-bold tabular-nums text-tertiary-500">
+									{cacheHitRate.toFixed(1)}%
+								</div>
+								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+									Efficiency
+								</div>
+							</div>
+
+							<div
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
+							>
+								<div class="text-xs font-semibold text-surface-500 mb-1">Auth Success</div>
+								<div class="text-3xl font-bold tabular-nums text-success-500">
+									{authSuccessRate.toFixed(1)}%
+								</div>
+								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+									User auths
+								</div>
+							</div>
+
+							<div
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
+							>
+								<div class="text-xs font-semibold text-surface-500 mb-1">Active Sessions</div>
+								<div class="text-3xl font-bold tabular-nums text-violet-500">
+									{metrics.sessions?.active ?? 0}
+								</div>
+								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+									Active logins
+								</div>
+							</div>
+						</div>
+
+						<!-- System & Request Details -->
+						<div class="flex-1 grid grid-cols-1 gap-4 text-sm">
+							<!-- Requests -->
+							<div class="space-y-2">
+								<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">
+									Requests
+								</h4>
+								<div
+									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800"
+								>
+									<span class="text-surface-600 dark:text-surface-400">Total</span>
+									<span
+										class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100"
+										>{formatNumber(metrics.requests.total)}</span
+									>
+								</div>
+								<div
+									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800"
+								>
+									<span class="text-surface-600 dark:text-surface-400">Errors</span>
+									<span class="font-mono font-semibold tabular-nums text-error-500"
+										>{metrics.requests.errors}</span
+									>
+								</div>
+							</div>
+
+							<!-- System Info -->
+							{#if metrics.system}
+								<div class="space-y-2">
+									<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">
+										System
+									</h4>
+									<div
+										class="rounded bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800"
+									>
+										<div class="flex justify-between">
+											<span class="text-surface-600 dark:text-surface-400">Memory Used</span>
+											<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">
+												{formatMemory(metrics.system.memory.used)}
+												<span class="text-xs text-surface-500"
+													>/ {formatMemory(metrics.system.memory.total)}</span
+												>
+											</span>
+										</div>
+										<div class="flex justify-between">
+											<span class="text-surface-600 dark:text-surface-400">Uptime</span>
+											<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums"
+												>{formatUptime(metrics.system.uptime)}</span
+											>
+										</div>
+										{#if size.w >= 2}
+											<div
+												class="flex justify-between border-t border-gray-200 dark:border-gray-700/60 pt-2.5 mt-1"
+											>
+												<span class="text-surface-600 dark:text-surface-400">Node</span>
+												<span class="font-mono text-xs text-gray-700 dark:text-gray-300"
+													>{metrics.system.nodeVersion}</span
+												>
+											</div>
+										{/if}
+									</div>
 								</div>
 							{/if}
 						</div>
 
-						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
-							<div class="text-xs font-semibold text-surface-500 mb-1">Cache Hit Rate</div>
-							<div class="text-3xl font-bold tabular-nums text-tertiary-500">
-								{cacheHitRate.toFixed(1)}%
-							</div>
-							<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">Efficiency</div>
-						</div>
-
-						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
-							<div class="text-xs font-semibold text-surface-500 mb-1">Auth Success</div>
-							<div class="text-3xl font-bold tabular-nums text-success-500">
-								{authSuccessRate.toFixed(1)}%
-							</div>
-							<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">User auths</div>
-						</div>
-
-						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
-							<div class="text-xs font-semibold text-surface-500 mb-1">Active Sessions</div>
-							<div class="text-3xl font-bold tabular-nums text-violet-500">
-								{metrics.sessions?.active ?? 0}
-							</div>
-							<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">Active logins</div>
-						</div>
-					</div>
-
-					<!-- System & Request Details -->
-					<div class="flex-1 grid grid-cols-1 gap-4 text-sm">
-						<!-- Requests -->
-						<div class="space-y-2">
-							<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">Requests</h4>
-							<div class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
-								<span class="text-surface-600 dark:text-surface-400">Total</span>
-								<span class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(metrics.requests.total)}</span>
-							</div>
-							<div class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
-								<span class="text-surface-600 dark:text-surface-400">Errors</span>
-								<span class="font-mono font-semibold tabular-nums text-error-500">{metrics.requests.errors}</span>
-							</div>
-						</div>
-
-						<!-- System Info -->
-						{#if metrics.system}
-							<div class="space-y-2">
-								<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">System</h4>
-								<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800">
-									<div class="flex justify-between">
-										<span class="text-surface-600 dark:text-surface-400">Memory Used</span>
-										<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">
-											{formatMemory(metrics.system.memory.used)}
-											<span class="text-xs text-surface-500">/ {formatMemory(metrics.system.memory.total)}</span>
-										</span>
-									</div>
-									<div class="flex justify-between">
-										<span class="text-surface-600 dark:text-surface-400">Uptime</span>
-										<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">{formatUptime(metrics.system.uptime)}</span>
-									</div>
-									{#if size.w >= 2}
-										<div class="flex justify-between border-t border-gray-200 dark:border-gray-700/60 pt-2.5 mt-1">
-											<span class="text-surface-600 dark:text-surface-400">Node</span>
-											<span class="font-mono text-xs text-gray-700 dark:text-gray-300">{metrics.system.nodeVersion}</span>
-										</div>
-									{/if}
-								</div>
+						<!-- Last Reset timestamp row -->
+						{#if metrics.lastReset}
+							<div
+								class="flex justify-between items-center text-[10px] text-surface-400 dark:text-surface-500 pt-2 border-t border-gray-150 dark:border-gray-850 px-1"
+							>
+								<span>Metrics tracked since</span>
+								<span class="font-mono font-medium"
+									>{formatDateTime(metrics.lastReset, {
+										dateStyle: 'short',
+										timeStyle: 'short'
+									})}</span
+								>
 							</div>
 						{/if}
-					</div>
-
-					<!-- Last Reset timestamp row -->
-					{#if metrics.lastReset}
-						<div class="flex justify-between items-center text-[10px] text-surface-400 dark:text-surface-500 pt-2 border-t border-gray-150 dark:border-gray-850 px-1">
-							<span>Metrics tracked since</span>
-							<span class="font-mono font-medium">{formatDateTime(metrics.lastReset, { dateStyle: 'short', timeStyle: 'short' })}</span>
-						</div>
 					{/if}
-				{/if}
-			</div>
-		{/if}
-	{/snippet}
-</BaseWidget>
+				</div>
+			{/if}
+		{/snippet}
+	</BaseWidget>
 {/if}
 
 <style>
 	path {
-		transition: d 0.5s ease-in-out, stroke 0.3s;
+		transition:
+			d 0.5s ease-in-out,
+			stroke 0.3s;
 	}
 </style>

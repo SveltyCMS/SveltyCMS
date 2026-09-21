@@ -14,7 +14,7 @@
 </script>
 
 {#if isIconify}
-	<iconify-icon icon={icon} class={cn('shrink-0', className)} aria-hidden="true"></iconify-icon>
+	<iconify-icon {icon} class={cn('shrink-0', className)} aria-hidden="true"></iconify-icon>
 {:else}
 	<span class={cn('shrink-0', className)} aria-hidden="true">{icon}</span>
 {/if}

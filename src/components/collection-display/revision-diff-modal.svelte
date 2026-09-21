@@ -3,150 +3,201 @@
 @component Smart Diff Modal for Revision Comparison (Hardened)
  -->
 <script lang="ts">
-import { computeFieldDiff } from "@src/utils/diff-utils";
-import { fade, slide } from "svelte/transition";
-import type { FieldInstance } from "@src/content/types";
+	import { computeFieldDiff } from '@src/utils/diff-utils';
+	import { fade, slide } from 'svelte/transition';
+	import type { FieldInstance } from '@src/content/types';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 
-interface Props {
-    oldData: Record<string, unknown>;
-    newData: Record<string, unknown>;
-    fields?: FieldInstance[];
-    oldLabel?: string;
-    newLabel?: string;
-    close?: () => void;
-}
+	interface Props {
+		oldData: Record<string, unknown>;
+		newData: Record<string, unknown>;
+		fields?: FieldInstance[];
+		oldLabel?: string;
+		newLabel?: string;
+		close?: () => void;
+	}
 
-const { oldData, newData, fields = [], oldLabel = "Previous", newLabel = "Current", close }: Props = $props();
+	const {
+		oldData,
+		newData,
+		fields = [],
+		oldLabel = 'Previous',
+		newLabel = 'Current',
+		close
+	}: Props = $props();
 
-let showOnlyChanged = $state(true);
-const diffs = $derived(computeFieldDiff(oldData, newData, fields));
-const filteredDiffs = $derived(showOnlyChanged ? diffs.filter(d => d.type !== 'unchanged') : diffs);
+	let showOnlyChanged = $state(true);
+	const diffs = $derived(computeFieldDiff(oldData, newData, fields));
+	const filteredDiffs = $derived(
+		showOnlyChanged ? diffs.filter((d) => d.type !== 'unchanged') : diffs
+	);
 
-// Stats summary
-const stats = $derived({
-    added: diffs.filter(d => d.type === 'added').length,
-    modified: diffs.filter(d => d.type === 'modified').length,
-    removed: diffs.filter(d => d.type === 'removed').length,
-    unchanged: diffs.filter(d => d.type === 'unchanged').length
-});
+	// Stats summary
+	const stats = $derived({
+		added: diffs.filter((d) => d.type === 'added').length,
+		modified: diffs.filter((d) => d.type === 'modified').length,
+		removed: diffs.filter((d) => d.type === 'removed').length,
+		unchanged: diffs.filter((d) => d.type === 'unchanged').length
+	});
 
-function formatValue(val: unknown): string {
-    if (val === null || val === undefined) return 'None';
-    if (typeof val === 'object') return JSON.stringify(val, null, 2);
-    return String(val);
-}
+	function formatValue(val: unknown): string {
+		if (val === null || val === undefined) return 'None';
+		if (typeof val === 'object') return JSON.stringify(val, null, 2);
+		return String(val);
+	}
 
-// Keyboard dismiss (D4)
-function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') close?.();
-}
+	// Keyboard dismiss (D4)
+	function onKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') close?.();
+	}
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 <div
-    class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-500/30 dark:border-surface-500/40 overflow-hidden"
-    in:fade
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="diff-modal-title"
+	class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-500/30 dark:border-surface-500/40 overflow-hidden"
+	in:fade
+	role="dialog"
+	aria-modal="true"
+	aria-labelledby="diff-modal-title"
 >
-    <!-- Header -->
-    <div class="p-6 border-b border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between bg-surface-500/50 dark:bg-surface-900/20">
-        <div>
-            <h2 id="diff-modal-title" class="text-xl font-bold flex items-center gap-2">
-                <iconify-icon icon="mdi:compare" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-                Smart Diff Analysis
-            </h2>
-            <!-- Diff Statistics Summary (D7) -->
-            <div class="flex gap-3 mt-1 items-center">
-                <span class="text-[10px] font-bold opacity-50 uppercase tracking-wider">Analysis:</span>
-                <div class="flex gap-2 items-center">
-	                    {#if stats.added > 0}
-	                        <Badge variant="success" class="text-[9px] px-1.5 py-0.5">+{stats.added}</Badge>
-	                    {/if}
-	                    {#if stats.modified > 0}
-	                        <Badge variant="warning" class="text-[9px] px-1.5 py-0.5">~{stats.modified}</Badge>
-	                    {/if}
-	                    {#if stats.removed > 0}
-	                        <Badge variant="error" class="text-[9px] px-1.5 py-0.5">-{stats.removed}</Badge>
-	                    {/if}
-                    <span class="text-[9px] opacity-40 font-medium italic">{stats.unchanged} unchanged</span>
-                </div>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer bg-surface-200 dark:bg-surface-800 px-3 py-1.5 rounded-full transition-colors hover:bg-surface-300 dark:hover:bg-surface-700">
-                <Checkbox bind:checked={showOnlyChanged} />
-                <span class="text-xs font-bold">Show Only Changes</span>
-            </label>
-            <Button variant="surface" onclick={close} aria-label="Close dialog" size="sm">Close</Button>
-        </div>
-    </div>
+	<!-- Header -->
+	<div
+		class="p-6 border-b border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between bg-surface-500/50 dark:bg-surface-900/20"
+	>
+		<div>
+			<h2 id="diff-modal-title" class="text-xl font-bold flex items-center gap-2">
+				<iconify-icon icon="mdi:compare" class="text-tertiary-500 dark:text-primary-500"
+				></iconify-icon>
+				Smart Diff Analysis
+			</h2>
+			<!-- Diff Statistics Summary (D7) -->
+			<div class="flex gap-3 mt-1 items-center">
+				<span class="text-[10px] font-bold opacity-50 uppercase tracking-wider">Analysis:</span>
+				<div class="flex gap-2 items-center">
+					{#if stats.added > 0}
+						<Badge variant="success" class="text-[9px] px-1.5 py-0.5">+{stats.added}</Badge>
+					{/if}
+					{#if stats.modified > 0}
+						<Badge variant="warning" class="text-[9px] px-1.5 py-0.5">~{stats.modified}</Badge>
+					{/if}
+					{#if stats.removed > 0}
+						<Badge variant="error" class="text-[9px] px-1.5 py-0.5">-{stats.removed}</Badge>
+					{/if}
+					<span class="text-[9px] opacity-40 font-medium italic">{stats.unchanged} unchanged</span>
+				</div>
+			</div>
+		</div>
+		<div class="flex items-center gap-4">
+			<label
+				class="flex items-center gap-2 cursor-pointer bg-surface-200 dark:bg-surface-800 px-3 py-1.5 rounded-full transition-colors hover:bg-surface-300 dark:hover:bg-surface-700"
+			>
+				<Checkbox bind:checked={showOnlyChanged} />
+				<span class="text-xs font-bold">Show Only Changes</span>
+			</label>
+			<Button variant="surface" onclick={close} aria-label="Close dialog" size="sm">Close</Button>
+		</div>
+	</div>
 
-    <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-6 space-y-4">
-        {#if filteredDiffs.length === 0}
-            <div class="h-full flex flex-col items-center justify-center opacity-40 italic">
-                <iconify-icon icon="mdi:check-circle-outline" width="48" class="mb-2 text-success-500"></iconify-icon>
-                <p>No differences detected between these versions.</p>
-            </div>
-        {:else}
-            <div class="grid grid-cols-1 gap-4">
-                {#each filteredDiffs as diff (diff.fieldName)}
-                    <div class="group border border-surface-500/30  rounded overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
-                        <!-- Field Header -->
-                        <div class="px-4 py-2 bg-surface-500/10 dark:bg-surface-500/10 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40">
-                            <div class="flex flex-col">
-                                <span class="text-xs font-bold opacity-40 uppercase tracking-tighter">{diff.fieldName}</span>
-                                <span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600 ">{diff.label}</span>
-                            </div>
-                            <Badge
-                                size="sm"
-                                variant={diff.type === 'added' ? 'success' : diff.type === 'removed' ? 'error' : diff.type === 'modified' ? 'warning' : 'surface'}
-                                preset={diff.type === 'unchanged' ? 'tonal' : undefined}
-                                color={diff.type === 'unchanged' ? 'surface' : undefined}
-                                class="uppercase font-bold"
-                            >
-                                {diff.type}
-                            </Badge>
-                        </div>
+	<!-- Content -->
+	<div class="flex-1 overflow-y-auto p-6 space-y-4">
+		{#if filteredDiffs.length === 0}
+			<div class="h-full flex flex-col items-center justify-center opacity-40 italic">
+				<iconify-icon icon="mdi:check-circle-outline" width="48" class="mb-2 text-success-500"
+				></iconify-icon>
+				<p>No differences detected between these versions.</p>
+			</div>
+		{:else}
+			<div class="grid grid-cols-1 gap-4">
+				{#each filteredDiffs as diff (diff.fieldName)}
+					<div
+						class="group border border-surface-500/30 rounded overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50"
+						in:slide
+					>
+						<!-- Field Header -->
+						<div
+							class="px-4 py-2 bg-surface-500/10 dark:bg-surface-500/10 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40"
+						>
+							<div class="flex flex-col">
+								<span class="text-xs font-bold opacity-40 uppercase tracking-tighter"
+									>{diff.fieldName}</span
+								>
+								<span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600"
+									>{diff.label}</span
+								>
+							</div>
+							<Badge
+								size="sm"
+								variant={diff.type === 'added'
+									? 'success'
+									: diff.type === 'removed'
+										? 'error'
+										: diff.type === 'modified'
+											? 'warning'
+											: 'surface'}
+								preset={diff.type === 'unchanged' ? 'tonal' : undefined}
+								color={diff.type === 'unchanged' ? 'surface' : undefined}
+								class="uppercase font-bold"
+							>
+								{diff.type}
+							</Badge>
+						</div>
 
-                        <!-- Diff Content -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x rtl:divide-x-reverse divide-surface-200 dark:divide-surface-800">
-                            <!-- Left: Old Value -->
-                            <div class="p-4 bg-surface-500/30 dark:bg-surface-900/20">
-                                <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{oldLabel}</p>
-                                <pre class="text-xs font-mono whitespace-pre-wrap break-all
-                                    {diff.type === 'removed' || diff.type === 'modified' ? 'text-error-600 dark:text-error-500' : 'opacity-40'}">
+						<!-- Diff Content -->
+						<div
+							class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x rtl:divide-x-reverse divide-surface-200 dark:divide-surface-800"
+						>
+							<!-- Left: Old Value -->
+							<div class="p-4 bg-surface-500/30 dark:bg-surface-900/20">
+								<p class="text-[10px] uppercase font-bold opacity-30 mb-2">{oldLabel}</p>
+								<pre
+									class="text-xs font-mono whitespace-pre-wrap break-all
+                                    {diff.type === 'removed' || diff.type === 'modified'
+										? 'text-error-600 dark:text-error-500'
+										: 'opacity-40'}">
                                     {formatValue(diff.oldValue)}
                                 </pre>
-                            </div>
-                            <!-- Right: New Value -->
-                            <div class="p-4 bg-tertiary-500 dark:bg-primary-500">
-                                <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{newLabel}</p>
-                                <pre class="text-xs font-mono whitespace-pre-wrap break-all
-                                    {diff.type === 'added' || diff.type === 'modified' ? 'text-success-600 dark:text-success-400' : 'opacity-40'}">
+							</div>
+							<!-- Right: New Value -->
+							<div class="p-4 bg-tertiary-500 dark:bg-primary-500">
+								<p class="text-[10px] uppercase font-bold opacity-30 mb-2">{newLabel}</p>
+								<pre
+									class="text-xs font-mono whitespace-pre-wrap break-all
+                                    {diff.type === 'added' || diff.type === 'modified'
+										? 'text-success-600 dark:text-success-400'
+										: 'opacity-40'}">
                                     {formatValue(diff.newValue)}
                                 </pre>
-                            </div>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        {/if}
-    </div>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 
-    <!-- Footer -->
-    <div class="p-4 bg-surface-500/10 dark:bg-surface-500/10 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center">
-        <div class="flex gap-4 text-[10px] font-bold opacity-50 uppercase">
-            <span class="flex items-center gap-1"><div class="h-2 w-2 rounded-full bg-success-500"></div> Added</span>
-            <span class="flex items-center gap-1"><div class="h-2 w-2 rounded-full bg-error-500"></div> Removed</span>
-            <span class="flex items-center gap-1"><div class="h-2 w-2 rounded-full bg-warning-500"></div> Modified</span>
-        </div>
-        <p class="text-[10px] font-medium opacity-40 italic">Smart Diff v1.1 — Forensic Content Analysis</p>
-    </div>
+	<!-- Footer -->
+	<div
+		class="p-4 bg-surface-500/10 dark:bg-surface-500/10 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center"
+	>
+		<div class="flex gap-4 text-[10px] font-bold opacity-50 uppercase">
+			<span class="flex items-center gap-1"
+				><div class="h-2 w-2 rounded-full bg-success-500"></div>
+				Added</span
+			>
+			<span class="flex items-center gap-1"
+				><div class="h-2 w-2 rounded-full bg-error-500"></div>
+				Removed</span
+			>
+			<span class="flex items-center gap-1"
+				><div class="h-2 w-2 rounded-full bg-warning-500"></div>
+				Modified</span
+			>
+		</div>
+		<p class="text-[10px] font-medium opacity-40 italic">
+			Smart Diff v1.1 — Forensic Content Analysis
+		</p>
+	</div>
 </div>

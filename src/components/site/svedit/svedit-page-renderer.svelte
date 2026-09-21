@@ -31,14 +31,14 @@
 	// Object.entries(undefined) threw on EVERY mount, crashing the public site render).
 	const initialDocument = ((): SveditDocument => {
 		const doc = document;
-		return doc && typeof doc === "object" && "nodes" in doc
+		return doc && typeof doc === 'object' && 'nodes' in doc
 			? doc
-			: ({ nodes: {}, document_id: "page" } as unknown as SveditDocument);
+			: ({ nodes: {}, document_id: 'page' } as unknown as SveditDocument);
 	})();
 
 	let session = $state(createSiteSveditSession(initialDocument));
-	let lastExternalDoc = $state("");
-	let lastEmittedDoc = $state("");
+	let lastExternalDoc = $state('');
+	let lastEmittedDoc = $state('');
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const keyMapper = new KeyMapper();

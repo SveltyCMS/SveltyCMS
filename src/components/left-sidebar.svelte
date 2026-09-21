@@ -18,12 +18,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 -->
 
 <script lang="ts">
-
-import { systemLanguage } from '@src/stores/locale-store.svelte';
-import Button from '@components/ui/button.svelte';
+	import { systemLanguage } from '@src/stores/locale-store.svelte';
+	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	// Native UI Components
-	import Dropdown from "@components/ui/dropdown.svelte";
+	import Dropdown from '@components/ui/dropdown.svelte';
 	import Collections from '@src/components/collections.svelte';
 	import SettingsMenu from '@src/components/settings-menu.svelte';
 	import MediaFolders from '@src/components/media-folders.svelte';
@@ -47,7 +46,7 @@ import Button from '@components/ui/button.svelte';
 		applayout_userprofile,
 		applayout_search_language,
 		applayout_select_language,
-		applayout_close_sidebar,
+		applayout_close_sidebar
 	} from '@src/paraglide/messages';
 	import { locales as bundledLocales, getLocale } from '@src/paraglide/runtime';
 	import { applySystemLanguage, mergeSystemLanguages } from '@utils/system-locale';
@@ -103,19 +102,19 @@ import Button from '@components/ui/button.svelte';
 
 	// Theme-aware: should collections render in this sidebar?
 	const themeCtx = getThemeContext();
-	const collectionsPosition = $derived(
-		themeCtx?.features?.layoutRegions?.collections ?? 'left'
-	);
+	const collectionsPosition = $derived(themeCtx?.features?.layoutRegions?.collections ?? 'left');
 	const showCollectionsHere = $derived(
 		collectionsPosition === 'left' || collectionsPosition === 'both'
 	);
 
 	const firstCollectionPath = $derived.by(() => {
-		return getFirstCollectionRedirectPathFromNodes(
-			collections,
-			getLocale(),
-			page.data.collectionOrder as Record<string, number> | undefined
-		) ?? '/collections';
+		return (
+			getFirstCollectionRedirectPathFromNodes(
+				collections,
+				getLocale(),
+				page.data.collectionOrder as Record<string, number> | undefined
+			) ?? '/collections'
+		);
 	});
 
 	// Plugin pages (declarative nav) — capability-filtered for UX; the server
@@ -124,9 +123,9 @@ import Button from '@components/ui/button.svelte';
 		void pluginPageRegistry.version;
 		const u = page.data.user as any;
 		const isAdmin = !!u?.isAdmin || u?.role === 'admin' || u?.role === 'super-admin';
-		return pluginPageRegistry.getNavItems().filter((item) =>
-			item.requiredCapabilities.length === 0 || isAdmin
-		);
+		return pluginPageRegistry
+			.getNavItems()
+			.filter((item) => item.requiredCapabilities.length === 0 || isAdmin);
 	});
 
 	const availableLanguages = $derived(
@@ -231,7 +230,7 @@ import Button from '@components/ui/button.svelte';
 			});
 			if (!res.ok && res.status === 403) {
 				await refreshAll();
-				await new Promise(r => setTimeout(r, 100));
+				await new Promise((r) => setTimeout(r, 100));
 				await fetch('/api/user/logout', {
 					method: 'POST',
 					headers: {
@@ -241,7 +240,10 @@ import Button from '@components/ui/button.svelte';
 				});
 			}
 		} catch (error) {
-			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
+			logger.error(
+				'Error during sign-out:',
+				error instanceof Error ? error.message : 'Unknown error'
+			);
 		} finally {
 			if (browser) window.location.href = '/login';
 		}
@@ -265,17 +267,26 @@ import Button from '@components/ui/button.svelte';
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
-		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex min-h-12 shrink-0 items-center pe-10 pt-2 no-underline!" data-sveltekit-preload-data="hover">
+		<a
+			href="/"
+			aria-label="SveltyCMS Logo"
+			class="-ms-2 flex min-h-12 shrink-0 items-center pe-10 pt-2 no-underline!"
+			data-sveltekit-preload-data="hover"
+		>
 			<SveltyCMSLogo fill="red" className="h-9" />
-			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"
+				><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span
+			>
 		</a>
 	{:else}
 		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
-			<Button variant="ghost"
+			<Button
+				variant="ghost"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', 'hidden')}
 				aria-label={applayout_close_sidebar()}
-			 class="p-0! min-w-0 preset-outlined-surface-500">
+				class="p-0! min-w-0 preset-outlined-surface-500"
+			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 
@@ -291,7 +302,8 @@ import Button from '@components/ui/button.svelte';
 		positioning={{ placement: 'right-end' }}
 		triggerClass="absolute top-3 z-20 ltr:-end-4 rtl:-start-4"
 	>
-		<Button variant="ghost"
+		<Button
+			variant="ghost"
 			type="button"
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
@@ -305,12 +317,13 @@ import Button from '@components/ui/button.svelte';
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
-			</Button>
-		</SystemTooltip>
+		</Button>
+	</SystemTooltip>
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
-		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui.routeContext.isSystemSettings
+		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui
+			.routeContext.isSystemSettings
 			? 'overflow-y-hidden flex flex-col'
 			: 'overflow-y-auto'}"
 	>
@@ -320,20 +333,30 @@ import Button from '@components/ui/button.svelte';
 			<!-- 1. Pinned Items -->
 			{#if pinnedStore.items.length > 0}
 				<div class="space-y-1">
-					<Button variant="ghost"
+					<Button
+						variant="ghost"
 						type="button"
-						onclick={() => isPinnedOpen = !isPinnedOpen}
-						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-1' : 'justify-center'}"
-					 aria-label="Toggle pinned items">
+						onclick={() => (isPinnedOpen = !isPinnedOpen)}
+						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull
+							? 'px-1'
+							: 'justify-center'}"
+						aria-label="Toggle pinned items"
+					>
 						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon
+								icon="bi:pin-angle-fill"
+								width="16"
+								class="text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							{#if isSidebarFull}Pinned{/if}
 						</span>
 						{#if isSidebarFull}
 							<iconify-icon
 								icon="bi:chevron-down"
 								width="12"
-								class="transform transition-transform duration-200 {isPinnedOpen ? '' : '-rotate-90'}"
+								class="transform transition-transform duration-200 {isPinnedOpen
+									? ''
+									: '-rotate-90'}"
 							></iconify-icon>
 						{/if}
 					</Button>
@@ -341,29 +364,41 @@ import Button from '@components/ui/button.svelte';
 					{#if isPinnedOpen}
 						<div class="space-y-0.5" transition:scale={{ duration: 150, start: 0.95 }}>
 							{#each pinnedStore.items as item (item.id)}
-								<div class="group relative flex items-center justify-between rounded hover:bg-[color-mix(in_srgb,var(--admin-bg-sidebar)_80%,var(--admin-border-default))]">
+								<div
+									class="group relative flex items-center justify-between rounded hover:bg-[color-mix(in_srgb,var(--admin-bg-sidebar)_80%,var(--admin-border-default))]"
+								>
 									<a
 										href={item.path}
 										data-sveltekit-preload-data="hover"
-										data-preload={normalizeHref(item.path) === predictedNextPath ? 'smart' : undefined}
+										data-preload={normalizeHref(item.path) === predictedNextPath
+											? 'smart'
+											: undefined}
 										class="flex flex-1 items-center gap-2 px-2 py-2 text-sm no-underline!"
 										style="color: var(--admin-text-body)"
 										onclick={() => {
 											if (isMobile()) ui.toggle('leftSidebar', 'hidden');
 										}}
 									>
-										<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<iconify-icon
+											icon={item.icon || 'bi:pin'}
+											width="16"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
 										{#if isSidebarFull}
 											<span class="truncate">{item.name}</span>
 										{/if}
 									</a>
 									{#if isSidebarFull}
-										<Button variant="ghost"
+										<Button
+											variant="ghost"
 											type="button"
 											onclick={() => pinnedStore.unpin(item.id)}
 											title="Unpin"
-										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-(--admin-border-subtle)]">
-											<iconify-icon icon="bi:x" width="16" style="color: var(--admin-text-muted)"></iconify-icon>
+											aria-label="Unpin"
+											class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-(--admin-border-subtle)]"
+										>
+											<iconify-icon icon="bi:x" width="16" style="color: var(--admin-text-muted)"
+											></iconify-icon>
 										</Button>
 									{/if}
 								</div>
@@ -378,12 +413,19 @@ import Button from '@components/ui/button.svelte';
 			{#if isMediaGalleryRoute}
 				<!-- Media gallery: virtual folder tree (scrollable) + sticky bottom collections button -->
 				<div class="flex flex-col" data-testid="sidebar-media-context">
-					<div class="w-full ps-0 pe-1 text-start space-y-2" role="region" aria-label="Media folders">
+					<div
+						class="w-full ps-0 pe-1 text-start space-y-2"
+						role="region"
+						aria-label="Media folders"
+					>
 						<MediaFolders />
 					</div>
 
 					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
-						<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-default)"></div>
+						<div
+							class="mx-1 mb-2 border-0 border-t"
+							style="border-color: var(--admin-border-default)"
+						></div>
 
 						<SystemTooltip
 							title="Back to Collections"
@@ -396,9 +438,15 @@ import Button from '@components/ui/button.svelte';
 								data-preload="hover"
 								onclick={handleBackToCollections}
 								aria-label="Back to Collections"
-								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
+									? 'justify-start px-3'
+									: 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
 							>
-								<iconify-icon icon="bi:arrow-left" width={isSidebarFull ? 18 : 16} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<iconify-icon
+									icon="bi:arrow-left"
+									width={isSidebarFull ? 18 : 16}
+									class="shrink-0 text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
 								<span class="truncate">{isSidebarFull ? 'Collections' : 'Collections'}</span>
 							</Button>
 						</SystemTooltip>
@@ -407,12 +455,20 @@ import Button from '@components/ui/button.svelte';
 			{:else if showCollectionsHere}
 				<!-- Default: collection tree only — flex column layout for sticky bottom media link -->
 				<div class="flex flex-col">
-					<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
+					<div
+						class="w-full ps-0 pe-1 text-start"
+						data-testid="sidebar-collections-context"
+						role="region"
+						aria-label="Collections"
+					>
 						<Collections />
 					</div>
 
 					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
-						<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-default)"></div>
+						<div
+							class="mx-1 mb-2 border-0 border-t"
+							style="border-color: var(--admin-border-default)"
+						></div>
 
 						<SystemTooltip
 							title="Media Gallery"
@@ -425,9 +481,15 @@ import Button from '@components/ui/button.svelte';
 								data-preload="hover"
 								onclick={handleGoToMediaGallery}
 								aria-label="Go to Media Gallery"
-								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull ? 'justify-start px-3' : 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
+									? 'justify-start px-3'
+									: 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
 							>
-								<iconify-icon icon="bi:image-fill" width={isSidebarFull ? 20 : 18} class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<iconify-icon
+									icon="bi:image-fill"
+									width={isSidebarFull ? 20 : 18}
+									class="shrink-0 text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
 								<span class="truncate">{isSidebarFull ? 'Media Gallery' : 'Media'}</span>
 							</Button>
 						</SystemTooltip>
@@ -445,7 +507,11 @@ import Button from '@components/ui/button.svelte';
 			</div>
 			<div class="space-y-0.5">
 				{#each pluginNavItems as item (item.id)}
-					<SystemTooltip title={item.label} positioning={{ placement: 'right' }} triggerClass="w-full">
+					<SystemTooltip
+						title={item.label}
+						positioning={{ placement: 'right' }}
+						triggerClass="w-full"
+					>
 						<a
 							href={item.path}
 							data-sveltekit-preload-data="hover"
@@ -457,7 +523,11 @@ import Button from '@components/ui/button.svelte';
 								if (isMobile()) ui.toggle('leftSidebar', 'hidden');
 							}}
 						>
-							<iconify-icon icon={item.icon} width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon
+								icon={item.icon}
+								width="16"
+								class="shrink-0 text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							{#if isSidebarFull}
 								<span class="truncate">{item.label}</span>
 							{/if}
@@ -477,9 +547,16 @@ import Button from '@components/ui/button.svelte';
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-subtle)"></div>
 
-		<div class="grid w-full items-center justify-center gap-1 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}" style="color: var(--admin-text-body)">
+		<div
+			class="grid w-full items-center justify-center gap-1 {isSidebarFull
+				? 'grid-cols-3'
+				: 'grid-cols-2'}"
+			style="color: var(--admin-text-body)"
+		>
 			<!-- Avatar -->
-			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
+			<div
+				class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center"
+			>
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
 					<a
 						href="/user"
@@ -490,8 +567,14 @@ import Button from '@components/ui/button.svelte';
 						class="{isSidebarFull
 							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-(--admin-border-subtle)]'
 							: 'h-8 w-8 rounded-full hover:bg-(--admin-border-subtle)]'} relative flex items-center justify-center text-center no-underline!"
-						>
-							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
+					>
+						<Avatar
+							src={avatarUrl}
+							alt="User Avatar"
+							size={isSidebarFull ? 'size-12' : 'size-10'}
+							rounded="rounded-full"
+							class="mx-auto"
+						/>
 						{#if isSidebarFull && user?.username}
 							<div
 								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"
@@ -504,57 +587,82 @@ import Button from '@components/ui/button.svelte';
 				</SystemTooltip>
 			</div>
 
- 			<!-- Theme Toggle -->
- 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
- 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
- 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
- 					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} variant="transparent" buttonClass="text-surface-900 dark:text-white" iconSize={28} />
- 					</div>
- 				</SystemTooltip>
- 			</div>
+			<!-- Theme Toggle -->
+			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
+				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
+					<div class="flex items-center justify-center">
+						<ThemeToggle
+							showTooltip={false}
+							variant="transparent"
+							buttonClass="text-surface-900 dark:text-white"
+							iconSize={28}
+						/>
+					</div>
+				</SystemTooltip>
+			</div>
 
- 			<!-- Language Selector -->
- 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
-  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }} role={null} tabindex={null}>
- 					<div class="language-selector relative" data-testid="language-selector">
- 						<Dropdown position="right-start" class="w-56">
- 							{#snippet trigger()}
- 								<Button
- 									variant="ghost"
- 									rounded
- 									aria-label={applayout_select_language()}
- 									data-testid="language-selector-trigger"
- 									class="mb-3 flex items-center justify-center uppercase bg-surface-200 dark:bg-surface-700 text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull ? 'h-12 w-12 text-xs font-bold' : 'h-11 w-11 text-xs font-bold'}"
- 								>
- 									{languageTag}
- 								</Button>
- 							{/snippet}
+			<!-- Language Selector -->
+			<div
+				class="{isSidebarFull
+					? 'order-3 row-span-2'
+					: 'order-4'} flex items-center justify-center px-1"
+			>
+				<SystemTooltip
+					title={applayout_systemlanguage()}
+					positioning={{ placement: 'right' }}
+					role={null}
+					tabindex={null}
+				>
+					<div class="language-selector relative" data-testid="language-selector">
+						<Dropdown position="right-start" class="w-56">
+							{#snippet trigger()}
+								<Button
+									variant="ghost"
+									rounded
+									aria-label={applayout_select_language()}
+									data-testid="language-selector-trigger"
+									class="mb-3 flex items-center justify-center uppercase bg-surface-200 dark:bg-surface-700 text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull
+										? 'h-12 w-12 text-xs font-bold'
+										: 'h-11 w-11 text-xs font-bold'}"
+								>
+									{languageTag}
+								</Button>
+							{/snippet}
 
- 							<!-- Header to inform user about System Language context -->
- 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-500/30 dark:border-surface-50 mb-1">
- 								{applayout_systemlanguage()}
- 							</div>
+							<!-- Header to inform user about System Language context -->
+							<div
+								class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-500/30 dark:border-surface-50 mb-1"
+							>
+								{applayout_systemlanguage()}
+							</div>
 
- 							{#if showLanguageDropdown}
- 								<div class="px-2 pb-2 mb-1 border-b border-surface-500/30 dark:border-surface-50">
-									<Input aria-label={applayout_search_language()}
+							{#if showLanguageDropdown}
+								<div class="px-2 pb-2 mb-1 border-b border-surface-500/30 dark:border-surface-50">
+									<Input
+										aria-label={applayout_search_language()}
 										type="text"
 										bind:value={searchQuery}
 										placeholder={applayout_search_language()}
 										inputClass="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
 									/>
- 								</div>
+								</div>
 
- 								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
- 									{#each filteredLanguages as lang (lang)}
+								<div
+									class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto"
+								>
+									{#each filteredLanguages as lang (lang)}
 										<Button
 											variant="ghost"
 											class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-400"
 											onclick={() => handleLanguageSelection(lang)}
 										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-400">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+											<span class="text-sm font-medium text-surface-900 dark:text-surface-400"
+												>{getLanguageName(lang)}</span
+											>
+											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2"
+												>{lang.toUpperCase()}</span
+											>
 										</Button>
 									{/each}
 								</div>
@@ -566,14 +674,16 @@ import Button from '@components/ui/button.svelte';
 										onclick={() => handleLanguageSelection(lang)}
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2"
+											>{lang.toUpperCase()}</span
+										>
 									</Button>
 								{/each}
- 							{/if}
- 						</Dropdown>
- 					</div>
- 				</SystemTooltip>
- 			</div>
+							{/if}
+						</Dropdown>
+					</div>
+				</SystemTooltip>
+			</div>
 
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
@@ -586,14 +696,19 @@ import Button from '@components/ui/button.svelte';
 						data-testid="sign-out-button"
 						class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0"
 					>
-						<iconify-icon icon="uil:signout" width="32" class="text-surface-900 dark:text-white" aria-hidden="true"></iconify-icon>
+						<iconify-icon
+							icon="uil:signout"
+							width="32"
+							class="text-surface-900 dark:text-white"
+							aria-hidden="true"
+						></iconify-icon>
 					</Button>
 				</SystemTooltip>
 			</div>
 
- 			<!-- Config -->
- 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
- 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
+			<!-- Config -->
+			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
+				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
 					<a
 						href="/config"
 						data-sveltekit-preload-data="hover"
@@ -602,29 +717,31 @@ import Button from '@components/ui/button.svelte';
 						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
 						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
- 					</a>
- 				</SystemTooltip>
- 			</div>
+					</a>
+				</SystemTooltip>
+			</div>
 
- 			<!-- Version -->
- 			<div class="{isSidebarFull ? 'order-7' : 'order-6'} flex items-center justify-center"><VersionCheck compact={true} /></div>
+			<!-- Version -->
+			<div class="{isSidebarFull ? 'order-7' : 'order-6'} flex items-center justify-center">
+				<VersionCheck compact={true} />
+			</div>
 
- 			<!-- Community Links (only when expanded) -->
- 			{#if isSidebarFull}
+			<!-- Community Links (only when expanded) -->
+			{#if isSidebarFull}
 				<div class="order-8 flex items-center justify-center gap-1">
- 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
- 						<a
- 							href="https://discord.gg/VrvZF6e2sC"
- 							target="_blank"
- 							rel="noopener noreferrer"
- 							aria-label="Discord Community"
- 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
- 						>
- 							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
- 						</a>
- 					</SystemTooltip>
- 				</div>
- 			{/if}
+					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+						<a
+							href="https://discord.gg/VrvZF6e2sC"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Discord Community"
+							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
+						</a>
+					</SystemTooltip>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>

@@ -31,7 +31,11 @@
 	import WidgetFields from './widget-fields.svelte';
 
 	// Props
-	let { addField = $bindable(false), fields = $bindable([]), onFieldsChange }: WidgetBuilderProps = $props();
+	let {
+		addField = $bindable(false),
+		fields = $bindable([]),
+		onFieldsChange
+	}: WidgetBuilderProps = $props();
 
 	function toggleAddField() {
 		addField = true;

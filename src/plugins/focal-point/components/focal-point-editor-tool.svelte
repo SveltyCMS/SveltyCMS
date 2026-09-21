@@ -21,7 +21,9 @@ opens the AspectPreviewModal for the current image being edited.
 <button
 	type="button"
 	class="inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
-	onclick={() => { showPreview = true; }}
+	onclick={() => {
+		showPreview = true;
+	}}
 	title="Focal Point & Aspect Preview"
 	aria-label="Open focal point and aspect ratio preview"
 >
@@ -33,9 +35,11 @@ opens the AspectPreviewModal for the current image being edited.
 		media={{
 			url: imageUrl,
 			filename: 'Image being edited',
-			metadata: currentFocalPoint ? { focalPoint: currentFocalPoint } : undefined,
+			metadata: currentFocalPoint ? { focalPoint: currentFocalPoint } : undefined
 		}}
 		show={showPreview}
-		onClose={() => { showPreview = false; }}
+		onClose={() => {
+			showPreview = false;
+		}}
 	/>
 {/if}

@@ -49,7 +49,9 @@ It allows for completely AI-generated, interactive layouts that leverage existin
 		</JSONUIProvider>
 	{:else}
 		<!-- Default standard fallback if no AI spec is provided -->
-		<div class="p-4 text-surface-500 italic text-center">Use AI to generate a custom display for this collection.</div>
+		<div class="p-4 text-surface-500 italic text-center">
+			Use AI to generate a custom display for this collection.
+		</div>
 	{/if}
 </div>
 

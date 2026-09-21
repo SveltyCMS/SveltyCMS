@@ -31,68 +31,71 @@ configurable step size, numeric value display, and full keyboard accessibility.
 -->
 
 <script lang="ts">
-import { cn } from '@utils/cn';
-import type { HTMLAttributes } from 'svelte/elements';
+	import { cn } from '@utils/cn';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value'> & {
-	value?: number;
-	count?: number;
-	step?: number;
-	icon?: string;
-	iconEmpty?: string;
-	disabled?: boolean;
-	readonly?: boolean;
-	color?: string;
-	size?: 'sm' | 'md' | 'lg';
-	showValue?: boolean;
-	class?: string;
-	onchange?: (value: number) => void;
-};
+	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value'> & {
+		value?: number;
+		count?: number;
+		step?: number;
+		icon?: string;
+		iconEmpty?: string;
+		disabled?: boolean;
+		readonly?: boolean;
+		color?: string;
+		size?: 'sm' | 'md' | 'lg';
+		showValue?: boolean;
+		class?: string;
+		onchange?: (value: number) => void;
+	};
 
-let {
-	value = $bindable(0),
-	count = 5,
-	step = 0.5,
-	icon = 'mdi:star',
-	iconEmpty = 'mdi:star-outline',
-	disabled = false,
-	readonly = false,
-	color = 'text-warning-500',
-	size = 'md',
-	showValue = false,
-	class: className,
-	onchange,
-	...rest
-}: Props = $props();
+	let {
+		value = $bindable(0),
+		count = 5,
+		step = 0.5,
+		icon = 'mdi:star',
+		iconEmpty = 'mdi:star-outline',
+		disabled = false,
+		readonly = false,
+		color = 'text-warning-500',
+		size = 'md',
+		showValue = false,
+		class: className,
+		onchange,
+		...rest
+	}: Props = $props();
 
-let hoveredValue = $state(0);
+	let hoveredValue = $state(0);
 
-const iconSize = $derived.by(() => {
-	switch (size) {
-		case 'sm': return '16';
-		case 'lg': return '32';
-		default:   return '24';
+	const iconSize = $derived.by(() => {
+		switch (size) {
+			case 'sm':
+				return '16';
+			case 'lg':
+				return '32';
+			default:
+				return '24';
+		}
+	});
+
+	function setValue(val: number) {
+		if (disabled || readonly) return;
+		const clamped = Math.min(count, Math.max(0, val));
+		const rounded = Math.round(clamped / step) * step;
+		value = Math.min(count, rounded);
+		onchange?.(value);
 	}
-});
 
-function setValue(val: number) {
-	if (disabled || readonly) return;
-	const clamped = Math.min(count, Math.max(0, val));
-	const rounded = Math.round(clamped / step) * step;
-	value = Math.min(count, rounded);
-	onchange?.(value);
-}
+	function adjustValue(delta: number) {
+		setValue(value + delta);
+	}
 
-function adjustValue(delta: number) {
-	setValue(value + delta);
-}
+	const displayValue = $derived(hoveredValue || value);
 
-const displayValue = $derived(hoveredValue || value);
-
-/** Calculate fill percentage (0–1) for star at 0-based index */
-function starFill(displayVal: number, index: number): number {
-	return Math.min(1, Math.max(0, displayVal - index));
-}
+	/** Calculate fill percentage (0–1) for star at 0-based index */
+	function starFill(displayVal: number, index: number): number {
+		return Math.min(1, Math.max(0, displayVal - index));
+	}
 </script>
 
 <div
@@ -138,7 +141,12 @@ function starFill(displayVal: number, index: number): number {
 				if (disabled || readonly) return;
 				const rect = e.currentTarget.getBoundingClientRect();
 				const x = e.clientX - rect.left;
-				const half = x < rect.width / 2 ? step : (step >= 1 ? 1 : Math.ceil(1 / step) * step / Math.ceil(1 / step));
+				const half =
+					x < rect.width / 2
+						? step
+						: step >= 1
+							? 1
+							: (Math.ceil(1 / step) * step) / Math.ceil(1 / step);
 				// For step=0.5: start half adds 0.5, end half adds 1.0
 				// For step=1: start half adds 0.5 rounded to 1, end half adds 1
 				const nearestStep = Math.round((i + half) / step) * step;
@@ -169,11 +177,7 @@ function starFill(displayVal: number, index: number): number {
 					style="width: {isFull ? '100%' : `${fillPercent}%`}"
 					aria-hidden="true"
 				>
-					<iconify-icon
-						icon={icon}
-						width={iconSize}
-						class={color}
-					></iconify-icon>
+					<iconify-icon {icon} width={iconSize} class={color}></iconify-icon>
 				</span>
 			{/if}
 		</span>

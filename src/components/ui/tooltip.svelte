@@ -24,10 +24,10 @@ reveal after position calculation prevents layout flash.
 -->
 
 <script lang="ts">
-	import { cn } from "@utils/cn";
-	import type { Snippet } from "svelte";
-	import Portal from "./portal.svelte";
-	import { useFloating, type Placement } from "@utils/use-floating.svelte.ts";
+	import { cn } from '@utils/cn';
+	import type { Snippet } from 'svelte';
+	import Portal from './portal.svelte';
+	import { useFloating, type Placement } from '@utils/use-floating.svelte.ts';
 
 	interface Props {
 		title?: string;
@@ -45,13 +45,13 @@ reveal after position calculation prevents layout flash.
 	}
 
 	let {
-		title = "",
-		positioning = { placement: "top", gutter: 8 },
+		title = '',
+		positioning = { placement: 'top', gutter: 8 },
 		class: className,
 		triggerClass,
 		content,
 		children,
-		role = "button",
+		role = 'button',
 		tabindex = 0,
 		...rest
 	}: Props = $props();
@@ -64,13 +64,13 @@ reveal after position calculation prevents layout flash.
 	const uid = $props.id();
 	const tooltipId = `tooltip-${uid}`;
 
-	const placement = $derived(positioning.placement ?? "top");
+	const placement = $derived(positioning.placement ?? 'top');
 	const gutter = $derived(positioning.gutter ?? 8);
 
 	function resolveReference(): HTMLElement | null {
 		if (!referenceEl) return null;
 		const focusable = referenceEl.querySelector(
-			'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+			'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 		) as HTMLElement | null;
 		return focusable ?? referenceEl;
 	}
@@ -83,13 +83,13 @@ reveal after position calculation prevents layout flash.
 		offset: () => gutter,
 		padding: 5,
 		enabled: () => open,
-		showArrow: () => true,
+		showArrow: () => true
 	});
 
 	$effect(() => {
 		if (referenceEl) {
 			const focusable = referenceEl.querySelectorAll(
-				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 			);
 			hasFocusableDescendant = focusable.length > 0;
 			if (hasFocusableDescendant) {
@@ -104,8 +104,18 @@ reveal after position calculation prevents layout flash.
 		}
 	});
 
-	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : (typeof tabindex === 'string' ? parseInt(tabindex, 10) : tabindex)));
-	const activeRole = $derived(hasFocusableDescendant ? undefined : (role === null ? undefined : role));
+	const activeTabindex = $derived(
+		hasFocusableDescendant
+			? undefined
+			: tabindex === null
+				? undefined
+				: typeof tabindex === 'string'
+					? parseInt(tabindex, 10)
+					: tabindex
+	);
+	const activeRole = $derived(
+		hasFocusableDescendant ? undefined : role === null ? undefined : role
+	);
 
 	/**
 	 * Calculate arrow position relative to the tooltip's target top-left.
@@ -210,7 +220,7 @@ reveal after position calculation prevents layout flash.
 		open = false;
 	}
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape" && open) hide();
+		if (e.key === 'Escape' && open) hide();
 	}
 </script>
 
@@ -219,7 +229,7 @@ reveal after position calculation prevents layout flash.
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={referenceEl}
-	class={cn("inline-flex shrink-0", triggerClass)}
+	class={cn('inline-flex shrink-0', triggerClass)}
 	onmouseenter={show}
 	onmouseleave={hide}
 	onfocusin={show}
@@ -241,11 +251,11 @@ reveal after position calculation prevents layout flash.
 			id={tooltipId}
 			role="tooltip"
 			class={cn(
-				"z-300 pointer-events-none overflow-visible rounded px-2.5 py-1.5 text-xs font-medium shadow-xl fixed",
-				"bg-(--admin-bg-tooltip) text-(--admin-text-tooltip)",
-				"transition-opacity duration-150",
-				!floating.positionCalculated ? "opacity-0" : "opacity-100",
-				className,
+				'z-300 pointer-events-none overflow-visible rounded px-2.5 py-1.5 text-xs font-medium shadow-xl fixed',
+				'bg-(--admin-bg-tooltip) text-(--admin-text-tooltip)',
+				'transition-opacity duration-150',
+				!floating.positionCalculated ? 'opacity-0' : 'opacity-100',
+				className
 			)}
 			style={floating.positionStyle}
 		>

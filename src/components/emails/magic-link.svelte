@@ -9,7 +9,19 @@
 
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
-	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import {
+		Body,
+		Button,
+		Container,
+		Head,
+		Hr,
+		Html,
+		Img,
+		Link,
+		Preview,
+		Section,
+		Text
+	} from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 
 	interface Props {
@@ -19,7 +31,12 @@
 		magicLink: string;
 	}
 
-	const { email = '', magicLink, expiresInMinutes = 15, languageTag = locale.systemLanguage }: Props = $props();
+	const {
+		email = '',
+		magicLink,
+		expiresInMinutes = 15,
+		languageTag = locale.systemLanguage
+	}: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD
@@ -38,7 +55,11 @@
 		<Container style="font-size: 16px;">
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? (publicEnv?.HOST_DEV ?? 'http://localhost:5173') : (publicEnv?.HOST_PROD ?? '')}>
+				<Link
+					href={dev
+						? (publicEnv?.HOST_DEV ?? 'http://localhost:5173')
+						: (publicEnv?.HOST_PROD ?? '')}
+				>
 					<Img
 						src={logoSrc}
 						alt={`${publicEnv?.SITE_NAME ?? 'SveltyCMS'} logo`}
@@ -54,7 +75,9 @@
 				<Text style="font-size: 16px;">Hello <strong>{email}</strong>,</Text>
 
 				<Text style="font-size: 16px;">
-					Click the button below to sign in passwordless to your <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong> account.
+					Click the button below to sign in passwordless to your <strong
+						>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong
+					> account.
 				</Text>
 
 				<!-- CTA Button -->
@@ -64,7 +87,8 @@
 							href={magicLink}
 							pX={24}
 							pY={12}
-							style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;">
+							style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;"
+						>
 							Sign In to SveltyCMS
 						</Button>
 					</center>
@@ -84,7 +108,9 @@
 				<Section>
 					<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 						<Link href="https://SveltyCMS.com">
-							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+							Your <span style="color:#111;">Svelty</span><span
+								style="color:#22c55e;font-weight:bold;">CMS</span
+							>
 							team
 						</Link>
 					</Text>

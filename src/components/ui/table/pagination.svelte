@@ -110,19 +110,29 @@ and first/last navigation used by the admin CMS.
 	}
 
 	function onAnchorPage(event: MouseEvent, pageNumber: number) {
-		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+			return;
 		event.preventDefault();
 		setPage(pageNumber);
 	}
 </script>
 
 {#if variant === 'cms'}
-	{#snippet pagerLink(p: { pageNumber: number; label: string; icon: string; disabled: boolean; cls?: string; size?: 'sm' | 'md' | 'lg'; viewport?: boolean })}
+	{#snippet pagerLink(p: {
+		pageNumber: number;
+		label: string;
+		icon: string;
+		disabled: boolean;
+		cls?: string;
+		size?: 'sm' | 'md' | 'lg';
+		viewport?: boolean;
+	})}
 		{#if urlPageParam}
 			{#if p.disabled}
 				<span
 					aria-hidden="true"
-					class="{p.cls ?? navBtn} inline-flex cursor-default items-center justify-center opacity-40"
+					class="{p.cls ??
+						navBtn} inline-flex cursor-default items-center justify-center opacity-40"
 				>
 					<iconify-icon icon={p.icon} width="20" aria-hidden="true"></iconify-icon>
 				</span>
@@ -131,7 +141,8 @@ and first/last navigation used by the admin CMS.
 					href={pageHref(p.pageNumber)}
 					aria-label={p.label}
 					data-preload={p.viewport ? 'viewport' : undefined}
-					class="{p.cls ?? navBtn} inline-flex items-center justify-center no-underline! focus-visible:ring-2 focus-visible:ring-tertiary-500"
+					class="{p.cls ??
+						navBtn} inline-flex items-center justify-center no-underline! focus-visible:ring-2 focus-visible:ring-tertiary-500"
 					onclick={(e) => onAnchorPage(e, p.pageNumber)}
 				>
 					<iconify-icon icon={p.icon} width="20" aria-hidden="true"></iconify-icon>
@@ -190,7 +201,9 @@ and first/last navigation used by the admin CMS.
 			aria-live="polite"
 		>
 			{#if totalItems > 0}
-				<span class="tabular-nums text-surface-600 dark:text-surface-400">{startItem}–{endItem}</span>
+				<span class="tabular-nums text-surface-600 dark:text-surface-400"
+					>{startItem}–{endItem}</span
+				>
 				<span class="text-surface-400 dark:text-surface-500"> / {totalItems}</span>
 			{:else}
 				0 / 0
@@ -199,7 +212,8 @@ and first/last navigation used by the admin CMS.
 
 		<label class="relative inline-flex h-9 shrink-0 items-center">
 			<span class="sr-only">{entrylist_rows()}</span>
-			<select aria-label="Items per page"
+			<select
+				aria-label="Items per page"
 				bind:value={rowsPerPage}
 				onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
 				class="h-full cursor-pointer appearance-none rounded-lg border border-surface-500/30 bg-surface-500/10 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-400"
@@ -227,9 +241,13 @@ and first/last navigation used by the admin CMS.
 			{entrylist_page()}
 			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
 			{entrylist_of()}
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
+			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span
+			>
 		</span>
-		<span class="hidden h-3 w-px bg-surface-300 sm:inline-block dark:bg-surface-600" aria-hidden="true"></span>
+		<span
+			class="hidden h-3 w-px bg-surface-300 sm:inline-block dark:bg-surface-600"
+			aria-hidden="true"
+		></span>
 		<span aria-label="Current items shown">
 			{#if totalItems > 0}
 				{entrylist_showing()}
@@ -246,7 +264,9 @@ and first/last navigation used by the admin CMS.
 	</div>
 
 	<nav class="hidden items-center md:flex" aria-label="Table pagination">
-		<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-500/30 dark:border-surface-600">
+		<div
+			class="inline-flex items-center overflow-hidden rounded-md border border-surface-500/30 dark:border-surface-600"
+		>
 			<SystemTooltip title="First Page">
 				{@render pagerLink({
 					pageNumber: 1,
@@ -267,13 +287,17 @@ and first/last navigation used by the admin CMS.
 				})}
 			</SystemTooltip>
 			<SystemTooltip title="Rows per page">
-				<select aria-label="Rows per page"
+				<select
+					aria-label="Rows per page"
 					bind:value={rowsPerPage}
 					onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
 					class="h-8 cursor-pointer appearance-none border-e border-surface-500/30 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
 				>
 					{#each rowsPerPageOptions as pageSize (pageSize)}
-						<option class="bg-surface-500/10 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
+						<option
+							class="bg-surface-500/10 text-black dark:bg-surface-700 dark:text-white"
+							value={pageSize}
+						>
 							{pageSize}
 							{entrylist_rows()}
 						</option>
@@ -330,7 +354,8 @@ and first/last navigation used by the admin CMS.
 			</span>
 			<div class="flex items-center gap-2">
 				<span class="hidden sm:inline">Rows:</span>
-				<select aria-label="Rows per page"
+				<select
+					aria-label="Rows per page"
 					bind:value={rowsPerPage}
 					onchange={() => updateRows(rowsPerPage)}
 					class="rounded border-none bg-surface-500/10 px-2 py-1 text-xs font-bold focus:ring-1 focus:ring-primary-500 dark:bg-surface-800"

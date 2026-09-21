@@ -20,144 +20,160 @@ presets, and progressive corner-shape angled corners.
 -->
 
 <script lang="ts">
-  import { cn } from '@utils/cn';
-  import type { Snippet } from 'svelte';
-  import type { HTMLAttributes, HTMLAnchorAttributes } from 'svelte/elements';
+	import { cn } from '@utils/cn';
+	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes, HTMLAnchorAttributes } from 'svelte/elements';
 
-  type BaseProps = {
-    variant?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface' | 'outline';
-    preset?: 'filled' | 'tonal' | 'outlined';
-    color?: string;
-    size?: 'sm' | 'md' | 'lg';
-    rounded?: boolean;
-    shape?: 'round' | 'angle';
-    href?: string;
-    children?: Snippet;
-    class?: string;
-  };
+	type BaseProps = {
+		variant?:
+			| 'primary'
+			| 'secondary'
+			| 'tertiary'
+			| 'success'
+			| 'warning'
+			| 'error'
+			| 'surface'
+			| 'outline';
+		preset?: 'filled' | 'tonal' | 'outlined';
+		color?: string;
+		size?: 'sm' | 'md' | 'lg';
+		rounded?: boolean;
+		shape?: 'round' | 'angle';
+		href?: string;
+		children?: Snippet;
+		class?: string;
+	};
 
-  type Props = BaseProps & (HTMLAttributes<HTMLDivElement> & HTMLAnchorAttributes);
+	type Props = BaseProps & (HTMLAttributes<HTMLDivElement> & HTMLAnchorAttributes);
 
-  let {
-    variant = 'primary',
-    preset: propPreset,
-    color: propColor,
-    size = 'md',
-    rounded = true,
-    shape = 'round',
-    children,
-    href,
-    class: className,
-    ...rest
-  }: Props = $props();
+	let {
+		variant = 'primary',
+		preset: propPreset,
+		color: propColor,
+		size = 'md',
+		rounded = true,
+		shape = 'round',
+		children,
+		href,
+		class: className,
+		...rest
+	}: Props = $props();
 
-  const sizeClasses = {
-    sm: 'px-1.5 py-0.5 text-[10px]',
-    md: 'px-2 py-0.5 text-xs',
-    lg: 'px-3 py-1 text-sm'
-  };
+	const sizeClasses = {
+		sm: 'px-1.5 py-0.5 text-[10px]',
+		md: 'px-2 py-0.5 text-xs',
+		lg: 'px-3 py-1 text-sm'
+	};
 
-  // Legacy variant mapping (makes tests happy)
-  const variantMap: Record<string, { preset: string; color: string }> = {
-    primary: { preset: 'filled', color: 'primary' },
-    secondary: { preset: 'tonal', color: 'secondary' },
-    tertiary: { preset: 'filled', color: 'tertiary' },
-    success: { preset: 'filled', color: 'success' },
-    warning: { preset: 'filled', color: 'warning' },
-    error: { preset: 'filled', color: 'error' },
-    surface: { preset: 'filled', color: 'surface' },
-    outline: { preset: 'outlined', color: 'surface' }
-  };
+	// Legacy variant mapping (makes tests happy)
+	const variantMap: Record<string, { preset: string; color: string }> = {
+		primary: { preset: 'filled', color: 'primary' },
+		secondary: { preset: 'tonal', color: 'secondary' },
+		tertiary: { preset: 'filled', color: 'tertiary' },
+		success: { preset: 'filled', color: 'success' },
+		warning: { preset: 'filled', color: 'warning' },
+		error: { preset: 'filled', color: 'error' },
+		surface: { preset: 'filled', color: 'surface' },
+		outline: { preset: 'outlined', color: 'surface' }
+	};
 
-  const finalPreset = $derived(propPreset || variantMap[variant]?.preset || 'filled');
-  const finalColor = $derived(propColor || variantMap[variant]?.color || 'primary');
+	const finalPreset = $derived(propPreset || variantMap[variant]?.preset || 'filled');
+	const finalColor = $derived(propColor || variantMap[variant]?.color || 'primary');
 
-  // Detect custom colors (hex, rgb, hsl, etc.) to support database/tenant dynamic configurations
-  const isCustomColor = $derived(
-    finalColor.startsWith('#') ||
-    finalColor.startsWith('rgb') ||
-    finalColor.startsWith('hsl') ||
-    finalColor.startsWith('var(')
-  );
+	// Detect custom colors (hex, rgb, hsl, etc.) to support database/tenant dynamic configurations
+	const isCustomColor = $derived(
+		finalColor.startsWith('#') ||
+			finalColor.startsWith('rgb') ||
+			finalColor.startsWith('hsl') ||
+			finalColor.startsWith('var(')
+	);
 
-  const FILLED_MAP: Record<string, string> = {
-    primary: 'preset-filled-primary-500',
-    secondary: 'preset-filled-secondary-500',
-    tertiary: 'preset-filled-tertiary-500',
-    success: 'preset-filled-success-500',
-    warning: 'preset-filled-warning-500',
-    error: 'preset-filled-error-500',
-    surface: 'preset-filled-surface-500',
-  };
+	const FILLED_MAP: Record<string, string> = {
+		primary: 'preset-filled-primary-500',
+		secondary: 'preset-filled-secondary-500',
+		tertiary: 'preset-filled-tertiary-500',
+		success: 'preset-filled-success-500',
+		warning: 'preset-filled-warning-500',
+		error: 'preset-filled-error-500',
+		surface: 'preset-filled-surface-500'
+	};
 
-  const OUTLINED_MAP: Record<string, string> = {
-    primary: 'preset-outlined-primary-500',
-    secondary: 'preset-outlined-secondary-500',
-    tertiary: 'preset-outlined-tertiary-500',
-    success: 'preset-outlined-success-500',
-    warning: 'preset-outlined-warning-500',
-    error: 'preset-outlined-error-500',
-    surface: 'preset-outlined-surface-500',
-  };
+	const OUTLINED_MAP: Record<string, string> = {
+		primary: 'preset-outlined-primary-500',
+		secondary: 'preset-outlined-secondary-500',
+		tertiary: 'preset-outlined-tertiary-500',
+		success: 'preset-outlined-success-500',
+		warning: 'preset-outlined-warning-500',
+		error: 'preset-outlined-error-500',
+		surface: 'preset-outlined-surface-500'
+	};
 
-  const TONAL_MAP: Record<string, string> = {
-    primary: 'preset-tonal-primary',
-    secondary: 'preset-tonal-secondary',
-    tertiary: 'preset-tonal-tertiary',
-    success: 'preset-tonal-success',
-    warning: 'preset-tonal-warning',
-    error: 'preset-tonal-error',
-    surface: 'preset-tonal-surface',
-  };
+	const TONAL_MAP: Record<string, string> = {
+		primary: 'preset-tonal-primary',
+		secondary: 'preset-tonal-secondary',
+		tertiary: 'preset-tonal-tertiary',
+		success: 'preset-tonal-success',
+		warning: 'preset-tonal-warning',
+		error: 'preset-tonal-error',
+		surface: 'preset-tonal-surface'
+	};
 
-  const getPresetClass = $derived(() => {
-    if (isCustomColor) return 'preset-custom';
-    if (finalPreset === 'tonal') return TONAL_MAP[finalColor] ?? `preset-tonal-${finalColor}`;
-    if (finalPreset === 'outlined') return OUTLINED_MAP[finalColor] ?? `preset-outlined-${finalColor}-500`;
-    return FILLED_MAP[finalColor] ?? `preset-filled-${finalColor}-500`;
-  });
+	const getPresetClass = $derived(() => {
+		if (isCustomColor) return 'preset-custom';
+		if (finalPreset === 'tonal') return TONAL_MAP[finalColor] ?? `preset-tonal-${finalColor}`;
+		if (finalPreset === 'outlined')
+			return OUTLINED_MAP[finalColor] ?? `preset-outlined-${finalColor}-500`;
+		return FILLED_MAP[finalColor] ?? `preset-filled-${finalColor}-500`;
+	});
 
-  // Calculate dynamic custom variables for custom color preset fallbacks and theme contexts
-  const customStyles = $derived.by(() => {
-    let styles = '';
+	// Calculate dynamic custom variables for custom color preset fallbacks and theme contexts
+	const customStyles = $derived.by(() => {
+		let styles = '';
 
-    // Set dynamic border-radius when not angled and not fully rounded (pill)
-    if (shape !== 'angle' && !rounded) {
-      styles += `border-radius: var(--admin-radius-input, 6px); `;
-    }
+		// Set dynamic border-radius when not angled and not fully rounded (pill)
+		if (shape !== 'angle' && !rounded) {
+			styles += `border-radius: var(--admin-radius-input, 6px); `;
+		}
 
-    if (shape === 'angle') {
-      styles += `corner-shape: angle; --corner-offset: 4px; `;
-    }
+		if (shape === 'angle') {
+			styles += `corner-shape: angle; --corner-offset: 4px; `;
+		}
 
-    if (isCustomColor) {
-      if (finalPreset === 'tonal') {
-        styles += `--preset-bg: ${finalColor}22; --preset-text: ${finalColor}; --preset-border: transparent;`;
-      } else if (finalPreset === 'outlined') {
-        styles += `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
-      } else {
-        styles += `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
-      }
-    }
-    return styles || undefined;
-  });
+		if (isCustomColor) {
+			if (finalPreset === 'tonal') {
+				styles += `--preset-bg: ${finalColor}22; --preset-text: ${finalColor}; --preset-border: transparent;`;
+			} else if (finalPreset === 'outlined') {
+				styles += `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
+			} else {
+				styles += `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+			}
+		}
+		return styles || undefined;
+	});
 
-  const classes = $derived(cn(
-    'badge inline-flex items-center font-bold uppercase tracking-wider transition-all duration-200',
-    getPresetClass(),
-    sizeClasses[size],
-    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : ''),
-    className
-  ));
+	const classes = $derived(
+		cn(
+			'badge inline-flex items-center font-bold uppercase tracking-wider transition-all duration-200',
+			getPresetClass(),
+			sizeClasses[size],
+			shape === 'angle' ? 'corner-angle' : rounded ? 'rounded-full' : '',
+			className
+		)
+	);
 </script>
 
 {#if href}
-  <a {href} class={classes} style={customStyles} aria-label={rest['aria-label'] || 'Badge link'} {...rest}>
-      {@render children?.()}
-    </a>
+	<a
+		{href}
+		class={classes}
+		style={customStyles}
+		aria-label={rest['aria-label'] || 'Badge link'}
+		{...rest}
+	>
+		{@render children?.()}
+	</a>
 {:else}
-  <div class={classes} style={customStyles} {...rest}>
-    {@render children?.()}
-  </div>
+	<div class={classes} style={customStyles} {...rest}>
+		{@render children?.()}
+	</div>
 {/if}
-

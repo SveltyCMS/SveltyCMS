@@ -151,7 +151,12 @@ Features:
 					setup_troubleshoot_atlas_ip_5()
 				];
 			case 'atlas_cluster_not_found':
-				return [setup_troubleshoot_cluster_1(), setup_troubleshoot_cluster_2(), setup_troubleshoot_cluster_3(), setup_troubleshoot_cluster_4()];
+				return [
+					setup_troubleshoot_cluster_1(),
+					setup_troubleshoot_cluster_2(),
+					setup_troubleshoot_cluster_3(),
+					setup_troubleshoot_cluster_4()
+				];
 			case 'atlas_user_not_found':
 				return [
 					setup_troubleshoot_user_1(),
@@ -171,7 +176,12 @@ Features:
 				];
 			case 'credentials_required':
 			case 'auth_required':
-				return [setup_troubleshoot_creds_1(), setup_troubleshoot_creds_2(), setup_troubleshoot_creds_3(), setup_troubleshoot_creds_4()];
+				return [
+					setup_troubleshoot_creds_1(),
+					setup_troubleshoot_creds_2(),
+					setup_troubleshoot_creds_3(),
+					setup_troubleshoot_creds_4()
+				];
 			case 'host_unreachable':
 			case 'connection_refused':
 				return [
@@ -182,7 +192,11 @@ Features:
 					setup_troubleshoot_host_5()
 				];
 			case 'database_not_found':
-				return [setup_troubleshoot_dbnotfound_1(), setup_troubleshoot_dbnotfound_2(), setup_troubleshoot_dbnotfound_3()];
+				return [
+					setup_troubleshoot_dbnotfound_1(),
+					setup_troubleshoot_dbnotfound_2(),
+					setup_troubleshoot_dbnotfound_3()
+				];
 			case 'timeout':
 				return [
 					setup_troubleshoot_timeout_1(),
@@ -218,12 +232,16 @@ Features:
 	<!-- Status Header -->
 	<div class="p-4">
 		<div class="flex items-center gap-3">
-			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}" aria-hidden="true"> {getStatusIcon(state)} </span>
+			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}" aria-hidden="true">
+				{getStatusIcon(state)}
+			</span>
 			<div class="flex-1">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				<p class="font-semibold {getStatusColor(state)}">{@html getStatusText(state, result)}</p>
 				{#if result?.latencyMs && state === 'success'}
-					<p class="text-sm text-surface-600 dark:text-surface-50">{setup_connection_latency({ ms: result.latencyMs })}</p>
+					<p class="text-sm text-surface-600 dark:text-surface-50">
+						{setup_connection_latency({ ms: result.latencyMs })}
+					</p>
 				{/if}
 			</div>
 		</div>
@@ -231,7 +249,9 @@ Features:
 
 	<!-- Success Details -->
 	{#if state === 'success' && result}
-		<div class="border-t border-success-500/20 bg-white p-4 dark:border-success-500/40 dark:bg-surface-800">
+		<div
+			class="border-t border-success-500/20 bg-white p-4 dark:border-success-500/40 dark:bg-surface-800"
+		>
 			<div class="grid gap-3 text-sm">
 				{#if result.atlas}
 					<div class="flex items-center gap-2 text-success-600 dark:text-success-400">
@@ -249,18 +269,34 @@ Features:
 
 				{#if result.stats}
 					<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
-						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{setup_connection_stats_title()}</p>
+						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">
+							{setup_connection_stats_title()}
+						</p>
 						<div class="grid gap-1 text-surface-600 dark:text-surface-50">
 							{#if result.stats.collections !== undefined}
-								<div class="flex justify-between"><span>{setup_connection_stats_collections({ count: result.stats.collections })}</span></div>
+								<div class="flex justify-between">
+									<span
+										>{setup_connection_stats_collections({ count: result.stats.collections })}</span
+									>
+								</div>
 							{/if}
 							{#if result.stats.objects !== undefined}
 								<div class="flex justify-between">
-									<span>{setup_connection_stats_objects({ count: formatNumber(result.stats.objects) })}</span>
+									<span
+										>{setup_connection_stats_objects({
+											count: formatNumber(result.stats.objects)
+										})}</span
+									>
 								</div>
 							{/if}
 							{#if result.stats.dataSize !== undefined}
-								<div class="flex justify-between"><span>{setup_connection_stats_size({ size: formatBytes(result.stats.dataSize) })}</span></div>
+								<div class="flex justify-between">
+									<span
+										>{setup_connection_stats_size({
+											size: formatBytes(result.stats.dataSize)
+										})}</span
+									>
+								</div>
 							{/if}
 						</div>
 					</div>
@@ -268,10 +304,14 @@ Features:
 
 				{#if result.collectionsSample && result.collectionsSample.length > 0}
 					<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
-						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{setup_connection_sample_collections()}</p>
+						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">
+							{setup_connection_sample_collections()}
+						</p>
 						<div class="flex flex-wrap gap-2">
 							{#each result.collectionsSample as collection (collection)}
-								<span class="rounded bg-indigo-100 px-2 py-1 font-mono text-xs text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+								<span
+									class="rounded bg-indigo-100 px-2 py-1 font-mono text-xs text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+								>
 									{collection}
 								</span>
 							{/each}
@@ -284,19 +324,27 @@ Features:
 
 	<!-- Error Details with Troubleshooting -->
 	{#if state === 'error' && result}
-		<div class="border-t border-error-500/20 bg-white p-4 dark:border-error-500/40 dark:bg-surface-800">
+		<div
+			class="border-t border-error-500/20 bg-white p-4 dark:border-error-500/40 dark:bg-surface-800"
+		>
 			<!-- Technical Error Message -->
 			{#if result.error && result.error !== result.userFriendly}
 				<div class="mb-3 rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
-					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-50">{setup_connection_technical_details()}</p>
+					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-50">
+						{setup_connection_technical_details()}
+					</p>
 					<p class="font-mono text-xs text-surface-600 dark:text-surface-50">{result.error}</p>
 				</div>
 			{/if}
 
 			<!-- Troubleshooting Tips -->
 			{#if result.classification}
-				<div class="rounded border border-warning-500/20 bg-warning-500/10 p-3 dark:border-warning-500/40 dark:bg-warning-900/20">
-					<p class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400">
+				<div
+					class="rounded border border-warning-500/20 bg-warning-500/10 p-3 dark:border-warning-500/40 dark:bg-warning-900/20"
+				>
+					<p
+						class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400"
+					>
 						<span>💡</span>
 						<span>{setup_connection_troubleshooting()}</span>
 					</p>
@@ -332,12 +380,18 @@ Features:
 
 	<!-- Testing Animation -->
 	{#if state === 'testing'}
-		<div class="border-t border-tertiary-500/20 bg-white p-4 dark:border-tertiary-500/40 dark:bg-surface-800">
+		<div
+			class="border-t border-tertiary-500/20 bg-white p-4 dark:border-tertiary-500/40 dark:bg-surface-800"
+		>
 			<div class="flex items-center gap-3">
 				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-tertiary-500 to-indigo-500"></div>
+					<div
+						class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-tertiary-500 to-indigo-500"
+					></div>
 				</div>
-				<span class="text-sm text-surface-600 dark:text-surface-50">{setup_connection_connecting()}</span>
+				<span class="text-sm text-surface-600 dark:text-surface-50"
+					>{setup_connection_connecting()}</span
+				>
 			</div>
 		</div>
 	{/if}
