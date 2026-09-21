@@ -17,13 +17,15 @@
 </script>
 
 <div class="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-400">
-	<iconify-icon icon="mdi:map-marker" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+	<iconify-icon icon="mdi:map-marker" class="text-tertiary-500 dark:text-primary-500"
+	></iconify-icon>
 	{#if value && value.coordinates}
 		<span class="font-mono">
 			{value.coordinates[1].toFixed(6)}, {value.coordinates[0].toFixed(6)}
 		</span>
 		<a
-			href="https://www.google.com/maps/search/?api=1&query={value.coordinates[1]},{value.coordinates[0]}"
+			href="https://www.google.com/maps/search/?api=1&query={value.coordinates[1]},{value
+				.coordinates[0]}"
 			target="_blank"
 			class="text-[10px] font-semibold h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-500 flex items-center justify-center transition-colors"
 		>

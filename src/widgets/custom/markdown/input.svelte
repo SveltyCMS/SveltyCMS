@@ -24,7 +24,7 @@
 	let previewMode = $state<'split' | 'edit' | 'preview'>('split');
 
 	$effect(() => {
-		rawText = field.translated ? (value?.[LANGUAGE] || '') : (value || '');
+		rawText = field.translated ? value?.[LANGUAGE] || '' : value || '';
 	});
 
 	function handleInput(e: Event) {
@@ -40,13 +40,32 @@
 	}
 </script>
 
-<div class="flex flex-col border border-surface-500 dark:border-surface-600 rounded overflow-hidden">
+<div
+	class="flex flex-col border border-surface-500 dark:border-surface-600 rounded overflow-hidden"
+>
 	<!-- Toolbar -->
-	<div class="flex items-center justify-between bg-surface-500/10 dark:bg-surface-800 p-2 border-b border-surface-500/30 dark:border-surface-500/40">
+	<div
+		class="flex items-center justify-between bg-surface-500/10 dark:bg-surface-800 p-2 border-b border-surface-500/30 dark:border-surface-500/40"
+	>
 		<div class="flex gap-1">
-			<Button type="button" size="sm" variant={previewMode === 'edit' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'edit'}>Edit</Button>
-			<Button type="button" size="sm" variant={previewMode === 'split' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'split'}>Split</Button>
-			<Button type="button" size="sm" variant={previewMode === 'preview' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'preview'}>Preview</Button>
+			<Button
+				type="button"
+				size="sm"
+				variant={previewMode === 'edit' ? 'tertiary' : 'surface'}
+				onclick={() => (previewMode = 'edit')}>Edit</Button
+			>
+			<Button
+				type="button"
+				size="sm"
+				variant={previewMode === 'split' ? 'tertiary' : 'surface'}
+				onclick={() => (previewMode = 'split')}>Split</Button
+			>
+			<Button
+				type="button"
+				size="sm"
+				variant={previewMode === 'preview' ? 'tertiary' : 'surface'}
+				onclick={() => (previewMode = 'preview')}>Preview</Button
+			>
 		</div>
 		<span class="text-[10px] text-surface-400 uppercase font-bold">{LANGUAGE}</span>
 	</div>
@@ -65,7 +84,9 @@
 		{/if}
 
 		{#if previewMode !== 'edit'}
-			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-500/30 dark:border-surface-500/40">
+			<div
+				class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-500/30 dark:border-surface-500/40"
+			>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html parseMarkdown(rawText)}
 			</div>

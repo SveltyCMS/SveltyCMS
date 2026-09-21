@@ -23,15 +23,15 @@ Part of the Three Pillars Architecture for the widget system.
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import { browser } from '$app/env';
-		import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
-		import Badge from '@components/ui/badge.svelte';
-		import Button from '@components/ui/button.svelte';
-		import FloatingInput from '@components/ui/floating-input.svelte';
-		import Input from '@components/ui/input.svelte';
-		import Select from '@components/ui/select.svelte';
-		import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -59,7 +59,11 @@ import { logger } from "@utils/logger";
 	const showCoordinates = $derived((field as any).defaults?.showCoordinates ?? false);
 
 	// Language Handling
-	const DATA_LANGUAGE = $derived(field.translated ? locale.contentLanguage : (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase());
+	const DATA_LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase()
+	);
 	const UI_LANGUAGE = $derived(locale.systemLanguage);
 
 	let safeValue = $derived.by(() => {
@@ -83,7 +87,10 @@ import { logger } from "@utils/logger";
 		const updatedAddress = { ...currentAddress, [key]: newValue };
 
 		if (field.translated) {
-			value = { ...(typeof value === 'object' ? value : {}), [DATA_LANGUAGE]: updatedAddress } as Record<string, AddressData>;
+			value = {
+				...(typeof value === 'object' ? value : {}),
+				[DATA_LANGUAGE]: updatedAddress
+			} as Record<string, AddressData>;
 		} else {
 			value = updatedAddress;
 		}
@@ -100,7 +107,9 @@ import { logger } from "@utils/logger";
 					postalCode: pipe(string(), minLength(1, 'Postal code is required')),
 					country: pipe(string(), minLength(2, 'Country is required'))
 				})
-			: optional(object({ street: string(), city: string(), postalCode: string(), country: string() }))
+			: optional(
+					object({ street: string(), city: string(), postalCode: string(), country: string() })
+				)
 	);
 
 	function validateAddress(addressData: AddressData | undefined) {
@@ -108,7 +117,10 @@ import { logger } from "@utils/logger";
 			validationStore.clearError(fieldName);
 			return;
 		}
-		handleWidgetValidation(() => parse(addressSchema, addressData), { fieldName, updateStore: true });
+		handleWidgetValidation(() => parse(addressSchema, addressData), {
+			fieldName,
+			updateStore: true
+		});
 	}
 
 	// Maps Elements and State
@@ -298,9 +310,7 @@ import { logger } from "@utils/logger";
 
 			map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-			marker = new maplibregl.Marker({ draggable: true })
-				.setLngLat(center)
-				.addTo(map);
+			marker = new maplibregl.Marker({ draggable: true }).setLngLat(center).addTo(map);
 
 			marker.on('dragend', async () => {
 				const lngLat = marker.getLngLat();
@@ -327,7 +337,9 @@ import { logger } from "@utils/logger";
 		searchTimeout = setTimeout(async () => {
 			isLoadingSearch = true;
 			try {
-				const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`);
+				const res = await fetch(
+					`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`
+				);
 				const data = await res.json();
 				if (data && data.features) {
 					suggestions = data.features.map((f: any) => {
@@ -339,7 +351,7 @@ import { logger } from "@utils/logger";
 							if (p.housenumber) parts.push(`${p.street} ${p.housenumber}`);
 							else parts.push(p.street);
 						}
-						const label = parts.length > 0 ? parts.join(', ') : (p.city || p.country || 'Location');
+						const label = parts.length > 0 ? parts.join(', ') : p.city || p.country || 'Location';
 
 						const subparts = [];
 						if (p.postcode) subparts.push(p.postcode);
@@ -445,14 +457,19 @@ import { logger } from "@utils/logger";
 				map.setZoom((field.zoom as number) || 6);
 				marker.setPosition(defaultCenter);
 			} else if (activeMapType === 'maplibre') {
-				map.flyTo({ center: [defaultCenter.lng, defaultCenter.lat], zoom: (field.zoom as number) || 6 });
+				map.flyTo({
+					center: [defaultCenter.lng, defaultCenter.lat],
+					zoom: (field.zoom as number) || 6
+				});
 				marker.setLngLat([defaultCenter.lng, defaultCenter.lat]);
 			}
 		}
 	}
 </script>
 
-<div class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-500/30 dark:border-surface-600 bg-surface-500/30 dark:bg-surface-800/20">
+<div
+	class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-500/30 dark:border-surface-600 bg-surface-500/30 dark:bg-surface-800/20"
+>
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2 font-bold text-surface-900 dark:text-surface-50">
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
@@ -487,7 +504,9 @@ import { logger } from "@utils/logger";
 					</div>
 
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
-						<div class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-800 shadow-xl">
+						<div
+							class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-800 shadow-xl"
+						>
 							<ul class="list-none p-0 m-0">
 								{#each suggestions as sug (sug.label)}
 									<li>
@@ -496,8 +515,12 @@ import { logger } from "@utils/logger";
 											class="w-full text-start px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-500/30 dark:border-surface-500/40"
 											onclick={() => selectSuggestion(sug)}
 										>
-											<span class="font-medium text-surface-900 dark:text-surface-50">{sug.label}</span>
-											<span class="text-xs text-surface-500 dark:text-surface-400">{sug.sublabel}</span>
+											<span class="font-medium text-surface-900 dark:text-surface-50"
+												>{sug.label}</span
+											>
+											<span class="text-xs text-surface-500 dark:text-surface-400"
+												>{sug.sublabel}</span
+											>
 										</button>
 									</li>
 								{/each}
@@ -565,9 +588,17 @@ import { logger } from "@utils/logger";
 			</div>
 
 			{#if showCoordinates && safeValue?.latitude}
-				<div class="flex items-center gap-4 p-2 bg-surface-500/10 dark:bg-surface-800 rounded text-xs font-mono">
-					<div class="flex items-center gap-1"><span class="text-surface-400">Lat:</span> {safeValue.latitude.toFixed(6)}</div>
-					<div class="flex items-center gap-1"><span class="text-surface-400">Lng:</span> {safeValue.longitude.toFixed(6)}</div>
+				<div
+					class="flex items-center gap-4 p-2 bg-surface-500/10 dark:bg-surface-800 rounded text-xs font-mono"
+				>
+					<div class="flex items-center gap-1">
+						<span class="text-surface-400">Lat:</span>
+						{safeValue.latitude.toFixed(6)}
+					</div>
+					<div class="flex items-center gap-1">
+						<span class="text-surface-400">Lng:</span>
+						{safeValue.longitude.toFixed(6)}
+					</div>
 				</div>
 			{/if}
 
@@ -579,14 +610,23 @@ import { logger } from "@utils/logger";
 		<!-- Right: Map Container -->
 		{#if showMap}
 			<div class="lg:col-span-5 flex flex-col gap-2">
-				<div class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between">
+				<div
+					class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between"
+				>
 					<span>Interactive Map</span>
-					<Badge preset="tonal" color="primary" size="sm" class="uppercase font-mono tracking-wider">
+					<Badge
+						preset="tonal"
+						color="primary"
+						size="sm"
+						class="uppercase font-mono tracking-wider"
+					>
 						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
 					</Badge>
 				</div>
-				<div bind:this={mapElement} class="h-80 lg:h-full min-h-75 w-full rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 relative overflow-hidden">
-				</div>
+				<div
+					bind:this={mapElement}
+					class="h-80 lg:h-full min-h-75 w-full rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 relative overflow-hidden"
+				></div>
 			</div>
 		{/if}
 	</div>

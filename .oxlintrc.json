@@ -8,6 +8,10 @@
           {
             "name": "$app/forms",
             "message": "Use SvelteKit 5 Server Functions instead of $app/forms"
+          },
+          {
+            "name": "bun:test",
+            "message": "Vitest is canonical (AGENTS §3.5) — import from \"vitest\". `bun test` is not part of any project script."
           }
         ]
       }

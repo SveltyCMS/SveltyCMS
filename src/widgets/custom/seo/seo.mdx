@@ -613,38 +613,38 @@ export const load: PageServerLoad = async ({ params }) => {
 ```svelte
 <!-- +page.svelte -->
 <script lang="ts">
-	export let data;
-	const { post, seo } = data;
+  export let data;
+  const { post, seo } = data;
 </script>
 
 <svelte:head>
-	<!-- Basic SEO -->
-	<title>{seo.title}</title>
-	<meta name="description" content={seo.description} />
-	<meta name="robots" content={seo.robotsMeta} />
-	{#if seo.canonicalUrl}
-		<link rel="canonical" href={seo.canonicalUrl} />
-	{/if}
+  <!-- Basic SEO -->
+  <title>{seo.title}</title>
+  <meta name="description" content={seo.description} />
+  <meta name="robots" content={seo.robotsMeta} />
+  {#if seo.canonicalUrl}
+    <link rel="canonical" href={seo.canonicalUrl} />
+  {/if}
 
-	<!-- Open Graph -->
-	<meta property="og:title" content={seo.ogTitle || seo.title} />
-	<meta property="og:description" content={seo.ogDescription || seo.description} />
-	{#if seo.ogImage}
-		<meta property="og:image" content={getImageUrl(seo.ogImage)} />
-	{/if}
+  <!-- Open Graph -->
+  <meta property="og:title" content={seo.ogTitle || seo.title} />
+  <meta property="og:description" content={seo.ogDescription || seo.description} />
+  {#if seo.ogImage}
+    <meta property="og:image" content={getImageUrl(seo.ogImage)} />
+  {/if}
 
-	<!-- Twitter -->
-	<meta name="twitter:card" content={seo.twitterCard} />
-	<meta name="twitter:title" content={seo.twitterTitle || seo.title} />
-	<meta name="twitter:description" content={seo.twitterDescription || seo.description} />
-	{#if seo.twitterImage}
-		<meta name="twitter:image" content={getImageUrl(seo.twitterImage)} />
-	{/if}
+  <!-- Twitter -->
+  <meta name="twitter:card" content={seo.twitterCard} />
+  <meta name="twitter:title" content={seo.twitterTitle || seo.title} />
+  <meta name="twitter:description" content={seo.twitterDescription || seo.description} />
+  {#if seo.twitterImage}
+    <meta name="twitter:image" content={getImageUrl(seo.twitterImage)} />
+  {/if}
 
-	<!-- Structured Data -->
-	{#if seo.schemaMarkup}
-		{@html `<script type="application/ld+json">${seo.schemaMarkup}</script>`}
-	{/if}
+  <!-- Structured Data -->
+  {#if seo.schemaMarkup}
+    {@html `<script type="application/ld+json">${seo.schemaMarkup}</script>`}
+  {/if}
 </svelte:head>
 ```
 

@@ -50,7 +50,8 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 				{:else if starIndex - 0.5 <= value}
 					<iconify-icon icon={iconHalf} width="20" class="text-warning-500"></iconify-icon>
 				{:else}
-					<iconify-icon icon={iconEmpty} width="20" class="text-surface-300 dark:text-surface-600"></iconify-icon>
+					<iconify-icon icon={iconEmpty} width="20" class="text-surface-300 dark:text-surface-600"
+					></iconify-icon>
 				{/if}
 			{/each}
 		</div>

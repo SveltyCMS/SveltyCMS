@@ -5,8 +5,8 @@
 @props {BlockInstance[]} value - List of active block instances.
 -->
 <script lang="ts">
-	import Badge from "@components/ui/badge.svelte";
-	import type { BlockInstance } from "./types";
+	import Badge from '@components/ui/badge.svelte';
+	import type { BlockInstance } from './types';
 
 	interface Props {
 		field?: unknown;
@@ -17,18 +17,19 @@
 
 	const blockList = $derived(Array.isArray(value) ? value : []);
 	const blockCount = $derived(blockList.length);
-	const previewTypes = $derived(
-		Array.from(new Set(blockList.map((b) => b._type))).slice(0, 3),
-	);
+	const previewTypes = $derived(Array.from(new Set(blockList.map((b) => b._type))).slice(0, 3));
 </script>
 
 <div class="flex flex-wrap items-center gap-1.5 text-sm" data-testid="block-builder-display">
 	{#if blockCount > 0}
 		<Badge variant="primary" size="sm">
-			{blockCount} {blockCount === 1 ? "block" : "blocks"}
+			{blockCount}
+			{blockCount === 1 ? 'block' : 'blocks'}
 		</Badge>
 		{#each previewTypes as type, idx (idx)}
-			<span class="rounded bg-surface-500/10 px-1.5 py-0.5 text-xs font-mono uppercase tracking-wider text-surface-500">
+			<span
+				class="rounded bg-surface-500/10 px-1.5 py-0.5 text-xs font-mono uppercase tracking-wider text-surface-500"
+			>
 				{type}
 			</span>
 		{/each}

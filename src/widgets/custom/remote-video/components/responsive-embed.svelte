@@ -1,14 +1,18 @@
 <script lang="ts">
 	import type { RemoteVideoData } from '../types';
 
-	let { video, autoplay = false, class: className = '' }: { video: RemoteVideoData, autoplay?: boolean, class?: string } = $props();
+	let {
+		video,
+		autoplay = false,
+		class: className = ''
+	}: { video: RemoteVideoData; autoplay?: boolean; class?: string } = $props();
 
 	// Construct platform-specific embed URLs
 	const embedUrl = $derived.by(() => {
 		if (!video) return null;
 		const { platform, videoId } = video;
 		const params = new URLSearchParams();
-		
+
 		if (autoplay) params.set('autoplay', '1');
 
 		switch (platform) {
@@ -27,7 +31,10 @@
 </script>
 
 {#if embedUrl}
-	<div class="relative w-full overflow-hidden rounded bg-black {className}" style="padding-top: 56.25%;">
+	<div
+		class="relative w-full overflow-hidden rounded bg-black {className}"
+		style="padding-top: 56.25%;"
+	>
 		<iframe
 			src={embedUrl}
 			title={video.title}
@@ -39,7 +46,9 @@
 		></iframe>
 	</div>
 {:else}
-	<div class="flex aspect-video w-full items-center justify-center rounded bg-surface-500/10 dark:bg-surface-800 text-surface-400">
+	<div
+		class="flex aspect-video w-full items-center justify-center rounded bg-surface-500/10 dark:bg-surface-800 text-surface-400"
+	>
 		<iconify-icon icon="mdi:video-off" width="48"></iconify-icon>
 		<span class="ms-2">Embed not available for this platform</span>
 	</div>

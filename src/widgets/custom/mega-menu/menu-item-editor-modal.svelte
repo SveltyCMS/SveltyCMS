@@ -50,18 +50,24 @@ menu item at a specific level. Uses the standard widget loading system.
 <div
 	class="card p-4 w-modal shadow-xl space-y-6 max-h-[90vh] overflow-y-auto bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40"
 >
-	<header class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:border-surface-500/40">
+	<header
+		class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:border-surface-500/40"
+	>
 		<div class="flex flex-col">
 			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100">
 				{meta.isNew ? 'Add' : 'Edit'} Menu Item
 			</h2>
-			<span class="text-xs font-medium uppercase tracking-wider text-surface-500">Level {meta.level + 1} Configuration</span>
+			<span class="text-xs font-medium uppercase tracking-wider text-surface-500"
+				>Level {meta.level + 1} Configuration</span
+			>
 		</div>
-		<Button variant="surface"
+		<Button
+			variant="surface"
 			type="button"
 			onclick={onCancel}
 			aria-label="Close modal"
-		 class="p-0! min-w-0 hover:">
+			class="p-0! min-w-0 hover:"
+		>
 			<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 		</Button>
 	</header>
@@ -77,7 +83,11 @@ menu item at a specific level. Uses the standard widget loading system.
 					<div class="field-wrapper">
 						{#if widgetLoader}
 							{#await import('@src/components/collection-display/widget-loader.svelte') then { default: WidgetLoader }}
-								<WidgetLoader loader={widgetLoader} {field} bind:value={meta.item._fields[fieldName]} />
+								<WidgetLoader
+									loader={widgetLoader}
+									{field}
+									bind:value={meta.item._fields[fieldName]}
+								/>
 							{/await}
 						{:else}
 							<div
@@ -86,7 +96,10 @@ menu item at a specific level. Uses the standard widget loading system.
 								<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 								<div>
 									<p class="font-semibold text-sm">Widget Missing</p>
-									<p class="text-xs opacity-80">Failed to load widget <strong>{widgetName}</strong> for field <strong>{field.label}</strong>.</p>
+									<p class="text-xs opacity-80">
+										Failed to load widget <strong>{widgetName}</strong> for field
+										<strong>{field.label}</strong>.
+									</p>
 								</div>
 							</div>
 						{/if}
@@ -97,15 +110,25 @@ menu item at a specific level. Uses the standard widget loading system.
 			<div
 				class="p-12 text-center bg-surface-500/10 rounded dark:bg-surface-800/50 border-2 border-dashed border-surface-500/30 dark:border-surface-500/40"
 			>
-				<iconify-icon icon="mdi:form-select" width="48" class="mx-auto block text-surface-300 dark:text-surface-600"></iconify-icon>
-				<p class="mt-4 text-surface-600 dark:text-surface-400 font-medium">No fields configured for this level.</p>
-				<p class="text-xs text-surface-500 mt-1">Configure fields in the collection schema to see them here.</p>
+				<iconify-icon
+					icon="mdi:form-select"
+					width="48"
+					class="mx-auto block text-surface-300 dark:text-surface-600"
+				></iconify-icon>
+				<p class="mt-4 text-surface-600 dark:text-surface-400 font-medium">
+					No fields configured for this level.
+				</p>
+				<p class="text-xs text-surface-500 mt-1">
+					Configure fields in the collection schema to see them here.
+				</p>
 			</div>
 		{/if}
 	</div>
 
-	<footer class="flex justify-end gap-3 border-t border-surface-500/30 pt-5 dark:border-surface-500/40">
-		<Button variant="outline" type="button" onclick={onCancel}> Discard </Button>
+	<footer
+		class="flex justify-end gap-3 border-t border-surface-500/30 pt-5 dark:border-surface-500/40"
+	>
+		<Button variant="outline" type="button" onclick={onCancel}>Discard</Button>
 		<Button variant="tertiary" type="button" onclick={onSave} class="dark:">
 			<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 			Save Changes

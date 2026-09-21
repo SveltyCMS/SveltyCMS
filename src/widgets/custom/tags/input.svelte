@@ -43,9 +43,12 @@
 		const currentTags = Array.isArray(value) ? [...value] : [];
 
 		// Duplicate check
-		if (!field.allowDuplicates && currentTags.some(t =>
-			field.caseSensitive ? t === trimmed : t.toLowerCase() === trimmed.toLowerCase()
-		)) {
+		if (
+			!field.allowDuplicates &&
+			currentTags.some((t) =>
+				field.caseSensitive ? t === trimmed : t.toLowerCase() === trimmed.toLowerCase()
+			)
+		) {
 			inputValue = '';
 			return;
 		}
@@ -83,32 +86,45 @@
 	<div
 		role="button"
 		tabindex="0"
-		class="flex min-h-10.5 w-full flex-wrap items-center gap-2 rounded border border-surface-500/30 bg-surface-500/10 p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500 dark:border-surface-600 dark:bg-surface-900 {validationError ? 'border-error-500' : ''}"
+		class="flex min-h-10.5 w-full flex-wrap items-center gap-2 rounded border border-surface-500/30 bg-surface-500/10 p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500 dark:border-surface-600 dark:bg-surface-900 {validationError
+			? 'border-error-500'
+			: ''}"
 		onclick={() => document.getElementById(`${fieldName}-input`)?.focus()}
-		onkeydown={(e) => { if (e.key === 'Enter') document.getElementById(`${fieldName}-input`)?.focus(); }}
+		onkeydown={(e) => {
+			if (e.key === 'Enter') document.getElementById(`${fieldName}-input`)?.focus();
+		}}
 	>
 		{#if Array.isArray(value)}
 			{#each value as tag, i (i)}
 				<Badge variant="primary" size="sm" class="flex items-center gap-1 ps-2! pe-1! py-1!">
 					{tag}
-					<Button variant="ghost"
+					<Button
+						variant="ghost"
 						type="button"
-						onclick={(e: MouseEvent) => { e.stopPropagation(); removeTag(i); }}
+						onclick={(e: MouseEvent) => {
+							e.stopPropagation();
+							removeTag(i);
+						}}
 						aria-label={`Remove tag ${tag}`}
-					 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-error-500">
+						class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-error-500"
+					>
 						<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 					</Button>
 				</Badge>
 			{/each}
 		{/if}
 
-		<input aria-label="Search tags"
+		<input
+			aria-label="Search tags"
 			id={`${fieldName}-input`}
 			type="text"
 			bind:value={inputValue}
 			onkeydown={handleKeyDown}
-			onblur={() => { isTouched = true; validate(); }}
-			placeholder={value && value.length > 0 ? '' : (String(field.placeholder || '') || 'Add tag...')}
+			onblur={() => {
+				isTouched = true;
+				validate();
+			}}
+			placeholder={value && value.length > 0 ? '' : String(field.placeholder || '') || 'Add tag...'}
 			class="bg-transparent border-none focus:ring-0 flex-1 min-w-30 p-0"
 		/>
 	</div>
@@ -129,7 +145,13 @@
 		animation: fadeIn 0.2s ease-out;
 	}
 	@keyframes fadeIn {
-		from { opacity: 0; transform: translateY(-4px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 </style>

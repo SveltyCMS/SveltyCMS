@@ -52,9 +52,7 @@
 
 	$effect(() => {
 		const el =
-			type === 'textarea'
-				? (document.getElementById(id) as HTMLTextAreaElement | null)
-				: inputRef;
+			type === 'textarea' ? (document.getElementById(id) as HTMLTextAreaElement | null) : inputRef;
 		if (!el) return;
 		const inst = tokenTarget(el, {
 			name: field.db_fieldName,
@@ -88,12 +86,14 @@
 
 		<div class="flex items-center gap-3 text-xs">
 			<SystemTooltip title="Insert Token">
-				<Button variant="outline"
+				<Button
+					variant="outline"
 					type="button"
 					aria-label="Insert Token"
 					onclick={() => inputRef?.focus()}
 				>
-					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"></iconify-icon>
+					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"
+					></iconify-icon>
 				</Button>
 			</SystemTooltip>
 
@@ -105,7 +105,9 @@
 			{#if translated}
 				<div class="flex items-center gap-1 text-xs">
 					<iconify-icon icon="bi:translate" width={16}></iconify-icon>
-					<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+					<span class="font-medium text-tertiary-500 dark:text-primary-500"
+						>{lang.toUpperCase()}</span
+					>
 					<span class="font-medium text-error-500">({translationPct}%)</span>
 				</div>
 			{/if}

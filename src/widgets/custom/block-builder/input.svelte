@@ -8,14 +8,14 @@
 @props {string | null} [tenantId] - Multi-tenant context.
 -->
 <script lang="ts">
-	import Button from "@components/ui/button.svelte";
-	import Badge from "@components/ui/badge.svelte";
-	import Input from "@components/ui/input.svelte";
-	import Textarea from "@components/ui/textarea.svelte";
-	import Select from "@components/ui/select.svelte";
-	import { slide } from "svelte/transition";
-	import { DEFAULT_BLOCK_PRESETS } from "./index";
-	import type { BlockInstance, BlockTypeDefinition, BlockBuilderProps } from "./types";
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
+	import Select from '@components/ui/select.svelte';
+	import { slide } from 'svelte/transition';
+	import { DEFAULT_BLOCK_PRESETS } from './index';
+	import type { BlockInstance, BlockTypeDefinition, BlockBuilderProps } from './types';
 
 	interface Props {
 		collectionName?: string;
@@ -30,7 +30,7 @@
 	const availableBlockTypes: BlockTypeDefinition[] = $derived(
 		field?.blocks && Array.isArray(field.blocks) && field.blocks.length > 0
 			? field.blocks
-			: DEFAULT_BLOCK_PRESETS,
+			: DEFAULT_BLOCK_PRESETS
 	);
 
 	// Safe local items reference
@@ -43,7 +43,7 @@
 			blocks = value.map((item) => ({
 				...item,
 				collapsed: item.collapsed ?? false,
-				data: item.data || {},
+				data: item.data || {}
 			}));
 		} else {
 			blocks = [];
@@ -55,7 +55,7 @@
 			_id: b._id,
 			_type: b._type,
 			data: { ...b.data },
-			collapsed: b.collapsed,
+			collapsed: b.collapsed
 		}));
 	}
 
@@ -65,9 +65,9 @@
 			found || {
 				type,
 				label: type.charAt(0).toUpperCase() + type.slice(1),
-				icon: "mdi:cube-outline",
-				description: "Custom block element",
-				color: "surface",
+				icon: 'mdi:cube-outline',
+				description: 'Custom block element',
+				color: 'surface'
 			}
 		);
 	}
@@ -77,7 +77,7 @@
 			_id: crypto.randomUUID(),
 			_type: def.type,
 			data: def.defaultData ? JSON.parse(JSON.stringify(def.defaultData)) : {},
-			collapsed: false,
+			collapsed: false
 		};
 		blocks.push(newBlock);
 		commitChanges();
@@ -96,14 +96,14 @@
 			_id: crypto.randomUUID(),
 			_type: source._type,
 			data: JSON.parse(JSON.stringify(source.data)),
-			collapsed: false,
+			collapsed: false
 		};
 		blocks.splice(index + 1, 0, duplicated);
 		commitChanges();
 	}
 
-	function moveBlock(index: number, direction: "up" | "down") {
-		const targetIndex = direction === "up" ? index - 1 : index + 1;
+	function moveBlock(index: number, direction: 'up' | 'down') {
+		const targetIndex = direction === 'up' ? index - 1 : index + 1;
 		if (targetIndex < 0 || targetIndex >= blocks.length) return;
 		const [moved] = blocks.splice(index, 1);
 		blocks.splice(targetIndex, 0, moved);
@@ -131,19 +131,21 @@
 	}
 
 	const isMaxReached = $derived(
-		typeof field?.max === "number" && field.max > 0 && blocks.length >= field.max,
+		typeof field?.max === 'number' && field.max > 0 && blocks.length >= field.max
 	);
 </script>
 
 <div class="space-y-4" data-testid="block-builder-container">
 	<!-- Header Bar: Block Counter & Global Controls -->
-	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-500/20 pb-3">
+	<div
+		class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-500/20 pb-3"
+	>
 		<div class="flex items-center gap-2">
 			<span class="text-sm font-semibold text-surface-900 dark:text-surface-50">
 				Content Blocks
 			</span>
 			<Badge variant="surface" size="sm">
-				{blocks.length}{field?.max ? ` / ${field.max}` : ""}
+				{blocks.length}{field?.max ? ` / ${field.max}` : ''}
 			</Badge>
 		</div>
 
@@ -175,7 +177,7 @@
 				aria-label="Add a new content block"
 			>
 				<iconify-icon icon="mdi:plus" width="16" class="me-1.5"></iconify-icon>
-				{field?.addLabel || "Add Block"}
+				{field?.addLabel || 'Add Block'}
 			</Button>
 		</div>
 	</div>
@@ -186,21 +188,19 @@
 			class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-surface-500/25 p-8 text-center"
 			data-testid="block-builder-empty"
 		>
-			<div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-500/10 text-primary-500">
+			<div
+				class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-500/10 text-primary-500"
+			>
 				<iconify-icon icon="mdi:view-dashboard-outline" width="24"></iconify-icon>
 			</div>
 			<h4 class="text-base font-medium text-surface-900 dark:text-surface-100">
 				No blocks added yet
 			</h4>
 			<p class="mt-1 max-w-sm text-xs text-surface-500">
-				Compose dynamic landing pages, marketing banners, testimonials, and media showcases using modular content blocks.
+				Compose dynamic landing pages, marketing banners, testimonials, and media showcases using
+				modular content blocks.
 			</p>
-			<Button
-				variant="secondary"
-				size="sm"
-				class="mt-4"
-				onclick={() => (showAddModal = true)}
-			>
+			<Button variant="secondary" size="sm" class="mt-4" onclick={() => (showAddModal = true)}>
 				<iconify-icon icon="mdi:plus" width="16" class="me-1.5"></iconify-icon>
 				Choose First Block
 			</Button>
@@ -223,7 +223,7 @@
 							<button
 								type="button"
 								disabled={index === 0}
-								onclick={() => moveBlock(index, "up")}
+								onclick={() => moveBlock(index, 'up')}
 								class="rounded p-0.5 text-surface-400 hover:bg-surface-500/10 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label={`Move ${meta.label} block up`}
 							>
@@ -232,7 +232,7 @@
 							<button
 								type="button"
 								disabled={index === blocks.length - 1}
-								onclick={() => moveBlock(index, "down")}
+								onclick={() => moveBlock(index, 'down')}
 								class="rounded p-0.5 text-surface-400 hover:bg-surface-500/10 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label={`Move ${meta.label} block down`}
 							>
@@ -241,7 +241,9 @@
 						</div>
 
 						<!-- Block Icon & Title -->
-						<div class="flex h-8 w-8 items-center justify-center rounded bg-primary-500/10 text-primary-500">
+						<div
+							class="flex h-8 w-8 items-center justify-center rounded bg-primary-500/10 text-primary-500"
+						>
 							<iconify-icon icon={meta.icon} width="18"></iconify-icon>
 						</div>
 						<div>
@@ -249,13 +251,20 @@
 								<span class="text-sm font-semibold text-surface-900 dark:text-surface-100">
 									{meta.label}
 								</span>
-								<span class="rounded bg-surface-500/10 px-1.5 py-0.5 font-mono text-[10px] text-surface-500">
+								<span
+									class="rounded bg-surface-500/10 px-1.5 py-0.5 font-mono text-[10px] text-surface-500"
+								>
 									#{index + 1}
 								</span>
 							</div>
 							{#if block.data && (block.data.headline || block.data.title || block.data.heading || block.data.quote)}
 								<p class="truncate max-w-60 text-xs text-surface-400">
-									{String(block.data.headline || block.data.title || block.data.heading || block.data.quote)}
+									{String(
+										block.data.headline ||
+											block.data.title ||
+											block.data.heading ||
+											block.data.quote
+									)}
 								</p>
 							{/if}
 						</div>
@@ -268,10 +277,12 @@
 							type="button"
 							onclick={() => toggleCollapse(index)}
 							class="rounded p-1.5 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-							aria-label={block.collapsed ? `Expand ${meta.label} block` : `Collapse ${meta.label} block`}
+							aria-label={block.collapsed
+								? `Expand ${meta.label} block`
+								: `Collapse ${meta.label} block`}
 						>
 							<iconify-icon
-								icon={block.collapsed ? "mdi:chevron-down" : "mdi:chevron-up"}
+								icon={block.collapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}
 								width="18"
 							></iconify-icon>
 						</button>
@@ -315,18 +326,19 @@
 										{/if}
 									</label>
 
-									{#if fieldDef.widget === "textarea"}
+									{#if fieldDef.widget === 'textarea'}
 										<Textarea
 											id={`field_${block._id}_${fieldDef.name}`}
-											value={String(block.data[fieldDef.name] ?? "")}
+											value={String(block.data[fieldDef.name] ?? '')}
 											placeholder={fieldDef.placeholder}
 											rows={3}
-											oninput={(e) => updateField(index, fieldDef.name, (e.target as HTMLTextAreaElement).value)}
+											oninput={(e) =>
+												updateField(index, fieldDef.name, (e.target as HTMLTextAreaElement).value)}
 										/>
-									{:else if fieldDef.widget === "select" && fieldDef.options}
+									{:else if fieldDef.widget === 'select' && fieldDef.options}
 										<Select
 											id={`field_${block._id}_${fieldDef.name}`}
-											value={String(block.data[fieldDef.name] ?? fieldDef.defaultValue ?? "")}
+											value={String(block.data[fieldDef.name] ?? fieldDef.defaultValue ?? '')}
 											onchange={(val) => updateField(index, fieldDef.name, val)}
 										>
 											{#each fieldDef.options as opt (opt.value)}
@@ -337,9 +349,10 @@
 										<Input
 											id={`field_${block._id}_${fieldDef.name}`}
 											type="text"
-											value={String(block.data[fieldDef.name] ?? "")}
+											value={String(block.data[fieldDef.name] ?? '')}
 											placeholder={fieldDef.placeholder}
-											oninput={(e) => updateField(index, fieldDef.name, (e.target as HTMLInputElement).value)}
+											oninput={(e) =>
+												updateField(index, fieldDef.name, (e.target as HTMLInputElement).value)}
 										/>
 									{/if}
 								</div>
@@ -347,7 +360,10 @@
 						{:else}
 							<!-- Dynamic JSON fallback for custom blocks without declared fields -->
 							<div class="space-y-1">
-								<label for={`field_${block._id}_raw`} class="block text-xs font-medium text-surface-500">
+								<label
+									for={`field_${block._id}_raw`}
+									class="block text-xs font-medium text-surface-500"
+								>
 									Block Payload (JSON)
 								</label>
 								<Textarea
@@ -378,10 +394,15 @@
 			aria-modal="true"
 			aria-labelledby="modal-add-block-title"
 		>
-			<div class="w-full max-w-xl rounded-xl border border-surface-500/25 bg-surface-500/10 p-6 shadow-xl dark:bg-surface-900">
+			<div
+				class="w-full max-w-xl rounded-xl border border-surface-500/25 bg-surface-500/10 p-6 shadow-xl dark:bg-surface-900"
+			>
 				<div class="flex items-center justify-between pb-4 border-b border-surface-500/15">
 					<div>
-						<h3 id="modal-add-block-title" class="text-base font-semibold text-surface-900 dark:text-surface-50">
+						<h3
+							id="modal-add-block-title"
+							class="text-base font-semibold text-surface-900 dark:text-surface-50"
+						>
 							Select Block Type
 						</h3>
 						<p class="text-xs text-surface-500">
@@ -406,7 +427,9 @@
 							class="flex flex-col items-start rounded-lg border border-surface-500/20 p-3.5 text-start transition-all hover:border-primary-500 hover:bg-primary-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
 						>
 							<div class="flex items-center gap-2.5">
-								<div class="flex h-8 w-8 items-center justify-center rounded bg-primary-500/10 text-primary-500">
+								<div
+									class="flex h-8 w-8 items-center justify-center rounded bg-primary-500/10 text-primary-500"
+								>
 									<iconify-icon icon={def.icon} width="18"></iconify-icon>
 								</div>
 								<span class="text-sm font-semibold text-surface-900 dark:text-surface-100">

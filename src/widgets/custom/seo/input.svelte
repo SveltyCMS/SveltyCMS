@@ -5,7 +5,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
 	// Stores & Props
 	import { locale } from '@src/stores/locale-store.svelte';
@@ -41,7 +41,11 @@ import { logger } from "@utils/logger";
 	let isAnalyzing = $state(false);
 
 	// License State
-	let licenseStatus = $state<{ active: boolean; daysRemaining: number | null; hasLicense: boolean }>({
+	let licenseStatus = $state<{
+		active: boolean;
+		daysRemaining: number | null;
+		hasLicense: boolean;
+	}>({
 		active: true,
 		daysRemaining: null,
 		hasLicense: false
@@ -61,10 +65,19 @@ import { logger } from "@utils/logger";
 	const translationStats = $derived.by(() => {
 		if (!value || availableLanguages.length === 0) return {};
 		const stats: Record<string, number> = {};
-		const fields: Array<keyof SeoWidgetData> = ['title', 'description', 'focusKeyword', 'ogTitle', 'ogDescription', 'twitterTitle', 'twitterDescription', 'schemaMarkup'];
+		const fields: Array<keyof SeoWidgetData> = [
+			'title',
+			'description',
+			'focusKeyword',
+			'ogTitle',
+			'ogDescription',
+			'twitterTitle',
+			'twitterDescription',
+			'schemaMarkup'
+		];
 
 		for (const f of fields) {
-			const populated = availableLanguages.filter(l => value && value[l]?.[f]?.trim()).length;
+			const populated = availableLanguages.filter((l) => value && value[l]?.[f]?.trim()).length;
 			stats[f] = Math.round((populated / availableLanguages.length) * 100);
 		}
 		return stats;
@@ -96,7 +109,10 @@ import { logger } from "@utils/logger";
 
 		// Get available languages from config/store if possible
 		if (publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-			availableLanguages = [publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en', ...publicEnv.AVAILABLE_CONTENT_LANGUAGES];
+			availableLanguages = [
+				publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en',
+				...publicEnv.AVAILABLE_CONTENT_LANGUAGES
+			];
 		} else {
 			availableLanguages = ['en'];
 		}
@@ -168,12 +184,22 @@ import { logger } from "@utils/logger";
 <div class="space-y-4 relative">
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
-						<div class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-lg">
+			<div
+				class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-lg"
+			>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
-					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start to test the Advanced, Social, and Schema SEO features.</span>
+					<span
+						><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start
+						to test the Advanced, Social, and Schema SEO features.</span
+					>
 				</div>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs">Get License</a>
+				<a
+					href="https://marketplace.sveltycms.com"
+					target="_blank"
+					class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs"
+					>Get License</a
+				>
 			</div>
 		{/if}
 	{/if}
@@ -195,7 +221,11 @@ import { logger } from "@utils/logger";
 				analysisResult={analysisResults}
 				{isAnalyzing}
 				bind:expanded={showAnalysis}
-				content={typeof (collections.activeValue as any)?.content === 'string' ? (collections.activeValue as any).content : (typeof (collections.activeValue as any)?.body === 'string' ? (collections.activeValue as any).body : '')}
+				content={typeof (collections.activeValue as any)?.content === 'string'
+					? (collections.activeValue as any).content
+					: typeof (collections.activeValue as any)?.body === 'string'
+						? (collections.activeValue as any).body
+						: ''}
 				currentId={String(collections.activeValue?._id || '')}
 				collectionId={String(collections.active?._id || '')}
 			/>
@@ -203,15 +233,29 @@ import { logger } from "@utils/logger";
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
-
+	<div
+		class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden"
+	>
 		{#if !isCheckingLicense && !licenseStatus.active}
-						<div class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg">
-				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20">
-					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
+			<div
+				class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg"
+			>
+				<div
+					class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20"
+				>
+					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"
+					></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
-					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>
-					<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs">Purchase License</a>
+					<p class="mb-4">
+						Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI
+						features, please purchase a license.
+					</p>
+					<a
+						href="https://marketplace.sveltycms.com"
+						target="_blank"
+						class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs"
+						>Purchase License</a
+					>
 				</div>
 			</div>
 		{/if}
@@ -220,16 +264,19 @@ import { logger } from "@utils/logger";
 			<Tabs.List class="mb-6 border-surface-500">
 				<Tabs.Trigger value="basic">Basic</Tabs.Trigger>
 				{#if hasFeature('social')}
-					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}>Social</Tabs.Trigger>
+					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}
+						>Social</Tabs.Trigger
+					>
 				{/if}
 				{#if hasFeature('advanced')}
-					<Tabs.Trigger value="advanced" disabled={!isCheckingLicense && !licenseStatus.active}>Advanced</Tabs.Trigger>
+					<Tabs.Trigger value="advanced" disabled={!isCheckingLicense && !licenseStatus.active}
+						>Advanced</Tabs.Trigger
+					>
 				{/if}
 			</Tabs.List>
 
 			{#if langData}
 				<Tabs.Content value="basic" class="mt-4 space-y-4">
-
 					<SeoField
 						id="seo-title"
 						label="Title"
@@ -277,143 +324,153 @@ import { logger } from "@utils/logger";
 				</Tabs.Content>
 
 				{#if hasFeature('social')}
-				<Tabs.Content value="social" class="mt-4 space-y-4">
-					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						<div class="space-y-4">
-							<h3 class="h3 font-bold">Open Graph (Facebook/LinkedIn)</h3>
+					<Tabs.Content value="social" class="mt-4 space-y-4">
+						<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+							<div class="space-y-4">
+								<h3 class="h3 font-bold">Open Graph (Facebook/LinkedIn)</h3>
 
-							<SeoField
-								id="seo-ogTitle"
-								label="OG Title"
-								value={langData.ogTitle || ''}
-								{field}
-								{lang}
-								translated={isTranslated}
-								translationPct={translationStats.ogTitle || 0}
-								onUpdate={(v: string) => updateField('ogTitle', v)}
-								placeholder="Open Graph Title (same as Title if empty)"
-							/>
+								<SeoField
+									id="seo-ogTitle"
+									label="OG Title"
+									value={langData.ogTitle || ''}
+									{field}
+									{lang}
+									translated={isTranslated}
+									translationPct={translationStats.ogTitle || 0}
+									onUpdate={(v: string) => updateField('ogTitle', v)}
+									placeholder="Open Graph Title (same as Title if empty)"
+								/>
 
-							<SeoField
-								id="seo-ogDescription"
-								label="OG Description"
-								type="textarea"
-								value={langData.ogDescription || ''}
-								{field}
-								{lang}
-								translated={isTranslated}
-								translationPct={translationStats.ogDescription || 0}
-								onUpdate={(v: string) => updateField('ogDescription', v)}
-								placeholder="Open Graph Description"
-							/>
+								<SeoField
+									id="seo-ogDescription"
+									label="OG Description"
+									type="textarea"
+									value={langData.ogDescription || ''}
+									{field}
+									{lang}
+									translated={isTranslated}
+									translationPct={translationStats.ogDescription || 0}
+									onUpdate={(v: string) => updateField('ogDescription', v)}
+									placeholder="Open Graph Description"
+								/>
+							</div>
+
+							<div class="space-y-4">
+								<h3 class="h3 font-bold">Twitter Card</h3>
+
+								<SeoField
+									id="seo-twitterTitle"
+									label="Twitter Title"
+									value={langData.twitterTitle || ''}
+									{field}
+									{lang}
+									translated={isTranslated}
+									translationPct={translationStats.twitterTitle || 0}
+									onUpdate={(v: string) => updateField('twitterTitle', v)}
+									placeholder="Twitter Title"
+								/>
+
+								<SeoField
+									id="seo-twitterDescription"
+									label="Twitter Description"
+									type="textarea"
+									value={langData.twitterDescription || ''}
+									{field}
+									{lang}
+									translated={isTranslated}
+									translationPct={translationStats.twitterDescription || 0}
+									onUpdate={(v: string) => updateField('twitterDescription', v)}
+									placeholder="Twitter Description"
+								/>
+							</div>
 						</div>
 
-						<div class="space-y-4">
-							<h3 class="h3 font-bold">Twitter Card</h3>
-
-							<SeoField
-								id="seo-twitterTitle"
-								label="Twitter Title"
-								value={langData.twitterTitle || ''}
-								{field}
-								{lang}
-								translated={isTranslated}
-								translationPct={translationStats.twitterTitle || 0}
-								onUpdate={(v: string) => updateField('twitterTitle', v)}
-								placeholder="Twitter Title"
-							/>
-
-							<SeoField
-								id="seo-twitterDescription"
-								label="Twitter Description"
-								type="textarea"
-								value={langData.twitterDescription || ''}
-								{field}
-								{lang}
-								translated={isTranslated}
-								translationPct={translationStats.twitterDescription || 0}
-								onUpdate={(v: string) => updateField('twitterDescription', v)}
-								placeholder="Twitter Description"
+						<div class="mt-6 pt-4 border-t border-surface-500/30">
+							<SocialPreview
+								ogTitle={langData.ogTitle || langData.title}
+								ogDescription={langData.ogDescription || langData.description}
+								twitterTitle={langData.twitterTitle || langData.title}
+								twitterDescription={langData.twitterDescription || langData.description}
+								hostUrl={publicEnv.HOST_PROD}
 							/>
 						</div>
-					</div>
-
-					<div class="mt-6 pt-4 border-t border-surface-500/30">
-						<SocialPreview
-							ogTitle={langData.ogTitle || langData.title}
-							ogDescription={langData.ogDescription || langData.description}
-							twitterTitle={langData.twitterTitle || langData.title}
-							twitterDescription={langData.twitterDescription || langData.description}
-							hostUrl={publicEnv.HOST_PROD}
-						/>
-					</div>
-				</Tabs.Content>
+					</Tabs.Content>
 				{/if}
 
 				{#if hasFeature('advanced')}
-				<Tabs.Content value="advanced" class="mt-4 space-y-4">
+					<Tabs.Content value="advanced" class="mt-4 space-y-4">
+						<SeoField
+							id="seo-robotsMeta"
+							label="Robots Meta"
+							value={langData.robotsMeta || ''}
+							{field}
+							{lang}
+							translated={isTranslated}
+							translationPct={translationStats.robotsMeta || 0}
+							onUpdate={(v: string) => updateField('robotsMeta', v)}
+							placeholder="index, follow"
+						>
+							{#snippet icon()}
+								<iconify-icon icon="mdi:robot-happy-outline" width="24"></iconify-icon>
+							{/snippet}
+						</SeoField>
 
-					<SeoField
-						id="seo-robotsMeta"
-						label="Robots Meta"
-						value={langData.robotsMeta || ''}
-						{field}
-						{lang}
-						translated={isTranslated}
-						translationPct={translationStats.robotsMeta || 0}
-						onUpdate={(v: string) => updateField('robotsMeta', v)}
-						placeholder="index, follow"
-					>
-						{#snippet icon()}
-							<iconify-icon icon="mdi:robot-happy-outline" width="24"></iconify-icon>
-						{/snippet}
-					</SeoField>
+						<SeoField
+							id="seo-canonicalUrl"
+							label="Canonical URL"
+							value={langData.canonicalUrl || ''}
+							{field}
+							{lang}
+							translated={isTranslated}
+							translationPct={translationStats.canonicalUrl || 0}
+							onUpdate={(v: string) => updateField('canonicalUrl', v)}
+							placeholder="https://example.com/slug"
+						>
+							{#snippet icon()}
+								<iconify-icon icon="mdi:link-variant" width="24"></iconify-icon>
+							{/snippet}
+						</SeoField>
 
-					<SeoField
-						id="seo-canonicalUrl"
-						label="Canonical URL"
-						value={langData.canonicalUrl || ''}
-						{field}
-						{lang}
-						translated={isTranslated}
-						translationPct={translationStats.canonicalUrl || 0}
-						onUpdate={(v: string) => updateField('canonicalUrl', v)}
-						placeholder="https://example.com/slug"
-					>
-						{#snippet icon()}
-							<iconify-icon icon="mdi:link-variant" width="24"></iconify-icon>
-						{/snippet}
-					</SeoField>
-
-					<!-- Schema Markup (Textarea) -->
-					<div class="space-y-2">
-						<div class="flex items-center justify-between mb-1">
-							<div class="flex items-center gap-2">
-								<label for="seo-schemaMarkup" class="font-bold text-sm">Schema.org JSON-LD</label>
-								<iconify-icon icon="mdi:code-json" width="24"></iconify-icon>
-							</div>
-							{#if isTranslated}
-								<div class="flex items-center gap-1 text-xs">
-									<iconify-icon icon="bi:translate" width="24"></iconify-icon>
-									<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-									<span class="font-medium text-surface-400 dark:text-surface-400">({translationStats.schemaMarkup || 0}%)</span>
+						<!-- Schema Markup (Textarea) -->
+						<div class="space-y-2">
+							<div class="flex items-center justify-between mb-1">
+								<div class="flex items-center gap-2">
+									<label for="seo-schemaMarkup" class="font-bold text-sm">Schema.org JSON-LD</label>
+									<iconify-icon icon="mdi:code-json" width="24"></iconify-icon>
 								</div>
-							{/if}
+								{#if isTranslated}
+									<div class="flex items-center gap-1 text-xs">
+										<iconify-icon icon="bi:translate" width="24"></iconify-icon>
+										<span class="font-medium text-tertiary-500 dark:text-primary-500"
+											>{lang.toUpperCase()}</span
+										>
+										<span class="font-medium text-surface-400 dark:text-surface-400"
+											>({translationStats.schemaMarkup || 0}%)</span
+										>
+									</div>
+								{/if}
+							</div>
+							<div class="relative">
+								<textarea
+									aria-label="SEO description"
+									id="seo-schemaMarkup"
+									class="textarea font-mono text-xs"
+									rows="10"
+									{placeholder}
+									value={langData.schemaMarkup || ''}
+									oninput={(e) =>
+										updateField('schemaMarkup', (e.currentTarget as HTMLTextAreaElement).value)}
+									use:tokenTarget={{
+										name: field.db_fieldName,
+										label: field.label,
+										collection: field.collection
+									}}></textarea>
+							</div>
+							<p class="text-xs text-surface-400 dark:text-surface-400">
+								Paste valid JSON-LD structure here.
+							</p>
 						</div>
-						<div class="relative">
-							<textarea aria-label="SEO description"
-								id="seo-schemaMarkup"
-								class="textarea font-mono text-xs"
-								rows="10"
-								{placeholder}
-								value={langData.schemaMarkup || ''}
-								oninput={(e) => updateField('schemaMarkup', (e.currentTarget as HTMLTextAreaElement).value)}
-								use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection }}
-							></textarea>
-						</div>
-						<p class="text-xs text-surface-400 dark:text-surface-400">Paste valid JSON-LD structure here.</p>
-					</div>
-				</Tabs.Content>
+					</Tabs.Content>
 				{/if}
 			{/if}
 		</Tabs>

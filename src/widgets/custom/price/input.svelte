@@ -15,7 +15,17 @@ Renders a currency selector and a number input side-by-side.
 	import Select from '@components/ui/select.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
-	import { minValue, nullable, number, object, optional, parse, pipe, regex, string } from 'valibot';
+	import {
+		minValue,
+		nullable,
+		number,
+		object,
+		optional,
+		parse,
+		pipe,
+		regex,
+		string
+	} from 'valibot';
 	import type { FieldType } from './index';
 	import type { PriceValue } from './types';
 
@@ -42,24 +52,32 @@ Renders a currency selector and a number input side-by-side.
 	// Derived symbol
 	const currencySymbol = $derived.by(() => {
 		try {
-			return new Intl.NumberFormat(undefined, {
-				style: 'currency',
-				currency: value?.currency || defaultCurrency,
-				currencyDisplay: 'symbol'
-			}).formatToParts(0).find(p => p.type === 'currency')?.value || '';
+			return (
+				new Intl.NumberFormat(undefined, {
+					style: 'currency',
+					currency: value?.currency || defaultCurrency,
+					currencyDisplay: 'symbol'
+				})
+					.formatToParts(0)
+					.find((p) => p.type === 'currency')?.value || ''
+			);
 		} catch {
 			return '';
 		}
 	});
 
 	const fieldName = $derived(getFieldName(field));
-	const currencyOptions = $derived(currencies.map((code: string) => ({ value: code, label: code })));
+	const currencyOptions = $derived(
+		currencies.map((code: string) => ({ value: code, label: code }))
+	);
 
 	function handleUpdate() {
 		const min = (field as any).min ?? 0;
 
 		const schema = object({
-			amount: field.required ? pipe(number(), minValue(min)) : nullable(pipe(number(), minValue(min))),
+			amount: field.required
+				? pipe(number(), minValue(min))
+				: nullable(pipe(number(), minValue(min))),
 			currency: pipe(string(), regex(/^[A-Z]{3}$/))
 		});
 
@@ -78,7 +96,9 @@ Renders a currency selector and a number input side-by-side.
 		class:ring-error-500={!!error}
 	>
 		<!-- Currency Select -->
-		<div class="relative shrink-0 border-e border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800">
+		<div
+			class="relative shrink-0 border-e border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800"
+		>
 			<Select
 				id="{fieldName}-currency"
 				bind:value={value!.currency}
@@ -92,7 +112,9 @@ Renders a currency selector and a number input side-by-side.
 		</div>
 
 		<!-- Amount Input -->
-		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
+		<div
+			class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0"
+		>
 			<span class="text-surface-400 font-mono me-2" aria-hidden="true">{currencySymbol}</span>
 			<Input
 				id="{fieldName}-amount"
@@ -117,6 +139,8 @@ Renders a currency selector and a number input side-by-side.
 	</div>
 
 	{#if error}
-		<p id="{fieldName}-error" class="text-[10px] font-medium text-error-500 px-1" role="alert">{error}</p>
+		<p id="{fieldName}-error" class="text-[10px] font-medium text-error-500 px-1" role="alert">
+			{error}
+		</p>
 	{/if}
 </div>

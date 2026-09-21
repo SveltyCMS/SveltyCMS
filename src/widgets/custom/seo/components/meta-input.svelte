@@ -105,7 +105,8 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 			{#if desktopPx && mobilePx}
 				<span>
 					{widget_seo_suggestionwidthdesktop()}
-					<span class="text-tertiary-500 dark:text-primary-500">{characterWidth}</span>/{desktopPx}px
+					<span class="text-tertiary-500 dark:text-primary-500">{characterWidth}</span
+					>/{desktopPx}px
 					{widget_seo_suggestionwidthmobile()}
 					<span class="text-tertiary-500 dark:text-primary-500">{characterWidth}</span>/{mobilePx}px
 				</span>
@@ -143,9 +144,20 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 {/if}
 
 <style>
-	.label-optimal { color: green; }
-	.label-warn    { color: orange; }
-	.label-default { color: gray; }
-	.label-over    { color: red; }
-	.status-msg    { margin-top: 0.25rem; font-size: 0.875rem; }
+	.label-optimal {
+		color: green;
+	}
+	.label-warn {
+		color: orange;
+	}
+	.label-default {
+		color: gray;
+	}
+	.label-over {
+		color: red;
+	}
+	.status-msg {
+		margin-top: 0.25rem;
+		font-size: 0.875rem;
+	}
 </style>

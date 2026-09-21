@@ -3,7 +3,7 @@
  * @description Unit tests for the MegaMenu widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from "vitest";
 import MegaMenuWidget, { validateMenuStructure } from "../index";
 import { safeParse } from "valibot";
 

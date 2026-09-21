@@ -34,7 +34,9 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	const { value, format = 'medium' }: Props = $props();
 
 	// Get the user's preferred language from the browser
-	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');
+	const userLocale = $derived(
+		typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US'
+	);
 
 	/**
 	 * Format the date range string
@@ -141,7 +143,8 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Get context badge classes
 	 */
 	const contextClasses = $derived.by(() => {
-		const baseClasses = 'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
+		const baseClasses =
+			'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
 		const contextMap = {
 			Current: 'bg-primary-500/10 text-primary-600 dark:bg-primary-900 dark:text-primary-400',
 			Past: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
@@ -167,12 +170,22 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	});
 </script>
 
-<span class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={tooltipText}>
+<span
+	class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100"
+	title={tooltipText}
+>
 	<span>{formattedRange}</span>
 	{#if duration}
-		<span class="ms-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}"> ({duration}) </span>
+		<span
+			class="ms-2 text-sm font-normal text-gray-500 dark:text-gray-400"
+			aria-label="Duration: {duration}"
+		>
+			({duration})
+		</span>
 	{/if}
 	{#if relativeContext}
-		<span class={contextClasses} aria-label="Time context: {relativeContext}"> {relativeContext} </span>
+		<span class={contextClasses} aria-label="Time context: {relativeContext}">
+			{relativeContext}
+		</span>
 	{/if}
 </span>

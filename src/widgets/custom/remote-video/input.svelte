@@ -56,7 +56,11 @@ Part of the Three Pillars Architecture for widget system.
 		error?: string | null;
 	} = $props();
 
-	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
 	// Local state for the URL input.
 	let urlInput = $state('');
@@ -123,7 +127,9 @@ Part of the Three Pillars Architecture for widget system.
 						string(),
 						url('Invalid URL format'),
 						custom(
-							(val) => (val as string) === '' || supportedPlatforms.some((domain) => (val as string).includes(domain)),
+							(val) =>
+								(val as string) === '' ||
+								supportedPlatforms.some((domain) => (val as string).includes(domain)),
 							'Unsupported video platform'
 						)
 					),
@@ -241,7 +247,10 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="relative mb-4 w-full">
 	<SystemTooltip title={error || fetchError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div
+			class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+			role="group"
+		>
 			<!-- Platform Icon -->
 			<div class="flex items-center px-3 border-e border-surface-500">
 				<iconify-icon icon={PLATFORM_ICONS[currentPlatform]} width="20"></iconify-icon>
@@ -252,7 +261,9 @@ Part of the Three Pillars Architecture for widget system.
 				id={field.db_fieldName}
 				name={field.db_fieldName}
 				required={field.required}
-				placeholder={typeof field.placeholder === 'string' ? field.placeholder : 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+				placeholder={typeof field.placeholder === 'string'
+					? field.placeholder
+					: 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
 				bind:value={urlInput}
 				oninput={handleUrlInput}
 				oninvalid={(e) => e.preventDefault()}
@@ -266,7 +277,9 @@ Part of the Three Pillars Architecture for widget system.
 
 			{#if isLoading}
 				<div class="flex items-center px-3" aria-label="Loading">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+					<div
+						class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+					></div>
 				</div>
 			{/if}
 
@@ -284,16 +297,28 @@ Part of the Three Pillars Architecture for widget system.
 	</SystemTooltip>
 
 	{#if error || fetchError}
-		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">
+		<p
+			id={`${field.db_fieldName}-error`}
+			class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500"
+			role="alert"
+		>
 			{error || fetchError}
 		</p>
 	{/if}
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
-		<div class="mt-4 flex flex-col gap-4 rounded border border-surface-500/30 p-4 sm:flex-row sm:items-start dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-800/30">
+		<div
+			class="mt-4 flex flex-col gap-4 rounded border border-surface-500/30 p-4 sm:flex-row sm:items-start dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-800/30"
+		>
 			<div class="relative group shrink-0">
-				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-40 rounded shadow-sm object-cover aspect-video" />
-				<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
+				<img
+					src={fetchedMetadata.thumbnailUrl}
+					alt={fetchedMetadata.title}
+					class="h-auto w-full max-w-40 rounded shadow-sm object-cover aspect-video"
+				/>
+				<div
+					class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded"
+				>
 					<iconify-icon icon="mdi:play-circle" width="40" class="text-white"></iconify-icon>
 				</div>
 			</div>
@@ -310,7 +335,9 @@ Part of the Three Pillars Architecture for widget system.
 							oninput={(e) => updateMetadataField('title', e.currentTarget.value)}
 						/>
 					{:else}
-						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50 truncate">{fetchedMetadata.title}</h3>
+						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50 truncate">
+							{fetchedMetadata.title}
+						</h3>
 					{/if}
 
 					{#if allowManualEdit}
@@ -322,7 +349,8 @@ Part of the Three Pillars Architecture for widget system.
 							onclick={toggleManualEdit}
 							title={isEditingManually ? 'Save' : 'Edit Metadata'}
 						>
-							<iconify-icon icon={isEditingManually ? 'mdi:check' : 'mdi:pencil'} width="16"></iconify-icon>
+							<iconify-icon icon={isEditingManually ? 'mdi:check' : 'mdi:pencil'} width="16"
+							></iconify-icon>
 						</Button>
 					{/if}
 				</div>
@@ -338,10 +366,14 @@ Part of the Three Pillars Architecture for widget system.
 						placeholder="Add description..."
 					/>
 				{:else if fetchedMetadata.description}
-					<p class="text-xs text-surface-600 dark:text-surface-400 line-clamp-2">{fetchedMetadata.description}</p>
+					<p class="text-xs text-surface-600 dark:text-surface-400 line-clamp-2">
+						{fetchedMetadata.description}
+					</p>
 				{/if}
 
-				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-500 dark:text-surface-400">
+				<div
+					class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-500 dark:text-surface-400"
+				>
 					{#if fetchedMetadata.channelTitle}
 						<span class="flex items-center gap-1">
 							<iconify-icon icon="mdi:account" width="14"></iconify-icon>

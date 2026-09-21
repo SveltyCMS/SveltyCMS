@@ -56,7 +56,9 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 			</div>
 
 			<div class="flex min-w-0 flex-col justify-center overflow-hidden">
-				<span class="truncate text-sm font-bold text-surface-900 dark:text-surface-50"> {value.title} </span>
+				<span class="truncate text-sm font-bold text-surface-900 dark:text-surface-50">
+					{value.title}
+				</span>
 
 				<div class="flex items-center gap-2 text-[10px] text-surface-500">
 					<span class="uppercase">{value.platform}</span>

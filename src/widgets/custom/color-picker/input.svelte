@@ -40,12 +40,18 @@ Renders a color input with label, helper, and validation
 		error?: string | null;
 	} = $props();
 
-	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(
+		field.translated
+			? locale.contentLanguage
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
 	// Derived current color value
 	const colorValue = $derived.by(() => {
 		if (field.translated && value && typeof value === 'object') {
-			return (value as Record<string, string>)[LANGUAGE] || (field as any).defaultColor || '#000000';
+			return (
+				(value as Record<string, string>)[LANGUAGE] || (field as any).defaultColor || '#000000'
+			);
 		}
 		return typeof value === 'string' ? value : (field as any).defaultColor || '#000000';
 	});
@@ -64,10 +70,13 @@ Renders a color input with label, helper, and validation
 		}
 
 		// Immediate validation
-		handleWidgetValidation(() => parse(field.required ? hexSchema : optional(hexSchema), normalized), {
-			fieldName,
-			updateStore: true
-		});
+		handleWidgetValidation(
+			() => parse(field.required ? hexSchema : optional(hexSchema), normalized),
+			{
+				fieldName,
+				updateStore: true
+			}
+		);
 	}
 
 	function handleReset() {
@@ -82,8 +91,11 @@ Renders a color input with label, helper, and validation
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>
-		<div class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40">
-			<input aria-label="Color picker"
+		<div
+			class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40"
+		>
+			<input
+				aria-label="Color picker"
 				type="color"
 				value={colorValue}
 				id={fieldName + '-color'}
@@ -94,7 +106,8 @@ Renders a color input with label, helper, and validation
 
 		<div class="flex grow items-center gap-2 px-2">
 			<span class="text-surface-400 font-mono">#</span>
-			<input aria-label="Color hex value"
+			<input
+				aria-label="Color hex value"
 				type="text"
 				value={colorValue.replace('#', '')}
 				id={fieldName + '-hex'}

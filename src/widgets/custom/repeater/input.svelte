@@ -75,7 +75,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 
 		let targetIndex: number;
 		if (targetItemId) {
-			targetIndex = items.findIndex(i => i.id === targetItemId);
+			targetIndex = items.findIndex((i) => i.id === targetItemId);
 			if (state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = items.length;
@@ -120,8 +120,13 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		const fields = (field as any).fields;
 		if (fields && fields.length > 0) {
 			// Try to find a title/name field
-			const titleField = fields.find((f: any) => f.label.toLowerCase().includes('title') || f.label.toLowerCase().includes('name'));
-			const fieldName = titleField ? titleField.db_fieldName || getFieldName(titleField) : fields[0].db_fieldName || getFieldName(fields[0]);
+			const titleField = fields.find(
+				(f: any) =>
+					f.label.toLowerCase().includes('title') || f.label.toLowerCase().includes('name')
+			);
+			const fieldName = titleField
+				? titleField.db_fieldName || getFieldName(titleField)
+				: fields[0].db_fieldName || getFieldName(fields[0]);
 			const val = itemData[fieldName];
 			if (val && typeof val === 'string') {
 				return val;
@@ -159,7 +164,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 				tabindex="0"
 			>
 				<!-- Header / Handle -->
-				<header class="flex items-center justify-between border-b border-surface-500/30 p-2 dark:border-surface-500/40">
+				<header
+					class="flex items-center justify-between border-b border-surface-500/30 p-2 dark:border-surface-500/40"
+				>
 					<div class="flex items-center gap-2">
 						<!-- Drag Handle -->
 						<Button
@@ -171,15 +178,28 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
 						</Button>
 
-						<Button variant="ghost" onclick={() => toggleCollapse(item.id)} class="flex items-center gap-2 text-sm font-semibold">
-							<iconify-icon icon={collapsedItems[item.id] ? 'mdi:chevron-right' : 'mdi:chevron-down'} width="16"></iconify-icon>
+						<Button
+							variant="ghost"
+							onclick={() => toggleCollapse(item.id)}
+							class="flex items-center gap-2 text-sm font-semibold"
+						>
+							<iconify-icon
+								icon={collapsedItems[item.id] ? 'mdi:chevron-right' : 'mdi:chevron-down'}
+								width="16"
+							></iconify-icon>
 							{getItemLabel(item.data, index)}
-													</Button>
-												</div>
+						</Button>
+					</div>
 
-												<Button variant="ghost" onclick={() => removeItem(item.id)} class="text-error-500 hover:text-error-600 p-1" aria-label="Remove Item" title="Remove Item">
-													<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-												</Button>
+					<Button
+						variant="ghost"
+						onclick={() => removeItem(item.id)}
+						class="text-error-500 hover:text-error-600 p-1"
+						aria-label="Remove Item"
+						title="Remove Item"
+					>
+						<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
+					</Button>
 				</header>
 
 				<!-- Body -->
@@ -191,11 +211,21 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 								{const widgetName = subField.widget?.Name || subField.type || 'Input'}
 								{const widgetLoader = getWidgetLoader(widgetName)}
 
-								<div class="col-span-1 {(subField as any).width ? `lg:col-span-${(subField as any).width}` : ''} w-full">
+								<div
+									class="col-span-1 {(subField as any).width
+										? `lg:col-span-${(subField as any).width}`
+										: ''} w-full"
+								>
 									{#if widgetLoader}
 										<!-- Bind to item.data[subFieldName] directly? item.data is reactive? Svelte 5 state needed? -->
 										<!-- items is $state, so items[index].data is reactive -->
-										<WidgetLoader loader={widgetLoader} field={subField} bind:value={item.data[subFieldName]} {tenantId} {collectionName} />
+										<WidgetLoader
+											loader={widgetLoader}
+											field={subField}
+											bind:value={item.data[subFieldName]}
+											{tenantId}
+											{collectionName}
+										/>
 									{:else}
 										<div class="text-error-500 text-xs">Widget {widgetName} not found</div>
 									{/if}

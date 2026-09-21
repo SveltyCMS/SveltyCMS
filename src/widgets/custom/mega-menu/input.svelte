@@ -179,7 +179,9 @@ Interactive menu builder with add/edit/reorder capabilities
 			return;
 		}
 
-		const confirmDelete = confirm('Are you sure you want to delete this menu item and all its children?');
+		const confirmDelete = confirm(
+			'Are you sure you want to delete this menu item and all its children?'
+		);
 		if (!confirmDelete) {
 			return;
 		}
@@ -211,7 +213,9 @@ Interactive menu builder with add/edit/reorder capabilities
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:text-surface-50">
+	<div
+		class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:text-surface-50"
+	>
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
 		<Button variant="tertiary" type="button" onclick={addItem} class="dark:">
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
@@ -233,7 +237,8 @@ Interactive menu builder with add/edit/reorder capabilities
 					class:scale-95={draggedItem?._id === item._id}
 					class:opacity-50={draggedItem?._id === item._id}
 					class:!border-primary-400={dragOverIndex === index}
-					class:!bg-tertiary-500={dragOverIndex === index} class:dark:bg-primary-500={dragOverIndex === index}
+					class:!bg-tertiary-500={dragOverIndex === index}
+					class:dark:bg-primary-500={dragOverIndex === index}
 					class:dark:!border-primary-600={dragOverIndex === index}
 					class:dark:!bg-primary-900={dragOverIndex === index}
 					draggable={(field as any).defaults?.enableDragDrop !== false}
@@ -258,13 +263,18 @@ Interactive menu builder with add/edit/reorder capabilities
 							{/if}
 
 							{#if (item.children?.length ?? 0) > 0 && (field as any).defaults?.enableExpandCollapse !== false}
-								<Button variant="surface"
+								<Button
+									variant="surface"
 									type="button"
 									onclick={() => toggleExpanded(item)}
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
 								>
-									<iconify-icon icon="mdi:chevron-down" width="16" class="chevron transition-transform duration-200"></iconify-icon>
+									<iconify-icon
+										icon="mdi:chevron-down"
+										width="16"
+										class="chevron transition-transform duration-200"
+									></iconify-icon>
 								</Button>
 							{:else if !item.children || item.children.length === 0}
 								<div class="spacer w-8"></div>
@@ -273,30 +283,49 @@ Interactive menu builder with add/edit/reorder capabilities
 
 						<div class=" min-w-0 flex-1">
 							<span class=" truncate font-medium text-surface-900 dark:text-surface-100">
-								{(item._fields as any)?.title?.[lang] || (item._fields as any)?.title?.en || 'Untitled Item'}
+								{(item._fields as any)?.title?.[lang] ||
+									(item._fields as any)?.title?.en ||
+									'Untitled Item'}
 							</span>
 							{#if item.children?.length > 0}
-								<span class=" ms-2 text-xs text-surface-500 dark:text-surface-50">({item.children.length} children)</span>
+								<span class=" ms-2 text-xs text-surface-500 dark:text-surface-50"
+									>({item.children.length} children)</span
+								>
 							{/if}
 						</div>
 
 						<div class="flex items-center gap-1">
 							{#if (field as any).fields && (field as any).fields.length > 1}
-								<Button variant="tertiary"
+								<Button
+									variant="tertiary"
 									type="button"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
 									title="Add child item"
-								 class="dark:">
+									class="dark:"
+								>
 									<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 								</Button>
 							{/if}
 
-							<Button variant="surface" type="button" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item" class="abtn">
+							<Button
+								variant="surface"
+								type="button"
+								onclick={() => editItem(item, 0)}
+								aria-label="Edit item"
+								title="Edit item"
+								class="abtn"
+							>
 								<iconify-icon icon="mdi:pencil" width="24"></iconify-icon>
 							</Button>
 
-							<Button variant="error" type="button" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
+							<Button
+								variant="error"
+								type="button"
+								onclick={() => deleteItem(item)}
+								aria-label="Delete item"
+								title="Delete item"
+							>
 								<iconify-icon icon="mdi:trash-can-outline" width="24"></iconify-icon>
 							</Button>
 						</div>
@@ -311,8 +340,11 @@ Interactive menu builder with add/edit/reorder capabilities
 			{/each}
 		{:else}
 			<div class="py-8 text-center">
-				<iconify-icon icon="mdi:menu" width="48" class="mx-auto block text-surface-400"></iconify-icon>
-				<p class="empty-message text-surface-500 dark:text-surface-50">No menu items yet. Click "Add Menu Item" to get started.</p>
+				<iconify-icon icon="mdi:menu" width="48" class="mx-auto block text-surface-400"
+				></iconify-icon>
+				<p class="empty-message text-surface-500 dark:text-surface-50">
+					No menu items yet. Click "Add Menu Item" to get started.
+				</p>
 			</div>
 		{/if}
 	</div>

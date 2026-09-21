@@ -49,14 +49,28 @@ Displays detailed SEO analysis results in a modal overlay.
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-white dark:bg-surface-900">
+		<div
+			class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-white dark:bg-surface-900"
+		>
 			<!-- Header -->
-			<header class="card-header flex items-center justify-between border-b border-surface-500/20 p-4">
+			<header
+				class="card-header flex items-center justify-between border-b border-surface-500/20 p-4"
+			>
 				<h3 class="h3 flex items-center gap-2">
-					<iconify-icon icon="mdi:google-analytics" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon="mdi:google-analytics"
+						width="24"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 					SEO Analysis Report
 				</h3>
-				<Button variant="outline" type="button" onclick={close} aria-label="Close" class="p-0! min-w-0">
+				<Button
+					variant="outline"
+					type="button"
+					onclick={close}
+					aria-label="Close"
+					class="p-0! min-w-0"
+				>
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 				</Button>
 			</header>
@@ -65,7 +79,9 @@ Displays detailed SEO analysis results in a modal overlay.
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 				{#if analysisResult}
 					<!-- Score Overview -->
-					<div class="flex items-center justify-center p-4 bg-surface-500/10 dark:bg-surface-800 rounded-lg mb-6">
+					<div
+						class="flex items-center justify-center p-4 bg-surface-500/10 dark:bg-surface-800 rounded-lg mb-6"
+					>
 						<div class="text-center">
 							<div
 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
@@ -82,26 +98,34 @@ Displays detailed SEO analysis results in a modal overlay.
 						<div class="ms-8 grid grid-cols-2 gap-4 text-sm">
 							<div class="flex flex-col">
 								<span class="opacity-70">Keywords</span>
-								<span class="font-bold {analysisResult.score.keywords >= 80 ? 'text-success-500' : 'text-warning-500'}"
-									>{analysisResult.score.keywords}%</span
+								<span
+									class="font-bold {analysisResult.score.keywords >= 80
+										? 'text-success-500'
+										: 'text-warning-500'}">{analysisResult.score.keywords}%</span
 								>
 							</div>
 							<div class="flex flex-col">
 								<span class="opacity-70">Content</span>
-								<span class="font-bold {analysisResult.score.content >= 80 ? 'text-success-500' : 'text-warning-500'}"
-									>{analysisResult.score.content}%</span
+								<span
+									class="font-bold {analysisResult.score.content >= 80
+										? 'text-success-500'
+										: 'text-warning-500'}">{analysisResult.score.content}%</span
 								>
 							</div>
 							<div class="flex flex-col">
 								<span class="opacity-70">Technical</span>
-								<span class="font-bold {analysisResult.score.technical >= 80 ? 'text-success-500' : 'text-warning-500'}"
-									>{analysisResult.score.technical}%</span
+								<span
+									class="font-bold {analysisResult.score.technical >= 80
+										? 'text-success-500'
+										: 'text-warning-500'}">{analysisResult.score.technical}%</span
 								>
 							</div>
 							<div class="flex flex-col">
 								<span class="opacity-70">Readability</span>
-								<span class="font-bold {analysisResult.score.readability >= 80 ? 'text-success-500' : 'text-warning-500'}"
-									>{analysisResult.score.readability}%</span
+								<span
+									class="font-bold {analysisResult.score.readability >= 80
+										? 'text-success-500'
+										: 'text-warning-500'}">{analysisResult.score.readability}%</span
 								>
 							</div>
 						</div>
@@ -114,7 +138,11 @@ Displays detailed SEO analysis results in a modal overlay.
 							<h4 class="h4">Room for Improvement</h4>
 							{#each analysisResult.suggestions as suggestion (suggestion.title)}
 								{const suggestionIcon =
-									suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
+									suggestion.type === 'error'
+										? 'mdi:alert-circle'
+										: suggestion.type === 'warning'
+											? 'mdi:alert'
+											: 'mdi:information'}
 								<div
 									class="card border-s-4 p-4 {suggestion.type === 'error'
 										? 'border-error-500 bg-error-500/10'
@@ -130,7 +158,9 @@ Displays detailed SEO analysis results in a modal overlay.
 											</div>
 											<p class="text-sm mt-1 opacity-90">{suggestion.description}</p>
 											{#if suggestion.fix}
-												<div class="mt-2 text-xs font-mono bg-surface-500/10 dark:bg-surface-600/50 p-2 rounded">
+												<div
+													class="mt-2 text-xs font-mono bg-surface-500/10 dark:bg-surface-600/50 p-2 rounded"
+												>
 													<strong>Fix:</strong>
 													{suggestion.fix}
 												</div>
@@ -152,8 +182,11 @@ Displays detailed SEO analysis results in a modal overlay.
 						</div>
 					{:else}
 						<div class="card border-s-4 border-success-500 bg-success-500/10 p-4 flex items-center">
-							<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"></iconify-icon>
-							<span class="text-success-600 dark:text-success-400 font-medium">Great job! No specific issues found.</span>
+							<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"
+							></iconify-icon>
+							<span class="text-success-600 dark:text-success-400 font-medium"
+								>Great job! No specific issues found.</span
+							>
 						</div>
 					{/if}
 				{:else}

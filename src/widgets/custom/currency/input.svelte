@@ -107,8 +107,10 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		const min = (field as any).minValue ?? (field as any).min;
 		const max = (field as any).maxValue ?? (field as any).max;
 		let schema: any = numberSchema('Amount must be a number');
-		if (typeof min === 'number') schema = pipe(schema, minValue(min, `Min: ${formatter.format(min)}`));
-		if (typeof max === 'number') schema = pipe(schema, maxValue(max, `Max: ${formatter.format(max)}`));
+		if (typeof min === 'number')
+			schema = pipe(schema, minValue(min, `Min: ${formatter.format(min)}`));
+		if (typeof max === 'number')
+			schema = pipe(schema, maxValue(max, `Max: ${formatter.format(max)}`));
 		return field.required ? schema : nullable(schema);
 	});
 
@@ -118,8 +120,8 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 	function parseLocalizedNumber(str: string, locale: string): number {
 		const parts = new Intl.NumberFormat(locale).formatToParts(123456.789);
-		const group = parts.find(p => p.type === 'group')?.value || '';
-		const decimal = parts.find(p => p.type === 'decimal')?.value || '.';
+		const group = parts.find((p) => p.type === 'group')?.value || '';
+		const decimal = parts.find((p) => p.type === 'decimal')?.value || '.';
 		const normalized = str
 			.replace(new RegExp(`\\${group}`, 'g'), '')
 			.replace(decimal, '.')
@@ -136,28 +138,40 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		class:ring-error-500={!!error}
 	>
 		{#if field.prefix}
-			<span class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium">
+			<span
+				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+			>
 				{field.prefix}
 			</span>
 		{/if}
 
 		<div class="relative grow flex items-center px-3">
-			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 me-2"></iconify-icon>
-			<input aria-label="Currency amount"
+			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 me-2"
+			></iconify-icon>
+			<input
+				aria-label="Currency amount"
 				type="text"
 				value={displayValue}
 				oninput={handleInput}
 				onfocus={handleFocus}
 				onblur={handleBlur}
-				placeholder={typeof field.placeholder === 'string' ? field.placeholder : formatter.format(0)}
+				placeholder={typeof field.placeholder === 'string'
+					? field.placeholder
+					: formatter.format(0)}
 				class="w-full border-none bg-transparent py-2 text-sm font-semibold outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
 				inputmode="decimal"
-				use:tokenTarget={{ name: fieldName, label: field.label, collection: (field as any).collection }}
+				use:tokenTarget={{
+					name: fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
 			/>
 		</div>
 
 		{#if field.suffix}
-			<span class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium">
+			<span
+				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+			>
 				{field.suffix}
 			</span>
 		{/if}

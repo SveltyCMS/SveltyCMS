@@ -56,20 +56,20 @@
 <div class="relative group">
 	<div class="flex items-center justify-between mb-2 px-1">
 		<span class="text-[10px] uppercase tracking-widest text-surface-400 font-bold">JSON Data</span>
-		<Button
-			variant="tertiary"
-			size="sm"
-			type="button"
-			onclick={formatJson}
-			disabled={!!parseError}
-		>
+		<Button variant="tertiary" size="sm" type="button" onclick={formatJson} disabled={!!parseError}>
 			Format JSON
 		</Button>
 	</div>
 
-	<div class="relative rounded overflow-hidden border {parseError ? 'border-error-500' : 'border-surface-500 dark:border-surface-600'}">
+	<div
+		class="relative rounded overflow-hidden border {parseError
+			? 'border-error-500'
+			: 'border-surface-500 dark:border-surface-600'}"
+	>
 		<!-- Line numbers sidebar (Visual only) -->
-		<div class="absolute inset-s-0 top-0 bottom-0 w-8 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 flex flex-col items-center py-3 text-[10px] text-surface-400 select-none pointer-events-none">
+		<div
+			class="absolute inset-s-0 top-0 bottom-0 w-8 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 flex flex-col items-center py-3 text-[10px] text-surface-400 select-none pointer-events-none"
+		>
 			{#each Array(20) as _, i (i)}
 				<span>{i + 1}</span>
 			{/each}

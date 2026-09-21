@@ -60,7 +60,9 @@ export default defineConfig({
     // test name under fork contention (saml, export-import-security).
     hookTimeout: 30000,
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
-    include: ["tests/unit/**/*.test.ts"],
+    // Widget-local suites live beside their widget (custom widgets are glob-loaded,
+    // so the tests ship with the widget rather than in tests/unit).
+    include: ["tests/unit/**/*.test.ts", "src/widgets/custom/**/tests/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
     // CI: dots + annotations; local: full reporter.
     reporters: isCI ? ["dot", "github-actions"] : ["default"],

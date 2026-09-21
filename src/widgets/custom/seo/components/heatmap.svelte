@@ -34,7 +34,12 @@
 	}
 
 	// Props with default values
-	const { content = '', language = 'en', keywords = [], 'on:heatmapGenerated': onHeatmapGenerated = () => {} }: Props = $props();
+	const {
+		content = '',
+		language = 'en',
+		keywords = [],
+		'on:heatmapGenerated': onHeatmapGenerated = () => {}
+	}: Props = $props();
 
 	let heatmapData = $state<Array<{ word: string; heatLevel: number; isKeyword: boolean }>>([]);
 	let keywordDensity = $state<Record<string, number>>({});
@@ -65,7 +70,12 @@
 		await tick();
 	}
 
-	function calculateHeatLevel(word: string, index: number, totalWords: number, lang: string): number {
+	function calculateHeatLevel(
+		word: string,
+		index: number,
+		totalWords: number,
+		lang: string
+	): number {
 		let score = 0;
 
 		// Position-based scoring
@@ -124,7 +134,9 @@
 	{#if heatmapData.length > 0}
 		{#each heatmapData as { word, heatLevel, isKeyword }, index (index)}
 			<span
-				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword ? 'border-b-2 border-tertiary-500' : ''} group"
+				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword
+					? 'border-b-2 border-tertiary-500'
+					: ''} group"
 				aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
 				transition:fade={{ duration: 200 }}
 			>

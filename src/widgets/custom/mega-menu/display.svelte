@@ -37,7 +37,10 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 	<ul class="menu-display-list list-none ps-4">
 		{#each value as item (item._id)}
 			<li>
-				<Sanitize html={(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'} profile="strict" />
+				<Sanitize
+					html={(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'}
+					profile="strict"
+				/>
 				{#if item.children?.length > 0}
 					<Display value={item.children} />
 				{/if}

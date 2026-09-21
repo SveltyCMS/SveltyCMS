@@ -79,7 +79,9 @@
 		const pattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;
 		const message = 'Invalid phone number format (e.g., +1234567890)';
 		const base = pipe(string(), regex(pattern, message));
-		return field.required ? pipe(string(), minLength(1, 'Phone number is required'), base) : optional(base, '');
+		return field.required
+			? pipe(string(), minLength(1, 'Phone number is required'), base)
+			: optional(base, '');
 	});
 
 	function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
@@ -115,13 +117,18 @@
 		class:ring-error-500={!!error}
 	>
 		{#if field.prefix}
-			<span class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium">
+			<span
+				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+			>
 				{field.prefix}
 			</span>
 		{/if}
 
-		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
-			<iconify-icon icon="mdi:phone-outline" width="18" class="text-surface-400 me-2"></iconify-icon>
+		<div
+			class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0"
+		>
+			<iconify-icon icon="mdi:phone-outline" width="18" class="text-surface-400 me-2"
+			></iconify-icon>
 			<Input
 				bind:inputRef
 				type="tel"
@@ -135,7 +142,9 @@
 		</div>
 
 		{#if field.suffix}
-			<span class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium">
+			<span
+				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+			>
 				{field.suffix}
 			</span>
 		{/if}

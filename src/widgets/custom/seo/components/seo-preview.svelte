@@ -81,7 +81,13 @@
 		title: string;
 	}
 
-	let { title, description, hostUrl, keywords = [], SeoPreviewToggle = $bindable(false) }: Props = $props();
+	let {
+		title,
+		description,
+		hostUrl,
+		keywords = [],
+		SeoPreviewToggle = $bindable(false)
+	}: Props = $props();
 
 	let heatmapMode = $state(false);
 
@@ -98,7 +104,9 @@
 	});
 
 	let heatmapDataTitle = $derived(renderHeatmap(debouncedTitle || 'Page Title', keywords));
-	let heatmapDataDesc = $derived(renderHeatmap(debouncedDesc || 'Page description goes here...', keywords));
+	let heatmapDataDesc = $derived(
+		renderHeatmap(debouncedDesc || 'Page description goes here...', keywords)
+	);
 </script>
 
 <div class="mt-1 border-t border-surface-500 dark:text-surface-50">
@@ -108,32 +116,38 @@
 		<div class="btn-group border border-surface-500 overflow-hidden">
 			<!-- Device Toggle: Desktop -->
 			<SystemTooltip title="Desktop View">
-				<Button variant="tertiary"
+				<Button
+					variant="tertiary"
 					type="button"
 					onclick={() => (SeoPreviewToggle = false)}
 					aria-label="Desktop View"
-				 class="p-0! min-w-0 {!SeoPreviewToggle ? ' dark: ' : ' '}">
+					class="p-0! min-w-0 {!SeoPreviewToggle ? ' dark: ' : ' '}"
+				>
 					<iconify-icon icon="mdi:monitor" width={24}></iconify-icon>
 				</Button>
 			</SystemTooltip>
 
 			<!-- Device Toggle: Mobile -->
 			<SystemTooltip title="Mobile View">
-				<Button variant="tertiary"
+				<Button
+					variant="tertiary"
 					type="button"
 					onclick={() => (SeoPreviewToggle = true)}
 					aria-label="Mobile View"
-				 class="p-0! min-w-0 {SeoPreviewToggle ? ' dark: ' : ' '}">
+					class="p-0! min-w-0 {SeoPreviewToggle ? ' dark: ' : ' '}"
+				>
 					<iconify-icon icon="mdi:cellphone" width={24}></iconify-icon>
 				</Button>
 			</SystemTooltip>
 
 			<!-- Heatmap Toggle -->
 			<SystemTooltip title="Toggle Heatmap Visualization">
-				<Button variant="warning"
+				<Button
+					variant="warning"
 					type="button"
 					onclick={() => (heatmapMode = !heatmapMode)}
-					class={heatmapMode ? 'preset-filled-warning-500' : ''}>
+					class={heatmapMode ? 'preset-filled-warning-500' : ''}
+				>
 					<iconify-icon icon="mdi:fire" width={24}></iconify-icon>
 					<span class="hidden sm:inline">Heatmap</span>
 				</Button>
@@ -142,14 +156,22 @@
 	</div>
 
 	<!-- Preview Card -->
-	<div class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-93.75 mx-auto' : 'w-full'}">
+	<div
+		class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 {SeoPreviewToggle
+			? 'max-w-93.75 mx-auto'
+			: 'w-full'}"
+	>
 		<!-- URL Line -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
-			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">
+			<div
+				class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700"
+			>
 				<iconify-icon icon="mdi:earth" width={24}></iconify-icon>
 			</div>
 			<div class="flex flex-col leading-none">
-				<span class="font-bold text-surface-600 dark:text-surface-400">{publicEnv.HOST_PROD || 'Your Site'}</span>
+				<span class="font-bold text-surface-600 dark:text-surface-400"
+					>{publicEnv.HOST_PROD || 'Your Site'}</span
+				>
 				<span class="truncate text-[10px]">{hostUrl}</span>
 			</div>
 		</div>
@@ -157,7 +179,9 @@
 		<!-- Title -->
 		<div class="mb-1">
 			{#if heatmapMode}
-				<h3 class="relative text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500">
+				<h3
+					class="relative text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500"
+				>
 					{#each heatmapDataTitle as { word, color }, i (i)}
 						<span class="relative inline-block me-1">
 							<span
@@ -169,7 +193,11 @@
 					{/each}
 				</h3>
 			{:else}
-				<h3 class="text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500 hover:underline">{title || 'Page Title'}</h3>
+				<h3
+					class="text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500 hover:underline"
+				>
+					{title || 'Page Title'}
+				</h3>
 			{/if}
 		</div>
 
@@ -188,7 +216,9 @@
 					{/each}
 				</p>
 			{:else}
-				<p class="text-sm leading-normal text-surface-600 dark:text-white">{description || 'Page description goes here...'}</p>
+				<p class="text-sm leading-normal text-surface-600 dark:text-white">
+					{description || 'Page description goes here...'}
+				</p>
 			{/if}
 		</div>
 	</div>

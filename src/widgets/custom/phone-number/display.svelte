@@ -30,9 +30,10 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 
 <div class="phone-display inline-flex items-center gap-1.5">
 	{#if value}
-		<iconify-icon icon="mdi:phone-outline" width="16" class="text-surface-400 dark:text-surface-500"></iconify-icon>
-		<a 
-			href="tel:{value.replace(/\s/g, '')}" 
+		<iconify-icon icon="mdi:phone-outline" width="16" class="text-surface-400 dark:text-surface-500"
+		></iconify-icon>
+		<a
+			href="tel:{value.replace(/\s/g, '')}"
 			class="text-tertiary-600 dark:text-primary-500 hover:underline font-medium transition-colors"
 			title="Call: {value}"
 		>

@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
+	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -19,7 +19,7 @@ import { logger } from "@utils/logger";
 	}
 
 	let { field, value = $bindable(null) }: Props = $props();
-	
+
 	let lat = $state(0);
 	let lng = $state(0);
 	let isLocating = $state(false);
@@ -28,7 +28,7 @@ import { logger } from "@utils/logger";
 		lat = value?.coordinates[1] ?? (Number(field.defaultLat) || 0);
 		lng = value?.coordinates[0] ?? (Number(field.defaultLng) || 0);
 	});
-	
+
 	const fieldName = $derived(getFieldName(field));
 
 	function updateValue() {
@@ -41,7 +41,7 @@ import { logger } from "@utils/logger";
 
 	function getCurrentLocation() {
 		if (!navigator.geolocation) {
-			alert("Geolocation is not supported by your browser");
+			alert('Geolocation is not supported by your browser');
 			return;
 		}
 
@@ -54,7 +54,7 @@ import { logger } from "@utils/logger";
 				isLocating = false;
 			},
 			(error) => {
-				logger.error("Error getting location:", error);
+				logger.error('Error getting location:', error);
 				alert(`Error: ${error.message}`);
 				isLocating = false;
 			}
@@ -67,7 +67,9 @@ import { logger } from "@utils/logger";
 		<!-- Latitude -->
 		<div class="flex flex-col gap-1.5">
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Latitude</span>
-			<div class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
+			<div
+				class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+			>
 				<Input
 					type="number"
 					aria-label="Latitude"
@@ -77,7 +79,9 @@ import { logger } from "@utils/logger";
 					placeholder="0.000000"
 					inputClass="h-auto w-full rounded-none border-0 bg-surface-500/10 py-2 shadow-none focus-visible:ring-0 dark:bg-surface-900"
 				/>
-				<div class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800">
+				<div
+					class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800"
+				>
 					N/S
 				</div>
 			</div>
@@ -86,7 +90,9 @@ import { logger } from "@utils/logger";
 		<!-- Longitude -->
 		<div class="flex flex-col gap-1.5">
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Longitude</span>
-			<div class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
+			<div
+				class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+			>
 				<Input
 					type="number"
 					aria-label="Longitude"
@@ -96,18 +102,22 @@ import { logger } from "@utils/logger";
 					placeholder="0.000000"
 					inputClass="h-auto w-full rounded-none border-0 bg-surface-500/10 py-2 shadow-none focus-visible:ring-0 dark:bg-surface-900"
 				/>
-				<div class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800">
+				<div
+					class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800"
+				>
 					E/W
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<Button variant="tertiary" 
+	<Button
+		variant="tertiary"
 		type="button"
 		onclick={getCurrentLocation}
 		disabled={isLocating}
-	 class="w-full flex items-center justify-center gap-2 py-2.5 rounded text-sm font-semibold transition-all dark: shadow-md shadow-primary-500/20 disabled:pointer-events-none">
+		class="w-full flex items-center justify-center gap-2 py-2.5 rounded text-sm font-semibold transition-all dark: shadow-md shadow-primary-500/20 disabled:pointer-events-none"
+	>
 		{#if isLocating}
 			<iconify-icon icon="line-md:loading-twotone-loop" width="20"></iconify-icon>
 			Locating...
@@ -119,7 +129,9 @@ import { logger } from "@utils/logger";
 
 	<!-- Visual Feedback -->
 	{#if value}
-		<div class="p-3 bg-surface-500/10 dark:bg-surface-800 rounded border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center">
+		<div
+			class="p-3 bg-surface-500/10 dark:bg-surface-800 rounded border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
+		>
 			GeoJSON: {JSON.stringify(value)}
 		</div>
 	{/if}
