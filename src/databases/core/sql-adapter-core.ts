@@ -1464,42 +1464,47 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         error: { code: "INVALID_ID", message: "ID must be a non-null value" },
       };
     }
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
 
-      // Adapter-specific raw SQL fast-path (SQLite)
-      if (this.useRawFindById) {
-        const rawResult = await this.rawFindById<T>(table, collection, id, options);
-        if (rawResult !== null) return rawResult;
-      }
+        // Adapter-specific raw SQL fast-path (SQLite / PostgreSQL / MariaDB)
+        if (this.useRawFindById) {
+          const rawResult = await this.rawFindById<T>(table, collection, id, options);
+          if (rawResult !== null) return rawResult;
+        }
 
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const conditions: SQL[] = [eq(idCol, id as any)];
-      const tenantCol = this.getColumn(table, "tenantId");
-      utils.applyTenantFilter(conditions, tenantCol, options);
+        const conditions: SQL[] = [eq(idCol, id as any)];
+        const tenantCol = this.getColumn(table, "tenantId");
+        utils.applyTenantFilter(conditions, tenantCol, options);
 
-      const results = await this.getDrizzleInstance(options)
-        .select(this.getProjectedSelection(table, options))
-        .from(table)
-        .where(and(...conditions))
-        .limit(1);
+        const results = await this.getDrizzleInstance(options)
+          .select(this.getProjectedSelection(table, options))
+          .from(table)
+          .where(and(...conditions))
+          .limit(1);
 
-      if (results.length === 0) return null;
-      const excludeData = this.shouldExcludeData(table, options);
-      return excludeData
-        ? (utils.convertDatesToISO(results[0], {
-            ...this.convertDatesOptions,
-            table: collection,
-            skipJson: true,
-          }) as T)
-        : (utils.convertDatesToISO(results[0], {
-            ...this.convertDatesOptions,
-            table: collection,
-          }) as T);
-    }, "FIND_BY_ID_FAILED");
+        if (results.length === 0) return null;
+        const excludeData = this.shouldExcludeData(table, options);
+        return excludeData
+          ? (utils.convertDatesToISO(results[0], {
+              ...this.convertDatesOptions,
+              table: collection,
+              skipJson: true,
+            }) as T)
+          : (utils.convertDatesToISO(results[0], {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as T);
+      },
+      "FIND_BY_ID_FAILED",
+      undefined,
+      { skipMeta: options.skipMeta === true },
+    );
   }
 
   // --------------------------------------------------------------------------

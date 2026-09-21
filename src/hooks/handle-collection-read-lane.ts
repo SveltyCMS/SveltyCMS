@@ -29,8 +29,7 @@ import { resolveRequestTenant } from "./request-tenant";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
-import { successResponse } from "@src/routes/api/[...path]/handlers/base";
-import { applyAllSecurityHeaders } from "./handle-security-headers";
+
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -44,6 +43,8 @@ import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
 interface CoalescedCollectionRead {
   body: string;
   etag: string;
+  /** Leader of a miss. Waiters omit this and are served as turbo hits. */
+  miss?: boolean;
   response?: Response;
 }
 
@@ -154,16 +155,11 @@ async function executeWarmCollectionRead(
     entryId,
     listParams,
   );
-  if (rebuilt?.response) {
-    // The rebuild is the ONLY path that emits no cache header of its own —
-    // `serveTurboCacheEntry` labels hits. Without this, a served miss is
-    // indistinguishable from the lane not having run at all.
-    rebuilt.response.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
-    stampSrvDur(rebuilt.response.headers, srvT0);
-    return rebuilt.response;
-  }
   if (rebuilt) {
-    const res = serveTurboCacheEntry(event, rebuilt);
+    // The leader is a miss. Waiters share the body the leader just cached
+    // and are labelled as hits. Both use the prebuilt security headers.
+    const res = rebuilt.response ?? serveTurboCacheEntry(event, rebuilt);
+    if (rebuilt.miss) res.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
     stampSrvDur(res.headers, srvT0);
     return res;
   }
@@ -222,7 +218,7 @@ async function rebuildWarmCollectionRead(
   entryId: string | null,
   listParams: ReturnType<typeof parseCollectionQueryParams> | null,
 ): Promise<CoalescedCollectionRead | null> {
-  const { request, url, locals } = event;
+  const { locals } = event;
   if (!dbAdapter) return null;
   const cms = LocalCMS.getLocals(dbAdapter, locals);
   const result = entryId
@@ -249,15 +245,14 @@ async function rebuildWarmCollectionRead(
         fields: listParams!.fields,
       });
 
-  const res = successResponse(event, result, 200);
-  applyAllSecurityHeaders(
-    res.headers,
-    url.protocol === "https:",
-    request.headers.get("Origin"),
-    url.pathname,
-  );
-
-  const apiBody = (locals as { apiBody?: string }).apiBody;
+  // One JSON string. The lane builds the only Response, from the prebuilt
+  // security-header template. A second Response here was pure overhead on a miss.
+  const record = result as { success?: boolean; data?: unknown; meta?: unknown };
+  const apiBody =
+    record.meta !== undefined
+      ? JSON.stringify({ success: true, data: record.data, meta: record.meta })
+      : JSON.stringify({ success: true, data: record.data });
+  (locals as { apiBody?: string }).apiBody = apiBody;
   if (
     typeof apiBody !== "string" ||
     !result ||
@@ -265,14 +260,19 @@ async function rebuildWarmCollectionRead(
   ) {
     return null;
   }
-  const etag = res.headers.get("etag") || generateContentEtag(apiBody);
-  res.headers.set("etag", etag);
+  // Point reads change updatedAt on write. Hashing the whole body on every
+  // random miss was a full scan of a document the caller will not revalidate.
+  const row = record.data as { _id?: unknown; updatedAt?: unknown } | null;
+  const etag =
+    entryId && row && typeof row === "object"
+      ? `"${String(row._id ?? entryId)}-${String(row.updatedAt ?? "")}"`
+      : generateContentEtag(apiBody);
   const { tags, skipSharedL1 } = collectionResponseCacheTags(collectionId, entryId);
   responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
     tags,
     skipSharedL1,
   });
-  return { body: apiBody, etag, response: res };
+  return { body: apiBody, etag, miss: true };
 }
 
 /**

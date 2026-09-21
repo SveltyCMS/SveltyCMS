@@ -1078,6 +1078,13 @@ export class CollectionsNamespace {
 
     if (!schema) return { success: true, data: null };
 
+    // Freeze hot flags once. Until the named factories are loaded, the scan
+    // refuses to cache its result and would repeat on every random id.
+    if ((schema as { _hasActiveWidgets?: boolean })._hasActiveWidgets === undefined) {
+      await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
+      ensureSchemaHotFlags(schema);
+    }
+
     const effectivePublicationFilter = resolvePublicationFilter(
       { user: options.user, system: options.system },
       options.publicationFilter,
@@ -1186,9 +1193,10 @@ export class CollectionsNamespace {
     const finalResult = { success: true, data: item || null };
     const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
 
-    if (!bypassCache) {
-      // 🚀 FIRE-AND-FORGET L2: Don't await async cache write on the response path.
-      // L1 set is synchronous; L2 set is microtasked.
+    if (!bypassCache && !options.skipCacheService) {
+      // The HTTP lane already stores the response body. A second copy of every
+      // random id in this LRU is insert+evict work the next GET never reads:
+      // the lane returns from the response cache before findById runs again.
       CollectionsNamespace.setRequestCache(cacheKey, finalResult, schema._id as string, tenantId);
       if (item) {
         // Point-read lanes that already cache the full HTTP response opt out of
