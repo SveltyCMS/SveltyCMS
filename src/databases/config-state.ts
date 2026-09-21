@@ -110,18 +110,37 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       const result = safeParse(privateConfigSchema, config);
 
       if (!result.success) {
-        const hasEssentialKeys = !!(config.DB_TYPE || config.DB_HOST || config.JWT_SECRET_KEY);
+        // A REAL configuration attempt — judged from the raw env, not the merged
+        // `config`. The env-only branch of getEnvOverrides() synthesizes
+        // DB_HOST=127.0.0.1, and reading that back made every config-less process
+        // look like "the operator configured something" — so each build printed
+        // ERROR lines for a state the private-config policy deliberately created.
+        const attemptedConfig = !!(
+          fileConfig ||
+          svelteEnv.DB_TYPE ||
+          svelteEnv.DB_NAME ||
+          svelteEnv.DB_HOST ||
+          svelteEnv.JWT_SECRET_KEY ||
+          svelteEnv.ENCRYPTION_KEY
+        );
         const isBenchmark = env("SVELTY_BENCHMARK_SUITE") === "true" || env("BENCHMARK") === "true";
-        // Only log error if we actually have some configuration attempted
+        // Only warn if we actually have some configuration attempted
         // 🚀 BENCHMARK: Suppress noise — bench child process uses HTTP API, not direct DB
-        if ((hasEssentialKeys || fileConfig) && !isBenchmark) {
-          logger.error("Private config validation failed:", {
-            error: result.issues[0]?.message || "Validation failed",
-            issues: result.issues.map((i: any) => ({
-              path: i.path?.map((p: any) => p.key).join("."),
-              message: i.message,
-            })),
-          });
+        if (attemptedConfig && !isBenchmark) {
+          if (isAutomatedTestHarness()) {
+            // Harnesses and COMPILE_ALL_ADAPTERS builds may never read the live
+            // config/private.ts (private-config-policy), so "no config file" is an
+            // expected steady state there — not an operator error.
+            logger.debug("Private config not loaded (automated harness, no private.test.ts)");
+          } else {
+            logger.error("Private config validation failed:", {
+              error: result.issues[0]?.message || "Validation failed",
+              issues: result.issues.map((i: any) => ({
+                path: i.path?.map((p: any) => p.key).join("."),
+                message: i.message,
+              })),
+            });
+          }
         }
         return null;
       }
