@@ -81,3 +81,11 @@ export function isSetupComplete(): boolean {
     return false;
   }
 }
+
+/**
+ * Publish the check for modules that must not import this one — importing it
+ * (even dynamically) pulls node:fs/node:path into client bundles, and the browser
+ * cannot fetch `node:*` specifiers. Consumers: `stores/widget-store.svelte.ts`.
+ * Loaded on the server with `hooks.server.ts` (imported at boot).
+ */
+(globalThis as { __SVELTY_SETUP_CHECK__?: () => boolean }).__SVELTY_SETUP_CHECK__ = isSetupComplete;

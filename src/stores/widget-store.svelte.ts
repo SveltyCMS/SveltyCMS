@@ -128,12 +128,16 @@ class WidgetState {
     const wsLogger = logger.channel("WidgetStore");
     wsLogger.debug(`initialize called for tenant: ${tenantId}. isLoaded: ${this.isLoaded}`);
     // 🛡️ Server-side only: skip widget loading during setup wizard.
-    // isSetupComplete() uses node:fs / process.cwd() which are unavailable
-    // in the browser. On the client, setup is implicitly complete — the user
-    // already passed server-side auth gates to reach an authenticated route.
+    // The check is read from globalThis on purpose — `@utils/setup-check-fast`
+    // needs node:fs / process.cwd(), and importing it (even dynamically, as this
+    // used to) ships those builtins into the client bundle where the browser
+    // cannot fetch `node:*`. `setup-check-fast` publishes the function on the
+    // server; when it is absent (browser, plain scripts) setup is treated as
+    // complete — the same behaviour this guard had client-side.
     if (typeof window === "undefined") {
-      const { isSetupComplete } = await import("@src/utils/setup-check-fast");
-      if (!isSetupComplete()) {
+      const setupCheck = (globalThis as { __SVELTY_SETUP_CHECK__?: () => boolean })
+        .__SVELTY_SETUP_CHECK__;
+      if (setupCheck && !setupCheck()) {
         wsLogger.trace("setup NOT complete, exiting initialize early.");
         return;
       }

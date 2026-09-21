@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   hashPackageFiles,
   verifyPackageChecksum,
-} from "@src/services/intelligence/marketplace-client";
+} from "@src/services/intelligence/marketplace-install.server";
 
 describe("marketplace checksum", () => {
   it("hashes files in sorted filename order", async () => {
