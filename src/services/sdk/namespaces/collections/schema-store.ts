@@ -79,6 +79,17 @@ export function getCachedSchema(key: string): Schema | undefined {
  * Sync hot-path schema: LRU hit with fields, already hot-flagged.
  * Avoids `await getSchema()` (always a microtask) on warm create/find/update.
  */
+/** Widget Names declared on a schema. The registry loads only these factories. */
+export function widgetNamesOf(schema: Schema | null | undefined): string[] {
+  const names: string[] = [];
+  const fields = (schema?.fields || []) as FieldInstance[];
+  for (const field of fields) {
+    const name = field.widget?.Name;
+    if (name) names.push(name);
+  }
+  return names;
+}
+
 export function peekReadySchema(
   tenantId: DatabaseId | null | undefined,
   collectionId: string,
@@ -130,6 +141,20 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
   let hasDateTimeFields = false;
+
+  for (const f of fields) {
+    const pendingName = f.widget?.Name;
+    if (
+      pendingName &&
+      !INLINE_MODIFY_WIDGETS.has(pendingName) &&
+      !widgetRegistryService.getWidgetSync(pendingName) &&
+      widgetRegistryService.canLoad(pendingName)
+    ) {
+      // Factory chunk is not evaluated yet. Leave the flags unset so the
+      // next call, after ensureWidgets, sees modifyRequest.
+      return s;
+    }
+  }
 
   for (const f of fields) {
     const widgetName = f.widget?.Name;
@@ -326,8 +351,8 @@ for (const id of BENCHMARK_FALLBACK_IDS) {
     fields,
     status: "publish",
   } as Schema;
-  ensureSchemaHotFlags(fallbackSchema);
-  // schemaCacheKey(null, id) already resolves to the "global:" namespace.
+  // Flags wait until the named factories are loaded. Freezing them here
+  // would record "no modifyRequest" for every widget that is still a chunk.
   setCachedSchema(schemaCacheKey(null, id), fallbackSchema);
 }
 
@@ -455,6 +480,7 @@ export async function resolveSchema(
     }
   }
 
+  await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
   ensureSchemaHotFlags(schema);
   _schemaCache.set(schemaKey, schema);
   return schema;

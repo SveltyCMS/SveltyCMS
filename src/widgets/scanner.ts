@@ -19,24 +19,28 @@ import { logger } from "@utils/logger";
 import { WIDGET_COMPONENT_ROOTS, folderFromWidgetPath, widgetNameToFolder } from "./widget-naming";
 
 // 1. Vite/SvelteKit Native Scanning
+/** Materialized factories. Empty until `loadWidgetFactories` (or the Bun fallback) fills them. */
 export const coreModules: Record<string, any> = {};
 export const customModules: Record<string, any> = {};
 export const marketplaceModules: Record<string, any> = {};
 export const widgetComponents: Record<string, any> = {};
 
+/**
+ * One loader per widget folder. Static `import.meta.glob` so the production
+ * bundle emits a real chunk per factory, evaluated only when that widget is
+ * named by a collection schema.
+ */
+export const coreModuleLoaders: Record<string, () => Promise<unknown>> = {};
+export const customModuleLoaders: Record<string, () => Promise<unknown>> = {};
+export const marketplaceModuleLoaders: Record<string, () => Promise<unknown>> = {};
+
 try {
-  // STATIC import.meta.glob — Vite statically transforms these calls into
-  // the production bundle, so the registry is populated at runtime. The old
-  // dynamic `(import.meta as any).glob(...)` reference was never transformed:
-  // production builds got an empty registry and the FS fallback (which cannot
-  // resolve source aliases from a built bundle) spammed one warning per widget.
-  // slop:suppress — registry must know every widget at boot; a lazy glob
-  // leaves the production registry empty (see the note above).
-  Object.assign(coreModules, import.meta.glob("./core/*/index.ts", { eager: true }));
-  // slop:suppress — same registry mechanism as core modules above
-  Object.assign(customModules, import.meta.glob("./custom/*/index.ts", { eager: true }));
-  // slop:suppress — same registry mechanism as core modules above
-  Object.assign(marketplaceModules, import.meta.glob("./marketplace/*/index.ts", { eager: true }));
+  // STATIC import.meta.glob — Vite transforms these calls into chunk loaders.
+  // A non-static `(import.meta as any).glob(...)` is not transformed and the
+  // production registry stays empty.
+  Object.assign(coreModuleLoaders, import.meta.glob("./core/*/index.ts"));
+  Object.assign(customModuleLoaders, import.meta.glob("./custom/*/index.ts"));
+  Object.assign(marketplaceModuleLoaders, import.meta.glob("./marketplace/*/index.ts"));
   Object.assign(
     widgetComponents,
     import.meta.glob(["./core/*/*.svelte", "./custom/*/*.svelte", "./marketplace/*/*.svelte"]),
@@ -44,7 +48,7 @@ try {
 
   if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
     logger.debug(
-      `[Scanner Debug] Vite Glob: ${Object.keys(coreModules).length} core, ${Object.keys(customModules).length} custom, ${Object.keys(marketplaceModules).length} marketplace.`,
+      `[Scanner Debug] Vite Glob: ${Object.keys(coreModuleLoaders).length} core, ${Object.keys(customModuleLoaders).length} custom, ${Object.keys(marketplaceModuleLoaders).length} marketplace.`,
     );
   }
 } catch (err: any) {
@@ -62,7 +66,9 @@ function initBunFallback() {
   if (isBrowser) return;
 
   // 🚀 RESILIENCE: If we already have modules, don't run fallback
-  if (Object.keys(coreModules).length > 0) return;
+  if (Object.keys(coreModuleLoaders).length > 0 || Object.keys(coreModules).length > 0) {
+    return;
+  }
 
   try {
     const g = globalThis as any;
@@ -128,11 +134,58 @@ initBunFallback();
  */
 export function getCustomWidgetNames(): string[] {
   const names: string[] = [];
-  for (const path of Object.keys(customModules)) {
+  const paths =
+    Object.keys(customModuleLoaders).length > 0
+      ? Object.keys(customModuleLoaders)
+      : Object.keys(customModules);
+  for (const path of paths) {
     const folder = folderFromWidgetPath(path);
     if (folder) names.push(folder);
   }
   return names;
+}
+
+/** True when a factory chunk exists for this widget Name. Does not import it. */
+export function hasWidgetLoader(widgetName: string): boolean {
+  const folder = widgetNameToFolder(widgetName);
+  if (!folder) return false;
+  const needle = `/${folder}/index.ts`;
+  for (const loaders of [coreModuleLoaders, customModuleLoaders, marketplaceModuleLoaders]) {
+    for (const path of Object.keys(loaders)) {
+      if (path.replace(/\\/g, "/").endsWith(needle)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Import factory chunks. With `names`, only those widget Names are evaluated.
+ * Without `names`, every factory is imported (admin catalog).
+ * Already materialized modules are left in place.
+ */
+export async function loadWidgetFactories(names?: Iterable<string>): Promise<void> {
+  const wanted = names ? new Set(Array.from(names, (name) => widgetNameToFolder(name))) : null;
+  const tiers: Array<[Record<string, () => Promise<unknown>>, Record<string, any>]> = [
+    [coreModuleLoaders, coreModules],
+    [customModuleLoaders, customModules],
+    [marketplaceModuleLoaders, marketplaceModules],
+  ];
+  const pending: Promise<void>[] = [];
+  for (const [loaders, cache] of tiers) {
+    for (const path of Object.keys(loaders)) {
+      if (cache[path]) continue;
+      const folder = folderFromWidgetPath(path);
+      if (wanted && (!folder || !wanted.has(folder))) continue;
+      const load = loaders[path];
+      if (typeof load !== "function") continue;
+      pending.push(
+        load().then((mod) => {
+          cache[path] = mod;
+        }),
+      );
+    }
+  }
+  await Promise.all(pending);
 }
 
 /** `${folder}:${input|display}` → glob loader. Built once, O(1) thereafter. */

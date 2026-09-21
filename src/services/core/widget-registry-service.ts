@@ -3,7 +3,13 @@
  * @description High-performance, benchmark-friendly widget registry.
  */
 
-import { coreModules, customModules, marketplaceModules } from "../../widgets/scanner";
+import {
+  coreModules,
+  customModules,
+  marketplaceModules,
+  hasWidgetLoader,
+  loadWidgetFactories,
+} from "../../widgets/scanner";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@src/widgets/types";
 import {
   folderFromWidgetPath,
@@ -213,7 +219,38 @@ class WidgetRegistryService {
   }
 
   // Public API
+  /** A factory chunk exists and has not been evaluated yet. */
+  public canLoad(name: string): boolean {
+    if (this.widgets.has(name)) return false;
+    try {
+      return hasWidgetLoader(name);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Evaluate and register only the named factories. A second call for the
+   * same name is a registry hit.
+   */
+  public async ensureWidgets(names: Iterable<string>): Promise<void> {
+    const missing: string[] = [];
+    for (const name of names) {
+      if (name && !this.widgets.has(name)) missing.push(name);
+    }
+    if (missing.length === 0) return;
+    try {
+      await loadWidgetFactories(missing);
+    } catch {
+      // Test mocks replace the scanner and do not export the loader.
+    }
+    this._registerPreScannedWidgets();
+  }
+
   public async getWidget(name: string): Promise<WidgetFactory | undefined> {
+    if (!this.widgets.has(name)) {
+      await this.ensureWidgets([name]);
+    }
     if (!this.isInitialized) {
       await this.initialize();
     }
@@ -221,6 +258,12 @@ class WidgetRegistryService {
   }
 
   public async getAllWidgets(): Promise<Map<string, WidgetFactory>> {
+    try {
+      await loadWidgetFactories();
+    } catch {
+      // Scanner mock has no loader map; pre-registered factories still apply.
+    }
+    this._registerPreScannedWidgets();
     if (!this.isInitialized) {
       await this.initialize();
     }

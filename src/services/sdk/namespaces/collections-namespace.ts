@@ -69,7 +69,9 @@ import {
   schemaCacheEntries,
   schemaCacheKey,
   setCachedSchema,
+  widgetNamesOf,
 } from "./collections/schema-store";
+import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import {
   assertEncryptedFieldsNotQueried,
   buildFindCacheKey,
@@ -270,9 +272,10 @@ export class CollectionsNamespace {
 
   /** Warm schemas skip the async getSchema microtask. */
   private async schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
-    return (
-      peekReadySchema(tenantId, collectionId) ?? (await this.getSchema(collectionId, tenantId))
-    );
+    const schema =
+      peekReadySchema(tenantId, collectionId) ?? (await this.getSchema(collectionId, tenantId));
+    await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
+    return schema;
   }
 
   async list(
@@ -1231,6 +1234,7 @@ export class CollectionsNamespace {
       : PROFILE_WRITE_ENABLED
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
+    if (peeked) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     const hot = ensureSchemaHotFlags(schema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
@@ -1342,6 +1346,7 @@ export class CollectionsNamespace {
       : PROFILE_WRITE_ENABLED
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
+    if (peekedUpdate) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     const hot = ensureSchemaHotFlags(schema);
 
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;

@@ -161,8 +161,11 @@ class WidgetState {
           wsLogger.info(`Initializing for tenant: ${tenantId}`);
         }
         // 1. Load modules from scanner (core + custom + marketplace portable modules)
-        const { coreModules, customModules, marketplaceModules } =
-          await import("@src/widgets/scanner");
+        const scanner = await import("@src/widgets/scanner");
+        if (typeof scanner.loadWidgetFactories === "function") {
+          await scanner.loadWidgetFactories();
+        }
+        const { coreModules, customModules, marketplaceModules } = scanner;
 
         const newWidgetFunctions: WidgetRegistry = {};
         const newCoreWidgets: string[] = [];
