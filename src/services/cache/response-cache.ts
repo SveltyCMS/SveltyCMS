@@ -35,6 +35,12 @@ const textEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : nul
 const MAX_L1_ENTRIES = 2000;
 /** Point-reads (findById / findByIdRandom) — separate FIFO so a scan cannot evict lists. */
 const MAX_POINT_L1_ENTRIES = 2000;
+/**
+ * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
+ * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
+ */
+const MAX_L1_MB = Number(process.env.SVELTY_L1_MAX_MB) || 64;
+const MAX_POINT_L1_MB = Number(process.env.SVELTY_L1_POINT_MAX_MB) || 16;
 
 /**
  * Exact FNV-1a 64-bit hash over UTF-16 code units, rendered as 16 lowercase
@@ -230,6 +236,19 @@ class ResponseCacheService {
   private listIndex = new Map<string, Set<string>>();
   private entryIndex = new Map<string, Set<string>>();
   private graphqlIndex = new Map<string, Set<string>>();
+  /**
+   * Approximate byte usage per tier (entries ↔ L1 stores). Incremental on set /
+   * evict / lazy buffer encode; re-derived exactly in `enforceL1Capacity` when it
+   * drifts above budget, so cache memory stays bounded no matter which delete path
+   * runs (invalidate, invalidateCollection, clearLocal).
+   */
+  private l1Bytes = 0;
+  private pointL1Bytes = 0;
+
+  private addL1Bytes(pointReads: boolean, delta: number): void {
+    if (pointReads) this.pointL1Bytes = Math.max(0, this.pointL1Bytes + delta);
+    else this.l1Bytes = Math.max(0, this.l1Bytes + delta);
+  }
 
   private storeForUserKey(userKey: string): Map<string, CachedResponseEntry> {
     return classifyTurboKey(userKey)?.entryId != null ? this.pointL1 : this.localL1;
@@ -332,22 +351,53 @@ class ResponseCacheService {
   }
 
   /**
-   * Bounded L1: evict the oldest entry when capacity is exceeded (FIFO —
-   * cheap and sufficient for a short-TTL cache; LRU ordering would add
-   * per-access bookkeeping on the hottest sync path).
+   * Bounded L1: evict oldest entries when the entry count OR the byte budget is
+   * exceeded (FIFO — cheap and sufficient for a short-TTL cache; LRU ordering
+   * would add per-access bookkeeping on the hottest sync path).
+   *
+   * The byte budget matters: entry counts alone do not bound memory, because a
+   * `list?limit=100` body is ~50-100 KB. Measured 2026-09-21: 2000 entries of that
+   * shape is ~200 MB live heap, which left the bench container at its committed
+   * high-water mark (671 MB) long after `heapUsed` fell back to 207 MB.
+   * `entryBytes` is maintained incrementally and re-derived exactly once it is
+   * over budget, so the other delete paths (invalidate/clear) cannot leak.
    */
+  private entryBytes(entry: CachedResponseEntry): number {
+    // UTF-16 code units for the body string, plus the lazily encoded byte buffer.
+    return (entry.body?.length ?? 0) * 2 + (entry.buffer?.byteLength ?? 0);
+  }
+
+  private l1ByteBudget(pointReads: boolean): number {
+    return (pointReads ? MAX_POINT_L1_MB : MAX_L1_MB) * 1024 * 1024;
+  }
+
   private enforceL1Capacity(
     store: Map<string, CachedResponseEntry>,
     max: number,
     insertingNew: boolean,
   ): void {
-    if (insertingNew && store.size >= max) {
-      const oldestKey = store.keys().next().value;
-      if (oldestKey !== undefined) {
-        store.delete(oldestKey);
-        this.unindexKey(oldestKey);
-      }
+    const isPoint = store === this.pointL1;
+    const budget = this.l1ByteBudget(isPoint);
+    let bytes = isPoint ? this.pointL1Bytes : this.l1Bytes;
+
+    if (bytes > budget) {
+      // Counter drifted (deletes outside set/evict) — recount exactly, once.
+      bytes = 0;
+      for (const entry of store.values()) bytes += this.entryBytes(entry);
     }
+
+    while ((insertingNew && store.size >= max) || bytes > budget) {
+      const oldestKey = store.keys().next().value;
+      if (oldestKey === undefined) break;
+      const evicted = store.get(oldestKey);
+      store.delete(oldestKey);
+      this.unindexKey(oldestKey);
+      if (evicted) bytes -= this.entryBytes(evicted);
+      insertingNew = false;
+    }
+
+    if (isPoint) this.pointL1Bytes = Math.max(0, bytes);
+    else this.l1Bytes = Math.max(0, bytes);
   }
 
   /** True when the entry is missing or its TTL has elapsed. */
@@ -370,6 +420,7 @@ class ResponseCacheService {
       } else {
         if (!local.buffer && textEncoder && local.body) {
           local.buffer = textEncoder.encode(local.body);
+          this.addL1Bytes(store === this.pointL1, local.buffer.byteLength);
         }
         return local;
       }
@@ -463,8 +514,11 @@ class ResponseCacheService {
     */
 
     const max = inferredPointRead ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
+    const replaced = store.get(fullKey);
     this.enforceL1Capacity(store, max, !store.has(fullKey));
+    if (replaced) this.addL1Bytes(inferredPointRead, -this.entryBytes(replaced));
     store.set(fullKey, entry);
+    this.addL1Bytes(inferredPointRead, this.entryBytes(entry));
     this.indexKey(fullKey, key, tenantId);
 
     // High-cardinality per-entry GETs stay in the bounded FIFO localL1 only —
@@ -572,6 +626,8 @@ class ResponseCacheService {
   public async clearLocal(): Promise<void> {
     this.localL1.clear();
     this.pointL1.clear();
+    this.l1Bytes = 0;
+    this.pointL1Bytes = 0;
     this.l1Meta.clear();
     this.listIndex.clear();
     this.entryIndex.clear();

@@ -14,6 +14,24 @@
 
 import { GENESIS_HASH } from "@src/services/audit-chain";
 
+const HEX = "0123456789abcdef";
+/** Module-scoped: one TextEncoder instead of one per appended leaf. */
+const encoder = new TextEncoder();
+
+/**
+ * Lowercase hex of a digest without the per-leaf `Array.from().map().join()`
+ * allocation storm (3 arrays + 32 closures per audited mutation).
+ */
+function toHex(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i]!;
+    out += HEX[b >>> 4]! + HEX[b & 15]!;
+  }
+  return out;
+}
+
 export class RollingMerkleAccumulator {
   private currentRoot: string = GENESIS_HASH;
   private count = 0;
@@ -27,11 +45,9 @@ export class RollingMerkleAccumulator {
    * Appends a new leaf hash in O(1) constant time (< 5µs).
    */
   public async appendLeaf(leafHash: string): Promise<string> {
-    const encoder = new TextEncoder();
     const data = encoder.encode(this.currentRoot + leafHash);
     const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    this.currentRoot = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    this.currentRoot = toHex(hashBuffer);
     this.count++;
     return this.currentRoot;
   }
@@ -41,12 +57,10 @@ export class RollingMerkleAccumulator {
    */
   public async appendLeaves(leafHashes: string[]): Promise<string> {
     if (leafHashes.length === 0) return this.currentRoot;
-    const encoder = new TextEncoder();
     for (let i = 0; i < leafHashes.length; i++) {
       const data = encoder.encode(this.currentRoot + leafHashes[i]);
       const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      this.currentRoot = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+      this.currentRoot = toHex(hashBuffer);
       this.count++;
     }
     return this.currentRoot;

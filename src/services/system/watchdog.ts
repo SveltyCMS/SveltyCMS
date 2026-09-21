@@ -8,12 +8,46 @@
  * - Exponential backoff for recovery attempts
  * - Drift detection (service health vs overall state)
  * - Phase-aware recovery (only re-init what is broken)
+ * - Memory governor: trims byte-heavy caches and asks V8 to de-commit above a
+ *   soft limit, so a large write burst (e.g. seeding 100k documents) does not
+ *   leave the container at its high-water mark forever
  */
 
 import { logger } from "@utils/logger";
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 import { getDbInitPromise, getBootPhase } from "@src/databases/db";
 import { maintenanceService } from "./maintenance-service";
+import { responseCache } from "@src/services/cache/response-cache";
+
+/**
+ * V8 keeps committed pages after a traffic spike; `docker stats` then reports the
+ * high-water mark even though `heapUsed` already fell back. A GC pass is the only
+ * in-process lever that lets V8's memory reducer de-commit free pages promptly.
+ * Prefer the real global (Node started with --expose-gc); otherwise expose it
+ * ourselves via `node:v8` + `node:vm` (lazy, best-effort — Bun has no `vm`).
+ */
+async function resolveGc(): Promise<(() => void) | null> {
+  const g = globalThis as { gc?: () => void };
+  if (typeof g.gc === "function") return g.gc;
+  try {
+    const [v8, vm] = await Promise.all([import("node:v8"), import("node:vm")]);
+    v8.setFlagsFromString("--expose-gc");
+    const fn = (vm as { runInNewContext: (code: string) => unknown }).runInNewContext("gc") as
+      | (() => void)
+      | undefined;
+    v8.setFlagsFromString("--no-expose-gc");
+    return typeof fn === "function" ? fn : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cached `node:v8` handle — heap limit is only needed by the memory governor. */
+let v8Handle: Promise<typeof import("node:v8") | null> | null = null;
+function loadV8(): Promise<typeof import("node:v8") | null> {
+  v8Handle ??= import("node:v8").catch(() => null);
+  return v8Handle;
+}
 
 class SystemWatchdog {
   private intervalId: NodeJS.Timeout | null = null;
@@ -28,6 +62,52 @@ class SystemWatchdog {
   // windows are legitimate lazy re-initialization (content re-sync, phase re-boot)
   // and must NOT escalate to RECOVERY — that blocks all requests mid-operation.
   private readonly STUCK_INIT_THRESHOLD_MS = 30_000;
+
+  // ── Memory governor ────────────────────────────────────────────────────
+  /** Trim caches + request a GC pass above this share of the V8 heap limit. */
+  private readonly MEMORY_TRIGGER_RATIO = Number(process.env.SVELTY_MEMORY_TRIGGER_RATIO) || 0.7;
+  /** Never run the governor more often than this (GC pauses are not free). */
+  private readonly MEMORY_MIN_INTERVAL = 60_000;
+  private lastMemorySweep = 0;
+  private gcFn: (() => void) | null | undefined;
+
+  /**
+   * Releases committed-but-unused memory after a burst.
+   *
+   * Bounded L1 caches are the biggest byte holders, and emptying them is what
+   * actually frees heap objects; the GC pass that follows is what returns the
+   * pages to the OS (V8 only de-commits after a major GC).
+   */
+  private async sweepMemory(heapUsed: number, heapLimit: number): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastMemorySweep < this.MEMORY_MIN_INTERVAL) return;
+    this.lastMemorySweep = now;
+
+    const usedMb = Math.round(heapUsed / 1024 / 1024);
+    const limitMb = Math.round(heapLimit / 1024 / 1024);
+    logger.warn(
+      `🧹 [Memory] heap ${usedMb}MB / limit ${limitMb}MB exceeds ${Math.round(
+        this.MEMORY_TRIGGER_RATIO * 100,
+      )}% — trimming caches and requesting a GC pass`,
+    );
+
+    try {
+      await responseCache.clearLocal();
+    } catch (err) {
+      logger.debug("[Memory] cache trim failed (non-fatal)", err);
+    }
+
+    if (this.gcFn === undefined) this.gcFn = await resolveGc();
+    if (this.gcFn) {
+      try {
+        this.gcFn();
+      } catch (err) {
+        logger.debug("[Memory] gc() failed (non-fatal)", err);
+      }
+    } else {
+      logger.debug("[Memory] no gc() available — relying on V8's memory reducer");
+    }
+  }
 
   /**
    * Starts the autonomous watchdog.
@@ -91,6 +171,17 @@ class SystemWatchdog {
     if (now - this.lastMaintenance > this.MAINTENANCE_INTERVAL) {
       this.lastMaintenance = now;
       await maintenanceService.runMaintenance();
+    }
+
+    // 4. Memory governor — a write burst commits far more than the steady-state
+    // heap; V8 holds those pages unless something asks it to shrink back.
+    const v8 = await loadV8();
+    if (v8) {
+      const mem = process.memoryUsage();
+      const heapLimit = v8.getHeapStatistics().heap_size_limit;
+      if (heapLimit > 0 && mem.heapUsed / heapLimit > this.MEMORY_TRIGGER_RATIO) {
+        await this.sweepMemory(mem.heapUsed, heapLimit);
+      }
     }
   }
 
