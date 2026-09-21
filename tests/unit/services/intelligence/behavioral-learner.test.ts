@@ -21,6 +21,8 @@ import {
 import { CacheWarmingService } from "@src/databases/cache/cache-warming-service";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { prewarmCollectionSchemas } from "@src/services/sdk/namespaces/collections/schema-store";
+import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 
 describe("Behavioral Learner Engine", () => {
   beforeEach(() => {
@@ -154,6 +156,75 @@ describe("Behavioral Learner Engine", () => {
 });
 
 describe("CacheWarmingService (Behavioral Pre-Warming)", () => {
+  it("preloads only the widget chunks the hot collections name", async () => {
+    clearBehavioralData();
+    recordWriteAccess("tenant-widgets", "hot-collection");
+
+    // Warm the SDK schema cache the way boot does — the preload is a peek, never a read.
+    prewarmCollectionSchemas(
+      [
+        {
+          _id: "hot-collection",
+          name: "hot-collection",
+          fields: [
+            { widget: { Name: "RichText" } },
+            { widget: { Name: "DateTime" } },
+            { widget: { Name: "RichText" } },
+          ],
+        },
+      ] as any,
+      undefined,
+      "tenant-widgets",
+    );
+
+    const ensureSpy = vi.spyOn(widgetRegistryService, "ensureWidgets").mockResolvedValue(undefined);
+    // The full catalog (admin widget store path) must never be pulled at idle.
+    const allSpy = vi
+      .spyOn(widgetRegistryService, "getAllWidgets")
+      .mockResolvedValue(new Map() as any);
+    vi.spyOn(cacheService, "set").mockResolvedValue(undefined as any);
+
+    try {
+      await new CacheWarmingService().warmFromBehavioralLearning("tenant-widgets", {
+        crud: {
+          find: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
+        },
+      });
+
+      expect(ensureSpy).toHaveBeenCalledTimes(1);
+      const requested = [...(ensureSpy.mock.calls[0][0] as Iterable<string>)];
+      // De-duplicated, and only what the schema names — never the full catalog.
+      expect(requested.sort()).toEqual(["DateTime", "RichText"]);
+      expect(allSpy).not.toHaveBeenCalled();
+    } finally {
+      ensureSpy.mockRestore();
+      allSpy.mockRestore();
+    }
+  });
+
+  it("skips the widget preload for collections whose schema is not warm", async () => {
+    clearBehavioralData();
+    recordWriteAccess("tenant-cold-schema", "never-resolved");
+
+    const ensureSpy = vi.spyOn(widgetRegistryService, "ensureWidgets").mockResolvedValue(undefined);
+    vi.spyOn(cacheService, "set").mockResolvedValue(undefined as any);
+
+    try {
+      await new CacheWarmingService().warmFromBehavioralLearning("tenant-cold-schema", {
+        crud: {
+          find: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
+        },
+      });
+
+      // No schema peek hit → no factory loads (and definitely no full-catalog load).
+      expect(ensureSpy).not.toHaveBeenCalled();
+    } finally {
+      ensureSpy.mockRestore();
+    }
+  });
+
   it("pre-warms canonical SDK cache keys for hot collections and entries", async () => {
     clearBehavioralData();
     recordWriteAccess("tenant-test", "articles", "art-1");
