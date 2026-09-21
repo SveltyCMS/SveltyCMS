@@ -85,6 +85,8 @@ describe("handleTurboGet + response cache", () => {
     expect(resolve).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(res.headers.get("X-Cache")).toBe("TURBO-HIT");
+    expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(res.headers.get("Content-Security-Policy")).toBeTruthy();
     expect(res.headers.get("ETag")).toBe(etag);
     expect(await res.text()).toBe(body);
     // Turbo injects user into locals for downstream consistency if resolve were used

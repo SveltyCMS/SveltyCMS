@@ -47,6 +47,7 @@ const MIX_CYCLE = [
 ];
 
 test("Inspect MIX_CYCLE latency and X-Cache headers", async () => {
+  process.env.SVELTY_SRV_DUR = "1";
   const serverInfo = await setupBenchmarkServer();
   const baseUrl = serverInfo.baseUrl;
 

@@ -82,21 +82,30 @@ export function isSimpleCollectionRead(event: RequestEvent): boolean {
   return true;
 }
 
-function hasWarmSession(event: RequestEvent): boolean {
+/** `SVELTY_SRV_DUR=1` records server time for inspect-mixed-cycle. Off on the replica. */
+const STAMP_SRV_DUR = process.env.SVELTY_SRV_DUR === "1";
+
+/**
+ * Session id from classifyRequest when the hook already parsed the cookie.
+ * Direct lane calls (unit tests) still parse once here.
+ */
+function sessionIdOf(event: RequestEvent): string | undefined {
+  const stuffed = (event.locals as { turboSessionId?: string | null }).turboSessionId;
+  if (stuffed !== undefined) return stuffed ?? undefined;
   const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
-  const sessionId = readSessionCookie(event.cookies, isSecure);
-  if (!sessionId) return false;
-  return getTurboAuthContext(sessionId) !== null;
+  return readSessionCookie(event.cookies, isSecure);
 }
 
-async function executeWarmCollectionRead(event: RequestEvent): Promise<Response | null> {
-  const { url, cookies, locals } = event;
-  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-  const sessionId = readSessionCookie(cookies, isSecure);
-  const turbo = sessionId ? getTurboAuthContext(sessionId) : null;
-  if (!turbo) {
-    return null;
-  }
+function stampSrvDur(headers: Headers, started: number): void {
+  if (!STAMP_SRV_DUR) return;
+  headers.set("x-srv-dur", (performance.now() - started).toFixed(2));
+}
+
+async function executeWarmCollectionRead(
+  event: RequestEvent,
+  turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+): Promise<Response | null> {
+  const { url, locals } = event;
 
   locals.user = turbo.user;
   locals.roles = turbo.roles;
@@ -129,11 +138,11 @@ async function executeWarmCollectionRead(event: RequestEvent): Promise<Response 
     url.searchParams.get("bypassCache") === "true" ||
     listParams?.bypassCache === true;
 
-  const srvT0 = performance.now();
+  const srvT0 = STAMP_SRV_DUR ? performance.now() : 0;
   const cached = bypass ? null : responseCache.get(pathKey, cacheTenant);
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
-    res.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
+    stampSrvDur(res.headers, srvT0);
     return res;
   }
 
@@ -150,12 +159,12 @@ async function executeWarmCollectionRead(event: RequestEvent): Promise<Response 
     // `serveTurboCacheEntry` labels hits. Without this, a served miss is
     // indistinguishable from the lane not having run at all.
     rebuilt.response.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
-    rebuilt.response.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
+    stampSrvDur(rebuilt.response.headers, srvT0);
     return rebuilt.response;
   }
   if (rebuilt) {
     const res = serveTurboCacheEntry(event, rebuilt);
-    res.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
+    stampSrvDur(res.headers, srvT0);
     return res;
   }
   return null;
@@ -271,11 +280,15 @@ async function rebuildWarmCollectionRead(
  * session is cold, the caller is not admin, or the path is not a simple GET.
  */
 export const tryCollectionReadLane: Handle = async ({ event, resolve }) => {
-  if (!isSimpleCollectionRead(event) || !hasWarmSession(event) || !dbAdapter) {
+  if (!isSimpleCollectionRead(event) || !dbAdapter) {
     return resolve(event);
   }
+  const sessionId = sessionIdOf(event);
+  if (!sessionId) return resolve(event);
+  const turbo = getTurboAuthContext(sessionId);
+  if (!turbo) return resolve(event);
   try {
-    const served = await executeWarmCollectionRead(event);
+    const served = await executeWarmCollectionRead(event, turbo);
     return served ?? resolve(event);
   } catch (err) {
     if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);
