@@ -265,7 +265,7 @@ Features:
 							Choose an icon
 						</span>
 						<div
-							class="min-h-[220px] rounded-lg border border-surface-500/30 bg-surface-500/10 p-2 dark:border-surface-500/40 dark:bg-surface-800/40"
+							class="min-h-55 rounded-lg border border-surface-500/30 bg-surface-500/10 p-2 dark:border-surface-500/40 dark:bg-surface-800/40"
 						>
 							<IconifyIconsPicker
 								bind:iconselected={formData.newCategoryIcon}

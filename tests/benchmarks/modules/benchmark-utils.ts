@@ -299,6 +299,20 @@ const _currentRunId = process.env.BENCHMARK_RUN_ID || crypto.randomUUID();
 // ── configuration ────────────────────────────────────────────────────────────
 const RESULTS_DIR = process.env.RESULTS_DIR ?? "tests/benchmarks/results";
 
+/**
+ * Resolve (and create) the per-adapter results directory — `results/<dbKey>` unless
+ * `RESULTS_DIR` already ends with the adapter key. Single source of truth for every
+ * artifact a run writes (history, metrics, terminal tables, soak series), so a test's
+ * series file always lands next to its result JSON.
+ */
+export function ensureBenchmarkResultsDir(): string {
+  const resultDbKey = getResultDbKey();
+  let dir = path.resolve(process.cwd(), RESULTS_DIR);
+  if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 export const CONCURRENCY_GROUPS = {
   sqlite: 1,
   mariadb: 4,
@@ -689,12 +703,8 @@ export function printTruthTable(options: {
 }
 
 function saveTerminalTable(title: string, content: string) {
-  const resultDbKey = getResultDbKey();
-  let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
-  fs.writeFileSync(path.join(dir, fileName), content);
+  fs.writeFileSync(path.join(ensureBenchmarkResultsDir(), fileName), content);
 }
 
 export function printSummaryTable(
@@ -1861,11 +1871,7 @@ export async function exportResult(r: any) {
   fs.appendFileSync(historyFile, JSON.stringify(entry) + "\n");
 
   // Store individual result JSON for debugging
-  const resultDbKey = getResultDbKey();
-  let resultDir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!resultDir.toLowerCase().endsWith(resultDbKey.toLowerCase()))
-    resultDir = path.join(resultDir, resultDbKey);
-  if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir, { recursive: true });
+  const resultDir = ensureBenchmarkResultsDir();
   const fileName = `${r.name.replace(/[^a-zA-Z0-9]/g, "_")}.json`;
   fs.writeFileSync(path.join(resultDir, fileName), JSON.stringify(entry, null, 2));
 
@@ -1983,11 +1989,8 @@ export async function runOnAllDatabases(
 }
 
 export function exportMetric(key: string, value: number, unit: string) {
-  const resultDbKey = getResultDbKey();
   try {
-    let dir = path.resolve(process.cwd(), RESULTS_DIR);
-    if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const dir = ensureBenchmarkResultsDir();
     const metricsFile = path.join(dir, "matrix_metrics.json");
     let current: Record<string, any> = {};
     if (fs.existsSync(metricsFile)) current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
@@ -2025,10 +2028,7 @@ export function exportSubMetric(
 
   // Also save to structured metrics for intelligence layer
   try {
-    const resultDbKey = getResultDbKey();
-    const dir = path.resolve(process.cwd(), RESULTS_DIR);
-    const dbDir = path.join(dir, resultDbKey);
-    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+    const dbDir = ensureBenchmarkResultsDir();
     const metricsFile = path.join(dbDir, "structured-metrics.json");
     let data: any = {};
     if (fs.existsSync(metricsFile)) {

@@ -38,9 +38,35 @@ const MAX_POINT_L1_ENTRIES = 2000;
 /**
  * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
  * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
+ *
+ * Resolved through `l1BudgetEnvMb`, which re-reads the raw env value when it
+ * changes — an operator (or a test) can retune the ceiling without a reboot,
+ * and the parse cost stays a string compare per enforcement call.
  */
-const MAX_L1_MB = Number(process.env.SVELTY_L1_MAX_MB) || 64;
-const MAX_POINT_L1_MB = Number(process.env.SVELTY_L1_POINT_MAX_MB) || 16;
+const DEFAULT_MAX_L1_MB = 64;
+const DEFAULT_MAX_POINT_L1_MB = 16;
+
+let _maxL1Raw: string | undefined;
+let _maxL1Mb = DEFAULT_MAX_L1_MB;
+let _maxPointL1Raw: string | undefined;
+let _maxPointL1Mb = DEFAULT_MAX_POINT_L1_MB;
+
+function l1BudgetEnvMb(pointReads: boolean): number {
+  if (pointReads) {
+    const raw = process.env.SVELTY_L1_POINT_MAX_MB;
+    if (raw !== _maxPointL1Raw) {
+      _maxPointL1Raw = raw;
+      _maxPointL1Mb = Number(raw) || DEFAULT_MAX_POINT_L1_MB;
+    }
+    return _maxPointL1Mb;
+  }
+  const raw = process.env.SVELTY_L1_MAX_MB;
+  if (raw !== _maxL1Raw) {
+    _maxL1Raw = raw;
+    _maxL1Mb = Number(raw) || DEFAULT_MAX_L1_MB;
+  }
+  return _maxL1Mb;
+}
 
 /**
  * Exact FNV-1a 64-bit hash over UTF-16 code units, rendered as 16 lowercase
@@ -237,10 +263,15 @@ class ResponseCacheService {
   private entryIndex = new Map<string, Set<string>>();
   private graphqlIndex = new Map<string, Set<string>>();
   /**
-   * Approximate byte usage per tier (entries ↔ L1 stores). Incremental on set /
-   * evict / lazy buffer encode; re-derived exactly in `enforceL1Capacity` when it
-   * drifts above budget, so cache memory stays bounded no matter which delete path
-   * runs (invalidate, invalidateCollection, clearLocal).
+   * Exact byte usage per tier (entries ↔ L1 stores). Every insert/delete path
+   * goes through `putEntry` / `removeEntry`, so the counters cannot drift:
+   * a drifted counter means the byte budget is silently not enforced.
+   *
+   * Fixed 2026-09-22: the L2-refill paths (`get`/`getAsync`) inserted entries
+   * without accounting, so a tier filled by refills reported ~0 bytes and grew
+   * to the entry cap (2000 × body) unchecked by the byte budget; deletes
+   * (`invalidate`, `invalidateAll`, index drops, TTL expiry) never decremented.
+   * `getL1ByteStats()` exposes a recount for diagnostics/tests.
    */
   private l1Bytes = 0;
   private pointL1Bytes = 0;
@@ -266,6 +297,28 @@ class ResponseCacheService {
   private addL1Bytes(pointReads: boolean, delta: number): void {
     if (pointReads) this.pointL1Bytes = Math.max(0, this.pointL1Bytes + delta);
     else this.l1Bytes = Math.max(0, this.l1Bytes + delta);
+  }
+
+  /** Insert-or-replace with byte accounting — the ONLY writer to the L1 stores. */
+  private putEntry(
+    store: Map<string, CachedResponseEntry>,
+    fullKey: string,
+    entry: CachedResponseEntry,
+  ): void {
+    const pointReads = store === this.pointL1;
+    const replaced = store.get(fullKey);
+    if (replaced) this.addL1Bytes(pointReads, -this.entryBytes(replaced));
+    store.set(fullKey, entry);
+    this.addL1Bytes(pointReads, this.entryBytes(entry));
+  }
+
+  /** Delete with byte accounting — the ONLY remover from the L1 stores. */
+  private removeEntry(store: Map<string, CachedResponseEntry>, fullKey: string): boolean {
+    const existing = store.get(fullKey);
+    if (!existing) return false;
+    store.delete(fullKey);
+    this.addL1Bytes(store === this.pointL1, -this.entryBytes(existing));
+    return true;
   }
 
   private storeForUserKey(userKey: string): Map<string, CachedResponseEntry> {
@@ -352,8 +405,8 @@ class ResponseCacheService {
     if (!set) return;
     index.delete(key);
     for (const fullKey of set) {
-      this.localL1.delete(fullKey);
-      this.pointL1.delete(fullKey);
+      this.removeEntry(this.localL1, fullKey);
+      this.removeEntry(this.pointL1, fullKey);
       this.unindexKey(fullKey);
     }
   }
@@ -377,41 +430,69 @@ class ResponseCacheService {
    * `list?limit=100` body is ~50-100 KB. Measured 2026-09-21: 2000 entries of that
    * shape is ~200 MB live heap, which left the bench container at its committed
    * high-water mark (671 MB) long after `heapUsed` fell back to 207 MB.
-   * `entryBytes` is maintained incrementally and re-derived exactly once it is
-   * over budget, so the other delete paths (invalidate/clear) cannot leak.
+   *
+   * The counters are maintained exactly by `putEntry`/`removeEntry` on every
+   * mutation path, so this loop trusts them and never re-derives the total from
+   * the store. The previous code recounted whenever the counter exceeded the
+   * budget; with exact counters that guard would fire on nearly every insert once
+   * a tier sits at its ceiling — exactly when the cache is hottest. The O(n)
+   * recount stays available as `getL1ByteStats()`, diagnostics-only.
    */
   private entryBytes(entry: CachedResponseEntry): number {
-    // UTF-16 code units for the body string, plus the lazily encoded byte buffer.
+    // V8 stores the body as UTF-16 (2 bytes per code unit) and the lazily
+    // encoded buffer is a second, byte-sized copy. Both are resident.
     return (entry.body?.length ?? 0) * 2 + (entry.buffer?.byteLength ?? 0);
   }
 
   private l1ByteBudget(pointReads: boolean): number {
-    return (pointReads ? MAX_POINT_L1_MB : MAX_L1_MB) * 1024 * 1024;
+    return l1BudgetEnvMb(pointReads) * 1024 * 1024;
   }
 
-  private enforceL1Capacity(
-    store: Map<string, CachedResponseEntry>,
-    max: number,
-    insertingNew: boolean,
-  ): void {
+  /**
+   * Diagnostics (never on a hot path): the maintained counters plus an exact
+   * O(#entries) recount of both stores, so drift is observable instead of silent.
+   */
+  public getL1ByteStats(): {
+    listEntries: number;
+    pointEntries: number;
+    listBytes: number;
+    pointBytes: number;
+    recountListBytes: number;
+    recountPointBytes: number;
+    listBudgetBytes: number;
+    pointBudgetBytes: number;
+  } {
+    let recountListBytes = 0;
+    for (const entry of this.localL1.values()) recountListBytes += this.entryBytes(entry);
+    let recountPointBytes = 0;
+    for (const entry of this.pointL1.values()) recountPointBytes += this.entryBytes(entry);
+    return {
+      listEntries: this.localL1.size,
+      pointEntries: this.pointL1.size,
+      listBytes: this.l1Bytes,
+      pointBytes: this.pointL1Bytes,
+      recountListBytes,
+      recountPointBytes,
+      listBudgetBytes: this.l1ByteBudget(false),
+      pointBudgetBytes: this.l1ByteBudget(true),
+    };
+  }
+
+  private enforceL1Capacity(store: Map<string, CachedResponseEntry>, max: number): void {
     const isPoint = store === this.pointL1;
     const budget = this.l1ByteBudget(isPoint);
     let bytes = isPoint ? this.pointL1Bytes : this.l1Bytes;
 
-    if (bytes > budget) {
-      // Counter drifted (deletes outside set/evict) — recount exactly, once.
-      bytes = 0;
-      for (const entry of store.values()) bytes += this.entryBytes(entry);
-    }
-
-    while ((insertingNew && store.size >= max) || bytes > budget) {
+    // Runs AFTER the insert, so the bound is strict (the previous pre-insert
+    // ordering overshot by one entry — up to 100 KB for a list body — and the
+    // size check needed an `insertingNew` flag to avoid evicting a replacement).
+    while (store.size > max || bytes > budget) {
       const oldestKey = store.keys().next().value;
       if (oldestKey === undefined) break;
       const evicted = store.get(oldestKey);
       store.delete(oldestKey);
       this.unindexKey(oldestKey);
       if (evicted) bytes -= this.entryBytes(evicted);
-      insertingNew = false;
     }
 
     if (isPoint) this.pointL1Bytes = Math.max(0, bytes);
@@ -433,7 +514,7 @@ class ResponseCacheService {
 
     if (local) {
       if (typeof local.expiresAt === "number" && Date.now() > local.expiresAt) {
-        store.delete(fullKey);
+        this.removeEntry(store, fullKey);
         this.unindexKey(fullKey);
       } else {
         this.maybeAttachBuffer(local, store === this.pointL1);
@@ -447,8 +528,8 @@ class ResponseCacheService {
         entry.buffer = textEncoder.encode(entry.body);
       }
       const max = store === this.pointL1 ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
-      this.enforceL1Capacity(store, max, !store.has(fullKey));
-      store.set(fullKey, entry);
+      this.putEntry(store, fullKey, entry);
+      this.enforceL1Capacity(store, max);
       this.indexKey(fullKey, key, tenantId);
       return entry;
     }
@@ -473,8 +554,8 @@ class ResponseCacheService {
       const fullKey = this.buildKey(key, tenantId);
       const store = this.storeForUserKey(key);
       const max = store === this.pointL1 ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
-      this.enforceL1Capacity(store, max, !store.has(fullKey));
-      store.set(fullKey, entry);
+      this.putEntry(store, fullKey, entry);
+      this.enforceL1Capacity(store, max);
       this.indexKey(fullKey, key, tenantId);
       return entry;
     }
@@ -529,11 +610,8 @@ class ResponseCacheService {
     */
 
     const max = inferredPointRead ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
-    const replaced = store.get(fullKey);
-    this.enforceL1Capacity(store, max, !store.has(fullKey));
-    if (replaced) this.addL1Bytes(inferredPointRead, -this.entryBytes(replaced));
-    store.set(fullKey, entry);
-    this.addL1Bytes(inferredPointRead, this.entryBytes(entry));
+    this.putEntry(store, fullKey, entry);
+    this.enforceL1Capacity(store, max);
     this.indexKey(fullKey, key, tenantId);
 
     // High-cardinality per-entry GETs stay in the bounded FIFO localL1 only —
@@ -568,8 +646,8 @@ class ResponseCacheService {
    */
   public async invalidate(key: string, tenantId?: string | null): Promise<void> {
     const fullKey = this.buildKey(key, tenantId);
-    this.localL1.delete(fullKey);
-    this.pointL1.delete(fullKey);
+    this.removeEntry(this.localL1, fullKey);
+    this.removeEntry(this.pointL1, fullKey);
     this.unindexKey(fullKey);
     await cacheService.delete(`res:${key}`, tenantId);
   }
@@ -584,7 +662,7 @@ class ResponseCacheService {
     for (const store of [this.localL1, this.pointL1]) {
       for (const k of Array.from(store.keys())) {
         if (k.startsWith(prefix)) {
-          store.delete(k);
+          this.removeEntry(store, k);
           this.unindexKey(k);
         }
       }

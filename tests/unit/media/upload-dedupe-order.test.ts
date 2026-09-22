@@ -12,9 +12,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IDBAdapter } from "@src/databases/db-interface";
-import type { MediaItem as DbMediaItem } from "@src/databases/db-interface";
+import type { DatabaseId, MediaItem as DbMediaItem } from "@src/databases/db-interface";
 
 const TENANT = "t1";
+/** `saveMedia` takes a branded tenant id — paths keep the plain string. */
+const TENANT_ID = TENANT as DatabaseId;
 /** JPEG magic — keeps the write-time MIME agreement check happy. */
 const IMAGE_BYTES = new Uint8Array([
   0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00,
@@ -42,7 +44,10 @@ const mocks = vi.hoisted(() => ({
   sharpEncode: vi.fn(async () => Buffer.from(IMAGE_BYTES)),
   getByHash: vi.fn(),
   upload: vi.fn(),
-  update: vi.fn(async () => ({ success: true, data: {} })),
+  update: vi.fn(async (_collection: string, _id: string, _patch: Record<string, unknown>) => ({
+    success: true,
+    data: {},
+  })),
 }));
 
 vi.mock("@src/utils/media/media-storage.server", () => ({
@@ -103,7 +108,7 @@ function createService(): InstanceType<typeof MediaService> {
 
 function uploadFile(name: string) {
   const file = new File([IMAGE_BYTES], name, { type: "image/jpeg" });
-  return createService().saveMedia(file, "user-1", "public", TENANT);
+  return createService().saveMedia(file, "user-1", "public", TENANT_ID);
 }
 
 /** Decodes + encodes performed anywhere in the upload path. */
@@ -130,7 +135,8 @@ describe("saveMedia — dedupe before derivative generation", () => {
     const res = await uploadFile("photo.jpg");
 
     expect(res.success).toBe(true);
-    expect((res.data as { _id: string })._id).toBe("existing-id");
+    if (!res.success) throw new Error(`saveMedia failed: ${res.message}`);
+    expect(res.data._id).toBe("existing-id");
     // Falsifies the old order: derivatives used to be (re)written before the hash lookup.
     expect(mocks.saveResizedImages).not.toHaveBeenCalled();
     expect(sharpWork()).toBe(0);
@@ -149,7 +155,9 @@ describe("saveMedia — dedupe before derivative generation", () => {
 
     const res = await uploadFile("copy.jpg");
 
-    expect((res.data as { _id: string })._id).toBe("existing-id");
+    expect(res.success).toBe(true);
+    if (!res.success) throw new Error(`saveMedia failed: ${res.message}`);
+    expect(res.data._id).toBe("existing-id");
     // One plain copy of the original so the patched `path` resolves — never an encode.
     expect(mocks.saveFile).toHaveBeenCalledTimes(1);
     expect(mocks.saveFile.mock.calls[0]?.[1]).toBe(COPY_PATH);
@@ -168,11 +176,12 @@ describe("saveMedia — dedupe before derivative generation", () => {
     const res = await uploadFile("photo.jpg");
 
     expect(res.success).toBe(true);
-    expect((res.data as { _id: string })._id).toBe("existing-id");
+    if (!res.success) throw new Error(`saveMedia failed: ${res.message}`);
+    expect(res.data._id).toBe("existing-id");
     // Regenerated onto the row that already exists — identical bytes never get a second row.
     expect(mocks.saveResizedImages).toHaveBeenCalledTimes(1);
     expect(mocks.upload).not.toHaveBeenCalled();
-    const patch = mocks.update.mock.calls[0]?.[2] as Record<string, unknown>;
+    const patch = mocks.update.mock.calls[0]?.[2] ?? {};
     expect(patch.path).toBe(ORIGINAL_PATH);
     expect(patch.thumbnails).toMatchObject({ thumbnail: expect.any(Object) });
     expect(patch.metadata).toMatchObject({ width: 400, height: 300 });
@@ -193,7 +202,9 @@ describe("saveMedia — dedupe before derivative generation", () => {
   it("inserts and generates derivatives only for genuinely new content", async () => {
     const res = await uploadFile("photo.jpg");
 
-    expect((res.data as { _id: string })._id).toBe("inserted-id");
+    expect(res.success).toBe(true);
+    if (!res.success) throw new Error(`saveMedia failed: ${res.message}`);
+    expect(res.data._id).toBe("inserted-id");
     expect(mocks.saveFile.mock.calls.some((call) => call[1] === ORIGINAL_PATH)).toBe(true);
     expect(mocks.saveResizedImages).toHaveBeenCalledTimes(1);
     expect(sharpWork()).toBeGreaterThan(0);

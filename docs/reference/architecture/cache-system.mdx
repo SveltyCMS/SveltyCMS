@@ -145,6 +145,19 @@ The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L
 - **Single-Entry Ceiling (`maxEntrySize`)**: Defaults to **16 MB** (configurable via `CACHE_L1_MAX_ENTRY_BYTES`), preventing oversized individual payloads from evicting hot cache entries.
 - **$O(1)$ Size Estimator**: Accurately sizes pre-stringified response bodies and employs a flat overhead estimate for structured objects without recursive traversal overhead.
 
+#### Response-cache L1 tiers: exact byte accounting (2026-09-22)
+
+The HTTP response cache (`src/services/cache/response-cache.ts`) keeps **two** L1 tiers above `cacheService.l1`: a 2,000-slot list/GraphQL FIFO and a 2,000-slot point-read FIFO. Each has an entry cap **and** a byte budget (`SVELTY_L1_MAX_MB`, default 64; `SVELTY_L1_POINT_MAX_MB`, default 16) — an entry cap alone does not bound memory, because a `list?limit=100` body is 50–100 KB (2,000 of those is ~200 MB).
+
+Every mutation of a tier now runs through exactly one insert (`putEntry`) and one delete (`removeEntry`) primitive, so the maintained byte counters cannot drift from the store:
+
+- The L2-refill paths (`get()` / `getAsync()` promoting a `cacheService` entry into L1) insert **with** accounting. Before the fix they inserted silently, so a tier filled by refills reported `0` bytes while holding every entry — the byte budget simply did not bind, and only the 2,000-entry cap stopped it (measured on the pre-fix code: 40 refilled entries, 960,000 bytes in the store, counter `0`).
+- Deletes decrement: `invalidate`, `invalidateAll`, `invalidateLocal` doc-scoped drops, and TTL expiry at read time.
+- Enforcement runs **after** the insert, so `size ≤ cap` and `bytes ≤ budget` hold strictly once a tier is at its ceiling (a single entry larger than the whole budget is dropped rather than cached forever).
+- Budgets are re-read when their env value changes, and `responseCache.getL1ByteStats()` returns the counters **plus** an exact recount for diagnostics and tests.
+
+Tests: `tests/unit/core/response-cache-l1-budget.test.ts` (insert-above-budget shrinks the tier on both tiers, refill accounting, delete-path accounting, counter == recount after a mixed torture sequence).
+
 ### Content System: L0 + L1 + L2 (Three Tiers)
 
 The content scanner adds a **process-local L0** on top of the dual-layer cache:

@@ -424,6 +424,8 @@
 			db_fieldName: dbName,
 			icon: target.icon,
 			required: false,
+			// New fields start untranslated; the builder's translation tab flips this per field.
+			translated: false,
 			widget: {
 				Name: resolvedKey.charAt(0).toUpperCase() + resolvedKey.slice(1),
 				key: resolvedKey,
@@ -584,9 +586,7 @@
 					</button>
 					<button
 						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400"
 						onclick={() => (viewMode = 'code')}
 						data-testid="view-mode-code"
 					>

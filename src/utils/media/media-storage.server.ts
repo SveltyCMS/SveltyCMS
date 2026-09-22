@@ -7,6 +7,7 @@
  * - Avatar processing
  * - Video thumbnail capturing (ffmpeg)
  * - PDF thumbnail generation (imagemagick)
+ * - Bounded LRU for storage existence probes
  */
 
 import path from "node:path";
@@ -14,6 +15,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { writeFile, readFile, unlink } from "node:fs/promises";
+import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
@@ -115,17 +117,41 @@ export const saveAvatarImage = saveAvatar;
 export const saveFileToDisk = saveFile;
 export const saveResizedImages = saveResized;
 
-/** Check if file exists using adapter (with negative caching). */
-const _fileExistsCache = new Map<string, { exists: boolean; expires: number }>();
-const FILE_EXISTS_CACHE_TTL = 10_000; // 10 seconds — stale negatives clear quickly
+/**
+ * Bounded positive/negative cache for storage existence probes.
+ *
+ * A storage `exists()` call per request is expensive, so results are cached for
+ * `SVELTY_FILE_EXISTS_CACHE_TTL_MS` (default 10 s). The cache is an LRU with a
+ * hard entry cap (`SVELTY_FILE_EXISTS_CACHE_MAX`, default 5000): under a soak that
+ * touches many distinct media paths an unbounded Map grows with the number of
+ * paths ever probed (each entry keeps the full path string + a timestamp), which
+ * shows up as unconditional RSS growth. Cap + LRU ordering bounds it; TTL
+ * semantics are unchanged (`refresh: true` bypasses the read and re-stamps).
+ */
+const FILE_EXISTS_CACHE_TTL_MS = Number(process.env.SVELTY_FILE_EXISTS_CACHE_TTL_MS) || 10_000; // 10 s — stale negatives clear quickly
+const FILE_EXISTS_CACHE_MAX = Number(process.env.SVELTY_FILE_EXISTS_CACHE_MAX) || 5_000;
+const _fileExistsCache = new LRUCache<string, boolean>({
+  max: FILE_EXISTS_CACHE_MAX,
+  ttl: FILE_EXISTS_CACHE_TTL_MS,
+});
+
+/** Entry count of the existence-probe cache (diagnostics/tests). */
+export function fileExistsCacheSize(): number {
+  return _fileExistsCache.size;
+}
+
+/** Drop every cached existence probe (tests, storage reconfiguration). */
+export function resetFileExistsCache(): void {
+  _fileExistsCache.clear();
+}
 
 export async function fileExists(rel: string, opts?: { refresh?: boolean }): Promise<boolean> {
-  const cached = _fileExistsCache.get(rel);
-  if (!opts?.refresh && cached && Date.now() < cached.expires) {
-    return cached.exists;
+  if (!opts?.refresh) {
+    const cached = _fileExistsCache.get(rel);
+    if (cached !== undefined) return cached;
   }
   const exists = await getStorageAdapter().exists(rel);
-  _fileExistsCache.set(rel, { exists, expires: Date.now() + FILE_EXISTS_CACHE_TTL });
+  _fileExistsCache.set(rel, exists);
   return exists;
 }
 
