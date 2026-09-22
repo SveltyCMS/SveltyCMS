@@ -16,6 +16,11 @@
 import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
+import {
+  getJsonDataPatch,
+  jsonPatchNeedsJsMerge,
+  parseJsonDataBlob,
+} from "../core/json-data-patch";
 import type {
   BaseEntity,
   BaseQueryOptions,
@@ -46,7 +51,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: true,
-    supportsAggregation: false,
+    // The documented pipeline subset runs through `core/aggregation-translator.ts`;
+    // stages SQL cannot express fail closed with `NOT_SUPPORTED`.
+    supportsAggregation: true,
     supportsStreaming: false,
     supportsPartitioning: true,
     maxBatchSize: 1000,
@@ -82,6 +89,44 @@ export abstract class AdapterCore extends SqlAdapterCore {
    */
   protected get useDynamicSqlInFindMany(): boolean {
     return true;
+  }
+
+  /**
+   * `JSON_MERGE_PATCH` is RFC 7396 — recursive, and a `null` in the patch deletes
+   * the key. Nested-object / explicit-null patches are therefore hydrated and
+   * merged in JS so the observable contract matches MongoDB's shallow `$set`.
+   */
+  protected override get jsonPatchMergeMode(): "operator" | "subset" {
+    return "subset";
+  }
+
+  /**
+   * `JSON_MERGE_PATCH` is RFC 7396 like SQLite's `json_patch` — recursive, and a
+   * `null` in the patch deletes the key. Only patches that `jsonPatchNeedsJsMerge()`
+   * clears are merged through it; the rest hydrate and merge in JS.
+   */
+  protected override jsonMergeWrapper(colSql: string): { prefix: string; suffix: string } {
+    return { prefix: `JSON_MERGE_PATCH(COALESCE(${colSql}, '{}'), `, suffix: `)` };
+  }
+
+  /**
+   * Read the JSON `data` column of one row for the JS merge path. Null means the
+   * row is absent — the caller then fails closed instead of writing the patch as
+   * the whole document. Stays on the txn connection when the update is in one.
+   */
+  protected override async readJsonDataColumn(
+    table: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<Record<string, unknown> | null> {
+    const tableName = getTableName(table);
+    const idColName = (this.getColumn(table, "_id") || this.getColumn(table, "id"))?.name ?? "_id";
+    const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+    const rows = (await this.getRawExec(options)(
+      `SELECT \`data\` FROM \`${utils.assertSafeSqlIdentifier(tableName, "table")}\` WHERE \`${utils.assertSafeSqlIdentifier(idColName, "column")}\` = ?${tenantSql} LIMIT 1`,
+      [String(id), ...tenantParams],
+    )) as Array<{ data?: unknown }> | undefined;
+    return parseJsonDataBlob(rows?.[0]?.data);
   }
 
   /** mysql2's execute/query return [rows, fields] — rows are the first element. */
@@ -223,6 +268,22 @@ export abstract class AdapterCore extends SqlAdapterCore {
   public getJsonField(field: string): SQL {
     const path = `$.${field}`;
     return sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${path}))`;
+  }
+
+  /**
+   * `$min`/`$max` cannot be answered type-safely from the JSON blob here, so the
+   * translator refuses the stage instead of returning a wrong number. MariaDB stores
+   * JSON as text: both `JSON_UNQUOTE(JSON_EXTRACT(…))` and the raw `JSON_EXTRACT(…)`
+   * compare as strings — measured 2026-09-22, `MIN` over `{10, 2}` returns `"10"`
+   * for either form. A `CAST(… AS DECIMAL)` would fix numbers at the cost of
+   * silently zeroing string values, and no single aggregate can return the numeric
+   * MIN for numeric rows and the string MIN for string rows.
+   *
+   * A materialized column (declared `indexed` / `materialize: true`) is ordered by
+   * the engine in its native column type and is the supported path.
+   */
+  protected override getJsonOrderedField(_field: string): SQL | null {
+    return null;
   }
 
   protected coerceJsonValue(val: unknown): unknown {
@@ -1092,15 +1153,33 @@ export abstract class AdapterCore extends SqlAdapterCore {
       delete values[idColName];
       delete values["id"];
 
+      // Same partial-update merge decision as the shared path: `JSON_MERGE_PATCH`
+      // cannot express a nested-object or explicit-null patch, so hydrate and merge
+      // the stored blob in JS first and write a complete document.
+      const jsonPatch = getJsonDataPatch(values);
+      if (jsonPatch && jsonPatchNeedsJsMerge(jsonPatch)) {
+        await this.hydrateJsonDataPatch(values, table, id, options);
+      }
+
       const setPairs: string[] = [];
       const params: any[] = [];
       const columns = Object.keys(values);
+      // 🔀 PARTIAL-UPDATE MERGE: a live patch marker means the `data` blob must merge
+      // (`JSON_MERGE_PATCH` is RFC 7396 — exact for the scalar/array patches that
+      // reach this point; nested objects and explicit nulls were already merged in
+      // JS just above). Without it a PATCH would replace every dynamic field.
+      const mergeJsonData = getJsonDataPatch(values) !== undefined;
       for (const col of columns) {
         // Drizzle def property names may differ from physical column names
         // (e.g. plugin_storage: collectionName → `collection`).
         const phys = this.getColumn(table, col);
         const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
-        setPairs.push(`\`${safeCol}\` = ?`);
+        const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+        setPairs.push(
+          isJson && mergeJsonData
+            ? `\`${safeCol}\` = JSON_MERGE_PATCH(COALESCE(\`${safeCol}\`, '{}'), ?)`
+            : `\`${safeCol}\` = ?`,
+        );
         const val = values[col];
         params.push(
           val === null || val === undefined
@@ -1208,6 +1287,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
         this.prepareUpdateValues(table, u.data, u.id as string, now, options),
       );
 
+      // 🔀 PARTIAL-UPDATE MERGE: `JSON_MERGE_PATCH` can wrap the `data` column in
+      // this one statement, but only for patches it expresses like a shallow merge.
+      // A nested object / explicit-null patch needs every row's stored blob — refuse
+      // the fast path so the caller's per-row loop merges each row exactly.
+      const jsonPatchRows = prepared.filter((v) => getJsonDataPatch(v) !== undefined);
+      if (jsonPatchRows.some((v) => !this.canMergeJsonInOneStatement(getJsonDataPatch(v)!))) {
+        return null;
+      }
+
       const setCols: string[] = [];
       const seen = new Set<string>();
       for (const values of prepared) {
@@ -1249,6 +1337,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
           for (const col of setCols) {
             const phys = this.getColumn(table, col);
             const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+            const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+            const jsonWrap =
+              isJson && chunk.some((v) => getJsonDataPatch(v) !== undefined)
+                ? this.jsonMergeWrapper(`\`${safeCol}\``)
+                : null;
 
             let constant = true;
             let firstVal: unknown;
@@ -1269,7 +1362,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
             }
 
             if (constant) {
-              setPairs.push(`\`${safeCol}\` = ?`);
+              setPairs.push(
+                jsonWrap
+                  ? `\`${safeCol}\` = ${jsonWrap.prefix}?${jsonWrap.suffix}`
+                  : `\`${safeCol}\` = ?`,
+              );
               params.push(bind(firstVal));
               continue;
             }
@@ -1282,8 +1379,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
               params.push(chunkIds[i], bind(values[col]));
             }
             const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            const caseSql = `CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`;
             setPairs.push(
-              `\`${safeCol}\` = CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`,
+              jsonWrap
+                ? `\`${safeCol}\` = ${jsonWrap.prefix}${caseSql}${jsonWrap.suffix}`
+                : `\`${safeCol}\` = ${caseSql}`,
             );
           }
 

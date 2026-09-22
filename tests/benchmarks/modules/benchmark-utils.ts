@@ -1988,12 +1988,38 @@ export async function runOnAllDatabases(
   console.log(`${"=".repeat(60)}\n`);
 }
 
+/**
+ * Atomic JSON write: a killed process can leave a stray tmp file, never a truncated one.
+ * The previous non-atomic write is what corrupted `matrix_metrics.json` and made every
+ * subsequent `JSON.parse("")` throw (silently dropping all metrics of a run).
+ */
+function writeJsonAtomic(file: string, data: unknown): void {
+  const tmp = `${file}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+/**
+ * Tolerant read of a metrics file: missing, empty or corrupt all mean "start fresh",
+ * so one interrupted run cannot poison every later export.
+ */
+function readJsonTolerant<T>(file: string, fallback: T): T {
+  if (!fs.existsSync(file)) return fallback;
+  const raw = fs.readFileSync(file, "utf8").trim();
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    console.warn(`[metrics] ${file} is not valid JSON — starting from a fresh file`);
+    return fallback;
+  }
+}
+
 export function exportMetric(key: string, value: number, unit: string) {
   try {
     const dir = ensureBenchmarkResultsDir();
     const metricsFile = path.join(dir, "matrix_metrics.json");
-    let current: Record<string, any> = {};
-    if (fs.existsSync(metricsFile)) current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
+    const current = readJsonTolerant<Record<string, any>>(metricsFile, {});
     current[key] = {
       _type: "numeric-metric",
       name: key,
@@ -2001,7 +2027,7 @@ export function exportMetric(key: string, value: number, unit: string) {
       unit,
       timestamp: new Date().toISOString(),
     };
-    fs.writeFileSync(metricsFile, JSON.stringify(current, null, 2));
+    writeJsonAtomic(metricsFile, current);
   } catch (err: any) {
     console.error(`[exportMetric] Failed: ${err.message}`);
   }
@@ -2030,17 +2056,14 @@ export function exportSubMetric(
   try {
     const dbDir = ensureBenchmarkResultsDir();
     const metricsFile = path.join(dbDir, "structured-metrics.json");
-    let data: any = {};
-    if (fs.existsSync(metricsFile)) {
-      data = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
-    }
+    const data = readJsonTolerant<Record<string, any>>(metricsFile, {});
     if (!data[fullKey]) data[fullKey] = [];
     data[fullKey].push({
       value,
       timestamp: new Date().toISOString(),
       phase,
     });
-    fs.writeFileSync(metricsFile, JSON.stringify(data, null, 2));
+    writeJsonAtomic(metricsFile, data);
   } catch {
     /* best-effort */
   }

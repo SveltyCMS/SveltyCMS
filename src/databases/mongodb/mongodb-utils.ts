@@ -61,7 +61,34 @@ export function generateId(): DatabaseId {
 }
 
 /**
+ * Spellings the SDK uses for the media store, mapped to the model name MongoDB
+ * actually registers (`media`, bound to the physical `system_media` collection —
+ * `media.ts`). They mirror the SQL aliases in `core/drizzle-sql-helpers.ts`
+ * (`media`/`media_items` → `mediaItems`).
+ *
+ * Without this map the generic `collection_` prefix path produced
+ * `collection_media` / `collection_mediaitems`: `_getRepo` then built a model on
+ * a collection that does not exist, so reads answered "not found" for rows that
+ * were present — e.g. the API's DELETE pre-flight probe (`handlers/media.ts`
+ * → `cms.media.findById` → `crud.findOne("media", …)`) returned 404, and the
+ * media service's own `crud.update("media_items", …)` failed with
+ * `RECORD_NOT_FOUND`. SQL engines never hit it because `SQL_TABLE_ALIASES`
+ * collapses both spellings onto the real table.
+ *
+ * `media_folders` is deliberately absent: it is registered under exactly that
+ * name (`media-module.ts`) and already resolves through the `media_` pass-through.
+ */
+const MODEL_NAME_ALIASES: Record<string, string> = {
+  media: "media",
+  MediaItem: "media",
+  mediaItems: "media",
+  media_items: "media",
+};
+
+/**
  * Normalizes collection names to the canonical physical model/table name.
+ * - SDK spellings that differ from the model name are aliased first
+ *   (`MODEL_NAME_ALIASES`).
  * - System-prefixed names (`media_`, `auth_`, `system_`, `svelty_`, `plugin_`)
  *   pass through unchanged.
  * - All other names (raw collection ids OR already-prefixed names) are
@@ -72,6 +99,8 @@ export function generateId(): DatabaseId {
  * legacy prefix-only behavior.
  */
 export function normalizeCollectionName(collection: string): string {
+  const alias = MODEL_NAME_ALIASES[collection];
+  if (alias) return alias;
   if (
     collection.startsWith("media_") ||
     collection.startsWith("auth_") ||

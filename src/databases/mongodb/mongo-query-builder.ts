@@ -623,7 +623,8 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
       const result = await this.model.updateMany(
         query,
         { $set: updateData },
-        { cloneUpdate: false },
+        // 🐛 PARITY: `strict` would drop undeclared $set paths (dynamic fields).
+        { cloneUpdate: false, strict: false },
       );
       const meta = this.buildQueryMeta(startTime);
       return {

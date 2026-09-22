@@ -567,7 +567,7 @@ export interface DatabaseCapabilities {
   supportsTransactions: true,
   supportsIndexing: true,
   supportsFullTextSearch: true,
-  supportsAggregation: false,        // Limited aggregation
+  supportsAggregation: true,         // Documented pipeline subset (aggregation-translator.ts)
   supportsStreaming: false,          // No streaming
   supportsPartitioning: false,
   supportsReplication: false,        // No replication

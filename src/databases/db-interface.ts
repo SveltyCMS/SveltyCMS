@@ -1482,6 +1482,27 @@ export interface ISqlAdapter extends BaseAdapter {
     options: BaseQueryOptions,
   ): Promise<{ modifiedCount: number } | null>;
   withWriteLock<T>(fn: () => T | Promise<T>): Promise<T>;
+  /**
+   * Partial-update merge helpers for the JSON `data` blob (see
+   * `core/json-data-patch.ts`). Public because the batch/query-builder modules
+   * share the exact same merge decision instead of re-deriving it:
+   * `canMergeJsonInOneStatement` is the dialect exactness test,
+   * `applyJsonMergeToSet` injects the operator into Drizzle `.set()` values, and
+   * `mergeJsonPatchIntoSet` additionally hydrates + merges in JS when one
+   * statement cannot express the patch.
+   */
+  canMergeJsonInOneStatement(patch: Record<string, unknown>): boolean;
+  applyJsonMergeToSet(
+    values: Record<string, unknown>,
+    table: any,
+    patch: Record<string, unknown>,
+  ): void;
+  mergeJsonPatchIntoSet(
+    values: Record<string, unknown>,
+    table: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<void>;
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },

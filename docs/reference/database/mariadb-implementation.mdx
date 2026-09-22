@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-01-06"
-updated: "2026-08-21"
+updated: "2026-09-22"
 tags:
   - "database"
   - "mariadb"
@@ -27,7 +27,7 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 **MariaDB Version**: 10.5+ (latest stable recommended)  
 **ORM**: Drizzle ORM 0.45+  
 **Driver**: mysql2 3.16+  
-**Implementation Status**: **Planned - Not Yet Implemented**
+**Implementation Status**: **Production-ready** (shares `SqlAdapterCore` with SQLite/PostgreSQL)
 
 ### Current Status
 
@@ -54,6 +54,9 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support
 - **Raw `UPDATE…RETURNING` fast path**: MariaDB ≥10.5 supports `RETURNING`, but Drizzle's mysql2 dialect does not expose `.returning()` — the adapter probes `_returningSupported` and runs a raw prepared `UPDATE…RETURNING *` for `update()` and `_id`-lookup `upsert()`, halving round trips vs the old UPDATE + findById re-read
 - **Update flag propagation**: MariaDB `update()` calls shared `prepareUpdateValues()` (`isUpdate: true`) so `createdAt` never enters the SQL `SET` clause and empty `data={}` blobs are omitted on partial updates
+- **Partial updates merge the JSON blob**: `data` is set through `JSON_MERGE_PATCH(COALESCE(data, '{}'), ?)` for scalar/array patches; nested-object or explicit-`null` patches hydrate the stored blob and merge in JS first, because `JSON_MERGE_PATCH` is RFC 7396 (recursive, and it _deletes_ keys patched with `null`) while the contract here is MongoDB's shallow, null-keeping `$set`. The same merge covers `crud.updateMany`, `batch.bulkUpdate` and query-builder `updateMany`. See [Write Path](./write-path.mdx#3-does-a-write-verify-the-data-was-100-persisted).
+- **Dynamic-field filters use the extraction form** (`JSON_UNQUOTE(JSON_EXTRACT(data, '$.field'))`), because MariaDB has no index that serves arbitrary JSON paths — the engine-native answer for a filtered field is **column materialization** (`indexed: true` / `materialize: true` → a real indexed column). One documented consequence of the text-based JSON comparison: a numeric probe also matches a text-stored `"101"`, where PostgreSQL containment, SQLite's typed `json_extract` and MongoDB are type-strict. Tightening it needs a `JSON_TYPE(...)` predicate on every dynamic-field filter — a function call per row on the hottest filter path — so the looseness is documented instead.
+- **`crud.aggregate()` (native translation)**: MongoDB-style pipelines compile to one statement via `core/aggregation-translator.ts` — `$match`, `$group` (scalar `_id` plus `$sum`/`$avg`/`$min`/`$max`/`$count`), `$sort`, `$skip`, `$limit`, `$count` and include-only `$project`. `$min`/`$max` on a **non-materialized** field are refused with `error.code === "NOT_SUPPORTED"` because the extraction compares as text (`MIN` over `{10, 2}` returns `"10"`) — declare the field `indexed`/`materialize: true` to aggregate it natively.
 - **Backtick identifier quoting**: the dynamic `findMany` path quotes identifiers per dialect; MariaDB's default `sql_mode` has no `ANSI_QUOTES`, so double-quoted identifiers were a syntax error — fixed via the `quoteIdentifier` hook
 
 ---
@@ -72,7 +75,9 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 ### Schema Design
 
-#### Relational Tables (14 total)
+#### Core Relational Tables (the spec declares 27)
+
+The most-used tables — `src/databases/system-schema-spec.ts` is the full inventory:
 
 ```typescript
 - auth_users: User accounts with roles
@@ -178,7 +183,7 @@ export const authUsers = mysqlTable(
 ### Connection Pool Configuration (2026-09 Hardening)
 
 ```ts
-// Optimized mysql2 pool settings — all timing values configurable via env
+// Optimized mysql2 pool settings — DATABASE_MAX_CONNECTIONS / MARIADB_MAX_PREPARED are env-tunable
 {
   host: config.host,
   port: config.port,
@@ -186,22 +191,23 @@ export const authUsers = mysqlTable(
   password: config.password,
   database: config.database,
   waitForConnections: true,
-  connectionLimit: 100,          // Max concurrent connections
-  maxIdle: 50,                   // MARIADB_MAX_IDLE (default 50)
-  idleTimeout: 0,                // MARIADB_IDLE_TIMEOUT ms (default 0 = permanently warm)
+  connectionLimit: hw.dbPoolSize, // 2 per budget core; DATABASE_MAX_CONNECTIONS overrides
+  maxIdle: Math.max(hw.dbPoolMin, 2), // hardware profile (DB_POOL_MIN)
+  idleTimeout: 60000,            // ms before an idle pooled connection is closed
   queueLimit: 0,                 // Unlimited queue
   enableKeepAlive: true,         // TCP keepalive — prevents silent NAT/firewall drops
-  keepAliveInitialDelay: 0,      // MARIADB_KEEPALIVE_DELAY ms (0 = immediate)
+  keepAliveInitialDelay: 0,      // 0 = immediate
   maxPreparedStatements: 2000,   // MARIADB_MAX_PREPARED (Drizzle dynamic collections)
 }
 ```
 
-| Setting                 | Default | Env Var                   | Purpose                                                                                                                                                              |
-| ----------------------- | ------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `idleTimeout`           | **0**   | `MARIADB_IDLE_TIMEOUT`    | **0 = permanently warm** — eliminates reconnect storms on bursty load. Set to positive ms (e.g. `300000` = 5 min) only behind ProxySQL/MaxScale in transaction mode. |
-| `maxIdle`               | 50      | `MARIADB_MAX_IDLE`        | Max idle connections to keep warm in the pool.                                                                                                                       |
-| `keepAliveInitialDelay` | 0       | `MARIADB_KEEPALIVE_DELAY` | Delay in ms before first TCP keepalive ping. 0 = immediate (default).                                                                                                |
-| `maxPreparedStatements` | 2 000   | `MARIADB_MAX_PREPARED`    | Drizzle’s dynamic collection tables exceed mysql2’s 100-statement default without this.                                                                              |
+| Setting                 | Default | Env Var                    | Purpose                                                                                                                                             |
+| ----------------------- | ------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectionLimit`       | hw pool | `DATABASE_MAX_CONNECTIONS` | Max concurrent connections — 2 per budget core (`DB_POOL_SIZE`); raise for large servers, keep low on shared hosts.                                 |
+| `idleTimeout`           | 60 000  | —                          | Milliseconds an idle pooled connection is kept before it is closed (mysql2 `idleTimeout`); shorten it behind ProxySQL/MaxScale in transaction mode. |
+| `maxIdle`               | hw tier | —                          | Max idle connections kept warm in the pool (hardware profile, `DB_POOL_MIN`).                                                                       |
+| `keepAliveInitialDelay` | 0       | —                          | Delay in ms before first TCP keepalive ping. 0 = immediate (default).                                                                               |
+| `maxPreparedStatements` | 2 000   | `MARIADB_MAX_PREPARED`     | Drizzle’s dynamic collection tables exceed mysql2’s 100-statement default without this.                                                             |
 
 ### Health Monitoring
 
@@ -233,7 +239,10 @@ sequenceDiagram
     D-->>B: Tables Created/Verified
     B-->>A: { success: true }
     A-->>S: Ready
+    Note over B,D: skipped when the stored fingerprint matches
 ```
+
+An unchanged release skips the whole pass: `bootstrapSystemSchema` compares a sha-256 of `SYSTEM_SCHEMA` (per dialect) stored in `svelty_schema_state` and returns `{ success: true, skipped: true }` without executing DDL. A spec change re-runs it, and a pass with a failed statement does not store the marker, so a half-applied schema is retried instead of trusted.
 
 ```
 // src/databases/system-schema-spec.ts + core/system-schema-bootstrap.ts
@@ -246,15 +255,7 @@ sequenceDiagram
 
 ### Future Migration Management
 
-For schema changes after initial setup:
-
-```
-# Generate migration
-npm run db:push
-
-# View in Drizzle Studio
-npm run db:studio
-```
+There is no generated migration artifact and no Drizzle Kit script in this repository: `system-schema-spec.ts` is the only schema trail. A spec change changes the fingerprint, so the next boot re-runs the full `CREATE TABLE/INDEX IF NOT EXISTS` pass against the existing database — keep custom fields in the JSON `data` blob (or materialize them via `createModel`) so no manual `ALTER` step is needed.
 
 ---
 
@@ -630,11 +631,10 @@ MariaDB is a **production** SQL adapter (`SqlAdapterCore` + `mysql2`). For full 
 
 ### Repository Files
 
-- `src/databases/mariadb/schema/index.ts` - Schema definitions
+- `src/databases/mariadb/schema.ts` - Schema definitions
 - `src/databases/system-schema-spec.ts` - Declarative system schema (single source of truth)
 - `src/databases/core/system-schema-bootstrap.ts` - Boot-time renderer/executor
-- `src/databases/mariadb/utils.ts` - Helper functions
-- `MARIADB_IMPLEMENTATION.md` - Implementation guide
+- `src/databases/mariadb/adapter-core.ts` - MariaDB dialect hooks, pool setup and raw fast paths
 
 ---
 

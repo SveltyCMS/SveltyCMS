@@ -310,6 +310,34 @@ After a baseline reset or cold start, the system detects "warming-up" state:
 - Metrics >30% above recent average flag as warming
 - Prevents false regression alarms during baseline rebuilding
 
+### Long-Running Soak Contract (`longevity-soak.test.ts`)
+
+The soak is the only module that answers _"does anything grow with uptime?"_ — so its contract is explicit, and a verdict is only issued when the window can carry one.
+
+```bash
+# Long row, production parity, 30 s buckets, one hour (≥ 15 min steady window required)
+LONG_SOAK_HOURS=1 LONG_SOAK_SAMPLE_SEC=30 SVELTY_BENCHMARK_SERVER_MODE=production bun test tests/benchmarks/longevity-soak.test.ts
+
+# Controls — same host, same DB, no new rows / no workers
+LONG_SOAK_PROFILE=read-only LONG_SOAK_HOURS=0.75 SVELTY_BENCHMARK_SERVER_MODE=production bun test tests/benchmarks/longevity-soak.test.ts
+LONG_SOAK_PROFILE=idle      LONG_SOAK_HOURS=0.75 SVELTY_BENCHMARK_SERVER_MODE=production bun test tests/benchmarks/longevity-soak.test.ts
+```
+
+**Profile axis** — growth is only attributable against a control: mixed is the production mix; `read-only` re-points the write slot at schema resolution (same request rate, no new rows); `idle` runs **no** workers (only the bucket health probe). An invalid profile value fails the run instead of silently falling back to `mixed`.
+
+**Per-bucket series** (flushed to `tests/benchmarks/results/<adapter>/soak-series-<profile>-<stamp>.json` after **every** bucket, so an aborted run still leaves a curve): `rss`, `heapUsed`, `heapTotal`, `external`, `arrayBuffers`, the derived **native/other residual** (`rss − heapTotal − external`), host CPU busy %, and the bucket's reqs/s, rolling avg + p95, error count.
+
+| Metric row                     | Meaning                                                                                                |
+| :----------------------------- | :----------------------------------------------------------------------------------------------------- |
+| `soak.resid_slope_mb_min`      | Full steady-window slope of the native/other residual                                                  |
+| `soak.resid_tail_slope_mb_min` | Tail slope of the same residual — rising with flat `heapTotal` is JIT/native, not an object graph      |
+| `soak.rss_tail_slope_t`        | `t` of the RSS tail slope (slope ÷ standard error) — the verdict's distinguishability gate             |
+| `soak.steady_window_min`       | Length of the window that excludes the warm-up cut — below 15 min the verdict is `INSUFFICIENT WINDOW` |
+
+The residual is what names the _owner_ of an off-heap verdict: native allocators (SQLite, zlib) and JIT code space live there, and a **falling** residual means the working set is being trimmed, not that memory was released.
+
+**Probe contract** — the bucket series is read from `GET /api/system/health?verbose=true`, whose `memory` object must expose `rss`, `heapTotal`, `heapUsed`, `external` **and `arrayBuffers`** (`src/hooks.server.ts`). A missing field reads as `0.00` for the whole run, so an omitted `arrayBuffers` silently disables the buffer-growth half of the off-heap branch. Recorded evidence and the profile matrix: [achievements-2026](../../project/achievements-2026.mdx).
+
 ### Executive Summaries
 
 Each report includes:

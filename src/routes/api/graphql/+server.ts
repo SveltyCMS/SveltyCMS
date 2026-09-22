@@ -78,6 +78,37 @@ const isIntrospectionBlocked = () =>
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 
+/**
+ * True when the operation selects an introspection field (`__schema` / `__type`).
+ *
+ * graphql-jit cannot compile those operations: the specification types declare
+ * arguments with defaults (`__Type.fields(includeDeprecated: Boolean! = false)`) and the
+ * compiler demands every argument in the AST instead of applying the schema default, so
+ * `__schema { types { name } }` failed with `Argument "includeDeprecated" of required
+ * type "Boolean!" was not provided` (measured 2026-09-22 on the dev playground) and the
+ * client received a compiler error instead of the schema. Introspection is never on a
+ * hot path, so it runs on the default executor; production still blocks it during
+ * validation, before execution is reached.
+ */
+function selectsIntrospectionFields(document?: DocumentNode | null): boolean {
+  if (!document?.definitions?.length) return false;
+  for (const definition of document.definitions) {
+    const root = definition as { selectionSet?: { selections?: unknown[] } };
+    if (!root.selectionSet?.selections) continue;
+    const stack: unknown[] = [...root.selectionSet.selections];
+    while (stack.length > 0) {
+      const node = stack.pop() as {
+        name?: { value?: string };
+        selectionSet?: { selections?: unknown[] };
+      };
+      const name = node?.name?.value;
+      if (name === "__schema" || name === "__type") return true;
+      if (node?.selectionSet?.selections) stack.push(...node.selectionSet.selections);
+    }
+  }
+  return false;
+}
+
 const validatedDocuments = new WeakMap<DocumentNode, number>();
 
 function projectGraphqlFields(
@@ -588,7 +619,23 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
     const jitCache = new BoundedJITCache(1000);
     const plugins: any[] = [
       securityValidationPlugin,
-      useGraphQlJit({}, { cache: jitCache }),
+      useGraphQlJit(
+        {},
+        {
+          cache: jitCache,
+          // Introspection takes the default executor (`selectsIntrospectionFields`).
+          enableIf: ({ document }: { document?: DocumentNode }) =>
+            !selectsIntrospectionFields(document),
+          // The plugin's default compile-failure handler is `console.error`; route it
+          // through the app logger so the reason is visible in production logs.
+          onError: (compilationError: unknown) =>
+            logger.warn(
+              `[GraphQL] JIT compilation failed — the default executor returns the error: ${String(
+                (compilationError as { message?: string })?.message ?? compilationError,
+              )}`,
+            ),
+        },
+      ),
       executeSpanPlugin,
     ];
 

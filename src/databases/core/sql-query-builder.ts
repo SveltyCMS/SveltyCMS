@@ -41,6 +41,7 @@ import {
 } from "drizzle-orm";
 import type {
   BaseEntity,
+  BaseQueryOptions,
   DatabaseResult,
   PaginationOptions,
   QueryBuilder,
@@ -48,6 +49,7 @@ import type {
 } from "../db-interface";
 import { normalizeSortDirection } from "./page-utils";
 import * as utils from "./relational-utils";
+import { getJsonDataPatch } from "./json-data-patch";
 
 /**
  * Per-engine behavior surface for the shared SQL query builder.
@@ -125,6 +127,25 @@ export interface SqlQueryBuilderCore {
    * that omit it still convert, just via the generic key walk.
    */
   registerReadSchema?(collection: string): void;
+  /**
+   * Write-path helpers (SqlAdapterCore). Present on every SQL adapter; declared
+   * optional so the builder stays usable with a minimal structural core.
+   * `updateMany` needs them to route blob fields into the JSON `data` column and
+   * to merge a partial patch instead of replacing it.
+   */
+  prepareValues?(table: any, data: any, id: any, now: Date | string, options: any): any;
+  canMergeJsonInOneStatement?(patch: Record<string, unknown>): boolean;
+  applyJsonMergeToSet?(
+    values: Record<string, unknown>,
+    table: any,
+    patch: Record<string, unknown>,
+  ): void;
+  update?<T extends BaseEntity>(
+    collection: string,
+    id: any,
+    data: any,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<T>>;
 }
 
 export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
@@ -626,15 +647,54 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   async updateMany(data: Partial<T>): Promise<DatabaseResult<{ modifiedCount: number }>> {
     const startTime = Date.now();
     try {
-      let q = this.db
-        .update(this.table)
-        .set(
-          utils.convertISOToDates({
-            ...data,
-            updatedAt: new Date(),
-          }) as unknown as Record<string, unknown>,
-        )
-        .$dynamic();
+      const table = this.table;
+      // 🐛 PREPARE-PARITY: dumping the payload straight into Drizzle `.set()`
+      // silently DROPPED every field that is not a physical column (the
+      // Zahl-Feld class: blob fields like `title`/`count` never persisted). Route
+      // through the same `prepareValues` contract `crud.update` and
+      // `batch.bulkUpdate` use, so dynamic fields land in the JSON `data` blob and
+      // a partial patch MERGES instead of replacing it.
+      const prepared = (
+        this.core.prepareValues
+          ? this.core.prepareValues(table, data, undefined, new Date(), {
+              isUpdate: true,
+              operation: "update",
+            })
+          : { ...data, updatedAt: new Date() }
+      ) as Record<string, unknown>;
+      const jsonPatch = getJsonDataPatch(prepared);
+
+      if (jsonPatch && this.core.canMergeJsonInOneStatement?.(jsonPatch) === false) {
+        // Nested-object / explicit-null patch on SQLite/MariaDB: the dialect
+        // operator cannot express a shallow merge, so each matching row is merged
+        // against its own stored blob through the full single-row write path.
+        const idCol = table._id ?? table.id;
+        const rows = (await this.db
+          .select({ id: idCol })
+          .from(table)
+          .where(this.conditions.length > 0 ? and(...this.conditions) : sql`1 = 1`)) as Array<{
+          id: string;
+        }>;
+        let modifiedCount = 0;
+        for (const row of rows) {
+          const res = await this.core.update?.(this.collection, row.id, data as any);
+          if (res?.success) modifiedCount++;
+        }
+        return {
+          success: true,
+          data: { modifiedCount },
+          meta: { executionTime: Date.now() - startTime },
+        };
+      }
+
+      // Single statement: merge inside the UPDATE (no read) when a patch is live.
+      if (jsonPatch) this.core.applyJsonMergeToSet?.(prepared, table, jsonPatch);
+      const drizzleSet = utils.convertISOToDates(
+        { ...prepared, updatedAt: prepared.updatedAt ?? new Date() },
+        this.dateConversionOptions,
+      ) as unknown as Record<string, unknown>;
+
+      let q = this.db.update(this.table).set(drizzleSet).$dynamic();
       if (this.conditions.length > 0) {
         q = q.where(and(...this.conditions));
       }

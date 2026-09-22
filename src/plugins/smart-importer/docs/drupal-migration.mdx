@@ -1,4 +1,5 @@
 ---
+path: "src/plugins/smart-importer/docs/drupal-migration"
 id: "smart-importer-drupal-guide"
 title: "Drupal → SveltyCMS Migration Guide"
 description: "Complete step-by-step guide for migrating Drupal 9/10 sites to SveltyCMS — content types, taxonomies, media, users, revisions, and Views."
@@ -11,6 +12,7 @@ tags:
   - migration
   - guide
   - step-by-step
+updated: "2026-09-22"
 ---
 
 # Drupal → SveltyCMS Migration Guide
@@ -36,7 +38,7 @@ This guide walks you through migrating a Drupal 9/10 site to SveltyCMS. It cover
 
 | Drupal Feature               | Why                           | SveltyCMS Alternative                                                                                   |
 | :--------------------------- | :---------------------------- | :------------------------------------------------------------------------------------------------------ |
-| **Views**                    | Database queries, not content | [Collection Presets](/docs/guides/content/collections) — saved filters + sorts                          |
+| **Views**                    | Database queries, not content | [Smart Table](/docs/reference/components/smart-table) — filtered + sorted collection lists              |
 | **Rules / Workflows**        | PHP logic                     | [Automations](/docs/guides/content/automations.mdx) — event-driven tasks                                |
 | **Custom Modules**           | PHP code                      | [Plugins](/docs/reference/architecture/plugin-architecture.mdx) or [Widgets](/docs/development/widgets) |
 | **Themes**                   | Twig/PHP templates            | [Design System](/docs/guides/configuration/admin-theme-settings) — admin theme + Tailwind v4            |
@@ -170,7 +172,7 @@ composer require drupal/single_content_sync
 drush en single_content_sync -y
 ```
 
-### Step 2 — Export from Drupal
+### Step 2 — Export from Drupal {#method-b-step-2-export}
 
 1. Go to **Content** → find the nodes you want to export.
 2. Select multiple nodes, choose **Export content** from the action dropdown.
@@ -182,7 +184,7 @@ Or via Drush:
 drush content:export node 1,2,3 --output=/tmp/export
 ```
 
-### Step 3 — Import into SveltyCMS
+### Step 3 — Import into SveltyCMS {#method-b-step-3-import}
 
 1. Drag the `.yml` file onto the upload area.
 2. The importer auto-detects Drupal YAML format.
@@ -202,13 +204,13 @@ composer require drupal/content_export_csv
 drush en content_export_csv -y
 ```
 
-### Step 2 — Export from Drupal
+### Step 2 — Export from Drupal {#method-c-step-2-export}
 
 1. Go to **Content → Content Export** (`/admin/content/content-export`).
 2. Choose content type (e.g., Article) and click **Export**.
 3. Download the `.csv` file.
 
-### Step 3 — Import into SveltyCMS
+### Step 3 — Import into SveltyCMS {#method-c-step-3-import}
 
 1. Drag the `.csv` file onto the upload area.
 2. The importer auto-detects headers as field names.

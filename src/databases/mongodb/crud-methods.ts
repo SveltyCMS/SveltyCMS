@@ -523,7 +523,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
               // pipeline) — Mongoose re-validating every document on the hot
               // update path is pure CPU overhead.
               runValidators: false,
+              // 🚀 Mongoose Performance: Skip redundant update object cloning
               cloneUpdate: false,
+              // 🐛 PARITY: Mongoose `strict` (the schema default) DROPS $set paths
+              // that are not in the model schema — dynamic collection fields were
+              // silently discarded on update while the SQL adapters store them in
+              // the JSON `data` blob. Writes follow the payload; the namespace /
+              // field-permission layer is what enforces schema rules.
+              strict: false,
             },
           )
           .exec();
@@ -568,6 +575,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
             runValidators: false,
             // 🚀 Mongoose Performance: Skip redundant update object cloning
             cloneUpdate: false,
+            // 🐛 PARITY: see the fast-path note — `strict` drops undeclared $set
+            // paths, which is how dynamic fields vanished on MongoDB updates.
+            strict: false,
           },
         )
         .exec();
@@ -606,6 +616,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }),
       );
       const updateOptions: any = { cloneUpdate: false };
+      // 🐛 PARITY: without this, Mongoose `strict` drops every $set path that is not
+      // in the model schema — dynamic fields were silently not written. SQL adapters
+      // store them in the JSON `data` blob instead of discarding them.
+      updateOptions.strict = false;
       if (options.hints?.mongo?.writeConcern) {
         updateOptions.w = options.hints.mongo.writeConcern;
       }

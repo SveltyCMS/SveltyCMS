@@ -82,7 +82,9 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
       const filter = applyTenantFilterToMongoQuery({ _id: { $in: ids } }, options);
       const data = { ...updates[0].data, updatedAt: nowISODateString() } as Record<string, unknown>;
       const { _id: _idOut, createdAt: _createdAt, ...set } = data;
-      const result = await model.updateMany(filter, { $set: set });
+      // 🐛 PARITY: `strict: false` keeps undeclared $set paths (dynamic fields);
+      // Mongoose's schema default silently dropped them.
+      const result = await model.updateMany(filter, { $set: set }, { strict: false });
       return {
         success: true as const,
         data: { modifiedCount: result.modifiedCount ?? -1 },
@@ -102,7 +104,12 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
           },
         };
       });
-      const result = await model.bulkWrite(bulkOps, { ordered: true });
+      const result = await model.bulkWrite(bulkOps, {
+        ordered: true,
+        // 🐛 PARITY: bulkWrite casts through the schema by default, which would drop
+        // undeclared $set paths (dynamic fields) exactly like the single-row path did.
+        strict: false,
+      });
       return {
         success: true as const,
         data: { modifiedCount: result.modifiedCount },

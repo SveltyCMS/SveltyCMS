@@ -29,7 +29,11 @@ const COLLECTION = process.env.MUTATION_TEST_COLLECTION || "mutation_contract_en
 const SCHEMA = {
   _id: COLLECTION,
   name: COLLECTION,
-  fields: [{ db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" }],
+  fields: [
+    { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+    { db_fieldName: "body", label: "Body", widget: { Name: "Input" }, type: "string" },
+    { db_fieldName: "views", label: "Views", widget: { Name: "Input" }, type: "number" },
+  ],
 };
 
 function entriesFrom(body: unknown): Record<string, unknown>[] {
@@ -157,5 +161,41 @@ describe("Collection mutation HTTP contract", () => {
     // instead of mutating the selected rows. Batch must never invent those stubs.
     expect(afterBatch.some((row) => row.action === "delete")).toBe(false);
     expect(afterBatch.some((row) => row.action === "clone")).toBe(false);
+  }, 120_000);
+
+  it("keeps the untouched fields of a partial PATCH (single-field update)", async () => {
+    const stamp = Date.now();
+    const title = `patch-keep-${stamp}`;
+
+    const created = await jsonFetch(`/api/collections/${COLLECTION}`, {
+      method: "POST",
+      body: JSON.stringify({ title, body: "long body text", views: 1, status: "draft" }),
+    });
+    expect([200, 201]).toContain(created.response.status);
+    const id = entryId((created.body.data ?? created.body) as Record<string, unknown>);
+    expect(id.length).toBeGreaterThan(0);
+    createdIds.push(id);
+
+    // The reported shape: a PATCH body carrying ONE dynamic field. Until the JSON
+    // `data` blob merged, this replaced the whole blob — a 1.5 KB document came back
+    // as a ~60-byte stub holding just `{ views, updatedBy }`.
+    const patched = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ views: 2 }),
+    });
+    expect(patched.response.ok).toBe(true);
+    const patchedRow = (patched.body.data ?? patched.body) as Record<string, unknown>;
+    expect(patchedRow.title).toBe(title);
+    expect(patchedRow.body).toBe("long body text");
+    expect(Number(patchedRow.views)).toBe(2);
+
+    // Re-read: the persisted row — not just the write response — must be intact.
+    const fetched = await jsonFetch(`/api/collections/${COLLECTION}/${id}`);
+    expect(fetched.response.ok).toBe(true);
+    const row = (fetched.body.data ?? fetched.body) as Record<string, unknown>;
+    expect(row.title).toBe(title);
+    expect(row.body).toBe("long body text");
+    expect(Number(row.views)).toBe(2);
+    expect(row.status).toBe("draft");
   }, 120_000);
 });

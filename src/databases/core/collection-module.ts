@@ -55,7 +55,15 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
           },
           aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
             const res = await this.crud.aggregate<R>(id, pipeline);
-            return res.success ? res.data : [];
+            if (!res.success) {
+              // The wrapper's contract is `R[]`, so a refusal/error would otherwise
+              // look like "no rows" — log the reason instead of swallowing it.
+              logger.warn(
+                `[CollectionModel.aggregate] ${id}: ${res.error?.code ?? "ERROR"} — ${res.message}`,
+              );
+              return [];
+            }
+            return res.data;
           },
         };
         this.modelRegistry.set(id, wrappedModel);
@@ -92,7 +100,13 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       },
       aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
         const res = await this.crud.aggregate<R>(id, pipeline);
-        return res.success ? res.data : [];
+        if (!res.success) {
+          logger.warn(
+            `[CollectionModel.aggregate] ${id}: ${res.error?.code ?? "ERROR"} — ${res.message}`,
+          );
+          return [];
+        }
+        return res.data;
       },
     };
 

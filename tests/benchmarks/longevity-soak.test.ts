@@ -6,9 +6,13 @@
  *
  * Features:
  * - **Full per-bucket series** — `rss` / `heapUsed` / `heapTotal` / `external` / `arrayBuffers` (MB),
- *   host CPU busy %, and per-bucket load (reqs/s, rolling avg + p95, errors). The series is flushed to
+ *   the derived **native/other residual** (`rss − heapTotal − external`), host CPU busy %, and per-bucket
+ *   load (reqs/s, rolling avg + p95, errors). The series is flushed to
  *   `tests/benchmarks/results/<adapter>/soak-series-<profile>-<stamp>.json` after **every** bucket, so an
  *   aborted multi-hour run still leaves an auditable curve, and printed in full at the end.
+ *   The residual is trended explicitly because it is the series that names the *owner* of an off-heap
+ *   verdict: `heapTotal` flat + residual rising is JIT/native, a falling residual is working-set trimming
+ *   (Windows trims resident pages long before the commit charge shrinks), not freed memory.
  * - **Control axis** (`LONG_SOAK_PROFILE=mixed|read-only|idle`) — growth is only attributable with a
  *   control: a retained object graph grows with load, V8 heap commitment and native ceilings grow *to* a
  *   ceiling. `mixed` is the production mix; `read-only` re-points the 10 % write slot at schema
@@ -115,6 +119,13 @@ type SoakSample = {
   heapTotalMB: number;
   externalMB: number;
   arrayBuffersMB: number;
+  /**
+   * RSS that is neither V8's committed heap nor `external` — JIT code space, native
+   * allocators (SQLite, zlib), thread stacks and their guard pages. Rising while
+   * `heapTotalMB` is flat is the native/off-heap signature; falling means the working set
+   * is being trimmed, not that memory was released.
+   */
+  residMB: number;
   /** Host-wide CPU busy % over the bucket (all processes — includes this load generator). */
   cpuBusyPct: number;
   /** Actual bucket length; the sampler's sleep is only a target. */
@@ -293,6 +304,11 @@ async function runSoakTest() {
       node: process.version,
     },
   };
+  /** Successful creates — the only path that grows the dataset during a soak. Declared before
+   * `writeSeries` reads it: the first flush (empty series, right below) otherwise threw a
+   * temporal-dead-zone ReferenceError that the surrounding catch swallowed, silently dropping
+   * the only artifact an aborted run leaves. */
+  let writeReqs = 0;
   const writeSeries = (verdict?: string) => {
     try {
       fs.writeFileSync(
@@ -353,6 +369,7 @@ async function runSoakTest() {
         heapTotalMB: parseFloat(mem.heapTotalMB.toFixed(2)),
         externalMB: parseFloat(mem.externalMB.toFixed(2)),
         arrayBuffersMB: parseFloat(mem.arrayBuffersMB.toFixed(2)),
+        residMB: parseFloat((mem.rssMB - mem.heapTotalMB - mem.externalMB).toFixed(2)),
         cpuBusyPct: Number(busyPctSince(prevCpu, cpuNow).toFixed(1)),
         bucketSec: Number(bucketSec.toFixed(1)),
         reqsPerSec: Number(((totalReqs - prevReqs) / bucketSec).toFixed(1)),
@@ -396,8 +413,6 @@ async function runSoakTest() {
   const mutationUrl = `${baseUrl}/api/collections/BenchmarkStable`;
 
   let mutationId = 0;
-  /** Successful creates — the only path that grows the dataset during a soak. */
-  let writeReqs = 0;
 
   // Workload definition with cumulative CDF weights for O(1) selection.
   // Default mix: 35 % health, 25 % list, 20 % item read, 10 % schema, 10 % write.
@@ -537,6 +552,8 @@ async function runSoakTest() {
   const heapTotalTailSlope = calcSlopeOn("heapTotalMB", tailSamples);
   const externalTailSlope = calcSlopeOn("externalMB", tailSamples);
   const arrayBuffersTailSlope = calcSlopeOn("arrayBuffersMB", tailSamples);
+  const residSlope = calcSlopeOn("residMB", steadySamples);
+  const residTailSlope = calcSlopeOn("residMB", tailSamples);
 
   const firstSample = samples[0];
   const lastSample = samples[samples.length - 1] || firstSample;
@@ -668,6 +685,11 @@ async function runSoakTest() {
       },
       { key: "External Tail Growth", val: mb(externalTailSlope.perMin), unit: "MB/min" },
       { key: "ArrayBuffers Tail Growth", val: mb(arrayBuffersTailSlope.perMin), unit: "MB/min" },
+      {
+        key: "Native/Other Tail Growth (t)",
+        val: `${mb(residTailSlope.perMin)} (${residTailSlope.t.toFixed(1)})`,
+        unit: "MB/min",
+      },
       { key: "Latency Drift Rate", val: latencySlope.perMin.toFixed(3), unit: "ms/min" },
       {
         key: "Host CPU Busy (baseline → avg)",
@@ -718,6 +740,12 @@ async function runSoakTest() {
   exportMetric(
     "soak.array_buffers_tail_slope_mb_min",
     parseFloat(arrayBuffersTailSlope.perMin.toFixed(4)),
+    "MB/min",
+  );
+  exportMetric("soak.resid_slope_mb_min", parseFloat(residSlope.perMin.toFixed(4)), "MB/min");
+  exportMetric(
+    "soak.resid_tail_slope_mb_min",
+    parseFloat(residTailSlope.perMin.toFixed(4)),
     "MB/min",
   );
   exportMetric("soak.rss_tail_slope_t", parseFloat(rssTailSlope.t.toFixed(3)), "t");

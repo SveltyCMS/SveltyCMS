@@ -28,6 +28,7 @@ import { MongoMediaModule } from "./media-module";
 import { MongoSystemModule } from "./system-module";
 import { MongoMonitoringModule } from "./monitoring-module";
 import { MongoCollectionModule } from "./collection-module";
+import { normalizeCollectionName } from "./mongodb-utils";
 import { MongoBatchModule } from "./batch-module";
 import { MongoTransactionModule } from "./transaction-module";
 import { MongoQueryBuilder } from "./mongo-query-builder";
@@ -196,7 +197,13 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   }
 
   queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T> {
-    const model = this._getOrCreateModel(collection);
+    // 🐛 RESOLUTION-PARITY FIX: content collections register their Mongoose model
+    // under the NORMALIZED name (see MongoCollectionMethods.createModel), but this
+    // used the raw name. The lookup missed, `_getOrCreateModel` then built a generic
+    // model bound to a DIFFERENTLY named MongoDB collection — so every builder
+    // operation (find/count/updateMany/deleteMany) silently ran against an empty
+    // collection while `crud.*` worked. Resolve exactly like MongoCrudModule._getRepo.
+    const model = this._getOrCreateModel(normalizeCollectionName(collection));
     return new MongoQueryBuilder<T>(model as any);
   }
 

@@ -69,6 +69,13 @@ import {
   withIdTiebreaker,
 } from "./page-utils";
 import { applyLookupStatus, extractPkConflictId, parseIdLookup } from "./lookup-query";
+import {
+  clearJsonDataPatch,
+  getJsonDataPatch,
+  jsonPatchNeedsJsMerge,
+  setJsonDataPatch,
+} from "./json-data-patch";
+import { translateAggregation } from "./aggregation-translator";
 
 // ============================================================================
 // System table schema pre-registration (module scope — evaluated once)
@@ -101,6 +108,13 @@ utils.registerTableSchema("authSessions", [
   "amr", // JSON array column — normalised by normalizeSessionAmr
   "mfaVerifiedAt", // timestamp column (DATE_FIELDS)
 ]);
+
+// ============================================================================
+// Partial-update JSON `data` merge
+// ============================================================================
+// The patch marker + helpers live in `json-data-patch.ts` (a leaf module — this
+// file imports BatchModule, so pulling the helpers in here would create a cycle).
+// Callers import them from there; this file re-exports nothing.
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -367,6 +381,139 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Whether prepareValues should JSON.stringify object values (SQLite TEXT columns need it). */
   protected get shouldJsonSerializeInPrepare(): boolean {
     return false;
+  }
+
+  /**
+   * How a partial update merges the patch's dynamic fields into the `data`
+   * column (MongoDB gets the same semantics from `$set` per field):
+   *
+   * - `"operator"` — the dialect's merge operator is an **exact** shallow merge
+   *   that keeps explicit nulls (PostgreSQL `jsonb || jsonb`). Any patch is
+   *   merged in SQL, no read, no exception.
+   * - `"subset"` — the dialect operator (`SQLite json_patch`, `MariaDB
+   *   JSON_MERGE_PATCH`) is RFC 7396: it merges nested objects **recursively**
+   *   and deletes keys whose patch value is `null`. Both deviate from the
+   *   shallow/keep-null contract, so patches containing nested objects or
+   *   explicit nulls are hydrated and merged in JS instead (see
+   *   `hydrateJsonDataPatch`); scalar/array-only patches still merge in SQL.
+   */
+  protected get jsonPatchMergeMode(): "operator" | "subset" {
+    return "operator";
+  }
+
+  /**
+   * Merge a partial-update JSON patch into `values.data` in JS, reading the
+   * stored blob first. Only called when `jsonPatchMergeMode === "subset"` and the
+   * patch is outside what `json_patch`/`JSON_MERGE_PATCH` express exactly, or when
+   * the SQL fast paths bailed and the Drizzle fallback would otherwise write the
+   * patch as the whole blob. Clears the patch marker, so every SQL builder after
+   * this point writes a complete blob.
+   *
+   * Throws on a read failure: failing the write is the only fail-closed option —
+   * falling through would persist the patch as the entire document.
+   */
+  protected async hydrateJsonDataPatch(
+    values: Record<string, unknown>,
+    table: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<void> {
+    const patch = getJsonDataPatch(values);
+    if (!patch) return;
+    const stored = await this.readJsonDataColumn(table, id, options);
+    if (stored === null) {
+      throw new Error(
+        `Cannot merge partial update: no row "${String(id)}" to merge into (fail-closed, nothing written)`,
+      );
+    }
+    const merged: Record<string, unknown> = { ...stored };
+    for (const key in patch) {
+      if (Object.hasOwn(patch, key)) merged[key] = patch[key];
+    }
+    values.data = this.shouldJsonSerializeInPrepare ? JSON.stringify(merged) || "{}" : merged;
+    clearJsonDataPatch(values);
+  }
+
+  /**
+   * SQL wrapper that merges a bound JSON patch parameter into the `data` blob:
+   * the column's SET expression becomes `<prefix><param><suffix>`. PostgreSQL's
+   * `jsonb || jsonb` is an exact shallow merge; SQLite `json_patch` and MariaDB
+   * `JSON_MERGE_PATCH` are RFC 7396 (recursive, null-deleting), so callers only
+   * use them for patches `jsonPatchNeedsJsMerge()` clears. The default is the
+   * PostgreSQL form — `jsonPatchMergeMode` is `"operator"` there.
+   */
+  protected jsonMergeWrapper(colSql: string): { prefix: string; suffix: string } {
+    return { prefix: `COALESCE(${colSql}, '{}'::jsonb) || `, suffix: `::jsonb` };
+  }
+
+  /**
+   * Can the live JSON patch be merged inside ONE statement on this dialect?
+   * "operator" dialects always can; "subset" dialects only for the patches
+   * `json_patch`/`JSON_MERGE_PATCH` express identically to a shallow merge.
+   */
+  public canMergeJsonInOneStatement(patch: Record<string, unknown>): boolean {
+    return this.jsonPatchMergeMode === "operator" || !jsonPatchNeedsJsMerge(patch);
+  }
+
+  /**
+   * Drizzle SET value for the JSON `data` column: wrap a bound patch parameter in
+   * the dialect merge operator (`json_patch(coalesce("data", '{}'), $1)` …).
+   * Zero reads — the merge happens inside the UPDATE.
+   */
+  public jsonMergeSetValue(table: any, patch: Record<string, unknown>): SQL {
+    const physName = this.getColumn(table, "data")?.name ?? "data";
+    const { prefix, suffix } = this.jsonMergeWrapper(
+      this.quoteIdentifier(utils.assertSafeSqlIdentifier(physName, "column")),
+    );
+    return sql`${sql.raw(prefix)}${JSON.stringify(patch)}${sql.raw(suffix)}`;
+  }
+
+  /**
+   * Inject the dialect merge operator into Drizzle `.set()` values — the zero-read
+   * path, valid only for patches `canMergeJsonInOneStatement()` accepts.
+   */
+  public applyJsonMergeToSet(
+    values: Record<string, unknown>,
+    table: any,
+    patch: Record<string, unknown>,
+  ): void {
+    values.data = this.jsonMergeSetValue(table, patch);
+    clearJsonDataPatch(values);
+  }
+
+  /**
+   * Merge-aware Drizzle `.set()` values: injects the dialect merge operator for
+   * the `data` blob when the patch is expressible in one statement, and hydrates
+   * + merges in JS when it is not (SQLite/MariaDB + nested/null patch). Callers
+   * that write MANY rows in one statement must check `canMergeJsonInOneStatement()`
+   * first — hydration is per row and cannot live in a single SET clause.
+   */
+  public async mergeJsonPatchIntoSet(
+    values: Record<string, unknown>,
+    table: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<void> {
+    const patch = getJsonDataPatch(values);
+    if (!patch) return;
+    if (this.canMergeJsonInOneStatement(patch)) {
+      this.applyJsonMergeToSet(values, table, patch);
+      return;
+    }
+    await this.hydrateJsonDataPatch(values, table, id, options);
+  }
+
+  /**
+   * Read only the JSON `data` column of one row. Returned `null` means "no such
+   * row" — the caller treats that as an error (a merge needs something to merge
+   * into). Adapters whose dialect merges in SQL never call it.
+   */
+  protected async readJsonDataColumn(
+    _table: any,
+    _id: DatabaseId,
+    _options: BaseQueryOptions,
+  ): Promise<Record<string, unknown> | null> {
+    return null;
   }
 
   /** Whether findMany uses a raw-SQL dynamic path for benchmark/heavy tables. */
@@ -711,7 +858,41 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
       (f) => this.getJsonField(f),
       (v) => this.coerceJsonValue(v),
+      (f, v) => this.getJsonEquals(f, v),
+      (f, v, op) => this.getJsonCompare(f, v, op),
     );
+  }
+
+  /**
+   * Dialect hook for range comparisons (`$gt`/`$gte`/`$lt`/`$lte`) on a field that
+   * lives in the JSON `data` blob, or `null` to keep the extraction comparison
+   * (`data->>'field' >= $1`). PostgreSQL overrides it because its extraction is TEXT,
+   * which makes a numeric range LEXICOGRAPHIC — `views >= 4` missed stored `16`/`32`
+   * (`'16' < '4'`). Engines with typed extraction (SQLite) or coercing comparison
+   * (MariaDB) return `null` and stay on the plain path.
+   */
+  protected getJsonCompare(
+    _field: string,
+    _value: unknown,
+    _op: "$gt" | "$gte" | "$lt" | "$lte",
+  ): SQL | null {
+    return null;
+  }
+
+  /**
+   * Dialect hook: an **index-eligible** equality form for a field stored in the
+   * JSON `data` blob, or `null` to keep the extraction comparison
+   * (`data->>'field' = $1`), which no index can serve.
+   *
+   * Only reached for fields that were NOT materialized into a real column (those
+   * are compared as columns and are already index-served). PostgreSQL implements it
+   * as containment (`data @> '{"field": value}'::jsonb`) against the `jsonb_path_ops`
+   * GIN index created with every dynamic collection table; SQLite and MariaDB have
+   * no single index that serves arbitrary JSON paths, so they return `null` and rely
+   * on column materialization (`indexed` / `materialize: true` fields) instead.
+   */
+  protected getJsonEquals(_field: string, _value: unknown): SQL | null {
+    return null;
   }
 
   /**
@@ -943,6 +1124,23 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         values.data = JSON.stringify(dynamicData) || "{}";
       } else {
         values.data = dynamicData;
+      }
+      // Partial updates merge into the stored blob instead of replacing it. Only an
+      // explicit `replaceData: true` opts out — a partial payload must never delete the
+      // fields it does not mention, whatever the caller says about read-back.
+      //
+      // `skipReturning` used to imply the opt-out ("full document by contract"), which
+      // made the benchmark's no-read-back write path destroy the fields its two-field
+      // payload omitted — caught by the document-integrity guard in
+      // `tests/benchmarks/database-performance.test.ts`. Merging is safe there: the
+      // synthesized response reports only what the caller sent, i.e. it under-reports
+      // instead of claiming writes it did not make.
+      if (
+        isUpdate &&
+        hasDynamicKeys &&
+        (options as { replaceData?: boolean })?.replaceData !== true
+      ) {
+        setJsonDataPatch(values, dynamicData);
       }
     }
 
@@ -1906,6 +2104,18 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     const tenantCol = this.getColumn(table, "tenantId");
     utils.applyTenantFilter(conditions, tenantCol, options);
 
+    // 🔀 PARTIAL-UPDATE MERGE: when this payload patches the JSON `data` blob, the
+    // dialect merge operator handles it inside the UPDATE (no read). Dialects whose
+    // operator is only exact for a subset of patches (SQLite/MariaDB `json_patch` /
+    // `JSON_MERGE_PATCH` are RFC 7396: recursive, null-deleting) hydrate and merge
+    // the blob in JS first, so every path — raw, Drizzle, or the RETURNING
+    // reconstruction — writes a complete document and a PATCH can never destroy
+    // the fields it did not mention.
+    const jsonPatch = getJsonDataPatch(values);
+    if (jsonPatch && this.jsonPatchMergeMode === "subset" && jsonPatchNeedsJsMerge(jsonPatch)) {
+      await this.hydrateJsonDataPatch(values, table, id, options);
+    }
+
     // 🚀 NO-READ-BACK PATH: when the caller sends the full document
     // (bulkUpdate, full-doc sync), RETURNING's row read-back + JSON
     // parse/conversion is pure overhead — every column the UPDATE writes
@@ -1928,6 +2138,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         ? await this.runHooks("after", "update", collection, rawRow, options)
         : rawRow;
     }
+
+    // The raw path may have bailed (unsupported RETURNING, transaction without a
+    // raw handle, SQL error) while the patch marker is still live — the plain
+    // `SET "data" = <patch>` below would then replace the blob. Merge inside the
+    // UPDATE where the dialect allows it (no read at all), otherwise hydrate.
+    await this.mergeJsonPatchIntoSet(values, table, id, options);
 
     const drizzleUpdate = this.persistTimestampsAsDate
       ? values
@@ -2005,6 +2221,31 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
         const values = this.prepareUpdateValues(table, data, null, this.writeNow(), options);
         const whereCondition = this.mapQuery(table, query, options);
+
+        // 🔀 PARTIAL-UPDATE MERGE: a payload that patches the JSON `data` blob must
+        // merge, not replace. One statement handles it whenever the dialect's
+        // operator matches the contract (always on PostgreSQL, and on SQLite/MariaDB
+        // for scalar/array patches) — no read, no extra round trip. A nested-object
+        // or explicit-null patch on those two engines cannot be expressed in a single
+        // SET, so the matching rows are merged individually (each one hydrates its own
+        // blob) instead of silently replacing every unmentioned field.
+        const jsonPatch = getJsonDataPatch(values);
+        if (jsonPatch) {
+          if (this.canMergeJsonInOneStatement(jsonPatch)) {
+            values.data = this.jsonMergeSetValue(table, jsonPatch);
+            clearJsonDataPatch(values);
+          } else {
+            const modifiedCount = await this.updateMatchingRowsIndividually(
+              collection,
+              table,
+              whereCondition,
+              data,
+              options,
+            );
+            return { modifiedCount };
+          }
+        }
+
         const drizzleMany = this.persistTimestampsAsDate
           ? values
           : utils.convertISOToDates(
@@ -2034,6 +2275,37 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       undefined,
       { ...options, isWrite: true },
     );
+  }
+
+  /**
+   * Merge a patch row by row, for the shapes a single `SET` cannot express (SQLite/
+   * MariaDB + nested-object or explicit-null patch). Reuses the full single-row write
+   * path, so the patch marker, the raw fast path and the JS hydration all behave
+   * exactly as they do for `crud.update`. Returns the number of rows written.
+   *
+   * Membership is resolved with one projection query on the same condition; a row that
+   * disappears between that read and its update simply reports no result.
+   */
+  private async updateMatchingRowsIndividually<T extends BaseEntity>(
+    collection: string,
+    table: any,
+    whereCondition: SQL,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions,
+  ): Promise<number> {
+    const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+    if (!idCol) throw new Error("ID column not found");
+    const rows = (await this.getDrizzleInstance(options)
+      .select({ id: idCol })
+      .from(table)
+      .where(whereCondition)) as Array<{ id: DatabaseId }>;
+
+    let modifiedCount = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const res = await this.update<T>(collection, rows[i].id, data, options);
+      if (res.success) modifiedCount++;
+    }
+    return modifiedCount;
   }
 
   // --------------------------------------------------------------------------
@@ -2278,6 +2550,35 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   /**
+   * Conflict-branch SET expression for the JSON `data` column: the dialect merge of the
+   * STORED blob with the row the INSERT proposed (`excluded."data"` on PostgreSQL/SQLite,
+   * `VALUES(data)` on MariaDB).
+   *
+   * The stored side is TABLE-QUALIFIED: inside `ON CONFLICT … DO UPDATE` PostgreSQL reads a
+   * bare `"data"` as ambiguous between the target row and `excluded` (verified: `ERROR:
+   * column reference "data" is ambiguous`), while a plain UPDATE has no such ambiguity.
+   *
+   * Assigning the proposed blob wholesale — the behaviour this replaces — deleted every
+   * field a partial upsert payload omitted, while MongoDB's `$set` kept them; the parity
+   * suite's `keeps the fields a partial upsert payload does not mention` case pins the
+   * contract, and the benchmark's document-integrity guard is what surfaced it.
+   */
+  protected jsonUpsertMergeSet(table: any): SQL {
+    const plainName = utils.assertSafeSqlIdentifier(
+      this.getColumn(table, "data")?.name ?? "data",
+      "column",
+    );
+    const tableName = utils.assertSafeSqlIdentifier(getTableName(table), "table");
+    const storedRef = `${this.quoteIdentifier(tableName)}.${this.quoteIdentifier(plainName)}`;
+    const { prefix, suffix } = this.jsonMergeWrapper(storedRef);
+    const mysql = this.type === "mariadb" || this.type === "mysql";
+    const incoming = mysql
+      ? sql`VALUES(${sql.identifier(plainName)})`
+      : sql`excluded.${sql.identifier(plainName)}`;
+    return sql`${sql.raw(prefix)}${incoming}${sql.raw(suffix)}`;
+  }
+
+  /**
    * One INSERT … ON CONFLICT (_id) / ON DUPLICATE KEY per chunk.
    * SQLite/PostgreSQL use `excluded.*`; MariaDB uses `VALUES()`.
    */
@@ -2327,6 +2628,31 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       setObj[k] = mysql
         ? sql`VALUES(${sql.identifier(phys)})`
         : sql`excluded.${sql.identifier(phys)}`;
+    }
+    // 🔀 PARTIAL-UPSERT MERGE: the conflict branch MERGES the JSON `data` blob instead of
+    // assigning the proposed one, so a payload that omits a field keeps the stored value
+    // (MongoDB `$set` semantics). A patch the dialect operator cannot express exactly
+    // (nested object / explicit null on SQLite + MariaDB, whose operators are RFC 7396)
+    // takes the per-row find→update path instead, which hydrates and merges in JS.
+    if (cols.has("data")) {
+      const mergeable = batchValues.every((v) => {
+        const patch = getJsonDataPatch(v);
+        return patch ? this.canMergeJsonInOneStatement(patch) : true;
+      });
+      if (!mergeable) {
+        const out: T[] = [];
+        for (const row of rows) {
+          const res = await this.upsertByFind(
+            collection,
+            { _id: row.id } as unknown as QueryFilter<T>,
+            row.data,
+            options,
+          );
+          if (res.success && res.data) out.push(res.data as T);
+        }
+        return out;
+      }
+      setObj.data = this.jsonUpsertMergeSet(table);
     }
     if (Object.keys(setObj).length === 0) {
       const idName = idCol.name || "_id";
@@ -2381,25 +2707,118 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   // --------------------------------------------------------------------------
-  // CRUD: aggregate (stub — adapters may override)
+  // CRUD: aggregate — MongoDB-style pipeline translated to SQL
   // --------------------------------------------------------------------------
 
+  /**
+   * Run an aggregation pipeline on a SQL engine.
+   *
+   * The pipeline is translated by `aggregation-translator.ts` into one statement:
+   * `$match` → `WHERE` (through `mapQuery`, so JSON fields, `getJsonEquals`
+   * containment and the tenant scope behave exactly like `find*`),
+   * `$group` → `GROUP BY` with `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`, `$sort` →
+   * `ORDER BY`, `$skip`/`$limit` → `OFFSET`/`LIMIT`, `$count`/`$project` → the
+   * select list. Without `$group`/`$project`/`$count` the projection stays the
+   * normal physical selection, i.e. the result is the same document shape
+   * `findMany` returns (what MongoDB's `aggregate` also does).
+   *
+   * Anything the translator cannot express (e.g. `$lookup`, `$unwind`, `$facet`,
+   * compound `$group._id`, out-of-order stages) returns a named `NOT_SUPPORTED`
+   * error — never a silently wrong result.
+   *
+   * Known shape difference from MongoDB: a group key or `$project`ed field taken
+   * from the JSON `data` blob comes back as the engine's extraction type (text on
+   * PostgreSQL/MariaDB, typed on SQLite) rather than a native BSON value.
+   */
   async aggregate<R>(
-    _collection: string,
-    _pipeline: unknown[],
-    _options: BaseQueryOptions = {},
+    collection: string,
+    pipeline: unknown[],
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<R[]>> {
-    // SQL engines have no MongoDB-style aggregation pipeline, so report the
-    // limitation honestly instead of silently returning an empty result that
-    // callers would mistake for a real aggregation.
-    return {
-      success: false,
-      message: "aggregate is not supported on this engine",
-      error: {
-        code: "NOT_SUPPORTED",
-        message: "aggregate is not supported on this engine",
+    const table = this.getTable(collection);
+    const plan = table
+      ? translateAggregation(pipeline, {
+          engine: this.type,
+          field: (name) =>
+            (this.getColumn(table, name) as SQL | undefined) ?? this.getJsonField(name),
+          numericField: (name) =>
+            (this.getColumn(table, name) as SQL | undefined) ?? this.getJsonNumericField(name),
+          match: (filter) => this.mapQuery(table, filter, options),
+          orderedField: (name) =>
+            (this.getColumn(table, name) as SQL | undefined) ?? this.getJsonOrderedField(name),
+        })
+      : null;
+
+    // Fail-closed refusals are RESULTS, and they must be returned OUTSIDE `wrap()`:
+    // `wrap` treats every returned value as success data, so an envelope returned
+    // inside its callback reaches the caller as `{ success: true, data: { success:
+    // false, … } }` — a refusal that reads as a success.
+    if (plan && !plan.ok) {
+      return {
+        success: false,
+        message: plan.message,
+        error: { code: "NOT_SUPPORTED", message: plan.message },
+      };
+    }
+
+    return this.wrap(
+      async () => {
+        if (!table || !plan) throw new Error(`Collection table not found: ${collection}`);
+
+        const conditions: SQL[] = [];
+        // Tenant scope, exactly like `find*`: `mapQuery` applies `applyTenantFilter`
+        // for an empty filter, so an aggregation can never span tenants.
+        const baseCondition = this.mapQuery(table, {}, options) as SQL | undefined;
+        if (baseCondition) conditions.push(baseCondition);
+        if (plan.where) conditions.push(plan.where);
+        const where = conditions.length === 0 ? undefined : and(...conditions);
+
+        let query = this.getDrizzleInstance(options)
+          .select((plan.select ?? this.getPhysicalSelection(table)) as Record<string, SQL>)
+          .from(table)
+          .where(where);
+        if (plan.groupBy?.length) query = query.groupBy(...plan.groupBy);
+        if (plan.orderBy?.length) query = query.orderBy(...plan.orderBy);
+        if (plan.limit !== undefined) query = query.limit(plan.limit);
+        if (plan.offset !== undefined) query = query.offset(plan.offset);
+
+        const rows = (await query) as Record<string, unknown>[];
+        return utils.convertArrayDatesToISO(rows, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as R[];
       },
-    };
+      "AGGREGATE_FAILED",
+      undefined,
+      { ...options, isWrite: false },
+    );
+  }
+
+  /**
+   * Numeric JSON extraction for aggregation: engines that render extracted JSON as
+   * text need a cast before `SUM`/`AVG`. Default: the plain extraction (SQLite's
+   * `json_extract` is already typed).
+   */
+  protected getJsonNumericField(field: string): SQL {
+    return this.getJsonField(field);
+  }
+
+  /**
+   * Ordering-safe extraction for `$min`/`$max` on a field that is NOT a column,
+   * or `null` when this dialect cannot order the field's values type-safely.
+   *
+   * MIN/MAX compare what the extraction *returns*: SQLite's typed `json_extract`
+   * compares numbers as numbers and strings as strings (and, like MongoDB's BSON
+   * order, sorts numbers before strings), so the default is the plain extraction.
+   * PostgreSQL and MariaDB return `null` — their extractions are TEXT, and MIN/MAX
+   * over text is lexicographic (measured 2026-09-22: both return `"10"` as the MIN
+   * of `{10, 2}`); PostgreSQL additionally has no `min(jsonb)` to fall back on.
+   *
+   * Materialized columns never reach this hook: they are ordered by the engine in
+   * their native column type, which is the recommended path for `$min`/`$max`.
+   */
+  protected getJsonOrderedField(field: string): SQL | null {
+    return this.getJsonField(field);
   }
 
   // --------------------------------------------------------------------------

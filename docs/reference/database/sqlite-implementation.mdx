@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-02-09"
-updated: "2026-08-21"
+updated: "2026-09-22"
 tags:
   - "database"
   - "sqlite"
@@ -62,16 +62,21 @@ Key SQLite highlights:
 
 - **WAL Mode**: Write-Ahead Logging enabled by default for concurrent read/write performance.
 
-- **Performance PRAGMAs**: 7 optimized PRAGMAs applied on connect:
+- **Performance PRAGMAs**: 9 optimized PRAGMAs applied on connect:
+  - `journal_mode = WAL` — concurrent read/write
   - `synchronous = NORMAL` — 2-5x faster writes (safe with WAL)
-  - `cache_size = -20000` — 20MB page cache
-  - `mmap_size = 536870912` — 512MB memory-mapped I/O
-  - `busy_timeout = 30000` — 30s wait vs immediate SQLITE_BUSY errors
-  - `temp_store = memory` — temp tables in RAM
   - `foreign_keys = ON` — enforce referential integrity
+  - `page_size = 8192` — 8KB pages
+  - `busy_timeout = 30000` — 30s wait vs immediate SQLITE_BUSY errors
+  - `temp_store = MEMORY` — temp tables in RAM
+  - `mmap_size` — RAM-tiered memory-mapped I/O (`SQLITE_MMAP_SIZE`, 64MB–512MB)
+  - `cache_size` — RAM-tiered page cache (`SQLITE_CACHE_SIZE`, 16MB–256MB)
+  - `wal_autocheckpoint = 4000` — checkpoint every 4000 pages
 - **Prepared-Statement Cache**: Drizzle's `SQLiteBunSession.prepareQuery` re-compiles SQL on every query; the adapter wraps `client.prepare` with a per-connection SQL-text cache (2,000 statements) invalidated on DDL (`createModel` / `clearDatabase`). Measured: ~4µs/query re-prepare tax eliminated, 2× on write ops.
 - **Projection (`options.fields`)**: when all requested fields are physical columns, the raw `findById` and shared `findMany` skip the JSON `data` blob entirely — no `JSON.parse` + `flattenDataColumn` on list/detail reads.
 - **Atomic increments bind timestamps**: `atomicIncrement` binds `updatedAt` as a parameter instead of interpolating `now.getTime()` into SQL text — keeps the statement cache warm.
+- **Partial updates merge the JSON blob**: the `data` column's `SET` expression becomes `json_patch(COALESCE("data", '{}'), ?)` for scalar/array patches (one statement, statement-cache keyed on the merge flag); nested-object or explicit-`null` patches read the single `data` column and merge in JS first, because `json_patch` is RFC 7396 (recursive, and it _deletes_ keys patched with `null`) while the contract is MongoDB's shallow, null-keeping `$set`. The merge is shared with `crud.updateMany`, `batch.bulkUpdate` and query-builder `updateMany`. See [Write Path](./write-path.mdx#3-does-a-write-verify-the-data-was-100-persisted).
+- **Dynamic-field filters stay on the extraction form** (`json_extract(data, '$."field"')`): SQLite has no index that serves arbitrary JSON paths, so the engine-native answer for a filtered field is **column materialization** — declare it `indexed: true` (or `materialize: true`) and the row-store hybrid gives it a real column with a real index. `json_extract` is typed, so a numeric probe does not match a text-stored `"101"` (same as PostgreSQL containment and MongoDB; MariaDB is the looser exception). Paths are quoted **per segment** (`json_extract(data, '$."meta"."lang"')`), so a dotted field resolves the nested key instead of the single literal key `"meta.lang"` that previously matched nothing.
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
 
 - **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
@@ -81,6 +86,7 @@ Key SQLite highlights:
 - **Zero-Allocation Dates**: Optimized `relational-utils` with dirty-bit check.
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support.
 - **Targeted partial UPDATE**: shared `prepareUpdateValues()` omits empty `data` columns and never writes `createdAt` on UPDATE — `SET` is modified fields + `updatedAt` only. Raw `UPDATE…RETURNING` stays one prepared statement.
+- **`crud.aggregate()`**: MongoDB-style pipelines compile to one statement via `core/aggregation-translator.ts` — `$match`, `$group` (scalar `_id` plus `$sum`/`$avg`/`$min`/`$max`/`$count`), `$sort`, `$skip`, `$limit`, `$count` and include-only `$project`. Stages SQL cannot express (`$lookup`, `$unwind`, compound `$group._id`, reordered stages) fail closed with `error.code === "NOT_SUPPORTED"`; `$min`/`$max` stay type-correct here because `json_extract` keeps numbers as numbers.
 
 ## 📂 Storage & File Management
 
@@ -107,6 +113,7 @@ The SQLite adapter implements a robust provisioning system that handles the comp
 3.  **Path Auto-Creation**: The adapter automatically detects if the `DB_HOST` directory exists and creates it recursively if missing, preventing "File not found" errors on new installations.
 4.  **TTL-Equivalent Cleanup**: `cleanupExpiredData()` purges expired sessions/tokens (with consumed-token GC after 7 days) via parameter-bound DELETE — replicating MongoDB's TTL indexes for SQL (same as MariaDB/PostgreSQL).
 5.  **Boot Migration Lock**: Schema migrations run once under `withMigrationLock` at `provision()` — multi-instance boots cannot race DDL.
+6.  **Schema Fingerprint**: `bootstrapSystemSchema` compares a sha-256 of `SYSTEM_SCHEMA` (per dialect) stored in `svelty_schema_state` and skips the whole DDL pass on a match (`skipped: true`) — measured on PostgreSQL: 118 statements / 124 ms per boot → ~2 ms. A spec change re-runs the pass, and a pass with a failed statement does not store the marker, so a half-applied schema is retried.
 
 ### ESM-First Driver Loading
 
@@ -118,7 +125,7 @@ To comply with SvelteKit 5's strict ESM requirements and avoid "require is not d
 
 ### WAL Mode & Performance PRAGMAs
 
-SveltyCMS enables **WAL mode** and **7 performance PRAGMAs** on every connection. This provides concurrent read/write operations, 2-5x faster writes, resilience under load (busy_timeout), and enforced referential integrity.
+SveltyCMS enables **WAL mode** and **9 performance PRAGMAs** on every connection. This provides concurrent read/write operations, 2-5x faster writes, resilience under load (busy_timeout), and enforced referential integrity.
 
 ---
 
