@@ -521,6 +521,65 @@ function discoverBenchmarkMetadata() {
   return { path: filePath || "unknown", proves };
 }
 
+/**
+ * Per-hook timings reported by the server's own diagnostics
+ * (`/api/system/health?verbose=true`), which are only populated when the
+ * benchmark server was started with `ENABLE_HOOK_TIMING=1`.
+ */
+export interface HookTiming {
+  avg: number;
+  min: number;
+  max: number;
+  count: number;
+}
+
+/**
+ * Snapshot the server's per-hook counters. Returns `null` when the snapshot
+ * carries no `hooks` — either hook timing is disabled, or the TERMINAL health
+ * bypass answered (`handle-turbo-pipeline.server.ts:381`/`:403` returns a minimal
+ * payload without diagnostics, while the diagnostics path includes them). Both
+ * are reported as "unavailable" rather than fabricated zeroes; a benchmark that
+ * needs per-stage attribution must tolerate either handler answering.
+ *
+ * The snapshot request is itself counted by the server before it renders the
+ * response, so every snapshot carries its own request — treat phase attribution
+ * as directional (~1/(iterations+1)).
+ */
+export async function readHookTimings(baseUrl: string): Promise<Record<string, HookTiming> | null> {
+  try {
+    const res = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { hooks?: Record<string, HookTiming> };
+    return body.hooks && Object.keys(body.hooks).length > 0 ? body.hooks : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Per-hook µs/request for the phase between two snapshots. Uses the counted
+ * totals, so a phase that ran 60 requests on a hook that also served earlier
+ * phases still attributes only ITS share instead of re-reporting the
+ * cumulative average.
+ */
+export function hookPhaseCost(
+  before: Record<string, HookTiming> | null,
+  after: Record<string, HookTiming> | null,
+): { hook: string; usPerReq: number }[] {
+  if (!before || !after) return [];
+  const rows: { hook: string; usPerReq: number }[] = [];
+  for (const [hook, a] of Object.entries(after)) {
+    const b = before[hook];
+    const deltaCount = a.count - (b?.count ?? 0);
+    if (deltaCount <= 0) continue;
+    const deltaMs = a.avg * a.count - (b ? b.avg * b.count : 0);
+    rows.push({ hook, usPerReq: (deltaMs * 1000) / deltaCount });
+  }
+  return rows.sort((x, y) => y.usPerReq - x.usPerReq);
+}
+
 export async function stabilize(ms: number = 150) {
   // 🧹 AGGRESSIVE GC: Clear memory pressure before critical measurements
   if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {

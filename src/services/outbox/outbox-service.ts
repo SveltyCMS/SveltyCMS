@@ -37,6 +37,7 @@ import { generateUUID } from "@src/utils/native-utils";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { pubSub } from "@src/services/background/pub-sub";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { BaseQueryOptions, DatabaseResult } from "@src/databases/db-interface";
 
 /** Possible delivery statuses for an outbox event */
@@ -317,7 +318,6 @@ class OutboxServiceImpl {
         }
         // Outbox events carry their own tenantId per row; the flush is a system
         // capability (scheduler domain) writing across tenants in one batch.
-        const { withSystemScope } = await import("@src/databases/system-tenant-scope");
         const systemScope = withSystemScope("scheduler");
         // Bounded statement size (max 50 events per INSERT) so a saturated flush
         // never starves the connection pool — each chunk is a short-lived

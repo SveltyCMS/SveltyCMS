@@ -4,10 +4,12 @@
  *
  * Features:
  * - Admin topology discovery from collection schemas
- * - No client navigation dependencies (no goto, no $app/state)
+ * - Browser-only route tool reads `$app/state` (static import: the dynamic one was a
+ *   no-op — `$app/state` is statically reachable from the app graph anyway)
  * - Works server-side with db adapter
  */
 
+import { page } from "$app/state";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 
@@ -74,7 +76,6 @@ export function registerNavigationTools(db?: IDBAdapter): void {
     parameters: { type: "object", properties: {}, required: [] },
     execute: async () => {
       try {
-        const { page } = await import("$app/state");
         return {
           content: [
             {

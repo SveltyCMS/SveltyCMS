@@ -343,6 +343,70 @@ describe("Media API Security Unit Tests", () => {
         tenantId,
       );
     });
+
+    it("rejects >100 ids before any per-item work (400 INVALID_BATCH_SIZE)", async () => {
+      const oversize = Array.from({ length: 101 }, (_, i) => `m${i}`);
+      const formData = new FormData();
+      formData.append("processType", "batch");
+      formData.append("mediaIds", JSON.stringify(oversize));
+
+      const event = {
+        locals: { user, roles, tenantId },
+        request: {
+          formData: vi.fn().mockResolvedValue(formData),
+        },
+      } as unknown as RequestEvent;
+
+      await expect(mediaProcessHandler.POST(event as any)).rejects.toMatchObject({
+        status: 400,
+        code: "INVALID_BATCH_SIZE",
+        message: "Batch size exceeds maximum limit of 100",
+      });
+      // The cap must short-circuit the serial manipulateMedia() loop downstream.
+      expect(mockMediaService.batchProcessImages).not.toHaveBeenCalled();
+    });
+
+    it("accepts exactly the 100-id ceiling", async () => {
+      const atLimit = Array.from({ length: 100 }, (_, i) => `m${i}`);
+      const formData = new FormData();
+      formData.append("processType", "batch");
+      formData.append("mediaIds", JSON.stringify(atLimit));
+
+      const event = {
+        locals: { user, roles, tenantId },
+        request: {
+          formData: vi.fn().mockResolvedValue(formData),
+        },
+      } as unknown as RequestEvent;
+
+      await mediaProcessHandler.POST(event as any);
+
+      expect(mockMediaService.batchProcessImages).toHaveBeenCalledWith(
+        atLimit,
+        expect.any(Object),
+        user._id,
+        tenantId,
+      );
+    });
+
+    it("rejects a non-array mediaIds payload", async () => {
+      const formData = new FormData();
+      formData.append("processType", "batch");
+      formData.append("mediaIds", JSON.stringify({ ids: ["m1"] }));
+
+      const event = {
+        locals: { user, roles, tenantId },
+        request: {
+          formData: vi.fn().mockResolvedValue(formData),
+        },
+      } as unknown as RequestEvent;
+
+      await expect(mediaProcessHandler.POST(event as any)).rejects.toMatchObject({
+        status: 400,
+        code: "INVALID_BATCH_IDS",
+      });
+      expect(mockMediaService.batchProcessImages).not.toHaveBeenCalled();
+    });
   });
 
   describe("POST /api/media/process (save)", () => {

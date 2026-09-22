@@ -92,12 +92,13 @@ bun run test:doctor --list          # map only
 bun run test:doctor --unit-only     # skip integration
 
 # 1. White-box unit (Vitest 5)
-bun run test:unit
-bun run test:watch            # interactive TDD watch mode
-bun run test:ui               # Vitest 5 visual web UI with trace viewer
-bun run test:changed          # smart incremental testing on git changes
+bun run test:unit             # full suite
+bun x vitest --watch          # interactive TDD watch mode
+bun x vitest --ui             # Vitest web UI (@vitest/ui is installed)
+bun run test:unit:changed     # smart incremental testing on git changes
+bun run test:unit:area        # scoped run on the real Vitest runner
 bun run test:security         # focused hooks security suite
-bun run test:unit:coverage    # P0 gate coverage (outputs to .vitest/coverage)
+bun x vitest run --coverage   # P0 gate coverage (outputs to .vitest/coverage)
 bun run check
 
 # 2. Black-box integration (SQLite; harness starts preview + private.test.ts)
@@ -257,7 +258,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 **"Reality simulation with extreme stress and chaos resilience."**
 
 - **Focus:** Performance and System Stability (SRE/Chaos Engineering).
-- **Tools:** 50-test Benchmark Matrix (`scripts/benchmark-matrix/`).
+- **Tools:** 62-module Benchmark Matrix (`scripts/benchmark-matrix/`) — module inventory in [Performance Benchmarks](../project/benchmarks/index.mdx).
 - **Coverage:** 9 dimensions across SQLite, PostgreSQL, MariaDB, MongoDB + Redis variants.
 - **Intelligence:** Rolling trend baselines, 7 root cause categories, cross-test correlation, adaptive budgets.
 - **Reports:** 8 per-database MDX reports with Measures/Budget/Code/Why context.
@@ -326,7 +327,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 | **throttling-backoff-stress**   | Measures rate-limiting consistency under 10x design load.                                       | Critical performance audit for Throttling.           | ~30s      |
 | **transaction-acid**            | Measures commit/rollback latency and transaction isolation performance.                         | Critical performance audit for ACID.                 | ~25s      |
 | **truth-latency**               | The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).             | Critical performance audit for Truth Audit.          | ~15s      |
-| **sse-broadcast**               | Measures EventBus → SSE stream broadcast latency and handshake timing.                          | Critical performance audit for Real-Time Broadcast.  | ~20s      |
+| **websocket-broadcast**         | Benchmarks network-layer broadcast latency (SSE vs WebSocket).                                  | Critical performance audit for Broadcast.            | ~20s      |
 | **widget-performance**          | Audits server-side processing cost of built-in widgets (Input, RichText, Relation).             | Critical performance audit for Widgets.              | ~25s      |
 
 ---
@@ -387,9 +388,9 @@ graph TD
 
 **API benchmarks** (relational, REST, GraphQL throughput) — no user filesystem writes:
 
-1. **Setup**: `setup-benchmarks.ts` seeds via `POST /api/testing` (LocalCMS inside the matrix server)
+1. **Setup**: `tests/benchmarks/seed-runner.test.ts` calls `seedBenchmarkState()` before boot (in-process `LocalCMS`, mirroring `/api/testing action=seed`)
 2. **Stable data**: `ensureStableTestData()` creates `BenchmarkStable` in DB/content store only
-3. **Cleanup**: PID-scoped temp DB; `ConfigSafeguard.restore()` purges artifacts on exit
+3. **Cleanup**: PID-scoped temp DB; `cleanupAllBenchmarkWorkspaces()` (`benchmark-utils.ts` `afterAll`) clears the sandbox workspaces and the matrix kills its server child on adapter exit
 
 **Filesystem benchmarks** (content-scan, scale-stress, incremental-reload) — isolated workspaces only:
 

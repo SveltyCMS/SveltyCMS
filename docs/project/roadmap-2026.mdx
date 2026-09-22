@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-21"
+updated: "2026-09-22"
 tags:
   - "roadmap"
   - "backlog"
@@ -49,6 +49,8 @@ Planned UX and platform extensions:
 
 ## 🏗️ In Progress
 
+- 🏗️ **Media pipeline consolidation** — the remaining work: collapse the two derivative pipelines into one (today: the SIZES ladder plus a deferred `processImageWithPresets` pass, ~17 files per image), background precompilation of operator-defined SIZES, watermark + focal-point aware delivery, and a derivative-GC sweep that actually reclaims disk. Shipped 2026-09-22: dedupe **before** generation and the no-upscaling/no-redundant-write ladder clamp. Plan, status and the benchmark rows that prove each step: [Media Pipeline Plan](./media-pipeline-plan.mdx).
+
 - 🏗️ **Plugin Admin Pages (`page` part)** — Finalize declarative sub-navigation, deep-linking, and full-page test suites for `/plugin/<path>` admin tools.
 - 🏗️ **Native Commerce Pipeline Add-ons** — Complete the remaining commercial modules:
   - `ConditionPlugin` for complex promotion rules (cart minimums, coupon combinations, category discounts).
@@ -57,6 +59,7 @@ Planned UX and platform extensions:
   - Real-time currency exchange (FX) resolver with caching.
   - Stripe Billing recurring subscription webhooks and portal.
   - Schema.org structured data markup (`Product`, `Offer`, `AggregateRating`) on public `/shop` routes.
+- 🏗️ **Reliable per-stage attribution for the write lane** — `readHookTimings()` can report `unavailable` mid-run because the terminal health bypass (`handle-turbo-pipeline.server.ts:381`/`:403`) answers with a minimal payload that carries no `hooks`. A dedicated authenticated diagnostics route (or including counters in the bypass when `verbose`) would make write-lane attribution dependable.
 
 ---
 
@@ -127,4 +130,4 @@ Ordered sequence for internationalization:
 10. Official community Discord server launch.
 11. Enterprise governance whitepaper.
 
-_Last roadmap sync: 2026-09-21 (memory governor knobs + module-graph split documented, background-process and API-only-profile cuts scoped)_
+_Last roadmap sync: 2026-09-22 (media pipeline #2/#3 shipped — dedupe before derivative generation, ladder clamp; memory governor knobs + module-graph split documented, background-process and API-only-profile cuts scoped)_

@@ -35,7 +35,6 @@ import {
 interface TurboAuthContext {
   user: User;
   roles: Role[];
-  bitset: Uint32Array;
   tenantId: DatabaseId | null;
   expiresAt: number;
 }
@@ -54,7 +53,6 @@ export function setTurboAuthContext(
   sessionId: string,
   user: User,
   roles: Role[],
-  bitset: Uint32Array,
   tenantId: DatabaseId | null,
 ): void {
   if (turboAuthCache.has(sessionId)) {
@@ -67,7 +65,6 @@ export function setTurboAuthContext(
   turboAuthCache.set(sessionId, {
     user,
     roles,
-    bitset,
     tenantId,
     expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
   });

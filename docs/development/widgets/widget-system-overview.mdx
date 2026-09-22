@@ -1,57 +1,22 @@
 ---
 path: "docs/development/widgets/widget-system-overview.mdx"
 title: "Widget System Overview"
-description: "High-level overview of the SveltyCMS 3-pillar widget system — definition, input, display, and the factory pattern."
-order: 99
+description: "The widget overview is the widget section index."
+order: 90
 icon: "mdi:puzzle"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-27"
+updated: "2026-09-22"
 tags:
-  - "widgets"
-  - "architecture"
+  - "redirect"
 ---
 
-# Widget System Overview
+# This page has moved
 
-SveltyCMS uses a **3-Pillar Widget System** for content field types. Each widget is composed of three parts: a Definition (schema + validation), an Input component (editor), and a Display component (renderer).
-
-## The 3 Pillars
-
-| Pillar         | File             | Purpose                                                                |
-| -------------- | ---------------- | ---------------------------------------------------------------------- |
-| **Definition** | `index.ts`       | `createWidget()` with Valibot schema, GUI config, and validation rules |
-| **Input**      | `Input.svelte`   | Entry editor component rendered in the collection form                 |
-| **Display**    | `Display.svelte` | Read-only render component for public-facing views                     |
-
-## Widget Factory
-
-All widgets are registered via the `createWidget()` factory from `@widgets/widgetFactory`:
-
-```typescript
-import { createWidget } from "@widgets/widgetFactory";
-import * as v from "valibot";
-
-// Folder: src/widgets/custom/my-widget/  →  Name: "MyWidget"
-export default createWidget<{ maxLength?: number }>({
-  Name: "MyWidget",
-  validationSchema: (field) => v.string([v.maxLength(field.maxLength ?? 100)]),
-  GuiSchema: { maxLength: { widget: "number", label: "Max Length" } },
-});
-```
-
-**Naming:** folder kebab-case, factory `Name` PascalCase, `widgetNameToFolder(Name) === folder`. See [Marketplace naming](./marketplace.mdx#naming-convention-required).
-
-## Widget Locations
-
-| Type               | Location                           | Discovery                                       |
-| ------------------ | ---------------------------------- | ----------------------------------------------- |
-| **Core Widgets**   | `src/widgets/core/{kebab}/`        | `import.meta.glob` + naming gate                |
-| **Custom Widgets** | `src/widgets/custom/{kebab}/`      | Same glob; invalid names refused                |
-| **Marketplace**    | `src/widgets/marketplace/{kebab}/` | Vite glob + boot scan; invalid packages skipped |
+The widget overview is the widget section index. Read [the current page](./index.mdx).
 
 ## Related
 
-- [Widget Architecture](./architecture.mdx)
-- [Widget Development Guide](./development.mdx)
-- [Widget Factory](../../../reference/components/widget-loader.mdx)
+- [Current page](./index.mdx)
+- [Concepts](../../concepts/index.mdx)
+- [Guides](../../guides/index.mdx)

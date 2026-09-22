@@ -1,20 +1,26 @@
 /**
  * @file src/services/media/image-processor.ts
- * @description Upload-time image processing service using Sharp — generates
- * responsive image variants during upload, not on request.
+ * @description Sharp image processing service. Generates responsive variants at
+ * upload time AND owns the pure parameter/encoder helpers for the cached on-demand
+ * transforms served by `/files/**?w=&h=&q=&fmt=`.
  *
  * ### Design
- * - Variants are generated during upload, not on first request
+ * - Upload-time variants: generated after the original is saved, never on request
+ * - On-demand variants: parsed/rendered here, but generated + cached by the delivery
+ *   route (`src/routes/files/[...path]/+server.ts`) — one encoder configuration for both
  * - The original high-resolution file is always preserved
- * - Variant paths are deterministic: `{mediaHash}/{preset}-{width}.{format}`
+ * - Variant paths are deterministic: `{tenantId}/{hash}/variants/{preset}-{width}.{format}`
  * - Variant metadata is stored as JSON alongside the media record in `thumbnails`
  * - Sharp is lazy-loaded (same pattern as existing media code) to avoid cold-path overhead
- * - Processing is **non-blocking** for the upload response: variants are generated
+ * - Upload processing is **non-blocking** for the upload response: variants are generated
  *   after the original is saved, so failure to generate variants does not lose the upload
+ * - On-demand requests are clamped to a fixed dimension/quality ladder (see
+ *   `parseTransformParams`) so a caller can never allocate an arbitrary resolution
  *
  * ### Features:
  * - Configurable width presets (thumbnail, card, default, hero)
  * - Automatic format conversion (WebP primary, JPEG fallback, optional AVIF)
+ * - On-demand transform parsing: dimension stride, quality band, explicit/Accept format pick
  * - EXIF/GPS metadata stripping for privacy
  * - Auto-orientation via Sharp's rotate()
  * - Aspect-ratio-preserving resize with `sharp.fit.inside`
@@ -56,6 +62,9 @@ export interface ImageProcessingConfig {
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
+/** Decompression-bomb guard for every Sharp pipeline in this module (100 MP). */
+const LIMIT_INPUT_PIXELS = 100_000_000;
+
 /** Maximum output dimension in pixels for any generated variant.
  * Prevents denial-of-wallet attacks via oversized image requests.
  * 6000px can be overridden via environment variables. */
@@ -64,6 +73,64 @@ export const MAX_OUTPUT_DIMENSION =
     process.env.ASSETS_TRANSFORM_IMAGE_MAX_OUTPUT_DIMENSION ||
       process.env.IMAGE_MAX_OUTPUT_DIMENSION,
   ) || 6000;
+
+// ─── On-demand transform ladder (delivery path) ────────────────────────────
+
+/**
+ * Encodable output formats for on-demand transforms (`?fmt=` / `Accept`).
+ * Never SVG (keeps its sanitised buffer path) and never GIF (streams unchanged).
+ */
+export type TransformFormat = "webp" | "avif" | "jpeg" | "png";
+
+/**
+ * Allowed output dimensions for `?w` / `?h` — a fixed ladder, never an arbitrary
+ * resolution. Requests are snapped DOWN to a step, so the variant cache is bounded
+ * and an attacker cannot fill the disk with one file per pixel width.
+ * Steps above MAX_OUTPUT_DIMENSION are dropped at load time.
+ */
+export const TRANSFORM_DIMENSION_STEPS: readonly number[] = (() => {
+  const steps = [
+    16, 24, 32, 48, 64, 96, 128, 160, 192, 240, 320, 384, 480, 640, 768, 960, 1280, 1600, 1920,
+    2560, 3840,
+  ];
+  const allowed = steps.filter((step) => step <= MAX_OUTPUT_DIMENSION);
+  return allowed.length > 0 ? allowed : [Math.max(1, Math.floor(MAX_OUTPUT_DIMENSION))];
+})();
+
+/**
+ * Allowed quality values for `?q` — snapped to the nearest step, which keeps the
+ * variant key space (and therefore disk usage) finite. Band: 50–90.
+ */
+export const TRANSFORM_QUALITY_STEPS: readonly number[] = [50, 60, 70, 75, 80, 82, 85, 90];
+
+/** Quality used when `?q` is absent or unparseable (matches DEFAULT_CONFIG.quality). */
+export const TRANSFORM_DEFAULT_QUALITY = 82;
+
+/**
+ * Source MIME types eligible for on-demand transforms: raster formats this module
+ * can decode AND re-encode. SVG (sanitised, scriptable), GIF (may be animated),
+ * TIFF/BMP/ICO, PDFs and everything else stream unchanged.
+ */
+export const TRANSFORM_SOURCE_MIME: ReadonlySet<string> = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]);
+
+/**
+ * Largest source file the delivery path will buffer for a transform. Above this
+ * the original is streamed untouched — bounds the one-shot read + Sharp decode.
+ */
+export const MAX_TRANSFORM_SOURCE_BYTES = 40 * 1024 * 1024;
+
+/**
+ * Maximum number of on-demand variants generated concurrently per process.
+ * Single-flight collapses duplicate requests for the *same* variant; this caps the
+ * aggregate cost of many *different* variants of large sources at once. Requests over
+ * the cap stream the original and are transformed on a later request instead.
+ */
+export const MAX_CONCURRENT_TRANSFORMS = 8;
 
 // ─── Default presets ───────────────────────────────────────────────────────
 
@@ -99,6 +166,25 @@ async function getSharp(): Promise<any> {
   return _sharp;
 }
 
+/**
+ * Minimal structural view of a Sharp pipeline — keeps new code free of `any`
+ * without a compile-time dependency on Sharp's own types.
+ */
+interface SharpPipeline {
+  rotate(): SharpPipeline;
+  resize(
+    width: number | null,
+    height: number | null,
+    options?: { fit?: string; withoutEnlargement?: boolean },
+  ): SharpPipeline;
+  webp(options?: { quality?: number; effort?: number }): SharpPipeline;
+  jpeg(options?: { quality?: number; mozjpeg?: boolean }): SharpPipeline;
+  avif(options?: { quality?: number; effort?: number }): SharpPipeline;
+  png(options?: { compressionLevel?: number; palette?: boolean }): SharpPipeline;
+  toBuffer(): Promise<Buffer>;
+  toBuffer(options: { resolveWithObject: true }): Promise<{ data: Buffer; info: { size: number } }>;
+}
+
 // ─── Processing ────────────────────────────────────────────────────────────
 
 /**
@@ -131,7 +217,10 @@ export async function processImage(
     return [];
   }
 
-  const meta = await sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" }).metadata();
+  const meta = await sharp(buffer, {
+    limitInputPixels: LIMIT_INPUT_PIXELS,
+    failOn: "none",
+  }).metadata();
   const originalWidth = meta.width ?? 0;
   const originalHeight = meta.height ?? 0;
 
@@ -245,7 +334,10 @@ export async function processImageWithPresets(
   if (pairs.size === 0) return allVariants;
 
   const sharp = await getSharp();
-  const meta = await sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" }).metadata();
+  const meta = await sharp(buffer, {
+    limitInputPixels: LIMIT_INPUT_PIXELS,
+    failOn: "none",
+  }).metadata();
   const originalWidth = meta.width ?? 0;
   const originalHeight = meta.height ?? 0;
 
@@ -326,31 +418,16 @@ async function generateVariant(
   // The preset name is determined by resolvePresetName below
 
   // Build the sharp pipeline
-  let pipeline = sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" })
-    // Auto-fix orientation from EXIF
-    .rotate()
-    // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
-    .resize(safeWidth, null, { fit: "inside", withoutEnlargement: true });
-
-  // Apply format-specific encoding
-  // Note: Sharp automatically strips metadata unless .withMetadata() is called.
-  switch (format) {
-    case "webp":
-      pipeline = pipeline.webp({ quality: cfg.quality, effort: 4 });
-      break;
-    case "jpeg":
-    case "jpg":
-      pipeline = pipeline.jpeg({ quality: cfg.quality, mozjpeg: true });
-      break;
-    case "avif":
-      pipeline = pipeline.avif({ quality: cfg.quality, effort: 4 });
-      break;
-    case "png":
-      pipeline = pipeline.png({ compressionLevel: 8, palette: targetWidth <= 320 });
-      break;
-    default:
-      pipeline = pipeline.jpeg({ quality: cfg.quality });
-  }
+  const pipeline = applyEncoder(
+    sharp(buffer, { limitInputPixels: LIMIT_INPUT_PIXELS, failOn: "none" })
+      // Auto-fix orientation from EXIF
+      .rotate()
+      // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
+      .resize(safeWidth, null, { fit: "inside", withoutEnlargement: true }),
+    format,
+    cfg.quality,
+    targetWidth,
+  );
 
   const outputFormat = format === "jpg" ? "jpeg" : format;
 
@@ -371,6 +448,262 @@ async function generateVariant(
     path,
     size: info.size,
   };
+}
+
+// ─── On-demand delivery transforms ─────────────────────────────────────────
+
+/**
+ * A parsed, clamped on-demand transform request.
+ * `width`/`height` are ladder steps (`0` = derive from the other axis); the pair is
+ * treated as a bounding box with `sharp.fit.inside`, so aspect ratio is preserved.
+ */
+export interface TransformPlan {
+  width: number;
+  height: number;
+  format: TransformFormat;
+  quality: number;
+  /** True when the caller pinned the format via `fmt`/`format` instead of negotiation. */
+  explicitFormat: boolean;
+}
+
+interface AcceptEntry {
+  type: string;
+  q: number;
+  index: number;
+}
+
+/** Map a raster MIME type to an encodable transform format (null = not encodable). */
+function rasterFormatFromMime(mime: string | null | undefined): TransformFormat | null {
+  switch ((mime ?? "").trim().toLowerCase()) {
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpeg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/avif":
+      return "avif";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Parse an explicit `fmt`/`format` value (`webp`, `image/webp`, `jpg`, …).
+ * Wildcards and non-raster formats resolve to null → the transform is rejected.
+ */
+function parseExplicitFormat(raw: string): TransformFormat | null {
+  const value = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^image\//, "");
+  switch (value) {
+    case "webp":
+      return "webp";
+    case "avif":
+      return "avif";
+    case "jpeg":
+    case "jpg":
+      return "jpeg";
+    case "png":
+      return "png";
+    default:
+      return null;
+  }
+}
+
+/** Snap a raw `w`/`h` value down to a ladder step (0 = ignore this axis). */
+function snapDimension(raw: string | null): number {
+  if (!raw) return 0;
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+
+  const steps = TRANSFORM_DIMENSION_STEPS;
+  const largest = steps[steps.length - 1]!;
+  if (value >= largest) return largest;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if (steps[i]! <= value) return steps[i]!;
+  }
+  return 0; // below the smallest allowed box
+}
+
+/** Snap a raw `q` value to the nearest quality step (default when absent). */
+function snapQuality(raw: string | null): number {
+  if (raw === null) return TRANSFORM_DEFAULT_QUALITY;
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value)) return TRANSFORM_DEFAULT_QUALITY;
+
+  let best = TRANSFORM_QUALITY_STEPS[0]!;
+  for (const step of TRANSFORM_QUALITY_STEPS) {
+    if (Math.abs(step - value) < Math.abs(best - value)) best = step;
+  }
+  return best;
+}
+
+/**
+ * Pick the output format from an `Accept` header, honouring `q=` ordering.
+ * Only explicit raster types participate: a wildcard range (any `image/…`) or a full
+ * wildcard means "no preference" and keeps the source format rather than forcing a
+ * re-encode.
+ */
+export function negotiateTransformFormat(
+  accept: string | null,
+  sourceFormat: TransformFormat,
+): TransformFormat {
+  if (!accept) return sourceFormat;
+
+  const entries: AcceptEntry[] = [];
+  accept.split(",").forEach((part, index) => {
+    const [type, ...params] = part.split(";").map((token) => token.trim());
+    if (!type) return;
+    let q = 1;
+    for (const param of params) {
+      const [key, value] = param.split("=").map((token) => token.trim());
+      if (key?.toLowerCase() === "q") {
+        const parsed = Number.parseFloat(value ?? "1");
+        q = Number.isFinite(parsed) ? parsed : 1;
+      }
+    }
+    if (q > 0) entries.push({ type, q, index });
+  });
+
+  entries.sort((a, b) => b.q - a.q || a.index - b.index);
+  for (const entry of entries) {
+    const picked = parseExplicitFormat(entry.type);
+    if (picked) return picked;
+  }
+  return sourceFormat;
+}
+
+/**
+ * Parse `?w` / `?h` / `?q` / `?fmt|?format` plus the `Accept` header into a clamped
+ * transform plan, or null when the request must keep streaming the original.
+ *
+ * Rejection rules (all resolve to `null` → original bytes, logged at debug level):
+ * - no `w`/`h`, or both below the smallest ladder step (≤ 8 px is not a variant)
+ * - an explicit `fmt`/`format` that is not an encodable raster format (svg, gif, heic, …)
+ * - a source MIME that is not decodable + re-encodable (SVG, GIF, TIFF, PDF, video, …)
+ *
+ * Normalisation rules:
+ * - `w`/`h` snap DOWN to the ladder step (never up), `q` snaps to the nearest of
+ *   `TRANSFORM_QUALITY_STEPS`, garbage values fall back to the documented defaults
+ *
+ * @param searchParams Query of the `/files/**` request
+ * @param accept Raw `Accept` header value (null when absent)
+ * @param sourceMime MIME type resolved for the stored original
+ */
+export function parseTransformParams(
+  searchParams: URLSearchParams,
+  accept: string | null,
+  sourceMime: string,
+): TransformPlan | null {
+  const sourceFormat = rasterFormatFromMime(sourceMime);
+  if (!sourceFormat) return null;
+
+  const width = snapDimension(searchParams.get("w"));
+  const height = snapDimension(searchParams.get("h"));
+  if (width === 0 && height === 0) return null;
+
+  const quality = snapQuality(searchParams.get("q"));
+  const rawFormat = searchParams.get("fmt") ?? searchParams.get("format");
+  if (rawFormat !== null) {
+    const explicit = parseExplicitFormat(rawFormat);
+    if (!explicit) return null;
+    return { width, height, format: explicit, quality, explicitFormat: true };
+  }
+
+  return {
+    width,
+    height,
+    format: negotiateTransformFormat(accept, sourceFormat),
+    quality,
+    explicitFormat: false,
+  };
+}
+
+/** Content-Type for a transform output format. */
+export function transformFormatToMime(format: TransformFormat): string {
+  switch (format) {
+    case "webp":
+      return "image/webp";
+    case "avif":
+      return "image/avif";
+    case "png":
+      return "image/png";
+    default:
+      return "image/jpeg";
+  }
+}
+
+/**
+ * Detect multi-frame (animated) raster sources from their header bytes.
+ * Bounded, conservative header sniff — a false positive only disables the transform
+ * (the original animation streams untouched), never the other way round.
+ * Animated frames are outside `TRANSFORM_SOURCE_MIME`: resizing a GIF/WebP/AVIF
+ * animation would silently drop every frame but the first.
+ */
+export function isAnimatedRaster(head: Buffer, mime: string): boolean {
+  const header = head.subarray(0, 64);
+  if (mime === "image/webp") {
+    // RIFF/WebP: VP8X flags byte (offset 20) bit 1 = ANIMATION, or an explicit ANIM chunk.
+    const isExtended = header.subarray(12, 16).toString("ascii") === "VP8X";
+    if (isExtended && header.length >= 21 && (header[20]! & 0x02) !== 0) return true;
+    return header.includes("ANIM");
+  }
+  if (mime === "image/avif") {
+    // ftyp brand `avis` = AVIF image sequence (animated).
+    return header.toString("latin1").includes("avis");
+  }
+  return false;
+}
+
+/**
+ * Render one on-demand variant from the original bytes.
+ * Uses the exact encoder settings of the upload-time variants (single source of
+ * truth: `applyEncoder`), auto-orients, and never enlarges beyond the source.
+ */
+export async function renderTransformVariant(source: Buffer, plan: TransformPlan): Promise<Buffer> {
+  const sharp = await getSharp();
+  const pipeline: SharpPipeline = applyEncoder(
+    sharp(source, { limitInputPixels: LIMIT_INPUT_PIXELS, failOn: "none" })
+      .rotate()
+      .resize(plan.width || null, plan.height || null, {
+        fit: "inside",
+        withoutEnlargement: true,
+      }),
+    plan.format,
+    plan.quality,
+    plan.width || plan.height,
+  );
+  return await pipeline.toBuffer();
+}
+
+// ─── Encoder settings (shared by upload-time + on-demand variants) ─────────
+
+/**
+ * Apply the shared per-format encoder settings.
+ * Note: Sharp strips metadata unless `.withMetadata()` is called.
+ */
+function applyEncoder(
+  pipeline: SharpPipeline,
+  format: string,
+  quality: number,
+  targetWidth: number,
+): SharpPipeline {
+  switch (format) {
+    case "webp":
+      return pipeline.webp({ quality, effort: 4 });
+    case "jpeg":
+    case "jpg":
+      return pipeline.jpeg({ quality, mozjpeg: true });
+    case "avif":
+      return pipeline.avif({ quality, effort: 4 });
+    case "png":
+      return pipeline.png({ compressionLevel: 8, palette: targetWidth > 0 && targetWidth <= 320 });
+    default:
+      return pipeline.jpeg({ quality });
+  }
 }
 
 /**

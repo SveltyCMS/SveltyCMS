@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-05-24"
-updated: "2026-08-21"
+updated: "2026-09-22"
 tags:
   - "security"
   - "authentication"
@@ -23,7 +23,7 @@ This document details how we have implemented the best A++ security for the Svel
 
 ### 1. Audit Log & Rate Limiting IP Resolution
 
-Client IP address resolution is centralized through `getClientIp(event)` (`src/utils/security/client-ip.ts`) across all authentication, rate limiting, and audit logging flows. Rather than trusting raw `X-Forwarded-For` request headers directly (which is vulnerable to client-side IP spoofing), `getClientIp` enforces reverse-proxy boundary verification. Scanner rule `ip-spoofing-x-forwarded-for` in `scripts/scan-security-risk.ts` enforces this across the entire server codebase. Additionally, session records capture the resolved IP address and User-Agent at creation time for Active Device tracking.
+Client IP address resolution is centralized through `getClientIp(event)` (`src/utils/hook-utils.ts:266`) across all authentication, rate limiting, and audit logging flows. Rather than trusting raw `X-Forwarded-For` request headers directly (which is vulnerable to client-side IP spoofing), `getClientIp` enforces reverse-proxy boundary verification and memoizes the result on `event.locals.__clientIp` so the IP is resolved at most once per request instead of 3–5× per hook chain. Scanner rule `ip-spoofing-x-forwarded-for` in `scripts/scan-security-risk.ts` enforces this across the entire server codebase. Additionally, session records capture the resolved IP address and User-Agent at creation time for Active Device tracking.
 
 ### 2. OAuth State HMAC Verification
 

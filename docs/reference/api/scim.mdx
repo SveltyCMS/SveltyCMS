@@ -22,14 +22,17 @@ SveltyCMS provides a native implementation of the **System for Cross-domain Iden
 
 ## ⚡ Quick Reference
 
-| Feature         | HTTP Endpoint             | Method   | Permission Required |
-| :-------------- | :------------------------ | :------- | :------------------ |
-| **List Users**  | `/api/scim/v2/Users`      | `GET`    | `manage:user`       |
-| **Get User**    | `/api/scim/v2/Users/{id}` | `GET`    | `manage:user`       |
-| **Create User** | `/api/scim/v2/Users`      | `POST`   | `manage:user`       |
-| **Update User** | `/api/scim/v2/Users/{id}` | `PATCH`  | `manage:user`       |
-| **Delete User** | `/api/scim/v2/Users/{id}` | `DELETE` | `manage:user`       |
-| **Bulk Ops**    | `/api/scim/v2/Bulk`       | `POST`   | `manage:user`       |
+| Feature         | HTTP Endpoint             | Method   | Permission Required    |
+| :-------------- | :------------------------ | :------- | :--------------------- |
+| **List Users**  | `/api/scim/v2/Users`      | `GET`    | **Admin session only** |
+| **Get User**    | `/api/scim/v2/Users/{id}` | `GET`    | **Admin session only** |
+| **Create User** | `/api/scim/v2/Users`      | `POST`   | **Admin session only** |
+| **Update User** | `/api/scim/v2/Users/{id}` | `PATCH`  | **Admin session only** |
+| **Delete User** | `/api/scim/v2/Users/{id}` | `DELETE` | **Admin session only** |
+| **Bulk Ops**    | `/api/scim/v2/Bulk`       | `POST`   | **Admin session only** |
+
+> [!IMPORTANT]
+> SCIM is **admin-session only — there is no grantable SCIM permission**. The `scim` namespace is absent from `ENDPOINT_PERMISSIONS`, and `_checkEndpointPermission` returns `false` for it immediately after the admin fast-path (`src/routes/api/[...path]/+server.ts`, `namespace === "scim"`), so a non-admin role receives `403 FORBIDDEN` even when it holds a broad `manage:user`-style grant. Provision with an `admin`/`super-admin` session or a website token of `type: "admin-api"` (which resolves to the admin role) — an `sck_*` API key resolves to `role: "guest"` and is rejected.
 
 ---
 

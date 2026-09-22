@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:account-group"
 author: "SveltyCMS Team"
 created: "2026-08-20"
-updated: "2026-08-20"
+updated: "2026-09-22"
 tags:
   - "personas"
   - "roles"
@@ -33,8 +33,10 @@ As an editor, your focus is authoring, reviewing, and publishing structured cont
 
 👉 **Recommended Reading**:
 
-- **[Content Authoring Guide](../guides/content/index.mdx)**
-- **[Collection Builder Guide](../guides/content/collection-builder.mdx)**
+- **[Content guides](../guides/content/index.mdx)**
+- **[Collection Builder](../guides/content/collection-builder.mdx)**
+- **[Workflows](../guides/content/workflows.mdx)**
+- **[Automations](../guides/content/automations.mdx)**
 
 ---
 
@@ -62,16 +64,17 @@ As a developer, your focus is data modeling, custom widgets, API consumption, an
 
 ### Developer Workflows {#developer-workflows}
 
-1. **Hybrid Schema Modeling**: Define collections in GUI or code (`src/collections/`).
-2. **Zero-HTTP Local SDK**: Access database adapters in SvelteKit `+page.server.ts` with direct in-process speed.
-3. **REST & GraphQL APIs**: Consume OpenAPI 3.1 endpoints and GraphQL queries with automatic type generation.
-4. **Building Custom Widgets**: Create custom UI primitives with Svelte 5 runes.
+1. **Schema**: Define collections in the Collection Builder or as TypeScript under `config/collections/`.
+2. **LocalCMS**: From SvelteKit server files, call `locals.cms` instead of HTTP.
+3. **HTTP**: From a separate frontend, call REST or GraphQL.
+4. **Widgets**: A custom field is a widget (definition, input, display), written with Svelte 5 runes.
 
-👉 **Recommended Reading**:
+**Recommended reading**:
 
-- **[Remote Functions Architecture](../reference/architecture/remote-functions.mdx)**
-- **[REST API Reference](../reference/api/index.mdx)**
-- **[GraphQL API Reference](../reference/api/graphql.mdx)**
+- [Concepts](../concepts/index.mdx)
+- [Local SDK vs HTTP](../development/local-vs-http-api.mdx)
+- [API reference](../reference/api/index.mdx)
+- [Widget development](../development/widgets/index.mdx)
 
 ---
 

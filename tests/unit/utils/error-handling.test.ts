@@ -7,14 +7,18 @@
  * - Type guards
  * - Error messages
  * - Wrap error
+ * - Envelope content-length (compression size-gate contract)
  * - Integration
  */
+
+import { createMockEvent } from "../hooks/test-utils";
 
 let APP_ERROR: any;
 let getErrorMessage: any;
 let isAppError: any;
 let isHttpError: any;
 let wrapError: any;
+let handleApiError: typeof import("@src/utils/error-handling").handleApiError;
 
 beforeAll(async () => {
   const mod = await import("@src/utils/error-handling");
@@ -23,6 +27,7 @@ beforeAll(async () => {
   isAppError = mod.isAppError;
   isHttpError = mod.isHttpError;
   wrapError = mod.wrapError;
+  handleApiError = mod.handleApiError;
 });
 
 describe("Error Handling - AppError Class", () => {
@@ -128,6 +133,50 @@ describe("Error Handling - Error Messages", () => {
     const error = { code: "ERR_001", details: "Info" };
     const message = getErrorMessage(error);
     expect(message).toContain("ERR_001");
+  });
+});
+
+describe("Error Handling - Envelope content-length", () => {
+  /**
+   * 🚀 Regression guard: `handleCompression` size-gates on `content-length`.
+   * An envelope without it is treated as "unknown size" → it skips the <1 KiB
+   * skip-gate AND the buffered tier and is negotiated into the streaming tier
+   * (a fresh zstd stream per request for zstd-advertising clients). API error
+   * envelopes are ~64 B, so that was a measured ~0.45 ms of pure waste on
+   * every reject (see src/utils/error-handling.ts staticJsonEnvelope).
+   */
+  const byteLength = (body: string) => new TextEncoder().encode(body).byteLength;
+
+  const expectDeclaredLength = async (error: unknown, status: number) => {
+    const event = createMockEvent("/api/user/me", { method: "GET", user: null });
+    const res = handleApiError(error, event);
+    const body = await res.clone().text();
+
+    expect(res.status).toBe(status);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(res.headers.get("content-length")).toBe(String(byteLength(body)));
+    return body;
+  };
+
+  it("declares an exact length on the 401 envelope", async () => {
+    const body = await expectDeclaredLength(
+      new APP_ERROR("Unauthorized", 401, "UNAUTHORIZED"),
+      401,
+    );
+    expect(JSON.parse(body)).toMatchObject({ success: false, code: "UNAUTHORIZED" });
+  });
+
+  it("declares an exact length on the 403 envelope", async () => {
+    const body = await expectDeclaredLength(new APP_ERROR("Forbidden", 403, "FORBIDDEN"), 403);
+    expect(JSON.parse(body)).toMatchObject({ success: false, code: "FORBIDDEN" });
+  });
+
+  it("declares an exact length on the generic error envelope", async () => {
+    const body = await expectDeclaredLength(
+      new APP_ERROR("Collection not found", 404, "NOT_FOUND"),
+      404,
+    );
+    expect(JSON.parse(body)).toMatchObject({ success: false, code: "NOT_FOUND" });
   });
 });
 

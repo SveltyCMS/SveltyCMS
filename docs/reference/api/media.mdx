@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-18"
+updated: "2026-09-22"
 tags:
   - "api"
   - "media"
@@ -34,6 +34,7 @@ The Media API provides a centralized interface for managing all assets within Sv
 | **Update Metadata** | `/api/media/{id}`                   | `PATCH`    | `media:write`       |
 | **Delete Media**    | `/api/media/{id}`                   | `DELETE`   | `media:delete`      |
 | **Bulk Download**   | `/api/media/bulk-download`          | `GET/POST` | `media:read`        |
+| **Batch Process**   | `/api/media/process`                | `POST`     | `media:write`       |
 | **Analytics**       | `/api/media/analytics`              | `GET`      | `media:read`        |
 | **Version List**    | `/api/media/version/{id}/list`      | `GET`      | `media:read`        |
 | **Version Compare** | `/api/media/version/{id}/compare`   | `GET`      | `media:read`        |
@@ -44,6 +45,8 @@ The Media API provides a centralized interface for managing all assets within Sv
 | **Revoke Share**    | `/api/media/share/{id}/{token}`     | `DELETE`   | `media:write`       |
 | **References Scan** | `/api/media/references/{id}`        | `GET`      | `media:read`        |
 | **Job Status**      | `/api/media/jobs/{id}`              | `GET`      | `media:read`        |
+
+> Byte delivery and on-demand image transforms live on `/files/**?w=&h=&q=&fmt=` — see [§5 Delivery — On-Demand Image Transforms](#5-delivery-on-demand-image-transforms).
 
 ---
 
@@ -163,6 +166,23 @@ For long-running tasks (AI tagging, batch transforms, heavy ingestion), the API 
 - `completed`: Job finished successfully.
 - `failed`: Job encountered an error (includes error details).
 
+### Batch Processing (`processType=batch`)
+
+Apply one transformation set to many assets in a single request.
+
+**Endpoint**: `POST /api/media/process`  
+**Permission**: `media:write`  
+**Handler**: `handleMediaProcess` in `handlers/media.ts` (`case "batch"`)
+
+**Payload** (`multipart/form-data`):
+
+- `processType` — `"batch"`
+- `mediaIds` — JSON array of media IDs, e.g. `["uuid-1", "uuid-2"]`
+- `options` (optional) — JSON instructions, same shape as the manipulation payload below
+
+> [!IMPORTANT]
+> **100-id ceiling (`MAX_BATCH_PROCESS_IDS`).** A `mediaIds` list longer than **100** entries is rejected with `400 INVALID_BATCH_SIZE` — the check runs before any asset is touched, because each id otherwise feeds a serial `manipulateMedia()` loop downstream (`payload-exhaustion` guard). The cap mirrors the sibling surfaces `MAX_BULK_DOWNLOAD_IDS` (bulk download), `MAX_BATCH_SIZE` (`/api/token/batch`) and `MAX_USER_BATCH_SIZE` (`/api/user/batch`). Malformed JSON or a non-array `mediaIds` returns `400 INVALID_BATCH_IDS`.
+
 ### Image Manipulation API
 
 SveltyCMS provides a dedicated endpoint for server-side image baking.
@@ -234,6 +254,7 @@ sequenceDiagram
 Download multiple media files as a single TAR.GZ archive.
 
 **Endpoint**: `GET /api/media/bulk-download?id={id1}&id={id2}&…`  
+**Cap**: at most 100 ids per request (`MAX_BULK_DOWNLOAD_IDS`) — an over-limit request returns `400 INVALID_BATCH_SIZE`.  
 **Returns**: `application/gzip` binary stream with `Content-Disposition: attachment`.
 
 **Admin UI**: When one or more assets are selected in the Media Gallery, the selection toolbar exposes a **Download Archive** button that builds the query string from `selectedFiles` and triggers a browser download.
@@ -295,6 +316,47 @@ Generate expiring, password-protected share links for media assets. See also [Me
 | Extend    | `PATCH /api/media/share/{mediaId}/{token}`                      | `{ expiryHours }`                   |
 
 **Admin UI**: The **Share** tab in `media-details-modal.svelte` generates links with configurable expiry and optional password, lists active tokens, and supports one-click revocation.
+
+---
+
+## 5. Delivery — On-Demand Image Transforms
+
+The byte-serving route is `GET /files/{tenantId}/{hash}/original/{file}` (not an `/api/media/*` endpoint). It streams originals with `Range`/`206`/`416` support, weak `ETag` + `304` revalidation and `Cache-Control: immutable`, and it serves **cached on-demand variants** when the request asks for a size.
+
+> Added 2026-09-22 — `w`/`h`/`q`/`fmt` were previously ignored (full original under any URL). Full architecture and fallback matrix: [Media System → On-Demand Image Transforms](../architecture/media-system.mdx#-on-demand-image-transforms).
+
+| Param    | Aliases  | Values                                    | Notes                                                                                   |
+| :------- | :------- | :---------------------------------------- | :-------------------------------------------------------------------------------------- |
+| `w`      | —        | dimension ladder step (`16` … `3840`)     | Snapped **down** to the nearest step; `w` alone keeps aspect ratio                      |
+| `h`      | —        | dimension ladder step (`16` … `3840`)     | Snapped down; with `w` it is a bounding box (`fit: inside`, no upscaling)               |
+| `q`      | —        | quality ladder step (`50` … `90`)         | Snapped to the nearest step, default `82`                                               |
+| `fmt`    | `format` | `webp` \| `avif` \| `jpeg`/`jpg` \| `png` | Explicit format; any other value rejects the transform (never a faked content type)     |
+| `Accept` | —        | `image/avif`, `image/webp`, `image/jpeg`  | Used in `q=` order only when `fmt`/`format` is absent; wildcards keep the source format |
+
+The ladder values are the only accepted dimensions (`16, 24, 32, 48, 64, 96, 128, 160, 192, 240, 320, 384, 480, 640, 768, 960, 1280, 1600, 1920, 2560, 3840`, capped by `MAX_OUTPUT_DIMENSION`); requesting anything else is normalised down or ignored — an arbitrary resolution can never be allocated or cached.
+
+```http
+GET /files/global/9f2c…/original/hero-9f2c….jpg?w=320          # 320 px wide, source format
+GET /files/global/9f2c…/original/hero-9f2c….jpg?w=1280&fmt=avif
+GET /files/global/9f2c…/original/hero-9f2c….jpg?w=300          # normalised to 240 px
+GET /files/tenant-a/9f2c…/original/hero-9f2c….jpg?sig=…&exp=…&w=640   # signatures still required
+```
+
+**Responses**
+
+| Header              | Value                                                                           |
+| :------------------ | :------------------------------------------------------------------------------ |
+| `Content-Type`      | Variant format (`image/webp`, `image/avif`, `image/jpeg`, `image/png`)          |
+| `ETag` / `304`      | Weak variant ETag — repeat requests revalidate without re-encoding              |
+| `Cache-Control`     | `public, max-age=31536000, immutable`                                           |
+| `Vary`              | `Accept` (the negotiated format depends on the request header)                  |
+| `X-Media-Transform` | `w{width}h{height}q{quality}.{format}` — present only on real variant responses |
+
+**Cache key** — `{tenantId}/{hash}/variants/t{height}q{quality}-{width}.{format}` (e.g. `global/9f2c…/variants/t0q82-320.webp`). It is derived from the original's tenant-scoped path and content hash, ordered before any transform work, so the tenant + signature gates always run first.
+
+**Never transformed (original streamed instead, logged at debug):** SVG, GIF, animated WebP/AVIF, TIFF/BMP/HEIC/PDF/video, sources above 40 MB, non-canonical paths, unencodable `fmt`, and any encoder/disk failure. Cloud backends (`s3`, `r2`, `cloudinary`) keep their `302` redirect to the CDN public URL and never pull bytes through Node for a transform.
+
+**Permissions**: none beyond the route's existing access rules — public/global assets stay public, tenant assets still require the matching `tenantId`, and `MEDIA_SIGNED_URL_ENABLED` still requires `sig`/`exp` (the signature is not part of the variant key).
 
 ---
 

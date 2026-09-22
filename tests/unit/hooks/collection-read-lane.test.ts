@@ -53,7 +53,7 @@ describe("collection read lane single-flight", () => {
     await responseCache.clearLocal();
     findMock.mockReset();
     findByIdMock.mockReset();
-    setTurboAuthContext(sessionId, user as never, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as never, [], null);
   });
 
   function listEvent() {
@@ -214,7 +214,7 @@ describe("collection read lane single-flight", () => {
   it("scopes the L1 entry to the per-request tenant, not the session tenant", async () => {
     vi.stubEnv("TEST_MODE", "true");
     // Session was resolved for tenant A; the request explicitly targets tenant B.
-    setTurboAuthContext(sessionId, user as never, [], new Uint32Array(0), "tenant-a" as DatabaseId);
+    setTurboAuthContext(sessionId, user as never, [], "tenant-a" as DatabaseId);
     findMock.mockResolvedValue({ success: true, data: [{ _id: "1", title: "scoped" }] });
     const resolve = vi.fn(async () => new Response("pipeline"));
 

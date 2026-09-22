@@ -206,11 +206,13 @@ Missing any one layer leaves a gap (logic-only, HTTP-only, or UI-only).
 
 ## Current baseline (order of magnitude)
 
-| Layer       | Scale (approx.)              | Health signal                                            |
-| ----------- | ---------------------------- | -------------------------------------------------------- |
-| Unit        | ~2,100+ tests / ~240 files   | Local full unit ~13s green                               |
-| Integration | ~50 spec files, multi-domain | SQLite strong; multi-DB skew tracked                     |
-| E2E         | ~40 specs, multi-project CI  | Flakes on builder; smoke + journey hardening in progress |
+Counts drift with every wave — [`test-status.mdx`](./test-status.mdx) is the single source of truth for file/test counts.
+
+| Layer       | Scale (approx.)       | Health signal                                            |
+| :---------- | :-------------------- | -------------------------------------------------------- |
+| Unit        | see `test-status.mdx` | Local full unit green in a single run                    |
+| Integration | see `test-status.mdx` | SQLite strong; multi-DB skew tracked                     |
+| E2E         | see `test-status.mdx` | Flakes on builder; smoke + journey hardening in progress |
 
 **Gap themes**
 

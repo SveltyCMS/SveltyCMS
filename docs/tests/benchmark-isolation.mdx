@@ -17,7 +17,7 @@ tags:
 SveltyCMS separates **user live collection data** from **benchmark and test fixtures** at three layers: physical paths on disk, compile/runtime scanning, and GraphQL schema registration. This prevents benchmark runs from polluting `config/collections/` or bloating the GraphQL schema with 150+ mock types.
 
 > [!IMPORTANT]
-> **Source of truth:** `src/utils/benchmark-paths.ts` and `src/routes/setup/preset-collections.server.ts`. Matrix cleanup: `scripts/benchmark-matrix/index.ts` (`ConfigSafeguard`).
+> **Source of truth:** `src/utils/benchmark-paths.ts` and `src/routes/setup/preset-collections.server.ts` (`purgeBenchmarkCollectionArtifacts()` → `src/utils/benchmark-db-purge.ts`). Matrix lifecycle: `scripts/benchmark-matrix/index.ts`.
 
 ## Path Contract
 
@@ -80,15 +80,23 @@ import {
 
 ## Matrix Lifecycle
 
-1. **Pre-audit** (`index.ts`): `purgeBenchmarkCollectionArtifacts()` before any server starts.
-2. **Per-DB audit** (`runner.ts`): Purge again before `startServer()`.
-3. **Child tests**: `API_BASE_URL` points at matrix server; `setupBenchmarkServer()` does not spawn a second server.
-4. **Exit / SIGINT** (`ConfigSafeguard.restore()`): Removes `config/private.test.ts` and purges benchmark artifacts.
+1. **Pre-seed** (`index.ts` → `seed-runner.test.ts`): the pre-seed child runs before boot so roles, admin and benchmark collections exist when the server starts.
+2. **Server boot** (`index.ts`): ONE production server per adapter, started from `serverEnv`.
+3. **Child tests**: `API_BASE_URL` points at that server; `setupBenchmarkServer()` reuses it (`{ stop: async () => {} }`) instead of spawning a second one.
+4. **Workspace cleanup** (`tests/benchmarks/modules/benchmark-utils.ts`): `afterAll` calls `cleanupAllBenchmarkWorkspaces()` per test file — except under `BENCHMARK_MATRIX=1`, where the matrix owns cleanup.
+5. **Exit** (`index.ts`): the adapter's server is killed (SIGTERM → 300 ms grace → SIGKILL) before the next adapter starts.
 
 ```bash
-# Single benchmark via matrix (isolated temp DB + purge)
+# Single benchmark via matrix (isolated temp DB, shared production server)
 bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=relational --no-build
 ```
+
+> [!WARNING]
+> **`--only` narrows the tests, not the reporting.** The run still rewrites the per-adapter
+> ledger MDX for the adapters it touches, patching the subset into reports assembled from
+> whatever is already on disk. Foreign sections can change without having been measured —
+> after a measurement-only run, discard the doc churn with
+> `git checkout -- docs/project/benchmarks/`.
 
 ## Purge & Detection
 
@@ -154,8 +162,8 @@ If an older benchmark run left `Mock Collection *.js` or `bench_*` files at the 
 # Purge filesystem + SQLite debris; preserves user files like posts.ts / authors.ts
 bun -e "import { purgeBenchmarkCollectionArtifacts } from './src/routes/setup/preset-collections.server.ts'; console.log('Removed:', await purgeBenchmarkCollectionArtifacts())"
 
-# Inspect SQLite pollution (collection_* tables + content_nodes)
-bun scripts/inspect-mock-collections.ts
+# Inspect SQLite pollution (collection_* tables per database in config/database/)
+bun -e 'import path from "node:path"; import { readdirSync } from "node:fs"; import { Database } from "bun:sqlite"; const dir = path.resolve("config/database"); const isDb = (n) => n.endsWith(".db") || n.endsWith(".sqlite"); for (const f of readdirSync(dir).filter(isDb)) { const db = new Database(path.join(dir, f), { readonly: true }); console.log(f, db.query("SELECT name FROM sqlite_master WHERE type = ? AND name LIKE ?").all("table", "collection_%").map((r) => r.name)); }'
 ```
 
 `purgeBenchmarkCollectionArtifacts()` also runs `purgeBenchmarkDatabaseArtifacts()` — drops stale `collection_*` tables and `content_nodes` rows (mock scan debris always; benchmark presets only on user/healing DBs, not `benchmark_shared.sqlite`).
@@ -170,7 +178,7 @@ After cleanup, regenerate types if needed: `bun x svelte-kit sync`.
 | :-------------------------------- | :------------------------------------------------------------------------ |
 | `compile.ts` benchmark filter     | Done — skips `test/` + `isBenchmarkArtifact` when `!isBenchmarkRuntime()` |
 | `mock_collection_*` detection     | Done — `isBenchmarkArtifact` + `isMockScanCollection`                     |
-| `ConfigSafeguard` ad-hoc matching | Done — only `purgeBenchmarkCollectionArtifacts()`                         |
+| Artifact purge call sites         | Done — `purgeBenchmarkCollectionArtifacts()` is the only matcher          |
 | Env var split GraphQL vs scanners | Done — `isBenchmarkRuntime()` everywhere                                  |
 | Docs outdated claims              | Updated — this file + `docs/tests/index.mdx`                              |
 

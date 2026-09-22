@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:widgets"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-05-06"
+updated: "2026-09-22"
 tags:
   - "widgets"
   - "guide"
@@ -14,37 +14,38 @@ tags:
   - "cms"
 ---
 
-# Widget System Overview
+# Widget system
 
-SveltyCMS features a powerful, type-safe widget system designed for performance and extensibility.
+A widget is a field. Editors meet widgets inside the [Collection Builder](../../guides/content/collection-builder.mdx). This section is for someone adding a field type.
 
-## 📚 Documentation Map
+## The three parts
 
-| Guide                                  | Description                                      |
-| :------------------------------------- | :----------------------------------------------- |
-| **[Architecture](./architecture.mdx)** | Technical deep-dive into the 3-Pillar system.    |
-| **[Development](./development.mdx)**   | Practical guide to building and testing widgets. |
-| **[Marketplace](./marketplace.mdx)**   | Participating in the widget ecosystem.           |
+| Part       | File             | Role                                                      |
+| :--------- | :--------------- | :-------------------------------------------------------- |
+| Definition | `index.ts`       | `createWidget()` — Valibot schema, GUI config, validation |
+| Input      | `input.svelte`   | The editor control                                        |
+| Display    | `display.svelte` | The read-only view                                        |
 
----
+Filenames are lowercase. The folder is kebab-case. The factory `Name` is PascalCase, and `widgetNameToFolder(Name)` must equal the folder.
 
-## 🏗️ Core Concept: The 3 Pillars
+| Kind        | Folder                             |
+| :---------- | :--------------------------------- |
+| Core        | `src/widgets/core/{kebab}/`        |
+| Custom      | `src/widgets/custom/{kebab}/`      |
+| Marketplace | `src/widgets/marketplace/{kebab}/` |
 
-Every widget consists of a **Definition**, an **Input**, and a **Display** component. This separation ensures that logic and UI remain decoupled and performant.
+## Where to go
 
-## 🧪 Testing Policy
+| Task                 | Page                                                     |
+| :------------------- | :------------------------------------------------------- |
+| Build one            | [Widget development](./development.mdx)                  |
+| Publish one          | [Widget marketplace](./marketplace.mdx)                  |
+| See a built-in field | The `.mdx` file next to that widget under `src/widgets/` |
 
-- **Core Widgets**: Tests are located in `tests/unit/widgets/core/`.
-- **Custom Widgets**: Tests are located in `tests/unit/widgets/custom/` or the widget's own folder.
-
-## 🧩 Notable Custom Widgets
-
-- **[Block Builder Widget](../../reference/components/fields.mdx#visual-polymorphic-block-builder-widget)**: Visual polymorphic layout constructor (`src/widgets/custom/block-builder/`) featuring 8 built-in presets (Hero, Text & Prose, Media Showcase, Call to Action, Features Grid, Quote/Testimonial, FAQ, Rich Text), interactive reordering, and Valibot schema validation.
-
----
+Tests for core widgets live in `tests/unit/widgets/core/`. A custom widget keeps its tests in its own `tests/` folder.
 
 ## Related
 
-- [Architecture Overview](../../README.mdx)
-- [Getting Started](../../../getting-started.mdx)
-- [API Reference](../../../reference/api/index.mdx)
+- [Widget development](./development.mdx)
+- [Collection Builder](../../guides/content/collection-builder.mdx)
+- [API reference](../../reference/api/index.mdx)

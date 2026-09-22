@@ -39,7 +39,7 @@ describe("handleTurboGet + response cache", () => {
   });
 
   it("slides turbo TTL on getTurboAuthContext so write bursts stay warm", () => {
-    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as any, [], null);
     const first = getTurboAuthContext(sessionId);
     expect(first).not.toBeNull();
     const second = getTurboAuthContext(sessionId);
@@ -67,7 +67,7 @@ describe("handleTurboGet + response cache", () => {
   });
 
   it("serves TURBO-HIT when turbo auth + responseCache are warm", async () => {
-    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as any, [], null);
 
     const body = JSON.stringify({ success: true, data: [{ _id: "1" }] });
     const etag = generateContentEtag(body);
@@ -95,7 +95,7 @@ describe("handleTurboGet + response cache", () => {
   });
 
   it("does not turbo-cache non-cacheable API prefixes", async () => {
-    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as any, [], null);
     const resolve = vi.fn(async () => new Response("auth-only"));
     const event = createMockEvent("/api/auth/login", {
       method: "GET",
@@ -107,7 +107,7 @@ describe("handleTurboGet + response cache", () => {
   });
 
   it("returns COL-304 without resolve when If-None-Match matches collection epoch", async () => {
-    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as any, [], null);
     const { currentCollectionWeakEtag } = await import("@src/services/cache/collection-etag");
     const etag = currentCollectionWeakEtag({
       collectionId: "posts",
@@ -131,7 +131,7 @@ describe("handleTurboGet + response cache", () => {
   });
 
   it("skips turbo on POST mutations", async () => {
-    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as any, [], null);
     const resolve = vi.fn(async () => new Response("write"));
     const event = createMockEvent("/api/collections/posts", {
       method: "POST",
@@ -143,7 +143,7 @@ describe("handleTurboGet + response cache", () => {
   });
 
   it("reads __Host- session cookie name (E2E/production parity)", async () => {
-    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    setTurboAuthContext(sessionId, user as any, [], null);
     const body = JSON.stringify({ ok: true });
     const key = buildUserResponseCacheKey("/api/settings/public", "", user._id);
     responseCache.set(key, { body, etag: generateContentEtag(body) }, 60_000, null);

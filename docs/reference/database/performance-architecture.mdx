@@ -116,7 +116,7 @@ HTTP turbo / LocalCMS → ICrudAdapter.findOne|insert|update
   → MongoCrudMethods (MongoDB)
 ```
 
-### Core ↔ adapter communication (all 4 engines)
+### Core ↔ adapter communication (all 4 engines) {#core--adapter-communication-all-4-engines}
 
 Every request — LocalCMS SDK or HTTP — uses the same write pipeline. The database adapter is a **direct in-process call**, not an HTTP hop:
 
@@ -282,7 +282,7 @@ Cache keys are **user-scoped** (`u:{userId}:…`) with deep-sorted GraphQL varia
 - **MongoDB** — `crud.findPage` with `limit+1` hasMore + `total: "exact"` (count goes through the 30s L1 wrapper)
 - **SQL engines** — parallel `SELECT … LIMIT n+1` + `COUNT(*)` (`Promise.all` in `relational-system.ts`); sentinel row trimmed before scrubbing hashes
 
-## Product-layer list & count (equal on all engines)
+## Product-layer list & count (equal on all engines) {#product-layer-list--count-equal-on-all-engines}
 
 > **Design rule:** Prefer cheaper correctness tiers by default. Exact cardinality is opt-in. Optimizations live in the shared `ICrudAdapter` contract — not engine-specific call sites — so SQLite, PostgreSQL, MariaDB, and MongoDB gain together.
 

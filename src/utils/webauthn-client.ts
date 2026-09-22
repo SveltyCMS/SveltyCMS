@@ -10,8 +10,15 @@
 
 import { browser } from "$app/env";
 
-/** Converts a base64url string to Uint8Array buffer */
-export function base64UrlToBuffer(base64url: string): Uint8Array {
+/**
+ * Converts a base64url string to Uint8Array buffer.
+ *
+ * The return type is pinned to `Uint8Array<ArrayBuffer>` (not the default
+ * `Uint8Array<ArrayBufferLike>`): WebAuthn's `BufferSource` requires a view backed
+ * by a real `ArrayBuffer`, so an unpinned annotation makes every
+ * `challenge`/`id`/`allowCredentials` assignment a type error.
+ */
+export function base64UrlToBuffer(base64url: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
   const base64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(base64);

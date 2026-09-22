@@ -29,6 +29,14 @@ import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
 import { withMigrationLock } from "../migration-lock";
 import { getHardwareProfile } from "@utils/hardware-profile";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
+
+/**
+ * PROFILE_DB=1 adds per-statement exec timing + busy-retry counters.
+ * Read once: env vars are static at boot, and a per-statement `process.env`
+ * lookup sits on the hot write path.
+ */
+const PROFILE_DB_ENABLED = typeof process !== "undefined" && process.env.PROFILE_DB === "1";
 
 // --- Types ---
 export type SQLiteConfig = { connectionString?: string; readonly?: boolean };
@@ -292,7 +300,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     try {
       const tableName = getTableName(table);
       if (Object.keys(values).length === 0) return null;
+      const mSynth = PROFILE_WRITE_ENABLED ? profileMark("db:ins:synth") : null;
       const synthesized = this.synthesizeInsertRow(table, values);
+      mSynth?.();
       const cols = Object.keys(synthesized);
       const cacheKey = `${tableName}|${cols.join(",")}`;
       let tpl = this._insertTemplateCache.get(cacheKey);
@@ -310,11 +320,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         this._insertTemplateCache.set(cacheKey, tpl);
       }
       const params = tpl.cols.map((c) => synthesized[c]);
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       await this.prepareAndExecuteWrite(tpl.sqlText, "run", ...params);
-      return utils.convertDatesToISO(synthesized, {
+      mStmt?.();
+      const mConv = PROFILE_WRITE_ENABLED ? profileMark("db:ins:conv") : null;
+      const converted = utils.convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
       }) as T;
+      mConv?.();
+      return converted;
     } catch {
       return null;
     }
@@ -425,17 +440,23 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
 
       if (skipReturning) {
+        const mStmtR = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
         await this.prepareAndExecuteWrite(rawSql, "run", ...params, String(id), ...tenantParams);
+        mStmtR?.();
         const reconstructed = {
           ...values,
           [idColName]: id,
         } as Record<string, unknown>;
-        return utils.convertDatesToISO(reconstructed, {
+        const mConvR = PROFILE_WRITE_ENABLED ? profileMark("db:upd:conv") : null;
+        const converted = utils.convertDatesToISO(reconstructed, {
           ...this.convertDatesOptions,
           table: collection,
         }) as unknown as T;
+        mConvR?.();
+        return converted;
       }
 
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
       const rows = await this.prepareAndExecuteWrite(
         rawSql,
         "all",
@@ -443,11 +464,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         String(id),
         ...tenantParams,
       );
+      mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertDatesToISO(rows[0], {
+        const mConv = PROFILE_WRITE_ENABLED ? profileMark("db:upd:conv") : null;
+        const converted = utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
           table: collection,
         }) as T;
+        mConv?.();
+        return converted;
       }
       return null;
     } catch {
@@ -1352,7 +1377,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     // 🎯 PROFILE_DB=1: exec timing + busy-retry counts (WAL checkpoint stalls /
     // lock contention are invisible per request without this). Zero overhead
     // when the env flag is unset.
-    const profileDb = typeof process !== "undefined" && process.env.PROFILE_DB === "1";
+    const profileDb = PROFILE_DB_ENABLED;
     const t0 = profileDb ? performance.now() : 0;
     try {
       // node:sqlite only binds null/number/bigint/string/Uint8Array — JS

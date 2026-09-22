@@ -1203,6 +1203,15 @@ bulk actions, and predictive preloading.
 		}
 	}
 
+	/**
+	 * Shared row activation (table `Enter`, card click/`Enter`): open the entry in edit mode.
+	 */
+	function openEntryForEdit(entry: CollectionEntry): void {
+		modeTransitionGuard.setMode('edit');
+		setCollectionValue(entry);
+		reflectModeInURL('edit', entry._id as string);
+	}
+
 	$effect(() => {
 		if (browser) {
 			const onGlobalKeydown = (e: KeyboardEvent) => {
@@ -1520,10 +1529,22 @@ bulk actions, and predictive preloading.
 										const originalEntry = tableData.find(
 											(item: CollectionEntry) => item._id === entry._id
 										);
-										if (originalEntry) {
-											modeTransitionGuard.setMode('edit');
-											setCollectionValue(originalEntry);
-											reflectModeInURL('edit', originalEntry._id as string);
+										if (originalEntry) openEntryForEdit(originalEntry);
+									}}
+									onkeydown={(e) => {
+										// Keyboard parity for the card view (WCAG 2.1.1): Enter opens the entry,
+										// Space toggles selection — the same mapping the table view uses.
+										const target = e.target as HTMLElement | null;
+										if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											const originalEntry = tableData.find(
+												(item: CollectionEntry) => item._id === entry._id
+											);
+											if (originalEntry) openEntryForEdit(originalEntry);
+										} else if (e.key === ' ') {
+											e.preventDefault();
+											smartTable.toggleSelect(rowId);
 										}
 									}}
 								>
@@ -1599,6 +1620,11 @@ bulk actions, and predictive preloading.
 					{/if}
 				</div>
 			{:else}
+				<!-- Scrollable grid region: `tabindex="0"` + keydown are what make keyboard
+				     scrolling (WCAG 2.1.1) and arrow-key cell navigation possible; `role="region"`
+				     plus the aria-label carry the semantics — the element is intentionally focusable. -->
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 				<div
 					bind:this={scrollContainerEl}
 					onscroll={onVirtualScroll}
@@ -1698,7 +1724,6 @@ bulk actions, and predictive preloading.
 										style={useRowVirtualization
 											? 'content-visibility: auto; contain-intrinsic-size: 48px;'
 											: undefined}
-										role="row"
 										aria-selected={rowSelected}
 										tabindex={isFocused ? 0 : -1}
 										onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}

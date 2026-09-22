@@ -17,6 +17,7 @@ Features:
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { modalState, showConfirm } from '@utils/modal.svelte';
 	import { page } from '$app/state';
+	import { untrack } from 'svelte';
 	import { formatDateTime } from '@utils/format-date';
 	import { base64UrlToBuffer, bufferToBase64Url, isPasskeySupported } from '@utils/webauthn-client';
 	import { getPasskeyRegisterOptions, verifyPasskeyRegister } from '@src/routes/login/auth.remote';
@@ -30,7 +31,11 @@ Features:
 
 	const { user: userProp, onSuccess }: Props = $props();
 	const user = $derived(userProp ?? (page.data.user as User) ?? {});
-	let authenticators = $state<Authenticator[]>((user?.authenticators as Authenticator[]) || []);
+	// One-time mount seed — revoke/register update this list directly; a later
+	// `user` prop change must not silently overwrite in-flight edits.
+	let authenticators = $state<Authenticator[]>(
+		untrack(() => (user?.authenticators as Authenticator[]) || [])
+	);
 	let isRegistering = $state(false);
 	let isRevoking = $state<string | null>(null);
 
@@ -61,7 +66,7 @@ Features:
 
 		isRegistering = true;
 		try {
-			const res = await getPasskeyRegisterOptions(undefined as any);
+			const res = await getPasskeyRegisterOptions(undefined);
 			if (!res.success || !res.options) {
 				toast.error({
 					title: 'Registration Error',
@@ -79,9 +84,10 @@ Features:
 						...options.user,
 						id: base64UrlToBuffer(options.user.id)
 					},
-					excludeCredentials: options.excludeCredentials?.map((c: any) => ({
+					excludeCredentials: options.excludeCredentials?.map((c) => ({
 						...c,
-						id: base64UrlToBuffer(c.id)
+						id: base64UrlToBuffer(c.id),
+						transports: c.transports as AuthenticatorTransport[] | undefined
 					}))
 				}
 			})) as PublicKeyCredential | null;
@@ -279,8 +285,7 @@ Features:
 			Close
 		</Button>
 		<Button
-			variant="filled"
-			color="primary"
+			variant="primary"
 			type="button"
 			loading={isRegistering}
 			onclick={handleRegisterPasskey}

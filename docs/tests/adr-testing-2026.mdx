@@ -198,19 +198,19 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 ## Shared infrastructure
 
-| Piece                  | Path                                                                                                              |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                          |
-| Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                     |
-| Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                    |
-| E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                        |
-| Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                              |
-| Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                       |
-| Prod strip proof       | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                                                           |
-| Smart Test Selector    | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering                               |
-| **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                    |
-| Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                               |
-| E2E CI-parity runner   | `bun run test:e2e` → `run-e2e-ci.ts` (preview :4173, harness pre-check). Dev: `run-e2e-dev.ts` (strictPort :5173) |
+| Piece                  | Path                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                                             |
+| Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                                        |
+| Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                                       |
+| E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                                           |
+| Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                                                 |
+| Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                                          |
+| Prod strip proof       | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                                                                              |
+| Smart Test Selector    | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering                                                  |
+| **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                                       |
+| Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                                                  |
+| E2E CI-parity runner   | `bun run test:e2e` → `scripts/run-e2e.ts` (preview :4173, harness pre-check) — `--dev` for Vite :5173, `--no-build` to reuse a build |
 
 ---
 
@@ -218,21 +218,21 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 Enterprise stability rules that every layer must honor:
 
-| Rule                   | Unit                            | Integration                           | E2E                                     |
-| ---------------------- | ------------------------------- | ------------------------------------- | --------------------------------------- | ------------- | --------------------- |
-| **One identity**       | `@tests/harness`                | seed uses harness emails              | `helpers/auth.ts` → harness             |
-| **Right altitude**     | pure logic / gates              | HTTP + multi-DB                       | golden journeys only                    |
-| **No soft-skip empty** | n/a                             | n/a                                   | seed or hard-fail                       |
-| **Crash isolation**    | n/a                             | detect socket death → restart         | storageState fail-closed                |
-| **Local = CI binary**  | Vitest                          | preview `node build`                  | `test:e2e` = preview :4173              |
-| **P0 floors**          | `test:unit:coverage` thresholds | multi-DB matrix in CI                 | P0 journeys in `critical-test-paths.ts` |
-| **Push smoke**         | smart unit + security           | auto SQLite smoke when `src/databases | plugins                                 | hooks` change | not on push (CI-only) |
+| Rule                   | Unit                                                          | Integration                           | E2E                                     |
+| ---------------------- | ------------------------------------------------------------- | ------------------------------------- | --------------------------------------- | ------------- | --------------------- |
+| **One identity**       | `@tests/harness`                                              | seed uses harness emails              | `helpers/auth.ts` → harness             |
+| **Right altitude**     | pure logic / gates                                            | HTTP + multi-DB                       | golden journeys only                    |
+| **No soft-skip empty** | n/a                                                           | n/a                                   | seed or hard-fail                       |
+| **Crash isolation**    | n/a                                                           | detect socket death → restart         | storageState fail-closed                |
+| **Local = CI binary**  | Vitest                                                        | preview `node build`                  | `test:e2e` = preview :4173              |
+| **P0 floors**          | `bun x vitest run --coverage` thresholds (`vitest.config.ts`) | multi-DB matrix in CI                 | P0 journeys in `critical-test-paths.ts` |
+| **Push smoke**         | smart unit + security                                         | auto SQLite smoke when `src/databases | plugins                                 | hooks` change | not on push (CI-only) |
 
 **Commands (canonical):**
 
 ```bash
 bun run test:unit                 # Layer 1
-bun run test:unit:coverage        # Layer 1 + P0 coverage floors
+bun x vitest run --coverage       # Layer 1 + P0 coverage floors (thresholds in vitest.config.ts)
 bun run test:integration          # Layer 2 (builds + multi-file)
 bun run test:integration:smoke    # Layer 2 quick SQLite
 bun run test:e2e                  # Layer 3 CI-parity (preview :4173)

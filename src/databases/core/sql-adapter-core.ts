@@ -54,6 +54,7 @@ import { RelationalAuthModule } from "./relational-auth";
 import { RelationalContentModule } from "./relational-content";
 import { RelationalMediaModule } from "./relational-media";
 import { RelationalSystemModule } from "./relational-system";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { BatchModule } from "./batch-module";
 import { CollectionModule } from "./collection-module";
 import {
@@ -1706,7 +1707,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
     const id = (d as any)._id || generateUUID();
     const now = this.writeNow();
+    const mPrepValues = PROFILE_WRITE_ENABLED ? profileMark("db:ins:prepare-values") : null;
     const values = this.prepareValues(table, d, id, now, options);
+    mPrepValues?.();
     // Seed path only: RETURNING is pure overhead when the caller already
     // knows the row (testing.ts passes skipReturning explicitly). The
     // ambient BENCHMARK env check was removed — it made the benchmark
@@ -1746,6 +1749,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     };
 
     let finalData: T;
+    const mExec = PROFILE_WRITE_ENABLED ? profileMark("db:ins:exec") : null;
     try {
       finalData = await runInsert();
     } catch (err: any) {
@@ -1762,6 +1766,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         throw err;
       }
     }
+    mExec?.();
 
     return this.hooks.length > 0
       ? await this.runHooks("after", "insert", collection, finalData, options)
@@ -1886,7 +1891,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     const table = this.getTable(collection);
     if (!table) throw new Error(`Collection table not found: ${collection}`);
     const now = this.writeNow();
+    const mPrepValuesU = PROFILE_WRITE_ENABLED ? profileMark("db:upd:prepare-values") : null;
     const values = this.prepareUpdateValues(table, d, id, now, options);
+    mPrepValuesU?.();
 
     const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
     if (!idCol) throw new Error("ID column not found");
@@ -1913,7 +1920,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // trip — covers both RETURNING and skipReturning (no-read-back
     // reconstruction from prepared values). Returns null when the adapter
     // has no fast path or bailed; the Drizzle branches below fall back.
+    const mRawU = PROFILE_WRITE_ENABLED ? profileMark("db:upd:raw") : null;
     const rawRow = await this.rawUpdateReturning<T>(table, collection, values, idCol, id, options);
+    mRawU?.();
     if (rawRow !== null) {
       return this.hooks.length > 0
         ? await this.runHooks("after", "update", collection, rawRow, options)

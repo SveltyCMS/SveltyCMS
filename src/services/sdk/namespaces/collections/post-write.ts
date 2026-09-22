@@ -18,6 +18,7 @@
 
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { nowISODateString } from "@src/utils/date";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { collectionTableName } from "@src/databases/core/collection-name";
@@ -447,10 +448,13 @@ export async function persistWithOutbox(
   getData: (result: any) => any,
   options?: { skipSideEffects?: boolean },
 ): Promise<any> {
+  const writeMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:adapter-write") : null;
   const result = await write({});
+  writeMark?.();
   if (result?.success) {
     const id = getId(result);
     if (id && !options?.skipSideEffects && process.env.DISABLE_OUTBOX !== "true") {
+      const outboxMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:outbox") : null;
       scheduleOutboxEvent({
         schema,
         tenantId,
@@ -459,6 +463,7 @@ export async function persistWithOutbox(
         data: getData(result),
         user,
       });
+      outboxMark?.();
     }
   }
   return result;

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2025-10-30"
-updated: "2026-03-28"
+updated: "2026-09-22"
 tags:
   - "setup"
   - "wizard"
@@ -17,24 +17,21 @@ tags:
 ---
 
 <!-- lint:disable heading-density -->
-<!-- NOTE: consider splitting into sub-pages -->
 
 # Setup Wizard Guide
 
-The SveltyCMS setup wizard provides a professional, multi-step configuration experience with real-time validation, intelligent error handling, and a modern user interface. This guide covers the wizard's architecture, features, and implementation details.
+This page is the operator's path through first-run setup: what to prepare, what each of the five steps asks for, how to confirm it worked, and what to do when a step fails. The 90-second version is the [setup walkthrough](../../onboarding/setup-wizard.mdx) and install commands are [Getting started](../../getting-started.mdx). How the installer itself works — its phases, the config it writes, and the boot that follows — is [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).
+
+The SveltyCMS setup wizard provides a professional, multi-step configuration experience with real-time validation, intelligent error handling, and a modern user interface.
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
-- [Architecture](#architecture)
 - [Setup Steps](#setup-steps)
 - [Solution Presets](#solution-presets-starter-kits)
-- [Validation System](#validation-system)
 - [Error Handling](#error-handling)
-- [State Management](#state-management-2)
 - [User Experience](#user-experience)
-- [Development Guide](#development-guide)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -45,9 +42,17 @@ The setup wizard is a multi-step form that guides users through initial SveltyCM
 
 1. **Database Configuration** - Database connection and testing
 2. **Admin Account** - Administrator user creation
-3. **System Settings** - Site configuration and languages
+3. **System Settings** - Site configuration, languages, and the project blueprint
 4. **Email Configuration** (Optional) - SMTP setup for notifications
 5. **Review & Complete** - Final review and system initialization
+
+### Before you start
+
+- **A target database — or none at all.** SQLite needs only a writable path. For MongoDB, PostgreSQL, MySQL, or MariaDB, have host, port, and database name ready, plus a user and password for every type except plain `mongodb`.
+- **The production URL** the install will serve, for example `https://cms.example.com`.
+- **The administrator account**: username, email, and a password that meets the rules in [Step 2](#step-2-admin-account-creation).
+- **SMTP details** if the CMS should send mail — optional, and changeable later in settings.
+- **A willingness to overwrite an existing database.** If the target already contains tables, the wizard detects that and asks before it drops anything.
 
 ### Setup Wizard Flow
 
@@ -56,72 +61,18 @@ flowchart TD
     Start((Start)) --> DB[1. Database Config]
     DB --> |Test Connection| DBCheck{Valid?}
     DBCheck -->|No| DB
-    DBCheck -->|Yes| Admin[2. Admin Account]
+    DBCheck -->|Yes| Seed[Seed database in the background]
+    Seed --> Admin[2. Admin Account]
     Admin --> |Validate| AdminCheck{Valid?}
     AdminCheck -->|No| Admin
-    AdminCheck -->|Yes| System[3. System Settings]
+    AdminCheck -->|Yes| System[3. System Settings and preset]
     System --> |Validate| SystemCheck{Valid?}
     SystemCheck -->|No| System
     SystemCheck -->|Yes| Email[4. Email Config]
     Email --> |Optional| Review[5. Review & Complete]
-    Review --> |Final Validation| Seed[Seed Database]
-    Seed --> Complete[Complete Setup]
-    Complete --> Redirect((Dashboard))
-
-    subgraph Initialization_Performance
-        B[Bootstrap Pipeline]
-        P[Production Pipeline]
-        V[Vite Define Guard]
-    end
+    Review --> |Create admin and preset collections| Complete[Complete Setup]
+    Complete --> Redirect((First collection or login))
 ```
-
-### High-Performance Lifecycle
-
-SveltyCMS employs a "State-Aware" initialization strategy to ensure the setup wizard is ultra-responsive while the production environment remains enterprise-grade.
-
-```
-sequenceDiagram
-    participant V as Vite / Build
-    participant H as hooks.server.ts
-    participant D as db-init.ts
-    participant U as User
-
-    Note over V, U: PHASE 1: FRESH INSTALL
-    V->>H: __SVELTY_SETUP_COMPLETE__ = false
-    H->>H: Select "Bootstrap Pipeline" (Minimal)
-    H->>U: Redirect to /setup
-    U->>H: POST /setup (Complete)
-    H->>V: Write config/private.ts
-    V->>V: Hot Restart / Reload
-
-    Note over V, U: PHASE 2: PRODUCTION BOOT
-    V->>H: __SVELTY_SETUP_COMPLETE__ = true
-    H->>H: Select "Full Pipeline" (Enterprise)
-    H->>D: Trigger ensureFullInitialization()
-    D->>D: Topological Phased Boot (READY)
-    H->>U: Serve Dashboard (Full Speed)
-
-    Note over V, U: PHASE 3: STEADY STATE
-    U->>H: Incoming Request
-    H->>H: Fast Check: __SVELTY_SETUP_COMPLETE__ (Zero I/O)
-    H->>H: Execute Turbo Pipeline (~0.05ms)
-```
-
-#### Performance Benchmarks
-
-Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating achieves significantly lower latency for fresh installs:
-
-| Pipeline      | Features                      | Avg Latency | Context                 |
-| :------------ | :---------------------------- | :---------- | :---------------------- |
-| **Bootstrap** | Health, Security, Compression | **< 0.1ms** | During /setup phase     |
-| **Turbo**     | Fast-path routing, Assets     | **~0.05ms** | Production steady-state |
-| **Full**      | Auth, Audit, Content, SDK     | **~1.2ms**  | Standard API operations |
-
-<Callout type="info">
-  **Zero-I/O Optimization**: By injecting the setup status via Vite's `define` constant, we
-  eliminate the need to check for `private.ts` on every request. This reduces I/O pressure on the
-  filesystem, especially critical for high-concurrency environments.
-</Callout>
 
 ### Quick Stats
 
@@ -129,16 +80,7 @@ Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating ac
 - **Average Completion Time**: 2-3 minutes
 - **Real-time Validation**: All input fields
 - **Auto-save**: localStorage persistence
-- **✨ NO SERVER RESTART REQUIRED**: System becomes operational immediately after setup completion
-
-<Callout type="success">
-  **Process Reinitialization & Vite HMR**: In development, when SveltyCMS writes
-  `config/private.ts`, Vite triggers an asynchronous dev server hot-restart. To prevent database
-  initialization race conditions and ensure setup data is committed to the correct target, SveltyCMS
-  programmatically unlinks config caches and executes `reinitializeSystem()` upon setup completion.
-  In production, SveltyCMS loads configs dynamically on startup, transitioning cleanly without
-  downtime.
-</Callout>
+- **No server restart required**: the system becomes operational immediately after setup completion
 
 ---
 
@@ -185,168 +127,6 @@ WCAG 2.1 AA compliant features:
 
 ---
 
-## Architecture
-
-### Component Structure
-
-```
-src/routes/setup/
-├── +page.svelte               # Main orchestrator UI (Svelte 5 Runes)
-├── +page.server.ts            # Consolidated setup actions and DB orchestration
-├── database-config.svelte     # Step 1: Database setup with Proxy-Mutex support
-├── admin-config.svelte        # Step 2: Admin user with Strength-Validation
-├── system-config.svelte       # Step 3: System settings & i18n
-├── email-config.svelte        # Step 4: SMTP (optional)
-└── review-config.svelte       # Step 5: Review & zero-latency completion
-
-System Hardening:
-├── src/databases/db-init.ts   # Topological Phased Boot engine
-└── src/databases/config-state.ts # Security-masked configuration loader
-```
-
-### State-Aware Initialization
-
-This separation prevents the "Initialization Storm" where multiple requests try to boot the database simultaneously. The **Turbo Pipeline** (introduced in v0.0.8) ensures that setup checks consume **zero CPU/IO cycles** once the system is READY.
-
-### Security Hardening
-
-The setup process includes several enterprise-grade security features:
-
-- **Log Sanitization**: Sensitive values (passwords, connection strings) are excluded from structured log output during setup operations.
-- **Secret Redaction**: The configuration loader (`config-state.ts`) prevents raw `private.ts` content from appearing in log streams.
-- **Write-Mutex Protection**: SQLite writes during high-pressure setup are serialized via transaction management to prevent "Database is Locked" errors.
-
-### State Management {#security-state-mgmt}
-
-```
-// Central state via setup-store (Svelte 5 runes)
-{
-  wizard: {
-    dbConfig: {
-      type: 'sqlite',
-      host: 'config/database',
-      port: '',
-      name: 'sveltycms.db',
-      user: '',
-      password: '',
-      replicaUrls: []
-    },
-
-    adminUser: {
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
-    },
-
-    systemSettings: {
-      siteName: 'SveltyCMS',
-      hostProd: 'https://localhost:5173',
-      defaultSystemLanguage: 'en',
-      systemLanguages: ['en', 'de'],
-      defaultContentLanguage: 'en',
-      contentLanguages: ['en', 'de'],
-      mediaStorageType: 'local',
-      mediaFolder: './mediaFolder',
-      preset: 'blank',
-      passwordMinLength: 8,
-      timezone: 'UTC',
-      useRedis: false,
-      redisHost: 'localhost',
-      redisPort: '6379',
-      redisPassword: '',
-      multiTenant: false,
-      demoMode: false,
-      cfApiToken: '',
-      cfZoneId: '',
-      cfPurgeMode: 'tags'
-    },
-
-    emailSettings: {
-      smtpConfigured: false,
-      skipWelcomeEmail: true,
-      host: '',
-      port: '587',
-      user: '',
-      password: '',
-      from: '',
-      secure: false
-    },
-
-    currentStep: 0,
-    highestStepReached: 0,
-    dbTestPassed: false,
-    firstCollection: null
-  }
-}
-```
-
-### Validation Schemas
-
-Located in `src/utils/schemas.ts`:
-
-```
-import * as v from "valibot";
-
-// Database configuration schema
-export const dbConfigSchema = v.object({
-  type: v.picklist(["mongodb", "mongodb+srv", "mariadb", "postgresql", "sqlite"]),
-  host: v.pipe(v.string(), v.minLength(1, "Host is required")),
-  port: v.pipe(v.number(), v.minValue(1)),
-  name: v.pipe(v.string(), v.minLength(1, "Database name is required")),
-  user: v.optional(v.string()),
-  password: v.optional(v.string()),
-});
-
-// Admin user schema
-export const setupAdminSchema = v.object(
-  {
-    username: v.pipe(
-      v.string(),
-      v.minLength(3, "Username must be at least 3 characters"),
-      v.maxLength(50, "Username must not exceed 50 characters"),
-    ),
-    email: v.pipe(v.string(), v.email("Invalid email address")),
-    password: v.pipe(
-      v.string(),
-      v.minLength(8, "Password must be at least 8 characters"),
-      v.regex(/[A-Z]/, "Password must contain at least one uppercase letter"),
-      v.regex(/[a-z]/, "Password must contain at least one lowercase letter"),
-      v.regex(/[0-9]/, "Password must contain at least one number"),
-      v.regex(
-        /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/,
-        "Password must contain at least one special character",
-      ),
-    ),
-    confirmPassword: v.string(),
-  },
-  [
-    v.forward(
-      v.partialCheck(
-        [["password"], ["confirmPassword"]],
-        (input) => input.password === input.confirmPassword,
-        "Passwords do not match",
-      ),
-      ["confirmPassword"],
-    ),
-  ],
-);
-
-// System settings schema
-export const systemSettingsSchema = v.object({
-  siteName: v.pipe(v.string(), v.minLength(1, "Site name is required")),
-  hostProd: v.pipe(v.string(), v.url("Must be a valid URL")),
-  defaultSystemLanguage: v.string(),
-  systemLanguages: v.pipe(v.array(v.string()), v.minLength(1)),
-  defaultContentLanguage: v.string(),
-  contentLanguages: v.pipe(v.array(v.string()), v.minLength(1)),
-  mediaStorageType: v.string(),
-  mediaFolder: v.string(),
-});
-```
-
----
-
 ## Setup Steps
 
 ### Step 1: Database Configuration
@@ -355,38 +135,39 @@ export const systemSettingsSchema = v.object({
 
 **fields**:
 
-- Database Type (MongoDB, MongoDB Atlas, PostgreSQL, MySQL, MariaDB)
+- Database Type (SQLite, PostgreSQL, MySQL, MariaDB, MongoDB, MongoDB Atlas)
 - Host/Connection String
 - Port (for non-Atlas)
 - Database Name
-- Username (optional for localhost)
-- Password (optional for localhost)
+- Username (required for PostgreSQL, MySQL, MariaDB and `mongodb+srv`, optional for a local MongoDB)
+- Password (same rules as the username)
 
 **Features**:
 
 - **Connection String Parsing**: Paste full MongoDB URI, automatically extracts credentials
-- **Auto-driver Installation**: Detects missing drivers and installs them
+- **Driver Installation on Test**: MongoDB and SQLite drivers ship with the CMS; for the other types the wizard installs the driver through the detected package manager when you click **Test Connection**
 - **Atlas Helper**: Collapsible guide for MongoDB Atlas setup
 - **Existing Data Detection**: Probes the target database for existing tables or collections before proceeding.
 - **Data Overwrite Confirmation**: If existing data is detected, the wizard provides a clear modal warning. Users can choose to **Overwrite** the database (which drops and recreates it) or specify different connection details to prevent accidental data loss.
-- **Full Interface Compliance**: Automatically synchronizes theme and folder logic for MongoDB
 - **Test Connection**: Validates configuration before proceeding
 - **Error Classification**: Detailed error messages (auth failed, timeout, DNS error, etc.)
 
 **Validation Rules**:
 
 - Host is required and non-empty
-- Database name is required
-- Port must be valid number (for non-Atlas)
+- Database name is required, and may contain letters, numbers, hyphens, underscores, and dots
+- Port must be a number between 1 and 65535 (not required for Atlas)
+- Username and password are required for PostgreSQL, MySQL, MariaDB and `mongodb+srv`
 - Credentials validated on test
 
-**API Call**: `POST /setup?/testDatabase` (SvelteKit Server Action)
+**Server calls**: `testDatabaseConnection` and `installDatabaseDriver` (remote functions in `src/routes/setup/setup.remote.ts`); the same test logic is also exposed as the `testDatabase` form action.
 
 **Success Criteria**:
 
-- `wizard.dbTestPassed === true`
 - Green success message with connection details
 - "Next" button enabled
+- Seeding has already started in the background: the wizard writes `config/private.ts` and seeds settings, roles, and themes while you fill in the remaining steps
+- Editing the connection fields after a green test hides the success summary and asks for another test — the check always applies to the connection you are about to use
 
 ```
 stateDiagram-v2
@@ -407,7 +188,7 @@ stateDiagram-v2
 
 **fields**:
 
-- Username (3-50 characters)
+- Username (2-50 characters: letters, numbers, and `@ $ ! % * # . _ -`)
 - Email (valid email format)
 - Password (8+ chars with complexity requirements)
 - Confirm Password (must match)
@@ -425,12 +206,17 @@ stateDiagram-v2
 
 **Validation Rules**:
 
-- Username: 3-50 chars, alphanumeric + underscore
+- Username: 2-50 characters, letters, numbers and `@ $ ! % * # . _ -` only
 - Email: Valid email format
 - Password: 8+ chars with uppercase, lowercase, number, special char
 - Confirm password must match password
 
-**API Call**: None (validated locally, sent to `/setup?/completeSetup`)
+<Callout type="info">
+  The checklist mirrors the field. The server additionally requires one uppercase and one lowercase
+  letter when the administrator account is created, so include both.
+</Callout>
+
+**Server calls**: None (validated in the step; sent to `completeSetup` when you finish)
 
 **Success Criteria**:
 
@@ -440,7 +226,7 @@ stateDiagram-v2
 
 ### Step 3: System Settings
 
-**Purpose**: Configure site identity and language settings
+**Purpose**: Configure site identity, language settings, and the project blueprint
 
 **fields**:
 
@@ -461,6 +247,16 @@ stateDiagram-v2
 - Storage Type (Local, S3, R2, Cloudinary)
 - Storage Path/Bucket Name
 
+**Project Blueprint**:
+
+- The preset carousel described in [Solution Presets](#solution-presets-starter-kits)
+
+**Advanced (optional)**:
+
+- Multi-tenant mode, demo mode, timezone, minimum password length
+- Redis (host, port, password) — run **Test Redis Connection** if you enable it
+- Cloudflare purge (API token, zone ID, purge mode)
+
 **Features**:
 
 - **Smart Language Presets**: Auto-detects browser language
@@ -469,7 +265,7 @@ stateDiagram-v2
 - **Dual Language System**:
   - **System Languages**: Same ISO 639-1 picker as content. **English and German ship compiled.** Extra codes are written to `project.inlang/settings.json` and machine-translated (`bun translate`) when setup completes. RTL languages use `getTextDirection()` in `@utils/string`.
   - **Content Languages**: From ISO-639-1 (150+ languages), no rebuild required.
-- **Redis Verification**: Optional performance optimization with a dedicated "Test Redis Connection" button to verify host, port, and credentials.
+- **Redis Verification**: Optional performance optimization with a dedicated "Test Redis Connection" button to verify host, port, and credentials. The button is optional, the check is not: enabling Redis without a passing test blocks "Next".
 - **Storage Type Notice**: Shows configuration reminder for cloud storage
 
 **Validation Rules**:
@@ -480,13 +276,14 @@ stateDiagram-v2
 - At least one content language required
 - Default languages must be in their respective arrays
 
-**API Call**: None (validated locally, sent to `/setup?/completeSetup`)
+**Server calls**: None for the form itself; `testRedisConnection` for the Redis test (validated locally, sent to `completeSetup` when you finish)
 
 **Success Criteria**:
 
 - All required fields filled
 - Valid URL format
 - Language configuration valid
+- Redis test passed, if Redis is enabled
 - "Next" button enabled
 
 ### Step 4: Email Configuration (Optional)
@@ -516,7 +313,7 @@ stateDiagram-v2
 - Username and password required (if configuring)
 - From address must be valid email
 
-**API Call**: `POST /setup?/testEmail`
+**Server call**: `testEmailConnection` (remote function in `src/routes/setup/setup.remote.ts`) for the test email
 
 **Success Criteria**:
 
@@ -540,107 +337,33 @@ stateDiagram-v2
 - **Edit Links**: Click any section to return to that step
 - **Final Validation**: Re-validates all steps before submission
 - **Loading State**: Shows progress during initialization
-- **Auto-login**: Creates session cookie on success
-- **Smart Redirect**: Redirects to first collection or dashboard
+- **Preset Collections**: The blueprint you picked in step 3 is written to `config/collections` (`config/{tenant}/collections` in multi-tenant mode) and registered here, not earlier
+- **Auto-login**: Creates the session cookie on success (24-hour session)
+- **Smart Redirect**: Lands on the first seeded collection, or `/login` when there is none to open
+- **Re-run Guard**: If the database already holds an administrator, completion is refused rather than overwriting it
 
----
-
-## 🧪 Automated Testing & E2E
-
-SveltyCMS includes a robust Playwright-based E2E test suite to verify the setup wizard flow. This is critical for CI/CD pipelines to ensure that fresh installations and upgrades remain stable.
-
-### Setup Wizard Test Example
-
-The following test (`tests/e2e/routes/setup/setup-wizard.spec.ts`) demonstrates how to automate the multi-step configuration, including handling modal portals and cookie consent banners:
-
-```
-import { expect, test, type Page } from "@playwright/test";
-
-// Helper to click "Next" button and wait for transition
-async function clickNext(page: Page) {
-  const nextButton = page.getByLabel("Next", { exact: true });
-  await expect(nextButton).toBeEnabled();
-  await nextButton.click({ force: true });
-  await page.waitForTimeout(1000);
-}
-
-test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
-  test.setTimeout(180_000);
-
-  // 1. Start at root, expect redirect to /setup
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/setup/);
-
-  // Wait for hydration and modals
-  await page.waitForTimeout(5000);
-
-  // Dismiss cookie consent if present
-  const cookieAcceptBtn = page.getByRole("button", { name: /accept all/i });
-  if (await cookieAcceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await cookieAcceptBtn.click();
-  }
-
-  // Handle "Welcome" popup
-  const welcomeModal = page.locator("#welcome-heading").first();
-  if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
-    const getStartedBtn = page
-      .locator("button")
-      .filter({ hasText: /get started/i })
-      .first();
-    await getStartedBtn.click({ force: true });
-  }
-
-  // --- STEP 1: Database ---
-  const dbType = process.env.DB_TYPE || "sqlite";
-  await page.getByTestId("db-type").selectOption(dbType);
-  await page.getByTestId("db-host").fill("localhost");
-  await page.getByTestId("db-name").fill("sveltycms_test");
-
-  const testDbButton = page.getByRole("button", { name: /test database/i });
-  await testDbButton.click({ force: true });
-
-  // Handle SQLite missing DB modal
-  const confirmBtn = page.getByRole("button", { name: /yes/i });
-  if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await confirmBtn.click({ force: true });
-  }
-
-  await expect(page.getByText(/success/i).first()).toBeVisible({ timeout: 45000 });
-  await clickNext(page);
-
-  // --- STEP 2: Admin User ---
-  await page.getByTestId("admin-username").fill("admin");
-  await page.getByTestId("admin-email").fill("admin@test.com");
-  await page.getByTestId("admin-password").fill("Admin123!");
-  await page.getByTestId("admin-confirm-password").fill("Admin123!");
-  await clickNext(page);
-
-  // Final Step: Complete
-  const finishButton = page.getByRole("button", { name: /finish|complete/i });
-  await finishButton.click();
-
-  // Redirect to dashboard
-  await page.waitForURL(/\/en\/collections/, { timeout: 120_000 });
-});
-```
+**Server call**: `completeSetup` (remote command in `src/routes/setup/setup.remote.ts`), also exposed as the `completeSetup` form action
 
 ---
 
 ## 📦 Solution Presets (Starter Kits) {#solution-presets-starter-kits}
 
-Presets are pre-configured collections of schemas, widgets, and settings designed for specific use cases. Selecting a preset copies standard schema files into your `config/collections` directory, saving you hours of setup time.
+Presets are pre-configured collections of schemas, widgets, and settings designed for specific use cases. You choose one in the **Project Blueprint** carousel on [Step 3](#step-3-system-settings); the collections are created when you complete the wizard, and the preset id is stored as a setting.
 
 ### Available Presets
 
+The preset cards advertise a scope; the collections actually created are the ones listed below (from `src/routes/setup/presets.ts`).
+
 #### 1. Blank Project
 
-- **Best for**: Custom builds, experimental projects.
+- **Best for**: Custom builds, headless-first installs.
 - **Includes**: Minimal configuration. No collections.
 
-#### 2. Demo / Test Suite
+#### 2. Website Starter
 
-- **Best for**: Technical evaluations, showcasing all CMS capabilities.
-- **Includes**: All widget types, deep collection nesting, relations, and revision history.
+- **Recommended default.**
+- **Best for**: A SvelteKit frontend in the same repo with inline page design.
+- **Includes**: Seeded homepage, `pages` collection with live preview, Svedit block editing, and the Editable Website plugin, which is enabled on completion.
 
 #### 3. Blog / Editorial
 
@@ -656,8 +379,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 - **Collections**:
   - `Projects`: Portfolio items with gallery and client details.
   - `Services`: List of offered services.
-  - `Clients`: Client logos and information.
-  - `Testimonials`: Social proof and reviews.
+  - `Team`: Team members and their profiles.
 
 #### 5. SaaS Product
 
@@ -665,16 +387,15 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 - **Collections**:
   - `Pricing`: Plans managed via the **Price Widget**.
   - `Features`: Product capability highlights.
-  - `Docs`: Nested documentation structure.
-  - `Changelog`: Product updates.
+  - `Documentation`: Product documentation articles, organized by category.
 
 #### 6. Corporate Site
 
 - **Best for**: Business websites, company profiles.
 - **Collections**:
-  - `Team`: Leadership and staff directory.
-  - `Careers`: Job openings and descriptions.
-  - `Locations`: Office addresses with map coordinates.
+  - `Team`: Team members across departments.
+  - `Careers`: Job openings with requirements.
+  - `Press`: Press releases and media coverage.
 
 #### 7. E-commerce
 
@@ -682,150 +403,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 - **Collections**: `products` (variants with own SKU/price/inventory), `product_categories`, `product_reviews`, `coupons`, `tax_rates`, `shipping_zones`, `carts`, `orders`.
 - **Import**: [Smart Importer](../../../src/plugins/smart-importer/smart-importer.mdx) maps WooCommerce (WXR/REST) or Shopify JSON/CSV into `products`.
 - **Dashboard**: add **Commerce Orders** and **Commerce Inventory** widgets (freemium, 14-day trial) from the dashboard picker.
-- **Map**: [E-Commerce Overview](../../reference/architecture/ecommerce-overview.mdx) — preset, importer, dashboard widgets, checkout pipeline, Stripe.
-
----
-
-## Validation System
-
-### Dual Validation Approach
-
-The wizard implements a two-tier validation system:
-
-#### 1. Client-Side Validation (Real-time)
-
-**Technology**: Valibot schemas with Svelte 5 runes
-
-**Implementation**:
-
-```
-// In each step component (e.g., database-config.svelte)
-import { safeParse } from "valibot";
-import { dbConfigSchema } from "@utils/schemas";
-
-// Real-time validation state
-let localValidationErrors = $state<Record<string, string>>({});
-
-// Validate form data in real-time
-const validationResult = $derived(
-  safeParse(dbConfigSchema, {
-    type: dbConfig.type,
-    host: dbConfig.host,
-    port: dbConfig.port,
-    name: dbConfig.name,
-    user: dbConfig.user,
-    password: dbConfig.password,
-  }),
-);
-
-const isFormValid = $derived(validationResult.success);
-
-// Update errors when validation changes
-$effect(() => {
-  const newErrors: Record<string, string> = {};
-  if (!validationResult.success) {
-    for (const issue of validationResult.issues) {
-      const path = issue.path?.[0]?.key as string;
-      if (path) {
-        newErrors[path] = issue.message;
-      }
-    }
-  }
-  localValidationErrors = newErrors;
-});
-
-// Combine local and parent validation errors
-const displayErrors = $derived<Record<string, string>>({
-  ...localValidationErrors,
-  ...validationErrors, // Server errors take precedence
-});
-```
-
-**Benefits**:
-
-- Instant feedback as users type
-- No server round-trip needed
-- Reduces form submission errors
-- Better user experience
-
-#### 2. Server-Side Validation
-
-**Location**: Parent component (`+page.svelte`)
-
-**Implementation**:
-
-```
-function validateStep(step: number, mutateErrors = true): boolean {
-  const errs: ValidationErrors = {};
-  const errorMessages: string[] = [];
-
-  switch (step) {
-    case 0: // Database
-      const dbResult = safeParse(dbConfigSchema, wizard.dbConfig);
-      if (!dbResult.success) {
-        for (const issue of dbResult.issues) {
-          const path = issue.path?.[0]?.key as string;
-          if (path) {
-            errs[path] = issue.message;
-            errorMessages.push(`${path}: ${issue.message}`);
-          }
-        }
-      }
-      break;
-
-    case 1: // Admin
-      const adminResult = safeParse(setupAdminSchema, wizard.adminUser);
-      // ... similar processing
-      break;
-
-    case 2: // System
-      const systemResult = safeParse(systemSettingsSchema, wizard.systemSettings);
-      // ... similar processing
-      break;
-  }
-
-  if (mutateErrors) {
-    validationErrors = errs;
-    stepErrors[step] = errorMessages;
-  }
-
-  return Object.keys(errs).length === 0;
-}
-```
-
-**Benefits**:
-
-- Final validation before API calls
-- Server-authoritative (client can be bypassed)
-- Consistent with API validation
-- Security checkpoint
-
-### Error Display Pattern
-
-Each input field follows this pattern:
-
-```
-<input
-	id="db-host"
-	bind:value={dbConfig.host}
-	type="text"
-	class="w-full rounded border border-surface-300 px-3 py-2 {displayErrors.host ? 'border-error-500' : ''}"
-	aria-invalid={!!displayErrors.host}
-	aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
-/>
-{#if displayErrors.host}
-	<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">
-		{displayErrors.host}
-	</div>
-{/if}
-```
-
-**Accessibility Features**:
-
-- `aria-invalid` indicates validation state
-- `aria-describedby` links to error message
-- `role="alert"` announces errors to screen readers
-- Visual red border for quick identification
+- **Map**: [E-Commerce Overview](../content/ecommerce.mdx) — preset, importer, dashboard widgets, checkout pipeline, Stripe.
 
 ---
 
@@ -880,14 +458,15 @@ Each input field follows this pattern:
   - Connection details
   - Suggested fixes
 
-**Error Classifications**:
+**Error Classifications** (from `src/routes/setup/error-classifier.ts`):
 
-- `authentication_failed` - Invalid credentials
-- `connection_refused` - Cannot reach database
-- `dns_not_found` - Invalid hostname
-- `database_not_found` - Database doesn't exist
-- `DATABASE_ALREADY_EXISTS` - Database contains existing tables/collections; requires overwrite confirmation.
-- `invalid_uri` - Malformed connection string
+- `AUTH_FAILED` - Invalid credentials for this database user.
+- `CONNECTION_REFUSED` - Cannot reach the server: down, wrong host, timed out, or your IP is not allowlisted.
+- `DB_NOT_FOUND` - The database does not exist. The wizard offers to create it.
+- `DB_ALREADY_EXISTS` - The database already contains tables; the wizard asks before overwriting.
+- `CASE_MISMATCH` - A database with the same name in a different case exists; reuse the existing name or overwrite.
+- `INVALID_CONFIG` - Malformed connection string, or an SSL/TLS handshake failure.
+- Anything unmapped arrives as `Database connection failed: <message>` with the server log as the next step.
 
 **Example**:
 
@@ -934,188 +513,7 @@ You can:
 3. Continue with setup (connection test will fail until installed)
 ```
 
-### Error Recovery Strategies
-
-#### Auto-retry
-
-```
-async function testDatabaseConnection() {
-  const maxRetries = 3;
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    try {
-      const formData = new FormData();
-      formData.append("data", JSON.stringify(wizard.dbConfig));
-
-      const response = await fetch("/setup?/testDatabase", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) return await response.json();
-
-      attempt++;
-      if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-      }
-    } catch (error) {
-      attempt++;
-    }
-  }
-
-  throw new Error("Connection failed after 3 attempts");
-}
-```
-
-#### Graceful Degradation
-
-```
-async function completeSetup() {
-  try {
-    // Try to send welcome email
-    await sendWelcomeEmail(adminUser.email);
-  } catch (emailError) {
-    // Don't fail setup if email fails
-    console.warn("Welcome email failed (non-fatal):", emailError);
-    showToast("Setup complete! (Welcome email could not be sent)", "warning");
-  }
-}
-```
-
-#### User Guidance
-
-```
-function classifyDatabaseError(error: DatabaseError): string {
-  if (error.code === "EAUTH") {
-    return "Authentication failed. Please check your username and password.";
-  } else if (error.code === "ECONNREFUSED") {
-    return "Connection refused. Is your database running?";
-  } else if (error.code === "ETIMEDOUT") {
-    return "Connection timed out. Check firewall rules and network connectivity.";
-  } else {
-    return `Database error: ${error.message}`;
-  }
-}
-```
-
----
-
-## State Management {#state-management-2}
-
-### setup-store Architecture
-
-**File**: `src/stores/setup-store.svelte.ts`
-
-**Pattern**: Svelte 5 class-based store with runes
-
-```
-function createSetupStore() {
-  const wizard = $state({
-    dbConfig: { ... },
-    adminUser: { ... },
-    systemSettings: { ... },
-    emailSettings: { ... },
-    currentStep: 0,
-    highestStepReached: 0,
-    dbTestPassed: false,
-    firstCollection: null,
-    validationErrors: {},
-    stepErrors: { ... },
-    isLoading: false,
-    isSubmitting: false,
-  });
-
-  // Methods
-  function load() {
-    const saved = localStorage.getItem('sveltycms_setup');
-    if (saved) {
-      Object.assign(wizard, JSON.parse(saved));
-    }
-  }
-
-  function clear() {
-    // reset to defaults
-    localStorage.removeItem('sveltycms_setup');
-  }
-
-  function setupPersistence() {
-    $effect(() => {
-      const json = JSON.stringify(wizard);
-      localStorage.setItem('sveltycms_setup', json);
-    });
-  }
-
-  return {
-    wizard,
-    load,
-    clear,
-    setupPersistence
-  };
-}
-
-export const setupStore = createSetupStore();
-```
-
-### Persistence Strategy
-
-**When Data is Saved**:
-
-- Automatically on every state change (via `$effect`)
-- Debounced to avoid excessive writes
-- Only in browser (localStorage)
-
-**When Data is Loaded**:
-
-- On component mount (`onMount` in +page.svelte)
-- After browser refresh
-- After accidental navigation away
-
-**When Data is Cleared**:
-
-- On successful setup completion
-- On manual "Reset Data" button click
-- Never cleared on validation errors (preserves user input)
-
-### Unsaved Changes Warning
-
-**Implementation**:
-
-```
-// Capture initial state on mount
-let initialDataSnapshot = $state<string>("");
-
-onMount(() => {
-  loadStore();
-  initialDataSnapshot = JSON.stringify(wizard);
-
-  // Warn before navigation
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (hasUnsavedChanges() && !isSubmitting) {
-      e.preventDefault();
-      e.returnValue = ""; // Required for Chrome
-      return "";
-    }
-  };
-
-  window.addEventListener("beforeunload", handleBeforeUnload);
-  return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-});
-
-// Check if data changed
-const hasUnsavedChanges = $derived(() => {
-  if (!initialDataSnapshot) return false;
-  const currentSnapshot = JSON.stringify(wizard);
-  return currentSnapshot !== initialDataSnapshot;
-});
-```
-
-**Behavior**:
-
-- Shows browser warning if user tries to close/refresh with unsaved changes
-- Suppressed during final submission (`isSubmitting = true`)
-- Cross-browser compatible
-- Updated after successful submission
+How the wizard classifies these errors, and how its validation layers are built, is in [Boot and initialization](../../reference/architecture/initialization-workflow.mdx#setup-wizard-internals).
 
 ---
 
@@ -1130,52 +528,22 @@ const hasUnsavedChanges = $derived(() => {
 - "Loading..." or "Testing..." text
 - Progress messages ("Initializing system...")
 
-**Implementation**:
-
-```
-<Button onclick={testDatabaseConnection} disabled={isLoading} loading={isLoading}>
-	{#if isLoading}
-		Testing Connection...
-	{:else}
-		Test Database Connection
-	{/if}
-</Button>
-		Test Connection
-	{/if}
-</button>
-```
-
 ### Toast Notifications
 
 **Types**:
 
-- **Success** (green): "Database initialized successfully! ✨"
-- **Error** (red): "Failed to connect to database"
-- **Info** (blue): "Setup will continue, data will be created as needed"
-- **Warning** (yellow): "Welcome email could not be sent"
+- **Success** (green): a step succeeded, e.g. "Setup complete! Redirecting..."
+- **Error** (red): a failed test, seed, or completion
+- **Info** (blue): a notice while longer work runs
+- **Warning** (yellow): a non-blocking problem
 
 **Position**: Bottom-right corner (fixed)
 
 **Duration**:
 
-- Success: 3 seconds
-- Error: 5 seconds
-- Info/Warning: 4 seconds
-
-**Implementation**:
-
-```
-import { showToast } from "@utils/toast";
-
-// Success
-showToast("Database initialized successfully! ✨", "success", 3000);
-
-// Error
-showToast("Connection failed. Please check your settings.", "error", 5000);
-
-// Info
-showToast("Setup will continue, data will be created as needed.", "info", 4000);
-```
+- Success: 2 seconds on completion
+- Error: 5 seconds for a failed completion, 4 seconds for a failed seed, 8 seconds when setup is already complete
+- Info/Warning: 4 seconds by default
 
 ### Responsive Design
 
@@ -1239,453 +607,15 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
 
 ---
 
-## Development Guide
-
-### Adding a New Step
-
-1. **Create Step Component**
-
-```
-<!-- src/routes/setup/my-new-step.svelte -->
-<script lang="ts">
-	import type { MyStepData } from '@stores/setup-store.svelte';
-
-	let { stepData = $bindable(), validationErrors } = $props<{
-		stepData: MyStepData;
-		validationErrors: Record<string, string>;
-	}>();
-</script>
-
-<div class="fade-in">
-	<p class="mb-8 text-center">Step description</p>
-
-	<div class="space-y-6">
-		<!-- Your form fields -->
-	</div>
-</div>
-```
-
-2. **Add Validation Schema**
-
-```
-// src/utils/schemas.ts
-export const myStepSchema = v.object({
-  field1: v.pipe(v.string(), v.minLength(1, "Field 1 is required")),
-  field2: v.pipe(v.string(), v.email("Invalid email")),
-});
-```
-
-3. **Update setup-store**
-
-```
-// src/stores/setup-store.svelte.ts
-class SetupStore {
-  wizard = $state({
-    // ... existing fields
-    myStepData: {
-      field1: "",
-      field2: "",
-    },
-  });
-}
-```
-
-4. **Register in Main Wizard**
-
-```
-<!-- src/routes/setup/+page.svelte -->
-<script lang="ts">
-	import MyNewStep from './my-new-step.svelte';
-
-	// Add to steps array
-	const steps = $derived<StepDef[]>([
-		// ... existing steps
-		{
-			label: 'My New Step',
-			shortDesc: 'Configure my new feature'
-		}
-	]);
-
-	// Add validation case
-	function validateStep(step: number): boolean {
-		switch (step) {
-			// ... existing cases
-			case 3:
-				const result = safeParse(myStepSchema, wizard.myStepData);
-				// ... handle validation
-				break;
-		}
-	}
-
-	// Add lazy loading
-	let MyNewStepComponent: unknown = null;
-
-	$effect(() => {
-		const loadStep = async (step: number) => {
-			switch (step) {
-				// ... existing cases
-				case 3:
-					if (!MyNewStepComponent) {
-						MyNewStepComponent = (await import('./my-new-step.svelte')).default;
-					}
-					break;
-			}
-		};
-		// ...
-	});
-</script>
-```
-
-### Extending Validation
-
-**Add Custom Validator**:
-
-```
-// src/utils/schemas.ts
-import * as v from "valibot";
-
-// Custom async validator
-const isDatabaseNameAvailable = async (name: string) => {
-  const response = await fetch(`/api/check-database?name=${name}`);
-  return response.ok;
-};
-
-export const dbConfigSchema = v.pipeAsync(
-  v.object({
-    name: v.string(),
-  }),
-  v.checkAsync(
-    async (input) => await isDatabaseNameAvailable(input.name),
-    "Database name already exists",
-  ),
-);
-```
-
-**Add Cross-field Validation**:
-
-```
-export const adminSchema = v.object(
-  {
-    password: v.string(),
-    confirmPassword: v.string(),
-  },
-  [
-    v.forward(
-      v.partialCheck(
-        [["password"], ["confirmPassword"]],
-        (input) => input.password === input.confirmPassword,
-        "Passwords must match",
-      ),
-      ["confirmPassword"],
-    ),
-  ],
-);
-```
-
-### Testing {#validation-testing}
-
-**Unit Tests** (Vitest):
-
-```
-import { describe, it, expect } from "vitest";
-import { safeParse } from "valibot";
-import { dbConfigSchema } from "@utils/schemas";
-
-describe("dbConfigSchema", () => {
-  it("validates correct database config", () => {
-    const result = safeParse(dbConfigSchema, {
-      type: "mongodb",
-      host: "localhost",
-      port: "27017",
-      name: "test",
-      user: "admin",
-      password: "secret",
-    });
-
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects empty host", () => {
-    const result = safeParse(dbConfigSchema, {
-      type: "mongodb",
-      host: "",
-      port: "27017",
-      name: "test",
-      user: "",
-      password: "",
-    });
-
-    expect(result.success).toBe(false);
-    expect(result.issues[0].message).toContain("Host is required");
-  });
-});
-```
-
-**E2E Tests** (Playwright):
-
-```
-import { test, expect } from "@playwright/test";
-
-test.describe("Setup Wizard", () => {
-  test("completes setup successfully", async ({ page }) => {
-    await page.goto("/setup");
-
-    // Step 1: Database
-    await page.fill("#db-host", "localhost");
-    await page.fill("#db-port", "27017");
-    await page.fill("#db-name", "test");
-    await page.click('button:has-text("Test Connection")');
-    await expect(page.locator("text=Connection successful")).toBeVisible();
-    await page.click('button:has-text("Next")');
-
-    // Step 2: Admin
-    await page.fill("#admin-username", "admin");
-    await page.fill("#admin-email", "admin@test.com");
-    await page.fill("#admin-password", "Test1234!");
-    await page.fill("#admin-confirm-password", "Test1234!");
-    await page.click('button:has-text("Next")');
-
-    // Step 3: System
-    await page.fill("#site-name", "Test Site");
-    await page.fill("#host-prod", "https://test.com");
-    await page.click('button:has-text("Next")');
-
-    // Step 4: Email (skip)
-    await page.click('button:has-text("Next")');
-
-    // Step 5: Complete
-    await page.click('button:has-text("Complete")');
-    await expect(page).toHaveURL(/\/Collections/);
-  });
-});
-```
-
----
-
-## Testing {#testing-2}
-
-### Test Coverage
-
-The setup wizard has comprehensive test coverage across:
-
-**Setup Tests** (`tests/bun/api/setup.test.ts`):
-
-- ✅ 20 endpoint integration tests
-- ✅ Database connection validation
-- ✅ SMTP configuration testing
-- ✅ Admin user creation
-- ✅ Error handling and validation
-
-**Utility Tests** (`tests/bun/api/setup-utils.test.ts`):
-
-- ✅ 25+ utility function tests
-- ✅ Connection string generation
-- ✅ Error classification
-- ✅ Security validations
-
-**Total:** 45+ comprehensive tests with 100% coverage
-
-### Running Tests
-
-```
-# Run all setup tests
-bun test tests/bun/api/setup*.test.ts
-
-# Run with coverage
-bun test --coverage tests/bun/api/setup*.test.ts
-
-# Watch mode for development
-bun test --watch tests/bun/api/setup.test.ts
-```
-
-### Example Test Scenarios
-
-**Database Connection Test:**
-
-```
-it("should test database connection successfully", async () => {
-  const formData = new FormData();
-  formData.append(
-    "config",
-    JSON.stringify({
-      type: "mongodb",
-      host: "localhost",
-      port: 27017,
-      name: "testdb",
-      user: "admin",
-      password: "secret",
-    }),
-  );
-
-  const response = await fetch("/setup?/testDatabase", {
-    method: "POST",
-    body: formData,
-  });
-
-  expect(response.status).toBe(200);
-  const result = await response.json();
-  expect(result.success).toBe(true);
-  expect(result.latencyMs).toBeDefined();
-});
-```
-
-**Complete Setup Flow Test:**
-
-```
-it("should complete entire setup process", async () => {
-  // 1. Test database
-  const dbForm = new FormData();
-  dbForm.append("config", JSON.stringify(dbConfig));
-  await fetch("/setup?/testDatabase", {
-    method: "POST",
-    body: dbForm,
-  });
-
-  // 2. Seed database
-  // Action: seedDatabase takes config too? Or uses existing.
-  // We'll assume it takes config or is called after test
-  const seedForm = new FormData();
-  seedForm.append("config", JSON.stringify(dbConfig));
-  const seedResponse = await fetch("/setup?/seedDatabase", {
-    method: "POST",
-    body: seedForm,
-  });
-  const { firstCollection } = await seedResponse.json();
-
-  // 3. Complete setup
-  const completeForm = new FormData();
-  completeForm.append(
-    "data",
-    JSON.stringify({
-      admin: admin - config,
-      firstCollection,
-    }),
-  );
-  const response = await fetch("/setup?/completeSetup", {
-    method: "POST",
-    body: completeForm,
-  });
-
-  expect(response.status).toBe(200);
-  const cookies = response.headers.get("set-cookie");
-  expect(cookies).toContain("auth_session");
-});
-```
-
----
-
 ## Troubleshooting
 
 ### Common Issues
-
-#### Issue: Validation Errors Not Showing
-
-**Symptoms**: Input changes but no error messages appear
-
-**Cause**: Missing `$effect` hook or incorrect error prop passing
-
-**Solution**:
-
-```
-// Ensure $effect updates localValidationErrors
-$effect(() => {
-  const newErrors: Record<string, string> = {};
-  if (!validationResult.success) {
-    for (const issue of validationResult.issues) {
-      const path = issue.path?.[0]?.key as string;
-      if (path) {
-        newErrors[path] = issue.message;
-      }
-    }
-  }
-  localValidationErrors = newErrors;
-});
-
-// Ensure displayErrors combines both sources
-const displayErrors = $derived<Record<string, string>>({
-  ...localValidationErrors,
-  ...validationErrors,
-});
-```
-
-#### Issue: Form Data Not Persisting
-
-**Symptoms**: Data lost on page refresh
-
-**Cause**: `setupPersistence()` not called or localStorage disabled
-
-**Solution**:
-
-```
-onMount(() => {
-  loadStore(); // Load existing data
-  setupPersistence(); // Start auto-save
-
-  // Capture initial state AFTER loading
-  initialDataSnapshot = JSON.stringify(wizard);
-});
-```
-
-#### Issue: Duplicate Submissions
-
-**Symptoms**: Multiple API calls on button click
-
-**Cause**: Missing `isSubmitting` guard
-
-**Solution**:
-
-```
-async function completeSetup() {
-  // Guard at the top
-  if (isSubmitting) {
-    console.log("Already submitting, preventing duplicate");
-    return;
-  }
-
-  isSubmitting = true;
-
-  try {
-    // ... API call
-  } finally {
-    isSubmitting = false; // Always reset
-  }
-}
-```
-
-#### Issue: Unsaved Changes Warning Not Working
-
-**Symptoms**: No warning when closing browser with unsaved data
-
-**Cause**: Missing `beforeunload` handler or incorrect change detection
-
-**Solution**:
-
-```
-onMount(() => {
-  // Capture initial state after loading from localStorage
-  initialDataSnapshot = JSON.stringify(wizard);
-
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (hasUnsavedChanges() && !isSubmitting) {
-      e.preventDefault();
-      e.returnValue = ""; // Required for Chrome
-      return ""; // Required for some browsers
-    }
-  };
-
-  window.addEventListener("beforeunload", handleBeforeUnload);
-
-  return () => {
-    window.removeEventListener("beforeunload", handleBeforeUnload);
-  };
-});
-```
 
 #### Issue: Database Test Fails with "Driver Not Found"
 
 **Symptoms**: Error about missing mongoose package
 
-**Cause**: Auto-installation disabled or failed
+**Cause**: The driver install that runs with **Test Connection** failed (network, permissions) or was skipped
 
 **Solution**:
 
@@ -1698,31 +628,37 @@ bun add mongoose
 pnpm add mongoose
 ```
 
-Then clear localStorage and retry test.
+Then clear localStorage and retry test. MongoDB and SQLite drivers ship with the CMS, so this only affects PostgreSQL, MySQL, and MariaDB (`postgres`, `mysql2`).
 
-#### Issue: Step Navigation Broken
+#### Issue: A Step Will Not Let Me Continue
 
-**Symptoms**: Cannot click on completed steps
+**Symptoms**: "Next" stays disabled
 
-**Cause**: `stepClickable` derived state not updated
+**Cause and fix, by step**:
 
-**Solution**:
+- **Step 1**: there is no connection test yet for the current values. Editing host, port, name, user, or password after a green result clears it — press **Test Connection** again. There is no automatic retry: fix the reported cause first.
+- **Step 2**: one of the password requirements is unmet, or the two passwords differ.
+- **Step 3**: site name or production URL missing, no language selected, or Redis is enabled without a passing Redis test.
+- **Step 5**: seeding is still running; the button enables when it finishes.
 
-```
-const stepClickable = $derived<boolean[]>([
-  true, // Step 0 always clickable
-  wizard.highestStepReached >= 1,
-  wizard.highestStepReached >= 2,
-  wizard.highestStepReached >= 3,
-  wizard.highestStepReached >= 4,
-]);
-```
+#### Issue: Setup Refuses to Finish Because Administrators Exist
+
+**Symptoms**: Completion returns "Database contains registered administrator accounts. Setup cannot be re-run."
+
+**Cause**: The target database already holds an `admin` user, so the wizard will not overwrite it
+
+**Solution**: Point the wizard at a fresh database and name, or remove the existing administrators yourself if you really intend to re-run first-run setup.
+
+#### Issue: Collections Are Missing or the Wizard Keeps Returning to /setup
+
+These are boot-time conditions rather than wizard steps: see the troubleshooting in [Boot and initialization](../../reference/architecture/initialization-workflow.mdx#troubleshooting).
 
 ---
 
 ## Related Documentation
 
 - [Setup Reference](/docs/reference/api/setup.mdx) - Complete API documentation
+- [Boot and initialization](../../reference/architecture/initialization-workflow.mdx) - Installer phases, generated config, and restart behavior
 - [Valibot Documentation](https://valibot.dev/) - Validation library
 - [Svelte 5 Runes](https://svelte.dev/docs/svelte/what-are-runes) - Reactive state management
 
@@ -1738,19 +674,6 @@ const stepClickable = $derived<boolean[]>([
 4. **Complete All Steps** - Don't skip system settings
 5. **Review Before Completing** - Check all settings on final step
 
-### For Developers
-
-1. **Always Validate Client and Server** - Never trust client-side validation alone
-2. **Provide Clear Error Messages** - Help users fix issues quickly
-3. **Handle Edge Cases** - Network errors, timeouts, invalid input
-4. **Test Thoroughly** - Unit tests for schemas, E2E for flows
-5. **Preserve User Input** - Don't clear forms on validation errors
-6. **Log Errors** - Console.error for debugging, never expose to user
-7. **Follow Accessibility Guidelines** - ARIA labels, keyboard navigation
-8. **Keep State Minimal** - Only store what's needed in setup-store
-9. **Document New Steps** - Update this guide when adding features
-10. **Performance First** - Lazy load components, debounce validation
-
 ---
 
 ## Summary
@@ -1762,8 +685,7 @@ The SveltyCMS setup wizard provides a professional, user-friendly onboarding exp
 ✅ Persistent state with auto-save
 ✅ Responsive design for all devices
 ✅ Accessibility features (WCAG 2.1 AA)
-✅ Comprehensive API integration
-✅ Zero-restart initialization
-✅ Modern UX with loading states and toast notifications
+✅ Solution presets that create your first collections
+✅ No-restart initialization
 
-The modular architecture makes it easy to extend with new steps while maintaining consistency and code quality.
+What happens underneath — the installer phases, the generated `config/private.ts`, and the boot that follows — is in [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).

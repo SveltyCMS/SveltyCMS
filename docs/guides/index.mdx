@@ -1,63 +1,72 @@
 ---
 path: "docs/guides/index.mdx"
 title: "User Guides"
-description: "The complete roadmap to using SveltyCMS — from content creation to advanced automation."
+description: "Task guides for editors, administrators, and operators — content, access, languages, email, and deployment."
 order: 2
 icon: "mdi:book-open-page-variant"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-08-19"
+updated: "2026-09-22"
 tags:
   - "guides"
   - "tutorials"
   - "how-to"
 ---
 
-# User & Developer Guides
+# Guides
 
-Welcome! Whether you're a content editor building your first news feed or a developer extending the CMS with custom widgets, our guides are designed to be **persona-first**.
-
----
-
-## 👥 For Content Creators & Editors
-
-Master the day-to-day operations of managing your digital experiences.
-
-- [🖼️ Image Editor Workflow](./content/image-editor.mdx) — Non-destructive canvas editing and server-side baking of media assets.
-- [📅 **Editorial Workflows**](../../development/workflow-engine.mdx) — Managing drafts, reviews, and publishing states.
-- [🧱 **Collection Builder**](./content/collection-builder.mdx) — Creating and managing content models.
-- [🛒 **E-Commerce Overview**](../reference/architecture/ecommerce-overview.mdx) — Keep core light: Commerce **plugin**, field/dashboard **widgets**, gated `/api/commerce` — not a store kernel.
-
-### 📦 Data Operations
-
-Moving content into, out of, and between instances — migration, import/export, backup, and sync.
-
-- [🚚 **Migration & Data Operations**](./content/migration-and-import.mdx) — Complete guide: WordPress/Drupal/WooCommerce/Shopify migration, content export/import, backups, config promotion, environment sync.
+Guides are task recipes. If you are new to the product, read [Concepts](../concepts/index.mdx) and [Getting started](../getting-started.mdx) first. If you are adding a widget or plugin, use [Development](../development/index.mdx) — that section is for extending the CMS, not for operating it.
 
 ---
 
-## 🛠️ For Developers & Site Builders
+## Content
 
-Configure and extend the SveltyCMS engine for your specific project needs.
+| Guide                                                      | Task                                           |
+| :--------------------------------------------------------- | :--------------------------------------------- |
+| [Collection Builder](./content/collection-builder.mdx)     | Create a collection, fields, and relations     |
+| [Workflows](./content/workflows.mdx)                       | Draft, review, and publish                     |
+| [Automations](./content/automations.mdx)                   | Send an email or webhook when an entry changes |
+| [E-commerce](./content/ecommerce.mdx)                      | Optional catalog, orders, and payments         |
+| [Image editor](./content/image-editor.mdx)                 | Crop and edit media in the admin               |
+| [Migration and import](./content/migration-and-import.mdx) | Bring in content from another CMS or a file    |
 
-- [🚀 **Setup Wizard**](./configuration/setup-wizard.mdx) — Cluster setups, env overrides, and custom drivers.
-- [🌍 **System Languages (Paraglide)**](./configuration/system-languages.mdx) — EN/DE by default; add locales in Setup or **System Settings → Languages**.
-- [🔌 **Widget Development**](../../development/widgets/index.mdx) — Building custom 3-Pillar UI components.
-- [🛡️ **Access Management**](./configuration/access-management.mdx) — RBAC, custom roles, and tenant isolation.
-- [⚙️ **Settings Reference**](./configuration/system-settings.mdx) — Global configuration including system language, email, cache, and security.
-- [🎨 **Design System & Admin Theme**](./configuration/admin-theme-settings.mdx) — Themes, density, personal overrides, live component preview, and custom CSS (`/config/design-system`).
-- [🔀 **Version Checking**](./configuration/version-channels.mdx) — Two-branch model with automated update checking against GitHub Releases.
+## Configuration
 
----
+| Guide                                                        | Task                                        |
+| :----------------------------------------------------------- | :------------------------------------------ |
+| [Setup wizard](./configuration/setup-wizard.mdx)             | Database, admin user, and first-run options |
+| [System settings](./configuration/system-settings.mdx)       | Site, cache, security, and related settings |
+| [Access management](./configuration/access-management.mdx)   | Roles and permissions                       |
+| [User registration](./configuration/user-registration.mdx)   | How people get an account                   |
+| [System languages](./configuration/system-languages.mdx)     | Admin locales (Paraglide)                   |
+| [Email](./configuration/email-system.mdx)                    | SMTP and templates                          |
+| [Admin theme](./configuration/admin-theme-settings.mdx)      | Theme, density, and custom CSS              |
+| [Version channels](./configuration/version-channels.mdx)     | Which release line the install tracks       |
+| [Upgrading](./configuration/upgrading.mdx)                   | Move an existing install forward            |
+| [Enterprise monitor](./configuration/enterprise-monitor.mdx) | Health and operations views                 |
+| [Maintenance](./configuration/maintenance.mdx)               | Watchdog, cache compaction, and trash purge |
 
-## ⚙️ Automation & Workflows
+## Deployment and legal
 
-SveltyCMS includes a powerful event-driven automation engine to speed up your digital operations.
+| Guide                                                           | Task                                    |
+| :-------------------------------------------------------------- | :-------------------------------------- |
+| [Production deployment](./deployment/production-deployment.mdx) | Run SveltyCMS for real traffic          |
+| [Vercel](./deployment/vercel-deployment.mdx)                    | Deploy on Vercel                        |
+| [Cloud storage](./deployment/cloud-storage.mdx)                 | Store media outside the app server      |
+| [Scaling layers](./deployment/scaling-layers.mdx)               | More than one instance                  |
+| [GDPR](./legal/gdpr-compliance.mdx)                             | Privacy obligations for an install      |
+| [Sharing assets](./sharing-assets.mdx)                          | Hand files to someone outside the admin |
 
-- [🤖 **Automation System**](../../development/automation-system.mdx) — Using the GUI to trigger webhooks, emails, and field updates.
-- [📧 **Email System**](./configuration/email-system.mdx) — Configuring SMTP and email templates.
-- [🧪 **Testing Strategy**](../tests/index.mdx) — E2E and unit testing your CMS implementations.
+## When this is the wrong section
 
----
+| You want to…                                  | Go to                                       |
+| :-------------------------------------------- | :------------------------------------------ |
+| Add a field type, plugin, or dashboard widget | [Development](../development/index.mdx)     |
+| Look up a route or a header                   | [API reference](../reference/api/index.mdx) |
+| See how a test is written                     | [Tests](../tests/index.mdx)                 |
 
-**Next Steps**: If you're a first-time user, we recommend starting with the [Getting Started Guide](../getting-started.mdx).
+## Next steps
+
+- First install: [Getting started](../getting-started.mdx).
+- Model a collection: [Collection Builder](./content/collection-builder.mdx).
+- Put it on a server: [Production deployment](./deployment/production-deployment.mdx).

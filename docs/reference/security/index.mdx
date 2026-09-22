@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-09-08"
+updated: "2026-09-22"
 tags:
   - "security"
   - "documentation"
@@ -27,8 +27,8 @@ SveltyCMS implements enterprise-grade security measures across all system compon
 SveltyCMS security architecture includes:
 
 - **🔐 4-Layer Defense-in-Depth** — Middleware → Dispatcher → Handler → Page Action. Each layer re-validates independently. Fail-closed by default.
-- **⚡ Policy-as-Code (PaC)** — In-memory CPU permission evaluation (< 50µs) with Git policy rules. See [Policy-as-Code & WASM Docs](./policy-as-code-and-wasm.mdx).
-- **🛡️ Layer 0 WASM WAF** — Nanosecond WebAssembly threat pattern matching with pure-JS fallback.
+- **⚡ RBAC Policy Enforcement** — the fail-closed `ENDPOINT_PERMISSIONS` map + `hasPermissionWithRoles` is the single authorization point (the in-memory Policy-as-Code engine was removed as unwired). See [WAF & Security Architecture](./policy-as-code-and-wasm.mdx).
+- **🛡️ Layer 0 WAF Guard** — linear, O(n) ReDoS-safe threat scanning (`src/hooks/handle-waf-guard.ts` + `src/services/security/threat-scan.ts`) before payload deserialization.
 - **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
 - **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption, Merkle Tree & SHA-256 audit chain, CSPRNG-only tokens (no `Math.random()` fallback)
 - **🛡️ Widget Security** - XSS prevention, injection protection, file validation
@@ -279,7 +279,7 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ Resource-level permissions
 - ✅ Admin privilege separation
 - ✅ Automated Setup Guard (blocks installation endpoints after initialization)
-- ✅ **GraphQL DoS Protection**: Query depth limited to 7 levels and aliases capped at 15 via `securityValidationPlugin` envelop plugin
+- ✅ **GraphQL DoS Protection**: Query depth limited to 8 levels (`MAX_QUERY_DEPTH`) and aliases capped at 15 via `securityValidationPlugin` envelop plugin
 - ✅ **Account Lockout**: 5 consecutive failed logins lock the account for 15 minutes; enforced in both `Auth.authenticate()` and `AuthNamespace.login()`
 
 **Implementation:**
@@ -549,7 +549,7 @@ Monitor for:
 5. **Recover** - Restore normal operations
 6. **Document** - Record incident details and lessons learned
 
-### Reporting
+### Reporting {#reporting-a-vulnerability}
 
 Security issues should be reported to:
 
@@ -690,8 +690,8 @@ SveltyCMS security features support compliance with:
 ### Widget Security {#widget-security-2}
 
 - [Widget Security](./widget-security.mdx)
-- [Widget Development Guide](../../development/widgets/widget-development-guide.mdx)
-- [Widget Architecture](../../development/widgets/architecture.mdx)
+- [Widget Development Guide](../../development/widgets/development.mdx)
+- [Widget Architecture](../../development/widgets/development.mdx)
 
 ### Testing
 

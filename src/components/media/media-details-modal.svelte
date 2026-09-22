@@ -17,10 +17,11 @@
 	import Select from '@components/ui/select.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
+	import Image from '@components/ui/image.svelte';
 	import { fade } from 'svelte/transition';
 	import { formatBytes } from '@utils/file';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { mediaUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaUrl } from '@utils/media/media-utils';
 	import { debounce } from '@utils/debounce';
 	import { refreshAll } from '$app/navigation';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -40,6 +41,23 @@
 		onDelete?: (file: any) => void;
 		close?: () => void;
 	} = $props();
+
+	/**
+	 * Preview source. The preview box is capped at ~20rem, so the `md` variant drives
+	 * `src` and `srcset` adds `lg` for high-DPI displays — a multi-megabyte original
+	 * must never be fetched to paint a thumbnail-sized box. `mediaUrl()` stays on the
+	 * download and playback paths further down, where the original is deliberate.
+	 */
+	const previewAsset = $derived(
+		file ? { ...file, url: mediaDisplayUrl(file, 'md') || file.url || '' } : undefined
+	);
+
+	/** Focal point framing — applies to the derivative preview exactly as to the original. */
+	const previewObjectPosition = $derived(
+		file?.metadata?.focalPoint
+			? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+			: 'center'
+	);
 
 	// Tab State
 	let activeTab = $state<'info' | 'versions' | 'references' | 'share'>('info');
@@ -534,17 +552,20 @@
 				class="media-checkerboard flex max-h-[min(30dvh,11rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
 				style:background-color={file.metadata?.dominantColor || undefined}
 			>
-				<img
-					src={mediaUrl(file)}
-					alt={file.filename}
+				<Image
+					asset={previewAsset}
+					preset="hero"
+					sizes="(min-width: 1024px) 20rem, (min-width: 640px) 28rem, 100vw"
+					priority
+					alt={file.filename || 'Media preview'}
 					class="max-h-full max-w-full object-contain"
-					style:object-position={file.metadata?.focalPoint
-						? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
-						: 'center'}
+					style={`object-position: ${previewObjectPosition}`}
 					crossorigin="anonymous"
 				/>
 			</div>
 		{:else if file.type === 'video'}
+			<!-- Playback keeps the original: a `<video src>` must be the media file itself,
+			     a poster/thumbnail derivative would break playback. -->
 			<video
 				src={mediaUrl(file)}
 				controls
@@ -576,6 +597,8 @@
 		{/if}
 
 		<div class="mt-3 flex w-full flex-col items-stretch gap-2 sm:mt-4 sm:items-center">
+			<!-- Byte-exact original on purpose: "Download Original" hands the user the real file,
+			     never a derivative. Do not switch this to `mediaDisplayUrl()`. -->
 			<Button
 				variant="surface"
 				size="sm"
@@ -1106,6 +1129,7 @@
 									</div>
 
 									<div class="flex shrink-0 gap-2 self-end sm:self-auto">
+										<!-- Version downloads are archival: pass the stored original through `mediaUrl()`. -->
 										<Button
 											variant="ghost"
 											size="sm"

@@ -1084,7 +1084,10 @@ export const verifyPasskeyAuth = command(
   },
 );
 
-export const getPasskeyRegisterOptions = command("unchecked", async () => {
+// `_input` is declared optional on purpose: the registration flow needs no input,
+// and SvelteKit derives the remote call signature from the handler's first
+// parameter — without it callers are forced into `undefined as any`.
+export const getPasskeyRegisterOptions = command("unchecked", async (_input?: unknown) => {
   const event = getRequestEvent();
   await dbInitPromise;
   if (!auth) return { success: false, message: "Authentication system unavailable." };
@@ -1118,6 +1121,12 @@ export const getPasskeyRegisterOptions = command("unchecked", async () => {
         ...options.user,
         id: Buffer.from(options.user.id).toString("base64url"),
       },
+      // Same serialization as `getPasskeyAuthOptions.allowCredentials`: the builder
+      // produces Buffer-backed ids, the client decodes them to ArrayBuffer views.
+      excludeCredentials: options.excludeCredentials?.map((c) => ({
+        ...c,
+        id: Buffer.from(c.id).toString("base64url"),
+      })),
     },
   };
 });

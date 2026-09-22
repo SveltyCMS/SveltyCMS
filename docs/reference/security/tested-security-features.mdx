@@ -43,9 +43,9 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Issue**: Setting `TEST_MODE=true` would completely bypass the firewall security checks.
 
-**Fix**: Restricted `TEST_MODE` bypass in `src/hooks/handle-firewall.ts` to only apply in non-unit-test integration environments. Unit tests still execute the firewall logic. In production, the firewall is always active unless explicitly disabled via settings.
+**Fix**: Restricted `TEST_MODE` bypass in `src/hooks/handle-security.ts:167` to local requests only and to explicit test environments — `if (isLocal && IS_TEST_MODE && !forceSecurity) return resolve(event)`. A validated `x-test-secret` alone is not sufficient, so benchmark runs still exercise the full WAF/firewall path. In production, the firewall is always active unless explicitly disabled via settings.
 
-**Tests**: `tests/unit/hooks/firewall.test.ts`
+**Tests**: `tests/unit/security/handle-waf-guard.test.ts`, `tests/unit/hooks/defense-in-depth.test.ts`
 
 ### 3. Missing POST-Authentication Authorization Gap (Resolved April 2026)
 
@@ -53,7 +53,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Fix**: Implemented a **Fail-Closed API Dispatcher** in `src/routes/api/[...path]/+server.ts` using an exhaustive `ENDPOINT_PERMISSIONS` mapping. Any route not explicitly authorized is denied by default.
 
-**Tests**: `tests/unit/routes/api/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`
+**Tests**: `tests/unit/hooks/authorization.test.ts`, `tests/unit/api/dispatcher-body-limit.test.ts`, `tests/unit/api/dispatcher-security-matrix.test.ts`
 
 **UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
 
@@ -121,7 +121,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **Graceful Shutdown**: Confirmed clean teardown of DB and Cache connections on `SIGTERM`.
 - ✅ **Timing-Safe Cryptographic Handshake**: Verified that `x-test-secret` comparison uses constant-time logic.
 
-**Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/hooks/firewall.test.ts`.
+**Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/security/handle-waf-guard.test.ts`.
 
 ### 9. May 2026 Enterprise Security Hardening
 
@@ -139,7 +139,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Files Modified**: `src/hooks/handle-authentication.ts`, `src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/handlers/system.ts`, `src/routes/api/[...path]/handlers/media.ts`, `src/routes/(app)/config/collectionbuilder/+page.server.ts`, `src/routes/(admin)/admin/tenants/+page.server.ts`.
 
-**Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`.
+**Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/unit/api/dispatcher-security-matrix.test.ts`.
 
 ### 10. AI Bot Defense & Crypto Hardening
 
@@ -173,14 +173,14 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **Uniform 15 MB body ceiling (chunked included) and incremental media abort**: the dispatcher counts `Transfer-Encoding: chunked` bodies through a zero-copy stream and stops at `API_MAX_BODY_SIZE_BYTES` (15 MB) exactly like `Content-Length` bodies (413 `PAYLOAD_TOO_LARGE`); the media stream route passes the same cap to `parseMultipartStream` and aborts oversize parts incrementally instead of buffering. Coverage: `tests/unit/api/dispatcher-body-limit.test.ts`, `tests/unit/media/streaming-upload.test.ts`.
 - ✅ **Authorization bypass guardrail suite**: `tests/unit/api/authz-bypass-guard.test.ts` (27 tests) enumerates every `/api/<namespace>` root and every public-route exemption against a reasoned contract, so a new authorization bypass fails a unit test instead of shipping.
 - ✅ **Remote media upload SSRF fixed**: Gallery remote upload uses `MediaService.saveRemoteMedia` → `validateEgressUrl` + `safeFetch` (private IPs, localhost, metadata, DNS rebinding, redirect re-validation).
-- ✅ **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), IPv6 loopback/link-local, cloud metadata hosts, and non-HTTP protocols before S3Client creation (`src/utils/media/cloud-storage.ts`).
+- ✅ **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), IPv6 loopback/link-local, cloud metadata hosts, and non-HTTP protocols before S3Client creation (`src/utils/media/storage-adapters.ts:42`).
 
 - ✅ **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated from `system` to `user` message role with `<rag_context>` XML delimiters. Control characters stripped from RAG results. System prompt hardened with explicit instruction-override rejection (`src/services/core/ai-service.ts`).
 - ✅ **GraphQL Introspection Explicit Blocking**: `NoSchemaIntrospectionCustomRule` added to production validation plugin, preventing unauthenticated schema enumeration (`src/routes/api/graphql/+server.ts`).
 - ✅ **Tiptap Link Protocol Hardening**: `Link.configure()` now enforces protocol allowlist `["http", "https", "mailto", "tel"]`, blocking `javascript:` and `data:` URI injection at editor level (`src/widgets/core/rich-text/tiptap.ts`).
 - ✅ **Rate Limiter Dependency Hygiene**: Moved `sveltekit-rate-limiter` from `devDependencies` to `dependencies` to ensure production build inclusion (`package.json`).
 
-**Files Modified**: `src/utils/media/media-service.server.ts`, `src/utils/media/cloud-storage.ts`, `src/services/core/ai-service.ts`, `src/routes/api/graphql/+server.ts`, `src/widgets/core/rich-text/tiptap.ts`, `package.json`.
+**Files Modified**: `src/utils/media/media-service.server.ts`, `src/utils/media/storage-adapters.ts`, `src/services/core/ai-service.ts`, `src/routes/api/graphql/+server.ts`, `src/widgets/core/rich-text/tiptap.ts`, `package.json`.
 
 **Tests**: All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
 
@@ -285,14 +285,15 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 
 ## Authentication & Sessions
 
-| Feature                  | Test Location                                     | Status |
-| ------------------------ | ------------------------------------------------- | ------ |
-| User login               | `tests/unit/hooks/authentication.test.ts`         | ✅     |
-| User logout              | `tests/unit/hooks/authentication.test.ts`         | ✅     |
-| Session creation         | `tests/integration/databases/auth-system.test.ts` | ✅     |
-| Session validation       | `tests/integration/databases/auth-system.test.ts` | ✅     |
-| Session deletion         | `tests/integration/databases/auth-system.test.ts` | ✅     |
-| Session timeout handling | `tests/unit/hooks/authentication.test.ts`         | ✅     |
+| Feature                  | Test Location                                                   | Status |
+| ------------------------ | --------------------------------------------------------------- | ------ |
+| User login               | `tests/unit/hooks/authentication.test.ts`                       | ✅     |
+| User logout              | `tests/unit/hooks/authentication.test.ts`                       | ✅     |
+| Session creation         | `tests/integration/databases/auth-session-amr-contract.test.ts` | ✅     |
+| Session validation       | `tests/unit/auth/sessions/session-manager.test.ts`              | ✅     |
+| Session deletion         | `tests/unit/auth/sessions/session-manager.test.ts`              | ✅     |
+| Session cookie hardening | `tests/unit/auth/sessions/session-cookies.test.ts`              | ✅     |
+| Session timeout handling | `tests/unit/hooks/authentication.test.ts`                       | ✅     |
 
 | Password hashing (Argon2) | `tests/unit/utils/security.test.ts` | ✅ |
 | Password verification | `tests/unit/utils/security.test.ts` | ✅ |
@@ -347,26 +348,26 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 
 ## Threat Detection & Prevention
 
-| Feature                       | Test Location                       | Status |
-| ----------------------------- | ----------------------------------- | ------ |
-| SQL injection detection       | `tests/unit/hooks/firewall.test.ts` | ✅     |
-| XSS attack detection          | `tests/unit/hooks/firewall.test.ts` | ✅     |
-| Path traversal detection      | `tests/unit/hooks/firewall.test.ts` | ✅     |
-| Command injection detection   | `tests/unit/hooks/firewall.test.ts` | ✅     |
-| Password in URL detection     | `tests/unit/hooks/firewall.test.ts` | ✅     |
-| Suspicious parameter blocking | `tests/unit/hooks/firewall.test.ts` | ✅     |
+| Feature                       | Test Location                                  | Status |
+| ----------------------------- | ---------------------------------------------- | ------ |
+| SQL injection detection       | `tests/unit/security/handle-waf-guard.test.ts` | ✅     |
+| XSS attack detection          | `tests/unit/security/handle-waf-guard.test.ts` | ✅     |
+| Path traversal detection      | `tests/unit/security/handle-waf-guard.test.ts` | ✅     |
+| Prototype pollution detection | `tests/unit/security/handle-waf-guard.test.ts` | ✅     |
+| Header splitting detection    | `tests/unit/security/handle-waf-guard.test.ts` | ✅     |
+| Credentials in query strings  | `tests/unit/security/threat-scan.test.ts`      | ✅     |
 
 ---
 
 ## Input Validation
 
-| Feature                      | Test Location                                      | Status |
-| ---------------------------- | -------------------------------------------------- | ------ |
-| Password strength validation | `tests/integration/routes/login/signup.test.ts`    | ✅     |
-| Email format validation      | `tests/integration/routes/login/signup.test.ts`    | ✅     |
-| Password mismatch rejection  | `tests/integration/routes/login/signup.test.ts`    | ✅     |
-| Invalid OAuth data rejection | `tests/integration/routes/login/signup.test.ts`    | ✅     |
-| Input sanitization           | `docs/architecture/security/richtext-security.mdx` | ✅     |
+| Feature                      | Test Location                                   | Status |
+| ---------------------------- | ----------------------------------------------- | ------ |
+| Password strength validation | `tests/integration/routes/login/signup.test.ts` | ✅     |
+| Email format validation      | `tests/integration/routes/login/signup.test.ts` | ✅     |
+| Password mismatch rejection  | `tests/integration/routes/login/signup.test.ts` | ✅     |
+| Invalid OAuth data rejection | `tests/integration/routes/login/signup.test.ts` | ✅     |
+| Input sanitization           | `docs/reference/security/richtext-security.mdx` | ✅     |
 
 ---
 
@@ -391,56 +392,58 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 
 ## Widget & Plugin Security
 
-| Feature                            | Test Location                                    | Status |
-| ---------------------------------- | ------------------------------------------------ | ------ |
-| Widget sandbox isolation           | `tests/unit/plugins/sandbox.test.ts`             | ✅     |
-| Protected collection access denied | `tests/unit/plugins/sandbox.test.ts`             | ✅     |
-| File upload restrictions           | `docs/architecture/security/widget-security.mdx` | ✅     |
-| XSS prevention in widgets          | `docs/architecture/security/widget-security.mdx` | ✅     |
-| Widget permission system           | `tests/unit/hooks/authorization.test.ts`         | ✅     |
+| Feature                            | Test Location                                 | Status |
+| ---------------------------------- | --------------------------------------------- | ------ |
+| Widget sandbox isolation           | `tests/unit/plugins/sandbox.test.ts`          | ✅     |
+| Protected collection access denied | `tests/unit/plugins/sandbox.test.ts`          | ✅     |
+| File upload restrictions           | `docs/reference/security/widget-security.mdx` | ✅     |
+| XSS prevention in widgets          | `docs/reference/security/widget-security.mdx` | ✅     |
+| Widget permission system           | `tests/unit/hooks/authorization.test.ts`      | ✅     |
 
 ---
 
 ## E2E Security Tests
 
-| Feature              | Test Location                              | Status |
-| -------------------- | ------------------------------------------ | ------ |
-| Login flow           | `tests/e2e/login.spec.ts`                  | ✅     |
-| Role-based access    | `tests/e2e/role-based-access.spec.ts`      | ✅     |
-| User CRUD operations | `tests/e2e/user-crud.spec.ts`              | ✅     |
-| Permission changes   | `tests/e2e/permission-change.spec.ts`      | ✅     |
-| OAuth signup flow    | `tests/e2e/oauth-signup-firstuser.spec.ts` | ✅     |
-| Password change      | `tests/e2e/user.spec.ts`                   | ✅     |
+| Feature              | Test Location                                            | Status |
+| -------------------- | -------------------------------------------------------- | ------ |
+| Login flow           | `tests/e2e/routes/login/login.spec.ts`                   | ✅     |
+| Role-based access    | `tests/e2e/routes/system/permission-enforcement.spec.ts` | ✅     |
+| User CRUD operations | `tests/e2e/routes/user/management.spec.ts`               | ✅     |
+| Permission changes   | `tests/e2e/routes/system/permissions.spec.ts`            | ✅     |
+| OAuth signup flow    | `tests/e2e/routes/login/oauth.spec.ts`                   | ✅     |
+| Password change      | `tests/e2e/routes/user/profile.spec.ts`                  | ✅     |
+| Accessibility (axe)  | `tests/e2e/routes/login/accessibility.spec.ts`           | ✅     |
 
 ---
 
 ## Test Commands
 
 ```bash
-# Run all security-related unit tests
-bun test tests/unit/hooks/
+# Security-focused unit subset (hooks, authz, egress, WAF, SVG, scanners)
+bun run test:security
 
-# Run authentication tests
-bun test tests/unit/hooks/authentication.test.ts
+# Middleware pipeline tests
+bun run test:unit -- tests/unit/hooks/
 
-# Run authorization tests
-bun test tests/unit/hooks/authorization.test.ts
+# Authentication tests
+bun run test:unit -- tests/unit/hooks/authentication.test.ts
 
-# Run firewall/threat detection tests
-bun test tests/unit/hooks/firewall.test.ts
+# Authorization tests
+bun run test:unit -- tests/unit/hooks/authorization.test.ts
 
-# Run security headers tests
-bun test tests/unit/hooks/security-headers.test.ts
+# WAF / threat detection tests
+bun run test:unit -- tests/unit/security/handle-waf-guard.test.ts tests/unit/security/threat-scan.test.ts
 
-# Run integration API security tests
-bun test tests/integration/api/user.test.ts
-bun test tests/integration/api/auth-2fa.test.ts
+# Security headers tests
+bun run test:unit -- tests/unit/hooks/security-headers.test.ts
 
-# Run E2E security tests
-bun x playwright test tests/e2e/login.spec.ts
-bun x playwright test tests/e2e/role-based-access.spec.ts
+# Integration API security tests (builds the harness first)
+bun run test:integration
 
-# Run all tests
+# E2E security tests
+bun run test:e2e -- --grep="(Authentication)"
+
+# Run all tests (unit + integration)
 bun run test:all
 ```
 

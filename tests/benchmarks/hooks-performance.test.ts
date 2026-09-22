@@ -2,6 +2,15 @@
  * @file tests/benchmarks/hooks-performance.test.ts
  * @description Hooks & Middleware Performance Benchmark (Optimized)
  * @summary Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.
+ *
+ * ### Features:
+ * - One measured row per scenario: static asset, turbo pipeline, full auth+security, API cache, mutation
+ * - Per-scenario middleware attribution from the server's own hook counters
+ *   (`ENABLE_HOOK_TIMING=1`), so a row delta resolves into named stages. Reported
+ *   as "unavailable" when the snapshot carries no `hooks` — the terminal health
+ *   bypass answers with a minimal payload, so attribution cannot be assumed here
+ * - Compression telemetry sampled from response headers
+ * - Self-isolating: forced GC + socket drain between scenarios, monotonic payload pool for writes
  */
 
 import {
@@ -16,6 +25,8 @@ import {
   printSummaryTable,
   getDbType,
   benchmarkAuthHeaders,
+  hookPhaseCost,
+  readHookTimings,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -113,7 +124,15 @@ async function runHooksAudit() {
       }),
     );
 
+    const hookAttribution: { key: string; val: string | number; unit: string }[] = [];
     let globalPayloadCounter = 0;
+
+    // Attribution status line: distinguishes "flag off" (empty table by design) from
+    // "flag on but the snapshot went stale or failed" (a measurement bug).
+    const probeHooks = await readHookTimings(baseUrl);
+    console.log(
+      `   → Hook attribution: ${probeHooks ? `${Object.keys(probeHooks).length} stage(s) available` : "unavailable (server started without ENABLE_HOOK_TIMING=1?)"}`,
+    );
 
     for (let s = 0; s < middlewareScenarios.length; s++) {
       const scenario = middlewareScenarios[s]!;
@@ -136,6 +155,10 @@ async function runHooksAudit() {
       // Isolate each scenario with garbage collection and socket draining
       forceGarbageCollection();
       await stabilize(150);
+
+      // Phase boundary for the per-hook attribution below (no-op when the server
+      // was started without ENABLE_HOOK_TIMING=1).
+      const timingsBefore = await readHookTimings(baseUrl);
 
       const result = await runBenchmark({
         name: scenarioName,
@@ -181,6 +204,15 @@ async function runHooksAudit() {
         },
       });
 
+      const timingsAfter = await readHookTimings(baseUrl);
+      for (const r of hookPhaseCost(timingsBefore, timingsAfter).slice(0, 5)) {
+        hookAttribution.push({
+          key: `${shortLabel} · ${r.hook}`,
+          val: r.usPerReq.toFixed(1),
+          unit: "µs/req",
+        });
+      }
+
       const enriched = {
         ...result,
         shortLabel,
@@ -202,6 +234,24 @@ async function runHooksAudit() {
       exportMetric("compression.avg_compressed_bytes", Math.round(avgComp), "B");
       exportMetric("compression.avg_ratio", parseFloat(avgRatio.toFixed(2)), "%");
     }
+
+    // ── HOOK ATTRIBUTION (ENABLE_HOOK_TIMING=1) ─────────────────────────────
+    // Resolves a scenario delta ("the mutation row is +1.17 ms over a read") into
+    // named middleware stages instead of leaving a residual. Costs nothing when
+    // the flag is off on the server, in which case it reports that instead of
+    // fabricating zeroes.
+    printSummaryTable(
+      hookAttribution.length > 0
+        ? hookAttribution
+        : [
+            {
+              key: "Hook timing",
+              val: "unavailable — snapshot carried no hooks (flag off, or the terminal health bypass answered)",
+              unit: "",
+            },
+          ],
+      "Hook Attribution (per middleware stage)",
+    );
 
     const staticAsset = results[0]!;
     const turbo = results[1]!;

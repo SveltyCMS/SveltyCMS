@@ -21,7 +21,7 @@ API testing in SveltyCMS covers the REST and GraphQL endpoints, ensuring correct
 
 | Category              | Test File(s)                                                                    |
 | --------------------- | ------------------------------------------------------------------------------- |
-| API Dispatcher        | `tests/unit/api-request-handler/`, `tests/unit/hooks/api-requests.test.ts`      |
+| API Dispatcher        | `tests/unit/api/*.test.ts`, `tests/unit/hooks/api-requests.test.ts`             |
 | API unit helpers      | `tests/unit/utils/mock-event.ts` (`invokeApi`) — [docs](./api-unit-helpers.mdx) |
 | Media Security        | `tests/unit/api/media-security.test.ts`                                         |
 | Unit API suites       | `tests/unit/api/*.test.ts` (prefer `invokeApi` over per-file mock events)       |

@@ -26,7 +26,8 @@
 
 	let name = $state(data?.name ?? '');
 	let description = $state(data?.description ?? '');
-	let lastSyncedKey = $state<string | null>(syncKey);
+	// One-time mount seed: the sync effect below owns every later `syncKey` change.
+	let lastSyncedKey = $state<string | null>(untrack(() => syncKey));
 
 	const targetId = $derived(
 		String(

@@ -18,7 +18,7 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import { PluginSettingsService } from "./settings";
+import type { PluginSettingsService } from "./settings";
 import { capabilityRegistry } from "@src/services/security/capability-registry";
 import { registerSugarType } from "@src/widgets/desugar-field";
 import { pluginRouteRegistry } from "./plugin-route-registry";
@@ -36,6 +36,8 @@ import type {
 export class PluginRegistry implements IPluginService {
   private readonly plugins: Map<string, PluginRegistryEntry> = new Map();
   private settingsService: PluginSettingsService | null = null;
+  /** Factory injected by `plugins/init.server.ts` — keeps `./settings` out of the client graph. */
+  private settingsServiceFactory: ((dbAdapter: IDBAdapter) => PluginSettingsService) | null = null;
   private initialized = false;
 
   // 🚀 WRITE-PATH CACHE: getAll() allocates a mapped array per call and the
@@ -111,10 +113,28 @@ export class PluginRegistry implements IPluginService {
     return this.plugins.get(pluginId)?.plugin;
   }
 
-  // Initialize the plugin settings service
+  // Initialize the plugin settings service from a factory injected by the server
+  // boot path (`plugins/init.server.ts`). This registry is browser-reachable, so it
+  // must not import `./settings` itself — that would drag node:crypto into the
+  // client bundle; the factory keeps the boundary explicit.
   async initializeSettings(dbAdapter: IDBAdapter): Promise<void> {
-    this.settingsService = new PluginSettingsService(dbAdapter);
+    const service = this.createSettingsService(dbAdapter);
+    if (!service) return;
+    this.settingsService = service;
     await this.settingsService.initialize();
+  }
+
+  /** Wire the server-only settings service factory (called from `plugins/init.server.ts`). */
+  setSettingsServiceFactory(factory: (dbAdapter: IDBAdapter) => PluginSettingsService): void {
+    this.settingsServiceFactory = factory;
+  }
+
+  private createSettingsService(dbAdapter: IDBAdapter): PluginSettingsService | null {
+    if (!this.settingsServiceFactory) {
+      logger.warn("PluginSettingsService factory not registered (server boot did not run)");
+      return null;
+    }
+    return this.settingsServiceFactory(dbAdapter);
   }
 
   // Run pending migrations for a specific plugin
@@ -753,7 +773,6 @@ export class PluginRegistry implements IPluginService {
     const table = "pluginMigrations";
     try {
       // Use createModel to ensure physical table exists in SQL adapters
-      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
       await dbAdapter.collection.createModel(
         {
           _id: table,

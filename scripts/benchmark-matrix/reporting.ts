@@ -51,6 +51,7 @@ import {
   LEDGER_DIMENSION_ORDER,
   patchBenchmarkZones,
   patchExecutiveAlerts,
+  patchExecutiveFixNotes,
   patchExecutivePartialWatermark,
   replaceLatestAuditHeading,
   replaceZone,
@@ -980,7 +981,11 @@ async function updateBenchmarkIndexReport(
       // single missing metric must not abort the whole report pass.
       const fmt = (value: number | undefined, digits: number, unit: string): string =>
         Number.isFinite(value) ? `${(value as number).toFixed(digits)}${unit}` : "—";
-      tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ${status} | ${curr?.coldStartMs || 0}ms | ${fmt(m.collections, 3, "ms")} | ${fmt(m.graphqlAvg, 3, "ms")} | ${fmt(m.systemCpu, 1, "%")} | ${fmt(m.memGrowth, 1, "MB")} |\n`;
+      // Cold start is optional too: `curr?.coldStartMs || 0` published a fake "0ms"
+      // measurement for adapters whose cold-start script never ran. Missing ⇒ "—".
+      const rawColdStart = curr?.coldStartMs;
+      const coldStartCell = Number.isFinite(rawColdStart) ? `${rawColdStart}ms` : "—";
+      tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ${status} | ${coldStartCell} | ${fmt(m.collections, 3, "ms")} | ${fmt(m.graphqlAvg, 3, "ms")} | ${fmt(m.systemCpu, 1, "%")} | ${fmt(m.memGrowth, 1, "MB")} |\n`;
     } else {
       tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ⚪ N/A | - | - | - | - | - |\n`;
     }
@@ -1166,13 +1171,19 @@ tags:
       extraWarnings += `> [!WARNING]\n> **Environment Shift Detected**: Massive latency delta (${restTrend.pct}). Re-run matrix to establish a new baseline.\n\n`;
     }
 
+    // An unmeasured cold start must never render as a measurement: `curr?.coldStartMs || 0`
+    // published "Cold Start 0ms 🟢 PASS" in generated ledgers. Unmeasured rows reuse this
+    // table's own placeholders ("N/A" latency, "⚪ N/A" result) instead of a fake number.
+    const rawColdStart = curr?.coldStartMs;
+    const coldStartMs = Number.isFinite(rawColdStart) ? (rawColdStart as number) : null;
+
     const latencyRows = [
       {
         scenario: "Cold Start",
-        latency: `${curr?.coldStartMs || 0}ms`,
+        latency: coldStartMs === null ? "N/A" : `${coldStartMs}ms`,
         trend: `${coldTrend.icon} (${coldTrend.pct})`,
         budget: "< 5000ms",
-        result: (curr?.coldStartMs || 0) <= 5000 ? "🟢 PASS" : "🔴 FAIL",
+        result: coldStartMs === null ? "⚪ N/A" : coldStartMs <= 5000 ? "🟢 PASS" : "🔴 FAIL",
       },
       {
         scenario: "REST (Collections)",
@@ -1229,6 +1240,8 @@ tags:
 
     const [fixStart, fixEnd] = EXECUTIVE_MARKERS.fixNotes;
     const execZone = extractZone(doc, ZONE_MARKERS.executive[0], ZONE_MARKERS.executive[1]) ?? "";
+    // Fix-overlay notes are re-rendered into their own EXECUTIVE_FIX_NOTES slot below
+    // (never inline in the executive body) — see the patchExecutiveFixNotes call.
     const existingFixNotes = extractZone(execZone, fixStart, fixEnd) ?? "";
 
     const dbType = dbKey.replace("-redis", "");
@@ -1512,11 +1525,15 @@ tags:
       latencyRows,
       testEntries,
       mermaidPoints,
-      existingFixNotes,
     });
 
     let executiveMd = replaceLatestAuditHeading(executiveBody, `(${timestamp})`);
     executiveMd = ensureExecutiveMarkers(executiveMd);
+    // The slot is the single home for fix overlays: injecting them into the body as
+    // well emitted two identical `### 📝 Fix Overlays` headings (duplicate anchor).
+    if (existingFixNotes.trim()) {
+      executiveMd = patchExecutiveFixNotes(executiveMd, existingFixNotes.trim());
+    }
     if (isHistorical) {
       executiveMd = patchExecutivePartialWatermark(
         executiveMd,

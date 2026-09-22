@@ -99,7 +99,6 @@ export interface ExecutiveReportInput {
   }>;
   testEntries: TestRollupEntry[];
   mermaidPoints: number[];
-  existingFixNotes?: string;
 }
 
 /** Unicode trend arrow from signed delta percent. */
@@ -470,10 +469,6 @@ export function buildExecutiveReport(input: ExecutiveReportInput): string {
   body += `**${passIcon}**${hist}${partial} \u00B7 ${input.recorded}/${input.total} tests`;
   if (input.skipped > 0) body += ` \u00B7 ${input.skipped} skipped`;
   body += ` \u00B7 **${input.dbLabel}** \u00B7 ${input.hostLine}\n\n`;
-
-  if (input.existingFixNotes?.trim()) {
-    body += `${input.existingFixNotes.trim()}\n\n`;
-  }
 
   body += buildDimensionRollupTable(input.testEntries);
   body += buildIssuesTable(input.testEntries);

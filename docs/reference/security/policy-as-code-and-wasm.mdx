@@ -1,34 +1,34 @@
 ---
 path: "docs/reference/security/policy-as-code-and-wasm.mdx"
-title: "WASM WAF & Security Middleware Architecture"
-description: "Comprehensive reference for SveltyCMS Layer 0 WASM WAF guard, Merkle Tree Audit Ledgers, and API Fuzzing."
+title: "WAF Guard & Security Middleware Architecture"
+description: "Reference for the SveltyCMS Layer 0 WAF guard, its ReDoS-safe threat scanner, the Merkle Tree audit ledger, and the API payload fuzzer."
 order: 12
 icon: "mdi:shield-bug-outline"
 author: "SveltyCMS Team"
 created: "2026-08-15"
-updated: "2026-08-20"
+updated: "2026-09-22"
 tags:
   - "security"
   - "waf"
-  - "wasm"
   - "audit"
 ---
 
-# WASM WAF & Security Architecture (2026 Edition)
+# WAF & Security Architecture (2026 Edition)
 
-SveltyCMS combines WebAssembly (WASM) threat scanning with cryptographic audit chaining and automated API fuzzing to achieve nanosecond WAF payload protection and verifiable audit integrity.
+SveltyCMS combines a linear, ReDoS-safe WAF payload scanner with cryptographic audit chaining and automated API fuzzing: threats are matched before payload deserialization, and audit integrity is verifiable through Merkle inclusion proofs.
 
 > **Note**: The in-memory Policy-as-Code engine (`policy-engine.ts`) and runtime baseline clamps (`baseline-guard.ts`) were removed in the security audit — they were never wired into the dispatcher (the RBAC `ENDPOINT_PERMISSIONS` mapping + `hasPermissionWithRoles` is the single enforcement point). Keeping unwired engines around risked a latent authorization bypass if a future rule normalized namespace/method into its resource/action model.
 
 ---
 
-## 1. Pre-Compiled WASM WAF Middleware Guard
+## 1. Layer 0 WAF Middleware Guard
 
 Requests passing through SvelteKit are inspected at **Layer 0** before JSON payload deserialization.
 
-- **Location**: `src/hooks/wasm-waf-guard.ts`
+- **Location**: `src/hooks/handle-waf-guard.ts` (`WafGuard.inspectRequest()` / `inspectEvent()`)
+- **Matching engine**: `src/services/security/threat-scan.ts` — `inspectRequest()` is a **linear, O(n) ReDoS-safe scanner**, shared with `AuthGuard` payload analysis. The guard class itself only memoizes results per request (`locals.__wafCheck` plus a `WeakMap` keyed by the `Headers` object), so the scan runs at most once per request lifecycle.
 - **Features**: Scans path traversal (`../`), prototype pollution (`__proto__`), XSS scripts, SQL injection, and HTTP header splitting vectors.
-- **Compatibility**: Includes an automatic pure-JS fallback for environments where WebAssembly instantiation is restricted.
+- **Coverage**: `tests/unit/security/handle-waf-guard.test.ts`, `tests/unit/security/threat-scan.test.ts`.
 
 ---
 

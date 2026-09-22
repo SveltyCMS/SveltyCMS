@@ -6,7 +6,7 @@
  * field suggestions, but also works standalone with sensible defaults.
  *
  * ### Features:
- * - Generates 3-pillar widget files (index.ts, Input.svelte, Display.svelte)
+ * - Generates 3-pillar widget files (index.ts, input.svelte, display.svelte)
  * - Auto-infers Valibot validators from field types
  * - Produces Tailwind v4 + Svelte 5 runes components
  * - WCAG 2.2 AA compliant templates (ARIA labels, keyboard support)
@@ -15,6 +15,18 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { widgetNameToFolder } from "@src/widgets/widget-naming";
+
+// ─── Pillar filenames ─────────────────────────────────────────────────────
+
+/**
+ * Pillar filenames are kebab-case — `scripts/check-widget-naming.mjs` fails a
+ * widget that ships `Input.svelte`/`Display.svelte`, and the casing also
+ * breaks resolution on case-sensitive filesystems (Linux/CI). Declared once so
+ * the written file name and the generated `@file` header cannot drift apart.
+ */
+const PILLAR_INPUT_FILENAME = "input.svelte";
+const PILLAR_DISPLAY_FILENAME = "display.svelte";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -86,7 +98,7 @@ function fieldToGuiSchema(field: WidgetField): string {
 // ─── Template Generators ──────────────────────────────────────────────────
 
 function generateIndex(config: WidgetScaffoldConfig): string {
-  const kebab = config.name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+  const kebab = widgetNameToFolder(config.name);
   const validators = config.fields.map((f) => `  ${f.name}: ${fieldToValidator(f)},`).join("\n");
 
   const guiSchema = config.fields.map((f) => `    ${f.name}: ${fieldToGuiSchema(f)},`).join("\n");
@@ -121,7 +133,7 @@ ${guiSchema}
 }
 
 function generateInput(config: WidgetScaffoldConfig): string {
-  const kebab = config.name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+  const kebab = widgetNameToFolder(config.name);
   const props = config.fields
     .map(
       (f) =>
@@ -144,7 +156,7 @@ function generateInput(config: WidgetScaffoldConfig): string {
     .join("\n      ");
 
   return `<!--
-@file src/widgets/core/${kebab}/Input.svelte
+@file src/widgets/core/${kebab}/${PILLAR_INPUT_FILENAME}
 @component
 **Input component for the ${config.name} widget**
 
@@ -175,7 +187,7 @@ ${props}
 }
 
 function generateDisplay(config: WidgetScaffoldConfig): string {
-  const kebab = config.name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+  const kebab = widgetNameToFolder(config.name);
   const display = config.fields
     .map((f) => {
       if (f.type === "toggle")
@@ -187,7 +199,7 @@ function generateDisplay(config: WidgetScaffoldConfig): string {
     .join("\n    ");
 
   return `<!--
-@file src/widgets/core/${kebab}/Display.svelte
+@file src/widgets/core/${kebab}/${PILLAR_DISPLAY_FILENAME}
 @component
 **Display component for the ${config.name} widget**
 
@@ -220,7 +232,7 @@ export interface ScaffoldResult {
 
 /** Generate widget code from configuration without writing to disk. */
 export function scaffoldWidget(config: WidgetScaffoldConfig): ScaffoldResult {
-  const kebab = config.name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+  const kebab = widgetNameToFolder(config.name);
   const baseDir = config.outputDir || path.join("src", "widgets", "core", kebab);
 
   return {
@@ -237,8 +249,8 @@ export async function generateWidget(config: WidgetScaffoldConfig): Promise<Scaf
 
   await fs.mkdir(result.outputDir, { recursive: true });
   await fs.writeFile(path.join(result.outputDir, "index.ts"), result.definition, "utf-8");
-  await fs.writeFile(path.join(result.outputDir, "Input.svelte"), result.input, "utf-8");
-  await fs.writeFile(path.join(result.outputDir, "Display.svelte"), result.display, "utf-8");
+  await fs.writeFile(path.join(result.outputDir, PILLAR_INPUT_FILENAME), result.input, "utf-8");
+  await fs.writeFile(path.join(result.outputDir, PILLAR_DISPLAY_FILENAME), result.display, "utf-8");
 
   return result;
 }

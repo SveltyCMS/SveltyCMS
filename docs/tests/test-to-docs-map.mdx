@@ -29,8 +29,8 @@ tags:
 | `tests/unit/databases/db-local-socket.test.ts`                  | `docs/project/achievements-2026.mdx` (§3.16), `docs/reference/database/performance-architecture.mdx`                         |
 | `tests/unit/security/system-tenant-scope.test.ts`               | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/achievements-2026.mdx` (§3.16)                                |
 | `tests/integration/api/collections-mutations.test.ts`           | `docs/tests/api-testing.mdx` (create/update/delete/clone/schedule HTTP contract)                                             |
-| `tests/unit/services/commerce/price.test.ts`                    | `docs/reference/architecture/ecommerce-overview.mdx`                                                                         |
-| `tests/unit/plugins/commerce.test.ts`                           | `docs/reference/architecture/ecommerce-overview.mdx`                                                                         |
+| `tests/unit/services/commerce/price.test.ts`                    | `docs/guides/content/ecommerce.mdx`                                                                                          |
+| `tests/unit/plugins/commerce.test.ts`                           | `docs/guides/content/ecommerce.mdx`                                                                                          |
 | `tests/unit/hooks/defense-in-depth.test.ts`                     | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                                                       |
 | `tests/unit/hooks/authentication.test.ts`                       | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                                            |
 | `tests/unit/hooks/authorization.test.ts`                        | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                                           |
@@ -73,8 +73,8 @@ tags:
 | `tests/unit/utils/export-encode.test.ts`                        | `docs/reference/api/collections.mdx`, `docs/reference/database/performance-architecture.mdx`                                 |
 | `tests/benchmarks/**/*.test.ts`                                 | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                                                       |
 | `tests/e2e/accessibility.spec.ts`                               | `docs/tests/accessibility-audit.mdx`                                                                                         |
-| `tests/e2e/branding.spec.ts`                                    | `docs/reference/architecture/multi-tenancy.mdx`                                                                              |
-| `tests/e2e/visual-regression.spec.ts`                           | `docs/tests/accessibility-audit.mdx`                                                                                         |
+| `tests/e2e/routes/login/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`                                                                              |
+| `tests/e2e/routes/admin-theme/visual-regression.spec.ts`        | `docs/tests/accessibility-audit.mdx`                                                                                         |
 | `tests/unit/security/token-secret-leakage.test.ts`              | `docs/reference/security/secrets-inventory.mdx`                                                                              |
 | `tests/unit/scripts/scan-secret-misuse.test.ts`                 | `docs/reference/security/secrets-inventory.mdx`                                                                              |
 | `tests/unit/widgets/core/*.test.ts`                             | `docs/tests/widget-test-coverage.mdx`                                                                                        |
@@ -100,7 +100,7 @@ tags:
 | `tests/unit/auth/sso/oidc-pkce-jit.test.ts`                     | `docs/reference/api/auth.mdx`, `docs/guides/configuration/access-management.mdx`                                             |
 | `tests/unit/auth/sso/sso-providers-handler.test.ts`             | `docs/reference/api/auth.mdx`, `docs/guides/configuration/access-management.mdx`                                             |
 | `tests/unit/routes/api-playground-page-server.test.ts`          | `docs/reference/api/index.mdx`, `docs/development/openapi-spec.mdx`                                                          |
-| `tests/unit/services/workflow-service-completion.test.ts`       | `docs/development/workflow-engine.mdx`, `docs/reference/components/workflow-actions.mdx`                                     |
+| `tests/unit/services/workflow-service-completion.test.ts`       | `docs/guides/content/workflows.mdx`, `docs/reference/components/workflow-actions.mdx`                                        |
 | `tests/unit/widgets/custom/block-builder.test.ts`               | `docs/reference/components/fields.mdx`, `docs/development/widgets/index.mdx`                                                 |
 | `tests/unit/components/create-smart-table.test.ts`              | `docs/reference/components/smart-table.mdx`, `docs/project/achievements-2026.mdx`                                            |
 | `tests/unit/api/ai-builder.test.ts`                             | `docs/development/ai-builder-design.mdx`                                                                                     |
@@ -112,3 +112,7 @@ tags:
 | `tests/unit/utils/entry-actions.test.ts`                        | `docs/reference/architecture/content-system.mdx`, `docs/project/achievements-2026.mdx` (§3.18)                               |
 | `tests/unit/widgets/custom-widget-sveltycms.test.ts`            | `docs/development/widgets/index.mdx`, `docs/reference/components/fields.mdx`                                                 |
 | `tests/unit/databases/cache-service-l2-contract.test.ts`        | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                       |
+| `tests/unit/media/derivative-ladder.test.ts`                    | `docs/project/media-pipeline-plan.mdx` (#3), `docs/reference/architecture/media-system.mdx`                                  |
+| `tests/unit/media/upload-dedupe-order.test.ts`                  | `docs/project/media-pipeline-plan.mdx` (#2), `docs/reference/architecture/media-system.mdx`                                  |
+| `tests/integration/api/media-dedupe-derivatives.test.ts`        | `docs/project/media-pipeline-plan.mdx` (#2/#3), `docs/reference/architecture/media-system.mdx`                               |
+| `tests/benchmarks/media-performance.test.ts`                    | `docs/project/media-pipeline-plan.mdx` (§4 fan-out + duplicate rows), `docs/project/benchmarks/index.mdx`                    |

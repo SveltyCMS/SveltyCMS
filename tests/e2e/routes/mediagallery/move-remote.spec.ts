@@ -1,8 +1,12 @@
 /**
  * @file tests/e2e/routes/mediagallery/move-remote.spec.ts
- * @description Media move (selection + breadcrumb / HTML5 drop) + remote URL upload page.
+ * @description Media move (selection + breadcrumb / pointer-driven sidebar drop) + remote URL upload page.
  *
  * Uses data-testid selectors so tests survive CSS/layout changes.
+ *
+ * Drop transport is @thisux/sveltednd in POINTER mode (document-level
+ * pointermove/pointerup + an `elementFromPoint` hit test at release), so a drag
+ * has to be driven with the mouse API, not with a pre-resolved target element.
  */
 
 import path from "node:path";
@@ -45,11 +49,41 @@ async function createFolder(page: Page, name: string) {
   await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
-async function uploadImage(page: Page) {
+function mediaItemSelector(mediaId: string): string {
+  return `[data-testid="media-item"][data-media-id="${mediaId}"]`;
+}
+
+/** `data-media-id`s currently rendered in the gallery grid. */
+async function visibleMediaIds(page: Page): Promise<string[]> {
+  return page
+    .getByTestId("media-item")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-media-id") ?? ""));
+}
+
+/**
+ * Upload the fixture into the current gallery level and return the record's id.
+ *
+ * Two things this helper must respect:
+ *
+ * 1. The upload API DEDUPLICATES BY CONTENT HASH per tenant (`getByHash` in
+ *    media-service.server.ts): a second upload of the same fixture reuses the
+ *    existing record (and re-points its folderId at the upload level) instead of
+ *    creating a new one. "A brand new id must appear" is therefore not a valid
+ *    assertion — the fixture is resolved by id diff first and by its rendered
+ *    name second, which is unambiguous because dedupe collapses all uploads of
+ *    the fixture into ONE record per tenant.
+ * 2. The grid is waited for as "empty state OR items", never as "empty": a
+ *    sibling spec in the same worker may already have assets at this level.
+ */
+async function uploadImage(page: Page): Promise<string> {
   // Settle gate: entering a virtual folder is a client-side navigation that
   // re-renders the page (grid + header actions). Driving the file input while the
   // view is still swapping silently drops the change event.
-  await expect(page.getByTestId("media-grid-empty")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await expect(
+    page.getByTestId("media-grid-empty").or(page.getByTestId("media-item").first()).first(),
+  ).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+  const existingIds = new Set(await visibleMediaIds(page));
 
   // Assert the API round-trip instead of polling blindly: a swallowed response
   // turned a handler that never ran into an opaque 25 s "no media item" timeout.
@@ -79,25 +113,31 @@ async function uploadImage(page: Page) {
   }
   const response = await uploadResponse;
   expect(response.ok(), `upload POST ${response.status()} ${response.url()}`).toBe(true);
-  // Wait for the actual grid item to appear, not just any text on the page
-  // (toast notifications can match text before the grid renders)
-  const mediaItem = page
-    .getByTestId("media-item")
-    .filter({ hasText: /testthumb/i })
-    .first();
+
+  // Resolve the fixture's record: the diff catches a fresh upload, the rendered
+  // name catches the dedupe path (stats: exactly one record per fixture + tenant).
+  let uploadedId = "";
   await expect(async () => {
-    if (!(await mediaItem.isVisible())) {
-      await page.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
+    const ids = await visibleMediaIds(page);
+    uploadedId = ids.find((id) => id && !existingIds.has(id)) ?? "";
+    if (!uploadedId) {
+      uploadedId =
+        (await page
+          .getByTestId("media-item")
+          .filter({ hasText: /testthumb/i })
+          .first()
+          .getAttribute("data-media-id")) ?? "";
     }
-    await expect(mediaItem).toBeVisible({ timeout: 5_000 });
+    expect(uploadedId, "the uploaded item must appear in the grid").toBeTruthy();
   }).toPass({ timeout: ACTION_TIMEOUT, intervals: [1_000, 2_000] });
+  return uploadedId;
 }
 
 test.describe.configure({ mode: "serial" });
 test.use({ storageState: { cookies: [], origins: [] } });
 
 // ---------------------------------------------------------------------------
-// Move: selection + breadcrumb (reliable path — no HTML5 DnD needed)
+// Move: selection + breadcrumb, then a real pointer drag onto a sidebar folder
 // ---------------------------------------------------------------------------
 test.describe("Media move to folder", () => {
   test.setTimeout(180_000);
@@ -114,7 +154,7 @@ test.describe("Media move to folder", () => {
     });
 
     // Upload inside folder
-    await uploadImage(page);
+    const mediaId = await uploadImage(page);
 
     // Enter selection mode
     await page.getByTestId("media-selection-toggle").click();
@@ -125,10 +165,7 @@ test.describe("Media move to folder", () => {
 
     // Select the uploaded item via its checkbox — use the native hidden input
     // (Checkbox component renders <input type="checkbox" class="sr-only">)
-    const item = page
-      .getByTestId("media-item")
-      .filter({ hasText: /testthumb/i })
-      .first();
+    const item = page.locator(mediaItemSelector(mediaId));
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Click the Checkbox component's visible label (the styled box) to toggle selection.
@@ -160,59 +197,90 @@ test.describe("Media move to folder", () => {
     await expect(page.getByText(/moved/i).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
-  test("drag-and-drop onto sidebar/root media drop target (sveltednd)", async ({ page }) => {
+  test("drag-and-drop onto a sidebar folder target moves the item (sveltednd)", async ({
+    page,
+  }) => {
     await openGallery(page);
     const folderName = `e2e_dnd_${Date.now().toString(36).slice(-6)}`;
     await createFolder(page, folderName);
-    await uploadImage(page);
+    const mediaId = await uploadImage(page);
 
-    const item = page
-      .getByTestId("media-item")
-      .filter({ hasText: /testthumb/i })
-      .first();
+    const item = page.locator(mediaItemSelector(mediaId));
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const specificFolderDrop = page
-      .locator(`[data-media-drop-target]`)
+    // Drag by the card's preview surface: the card's action buttons are excluded
+    // from the drag (`interactive: ['[data-no-drag]']` in liftAndCarry), so the
+    // press must land on the preview, not on an edit/delete control.
+    const dragHandle = item.getByRole("button", { name: /preview/i });
+    await expect(dragHandle, "the media card must expose a draggable preview").toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+
+    // Drop target: the folder row in the sidebar tree. It is the only folder
+    // surface reachable from the gallery root — at root the breadcrumb trail is
+    // the current-folder crumb, which rejects the drop by design (error ring).
+    const folderRow = page
+      .getByTestId("sidebar-media-context")
+      .getByRole("treeitem")
       .filter({ hasText: folderName })
       .first();
-    const hasSpecificDrop = await specificFolderDrop
-      .isVisible({ timeout: 8_000 })
-      .catch(() => false);
+    await expect(folderRow, "the new folder must appear in the sidebar tree").toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await folderRow.scrollIntoViewIfNeeded();
 
-    let folderDrop = specificFolderDrop;
-    if (!hasSpecificDrop) {
-      test.info().annotations.push({
-        type: "note",
-        description:
-          "No folder-specific drop target in layout (sidebar tree hidden); breadcrumb move test is the primary control",
-      });
-      folderDrop = page.locator("[data-media-drop-target]").first();
-      await expect(
-        folderDrop,
-        "Expected at least one [data-media-drop-target] for media move",
-      ).toBeVisible({ timeout: 5_000 });
-    }
+    const source = await dragHandle.boundingBox();
+    const target = await folderRow.boundingBox();
+    expect(source, "the drag source must be laid out").not.toBeNull();
+    expect(target, "the drop target must be laid out").not.toBeNull();
 
     const moveApi = page.waitForResponse(
       (res) => res.url().includes("/api/media/move") && res.request().method() === "POST",
       { timeout: ACTION_TIMEOUT },
     );
 
-    // Real mouse-driven drag: @thisux/sveltednd listens to native dragstart/dragover/drop
-    // (dispatched by the browser off real pointer input), so a synthetic DataTransfer/
-    // DragEvent dispatch — as used pre-migration — no longer reflects how a drag begins.
-    await item.dragTo(folderDrop);
+    // sveltednd is pointer-driven: the button must stay down for the whole
+    // gesture, and the sidebar rows only become droppables WHILE the drag is in
+    // flight (`externalDrop.enabled = isMediaDragActive` in media-folders.svelte
+    // → `data-media-drop-target` is a mid-drag observable, never a precondition).
+    // Probing that attribute before the gesture starts always came back empty and
+    // silently fell back to the current-folder crumb, whose drop is a no-op — the
+    // old shape could therefore pass without moving anything.
+    await page.mouse.move(source!.x + source!.width / 2, source!.y + source!.height / 2);
+    await page.mouse.down();
 
-    const res = await moveApi.catch(() => null);
-    if (res) {
-      expect([200, 400, 404, 422]).toContain(res.status());
-    } else {
-      test.info().annotations.push({
-        type: "note",
-        description: "Drag gesture did not hit move API; selection+breadcrumb covers move",
+    // Hard gate: no live drop target means the drag never started → fail loudly
+    // instead of annotating the test green.
+    await expect(folderRow).toHaveAttribute("data-media-drop-target", /./, { timeout: 10_000 });
+    const targetFolderId = await folderRow.getAttribute("data-media-drop-target");
+
+    await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, {
+      steps: 12,
+    });
+    // Long drags auto-scroll the folder list, which moves the row under the
+    // cursor — re-measure so the release lands on the current row position.
+    const settled = await folderRow.boundingBox();
+    if (settled) {
+      await page.mouse.move(settled.x + settled.width / 2, settled.y + settled.height / 2, {
+        steps: 4,
       });
     }
+    await page.mouse.up();
+
+    const res = await moveApi;
+    expect(res.ok(), `move POST ${res.status()} ${res.url()}`).toBe(true);
+
+    // Persistence (create → move → reload → assert): gone from the gallery root,
+    // present inside the target folder after a full page load.
+    await expect(item).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+    await page.goto(`/mediagallery?folderId=${targetFolderId}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
+    });
+    await waitForHydration(page);
+    await expect(page.locator(mediaItemSelector(mediaId))).toHaveCount(1, {
+      timeout: ACTION_TIMEOUT,
+    });
   });
 });
 

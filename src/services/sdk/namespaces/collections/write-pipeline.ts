@@ -26,6 +26,7 @@ import { AppError } from "@utils/error-handling";
 import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
 import { sanitizeObject } from "@utils/security/input-sanitizer";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { collectionModelCache, getModelResilient, type SchemaHotFlags } from "./schema-store";
@@ -74,6 +75,7 @@ export function prepareWritePayload(
   const { user, system, operation, tenantId, entryId } = opts;
 
   let entryData: any;
+  const mFields = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:fields") : null;
   if (hot._hasSanitizableFields === true || hot._hasConstrainedFields === true) {
     // Sanitize + constraints pass — single walk over schema.fields, lazy clone.
     const prepFlags: CollectionFieldPrepFlags = {
@@ -88,12 +90,17 @@ export function prepareWritePayload(
     // adapters write through this object).
     entryData = { ...data };
   }
+  mFields?.();
 
   // Sanitize the payload tree against XSS when sanitizable fields or extra dynamic fields exist.
   // Zero-allocation fast path returns entryData by reference when no XSS vector is present.
+  const mSan = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:sanitize") : null;
   if (hot._hasSanitizableFields !== false) {
     entryData = sanitizeObject(entryData);
   }
+  mSan?.();
+
+  const mStamps = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:stamps+dates+ranges") : null;
 
   if (operation === "create") {
     entryData.tenantId = tenantId;
@@ -144,6 +151,7 @@ export function prepareWritePayload(
       hot._hasNumberFields && hot._numberFields
         ? (doc: Record<string, unknown>) => validateNumberFieldPlans(doc, hot._numberFields!)
         : undefined;
+    const mHooks = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:hooks+guard") : null;
     return applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
       createError: fieldValidationError,
     }).then(async (prepared) => {
@@ -154,6 +162,7 @@ export function prepareWritePayload(
           tenantId: tenantId ?? undefined,
         });
       }
+      mHooks?.();
       return prepared;
     });
   }
@@ -164,13 +173,18 @@ export function prepareWritePayload(
       throw fieldValidationError(rangeErrors);
     }
   }
+  mStamps?.();
 
   if (needsWriteGuard) {
+    const mGuard = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:guard") : null;
     return assertWriteAllowed(schema.fields as FieldInstance[], entryData, user, {
       collectionName: schema.name,
       ...(entryId !== undefined ? { entryId } : {}),
       tenantId: tenantId ?? undefined,
-    }).then(() => entryData);
+    }).then(() => {
+      mGuard?.();
+      return entryData;
+    });
   }
 
   return entryData;

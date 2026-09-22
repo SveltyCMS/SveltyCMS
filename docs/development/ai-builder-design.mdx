@@ -47,17 +47,17 @@ The guiding principle: **the human stays in charge, the AI drafts.** Every gener
 
 Everything below is implemented and can be composed — no new infrastructure is required to start:
 
-| Block                                 | Location / API                                                  | What it gives us                                                                                        |
-| :------------------------------------ | :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
-| **Schema-aware field suggestions**    | `POST /api/ai/suggest-fields`                                   | Widget/field recommendations from a collection name + description                                       |
-| **Widget Scaffolder**                 | `src/services/intelligence/ai-codegen/widget-scaffolder.ts`     | Generates complete 3-pillar widgets (`index.ts`, `Input.svelte`, `Display.svelte`) from a config object |
-| **Generative UI renderer**            | `json-render-svelte` + `sveltyRegistry`                         | Renders LLM-produced JSON specs as live, state-bound Svelte 5 UI                                        |
-| **Collection Builder**                | `/config/collectionbuilder`                                     | 3-tab editor (Define / Widgets / Permissions); `createSchemaObjectLiteral` is the write path            |
-| **Automation Builder**                | `/config/automations`, `docs/development/automation-system.mdx` | Event-driven flows with `agentic_task` operations                                                       |
-| **Workflow Engine (FSM)**             | `/config/workflows`, `docs/development/workflow-engine.mdx`     | Visual finite-state-machine content lifecycles                                                          |
-| **WebMCP + airgap**                   | `src/plugins/webmcp/`                                           | Draft-by-default mutation path for AI agents, prompt-injection shield                                   |
-| **Model backends**                    | LiteRT.js (browser) → Ollama (server, NPU) → hosted MCP         | Inference routing that scales from laptop to cloud                                                      |
-| **Behavioral / Content Intelligence** | `src/services/intelligence/`                                    | Smart defaults, similarity, quality scoring, anomaly detection                                          |
+| Block                                 | Location / API                                               | What it gives us                                                                                        |
+| :------------------------------------ | :----------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **Schema-aware field suggestions**    | `POST /api/ai/suggest-fields`                                | Widget/field recommendations from a collection name + description                                       |
+| **Widget Scaffolder**                 | `src/services/intelligence/ai-codegen/widget-scaffolder.ts`  | Generates complete 3-pillar widgets (`index.ts`, `Input.svelte`, `Display.svelte`) from a config object |
+| **Generative UI renderer**            | `json-render-svelte` + `sveltyRegistry`                      | Renders LLM-produced JSON specs as live, state-bound Svelte 5 UI                                        |
+| **Collection Builder**                | `/config/collectionbuilder`                                  | 3-tab editor (Define / Widgets / Permissions); `createSchemaObjectLiteral` is the write path            |
+| **Automation Builder**                | `/config/automations`, `docs/guides/content/automations.mdx` | Event-driven flows with `agentic_task` operations                                                       |
+| **Workflow Engine (FSM)**             | `/config/workflows`, `docs/guides/content/workflows.mdx`     | Visual finite-state-machine content lifecycles                                                          |
+| **WebMCP + airgap**                   | `src/plugins/webmcp/`                                        | Draft-by-default mutation path for AI agents, prompt-injection shield                                   |
+| **Model backends**                    | LiteRT.js (browser) → Ollama (server, NPU) → hosted MCP      | Inference routing that scales from laptop to cloud                                                      |
+| **Behavioral / Content Intelligence** | `src/services/intelligence/`                                 | Smart defaults, similarity, quality scoring, anomaly detection                                          |
 
 **Key insight — the Collection Builder parity gap is an opportunity:** today the GUI exposes only **9 of 24** Schema properties; a GUI re-save silently drops the other 15 (see the parity audit). An AI designer that writes the **complete schema file** (not the GUI round-trip) can emit the full property set — label, path, permissions, plugins, translations, `displaySpec`, etc. — and let the GUI display what it understands. The AI is not constrained by the GUI's lossy write path.
 
@@ -242,7 +242,7 @@ _Effort: S = days, M = 1–2 weeks, L = 2–4 weeks (one developer, based on com
 ## Related
 
 - [AI Integration & Local Knowledge Core](./ai-integration.mdx) — the implemented AI stack this roadmap builds on
-- [GUI Automation System](./automation-system.mdx) — Automation Builder, extended by the AI Automation Designer
-- [Visual Workflow Engine](./workflow-engine.mdx) — FSM engine, extended by the AI Workflow Designer
+- [GUI Automation System](../guides/content/automations.mdx) — Automation Builder, extended by the AI Automation Designer
+- [Visual Workflow Engine](../guides/content/workflows.mdx) — FSM engine, extended by the AI Workflow Designer
 - [Site Starter](./site-starter.mdx) — target of the Page/Site Designer code mode
-- [Widget System](../../development/widgets/widget-system-overview.mdx) — 3-pillar architecture generated by the Widget Builder
+- [Widget System](./widgets/index.mdx) — 3-pillar architecture generated by the Widget Builder

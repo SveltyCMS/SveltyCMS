@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-08-06"
+updated: "2026-09-22"
 tags:
   - "architecture"
   - "hooks"
@@ -49,7 +49,7 @@ Both the trace-enabled and production fast paths use a `try/catch` wrapper that 
 
 ## 🚦 Request Lane Router (O(1) pre-pipeline)
 
-**Before** the READY/SETUP sequence runs, `export const handle` classifies every request with `classifyRequest()` (`src/hooks/request-classifier.ts`) and stamps the response with **`x-svelty-lane`**.
+**Before** the READY/SETUP sequence runs, `export const handle` classifies every request with `classifyRequest()` (`src/hooks/handle-request-classifier.ts`) and stamps the response with **`x-svelty-lane`**.
 
 | Lane          | When                                                                  | Behavior                                                                |
 | ------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -353,29 +353,48 @@ if (flags.isStatic) return resolve(event); // 0 redundant computes
 
 ### Middleware Pipeline Overhead
 
-**Full Pipeline End-to-End** (SQLite, 2026-07-07):
+**Full Pipeline End-to-End** (SQLite, 2026-09-22, `bun test tests/benchmarks/hooks-performance.test.ts`):
 
-| Scenario                         | Avg Latency | p95     | RPS        |
-| :------------------------------- | :---------- | :------ | :--------- |
-| Static Asset (no hooks)          | **0.085ms** | 0.125ms | **10,608** |
-| Turbo Pipeline (Light)           | **0.431ms** | 0.496ms | **2,065**  |
-| Full Security + Auth Pipeline    | **0.617ms** | 0.690ms | **1,405**  |
-| REST with API Caching (warm GET) | **0.579ms** | 0.674ms | **1,683**  |
-| Mutation + Audit Logging         | **2.261ms** | 3.091ms | **442**    |
+| Scenario                          | Avg Latency | p95    | RPS       |
+| :-------------------------------- | :---------- | :----- | :-------- |
+| Static Asset (no hooks)           | **0.79ms**  | 1.01ms | **1,240** |
+| Turbo Pipeline (Light)            | **0.41ms**  | 0.61ms | **2,332** |
+| Full Security + Auth Pipeline     | **0.47ms**  | 0.74ms | **1,985** |
+| REST with API Caching (warm GET)  | **0.40ms**  | 0.49ms | **2,479** |
+| Mutation (audit logging disabled) | **1.99ms**  | 2.92ms | **478**   |
 
-> **Benchmark**: `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Dead static-asset section removed in v2026-07-07 — contributed to 18–24% latency reduction across all pipeline stages.
+The measured **middleware-only delta** (full auth+security lane minus the light turbo lane) is **+0.01–0.09 ms (10–90 µs)** per request on this machine; everything above that is HTTP framing and response serialization, which is also why a bare static asset is not faster than an API read.
+
+> **Benchmark**: `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Rows move with machine load — the deltas between lanes are the signal, not the absolute values.
+
+#### Auth & Middleware Attribution (2026-09-22)
+
+`ENABLE_HOOK_TIMING=1` plus `readHookTimings()`/`hookPhaseCost()` (`tests/benchmarks/modules/benchmark-utils.ts`) attribute a row to named pipeline stages from the server's own counters (representative run, 2026-09-22, SQLite; single-run variance on this machine is ±10%):
+
+| Phase  | turbo-pipeline | security | system-state | turbo-get |
+| :----- | -------------: | -------: | -----------: | --------: |
+| reject |         175 µs |   139 µs |       111 µs |    107 µs |
+| auth   |         123 µs |    86 µs |        63 µs |     59 µs |
+
+⚠️ **Read the columns as different work, and the spans as nested, not per stage.**
+
+- **Nested**: `sequence()` composes the pipeline so each outer span contains every downstream hook (`turbo-pipeline` ≈ the whole chain, `turbo-get` ≈ everything after it). A change in total chain work shows up in _every_ wrapper — the earlier reading of "every wrapper inflates ~2×, including the credential-blind ones" was that nesting artifact, not evidence of a per-stage cost.
+- **Different work by construction**: the `auth` column is the turbo-cache-served `/api/user/me` row (4 hooks), while a rejection runs the full chain to reach its 401 (7 hooks) — the harness prints that lane/cache/hook-count per row. Compare the wire numbers, not these spans; a rejection is not the slower path (see below).
+
+**Rejection cost parity (resolved 2026-09-22).** A 401 used to cost ~2× a valid read (every rejected flavour 0.73–0.78 ms vs 0.33–0.36 ms authenticated; two runs each side on the same build). The root cause was not in the middleware: the production 401/403 fast-path envelopes in `src/utils/error-handling.ts` were the only API responses built without a `content-length`. `handleCompression` size-gates on that header, so "unknown size" skipped both the `< MIN_COMPRESSION_SIZE` (1 KiB) skip-gate and the buffered/sync tier, and negotiated the streaming tier — a fresh `createZstdCompress` stream per reject (~0.45 ms for a 64-byte body, `x-compression-algorithm: zstd` + chunked). `Accept-Encoding: identity` restored the cheap path, which is what isolated it. Declaring the length puts a 64-byte envelope under the 1 KiB gate: reject rows now land at **0.35–0.39 ms**, on par with the authenticated rows (**0.33–0.36 ms** turbo-served, **0.29–0.33 ms** full chain).
+
+Row context is part of the measurement now: `auth-performance.test.ts` prints a live lane/cache/hook-count table per row, because the rows are **not** equal work — `Auth Validation @ 1c` (`/api/user/me`) is served from the turbo cache (`X-Cache: TURBO-HIT`, 4 hooks), while a rejection must run the full chain to reach its 401 (7 hooks). `Auth (full chain) @ 1c` is the like-for-like authenticated row (same session cookie, a path the turbo cache never serves, 10 hooks), and the generated ledger picks all of it up on the next matrix run. The snapshot only works when the diagnostics health handler answers: the terminal bypass (`handle-turbo-pipeline.server.ts:381`/`:403`) returns a minimal payload without `hooks`, which the helpers report as `unavailable` instead of fabricating zeroes.
 
 ### Competitive Comparison (2026)
 
-To put these numbers in perspective, SveltyCMS outperforms almost every major framework in middleware efficiency:
+Comparative overhead figures must be like-for-like: our own numbers above are **HTTP end-to-end per request** (0.4–2.0 ms), while the rows below describe **middleware-chaining overhead** in other stacks. Those are different measurement domains and are not a ranking — treat the table as a pointer to external documentation, not as a measured comparison (see AGENTS.md §2b on comparative advertising).
 
-| Stack / Middleware Style           | Typical Overhead | SveltyCMS vs. Them |
-| :--------------------------------- | :--------------- | :----------------- |
-| **SveltyCMS Pipeline**             | **0.02–0.12 µs** | **World-Class**    |
-| Minimal Hono / Elysia              | 2–12 µs          | ~20–100× faster    |
-| Fastify (Rate-limit + 4 plugins)   | 15–60 µs         | ~150–600× faster   |
-| Next.js Middleware (Typical)       | 40–250 µs        | ~400–2,500× faster |
-| Express (Auth + Security + Logger) | 80–300 µs        | ~800–3,000× faster |
+| Stack / Middleware Style           | Typical Overhead (per request) | Source                         |
+| :--------------------------------- | :----------------------------- | :----------------------------- |
+| Minimal Hono / Elysia              | 2–12 µs                        | framework documentation (2026) |
+| Fastify (Rate-limit + 4 plugins)   | 15–60 µs                       | framework documentation (2026) |
+| Next.js Middleware (Typical)       | 40–250 µs                      | framework documentation (2026) |
+| Express (Auth + Security + Logger) | 80–300 µs                      | framework documentation (2026) |
 
 ### Optimization Impact
 
@@ -700,7 +719,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
 
 ### handleAuthentication - Identity, Sessions & Multi-Tenancy (Pipeline #13)
 
-**File**: `src/hooks/handleAuthentication.ts`
+**File**: `src/hooks/handle-authentication.ts`
 **Purpose**: Manages user identity, session security, and tenant isolation.
 
 **Key Responsibilities:**
@@ -755,7 +774,7 @@ if (multiTenant) {
 
 ### handleAuthorization - Role-Based Access Control (Pipeline #14)
 
-**File**: `src/hooks/handleAuthorization.ts`
+**File**: `src/hooks/handle-authorization.ts`
 **Purpose**: Enforces granular permissions and protects routes based on user roles.
 
 ```

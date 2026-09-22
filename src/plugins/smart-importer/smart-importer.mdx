@@ -456,7 +456,7 @@ WordPress (WXR XML), Drupal (JSON:API/YAML/CSV), Strapi, Directus, SveltyCMS
 
 **E-commerce:** Shopify, WooCommerce (WXR + REST JSON), Magento, PrestaShop, OpenCart
 
-Catalog imports target the optional ecommerce **preset** (`products` + variants). WooCommerce: `--format=woocommerce` (WXR or REST JSON). Shopify: `--format=shopify`. After import, add the **Commerce Orders** and **Commerce Inventory** dashboard widgets (freemium, 14-day trial) from the admin dashboard picker. Map: [E-Commerce Overview](/docs/reference/architecture/ecommerce-overview.mdx). Checkout sessions / PHP carts are **not** imported — enable the optional Commerce plugin for guest checkout.
+Catalog imports target the optional ecommerce **preset** (`products` + variants). WooCommerce: `--format=woocommerce` (WXR or REST JSON). Shopify: `--format=shopify`. After import, add the **Commerce Orders** and **Commerce Inventory** dashboard widgets (freemium, 14-day trial) from the admin dashboard picker. Map: [E-Commerce Overview](/docs/guides/content/ecommerce.mdx). Checkout sessions / PHP carts are **not** imported — enable the optional Commerce plugin for guest checkout.
 
 **SaaS:** Ghost, Webflow, HubSpot, Wix, Squarespace, Duda, Tilda, Builder.io
 
@@ -533,7 +533,7 @@ bun run migrate preset    --apply=<name>
 
 ## Related
 
-- [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx)
-- [Marketplace System](/docs/architecture/marketplace.mdx)
-- [AI Integration](/docs/guides/development/ai-integration.mdx)
-- [Token System](/docs/architecture/token-system.mdx)
+- [Plugin Architecture](/docs/reference/architecture/plugin-architecture.mdx)
+- [Marketplace System](/docs/reference/architecture/marketplace.mdx)
+- [AI Integration](/docs/development/ai-integration.mdx)
+- [Token System](/docs/reference/architecture/token-system.mdx)

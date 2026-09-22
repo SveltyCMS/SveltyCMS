@@ -1,26 +1,20 @@
 ---
 path: "docs/reference/architecture/plugin-architecture.mdx"
-title: "Plugin Architecture"
-description: "SveltyCMS Enterprise Plugin System — slots, hooks, migrations, sandbox, and config-page pattern."
+title: "Plugin Runtime"
+description: "How a plugin boots: capabilities, encrypted settings, parts, and admin-shell extensions."
 order: 99
 icon: "mdi:puzzle-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-08-04"
+updated: "2026-09-22"
 tags:
   - "plugins"
   - "architecture"
 ---
 
-# Plugin Architecture
+# Plugin runtime
 
-SveltyCMS features a robust, enterprise-grade plugin architecture. The authoritative documentation lives in the development guides:
-
-→ **[Plugin Architecture Guide](/docs/development/plugins/architecture.mdx)** — System overview, injection zones, hooks, sandbox, config-page pattern, case studies, and available plugins.
-
-→ **[Plugin Development Guide](/docs/development/plugins/development.mdx)** — Quick start, lifecycle hooks, SSR enrichment, UI slots, migrations, and security boundaries.
-
-→ **[Plugin Types Reference](/src/plugins/types.ts)** — Full TypeScript type definitions.
+This page is the engine: boot, capabilities, encrypted settings, parts, and admin-shell extensions. Building a plugin is [Plugin architecture](../../development/plugins/architecture.mdx) and [Plugin development](../../development/plugins/development.mdx). Types live in `src/plugins/types.ts`.
 
 ## Plugin Boot Lifecycle
 

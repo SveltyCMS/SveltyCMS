@@ -1254,6 +1254,7 @@ export class CollectionsNamespace {
       tenantId,
     });
     if (isThenable(entryData)) entryData = await entryData;
+    m1?.();
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
@@ -1269,6 +1270,7 @@ export class CollectionsNamespace {
       );
     }
 
+    const mBefore = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
@@ -1278,6 +1280,7 @@ export class CollectionsNamespace {
       schema,
     );
     if (isThenable(finalData)) finalData = await finalData;
+    mBefore?.();
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     // Widget pipeline only when this payload actually hits a modifyRequest widget.
@@ -1301,7 +1304,9 @@ export class CollectionsNamespace {
 
     const collectionName = this.getCollectionName(schema._id as string);
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    const mEnc = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     finalData = await encryptWritePayload(finalData, hot, encCtx);
+    mEnc?.();
     const m3 = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "create",
@@ -1318,7 +1323,6 @@ export class CollectionsNamespace {
       { skipSideEffects: options.skipSideEffects },
     );
     m3?.();
-    m1?.();
 
     const decryptedCreate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {
@@ -1366,6 +1370,7 @@ export class CollectionsNamespace {
       entryId,
     });
     if (isThenable(updateData)) updateData = await updateData;
+    m1u?.();
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
@@ -1382,6 +1387,7 @@ export class CollectionsNamespace {
       );
     }
 
+    const mBeforeU = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
@@ -1391,6 +1397,7 @@ export class CollectionsNamespace {
       schema,
     );
     if (isThenable(finalData)) finalData = await finalData;
+    mBeforeU?.();
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
@@ -1415,6 +1422,8 @@ export class CollectionsNamespace {
     // — a failed snapshot must never fail the update itself.
     const revisionEnabled = schema.revision === true && !options.skipSideEffects;
     let previousSnapshot: any = null;
+    const mRev =
+      revisionEnabled && PROFILE_WRITE_ENABLED ? profileMark("ns:revision-snapshot") : null;
     if (revisionEnabled) {
       try {
         const prev = await this._dbAdapter.crud.findOne(
@@ -1429,9 +1438,12 @@ export class CollectionsNamespace {
         /* best-effort */
       }
     }
+    mRev?.();
 
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    const mEncU = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     finalData = await encryptWritePayload(finalData, hot, encCtx);
+    mEncU?.();
     const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "update",
@@ -1450,7 +1462,6 @@ export class CollectionsNamespace {
       { skipSideEffects: options.skipSideEffects },
     );
     m3u?.();
-    m1u?.();
 
     const decryptedUpdate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {

@@ -6,7 +6,7 @@ order: 29
 icon: "mdi:database-cog"
 author: "SveltyCMS Team"
 created: "2026-06-25"
-updated: "2026-06-25"
+updated: "2026-09-22"
 tags:
   - "architecture"
   - "stores"
@@ -34,8 +34,8 @@ SvelteKit injects server data into every component via `page.data`. **Do not dup
 
 <!-- ❌ WRONG: Sync page data into a store, then read the store -->
 <script>
-  import { avatarSrc } from '@stores/store.svelte';
-  // This adds a manual sync step, a store file, and 0 value
+  import { collections } from '@src/stores/collection-store.svelte';
+  // Mirroring server data into a singleton adds a sync step and 0 value
 </script>
 ```
 
@@ -55,67 +55,59 @@ SvelteKit injects server data into every component via `page.data`. **Do not dup
 
 ## 2. Store Directory
 
-### Core Application
+The directory holds **19 domain modules** plus the `system/` health state machine — one concept per file. Every store is a Svelte 5 rune module (`$state` / `$derived`), never a `svelte/store` writable.
 
-| Store                         | Type                       | Purpose                                                                                                                                               |
-| ----------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `store.svelte.ts`             | App singleton + re-exports | Minimal `AppStore` — `listboxValueState`, `tabSetState`, `shouldShowNextButton`, `saveLayerStore`. Re-exports from domain stores. No wrapper objects. |
-| `locale-store.svelte.ts`      | Reactive wrappers          | `systemLanguage`, `contentLanguage`, `translationProgress` — bridges server cookies → Paraglide runtime                                               |
-| `user-store.svelte.ts`        | Utility                    | `normalizeAvatarUrl()` — pure function, not a store. Avatar URL comes from `page.data.user?.avatar`.                                                  |
-| `validation-store.svelte.ts`  | Singleton class            | Per-field form validation errors, `isValid` derived                                                                                                   |
-| `data-change-store.svelte.ts` | Singleton class            | JSON snapshot comparison for unsaved changes detection                                                                                                |
+### Shell & Environment
 
-| Store                         | Type                  | Purpose                                                                                                   |
-| ----------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------- |
-| `global-settings.svelte.ts`   | Singleton + SSE       | Public environment settings (`SITE_NAME`, `PKG_VERSION`). Proxy-based `publicEnv` for reactive access.    |
-| `screen-size-store.svelte.ts` | Singleton class       | Viewport dimensions (`width`, `height`), breakpoint queries (`isMobile`, `isTablet`, `isDesktop`)         |
-| `ui-store.svelte.ts`          | Singleton class       | Panel visibility (`leftSidebar`, `rightSidebar`, `pageheader`, etc.). Route context + screen-size driven. |
-| `theme-store.svelte.ts`       | Module-level `$state` | Dark/light/system color scheme. Cookie persistence. OS preference listener.                               |
+| Store                          | Export                 | Purpose                                                                                                                                                                                                                                                                                                         |
+| ------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `global-settings.svelte.ts`    | `publicEnv`            | Public environment settings (`SITE_NAME`, `PKG_VERSION`, …) — proxy-based reactive reads; `initPublicEnv()` hydrates the store and the values are typed as `InferOutput<typeof publicConfigSchema>` (validated server-side before they reach it). Private settings are never imported here.                     |
+| `ui-store.svelte.ts`           | `ui`                   | Shell visibility (`leftSidebar`, `rightSidebar`, `pageheader`, `pagefooter`, `chatPanel`, …), route context, global search visibility, sticky actions, `listboxValueState`, and the editor-wizard transient state (`ui.wizard`: `shouldShowNextButton`, `saveLayerStore`, `tabSetState`, `headerActionButton`). |
+| `screen-size-store.svelte.ts`  | `screen`, `ScreenSize` | Viewport width/height with SSR-safe defaults, `BREAKPOINTS`, `getScreenSize()` helper                                                                                                                                                                                                                           |
+| `theme-store.svelte.ts`        | `themeStore`           | Theme + dark-mode preference persistence, `initializeThemeStore()`, `toggleDarkMode()`, and the optimistic `userThemePrefs` overlay                                                                                                                                                                             |
+| `locale-store.svelte.ts`       | `locale`               | `systemLanguage` / `contentLanguage` plus `translationProgress.markFieldTranslated()` for the translation cockpit                                                                                                                                                                                               |
+| `loading-store.svelte.ts`      | `globalLoadingStore`   | Priorities, timeouts, progress and cancellation (`loadingOperations`, `withLoading()`); drives the navigation overlay                                                                                                                                                                                           |
+| `toast.svelte.ts`              | `toast`                | Toast queue with responsive positioning, pause-on-hover, promise toasts and flash messages                                                                                                                                                                                                                      |
+| `pinned-store.svelte.ts`       | `pinnedStore`          | localStorage-backed pinned collections and media folders for the sidebar                                                                                                                                                                                                                                        |
+| `floating-nav-store.svelte.ts` | `floatingNavStore`     | Per-user FloatingNav preferences: `SYSTEM_ENDPOINTS` catalog, enabled system routes, arbitrary page favorites, per-user localStorage keying                                                                                                                                                                     |
+| `plugin-workspace.svelte.ts`   | `pluginWorkspace`      | Active plugin workspace overlay, URL-synced through `?plugin=<id>`                                                                                                                                                                                                                                              |
+| `active-input-store.svelte.ts` | `activeInput`          | The currently focused token input (element + metadata) used by TokenPicker insertion                                                                                                                                                                                                                            |
+| `media-folder-tree.svelte.ts`  | `mediaFolderTree`      | Shared flat list of media virtual folders for the sidebar tree and the mobile drag rail (one fetch, many consumers)                                                                                                                                                                                             |
+| `setup-store.svelte.ts`        | `setupStore`           | Setup-wizard service store: form state, validation, DB test / seed / complete calls, localStorage persistence                                                                                                                                                                                                   |
 
-### Feature Stores
+### Content & Editing
 
-| Store                             | Type               | Purpose                                                                                                          |
-| --------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `collection-store.svelte.ts`      | Singleton class    | Active collection context — schema, mode (view/edit/create), entry value, content structure                      |
-| `content-registry.svelte.ts`      | Singleton class    | Compiled content tree — `ContentNode` hierarchy and derived `Schema` catalog. Multi-tenant.                      |
-| `mode-transition-guard.svelte.ts` | State machine      | Validates mode transitions (blocks edit→view with unsaved changes). Consolidated `setMode()` + `transitionTo()`. |
-| `status-store.svelte.ts`          | Service + `$state` | Publish/unpublish toggle with API calls, debounce, and toast notifications                                       |
-| `widget-store.svelte.ts`          | Singleton class    | Widget registry — core/custom/marketplace widgets, dependency analysis, active set management                    |
+| Store                                 | Export                | Purpose                                                                                                                                                                                                        |
+| ------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collection-store.svelte.ts`          | `collections`         | Active collection schema, mode (`view`/`edit`/`create`/media) and the reactive `activeValue` of the entry being edited; convenience setters `setCollection`, `setMode`, `setCollectionValue`, plus `statusMap` |
+| `content-registry.svelte.ts`          | `contentStore`        | Content-tree registry: per-tenant `ContentNode` hierarchy, derived `Schema` catalog, O(1) path/alias indexes, client-node cache and `contentVersion` for HMR-aware reloads                                     |
+| `mode-transition-guard.svelte.ts`     | `modeTransitionGuard` | Single source of truth for mode changes: instant `setMode()` vs validated `transitionTo()` (blocks edit/create → view with unsaved changes)                                                                    |
+| `validation-store.svelte.ts`          | `validationStore`     | Per-field error messages with a derived `isValid` and `clearAllErrors()`                                                                                                                                       |
+| `collection-metadata-store.svelte.ts` | `collectionMetadata`  | Favorites and tag mappings for collections/categories, user-scoped localStorage, `getTagColor()` deterministic shade hashing                                                                                   |
+| `widget-store.svelte.ts`              | `widgets`             | Widget registry (core/custom/marketplace), tenant-aware status, dependency analysis and active-set management (`getWidget`, `isWidgetActive`)                                                                  |
 
-| Store                          | Type             | Purpose                                                                                          |
-| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------ |
-| `image-editor-store.svelte.ts` | Factory function | Canvas state — zoom, rotation, filters, crop, history stack, compare slider                      |
-| `loading-store.svelte.ts`      | Singleton class  | Global loading state with priority queue, timeouts, progress tracking, and analytics             |
-| `toast.svelte.ts`              | Singleton class  | Enterprise toast notification system with responsive positioning, pause-on-hover, flash messages |
-| `setup-store.svelte.ts`        | Factory function | Setup wizard form state with localStorage persistence, validation, and step management           |
+### Colocated Stores (Single-Consumer)
 
-### User Preferences & Personalization
+Single-consumer stores live with their feature instead of in `src/stores/`:
 
-| Store                             | Type                    | Purpose                                                                                    |
-| --------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------ |
-| `user-prefs-overlay.svelte.ts`    | Optimistic overlay      | Per-user density/variant/accessibility overrides. Apply immediately, sync to server async. |
-| `dashboard-preferences.svelte.ts` | Server-persisted        | Dashboard widget layout preferences (`/api/system-preferences`)                            |
-| `pinned-store.svelte.ts`          | localStorage + `$state` | User-pinned collections and media folders in sidebar                                       |
-| `consent-store.svelte.ts`         | localStorage + `$state` | GDPR cookie consent preferences (analytics, marketing)                                     |
-
-### UI Micro-State
-
-| Store                             | Type                | Purpose                                                                 |
-| --------------------------------- | ------------------- | ----------------------------------------------------------------------- |
-| `active-input-store.svelte.ts`    | Singleton class     | Currently focused token input (for TokenPicker insertion)               |
-| `settings-config-state.svelte.ts` | `SvelteSet`         | Tracks which settings groups need configuration (empty required fields) |
-| `plugin-workspace.svelte.ts`      | URL-synced `$state` | Active plugin workspace overlay — `?plugin=<id>` search param           |
+| Store                                                          | Export                              | Lives with                                             |
+| -------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `plugins/cookie-consent/consent-store.svelte.ts`               | `consentStore`                      | GDPR cookie-consent plugin                             |
+| `components/image-editor/image-editor-store.svelte.ts`         | `imageEditorStore`                  | Image editor (zoom, crop, filters, history)            |
+| `components/system/help-state.svelte.ts`                       | `helpStore`                         | Contextual help panel                                  |
+| `routes/(app)/config/system-settings/settings-state.svelte.ts` | `groupsNeedingConfig` (`SvelteSet`) | System Settings groups with empty required fields      |
+| `routes/(app)/dashboard/dashboard-preferences.svelte.ts`       | `preferences` (`systemPreferences`) | Dashboard widget layout, hydrated from the layout load |
 
 ### System Health (`system/`)
 
-| File              | Type               | Purpose                                                                                     |
-| ----------------- | ------------------ | ------------------------------------------------------------------------------------------- |
-| `state.svelte.ts` | Reactive container | System state machine (`IDLE` → `READY` → `DEGRADED`), service health tracking               |
-| `types.ts`        | Types              | `SystemState`, `ServiceHealth`, `ServicePerformanceMetrics`, anomaly detection types        |
-| `config.ts`       | Constants          | Baseline times, anomaly thresholds, initial state objects                                   |
-| `metrics.ts`      | Functions          | Performance tracking, anomaly detection, self-calibration, metric persistence               |
-| `reporting.ts`    | Functions          | Health check reports, bottleneck identification, timeout recommendations                    |
-| `async.ts`        | Async utilities    | `waitForSystemReady()`, `waitForServiceHealthy()` with AbortSignal and intelligent timeouts |
+| File              | Type               | Purpose                                                                                                                  |
+| ----------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `state.svelte.ts` | Reactive container | `SystemStateContainer` + global `systemStateStore`, service health tracking, `setSystemState()`, `updateServiceHealth()` |
+| `types.ts`        | Types              | `SystemState`, `ServiceHealth`, `ServicePerformanceMetrics`, anomaly detection types                                     |
+| `config.ts`       | Constants          | Baseline times, anomaly thresholds, initial state objects                                                                |
+| `metrics.ts`      | Functions          | Performance tracking, anomaly detection, self-calibration, metric persistence                                            |
+| `reporting.ts`    | Functions          | Health check reports, bottleneck identification, timeout recommendations                                                 |
+| `async.ts`        | Async utilities    | `waitForSystemReady()`, `waitForServiceHealthy()` with AbortSignal and intelligent timeouts                              |
 
 ---
 
@@ -123,7 +115,7 @@ SvelteKit injects server data into every component via `page.data`. **Do not dup
 
 ### Pattern A: Singleton Class with `$state`
 
-Used by: `ui-store`, `screen-size-store`, `collection-store`, `loading-store`
+Used by: `ui`, `collections`, `screen`, `validationStore`, `globalLoadingStore`, `toast`, `widgets`
 
 ```typescript
 class MyStore {
@@ -145,7 +137,7 @@ export const myStore = new MyStore();
 
 ### Pattern B: Module-level `$state`
 
-Used by: `theme-store`, `toast`
+Used by: `theme-store` (module-level `$state` behind a getter object); the same getter-object shape is used for `locale-store`'s `systemLanguage` / `contentLanguage` / `translationProgress` exports.
 
 ```typescript
 const state = $state({ dark: true });
@@ -164,7 +156,7 @@ export const myStore = {
 
 ### Pattern C: localStorage + `$state`
 
-Used by: `pinned-store`, `consent-store`
+Used by: `pinnedStore`, `collectionMetadata`, `floatingNavStore`, `setupStore`, and the colocated `consentStore` (plugin) / `preferences` (dashboard)
 
 ```typescript
 class MyStore {
@@ -189,7 +181,7 @@ class MyStore {
 
 ### Pattern D: Optimistic Overlay
 
-Used by: `user-prefs-overlay`
+Used by: `theme-store` → `userThemePrefs` (absorbed from the removed `user-prefs-overlay` store)
 
 ```typescript
 class MyOverlay {
@@ -249,12 +241,13 @@ class MyUrlStore {
 ### ❌ Duplicating `page.data` into a store
 
 ```typescript
-// BAD: Manual sync function copies server data into store
+// BAD: Manual sync function copies server data into a store
 function syncUserToStore(user: User) {
-  app.avatarSrc = user.avatar; // ← unnecessary
+  ui.userAvatar = user.avatar; // ← unnecessary
 }
 
 // GOOD: Components read page.data directly
+let { data } = $props();
 const avatarUrl = $derived(data.user?.avatar ?? "/Default_User.svg");
 ```
 
@@ -266,7 +259,7 @@ const avatarUrl = $derived(data.user?.avatar ?? "/Default_User.svg");
 // translationProgress, avatarSrc, normalizeAvatarUrl, toast, tabSet...
 
 // GOOD: Each domain has its own file
-// locale-store, validation-store, data-change-store, user-store
+// locale-store, validation-store, collection-store, ui-store
 ```
 
 ### ❌ Stale snapshot exports
@@ -287,7 +280,7 @@ export const isLoading = {
 
 ```typescript
 // BAD: DB adapter imports dashboard preferences
-import { preferences } from "@stores/dashboard-preferences.svelte";
+import { preferences } from "../../routes/(app)/dashboard/dashboard-preferences.svelte";
 
 // GOOD: DB adapters stay in the data layer
 ```
@@ -296,14 +289,13 @@ import { preferences } from "@stores/dashboard-preferences.svelte";
 
 ## 5. File Count Summary
 
-| Category                  | Count  |
-| ------------------------- | ------ |
-| Core application          | 9      |
-| Feature stores            | 8      |
-| User preferences          | 4      |
-| UI micro-state            | 3      |
-| System health (`system/`) | 6      |
-| **Total**                 | **30** |
+| Category                             | Count  |
+| ------------------------------------ | ------ |
+| Shell & environment (`src/stores/`)  | 13     |
+| Content & editing (`src/stores/`)    | 6      |
+| Colocated single-consumer stores     | 5      |
+| System health (`src/stores/system/`) | 6      |
+| **Total**                            | **30** |
 
 ---
 

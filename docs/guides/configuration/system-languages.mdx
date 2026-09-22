@@ -17,6 +17,8 @@ tags:
 
 # System Languages (Admin UI)
 
+This is how an administrator adds a locale for the admin chrome. How catalogs are compiled is [Language architecture](../../reference/architecture/language-architecture.mdx). Entry translations are a separate path: [Multilingual data loading](../../reference/architecture/multilingual-data-loading.mdx).
+
 SveltyCMS splits **system language** (admin chrome: menus, buttons, setup) from **content language** (collection fields). Content languages are any ISO 639-1 code at runtime. System languages use the same ISO picker; **English and German ship compiled**. Extra system locales are written to Inlang and **machine-translated first** — they are a draft until someone reviews them (Fink or a GitHub PR). Until a catalog exists, the UI stays in English and still sets `html lang` / `dir` (RTL included).
 
 > [!NOTE]

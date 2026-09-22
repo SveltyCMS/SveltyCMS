@@ -18,7 +18,7 @@
 	import { showConfirm } from '@utils/modal.svelte';
 	import { obj2formData } from '@utils/form.svelte';
 	import { registerHotkey } from '@src/utils/hotkeys';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CollectionForm from './tabs/collection-form.svelte';
@@ -62,18 +62,22 @@
 			: `new:${String(page.params.contentPath ?? '')}`
 	);
 
-	// Synchronous initial setup so child components mount with a valid collection store
-	if (action === 'edit' && data.collection) {
-		setCollection(data.collection);
-		originalName = String(data.collection.name || '');
-	} else if (action === 'new') {
-		if (!collections.active || !collections.active.name) {
-			const draftCollection = createDraftCollection(page.params.contentPath);
-			setCollection(draftCollection);
+	// Synchronous initial setup so child components mount with a valid collection store.
+	// `untrack` is deliberate: this is a one-time mount seed, not a reactive derivation —
+	// later `action`/`data` changes are handled by the sync effects further down.
+	untrack(() => {
+		if (action === 'edit' && data.collection) {
+			setCollection(data.collection);
+			originalName = String(data.collection.name || '');
+		} else if (action === 'new') {
+			if (!collections.active || !collections.active.name) {
+				const draftCollection = createDraftCollection(page.params.contentPath);
+				setCollection(draftCollection);
+			}
+			originalName = collections.active?.name ? String(collections.active.name) : '';
 		}
-		originalName = collections.active?.name ? String(collections.active.name) : '';
-	}
-	lastCollectionSyncKey = editorSyncKey;
+		lastCollectionSyncKey = editorSyncKey;
+	});
 
 	// ── Tab / wizard progress ──
 	let activeTab = $state('define');

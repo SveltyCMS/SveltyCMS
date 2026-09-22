@@ -1,12 +1,12 @@
 ---
 path: "docs/contributing/contributing-docs.mdx"
 title: "Contributing to the Documentation"
-description: "A comprehensive guide for all contributors — from fixing typos to writing deep technical references — covering style, structure, process, and the canonical doc tree."
+description: "Where a documentation page belongs, how to write it, and the checks a docs change has to pass."
 order: 2
 icon: "mdi:file-document-plus-outline"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-04"
+updated: "2026-09-22"
 tags:
   - "documentation"
   - "contributing"
@@ -14,14 +14,15 @@ tags:
   - "guide"
 ---
 
-# Documentation Contribution Guide
+# Contributing to the documentation
 
-High-quality documentation is what makes SveltyCMS accessible to everyone — from first-time users to experienced engineers extending the core. This guide serves two audiences.
+A reader should be able to install the CMS, learn the six product ideas, finish a task, look up a contract, or change the engine — and each of those is a different section. This guide is where a new page is allowed to live, and how to write it.
 
 **Jump to your section:**
 
-- 👥 **[For All Contributors](#for-all-contributors)** — Tone, style, and writing approach.
-- 🛠️ \*\*[For Developers and AI Agents](#for-developers) — Golden rules, canonical file tree, frontmatter spec, and PR process.
+- [Where a page belongs](#where-a-page-belongs) — the map, and the rule that keeps it from rotting.
+- [For all contributors](#for-all-contributors) — tone, style, and writing approach.
+- [For developers and agents](#for-developers) — rules, frontmatter, and the pull request.
 
 ---
 
@@ -231,182 +232,66 @@ These rules are enforced. A PR that violates them will not be merged.
 > 8. **Local SDK Performance Emphasis**: When adding or modifying core CMS functionality, ensure it is exposed through the `LocalCMS` class (`src/services/sdk/index.ts`). Documentation for these features must highlight the performance advantage of using the Local SDK (zero HTTP overhead, direct DB adapter access) over external HTTP calls.
 > 9. **"Next Steps" Footer Required**: Every guide, tutorial, and architecture page **must** end with a `## Next Steps` or `## Related` section linking to 2-3 relevant pages. This keeps readers flowing through the docs. A page that dead-ends at the last paragraph will be rejected.
 > 10. **Frontmatter `updated` Date**: Update the `updated` field in frontmatter with every content change. Stale dates erode trust. The date must be in `YYYY-MM-DD` format.
+> 11. **One question, one page**: A task is a guide. A contract is a reference page. An engine explanation is architecture. The product model stays in `docs/concepts/` and stays short. Do not copy the same explanation into a second folder.
 
 ---
 
-### Canonical Documentation Locations
+### Where a page belongs {#where-a-page-belongs}
 
-Place files **only** in these locations. Any other location will be rejected.
+The docs follow the reader's question. One page answers one question. Do not add a second copy of the same explanation in another folder.
 
-| Content Type       | Location                                           | Reason                                        |
-| :----------------- | :------------------------------------------------- | :-------------------------------------------- |
-| **API Reference**  | `docs/reference/api/`                              | Single unified surface for all endpoint docs. |
-| **General Guides** | `docs/guides/`                                     | Feature and workflow guides.                  |
-| **Architecture**   | `docs/reference/architecture/`                     | Internal mechanics and system design.         |
-| **Contributing**   | `docs/contributing/`                               | Process and standards (like this file).       |
-| **Widget Docs**    | `src/widgets/core/{widget-name}/{widget-name}.mdx` | Co-located with source for maintainability.   |
+| Question                                                 | Put the page in                                                       | On the public sidebar                                                      |
+| :------------------------------------------------------- | :-------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| How do I learn this by doing it?                         | `docs/onboarding/` or `docs/getting-started.mdx`                      | Get started                                                                |
+| What are the pieces of the product?                      | `docs/concepts/`                                                      | Concepts                                                                   |
+| How do I finish this task in the admin or in operations? | `docs/guides/`                                                        | Guides                                                                     |
+| How do I extend the CMS (widget, plugin, frontend)?      | `docs/development/`                                                   | Build                                                                      |
+| What is the exact contract?                              | `docs/reference/api/`, `security/`, `database/`, or `components/`     | Reference                                                                  |
+| Why is the engine built this way?                        | `docs/reference/architecture/`                                        | Architecture, linked from reference — not the first page a new editor sees |
+| How do I change this repository or these docs?           | `docs/contributing/`                                                  | Contribute                                                                 |
+| What did a test or a benchmark show?                     | `docs/tests/` or `docs/project/benchmarks/`                           | No. Link it from the page that needs the evidence                          |
+| What is planned, or what already shipped?                | `docs/project/roadmap-2026.mdx`, `docs/project/achievements-2026.mdx` | No                                                                         |
+| How does this field widget behave?                       | `src/widgets/.../{name}/{name}.mdx`, next to the source               | Linked from [Widget development](../development/widgets/index.mdx)         |
 
-#### Canonical Structure Reference
+Do not add a new top-level folder. Do not paste a full file tree into this guide. A pasted tree went stale while the files kept moving, and the index page of each folder is the map. That index must link every child document (golden rule 4).
 
-The full canonical tree as it exists on disk:
+Concepts stay short. A procedure belongs in a guide. A parameter table belongs in reference. A module layout belongs in architecture.
 
-```text
-SveltyCMS/
-├── docs/
-│   ├── reference/
-│   │   ├── api/                       # ALL API docs — no exceptions
-│   │   │   ├── index.mdx              # API overview
-│   │   │   ├── auth.mdx               # Authentication, 2FA, SAML, API keys
-│   │   │   ├── collections.mdx        # Content collection CRUD
-│   │   │   ├── content.mdx            # Content structure, search, GraphQL, SSE
-│   │   │   ├── dashboard.mdx          # Dashboard stats, metrics, widgets
-│   │   │   ├── graphql.mdx            # GraphQL endpoint reference
-│   │   │   ├── graphql-subscriptions.mdx
-│   │   │   ├── media.mdx              # Media upload, share, manipulate
-│   │   │   ├── media-sharing.mdx      # Token-based media sharing
-│   │   │   ├── scim.mdx               # SCIM 2.0 provisioning
-│   │   │   ├── setup.mdx              # Setup wizard API
-│   │   │   ├── system.mdx             # Settings, widgets, webhooks, AI
-│   │   │   ├── tokens.mdx             # Invitation & website tokens
-│   │   │   └── utility.mdx            # Cache, trash, marketplace, debug
-│   │   │
-│   │   ├── architecture/              # Internal mechanics & system design
-│   │   │   ├── index.mdx              # Architecture overview
-│   │   │   ├── cache-system.mdx
-│   │   │   ├── behavioral-learning.mdx
-│   │   │   ├── hover-preloading.mdx
-│   │   │   ├── state-management.mdx
-│   │   │   ├── server-hooks.mdx
-│   │   │   ├── media-system.mdx
-│   │   │   ├── multi-tenancy.mdx
-│   │   │   └── ... (40+ architecture files)
-│   │   │
-│   │   ├── database/                  # DB adapter implementations
-│   │   │   ├── index.mdx
-│   │   │   ├── core-infrastructure.mdx
-│   │   │   ├── database-methods.mdx
-│   │   │   ├── database-resilience.mdx
-│   │   │   ├── database-agnostic-verification.mdx
-│   │   │   ├── mongodb-implementation.mdx
-│   │   │   ├── mariadb-implementation.mdx
-│   │   │   ├── postgresql-implementation.mdx
-│   │   │   ├── sqlite-implementation.mdx
-│   │   │   └── performance-architecture.mdx
-│   │   │
-│   │   ├── security/                  # Security architecture
-│   │   │   ├── index.mdx
-│   │   │   ├── authentication-system.mdx
-│   │   │   ├── content-security-policy.mdx
-│   │   │   ├── field-level-access-control.mdx
-│   │   │   ├── incident-response.mdx
-│   │   │   ├── login-security.mdx
-│   │   │   ├── login-resilience.mdx
-│   │   │   ├── multi-tenancy.mdx
-│   │   │   ├── quantum-security.mdx
-│   │   │   ├── richtext-security.mdx
-│   │   │   ├── tested-security-features.mdx
-│   │   │   └── widget-security.mdx
-│   │   │
-│   │   └── components/                # Collection display components
-│   │       ├── index.mdx
-│   │       ├── entry-list.mdx
-│   │       ├── entrylist-multibutton.mdx
-│   │       ├── fields.mdx
-│   │       ├── schedule-modal.mdx
-│   │       ├── revision-diff-modal.mdx
-│   │       ├── generative-collection-display.mdx
-│   │       ├── smart-table.mdx
-│   │       ├── translation-status.mdx
-│   │       ├── widget-loader.mdx
-│   │       └── workflow-actions.mdx
-│   │
-│   ├── development/                   # Developer guides
-│   │   ├── ai-integration.mdx
-│   │   ├── automation-system.mdx
-│   │   ├── autonomous-maintenance.mdx
-│   │   ├── edge-sdk.mdx
-│   │   ├── error-handling.mdx
-│   │   ├── local-vs-http-api.mdx
-│   │   ├── openapi-spec.mdx
-│   │   ├── workflow-engine.mdx
-│   │   ├── widgets/
-│   │   │   ├── index.mdx
-│   │   │   ├── architecture.mdx
-│   │   │   ├── development.mdx
-│   │   │   ├── widget-system-overview.mdx
-│   │   │   ├── widget-development-guide.mdx
-│   │   │   └── marketplace.mdx
-│   │   └── plugins/
-│   │       ├── architecture.mdx
-│   │       └── development.mdx
-│   │
-│   ├── guides/                        # User guides & tutorials
-│   │   ├── configuration/
-│   │   │   ├── setup-wizard.mdx
-│   │   │   ├── system-settings.mdx
-│   │   │   ├── access-management.mdx
-│   │   │   ├── admin-theme-settings.mdx
-│   │   │   ├── email-system.mdx
-│   │   │   ├── user-registration.mdx
-│   │   │   ├── upgrading.mdx
-│   │   │   └── enterprise-monitor.mdx
-│   │   ├── content/
-│   │   │   └── collection-builder.mdx
-│   │   ├── deployment/
-│   │   │   ├── production-deployment.mdx
-│   │   │   ├── cloud-storage.mdx
-│   │   │   └── scaling-layers.mdx
-│   │   ├── legal/
-│   │   │   └── gdpr-compliance.mdx
-│   │   └── sharing-assets.mdx
-│   │
-│   ├── contributing/                  # Contribution standards (this folder)
-│   │   ├── contributing-docs.mdx      # ← This file
-│   │   ├── accessibility.mdx          # WCAG / a11y guidelines
-│   │   ├── style-guide-gui.mdx        # Admin UI component patterns
-│   │   └── validation-pipeline.mdx    # Git hooks & CI/CD
-│   │
-│   ├── tests/                         # Test documentation
-│   │   ├── index.mdx
-│   │   ├── hook-test-coverage.mdx
-│   │   ├── e2e-coverage-matrix.mdx
-│   │   ├── rbac-testing.mdx
-│   │   ├── security-testing.mdx
-│   │   ├── store-test-coverage.mdx
-│   │   ├── widget-test-coverage.mdx
-│   │   └── ... (20+ test doc files)
-│   │
-│   ├── project/                       # Project management
-│   │   ├── competitive-comparison.mdx
-│   │   ├── roadmap-2026.mdx
-│   │   ├── achievements-2026.mdx
-│   │   └── benchmarks/                # Performance benchmark reports
-│   │
-│   ├── README.mdx                     # Documentation hub
-│   ├── getting-started.mdx            # Quick start guide
-│   └── troubleshooting.mdx            # Common issues & fixes
-│
-├── src/
-│   ├── widgets/
-│   │   ├── core/                      # Built-in core widgets
-│   │   │   ├── text/
-│   │   │   │   └── text.mdx           # Co-located widget doc
-│   │   │   ├── rich-text/
-│   │   │   │   └── rich-text.mdx
-│   │   │   └── ...                    # Each core widget has co-located .mdx
-│   │   └── custom/                    # Custom/plugin widgets
-│   │       ├── ai-enrichment/
-│   │       │   └── ai-enrichment.mdx
-│   │       └── geolocation/
-│   │           └── geolocation.mdx
-│   └── ...
-│
-└── static/
-    └── docs/                          # Non-MDX assets (mirror docs/ structure)
-        └── reference/
-            └── api/
-                └── ... (screenshots, diagrams)
-```
+Architecture is not onboarding. Write those pages for someone changing that subsystem. Point a newcomer at [Concepts](../concepts/index.mdx).
+
+#### Public URLs
+
+[docs.sveltycms.com](https://docs.sveltycms.com) serves this tree. The URL is `/docs/` plus the path under `docs/`, without `.mdx`.
+
+| File                                 | URL                               |
+| :----------------------------------- | :-------------------------------- |
+| `docs/concepts/index.mdx`            | `/docs/concepts`                  |
+| `docs/getting-started.mdx`           | `/docs/getting-started`           |
+| `docs/reference/api/collections.mdx` | `/docs/reference/api/collections` |
+| `docs/development/widgets/index.mdx` | `/docs/development/widgets`       |
+
+The site homepage has to use those paths. `/docs/architecture`, `/docs/api`, and `/docs/widgets` are not files. The pages that exist are `/docs/reference/architecture`, `/docs/reference/api`, and `/docs/development/widgets`.
+
+#### Folders
+
+| Folder                         | Holds                                                                        |
+| :----------------------------- | :--------------------------------------------------------------------------- |
+| `docs/concepts/`               | The product model. Keep it to a sitting's worth of reading.                  |
+| `docs/onboarding/`             | Tutorials that produce a running install.                                    |
+| `docs/guides/`                 | Tasks: `content/`, `configuration/`, `deployment/`, `legal/`.                |
+| `docs/development/`            | Widgets, plugins, dashboard widgets, LocalCMS, the site starter, automation. |
+| `docs/reference/api/`          | HTTP and API docs. Nowhere else.                                             |
+| `docs/reference/security/`     | Auth, CSP, field access, incident response.                                  |
+| `docs/reference/database/`     | The four adapters and the performance model.                                 |
+| `docs/reference/components/`   | Admin collection UI.                                                         |
+| `docs/reference/architecture/` | Why the engine is shaped this way.                                           |
+| `docs/contributing/`           | This guide, the admin style guide, accessibility, the validation pipeline.   |
+| `docs/tests/`                  | How the suite is built. For contributors.                                    |
+| `docs/project/`                | Roadmap, achievements, comparison, and generated benchmarks.                 |
+| `src/widgets/**/{name}.mdx`    | That field's page, beside its source.                                        |
+| `static/docs/`                 | Images and diagrams. Mirror the `docs/` path. No binaries inside `docs/`.    |
+
+Benchmark reports named `docs/project/benchmarks/benchmark_*.mdx` are generated. Do not rename them, and do not edit the marked zones by hand. The pipeline is [Database performance benchmarks](../project/benchmarks/index.mdx).
 
 ---
 
@@ -585,6 +470,8 @@ Before opening a PR, verify every item:
 
 ## Related Documents
 
+- [Concepts](../concepts/index.mdx)
+- [Documentation hub](../README.mdx)
 - [Code of Conduct](../../CODE-OF-CONDUCT.md)
 - [Contribution Guidelines](../../CONTRIBUTING.md)
 - [API Documentation](../reference/api/index.mdx)

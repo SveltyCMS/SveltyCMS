@@ -1,8 +1,11 @@
 /**
  * @file tests/benchmarks/media-performance.test.ts
  * @description Enterprise Media Pipeline Benchmark (Optimized)
- * @summary Measures full upload, Sharp thumbnail processing, SDK vs HTTP latency, asset streaming throughput,
- * and the media-gallery composite index (`tenantId` + `folderId` + `ORDER BY updatedAt DESC`, LIMIT 100).
+ * @summary Measures full upload, Sharp thumbnail processing, SDK vs HTTP latency, the cached
+ * on-demand delivery transform (`/files/**?w=&q=`), derivative fan-out per uploaded image
+ * (SIZES ladder, `media-pipeline-plan.mdx` §4 rows 1–2), duplicate-upload cost with zero
+ * rewrites (row 2), and the media-gallery composite index
+ * (`tenantId` + `folderId` + `ORDER BY updatedAt DESC`, LIMIT 100).
  */
 
 import {
@@ -19,9 +22,13 @@ import {
   benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
+import fs from "node:fs";
+import path from "node:path";
 import { logger } from "@utils/logger";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
+import { getImageSizes } from "@utils/media/media-storage.server";
+import { resolveConfiguredMediaFolder } from "@utils/media/storage-adapters";
 import type {
   DatabaseAdapter,
   DatabaseId,
@@ -80,6 +87,208 @@ function createWorkerImageBuffer(seq: number): Buffer {
   baseJpegBuffer.copy(buf);
   buf.writeUInt32BE(seq, baseJpegBuffer.length);
   return buf;
+}
+
+/**
+ * Per-process tag (fits in a uint32) folded into every benchmark image.
+ *
+ * Derivative fan-out and duplicate-upload rows MUST upload content that has never existed in
+ * this sandbox: a leftover record from an earlier matrix run would turn the first upload into
+ * a dedupe hit, and the row would then measure "nothing was written" as a green result.
+ */
+const RUN_TAG = Date.now() % 2_000_000_000;
+
+/** Real JPEG of an exact size — rendered once per benchmark, never inside a timed loop. */
+async function renderSizedJpeg(width: number, height: number): Promise<Buffer> {
+  return sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 64, g: 64, b: 96 },
+    },
+  })
+    .jpeg({ quality: 82 })
+    .toBuffer();
+}
+
+/** Copy of `base` with a unique 4-byte tag: fresh content hash for the cost of a memcpy. */
+function tagImageBuffer(base: Buffer, seq: number): Buffer {
+  const tagged = Buffer.allocUnsafe(base.length + 4);
+  base.copy(tagged);
+  tagged.writeUInt32BE(seq % 4_294_967_295, base.length);
+  return tagged;
+}
+
+interface StoredThumbShape {
+  url?: string;
+  width?: number;
+  height?: number;
+  size?: number;
+}
+
+interface StoredRecordShape {
+  _id: string;
+  path: string;
+  hash: string;
+  metadata?: { width?: number; height?: number };
+  thumbnails?: Record<string, StoredThumbShape | undefined>;
+}
+
+/** POST one image through the real upload API and return the stored record. */
+async function uploadBenchmarkImage(
+  baseUrl: string,
+  headers: Record<string, string>,
+  filename: string,
+  bytes: Buffer,
+): Promise<StoredRecordShape> {
+  const formData = new FormData();
+  formData.append("files", new Blob([new Uint8Array(bytes)], { type: "image/jpeg" }), filename);
+
+  const res = await fetch(`${baseUrl}/api/media/upload`, {
+    method: "POST",
+    headers,
+    body: formData,
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "<no body>");
+    throw new Error(`Upload ${filename} failed: HTTP ${res.status} - ${detail}`);
+  }
+
+  const body = (await res.json()) as {
+    data?: Array<{ success?: boolean; message?: string; data?: StoredRecordShape }>;
+  };
+  const item = body.data?.[0];
+  if (!item?.success || !item.data) {
+    throw new Error(`Upload ${filename} returned no record: ${JSON.stringify(body).slice(0, 300)}`);
+  }
+  return item.data;
+}
+
+interface StorageEntry {
+  rel: string;
+  size: number;
+  mtimeMs: number;
+}
+
+/** Recursive `{rel, size, mtimeMs}` listing — disk-level truth for "was anything written?". */
+function scanStorageTree(dir: string): StorageEntry[] {
+  const entries: StorageEntry[] = [];
+  const walk = (current: string): void => {
+    let children: fs.Dirent[];
+    try {
+      children = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return; // Subtree does not exist (yet) — an empty listing is the honest answer.
+    }
+    for (const child of children) {
+      const full = path.join(current, child.name);
+      if (child.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      const stat = fs.statSync(full);
+      entries.push({
+        rel: path.relative(dir, full).split(path.sep).join("/"),
+        size: stat.size,
+        mtimeMs: stat.mtimeMs,
+      });
+    }
+  };
+  walk(dir);
+  return entries.sort((a, b) => a.rel.localeCompare(b.rel));
+}
+
+/**
+ * Every stored file a record owns, wherever the pipeline put it:
+ * Wait until the asset's stored files stop changing, then return their listing.
+ * Responsive variants are written by a fire-and-forget job, so a snapshot taken immediately
+ * after the upload response would race it.
+ */
+async function settleAssetTree(
+  mediaRoot: string,
+  record: StoredRecordShape,
+  attempts = 40,
+): Promise<StorageEntry[]> {
+  let previous = "";
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const entries = assetStorageEntries(mediaRoot, record);
+    const signature = entries
+      .map((entry) => `${entry.rel}:${entry.size}:${entry.mtimeMs}`)
+      .join("|");
+    if (signature.length > 0 && signature === previous) return entries;
+    previous = signature;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  return assetStorageEntries(mediaRoot, record);
+}
+
+/**
+ * Every stored file a record owns, wherever the pipeline put it:
+ *
+ * - `{tenant}/{hash}/original/…` and `{tenant}/{hash}/variants/…` (hash-keyed trees)
+ * - `{tenant}/{size}/{name}-{hash}.{ext}` (the SIZES ladder is name+hash keyed, flat per size)
+ *
+ * Identity is the content hash, so matching on `-{hash}.`/`{hash}/` picks up exactly this asset's
+ * files and nothing else.
+ */
+function assetStorageEntries(mediaRoot: string, record: StoredRecordShape): StorageEntry[] {
+  const tenant = record.path.split("/")[0] ?? "global";
+  const hashMarker = `-${record.hash}.`;
+  return scanStorageTree(path.join(mediaRoot, tenant)).filter(
+    (entry) => entry.rel.startsWith(`${record.hash}/`) || entry.rel.includes(hashMarker),
+  );
+}
+
+/**
+ * Ladder entries only — enrichment adds `${preset}-${width}` responsive-variant keys to the
+ * same map, and those belong to the second (deferred) pipeline, not to `saveResized`.
+ */
+function ladderThumbEntries(record: StoredRecordShape): Array<[string, StoredThumbShape]> {
+  return Object.entries(record.thumbnails ?? {}).filter(([key]) => !key.includes("-")) as Array<
+    [string, StoredThumbShape]
+  >;
+}
+
+interface FanOutMeasurement {
+  /** Ladder files the upload response advertises (what `saveResized` wrote). */
+  ladderFiles: number;
+  ladderBytes: number;
+  ladderStepKeys: string[];
+  /** Files actually present in `{tenant}/{hash}` after the deferred job settled. */
+  totalFiles: number;
+  totalBytes: number;
+  variantFiles: number;
+}
+
+function measureFanOut(record: StoredRecordShape, mediaRoot: string): FanOutMeasurement {
+  const ladder = ladderThumbEntries(record);
+  const stored = assetStorageEntries(mediaRoot, record);
+  const variants = stored.filter((entry) => entry.rel.includes(`${record.hash}/variants/`));
+
+  return {
+    ladderFiles: ladder.length,
+    ladderBytes: ladder.reduce((sum, [, thumb]) => sum + (thumb.size ?? 0), 0),
+    ladderStepKeys: [...new Set(ladder.map(([key]) => key.replace(/_webp$/, "")))].sort(),
+    totalFiles: stored.length,
+    totalBytes: stored.reduce((sum, entry) => sum + entry.size, 0),
+    variantFiles: variants.length,
+  };
+}
+
+/** Files whose presence, size or mtime changed between two snapshots (rewrites + additions). */
+function diffStorageSnapshots(before: StorageEntry[], after: StorageEntry[]): string[] {
+  const beforeByRel = new Map(before.map((entry) => [entry.rel, entry]));
+  const afterByRel = new Map(after.map((entry) => [entry.rel, entry]));
+  const changed = new Set<string>();
+
+  for (const [rel, entry] of beforeByRel) {
+    const next = afterByRel.get(rel);
+    if (!next || next.size !== entry.size || next.mtimeMs !== entry.mtimeMs) changed.add(rel);
+  }
+  for (const rel of afterByRel.keys()) if (!beforeByRel.has(rel)) changed.add(rel);
+  return [...changed].sort();
 }
 
 async function runMediaAudit() {
@@ -200,17 +409,19 @@ async function runMediaAudit() {
     });
     results.push({ ...httpResult, shortLabel: "HTTP", layer: "HTTP" });
 
-    // ── 3. THUMBNAIL RETRIEVAL & ASSET STREAMING ────────────────────────────
+    // ── 3. ON-DEMAND TRANSFORM (cached variant) & ASSET STREAMING ────────────
     if (uploadedAssetPaths.length > 0) {
       forceGarbageCollection();
       await stabilize(150);
 
-      console.log("   → 3. Measuring Thumbnail Transformation & Asset Streaming...");
+      console.log(
+        "   → 3. Measuring On-Demand Transform (cached 320px variant) & Asset Streaming...",
+      );
       const samplePath = uploadedAssetPaths[0]!;
       const cleanPath = samplePath.startsWith("/") ? samplePath.slice(1) : samplePath;
 
       const streamResult = await runBenchmark({
-        name: "HTTP: Asset Stream (Thumbnail)",
+        name: "HTTP: On-Demand Transform (cached 320px WebP)",
         iterations: 100,
         warmupIterations: 10,
         runs: 2,
@@ -219,10 +430,14 @@ async function runMediaAudit() {
         measureMemory: true,
         silent: true,
         onIteration: async () => {
-          const res = await fetch(`${baseUrl}/files/${cleanPath}?w=300&h=200&q=80`, {
+          // `w=320` is a real ladder step and `q=80` a real quality step: warm-up generates
+          // the WebP variant once (single-flight), so the measured iterations stream that
+          // cached variant — no Sharp work, no original bytes.
+          const res = await fetch(`${baseUrl}/files/${cleanPath}?w=320&q=80`, {
             method: "GET",
             headers: {
               ...benchmarkAuthHeaders(),
+              accept: "image/webp,image/jpeg;q=0.8,*/*;q=0.5",
               connection: "keep-alive",
             },
             signal: AbortSignal.timeout(10_000),
@@ -237,14 +452,191 @@ async function runMediaAudit() {
       results.push({ ...streamResult, shortLabel: "Stream", layer: "Storage" });
     }
 
-    // ── 4. MEDIA GALLERY COMPOSITE INDEX ────────────────────────────────────
+    // ── 4. DERIVATIVE FAN-OUT — SIZES ladder (#3) ────────────────────────────
+    // media-pipeline-plan.mdx §4 rows 1–2. Each row uploads a fresh image per iteration (so a
+    // real encode cost is measured) and then counts the files and bytes that upload wrote,
+    // asserting them against the configured SIZES. The 400 px row is the falsifier for
+    // "upscale everything" (that source used to be enlarged into all four ladder steps / 8
+    // files); the total-files column is the falsifier for a second derivative pipeline.
+    forceGarbageCollection();
+    await stabilize(150);
+    console.log("   → 4. Measuring Derivative Fan-Out (SIZES ladder, 1920 px vs 400 px)...");
+
+    const mediaRoot = path.resolve(process.cwd(), resolveConfiguredMediaFolder());
+    const ladderSteps = Object.entries(getImageSizes()).filter(([, width]) => width > 0);
+    if (ladderSteps.length === 0) {
+      throw new Error("SIZES has no resizeable step — the fan-out rows cannot assert anything");
+    }
+
+    const wideBase = await renderSizedJpeg(1920, 1080);
+    let wideSeq = 0;
+    let lastWideRecord: StoredRecordShape | null = null;
+
+    const wideFanOutResult = await runBenchmark({
+      name: "Media: Derivative Fan-Out (1920px source)",
+      iterations: 8,
+      warmupIterations: 2,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        const seq = wideSeq++;
+        const record = await uploadBenchmarkImage(
+          baseUrl,
+          uploadHeaders,
+          `bench-fanout-wide-${RUN_TAG}-${seq}.jpg`,
+          tagImageBuffer(wideBase, RUN_TAG + seq),
+        );
+        if (record.metadata?.width !== 1920) {
+          throw new Error(`Wide source metadata.width = ${record.metadata?.width} (expected 1920)`);
+        }
+        if (ladderThumbEntries(record).some(([, thumb]) => (thumb.width ?? 0) > 1920)) {
+          throw new Error("A ladder variant is wider than its 1920 px source");
+        }
+        lastWideRecord = record;
+      },
+    });
+
+    if (!lastWideRecord) throw new Error("Fan-out row uploaded nothing");
+    const wideFanOut = measureFanOut(lastWideRecord, mediaRoot);
+    if (wideFanOut.ladderFiles > 2 * ladderSteps.length) {
+      throw new Error(
+        `Fan-out ${wideFanOut.ladderFiles} files exceeds 2 × SIZES (${2 * ladderSteps.length})`,
+      );
+    }
+    if (wideFanOut.ladderStepKeys.length > ladderSteps.length) {
+      throw new Error(
+        `Ladder wrote ${wideFanOut.ladderStepKeys.length} steps for ${ladderSteps.length} configured SIZES`,
+      );
+    }
+    results.push({ ...wideFanOutResult, shortLabel: "Fan-Out", layer: "Derivatives" });
+
+    const smallBase = await renderSizedJpeg(400, 300);
+    let smallSeq = 0;
+    let lastSmallRecord: StoredRecordShape | null = null;
+
+    const smallFanOutResult = await runBenchmark({
+      name: "Media: Derivative Fan-Out (400px source)",
+      iterations: 12,
+      warmupIterations: 2,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        const seq = smallSeq++;
+        const record = await uploadBenchmarkImage(
+          baseUrl,
+          uploadHeaders,
+          `bench-fanout-small-${RUN_TAG}-${seq}.jpg`,
+          tagImageBuffer(smallBase, RUN_TAG + 1_000_000 + seq),
+        );
+        if (record.metadata?.width !== 400) {
+          throw new Error(`Small source metadata.width = ${record.metadata?.width} (expected 400)`);
+        }
+        const oversize = ladderThumbEntries(record).find(([, thumb]) => (thumb.width ?? 0) > 400);
+        if (oversize) {
+          throw new Error(
+            `Upscaling regression: variant ${oversize[0]} is ${oversize[1].width} px wide for a 400 px source`,
+          );
+        }
+        lastSmallRecord = record;
+      },
+    });
+
+    if (!lastSmallRecord) throw new Error("Small-source fan-out row uploaded nothing");
+    const smallFanOut = measureFanOut(lastSmallRecord, mediaRoot);
+    // The falsifier: a sub-ladder source must stay at or below the SIZES count — one primary
+    // plus one WebP sidecar for the single step it can justify.
+    if (smallFanOut.ladderFiles > ladderSteps.length) {
+      throw new Error(
+        `Fan-out ${smallFanOut.ladderFiles} files for a 400 px source exceeds the SIZES count (${ladderSteps.length})`,
+      );
+    }
+    if (smallFanOut.ladderStepKeys.join(",") !== "thumbnail") {
+      throw new Error(
+        `400 px source wrote steps [${smallFanOut.ladderStepKeys.join(", ")}] — expected [thumbnail]`,
+      );
+    }
+    results.push({ ...smallFanOutResult, shortLabel: "Fan-Out-400", layer: "Derivatives" });
+
+    // ── 5. DUPLICATE UPLOAD — dedupe before generation (#2) ──────────────────
+    // media-pipeline-plan.mdx §4 row 2. Re-uploading byte-identical content must perform zero
+    // encodes; encodes are counted by their effect on disk, because a rewrite moves `mtimeMs`.
+    // An unchanged `{rel, size, mtimeMs}` listing for the whole `{tenant}/{hash}` subtree after
+    // 48 duplicate uploads is therefore a rewrite count of zero — under the pre-#2 order every
+    // duplicate re-encoded and re-saved the entire ladder before the hash lookup ran.
+    forceGarbageCollection();
+    await stabilize(150);
+    console.log("   → 5. Measuring Duplicate Upload (identical bytes, 0 rewrites expected)...");
+
+    const duplicateBytes = tagImageBuffer(await renderSizedJpeg(640, 480), RUN_TAG + 2_000_000);
+    const duplicateName = `bench-duplicate-${RUN_TAG}.jpg`;
+    const primedRecord = await uploadBenchmarkImage(
+      baseUrl,
+      uploadHeaders,
+      duplicateName,
+      duplicateBytes,
+    );
+    const duplicateEntries = assetStorageEntries(mediaRoot, primedRecord);
+    if (duplicateEntries.length === 0) {
+      throw new Error(
+        `Cannot observe stored files for the duplicate row (looked under ${path.join(mediaRoot, primedRecord.path.split("/")[0] ?? "global")}). ` +
+          "Run it through the matrix (`BENCHMARK=true` + `MEDIA_FOLDER`) so the benchmark process and the server resolve the same media root.",
+      );
+    }
+    const beforeDuplicate = await settleAssetTree(mediaRoot, primedRecord);
+
+    const duplicateResult = await runBenchmark({
+      name: "Media: Duplicate Upload (identical bytes)",
+      iterations: 24,
+      warmupIterations: 4,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        const record = await uploadBenchmarkImage(
+          baseUrl,
+          uploadHeaders,
+          duplicateName,
+          duplicateBytes,
+        );
+        if (record._id !== primedRecord._id) {
+          throw new Error(
+            `Duplicate upload inserted ${record._id} instead of reusing ${primedRecord._id}`,
+          );
+        }
+      },
+    });
+
+    const afterDuplicate = await settleAssetTree(mediaRoot, primedRecord);
+    const rewrites = diffStorageSnapshots(beforeDuplicate, afterDuplicate);
+    if (rewrites.length > 0) {
+      throw new Error(
+        `Duplicate upload rewrote ${rewrites.length} stored file(s) — dedupe must run before ` +
+          `derivative generation: ${rewrites.slice(0, 5).join(", ")}`,
+      );
+    }
+    results.push({
+      ...duplicateResult,
+      shortLabel: "Duplicate",
+      layer: "Dedupe",
+      rewrites: 0,
+    });
+
+    // ── 6. MEDIA GALLERY COMPOSITE INDEX ────────────────────────────────────
     // The gallery query shape is `WHERE tenantId = ? AND folderId = ?
     // ORDER BY updatedAt DESC LIMIT 101` (src/routes/(app)/mediagallery/+page.server.ts
     // → `media.files.getByFolder`). `index-pressure` measures a SYNTHETIC content
     // collection, so the media composite-index claim had no coverage at all.
     forceGarbageCollection();
     await stabilize(150);
-    console.log("   → 4. Measuring Media Gallery Query (composite index)...");
+    console.log("   → 6. Measuring Media Gallery Query (composite index)...");
     const gallery = await runGalleryIndexAudit(db);
     results.push({ ...gallery.result, shortLabel: "Gallery", layer: "DB" });
 
@@ -279,6 +671,26 @@ async function runMediaAudit() {
         { key: "HTTP Throughput", val: Math.round(httpResult.rps || 0), unit: "img/s" },
         { key: "HTTP Memory RSS Δ", val: (httpResult.rssDelta ?? 0).toFixed(1), unit: "MB" },
         {
+          key: `Derivative fan-out (1920px, ladder / total)`,
+          val: `${wideFanOut.ladderFiles} / ${wideFanOut.totalFiles} files`,
+          unit: "",
+        },
+        {
+          key: `Derivative bytes (1920px, ladder)`,
+          val: `${Math.round(wideFanOut.ladderBytes / 1024)}`,
+          unit: "KB",
+        },
+        {
+          key: `Derivative fan-out (400px, ladder ≤ ${ladderSteps.length})`,
+          val: `${smallFanOut.ladderFiles} files`,
+          unit: "",
+        },
+        {
+          key: "Duplicate upload latency (0 rewrites)",
+          val: duplicateResult.avgMs.toFixed(2),
+          unit: "ms",
+        },
+        {
           key: `Gallery Query p95 (${gallery.rows} rows)`,
           val: (gallery.result.p95Ms || gallery.result.avgMs).toFixed(3),
           unit: "ms",
@@ -302,6 +714,34 @@ async function runMediaAudit() {
     exportMetric("media.http.latency_p95_ms", httpResult.p95Ms || httpResult.avgMs, "ms");
     exportMetric("media.http.throughput_rps", Math.round(httpResult.rps || 0), "img/s");
     exportMetric("media.http.rss_delta_mb", httpResult.rssDelta ?? 0, "MB");
+    // Derivative fan-out (media-pipeline-plan §4 row 1) — the numeric facts behind the rows
+    // above, so a trend can be read without parsing the ASCII truth table.
+    exportMetric("media.derivatives.sizes_configured", ladderSteps.length, "steps");
+    exportMetric("media.derivatives.ladder_files_per_image", wideFanOut.ladderFiles, "files");
+    exportMetric("media.derivatives.ladder_bytes_per_image", wideFanOut.ladderBytes, "bytes");
+    exportMetric("media.derivatives.total_files_per_image", wideFanOut.totalFiles, "files");
+    exportMetric("media.derivatives.total_bytes_per_image", wideFanOut.totalBytes, "bytes");
+    exportMetric("media.derivatives.variant_files_per_image", wideFanOut.variantFiles, "files");
+    exportMetric(
+      "media.derivatives.small_ladder_files_per_image",
+      smallFanOut.ladderFiles,
+      "files",
+    );
+    exportMetric(
+      "media.derivatives.small_ladder_bytes_per_image",
+      smallFanOut.ladderBytes,
+      "bytes",
+    );
+    exportMetric("media.derivatives.small_total_files_per_image", smallFanOut.totalFiles, "files");
+    // Duplicate upload (§4 row 2) — latency of the dedupe path and the rewrite count it
+    // produced (0 = no encode ran, asserted above against the on-disk snapshot).
+    exportMetric("media.duplicate.latency_avg_ms", duplicateResult.avgMs, "ms");
+    exportMetric(
+      "media.duplicate.latency_p95_ms",
+      duplicateResult.p95Ms || duplicateResult.avgMs,
+      "ms",
+    );
+    exportMetric("media.duplicate.rewrites", 0, "files");
     exportMetric("media.gallery.rows", gallery.rows, "rows");
     // Index effectiveness is a pass/fail fact, not a latency sample:
     // 1 = planner used the composite index, 0 = full scan, -1 = not assertable (no SQL planner).

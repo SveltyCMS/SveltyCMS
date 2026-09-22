@@ -14,11 +14,13 @@ tags:
   - "marketplace"
 ---
 
-# Dashboard Widget Development
+# Dashboard widget development
+
+This section is how to build a dashboard card. How the grid loads and places cards is [Dashboard system](../../reference/architecture/dashboard-system.mdx).
 
 The admin Dashboard is a widget-based grid. Each widget is a **self-contained package** living in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`. Packages are discovered at build time by Vite `import.meta.glob` — no manual registration, no runtime filesystem scans.
 
-Core commerce packages (freemium, 14-day trial): **Commerce Orders** (`commerce-orders`) and **Commerce Inventory** (`commerce-inventory`). They read the optional ecommerce preset collections and stay empty on a non-store CMS. Catalog data can be imported with [Smart Importer](../../src/plugins/smart-importer/smart-importer.mdx) (WooCommerce / Shopify). Product map: [E-Commerce Overview](../../reference/architecture/ecommerce-overview.mdx).
+Core commerce packages (freemium, 14-day trial): **Commerce Orders** (`commerce-orders`) and **Commerce Inventory** (`commerce-inventory`). They read the optional ecommerce preset collections and stay empty on a non-store CMS. Catalog data can be imported with [Smart Importer](../../src/plugins/smart-importer/smart-importer.mdx) (WooCommerce / Shopify). Product map: [E-Commerce Overview](../../guides/content/ecommerce.mdx).
 
 ## 📚 Documentation Map
 

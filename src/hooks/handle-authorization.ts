@@ -32,7 +32,6 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
-import { getRoleBitset } from "@src/databases/auth/permissions";
 import { seedRoleTiers } from "@utils/rate-limit/role-tiers";
 
 const IS_BUN_TEST =
@@ -426,16 +425,10 @@ function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void
         );
     const sessionId = resolvedSessionId || null;
     if (!sessionId) return;
-    let bitset: Uint32Array;
-    if (roles.length > 0) {
-      // ID-OR-NAME matching: a name-only match previously fell back to
-      // roles[0] (typically guest), caching LOWER privileges on the turbo path.
-      const userRole = findMatchingRole(roles, user.role);
-      bitset = userRole ? getRoleBitset(userRole) : getRoleBitset(roles[0]);
-    } else {
-      bitset = new Uint32Array(1);
-    }
-    setTurboAuthContext(sessionId, user, roles, bitset, event.locals.tenantId || null);
+    // No RBAC bitset here: permission evaluation compiles bitsets per ROLE
+    // (`role.__bitset` in permissions.ts) and nothing ever read the per-session
+    // copy that used to ride along in the turbo context.
+    setTurboAuthContext(sessionId, user, roles, event.locals.tenantId || null);
   } catch {}
 }
 

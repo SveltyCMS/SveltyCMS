@@ -32,24 +32,33 @@ Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows 
 
 ## Control → test matrix
 
-| Control                              | Unit              | Integration           | E2E   | Spec                            |
-| ------------------------------------ | ----------------- | --------------------- | ----- | ------------------------------- |
-| Load + `media:read` gate             | page.server       | media API             | shell | unit + gallery                  |
-| Toolbar                              | —                 | —                     | ✅    | `media-gallery-toolbar`         |
-| Search / type filter                 | —                 | —                     | ✅    | `mediagallery.spec`             |
-| Grid / table toggle                  | —                 | —                     | ✅    | `media-view-*`                  |
-| Upload image                         | —                 | media upload          | ✅    | `media-upload-input`            |
-| Delete single                        | —                 | media delete          | ✅    | grid actions                    |
-| **Image editor open / crop / focal** | image-editor unit | —                     | ✅    | `image-editor.spec`             |
-| **Image editor save (manipulate)**   | —                 | manipulate API        | ✅    | `image-editor.spec` save        |
-| **Create virtual folder**            | —                 | system-virtual-folder | ✅    | `folders-bulk.spec`             |
-| **Folder appear / navigate**         | —                 | —                     | ✅    | same                            |
-| **Selection mode + bulk bar**        | —                 | —                     | ✅    | `folders-bulk.spec`             |
-| **Bulk download**                    | —                 | bulk-download         | ✅    | hits `/api/media/bulk-download` |
-| **Bulk delete (Del key)**            | —                 | deleteMedia           | ✅    | confirm + batch toast           |
-| **Remote URL upload page**           | —                 | remoteUpload action   | ✅    | `move-remote.spec`              |
-| **Selection + breadcrumb move**      | —                 | `/api/media/move`     | ✅    | `move-remote.spec`              |
-| **HTML5 drop to folder**             | media-dnd unit    | move API              | 🟡    | synthetic DnD best-effort       |
+| Control                              | Unit              | Integration           | E2E   | Spec                              |
+| ------------------------------------ | ----------------- | --------------------- | ----- | --------------------------------- |
+| Load + `media:read` gate             | page.server       | media API             | shell | unit + gallery                    |
+| Toolbar                              | —                 | —                     | ✅    | `media-gallery-toolbar`           |
+| Search / type filter                 | —                 | —                     | ✅    | `mediagallery.spec`               |
+| Grid / table toggle                  | —                 | —                     | ✅    | `media-view-*`                    |
+| Upload image                         | —                 | media upload          | ✅    | `media-upload-input`              |
+| Delete single                        | —                 | media delete          | ✅    | grid actions                      |
+| **Image editor open / crop / focal** | image-editor unit | —                     | ✅    | `image-editor.spec`               |
+| **Image editor save (manipulate)**   | —                 | manipulate API        | ✅    | `image-editor.spec` save          |
+| **Create virtual folder**            | —                 | system-virtual-folder | ✅    | `folders-bulk.spec`               |
+| **Folder appear / navigate**         | —                 | —                     | ✅    | same                              |
+| **Selection mode + bulk bar**        | —                 | —                     | ✅    | `folders-bulk.spec`               |
+| **Bulk download**                    | —                 | bulk-download         | ✅    | hits `/api/media/bulk-download`   |
+| **Bulk delete (Del key)**            | —                 | deleteMedia           | ✅    | confirm + batch toast             |
+| **Remote URL upload page**           | —                 | remoteUpload action   | ✅    | `move-remote.spec`                |
+| **Selection + breadcrumb move**      | —                 | `/api/media/move`     | ✅    | `move-remote.spec`                |
+| **Drop to sidebar folder**           | media-dnd unit    | `/api/media/move`     | ✅    | `move-remote.spec` (pointer drag) |
+
+> **Drop row (2026-09-22):** `@thisux/sveltednd` runs in **pointer** mode
+> (document-level `pointermove`/`pointerup` + `elementFromPoint` at release), and
+> the sidebar rows only become droppables _while_ a drag is in flight
+> (`externalDrop.enabled = isMediaDragActive` in `media-folders.svelte`). The spec
+> therefore drives `page.mouse.down()` → `move()` → `up()` and asserts
+> `data-media-drop-target` **mid-drag**; probing that attribute before the gesture
+> always returned empty and fell back to the current-folder breadcrumb, whose drop
+> is a documented no-op.
 
 ---
 
