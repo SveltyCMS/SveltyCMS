@@ -144,17 +144,17 @@ _File counts verified against the tree on 2026-09-22._
 
 ### Shared Modules (`tests/benchmarks/modules/`)
 
-| Module                    | Purpose                                                                                                                                                              |
-| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `benchmark-analysis.ts`   | Trend analysis, root cause classification, budget checking                                                                                                           |
-| `benchmark-dimensions.ts` | Dimension mapping (`Core`/`API`/`Scale`/`Resilience`) for executive rollups + grouped ledger sections                                                                |
-| `benchmark-executive.ts`  | Executive summary builder — sparklines, quadrant charts, rollups                                                                                                     |
-| `benchmark-history.ts`    | SQLite history store — persist/load benchmark runs                                                                                                                   |
-| `benchmark-mdx.ts`        | MDX zone patching — markers, ledger assembly, truth tables                                                                                                           |
-| `benchmark-reporting.ts`  | `finalizeReport()`, `reportBenchmark()`, run summary tables                                                                                                          |
-| `benchmark-sanitizer.ts`  | Pre-flight environment validation — collection emptiness, silent `{ success: false }`, warmup collisions                                                             |
-| `seed-burst.ts`           | HTTP collection seed burst with retry + dataset-integrity gate (aborts when the dataset comes up short)                                                              |
-| `benchmark-utils.ts`      | Statistics engine + harness: IQR-trimmed mean, RAW-data percentiles (p50/p95/p99/min/max), t-distribution CI for small samples, wall-clock RPS, event-loop telemetry |
+| Module                    | Purpose                                                                                                                                                                                                                    |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `benchmark-analysis.ts`   | Trend analysis, root cause classification, budget checking                                                                                                                                                                 |
+| `benchmark-dimensions.ts` | Dimension mapping (`Core`/`API`/`Scale`/`Resilience`) for executive rollups + grouped ledger sections                                                                                                                      |
+| `benchmark-executive.ts`  | Executive summary builder — sparklines, quadrant charts, rollups                                                                                                                                                           |
+| `benchmark-history.ts`    | SQLite history store — persist/load benchmark runs                                                                                                                                                                         |
+| `benchmark-mdx.ts`        | MDX zone patching — markers, ledger assembly, truth tables                                                                                                                                                                 |
+| `benchmark-reporting.ts`  | `finalizeReport()`, `reportBenchmark()`, run summary tables                                                                                                                                                                |
+| `benchmark-sanitizer.ts`  | Pre-flight environment validation — collection emptiness, silent `{ success: false }`, warmup collisions                                                                                                                   |
+| `seed-burst.ts`           | HTTP collection seed burst — chunked `POST …/bulk` (500 items, `BENCH_SEED_CHUNK_SIZE=1` for the per-item lane) with chunk retry, per-item fallback, and a dataset-integrity gate (aborts when the dataset comes up short) |
+| `benchmark-utils.ts`      | Statistics engine + harness: IQR-trimmed mean, RAW-data percentiles (p50/p95/p99/min/max), t-distribution CI for small samples, wall-clock RPS, event-loop telemetry                                                       |
 
 ### Report Files (`docs/project/benchmarks/`)
 

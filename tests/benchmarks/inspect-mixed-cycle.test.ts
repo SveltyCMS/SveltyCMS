@@ -9,6 +9,8 @@
  * ### Features:
  * - Self-contained 200-row baseline burst (no reliance on a prior seed phase)
  * - One warm cycle, then three measured cycles of the mixed workload
+ * - Prints the server-side lane time (`x-srv-dur`, off unless `SVELTY_SRV_DUR=1`)
+ *   next to the client total, so lane cost is separable from transport cost
  * - Fails loudly if any operation returns a non-2xx status
  * - `try/finally` server teardown so a failed assertion cannot leak the server
  */
@@ -221,7 +223,7 @@ test("Inspect MIX_CYCLE latency and X-Cache headers", async () => {
         const r = await handlers[op]();
         results.push(r);
         console.log(
-          `[C${cycle}] ${r.op.padEnd(16)}: total ${r.ms.toFixed(2)}ms (fetch: ${r.fetchMs?.toFixed(2) ?? "N/A"}ms, body: ${r.bodyMs?.toFixed(2) ?? "N/A"}ms, ${r.bytes}B), status: ${r.status}, x-cache: ${r.cache}`,
+          `[C${cycle}] ${r.op.padEnd(16)}: total ${r.ms.toFixed(2)}ms (fetch: ${r.fetchMs?.toFixed(2) ?? "N/A"}ms, body: ${r.bodyMs?.toFixed(2) ?? "N/A"}ms, srv: ${r.srv ?? "N/A"}ms, ${r.bytes}B), status: ${r.status}, x-cache: ${r.cache}, x-svelty-lane: ${r.lane}`,
         );
       }
     }

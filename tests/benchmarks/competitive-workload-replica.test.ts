@@ -127,7 +127,11 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     const missingUrl = `${baseUrl}/api/collections/BenchmarkStable/bench-missing-${runId}`;
 
     // ── HIGH-THROUGHPUT PRE-SEEDING ──────────────────────────────────────
+    // Timed and exported as its own row: dataset setup is a large share of
+    // harness wall time, so it gets a trend series instead of being invisible
+    // between two phases (`chunkSize: 1` reproduces the per-item create lane).
     logger.info(`  → Pre-seeding ${SEED_COUNT} records (${CONCURRENCY} workers)...`);
+    const seedStart = performance.now();
     await seedHttpCollectionBurst({
       url: collectionUrl,
       headers,
@@ -135,8 +139,13 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       concurrency: CONCURRENCY,
       payloadAt: (i) => seedArticlePayload(i, runId),
       existing: createdIds,
+      chunkSize: Number(process.env.BENCH_SEED_CHUNK_SIZE) || undefined,
     });
-    logger.info(`  ✅ Pre-seeded ${createdIds.length}/${SEED_COUNT} records.`);
+    const seedMs = performance.now() - seedStart;
+    const seedRps = createdIds.length / Math.max(seedMs / 1000, 0.001);
+    logger.info(
+      `  ✅ Pre-seeded ${createdIds.length}/${SEED_COUNT} records in ${(seedMs / 1000).toFixed(1)}s (${Math.round(seedRps)} docs/s).`,
+    );
 
     const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
     const idCount = createdIds.length || 1;
@@ -467,6 +476,36 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     });
 
     printSummaryTable(summaryMetrics, "Competitive Cold vs Warm");
+
+    // Seed-phase row (own trend series): docs/s achieved while building the
+    // dataset. Fail-loud guard because a silently degraded seed invalidates
+    // every row in this file.
+    const seedResult = {
+      name: `Seed Burst (${createdIds.length} docs, HTTP)`,
+      layer: "Ingestion",
+      shortLabel: "Seed",
+      avgMs: seedMs / Math.max(createdIds.length, 1),
+      p95Ms: seedMs / Math.max(createdIds.length, 1),
+      rps: seedRps,
+      iterations: createdIds.length,
+    };
+    printTruthTable({
+      title: "SVELTYCMS — SEED BURST (DATASET SETUP)",
+      subtitle: `${createdIds.length} docs via ${collectionUrl}`,
+      shortLabel: "Seed",
+      results: [seedResult],
+    });
+    printSummaryTable(
+      [
+        { key: "Seeded Documents", val: createdIds.length.toLocaleString(), unit: "docs" },
+        { key: "Seed Wall Time", val: (seedMs / 1000).toFixed(2), unit: "s" },
+        { key: "Seed Throughput", val: Math.round(seedRps).toLocaleString(), unit: "docs/s" },
+      ],
+      "Seed Burst Summary",
+    );
+    exportMetric("competitive.seed.docs_per_s", Math.round(seedRps), "docs/s");
+    exportMetric("competitive.seed.wall_ms", Math.round(seedMs), "ms");
+    exportResult(seedResult);
 
     const findByIdRes = warmResults.find((r) => r.shortLabel === "findById");
     const listPlainRes = warmResults.find((r) => r.shortLabel === "listPlain");

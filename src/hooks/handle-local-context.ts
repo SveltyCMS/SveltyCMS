@@ -50,13 +50,21 @@ export const handleLocalContext: Handle = async ({ event, resolve }) => {
       if (!pathname.startsWith("/api/")) {
         (locals as any).dbInitializationError = dbError.message || String(dbError);
       } else {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "Database adapter unavailable",
-          }),
-          { status: 503, headers: { "Content-Type": "application/json" } },
-        );
+        // 🚀 Declare the length of this 62 B envelope: `handleCompression`
+        // size-gates on `content-length`, so without it every 503 was negotiated
+        // into the streaming tier (a fresh zlib/zstd transform per request) for a
+        // body far below the 1 KiB skip-gate. Computed, never hardcoded.
+        const unavailableBody = JSON.stringify({
+          success: false,
+          message: "Database adapter unavailable",
+        });
+        return new Response(unavailableBody, {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": String(Buffer.byteLength(unavailableBody, "utf8")),
+          },
+        });
       }
     }
   }

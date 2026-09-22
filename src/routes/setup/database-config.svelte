@@ -44,7 +44,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	import { dbConfigSchema } from '@utils/schemas';
-	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { parseConnectionString } from '@utils/connection-parser';
 	import { safeParse } from 'valibot';

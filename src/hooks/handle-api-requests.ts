@@ -83,8 +83,10 @@ const MAX_INFLIGHT_GETS = 64;
  * Serves a cached API response (shared by the HIT path and coalesced waiters).
  * The entry is plain data (body + headers), so each caller builds its OWN
  * Response — never share a single Response object (bodies are single-use streams).
+ *
+ * Exported for the `content-length` regression test (`tests/unit/hooks/api-requests.test.ts`).
  */
-function serveCachedEntry(cached: any, request: Request): Response {
+export function serveCachedEntry(cached: any, request: Request): Response {
   const ifNoneMatch = request.headers.get("if-none-match");
   const cachedEtag = cached.headers?.["etag"] || cached.headers?.["ETag"];
   if (
@@ -120,15 +122,27 @@ function serveCachedEntry(cached: any, request: Request): Response {
   }
 
   const responseHeaders = new Headers(cached.headers || {});
-  // cached.headers carries the ORIGINAL Content-Length; when the body is
-  // re-serialized from cached.data (JSON.stringify) the byte count differs
-  // and clients wait for bytes that never arrive. Node recomputes
-  // Content-Length for string bodies — drop the stale value.
+  // cached.headers carries the ORIGINAL Content-Length. That value must never be
+  // sent verbatim: when the body is re-serialized from cached.data
+  // (JSON.stringify) the byte count differs and clients wait for bytes that
+  // never arrive. Recompute it from the body actually being sent instead of
+  // dropping it — `handleCompression` reads the header to size-gate, and a
+  // response with no declared length skips BOTH the `< 1 KiB` skip-gate and the
+  // buffered sync tier, so EVERY cache hit (list bodies included) negotiated
+  // into the streaming tier: a fresh zlib/zstd transform per request whose
+  // framing is discarded by the client whenever the body was small. Measured on
+  // the 401/403 envelopes (`staticJsonEnvelope`, error-handling.ts): declaring
+  // the length halved the wire time of an equivalent reject.
   responseHeaders.delete("content-length");
   responseHeaders.set("Content-Type", responseHeaders.get("Content-Type") || "application/json");
   responseHeaders.set("X-Cache", "HIT");
   addVaryHeader(responseHeaders, "Accept-Encoding");
   const body = typeof cached.body === "string" ? cached.body : JSON.stringify(cached.data);
+  // `JSON.stringify(undefined)` is not a string — leave the header off for a
+  // bodyless entry rather than declaring a length for nothing.
+  if (typeof body === "string") {
+    responseHeaders.set("content-length", String(Buffer.byteLength(body, "utf8")));
+  }
   return new Response(body, { status: 200, headers: responseHeaders });
 }
 

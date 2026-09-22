@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { handleApiRequests } from "@src/hooks/handle-api-requests";
+import { handleApiRequests, serveCachedEntry } from "@src/hooks/handle-api-requests";
 import type { RequestEvent } from "@sveltejs/kit";
 
 // Mock dependencies
@@ -89,5 +89,41 @@ describe("API Requests Hook Unit Tests", () => {
     expect(resolve).toHaveBeenCalled();
     const text = await response.text();
     expect(text).toBe("setup");
+  });
+});
+
+describe("serveCachedEntry content-length (compression size-gate contract)", () => {
+  /**
+   * 🚀 Regression guard: `handleCompression` size-gates on `content-length`.
+   * The cached entry carries the ORIGINAL body's length, so the served response
+   * must declare the length of the body it actually sends — dropping the header
+   * instead (the previous behaviour) made every cache hit "unknown size", which
+   * skips the <1 KiB skip-gate AND the buffered sync tier and lands the response
+   * in the streaming tier: a fresh zlib/zstd transform per request.
+   */
+  const request = () => new Request("http://localhost/api/system/version");
+
+  it("declares the byte length of the re-serialized body, not the cached value", async () => {
+    const cached = {
+      data: { success: true, data: { version: "1.0.0" } },
+      headers: { "content-type": "application/json", "content-length": "99999" },
+    };
+    const res = serveCachedEntry(cached, request());
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-length")).toBe(String(Buffer.byteLength(body, "utf8")));
+    expect(res.headers.get("content-length")).not.toBe("99999");
+  });
+
+  it("keeps content-length out of the 304 branch (no body is sent)", () => {
+    const res = serveCachedEntry(
+      { headers: { etag: '"abc"' } },
+      new Request("http://localhost/api/system/version", {
+        headers: { "if-none-match": '"abc"' },
+      }),
+    );
+    expect(res.status).toBe(304);
+    expect(res.headers.get("content-length")).toBeNull();
   });
 });

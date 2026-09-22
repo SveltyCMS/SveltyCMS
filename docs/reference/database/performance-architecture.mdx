@@ -900,13 +900,17 @@ The floor is the live set plus 64 MB of non-reclaimable runtime; it rises with a
 
 A sweep runs an **async** major GC first (marking concurrent, off the request path), a **sync** pass only when the first one handed back less than 8 MB and the process is still over a threshold, and trims the response-cache L1 tiers only if the live heap is _still_ over the ratio — an RSS spike alone is not a reason to throw away turbo hits. The trim awaits the cache handle, so a pressured sweep during boot waits for the module instead of silently doing nothing. Cooldown starts at 5 s and doubles up to 2 minutes while sweeps stay unproductive, so a steady working set is not GC-thrashed.
 
-| Env var                       | Default | Effect                                                                         |
-| ----------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `SVELTY_MEMORY_TRIGGER_RATIO` | `0.7`   | Heap / live-set share of the V8 heap limit that triggers a sweep               |
-| `SVELTY_MEMORY_RSS_MB`        | derived | Explicit RSS ceiling; unset derives from the cgroup limit (else heap limit)    |
-| `SVELTY_MEMORY_CHECK_MS`      | `2000`  | Governor tick — a burst tail is caught within seconds, not a minute            |
-| `SVELTY_L1_MAX_MB`            | `64`    | Byte budget for the list-response L1 tier (entry counts alone do not bound it) |
-| `SVELTY_L1_POINT_MAX_MB`      | `16`    | Byte budget for the point-read L1 tier                                         |
+| Env var                           | Default | Effect                                                                         |
+| --------------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `SVELTY_MEMORY_TRIGGER_RATIO`     | `0.7`   | Heap / live-set share of the V8 heap limit that triggers a sweep               |
+| `SVELTY_MEMORY_RSS_MB`            | derived | Explicit RSS ceiling; unset derives from the cgroup limit (else heap limit)    |
+| `SVELTY_MEMORY_CHECK_MS`          | `2000`  | Governor tick — a burst tail is caught within seconds, not a minute            |
+| `SVELTY_L1_MAX_MB`                | `64`    | Byte budget for the list-response L1 tier (entry counts alone do not bound it) |
+| `SVELTY_L1_POINT_MAX_MB`          | `16`    | Byte budget for the point-read L1 tier                                         |
+| `SVELTY_FILE_EXISTS_CACHE_MAX`    | `5000`  | Entry cap for the media storage existence-probe cache (LRU, per storage path)  |
+| `SVELTY_FILE_EXISTS_CACHE_TTL_MS` | `10000` | TTL for a cached existence probe (positive or negative)                        |
+
+**Native memory is not on this list.** SQLite in production is configured by the hardware profile: `PRAGMA cache_size=-256000` (256 MB page cache on a large host) and `PRAGMA mmap_size=536870912` (512 MB window). Both are process-resident, so on a memory-capped container they — not the JS heap — are what an RSS ceiling actually has to hold; `SQLITE_CACHE_SIZE` / `SQLITE_MMAP_SIZE` are the knobs, and a 3-minute soak measured the same +53 MB RSS climb with both of them minimised, i.e. the climb in that window is not SQLite's (see the soak evidence in [achievements-2026](../../project/achievements-2026.mdx)).
 
 **Observing it:** every sweep logs one evidence line — `🧹 [Memory] pass 1/2 (rss) rss 389→286MB · heap 100→57MB · ext+ab 242→172MB · limit 4288MB · busy 88%` — which is what to correlate with `docker stats` after a seeding run. Give the container a real `--memory` limit (Node reads it via `process.constrainedMemory()`) or set `SVELTY_MEMORY_RSS_MB`; keep `--max-old-space-size` in line with it so V8's own limit and the cgroup agree. `--heapsnapshot-signal=USR2` gives a heap diff when a release still looks wrong.
 

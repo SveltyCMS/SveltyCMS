@@ -39,7 +39,11 @@
 	} from '@src/paraglide/messages';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { systemLanguage } from '@src/stores/locale-store.svelte';
-	import { applySystemLanguage, mergeSystemLanguages } from '@utils/system-locale';
+	import {
+		applySystemLanguage,
+		isCompiledSystemLocale,
+		mergeSystemLanguages
+	} from '@utils/system-locale';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	// Utils
 	import { getLanguageName } from '@utils/language-utils';
@@ -275,8 +279,13 @@
 
 	// --- 7. UI HANDLERS ---
 	function selectLanguage(lang: string) {
-		systemLanguage.set(lang);
-		currentLanguageTag = lang;
+		// Both the locale store and the header tag are typed to the compiled paraglide
+		// locales, so only adopt a tag that exists there; the document-level application
+		// still runs for any tag (`applySystemLanguage` falls back to "en" itself).
+		if (isCompiledSystemLocale(lang)) {
+			systemLanguage.set(lang);
+			currentLanguageTag = lang;
+		}
 		applySystemLanguage(lang);
 	}
 </script>

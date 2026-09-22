@@ -196,6 +196,12 @@ await fetch(`${baseUrl}/api/collections`, {
 });
 ```
 
+#### Seeding rows at scale
+
+`seedHttpCollectionBurst()` (`tests/benchmarks/modules/seed-burst.ts`) is the shared HTTP seed path for every test that needs a real dataset. It chunks `POST /api/collections/:id/bulk` (500 items per request by default, the `migration-scale` batch size) and retries transient statuses (401/408/429/502/503, socket drops) per chunk; a chunk that fails for any other reason falls back to per-item creates for its own index range, and the burst throws unless `created === requested` (the dataset-integrity gate). `chunkSize: 1` (or `BENCH_SEED_CHUNK_SIZE=1`) reproduces the original per-item create lane for a like-for-like A/B.
+
+Seed time is _setup_, not a measured row, so a caller that wants to trend it times the burst itself: `tests/benchmarks/competitive-workload-replica.test.ts` exports `Seed Burst (<N> docs, HTTP)` plus `competitive.seed.docs_per_s` / `competitive.seed.wall_ms`. Measured on SQLite, fresh DB per run, 8 workers, 2026-09-22: **74.77 s / 1,337 docs/s per-item → 14.20 s / 7,042 docs/s batched** at 100k docs; **18.86 s / 1,060 → 3.44 s / 5,815** at 20k. The file's _measured_ rows (`create`/`update`/`mixed`) still exercise the per-item lane, so batching the seed does not change what the replica measures.
+
 ### 4. Categorization for Matrix
 
 When you add a new test, register it in `scripts/benchmark-matrix/index.ts`:

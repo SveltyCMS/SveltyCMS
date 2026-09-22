@@ -96,7 +96,6 @@ Features:
 	import {
 		BUNDLED_SYSTEM_LOCALES,
 		isCompiledSystemLocale,
-		isIso6391LanguageCode,
 		languageBase
 	} from '@utils/system-locale';
 	import { logger } from '@utils/logger';

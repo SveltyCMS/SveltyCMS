@@ -133,7 +133,6 @@ Handles all field types and validation automatically
 	const showLanguagePicker = $state<Record<string, boolean>>({}); // Track language picker visibility per field
 	const languageSearch = $state<Record<string, string>>({}); // Track search input per field
 	const showLogLevelPicker = $state<Record<string, boolean>>({}); // Track log level picker visibility per field
-	const isoLocaleCodes = iso6391.map((lang: { code: string }) => lang.code);
 
 	// Derived fields for special layouts
 	const defaultLangField = $derived(group.fields.find((f) => f.key === 'DEFAULT_CONTENT_LANGUAGE'));
