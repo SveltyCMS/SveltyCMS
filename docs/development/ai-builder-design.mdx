@@ -98,7 +98,7 @@ Everything below is implemented and can be composed — no new infrastructure is
 
 **Goal:** "A testimonial carousel with name, role, quote, avatar, and auto-play" → a complete custom widget, registered and usable in the builder.
 
-### Flow
+### Flow — AI Widget Builder {#widget-builder-flow}
 
 1. Prompt → `WidgetScaffoldConfig` (reuse existing scaffolder contract).
 2. Scaffolder emits the 3 pillars; **LLM fills in the gaps**: Svelte 5 runes, Tailwind v4 classes, ARIA labels, empty states.
@@ -133,7 +133,7 @@ BetterCMS sells exactly this as its headline agent ("Figma file + copy.md → de
 
 **Goal:** "When an entry is published, generate tags, translate it to German and French, then notify the marketing role on Discord" → a complete automation (triggers + operations + conditions) and/or an FSM workflow draft.
 
-### Flow
+### Flow — AI Automation & Workflow Designer {#automation-designer-flow}
 
 1. Prompt in the Automation Builder / Workflow Builder.
 2. AI returns a structured flow: trigger, operation chain (reusing existing operation types + `agentic_task`), condition nodes, error handling.

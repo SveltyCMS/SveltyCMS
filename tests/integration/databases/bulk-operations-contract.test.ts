@@ -30,6 +30,9 @@ beforeAll(async () => {
           { db_fieldName: "title", widget: { Name: "Input" }, required: true },
           { db_fieldName: "status", widget: { Name: "Input" } },
           { db_fieldName: "count", widget: { Name: "Input" }, type: "number" },
+          // Declared so every engine accepts it in a PATCH: MongoDB's Mongoose
+          // `strict` schema silently DROPS undeclared patch paths on `$set`.
+          { db_fieldName: "metadata", widget: { Name: "Input" } },
           { db_fieldName: "tenantId", widget: { Name: "Input" } },
         ],
       })
@@ -153,6 +156,105 @@ describe("Bulk Operations Contract — All Adapters", () => {
         expect(typeof count === "number" || typeof count === "object").toBe(true);
       }
     });
+
+    // A bulk patch must merge the JSON `data` blob, not replace it — the same
+    // contract `crud.update` has (MongoDB `$set` parity).
+    const MERGE_IDS = [uid("umm0"), uid("umm1")];
+
+    it("merges a partial patch (omitted blob fields survive on every row)", async () => {
+      for (let i = 0; i < MERGE_IDS.length; i++) {
+        await db.crud.insert(
+          TEST_COLLECTION,
+          {
+            _id: MERGE_IDS[i],
+            title: `Merge ${i}`,
+            status: "mergeable",
+            count: i,
+            metadata: { keep: `m${i}` },
+            tenantId: TEST_TENANT,
+          },
+          tenantOpts,
+        );
+      }
+
+      const result = await db.crud.updateMany(
+        TEST_COLLECTION,
+        { status: "mergeable" },
+        { title: "Merged" },
+        tenantOpts,
+      );
+      expect(result.success).toBe(true);
+
+      for (let i = 0; i < MERGE_IDS.length; i++) {
+        const row = await db.crud.findOne(TEST_COLLECTION, { _id: MERGE_IDS[i] }, tenantOpts);
+        expect(row.success).toBe(true);
+        expect(row.data.title).toBe("Merged"); // patched
+        // These are what a replacing write used to delete:
+        expect(row.data.count).toBe(i);
+        expect(row.data.metadata).toEqual({ keep: `m${i}` });
+      }
+    });
+
+    it("merges a nested-object patch shallowly across rows", async () => {
+      // Nested payloads cannot be expressed by `json_patch`/`JSON_MERGE_PATCH`, so
+      // SQLite/MariaDB merge each matching row individually — the observable
+      // contract stays MongoDB's `$set` (replace the object, keep every sibling).
+      const result = await db.crud.updateMany(
+        TEST_COLLECTION,
+        { status: "mergeable" },
+        { metadata: { replaced: true } },
+        tenantOpts,
+      );
+      expect(result.success).toBe(true);
+
+      for (const id of MERGE_IDS) {
+        const row = await db.crud.findOne(TEST_COLLECTION, { _id: id }, tenantOpts);
+        expect(row.success).toBe(true);
+        expect(row.data.metadata).toEqual({ replaced: true });
+        expect(row.data.title).toBe("Merged");
+      }
+    });
+  });
+
+  // ── queryBuilder.updateMany ──────────────────────────────────────────────
+  // The builder dumped its payload straight into Drizzle `.set()`, which silently
+  // DROPS fields that are not physical columns (the Zahl-Feld class) — blob fields
+  // like `title` never persisted through this path.
+
+  describe("queryBuilder.updateMany", () => {
+    const QB_ID = uid("qb0");
+
+    beforeAll(async () => {
+      await db.crud.insert(
+        TEST_COLLECTION,
+        {
+          _id: QB_ID,
+          title: "QB before",
+          status: "qb-target",
+          count: 3,
+          metadata: { keep: true },
+          tenantId: TEST_TENANT,
+        },
+        tenantOpts,
+      );
+    });
+
+    it("persists blob fields and merges them into the data blob", async () => {
+      // `title` is not a physical column on the SQL adapters — dumping it straight
+      // into Drizzle `.set()` used to drop it silently. The payload also changes a
+      // value on purpose: MongoDB reports `modifiedCount: 0` for a no-op `$set`.
+      const result = await db.queryBuilder(TEST_COLLECTION).updateMany({ title: "QB patched" });
+      expect(result.success).toBe(true);
+      expect(result.data.modifiedCount).toBeGreaterThanOrEqual(1);
+
+      const row = await db.crud.findOne(TEST_COLLECTION, { _id: QB_ID }, tenantOpts);
+      expect(row.success).toBe(true);
+      expect(row.data.title).toBe("QB patched");
+      // Untouched blob + physical fields survive the builder path.
+      expect(row.data.status).toBe("qb-target");
+      expect(row.data.count).toBe(3);
+      expect(row.data.metadata).toEqual({ keep: true });
+    });
   });
 
   // ── batch.bulkUpdate ──────────────────────────────────────────────────────
@@ -229,6 +331,48 @@ describe("Bulk Operations Contract — All Adapters", () => {
       expect(row1.success).toBe(true);
       expect(row1.data.title).toBe("After 1"); // omitted → preserved
       expect(row1.data.status).toBe("Status Only"); // sent field applied
+    });
+
+    it("merges blob fields per row instead of replacing the whole blob", async () => {
+      // Per-row payloads patching different blob fields: `count` is sent for row 2
+      // while row 3 only patches `metadata`, and both rows must keep everything they
+      // did not mention (the CASE fast path used to write each patch as the blob).
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        [
+          { id: BU_IDS[2], data: { count: 99 } },
+          { id: BU_IDS[3], data: { metadata: { nested: true } } },
+        ],
+        tenantOpts,
+      );
+      expect(result.success).toBe(true);
+
+      const row2 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[2] }, tenantOpts);
+      expect(row2.success).toBe(true);
+      expect(row2.data.count).toBe(99);
+      expect(row2.data.title).toBe("After 2"); // untouched
+      expect(row2.data.status).toBe("archived"); // untouched physical column
+
+      const row3 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[3] }, tenantOpts);
+      expect(row3.success).toBe(true);
+      expect(row3.data.metadata).toEqual({ nested: true });
+      expect(row3.data.count).toBe(40); // untouched
+    });
+
+    it("applies a homogeneous blob patch to every row", async () => {
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        BU_IDS.map((id) => ({ id, data: { status: "homogeneous" } })),
+        tenantOpts,
+      );
+      expect(result.success).toBe(true);
+
+      for (const id of BU_IDS) {
+        const row = await db.crud.findOne(TEST_COLLECTION, { _id: id }, tenantOpts);
+        expect(row.success).toBe(true);
+        expect(row.data.status).toBe("homogeneous");
+        expect(row.data.title).toBeDefined(); // the blob was merged, not replaced
+      }
     });
 
     it("applies homogeneous payloads in one statement", async () => {

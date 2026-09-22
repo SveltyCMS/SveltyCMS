@@ -25,6 +25,7 @@ import type {
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import { executeWrite } from "./drizzle-sql-helpers";
+import { getJsonDataPatch } from "./json-data-patch";
 
 import { DatabaseModule } from "../core/base-adapter";
 
@@ -262,14 +263,24 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
             ),
             collection,
           );
-          const query = this.db
-            .update(table as any)
-            .set(values as Record<string, unknown>)
-            .where(and(...conditions));
-          const result = await executeWrite(query);
-          return {
-            modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
-          };
+
+          // 🔀 PARTIAL-UPDATE MERGE: a payload that patches the JSON `data` blob must
+          // merge, not replace (before this it wrote the patch as the whole blob for
+          // every matched row). Merge inside the statement when the dialect can
+          // express it; otherwise fall through to the per-row loop below, which
+          // merges each row's own blob.
+          const jsonPatch = getJsonDataPatch(values);
+          if (!jsonPatch || this.core.canMergeJsonInOneStatement(jsonPatch)) {
+            if (jsonPatch) this.core.applyJsonMergeToSet(values, table, jsonPatch);
+            const query = this.db
+              .update(table as any)
+              .set(values as Record<string, unknown>)
+              .where(and(...conditions));
+            const result = await executeWrite(query);
+            return {
+              modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
+            };
+          }
         }
 
         // 🚀 HETEROGENEOUS CASE FAST PATH: one
@@ -294,26 +305,28 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
         await this.core.withWriteLock(() =>
           this.db.transaction(async (tx: any) => {
             for (const update of updates) {
+              const rowValues = utils.convertIsoDatesForDrizzleWrite(
+                this.core.prepareValues(
+                  table,
+                  update.data as Record<string, unknown>,
+                  undefined,
+                  now,
+                  (options as { isUpdate?: boolean })?.isUpdate === true
+                    ? options
+                    : { ...options, isUpdate: true, operation: "update" },
+                ),
+                collection,
+              ) as Record<string, unknown>;
+              // 🔀 Merge the JSON patch into THIS row's stored blob (no-op when the
+              // dialect already merged it in SQL or the payload is a full document).
+              await this.core.mergeJsonPatchIntoSet(rowValues, table, update.id, options);
               const stmt = tx
                 .update(table as any)
                 // 🐛 PREPARE-PARITY (fallback path): route through prepareValues
                 // like the homogeneous fast path — blob fields land in `data`,
                 // number types stay numbers (the Zahl-Feld class), updatedAt
                 // is stamped by the same helper.
-                .set(
-                  utils.convertIsoDatesForDrizzleWrite(
-                    this.core.prepareValues(
-                      table,
-                      update.data as Record<string, unknown>,
-                      undefined,
-                      now,
-                      (options as { isUpdate?: boolean })?.isUpdate === true
-                        ? options
-                        : { ...options, isUpdate: true, operation: "update" },
-                    ),
-                    collection,
-                  ) as Record<string, unknown>,
-                )
+                .set(rowValues)
                 .where(
                   tenantCond
                     ? and(eq((table as any)._id, update.id as string), tenantCond)

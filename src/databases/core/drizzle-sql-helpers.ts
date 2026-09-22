@@ -787,6 +787,12 @@ function addSingleCondition(
   getJsonField: (field: string) => SQL,
   operators?: Record<string, unknown>,
   coerceJsonValue?: (val: unknown) => unknown,
+  getJsonEquals?: (field: string, value: unknown) => SQL | null,
+  getJsonCompare?: (
+    field: string,
+    value: unknown,
+    op: "$gt" | "$gte" | "$lt" | "$lte",
+  ) => SQL | null,
 ) {
   let col = getColumn(table, field);
   let isJsonField = false;
@@ -823,27 +829,65 @@ function addSingleCondition(
   val = coerceDateColumnValue(col, val);
 
   switch (operator) {
-    case "$eq":
-      conditions.push(val === null ? isNull(col) : eq(col, val));
+    case "$eq": {
+      if (val === null) {
+        conditions.push(isNull(col));
+        break;
+      }
+      // 🌐 DIALECT POTENTIAL: an index-eligible equality form for a dynamic field
+      // (PostgreSQL containment `data @> {"field": value}` against a GIN index)
+      // replaces the text-extraction comparison, which cannot use an index at all.
+      // Uses the RAW value: the coerced one is dialect-specific text (PostgreSQL
+      // renders `data->>` as text) and would break JSON type fidelity.
+      const indexed = isJsonField ? getJsonEquals?.(field, value) : null;
+      conditions.push(indexed ?? eq(col, val));
       break;
+    }
     case "$ne":
       conditions.push(ne(col, val));
       break;
     case "$gt":
-      conditions.push(gt(col, val));
-      break;
     case "$gte":
-      conditions.push(gte(col, val));
-      break;
     case "$lt":
-      conditions.push(lt(col, val));
+    case "$lte": {
+      // 🌐 DIALECT POTENTIAL: on engines that render extracted JSON as TEXT
+      // (PostgreSQL `->>`), a range comparison against a numeric filter is
+      // LEXICOGRAPHIC — `views >= 4` missed stored `16`/`32` because `'16' < '4'`.
+      // PostgreSQL can compare the JSON value itself (`data->'views' >= '4'::jsonb`),
+      // which is numeric and cannot raise a cast error on non-numeric data.
+      const compared = isJsonField
+        ? getJsonCompare?.(field, value, operator as "$gt" | "$gte" | "$lt" | "$lte")
+        : null;
+      if (compared) {
+        conditions.push(compared);
+        break;
+      }
+      if (operator === "$gt") conditions.push(gt(col, val));
+      else if (operator === "$gte") conditions.push(gte(col, val));
+      else if (operator === "$lt") conditions.push(lt(col, val));
+      else conditions.push(lte(col, val));
       break;
-    case "$lte":
-      conditions.push(lte(col, val));
+    }
+    case "$in": {
+      const list = Array.isArray(val) ? val : [val];
+      // Same index-eligibility rule as `$eq`: one containment probe per scalar
+      // value becomes a BitmapOr over the GIN index. A long list would balloon the
+      // statement, so it falls back to the extraction comparison.
+      const rawList = Array.isArray(value) ? value : [value];
+      const probes =
+        isJsonField && getJsonEquals && list.length <= 32
+          ? rawList.map((v) => getJsonEquals(field, v))
+          : null;
+      if (probes?.every((p): p is SQL => p !== null)) {
+        const combined = or(...probes);
+        if (combined) {
+          conditions.push(combined);
+          break;
+        }
+      }
+      conditions.push(inArray(col, list));
       break;
-    case "$in":
-      conditions.push(inArray(col, Array.isArray(val) ? val : [val]));
-      break;
+    }
     case "$regex": {
       // Mongo-style regex → SQL LIKE. Escape LIKE wildcards so user input
       // (e.g. "a.b" or "%" in search boxes) is matched literally.
@@ -887,6 +931,12 @@ function addFilterConds(
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
   coerceJsonValue?: (val: unknown) => unknown,
+  getJsonEquals?: (field: string, value: unknown) => SQL | null,
+  getJsonCompare?: (
+    field: string,
+    value: unknown,
+    op: "$gt" | "$gte" | "$lt" | "$lte",
+  ) => SQL | null,
 ) {
   if (!q || typeof q !== "object") return;
   for (const key in q) {
@@ -896,7 +946,16 @@ function addFilterConds(
       const subs: SQL[] = [];
       for (const sub of value) {
         const sc: SQL[] = [];
-        addFilterConds(sc, table, sub, getColumn, getJsonField, coerceJsonValue);
+        addFilterConds(
+          sc,
+          table,
+          sub,
+          getColumn,
+          getJsonField,
+          coerceJsonValue,
+          getJsonEquals,
+          getJsonCompare,
+        );
         if (sc.length > 0) {
           const s = sc.length === 1 ? sc[0] : and(...sc);
           if (s) subs.push(s);
@@ -909,7 +968,16 @@ function addFilterConds(
     } else if (key === "$and" && Array.isArray(value)) {
       const subs: SQL[] = [];
       for (const sub of value) {
-        addFilterConds(subs, table, sub, getColumn, getJsonField, coerceJsonValue);
+        addFilterConds(
+          subs,
+          table,
+          sub,
+          getColumn,
+          getJsonField,
+          coerceJsonValue,
+          getJsonEquals,
+          getJsonCompare,
+        );
       }
       if (subs.length > 0) {
         const s = subs.length === 1 ? subs[0] : and(...subs);
@@ -931,6 +999,8 @@ function addFilterConds(
             getJsonField,
             value,
             coerceJsonValue,
+            getJsonEquals,
+            getJsonCompare,
           );
           handled = true;
         } else {
@@ -944,6 +1014,8 @@ function addFilterConds(
             getJsonField,
             undefined,
             coerceJsonValue,
+            getJsonEquals,
+            getJsonCompare,
           );
           handled = true;
           break;
@@ -960,6 +1032,8 @@ function addFilterConds(
           getJsonField,
           undefined,
           coerceJsonValue,
+          getJsonEquals,
+          getJsonCompare,
         );
       }
     } else {
@@ -973,6 +1047,8 @@ function addFilterConds(
         getJsonField,
         undefined,
         coerceJsonValue,
+        getJsonEquals,
+        getJsonCompare,
       );
     }
   }
@@ -985,6 +1061,12 @@ export function mapQuery(
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
   coerceJsonValue?: (val: unknown) => unknown,
+  getJsonEquals?: (field: string, value: unknown) => SQL | null,
+  getJsonCompare?: (
+    field: string,
+    value: unknown,
+    op: "$gt" | "$gte" | "$lt" | "$lte",
+  ) => SQL | null,
 ): SQL | undefined {
   if (query && query._id && (typeof query._id === "string" || typeof query._id === "number")) {
     // Zero-allocation fast-path guard: count keys without allocating Object.keys array.
@@ -1011,7 +1093,16 @@ export function mapQuery(
 
   const conditions = acquireConditionsArray();
   if (query && typeof query === "object") {
-    addFilterConds(conditions, table, query, getColumn, getJsonField, coerceJsonValue);
+    addFilterConds(
+      conditions,
+      table,
+      query,
+      getColumn,
+      getJsonField,
+      coerceJsonValue,
+      getJsonEquals,
+      getJsonCompare,
+    );
   }
 
   const tenantCol = getColumn(table, "tenantId");

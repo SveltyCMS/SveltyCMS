@@ -179,8 +179,10 @@ describe("Aggregation Contract", () => {
   });
 
   it("aggregate honors the capability contract", async () => {
+    // Scoped to this describe's own rows (`title: "Agg N"`) — the sibling blocks seed
+    // further `status: "active"` rows into the same collection.
     const pipeline = [
-      { $match: { tenantId: TEST_TENANT } },
+      { $match: { tenantId: TEST_TENANT, title: { $regex: "^Agg " } } },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ];
 
@@ -200,6 +202,27 @@ describe("Aggregation Contract", () => {
     if (!supportsAggregation) {
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe("NOT_SUPPORTED");
+      return;
+    }
+
+    // Declared support means the supported subset must return the real numbers —
+    // five seeded rows, alternating active/inactive (3 / 2) — and not an empty
+    // envelope that merely avoids the refusal.
+    expect(result.success, `aggregate failed: ${result.message ?? ""}`).toBe(true);
+    const groups = result.data as Array<Record<string, unknown>>;
+    expect(groups.map((g) => String(g._id)).sort()).toEqual(["active", "inactive"]);
+    expect(groups.map((g) => Number(g.count)).sort((a, b) => a - b)).toEqual([2, 3]);
+
+    // Stages outside the documented subset must still fail closed — except on
+    // MongoDB, which executes them natively (compound `_id` is supported there).
+    if (adapter.type !== "mongodb") {
+      const refused = await db.crud.aggregate(
+        TEST_COLLECTION,
+        [{ $group: { _id: { status: "$status" }, count: { $sum: 1 } } }],
+        tenantOpts,
+      );
+      expect(refused.success).toBe(false);
+      expect(refused.error?.code).toBe("NOT_SUPPORTED");
     }
   });
 });

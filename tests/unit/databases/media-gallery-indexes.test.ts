@@ -11,8 +11,9 @@
  *
  * Three layers must agree on the two new composite indexes:
  * 1. the declarative spec (SYSTEM_SCHEMA) — columns, order and DESC flags;
- * 2. the boot renderer + idempotent legacy tails — the DDL every fresh AND
- *    pre-existing database receives;
+ * 2. the boot renderer — the DDL every fresh database receives, and (for an
+ *    existing database) the pass re-run that the schema fingerprint triggers as
+ *    soon as the spec changes;
  * 3. the hand-written Drizzle schemas (and the Mongo schema declaration).
  *
  * Query-plan verification (EXPLAIN on a seeded gallery) and the 4-adapter
@@ -31,9 +32,10 @@ import type postgres from "postgres";
 import { describe, expect, it } from "vitest";
 
 import {
+  bootstrapSystemSchema,
+  computeSchemaFingerprint,
   renderBootstrapStatements,
   renderSqliteBatch,
-  bootstrapSystemSchema,
 } from "@src/databases/core/system-schema-bootstrap";
 import * as mariaSchema from "@src/databases/mariadb/schema";
 import * as pgSchema from "@src/databases/postgresql/schema";
@@ -159,13 +161,16 @@ describe("media gallery indexes — boot provisioning", () => {
 
     const folder = statements.filter((s) => s.includes(FOLDER_INDEX.postgresql));
     const tenant = statements.filter((s) => s.includes(TENANT_INDEX.postgresql));
-    expect(folder.length, "spec + legacy tail must both cover the folder index").toBeGreaterThan(0);
-    expect(tenant.length, "spec + legacy tail must both cover the tenant index").toBeGreaterThan(0);
+    // A fresh database gets the indexes from the spec pass; an existing one gets
+    // them because a spec change moves the fingerprint and re-runs that same pass
+    // (`CREATE INDEX IF NOT EXISTS` is idempotent).
+    expect(folder.length, "spec pass must cover the folder index").toBeGreaterThan(0);
+    expect(tenant.length, "spec pass must cover the tenant index").toBeGreaterThan(0);
     expect(folder[0]).toContain('("tenantId", "folderId", "updatedAt" DESC)');
     expect(tenant[0]).toContain('("tenantId", "updatedAt" DESC)');
   });
 
-  it("mariadb emits both indexes inline (fresh) and as an idempotent tail (existing)", async () => {
+  it("mariadb emits both indexes inline in CREATE TABLE", async () => {
     const { connection, statements } = createMariaMock();
     const result = await bootstrapSystemSchema("mariadb", connection);
     expect(result.success).toBe(true);
@@ -175,16 +180,10 @@ describe("media gallery indexes — boot provisioning", () => {
     const tenant = statements.filter((s) => s.includes(TENANT_INDEX.mariadb));
     expect(folder.length).toBeGreaterThan(0);
     expect(tenant.length).toBeGreaterThan(0);
-    // Inline in CREATE TABLE (fresh installs) …
+    // Inline in CREATE TABLE (fresh installs); an existing database receives them
+    // through the fingerprint-triggered re-run of this same statement.
     expect(all).toContain("INDEX tenant_folder_updated_idx (tenantId, folderId, updatedAt)");
     expect(all).toContain("INDEX tenant_updated_idx (tenantId, updatedAt)");
-    // … and an explicit tail for tables that already exist.
-    expect(all).toContain(
-      "CREATE INDEX IF NOT EXISTS tenant_folder_updated_idx ON media_items (tenantId, folderId, updatedAt)",
-    );
-    expect(all).toContain(
-      "CREATE INDEX IF NOT EXISTS tenant_updated_idx ON media_items (tenantId, updatedAt)",
-    );
     // No DESC: MariaDB <10.8 ignores index direction.
     expect(all).not.toMatch(/tenant_folder_updated_idx[^)]*updatedAt DESC/);
   });
@@ -214,6 +213,25 @@ describe("media gallery indexes — boot provisioning", () => {
     expect(mariaDdl).toContain(`INDEX ${TENANT_INDEX.mariadb} (tenantId, updatedAt)`);
     expect(sqliteDdl).toContain(FOLDER_INDEX.sqlite);
     expect(sqliteDdl).toContain(TENANT_INDEX.sqlite);
+  });
+
+  // An existing database only receives a spec change if the fingerprint moves:
+  // the pass is skipped while the fingerprint matches, so these two properties are
+  // what makes "one schema path, no tails" safe.
+  it("fingerprint is dialect-scoped and changes with the spec", () => {
+    const baseline = computeSchemaFingerprint("mariadb");
+    expect(computeSchemaFingerprint("mariadb")).toBe(baseline);
+    expect(computeSchemaFingerprint("postgresql")).not.toBe(baseline);
+
+    const mutated = SYSTEM_SCHEMA.map((item) =>
+      item.kind === "table" && item.name === "media_items"
+        ? {
+            ...item,
+            columns: [...item.columns, { name: "fingerprintProbe", type: { mariadb: "INT" } }],
+          }
+        : item,
+    );
+    expect(computeSchemaFingerprint("mariadb", mutated)).not.toBe(baseline);
   });
 });
 

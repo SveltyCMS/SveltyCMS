@@ -854,11 +854,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 
         const mem = process.memoryUsage();
         const hooks = getHookTimings();
+        // `arrayBuffers` MUST be in this payload: the longevity soak samples
+        // `memory.arrayBuffers` per bucket to separate an HTTP body/buffer growth
+        // from V8 heap retention. Omitting it made every soak series record a
+        // structural `0.00` for arrayBuffers, so the off-heap branch of the soak
+        // verdict could never observe buffer growth (roadmap-2026, long-horizon
+        // memory row). Same `process.memoryUsage()` call — no extra cost.
         health.memory = {
           rss: mem.rss,
           heapTotal: mem.heapTotal,
           heapUsed: mem.heapUsed,
           external: mem.external,
+          arrayBuffers: mem.arrayBuffers,
         };
         if (Object.keys(hooks).length > 0) health.hooks = hooks;
 

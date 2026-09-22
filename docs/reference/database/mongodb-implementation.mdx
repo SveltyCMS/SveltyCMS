@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-21"
+updated: "2026-09-22"
 tags:
   - database
   - mongodb
@@ -163,6 +163,13 @@ Without ordered writes, MongoDB's `bulkWrite` may process operations in any orde
 - **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for selected internal lookups that skip `safeQuery` allocation entirely. **Not used for website-token CRUD** — those routes through `MongoCrudMethods` + `safeQuery` (soft-delete + tenant injection).
 - **ID Lookup Fast-Path (`isLookupQuery`)**: Direct collection access for ID/token queries, bypassing the (inlined) Query IR translation entirely.
 
+**Phase 9: Update Parity with the SQL Engines (September 2026)**
+
+- **`strict: false` on every update site**: Mongoose's schema default **drops `$set` paths that are not declared in the model**, so patching a dynamic field the collection schema did not declare was a silent no-op on MongoDB while the SQL adapters store it in the JSON `data` blob. `crud.update` (both `findOneAndUpdate` paths), `crud.updateMany`, `batch.bulkUpdate` (homogeneous `updateMany` and the heterogeneous `bulkWrite`) and `MongoQueryBuilder.updateMany` now pass `strict: false` — the payload is written as sent, and the namespace / field-permission layer stays the schema gate.
+- **`queryBuilder()` model resolution fixed**: the builder looked up its Mongoose model with the **raw** collection name while `crud.*` normalizes it (`normalizeCollectionName`). The lookup missed, so `_getOrCreateModel` built a generic model bound to a **differently named** MongoDB collection — every builder operation (find/count/updateMany/deleteMany) silently ran against an empty collection. It now resolves exactly like `MongoCrudModule._getRepo`.
+- **`CollectionModel.aggregate` routes through `crud.aggregate`**: the typed collection wrapper no longer runs the raw `model.aggregate` — it calls `crud.aggregate` (tenant `$match` injection, normalized collection resolution) and logs a refused pipeline with its `NOT_SUPPORTED`/error code instead of returning an empty array.
+- **Pipeline parity with the SQL engines**: `core/aggregation-translator.ts` now gives SQLite/PostgreSQL/MariaDB the same pipeline contract — `$match`, `$group` (scalar `_id` plus `$sum`/`$avg`/`$min`/`$max`/`$count`), `$sort`, `$skip`, `$limit`, `$count` and include-only `$project` are portable across all four engines. Stages outside that subset (`$lookup`, `$unwind`, `$facet`, compound `$group._id`) stay native here and are `NOT_SUPPORTED` on SQL, where `$min`/`$max` additionally require a materialized field.
+
 ---
 
 ## 🛡️ Agnostic Query IR Translation (inlined)
@@ -194,8 +201,8 @@ The MongoDB adapter has been fully modularized to align with the enterprise-grad
 | **media-methods.ts**         | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.                 |
 | **content-methods.ts**       | Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.             |
 | **website-token-methods.ts** | External API credential CRUD (`system_website_tokens`). | SHA-256 at rest, parallel list+count, `safeQuery` soft-delete. |
-
-| **adapter-core.ts** | Unified connection and (inlined) Query IR translation. | Hardened `isLookupQuery` ID-bypass. |
+| **adapter-core.ts**          | Unified connection and (inlined) Query IR translation.  | Hardened `isLookupQuery` ID-bypass.                            |
+| **collection-module.ts**     | Collection wrapper: `aggregate` → `crud.aggregate`.     | Tenant `$match` injection, logged failures.                    |
 
 ### Explicit Schema Registration
 
@@ -1183,7 +1190,7 @@ const user = await User.findOne({ email: "user@example.com" }).lean();
 
 #### Implementation {#implementation-4}
 
-Hot writes (`update` / `updateMany` / `upsert`) use atomic `{ $set }` with `lean: true`, `runValidators: false`, and `cloneUpdate: false` — Valibot already ran in core. `createdAt` is stripped from `$set` (insert / `$setOnInsert` still sets it).
+Hot writes (`update` / `updateMany` / `upsert`) use atomic `{ $set }` with `lean: true`, `runValidators: false`, `cloneUpdate: false` and `strict: false` — Valibot already ran in core. `createdAt` is stripped from `$set` (insert / `$setOnInsert` still sets it).
 
 All CRUD methods in `crud-methods.ts` use `.lean()`:
 

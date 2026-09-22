@@ -5,6 +5,7 @@
 
 import { logger } from "@utils/logger";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
+import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
 import type {
   BaseEntity,
   BaseQueryOptions,
@@ -155,6 +156,49 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
   protected get useRawFindById(): boolean {
     return true;
+  }
+
+  /**
+   * SQLite's only JSON merge primitive is `json_patch` (RFC 7396): it merges
+   * nested objects recursively and drops keys patched with `null`. Patches that
+   * contain either are merged in JS instead, so the observable contract stays
+   * the shallow, null-keeping merge MongoDB's `$set` provides.
+   */
+  protected override get jsonPatchMergeMode(): "operator" | "subset" {
+    return "subset";
+  }
+
+  /**
+   * `json_patch` merges a top-level key's object value *recursively* and deletes
+   * keys whose patch value is `null` — both deviate from the shallow, null-keeping
+   * contract (MongoDB `$set`). Only patches `jsonPatchNeedsJsMerge()` clears reach
+   * a SQL merge here; the wrapper itself is correct for them.
+   */
+  protected override jsonMergeWrapper(colSql: string): { prefix: string; suffix: string } {
+    return { prefix: `json_patch(COALESCE(${colSql}, '{}'), `, suffix: `)` };
+  }
+
+  /**
+   * Read the JSON `data` column of one row for the JS merge path (the only reader
+   * of a single column on this adapter). Returns null when the row is absent, which
+   * the caller treats as fail-closed — a merge with nothing to merge into must not
+   * write the patch as the whole document.
+   */
+  protected override async readJsonDataColumn(
+    table: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<Record<string, unknown> | null> {
+    const tableName = getTableName(table);
+    const idColName = (this.getColumn(table, "_id") || this.getColumn(table, "id"))?.name ?? "_id";
+    const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "sqlite");
+    const row = this.prepareAndExecute(
+      `SELECT "data" FROM "${utils.assertSafeSqlIdentifier(tableName, "table")}" WHERE "${utils.assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql} LIMIT 1`,
+      "get",
+      String(id),
+      ...tenantParams,
+    ) as { data?: unknown } | undefined;
+    return parseJsonDataBlob(row?.data);
   }
 
   protected isMissingTableError(err: any): boolean {
@@ -417,7 +461,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         "sqlite",
       );
       const skipReturning = (options as { skipReturning?: boolean })?.skipReturning === true;
-      const cacheKey = `${tableName}|${columns.join(",")}|${skipReturning ? 1 : 0}|${tenantSql}`;
+      // A live partial-update patch marker means the `data` blob must MERGE, not
+      // replace. Only patches that `json_patch` expresses exactly reach this point
+      // (nested objects and explicit nulls were already merged in JS by
+      // `executeUpdate`), so the operator is safe here.
+      const mergeJsonData = getJsonDataPatch(values) !== undefined;
+      const cacheKey = `${tableName}|${columns.join(",")}|${skipReturning ? 1 : 0}|${mergeJsonData ? 1 : 0}|${tenantSql}`;
       let rawSql = this._updateSqlCache.get(cacheKey);
       if (!rawSql) {
         const setPairs: string[] = [];
@@ -425,7 +474,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           const col = columns[i];
           const phys = this.getColumn(table, col);
           const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
-          setPairs.push(`"${safeCol}" = ?`);
+          const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+          setPairs.push(
+            isJson && mergeJsonData
+              ? `"${safeCol}" = json_patch(COALESCE("${safeCol}", '{}'), ?)`
+              : `"${safeCol}" = ?`,
+          );
         }
         const whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql}`;
         const setSql = setPairs.join(", ");
@@ -528,6 +582,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         this.prepareUpdateValues(table, u.data, u.id as string, now, options),
       );
 
+      // 🔀 PARTIAL-UPDATE MERGE: `json_patch` can wrap the `data` column in this one
+      // statement, but only for patches it expresses like a shallow merge. A nested
+      // object / explicit-null patch would need every row's stored blob — refuse the
+      // fast path so the caller's per-row loop merges each row exactly.
+      const jsonPatchRows = prepared.filter((v) => getJsonDataPatch(v) !== undefined);
+      if (jsonPatchRows.some((v) => !this.canMergeJsonInOneStatement(getJsonDataPatch(v)!))) {
+        return null;
+      }
+
       // Union of SET columns (PK excluded — it is the CASE matcher / WHERE key).
       const setCols: string[] = [];
       const seen = new Set<string>();
@@ -559,6 +622,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           for (const col of setCols) {
             const phys = this.getColumn(table, col);
             const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+            const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+            // Merge wrapper for a live partial-update patch (subset patches that
+            // `json_patch` cannot express were filtered out above).
+            const jsonWrap =
+              isJson && chunk.some((v) => getJsonDataPatch(v) !== undefined)
+                ? this.jsonMergeWrapper(`"${safeCol}"`)
+                : null;
 
             // Constant column (every row sets the identical value) → plain SET.
             // Value-based comparison: `{}` data blobs and same-timestamp Dates
@@ -589,7 +659,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               }
             }
             if (constant) {
-              setPairs.push(`"${safeCol}" = ?`);
+              setPairs.push(
+                jsonWrap
+                  ? `"${safeCol}" = ${jsonWrap.prefix}?${jsonWrap.suffix}`
+                  : `"${safeCol}" = ?`,
+              );
               params.push(firstVal);
               continue;
             }
@@ -603,8 +677,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               params.push(chunkIds[i], values[col]);
             }
             const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            const caseSql = `CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`;
             setPairs.push(
-              `"${safeCol}" = CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`,
+              jsonWrap
+                ? `"${safeCol}" = ${jsonWrap.prefix}${caseSql}${jsonWrap.suffix}`
+                : `"${safeCol}" = ${caseSql}`,
             );
           }
 
@@ -792,7 +869,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // --------------------------------------------------------------------------
 
   public getJsonField(field: string): SQL {
-    return sql`json_extract(data, '$."' || ${field} || '"')`;
+    // Quote each path segment individually: a plain field name is matched literally,
+    // and a DOTTED path resolves NESTED keys — parity with PostgreSQL
+    // (`data#>>'{meta,lang}'`) and MariaDB (`$.meta.lang`). The previous form quoted
+    // the whole string (`$."meta.lang"`), i.e. one literal key named "meta.lang",
+    // so a dotted filter matched nothing on SQLite while it worked on the other
+    // engines. The path is BOUND as a parameter (never interpolated), so a field
+    // name cannot inject SQL; `"` inside a segment is doubled per JSON-path rules.
+    let path = "$";
+    for (const segment of field.split(".")) {
+      path += `."${segment.replace(/"/g, '""')}"`;
+    }
+    return sql`json_extract(data, ${path})`;
   }
 
   // --------------------------------------------------------------------------
@@ -1485,7 +1573,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: false,
-    supportsAggregation: false,
+    // The documented pipeline subset runs through `core/aggregation-translator.ts`;
+    // stages SQL cannot express fail closed with `NOT_SUPPORTED`.
+    supportsAggregation: true,
     supportsStreaming: false,
     supportsPartitioning: false,
     maxBatchSize: 100,

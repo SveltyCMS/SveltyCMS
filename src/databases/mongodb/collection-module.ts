@@ -15,6 +15,7 @@ import type {
   CollectionModel,
   DatabaseId,
   ICollectionAdapter,
+  ICrudAdapter,
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { CacheCategory, invalidateCollectionCache, withCache } from "./mongodb-cache-utils";
@@ -23,13 +24,46 @@ type MongoQueryFilter<T> = mongoose.QueryFilter<T>;
 
 export class MongoCollectionMethods {
   private readonly connection: mongoose.Connection;
+  /**
+   * Tenant-scoped CRUD entry point (the adapter's guarded namespace). Used by the
+   * `CollectionModel.aggregate` wrapper so the tenant `$match` is injected exactly
+   * like on the SQL adapters, instead of running the pipeline unscoped.
+   */
+  private readonly getCrud: (() => ICrudAdapter) | null;
   private readonly models = new Map<
     string,
     { model: Model<Record<string, unknown>>; wrapped: CollectionModel }
   >();
 
-  constructor(connection: mongoose.Connection = mongoose.connection) {
+  constructor(
+    connection: mongoose.Connection = mongoose.connection,
+    getCrud: (() => ICrudAdapter) | null = null,
+  ) {
     this.connection = connection;
+    this.getCrud = getCrud;
+  }
+
+  /**
+   * Run a pipeline through `crud.aggregate` (tenant scope + named failures). The
+   * wrapper's contract is `R[]`, so a failure is reported and becomes `[]` — it is
+   * never swallowed silently.
+   */
+  private async runAggregate<R>(id: string, pipeline: Record<string, unknown>[]): Promise<R[]> {
+    const crud = this.getCrud?.();
+    if (!crud) {
+      logger.warn(
+        `[CollectionModel.aggregate] ${id}: no CRUD adapter available — running the pipeline unscoped`,
+      );
+      return [];
+    }
+    const res = await crud.aggregate<R>(id, pipeline);
+    if (!res.success) {
+      logger.warn(
+        `[CollectionModel.aggregate] ${id}: ${res.error?.code ?? "ERROR"} — ${res.message}`,
+      );
+      return [];
+    }
+    return res.data;
   }
 
   async getModel(id: string): Promise<CollectionModel> {
@@ -54,9 +88,8 @@ export class MongoCollectionMethods {
                 .exec();
               return result as R | null;
             },
-            aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
-              return (await (existingModel as any).aggregate(pipeline as any).exec()) as R[];
-            },
+            aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) =>
+              await this.runAggregate<R>(id, pipeline),
           };
           this.models.set(id, { model: existingModel, wrapped: wrappedModel });
           return wrappedModel;
@@ -153,11 +186,8 @@ export class MongoCollectionMethods {
           .exec();
         return result as R | null;
       },
-      aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
-        return (await (model as any)
-          .aggregate(pipeline as unknown as mongoose.PipelineStage[])
-          .exec()) as R[];
-      },
+      aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) =>
+        await this.runAggregate<R>(collectionId, pipeline),
     };
 
     this.models.set(collectionId, {
@@ -449,7 +479,7 @@ export class MongoCollectionModule
       );
     }
 
-    this._methods = new MongoCollectionMethods(this.adapter.connection);
+    this._methods = new MongoCollectionMethods(this.adapter.connection, () => this.adapter.crud);
     return this._methods;
   }
 

@@ -17,6 +17,13 @@ tags:
 
 SveltyCMS is designed to be upgraded easily while preserving your custom collections and configurations. We provide a CLI tool to automate the process, including dependency updates, database migrations, and **automated code transformations (codemods)**.
 
+> [!IMPORTANT]
+> **One schema path, no legacy tails (as of September 2026).** The SQL system schema is declared once in `src/databases/system-schema-spec.ts` and applied at boot from that spec only — releases no longer carry per-engine repair tails (`ADD COLUMN IF NOT EXISTS` lists, the v0.0.8-era `security` → `password` / `redirects_mv.from|to` renames, or the MariaDB `mfaVerifiedAt` widening). Fresh databases are provisioned from the spec (measured: 27 tables + 117 indexes, ~330 ms once) and an unchanged spec skips the DDL pass entirely on every later boot (~2 ms).
+>
+> **Consequence for older installations:** a database created by an earlier release that still needs one of those one-off repairs is _not_ migrated automatically. Upgrade through the release that introduced the change (or export → re-provision → import) if your database predates the current column set; the spec always describes the schema the code expects.
+>
+> **Aggregation on SQL engines (as of September 2026).** `crud.aggregate()` now runs on SQLite, PostgreSQL and MariaDB (the `supportsAggregation` capability flag is `true`; it was `false`), executing the portable subset of the MongoDB pipeline through `src/databases/core/aggregation-translator.ts`. Two consequences for existing callers: a pipeline that asked for `$min`/`$max` on a **non-materialized** field is now refused with `NOT_SUPPORTED` on PostgreSQL/MariaDB — those engines extract JSON as TEXT, so the previous answers were lexicographic (`MIN` of `{10, 2}` is `"10"`) and were never the intended number; declare the field `indexed` or `materialize: true` to aggregate it natively. Stages outside the subset (`$lookup`, `$unwind`, `$facet`, compound `$group._id`, out-of-order stages) fail closed with the same named error instead of running on MongoDB only.
+
 ## The Upgrade Process
 
 The upgrade tool performs the following steps:

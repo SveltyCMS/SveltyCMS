@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-08-21"
+updated: "2026-09-22"
 tags:
   - "database"
   - "postgresql"
@@ -66,31 +66,33 @@ sequenceDiagram
     D-->>B: Tables Created/Verified
     B-->>A: { success: true }
     A-->>S: Ready
+    Note over B,D: skipped when the stored fingerprint matches
 ```
+
+An unchanged release skips this pass entirely: `bootstrapSystemSchema` compares a sha-256 of `SYSTEM_SCHEMA` (per dialect) stored in `svelty_schema_state` and returns `{ success: true, skipped: true }` without touching the database — measured 2026-09-22: 118 statements / 124 ms per boot → ~2 ms. Any spec change re-runs the pass, and a pass with a failed statement does not store the marker, so a half-applied schema is retried instead of trusted.
 
 ### Connection Pool Configuration (2026-09 Hardening)
 
 SveltyCMS configures the `postgres.js` driver with production-tuned connection pool settings. All timing values are configurable via environment variables so operators can tune without code changes:
 
-| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                                                                                            |
-| ----------------------------- | ----------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `max`                         | 100         | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool. Raise for large servers; keep at 100 on shared hosts to avoid `too many clients`.                                                                                 |
-| `idle_timeout`                | **0**       | `DATABASE_IDLE_TIMEOUT`    | **0 = permanently warm (default)** — eliminates reconnect storms when a load wave hits after a quiet period. Set to a positive value (seconds) only when fronted by PgBouncer in transaction mode. |
-| `connect_timeout`             | 10s         | `DATABASE_CONNECT_TIMEOUT` | TCP connect timeout. 3× faster failure detection on unreachable hosts vs. the postgres.js default 30s.                                                                                             |
-| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. the previous 30 min default.                                                                                                                                   |
-| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls.                                                                                                                                 |
-| `keepaliveInitialDelayMillis` | 10 000      | —                          | Starts keepalive pings after 10 s idle.                                                                                                                                                            |
-| `pipeline`                    | true        | —                          | Postgres.js query pipelining — batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads).                                                                 |
-| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements. Disable for PgBouncer transaction mode (`DATABASE_PREPARE=false`).                                                                                                |
-| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries.                                                                                                                                                               |
-| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`.                                                                                                                                                          |
+| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                                                                                         |
+| ----------------------------- | ----------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `max`                         | tier-based  | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool — `hw.dbPoolSize` (2 per budget core, `DB_POOL_SIZE`), floored at 20 on small hosts and 32 above. Raise for large servers; keep low on shared hosts.            |
+| `idle_timeout`                | 30s         | —                          | Idle seconds before a pooled connection is closed; the config object's `idle_timeout` overrides it. Shorten it behind PgBouncer in transaction mode, where idle connections waste pooler slots. |
+| `connect_timeout`             | 10s         | —                          | TCP connect timeout. 3× faster failure detection on unreachable hosts vs. the postgres.js default 30s.                                                                                          |
+| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. the previous 30 min default.                                                                                                                                |
+| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls.                                                                                                                              |
+| `keepaliveInitialDelayMillis` | 10 000      | —                          | Starts keepalive pings after 10 s idle.                                                                                                                                                         |
+| `pipeline`                    | true        | —                          | Postgres.js query pipelining — batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads).                                                              |
+| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements. Disable for PgBouncer transaction mode (`DATABASE_PREPARE=false`).                                                                                             |
+| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries.                                                                                                                                                            |
+| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`.                                                                                                                                                       |
 
 > [!TIP]
-> **When to change `DATABASE_IDLE_TIMEOUT`:** The default `0` (permanently warm) is optimal for direct
-> PostgreSQL connections and most managed-database services (Supabase, RDS, Neon). Set it to a
-> positive number of **seconds** (e.g. `600`) only when a connection pooler like PgBouncer in
-> **transaction mode** sits between the CMS and Postgres — in that case the pooler handles recycling
-> and idle connections on the CMS side waste pooler slots.
+> **When to change `idle_timeout`:** the 30-second default is optimal for direct PostgreSQL
+> connections and most managed-database services (Supabase, RDS, Neon). Shorten it only when a
+> connection pooler like PgBouncer in **transaction mode** sits between the CMS and Postgres — there
+> the pooler handles recycling and idle CMS connections waste pooler slots.
 
 ### Connection Configuration
 
@@ -114,13 +116,13 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 
 ### Key Implementation Details
 
-| Feature             | Implementation                                                            |
-| ------------------- | ------------------------------------------------------------------------- |
-| **Primary Key**     | `varchar(36)` (UUID compatible strings)                                   |
-| **Timestamps**      | `timestamp()` with ISODateString conversion                               |
-| **JSON fields**     | `jsonb()` for binary JSON with GIN indexing                               |
-| **Multi-Tenancy**   | `tenantId` indexed columns on all tables                                  |
-| **Connection Pool** | Keepalive (10s), pipeline (batch), idle 300s, lifetime 60min, timeout 10s |
+| Feature             | Implementation                                                           |
+| ------------------- | ------------------------------------------------------------------------ |
+| **Primary Key**     | `varchar(36)` (UUID compatible strings)                                  |
+| **Timestamps**      | `timestamp()` with ISODateString conversion                              |
+| **JSON fields**     | `jsonb()` for binary JSON with GIN indexing                              |
+| **Multi-Tenancy**   | `tenantId` indexed columns on all tables                                 |
+| **Connection Pool** | Keepalive (10s), pipeline (batch), idle 30s, lifetime 60min, timeout 10s |
 
 ## Current Implementation Status
 
@@ -134,15 +136,14 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 | `media.*`       | ✅ Complete | File metadata, folders, thumbnails                   |
 | `batch.*`       | ✅ Complete | Transactional batch operations                       |
 | `performance.*` | ✅ Complete | Latency tracking and health monitoring               |
-
-| `tenants.*` | ✅ Complete | Full CRUD (create, getById, update, delete, list) |
-| `cleanupExpired` | ✅ Complete | TTL-equivalent cleanup for sessions/tokens |
-| `versioning` | ✅ Complete | Atomic `getVersion` and `incrementVersion` |
+| `tenants.*`     | ✅ Complete | Full CRUD (create, getById, update, delete, list)    |
+| cleanupExpired  | ✅ Complete | TTL-equivalent cleanup for sessions/tokens           |
+| `versioning`    | ✅ Complete | Atomic `getVersion` and `incrementVersion`           |
 
 ### PostgreSQL-Specific Optimizations
 
 - **JSONB** (not JSON): All 20 metadata columns use binary JSONB with efficient containment operators (`@>`, `?`, `?|`)
-- **GIN Indexes**: 5 GIN indexes on high-query JSONB columns (`content_nodes.data`, `content_nodes.metadata`, `media_items.metadata`, `roles.permissions`, `auth_users.roleIds`)
+- **GIN Indexes**: the 5 spec GIN indexes on high-query JSONB columns (`content_nodes.data`, `content_nodes.metadata`, `media_items.metadata`, `roles.permissions`, `auth_users.roleIds`), plus a `jsonb_path_ops` `<table>_data_gin` on every dynamic collection table (`createModel`; opt out with `schema.jsonIndex === false`)
 - **Trigram Search**: High-performance `ilike` searching for media filenames using `pg_trgm` GIN indexes (`media_items_filename_trgm_idx`).
 
 - **`gen_random_uuid()`**: Native UUID generation via pgcrypto extension
@@ -152,7 +153,11 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 - **Raw `INSERT` fast path (no-read-back)**: One-statement insert via a flat `unsafe(text, values, { prepare: true })` template (postgres.js 3.x removed `sql.join` — the earlier implementation silently fell back to Drizzle on every insert, ~225 RPS). Quotes identifiers (unquoted camelCase folds to lowercase) and binds dates/objects as strings (describe-phase Bind quirk). The returned row is **synthesized** from the prepared values + Drizzle column defaults (`status 'draft'`, `isDeleted false`, timestamps, NULLs) instead of `RETURNING *` — exact parity for CMS tables (no triggers/generated columns; the Drizzle def mirrors the DDL) and it removes the row materialization + jsonb parse from the write round trip. Measured: 217 → **~290–310 RPS** on a loaded host (+21% same-run); raw SQL alone ~413 (92% of the 450 RPS 1c ceiling).
 - **Raw multi-VALUES `insertMany`**: one prepared statement per chunk (union column set; `undefined` values bind as literal `DEFAULT` to keep the prepared bind count exact) — BULK INSERT (100) **87 → 233 RPS (+168%)** vs the old Drizzle `.returning()` path.
 - **Targeted column UPDATE**: `rawUpdateReturning` builds `SET` only for prepared keys. Shared `prepareUpdateValues()` never writes `createdAt` and omits an empty `data={}` blob on partial updates.
+- **Partial updates merge the JSONB blob**: the `data` column's `SET` expression becomes `COALESCE("data",'{}'::jsonb) || $n::jsonb` (shallow, keeps explicit nulls) whenever the write is a patch rather than a complete document — so a `PATCH {views: 1}` no longer replaces `title`/`body`/… in the same row. The replace form is kept for `replaceData: true` / `skipReturning: true` callers, and the same merge covers `crud.updateMany`, `batch.bulkUpdate` and query-builder `updateMany`. See [Write Path](./write-path.mdx#3-does-a-write-verify-the-data-was-100-persisted).
+- **Indexed dynamic-field filters (containment + GIN)**: an equality filter on a field that lives in the `data` blob (i.e. not materialized into a column) is emitted as `data @> '{"field": value}'::jsonb` — the form the `jsonb_path_ops` GIN index serves — instead of `data->>'field' = $1`, which can only be a sequential scan. `createModel` provisions `<table>_data_gin` for every dynamic collection table; `schema.jsonIndex === false` opts out for write-only collections. Measured at 100k rows: **7.9–10.9 ms Seq Scan → 0.1–1.7 ms Bitmap Index Scan** (index build 347 ms once; write cost within noise). JSON type fidelity is preserved by probing the raw value, so `{views: 101}` matches a stored number and not a stored `"101"` (SQLite and MongoDB already agreed; MariaDB's text-based JSON comparison remains looser). Dotted paths probe a nested object (`a.b` → `{"a":{"b":…}}`), matching the `data#>>'{a,b}'` extraction form.
 - **Prepared JSON/array binds**: `bindPgParam()` serializes objects and arrays as JSON text; JSON/jsonb columns use `$n::jsonb` so postgres.js does not emit PG array literals `{…}` (those force a describe-phase recompile).
+- **`crud.aggregate()` (native translation)**: MongoDB-style pipelines compile to one statement via `core/aggregation-translator.ts` — `$match`, `$group` (scalar `_id` plus `$sum`/`$avg`/`$min`/`$max`/`$count`), `$sort`, `$skip`, `$limit`, `$count` and include-only `$project`. `$min`/`$max` on a **non-materialized** field are refused with `error.code === "NOT_SUPPORTED"` (the `->>` extraction is TEXT — `MIN` over `{10, 2}` returns `"10"` — and there is no `min(jsonb)`); declare the field `indexed`/`materialize: true` to aggregate it. `SUM`/`AVG` cast the extraction to `numeric` (`getJsonNumericField`), and any other unsupported stage fails closed the same way.
+- **Numeric range filters on blob fields**: `$gt`/`$gte`/`$lt`/`$lte` compile to `jsonb_typeof(data->'x') = 'number' AND data->'x' >= '4'::jsonb` (`getJsonCompare`) — comparing the extracted TEXT was lexicographic (`views >= 4` missed stored `16`/`32`), and the `jsonb_typeof` guard is required because jsonb orders String below Number, so an unguarded `<` would admit stored strings.
 
 ## Development Guide
 
@@ -164,7 +169,7 @@ Modify `src/databases/postgresql/schema.ts`. For schema shape changes that affec
 
 ### 2. Implementing Methods
 
-Implement methods in `src/databases/postgresql/adapter/index.ts`. Use the `wrap()` helper for consistent error handling and logging.
+Implement dialect hooks in `src/databases/postgresql/adapter-core.ts`; the shared CRUD implementation lives in `src/databases/core/sql-adapter-core.ts` and the concrete entry point is `postgres-adapter.ts`. Use the `wrap()` helper for consistent error handling and logging.
 
 ```
 public readonly crud = {

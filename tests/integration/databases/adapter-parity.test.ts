@@ -39,6 +39,10 @@ beforeAll(async () => {
           { db_fieldName: "title", widget: { Name: "Input" }, required: true },
           { db_fieldName: "status", widget: { Name: "Input" } },
           { db_fieldName: "value", widget: { Name: "Input" }, type: "number" },
+          // Declared so the nested-object merge case also exercises a schema-declared
+          // object path (Mongoose casts declared paths; undeclared ones pass through
+          // with `strict: false` — covered separately by the `tags` case below).
+          { db_fieldName: "metadata", widget: { Name: "Input" } },
           { db_fieldName: "tenantId", widget: { Name: "Input" } },
         ],
       })
@@ -247,6 +251,115 @@ describe("Adapter Parity — CRUD Operations", () => {
       // Must return valid DatabaseResult (may succeed or fail depending on adapter)
       validateDatabaseResult(result, { operation: "update (missing)", dataOptional: true });
     });
+
+    // ── PARTIAL-UPDATE MERGE ─────────────────────────────────────────────
+    // A PATCH must not destroy the fields it does not mention. MongoDB gets this
+    // from per-field `$set`; the SQL adapters write one whole-column assignment for
+    // the JSON `data` blob, which used to REPLACE it — collapsing documents to the
+    // patch (measured externally: 30,940 of 100,000 docs → 61-byte stubs).
+    const MERGE_ID = uid("merge");
+    /** Engines whose PATCH merges fields the payload never mentions. */
+    const ENGINE = process.env.DB_TYPE ?? "sqlite";
+
+    it("merges a partial patch instead of replacing the data blob", async () => {
+      await db.crud.insert(
+        TEST_COLLECTION,
+        {
+          _id: MERGE_ID,
+          title: "Keep me",
+          status: "active",
+          value: 7,
+          metadata: { title: "SEO", description: "desc" },
+          tags: ["a", "b"],
+          tenantId: TEST_TENANT,
+        },
+        tenantOpts,
+      );
+
+      const res = await db.crud.update(TEST_COLLECTION, MERGE_ID, { title: "Patched" }, tenantOpts);
+      expect(res.success).toBe(true);
+
+      const after = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, MERGE_ID, tenantOpts),
+        { operation: "findById (merge)" },
+      ) as Record<string, unknown>;
+      expect(after.title).toBe("Patched");
+      // Every untouched field survives — these are what the pre-fix path deleted.
+      expect(after.status).toBe("active");
+      expect(after.value).toBe(7);
+      expect(after.tags).toEqual(["a", "b"]);
+      expect(after.metadata).toEqual({ title: "SEO", description: "desc" });
+    });
+
+    it("merges nested objects shallowly (a patched object replaces, never recurses)", async () => {
+      await db.crud.update(TEST_COLLECTION, MERGE_ID, { metadata: { title: "New" } }, tenantOpts);
+
+      const after = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, MERGE_ID, tenantOpts),
+        { operation: "findById (nested merge)" },
+      ) as Record<string, unknown>;
+      // MongoDB `$set: {metadata: …}` replaces the whole object — `description` is
+      // gone. `json_patch`/`JSON_MERGE_PATCH` would have kept it (that is why the
+      // nested shape takes the JS merge path on SQLite/MariaDB instead).
+      expect(after.metadata).toEqual({ title: "New" });
+      expect(after.status).toBe("active");
+    });
+
+    it("keeps an explicit null in the patch (null is a value, not a delete)", async () => {
+      await db.crud.update(
+        TEST_COLLECTION,
+        MERGE_ID,
+        { value: null, title: "Null patch" },
+        tenantOpts,
+      );
+
+      const after = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, MERGE_ID, tenantOpts),
+        { operation: "findById (null merge)" },
+      ) as Record<string, unknown>;
+      expect(after.value).toBeNull();
+      expect(after.title).toBe("Null patch");
+      expect(after.metadata).toEqual({ title: "New" });
+    });
+
+    it("writes a dynamic field the collection schema does not declare", async () => {
+      // Parity guard for dynamic fields: MongoDB's Mongoose `strict` schema used to
+      // DROP undeclared `$set` paths silently, so a patch to a field that is not in
+      // the model was a no-op there while the SQL adapters stored it in the JSON
+      // `data` blob. `tags` is deliberately absent from this collection's schema.
+      const res = await db.crud.update(TEST_COLLECTION, MERGE_ID, { tags: ["x", "y"] }, tenantOpts);
+      expect(res.success).toBe(true);
+
+      const after = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, MERGE_ID, tenantOpts),
+        { operation: "findById (dynamic field)" },
+      ) as Record<string, unknown>;
+      expect(after.tags).toEqual(["x", "y"]);
+      expect(after.title).toBe("Null patch");
+    });
+
+    // `replaceData` is the explicit opt-out for full-document writers (sync, seeds):
+    // the payload IS the blob. MongoDB has no counterpart — its `$set` never replaced
+    // anything, so nothing there depends on it, and inventing a "delete every field the
+    // payload omits" operation would add a destructive path Mongo does not have.
+    it.skipIf(ENGINE === "mongodb")(
+      "replaces the blob wholesale when the caller opts out with replaceData: true",
+      async () => {
+        const res = await db.crud.update(TEST_COLLECTION, MERGE_ID, { title: "Only me" }, {
+          ...tenantOpts,
+          replaceData: true,
+        } as typeof tenantOpts);
+        expect(res.success).toBe(true);
+
+        const after = assertDatabaseSuccess(
+          await db.crud.findById(TEST_COLLECTION, MERGE_ID, tenantOpts),
+          { operation: "findById (replace)" },
+        ) as Record<string, unknown>;
+        expect(after.title).toBe("Only me");
+        expect(after.metadata).toBeUndefined();
+        expect(after.tags).toBeUndefined();
+      },
+    );
   });
 
   // ── DELETE ──────────────────────────────────────────────────────────────
@@ -349,6 +462,36 @@ describe("Adapter Parity — CRUD Operations", () => {
 
       validateDatabaseResult(result, { operation: "upsert (update)", dataOptional: true });
       expect(result.success).toBe(true);
+    });
+
+    it("keeps the fields a partial upsert payload does not mention", async () => {
+      // Contract = MongoDB's `$set` on the conflict branch: naming only `title` must not
+      // delete `value`/`tags`. The SQL conflict branch assigned the whole JSON `data`
+      // blob, i.e. the same data-loss class as the partial-PATCH bug — found by the
+      // benchmark's own document-integrity guard, which caught the measured document
+      // losing a field mid-run (`tests/benchmarks/modules/document-integrity.ts`).
+      const KEEP_ID = uid("upsert-keep");
+      await db.crud.insert(
+        TEST_COLLECTION,
+        { _id: KEEP_ID, title: "Seed", value: 7, tags: ["a"], tenantId: TEST_TENANT },
+        tenantOpts,
+      );
+
+      const res = await db.crud.upsert(
+        TEST_COLLECTION,
+        { _id: KEEP_ID },
+        { title: "Upserted Partial", tenantId: TEST_TENANT },
+        tenantOpts,
+      );
+      expect(res.success).toBe(true);
+
+      const after = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, KEEP_ID, tenantOpts),
+        { operation: "findById (upsert merge)" },
+      ) as Record<string, unknown>;
+      expect(after.title).toBe("Upserted Partial");
+      expect(after.value).toBe(7);
+      expect(after.tags).toEqual(["a"]);
     });
   });
 });

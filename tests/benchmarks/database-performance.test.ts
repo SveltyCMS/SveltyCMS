@@ -19,6 +19,11 @@ import {
   assertSuccess,
 } from "./modules/benchmark-utils";
 import { validateBenchmarkEnvironment } from "./modules/benchmark-sanitizer";
+import {
+  compareDocumentSnapshots,
+  snapshotDocument,
+  type DocumentSnapshot,
+} from "./modules/document-integrity";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import { toQueryOptions } from "@src/databases/policy";
@@ -27,6 +32,8 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";
 const STABLE_ID = "20000000-0000-4000-8000-000000000001";
+/** Title of the single row the blob-filter scenario matches (see createDynamicFieldFilterTest). */
+const DYNAMIC_FILTER_TITLE = "Dynamic Filter Probe";
 
 // Global frozen option contexts to eliminate allocation footprints in hot loops
 const GLOBAL_TENANT_OPTS = Object.freeze({
@@ -52,6 +59,15 @@ function forceGarbageCollection() {
   }
 }
 
+/**
+ * Read the measured document and snapshot its shape. A failed read is "absent" — the
+ * comparison then reports it, so a lost row cannot pass as an intact one.
+ */
+async function readStableSnapshot(db: any): Promise<DocumentSnapshot> {
+  const res = await db.crud.findOne(COLLECTION_ID, { _id: STABLE_ID as any }, GLOBAL_TENANT_OPTS);
+  return snapshotDocument(res?.success ? res.data : null);
+}
+
 export async function runDatabaseBenchmark() {
   console.log("🚀 Starting Enterprise Database Adapter Benchmark...\n");
 
@@ -72,6 +88,21 @@ export async function runDatabaseBenchmark() {
     // SQL adapters need createModel/migrations before CRUD
     await prepareCollection(db);
 
+    // Dedicated row for the dynamic-field filter scenario: the filter has to match
+    // exactly ONE row for the measurement to be "index lookup vs sequential scan"
+    // (the INSERT scenario writes a constant title, so filtering on that would match
+    // thousands and measure heap fetches instead).
+    await (db as any).crud.insert(
+      COLLECTION_ID,
+      {
+        _id: crypto.randomUUID(),
+        title: DYNAMIC_FILTER_TITLE,
+        status: "active",
+        tenantId: TEST_TENANT,
+      },
+      GLOBAL_TENANT_OPTS,
+    );
+
     await validateBenchmarkEnvironment({
       collectionId: COLLECTION_ID,
       db,
@@ -79,10 +110,20 @@ export async function runDatabaseBenchmark() {
       warmupIterations: 100,
     });
 
+    // 🛡️ Pre-run shape of the document the read/write rows are measured against. The
+    // post-run comparison (see compareDocumentSnapshots) is what turns "the row returned
+    // success" into "the row was still the document we seeded" — the guard the 2026-09-22
+    // blob-replacement regression slipped past.
+    const integrityBefore = await readStableSnapshot(db);
+
     const scenarios = [
       { name: "INSERT", fn: createInsertTest(db) },
       { name: "FIND ONE", fn: createFindOneTest(db) },
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
+      {
+        name: "FILTER (blob field, 1 match)",
+        fn: createDynamicFieldFilterTest(db),
+      },
       { name: "QUERY BUILDER LIST (50)", fn: createQueryBuilderListTest(db) },
       { name: "FIND PAGE (50 hasMore)", fn: createFindPageTest(db) },
       { name: "FIND PAGE keyset", fn: createFindPageKeysetTest(db) },
@@ -129,6 +170,21 @@ export async function runDatabaseBenchmark() {
       exportResult(result);
     }
 
+    // 🛡️ DATASET INTEGRITY: the workload must not have altered the shape of the document
+    // the reads measure. A write-path regression (e.g. a patch that REPLACES the JSON blob
+    // instead of merging it) fails the benchmark here instead of silently producing read
+    // numbers from corrupted rows.
+    const integrityAfter = await readStableSnapshot(db);
+    const integrityFailure = compareDocumentSnapshots(integrityBefore, integrityAfter, {
+      label: `stable document ${STABLE_ID}`,
+    });
+    if (integrityFailure) {
+      throw new Error(`[document integrity] ${integrityFailure}`);
+    }
+    console.log(
+      `\n   🛡️ integrity: ${integrityAfter.keys.length} field(s) intact after the write workload (${integrityAfter.bytes} bytes)\n`,
+    );
+
     const findResult = (name: string) =>
       results.find((r) => r.name === name) || { avgMs: 0, rps: 0 };
     const throughputs = results.map((r) => r.rps);
@@ -164,6 +220,11 @@ export async function runDatabaseBenchmark() {
     ]);
 
     exportMetric("adapter.read.avg", findResult("FIND ONE").avgMs, "ms");
+    exportMetric(
+      "adapter.filter.dynamic.avg",
+      findResult("FILTER (blob field, 1 match)").avgMs,
+      "ms",
+    );
     exportMetric("adapter.write.avg", findResult("INSERT").avgMs, "ms");
     exportMetric("adapter.throughput.peak", peakThroughput, "ops/s");
   } catch (err: any) {
@@ -213,6 +274,24 @@ function createFindManyTest(db: any) {
   return async () => {
     const res = await db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS);
     assertSuccess(res, "findMany");
+  };
+}
+
+/**
+ * Equality filter on a field that is NOT materialized into a column, so it lives in
+ * the JSON `data` blob — the one read path where the engines genuinely differ:
+ * PostgreSQL translates it to containment and serves it from the `jsonb_path_ops`
+ * GIN index (`createModel` provisions `<table>_data_gin`), while SQLite/MariaDB keep
+ * the extraction form and scan (their native answer for a filtered field is column
+ * materialization: `indexed: true` / `materialize: true`). Guarded structurally by
+ * `tests/integration/databases/dynamic-field-filter-index.test.ts`, which asserts the
+ * EXPLAIN plan on the adapter's own SQL.
+ */
+function createDynamicFieldFilterTest(db: any) {
+  const queryFilter = Object.freeze({ title: DYNAMIC_FILTER_TITLE as any });
+  return async () => {
+    const res = await db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS);
+    assertSuccess(res, "dynamicFieldFilter");
   };
 }
 
