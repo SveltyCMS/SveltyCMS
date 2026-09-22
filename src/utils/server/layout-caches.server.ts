@@ -15,6 +15,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { pluginRegistry } from "@src/plugins/registry";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 // Browser-reachable services (e.g. PluginSettingsService via src/plugins/index.ts)
 // must not import this server-only module (SvelteKit guard) — they reach the
@@ -63,7 +64,6 @@ export async function getFreshLayoutUser(
   if (cached) return cached;
 
   try {
-    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
     const { auth } = await import("@src/databases/db");
     // Branded system scope (cache-warming domain) — the session user snapshot
     // is re-read across the session's tenant context; the deprecated boolean

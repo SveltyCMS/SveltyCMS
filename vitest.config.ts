@@ -84,8 +84,8 @@ export default defineConfig({
         "src/routes/api/[...path]/+server.ts",
       ],
       exclude: ["src/paraglide/**", "src/**/*.d.ts", "src/**/*.test.ts"],
-      // Applied when running `bun run test:unit:coverage` — keeps P0 floors honest without
-      // blocking full-suite unit runs that omit --coverage.
+      // Applied when running `bun x vitest run --coverage` (there is no npm script alias) —
+      // keeps P0 floors honest without blocking full-suite unit runs that omit --coverage.
       thresholds: {
         lines: 48,
         functions: 47,

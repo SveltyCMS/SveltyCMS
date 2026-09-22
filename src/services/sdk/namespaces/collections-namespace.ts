@@ -69,7 +69,9 @@ import {
   schemaCacheEntries,
   schemaCacheKey,
   setCachedSchema,
+  widgetNamesOf,
 } from "./collections/schema-store";
+import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import {
   assertEncryptedFieldsNotQueried,
   buildFindCacheKey,
@@ -270,9 +272,10 @@ export class CollectionsNamespace {
 
   /** Warm schemas skip the async getSchema microtask. */
   private async schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
-    return (
-      peekReadySchema(tenantId, collectionId) ?? (await this.getSchema(collectionId, tenantId))
-    );
+    const schema =
+      peekReadySchema(tenantId, collectionId) ?? (await this.getSchema(collectionId, tenantId));
+    await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
+    return schema;
   }
 
   async list(
@@ -1075,6 +1078,13 @@ export class CollectionsNamespace {
 
     if (!schema) return { success: true, data: null };
 
+    // Freeze hot flags once. Until the named factories are loaded, the scan
+    // refuses to cache its result and would repeat on every random id.
+    if ((schema as { _hasActiveWidgets?: boolean })._hasActiveWidgets === undefined) {
+      await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
+      ensureSchemaHotFlags(schema);
+    }
+
     const effectivePublicationFilter = resolvePublicationFilter(
       { user: options.user, system: options.system },
       options.publicationFilter,
@@ -1183,9 +1193,10 @@ export class CollectionsNamespace {
     const finalResult = { success: true, data: item || null };
     const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
 
-    if (!bypassCache) {
-      // 🚀 FIRE-AND-FORGET L2: Don't await async cache write on the response path.
-      // L1 set is synchronous; L2 set is microtasked.
+    if (!bypassCache && !options.skipCacheService) {
+      // The HTTP lane already stores the response body. A second copy of every
+      // random id in this LRU is insert+evict work the next GET never reads:
+      // the lane returns from the response cache before findById runs again.
       CollectionsNamespace.setRequestCache(cacheKey, finalResult, schema._id as string, tenantId);
       if (item) {
         // Point-read lanes that already cache the full HTTP response opt out of
@@ -1231,6 +1242,7 @@ export class CollectionsNamespace {
       : PROFILE_WRITE_ENABLED
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
+    if (peeked) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     const hot = ensureSchemaHotFlags(schema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
@@ -1242,6 +1254,7 @@ export class CollectionsNamespace {
       tenantId,
     });
     if (isThenable(entryData)) entryData = await entryData;
+    m1?.();
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
@@ -1257,6 +1270,7 @@ export class CollectionsNamespace {
       );
     }
 
+    const mBefore = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
@@ -1266,6 +1280,7 @@ export class CollectionsNamespace {
       schema,
     );
     if (isThenable(finalData)) finalData = await finalData;
+    mBefore?.();
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     // Widget pipeline only when this payload actually hits a modifyRequest widget.
@@ -1289,7 +1304,9 @@ export class CollectionsNamespace {
 
     const collectionName = this.getCollectionName(schema._id as string);
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    const mEnc = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     finalData = await encryptWritePayload(finalData, hot, encCtx);
+    mEnc?.();
     const m3 = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "create",
@@ -1306,7 +1323,6 @@ export class CollectionsNamespace {
       { skipSideEffects: options.skipSideEffects },
     );
     m3?.();
-    m1?.();
 
     const decryptedCreate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {
@@ -1342,6 +1358,7 @@ export class CollectionsNamespace {
       : PROFILE_WRITE_ENABLED
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
+    if (peekedUpdate) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     const hot = ensureSchemaHotFlags(schema);
 
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
@@ -1353,6 +1370,7 @@ export class CollectionsNamespace {
       entryId,
     });
     if (isThenable(updateData)) updateData = await updateData;
+    m1u?.();
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
@@ -1369,6 +1387,7 @@ export class CollectionsNamespace {
       );
     }
 
+    const mBeforeU = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
@@ -1378,6 +1397,7 @@ export class CollectionsNamespace {
       schema,
     );
     if (isThenable(finalData)) finalData = await finalData;
+    mBeforeU?.();
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
@@ -1402,6 +1422,8 @@ export class CollectionsNamespace {
     // — a failed snapshot must never fail the update itself.
     const revisionEnabled = schema.revision === true && !options.skipSideEffects;
     let previousSnapshot: any = null;
+    const mRev =
+      revisionEnabled && PROFILE_WRITE_ENABLED ? profileMark("ns:revision-snapshot") : null;
     if (revisionEnabled) {
       try {
         const prev = await this._dbAdapter.crud.findOne(
@@ -1416,9 +1438,12 @@ export class CollectionsNamespace {
         /* best-effort */
       }
     }
+    mRev?.();
 
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    const mEncU = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     finalData = await encryptWritePayload(finalData, hot, encCtx);
+    mEncU?.();
     const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "update",
@@ -1437,7 +1462,6 @@ export class CollectionsNamespace {
       { skipSideEffects: options.skipSideEffects },
     );
     m3u?.();
-    m1u?.();
 
     const decryptedUpdate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {

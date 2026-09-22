@@ -20,7 +20,7 @@ tags:
 The Data Migration API provides a safety-first workflow for applying schema and content transformations across environments. Every migration is risk-scored, plan-checked, and tracked with a deterministic `planHash` that guarantees idempotent execution.
 
 > [!IMPORTANT]
-> All migration endpoints are **admin-gated**. GET requests require `migration:read`, POST requests require `migration:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+> All migration endpoints are **admin-gated**. GET requests require `migration:read`, POST requests require `migration:apply`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
 
 ---
 
@@ -30,9 +30,12 @@ The Data Migration API provides a safety-first workflow for applying schema and 
 | :-------------------- | :------------------------ | :----- | :---------------- |
 | **Migration Status**  | `/api/migrations/status`  | `GET`  | `migration:read`  |
 | **Migration History** | `/api/migrations/history` | `GET`  | `migration:read`  |
-| **Create Plan**       | `/api/migrations/plan`    | `POST` | `migration:write` |
-| **Apply Migration**   | `/api/migrations/apply`   | `POST` | `migration:write` |
-| **Verify Migration**  | `/api/migrations/verify`  | `POST` | `migration:write` |
+| **Create Plan**       | `/api/migrations/plan`    | `POST` | `migration:apply` |
+| **Apply Migration**   | `/api/migrations/apply`   | `POST` | `migration:apply` |
+| **Verify Migration**  | `/api/migrations/verify`  | `POST` | `migration:apply` |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `migrations` entry maps `POST` ⇒ `migration:apply`, everything else ⇒ `migration:read`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 

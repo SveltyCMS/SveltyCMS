@@ -715,11 +715,21 @@ function withLane(res: Response, lane: RequestLane): Response {
   return res;
 }
 
+/** Route spec is only read by the middleware pipeline. The collection read hit never uses it. */
+function attachRouteSpec(event: { url: URL; locals: App.Locals }): void {
+  if (event.locals.routeSpec) return;
+  event.locals.routeSpec = routeResourceStateMachine.classifyRouteSpec(event.url.pathname);
+}
+
 // ─── Operational Request Lane Router ───────────────────────────────────────
 export const handle: Handle = async ({ event, resolve }) => {
-  const lane = classifyRequest(event.url, event.request.method, event.request.headers);
+  const lane = classifyRequest(
+    event.url,
+    event.request.method,
+    event.request.headers,
+    event.locals,
+  );
   (event.locals as any).lane = lane;
-  (event.locals as any).routeSpec = routeResourceStateMachine.classifyRouteSpec(event.url.pathname);
 
   if (lane === RequestLane.FAST_STATIC) {
     if (event.url.pathname === "/favicon.ico")
@@ -741,6 +751,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       await tryCollectionReadLane({
         event,
         resolve: async (evt) => {
+          attachRouteSpec(evt);
           const pipeline = await getPipeline(lane);
           return pipeline({ event: evt, resolve });
         },
@@ -756,6 +767,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       await tryCollectionWriteLane({
         event,
         resolve: async (evt) => {
+          attachRouteSpec(evt);
           const pipeline = await getPipeline(lane);
           return pipeline({ event: evt, resolve });
         },
@@ -871,6 +883,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   inFlightRequests++;
+  attachRouteSpec(event);
   // Reset per-request ID counters for deterministic SSR/hydration IDs
   resetIdCounters();
   const traceHeader = event.request.headers.get("x-svelty-trace");

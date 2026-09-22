@@ -81,30 +81,28 @@ On Windows `sh`/Git Bash the inline prefix works; on PowerShell set the variable
 
 ```mermaid
 flowchart TB
-    subgraph Orchestration["scripts/benchmark-matrix/ (16 modules)"]
-        CLI["cli.ts - Args"]
+    subgraph Orchestration["scripts/benchmark-matrix/ (14 modules)"]
         Index["index.ts - Orchestrator"]
-        Runner["runner.ts - Per-DB Worker"]
         Config["config.ts - Budgets"]
         RegDet["regression-detector.ts - Statistics"]
         ReportWriter["reporting.ts - MDX Writer"]
         Gen["generate-benchmark-reports.ts - Shells"]
+        HostInfo["cli.ts - Host Info"]
     end
-    subgraph Tests["tests/benchmarks/ (76 files)"]
-        BMs["62 Registered + 14 Standalone"]
+    subgraph Tests["tests/benchmarks/ (86 files)"]
+        BMs["62 Registered + 24 Unregistered"]
         BMMods["modules/ - Shared Utils"]
         Results["results/ - SQLite + JSONL"]
     end
-    subgraph Docs["docs/project/benchmarks/ (9 files)"]
+    subgraph Docs["docs/project/benchmarks/ (10 files)"]
         R8["8 Per-Adapter MDX Reports"]
         RIdx["index.mdx - Cross-Compare"]
     end
-    CLI --> Index
-    Index --> Runner
-    Runner --> BMs
+    Index --> BMs
     BMs --> BMMods
     BMMods --> Results
-    Runner --> ReportWriter
+    Index --> ReportWriter
+    HostInfo --> ReportWriter
     ReportWriter --> R8
     Gen --> R8
     Config --> RegDet
@@ -115,45 +113,48 @@ flowchart TB
 
 ### Directory Layout
 
-| Path                        | Role                                        | Files      |
-| :-------------------------- | :------------------------------------------ | :--------- |
-| `scripts/benchmark-matrix/` | Orchestration, runner, reporting, CLI       | 16 modules |
-| `tests/benchmarks/`         | 62 registered + 14 standalone test modules  | 76 files   |
-| `tests/benchmarks/modules/` | Shared utility modules                      | 11 files   |
-| `docs/project/benchmarks/`  | 8 auto-generated MDX reports + index        | 9 files    |
-| `tests/benchmarks/results/` | History SQLite, JSONL results, CI summaries | runtime    |
+| Path                        | Role                                                    | Files    |
+| :-------------------------- | :------------------------------------------------------ | :------- |
+| `scripts/benchmark-matrix/` | Orchestration, reporting, statistics, host info         | 14 files |
+| `tests/benchmarks/`         | 62 registered + 24 unregistered test modules            | 86 files |
+| `tests/benchmarks/modules/` | Shared utility modules + colocated tests                | 12 files |
+| `docs/project/benchmarks/`  | 8 per-adapter reports + index + `encryption_impact.mdx` | 10 files |
+| `tests/benchmarks/results/` | History SQLite, JSONL results, CI summaries             | runtime  |
+
+_File counts verified against the tree on 2026-09-22._
 
 ### Orchestration Layer (`scripts/benchmark-matrix/`)
 
-| Module                          | Purpose                                                                |
-| :------------------------------ | :--------------------------------------------------------------------- |
-| `index.ts`                      | Main orchestrator — spawns servers, runs groups, aggregates            |
-| `runner.ts`                     | Per-DB test runner with concurrency control                            |
-| `reporting.ts`                  | `generateFinalReport()`, `writeRankedExecutiveSummary()`, MDX patching |
-| `regression-detector.ts`        | Two-pass statistical engine — slope analysis + root cause              |
-| `benchmark-scripts.ts`          | Canonical register of all 62 benchmark test modules                    |
-| `generate-benchmark-reports.ts` | Generates clean MDX report shells (one LEDGER tag per test)            |
-| `generate-ci-markdown.ts`       | CI summary table for GitHub Actions `$GITHUB_STEP_SUMMARY`             |
-| `cli.ts`                        | CLI argument parsing (`--sql`, `--db`, `--only`, etc.)                 |
-| `config.ts`                     | Performance budgets, DB capabilities, adapter overrides                |
-| `types.ts`                      | TypeScript interfaces for `BenchmarkScript`, `BenchmarkResult`         |
-| `utils.ts`                      | Statistical helpers (regression, stddev, trend classification)         |
-| `server.ts`                     | Server lifecycle management (start, health-check, stop)                |
-| `setup-benchmarks.ts`           | Benchmark collection seeding via `LocalCMS`                            |
-| `audit-benchmarks.ts`           | Post-run audit validation                                              |
-| `benchmark-persistence.ts`      | JSONL result persistence                                               |
-| `logger.ts`                     | Structured logging with timing                                         |
+| Module                          | Purpose                                                                     |
+| :------------------------------ | :-------------------------------------------------------------------------- |
+| `index.ts`                      | Main orchestrator — spawns servers, runs groups, aggregates                 |
+| `reporting.ts`                  | `generateFinalReport()`, `writeRankedExecutiveSummary()`, MDX patching      |
+| `regression-detector.ts`        | Two-pass statistical engine — slope analysis + root cause                   |
+| `benchmark-scripts.ts`          | Canonical register of all 62 benchmark test modules                         |
+| `generate-benchmark-reports.ts` | Generates clean MDX report shells (one LEDGER tag per test)                 |
+| `generate-ci-markdown.ts`       | CI summary table for GitHub Actions `$GITHUB_STEP_SUMMARY`                  |
+| `cli.ts`                        | Host info collection (`collectHostInfo()` — CPU, memory, platform, runtime) |
+| `config.ts`                     | Performance budgets, DB capabilities, adapter overrides                     |
+| `types.ts`                      | TypeScript interfaces for `BenchmarkScript`, `BenchmarkResult`              |
+| `utils.ts`                      | Statistical helpers (regression, stddev, trend classification)              |
+| `raw-db-ceiling.ts`             | Standalone raw-engine ceiling probe (native driver vs raw HTTP floor)       |
+| `audit-benchmarks.ts`           | Post-run audit validation                                                   |
+| `benchmark-persistence.ts`      | JSONL result persistence                                                    |
+| `logger.ts`                     | Structured logging with timing                                              |
 
 ### Shared Modules (`tests/benchmarks/modules/`)
 
-| Module                   | Purpose                                                                                                                                                              |
-| :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `benchmark-analysis.ts`  | Trend analysis, root cause classification, budget checking                                                                                                           |
-| `benchmark-executive.ts` | Executive summary builder — sparklines, quadrant charts, rollups                                                                                                     |
-| `benchmark-history.ts`   | SQLite history store — persist/load benchmark runs                                                                                                                   |
-| `benchmark-mdx.ts`       | MDX zone patching — markers, ledger assembly, truth tables                                                                                                           |
-| `benchmark-reporting.ts` | `finalizeReport()`, `reportBenchmark()`, run summary tables                                                                                                          |
-| `benchmark-utils.ts`     | Statistics engine + harness: IQR-trimmed mean, RAW-data percentiles (p50/p95/p99/min/max), t-distribution CI for small samples, wall-clock RPS, event-loop telemetry |
+| Module                    | Purpose                                                                                                                                                              |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `benchmark-analysis.ts`   | Trend analysis, root cause classification, budget checking                                                                                                           |
+| `benchmark-dimensions.ts` | Dimension mapping (`Core`/`API`/`Scale`/`Resilience`) for executive rollups + grouped ledger sections                                                                |
+| `benchmark-executive.ts`  | Executive summary builder — sparklines, quadrant charts, rollups                                                                                                     |
+| `benchmark-history.ts`    | SQLite history store — persist/load benchmark runs                                                                                                                   |
+| `benchmark-mdx.ts`        | MDX zone patching — markers, ledger assembly, truth tables                                                                                                           |
+| `benchmark-reporting.ts`  | `finalizeReport()`, `reportBenchmark()`, run summary tables                                                                                                          |
+| `benchmark-sanitizer.ts`  | Pre-flight environment validation — collection emptiness, silent `{ success: false }`, warmup collisions                                                             |
+| `seed-burst.ts`           | HTTP collection seed burst with retry + dataset-integrity gate (aborts when the dataset comes up short)                                                              |
+| `benchmark-utils.ts`      | Statistics engine + harness: IQR-trimmed mean, RAW-data percentiles (p50/p95/p99/min/max), t-distribution CI for small samples, wall-clock RPS, event-loop telemetry |
 
 ### Report Files (`docs/project/benchmarks/`)
 
@@ -226,6 +227,18 @@ bun run benchmark:core --db=sqlite     # CI parity core suite
 bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=auth-session-amr
 bun run scripts/benchmark-matrix/index.ts --db=postgresql --only=database-performance,truth-latency
 ```
+
+> [!WARNING]
+> **`--only` is not measurement-only.** A partial run still regenerates the per-adapter
+> ledger MDX for the adapters it touches, patching the measured modules into reports that
+> are assembled from whatever results are on disk (see the scope note in
+> `scripts/benchmark-matrix/reporting.ts`). Foreign sections — including other adapters'
+> reports — can therefore change without having been measured. If you only wanted a
+> number, discard the generated doc churn afterwards:
+>
+> ```bash
+> git checkout -- docs/project/benchmarks/
+> ```
 
 ## Key Features
 
@@ -412,8 +425,8 @@ bun run scripts/benchmark-matrix/index.ts --db=sqlite
 bun run scripts/benchmark-matrix/index.ts --db=postgresql
 bun run scripts/benchmark-matrix/index.ts --db=mongodb
 
-# With Redis caching layer
-bun run scripts/benchmark-matrix/index.ts --db=sqlite --redis
+# With Redis caching layer (env-controlled — there is no `--redis` flag)
+USE_REDIS=true bun run scripts/benchmark-matrix/index.ts --db=sqlite
 
 # Continue past individual test failures (still records + finalizes report)
 bun run scripts/benchmark-matrix/index.ts --db=sqlite --continue-on-error
@@ -459,9 +472,16 @@ bun run scripts/run-core-benchmarks.ts --db=postgresql
 
 ### All Benchmarks (Standalone)
 
+There is no single "run every benchmark" script. The orchestrator discovers **all 86**
+files in `tests/benchmarks/`; the **24** that are missing from the `BENCHMARK_SCRIPTS`
+register still run, appended as a final `Ungrouped` group (coverage matches the directory).
+
 ```bash
-# Run all 34 standalone benchmarks sequentially with recording
-bun run scripts/run-all-benchmarks.ts
+# Every discovered module against one adapter (repeat per --db=, add USE_REDIS=true for the Redis variant)
+bun run scripts/benchmark-matrix/index.ts --db=sqlite
+
+# Standalone mode over the whole directory (each module spawns its own server)
+bun test tests/benchmarks/
 ```
 
 ## Report Structure
@@ -577,10 +597,13 @@ describe("My New Feature", () => {
 ### Step 2: Register in `benchmark-scripts.ts` (perf benchmarks only)
 
 > [!NOTE]
-> Matrix registration is for **performance** benchmarks. Harness/metadata tests
-> that validate the benchmark tooling itself (e.g. `statistics-accuracy.test.ts`,
-> the `modules/*.test.ts` suites) run standalone via `bun test tests/benchmarks/`
-> and do **not** enter the matrix — they never measure a database adapter.
+> Registration is what gives a module its ledger section (label, `section`, `level`,
+> `codePaths`) — it is **not** what makes it run. The orchestrator discovers every
+> `tests/benchmarks/*.test.ts` and appends unregistered files as a final `Ungrouped`
+> group (24 of the 86 files as of 2026-09-22), so a new benchmark runs before it is
+> registered — it just has no ledger metadata until you add it here. Tooling suites
+> such as `statistics-accuracy.test.ts` and the `modules/*.test.ts` files measure no
+> database adapter; run those standalone with `bun test tests/benchmarks/`.
 
 Add an entry to the `BENCHMARK_SCRIPTS` array in `scripts/benchmark-matrix/benchmark-scripts.ts`:
 
@@ -624,8 +647,8 @@ This ensures all 8 per-adapter MDX files have a `<!-- ── TAG: my-new-benchma
 # Single test with recording
 BENCHMARK_RECORD=1 bun test tests/benchmarks/my-new-benchmark.test.ts
 
-# Full matrix for SQLite
-bun run scripts/benchmark-matrix/index.ts --sql --only=my-new-benchmark
+# Full matrix for SQLite, restricted to the new module
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=my-new-benchmark
 ```
 
 ## Troubleshooting

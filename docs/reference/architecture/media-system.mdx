@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-09-18"
+updated: "2026-09-22"
 tags:
   - "architecture"
   - "media"
@@ -19,7 +19,9 @@ tags:
   - "type-safety"
 ---
 
-# Media System Architecture & Guide
+# Media system
+
+This page is the storage and processing pipeline. Cropping in the admin is the [Image editor](../../guides/content/image-editor.mdx). Upload and download routes are the [Media API](../api/media.mdx).
 
 The SveltyCMS Media system is a decoupled, performance-first engine. Built with Svelte 5 and Sharp.js, it prioritizes native Node/Bun utilities over heavy third-party dependencies to ensure sub-millisecond latency and reduced bundle size.
 
@@ -219,26 +221,101 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 - **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth (`local-upload.svelte`).
 - **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved. Both paths share one hard ceiling: the dispatcher bounds the request at `API_MAX_BODY_SIZE_BYTES` (**15 MB**, `Content-Length` and chunked alike) and `parseMultipartStream` receives the same cap for `maxFileSize`/`maxTotalSize`, aborting incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering toward the parser defaults.
-- **Hash-First Approach**: Every file is identified by a **20-character SHA-256 hash**. This hash is the primary key for global deduplication across the entire system.
+- **Hash-First Approach**: Every file is identified by the full 64-character hex **SHA-256** digest of its bytes (`hashFileContent()` in `src/utils/media/media-processing.server.ts`). The hash is both the deduplication key and the storage directory of the file: `{tenantId}/{hash}/original/<name>-<hash>.<ext>`. The lookup happens **before any derivative work** and is scoped to the tenant — see _Storage & Deduplication_ below and [#2 of the media pipeline plan](../../project/media-pipeline-plan.mdx).
 - **SlimSniffer + unified allowlist**: `slim-sniffer.server.ts` (~2KB, no `mime-types`/`mrmime`) inspects magic bytes. Uploads use `isAllowedUploadMime()` (from `MIME_MAP`, minus scriptable/office types) and `assertMimeAgreement()` at write time. `/files` resolves Content-Type via extension → stored MIME → 512-byte sniff. Remote imports and `saveRemoteMedia` share `resolveRemoteAssetMime()`. All media responses send `X-Content-Type-Options: nosniff`.
 
 ### Phase II: Processing (Deep Metadata & AI)
 
-- **Deep Metadata Extraction**: Automatically parses **EXIF, IPTC, and XMP** data using a single `sharp.metadata()` call to minimize CPU overhead.
+- **Deep Metadata Extraction (opt-in)**: EXIF/IPTC/XMP, dominant colour and the 32 px WebP placeholder are extracted by `MediaProcessingService.getMetadata()` — called by `POST /api/media/process` and the SDK, not on every serve. The deep pass is more than a header read: `metadata()` **plus** `stats()` and a `resize(32,32).webp()` thumbnail (a full decode). Results are cached 24 h per file hash; `fastPath: true` returns the header-only fields (`format`, `width`, `height`, `space`, `channels`) without the decode.
+- **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one primary output plus a WebP sidecar per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>`. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
+- **Responsive variants (deferred)**: after the record exists, a fire-and-forget job derives `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` and stores them in `metadata.imageVariants`. Those paths are hash-keyed, so re-running the job is idempotent. This is the second pipeline that [#1](../../project/media-pipeline-plan.mdx) collapses into the ladder.
 - **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
 - **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
 
 ### Phase III: Storage & Deduplication
 
-- **Deduplication Engine**: Before storing, the system checks if a file with the same SHA-256 hash already exists. If so, it increments the reference count instead of duplicating physical bytes.
+- **Deduplication Engine**: After the hash is computed (and before any derivative work), the service looks the hash up **scoped to the tenant** (`media.files.getByHash` with `tenantId` — no cross-tenant reuse). On a hit it verifies that the record's original **and** every derivative path it advertises still exist; when they do, the existing record is reused, the deferred variant job is never scheduled, and the upload returns after at most one plain file copy (only when the same bytes arrive under a different filename, so the patched `path` stays truthful). When a file is missing — `remove()` unlinks files rather than directories, and a GC sweep can drop them — the row is **repaired in place** (original rewritten, ladder re-derived, `metadata` merged) instead of being returned with URLs that 404, and never duplicated into a second row.
 - **Hybrid Storage**: Supports Local, S3, and R2 storage backends via the `CloudStorage` abstraction.
-- **ETag/304 Handling**: Unified ETag strategy ensures high-performance browser caching and avoids redundant 307 redirects for cloud assets.
+- **ETag/304 Handling**: Unified ETag strategy ensures high-performance browser caching. Cloud backends answer `/files/**` with a **302** redirect to the CDN public URL (with the object ETag when available, so `If-None-Match` can still 304); local storage streams the bytes itself. Because a dedupe hit writes nothing, the `W/"size-mtime"` ETag of an unchanged asset survives a re-upload — clients are not forced to re-download identical bytes.
 
 ### Phase IV: Delivery & Transformation
 
-- **On-the-Fly Transforms**: Responsive images are generated via `GET /api/media/transform` using the `Sharp.js` thread pool and instance cloning for ~70% lower latency.
+- **On-Demand Transforms**: `/files/**?w=&h=&q=&fmt=` produces cached raster variants on the delivery route (no separate `/api/media/*` transform endpoint exists). See [On-Demand Image Transforms](#-on-demand-image-transforms) below for the parameter contract, clamps, cache layout and fallback rules.
 - **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
 - **Lazy Loading**: `virtual-media-grid.svelte` handles 10,000+ files with sub-millisecond scroll performance using Svelte 5 runes.
+
+---
+
+## 🚀 On-Demand Image Transforms
+
+> Added 2026-09-22 — `/files/**` honours `w`/`h`/`q`/`fmt` again with a real resize. Before this, the route ignored those parameters entirely and transferred the full original under any URL.
+
+Transforms are **cached**: the variant is generated exactly once (single-flight), written next to the original, and every later request streams it from disk with an ETag + `Cache-Control: immutable`. Without `w`/`h` the route streams the original byte-for-byte — the parameters are opt-in and never change a plain asset URL.
+
+### Parameters
+
+| Param    | Aliases  | Accepted values                          | Behaviour                                                                                 |
+| :------- | :------- | :--------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `w`      | —        | dimension ladder step                    | Target width, snapped **down** to the nearest step                                        |
+| `h`      | —        | dimension ladder step                    | Target height; with `w` it becomes a bounding box (`fit: inside`, aspect preserved)       |
+| `q`      | —        | quality ladder step                      | Encoder quality, snapped to the nearest step (default `82`)                               |
+| `fmt`    | `format` | `webp`, `avif`, `jpeg`/`jpg`, `png`      | Explicit output format; any other value (e.g. `svg`, `gif`) rejects the transform         |
+| `Accept` | —        | `image/avif`, `image/webp`, `image/jpeg` | Used (in `q=` order) only when `fmt`/`format` is absent; wildcards mean "keep the source" |
+
+- **Dimension ladder** (`TRANSFORM_DIMENSION_STEPS`): `16, 24, 32, 48, 64, 96, 128, 160, 192, 240, 320, 384, 480, 640, 768, 960, 1280, 1600, 1920, 2560, 3840`, filtered by `MAX_OUTPUT_DIMENSION` (6000 px default). Requests are clamped **down** to a step and never upscaled (`withoutEnlargement`), so a caller cannot allocate an arbitrary resolution or fill the variant cache with one file per pixel width.
+- **Quality ladder** (`TRANSFORM_QUALITY_STEPS`): `50, 60, 70, 75, 80, 82, 85, 90`. Encoder settings are shared with the upload-time variants (`applyEncoder()` in `src/services/media/image-processor.ts`), so quality stays consistent.
+- Both ladders live in `src/services/media/image-processor.ts`; parsing is the pure `parseTransformParams(searchParams, accept, sourceMime)` helper.
+
+```text
+/files/global/<hash>/original/photo-<hash>.jpg?w=300          → 240 px wide, source format
+/files/global/<hash>/original/photo-<hash>.jpg?w=640&h=480&q=75
+/files/global/<hash>/original/photo-<hash>.jpg?w=1280&fmt=avif
+/files/global/<hash>/original/photo-<hash>.jpg?w=320          + Accept: image/webp → WebP variant
+```
+
+### Cache layout
+
+Variants reuse the existing variant store (`src/services/media/image-variant-storage.ts`):
+
+```text
+{tenantId}/{hash}/variants/t{height}q{quality}-{width}.{format}
+# e.g. global/9f2c…/variants/t0q82-320.webp
+```
+
+- The key is `(hash, width, height, quality, format)` — `t0` means "height derived from the source aspect ratio". `hash` is the content hash of the original bytes, so a variant can never belong to another asset.
+- The key is derived from the **original's tenant-scoped path**, never from a signed URL's signature: authorization stays with the route's tenant gate + signature validation (both run before any transform work), and differently-signed requests for the same tenant safely share one entry.
+- Variant responses carry their own weak ETag, `Last-Modified`, `immutable`, `Vary: Accept` (the negotiated format depends on the request header) and `X-Media-Transform: w{width}h{height}q{quality}.{format}` for observability.
+
+### What is never transformed
+
+| Source / request                                                               | Result                                                                                         |
+| :----------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| SVG                                                                            | Original (sanitised at upload; `/files` keeps its CSP `script-src 'none'` path)                |
+| GIF (animated or still)                                                        | Original — animation must not be flattened                                                     |
+| Animated WebP (`VP8X` animation flag / `ANIM` chunk)                           | Original — header sniffed, never re-encoded                                                    |
+| Animated AVIF (`avis` brand)                                                   | Original — header sniffed                                                                      |
+| TIFF, BMP, HEIC, PDF, video, unknown types                                     | Original                                                                                       |
+| Files above `MAX_TRANSFORM_SOURCE_BYTES` (40 MB)                               | Original — bounds the one-shot read + decode                                                   |
+| More than `MAX_CONCURRENT_TRANSFORMS` (8) distinct variants generating at once | Original for the excess — bounds aggregate decode memory; the rest generate on a later request |
+| Paths that are not `{tenant}/{hash}/original/…`                                | Original — only canonical originals have a variant key                                         |
+| Explicit unencodable `fmt`/`format`                                            | Original — a format we cannot encode is never faked                                            |
+| No `w`/`h`, or both below the smallest step                                    | Original                                                                                       |
+
+Every skip logs at **debug** level and falls back to streaming the original — a broken or hostile `?w=` can never fail the request (encoder errors, disk errors, oversized sources included).
+
+### Storage backends
+
+- **Local storage**: transforms are generated and cached in Node (Sharp), one generation per variant, single-flight coalesced.
+- **`s3` / `r2` / `cloudinary`**: unchanged — the route keeps its **302** redirect to the CDN public URL _before_ any byte work, so transform parameters never pull the object through Node; on Cloudinary/Fastly-style CDNs the equivalent transform is applied CDN-side.
+
+### Where the code lives
+
+| Concern                                               | Location                                                                                                |
+| :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| Query parsing, ladders, encoder settings              | `src/services/media/image-processor.ts`                                                                 |
+| Variant cache path + writes                           | `src/services/media/image-variant-storage.ts`                                                           |
+| Route (gates → transform → stream), single-flight map | `src/routes/files/[...path]/+server.ts`                                                                 |
+| Unit coverage                                         | `tests/unit/media/on-demand-transform-params.test.ts`, `tests/unit/media/files-route-transform.test.ts` |
 
 ---
 
@@ -421,9 +498,9 @@ A byte-level state machine (`streaming-upload.ts`) that processes `ReadableStrea
 
 | Feature                   | Implementation                                                                                                                                                                                                                                                                                                                                      |
 | :------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **True streaming**        | Incremental byte-level parser — never buffers the full body                                                                                                                                                                                                                                                                                         |
+| **True streaming parser** | Incremental byte-level parser — the multipart framing is never buffered as a whole                                                                                                                                                                                                                                                                  |
 | **Binary-safe**           | Raw `Uint8Array` chunks pass through untouched                                                                                                                                                                                                                                                                                                      |
-| **Backpressure**          | Per-file `ReadableStream` pipes directly to storage adapter                                                                                                                                                                                                                                                                                         |
+| **Backpressure**          | Per-file `ReadableStream` is pulled by the route consumer; the media route buffers the _current file_ into `chunks[]` (bounded by `API_MAX_BODY_SIZE_BYTES`) until it is complete, then hands it to the storage adapter — framing stays streaming, the part body does not                                                                           |
 | **Size limits**           | `maxFileSize` / `maxTotalSize` are set by the route to `API_MAX_BODY_SIZE_BYTES` (**15 MB**) — the same ceiling the dispatcher enforces for `Content-Length` and chunked bodies. The parser's 1 GiB / 5 GiB defaults are never the effective limit on uploads; an oversize part aborts incrementally (`413 PAYLOAD_TOO_LARGE`) instead of buffering |
 | **MIME validation**       | `isAllowedUploadMime()` on part Content-Type (415); magic-byte agreement after the body is available                                                                                                                                                                                                                                                |
 | **Filename sanitization** | Path separators, control chars, Windows reserved names stripped                                                                                                                                                                                                                                                                                     |
@@ -431,10 +508,14 @@ A byte-level state machine (`streaming-upload.ts`) that processes `ReadableStrea
 | **Timeout**               | Configurable per-chunk read timeout (default 300s)                                                                                                                                                                                                                                                                                                  |
 
 ```typescript
-// Storage adapters receive a per-file ReadableStream — direct pipe to S3/disk
+// Real consumer (routes/api/[...path]/handlers/media.ts): the parser surfaces each part's
+// ReadableStream; the route accumulates it under the 15 MB cap and writes one buffer —
+// the StorageAdapter interface is `upload(data, relativePath)`, there is no uploadStream().
 await parseMultipartStream(request, {
-  onFile: async ({ filename, contentType, stream }) => {
-    await getStorageAdapter().uploadStream(stream, filename);
+  onFile: async ({ filename, stream }) => {
+    const chunks: Uint8Array[] = [];
+    // …read with a running size check, then:
+    await getStorageAdapter().upload(Buffer.concat(chunks), `global/${hash}/original/${filename}`);
   },
 });
 ```
@@ -493,7 +574,7 @@ The media engine uses **process-local TTL caches** for repeated deterministic op
 
 - **URL cache**: Deterministic — same path always produces same URL. 10k entries covers all thumbnails + variants in a typical gallery view. LRU eviction via oldest-entry deletion at threshold.
 - **Metadata cache**: File hash → metadata map. 24h TTL because image metadata never changes for the same bytes. Callers that already computed the hash (e.g., upload pipeline) pass it via `options.hash` to skip re-hashing.
-- **Negative existence cache**: Short 10s TTL — prevents repeated adapter calls during upload validation without stale false negatives.
+- **Negative existence cache**: Short 10s TTL — prevents repeated adapter calls during upload validation without stale false negatives. Paths a dedupe hit depends on (the original and every derivative it advertises) are verified with `refresh: true`, so a cached _positive_ can never mask a file that a GC sweep removed.
 - **Watermark cache**: Watermarks rarely change. 5min TTL avoids re-fetching on every watermark tool open.
 
 All caches use plain `Map` with timestamp-based expiry — no external dependencies, no serialization overhead, zero allocation on hit.

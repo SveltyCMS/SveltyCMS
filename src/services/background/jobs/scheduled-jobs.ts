@@ -8,6 +8,7 @@ import { StatusTypes } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { webhookService } from "../webhook-service";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { JobHandler } from "./job-queue-service";
 
 export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
@@ -26,7 +27,6 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
     }
   }
 
-  const { withSystemScope } = await import("@src/databases/system-tenant-scope");
   const systemOpts = withSystemScope("scheduler");
 
   // 3. Find scheduled items

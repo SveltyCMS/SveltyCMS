@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-20"
+updated: "2026-09-22"
 tags:
   - "achievements"
   - "log"
@@ -240,7 +240,9 @@ Selected high-load results from our suites (not “zero overhead” as a univers
 - **Bulk ingestion**: Order of **~10k entries / ~1s** class in migration-scale style benches (machine- and DB-dependent).
 - **Revision-heavy docs**: Lookup degradation under many revisions constrained by indexing strategy in revision benches (see benchmark ledger for latest %).
 
-- **World Life Data Diagnostics**: Implemented a high-fidelity "Reality Simulator" measuring **Success/Failure Latency Splits**. Verified a **1.85x Fast-Fail Efficiency**, proving the system rejects malicious or invalid traffic significantly faster than it processes valid data, preventing resource exhaustion.
+- **Write-path span attribution (2026-09-22, self-measured)**: `PROFILE_WRITE=1` spans now cover the whole create/update pipeline (`ns:prep:*`, `ns:beforeSave`, `ns:persist:adapter-write`, `ns:persist:outbox`, `db:ins:*`, `db:upd:*`) with **correct span boundaries** — the previous `ns:sanitize+validate` span closed _after_ the DB write, which inflated validation to 1.14 ms and made it look like the dominant write cost. Real split at 1c: `ns:persist:adapter-write` 0.24 ms (of which the bare statement call is 0.11–0.18 ms), `ns:sanitize+validate` **0.035 ms**, `ns:beforeSave` 0.013 ms, row normalization 0.009–0.011 ms, widgets/encryption/outbox ≈ 0. Driver choice is not a factor (node:sqlite 37.8 µs vs bun:sqlite 35.4 µs per INSERT in a like-for-like probe).
+- **Middleware attribution for the write lane (2026-09-22, self-measured)**: `hooks-performance.test.ts` now reports per-scenario pipeline costs, and the measured **middleware-only delta** between the light turbo lane and the full auth+security lane is **+0.01–0.09 ms** — i.e. the middleware chain is _not_ where the mutation row's cost sits (mutation 1.99 ms vs warm reads 0.40–0.47 ms, audit disabled).
+- **Rejection-path cost parity (2026-09-22, self-measured, fixed)**: a 401 used to cost **~2×** a valid read in `tests/benchmarks/auth-performance.test.ts` (every rejected flavour 0.84–1.00 ms vs 0.40–0.46 ms authenticated; SQLite, warm). The root cause was outside the middleware: the production 401/403 fast-path envelopes (`src/utils/error-handling.ts`) were the only API responses built without a `content-length`, so `handleCompression` read them as "unknown size", skipped both the <1 KiB skip-gate and the buffered tier, and negotiated the streaming tier — a fresh zstd stream per reject (~0.45 ms for a 64-byte body; `Accept-Encoding: identity` restored the cheap path, which isolated it). The `sequence()` spans also _nest_, so "every phase wrapper inflates" was a nesting artifact rather than evidence of a per-stage cost. After declaring the length, the reject rows land at **0.35–0.39 ms** — parity with the authenticated rows (0.33–0.36 ms turbo-served, 0.29–0.33 ms full chain; five runs each side, 2026-09-22). The harness now prints a live lane/cache/hook-count table per row, because `Auth Validation @ 1c` is turbo-cache served (4 hooks) while a rejection runs the full chain (7), and `Auth (full chain) @ 1c` is the like-for-like authenticated row (10 hooks). Supersedes the earlier "1.85x Fast-Fail Efficiency" figure (pre rate-limit/AMR/WAF consolidation) and the "cause is an open roadmap item" note — see [Server Hooks](../reference/architecture/server-hooks.mdx).
 - **Monitoring Tax Elimination**: Reduced health-probe latency to **0.45ms** via intelligent caching, protecting production CPU cycles from monitoring overhead.
 - **Simulated Form Vitality**: Proved a **sub-0.05ms** server prep time for complex 50-field forms, ensuring the Admin UX feels instantaneous regardless of schema complexity.
 - **Transparent AI Integration**: Reduced CMS-side AI logic tax to **1.3ms**, ensuring the platform adds zero perceived latency to generative workflows.
@@ -311,7 +313,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 
 ### 3.2 Competitive Benchmark Analysis (2026)
 
-See [Competitive Comparison](./competitive-comparison.mdx#-competitive-context--is-sveltycms-really-that-fast) for the full benchmark matrix — 60 tests across 4 databases under extreme concurrent load, with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
+See [Competitive Comparison](./competitive-comparison.mdx#performance--architecture-what-the-admin-costs-you) for the full benchmark matrix — every registered module across all 4 databases under extreme concurrent load (source of truth for the matrix: [Benchmarks](./benchmarks/index.mdx)), with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
 
 #### What our benchmarks actually show (not a global ranking)
 
@@ -613,7 +615,7 @@ In mid-June 2026, SveltyCMS executed a comprehensive 19-file, multi-phase perfor
 
 #### Phase P1 — Audit & Turbo Optimization
 
-- **Fire-and-forget audit logging**: User context (`userId`, `tenantId`, `path`, `method`) captured before `await resolve(event)`. Audit log written in detached `Promise.resolve().then(...)`, removing synchronous `logger.info` from the mutation hot path. Measured audit overhead: **-3.57ms** (the mutation path is now faster than the full pipeline baseline).
+- **Fire-and-forget audit logging**: User context (`userId`, `tenantId`, `path`, `method`) captured before `await resolve(event)`. Audit log written in detached `Promise.resolve().then(...)`, removing synchronous `logger.info` from the mutation hot path. The June 14 “audit overhead **−3.57 ms**” reading was retracted as a **lane mismatch** (a mutation row compared against a read baseline, not a like-for-like pair); the same mutation lane now reads **0.590 ms warm / 0.874 ms p95** (ledger, 2026-09-18) and ~2.0 ms in the 2026-09-22 standalone re-run.
 - **Turbo hit skip**: `__turboAuth` flag prevents double audit logging on turbo-served mutations, skipping `performance.now()` + checks entirely.
 
 #### Phase P2 — Cold Path Elimination & Cache Contention
@@ -640,16 +642,16 @@ _Removed_. Benchmarks showed the trained dictionary provided 0% improvement over
 
 #### Measured Results (BENCHMARK_RECORD=1, June 14 2026)
 
-| Hot Path                    | Pre-Fix                                 | Post-Fix                           |                                               Gain |
-| :-------------------------- | :-------------------------------------- | :--------------------------------- | -------------------------------------------------: |
-| Relational deep population  | ~30ms (N+1 estimate)                    | 3.61ms avg                         |                                 -88% avg, -86% p95 |
-| Relational shallow          | ~30ms (N+1 estimate)                    | 6.68ms avg, 146 RPS                |                                -78% avg, +336% RPS |
-| Setup seeding (round-trips) | ~80 individual queries                  | 1 batch query                      |                                   -98% round-trips |
-| Mutation + Audit            | Blocking sync logger.info               | 1.90ms avg, audit overhead -3.57ms |                          Audit blocking eliminated |
-| Cache HIT (pre-compressed)  | Re-stringify + re-compress              | Pre-made bytes served              | Avoids re-compress CPU on matching Accept-Encoding |
-| Cache clear (bulk)          | Array.from copy + inline Map/Set        | Iterator + deferred batch          |                                   ~3-5× less alloc |
-| CDN purge (no CDN)          | dynamic import chain every invalidation | Single boolean check               |                                ~100× less overhead |
-| OpenAPI cold first-hit      | ~2.2ms on-demand                        | 0ms (pre-warmed)                   |                                         Eliminated |
+| Hot Path                    | Pre-Fix                                 | Post-Fix                                                               |                                               Gain |
+| :-------------------------- | :-------------------------------------- | :--------------------------------------------------------------------- | -------------------------------------------------: |
+| Relational deep population  | ~30ms (N+1 estimate)                    | 3.61ms avg                                                             |                                 -88% avg, -86% p95 |
+| Relational shallow          | ~30ms (N+1 estimate)                    | 6.68ms avg, 146 RPS                                                    |                                -78% avg, +336% RPS |
+| Setup seeding (round-trips) | ~80 individual queries                  | 1 batch query                                                          |                                   -98% round-trips |
+| Mutation + Audit            | Blocking sync logger.info               | 1.90ms avg (2026-06-14); “−3.57 ms overhead” retracted (lane mismatch) |                          Audit blocking eliminated |
+| Cache HIT (pre-compressed)  | Re-stringify + re-compress              | Pre-made bytes served                                                  | Avoids re-compress CPU on matching Accept-Encoding |
+| Cache clear (bulk)          | Array.from copy + inline Map/Set        | Iterator + deferred batch                                              |                                   ~3-5× less alloc |
+| CDN purge (no CDN)          | dynamic import chain every invalidation | Single boolean check                                                   |                                ~100× less overhead |
+| OpenAPI cold first-hit      | ~2.2ms on-demand                        | 0ms (pre-warmed)                                                       |                                         Eliminated |
 
 > [!NOTE]
 > **Methodology**: All gains measured via `BENCHMARK_RECORD=1` on Intel i7-13700H, 32GB DDR5, Windows 11, Bun 1.3.14, SQLite WAL mode. Reproduce with `bun run scripts/benchmark-matrix/index.ts --sql`.
@@ -981,6 +983,8 @@ Product-layer APIs are now equal on SQLite, PostgreSQL, MariaDB, and MongoDB:
 
 The Full Security + Auth Pipeline (all hooks, HTTP E2E) averaged **0.583 ms** (p95 0.768 ms, ~1,442 RPS) on the recorded run — a **~32% latency reduction vs the 0.856 ms July 31 baseline** published in [3.8](#38-august-2026-session-rbac-extension-security-sprint), with ~40% higher throughput. Other layers in the same run: Turbo Pipeline (light) 0.285 ms / ~3,201 RPS; REST with API caching 0.540 ms; Static Asset 0.549 ms; Mutation + Audit Logging 1.031 ms. Reproduce with `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Single-run variance on the harness is ~±10%; quote the trend, not one run.
 
+> **Superseded (2026-08-23 → 2026-09-18):** the 0.583 ms datapoint above is **not the current value**. The August re-baseline moved the same scenario to **0.457 ms** (§3.13, published overlay) and the SQLite ledger's `HOOKS_TRACE` row now records **0.358 ms warm / 0.532 ms p95 / 2,481 RPS** — [SQLite ledger](./benchmarks/benchmark_sqlite.mdx), self-measured, single host.
+
 ### 3.10 August 2026 — ReDoS-safe linear threat scan
 
 Layer 0 WAF and AuthGuard payload analysis now share one O(n) scanner (`src/services/security/threat-scan.ts`). Per-request RegExp engines, the unused WASM instantiate stub, and `new URL()` on the allow path are gone. Pathological `select`/`from` bait returns in well under 25 ms (unit-tested); clean ASCII URLs skip `decodeURIComponent`. SQL `prepareValues` uses a char-code ISO datetime prefix instead of regex.
@@ -1153,7 +1157,7 @@ A single-entry PATCH used to wipe every turbo `findById` for that collection (`i
 
 ## 4. Final Sprint Achievements (March 2026)
 
-Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.
+Having secured the "Engine War" with **dated, self-measured** performance and security ledgers rather than absolute performance claims, SveltyCMS has now closed the **Editorial Depth** gap.
 
 ### 4.1 Visual In-Context Editing
 
@@ -1163,7 +1167,7 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 - **Fail-Closed API Security (April 2026):** Implemented a central dispatcher gatekeeper requiring mandatory endpoint registration. Any unmapped or unauthorized request is denied by default, eliminating "Shadow API" data leaks.
 
 - **Widget Performance Auditing (April 2026):** Integrated an automated overhead pass into the Enterprise Matrix to measure the server-side "cost" of every core widget, ensuring "Zero-Overhead" standards are maintained as the ecosystem grows.
-- **Result:** Provides an editorial experience that feels "Magic" and exceeds the UX of legacy SaaS platforms.
+- **Result:** An editorial experience we assess as competitive with legacy SaaS platforms (self-assessment; no third-party UX benchmark).
 
 ### 4.2 AI-as-a-Field-Type & Hosted Knowledge
 
@@ -1296,7 +1300,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **CI Pipeline Restoration**: Playwright E2E suite stabilized across all supported databases.
 - **Active Database Driver Validation**: Eliminated "lazy connection" false positives in setup via mandatory `SELECT 1` pings.
 - **GraphQL JIT Execution Engine**: Multi-fold increase in RPS via `@envelop/graphql-jit`.
-- **API Benchmarking Suite**: Native tests (`test:bench:rest`, `test:bench:graphql`) to prove performance superiority.
+- **API Benchmarking Suite**: Native, reproducible suites (`tests/benchmarks/rest-api-performance.test.ts`, `tests/benchmarks/graphql-api-performance.test.ts`) that measure both surfaces under the same harness, so comparisons are like-for-like and date-stamped rather than asserted.
 - **Advanced Security Isolation**: Implementation of COOP/COEP headers and refined multi-tenant cookie security for cross-origin isolation.
 - **High-Performance GraphQL**: Resolver memoization and JIT execution reducing API latency and redundant database hits.
 - **GraphQL.js 17 + Yoga (August 2026)**: Upgraded to `graphql@17.0.2` with native `graphql-yoga@5.22.0` support and zero-allocation AST visitors.
@@ -1506,6 +1510,13 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **Multi-Column Sort & Ordinal Ranks**: Composed multi-column sorting via `Shift + Click` with visual rank indicators (`1`, `2`, `3`), cascading client-side comparators, and query serialization.
   - **Compound Filter Logic**: Schema-aware `AdvancedFilterModal` with `AND`/`OR` multi-clause conditions and contextual operators.
   - **Grid Accessibility & View Modes**: WCAG 2.2 AA roving tabindex cell/row keyboard traversal, `Alt + X` selection export, and dynamic `table` / `card` view mode switching. Tests: `tests/unit/components/smart-table-advanced-ux.test.ts`.
+- **Media Pipeline — Dedupe Order & Derivative Ladder (September 2026)**:
+  - **Dedupe Before Derivative Generation**: The tenant-scoped content-hash lookup in `MediaService.saveMedia()` now runs before any resize work, so re-uploading identical bytes performs **zero encodes** and writes no derivative file. The reuse path verifies that the original and every derivative path the row advertises still exist (cache-bypassing lookups) and, when one is gone, repairs the row in place (original rewritten, ladder re-derived, `metadata` merged) instead of returning URLs that 404 or inserting a second row for identical bytes. The deferred responsive-variant job is not scheduled on a hit at all. Because nothing is rewritten, the `W/"size-mtime"` ETag survives a re-upload and clients stop re-downloading unchanged assets.
+  - **Derivative Ladder Clamped to the Source**: `saveResized()` drops every SIZES step wider than the decoded source and passes `withoutEnlargement` to the encoder, so a 400 px icon is no longer enlarged into four derivatives; each resolved path is written once (an already-WebP primary no longer collides with its own sidecar), and the `thumbnails` map now records the encoder's real output dimensions instead of the requested ones.
+  - **Shared reuse/repair helpers**: `findMissingStoredFile()`, `adoptExistingRecord()`, `repairExistingRecord()` and `buildDerivativeSet()` replaced three near-identical dedupe blocks (SVG, buffered raster, streamed raster) with one contract.
+  - **Also fixed (found by the new assertion)**: `enrichMediaWithUrl()` re-prefixed thumbnail URLs that already carried `/files/…`, producing `/files/files/…` and making reuse responses differ in shape from insert responses.
+  - **Measured (real SQLite stack, `bun run test:integration tests/integration/api/media-dedupe-derivatives.test.ts`, 2026-09-22)**: 400 px source — 8 derivative files / 16,984 B / a 600 px upscaled variant → **2 files / 600 B / no upscaled variant**; duplicate upload — 47.5 ms and **8 of 9 stored files rewritten** → **3.0 ms and 0 of 5 rewritten**.
+  - **Verification**: `tests/unit/media/derivative-ladder.test.ts`, `tests/unit/media/upload-dedupe-order.test.ts`, `tests/integration/api/media-dedupe-derivatives.test.ts`; benchmark rows `Media: Derivative Fan-Out (1920px|400px source)` and `Media: Duplicate Upload (identical bytes)` in `tests/benchmarks/media-performance.test.ts`, with `media.derivatives.*` / `media.duplicate.*` metrics. Plan and remaining work: [Media Pipeline Plan](./media-pipeline-plan.mdx).
 
 ---
 

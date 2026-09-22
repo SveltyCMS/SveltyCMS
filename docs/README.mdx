@@ -1,13 +1,13 @@
 ---
 path: "docs/README.mdx"
 title: "SveltyCMS Documentation"
-description: "Complete technical and editorial map for SveltyCMS — the fastest, most secure headless CMS with compiled zero-overhead performance."
+description: "Map of the SveltyCMS docs — start, concepts, guides, build, reference, and contributing — for editors, operators, and engineers."
 icon: "mdi:book-open-variant"
 published: true
 order: 1
 author: "SveltyCMS Team"
 created: "2025-08-05"
-updated: "2026-09-19"
+updated: "2026-09-22"
 tags:
   - "documentation"
   - "guide"
@@ -15,103 +15,101 @@ tags:
   - "getting-started"
 ---
 
-# 📚 SveltyCMS Documentation Hub
+# SveltyCMS documentation
 
-Welcome. This site serves two audiences:
+SveltyCMS is a self-hosted CMS. Editors use the admin. Other apps use REST or GraphQL. Server code inside this project uses LocalCMS. The same collections run on SQLite, PostgreSQL, MariaDB, or MongoDB.
 
-- **Content Creators & Admins** — Manage collections, media, and users without code.
-- **Engineers & Developers** — Extend the core, build widgets, integrate via REST/GraphQL.
-
----
-
-## 🎯 Choose Your Path
-
-### 👥 For Administrators & Editors
-
-| Guide                                                                         | What You'll Learn                                            |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [🚀 Getting Started](./getting-started.mdx)                                   | Install, run the Setup Wizard, create your first collection  |
-| [🛡️ **Security Overview**](./reference/security/index.mdx)                    | RBAC, 2FA, audit logs, account lockout                       |
-| [🖼️ Media Hub](./reference/architecture/media-system.mdx)                     | Upload images, video transcoding, cloud storage              |
-| [🛒 **E-Commerce Overview**](./reference/architecture/ecommerce-overview.mdx) | Opt-in store: plugins, widgets, gated API — core stays a CMS |
-| [👥 User Management](./guides/configuration/user-registration.mdx)            | Roles, permissions, 2FA enforcement                          |
-
-### 🛠️ For Developers & Engineers
-
-| Guide                                                          | What You'll Learn                                 |
-| -------------------------------------------------------------- | ------------------------------------------------- |
-| [🏗️ Architecture Overview](./reference/architecture/index.mdx) | Svelte 5 Runes, DB adapters, boot pipeline        |
-| [📡 API Reference](./reference/api/index.mdx)                  | REST, GraphQL, Local SDK, SCIM 2.0                |
-| [🧩 Widget Development](./development/widgets/index.mdx)       | Build custom field types with the 3-pillar system |
-| [📊 Dashboard Widgets](./development/dashboard/index.mdx)      | Build marketplace-portable dashboard widgets      |
-| [⚡ Performance Benchmarks](./project/benchmarks/index.mdx)    | 60 tests across 4 databases, trend analysis       |
-| [🤖 AI Agent Guide](../static/llms.txt)                        | `llms.txt` — structured context for LLM tooling   |
+New here? Read [Concepts](./concepts/index.mdx) (one page), then [Getting started](./getting-started.mdx).
 
 ---
 
-## 🚀 Key Features
+## Map
 
-| Feature               | Detail                                                                                        |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| **Performance**       | Sub-millisecond API responses, Svelte 5 zero-runtime reactivity, Local SDK at 41K RPS         |
-| **Security**          | 4-layer defense-in-depth, Argon2id, AES-256-GCM, 0 CVEs, crypto-chained audit logs            |
-| **Database Agnostic** | MongoDB, PostgreSQL, MariaDB, SQLite — all production-ready with Drizzle ORM                  |
-| **Container**         | Official multi-arch image (`amd64` + `arm64`) on ghcr.io — `docker run` with SQLite default   |
-| **i18n**              | Paraglide JS — compiled, type-safe, zero-runtime translations                                 |
-| **Multi-Tenant**      | Native `tenantId` isolation at the database adapter level                                     |
-| **AI Integration**    | Local Ollama + hosted MCP knowledge core, AI translation, smart CMS migration                 |
-| **Accessibility**     | WCAG 2.2 AA + ATAG 2.0, Svelte 5 native components, keyboard shortcuts                        |
-| **Editorial Tools**   | Scheduled publishing, per-field localization, version history with diff, collection templates |
+These seven sections are the public docs. Open the one that matches your question. Architecture, tests, and project records stay available and are linked from the section that needs them.
 
----
+| Section          | You are trying to…                                                    | Open                                                                           |
+| :--------------- | :-------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| **Get started**  | Install and create a first collection                                 | [Getting started](./getting-started.mdx), [Onboarding](./onboarding/index.mdx) |
+| **Concepts**     | Learn the six ideas (collection, entry, widget, tenant, API, adapter) | [Concepts](./concepts/index.mdx)                                               |
+| **Guides**       | Finish a task in the admin or in operations                           | [Guides](./guides/index.mdx)                                                   |
+| **Build**        | Add a widget, plugin, dashboard widget, or frontend                   | [Development](./development/index.mdx)                                         |
+| **Reference**    | Look up an API, permission, adapter, or component                     | [Reference](./reference/index.mdx)                                             |
+| **Architecture** | Understand why the engine is built this way                           | [Architecture](./reference/architecture/index.mdx)                             |
+| **Contribute**   | Change the product or these docs                                      | [Contributing to the documentation](./contributing/contributing-docs.mdx)      |
 
-## 🏆 Competitive Context
+Stuck on an error: [Troubleshooting](./troubleshooting.mdx).
 
-SveltyCMS is designed for teams that prioritize **performance, security, and developer experience**. For a detailed, EU-compliant comparison against Payload, Strapi, Directus, and WordPress:
-
-→ **[Full Competitive Comparison](./project/competitive-comparison.mdx)**
-
-> All comparisons based on publicly available documentation as of June 2026.
+On [docs.sveltycms.com](https://docs.sveltycms.com) a page lives at `/docs/` plus its path without the `docs/` prefix and without `.mdx`. Example: `docs/concepts/index.mdx` → `/docs/concepts`.
 
 ---
 
-## 🏗️ Technical Stack
+## By role
 
-| Layer         | Technology                                                                               |
-| ------------- | ---------------------------------------------------------------------------------------- |
-| **Frontend**  | SvelteKit 3 (RC) + Svelte 5 (Runes) + Tailwind CSS v4                                    |
-| **Runtime**   | Dual-target: Node.js ≥24 (production peak throughput) / Bun ≥1.4 (`Bun.serve` / tooling) |
-| **Toolchain** | VoidZero (Rust): oxlint in 47ms, oxfmt in ~1s                                            |
-| **Databases** | MongoDB, PostgreSQL, MariaDB, SQLite                                                     |
-| **ORM**       | Drizzle ORM — parameterized, type-safe queries                                           |
-| **API**       | REST + GraphQL Yoga + Local SDK + SCIM 2.0                                               |
+### Editors and administrators
+
+| Task                          | Guide                                                                                                                                |
+| :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| Install and first collection  | [Getting started](./getting-started.mdx)                                                                                             |
+| Model content                 | [Collection Builder](./guides/content/collection-builder.mdx)                                                                        |
+| Drafts and publish            | [Workflows](./guides/content/workflows.mdx)                                                                                          |
+| Emails and webhooks on change | [Automations](./guides/content/automations.mdx)                                                                                      |
+| A store                       | [E-commerce](./guides/content/ecommerce.mdx)                                                                                         |
+| Users, roles, 2FA             | [User registration](./guides/configuration/user-registration.mdx), [Access management](./guides/configuration/access-management.mdx) |
+| Languages                     | [System languages](./guides/configuration/system-languages.mdx)                                                                      |
+| Media                         | [Image editor](./guides/content/image-editor.mdx)                                                                                    |
+| Bring in existing content     | [Migration and import](./guides/content/migration-and-import.mdx)                                                                    |
+
+### Integrators
+
+| Task                          | Guide                                                                  |
+| :---------------------------- | :--------------------------------------------------------------------- |
+| Call the CMS from another app | [API reference](./reference/api/index.mdx)                             |
+| Choose LocalCMS or HTTP       | [Local SDK vs HTTP](./development/local-vs-http-api.mdx)               |
+| Ship a site in this repo      | [Site starter](./development/site-starter.mdx)                         |
+| Deploy                        | [Production deployment](./guides/deployment/production-deployment.mdx) |
+
+### People extending or changing the CMS
+
+| Task           | Guide                                                                             |
+| :------------- | :-------------------------------------------------------------------------------- |
+| Custom field   | [Widgets](./development/widgets/index.mdx)                                        |
+| Server hook    | [Plugins](./development/plugins/development.mdx)                                  |
+| Dashboard card | [Dashboard widgets](./development/dashboard/index.mdx)                            |
+| Engine change  | [Architecture](./reference/architecture/index.mdx), then the file you are editing |
+| Docs change    | [Contributing to the documentation](./contributing/contributing-docs.mdx)         |
 
 ---
 
-## 🔐 Security at a Glance
+## Product in one table
 
-| Score | 0 CVEs | [Full Report →](./reference/security/index.mdx) |
-| ----- | ------ | ----------------------------------------------- |
+| Piece         | What it is                                                             |
+| :------------ | :--------------------------------------------------------------------- |
+| **Admin**     | SvelteKit 3 (RC), Svelte 5 runes, Tailwind CSS v4                      |
+| **Content**   | Collections compiled from `config/collections/` by ContentSync         |
+| **Fields**    | Widgets: definition, input, and display                                |
+| **APIs**      | REST, GraphQL, and LocalCMS for in-process server calls                |
+| **Databases** | SQLite, PostgreSQL, MariaDB, MongoDB through adapters                  |
+| **Tenancy**   | `tenantId` on stored records                                           |
+| **Auth**      | Argon2id, optional TOTP, role permissions, account lockout             |
+| **Languages** | Paraglide for admin chrome; localized fields for content               |
+| **Container** | `ghcr.io/sveltycms/sveltycms` — SQLite by default, `amd64` and `arm64` |
 
-- **4 Defense Layers**: Middleware → Dispatcher → Handler → Page Action
-- **Auth**: Argon2id (64MB), CSPRNG tokens, `__Host-` cookies, 2FA TOTP, 5-attempt lockout
-- **Encryption**: AES-256-GCM, SHA-256 crypto-chained audit logs
-- **Headers**: CSP `script-src 'self'`, COOP/COEP/CORP, HSTS, X-Frame-Options DENY
-- **Reporting**: [security@sveltycms.com](mailto:security@sveltycms.com) · [GitHub Advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories) · [security.txt](/.well-known/security.txt)
+Measured throughput lives only in [Performance benchmarks](./project/benchmarks/index.mdx), with the run date and the command that produced it. A comparison with other CMSs, written against public sources, is in [Competitive comparison](./project/competitive-comparison.mdx).
+
+Security reporting: [security@sveltycms.com](mailto:security@sveltycms.com) · [GitHub Advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories). The control list is the [Security reference](./reference/security/index.mdx).
 
 ---
 
-## 🤝 Community & Support
+## Community
 
 - **Bugs**: [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
-- **Contribute**: [Documentation Standards](./contributing/contributing-docs.mdx)
-- **Security**: [Reporting a Vulnerability](./reference/security/index.mdx#reporting-a-vulnerability)
-
----
+- **Contribute**: [Documentation guide](./contributing/contributing-docs.mdx)
+- **Agents**: [llms.txt](../static/llms.txt) — the same map, as links
 
 ## Related
 
-- [Getting Started](./getting-started.mdx)
-- [Architecture Overview](./reference/architecture/index.mdx)
-- [Security Overview](./reference/security/index.mdx)
+- [Concepts](./concepts/index.mdx)
+- [Getting started](./getting-started.mdx)
+- [Guides](./guides/index.mdx)
+- [API reference](./reference/api/index.mdx)

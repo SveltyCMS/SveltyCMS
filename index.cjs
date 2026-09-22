@@ -72,6 +72,11 @@ async function loadApp() {
     }
     handler(req, res);
   });
+  // Small JSON responses should not wait for Nagle coalescing. `http.Server`
+  // already defaults this to true, but `noDelay` is only declared on the socket
+  // *options* types — setting it per accepted socket is the typed, explicit way.
+  // Kept in parity with index.bun.ts.
+  server.on("connection", (socket) => socket.setNoDelay(true));
 
   // Node 18+ defaults headersTimeout to 60s. A keep-alive write burst that
   // lasts >60s (100k HTTP creates) can get 408 without invoking the CMS

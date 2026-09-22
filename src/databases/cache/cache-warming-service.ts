@@ -16,6 +16,7 @@ import { isSetupComplete } from "../../utils/setup-check-fast";
 import { cacheService } from "./cache-service";
 import { CacheCategory } from "./types";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import type { DatabaseId } from "@src/databases/db-interface";
 import {
   getHotCollections,
   getHotEntries,
@@ -121,6 +122,46 @@ export class CacheWarmingService {
   }
 
   /**
+   * Predictive chunk warm-up — the code-loading half of the behavioral signal.
+   *
+   * A compiled collection schema names the widget *types* its fields use, and the
+   * widget scanner keeps one loader per factory (`scanner.ts`), so the hot-collection
+   * signal is a module list and not just a cache-key list. Evaluating those factories
+   * costs a few KB each and removes the chunk import from the first editor render of
+   * that collection.
+   *
+   * Deliberately narrow: only schemas already warm in the SDK cache contribute (a
+   * peek, never a DB read), and the full catalog is never loaded — the admin widget
+   * store still materializes everything when it opens.
+   */
+  private async preloadHotWidgetChunks(
+    tenantId: string,
+    hotCollections: Array<{ id: string }>,
+  ): Promise<void> {
+    if (hotCollections.length === 0) return;
+    try {
+      const { peekReadySchema, widgetNamesOf } =
+        await import("@src/services/sdk/namespaces/collections/schema-store");
+      const { widgetRegistryService } = await import("@src/services/core/widget-registry-service");
+
+      const names = new Set<string>();
+      for (const { id } of hotCollections) {
+        const schema = peekReadySchema(tenantId as DatabaseId, id);
+        if (!schema) continue;
+        for (const name of widgetNamesOf(schema)) names.add(name);
+      }
+      if (names.size === 0) return;
+
+      await widgetRegistryService.ensureWidgets(names);
+      logger.debug(
+        `🧠 [PredictiveCache] Preloaded ${names.size} widget chunk(s) named by ${hotCollections.length} hot collection(s)`,
+      );
+    } catch (err) {
+      logger.trace("[PredictiveCache] Widget chunk preload skipped", err);
+    }
+  }
+
+  /**
    * 🧠 [PredictiveCache] Warm from Behavioral Learning statistics.
    * Proactively pre-warms the cache using in-memory getHotCollections and getHotEntries.
    */
@@ -136,6 +177,11 @@ export class CacheWarmingService {
 
       const hotCollections = getHotCollections(tenantId, 10);
       const hotEntries = getHotEntries(tenantId, 20);
+
+      // Same signal, code side: load the widget factories these collections name
+      // before an editor opens one of them. Runs even when there is nothing to
+      // cache-warm yet, so a cold cache still gets the chunks.
+      await this.preloadHotWidgetChunks(tenantId, hotCollections);
 
       if (hotCollections.length === 0 && hotEntries.length === 0) {
         return false;

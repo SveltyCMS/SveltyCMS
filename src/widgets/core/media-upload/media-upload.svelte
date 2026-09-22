@@ -45,7 +45,7 @@ functionality for image editing and basic file information display.
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { isoDateStringToDate } from '@utils/date';
 	import { logger } from '@utils/logger';
-	import { updateMediaMetadata } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, updateMediaMetadata } from '@utils/media/media-utils';
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { formatDateString } from '@utils/date';
@@ -165,6 +165,9 @@ functionality for image editing and basic file information display.
 
 	async function openImageEditor() {
 		if (!value) return;
+		// The editor works on pixels, so it resolves `image.url` (the original) from the
+		// media item itself — never pass a derivative here. The preview `<img>` below is
+		// the surface that must stay on a thumbnail-sized variant.
 		const { default: ImageEditorModal } =
 			await import('@src/components/image-editor/image-editor-modal.svelte');
 		modalState.trigger(ImageEditorModal as any, {
@@ -341,7 +344,7 @@ functionality for image editing and basic file information display.
 							<img
 								src={value instanceof File
 									? URL.createObjectURL(value)
-									: value.thumbnails?.sm?.url || value.url}
+									: mediaDisplayUrl(value, 'sm')}
 								alt={value instanceof File
 									? value.name
 									: value.metadata?.altText || value.originalFilename || 'Media preview'}

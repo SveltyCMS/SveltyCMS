@@ -742,7 +742,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
 
   // 🚀 TURBO GET FAST-PATH: Auth context already resolved by handleTurboGet.
-  // User, roles, tenantId, and bitset are pre-injected — skip session validation entirely.
+  // User, roles, and tenantId are pre-injected — skip session validation entirely.
   if ((locals as any).__turboAuth === true) {
     // Keep locals.dbAdapter populated — downstream handlers (GraphQL route,
     // dispatcher) must not see an undefined adapter and fall back to getDb()
@@ -972,7 +972,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           user = turboCtx.user;
           resolution = { status: "ok", user };
           (locals as any).roles = turboCtx.roles;
-          (locals as any)._rbacBitset = turboCtx.bitset;
         } else {
           resolution = await getUserFromSession(
             sessionId as string,
@@ -1017,15 +1016,16 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           locals.sessionAmr = resolution.status === "ok" ? resolution.amr : undefined;
           locals.mfaVerifiedAt = resolution.status === "ok" ? resolution.mfaVerifiedAt : undefined;
           locals.permissions = user.permissions || [];
-          if (user._id) {
-            void cacheService.set(`layout:user:${user._id}`, user, 15, locals.tenantId as string);
-          }
+          // Note: the layout user cache (`layout:user:<id>`) is owned by
+          // getFreshLayoutUser(), which re-reads the user from the DB at most once
+          // per TTL. A per-request write here kept that entry permanently warm and
+          // silently disabled the re-read (avatar/role edits from other admins
+          // never surfaced).
           if (!turboCtx && sessionId) {
             setTurboAuthContext(
               sessionId as string,
               user,
               (locals as any).roles || [],
-              (locals as any)._rbacBitset || new Uint32Array(1),
               locals.tenantId || null,
             );
           }
@@ -1436,5 +1436,5 @@ export function primeSessionMemoryCache(
   const entry: SessionCacheEntry = { user: safeUser, timestamp: Date.now(), amr, mfaVerifiedAt };
   setSessionInCache(sessionId, entry);
   const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
-  setTurboAuthContext(sessionId, safeUser, [], new Uint32Array(1), resolvedTenant);
+  setTurboAuthContext(sessionId, safeUser, [], resolvedTenant);
 }

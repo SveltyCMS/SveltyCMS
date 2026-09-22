@@ -32,39 +32,41 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature           | HTTP Endpoint                | Method      | Permission Required     |
-| :---------------- | :--------------------------- | :---------- | :---------------------- |
-| **Login**         | `/api/auth/login`            | `POST`      | **Public**              |
-| **Logout**        | `/api/auth/logout`           | `POST`      | **Authenticated**       |
-| **OIDC Login**    | `/api/auth/oidc-login`       | `GET`       | **Public**              |
-| **OIDC Callback** | `/api/auth/oidc-callback`    | `GET`       | **Public**              |
-| **OIDC Logout**   | `/api/auth/oidc-logout`      | `GET, POST` | **Public**              |
-| **SSO Providers** | `/api/auth/sso-providers`    | `GET, POST` | `manage:system` (Admin) |
-| **Current User**  | `/api/auth`                  | `GET`       | **Authenticated**       |
-| **List Users**    | `/api/user`                  | `GET`       | `manage:user`           |
-| **Create User**   | `/api/auth/create-user`      | `POST`      | `manage:user`           |
-| **API Keys**      | `/api/api-keys`              | `GET`       | **Authenticated**       |
-| **Create Key**    | `/api/api-keys`              | `POST`      | **Authenticated**       |
-| **Revoke Key**    | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin          |
-| **Magic Link**    | `auth.remote.ts` (remote fn) | `POST`      | **Public**              |
-| **Passkey Auth**  | `auth.remote.ts` (remote fn) | `POST`      | **Public**              |
-| **Passkey Reg**   | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**       |
-
-| **2FA Status** | `/api/auth/2fa/status` | `GET` | **Authenticated** |
-| **2FA Setup** | `/api/auth/2fa/setup` | `POST` | **Authenticated** |
-| **2FA Enable** | `/api/auth/2fa/enable` | `POST` | **Authenticated** |
-| **2FA Verify** | `/api/auth/2fa/verify` | `POST` | **Authenticated** |
-| **2FA Disable** | `/api/auth/2fa/disable` | `POST` | **Authenticated** |
-| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET, POST` | **Authenticated** |
+| Feature           | HTTP Endpoint                | Method      | Permission Required      |
+| :---------------- | :--------------------------- | :---------- | :----------------------- |
+| **Login**         | `/api/auth/login`            | `POST`      | **Public**               |
+| **Logout**        | `/api/auth/logout`           | `POST`      | **Authenticated**        |
+| **OIDC Login**    | `/api/auth/oidc-login`       | `GET`       | **Public**               |
+| **OIDC Callback** | `/api/auth/oidc-callback`    | `GET`       | **Public**               |
+| **OIDC Logout**   | `/api/auth/oidc-logout`      | `GET, POST` | **Public**               |
+| **SSO Providers** | `/api/auth/sso-providers`    | `GET, POST` | **Public** (exempt)      |
+| **Current User**  | `/api/auth`                  | `GET`       | **Authenticated**        |
+| **List Users**    | `/api/user`                  | `GET`       | `user:read`              |
+| **Create User**   | `/api/auth/create-user`      | `POST`      | `user:write`             |
+| **API Keys**      | `/api/api-keys`              | `GET`       | `system:read`            |
+| **Create Key**    | `/api/api-keys`              | `POST`      | `system:settings`        |
+| **Revoke Key**    | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin           |
+| **Magic Link**    | `auth.remote.ts` (remote fn) | `POST`      | **Public**               |
+| **Passkey Auth**  | `auth.remote.ts` (remote fn) | `POST`      | **Public**               |
+| **Passkey Reg**   | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**        |
+| **2FA Status**    | `/api/auth/2fa/status`       | `GET`       | **Authenticated**        |
+| **2FA Setup**     | `/api/auth/2fa/setup`        | `POST`      | **Authenticated**        |
+| **2FA Enable**    | `/api/auth/2fa/enable`       | `POST`      | **Authenticated**        |
+| **2FA Verify**    | `/api/auth/2fa/verify`       | `POST`      | **Authenticated**        |
+| **2FA Disable**   | `/api/auth/2fa/disable`      | `POST`      | **Authenticated**        |
+| **Backup Codes**  | `/api/auth/2fa/backup-codes` | `GET, POST` | **Authenticated**        |
+| **SAML Login**    | `/api/auth/saml/login`       | `GET`       | **Public**               |
+| **SAML ACS**      | `/api/auth/saml/acs`         | `POST`      | **Public**               |
+| **SAML Config**   | `/api/auth/saml/config`      | `POST`      | Admin (handler-enforced) |
+| **Permissions**   | `/api/permission/list`       | `GET`       | `system:admin`           |
 
 > **Trusted Devices**: The browser-based flow (`auth.remote.ts` `verify2FA`) supports `trustDevice: true` to set a `__Host-2fa-trusted-device` cookie (30-day TTL, HMAC-SHA256 signed). On subsequent logins from the same device, 2FA is silently skipped.
 
 > **TOTP Secret Encryption**: TOTP secrets are encrypted at rest using AES-256-GCM under the instance's `ENCRYPTION_KEY`. Legacy plaintext secrets are handled transparently — no migration needed.
 
-| **SAML Login** | `/api/auth/saml/login` | `GET` | **Public** |
-| **SAML ACS** | `/api/auth/saml/acs` | `POST` | **Public** |
-| **SAML Config** | `/api/auth/saml/config` | `POST` | `manage:system` |
-| **Permissions** | `/api/permission/list` | `GET` | `manage:system` |
+> **Two permission vocabularies — do not mix them.** Namespaced API routes are authorized **fail-closed** against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (unmapped namespace ⇒ 403). That map speaks `system:read` / `system:settings` / `system:admin` / `collection:read` / `media:*` / `user:read|write`, e.g. `api-keys` ⇒ `system:read` (read) or `system:settings` (write), `permission` ⇒ `system:admin`, `media` ⇒ `media:read` / `media:write` / `media:delete`, `gdpr` ⇒ `user:read` / `user:write`. The admin **UI** tiles use a different vocabulary (`manage:system`, `manage:user`, `manage:theme`, …) declared in `CONFIG_TILE_PERMISSIONS` (`src/routes/(app)/config/+page.server.ts`) — those are UI-tile gates, **not** the API contract.
+>
+> `user` and `auth` namespaces have their own branch (`+server.ts:325-369`): `me`, `login`, `logout`, `oidc-*`, `sso-providers`, `frontchannel-logout`, `backchannel-logout`, `saml` and `2fa` are exempted **by action name** (their handlers still apply their own checks), a bare `GET /api/auth` is self-service, `update-roles` is denied outright for non-admins (the handler fail-closes too), and every other user-management endpoint requires `user:read` (GET) or `user:write` (mutations).
 
 ---
 
@@ -290,13 +292,13 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 The authorization system is built on granular permissions assigned to user roles.
 
 - **Check Permissions**: `GET /api/permission/list` returns the full registry of available permissions in the system.
-- **Role Assignment**: Managed via `POST /api/auth/update-roles` (requires `manage:system`) or `PATCH /api/user/{id}` (requires `manage:user`).
+- **Role Assignment**: Managed via `POST /api/auth/update-roles` (**admin only** — the dispatcher denies non-admins outright and the handler fail-closes, because coarse `user:write` must not allow rewriting the role matrix) or `PATCH /api/user/{id}` (requires `user:write`, with privilege fields stripped for non-admins).
 
 ---
 
 ## 6. API Keys (Machine-to-Machine)
 
-API Keys enable programmatic access for CI/CD pipelines, external services, and headless clients. Keys use the `sck_*` prefix and are stored as SHA-256 hashes — plaintext is never persisted.
+API Keys enable programmatic access for CI/CD pipelines, external services, and headless clients. Keys use the `sck_*` prefix and are stored as **HMAC-SHA-256 digests keyed with the instance secret** (`hashApiKey()`, `src/databases/auth/api-keys.ts`) — never a plain unkeyed digest (AGENTS.md §2.9 forbids bare `createHash("sha256")` for secrets), and plaintext is never persisted.
 
 ### Key Management
 
@@ -306,7 +308,9 @@ API Keys enable programmatic access for CI/CD pipelines, external services, and 
 | **Create Key** | `/api/api-keys`      | `POST`   | Returns plaintext `sck_*` key **once**            |
 | **Revoke Key** | `/api/api-keys/{id}` | `DELETE` | Owner or admin only; purges credential cache      |
 
-> **Security**: Plaintext keys are shown exactly once at creation. After that, only the SHA-256 hash is stored. Revoked keys stop authenticating within 60 seconds (credential cache TTL).
+> **Security**: Plaintext keys are shown exactly once at creation. After that, only the keyed HMAC digest is stored. Revoked keys stop authenticating within 60 seconds (`CREDENTIAL_AUTH_CACHE_TTL_S = 60`, `src/databases/auth/credential-auth-cache.ts`).
+
+> **Measured (2026-09-22, SQLite)**: the API-key surface is a _full credential path_, not a shortcut — `api-keys.ts` (keyed digest) plus `api-permissions.ts` (per-key scopes) and `credential-auth-cache.ts` (60 s auth cache + Bloom negative filter). In `tests/benchmarks/auth-performance.test.ts` an unknown `Bearer sck_…` key rejects in **0.35–0.40 ms**, statistically identical to an unknown session cookie (0.36–0.47 ms) and to no credentials at all (0.36–0.38 ms) — and on par with the authenticated rows, after the 401/403 envelopes were given a `content-length` (they used to pay a zstd stream per reject for a 64-byte body; see [Server Hooks](../architecture/server-hooks.mdx)). Switching a client from session cookies to API keys therefore does **not** change per-request latency on this path.
 
 ### Create Key Request
 
@@ -336,7 +340,7 @@ POST /api/api-keys
 
 ---
 
-## 6. Magic Links (Passwordless)
+## 7. Magic Links (Passwordless)
 
 Magic Links provide passwordless authentication via email. Implemented as **SvelteKit Remote Functions** in `auth.remote.ts` for type-safe client-server communication.
 
@@ -356,7 +360,7 @@ Magic Links provide passwordless authentication via email. Implemented as **Svel
 
 ---
 
-## 7. WebAuthn / Passkeys
+## 8. WebAuthn / Passkeys
 
 WebAuthn provides phishing-resistant biometric authentication via platform authenticators. Implemented as **SvelteKit Remote Functions**.
 
@@ -384,7 +388,7 @@ interface Authenticator {
 
 ---
 
-## 8. Guest / Anonymous Auth
+## 9. Guest / Anonymous Auth
 
 Public routes automatically receive an ephemeral `ANONYMOUS_USER` identity with the `guest` role. No session is created — access is stateless and read-only.
 
@@ -400,7 +404,7 @@ Guest identity is assigned by `handle-authentication.ts` middleware when no vali
 
 ---
 
-## 9. GDPR Compliance API (`/api/gdpr`)
+## 10. GDPR Compliance API (`/api/gdpr`)
 
 The GDPR compliance endpoint implements regulatory data portability (Article 20) and Right to Erasure / Right to be Forgotten (Article 17). It is available as an authenticated endpoint for self-service or for administrators.
 

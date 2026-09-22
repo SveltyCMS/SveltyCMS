@@ -27,22 +27,25 @@ The Content Sync API provides bidirectional content synchronization between Svel
 > - **Configuration Promotion** (`/api/config/*`) moves _site structure and settings_ (collections, roles, permissions, widgets, automations) through version control (Git) in a Schema-as-Code workflow.
 
 > [!IMPORTANT]
-> All content sync endpoints are **admin-gated**. GET requests require `content:read`, POST/PATCH/DELETE requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+> All content sync endpoints are **admin-gated**. GET requests require `content:read`, POST requests require `content:sync`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping (`src/routes/api/[...path]/+server.ts`, `"content-sync"` entry), which only distinguishes `POST` — `PATCH` and `DELETE` therefore require `content:read`.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature              | HTTP Endpoint                    | Method   | Permission      |
-| :------------------- | :------------------------------- | :------- | :-------------- |
-| **List Channels**    | `/api/content-sync/channels`     | `GET`    | `content:read`  |
-| **Create Channel**   | `/api/content-sync/channels`     | `POST`   | `content:write` |
-| **Update Channel**   | `/api/content-sync/channels/:id` | `PATCH`  | `content:write` |
-| **Delete Channel**   | `/api/content-sync/channels/:id` | `DELETE` | `content:write` |
-| **Create Sync Plan** | `/api/content-sync/plan`         | `POST`   | `content:write` |
-| **Push Content**     | `/api/content-sync/push`         | `POST`   | `content:write` |
-| **Pull Content**     | `/api/content-sync/pull`         | `POST`   | `content:write` |
-| **Job Status**       | `/api/content-sync/jobs/:jobId`  | `GET`    | `content:read`  |
+| Feature              | HTTP Endpoint                    | Method   | Permission     |
+| :------------------- | :------------------------------- | :------- | :------------- |
+| **List Channels**    | `/api/content-sync/channels`     | `GET`    | `content:read` |
+| **Create Channel**   | `/api/content-sync/channels`     | `POST`   | `content:sync` |
+| **Update Channel**   | `/api/content-sync/channels/:id` | `PATCH`  | `content:read` |
+| **Delete Channel**   | `/api/content-sync/channels/:id` | `DELETE` | `content:read` |
+| **Create Sync Plan** | `/api/content-sync/plan`         | `POST`   | `content:sync` |
+| **Push Content**     | `/api/content-sync/push`         | `POST`   | `content:sync` |
+| **Pull Content**     | `/api/content-sync/pull`         | `POST`   | `content:sync` |
+| **Job Status**       | `/api/content-sync/jobs/:jobId`  | `GET`    | `content:read` |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 

@@ -21,15 +21,18 @@ The Setup API manages the critical initialization phase of SveltyCMS. It handles
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint             | Method | Permission Required     |
-| :------------------ | :------------------------ | :----- | :---------------------- |
-| **Status Check**    | `/api/setup/status`       | `GET`  | **Public** (always)     |
-| **Test Connection** | `/api/setup/test-db`      | `POST` | **Pre-setup only**      |
-| **Seed Database**   | `/api/setup/seed-db`      | `POST` | **Pre-setup only**      |
-| **Complete Setup**  | `/api/setup/complete`     | `POST` | **Pre-setup only**      |
-| **Reinitialize**    | `/api/setup/reinitialize` | `POST` | `manage:system` (gated) |
+| Feature             | HTTP Endpoint             | Method | Permission Required   |
+| :------------------ | :------------------------ | :----- | :-------------------- |
+| **Status Check**    | `/api/setup/status`       | `GET`  | **Public** (always)   |
+| **Test Connection** | `/api/setup/test-db`      | `POST` | **Pre-setup only**    |
+| **Seed Database**   | `/api/setup/seed-db`      | `POST` | **Pre-setup only**    |
+| **Complete Setup**  | `/api/setup/complete`     | `POST` | **Pre-setup only**    |
+| **Reinitialize**    | `/api/setup/reinitialize` | `POST` | Administrator session |
 
-> **Security Gating**: All endpoints except `status` are protected by `isSetupComplete()`. After setup finishes, `/api/setup/test-db`, `/api/setup/seed-db`, `/api/setup/complete`, and `/api/setup/reinitialize` all return `403 SETUP_ALREADY_COMPLETE`. This is enforced at two levels: the `handleSetupRoutes` handler entry check, and the `handle-system-state.ts` middleware. See [Server Hooks](../architecture/server-hooks.mdx).
+> [!NOTE]
+> `POST /api/setup/reinitialize` is **not a grantable permission** — it is recovery-only and requires an authenticated administrator session (`SETUP_REINIT_FORBIDDEN`, `src/routes/api/[...path]/handlers/setup.ts`). Permission ids elsewhere in the API are authorized fail-closed against `ENDPOINT_PERMISSIONS`; admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+
+> **Security Gating**: All endpoints except `status` are protected by `isSetupComplete()`. After setup finishes, `/api/setup/test-db`, `/api/setup/seed-db` and `/api/setup/complete` all return `403 SETUP_ALREADY_COMPLETE`; `/api/setup/reinitialize` returns `403 SETUP_REINIT_FORBIDDEN` unless the caller is a real administrator session. This is enforced at two levels: the `handleSetupRoutes` handler entry check, and the `handle-system-state.ts` middleware. See [Server Hooks](../architecture/server-hooks.mdx).
 
 ---
 

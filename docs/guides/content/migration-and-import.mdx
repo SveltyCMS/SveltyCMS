@@ -20,6 +20,8 @@ tags:
 
 # Migration, Import & Data Operations
 
+This is the operator task: move content in, out, or between installs. The service layout behind those screens is [Data operations](../../reference/architecture/data-operations.mdx). Endpoint contracts are the [API reference](../../reference/api/index.mdx).
+
 SveltyCMS provides six operational domains for moving content in, out, and between instances. Whether you're migrating from WordPress, exporting content for a staging environment, or backing up before an upgrade — everything follows a **plan-first, preview-before-run** safety model.
 
 > [!TIP]
@@ -71,7 +73,7 @@ SveltyCMS includes the **Smart AI-Driven Migration Pro** plugin — a visual mig
 6. **Run the import** — Content streams in via SSE with real-time progress. Failed rows go to a dead-letter queue for manual review.
 
 > [!NOTE]
-> The Smart Importer is a marketplace plugin. See the [plugin documentation](/src/plugins/smart-importer/smart-importer.mdx) for installation and platform-specific guides (WordPress, Drupal). WooCommerce and Shopify catalogs import into the ecommerce **preset** `products` collection — see [E-Commerce Overview](../../reference/architecture/ecommerce-overview.mdx). After import, the **Commerce Inventory** dashboard widget (14-day trial) shows low-stock SKUs.
+> The Smart Importer is a marketplace plugin. See the [plugin documentation](/src/plugins/smart-importer/smart-importer.mdx) for installation and platform-specific guides (WordPress, Drupal). WooCommerce and Shopify catalogs import into the ecommerce **preset** `products` collection — see [E-Commerce Overview](./ecommerce.mdx). After import, the **Commerce Inventory** dashboard widget (14-day trial) shows low-stock SKUs.
 
 ---
 

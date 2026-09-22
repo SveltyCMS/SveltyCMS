@@ -134,7 +134,25 @@ export async function getFile(rel: string): Promise<Buffer> {
   return await getStorageAdapter().download(rel);
 }
 
-/** Resize & save image variants with multi-format optimization */
+/**
+ * Resize & save image variants with multi-format optimization.
+ *
+ * Two invariants this function owns (media pipeline plan §3 #3):
+ *
+ * - **Never upscale.** A ladder step wider than the decoded source is dropped before
+ *   any encode, and `withoutEnlargement` backstops the encoder, so a variant file can
+ *   never be wider (and therefore taller) than the image it derives from. `metadata()`
+ *   is read here anyway, so the clamp costs nothing extra. The recorded `width`/`height`
+ *   come from the encoder output, not from the request, so the map never claims a size
+ *   the file does not have.
+ * - **One write per path.** The primary output and the WebP sidecar resolve to the same
+ *   path whenever the primary is itself WebP (an already-WebP source, or a WebP
+ *   `MEDIA_OUTPUT_FORMAT_QUALITY`). That pair is encoded and saved once instead of twice.
+ *
+ * `thumbnails` keys are unchanged (`{key}` for the primary, `{key}_webp` for the sidecar);
+ * steps dropped by the clamp are simply absent, which `mediaUrl`/`mediaDisplayUrl`
+ * already fall back from.
+ */
 export async function saveResized(
   buffer: Buffer,
   hash: string,
@@ -152,14 +170,20 @@ export async function saveResized(
   const format = formatConfig?.format ?? "original";
   const quality = formatConfig?.quality ?? 80;
 
-  // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP)
-  const variants = Object.entries(SIZES).filter(([, w]) => w > 0);
+  // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP), clamped to the source.
+  // An unknown source width keeps the operator's ladder untouched — dropping every
+  // step on a metadata miss would silently produce no derivatives at all.
+  const sourceWidth = meta.width ?? 0;
+  const variants = Object.entries(SIZES).filter(
+    ([, w]) => w > 0 && (sourceWidth === 0 || w <= sourceWidth),
+  );
 
   // Run all thumbnail sizes in parallel — each is an independent sharp pipeline.
   const tasks = variants.map(async ([key, w]) => {
     const baseVariant = baseInstance.clone().resize(w, null, {
       fit: "cover",
       position: "center",
+      withoutEnlargement: true,
     });
 
     // 1. Original format (or configured default)
@@ -183,48 +207,49 @@ export async function saveResized(
 
     const fileName = `${baseName}-${hash}.${outExt}`;
     const relPath = path.posix.join(baseDir, key, fileName);
+    const webpRelPath = path.posix.join(baseDir, key, `${baseName}-${hash}.webp`);
+    /** False when the primary output IS the WebP sidecar's target path. */
+    const sidecarNeeded = webpRelPath !== relPath;
 
-    const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
+    // Fallbacks for a source whose height could not be read; a real encode reports its own.
+    const fallbackHeight = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
 
     // 2. Encode primary and webp variant in parallel (independent sharp pipelines)
-    const primaryBufP = instance.toBuffer();
-    const webpBufP =
-      outExt !== "webp"
-        ? baseVariant
-            .clone()
-            .webp({ quality: Math.max(quality, 75) })
-            .toBuffer()
-        : Promise.resolve(null);
+    const primaryP = instance.toBuffer({ resolveWithObject: true });
+    const webpP = sidecarNeeded
+      ? baseVariant
+          .clone()
+          .webp({ quality: Math.max(quality, 75) })
+          .toBuffer({ resolveWithObject: true })
+      : Promise.resolve(null);
 
-    const [resizedBuf, webpBuf] = await Promise.all([primaryBufP, webpBufP]);
+    const [primary, webp] = await Promise.all([primaryP, webpP]);
 
     // 3. Save files — primary always, WebP if generated
-    const url = await saveFile(resizedBuf, relPath);
+    const url = await saveFile(primary.data, relPath);
 
     const entries: [string, ResizedImage][] = [
       [
         key,
         {
           url,
-          width: w,
-          height,
-          size: resizedBuf.length,
+          width: primary.info.width ?? w,
+          height: primary.info.height ?? fallbackHeight,
+          size: primary.info.size,
           mimeType,
         },
       ],
     ];
 
-    if (webpBuf) {
-      const webpFileName = `${baseName}-${hash}.webp`;
-      const webpRelPath = path.posix.join(baseDir, key, webpFileName);
-      const webpUrl = await saveFile(webpBuf, webpRelPath);
+    if (webp) {
+      const webpUrl = await saveFile(webp.data, webpRelPath);
       entries.push([
         `${key}_webp`,
         {
           url: webpUrl,
-          width: w,
-          height,
-          size: webpBuf.length,
+          width: webp.info.width ?? w,
+          height: webp.info.height ?? fallbackHeight,
+          size: webp.info.size,
           mimeType: "image/webp",
         },
       ]);

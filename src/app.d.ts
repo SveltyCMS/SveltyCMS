@@ -96,6 +96,12 @@ declare global {
       permissions: string[];
       roles: Role[];
       session_id?: DatabaseId;
+      /**
+       * Session id parsed once by `classifyRequest` on API GET/HEAD/OPTIONS.
+       * `null` means the cookie was scanned and was not present. Unset means
+       * the classifier did not run.
+       */
+      turboSessionId?: string | null;
       /** Authentication Method References for the current session (e.g. ["pwd","mfa"]). */
       sessionAmr?: string[];
       /** ISO timestamp when MFA was verified for this session. */

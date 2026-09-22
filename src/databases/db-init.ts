@@ -6,6 +6,7 @@
 import { logger } from "@utils/logger";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import type { IDBAdapter } from "./db-interface";
+import { withSystemScope } from "./system-tenant-scope";
 import { dbPluginRegistry } from "./core/plugin-registry";
 
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
@@ -245,7 +246,7 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     id: "seo",
     dependencies: ["content"],
     initialize: async (adapter) => {
-      const { initializePlugins } = await import("@src/plugins/index");
+      const { initializePlugins } = await import("@src/plugins/init.server");
       await initializePlugins(adapter);
     },
   });
@@ -290,7 +291,6 @@ export async function loadSettingsFromDB(adapter: IDBAdapter, force = false): Pr
     if (!force && getGlobal("__SETTINGS_LOADED__", false)) return true;
 
     // Load from system_preferences table
-    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
     const result = await adapter.crud.findMany<any>(
       "system_preferences",
       {},

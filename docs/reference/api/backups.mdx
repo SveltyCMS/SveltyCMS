@@ -21,20 +21,23 @@ tags:
 The Backup & Restore API provides full-instance backup and restoration with configurable encryption, tenant-scoped safety gating, and a plan-first restore workflow. Backups capture the complete instance state — configuration, content, media, and users — in a portable `.svelty-backup` directory format.
 
 > [!IMPORTANT]
-> All backup endpoints are **admin-gated**. GET requests require `backup:read`, POST requests require `backup:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+> All backup endpoints are **admin-gated**. GET requests require `backup:read`, POST requests require `backup:create`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature                 | HTTP Endpoint               | Method | Permission     |
-| :---------------------- | :-------------------------- | :----- | :------------- |
-| **List Backups**        | `/api/backups`              | `GET`  | `backup:read`  |
-| **Create Backup**       | `/api/backups/create`       | `POST` | `backup:write` |
-| **Validate Backup**     | `/api/backups/validate`     | `POST` | `backup:write` |
-| **Create Restore Plan** | `/api/backups/restore-plan` | `POST` | `backup:write` |
-| **Execute Restore**     | `/api/backups/restore`      | `POST` | `backup:write` |
-| **Job Status**          | `/api/backups/jobs/:jobId`  | `GET`  | `backup:read`  |
+| Feature                 | HTTP Endpoint               | Method | Permission      |
+| :---------------------- | :-------------------------- | :----- | :-------------- |
+| **List Backups**        | `/api/backups`              | `GET`  | `backup:read`   |
+| **Create Backup**       | `/api/backups/create`       | `POST` | `backup:create` |
+| **Validate Backup**     | `/api/backups/validate`     | `POST` | `backup:create` |
+| **Create Restore Plan** | `/api/backups/restore-plan` | `POST` | `backup:create` |
+| **Execute Restore**     | `/api/backups/restore`      | `POST` | `backup:create` |
+| **Job Status**          | `/api/backups/jobs/:jobId`  | `GET`  | `backup:read`   |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `backups` entry maps `POST` ⇒ `backup:create`, `GET`/`OPTIONS` ⇒ `backup:read`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 

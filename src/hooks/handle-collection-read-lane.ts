@@ -29,8 +29,7 @@ import { resolveRequestTenant } from "./request-tenant";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
-import { successResponse } from "@src/routes/api/[...path]/handlers/base";
-import { applyAllSecurityHeaders } from "./handle-security-headers";
+
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -44,6 +43,8 @@ import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
 interface CoalescedCollectionRead {
   body: string;
   etag: string;
+  /** Leader of a miss. Waiters omit this and are served as turbo hits. */
+  miss?: boolean;
   response?: Response;
 }
 
@@ -82,21 +83,30 @@ export function isSimpleCollectionRead(event: RequestEvent): boolean {
   return true;
 }
 
-function hasWarmSession(event: RequestEvent): boolean {
+/** `SVELTY_SRV_DUR=1` records server time for inspect-mixed-cycle. Off on the replica. */
+const STAMP_SRV_DUR = process.env.SVELTY_SRV_DUR === "1";
+
+/**
+ * Session id from classifyRequest when the hook already parsed the cookie.
+ * Direct lane calls (unit tests) still parse once here.
+ */
+function sessionIdOf(event: RequestEvent): string | undefined {
+  const stuffed = (event.locals as { turboSessionId?: string | null }).turboSessionId;
+  if (stuffed !== undefined) return stuffed ?? undefined;
   const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
-  const sessionId = readSessionCookie(event.cookies, isSecure);
-  if (!sessionId) return false;
-  return getTurboAuthContext(sessionId) !== null;
+  return readSessionCookie(event.cookies, isSecure);
 }
 
-async function executeWarmCollectionRead(event: RequestEvent): Promise<Response | null> {
-  const { url, cookies, locals } = event;
-  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-  const sessionId = readSessionCookie(cookies, isSecure);
-  const turbo = sessionId ? getTurboAuthContext(sessionId) : null;
-  if (!turbo) {
-    return null;
-  }
+function stampSrvDur(headers: Headers, started: number): void {
+  if (!STAMP_SRV_DUR) return;
+  headers.set("x-srv-dur", (performance.now() - started).toFixed(2));
+}
+
+async function executeWarmCollectionRead(
+  event: RequestEvent,
+  turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+): Promise<Response | null> {
+  const { url, locals } = event;
 
   locals.user = turbo.user;
   locals.roles = turbo.roles;
@@ -129,11 +139,11 @@ async function executeWarmCollectionRead(event: RequestEvent): Promise<Response 
     url.searchParams.get("bypassCache") === "true" ||
     listParams?.bypassCache === true;
 
-  const srvT0 = performance.now();
+  const srvT0 = STAMP_SRV_DUR ? performance.now() : 0;
   const cached = bypass ? null : responseCache.get(pathKey, cacheTenant);
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
-    res.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
+    stampSrvDur(res.headers, srvT0);
     return res;
   }
 
@@ -145,17 +155,12 @@ async function executeWarmCollectionRead(event: RequestEvent): Promise<Response 
     entryId,
     listParams,
   );
-  if (rebuilt?.response) {
-    // The rebuild is the ONLY path that emits no cache header of its own —
-    // `serveTurboCacheEntry` labels hits. Without this, a served miss is
-    // indistinguishable from the lane not having run at all.
-    rebuilt.response.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
-    rebuilt.response.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
-    return rebuilt.response;
-  }
   if (rebuilt) {
-    const res = serveTurboCacheEntry(event, rebuilt);
-    res.headers.set("x-srv-dur", (performance.now() - srvT0).toFixed(2));
+    // The leader is a miss. Waiters share the body the leader just cached
+    // and are labelled as hits. Both use the prebuilt security headers.
+    const res = rebuilt.response ?? serveTurboCacheEntry(event, rebuilt);
+    if (rebuilt.miss) res.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
+    stampSrvDur(res.headers, srvT0);
     return res;
   }
   return null;
@@ -213,7 +218,7 @@ async function rebuildWarmCollectionRead(
   entryId: string | null,
   listParams: ReturnType<typeof parseCollectionQueryParams> | null,
 ): Promise<CoalescedCollectionRead | null> {
-  const { request, url, locals } = event;
+  const { locals } = event;
   if (!dbAdapter) return null;
   const cms = LocalCMS.getLocals(dbAdapter, locals);
   const result = entryId
@@ -240,15 +245,14 @@ async function rebuildWarmCollectionRead(
         fields: listParams!.fields,
       });
 
-  const res = successResponse(event, result, 200);
-  applyAllSecurityHeaders(
-    res.headers,
-    url.protocol === "https:",
-    request.headers.get("Origin"),
-    url.pathname,
-  );
-
-  const apiBody = (locals as { apiBody?: string }).apiBody;
+  // One JSON string. The lane builds the only Response, from the prebuilt
+  // security-header template. A second Response here was pure overhead on a miss.
+  const record = result as { success?: boolean; data?: unknown; meta?: unknown };
+  const apiBody =
+    record.meta !== undefined
+      ? JSON.stringify({ success: true, data: record.data, meta: record.meta })
+      : JSON.stringify({ success: true, data: record.data });
+  (locals as { apiBody?: string }).apiBody = apiBody;
   if (
     typeof apiBody !== "string" ||
     !result ||
@@ -256,14 +260,19 @@ async function rebuildWarmCollectionRead(
   ) {
     return null;
   }
-  const etag = res.headers.get("etag") || generateContentEtag(apiBody);
-  res.headers.set("etag", etag);
+  // Point reads change updatedAt on write. Hashing the whole body on every
+  // random miss was a full scan of a document the caller will not revalidate.
+  const row = record.data as { _id?: unknown; updatedAt?: unknown } | null;
+  const etag =
+    entryId && row && typeof row === "object"
+      ? `"${String(row._id ?? entryId)}-${String(row.updatedAt ?? "")}"`
+      : generateContentEtag(apiBody);
   const { tags, skipSharedL1 } = collectionResponseCacheTags(collectionId, entryId);
   responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
     tags,
     skipSharedL1,
   });
-  return { body: apiBody, etag, response: res };
+  return { body: apiBody, etag, miss: true };
 }
 
 /**
@@ -271,11 +280,15 @@ async function rebuildWarmCollectionRead(
  * session is cold, the caller is not admin, or the path is not a simple GET.
  */
 export const tryCollectionReadLane: Handle = async ({ event, resolve }) => {
-  if (!isSimpleCollectionRead(event) || !hasWarmSession(event) || !dbAdapter) {
+  if (!isSimpleCollectionRead(event) || !dbAdapter) {
     return resolve(event);
   }
+  const sessionId = sessionIdOf(event);
+  if (!sessionId) return resolve(event);
+  const turbo = getTurboAuthContext(sessionId);
+  if (!turbo) return resolve(event);
   try {
-    const served = await executeWarmCollectionRead(event);
+    const served = await executeWarmCollectionRead(event, turbo);
     return served ?? resolve(event);
   } catch (err) {
     if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);

@@ -5,8 +5,8 @@ description: Clean, semantic URL structure that reflects internal UUID-based ope
 category: architecture
 order: 5
 author: "SveltyCMS Team"
-created: "2025-12-16"
-updated: "2026-03-27"
+created: "2025-10-20"
+updated: "2026-09-22"
 tags:
   - "architecture"
   - "url-patterns"
@@ -23,9 +23,9 @@ SveltyCMS implements a **GUI-First navigation pattern** where user interactions 
 
 > **"GUI actions drive state, URLs reflect state"**
 >
-> - User clicks button → Check cache → setMode() instantly → URL updates (no reload)
-> - User hovers button → Preload data → Click is instant if cached
-> - User edits URL → Translate to mode change → Load if needed
+> - User clicks a row → `setMode()` instantly → URL updates (no reload)
+> - User hovers a row → `preloadEntry()` schedules SvelteKit `preloadData('?edit=uuid')`
+> - User edits the URL → translated to a mode change → server loads if needed
 
 ## Architecture Pattern
 
@@ -36,15 +36,15 @@ SveltyCMS implements a **GUI-First navigation pattern** where user interactions 
 **90% of navigation: GUI clicks** (FAST)
 
 ```
-Hover → Preload to cache (300ms delay)
-Click → Check cache → setMode() → Reflect in URL
-Result: INSTANT mode switch (0ms if cached, ~100ms if not)
+Hover → preloadEntry() schedules SvelteKit preloadData('?edit=uuid')
+Click → setMode() + setCollectionValue(row) → Reflect in URL
+Result: INSTANT mode switch (the row is already in memory)
 ```
 
 **10% of navigation: Manual URL edits** (SLOWER - acceptable)
 
 ```
-User types URL → Parse → Translate to UUID → Load data → setMode()
+User types URL → Parse → Filter by UUID → Load data → setMode()
 Result: SSR reload (~300-500ms) - Only when manually editing URL
 ```
 
@@ -65,29 +65,21 @@ Result: SSR reload (~300-500ms) - Only when manually editing URL
 │ PRIMARY PATH (90% - GUI Clicks)                          │
 └──────────────────────────────────────────────────────────┘
 
-User Hovers Edit Button
+User Hovers a Row
          ↓
-  preloadEntry(uuid) ──→ Fetch data in background
+  preloadEntry(entryId, pathname) ──→ SvelteKit preloadData('?edit=uuid')
          ↓
-  Data cached (5min TTL)
+  Load data cache (SvelteKit-owned)
          ↓
-User Clicks Edit Button
+User Clicks the Row
          ↓
-  switchMode('edit', uuid) ──→ Check cache
-         ↓                            │
-  Cache HIT? ─────────────────────── Yes → Return cached data (INSTANT)
-         │                            │
-         No                           │
-         ↓                            │
-  Fetch now (100ms)                  │
-         │                            │
-         └────────────┬───────────────┘
-                      ↓
-              setMode('edit') ──→ INSTANT update
-                      ↓
-         reflectModeInURL('edit', uuid) ──→ Passive URL update (no reload)
-                      ↓
-              User sees edit form (0-100ms total)
+  modeTransitionGuard.setMode('edit') ──→ INSTANT mode switch
+         ↓
+  setCollectionValue(row) ──→ list row already in memory
+         ↓
+  reflectModeInURL('edit', uuid) ──→ Passive URL update (no reload)
+         ↓
+  User sees edit form (0-100ms total)
 
 
 ┌──────────────────────────────────────────────────────────┐
@@ -100,15 +92,16 @@ User types: /en/posts?edit=abc123
          ↓
   parseURLToMode(url) ──→ Extract mode + UUID
          ↓
-  switchMode('edit', 'abc123')
+  edit param changed? ──→ yes
          ↓
-  Check cache → Likely MISS (user didn't hover first)
+  entries.length === 1 ? ──→ data already loaded by the server load function
+         │                        ↓
+         │              setMode('edit') + setCollectionValue(entries[0])
+         No             ↓
+         ↓        User sees edit form (instant)
+  refreshAll() → setMode('edit')
          ↓
-  Fetch data (~300ms SSR)
-         ↓
-  setMode('edit') + set data
-         ↓
-  User sees edit form (300-500ms total - acceptable for rare case)
+  User sees edit form (one SSR round trip — acceptable for the rare manual edit)
 ```
 
 ## Current URL Structure
@@ -160,47 +153,36 @@ With proper hover preloading:
 
 ## Implementation Details
 
-### 1. Navigation Utils (`src/utils/navigationUtils.ts`)
+### 1. Navigation Utils (`src/utils/navigation.ts`)
 
-```
-// Entry cache (5min TTL)
-const entryCache = new Map<string, CachedEntry>();
+```typescript
+// src/utils/navigation.ts:89
+// Preload on hover: schedules a SvelteKit preload of ?edit=<entryId>, then cancels
+// itself when the pointer leaves before `delay` ms elapses.
+export function preloadEntry(entryId: string, currentPath: string, delay = 200): void {
+  cancelPreload(entryId);
 
-// Preload on hover (300ms delay)
-export function preloadEntry(entryId: string, collectionId: string): void {
-  // Check cache first
-  if (getCachedEntry(entryId)) return;
-
-  // Fetch after delay
-  setTimeout(async () => {
-    const response = await fetch(`/api/collections/${collectionId}/entries/${entryId}`);
-    if (response.ok) {
-      setCachedEntry(entryId, await response.json(), collectionId);
+  const timer = setTimeout(async () => {
+    try {
+      const url = new URL(currentPath, window.location.origin);
+      url.searchParams.set("edit", entryId);
+      await preloadData(url.pathname + url.search);
+    } catch (error) {
+      logger.warn(`[Preload] Failed for ${entryId}`, error);
+    } finally {
+      preloadTimers.delete(entryId);
     }
-  }, 300);
+  }, delay);
+
+  preloadTimers.set(entryId, timer);
 }
 
-// Mode switch with cache check
-export async function switchMode(
-  mode: ModeType,
-  entryId: string | undefined,
-  collectionId: string,
-): Promise<ModeChangeResult> {
-  if (mode === "edit" && entryId) {
-    // Check cache first (FAST)
-    const cached = getCachedEntry(entryId);
-    if (cached) {
-      return { success: true, fromCache: true, data: cached };
-    }
-
-    // Not in cache, fetch now (SLOWER)
-    const response = await fetch(`/api/collections/${collectionId}/entries/${entryId}`);
-    const data = await response.json();
-    setCachedEntry(entryId, data, collectionId);
-    return { success: true, fromCache: false, data };
+export function cancelPreload(entryId: string): void {
+  const timer = preloadTimers.get(entryId);
+  if (timer) {
+    clearTimeout(timer);
+    preloadTimers.delete(entryId);
   }
-
-  return { success: true, fromCache: false };
 }
 
 // Passive URL reflection (no reload)
@@ -216,131 +198,106 @@ export function reflectModeInURL(mode: ModeType, entryId?: string): void {
     url.searchParams.set("create", "true");
   }
 
-  // Update URL without reload
   window.history.pushState({}, "", url.toString());
 }
 ```
+
+The module also exports `slugify()`, `parseURLToMode()` and the `NavigationManager` singleton (`navigationManager.toList()` / `toEdit()` / `toCreate()`), which own locking, mode transitions and loading state.
 
 ### 2. Client-Side Navigation (entry-list.svelte)
 
 **GUI-FIRST PATTERN:**
 
-```
-// Hover handler - Preload data
+```typescript
+// src/components/collection-display/entry-list.svelte:486
 function handleRowHoverStart(entryId: string) {
-  const collId = collection.value?._id;
-  if (collId) {
-    preloadEntry(entryId, collId); // Background fetch
+  // Slow connections skip preloading entirely
+  if (!isPreloadEnabled) return;
+
+  // SvelteKit preloadData for ?edit=<entryId>
+  preloadEntry(entryId, page.url.pathname);
+
+  // Track hover patterns for predictive preloading
+  const currentCount = hoverPatterns.get(entryId) || 0;
+  hoverPatterns.set(entryId, currentCount + 1);
+  if (currentCount >= 2) predictivePreloadQueue.push(entryId);
+}
+
+// Click → edit: state first, URL second (no server round trip for the list row)
+function openEntry(entry: CollectionEntry) {
+  modeTransitionGuard.setMode("edit");
+  setCollectionValue(entry);
+  reflectModeInURL("edit", entry._id as string);
+}
+```
+
+The list row already holds the language-projected entry, so edit mode renders instantly; the URL is reflected passively so SSR/refresh can load the full multilingual document.
+
+### 3. Save/Cancel Actions (header-edit.svelte)
+
+```typescript
+// src/components/header-edit.svelte:197
+async function save(): Promise<void> {
+  if (!isFormValid) {
+    toast.warning(validation_fix_before_save());
+    return;
   }
+
+  const success = await saveEntry({ ...currentEntry! });
+  if (!success) return;
+
+  // Back to the list: NavigationManager resets mode + value and refreshes load data
+  await navigationManager.toList();
 }
 
-// Click handler - Instant mode switch
-async function handleRowClick(entry: Entry) {
-  const collId = collection.value?._id;
-  if (!collId) return;
-
-  // 1. Check cache & load if needed
-  const result = await switchMode("edit", entry._id, collId);
-
-  if (result.success) {
-    // 2. Update stores INSTANTLY (no waiting)
-    setMode("edit");
-    if (result.data) {
-      setCollectionValue(result.data);
-    }
-
-    // 3. Reflect in URL (passive, no reload)
-    reflectModeInURL("edit", entry._id);
-
-    // 4. Toggle UI
-    handleUILayoutToggle();
-
-    console.log(`${result.fromCache ? "INSTANT (cached)" : "LOADED"}`);
-  }
-}
-
-// Create handler - Instant mode switch
-function onCreate() {
-  // 1. Update stores INSTANTLY
-  setMode("create");
-  setCollectionValue(newEntry);
-
-  // 2. Reflect in URL (passive, no reload)
-  reflectModeInURL("create");
-
-  // 3. Toggle UI
-  handleUILayoutToggle();
+// src/components/header-edit.svelte:239
+function cancel(): void {
+  document.dispatchEvent(new CustomEvent("cancelEdit", { bubbles: true }));
+  setCollectionValue({});
+  ui.toggle("rightSidebar", "hidden");
+  ui.toggle("leftSidebar", isDesktop ? "full" : "collapsed");
+  ui.toggle("pageheader", "hidden");
+  navigationManager.toList();
 }
 ```
 
-### 3. Save/Cancel Actions (header-edit.svelte, right-sidebar.svelte)
-
-```
-// Save handler
-async function handleSave() {
-  await saveEntry(data); // Save to database
-
-  // 1. Update mode INSTANTLY
-  setMode("view");
-
-  // 2. Reflect in URL (passive, no reload)
-  reflectModeInURL("view");
-
-  // 3. Invalidate cache (list will refresh on next view)
-  invalidateCollectionEntries(collectionId);
-}
-
-// Cancel handler
-function handleCancel() {
-  // 1. Update mode INSTANTLY
-  setMode("view");
-
-  // 2. Reflect in URL (passive, no reload)
-  reflectModeInURL("view");
-}
-```
+`navigationManager.toList()` (`src/utils/navigation.ts:181`) clears pending changes, transitions through `modeTransitionGuard.transitionTo("view")` and then calls `goto(page.url.pathname, { refreshAll: true })` — one place owns the "leave edit mode" sequence.
 
 ### 4. URL-to-Mode Translation (+page.svelte)
 
 **Only for manual URL edits:**
 
-```
+```typescript
+// src/routes/(app)/[language]/[...collection]/+page.svelte:277
 // Detect URL changes (manual edits by user)
-let lastUrlString = $state('');
-
 $effect(() => {
   const currentUrl = page.url.toString();
 
   if (currentUrl !== lastUrlString) {
     lastUrlString = currentUrl;
 
-    // Parse URL to determine mode
     const parsed = parseURLToMode(page.url);
 
-    if (mode.value !== parsed.mode) {
-      console.log(`[URL Change] Manual edit: ${mode.value} → ${parsed.mode}`);
+    // Edit mode from a manual URL change
+    if (parsed.mode === "edit" && parsed.entryId && editParamChanged) {
+      // Clear errors from the previous entry — a stale key would block Save
+      validationStore.clearAllErrors();
 
-      // Handle edit mode
-      if (parsed.mode === 'edit' && parsed.entryId) {
-        const collId = collection.value?._id;
-        if (collId) {
-          switchMode('edit', parsed.entryId, collId).then((result) => {
-            if (result.success) {
-              setMode('edit');
-              if (result.data) {
-                setCollectionValue(result.data);
-              }
-            }
-          });
-        }
+      if (entries && entries.length === 1) {
+        // Data already loaded by the server load function
+        collections.setMode("edit");
+        collections.setCollectionValue(entries[0]);
       } else {
-        // Create or view mode - instant
-        setMode(parsed.mode);
+        // Need a server round trip for the full entry
+        refreshAll().then(() => collections.setMode("edit"));
       }
+    } else if (parsed.mode === "view" && collections.mode === "edit") {
+      collections.setMode("view");
+    } else if (parsed.mode === "create") {
+      collections.setMode("create");
+      collections.setCollectionValue(newEntry); // null-initialised from the schema
     }
   }
-});
-	}
 });
 ```
 
@@ -348,24 +305,28 @@ $effect(() => {
 
 **When users manually edit the URL:**
 
-```
-// Server detects URL change and translates to UUID operation
-// +page.server.ts
+```typescript
+// Server turns the URL param into a query filter
+// src/routes/(app)/[language]/[...collection]/+page.server.ts:177
 const editEntryId = url.searchParams.get("edit");
-const createParam = url.searchParams.get("create");
 
+const { entries, pagination, revisions, contentLanguage, collectionSchema } =
+  await collectionService.getCollectionData({
+    collection: currentCollection,
+    page: listQuery.page,
+    pageSize: listQuery.pageSize,
+    sort: listQuery.sort,
+    filter: listQuery.filter,
+    search: listQuery.search,
+    language,
+    user: typedUser,
+    tenantId,
+    editEntryId: editEntryId || undefined, // ← pinned by _id inside the service
+  });
+
+// src/services/core/collection-service.ts:300
 if (editEntryId) {
-  // User navigated to ?edit=UUID
-  // Translate to: Filter by UUID
-  finalFilter._id = editEntryId;
-} else if (createParam) {
-  // User navigated to ?create=true
-  // Translate to: Empty entry initialization
-  setMode("create");
-} else {
-  // User navigated to base URL
-  // Translate to: List view with pagination
-  setMode("view");
+  baseWhere._id = editEntryId; // translate ?edit=UUID into an exact-id read
 }
 ```
 

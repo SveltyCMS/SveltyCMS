@@ -188,6 +188,17 @@ function validateMime(mimeType: string, filename: string) {
 /* Media manipulation options (typed replacement for `any`)                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Normalise a stored/derived media reference to a storage-relative path.
+ * Absolute (CDN) references cannot be probed for existence and yield `null`.
+ */
+function toStorageRelPath(ref?: string): string | null {
+  if (!ref) return null;
+  if (ref.startsWith("http://") || ref.startsWith("https://")) return null;
+  const stripped = ref.startsWith("/files/") ? ref.slice(7) : ref.replace(/^\/+/, "");
+  return stripped.length > 0 ? stripped : null;
+}
+
 /** Shape accepted by enrichMediaWithUrl (path/url/thumbnails/metadata/versions). */
 interface EnrichableRecord {
   path?: string;
@@ -195,6 +206,8 @@ interface EnrichableRecord {
   thumbnails?: Record<string, { path?: string; url?: string; [key: string]: unknown } | undefined>;
   metadata?: {
     versions?: Array<{ path?: string; url?: string; [key: string]: unknown }>;
+    /** Written by the deferred variant job (see generateVariantsForStreamedFile). */
+    imageVariants?: Array<ImageVariant & { url?: string }>;
     [key: string]: unknown;
   };
   versions?: unknown[];
@@ -518,6 +531,150 @@ export class MediaService {
   }
 
   /**
+   * A dedupe hit may only be reused while the files it advertises are still there:
+   * `remove()` unlinks files (not directories) and a GC sweep can drop them behind the
+   * row's back, so handing the record back unchanged would serve URLs that 404. Verifies
+   * the original plus every derivative path (SIZES ladder + responsive variants) with a
+   * cache-bypassing lookup — the same pattern `ensureOriginalOnDisk` uses after a write.
+   *
+   * Checking a handful of paths is orders of magnitude cheaper than the re-encode it
+   * replaces: a stat against ~20 encodes for a 1080p upload.
+   *
+   * @returns the first missing storage path, or `null` when every file resolves.
+   */
+  private async findMissingStoredFile(record: DbMediaItem): Promise<string | null> {
+    const original = resolveMediaRelPath(record as unknown as Record<string, unknown>);
+    if (original && !(await fileExists(original, { refresh: true }))) return original;
+
+    const enrichable = record as unknown as EnrichableRecord;
+    const candidates: Array<string | undefined> = [];
+    for (const thumb of Object.values(enrichable.thumbnails ?? {})) {
+      candidates.push(thumb?.path, thumb?.url);
+    }
+    for (const variant of enrichable.metadata?.imageVariants ?? []) {
+      candidates.push(variant.path, variant.url);
+    }
+
+    for (const candidate of candidates) {
+      const rel = toStorageRelPath(candidate);
+      if (rel && !(await fileExists(rel, { refresh: true }))) return rel;
+    }
+    return null;
+  }
+
+  /**
+   * Reuse an existing record for byte-identical content: apply the dedupe patch
+   * (storage path + folder) and hand back the enriched record. Shared by every dedupe
+   * site (SVG, buffered raster, streamed raster) so the reuse contract stays identical
+   * across upload paths.
+   */
+  private async adoptExistingRecord(
+    record: DbMediaItem,
+    relPath: string,
+    folderId: string | undefined,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<MediaItem>> {
+    const patch: Record<string, unknown> = {};
+    if (record.path !== relPath) patch.path = relPath;
+    if (folderId !== record.folderId) patch.folderId = folderId;
+    if (Object.keys(patch).length > 0) {
+      const updateResult = await this.db.crud.update(
+        "media_items",
+        record._id,
+        patch as unknown as EntityUpdate<DbMediaItem>,
+        { tenantId: tenantId ?? undefined },
+      );
+      if (!updateResult.success) {
+        logger.warn(
+          "[Media] Dedup-path metadata update failed",
+          updateResult.error ?? updateResult.message,
+        );
+      } else {
+        Object.assign(record, patch);
+      }
+    }
+    return {
+      success: true,
+      data: this.enrichMediaWithUrl(record as unknown as EnrichableRecord) as unknown as MediaItem,
+    };
+  }
+
+  /**
+   * Repair path for a dedupe hit whose files are gone: the original was just rewritten by
+   * `ensureOriginalOnDisk`, this re-derives the SIZES ladder and persists both onto the row
+   * that already exists — identical bytes never get a second row. `metadata` is merged
+   * rather than replaced, so fields this repair does not own (`versions`, focal point,
+   * AI tags) survive.
+   */
+  private async repairExistingRecord(
+    record: DbMediaItem,
+    relPath: string,
+    folderId: string | undefined,
+    metadata: Record<string, unknown>,
+    thumbnails: Record<string, unknown>,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<MediaItem>> {
+    const patch: Record<string, unknown> = {
+      path: relPath,
+      metadata: { ...((record.metadata ?? {}) as Record<string, unknown>), ...metadata },
+      thumbnails,
+    };
+    if (folderId !== record.folderId) patch.folderId = folderId;
+
+    const updateResult = await this.db.crud.update(
+      "media_items",
+      record._id,
+      patch as unknown as EntityUpdate<DbMediaItem>,
+      { tenantId: tenantId ?? undefined },
+    );
+    if (!updateResult.success) {
+      logger.warn(
+        "[Media] Dedupe repair update failed",
+        updateResult.error ?? updateResult.message,
+      );
+    } else {
+      Object.assign(record, patch);
+    }
+    return {
+      success: true,
+      data: this.enrichMediaWithUrl(record as unknown as EnrichableRecord) as unknown as MediaItem,
+    };
+  }
+
+  /**
+   * Read the source dimensions and write the operator's SIZES ladder for a raster upload.
+   * Non-images and SVG return empty maps (SVG is never rasterised). Failure is logged and
+   * swallowed — the original is already on disk, so derivatives must never fail an upload.
+   */
+  private async buildDerivativeSet(
+    buffer: Buffer,
+    hash: string,
+    filename: string,
+    effectiveType: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<{ metadata: Record<string, unknown>; thumbnails: Record<string, unknown> }> {
+    const metadata: Record<string, unknown> = {};
+    let thumbnails: Record<string, unknown> = {};
+    if (!effectiveType.startsWith("image/") || isSvgFile(effectiveType, filename)) {
+      return { metadata, thumbnails };
+    }
+    try {
+      const sharpMod = await import("sharp");
+      const sharp: SharpFactory = (sharpMod.default || sharpMod) as SharpFactory;
+      const imgMeta = await sharp(buffer).metadata();
+      if (imgMeta.width) metadata.width = imgMeta.width;
+      if (imgMeta.height) metadata.height = imgMeta.height;
+      const dotIdx = filename.lastIndexOf(".");
+      const baseName = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
+      const ext = dotIdx > 0 ? filename.slice(dotIdx + 1).toLowerCase() : "jpg";
+      thumbnails = await saveResizedImages(buffer, hash, baseName, ext, tenantId || "global");
+    } catch (e) {
+      logger.warn("[Media] Derivative generation skipped", e);
+    }
+    return { metadata, thumbnails };
+  }
+
+  /**
    * 🚀 AGNOSTIC CORE: Saves a media item to the database and physical storage.
    */
   public async saveMedia(
@@ -555,32 +712,8 @@ export class MediaService {
           tenantId: tenantId ?? undefined,
         });
         if (existing.success && existing.data) {
-          const record = existing.data;
-          const patch: Record<string, unknown> = {};
-          if (record.path !== relPath) patch.path = relPath;
-          if (folderId !== record.folderId) patch.folderId = folderId;
-          if (Object.keys(patch).length > 0) {
-            const updateResult = await this.db.crud.update(
-              "media_items",
-              record._id,
-              patch as unknown as EntityUpdate<DbMediaItem>,
-              { tenantId: tenantId ?? undefined },
-            );
-            if (!updateResult.success) {
-              logger.warn(
-                "[Media] Dedup-path metadata update failed",
-                updateResult.error ?? updateResult.message,
-              );
-            } else {
-              Object.assign(record, patch);
-            }
-          }
-          return {
-            success: true,
-            data: this.enrichMediaWithUrl(
-              record as unknown as EnrichableRecord,
-            ) as unknown as MediaItem,
-          };
+          // SVG has no derivative pipeline, so a plain reuse is already zero-work.
+          return await this.adoptExistingRecord(existing.data, relPath, folderId, tenantId);
         }
 
         return (await this.files.upload(
@@ -633,69 +766,61 @@ export class MediaService {
         }
 
         const hash = await hashFileContent(buffer);
-        const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
+        const relPath = buildOriginalRelPath(hash, file.name, tenantId);
 
-        // Extract image dimensions + generate derivatives for image files
-        let imageMetadata: Record<string, unknown> = {};
-        let imageThumbnails: Record<string, unknown> = {};
-        if (effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)) {
-          try {
-            const sharpMod = await import("sharp");
-            const sharp: SharpFactory = (sharpMod.default || sharpMod) as SharpFactory;
-            const imgMeta = await sharp(buffer).metadata();
-            if (imgMeta.width) imageMetadata.width = imgMeta.width;
-            if (imgMeta.height) imageMetadata.height = imgMeta.height;
-            const dotIdx = file.name.lastIndexOf(".");
-            const baseName = dotIdx > 0 ? file.name.slice(0, dotIdx) : file.name;
-            const ext = dotIdx > 0 ? file.name.slice(dotIdx + 1).toLowerCase() : "jpg";
-            imageThumbnails = await saveResizedImages(
-              buffer,
-              hash,
-              baseName,
-              ext,
-              tenantId || "global",
-            );
-            // Responsive variants are generated ASYNC after the record exists
-            // (see generateVariantsForStreamedFile below) — the sharp work
-            // (~60-100ms on a 1080p upload) must not block the response.
-          } catch (e) {
-            logger.warn("[Media] Derivative generation skipped", e);
-          }
-        }
-
-        // 1. Check for existing file by hash (Deduplication)
+        // 1. Content-hash dedupe BEFORE any derivative work (media pipeline plan §3 #2):
+        //    re-uploading identical bytes must cost zero encodes and zero derivative writes.
         const existing = await this.files.getByHash(hash, {
           tenantId: tenantId ?? undefined,
         });
-        if (existing.success && existing.data) {
-          const record = existing.data;
-          const patch: Record<string, unknown> = {};
-          if (record.path !== relPath) patch.path = relPath;
-          if (folderId !== record.folderId) patch.folderId = folderId;
-          if (Object.keys(patch).length > 0) {
-            const updateResult = await this.db.crud.update(
-              "media_items",
-              record._id,
-              patch as unknown as EntityUpdate<DbMediaItem>,
-              { tenantId: tenantId ?? undefined },
-            );
-            if (!updateResult.success) {
-              logger.warn(
-                "[Media] Dedup-path metadata update failed",
-                updateResult.error ?? updateResult.message,
-              );
-            } else {
-              Object.assign(record, patch);
-            }
-          }
-          return {
-            success: true,
-            data: this.enrichMediaWithUrl(
-              record as unknown as EnrichableRecord,
-            ) as unknown as MediaItem,
-          };
+        const staleRecord = existing.success && existing.data ? existing.data : undefined;
+        const missing = staleRecord ? await this.findMissingStoredFile(staleRecord) : null;
+        if (staleRecord && !missing) {
+          // A same-name re-upload short-circuits inside `ensureOriginalOnDisk` (file already
+          // there) — that is what keeps the `size-mtime` ETag, and therefore client
+          // re-downloads, stable. A different filename still gets its own copy so the
+          // `path` patch applied by `adoptExistingRecord` never points at a missing file.
+          await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
+          return await this.adoptExistingRecord(staleRecord, relPath, folderId, tenantId);
         }
-        const recordMetadata = imageMetadata;
+        if (staleRecord) {
+          logger.warn("[Media] Dedupe hit has files missing from storage — repairing", {
+            hash: hash.slice(0, 12),
+            missing,
+          });
+        }
+
+        await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
+
+        // Extract image dimensions + generate derivatives for image files.
+        // Responsive variants are generated ASYNC after the record exists
+        // (see generateVariantsForStreamedFile below) — the sharp work
+        // (~60-100ms on a 1080p upload) must not block the response.
+        const { metadata: imageMetadata, thumbnails: imageThumbnails } =
+          await this.buildDerivativeSet(buffer, hash, file.name, effectiveType, tenantId);
+
+        // Repair path: the row for these bytes exists, only its files did not. Re-derive
+        // them onto that row instead of inserting a second row for identical content.
+        if (staleRecord) {
+          const repaired = await this.repairExistingRecord(
+            staleRecord,
+            relPath,
+            folderId,
+            imageMetadata,
+            imageThumbnails,
+            tenantId,
+          );
+          this.generateVariantsForStreamedFile(
+            hash,
+            relPath,
+            effectiveType,
+            file.name,
+            repaired,
+            tenantId,
+          );
+          return repaired;
+        }
+
         const uploadResult = (await this.files.upload(
           {
             filename: file.name,
@@ -706,7 +831,7 @@ export class MediaService {
             path: relPath,
             createdBy: _userId as DatabaseId,
             updatedBy: _userId as DatabaseId,
-            metadata: recordMetadata,
+            metadata: imageMetadata,
             thumbnails: imageThumbnails,
             access: _access,
             folderId,
@@ -786,39 +911,46 @@ export class MediaService {
         // OR we upload to a temp name and then rename.
         // For Performance Tweaks, let's assume we want to avoid double-upload.
         const hash = await hashPromise;
-        const relPath = await this.ensureOriginalOnDisk(hash, file.name, s2, tenantId);
+        const relPath = buildOriginalRelPath(hash, file.name, tenantId);
 
+        // Content-hash dedupe BEFORE the (deferred) variant pipeline — media pipeline
+        // plan §3 #2: identical bytes must not re-encode, and the variant job must not be
+        // scheduled at all.
         const existing = await this.files.getByHash(hash, {
           tenantId: tenantId ?? undefined,
         });
-        if (existing.success && existing.data) {
-          const record = existing.data;
-          const patch: Record<string, unknown> = {};
-          if (record.path !== relPath) patch.path = relPath;
-          if (folderId !== record.folderId) patch.folderId = folderId;
-          if (Object.keys(patch).length > 0) {
-            const updateResult = await this.db.crud.update(
-              "media_items",
-              record._id,
-              patch as unknown as EntityUpdate<DbMediaItem>,
-              { tenantId: tenantId ?? undefined },
-            );
-            if (!updateResult.success) {
-              logger.warn(
-                "[Media] Dedup-path metadata update failed",
-                updateResult.error ?? updateResult.message,
+        const staleRecord = existing.success && existing.data ? existing.data : undefined;
+        const missing = staleRecord ? await this.findMissingStoredFile(staleRecord) : null;
+        if (staleRecord) {
+          // A no-op when the record's own file is already in place under this filename;
+          // otherwise it is the cheap copy that keeps the `path` patch truthful.
+          await this.ensureOriginalOnDisk(hash, file.name, s2, tenantId);
+          // The tee'd branch is fully consumed (or dropped) at this point — cancelling
+          // releases it instead of buffering the whole file for a write that never happens.
+          await s2.cancel().catch(() => {});
+          const reused = await this.adoptExistingRecord(staleRecord, relPath, folderId, tenantId);
+          if (missing !== null) {
+            // Repair: the original is back on disk and variant paths are hash-keyed, so the
+            // background job only rewrites what was gone. It never re-encodes a complete set.
+            logger.warn("[Media] Dedupe hit has files missing from storage — repairing", {
+              hash: hash.slice(0, 12),
+              missing,
+            });
+            if (largeType.startsWith("image/") && !isSvgFile(largeType, file.name)) {
+              this.generateVariantsForStreamedFile(
+                hash,
+                relPath,
+                largeType,
+                file.name,
+                reused,
+                tenantId,
               );
-            } else {
-              Object.assign(record, patch);
             }
           }
-          return {
-            success: true,
-            data: this.enrichMediaWithUrl(
-              record as unknown as EnrichableRecord,
-            ) as unknown as MediaItem,
-          };
+          return reused;
         }
+
+        await this.ensureOriginalOnDisk(hash, file.name, s2, tenantId);
 
         const uploadResult = await this.files.upload(
           {
@@ -881,12 +1013,16 @@ export class MediaService {
       item.url = getUrl(p, prefix);
     }
 
-    // Process thumbnails
+    // Process thumbnails — entries written by `saveResized`/`saveVariant` already carry the
+    // adapter's URL (`/files/…` locally, the CDN URL in the cloud); only raw storage paths are
+    // resolved here. Re-prefixing an existing URL produced `/files/files/…`, which 404s — and it
+    // made the reuse path return different URLs than the insert path for the same asset.
     if (item.thumbnails) {
       for (const key in item.thumbnails) {
         const thumb = item.thumbnails[key];
-        if (thumb && (thumb.path || thumb.url)) {
-          thumb.url = getUrl((thumb.path || thumb.url) as string, prefix);
+        const raw = (thumb?.path || thumb?.url) as string | undefined;
+        if (thumb && raw && !raw.startsWith("/files/") && !raw.startsWith("http")) {
+          thumb.url = getUrl(raw, prefix);
         }
       }
     }

@@ -18,7 +18,7 @@ sidebar_position: 2
 SveltyCMS uses a streamlined **4-project pipeline** to achieve high-concurrency E2E testing with minimal CI overhead. Each project handles a distinct phase of the test lifecycle.
 
 > [!IMPORTANT]
-> **Local default = CI parity:** `bun run test:e2e` runs `scripts/run-e2e-ci.ts` (preview `node build/index.js` on **:4173**).  
+> **Local default = CI parity:** `bun run test:e2e` runs `scripts/run-e2e.ts` (preview `node build/index.js` on **:4173**).  
 > Use `bun run test:e2e:dev` only for Vite :5173 debugging — it is **not** CI-identical.  
 > Identity: `admin@example.com` / `Password123!` from `tests/harness` (same as integration seed).
 

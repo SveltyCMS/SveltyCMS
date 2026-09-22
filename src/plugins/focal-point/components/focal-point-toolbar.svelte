@@ -16,6 +16,7 @@ aspect ratio preview with draggable focal point.
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import { mediaDisplayUrl } from '@utils/media/media-utils';
 	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
 	import 'iconify-icon';
 
@@ -125,11 +126,14 @@ aspect ratio preview with draggable focal point.
 					aria-label={`Preview aspect ratios for ${item.filename}`}
 				>
 					<div class="aspect-square overflow-hidden">
+						<!-- 3-column tile: the `sm` derivative is plenty. A raw `item.url` fallback would
+						     pull a full-resolution original into a ~100 px box. -->
 						<img
-							src={item.thumbnails?.sm?.url || item.thumbnails?.md?.url || item.url}
+							src={mediaDisplayUrl(item, 'sm')}
 							alt={item.filename}
 							class="h-full w-full object-cover transition-transform group-hover:scale-105"
 							loading="lazy"
+							decoding="async"
 						/>
 					</div>
 					<div

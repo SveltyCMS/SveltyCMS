@@ -5,11 +5,17 @@
  *
  * ### Design
  * - Variants are stored at deterministic paths: `{tenantId}/{hash}/variants/{preset}-{width}.{format}`
+ * - On-demand delivery variants use the preset token `t{height}q{quality}`
+ *   (e.g. `global/ab12…/variants/t0q82-320.webp`), so the full cache key is
+ *   `(hash, width, height, quality, format)` inside the tenant directory — see
+ *   `getTransformVariantRelPath`. Height `0` means "derived from the source aspect ratio".
  * - Uses the same StorageAdapter as the original media storage for backend-agnosticism
  * - No new DB tables — variant metadata is stored as JSON alongside the media record
  *
  * ### Features:
  * - getVariantPath() — deterministic path construction
+ * - getTransformVariantRelPath() / saveTransformVariant() / transformVariantExists()
+ *   — the on-demand delivery cache (thin wrappers over the functions below)
  * - variantExists() — check if variant file exists
  * - deleteVariants() — bulk cleanup for a media item
  * - saveVariant() — store a generated variant buffer
@@ -147,4 +153,86 @@ export async function deleteAllVariants(hash: string, tenantId?: string | null):
     // the directory-less approach is acceptable — orphaned variant
     // files are harmless and will be overwritten on re-upload.
   }
+}
+
+// ─── On-demand delivery variant cache ─────────────────────────────────────
+
+/**
+ * Structural key of an on-demand transform variant.
+ * Kept local (instead of importing `TransformPlan`) so this module stays a leaf
+ * that `image-processor.ts` can depend on without a cycle.
+ */
+export interface TransformVariantKey {
+  /** Ladder width in px (0 = derived from height). */
+  width: number;
+  /** Ladder height in px (0 = derived from width). */
+  height: number;
+  /** Snapped encoder quality (part of the cache key). */
+  quality: number;
+  /** Output format / file extension (webp, avif, jpeg, png). */
+  format: string;
+}
+
+/**
+ * Preset token encoding the non-width components of the variant key.
+ * `t0q82` = "height derived from source, quality 82".
+ */
+export function getTransformPresetToken(height: number, quality: number): string {
+  return `t${height}q${quality}`;
+}
+
+/**
+ * Cache path of an on-demand transform variant.
+ *
+ * The key is tenant-scoped and derived from the ORIGINAL's path —
+ * `{tenantId}/{hash}/variants/t{height}q{quality}-{width}.{format}` where `{hash}`
+ * is the content hash of the original bytes. A signed URL's `sig` is never part of
+ * the key: authorization stays with the delivery route's tenant + signature gates, so
+ * the same entry can safely be reused across differently-signed requests for the same
+ * tenant, and no entry can be served to another tenant (their paths never collide).
+ */
+export function getTransformVariantRelPath(
+  hash: string,
+  key: TransformVariantKey,
+  tenantId?: string | null,
+): string {
+  return getVariantPath(
+    hash,
+    getTransformPresetToken(key.height, key.quality),
+    key.width,
+    key.format,
+    tenantId,
+  );
+}
+
+/** Cache hit check for an on-demand transform variant. */
+export async function transformVariantExists(
+  hash: string,
+  key: TransformVariantKey,
+  tenantId?: string | null,
+): Promise<boolean> {
+  return await variantExists(
+    hash,
+    getTransformPresetToken(key.height, key.quality),
+    key.width,
+    key.format,
+    tenantId,
+  );
+}
+
+/** Persist a generated on-demand transform variant (same write path as upload variants). */
+export async function saveTransformVariant(
+  buffer: Buffer,
+  hash: string,
+  key: TransformVariantKey,
+  tenantId?: string | null,
+): Promise<string> {
+  return await saveVariant(
+    buffer,
+    hash,
+    getTransformPresetToken(key.height, key.quality),
+    key.width,
+    key.format,
+    tenantId,
+  );
 }

@@ -1,25 +1,73 @@
-# SveltyCMS — AI Agent Guide
+# SveltyCMS
 
-> SveltyCMS is a high-performance, database-agnostic headless CMS built with SvelteKit 2, Svelte 5 (Runes), TypeScript, and Tailwind CSS v4. It features automated multi-database adapter layers, runtime cryptographic audit logging, compile-time ParaglideJS localization, and automated workflows.
+> SveltyCMS is a self-hosted CMS. Editors use the admin. Other applications call REST or GraphQL. Server code inside this project calls LocalCMS. Collections run on SQLite, PostgreSQL, MariaDB, or MongoDB. The stack is SvelteKit 3 (RC), Svelte 5, TypeScript, and Tailwind CSS v4.
 
-## Core Documentation
-- [Architecture](https://docs.sveltycms.com/reference/architecture/): Unified server state machine hooks (IDLE → READY | DEGRADED), event-bus routing, and zero-tax static builds.
-- [API Reference](https://docs.sveltycms.com/reference/api/): In-depth mechanics for automated REST route dispatchers and authorization middleware context scaling.
-- [Security Boundaries](https://docs.sveltycms.com/reference/security/): High-fidelity 4-layer defense configurations, SHA-256 tamper-evident audit logging chains, and scoped keys.
-- [Database Adapters](https://docs.sveltycms.com/reference/database/): Technical interface definitions for production-ready SQLite (WAL), MongoDB, MariaDB, and PostgreSQL engines.
-- [3-Pillar Component UI](https://docs.sveltycms.com/reference/components/): Lazy-loaded interface field widget loader registries (Definition, Input, Display architecture).
+The public docs are organized by the question the reader has. Architecture essays, test write-ups, and project records are linked from these sections. They are not the first page a new editor should open.
 
-## API Endpoints
-- [REST Content Dispatcher](https://docs.sveltycms.com/reference/api/collections.mdx): Complete endpoint reference for collections metadata filtering, cursor pagination, and multi-tenant isolation.
-- [GraphQL API Performance](https://docs.sveltycms.com/reference/api/graphql.mdx): Auto-generated typed GraphQL schemas, query execution blocks, and integrated interactive playground paths.
-- [Dynamic OpenAPI 3.1 Spec](https://demo.sveltycms.com/api/openapi.json): Machine-readable dynamic schema blueprint updated continuously at runtime.
+## Get started
 
-## Model Context Protocol (MCP) Server
-- [Hosted MCP Server Hub](https://mcp.sveltycms.com/mcp): Live SSE protocol endpoints exposing active toolkits directly to consumer AI agent systems.
-- [search_knowledge_base](https://mcp.sveltycms.com/docs/tools#search): Tool for semantic query exploration over the core SveltyCMS configuration and design records.
-- [read_source_code](https://mcp.sveltycms.com/docs/tools#read): Tool allowing programmatic extraction of runtime source files, database queries, and field hooks.
-- [get_file_tree](https://mcp.sveltycms.com/docs/tools#tree): Tool providing autonomous visibility into repository file layouts and directory structures.
+- [Getting started](https://docs.sveltycms.com/docs/getting-started): Install, run the setup wizard, create a collection.
+- [Onboarding](https://docs.sveltycms.com/docs/onboarding): Tutorials after install.
+- [Setup walkthrough](https://docs.sveltycms.com/docs/onboarding/setup-wizard): The short first run after install.
+- [Persona paths](https://docs.sveltycms.com/docs/onboarding/persona-paths): Next reading for editors, administrators, and developers.
+- [Troubleshooting](https://docs.sveltycms.com/docs/troubleshooting): Common failures.
 
-## Key Repositories & Ecosystem
-- [SveltyCMS Source](https://github.com/SveltyCMS/SveltyCMS): Core platform engine repository tracking current releases, migration utilities, and test runner matrices.
-- [Extension Marketplace](https://marketplace.sveltycms.com): Central distribution directory hosting community-vetted widgets, slot extensions, and custom dashboard themes.
+## Concepts
+
+- [Concepts](https://docs.sveltycms.com/docs/concepts): Collection, entry, widget, tenant, the three APIs, and the database adapter.
+
+## Guides
+
+Task recipes for the admin and for operations.
+
+- [Guides](https://docs.sveltycms.com/docs/guides): Index.
+- [Collection Builder](https://docs.sveltycms.com/docs/guides/content/collection-builder): Collections, fields, and relations.
+- [Workflows](https://docs.sveltycms.com/docs/guides/content/workflows): Draft, review, and publish.
+- [Automations](https://docs.sveltycms.com/docs/guides/content/automations): Emails, webhooks, and field updates when an entry changes.
+- [E-commerce](https://docs.sveltycms.com/docs/guides/content/ecommerce): Optional catalog, orders, and payments.
+- [Maintenance](https://docs.sveltycms.com/docs/guides/configuration/maintenance): Watchdog, cache compaction, and trash purge.
+- [Image editor](https://docs.sveltycms.com/docs/guides/content/image-editor): Crop and edit media.
+- [Migration and import](https://docs.sveltycms.com/docs/guides/content/migration-and-import): Bring content in from a file or another CMS.
+- [Access management](https://docs.sveltycms.com/docs/guides/configuration/access-management): Roles and permissions.
+- [System settings](https://docs.sveltycms.com/docs/guides/configuration/system-settings): Site, cache, and security settings.
+- [System languages](https://docs.sveltycms.com/docs/guides/configuration/system-languages): Admin locales.
+- [Email](https://docs.sveltycms.com/docs/guides/configuration/email-system): SMTP and templates.
+- [Upgrading](https://docs.sveltycms.com/docs/guides/configuration/upgrading): Move an existing install forward.
+- [Production deployment](https://docs.sveltycms.com/docs/guides/deployment/production-deployment): Run for real traffic.
+- [GDPR](https://docs.sveltycms.com/docs/guides/legal/gdpr-compliance): Privacy obligations for an install.
+
+## Build
+
+Extend the CMS.
+
+- [Development](https://docs.sveltycms.com/docs/development): Index.
+- [Widgets](https://docs.sveltycms.com/docs/development/widgets): Custom fields. Definition, input, and display.
+- [Dashboard widgets](https://docs.sveltycms.com/docs/development/dashboard): Cards on the admin dashboard.
+- [Local SDK vs HTTP](https://docs.sveltycms.com/docs/development/local-vs-http-api): When server code should call LocalCMS.
+- [Site starter](https://docs.sveltycms.com/docs/development/site-starter): Optional public site in this repo.
+- [Plugins](https://docs.sveltycms.com/docs/development/plugins/development): Server hooks. The runtime (boot, capabilities, encrypted settings) is [Plugin runtime](https://docs.sveltycms.com/docs/reference/architecture/plugin-architecture).
+
+## Reference
+
+Look up a contract.
+
+- [Reference](https://docs.sveltycms.com/docs/reference): Index.
+- [API](https://docs.sveltycms.com/docs/reference/api): REST, GraphQL, and related endpoints.
+- [Security](https://docs.sveltycms.com/docs/reference/security): Auth, CSP, field access, incident response.
+- [Database](https://docs.sveltycms.com/docs/reference/database): SQLite, PostgreSQL, MariaDB, and MongoDB adapters.
+- [Components](https://docs.sveltycms.com/docs/reference/components): Admin collection UI.
+- [Architecture](https://docs.sveltycms.com/docs/reference/architecture): Why the engine is built this way. Read the page for the subsystem you are changing.
+
+## Contribute
+
+- [Contributing to the documentation](https://docs.sveltycms.com/docs/contributing/contributing-docs): Where a page belongs, style, and the pull request.
+- [Admin style guide](https://docs.sveltycms.com/docs/contributing/style-guide-gui): Admin UI patterns.
+- [Accessibility](https://docs.sveltycms.com/docs/contributing/accessibility): WCAG 2.2 AA and ATAG 2.0.
+- [Validation pipeline](https://docs.sveltycms.com/docs/contributing/validation-pipeline): Git hooks and CI.
+
+## Machine-readable extras
+
+- [OpenAPI](https://demo.sveltycms.com/api/openapi.json): Generated from the running CMS.
+- [MCP knowledge server](https://mcp.sveltycms.com/mcp): Live tools over the project knowledge base.
+- [Source](https://github.com/SveltyCMS/SveltyCMS): The product repository. These docs live in `docs/`.
+- [Marketplace](https://marketplace.sveltycms.com): Widgets, plugins, and themes.

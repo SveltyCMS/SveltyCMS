@@ -35,7 +35,6 @@ import {
 interface TurboAuthContext {
   user: User;
   roles: Role[];
-  bitset: Uint32Array;
   tenantId: DatabaseId | null;
   expiresAt: number;
 }
@@ -54,7 +53,6 @@ export function setTurboAuthContext(
   sessionId: string,
   user: User,
   roles: Role[],
-  bitset: Uint32Array,
   tenantId: DatabaseId | null,
 ): void {
   if (turboAuthCache.has(sessionId)) {
@@ -67,7 +65,6 @@ export function setTurboAuthContext(
   turboAuthCache.set(sessionId, {
     user,
     roles,
-    bitset,
     tenantId,
     expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
   });
@@ -202,8 +199,52 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 };
 
 /**
+ * Security headers for a turbo HIT do not depend on the body. Built once per
+ * (https, origin, api kind) and copied into each response. CSP, COEP, and the
+ * CORS allowlist stay identical to `applyAllSecurityHeaders`.
+ */
+const HIT_HEADER_TEMPLATES = new Map<string, [string, string][]>();
+const HIT_HEADER_TEMPLATE_MAX = 32;
+
+function hitHeaderKind(pathname: string): "graphql" | "media" | "api" {
+  if (pathname.startsWith("/api/graphql")) return "graphql";
+  if (pathname.startsWith("/api/media/") || pathname.includes("/mediagallery")) return "media";
+  return "api";
+}
+
+function hitHeaderTemplate(
+  https: boolean,
+  origin: string | null,
+  pathname: string,
+): [string, string][] {
+  const kind = hitHeaderKind(pathname);
+  const key = `${https ? 1 : 0}|${origin ?? ""}|${kind}`;
+  const cached = HIT_HEADER_TEMPLATES.get(key);
+  if (cached) return cached;
+  const samplePath =
+    kind === "graphql" ? "/api/graphql" : kind === "media" ? "/api/media/x" : "/api/collections/x";
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    "X-Cache": "TURBO-HIT",
+    "Cache-Control": "private, must-revalidate",
+    Vary: "Accept-Encoding, Cookie",
+  });
+  applyAllSecurityHeaders(headers, https, origin, samplePath);
+  const pairs: [string, string][] = [];
+  headers.forEach((value, name) => {
+    pairs.push([name, value]);
+  });
+  if (HIT_HEADER_TEMPLATES.size >= HIT_HEADER_TEMPLATE_MAX) HIT_HEADER_TEMPLATES.clear();
+  HIT_HEADER_TEMPLATES.set(key, pairs);
+  return pairs;
+}
+
+/**
  * Serve a turbo L1 tuple (HIT / 304 / pre-compressed). Shared by handleTurboGet
  * and the collection point-read miss lane so HIT bytes stay identical.
+ *
+ * `x-srv-dur` is stamped by the read lane only when `SVELTY_SRV_DUR=1`
+ * (inspect-mixed-cycle). It is not part of the security response.
  */
 export function serveTurboCacheEntry(
   event: { request: Request; url: URL },
@@ -211,24 +252,15 @@ export function serveTurboCacheEntry(
 ): Response {
   const { request, url } = event;
   const method = request.method;
-  const responseHeaders = new Headers({
-    "Content-Type": "application/json",
-    "X-Cache": "TURBO-HIT",
-    "Cache-Control": "private, must-revalidate",
-    "x-srv-dur": "0.05",
-    Vary: "Accept-Encoding, Cookie",
-  });
-
-  applyAllSecurityHeaders(
-    responseHeaders,
-    url.protocol === "https:",
-    request.headers.get("Origin") || null,
-    url.pathname,
+  const origin = request.headers.get("Origin") || request.headers.get("origin");
+  const responseHeaders = new Headers(
+    hitHeaderTemplate(url.protocol === "https:", origin, url.pathname),
   );
 
   if (resEntry.etag) {
     responseHeaders.set("ETag", resEntry.etag);
-    const ifNoneMatch = request.headers.get("If-None-Match");
+    const ifNoneMatch =
+      request.headers.get("If-None-Match") || request.headers.get("if-none-match");
     if (
       ifNoneMatch &&
       (ifNoneMatch === resEntry.etag ||
@@ -245,22 +277,26 @@ export function serveTurboCacheEntry(
   const rawBody = resEntry.body;
   let bodyToSend: BodyInit | Uint8Array | null = resEntry.buffer ?? rawBody;
 
-  const payloadSize = resEntry.buffer
-    ? resEntry.buffer.byteLength
-    : Buffer.byteLength(rawBody, "utf-8");
-  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
-  const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
-    contentLength: payloadSize,
-  });
-
-  if (algo && payloadSize > 1024) {
-    const variant = resEntry.compressed?.[algo];
-    if (variant && variant.length < payloadSize) {
-      bodyToSend = variant;
-      setCompressionHeaders(responseHeaders, algo, payloadSize, variant.length);
+  // Compressed variants are not stored on the hot path. Skip Accept-Encoding
+  // negotiation unless a variant was actually attached.
+  const compressed = resEntry.compressed;
+  if (compressed) {
+    const payloadSize = resEntry.buffer
+      ? resEntry.buffer.byteLength
+      : Buffer.byteLength(rawBody, "utf-8");
+    if (payloadSize > 1024) {
+      const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+      const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+        contentLength: payloadSize,
+      });
+      if (algo) {
+        const variant = compressed[algo];
+        if (variant && variant.length < payloadSize) {
+          bodyToSend = variant;
+          setCompressionHeaders(responseHeaders, algo, payloadSize, variant.length);
+        }
+      }
     }
-    // No compressSync fallback — HIT must stay off the request thread.
-    // Missing variants serve uncompressed; background compressAsync fills them.
   }
 
   if (method === "HEAD" || method === "OPTIONS") {

@@ -89,6 +89,51 @@ export function readSessionCookie(
 }
 
 /**
+ * Same precedence as `readSessionCookie`, reading the raw `Cookie` header once.
+ * A name matches only at a cookie boundary (`start` or `;`), so
+ * `my_auth_sessions_extra` does not match `auth_sessions`.
+ */
+export function readSessionIdFromCookieHeader(
+  cookieHeader: string | null | undefined,
+  isSecure: boolean,
+): string | undefined {
+  if (!cookieHeader) return undefined;
+  const names =
+    isSecure === true
+      ? [HOST_SESSION_COOKIE_NAME, SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME]
+      : [SESSION_COOKIE_NAME, HOST_SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME];
+  for (let i = 0; i < names.length; i++) {
+    const value = cookieValueAtBoundary(cookieHeader, names[i]!);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function cookieValueAtBoundary(header: string, name: string): string | undefined {
+  const needle = `${name}=`;
+  let from = 0;
+  while (from < header.length) {
+    const idx = header.indexOf(needle, from);
+    if (idx < 0) return undefined;
+    let boundary = idx === 0;
+    if (!boundary) {
+      let j = idx - 1;
+      while (j >= 0 && header.charCodeAt(j) === 32) j--;
+      boundary = j < 0 || header.charCodeAt(j) === 59;
+    }
+    if (boundary) {
+      const valueStart = idx + needle.length;
+      let end = header.indexOf(";", valueStart);
+      if (end < 0) end = header.length;
+      const raw = header.slice(valueStart, end).trim();
+      if (raw) return raw;
+    }
+    from = idx + needle.length;
+  }
+  return undefined;
+}
+
+/**
  * Deletes all session cookie variants (__Host-, __Secure-, and plain) to ensure
  * clean session termination without leaving stale prefixed cookies.
  */

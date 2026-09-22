@@ -21,23 +21,26 @@ tags:
 The Content Transfer API provides a plan-first, streaming workflow for exporting content out of a SveltyCMS instance and importing it into another. It supports NDJSON streaming for large datasets, configurable duplicate resolution, and deterministic identity matching across environments.
 
 > [!IMPORTANT]
-> All content transfer endpoints are **admin-gated**. GET requests require `content:read`, POST requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+> All content transfer endpoints are **admin-gated**. GET requests require `content:read`; POST requests require `content:export` under `/api/content-export/*` and `content:import` under `/api/content-import/*`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature               | HTTP Endpoint                         | Method | Permission      |
-| :-------------------- | :------------------------------------ | :----- | :-------------- |
-| **Validate Export**   | `/api/content-export/validate`        | `POST` | `content:write` |
-| **Plan Export**       | `/api/content-export/plan`            | `POST` | `content:write` |
-| **Run Export**        | `/api/content-export/run`             | `POST` | `content:write` |
-| **Export Job Status** | `/api/content-export/jobs/:jobId`     | `GET`  | `content:read`  |
-| **Download Export**   | `/api/content-export/download/:jobId` | `GET`  | `content:read`  |
-| **Validate Import**   | `/api/content-import/validate`        | `POST` | `content:write` |
-| **Plan Import**       | `/api/content-import/plan`            | `POST` | `content:write` |
-| **Apply Import**      | `/api/content-import/apply`           | `POST` | `content:write` |
-| **Import Job Status** | `/api/content-import/jobs/:jobId`     | `GET`  | `content:read`  |
+| Feature               | HTTP Endpoint                         | Method | Permission       |
+| :-------------------- | :------------------------------------ | :----- | :--------------- |
+| **Validate Export**   | `/api/content-export/validate`        | `POST` | `content:export` |
+| **Plan Export**       | `/api/content-export/plan`            | `POST` | `content:export` |
+| **Run Export**        | `/api/content-export/run`             | `POST` | `content:export` |
+| **Export Job Status** | `/api/content-export/jobs/:jobId`     | `GET`  | `content:read`   |
+| **Download Export**   | `/api/content-export/download/:jobId` | `GET`  | `content:read`   |
+| **Validate Import**   | `/api/content-import/validate`        | `POST` | `content:import` |
+| **Plan Import**       | `/api/content-import/plan`            | `POST` | `content:import` |
+| **Apply Import**      | `/api/content-import/apply`           | `POST` | `content:import` |
+| **Import Job Status** | `/api/content-import/jobs/:jobId`     | `GET`  | `content:read`   |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `content-export`/`content-import` entries map `POST` to their own id, everything else to `content:read`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 

@@ -569,9 +569,17 @@ async function phaseBuild(args: ParsedArgs): Promise<void> {
 }
 
 /** Phase 3: Setup — config, port, server startup. */
-async function phaseSetup(
-  ctx: ValidatedContext,
-): Promise<{ server: ChildProcess; serverLog: string[] }> {
+async function phaseSetup(ctx: ValidatedContext): Promise<{
+  server: ChildProcess;
+  serverLog: string[];
+  /** Set by the exit handler — a dead preview must not read as a plain test failure. */
+  serverExit: {
+    code: number | null;
+    at: number | null;
+    /** True once the runner itself is stopping the preview (cleanup kill). */
+    expected: boolean;
+  };
+}> {
   cleanupTestArtifacts(ctx.root);
   writePrivateTestConfig(ctx);
   cleanSqliteTestFiles(ctx.root, ctx.dbType, ctx.dbName);
@@ -589,6 +597,12 @@ async function phaseSetup(
   const serverLog: string[] = [];
   /** Keep a short tail so failure dumps stay scannable (not full boot spam). */
   const MAX_LOG_LINES = 40;
+  /** Death of the preview process: reported by every phase instead of passing silently. */
+  const serverExit: { code: number | null; at: number | null; expected: boolean } = {
+    code: null,
+    at: null,
+    expected: false,
+  };
 
   const server = spawn("node", [entryPoint], {
     cwd: ROOT,
@@ -614,11 +628,28 @@ async function phaseSetup(
   server.stdout?.on("data", (d) => pushLog(d, "stdout"));
   server.stderr?.on("data", (d) => pushLog(d, "stderr"));
   server.on("exit", (code) => {
-    if (code !== null && code !== 0) console.error(`[srv] early exit code=${code}`);
+    serverExit.code = code;
+    serverExit.at = performance.now();
+    // `taskkill` reports the killed preview as a non-zero exit. That is the
+    // runner's own shutdown, not a crash, and logging it as one sent every
+    // investigation after the wrong signal.
+    if (code !== null && code !== 0 && !serverExit.expected) {
+      console.error(`[srv] preview exited unexpectedly code=${code}`);
+    }
   });
 
   try {
-    await waitForIntegrationHealth(ctx.apiBaseUrl, { testApiSecret: ctx.secrets.testApiSecret });
+    // Fail fast: a preview that dies before it is healthy would otherwise burn the
+    // whole health timeout and report a bare timeout instead of the reason
+    // (EADDRINUSE, a bad migration, an unhandled rejection).
+    await Promise.race([
+      waitForIntegrationHealth(ctx.apiBaseUrl, { testApiSecret: ctx.secrets.testApiSecret }),
+      new Promise<never>((_, reject) => {
+        server.once("exit", (code) =>
+          reject(new Error(`Preview server exited with code ${code} before becoming healthy`)),
+        );
+      }),
+    ]);
   } catch (err) {
     if (serverLog.length > 0) {
       console.error("── preview server log (tail) ──");
@@ -627,7 +658,7 @@ async function phaseSetup(
     }
     throw err;
   }
-  return { server, serverLog };
+  return { server, serverLog, serverExit };
 }
 
 /** Phase 4: Run — execute the test suite with optional retry. */
@@ -709,7 +740,13 @@ async function phaseRun(
 }
 
 /** Phase 5: Cleanup — stop server, clean artifacts, release port. */
-async function phaseCleanup(server: ChildProcess, ctx: ValidatedContext): Promise<void> {
+async function phaseCleanup(
+  server: ChildProcess,
+  ctx: ValidatedContext,
+  serverExit: { expected: boolean },
+): Promise<void> {
+  // From here on a non-zero exit is the stop, not a crash.
+  serverExit.expected = true;
   await stopChildProcessTree(null, { label: "bun test", graceMs: 400 });
   await stopChildProcessTree(server, { label: "preview", graceMs: 800 });
   await sleep(200);
@@ -737,7 +774,7 @@ async function main() {
 
   // Phase 3: Setup
   const dockerHints = (await detectDockerAdapterHints()).available;
-  const { server, serverLog } = await phaseSetup(ctx);
+  const { server, serverLog, serverExit } = await phaseSetup(ctx);
 
   // Phase 4: Run
   let exitCode = 1;
@@ -754,26 +791,39 @@ async function main() {
     console.error(err instanceof Error ? err.message : err);
   }
 
-  // On failure in quiet CI, surface a short buffered server tail for diagnosis
-  if (exitCode !== 0 && isCIQuiet && serverLog.length > 0) {
+  const dumpServerTail = (headline: string) => {
+    if (serverLog.length === 0) return;
     const interesting = serverLog.filter((l) =>
       /error|fail|warn|exception|crash|ECONN|ENOENT|FATAL/i.test(l),
     );
-    const dump = interesting.length > 0 ? interesting.slice(-25) : serverLog.slice(-25);
-    console.error("\n── preview server log (failure tail) ──");
+    const dump = (interesting.length > 0 ? interesting : serverLog).slice(-25);
+    console.error(headline);
     for (const line of dump) console.error(line);
     console.error("── end preview log ──\n");
+  };
+
+  // A preview that died mid-run invalidates the result whatever the tally says:
+  // its last requests fail as connection errors, which look like product failures.
+  const serverDied = serverExit.at !== null && (serverExit.code ?? 0) !== 0 && !serverExit.expected;
+  if (serverDied) {
+    console.error(
+      `\n❌ Preview server exited during the run (code ${serverExit.code}) — the result is not trustworthy.`,
+    );
+    dumpServerTail("── preview server log (crash tail) ──");
+  } else if (exitCode !== 0 && isCIQuiet) {
+    // On failure in quiet CI, surface a short buffered server tail for diagnosis.
+    dumpServerTail("── preview server log (failure tail) ──");
   }
 
   // Phase 5: Cleanup
-  await phaseCleanup(server, ctx);
+  await phaseCleanup(server, ctx, serverExit);
 
   // Report: always in CI (compact gate signal); locally only with --summary/--retry
   if (isCIQuiet || args.summary || args.retryCount > 0) {
     printSummaryReport(allResults, flakyResults, performance.now() - totalStart, tally);
   }
 
-  process.exit(exitCode);
+  process.exit(serverDied ? 1 : exitCode);
 }
 
 main().catch((err) => {

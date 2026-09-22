@@ -90,6 +90,15 @@ export function buildRegistrationOptions(user: User, rpId: string, challenge: st
       userVerification: "preferred" as const,
       residentKey: "preferred" as const,
     },
+    // Exclude credentials the user already registered, so the same authenticator
+    // cannot be enrolled twice (mirrors `allowCredentials` in
+    // buildAuthenticationOptions: stored ids are base64url and are converted to
+    // buffers here, then re-encoded for transport by the remote function).
+    excludeCredentials: (user.authenticators ?? []).map((cred) => ({
+      type: "public-key" as const,
+      id: base64UrlToBuffer(cred.credentialID),
+      transports: cred.transports,
+    })),
   };
 }
 

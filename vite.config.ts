@@ -703,7 +703,7 @@ function buildWarningManagerPlugin(): Plugin {
 }
 
 /**
- * Reports node-builtin imports that reach the CLIENT graph.
+ * Fails the build when a node builtin import reaches the CLIENT graph.
  *
  * A static `import "node:fs"` in a module the browser loads is the exact shape
  * of the 2026-09-21 outage: the browser fetched the `node:path` URL
@@ -711,12 +711,15 @@ function buildWarningManagerPlugin(): Plugin {
  * marketplace fell back to the error page — with nothing in the server log,
  * because a failed client chunk never reaches `handleError`.
  *
- * The client environment no longer externalizes builtins (see the comment in
- * `build.rollupOptions`), so a leak stubs the call site instead of killing the
- * route; this hook keeps the boundary visible in the build log.
+ * The previous version only warned; every leak it reported has since been moved
+ * behind a `.server.ts` boundary, so this is an error now: a stub silently
+ * degrades behaviour at runtime, which is worse than a red build. Only STATIC
+ * imports are rejected — `await import("node:fs")` inside a `typeof window`
+ * guard stays legal (it is never fetched in the browser).
  *
  * Fix: keep fs/path work in a `.server.ts` module or use pure string helpers
- * (see `buildOriginalRelPath` in @utils/media/media-utils).
+ * (see `buildOriginalRelPath` in @utils/media/media-utils and
+ * `marketplace-install.server.ts`).
  */
 function clientNodeBuiltinGuardPlugin(): Plugin {
   // `import "x"` / `import a from "x"` / `import { a } from "x"` / `export … from "x"`
@@ -750,7 +753,7 @@ function clientNodeBuiltinGuardPlugin(): Plugin {
       for (let match = STATIC_IMPORT_RE.exec(code); match; match = STATIC_IMPORT_RE.exec(code)) {
         const spec = match[1]!;
         if (!isBuiltin(spec)) continue;
-        this.warn({
+        this.error({
           message:
             `[client-node-builtin] ${path.relative(CWD, id)} imports "${spec}" in the browser graph. ` +
             `Move the Node work into a .server.ts module or use pure string helpers.`,

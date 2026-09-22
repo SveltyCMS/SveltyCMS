@@ -3,7 +3,7 @@
  * @description High-performance, benchmark-friendly widget registry.
  */
 
-import { coreModules, customModules, marketplaceModules } from "../../widgets/scanner";
+import * as scanner from "../../widgets/scanner";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@src/widgets/types";
 import {
   folderFromWidgetPath,
@@ -79,16 +79,16 @@ class WidgetRegistryService {
   }
 
   private _registerPreScannedWidgets() {
-    for (const [path, module] of Object.entries(coreModules)) {
+    for (const [path, module] of Object.entries(scanner.coreModules)) {
       this._registerWidget(path, module as WidgetModule, "core");
     }
 
-    for (const [path, module] of Object.entries(customModules)) {
+    for (const [path, module] of Object.entries(scanner.customModules)) {
       this._registerWidget(path, module as WidgetModule, "custom");
     }
 
     // Vite-eager marketplace packages (if any were present at build time)
-    for (const [path, module] of Object.entries(marketplaceModules)) {
+    for (const [path, module] of Object.entries(scanner.marketplaceModules)) {
       this._registerWidget(path, module as WidgetModule, "marketplace");
     }
   }
@@ -213,7 +213,43 @@ class WidgetRegistryService {
   }
 
   // Public API
+  /** A factory chunk exists and has not been evaluated yet. */
+  public canLoad(name: string): boolean {
+    if (this.widgets.has(name)) return false;
+    try {
+      // Namespace access on purpose: test setups replace this module with a
+      // partial mock, and a named import of a missing loader is an ESM linking
+      // error ("export named ... not found") rather than a caught call.
+      return typeof scanner.hasWidgetLoader === "function" ? scanner.hasWidgetLoader(name) : false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Evaluate and register only the named factories. A second call for the
+   * same name is a registry hit.
+   */
+  public async ensureWidgets(names: Iterable<string>): Promise<void> {
+    const missing: string[] = [];
+    for (const name of names) {
+      if (name && !this.widgets.has(name)) missing.push(name);
+    }
+    if (missing.length === 0) return;
+    try {
+      if (typeof scanner.loadWidgetFactories === "function") {
+        await scanner.loadWidgetFactories(missing);
+      }
+    } catch {
+      // Test mocks replace the scanner and do not export the loader.
+    }
+    this._registerPreScannedWidgets();
+  }
+
   public async getWidget(name: string): Promise<WidgetFactory | undefined> {
+    if (!this.widgets.has(name)) {
+      await this.ensureWidgets([name]);
+    }
     if (!this.isInitialized) {
       await this.initialize();
     }
@@ -221,6 +257,14 @@ class WidgetRegistryService {
   }
 
   public async getAllWidgets(): Promise<Map<string, WidgetFactory>> {
+    try {
+      if (typeof scanner.loadWidgetFactories === "function") {
+        await scanner.loadWidgetFactories();
+      }
+    } catch {
+      // Scanner mock has no loader map; pre-registered factories still apply.
+    }
+    this._registerPreScannedWidgets();
     if (!this.isInitialized) {
       await this.initialize();
     }

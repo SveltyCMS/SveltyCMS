@@ -13,12 +13,23 @@
  * Deliberately NOT in tsconfig `include`: this entry point dynamically imports
  * the generated `build/` bundles, so including it would pull every minified
  * server chunk into the program (measured: 61k+ errors from generated code).
- * The `bun` types are requested here instead.
+ * `bun` is already in the tsconfig `types` list, so Bun globals resolve without
+ * a `/// <reference types="bun" />` here — that reference is what pulled a second
+ * `node:http` declaration copy into editors and produced a phantom
+ * `IncomingMessage.signal` mismatch on the handler call.
  */
 
-/// <reference types="bun" />
-
-import type { IncomingMessage, ServerResponse } from "node:http";
+/**
+ * Load a generated bundle from `build/` at runtime.
+ *
+ * The build output is intentionally outside the TypeScript program (following it
+ * would pull every minified server chunk in — measured: 61k+ errors from
+ * generated code), so the specifier is composed at runtime instead of written as
+ * a literal. That keeps `tsc`/editors from resolving into `build/`, while Bun and
+ * Node resolve the very same relative path.
+ */
+const importBuildBundle = <T>(name: string): Promise<T> =>
+  import("./build/" + name + ".js") as Promise<T>;
 
 async function startBunServer() {
   console.log("[SveltyCMS:Bun] Initializing high-performance Bun runtime...");
@@ -66,18 +77,22 @@ async function startBunServer() {
   process.env.PROTOCOL_HEADER = "x-forwarded-proto";
   process.env.HOST_HEADER = "host";
 
-  // Import the SvelteKit handler
-  const { handler: svelteKitHandler } = await import("./build/handler.js");
+  const http = await import("node:http");
+  // The listener arguments are opaque here: this entry point only forwards what
+  // Node passes to adapter-node's handler. Typed `unknown` on purpose — naming
+  // the `node:http` classes again compares two declaration copies (this file opts
+  // into `bun` types, and @types/node 26 added `IncomingMessage.signal`), which
+  // surfaces as a phantom "signal is missing" mismatch on the call below.
+  type RequestListener = (req: unknown, res: unknown, next?: (err?: unknown) => void) => void;
   // adapter-node's JSDoc types `next` as required, but its polka chain tolerates
   // its absence (`next ? next() : isNotFound(req, res)`), which is why index.cjs
   // also calls it with two arguments. Passing a stub `next` would be worse than
   // omitting it: nothing would route and nothing would 404, so the request would
   // hang until the headers timeout.
-  const handler = svelteKitHandler as unknown as (
-    req: IncomingMessage,
-    res: ServerResponse,
-  ) => void;
-  const http = await import("node:http");
+  const { handler: svelteKitHandler } = await importBuildBundle<{ handler: RequestListener }>(
+    "handler",
+  );
+  const handler: RequestListener = svelteKitHandler;
 
   // Create HTTP server (compatible with SvelteKit handler and ws upgrade)
   const server = http.createServer((req, res) => {
@@ -86,6 +101,10 @@ async function startBunServer() {
     }
     handler(req, res);
   });
+  // Small JSON responses should not wait for Nagle coalescing. `http.Server`
+  // already defaults this to true, but `noDelay` is only declared on the socket
+  // *options* types — setting it per accepted socket is the typed, explicit way.
+  server.on("connection", (socket) => socket.setNoDelay(true));
 
   // Match index.cjs: 60s Node headersTimeout 408s a 100k keep-alive seed
   // without hitting CMS logs. keepAliveTimeout must stay below headersTimeout.
@@ -99,7 +118,9 @@ async function startBunServer() {
   // Start Yjs collaboration WebSocket server
   let stopYjs: (() => void) | undefined;
   try {
-    const { startYjsSyncServer } = await import("./build/yjs-sync-server.js");
+    const { startYjsSyncServer } = await importBuildBundle<{
+      startYjsSyncServer: (options: { server: unknown; path: string }) => () => void;
+    }>("yjs-sync-server");
     stopYjs = startYjsSyncServer({ server, path: "/ws" });
     console.log("[SveltyCMS:Bun] Yjs WebSocket collaboration server mounted on /ws");
   } catch (err: any) {

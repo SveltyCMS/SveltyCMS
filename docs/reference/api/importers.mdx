@@ -21,19 +21,22 @@ tags:
 The External Importers API provides a unified interface for importing content from third-party CMS platforms and generic data formats. It supports auto-detection of source formats, heuristic field mapping, and a preview-before-run workflow.
 
 > [!IMPORTANT]
-> All importer endpoints are **admin-gated**. GET requests require `content:read`, POST requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+> All importer endpoints are **admin-gated**. GET requests require `content:read`, POST requests require `content:import`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint                | Method | Permission      |
-| :------------------ | :--------------------------- | :----- | :-------------- |
-| **List Sources**    | `/api/importers/sources`     | `GET`  | `content:read`  |
-| **Validate Source** | `/api/importers/validate`    | `POST` | `content:write` |
-| **Preview Import**  | `/api/importers/preview`     | `POST` | `content:write` |
-| **Run Import**      | `/api/importers/run`         | `POST` | `content:write` |
-| **Job Status**      | `/api/importers/jobs/:jobId` | `GET`  | `content:read`  |
+| Feature             | HTTP Endpoint                | Method | Permission       |
+| :------------------ | :--------------------------- | :----- | :--------------- |
+| **List Sources**    | `/api/importers/sources`     | `GET`  | `content:read`   |
+| **Validate Source** | `/api/importers/validate`    | `POST` | `content:import` |
+| **Preview Import**  | `/api/importers/preview`     | `POST` | `content:import` |
+| **Run Import**      | `/api/importers/run`         | `POST` | `content:import` |
+| **Job Status**      | `/api/importers/jobs/:jobId` | `GET`  | `content:read`   |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `importers` entry maps `POST` ⇒ `content:import`, everything else ⇒ `content:read`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 

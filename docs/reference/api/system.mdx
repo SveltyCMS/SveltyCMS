@@ -24,15 +24,18 @@ The System API is the foundational administrative layer of SveltyCMS. It coordin
 
 ## ⚡ Quick Reference
 
-| Component       | HTTP Endpoint        | Primary Method | Permission      |
-| :-------------- | :------------------- | :------------- | :-------------- |
-| **Settings**    | `/api/settings`      | `GET/POST`     | `manage:system` |
-| **Widgets**     | `/api/widgets`       | `GET/POST`     | `manage:system` |
-| **Webhooks**    | `/api/webhooks`      | `GET/POST`     | `manage:system` |
-| **AI Services** | `/api/ai`            | `POST`         | `manage:system` |
-| **Automations** | `/api/automations`   | `GET/POST`     | `manage:system` |
-| **Importers**   | `/api/importer`      | `POST`         | `manage:system` |
-| **Health**      | `/api/system/health` | `GET`          | **Public**      |
+| Component       | HTTP Endpoint        | Primary Method | Permission                        |
+| :-------------- | :------------------- | :------------- | :-------------------------------- |
+| **Settings**    | `/api/settings`      | `GET/POST`     | `system:read` / `system:settings` |
+| **Widgets**     | `/api/widgets`       | `GET/POST`     | `system:read` / `system:settings` |
+| **Webhooks**    | `/api/webhooks`      | `GET/POST`     | `config:webhooks`                 |
+| **AI Services** | `/api/ai`            | `POST`         | `system:settings`                 |
+| **Automations** | `/api/automations`   | `GET/POST`     | `config:automations`              |
+| **Importers**   | `/api/importer`      | `POST`         | `config:importexport`             |
+| **Health**      | `/api/system/health` | `GET`          | **Public**                        |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 
@@ -51,7 +54,7 @@ SveltyCMS uses a hierarchical configuration system. Settings can be public (acce
 
 ## 2. Widget Lifecycle
 
-The [3-Pillar Widget System](../../development/widgets/architecture.mdx) is managed via the widgets namespace.
+The [3-Pillar Widget System](../../development/widgets/development.mdx) is managed via the widgets namespace.
 
 - **List All**: `GET /api/widgets/list` — Returns all installed and available widgets.
 - **Activate/Deactivate**: `POST /api/widgets/activate` — Toggles the runtime availability of a widget.

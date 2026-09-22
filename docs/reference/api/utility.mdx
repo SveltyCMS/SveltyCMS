@@ -22,28 +22,28 @@ tags:
 The Utilities API provides a set of essential maintenance and support services that keep the SveltyCMS environment healthy and performant. It manages cache invalidation, recoverable data via the Trash, transactional email, API documentation, version checking, and diagnostics.
 
 > [!IMPORTANT]
-> All utility endpoints are **admin-gated**. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping, and individual handlers perform defense-in-depth `isAdmin` checks. Non-admin users receive `403 Forbidden`.
+> Utility endpoints are authorized **fail-closed** by the dispatcher against its `ENDPOINT_PERMISSIONS` mapping — see the Permission column below; unmapped namespaces fail closed and non-admin users without the listed permission receive `403 Forbidden`.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature                  | HTTP Endpoint               | Method | Admin Only |
-| :----------------------- | :-------------------------- | :----- | :--------: |
-| **OpenAPI Spec**         | `/api/openapi.json`         | `GET`  |     ✅     |
-| **Swagger UI**           | `/api/docs`                 | `GET`  |     —      |
-| **Cache Clear**          | `/api/cache/clear`          | `POST` |     ✅     |
-| **Cache Stats**          | `/api/cache/stats`          | `GET`  |     ✅     |
-| **Trash List**           | `/api/trash`                | `GET`  |     ✅     |
-| **Restore Entry**        | `/api/trash/restore`        | `POST` |     ✅     |
-| **Send Email**           | `/api/send-mail`            | `POST` |     ✅     |
-| **Version Check**        | `/api/version-check`        | `GET`  |     ✅     |
-| ~~**Config Sync**~~      | `/api/config_sync`          | `GET`  |     ✅     |
-| **Debug / Diagnostics**  | `/api/debug`                | `GET`  |     ✅     |
-| **Marketplace catalog**  | `/api/marketplace`          | `GET`  |     ✅     |
-| **Marketplace install**  | `/api/marketplace/install`  | `POST` |     ✅     |
-| **Remote Video Meta**    | `/api/remote-video`         | `POST` |  — (Auth)  |
-| **SEO Link Suggestions** | `/api/seo/link-suggestions` | `POST` |  — (Auth)  |
+| Feature                  | HTTP Endpoint               | Method | Permission (dispatcher) |
+| :----------------------- | :-------------------------- | :----- | :---------------------- |
+| **OpenAPI Spec**         | `/api/openapi.json`         | `GET`  | `system:read`           |
+| **Swagger UI**           | `/api/docs`                 | `GET`  | **Unmapped → `403`**    |
+| **Cache Clear**          | `/api/cache/clear`          | `POST` | `system:admin`          |
+| **Cache Stats**          | `/api/cache/stats`          | `GET`  | `system:admin`          |
+| **Trash List**           | `/api/trash`                | `GET`  | `collection:read`       |
+| **Restore Entry**        | `/api/trash/restore`        | `POST` | `collection:write`      |
+| **Send Email**           | `/api/send-mail`            | `POST` | `system:settings`       |
+| **Version Check**        | `/api/version-check`        | `GET`  | `system:read`           |
+| ~~**Config Sync**~~      | `/api/config_sync`          | `GET`  | `config:read`           |
+| **Debug / Diagnostics**  | `/api/debug`                | `GET`  | `system:admin`          |
+| **Marketplace catalog**  | `/api/marketplace`          | `GET`  | `system:read`           |
+| **Marketplace install**  | `/api/marketplace/install`  | `POST` | `system:settings`       |
+| **Remote Video Meta**    | `/api/remote-video`         | `POST` | `collection:read`       |
+| **SEO Link Suggestions** | `/api/seo/link-suggestions` | `POST` | `collection:read`       |
 
 ---
 
@@ -62,7 +62,7 @@ Serves an interactive Swagger UI that loads the spec from `/api/openapi.json`.
 **Endpoint**: `GET /api/docs`
 
 > [!WARNING]
-> The `/api/docs` (Swagger UI) endpoint is gated by admin permissions. For it to function, the `docs` namespace **must be mapped** in the API dispatcher's `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. If the namespace is unmapped, the dispatcher fails-closed with `403 Forbidden`. Ensure your deployment's dispatcher configuration explicitly permits the `docs` namespace.
+> `GET /api/docs` is **not reachable**. The `docs` namespace is missing from both `NAMESPACE_CONFIG` and `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`, so the dispatcher fail-closes with `403 Forbidden` (`NAMESPACE_FORBIDDEN`) before `handleUtilityRoutes` runs. The handler branch (`namespace === "docs"`) exists, but no grant can reach it — fetch the spec from `/api/openapi.json` instead.
 
 ---
 
@@ -260,11 +260,16 @@ graph LR
 
 ### Access Control
 
-All utility namespaces are gated via the dispatcher's centralized `ENDPOINT_PERMISSIONS` mapping:
+All utility namespaces are gated via the dispatcher's centralized `ENDPOINT_PERMISSIONS` mapping (see the Quick Reference table above):
 
-- Sensitive maintenance endpoints (`cache`, `trash`, `debug`, `send-mail`, `openapi.json`) require administrative privileges or fail closed with `403 Forbidden`.
-- Editor tools (`remote-video`, `seo`) require authenticated roles with corresponding read permissions (`media:read`, `collection:read`).
+- Only `cache`, `debug` and `security` map to `system:admin`.
+- `trash` maps to `collection:read`/`collection:write`, `send-mail` to `system:settings`, `version-check`, `marketplace` and `openapi.json` to `system:read`/`system:settings`.
+- Editor tools (`remote-video`, `seo`) require `collection:read` — not `media:read`.
+- Unmapped namespaces (e.g. `docs`) fail closed with `403 Forbidden`.
 - Individual handlers perform defense-in-depth authorization checks.
+
+> [!NOTE]
+> Permission ids here are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 

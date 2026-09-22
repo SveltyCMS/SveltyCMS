@@ -325,7 +325,6 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
             testTenantHeader || turboCtx?.tenantId || user.tenantId || null;
           if (turboCtx) {
             (event.locals as any).roles = turboCtx.roles;
-            (event.locals as any)._rbacBitset = turboCtx.bitset;
           }
           logger.debug(
             `[Turbo] Resolved ${turboCtx ? "user from turbo-auth cache" : "REAL user"}: ${user.email}`,

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-04-26"
-updated: "2026-08-07"
+updated: "2026-09-22"
 tags:
   - "benchmark"
   - "performance"
@@ -33,19 +33,19 @@ Each per-DB report (`benchmark_<db>.mdx`) is a **single-page dashboard** with re
 
 Dimension groups match executive rollups: **Core**, **API**, **Scale**, **Resilience**.
 
-### Latest middleware gains (SQLite matrix, August 2026)
+### Latest middleware measurements (SQLite ledger, run 2026-09-18)
 
-Full matrix: **57 passed / 0 failed** in 240s. Hooks via `hooks-performance.test.ts` — full security stack, no turbo-auth shortcut:
+Row values are the `HOOKS_TRACE` entry of the [SQLite ledger](./benchmark_sqlite.mdx) (`hooks-performance.test.ts`, HTTP E2E — full middleware chain including Turbo, Security, Auth and Audit, no turbo-auth shortcut). That section's badge still reads `⚪ ⏳ pending`: a recorded standalone run whose matrix trend is not published.
 
-| Scenario             | Avg     | p95     | Peak RPS |
-| -------------------- | ------- | ------- | -------- |
-| Static asset         | 0.590ms | 0.677ms | 1,398    |
-| Turbo pipeline       | 0.303ms | 0.376ms | 2,415    |
-| Full auth + security | 0.439ms | 0.516ms | 1,844    |
-| REST API cache HIT   | 0.379ms | 0.444ms | 2,181    |
-| Mutation + outbox    | 2.753ms | 4.263ms | 335      |
+| Scenario                      | Cold   | Warm avg | p95     | Peak RPS |
+| ----------------------------- | ------ | -------- | ------- | -------- |
+| Static asset (no middleware)  | 3.41ms | 0.544ms  | 0.830ms | 1,631    |
+| Turbo pipeline (light)        | 1.15ms | 0.293ms  | 0.367ms | 3,087    |
+| Full security + auth pipeline | 3.55ms | 0.358ms  | 0.532ms | 2,481    |
+| REST with API caching         | 2.23ms | 0.320ms  | 0.416ms | 2,823    |
+| Mutation (audit logging off)  | 3.13ms | 0.590ms  | 0.874ms | 1,503    |
 
-Compared to previous ledger: full auth **−43%** latency, turbo **−42%**, REST cache **−50%**. Zero-overhead hook dispatch and asynchronous outbox ring buffer active. See [Server Hooks](../../reference/architecture/server-hooks.mdx) and [SQLite ledger](./benchmark_sqlite.mdx#section-hooks_trace).
+**Self-measured re-run (SQLite, 2026-09-22, same command):** static ~0.8 ms · turbo ~0.4 ms · full auth + security ~0.47 ms · REST-cached ~0.40 ms · mutation ~2.0 ms. Machine-dependent; single-run variance on this harness is ~±10%, so quote the trend, not one run. Zero-overhead hook dispatch and the asynchronous outbox ring buffer stay in place. See [Server Hooks](../../reference/architecture/server-hooks.mdx) and [SQLite ledger](./benchmark_sqlite.mdx).
 
 ## CRUD / findById baseline suites
 
@@ -240,16 +240,19 @@ Detail + failure history: [Benchmark Matrix → Mode Parity](../../tests/benchma
 
 ### ⚡ Executive Summary Matrix
 
-| Database                                                  | Status  | Cold Start | REST p95 | GQL Avg | CPU | Memory |
-| :-------------------------------------------------------- | :------ | :--------- | :------- | :------ | :-- | :----- |
-| [ **SQLITE**](./benchmark_sqlite.mdx)                     | 🟢 PASS | 0ms        | —        | —       | —   | —      |
-| [ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx)         | 🟢 PASS | 0ms        | —        | —       | —   | —      |
-| [ **MONGODB**](./benchmark_mongodb.mdx)                   | 🟢 PASS | 0ms        | —        | —       | —   | —      |
-| [ **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx)       | ⚪ N/A  | -          | -        | -       | -   | -      |
-| [ **POSTGRESQL**](./benchmark_postgresql.mdx)             | 🟢 PASS | 0ms        | —        | —       | —   | —      |
-| [ **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS | 0ms        | —        | —       | —   | —      |
-| [ **MARIADB**](./benchmark_mariadb.mdx)                   | 🟢 PASS | 0ms        | —        | —       | —   | —      |
-| [ **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx)       | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+> [!NOTE]
+> **Unpopulated — pending a full matrix run.** This zone is rewritten by `bun run scripts/benchmark-matrix/index.ts`; no run has filled its metric columns, so `—` means **not measured in a matrix run** — the earlier `0ms` was the generator's `curr?.coldStartMs || 0` fallback for a missing value, never a result. `Status` repeats each ledger's own executive line (partial invocations included). Cold start is republished from the standalone `cold-start-phased.test.ts` ledger rows — **self-measured, single host, 2026-09-18**; adapters without such a row carry `—`.
+
+| Database                                                  | Status (per-DB ledger)  | Cold Start (ledger, 2026-09-18) | REST p95 | GQL Avg | CPU | Memory |
+| :-------------------------------------------------------- | :---------------------- | :------------------------------ | :------- | :------ | :-- | :----- |
+| [ **SQLITE**](./benchmark_sqlite.mdx)                     | 🟢 PASS (1/62, partial) | 1,991 ms                        | —        | —       | —   | —      |
+| [ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx)         | 🟢 PASS (20/45)         | —                               | —        | —       | —   | —      |
+| [ **MONGODB**](./benchmark_mongodb.mdx)                   | 🟢 PASS (29/39)         | 2,367 ms                        | —        | —       | —   | —      |
+| [ **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx)       | ⏳ PENDING (own ledger) | —                               | —        | —       | —   | —      |
+| [ **POSTGRESQL**](./benchmark_postgresql.mdx)             | 🟢 PASS (1/45, partial) | 2,605 ms                        | —        | —       | —   | —      |
+| [ **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS (16/45)         | —                               | —        | —       | —   | —      |
+| [ **MARIADB**](./benchmark_mariadb.mdx)                   | 🟢 PASS (34/45)         | 2,329 ms                        | —        | —       | —   | —      |
+| [ **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx)       | 🟢 PASS (20/45)         | —                               | —        | —       | —   | —      |
 
 <!-- SUMMARY_MATRIX_END -->
 

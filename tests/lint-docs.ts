@@ -6,7 +6,11 @@
  * - Heading stack + missing H1 detection
  * - Duplicate heading detection (ignores code blocks) with de-duplication suggestions
  * - YAML frontmatter syntax validation & AUTOFIX
- * - Heading Anchor validation (scans target docs for missing #hash link targets)
+ * - Heading Anchor validation (scans target docs for missing #hash link targets;
+ *   heading slugs, `{#custom-id}` and HTML anchors (`id="…"`, `<a name="…">`) all count)
+ * - Plugin-bundled docs (`src/plugins/<plugin>/*.mdx`) are linted too; their links are
+ *   written in the documentation site's URL space (`/docs/<page>`, `/docs/plugins/<plugin>`)
+ *   and resolve against the `docs/` tree / the plugin bundle instead of their own directory
  * - Broken relative image path checks & AUTOFIX (validates assets exist, fixes backslashes)
  * - Frontmatter `path` consistency validation & AUTOFIX
  * - Alt text placeholder AUTOFIX for empty alt properties
@@ -32,6 +36,9 @@ import path from "node:path";
 
 const DOCS_DIR = path.join(process.cwd(), "docs");
 const STATIC_DIR = path.join(process.cwd(), "static", "docs");
+// Plugin bundles ship their own docs alongside their code; they publish on the
+// documentation site and are linted with the same rules (see main()).
+const PLUGINS_DIR = path.join(process.cwd(), "src", "plugins");
 // DISABLED: see checkReadability below
 // const MAX_PARAGRAPH_LENGTH = 1000;
 
@@ -230,6 +237,43 @@ function buildFileIndex(docsDir: string): Set<string> {
   return idx;
 }
 
+function isFile(candidate: string): boolean {
+  try {
+    return fs.statSync(candidate).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Site URLs are extensionless, so `/docs/guides/content/ecommerce` is served from
+ * `docs/guides/content/ecommerce.mdx` and `/docs/development/widgets` from
+ * `docs/development/widgets/index.mdx`. Returns the backing file, or null when the
+ * URL has no page (a directory without an index is not a page either).
+ */
+function resolveDocsSiteUrl(rest: string): string | null {
+  const base = path.join(DOCS_DIR, rest);
+  for (const candidate of [base, `${base}.mdx`, `${base}.md`])
+    if (isFile(candidate)) return candidate;
+  for (const candidate of [path.join(base, "index.mdx"), path.join(base, "index.md")])
+    if (isFile(candidate)) return candidate;
+  return null;
+}
+
+/**
+ * Plugin pages are served from the plugin bundle, not from `docs/`: each bundle's
+ * marketplace page declares `path: "src/plugins/<plugin>/<plugin>.mdx"`, so
+ * `/docs/plugins/<plugin>` maps to that file. This is an explicit exception rather
+ * than a silent skip — the page must exist and its anchors are validated like any
+ * other target, so a misspelled slug or a dead `#anchor` is still reported.
+ */
+function resolvePluginPageUrl(rest: string): string | null {
+  const slug = rest.replace(/\.mdx?$/, "");
+  if (!slug || slug.includes("/")) return null;
+  const page = path.join(PLUGINS_DIR, slug, `${slug}.mdx`);
+  return isFile(page) ? page : null;
+}
+
 function hasStaticAsset(link: string): boolean {
   const clean = link.replace(/^\/?(docs|static)\//, "");
   try {
@@ -310,16 +354,35 @@ function normalizeHeadingSlug(text: string): string {
     .replace(/-+/g, "-");
 }
 
+/**
+ * HTML anchors are first-class deep-link targets: the generated benchmark ledgers
+ * expose `<details id="section-hooks_trace">`, which no heading scan can see.
+ * Collects `id="…"` from any tag plus the legacy `<a name="…">` form so anchor
+ * validation matches what a browser actually resolves.
+ */
+function collectHtmlAnchors(body: string, anchors: Set<string>): void {
+  // Quote-aware attribute scan: `"…"`/`'…'` values may contain `>` (valid MDX).
+  for (const tag of body.matchAll(/<([a-zA-Z][\w-]*)((?:[^<>"']|"[^"]*"|'[^']*')*)>/g)) {
+    const tagName = tag[1].toLowerCase();
+    for (const attr of tag[2].matchAll(/([a-zA-Z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+      const attrName = attr[1].toLowerCase();
+      if (attrName !== "id" && !(attrName === "name" && tagName === "a")) continue;
+      const value = (attr[2] ?? attr[3] ?? "").trim();
+      if (value) anchors.add(value.toLowerCase());
+    }
+  }
+}
+
 function getHeadingAnchors(fp: string): Set<string> {
   if (headingAnchorCache.has(fp)) return headingAnchorCache.get(fp)!;
   const anchors = new Set<string>();
   if (fs.existsSync(fp)) {
     const { body } = parseFrontmatter(fs.readFileSync(fp, "utf8"));
-    for (const m of stripCodeBlocks(body).matchAll(
-      /^#{1,6}\s+((?:(?!\{#).)+)(?:\s*\{#([\w-]+)\})?$/gm,
-    )) {
+    const clean = stripCodeBlocks(body);
+    for (const m of clean.matchAll(/^#{1,6}\s+((?:(?!\{#).)+)(?:\s*\{#([\w-]+)\})?$/gm)) {
       anchors.add((m[2] || normalizeHeadingSlug(m[1])).toLowerCase());
     }
+    collectHtmlAnchors(clean, anchors);
   }
   headingAnchorCache.set(fp, anchors);
   return anchors;
@@ -697,6 +760,14 @@ async function lintSingleFile(fp: string) {
     let resolved = "",
       targetFile = "";
     if (linkPath) {
+      // Plugin docs link in the documentation site's URL space, not relative to their
+      // own file location: `/docs/<page>` resolves against the `docs/` tree and
+      // `/docs/plugins/<plugin>` against the plugin bundle (see the resolvers above).
+      // Anchor-only and relative links keep their existing resolution.
+      const siteResolved = linkPath.startsWith("/docs/")
+        ? (resolveDocsSiteUrl(linkPath.replace(/^\/docs\//, "")) ??
+          resolvePluginPageUrl(linkPath.replace(/^\/docs\/plugins\//, "")))
+        : null;
       resolved = linkPath.startsWith("/")
         ? linkPath.replace(/^\/docs\//, "").replace(/^\//, "")
         : path.posix.normalize(path.posix.join(docDir, linkPath));
@@ -711,6 +782,7 @@ async function lintSingleFile(fp: string) {
 
       if (
         !isSkippableLinkTarget(raw) &&
+        !siteResolved &&
         !fileInDocs &&
         !fileInRepo &&
         !hasStaticAsset(raw) &&
@@ -725,15 +797,19 @@ async function lintSingleFile(fp: string) {
         );
         continue;
       }
-      for (const ext of [".md", ".mdx", ""]) {
-        const fDocs = path.join(process.cwd(), "docs", resolved + ext);
-        const fRepo = path.join(process.cwd(), resolved + ext);
-        if (fs.existsSync(fDocs)) {
-          targetFile = fDocs;
-          break;
-        } else if (fs.existsSync(fRepo)) {
-          targetFile = fRepo;
-          break;
+      if (siteResolved) {
+        targetFile = siteResolved;
+      } else {
+        for (const ext of [".md", ".mdx", ""]) {
+          const fDocs = path.join(process.cwd(), "docs", resolved + ext);
+          const fRepo = path.join(process.cwd(), resolved + ext);
+          if (fs.existsSync(fDocs)) {
+            targetFile = fDocs;
+            break;
+          } else if (fs.existsSync(fRepo)) {
+            targetFile = fRepo;
+            break;
+          }
         }
       }
     } else {
@@ -840,6 +916,11 @@ async function main() {
   } else {
     const files: string[] = [];
     walk(DOCS_DIR, (f) => files.push(f));
+    // Plugin bundles ship their own docs (`src/plugins/<plugin>/*.mdx`) which publish on
+    // the documentation site in the same URL space — lint them with the docs tree.
+    walk(PLUGINS_DIR, (f) => {
+      if (f.endsWith(".mdx")) files.push(f);
+    });
     for (const f of files) {
       totalFiles++;
       await lintSingleFile(f);

@@ -30,7 +30,7 @@ It measures:
 - **Index Pressure**: Complex filtering and sorting on 100,000+ entry collections.
 - **5-Layer Truth Model**: Measures performance from **Pure Logic** (CPU) → **Full SDK** (DB/IO) → **Dispatcher** (Middleware) → **HTTP Warm** (Keep-Alive) → **HTTP Cold** (Handshake).
 - **Memory Stability**: RSS and Heap growth detection across sustained decentralized loads.
-- **World Life Data**: High-fidelity diagnostics including **Success/Failure Latency Splits** and **Fast-Fail Efficiency** (Target: **>1.5x efficiency** on error rejection).
+- **World Life Data**: High-fidelity diagnostics including **Success/Failure Latency Splits**, the **per-row lane/cache/hook-count context table**, and the **rejection-path cost split** — rejected requests land at **0.35–0.39 ms**, i.e. parity with the authenticated rows (**0.33–0.36 ms** turbo-cache served, **0.29–0.33 ms** full chain; `tests/benchmarks/auth-performance.test.ts`, SQLite, measured **2026-09-22**, five runs each side). Both sides are labelled by lane, because they are different work: `Auth Validation @ 1c` is served from the turbo cache (4 hooks) while a rejection runs the full chain (7). Resolved as _Rejection-path cost parity_ in the [2026 achievements](../project/achievements-2026.mdx).
 - **Client Journey Simulation**: Cumulative latency of multi-step E2E workflows (Auth → List → View → Save).
 
 ### 🚀 Running the Orchestrator
@@ -38,13 +38,11 @@ It measures:
 The orchestrator code is modularized inside `scripts/benchmark-matrix/` for ultimate maintainability, but is easily executed via the main barrel file:
 
 ```bash
-# Run the full matrix across all 4 databases and 8 variants (including Redis)
+# Run the full matrix across all 4 databases (add USE_REDIS=true for the 4 Redis variants)
 bun run scripts/benchmark-matrix/index.ts
-
-# Generate the Master Comparison Leaderboard
-# This aggregates all results into docs/project/benchmarks/README.mdx
-bun run scripts/benchmark-matrix/cli.ts --leaderboard
 ```
+
+The cross-adapter comparison table in `docs/project/benchmarks/index.mdx` is patched by the matrix itself after each adapter (the `SUMMARY_MATRIX` zone in `reporting.ts`) — there is no separate leaderboard command.
 
 > [!NOTE]
 > Running the full matrix requires active local instances (or Docker containers) of MongoDB (`:27017`), PostgreSQL (`:5432`), and MariaDB (`:3306`). The orchestrator will automatically provision the required isolated benchmark databases for the test.

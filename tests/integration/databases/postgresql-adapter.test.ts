@@ -7,6 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
+import { withSystemScope } from "../../../src/databases/system-tenant-scope";
 import { connectWithRetry, shouldRunAdapterSuite } from "./adapter-test-env";
 
 const gate = shouldRunAdapterSuite("postgresql");
@@ -170,6 +171,68 @@ describePostgres("PostgreSQL Adapter Integration", () => {
 
       // Cleanup
       await db.crud.delete(testCollection, docId, { tenantId: TEST_TENANT });
+    });
+  });
+
+  // Regression: the job queue's first poll disclosed a raw-Drizzle write path that
+  // handed ISO text to Drizzle's timestamp mapping (`prepareValues` binds ISO text on
+  // ISO-bind dialects). Every dispatch failed with "e.toISOString is not a function",
+  // so scheduled publishing and session cleanup never ran on PostgreSQL.
+  describe("Background job queue writes", () => {
+    it("round-trips dispatch → claim → backoff → complete", async () => {
+      if (!db) return;
+
+      const created = await db.system.jobs.create({
+        taskType: "probe-job",
+        payload: { probe: true },
+        status: "pending",
+        attempts: 0,
+        maxAttempts: 3,
+        nextRunAt: new Date(),
+        progress: 0,
+        metadata: {},
+      } as any);
+      expect(created.success).toBe(true);
+      if (!created.success || !created.data?._id) {
+        throw new Error(`job create failed: ${created.success ? "no id" : created.message}`);
+      }
+      const jobId = created.data._id;
+
+      // Atomic claim: only succeeds while the row is still pending.
+      const claimed = await db.system.jobs.update(
+        jobId,
+        { status: "running", attempts: 1 },
+        { filter: { _id: jobId, status: "pending" } },
+      );
+      expect(claimed.success).toBe(true);
+      if (!claimed.success) throw new Error(`claim failed: ${claimed.message}`);
+      expect(claimed.data?.status).toBe("running");
+
+      // Failure path: backoff timestamp + a human-readable lastError (never coerced
+      // into a Date by the date-column walk).
+      const backoff = await db.system.jobs.update(jobId, {
+        status: "pending",
+        lastError: "probe: handler blew up",
+        nextRunAt: new Date(Date.now() + 60_000),
+      });
+      expect(backoff.success).toBe(true);
+      if (!backoff.success) throw new Error(`backoff failed: ${backoff.message}`);
+      expect(backoff.data?.lastError).toBe("probe: handler blew up");
+      expect(typeof backoff.data?.nextRunAt).toBe("string");
+
+      // A future nextRunAt must keep the job out of the ready set.
+      const notReady = await db.system.jobs.getNextReady(10, withSystemScope("scheduler"));
+      expect(notReady.success).toBe(true);
+      if (!notReady.success) throw new Error(`getNextReady failed: ${notReady.message}`);
+      expect(notReady.data?.some((j) => j._id === jobId)).toBe(false);
+
+      // Completion path taken by both consumers after the handler resolves.
+      const completed = await db.system.jobs.update(jobId, { status: "completed", progress: 100 });
+      expect(completed.success).toBe(true);
+      if (!completed.success) throw new Error(`complete failed: ${completed.message}`);
+      expect(completed.data?.status).toBe("completed");
+
+      await db.system.jobs.delete(jobId);
     });
   });
 });

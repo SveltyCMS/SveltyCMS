@@ -463,9 +463,34 @@ export async function handleMediaProcess(
       const mediaIdsRaw = formData.get("mediaIds") as string;
       const optionsRaw = formData.get("options") as string;
       if (!mediaIdsRaw) throw new AppError("Batch array target collection expected", 400);
+
+      let parsedIds: unknown;
+      try {
+        parsedIds = JSON.parse(mediaIdsRaw);
+      } catch (err) {
+        rethrow(err);
+        raise(400, "mediaIds must be a JSON array of media IDs", "INVALID_BATCH_IDS");
+      }
+      if (!Array.isArray(parsedIds)) {
+        raise(400, "mediaIds must be a JSON array of media IDs", "INVALID_BATCH_IDS");
+      }
+
+      // Ceiling checked BEFORE any per-item work: each id feeds a serial
+      // manipulateMedia() loop downstream, so an unbounded list is a
+      // payload-exhaustion DoS. Mirrors MAX_BULK_DOWNLOAD_IDS below and
+      // MAX_BATCH_SIZE / MAX_USER_BATCH_SIZE in the token + user handlers.
+      const MAX_BATCH_PROCESS_IDS = 100;
+      if (parsedIds.length > MAX_BATCH_PROCESS_IDS) {
+        raise(
+          400,
+          `Batch size exceeds maximum limit of ${MAX_BATCH_PROCESS_IDS}`,
+          "INVALID_BATCH_SIZE",
+        );
+      }
+
       return successResponse(
         event,
-        await cms.media.batchProcess(JSON.parse(mediaIdsRaw), {
+        await cms.media.batchProcess(parsedIds.map(String), {
           ...(optionsRaw ? JSON.parse(optionsRaw) : {}),
           userId: user?._id || "system",
           tenantId,

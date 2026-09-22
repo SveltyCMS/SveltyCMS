@@ -285,7 +285,10 @@ export abstract class BaseAdapter {
       return Promise.resolve(this.notConnectedError<T>());
     }
     this.metrics.queryCount++;
-    const hot = options?.skipMeta === true && options?.isWrite === true;
+    // skipMeta is the caller's "this is a hot path" flag. Writes already used
+    // it; point reads pass it too. Timing + the trace span were the same order
+    // of cost as a prepared findById.
+    const hot = options?.skipMeta === true;
     const startTime = hot ? 0 : performance.now();
     const fail = (error: unknown): DatabaseResult<T> => {
       this.metrics.errorCount++;

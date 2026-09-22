@@ -255,4 +255,17 @@ describe("Media API Endpoints", () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe("GET /files/[...path] (on-demand transforms)", () => {
+    it("still 404s a missing asset when transform params are present", async () => {
+      const response = await safeFetch(
+        `${API_BASE_URL}/files/global/${"a".repeat(64)}/original/missing.jpg?w=320&fmt=webp`,
+        { headers: { Cookie: authCookie, Origin: API_BASE_URL } },
+      );
+
+      // Transform params must never bypass the gate chain (or invent a variant).
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-media-transform")).toBeNull();
+    });
+  });
 });

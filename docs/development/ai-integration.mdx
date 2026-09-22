@@ -5,8 +5,8 @@ description: "Guide to the high-performance hosted MCP Server, local RAG pipelin
 order: 50
 icon: "mdi:robot"
 author: "SveltyCMS Team"
-created: "2026-02-07"
-updated: "2026-07-07"
+created: "2026-05-12"
+updated: "2026-09-22"
 tags:
   - "ai"
   - "mcp"
@@ -19,7 +19,7 @@ tags:
 
 # AI Integration & Hosted Knowledge Core (MCP)
 
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun run benchmark` (see `scripts/benchmark-matrix/`).
 
 SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge — combined with a local **WebMCP** bridge for secure, draft-gated content management.
 
@@ -241,8 +241,8 @@ The **Widget Scaffolder** (`src/services/intelligence/ai-codegen/widget-scaffold
 | Pillar         | File             | Contents                                                                               |
 | -------------- | ---------------- | -------------------------------------------------------------------------------------- |
 | **Definition** | `index.ts`       | `createWidget()` with auto-inferred Valibot validators, GuiSchema, and type-safe props |
-| **Input**      | `Input.svelte`   | Svelte 5 runes with `$bindable` props, Tailwind v4, WCAG 2.2 AA ARIA labels            |
-| **Display**    | `Display.svelte` | Responsive rendering with graceful empty-state handling                                |
+| **Input**      | `input.svelte`   | Svelte 5 runes with `$bindable` props, Tailwind v4, WCAG 2.2 AA ARIA labels            |
+| **Display**    | `display.svelte` | Responsive rendering with graceful empty-state handling                                |
 
 ### Supported field types
 
@@ -276,11 +276,13 @@ await generateWidget({
   ],
 });
 
-// Output:
-// src/widgets/core/star-rating/index.ts       ← Definition + Valibot schema
-// src/widgets/core/star-rating/Input.svelte    ← Editor component
-// src/widgets/core/star-rating/Display.svelte  ← Frontend renderer
+// Output (folder is the kebab-case form of the widget Name):
+// src/widgets/core/star-rating/index.ts      ← Definition + Valibot schema
+// src/widgets/core/star-rating/input.svelte   ← Editor component
+// src/widgets/core/star-rating/display.svelte ← Frontend renderer
 ```
+
+> Pillar filenames must be lowercase: the repository gate `scripts/check-widget-naming.mjs:74-77` requires `input.svelte` and `display.svelte` in every widget folder.
 
 ### LLM Integration
 
@@ -412,7 +414,7 @@ const anomalies = detectContentAnomalies(); // Run periodically or on-demand
 The sidebar, dashboard widgets, and navigation items automatically reorder based on actual usage frequency — zero configuration. Powered by `getAdaptiveUISortOrder()` and `reorderByUsage()`.
 
 ```typescript
-import { reorderByUsage } from "@src/utils/adaptive-ui.svelte";
+import { reorderByUsage } from "@src/utils/adaptive-ui";
 
 const items = [
   { id: "posts", label: "Posts", path: "/en/posts" },
@@ -525,7 +527,7 @@ Once connected, your AI agent can use these read-only tools to explore the Svelt
 | Tool                    | Description                                                                                                      | Parameters                                                                                                                    |
 | :---------------------- | :--------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
 | `search_knowledge_base` | Semantic search across SveltyCMS docs and code via neural vector similarity.                                     | `query` (string), `category` (code\|docs\|meta\|external), `limit` (number)                                                   |
-| `read_source_code`      | Read the full content of any source file from the SveltyCMS project.                                             | `filePath` (string, e.g., `src/widgets/index.ts`)                                                                             |
+| `read_source_code`      | Read the full content of any source file from the SveltyCMS project.                                             | `filePath` (string, e.g., `src/widgets/widget-factory.ts`)                                                                    |
 | `list_directory`        | List files and folders in a given directory.                                                                     | `dirPath` (string, relative directory path)                                                                                   |
 | `get_file_tree`         | Get a recursive tree of the project structure up to a specified depth.                                           | `depth` (number, default: 3)                                                                                                  |
 | `search_code`           | Fast text/regex search across all project files. Finds component imports, function references, and symbol usage. | `pattern` (string), `includePattern` (string, optional), `caseSensitive` (boolean, optional), `maxResults` (number, optional) |
@@ -568,7 +570,7 @@ This ensures that the sensitive build process remains local, while the structure
 | Marketplace Client | `src/services/intelligence/marketplace-client.ts`           |        —         |
 | System Monitor     | `src/utils/system-monitor.ts`                               |        —         |
 | Rate Limiter       | `src/hooks/handle-rate-limit.ts`                            |        —         |
-| Global Search      | `src/utils/global-search-index.ts`                          | ✅ via semantic  |
+| Global Search      | `src/utils/global-search-index.svelte.ts`                   | ✅ via semantic  |
 
 ## Related
 

@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-19"
+updated: "2026-09-22"
 tags:
   - "getting-started"
   - "quickstart"
@@ -23,11 +23,13 @@ Get up and running in minutes — whether you're a **Developer** installing the 
 
 ---
 
-## 👥 Choose Your Path
+## Choose your path
 
-- 🛠️ **[Installation](#1-installation-for-developers)** — For developers and DevOps
-- 🎨 **[First Steps](#2-first-steps-for-admins-editors)** — For administrators and content editors
-- 📚 **[Workflow Templates](#3-common-workflow-templates)** — Blog, e-commerce, multi-language
+New to the product? Read [Concepts](./concepts/index.mdx) first — one page, six ideas — then come back and install.
+
+- **[Installation](#1-installation-for-developers)** — developers and operators
+- **[First steps](#2-first-steps-for-admins-editors)** — administrators and editors
+- **[Workflow templates](#3-common-workflow-templates)** — website, blog, catalog, languages
 
 ---
 
@@ -151,14 +153,14 @@ See the [Site Starter guide](/docs/development/site-starter.mdx). For Astro/Next
 
 ### E-Commerce Catalog
 
-Use the **E-commerce** Setup Wizard preset (products + variants, carts, orders, coupons, tax, shipping) rather than inventing collections. Full map: [E-Commerce Overview](./reference/architecture/ecommerce-overview.mdx).
+Use the **E-commerce** Setup Wizard preset (products + variants, carts, orders, coupons, tax, shipping) rather than inventing collections. Full map: [E-Commerce Overview](./guides/content/ecommerce.mdx).
 
 1. Select the **ecommerce** template (or add the ecommerce preset collections)
 2. Optional: import an existing catalog with [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx) — WooCommerce WXR/REST (`--format=woocommerce`) or Shopify JSON/CSV (`--format=shopify`) into `products`
 3. Upload images in 📁 Media Hub and link them on `products`
 4. Add the **Commerce Orders** and **Commerce Inventory** dashboard widgets (14-day trial) from the dashboard picker
 5. Query `/api/collections/products` for the storefront (publication policy applies)
-6. Enable the Commerce plugin (Extensions) and the [Stripe plugin](/src/plugins/stripe/stripe.mdx) for card payments — amount is server `grandTotal`. Map: [E-Commerce Overview](./reference/architecture/ecommerce-overview.mdx)
+6. Enable the Commerce plugin (Extensions) and the [Stripe plugin](/src/plugins/stripe/stripe.mdx) for card payments — amount is server `grandTotal`. Map: [E-Commerce Overview](./guides/content/ecommerce.mdx)
 
 ### Multi-Language
 
@@ -180,11 +182,12 @@ Granular **RBAC** with field-level access control:
 
 ## Next Steps
 
+- [Concepts](./concepts/index.mdx) — collection, entry, widget, tenant, API, adapter
 - [Site Starter](/docs/development/site-starter.mdx) — Optional SvelteKit public frontend + live preview
 - [API Reference](./reference/api/index.mdx) — REST, GraphQL, Local SDK
 - [Widget Development](./development/widgets/index.mdx) — Build custom field types
 - [Security Overview](./reference/security/index.mdx) — 4-layer defense-in-depth
 - [Performance Benchmarks](./project/benchmarks/index.mdx) — 48 tests across 4 databases
-- [E-Commerce Overview](./reference/architecture/ecommerce-overview.mdx) — Opt-in store: plugins, widgets, gated API — core stays a CMS
+- [E-Commerce Overview](./guides/content/ecommerce.mdx) — Opt-in store: plugins, widgets, gated API — core stays a CMS
 - [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx) — WooCommerce / Shopify catalog import
 - [Dashboard widgets](./development/dashboard/index.mdx) — Commerce Orders + Inventory (14-day trial)

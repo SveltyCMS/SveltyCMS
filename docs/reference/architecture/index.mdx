@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:office-building-cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-08-19"
+updated: "2026-09-22"
 tags:
   - "architecture"
   - "svelte5"
@@ -15,9 +15,11 @@ tags:
   - "index"
 ---
 
-# System Architecture Overview
+# System architecture
 
-SveltyCMS is built with the **"High-Performance Edge"** philosophy: zero-runtime overhead, sub-1ms API hot-paths, and the **Self-Healing State Machine** for automated recovery.
+This folder explains the engine. It is the right place when you are changing server hooks, content compilation, caching, or tenancy. It is the wrong place to learn the product: that is [Concepts](../../concepts/index.mdx), then a [guide](../../guides/index.mdx) for the task.
+
+SveltyCMS keeps a short request path for cached reads, compiles collections through ContentSync, and recovers through a state machine (`IDLE` → `READY`, or `DEGRADED` when a dependency is down). The pages below are the detail.
 
 ---
 
@@ -66,12 +68,12 @@ The modular reconciler and reactive content delivery system.
 
 How SveltyCMS handles widgets, plugins, and custom logic.
 
-- [🧩 **Widget Architecture**](../../development/widgets/architecture.mdx) — The 3-pillar strategy (Definition, Input, Display).
+- [🧩 **Widget Architecture**](../../development/widgets/development.mdx) — The 3-pillar strategy (Definition, Input, Display).
 - [🔌 **Plugin Architecture**](./plugin-architecture.mdx) — The hook-based extension system.
 - [🗄️ **Plugin Storage**](./plugin-storage.mdx) — Shared JSON record store (zero per-plugin tables).
 - [📦 **Media Hub**](./media-system.mdx) — Storage adapters, AI processing, and focal point management.
 - [☁️ **Cloud Storage**](./cloud-storage-implementation.mdx) — Integration with AWS S3, Google Cloud, and DigitalOcean.
-- [🛒 **E-Commerce Overview**](./ecommerce-overview.mdx) — Keep core light: opt-in plugin + field/dashboard widgets + gated `/api/commerce` (not a store kernel).
+- [🛒 **E-Commerce Overview**](../../guides/content/ecommerce.mdx) — Keep core light: opt-in plugin + field/dashboard widgets + gated `/api/commerce` (not a store kernel).
 
 ---
 

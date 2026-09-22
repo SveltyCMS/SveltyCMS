@@ -4,7 +4,9 @@
 **Responsive image component with automatic srcset generation from uploaded variants.**
 
 Consumes the thumbnails/variants generated during upload (via `saveResized`) and renders
-an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG fallback via src.
+an optimal `<img>` for every device. Variant URLs are resolved through `mediaDisplayUrl()`,
+so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay correct.
+`src` remains the asset URL — it is only the no-srcset fallback, browsers use `srcset`.
 
 ### Props
 - `asset` (MediaImage | { url?; thumbnails?; alt?; metadata? } | undefined | null): Media record or URL object
@@ -16,8 +18,8 @@ an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG
 - Plus all standard HTML <img> attributes via $$restProps
 
 ### Features:
-- srcset generation from asset thumbnails/variants
-- WebP primary format with JPEG/PNG fallback via src
+- srcset generation from asset thumbnails/variants (media-server/CDN aware)
+- Explicit `sizes` per surface so the browser picks the smallest sufficient variant
 - loading="lazy" by default, "eager" when priority
 - fetchpriority="high" when priority
 - decoding="async"
@@ -36,6 +38,7 @@ an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG
 
 	import { browser, dev } from '$app/env';
 	import type { ThumbnailSet } from '@src/utils/media/media-models';
+	import { mediaDisplayUrl } from '@utils/media/media-utils';
 
 	/* -------------------------------------------------------------------------- */
 	/*  Preset width ladder — maps preset names to thumbnail keys                 */
@@ -71,7 +74,7 @@ an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG
 	/*  Props                                                                     */
 	/* -------------------------------------------------------------------------- */
 
-	type $$Props = import('svelte/elements').HTMLAttributes<HTMLImageElement> & {
+	type $$Props = import('svelte/elements').HTMLImgAttributes & {
 		/** Media record (from CMS `mediaUrl()` or API response) with variant metadata */
 		asset?: AssetShape | undefined | null;
 		/** Direct URL fallback when asset is not provided */
@@ -138,7 +141,12 @@ an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG
 			.map((key) => {
 				const variant = thumbnails[key];
 				if (!variant?.url) return null;
-				return `${variant.url} ${variant.width}w`;
+				// Resolve through `mediaDisplayUrl` so a configured media server/CDN
+				// (`MEDIASERVER_URL`) is not bypassed; returns the raw URL unchanged when
+				// no rewrite applies. The single-variant item is deliberate: a missing key
+				// must be omitted, not substituted with a different size's URL.
+				const url = mediaDisplayUrl({ thumbnails: { [key]: variant } }, key);
+				return url ? `${url} ${variant.width}w` : null;
 			})
 			.filter(Boolean)
 			.join(',\n');

@@ -9,5 +9,6 @@
     "bun run scripts/slop-scanner.ts --strict --files"
   ],
   "scripts/**/*.ts": ["bun x oxfmt"],
-  "docs/**/*.{md,mdx}": ["bun run tests/lint-docs.ts"]
+  "docs/**/*.{md,mdx}": ["bun run tests/lint-docs.ts"],
+  "src/plugins/**/*.mdx": ["bun run tests/lint-docs.ts"]
 }

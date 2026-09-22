@@ -245,8 +245,9 @@ export class MarketplaceService {
       return this.installTheme(id);
     }
 
-    const { installPlugin, hashPackageFiles, setLicenseKey } =
-      await import("@src/services/intelligence/marketplace-client");
+    const { installPlugin, hashPackageFiles } =
+      await import("@src/services/intelligence/marketplace-install.server");
+    const { setLicenseKey } = await import("@src/services/intelligence/marketplace-client");
     if (options.licenseKey) setLicenseKey(options.licenseKey);
 
     try {

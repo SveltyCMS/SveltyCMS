@@ -1,9 +1,13 @@
 /**
- * @file src/utils/security-constants.ts
+ * @file src/utils/security/constants.ts
  * @description Standard security headers for SveltyCMS.
  * Extracted to a standalone file to prevent circular dependencies in the middleware pipeline.
  *
- * Page routes use SvelteKit nonce CSP (vite.config.ts `csp.mode: "nonce"`).
+ * Page routes get no CSP from this code: `vite.config.ts` defines no `csp` config, so
+ * SvelteKit's default `mode: "auto"` runs with empty `directives` and emits no header
+ * (no nonce is generated anywhere). `applyAllSecurityHeaders()` in
+ * `src/hooks/handle-security-headers.ts` copies a SvelteKit-set page CSP through and sets
+ * the API/GraphQL policies.
  * Do NOT set Content-Security-Policy in BASE_HEADERS — middleware must not clobber it.
  */
 

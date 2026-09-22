@@ -6,7 +6,7 @@ order: 30
 icon: "mdi:state-machine"
 author: "SveltyCMS Team"
 created: "2025-11-26"
-updated: "2026-08-21"
+updated: "2026-09-22"
 tags:
   - "architecture"
   - "state-machine"
@@ -159,24 +159,29 @@ All reactive client-side state uses Svelte 5 runes (`.svelte.ts`):
 
 ### Core Application
 
-| Store                         | Purpose                               |
-| ----------------------------- | ------------------------------------- |
-| `store.svelte.ts`             | Core app context, session, language   |
-| `global-settings.svelte.ts`   | Public tenant settings, site branding |
-| `ui-store.svelte.ts`          | Panels, sidebars, workspace layouts   |
-| `screen-size-store.svelte.ts` | Responsive breakpoints                |
-| `theme-store.svelte.ts`       | Dark/light mode persistence           |
+| Store                         | Purpose                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| `global-settings.svelte.ts`   | Public environment settings (`SITE_NAME`, …) behind the `publicEnv` proxy          |
+| `ui-store.svelte.ts`          | Panels, sidebars, route context, global search, editor-wizard transient state      |
+| `screen-size-store.svelte.ts` | Responsive breakpoints (`screen`, `ScreenSize`, `BREAKPOINTS`)                     |
+| `theme-store.svelte.ts`       | Dark/light/system persistence, OS preference listener, optimistic `userThemePrefs` |
+| `locale-store.svelte.ts`      | `systemLanguage` / `contentLanguage` / `translationProgress`                       |
 
 ### Feature Stores
 
-| Store                          | Purpose                                   |
-| ------------------------------ | ----------------------------------------- |
-| `collection-store.svelte.ts`   | Schema definitions, entry streams         |
-| `content-registry.svelte.ts`   | Active editor, form bindings, draft state |
-| `widget-store.svelte.ts`       | Widget configurations, field registry     |
-| `image-editor-store.svelte.ts` | Canvas operations, filters, crops         |
-| `consent-store.svelte.ts`      | GDPR cookie consent                       |
-| `setup-store.svelte.ts`        | Setup wizard step flow                    |
+| Store                        | Purpose                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `collection-store.svelte.ts` | Active collection schema, mode (`view`/`edit`/`create`) and the entry value being edited               |
+| `content-registry.svelte.ts` | Reactive content tree — per-tenant `ContentNode` hierarchy, derived `Schema` catalog, `contentVersion` |
+| `widget-store.svelte.ts`     | Widget registry (core/custom/marketplace), active set and dependency analysis                          |
+| `setup-store.svelte.ts`      | Setup-wizard state, validation and the DB test / seed / complete calls                                 |
+| `loading-store.svelte.ts`    | Global loading priorities, progress and cancellation                                                   |
+| `toast.svelte.ts`            | Toast queue with responsive positioning and promise toasts                                             |
+
+Single-consumer stores live next to their feature instead of in `src/stores/`:
+`plugins/cookie-consent/consent-store.svelte.ts`, `components/image-editor/image-editor-store.svelte.ts`,
+`components/system/help-state.svelte.ts`, `routes/(app)/config/system-settings/settings-state.svelte.ts`,
+`routes/(app)/dashboard/dashboard-preferences.svelte.ts`. The full inventory lives in [Store System Architecture](./store-system.mdx).
 
 ### System Health (`src/stores/system/`)
 

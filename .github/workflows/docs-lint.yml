@@ -8,6 +8,8 @@ on:
       # --- Trigger on any documentation file change ---
       - "docs/**.mdx"
       - "docs/**/*.mdx"
+      # --- Trigger on plugin-bundled docs (linted in the site's /docs/ URL space) ---
+      - "src/plugins/**/*.mdx"
       # --- Trigger on any component/widget change that impacts docs ---
       - "src/widgets/**/*.svelte"
       - "src/widgets/**/*.ts"

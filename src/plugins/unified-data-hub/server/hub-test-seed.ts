@@ -74,7 +74,7 @@ async function ensurePluginEnabled(
   userId?: string,
 ): Promise<void> {
   if (!pluginRegistry.isInitialized()) {
-    const { initializePlugins } = await import("@src/plugins/index");
+    const { initializePlugins } = await import("@src/plugins/init.server");
     await initializePlugins(db, tenantId);
   }
   // Boot only activates default-enabled plugins; a cold path may leave the

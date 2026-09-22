@@ -1,0 +1,201 @@
+---
+path: "docs/guides/content/ecommerce.mdx"
+title: "E-Commerce Overview"
+description: "Turn a store on: the ecommerce preset, catalog import, admin dashboard widgets, payment and shipping providers, and how orders move through the admin."
+order: 33
+icon: "mdi:cart-outline"
+author: "SveltyCMS Team"
+created: "2026-08-19"
+updated: "2026-09-22"
+tags:
+  - "ecommerce"
+  - "commerce"
+  - "stripe"
+  - "architecture"
+  - "preset"
+  - "dashboard"
+  - "smart-importer"
+---
+
+# E-Commerce Overview
+
+This is the operator task: decide what to switch on, configure the catalog and the providers, and run orders. How the engine is built — extension surfaces, the totals pipeline, the checkout services, the HTTP contract — is [E-commerce architecture](../../reference/architecture/ecommerce-overview.mdx).
+
+SveltyCMS is a **headless CMS first**. Most installs never run a store. Commerce is therefore **opt-in**, not part of the boot path:
+
+| Layer                 | What it is                                                                      | When it loads                                                                            |
+| --------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Core CMS**          | Collections, widgets (including generic Price/Currency), RBAC, tenants          | Always                                                                                   |
+| **Ecommerce preset**  | Optional Setup Wizard template: products, carts, orders, coupons, tax, shipping | Only if you pick **E-commerce**                                                          |
+| **Smart Importer**    | WooCommerce (WXR/REST) and Shopify catalog → `products` (+ variants)            | Only when the plugin is **enabled**                                                      |
+| **Dashboard widgets** | Commerce Orders + Commerce Inventory (freemium, 14-day trial)                   | Add from the dashboard picker; empty state if the preset is missing                      |
+| **Commerce plugin**   | Cart, quotes, inventory, guest `/api/commerce/*` checkout                       | Only when the plugin is **enabled**                                                      |
+| **Stripe plugin**     | Payment adapter: keys, Elements, PaymentIntent, webhooks                        | Only when **enabled** — also usable for memberships / gated content **without** Commerce |
+
+**To run a store:** pick the **E-commerce** preset in the [Setup Wizard](../configuration/setup-wizard.mdx), enable the **Commerce** plugin in Extensions, enable **Stripe** for card payments, and add the **Commerce Orders** and **Commerce Inventory** dashboard widgets if you want them on the admin home. Live carrier rates (UPS / FedEx / DHL) and TaxJar are separate paid plugins — the preset's own rate tables are enough without them.
+
+**What loads on a blog/SaaS install (Commerce off, no ecommerce preset):** kernel + whatever field widgets the content model uses. No carts collection, no `/shop`, no Stripe SDK, no order dashboard widgets unless someone adds them (they render empty).
+
+**Stripe is a gateway, not the store.** Shipping, tax, coupons, and carts belong to the Commerce plugin, so a different PSP can replace Stripe without touching the catalog or checkout.
+
+**Status (August 2026):** ecommerce **preset**, `Price` + `computeTotals`, **Commerce plugin** (guest cart, quotes, inventory, checkout — tenant-scoped), Stripe PaymentIntent from **server `grandTotal`**, Smart Importer Woo/Shopify catalog import, and two **freemium dashboard widgets**. Storefront `/shop`, `/cart`, `/checkout`, `/account/orders`, `/account/addresses`. Commerce Pro (gift cards, bundles, custom panes, analytics) is license-gated.
+
+Honest read: **guest checkout exists when the Commerce plugin is enabled.** Enable it in Extensions; pick the ecommerce preset for collections.
+
+## What is in the product today
+
+### Ecommerce preset
+
+Enable **E-commerce** in the [Setup Wizard](../configuration/setup-wizard.mdx). Collections (verified `db_fieldName` values in `src/routes/setup/presets.ts`):
+
+| Collection           | Role                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `products`           | Catalog: price, SKU, inventory, **variants** (own SKU / price / inventory), categories, media, `downloadable` flag                      |
+| `product_categories` | Nested categories                                                                                                                       |
+| `product_reviews`    | Rating + visibility (`approved` boolean)                                                                                                |
+| `coupons`            | `percentage`, `fixed_cart`, `fixed_product`, `free_shipping`; server-managed `usedCount`                                                |
+| `tax_rates`          | `country`, **`state`**, `rate`, `label`, **`shippingTaxable`**                                                                          |
+| `shipping_zones`     | **`name`**, `countries`, `method`, `rate`, **`freeThreshold`**                                                                          |
+| `carts`              | `sessionId`, customer, items, subtotal, coupon, `expiresAt`                                                                             |
+| `orders`             | Line items, totals (`total`/`totalCents`/`currency`), addresses, **status** (see below), server-managed `inventoryCommitted` + `cartId` |
+
+Headless storefronts already read catalog via `/api/collections/products` (auth + publication policy apply). Checkout **services** are not on that path yet.
+
+### Catalog import — Smart Importer (shipped)
+
+The [Smart Importer](../../../src/plugins/smart-importer/smart-importer.mdx) plugin maps an existing store catalog into the ecommerce **preset**. It does **not** run checkout.
+
+| Source          | Format                                        | What lands                                                                |
+| --------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| **WooCommerce** | WXR XML or REST JSON (`--format=woocommerce`) | `products` with nested `product_variation`, SKU, price, sale price, stock |
+| **Shopify**     | Products JSON / CSV (`--format=shopify`)      | Same `ecommerce` block (SKU, price, inventory, variants)                  |
+
+Enable the plugin (Admin → Config → Migration tile), then import into `products`. Mixed WordPress dumps (posts + products) still use `--format=wordpress`; product items also get an `ecommerce` block from `_sku` / `_price` / `_stock` meta. Platform guide: [WordPress migration](../../../src/plugins/smart-importer/docs/wordpress-migration.mdx) (WooCommerce section). Editorial path: [Migration & Data Operations](./migration-and-import.mdx).
+
+After import, add the Commerce Orders / Inventory **dashboard widgets** to watch stock and recent orders (empty until you have those collections and data).
+
+### Admin dashboard widgets (shipped)
+
+Two marketplace-portable packages under `src/routes/(app)/dashboard/widgets/`. **Freemium** — 14-day key-less trial, then `checkExtensionLicense("dashboard", id)`. Not a cart widget.
+
+| Widget             | Marketplace id                          | Endpoint                                | Reads                                  |
+| ------------------ | --------------------------------------- | --------------------------------------- | -------------------------------------- |
+| Commerce Orders    | `dashboard:commerce-orders` · €12.99    | `GET /api/dashboard/commerce-orders`    | `orders`                               |
+| Commerce Inventory | `dashboard:commerce-inventory` · €12.99 | `GET /api/dashboard/commerce-inventory` | `products` (variant-aware `inventory`) |
+
+Add them from the dashboard widget picker. Missing preset collections → empty state, not 404. After trial without a key: `<UpgradePrompt>` on the client and `403 LICENSE_REQUIRED` on the API. Details: [Dashboard widgets](../../development/dashboard/index.mdx), [Dashboard API](../../reference/api/dashboard.mdx).
+
+### Order status
+
+Preset options (do not invent `paid` / `fulfilled`):
+
+`pending` · `processing` · `shipped` · `delivered` · `cancelled` · `refunded`
+
+Mapping when integrating gateways: **paid → `processing`**, **fulfilled → `shipped`**.
+
+Which transitions the server accepts, and what cancelling or refunding does to stock and coupon usage, is [E-commerce architecture → Order state machine](../../reference/architecture/ecommerce-overview.mdx#order-state-machine).
+
+### Stripe plugin (payments only)
+
+Stripe stays a **payment plugin**. It must not grow into a store: no shipping tables, no tax engine, no cart.
+
+| Shipped                                                 | Stripe’s job                                                                | Not Stripe’s job                                             |
+| ------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Tenant-aware keys, Elements, webhook signature + upsert | Create/confirm PaymentIntent; map `succeeded` / `failed` / later `refunded` | Cart, coupons, tax, shipping, inventory, order state machine |
+| Payment status column on entries                        | Accept `grandTotal` from Commerce **or** a simple amount for gated content  | Trust client `amount` as the charge                          |
+
+When Commerce is enabled, Stripe receives **server `grandTotal`**. When Commerce is off, Stripe can still charge a single amount (membership, donation, paywalled entry). Plugin docs: [stripe.mdx](../../../src/plugins/stripe/stripe.mdx). The `PaymentGateway` port, the amount check on confirm, and webhook scoping are [E-commerce architecture → Payments and fulfillment ports](../../reference/architecture/ecommerce-overview.mdx#payments-and-fulfillment-ports).
+
+### Field widgets
+
+[Price](../../../src/widgets/custom/price/price.mdx) and [Currency](../../../src/widgets/custom/currency/currency.mdx) store money on entries — including non-store money fields. Enter prices as decimal amounts (`19.99`) in the store currency (the Commerce plugin defaults to `EUR`); the engine converts them to integer minor units internally. Admin **dashboard widgets** (Orders / Inventory) are a separate package type — see above.
+
+### Progress vs like-for-like (public docs, August 2026)
+
+Not a ranking. Like-for-like = self-hosted CMS that can run a store. Shopify is listed as a packaging reference (SaaS, not the same product class). Sources: Payload [ecommerce overview](https://payloadcms.com/docs/ecommerce/overview) and [RFC #14239](https://github.com/payloadcms/payload/discussions/14239); Drupal Commerce 2.x developer guide; WooCommerce.com feature list. Re-check those pages before a purchase decision.
+
+| Capability                              | SveltyCMS (this tree)                                                                | Payload ecommerce plugin                                                                              | Drupal Commerce (modules)                       | WooCommerce (WordPress)                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| Catalog schema (products, variants)     | **Shipped** (optional preset)                                                        | Documented native                                                                                     | Documented native                               | Documented native                          |
+| Reviews                                 | **Shipped** (`product_reviews`)                                                      | Not listed as native                                                                                  | Contrib / custom                                | Native comments / plugins                  |
+| Coupon / tax / shipping **data**        | **Shipped** (collections only)                                                       | Documented as native gaps / RFC                                                                       | Native tax + promotions; shipping often contrib | Native + extensions                        |
+| Catalog import (Woo / Shopify)          | **Shipped** (Smart Importer; Woo/Shopify are Pro platforms)                          | Import paths vary by project                                                                          | Migrate modules                                 | N/A (it is the source)                     |
+| Admin orders / inventory UI             | **Shipped** (2 freemium dashboard widgets, 14-day trial)                             | Documented as part of the plugin admin                                                                | Native order / product UIs                      | Native wp-admin                            |
+| Cart session, merge, guest checkout     | **Shipped** (`src/plugins/commerce/`, opt-in)                                        | Documented native carts                                                                               | Native `commerce_cart`                          | Native                                     |
+| Totals engine (tax/ship/coupon applied) | **Shipped** (`computeTotals` + `quotes.ts`)                                          | Documented native checkout; shipping/tax not native; Stripe adapter uses `cart.subtotal` (open issue) | Adjustments + order processors                  | Native cart totals                         |
+| Inventory reserve / decrement           | **Shipped** (per-variant decrement/restore, `orderRef`)                              | Inventory fields documented; multi-warehouse not first-class                                          | Stock + order workflow                          | Native stock                               |
+| Payments (Stripe)                       | **Shipped** (Elements, webhooks, server `grandTotal` intent)                         | Stripe adapter documented                                                                             | `commerce_payment` gateways                     | Stripe / other gateways as extensions      |
+| Subscriptions / gift cards / bundles    | **Partial** (Pro-gated; Stripe Billing not wired)                                    | Documented native gaps / RFC                                                                          | Contrib                                         | Often paid extensions (e.g. Subscriptions) |
+| Multi-tenancy                           | **Shipped** (`locals.tenantId` on every commerce query)                              | Not documented as built-in                                                                            | Typically one site / Domain Access              | Typically one site / multisite             |
+| Public storefront                       | **Shipped** (`/shop`, `/cart`, `/checkout`, `/account/orders`, `/account/addresses`) | Template documented                                                                                   | Theme / storefront                              | Theme                                      |
+
+**Where this puts us:** a guest can complete a priced checkout when Commerce + the ecommerce preset are enabled. Account order history, addresses, and transactional mail are in this tree. Still behind Drupal Commerce / WooCommerce on `ConditionPlugin`/BOGO promotions, Stripe Billing, and Schema.org Product/Offer markup. Like-for-like notes only — not a ranking.
+
+### Not shipped yet {#still-open-not-a-separate-plan-file}
+
+| Item                                                        | Notes                                      |
+| ----------------------------------------------------------- | ------------------------------------------ |
+| `ConditionPlugin` / AND-OR promotion groups                 | Not shipped                                |
+| BOGO / tiered promotions, multi-warehouse, FX resolver      | Commerce Pro backlog                       |
+| Stripe Billing (real subscriptions)                         | Endpoint is Pro-gated `501`                |
+| `computeTotals` &lt; 5 ms benchmark                         | No commerce row in the matrix yet          |
+| HTTP integration: cart → order → refund, two tenants        | Unit isolation exists; no integration file |
+| Schema.org Product/Offer/Review, order emails already exist | Structured data on `/shop` not shipped     |
+
+Remaining work lives on the [2026 roadmap](../../project/roadmap-2026.mdx), not in a parallel plan MDX.
+
+## Commerce plugin (shipped, disabled by default)
+
+Home: **`src/plugins/commerce/`** (`definePlugin`, **disabled by default**). Enable it in Extensions — core CMS does not register checkout unless the plugin is on. Guest HTTP is `/api/commerce/*` — **not** `/api/plugins/commerce` (`plugins:execute` is never required).
+
+With the plugin on and the ecommerce preset in place, a guest can browse `/shop`, add to `/cart`, quote shipping and tax on `/checkout`, and pay; signed-in customers get `/account/orders` and `/account/addresses`. Transactional mail (order received, shipped, refunded, merchant new-order, low stock) goes out through the CMS [email system](../configuration/email-system.mdx) and never blocks checkout.
+
+A missing preset fails closed: `503 COMMERCE_PRESET_MISSING` while `products` or `carts` is absent, `403 COMMERCE_DISABLED` while the plugin is off. The module map, the HTTP actions, and the order state machine are [E-commerce architecture](../../reference/architecture/ecommerce-overview.mdx).
+
+## Free vs paid {#monetization-marketplace-same-as-widgetsplugins}
+
+Commerce is **not** a paid cart widget. It uses the existing [license manager](../../../src/utils/license-manager.ts) and the three marketplace tiers already documented for [widgets](../../development/widgets/marketplace.mdx): **Free**, **Freemium (14-day key-less trial)**, **Paid**. Core checkout keeps working when a licence lapses — Pro features stop, paid add-ons fall back to the free tables.
+
+### What to sell vs what stays free
+
+Give away a working store so people adopt the CMS; charge for extras that other ecosystems often sell as paid add-ons (subscriptions, gift cards, live carriers — verify current third-party pricing before any public comparison).
+
+| SKU                                            | Marketplace id                 | Tier                        | Includes                                                                                                                                                       | After trial / without key                                                         |
+| ---------------------------------------------- | ------------------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Ecommerce **preset**                           | — (Setup Wizard)               | Free                        | Collections only                                                                                                                                               | Always available if the template is chosen                                        |
+| Price / Currency **widgets**                   | core widgets                   | Free                        | Money fields                                                                                                                                                   | Never gated                                                                       |
+| **Smart Importer** (catalog)                   | `plugin:smart-importer`        | **Freemium** (already)      | WooCommerce WXR/REST + Shopify JSON/CSV → `products`                                                                                                           | 5 platforms free; extra store platforms (Shopify, Woo, …) are Pro                 |
+| **Commerce** (plugin)                          | `plugin:commerce`              | **Freemium**                | Cart, `computeTotals`, tax, shipping quotes, 4 coupon types, per-variant inventory, guest `/api/commerce/*`, order/refund machine, Stripe `grandTotal` handoff | Basic checkout **keeps working**; Pro features strip / `403 LICENSE_REQUIRED`     |
+| **Commerce Pro** (same plugin, premium fields) | `plugin:commerce`              | Paid add-on inside Freemium | Checkout flows + panes, gift cards, bundles, BOGO/tiered promotions, multi-location inventory, subscriptions, multi-currency resolver                          | `UpgradePrompt` in admin; server strips Pro payloads                              |
+| **Stripe**                                     | `plugin:stripe`                | Freemium (already)          | One-time PaymentIntent + webhooks                                                                                                                              | Subscriptions / invoices / analytics already stripped in `beforeSave`             |
+| **Commerce Orders** (dashboard widget)         | `dashboard:commerce-orders`    | **Freemium** · €12.99       | Recent orders + status mix from the `orders` collection                                                                                                        | `UpgradePrompt`; `GET /api/dashboard/commerce-orders` → `403 LICENSE_REQUIRED`    |
+| **Commerce Inventory** (dashboard widget)      | `dashboard:commerce-inventory` | **Freemium** · €12.99       | Low-stock / out-of-stock, variant-aware `inventory`                                                                                                            | `UpgradePrompt`; `GET /api/dashboard/commerce-inventory` → `403 LICENSE_REQUIRED` |
+| **Live Shipping** (UPS / FedEx / DHL)          | `plugin:shipping-live`         | **Paid** · ~€24.99          | Live carrier quotes via `ShippingRateProvider`; sandbox `testRateCents` until carrier HTTP is keyed                                                            | After trial, checkout **keeps table rates** until a key is active                 |
+| **TaxJar**                                     | `plugin:taxjar`                | **Paid** · ~€19.99          | Live sales-tax via `TaxProvider`; sandbox `testRatePercent` until TaxJar HTTP is keyed                                                                         | After trial, checkout **keeps `tax_rates`** until a key is active                 |
+| Future **PayPal** (etc.)                       | `plugin:paypal`                | Paid or Freemium            | Another `PaymentGateway`                                                                                                                                       | Independent license                                                               |
+
+Do **not** license-gate: enabling the Commerce plugin, adding to cart, coupon validate, tax/shipping quote, or placing an order with the four preset coupon types. That would make “CMS that is not always a store” painful and would hide the free core. **Do** license-gate admin extras: the Commerce Orders and Commerce Inventory dashboard widgets (14-day key-less trial, then `checkExtensionLicense("dashboard", id)`). They never load a store into a blog install — if the ecommerce preset collections are missing, the widgets render an empty state.
+
+Dashboard widget SKUs (`dashboard:commerce-orders`, `dashboard:commerce-inventory`) use the same 14-day trial as [dashboard marketplace](../../development/dashboard/marketplace.mdx). Listing them on marketplace.sveltycms.com is what turns verify-404 (local/free) into a paid SKU after the trial. See [Admin dashboard widgets](#admin-dashboard-widgets-shipped) above.
+
+Indicative list prices: **Commerce Pro ~€79 / year** (or a lifetime SKU on the marketplace); Stripe plugin ~€4.99; dashboard widgets €12.99. Stripe stays its own SKU so a membership site can pay for Stripe Pro without buying a store. List the packages on marketplace.sveltycms.com or verify-404 treats them as local/free.
+
+## Related
+
+| Doc                                                                                                   | Why                                                       |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| [E-commerce architecture](../../reference/architecture/ecommerce-overview.mdx)                        | Surfaces, totals pipeline, checkout services, HTTP, tests |
+| [Roadmap 2026](../../project/roadmap-2026.mdx)                                                        | Remaining commerce backlog                                |
+| [Competitive comparison](../../project/competitive-comparison.mdx)                                    | Commerce packaging table                                  |
+| [Setup Wizard](../configuration/setup-wizard.mdx)                                                     | Ecommerce preset                                          |
+| [Site Starter](../../development/site-starter.mdx)                                                    | Public `/shop`, `/cart`, `/checkout`, `/account`          |
+| [Smart Importer](../../../src/plugins/smart-importer/smart-importer.mdx)                              | Shopify JSON + WooCommerce WXR/REST catalog → `products`  |
+| [WordPress / WooCommerce migration](../../../src/plugins/smart-importer/docs/wordpress-migration.mdx) | WXR + `--format=woocommerce` catalog path                 |
+| [Migration & Data Operations](./migration-and-import.mdx)                                             | Admin Migration tile                                      |
+| [Dashboard widgets](../../development/dashboard/index.mdx)                                            | Commerce Orders + Inventory packages, 14-day trial        |
+| [Dashboard API](../../reference/api/dashboard.mdx)                                                    | `/api/dashboard/commerce-orders` and `commerce-inventory` |
+| [Widget marketplace licensing](../../development/widgets/marketplace.mdx)                             | Free / Freemium / Paid + `checkExtensionLicense`          |
+| [Marketplace](../../reference/architecture/marketplace.mdx)                                           | Catalog, `plugin:commerce` listing, license verify        |
+| [Live Shipping](../../../src/plugins/shipping-live/shipping-live.mdx)                                 | Paid UPS / FedEx / DHL plugin                             |
+| [TaxJar](../../../src/plugins/taxjar/taxjar.mdx)                                                      | Paid live tax plugin                                      |
+| [Email system](../configuration/email-system.mdx)                                                     | SMTP for order mail                                       |

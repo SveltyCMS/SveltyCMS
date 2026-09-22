@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type {
   BaseEntity,
   DatabaseId,
@@ -165,7 +166,6 @@ export class AuditService {
         // Bulk insert if supported, otherwise loop. skipReturning: the flushed
         // entries are already in memory — no RETURNING read-back needed.
         if (dbAdapterInstance.crud?.insertMany) {
-          const { withSystemScope } = await import("@src/databases/system-tenant-scope");
           await dbAdapterInstance.crud.insertMany(
             this.collectionName,
             entriesToFlush as any[],

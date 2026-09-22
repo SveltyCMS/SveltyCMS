@@ -31,7 +31,10 @@ The Content API manages the structural and cross-collection aspects of SveltyCMS
 | **Global Search** | `/api/search`            | `GET`  | `collection:read`   |
 | **SSE Events**    | `/api/content/events`    | `GET`  | `collection:read`   |
 | **SSE (alias)**   | `/api/events`            | `GET`  | `collection:read`   |
-| **GraphQL API**   | `/api/graphql`           | `POST` | `manage:system`     |
+| **GraphQL API**   | `/api/graphql`           | `POST` | `collection:write`  |
+
+> [!NOTE]
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `graphql` entry maps `GET` ⇒ `collection:read`, everything else ⇒ `collection:write`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
 
 ---
 
@@ -65,7 +68,7 @@ Search across multiple collections simultaneously using the unified search engin
 
 ---
 
-## 2b. Collection List Query Params (SSR + entry-list)
+## 2b. Collection List Query Params (SSR + entry-list) {#2b-collection-list-query-params-ssr--entry-list}
 
 Per-collection **view mode** lists are driven by URL query parameters on the admin collection route
 (`/(app)/[language]/[...collection]`). The page loader parses params, **whitelists field names

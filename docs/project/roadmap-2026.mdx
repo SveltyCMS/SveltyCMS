@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-21"
+updated: "2026-09-22"
 tags:
   - "roadmap"
   - "backlog"
@@ -49,6 +49,8 @@ Planned UX and platform extensions:
 
 ## 🏗️ In Progress
 
+- 🏗️ **Media pipeline consolidation** — the remaining work: collapse the two derivative pipelines into one (today: the SIZES ladder plus a deferred `processImageWithPresets` pass, ~17 files per image), background precompilation of operator-defined SIZES, watermark + focal-point aware delivery, and a derivative-GC sweep that actually reclaims disk. Shipped 2026-09-22: dedupe **before** generation and the no-upscaling/no-redundant-write ladder clamp. Plan, status and the benchmark rows that prove each step: [Media Pipeline Plan](./media-pipeline-plan.mdx).
+
 - 🏗️ **Plugin Admin Pages (`page` part)** — Finalize declarative sub-navigation, deep-linking, and full-page test suites for `/plugin/<path>` admin tools.
 - 🏗️ **Native Commerce Pipeline Add-ons** — Complete the remaining commercial modules:
   - `ConditionPlugin` for complex promotion rules (cart minimums, coupon combinations, category discounts).
@@ -57,6 +59,7 @@ Planned UX and platform extensions:
   - Real-time currency exchange (FX) resolver with caching.
   - Stripe Billing recurring subscription webhooks and portal.
   - Schema.org structured data markup (`Product`, `Offer`, `AggregateRating`) on public `/shop` routes.
+- 🏗️ **Reliable per-stage attribution for the write lane** — `readHookTimings()` can report `unavailable` mid-run because the terminal health bypass (`handle-turbo-pipeline.server.ts:381`/`:403`) answers with a minimal payload that carries no `hooks`. A dedicated authenticated diagnostics route (or including counters in the bypass when `verbose`) would make write-lane attribution dependable.
 
 ---
 
@@ -73,6 +76,8 @@ Existing modules to be connected or formally retired:
 - **Required-Fields Publish Guard** — Connect `validateRequiredFields()` (`src/widgets/widget-validation.ts`) to status transition mutations to enforce non-empty publish requirements.
 - **Legacy Store Bridges** — Migrate `systemState` and `overallState` in `src/stores/system/state.svelte.ts` from legacy `svelte/store` `derived()` exports to modern Svelte 5 runes (`$state()`, `$derived()`).
 - **GraphQL Replay & Hint Controls** — `markMutationExecuted` (mutation replay prevention) and `createSuppressHintsRule` in `src/routes/api/graphql/rules.ts` are never wired (`+server.ts` only registers depth-limit and max-alias rules). Wire them into the Yoga validation list or delete them deliberately — as-is the replay guard does not exist at runtime.
+- **Background Services Out of the API Process** — `hooks.server.ts` still statically imports the job queue, scheduler, outbox, watchdog, automation, telemetry, and behavioral learner and starts them at READY (an earlier `await import()` left their production exports `undefined` under Rolldown's cyclic-chunk initializers). A dedicated `background-entry.ts` must be started from `index.cjs` **as a separate process** — importing it into the same process evaluates the modules and frees nothing. Prerequisites: child-process DB init, supervision/restart, heartbeat reporting back to the parent's service health, and an explicit decision for SQLite (WAL + `PRAGMA busy_timeout=30000` already tolerate a second writer, but `withWriteLock` is per-process, so the two processes would serialize at the file level — contention, not corruption; a busy API burst could park a background poll for up to the timeout). Projected: 30–80 MB resident, ~5–10% on `create`, 0–3% on cached reads.
+- **API-Only Build Profile** — a second build that emits only the read lane, the write lane, and the active adapter (no admin routes, no widget catalog, no session/security admin chrome). This is the step that moves resident memory again; the cached-read rate stays at the PostgreSQL HTTP floor either way. A comparator process (two lists, admin build off) cannot be met by trimming unused widgets or background services.
 
 ---
 
@@ -125,4 +130,4 @@ Ordered sequence for internationalization:
 10. Official community Discord server launch.
 11. Enterprise governance whitepaper.
 
-_Last roadmap sync: 2026-09-20 (Phase 1 builder, Smart Table UX, marketplace install, adapter packages, EU/AR catalogs)_
+_Last roadmap sync: 2026-09-22 (media pipeline #2/#3 shipped — dedupe before derivative generation, ladder clamp; memory governor knobs + module-graph split documented, background-process and API-only-profile cuts scoped)_

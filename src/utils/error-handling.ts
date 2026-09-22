@@ -10,7 +10,7 @@
  * - `AppError` constructor captures stack traces via `Error.captureStackTrace`
  */
 
-import { isRedirect, json, type RequestEvent, type HttpError } from "@sveltejs/kit";
+import { isRedirect, type RequestEvent, type HttpError } from "@sveltejs/kit";
 import { logger } from "./logger.ts";
 import type { GenericSchema, ValiError } from "valibot";
 
@@ -133,6 +133,43 @@ function formatValibotIssues(err: ValiError<GenericSchema>): string[] {
   });
 }
 
+// ─── Static envelopes (production fast paths) ───────────────────────────
+
+/**
+ * Pre-serialized 401/403 envelopes — no per-request `JSON.stringify`.
+ *
+ * 🚀 `content-length` is mandatory on these two: `handleCompression` reads the
+ * header to size-gate. A missing length means "unknown size", which skips BOTH
+ * the `< MIN_COMPRESSION_SIZE` (1 KiB) skip-gate and the sync/buffered tier
+ * (`handle-compression.ts`), so the response is negotiated into the streaming
+ * tier — with a zstd-advertising client that is a fresh `createZstdCompress`
+ * stream per request. Measured 2026-09-22 (SQLite, warm, two runs each side):
+ * declaring the length halves a rejected request's wire time (0.73–0.78 ms →
+ * 0.37 ms), because 64 B < 1 KiB now skips compression entirely.
+ *
+ * Lengths are computed from the literals (never hardcoded) so an edit can't
+ * ship a wrong value — a stale Content-Length makes clients wait for bytes
+ * that never arrive.
+ *
+ * The generic tail reuses the same builder instead of `json()`: the envelope
+ * contract must not depend on which `@sveltejs/kit` `json` implementation the
+ * bundler resolves (SSR vs test runtime differ).
+ */
+const UNAUTHORIZED_ENVELOPE = '{"success":false,"message":"Unauthorized","code":"UNAUTHORIZED"}';
+const FORBIDDEN_ENVELOPE = '{"success":false,"message":"Forbidden","code":"FORBIDDEN"}';
+
+const ENVELOPE_ENCODER = new TextEncoder();
+
+function staticJsonEnvelope(body: string, status: number): Response {
+  return new Response(body, {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "content-length": String(ENVELOPE_ENCODER.encode(body).byteLength),
+    },
+  });
+}
+
 // ─── Core handler ──────────────────────────────────────────────────────
 
 export function handleApiError(err: unknown, event: RequestEvent) {
@@ -207,16 +244,10 @@ export function handleApiError(err: unknown, event: RequestEvent) {
 
   if (!isDev && !issues) {
     if (status === 401 && code === "UNAUTHORIZED" && message === "Unauthorized") {
-      return new Response('{"success":false,"message":"Unauthorized","code":"UNAUTHORIZED"}', {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
+      return staticJsonEnvelope(UNAUTHORIZED_ENVELOPE, 401);
     }
     if (status === 403 && code === "FORBIDDEN" && message === "Forbidden") {
-      return new Response('{"success":false,"message":"Forbidden","code":"FORBIDDEN"}', {
-        status: 403,
-        headers: { "content-type": "application/json" },
-      });
+      return staticJsonEnvelope(FORBIDDEN_ENVELOPE, 403);
     }
   }
 
@@ -231,7 +262,7 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     response.stack = err.stack;
   }
 
-  return json(response, { status });
+  return staticJsonEnvelope(JSON.stringify(response), status);
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────

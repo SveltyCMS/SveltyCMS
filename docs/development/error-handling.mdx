@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:alert-octagon"
 author: "SveltyCMS Team"
 created: "2026-02-03"
-updated: "2026-03-27"
+updated: "2026-09-22"
 tags:
   - "error-handling"
   - "api"
@@ -119,8 +119,8 @@ Standard error codes (`KnownAppErrorCode`) used across the application:
 In the new architecture, all mutating API logic is encapsulated in handlers within `src/routes/api/[...path]/handlers/` using `validateRequestBody`:
 
 ```typescript
-// src/routes/api/[...path]/handlers/user.ts
-import { json, type RequestEvent } from "@sveltejs/kit";
+// src/routes/api/[...path]/handlers/auth.ts (mapped as user: { handler: "auth", fn: "handleAuthUserRoutes" })
+import type { RequestEvent } from "@sveltejs/kit";
 import { AppError } from "@utils/error-handling";
 import { validateRequestBody, successResponse } from "./base";
 import * as v from "valibot";
@@ -130,7 +130,12 @@ const CreateUserSchema = v.object({
   role: v.optional(v.string(), "editor"),
 });
 
-export async function handleUserRoutes(event: RequestEvent, cms: LocalCMS, segments: string[]) {
+export async function handleAuthUserRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
   const body = await validateRequestBody(event, CreateUserSchema);
   const user = await cms.users.create(body);
   return successResponse(event, user, 201);
@@ -401,18 +406,20 @@ describe("API Error Handling", () => {
 });
 ```
 
-### Running Tests with Bun
+### Running Tests with Vitest
 
-```
-# Run all tests
-bun test
+```bash
+# Run the whole unit suite
+bun run test:unit
 
-# Run error handling tests
-bun test --grep "error"
+# Run the error-handling tests only
+bun run test:unit -- tests/unit/utils/error-handling.test.ts
 
 # Run with coverage
-bun test --coverage
+bun run test:unit -- --coverage
 ```
+
+> Vitest is the canonical runner — import `{ describe, test, expect }` from `"vitest"`, never `bun:test`.
 
 ---
 
@@ -496,17 +503,24 @@ throw new AppError("Email address is not valid", 400, "INVALID_EMAIL");
 
 ### Exports from error-handling.ts
 
-```
+```typescript
 // Classes
 export class AppError extends Error { ... }
+export class ContextMissingError extends Error { ... }
+export class PathTraversalError extends Error { ... }
+export class IntegrityError extends Error { ... }
 
 // Functions
+export function raise(status: number, message: string, code?: AppErrorCode): never;
 export function handleApiError(err: unknown, event: RequestEvent): Response;
 export function getErrorMessage(err: unknown): string;
 export function isAppError(err: unknown): err is AppError;
 export function isHttpError(err: unknown): err is HttpError;
+export function rethrow(err: unknown): void;
+export function wrapError(error: unknown, message?: string, status?: number): AppError;
 
 // Types
+export type AppErrorCode = KnownAppErrorCode | (string & {});
 export interface ApiErrorResponse { ... }
 ```
 
@@ -537,4 +551,4 @@ cat production.log | grep "User creation failed"
 cat production.log | grep USER_CREATE_FAILED
 ```
 
-Each `raise()` call auto-generates semantic codes (`NOT_FOUND`, `UNAUTHORIZED`, etc.) or accepts custom codes (`USER_CREATE_FAILED`). The `handleError` hook attaches userId, tenantId, and request path to every error log.
+`raise(status, message, code?)` is a thin `never`-returning wrapper around `new AppError(message, status, code)` (`src/utils/error-handling.ts:271`). The `code` is **not** derived from the status — it defaults to `"INTERNAL_ERROR"` (`AppError` constructor, `:80`), so pass a semantic code explicitly (`raise(404, "Entry not found", "NOT_FOUND")`) when clients or log filters need to branch on it. The `handleError` hook attaches userId, tenantId, and request path to every error log.

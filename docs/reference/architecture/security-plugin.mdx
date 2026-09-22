@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/architecture/security-plugin.mdx"
 title: "Enterprise Security Architecture"
-description: "Comprehensive security system with runtime threat detection, automated response, and nonce-based CSP for enterprise-grade protection."
+description: "Comprehensive security system with runtime threat detection, automated response, and hardened Content Security Policy headers (SvelteKit-owned page CSP preserved, strict API/GraphQL policies)."
 order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-03-27"
+updated: "2026-09-22"
 tags:
   - "security"
   - "csp"
@@ -40,27 +40,28 @@ SveltyCMS implements a **multi-layered, enterprise-grade security system** that 
 ### SecurityResponseService - Automated Threat Detection
 
 **Purpose**: Real-time threat analysis with automated response capabilities
-**File**: `src/services/security-response-service.ts`
+**File**: `src/services/security/response-service.ts` — singleton export `securityResponseService` (see the bottom of the file)
 
 ```typescript
-export class SecurityResponseService {
-  // Centralized security analysis
-  public async analyzeRequest(request: Request, clientIp: string): Promise<SecurityStatus> {
-    // 1. IP Block check (Persistent Redis state)
-    if (await securityStore.isBlocked(clientIp)) return { level: "critical", action: "block" };
-
-    // 2. Rate Limit check (Per-endpoint + Global)
-    const rateLimit = await this.checkRateLimit(clientIp, new URL(request.url).pathname);
-    if (rateLimit.action !== "allow") return rateLimit;
-
-    // 3. Payload pattern analysis (XSS, SQLi, ReDoS-safe)
-    const threatLevel = await this.analyzePayload(request);
-
-    // 4. Automated Decision Engine
-    return this.mapThreatToResponse(threatLevel, clientIp);
-  }
-}
+// src/services/security/response-service.ts:197
+public async analyzeRequest(
+  request: Request,
+  clientIp: string,
+  tenantId?: string,
+  payloadSnapshot?: PayloadSnapshot,
+): Promise<SecurityStatus>
 ```
+
+**How a request is judged**:
+
+1. **Blocklist short-circuit** — `securityStore.isBlockedSync(clientIp)`, with a distributed lookup only when `securityStore.needsDistributedLookup()`.
+2. **Throttle gate** — an active `securityStore.getThrottleSync(clientIp)` entry returns `{ level: "medium", action: "throttle" }` before any scan.
+3. **Clean-surface fast path** — read requests whose pathname _and_ query pass `isCleanRequestSurface()` (`@src/services/security/threat-scan`) return `allow` without touching the rate limiters.
+4. **Rate limiting** — per-endpoint limits from the `ENDPOINT_RATE_LIMITS` table (`/api/auth/login` = 5, `/api/graphql` = 150, …) plus a global limiter, backed by `RateLimiterMemory` / `RateLimiterRedis` from `rate-limiter-flexible`.
+5. **Payload analysis** (`analyzePayload`, private) — recursive JSON scanning (`scanRecursive`) and value inspection (`checkValue`), capped at `SCAN_BODY_MAX_SIZE` (32 KB) with ReDoS-safe patterns.
+6. **Policy mapping** — the `DEFAULT_POLICIES` table (Moderate / High / Critical threat) derives the automated response; `getActiveIncidents(tenantId)` and `getSecurityStats(tenantId)` expose the result.
+
+> The private surface (`analyzePayload`, `executeResponse`, `restoreStateSync`) is internal — the public API is `analyzeRequest()`, `getSecurityStats()`, `getActiveIncidents()`, `reset()` and `destroySync()`.
 
 **Key Features**:
 
@@ -71,116 +72,76 @@ export class SecurityResponseService {
 
 ### MetricsService - Security Analytics
 
-**Purpose**: Unified security and performance metrics with real-time analysis
-**File**: `src/services/metrics-service.ts`
+**Purpose**: Unified security and performance counters (per tenant) with on-demand reporting
+**File**: `src/services/observability/metrics-service.ts` — singleton export `metricsService`
 
-```
-export class MetricsService {
-  // Security-specific metrics
-  incrementSecurityEvent(type: SecurityEventType): void {
-    this.counters.set(`security.${type}`, (this.counters.get(`security.${type}`) || 0) + 1);
-  }
+```typescript
+// src/services/observability/metrics-service.ts:248 — security counters
+incrementCSPViolations(tenantId?: string | null): void
+incrementRateLimitViolations(tenantId?: string | null): void
+incrementSecurityViolations(tenantId?: string | null): void
 
-  getSecurityReport(): SecurityMetrics {
-    return {
-      totalThreats: this.counters.get("security.threats_detected") || 0,
-      blockedIPs: this.counters.get("security.ips_blocked") || 0,
-      cspViolations: this.counters.get("security.csp_violations") || 0,
-      authFailures: this.counters.get("security.auth_failures") || 0,
-      threatsByType: this.getThreatsBreakdown(),
-      securityTrends: this.calculateSecurityTrends(),
-    };
-  }
-}
+// src/services/observability/metrics-service.ts:291 — single report for all domains
+metricsService.getReport(tenantId?: string | null): MetricsReport
+// → report.security.cspViolations, report.security.rateLimitViolations, …
 ```
+
+The composed security view is `GET /api/security/stats` (`src/routes/api/[...path]/handlers/system.ts:1384`, admin-only), which merges `securityResponseService.getSecurityStats()` with `metricsService.getReport(tenantId).security`.
 
 ---
 
 ## Content Security Policy (CSP) Implementation
 
-### Nonce-Based CSP Architecture
+**File**: `src/hooks/handle-security-headers.ts` — single export `applyAllSecurityHeaders(headers, isHttps, origin, pathname)`.
 
-**Purpose**: Cryptographically secure XSS prevention with dynamic nonce generation
-**File**: `src/hooks/addSecurityHeaders.ts`
+There is intentionally **no standalone security-headers Handle**: the header set is always merged onto an already-produced response, because SvelteKit owns the page CSP. `applyAllSecurityHeaders()` is called inline from `handleTurboPipeline` (`handle-turbo-pipeline.server.ts`), `handleTurboGet`, the rate-limit 429 path (`handle-rate-limit.ts`), `handle-collection-write-lane.ts`, and the top-level error guard in `hooks.server.ts`.
 
-```
-export function generateNonce(): string {
-  return crypto.randomUUID().replace(/-/g, "");
-}
+### What the Utility Sets
 
-export function buildCSP(nonce: string): string {
-  return [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "block-all-mixed-content",
-    `report-uri /api/security/csp-violations`,
-  ].join("; ");
-}
+| Branch                    | CSP applied                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Page routes               | **Preserved** — the existing SvelteKit `Content-Security-Policy` header is read back and re-set, never overwritten |
+| `/api/*` (except GraphQL) | `API_CONTENT_SECURITY_POLICY` from `@utils/security/constants` (`default-src 'self'; frame-ancestors 'none'; …`)   |
+| `/api/graphql`            | `GRAPHQL_PLAYGROUND_CSP` in dev/playground builds, `GRAPHQL_PROD_CSP` when `NODE_ENV === "production"`             |
 
-export async function addSecurityHeaders({ event, resolve }) {
-  const response = await resolve(event);
-  const nonce = event.locals.nonce;
+The remaining headers are pre-compiled arrays (`PRECOMPILED_API_STATIC_HEADERS`, `PRECOMPILED_PAGE_STATIC_HEADERS`), so a request only pays for `headers.set()` calls:
 
-  // Apply nonce-based CSP
-  response.headers.set("Content-Security-Policy", buildCSP(nonce));
-
-  // Additional security headers
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-
-  // HSTS for production
-  if (event.url.protocol === "https:") {
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains; preload",
-    );
-  }
-
-  return response;
-}
-```
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
+- `Cross-Origin-Opener-Policy: same-origin` plus `Cross-Origin-Embedder-Policy` — `credentialless` for `/api/media/*` and `/mediagallery`, otherwise `require-corp`
+- `Permissions-Policy` lockdown (geolocation/microphone/camera/display-capture denied)
+- `Strict-Transport-Security` when the request is HTTPS
+- CORS headers from the `getCorsHeaders()` allowlist (the `Origin` header is never reflected) and a de-duplicated `Vary` token (case-insensitive merge, `addVaryHeader()`)
 
 **Key Features**:
 
-- **Crypto-Secure Nonces**: Unpredictable nonces prevent XSS injection
-- **Violation Reporting**: CSP violations automatically reported to security service
-- **Defense in Depth**: Multiple security headers for comprehensive protection
+- **Framework-owned nonces**: page CSP (and any nonce SvelteKit emits) is left untouched — middleware must not clobber it
+- **Violation Reporting**: browsers post to `/api/security/csp-report` (see below)
+- **Defense in Depth**: API vs page vs GraphQL header sets, plus isolation headers on every response
 - **Production Hardening**: HSTS enforcement for HTTPS-only environments
 
 ### CSP Violation Handling
 
-**Purpose**: Real-time CSP violation monitoring and threat response
-**File**: `src/routes/api/security/csp-violations/+server.ts`
+**Purpose**: Real-time CSP violation counting
+**Handler**: `POST /api/security/csp-report` in `src/routes/api/[...path]/handlers/system.ts:1401` (routed through `handleSecurityRoutes`)
 
-```
-export async function POST({ request, getClientAddress }) {
-  const violation = await request.json();
-  const clientIP = getClientAddress();
+```typescript
+// src/routes/api/[...path]/handlers/system.ts:1401
+if (action === "csp-report" && request.method === "POST") {
+  const report = await request.json();
+  const blockedUri = report["csp-report"]?.["blocked-uri"];
+  const isFalsePositive =
+    blockedUri?.startsWith("chrome-extension://") || blockedUri?.startsWith("moz-extension://");
 
-  // Analyze violation severity
-  const threatLevel = await securityResponseService.analyzeCSPViolation({
-    violatedDirective: violation["violated-directive"],
-    blockedURI: violation["blocked-uri"],
-    sourceFile: violation["source-file"],
-    clientIP,
-  });
+  if (!isFalsePositive) {
+    metricsService.incrementCSPViolations(tenantId as string);
+    return rawResponse(event, { status: "received" });
+  }
 
-  // Execute automated response
-  await securityResponseService.executeResponse(threatLevel, clientIP);
-
-  // Update security metrics
-  metricsService.incrementSecurityEvent("csp_violation");
-
-  return new Response(null, { status: 204 });
+  return rawResponse(event, { status: "ignored" });
 }
 ```
+
+Extensions are filtered out before counting so that browser-extension injections do not skew `report.security.cspViolations` (read via `GET /api/security/stats`).
 
 ---
 
@@ -217,87 +178,112 @@ Our database-driven settings lack this protection because they're loaded at runt
 
 ## The Solution
 
-The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fails the build** if it detects dangerous patterns:
+The plugin lives in `src/utils/vite-plugin-security-check.ts` and exports `securityCheckPlugin(options)`. It scans code during Vite's `transform` phase and **fails the build** (`buildEnd`) when it detects dangerous patterns.
 
 ### 🚨 Blocked Patterns
 
-1. **Direct `privateEnv` imports in client code**
+The plugin holds three error patterns (`src/utils/vite-plugin-security-check.ts:40`):
 
-   ```
-   // ❌ BLOCKED - Exposes ALL private settings to browser!
-   import { privateEnv } from "@src/stores/global-settings";
-   console.log(privateEnv.DB_PASSWORD); // Would be visible in browser
-   ```
+```typescript
+const DANGEROUS_PATTERNS = [
+  {
+    pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/global-settings['"]/g,
+    severity: "error",
+    message:
+      "SECURITY: Importing privateEnv in client-side code exposes database passwords, JWT secrets, and other sensitive data!",
+  },
+  {
+    pattern: /getPrivateSetting\s*\(/g,
+    severity: "error",
+    message:
+      "SECURITY: Using getPrivateSetting() in client-side code will attempt to access private settings!",
+  },
+  {
+    pattern: /getAllSettings\s*\(/g,
+    severity: "error",
+    message:
+      "SECURITY: getAllSettings() exposes ALL private settings including passwords and secrets!",
+  },
+];
+```
 
-2. **`getPrivateSetting()` calls in `.svelte` files**
+In practice that means:
 
-   ```typescript
-   // ❌ BLOCKED - Attempts to access private data on client!
-   import { getPrivateSetting } from "@src/stores/global-settings";
-   const secret = getPrivateSetting("JWT_SECRET_KEY");
-   ```
+1. **`privateEnv` imported from the legacy settings store path** (the first pattern is the only specifier-aware rule).
+2. **Any `getPrivateSetting(` call** in a scanned client file — e.g. `import { getPrivateSetting } from "@src/services/core/settings-service"` used inside a `.svelte` file.
+3. **Any `getAllSettings(` call** in a scanned client file — it returns private **and** public settings, so it is never safe on the client.
 
-3. **`getAllSettings()` in client code**
-   ```typescript
-   // ❌ BLOCKED - Returns both public AND private settings!
-   import { getAllSettings } from "@src/stores/global-settings";
-   const all = await getAllSettings(); // Includes passwords!
-   ```
+A fourth pattern is reported as a **warning**, not an error:
+
+```typescript
+// src/utils/vite-plugin-security-check.ts:61
+{ pattern: /getUntypedSetting\s*\([^)]*,\s*['"]private['"]\s*\)/g,
+  message: 'WARNING: getUntypedSetting() with "private" scope may expose sensitive data' }
+```
 
 ### ✅ Safe Patterns
 
-1. **Public settings in any file**
+1. **Public settings in any file** — the public store only ever holds non-sensitive values, typed against `publicConfigSchema` (`src/stores/global-settings.svelte.ts`):
 
    ```typescript
    // ✅ SAFE - Public settings can be used anywhere
-   import { publicEnv, getPublicSetting } from "@src/stores/global-settings";
+   import { publicEnv, getPublicSetting } from "@src/stores/global-settings.svelte";
    console.log(publicEnv.SITE_NAME); // Safe for browser
    ```
 
-2. **Private settings in server-side files**
+2. **Private settings in server-only files** — `privateEnv` is the bootstrap export of `config/private.ts` (typed in `src/types/config.d.ts`), while DB-driven private settings come from `@src/services/core/settings-service`:
 
    ```typescript
    // ✅ SAFE - Server-only files can use private settings
    // Files: +page.server.ts, +layout.server.ts, +server.ts, /hooks/, /auth/, /databases/
-   import { privateEnv, getPrivateSetting } from "@src/stores/global-settings";
-   const dbPass = privateEnv.DB_PASSWORD; // Never sent to client
+   import { privateEnv } from "@config/private";
+   import { getPrivateSettingSync } from "@src/services/core/settings-service";
+
+   const dbPassword = privateEnv.DB_PASSWORD; // Never sent to client
+   const smtpHost = getPrivateSettingSync("SMTP_HOST");
    ```
 
 3. **Passing data via page.data**
 
-   ```typescript
-   // ✅ SAFE - Controlled data flow from server to client
-
-   // +page.server.ts (server-only)
+   ```svelte
+   <!-- +page.server.ts (server-only) -->
    export async function load() {
-     const dbStatus = await checkDatabase(privateEnv.DB_HOST);
+     const dbStatus = await checkDatabase(getPrivateSettingSync("DB_HOST"));
      return {
        isConnected: dbStatus.connected, // Only pass safe data
-       // Never return privateEnv directly!
+       // Never return private settings directly!
      };
    }
+   ```
 
-   // +page.svelte (client)
-   export let data;
-   console.log(data.isConnected); // ✅ Safe
+   ```svelte
+   <!-- +page.svelte (client) -->
+   <script lang="ts">
+     let { data } = $props();
+   </script>
+
+   <p>Connected: {data.isConnected}</p>
    ```
 
 ## Configuration
 
-The plugin is configured in `vite.config.ts`:
+The plugin is already wired into `vite.config.ts` with its defaults:
 
 ```typescript
-import { securityCheckPlugin } from "./src/utils/vitePluginSecurityCheck";
+// vite.config.ts:29
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
 
-export default defineConfig({
-  plugins: [
-    securityCheckPlugin({
-      failOnError: true, // Fail build on violations (recommended)
-      showWarnings: true, // Show suspicious patterns
-      extensions: [".svelte", ".ts", ".js"], // Files to check
-    }),
-    // ... other plugins
-  ],
+// vite.config.ts:1169
+plugins: [securityCheckPlugin()];
+```
+
+The optional arguments (defaults shown) are:
+
+```typescript
+securityCheckPlugin({
+  failOnError: true, // Fail build on violations (recommended)
+  showWarnings: true, // Report suspicious patterns
+  extensions: [".svelte", ".ts", ".js"], // Files to check
 });
 ```
 
@@ -305,44 +291,28 @@ export default defineConfig({
 
 ### 1. File Scanning
 
-The plugin runs during Vite's `transform` phase and scans every file that matches the configured extensions.
+The plugin is declared with `enforce: "pre"` and checks files inside Vite's `transform` hook — the report itself is emitted once in `buildEnd`.
 
 ### 2. Smart Filtering
 
-Not all `.ts` files are client-side! The plugin intelligently skips:
+Not all `.ts` files are client-side! The checker skips (in this order, `src/utils/vite-plugin-security-check.ts:68`):
 
-- **Server-only route files**: `+page.server.ts`, `+layout.server.ts`, `+server.ts`
-- **Server-only hooks**: All files in `/hooks/`
-- **API routes**: All files in `/routes/api/`
-- **Auth modules**: All files in `/auth/`
-- **Database code**: All files in `/databases/`
-- **Widget utilities**: `.ts` files in `/widgets/` (typically server-only)
-- **The store itself**: `/stores/global-settings.ts` (defines the functions)
+- **Build + vendor output**: `/.svelte-kit/`, `/node_modules/`
+- **Server-only route files**: `+page.server.`, `+layout.server.`, `+server.`
+- **Server-only hooks**: `/hooks.server.`, `/hooks/`
+- **API routes and services**: `/routes/api/`, `/services/`, `/databases/`
+- **Store modules**: `.ts` files under `/stores/` that are not `.svelte.ts`
+- **Any `.ts`/`.js` file outside the client directories** `/src/components/`, `/src/routes/(app)`, `/src/routes/(unauthenticated)`
+
+Before running any regex it also performs a keyword pre-scan (`privateEnv`, `getPrivateSetting`, `getAllSettings`, `getUntypedSetting`) so files without a keyword are rejected in O(1).
 
 ### 3. Pattern Detection
 
-For client-side files (primarily `.svelte` and client-facing `.ts`), the plugin uses regex patterns to detect:
-
-```
-const DANGEROUS_PATTERNS = [
-  {
-    pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/global-settings['"]/g,
-    message: "SECURITY: Importing privateEnv exposes passwords and secrets!",
-  },
-  {
-    pattern: /getPrivateSetting\s*\(/g,
-    message: "SECURITY: getPrivateSetting() in client code!",
-  },
-  {
-    pattern: /getAllSettings\s*\(/g,
-    message: "SECURITY: getAllSettings() exposes private data!",
-  },
-];
-```
+Patterns are applied only to the remaining client-side files; each match collects the relative file path, the line number and the offending source line.
 
 ### 4. Build Failure
 
-If violations are detected, the build fails with a detailed error report:
+If violations were collected, the build fails with a detailed error report:
 
 ```
 🚨 SECURITY VIOLATIONS DETECTED!
@@ -350,12 +320,12 @@ If violations are detected, the build fails with a detailed error report:
 Found 2 critical security issue(s):
 
   ✗ src/components/Settings.svelte:5
-    SECURITY: Importing privateEnv exposes passwords and secrets!
-    → import { privateEnv } from '@src/stores/global-settings';
+    SECURITY: Using getPrivateSetting() in client-side code will attempt to access private settings!
+    → const secret = getPrivateSetting('JWT_SECRET_KEY');
 
   ✗ src/routes/(app)/admin/+page.svelte:12
-    SECURITY: getPrivateSetting() in client code!
-    → const secret = getPrivateSetting('JWT_SECRET');
+    SECURITY: getAllSettings() exposes ALL private settings including passwords and secrets!
+    → const all = await getAllSettings();
 
 These violations expose sensitive data to the client!
 Fix these issues before deploying to production.
@@ -366,63 +336,64 @@ How to fix:
   3. Only access private settings in +page.server.ts, +layout.server.ts, or +server.ts files
 ```
 
+With `failOnError: true` the plugin then throws `Build failed due to N security violation(s)`; with no findings it logs `✓ Security check passed: No private settings exposed to client`.
+
 ## Real-World Example
 
 ### ❌ Vulnerable Code
 
-```
+```svelte
 <!-- src/routes/(app)/settings/+page.svelte -->
 <script lang="ts">
-  import { privateEnv } from '@src/stores/global-settings';
+  import { getPrivateSettingSync } from '@src/services/core/settings-service';
 
-  // 🚨 CRITICAL VULNERABILITY: ALL private settings exposed!
+  // 🚨 CRITICAL VULNERABILITY: private settings reach the browser bundle!
   // Browser DevTools can access:
-  // - privateEnv.DB_PASSWORD
-  // - privateEnv.JWT_SECRET_KEY
-  // - privateEnv.ENCRYPTION_KEY
-  // - privateEnv.SMTP_PASSWORD
-  // - privateEnv.GOOGLE_CLIENT_SECRET
+  // - DB_PASSWORD
+  // - JWT_SECRET_KEY
+  // - ENCRYPTION_KEY
+  // - SMTP_PASSWORD
+  // - GOOGLE_CLIENT_SECRET
   // etc.
 
   const dbInfo = {
-    host: privateEnv.DB_HOST,
-    password: privateEnv.DB_PASSWORD // Visible in browser source!
+    host: getPrivateSettingSync('DB_HOST'),
+    password: getPrivateSettingSync('DB_PASSWORD') // Visible in browser source!
   };
 </script>
 
 <div>Database: {dbInfo.host}</div>
 ```
 
-**Impact**: Complete credential exposure, allows full system compromise.
+**Impact**: Complete credential exposure, allows full system compromise. The `getPrivateSetting(` rule above fails this build.
 
 ### ✅ Secure Code
 
-```
-<!-- src/routes/(app)/settings/+page.server.ts -->
-import { privateEnv } from '@src/stores/global-settings';
-import type { PageServerLoad } from './$types';
+```typescript
+// src/routes/(app)/settings/+page.server.ts
+import { privateEnv } from "@config/private";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
-  // ✅ Server-only: privateEnv never sent to client
-  const isConnected = await testConnection(
-    privateEnv.DB_HOST,
-    privateEnv.DB_PASSWORD // Safe - stays on server
-  );
+  // ✅ Server-only: private settings never sent to client
+  const isConnected = await testConnection(privateEnv.DB_HOST, privateEnv.DB_PASSWORD);
 
   return {
     // Only return safe, non-sensitive data
-    dbStatus: isConnected ? 'connected' : 'disconnected',
-    dbHost: privateEnv.DB_HOST // Host is not sensitive
-    // Never return: DB_PASSWORD, JWT_SECRET, etc.
+    dbStatus: isConnected ? "connected" : "disconnected",
+    dbHost: privateEnv.DB_HOST, // Host is not sensitive
+    sessionTtlHours: getPrivateSettingSync("SESSION_TTL_HOURS"),
+    // Never return: DB_PASSWORD, JWT_SECRET_KEY, etc.
   };
 };
 ```
 
-```
+```svelte
 <!-- src/routes/(app)/settings/+page.svelte -->
 <script lang="ts">
   import type { PageData } from './$types';
-  export let data: PageData;
+  let { data }: { data: PageData } = $props();
 </script>
 
 <div>Database Status: {data.dbStatus}</div>
@@ -449,7 +420,7 @@ export const load = async () => {
 export const load = async () => {
   return {
     siteName: publicEnv.SITE_NAME,
-    cacheEnabled: privateEnv.CACHE_ENABLED === "true",
+    sessionTtlHours: getPrivateSettingSync("SESSION_TTL_HOURS"),
   };
 };
 ```
@@ -458,19 +429,21 @@ export const load = async () => {
 
 Use TypeScript to enforce safe data contracts:
 
-```
+```typescript
 // src/routes/(app)/admin/types.ts
 export interface SafeAdminData {
   dbConnected: boolean;
-  cacheStatus: "enabled" | "disabled";
+  sessionTtlHours: number;
   // No password fields allowed!
 }
 
 // +page.server.ts
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
+
 export const load = async (): Promise<SafeAdminData> => {
   return {
     dbConnected: await isDbConnected(),
-    cacheStatus: privateEnv.CACHE_ENABLED === "true" ? "enabled" : "disabled",
+    sessionTtlHours: getPrivateSettingSync("SESSION_TTL_HOURS") ?? 0,
   };
 };
 ```
@@ -518,7 +491,7 @@ securityCheckPlugin({
 ## Related Documentation
 
 - [Authentication System](../security/authentication-system.mdx) - 3-Layer Security Architecture
-- [Settings System](./admin-user-management.mdx) - Managing system settings
+- [Settings System](../../guides/configuration/access-management.mdx) - Managing system settings
 - [Environment Variables](./configuration-management.mdx) - Static vs dynamic settings
 - [Server Hooks Architecture](./server-hooks.mdx) - Enterprise middleware pipeline
 
@@ -528,65 +501,54 @@ securityCheckPlugin({
 
 ### Real-Time Security Monitoring
 
-**security-widget.svelte** - Enterprise security dashboard component
-**File**: `src/components/dashboard/security-widget.svelte`
+**Security Monitor widget** — dashboard widget with id `security` (`widget.json`), component `src/routes/(app)/dashboard/widgets/security/index.svelte`.
 
+The widget does not poll raw metrics itself: it hands its endpoint to `BaseWidget`, which owns the fetch, the `pollInterval` (8000 ms) and the loading/error states of the card.
+
+```svelte
+<!-- src/routes/(app)/dashboard/widgets/security/index.svelte:123 -->
+<BaseWidget
+  {label}
+  {theme}
+  endpoint="/api/dashboard/security"
+  pollInterval={8000}
+  {icon}
+  {widgetId}
+  {size}
+  {onSizeChange}
+  onCloseRequest={onRemove}
+  onDataLoaded={handleDataLoaded}
+>
+  {#snippet children({ data })}
+    {const statsData = data?.stats as SecurityStats | null}
+    {const activeIncidents = data?.incidents || []}
+  {/snippet}
+</BaseWidget>
 ```
-<script>
-	import { onMount } from 'svelte';
-	import { securityMetrics } from '$stores/security';
 
-	let securityData = {
-		totalThreats: 0,
-		blockedIPs: 0,
-		cspViolations: 0,
-		recentEvents: []
-	};
+The payload comes from the `security` branch of `handleDashboardRoutes` (`src/routes/api/[...path]/handlers/dashboard.ts:618`), which composes two services rather than reading storage directly:
 
-	onMount(async () => {
-		// Real-time security metrics
-		const response = await fetch('/api/security/metrics');
-		securityData = await response.json();
+```typescript
+// src/routes/api/[...path]/handlers/dashboard.ts:618
+const { securityResponseService } = await import("@src/services/security/response-service");
+const [statsRes, activeIncidents] = await Promise.all([
+  securityResponseService.getSecurityStats(tenantId || undefined),
+  securityResponseService.getActiveIncidents(tenantId || undefined),
+]);
+const report = metricsService.getReport(tenantId as string);
 
-		// Live updates
-		const eventSource = new EventSource('/api/security/events');
-		eventSource.onmessage = (event) => {
-			const securityEvent = JSON.parse(event.data);
-			securityData.recentEvents.unshift(securityEvent);
-			securityData = securityData; // Trigger reactivity
-		};
-	});
-</script>
-
-<div class="security-dashboard">
-	<div class="threat-overview">
-		<div class="metric-card critical">
-			<h3>Active Threats</h3>
-			<span class="count">{securityData.totalThreats}</span>
-		</div>
-
-		<div class="metric-card warning">
-			<h3>Blocked IPs</h3>
-			<span class="count">{securityData.blockedIPs}</span>
-		</div>
-
-		<div class="metric-card info">
-			<h3>CSP Violations</h3>
-			<span class="count">{securityData.cspViolations}</span>
-		</div>
-	</div>
-
-	<div class="security-events">
-		<h3>Recent Security Events</h3>
-		{#each securityData.recentEvents as event}
-			<div class="event {event.severity}">
-				<span class="timestamp">{new Date(event.timestamp).toLocaleTimeString()}</span>
-				<span class="type">{event.type}</span>
-				<span class="details">{event.details.ip}</span>
-			</div>
-		{/each}
-	</div>
-</div>
+return rawResponse(event, {
+  stats: {
+    activeIncidents: statsRes.activeIncidents,
+    blockedIPs,
+    throttledIPs,
+    cspViolations: report.security.cspViolations,
+    rateLimitHits: report.security.rateLimitViolations,
+    totalIncidents: statsRes.totalIncidentsLast24h,
+    threatLevelDistribution: statsRes.threatDistribution,
+  },
+  incidents: activeIncidents.map(/* id, clientIp, threatLevel, timestamp, responseActions */),
+});
 ```
 
 ---
@@ -595,52 +557,35 @@ securityCheckPlugin({
 
 ### Comprehensive Security Management API
 
-**Security Metrics Endpoint**
+All security actions live in one place — `handleSecurityRoutes()` in `src/routes/api/[...path]/handlers/system.ts` — reached through the fail-closed dispatcher entry `security: { handler: "system", fn: "handleSystemRoutes" }`.
 
-```
-// GET /api/security/metrics
-export async function GET() {
-  const metrics = metricsService.getSecurityReport();
-  return json(metrics);
-}
-```
+**Security Stats Endpoint** (admin-only)
 
-**Threat Management Endpoint**
+```typescript
+// src/routes/api/[...path]/handlers/system.ts:1384
+if (action === "stats" && request.method === "GET") {
+  if (!locals.user || locals.user.role !== "admin") {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+  const { securityResponseService } = await import("@src/services/security/response-service");
+  const { metricsService } = await import("@src/services/observability/metrics-service");
 
-```
-// POST /api/security/threats/block
-export async function POST({ request }) {
-  const { ip, duration, reason } = await request.json();
+  const stats = await securityResponseService.getSecurityStats();
+  const report = metricsService.getReport(tenantId as string);
 
-  await securityResponseService.blockIP(ip, duration);
-  metricsService.incrementSecurityEvent("manual_block");
-
-  return json({ success: true, message: `IP ${ip} blocked for ${duration}` });
-}
-```
-
-**Security Events Stream**
-
-```
-// GET /api/security/events (Server-Sent Events)
-export async function GET() {
-  const stream = new ReadableStream({
-    start(controller) {
-      securityResponseService.onSecurityEvent((event) => {
-        controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
-      });
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
+  return rawResponse(event, {
+    ...stats,
+    overallStatus: stats.activeIncidents > 0 ? "warning" : "healthy",
+    metrics: report.security,
   });
 }
 ```
+
+**CSP Report Endpoint** (public, counted per tenant)
+
+`POST /api/security/csp-report` — see [CSP Violation Handling](#csp-violation-handling) above; the handler rejects unknown actions with `Security action <action> not implemented` (404).
+
+> There is no `/api/security/events` SSE stream and no dedicated `security-widget.svelte`: live updates come from the dashboard widget's `pollInterval` on `/api/dashboard/security`.
 
 ---
 
@@ -673,11 +618,13 @@ export async function GET() {
 
 The enterprise security architecture provides **comprehensive protection** through:
 
-1. ✅ **Build-Time Validation**: Static analysis prevents vulnerabilities before deployment
-2. ✅ **Runtime Threat Detection**: Real-time analysis with automated response
-3. ✅ **Nonce-Based CSP**: Cryptographically secure XSS prevention
-4. ✅ **Automated Response**: Dynamic threat mitigation without manual intervention
-5. ✅ **Enterprise Monitoring**: Real-time security dashboard with detailed analytics
+1. ✅ **Build-Time Validation**: Static analysis prevents vulnerabilities before deployment (`src/utils/vite-plugin-security-check.ts`)
+2. ✅ **Runtime Threat Detection**: Real-time analysis with automated response (`src/services/security/response-service.ts`)
+3. ✅ **CSP & Hardened Headers**: SvelteKit-owned page CSP preserved, strict API/GraphQL policies, violation counting (`src/hooks/handle-security-headers.ts`)
+4. ✅ **Automated Response**: Dynamic threat mitigation without manual intervention (`DEFAULT_POLICIES`, rate limiters, blocklists)
+5. ✅ **Enterprise Monitoring**: Security Monitor dashboard widget plus `GET /api/security/stats` and `metricsService`
 6. ✅ **Credentials Protection**: Build-time enforcement prevents sensitive data exposure
 
-This multi-layered approach ensures enterprise-grade security while maintaining optimal performance and user experience.
+---
+
+<!-- Reviewed 2026-09-22 against the live tree: all file paths, exported symbols and endpoints above were re-verified against `src/hooks/handle-security-headers.ts`, `src/services/security/response-service.ts`, `src/services/observability/metrics-service.ts`, `src/utils/vite-plugin-security-check.ts`, `src/routes/api/[...path]/handlers/{system,dashboard}.ts` and the Security Monitor dashboard widget. -->
