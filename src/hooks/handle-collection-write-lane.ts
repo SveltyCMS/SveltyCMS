@@ -30,6 +30,7 @@ import { successResponse } from "@src/routes/api/[...path]/handlers/base";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
+import { prefersMinimalReturn } from "@utils/http-preferences";
 
 function unwrapWritePayload(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
@@ -124,17 +125,33 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   const user = locals.user;
 
   let result: unknown;
+  const minimal = request.method !== "POST" && prefersMinimalReturn(request.headers.get("prefer"));
   if (request.method === "POST") {
     result = await cms.collections.create(collectionId, data, { user, tenantId });
   } else {
-    result = await cms.collections.update(collectionId, entryId, data, { user, tenantId });
+    // `skipReturning` is the adapter-agnostic half of the minimal ack: the row is not read
+    // back at all (no SQL `RETURNING`, no Mongo `findOneAndUpdate`), so the saving is
+    // server-side too, not just on the wire.
+    result = await cms.collections.update(collectionId, entryId, data, {
+      user,
+      tenantId,
+      ...(minimal ? { skipReturning: true } : {}),
+    });
   }
 
   // L1/L2 invalidation is already scheduled by collections.create/update
   // (schedulePostWrite). A second invalidateCollection here double-bumps the
   // epoch and starts an L2 tag scan on the same tick as the next concurrent
   // create — that is the HTTP write cliff.
-  const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
+  //
+  // RFC 7240 `Prefer: return=minimal`: this lane is the hot path for warm sessions, so the
+  // ack belongs here too — the default body is the whole written document, which a caller
+  // that only needs "it worked" discards (the competitive update lane measured ~3.5 KB of
+  // representation per write). The write above already skipped its read-back, so all that
+  // is left is the envelope. Same read on the dispatcher side (`handlers/collections.ts`),
+  // so both paths behave identically.
+  const payload = minimal ? { success: true, data: { _id: entryId } } : result;
+  const res = successResponse(event, payload, request.method === "POST" ? 201 : 200);
   applyAllSecurityHeaders(
     res.headers,
     url.protocol === "https:",

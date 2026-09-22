@@ -93,7 +93,10 @@ describe("relational-utils — convertDatesToISO json flattening", () => {
     expect(converted.enabled).toBe(true);
     expect(converted.label).toBe("Bench Articles");
     expect(converted.slug).toBe("bench-articles");
-    expect(converted.data).toEqual({ enabled: true, label: "Bench Articles" });
+    // The blob is a storage detail, not a document field: its keys are at the root, and
+    // mirroring it back as `data` serialized every field twice (measured on the
+    // competitive point-read lane: ~3489 B where ~1800 B is real).
+    expect("data" in converted).toBe(false);
     expect(converted.createdAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
@@ -110,7 +113,9 @@ describe("relational-utils — convertDatesToISO json flattening", () => {
 
     expect(converted.enabled).toBe(true);
     expect(converted.title).toBe("Hello");
-    expect(converted.data).toEqual({ enabled: true, title: "Hello" });
+    // Parsed through the JSON-string layer and merged into the root; the raw string is not
+    // mirrored back as a nested field (see the native-jsonb case above).
+    expect("data" in converted).toBe(false);
   });
 
   it("normalizes SQLite INTEGER-ms timestamps to ISODateString (raw reads)", () => {

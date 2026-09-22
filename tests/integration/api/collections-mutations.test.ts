@@ -197,5 +197,118 @@ describe("Collection mutation HTTP contract", () => {
     expect(row.body).toBe("long body text");
     expect(Number(row.views)).toBe(2);
     expect(row.status).toBe("draft");
+
+    // Payload shape on the point-read lane: the row's JSON blob must not be serialized a
+    // second time as a nested `data` field (measured ~3489 B vs ~1800 B of real content on
+    // the competitive lane). The GET body is the document plus the envelope only.
+    expect("data" in row).toBe(false);
+    const wireBytes = Number(fetched.response.headers.get("content-length") ?? 0);
+    expect(wireBytes).toBeGreaterThan(0);
+    expect(wireBytes).toBeLessThan(JSON.stringify(fetched.body).length + 512);
+    console.log(
+      `   ℹ point-read payload: ${wireBytes} B for a ${title.length + "long body text".length}-char document`,
+    );
+  }, 120_000);
+
+  it("acks a PATCH with a minimal body when the caller asks for one", async () => {
+    const stamp = Date.now();
+    const title = `patch-minimal-${stamp}`;
+
+    const created = await jsonFetch(`/api/collections/${COLLECTION}`, {
+      method: "POST",
+      body: JSON.stringify({ title, body: "body text long enough to be measurable", views: 1 }),
+    });
+    expect([200, 201]).toContain(created.response.status);
+    const id = entryId((created.body.data ?? created.body) as Record<string, unknown>);
+    createdIds.push(id);
+
+    // RFC 7240 `Prefer: return=minimal`: a caller that only needs "it worked" must not
+    // receive the whole merged document — the competitive update lane measured ~3.5 KB of
+    // representation against a 43-byte ack on the other side. The write is unchanged.
+    const minimal = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ views: 5 }),
+    });
+    expect(minimal.response.ok).toBe(true);
+    const ackBody = JSON.stringify(minimal.body);
+    expect(ackBody.length).toBeLessThan(200);
+    expect((minimal.body.data as Record<string, unknown>)._id).toBe(id);
+
+    // The write landed and still merged: the untouched fields survive a minimal ack too.
+    const fetched = await jsonFetch(`/api/collections/${COLLECTION}/${id}`);
+    const row = (fetched.body.data ?? fetched.body) as Record<string, unknown>;
+    expect(Number(row.views)).toBe(5);
+    expect(row.title).toBe(title);
+    expect(row.body).toBe("body text long enough to be measurable");
+
+    // Default (no preference) keeps returning the representation — no client changes.
+    const full = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ views: 6 }),
+    });
+    const fullRow = (full.body.data ?? full.body) as Record<string, unknown>;
+    expect(fullRow.title).toBe(title);
+    expect(Number(fullRow.views)).toBe(6);
+    expect(JSON.stringify(full.body).length).toBeGreaterThan(ackBody.length);
+  }, 120_000);
+
+  it("keeps every write and read body within the document's own size class", async () => {
+    // Regression guard for the measured duplication: the competitive harness counted our
+    // point read at 2.14x the stored document because the JSON `data` blob was serialized
+    // ON TOP of the fields flattened from it (plus system columns). The response must now
+    // be the document once — the blob is a storage detail, not a second payload.
+    const stamp = Date.now();
+    const doc = {
+      title: `payload-budget-${stamp}`,
+      body: "x".repeat(1200),
+      seo: { title: "seo title here", description: "seo description here" },
+      author: "agent-author-00000000000000000000000000000000",
+      tags: ["alpha", "beta"],
+      slug: `payload-budget-${stamp}`,
+      status: "draft",
+      views: 7,
+      publishedAt: "2026-09-22T12:00:00.000Z",
+    };
+    const docBytes = JSON.stringify(doc).length;
+
+    const created = await jsonFetch(`/api/collections/${COLLECTION}`, {
+      method: "POST",
+      body: JSON.stringify(doc),
+    });
+    expect([200, 201]).toContain(created.response.status);
+    const id = entryId((created.body.data ?? created.body) as Record<string, unknown>);
+    createdIds.push(id);
+
+    const read = await jsonFetch(`/api/collections/${COLLECTION}/${id}`);
+    expect(read.response.ok).toBe(true);
+    const readBytes = Number(read.response.headers.get("content-length") ?? 0);
+    const readRow = (read.body.data ?? read.body) as Record<string, unknown>;
+    // The duplication was the failure mode: the blob must not survive as a nested field.
+    expect("data" in readRow).toBe(false);
+    expect(readBytes).toBeGreaterThan(0);
+    // Document + envelope + system columns (tenantId/collection/slug/locale/publishedAt/
+    // isDeleted/timestamps) — nowhere near the 2.14x the duplicated body cost.
+    expect(readBytes).toBeLessThan(docBytes * 1.35);
+
+    const patched = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ views: 8 }),
+    });
+    const patchBytes = Number(patched.response.headers.get("content-length") ?? 0);
+    expect(patchBytes).toBeLessThan(docBytes * 1.35);
+
+    const minimal = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ views: 9 }),
+    });
+    const ackBytes = Number(minimal.response.headers.get("content-length") ?? 0);
+    expect(ackBytes).toBeLessThan(200);
+
+    // The measured sizes, so a regression shows its magnitude in the CI log.
+    console.log(
+      `   ℹ wire bytes — document ${docBytes} B · point read ${readBytes} B (${(readBytes / docBytes).toFixed(2)}x) · PATCH ${patchBytes} B · PATCH minimal ack ${ackBytes} B`,
+    );
   }, 120_000);
 });

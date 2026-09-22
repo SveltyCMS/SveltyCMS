@@ -41,6 +41,14 @@ export interface LocalApiOptions {
    * written, and negative caching (miss recording) is unaffected.
    */
   skipCacheService?: boolean;
+  /**
+   * Do not read the written row back — the adapter echoes the payload it just wrote
+   * (`_id` + the fields the caller sent + the stamped `updatedAt`). This is the
+   * adapter-agnostic write-ack path behind `Prefer: return=minimal`: the caller only wants
+   * "it worked", so the row read, its JSON serialization and the wider response are all
+   * skipped. All four adapters implement it (`BaseQueryOptions.skipReturning`).
+   */
+  skipReturning?: boolean;
 }
 
 export interface TokenOptions extends LocalApiOptions {

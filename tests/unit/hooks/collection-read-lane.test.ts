@@ -184,7 +184,7 @@ describe("collection read lane single-flight", () => {
     expect(responseCache.get(key, null)?.stale).toBe(true);
   });
 
-  it("labels a point-read rebuild as MISS and the repeat as TURBO-HIT", async () => {
+  it("labels a point-read rebuild as MISS, admits on the repeat, then serves TURBO-HIT", async () => {
     findByIdMock.mockResolvedValue({ success: true, data: { _id: "abc", title: "point" } });
     const resolve = vi.fn(async () => new Response("pipeline"));
     const entryEvent = () =>
@@ -199,9 +199,15 @@ describe("collection read lane single-flight", () => {
     const first = await tryCollectionReadLane({ event: entryEvent(), resolve });
     expect(first.headers.get("X-Cache")).toBe("MISS");
 
+    // Second sighting of the id: still a rebuild (nothing was cached on the first touch —
+    // the point tier admits on the second, so a cold random scan costs no cache
+    // bookkeeping) and the entry is admitted here.
     const second = await tryCollectionReadLane({ event: entryEvent(), resolve });
-    expect(second.headers.get("X-Cache")).toBe("TURBO-HIT");
-    expect(findByIdMock).toHaveBeenCalledTimes(1);
+    expect(second.headers.get("X-Cache")).toBe("MISS");
+
+    const third = await tryCollectionReadLane({ event: entryEvent(), resolve });
+    expect(third.headers.get("X-Cache")).toBe("TURBO-HIT");
+    expect(findByIdMock).toHaveBeenCalledTimes(2);
     // The lane caches the HTTP response itself, so it must tell the namespace to
     // skip its own L2 entry (prefix map + doc tag index for every random id).
     expect(findByIdMock).toHaveBeenCalledWith(

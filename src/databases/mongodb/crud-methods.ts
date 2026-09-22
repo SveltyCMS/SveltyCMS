@@ -512,6 +512,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
       if (!options.tenantId && !hasTenantBypass(options)) {
         const now = nowISODateString();
         const { _id: _, createdAt: __, ...updateData } = { ...data, updatedAt: now } as any;
+        if ((options as { skipReturning?: boolean }).skipReturning === true) {
+          return this.updateWithoutReadBack(
+            { _id: id, ...options.filter },
+            updateData,
+            String(id),
+            startTime,
+          );
+        }
         const result = await this.model
           .findOneAndUpdate(
             { _id: id, ...options.filter },
@@ -564,6 +572,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         updatedAt: now,
       } as any;
 
+      if ((options as { skipReturning?: boolean }).skipReturning === true) {
+        return this.updateWithoutReadBack(query, updateData, String(id), startTime);
+      }
+
       const result = await this.model
         .findOneAndUpdate(
           query,
@@ -601,6 +613,39 @@ export class MongoCrudMethods<T extends BaseEntity> {
         error: createDatabaseError(error, "UPDATE_ERROR", "Update failed"),
       };
     }
+  }
+
+  /**
+   * `skipReturning` update — the ADAPTER-PARITY twin of the SQL engines' no-read-back path.
+   *
+   * SQL (`SqlAdapterCore.executeUpdate`) runs the UPDATE without `RETURNING` and reconstructs
+   * the row from the prepared values; MongoDB did a `findOneAndUpdate` and always read the
+   * document back, so a caller that only wants a write ack (`Prefer: return=minimal`) paid a
+   * full document read plus its serialization on this engine only.
+   *
+   * The synthesized row is the payload + `_id` (+ stamped `updatedAt`), i.e. exactly what
+   * SQL returns — deliberately NOT the untouched stored fields (the caller asked not to read
+   * them back). No affected-rows check, for the same reason as SQL: an unchanged `$set`
+   * reports zero modified documents, which would false-positive "not found".
+   */
+  private async updateWithoutReadBack(
+    query: Record<string, unknown>,
+    updateData: Record<string, unknown>,
+    id: string,
+    startTime: number,
+  ): Promise<DatabaseResult<T>> {
+    await this.model
+      .updateOne(
+        query,
+        { $set: updateData },
+        { runValidators: false, cloneUpdate: false, strict: false },
+      )
+      .exec();
+    return {
+      success: true,
+      data: this.mapDates({ _id: id, ...updateData }) as T,
+      meta: { executionTime: performance.now() - startTime },
+    };
   }
 
   async updateMany(

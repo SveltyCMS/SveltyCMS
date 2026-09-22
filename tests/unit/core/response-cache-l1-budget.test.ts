@@ -77,8 +77,13 @@ describe("ResponseCache L1 byte budget", () => {
 
   it("bounds the point-read tier with its own budget", () => {
     const inserted = Math.floor((3 * MB) / ENTRY_BYTES);
-    for (let i = 0; i < inserted; i++) {
-      responseCache.set(pointKey(`doc-${i}`), entry("b"), 300_000, "global");
+    // Two passes: the point tier admits on the second touch of an id (a cold random scan
+    // must not fill it with entries that are evicted unread — `pointAdmission`), so the
+    // budget can only be exercised by ids that were sighted twice.
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < inserted; i++) {
+        responseCache.set(pointKey(`doc-${i}`), entry("b"), 300_000, "global");
+      }
     }
 
     const stats = responseCache.getL1ByteStats();

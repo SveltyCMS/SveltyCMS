@@ -36,6 +36,12 @@ const MAX_L1_ENTRIES = 2000;
 /** Point-reads (findById / findByIdRandom) — separate FIFO so a scan cannot evict lists. */
 const MAX_POINT_L1_ENTRIES = 2000;
 /**
+ * Bound for the point tier's admission filter (2-touch): ids seen once but not twice are
+ * remembered here until the oldest entry falls out, so a cold random scan costs at most
+ * one Set insert per id and never takes a response slot.
+ */
+const MAX_POINT_ADMISSION = 8192;
+/**
  * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
  * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
  *
@@ -254,6 +260,19 @@ class ResponseCacheService {
   private localL1 = new Map<string, CachedResponseEntry>();
   /** Dedicated FIFO for `/:entryId` turbo keys — first set admits (if body then HIT). */
   private pointL1 = new Map<string, CachedResponseEntry>();
+  /**
+   * Admission filter (2-touch) for the point tier: an id must be seen twice before it
+   * takes a slot.
+   *
+   * With 100k uniform random ids and 2000 slots, admitting on the first touch made every
+   * cold read insert a full-body entry — `putEntry` + byte accounting + `enforceL1Capacity`
+   * + `indexKey`, plus a second encoded buffer — that was evicted ~2000 reads later having
+   * never been read once. That is pure overhead on the lane the competitive harness
+   * measures (`findByIdRandom`), and it also churned genuinely hot entries out of the
+   * tier. A first sighting now costs one Set insert; from the second sighting the entry is
+   * cached as before. Bounded FIFO so the filter itself cannot grow without limit.
+   */
+  private pointAdmission = new Set<string>();
   /** fullKey → classification, so FIFO eviction and surgical invalidation stay O(touched). */
   private l1Meta = new Map<
     string,
@@ -299,7 +318,23 @@ class ResponseCacheService {
     else this.l1Bytes = Math.max(0, this.l1Bytes + delta);
   }
 
-  /** Insert-or-replace with byte accounting — the ONLY writer to the L1 stores. */
+  /**
+   * True when this point-tier key may take a slot (second sighting). First sighting is
+   * remembered in a bounded FIFO filter and costs no cache bookkeeping.
+   */
+  private admitPointRead(fullKey: string): boolean {
+    if (this.pointAdmission.has(fullKey)) return true;
+    this.pointAdmission.add(fullKey);
+    if (this.pointAdmission.size > MAX_POINT_ADMISSION) {
+      const oldest = this.pointAdmission.values().next().value;
+      if (oldest !== undefined) this.pointAdmission.delete(oldest);
+    }
+    return false;
+  }
+
+  /**
+   * Insert-or-replace with byte accounting — the ONLY writer to the L1 stores.
+   */
   private putEntry(
     store: Map<string, CachedResponseEntry>,
     fullKey: string,
@@ -610,9 +645,14 @@ class ResponseCacheService {
     */
 
     const max = inferredPointRead ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
-    this.putEntry(store, fullKey, entry);
-    this.enforceL1Capacity(store, max);
-    this.indexKey(fullKey, key, tenantId);
+    // 🔎 Point-tier admission: a cold id must not buy a slot (see `pointAdmission`).
+    // The shared L2 write below still happens for callers that opted into it — only the
+    // L1 slot, its indexing and its byte budget are gated.
+    if (!inferredPointRead || this.admitPointRead(fullKey)) {
+      this.putEntry(store, fullKey, entry);
+      this.enforceL1Capacity(store, max);
+      this.indexKey(fullKey, key, tenantId);
+    }
 
     // High-cardinality per-entry GETs stay in the bounded FIFO localL1 only —
     // writing them to the shared cache makes every write's collection

@@ -292,6 +292,11 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     const pointA = buildUserResponseCacheKey("/api/collections/posts/id-a", "", "user-1");
     const pointB = buildUserResponseCacheKey("/api/collections/posts/id-b", "", "user-1");
 
+    // Admission (2-touch, see `pointAdmission`): each point id must be seen twice before
+    // it takes a slot, so the surgical-invalidation assertions below act on admitted
+    // entries rather than on a first-sighting filter entry.
+    responseCache.set(pointA, { body: '{"id":"a"}', etag: '"a"' }, 60_000, tenant);
+    responseCache.set(pointB, { body: '{"id":"b"}', etag: '"b"' }, 60_000, tenant);
     responseCache.set(pointA, { body: '{"id":"a"}', etag: '"a"' }, 60_000, tenant);
     responseCache.set(pointB, { body: '{"id":"b"}', etag: '"b"' }, 60_000, tenant);
     responseCache.set(keyList, { body: '{"items":[]}', etag: '"l"' }, 60_000, tenant);
@@ -313,11 +318,45 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[1]}');
   });
 
-  test("point-read turbo L1 admits on first set and does not evict lists", async () => {
+  test("a cold random point scan takes no point-tier slots", async () => {
+    const tenant = "cold-scan";
+    const keyFor = (i: number) =>
+      buildUserResponseCacheKey(`/api/collections/posts/id-${i}`, "", "user-1");
+
+    // 500 distinct ids, one read each — the `findByIdRandom` shape. Before admission,
+    // every one of them inserted a full body into the 2000-slot tier and was evicted
+    // unread; now a first sighting costs one filter entry and no response slot. Measured
+    // as a delta: sibling tests in this file share the tier, so absolute counts are theirs.
+    const before = responseCache.getL1ByteStats();
+    for (let i = 0; i < 500; i++) {
+      responseCache.set(keyFor(i), { body: `{"id":"${i}"}`, etag: `"${i}"` }, 60_000, tenant);
+    }
+    const afterCold = responseCache.getL1ByteStats();
+    expect(afterCold.pointEntries).toBe(before.pointEntries);
+    expect(afterCold.pointBytes).toBe(before.pointBytes);
+
+    // Second pass: the ids are now repeated, so they take slots (and the tier's byte
+    // accounting stays exact).
+    for (let i = 0; i < 500; i++) {
+      responseCache.set(keyFor(i), { body: `{"id":"${i}"}`, etag: `"${i}"` }, 60_000, tenant);
+    }
+    const afterWarm = responseCache.getL1ByteStats();
+    expect(afterWarm.pointEntries).toBe(before.pointEntries + 500);
+    expect(afterWarm.pointBytes).toBe(afterWarm.recountPointBytes);
+    expect(responseCache.get(keyFor(499), tenant)?.body).toBe('{"id":"499"}');
+    await responseCache.clearLocal();
+  });
+
+  test("point-read turbo L1 admits on the second touch and does not evict lists", async () => {
     const tenant = "admit-iso";
     const point = buildUserResponseCacheKey("/api/collections/posts/id-hot", "", "user-1");
     const list = buildUserResponseCacheKey("/api/collections/posts", "?limit=10", "user-1");
     responseCache.set(list, { body: '{"items":[]}', etag: '"l"' }, 60_000, tenant);
+    // Admission (2-touch): a first sighting of a point id takes no slot — with 100k
+    // uniform random ids and 2000 slots, admitting on the first touch meant every cold
+    // read inserted a full-body entry that was evicted unread. The second touch admits.
+    responseCache.set(point, { body: '{"id":"hot"}', etag: '"h"' }, 60_000, tenant);
+    expect(responseCache.get(point, tenant)).toBeNull();
     responseCache.set(point, { body: '{"id":"hot"}', etag: '"h"' }, 60_000, tenant);
     expect(responseCache.get(point, tenant)?.body).toBe('{"id":"hot"}');
     expect(responseCache.get(list, tenant)?.body).toBe('{"items":[]}');

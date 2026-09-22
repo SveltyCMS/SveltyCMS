@@ -79,6 +79,23 @@ SveltyCMS enforces schema validation (via Valibot) on every write operation.
 
 **Soft Deletion**: By default, the `DELETE` method moves entries to the Trash. Permanent deletion requires the `?permanent=true` query parameter.
 
+#### Write acks (`Prefer: return=minimal`)
+
+`PATCH` / `PUT` answer with the updated entry by default. A caller that only needs to know the write landed can ask for a status-only ack instead — RFC 7240:
+
+```http
+PATCH /api/collections/articles/0192…-abc
+Prefer: return=minimal
+
+{"views": 42}
+```
+
+```json
+{ "success": true, "data": { "_id": "0192…-abc" } }
+```
+
+The preference is honoured on both write paths (the warm-session write lane and the API dispatcher) and, crucially, **it is not only a response-shape trick**: the flag reaches the adapter contract as `BaseQueryOptions.skipReturning`, which every engine implements — the SQL adapters skip `RETURNING` and reconstruct the acks from the payload, MongoDB skips `findOneAndUpdate` and echoes the `$set`. So the document read, its serialization and the wider response are all skipped, on all four engines (measured on the competitive update lane: ~1.8 KB of representation → 70 B ack). Absent or unknown `Prefer` values keep the full representation, so existing clients cannot be affected.
+
 ### Streamed export
 
 **Endpoint**: `GET /api/collections/{collectionId}/export`

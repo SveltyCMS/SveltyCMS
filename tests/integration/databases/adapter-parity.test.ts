@@ -494,4 +494,57 @@ describe("Adapter Parity — CRUD Operations", () => {
       expect(after.tags).toEqual(["a"]);
     });
   });
+
+  // ── WRITE ACK: skipReturning (adapter-agnostic) ──────────────────────────
+
+  describe("write ack (skipReturning)", () => {
+    const ACK_ID = uid("ack");
+
+    it("echoes the written fields and skips the row read-back", async () => {
+      await db.crud.insert(
+        TEST_COLLECTION,
+        {
+          _id: ACK_ID,
+          title: "Ack seed",
+          body: "stored body",
+          value: 1,
+          tenantId: TEST_TENANT,
+        },
+        tenantOpts,
+      );
+
+      const res = await db.crud.update(
+        TEST_COLLECTION,
+        ACK_ID,
+        { value: 2 },
+        { ...tenantOpts, skipReturning: true },
+      );
+      const ack = assertDatabaseSuccess(res, { operation: "update (skipReturning)" }) as Record<
+        string,
+        unknown
+      >;
+
+      // The ack carries the id…
+      expect(ack._id).toBe(ACK_ID);
+      // …and NOT the fields the caller did not name: those live in the stored row, and
+      // reading them back is exactly what the flag opts out of. This is the cross-adapter
+      // assertion — MongoDB used to answer with the full document (`findOneAndUpdate`), so
+      // the flag was silently SQL-only and the write-ack path cost a document read on one
+      // engine. (How the *written* field is echoed is engine-specific — a materialized
+      // column on SQLite/PostgreSQL/MariaDB, a `$set` echo on MongoDB — so it is asserted
+      // through the fresh read below instead of the ack's shape.)
+      expect(ack.title).toBeUndefined();
+      expect(ack.body).toBeUndefined();
+
+      // The write itself is complete: a fresh read shows the patch applied AND the untouched
+      // fields intact (the merge contract holds on this path too).
+      const after = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, ACK_ID, tenantOpts),
+        { operation: "findById (after skipReturning)" },
+      ) as Record<string, unknown>;
+      expect(Number(after.value)).toBe(2);
+      expect(after.title).toBe("Ack seed");
+      expect(after.body).toBe("stored body");
+    });
+  });
 });

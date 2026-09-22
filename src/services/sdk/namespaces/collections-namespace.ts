@@ -1452,7 +1452,14 @@ export class CollectionsNamespace {
           this.getCollectionName(schema._id as string),
           entryId as DatabaseId,
           finalData,
-          { tenantId: tenantId as DatabaseId, ...txOpts },
+          {
+            tenantId: tenantId as DatabaseId,
+            ...txOpts,
+            // 🌐 ADAPTER-AGNOSTIC WRITE ACK: forwarded to every adapter so the row read-back
+            // (SQL `RETURNING`, Mongo `findOneAndUpdate`) is skipped when the caller only
+            // wants to know the write landed — see `LocalApiOptions.skipReturning`.
+            ...(options.skipReturning ? { skipReturning: true } : {}),
+          },
         ),
       schema,
       tenantId,

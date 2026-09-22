@@ -337,22 +337,38 @@ function flattenDataColumn(
   key: string,
   value: unknown,
   skipMerge?: Set<string> | null,
-): void {
+): boolean {
   if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
+    // A collection field literally named `data` lands on the root through the merge below;
+    // when the blob carries no such key, `result.data` can only be the storage blob itself.
+    const blobCarriesDataField = Object.hasOwn(value as Record<string, unknown>, "data");
     if (!skipMerge || skipMerge.size === 0) {
       Object.assign(result, value);
-      return;
-    }
-    // Row-store hybrid: columns are authoritative — data fills only gaps.
-    const src = value as Record<string, unknown>;
-    const keys = Object.keys(src);
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      if (!skipMerge.has(k)) {
-        result[k] = src[k];
+    } else {
+      // Row-store hybrid: columns are authoritative — data fills only gaps.
+      const src = value as Record<string, unknown>;
+      const keys = Object.keys(src);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (!skipMerge.has(k)) {
+          result[k] = src[k];
+        }
       }
     }
+    // 🔎 The blob is a storage detail, not a document field: its keys are at the root
+    // now, so keeping it serialized EVERY field twice — measured on the competitive
+    // read lane as 2.14x the stored document (1558 B doc: ~200 B system columns + a
+    // 1558 B blob + the same fields flattened again). Only the blob is dropped; a field
+    // named `data` inside it was merged above and is left alone. Returns true so callers
+    // do NOT copy the raw blob (or its TEXT form) back onto the row.
+    //
+    // The check is by key, not identity: `normalizeJsonFieldValue` PARSES a TEXT blob into
+    // a new object, so `result.data !== value` for every SQLite/MariaDB row while the key
+    // still held the raw string.
+    if (!blobCarriesDataField) delete result.data;
+    return true;
   }
+  return false;
 }
 
 /** Coerce 0/1 column values to booleans for registered boolean columns (raw
@@ -499,8 +515,7 @@ export function convertDatesToISO(
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
         const v = normalizeJsonFieldValue(row[k], options);
-        flattenDataColumn(row, k, v, skipMerge);
-        row[k] = v;
+        if (!flattenDataColumn(row, k, v, skipMerge)) row[k] = v;
       }
     }
     coerceBooleanCols(row, table);
@@ -533,8 +548,7 @@ export function convertDatesToISO(
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
       const v = normalizeJsonFieldValue(row[k], options);
-      flattenDataColumn(result, k, v, skipMerge);
-      result[k] = v;
+      if (!flattenDataColumn(result, k, v, skipMerge)) result[k] = v;
     }
   }
 
@@ -566,7 +580,9 @@ export function convertDatesToISO(
         v = pgTimestampToIso(v);
       } else if (JSON_FIELDS.has(k)) {
         v = normalizeJsonFieldValue(v, options);
-        flattenDataColumn(result, k, v);
+        // A `data` blob is merged into the root by `flattenDataColumn` (returns true) and
+        // must not be copied back as a raw nested object; every other key is copied below.
+        if (flattenDataColumn(result, k, v)) continue;
       }
       result[k] = v;
     }
