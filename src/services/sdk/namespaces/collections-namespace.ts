@@ -114,6 +114,27 @@ function fieldEncryptionContext(
   };
 }
 
+/**
+ * Encryption context for the read path.
+ *
+ * `decryptReadResult` ignores its context entirely unless the schema declares
+ * `encrypt: true` fields, so an unencrypted schema — the common case on a hot read
+ * lane — should not allocate a context object per call.
+ */
+function readEncryptionContext(
+  schema: Schema,
+  tenantId: DatabaseId | null | undefined,
+  hot: { _hasEncryptedFields?: boolean },
+): FieldEncryptionContext {
+  return hot._hasEncryptedFields ? fieldEncryptionContext(schema, tenantId) : NO_ENCRYPTION_CONTEXT;
+}
+
+/** Shared placeholder — never read, because the context is only used when fields encrypt. */
+const NO_ENCRYPTION_CONTEXT: FieldEncryptionContext = Object.freeze({
+  collectionId: "",
+  tenantId: "",
+});
+
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
 
@@ -1092,11 +1113,14 @@ export class CollectionsNamespace {
     const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
-    if (!skipRequestCache && hasRequestCache(cacheKey)) {
+    // The request cache for this key is only ever populated by a caller that did NOT
+    // pass `skipCacheService` (see `loadOneById`), so probing it on behalf of such a
+    // caller is dead work on the cold point-read path.
+    if (!skipRequestCache && !options.skipCacheService && hasRequestCache(cacheKey)) {
       return decryptReadResult(
         getRequestCache(cacheKey),
         ensureSchemaHotFlags(schema),
-        fieldEncryptionContext(schema, tenantId),
+        readEncryptionContext(schema, tenantId, ensureSchemaHotFlags(schema)),
         { clone: true },
       );
     }
@@ -1111,7 +1135,7 @@ export class CollectionsNamespace {
         return decryptReadResult(
           syncCached,
           ensureSchemaHotFlags(schema),
-          fieldEncryptionContext(schema, tenantId),
+          readEncryptionContext(schema, tenantId, ensureSchemaHotFlags(schema)),
           { clone: true },
         );
       }
@@ -1228,7 +1252,7 @@ export class CollectionsNamespace {
     return decryptReadResult(
       finalResult,
       ensureSchemaHotFlags(schema),
-      fieldEncryptionContext(schema, tenantId),
+      readEncryptionContext(schema, tenantId, ensureSchemaHotFlags(schema)),
       { clone: true },
     );
   }
