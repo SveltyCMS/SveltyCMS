@@ -28,7 +28,7 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import crypto from "node:crypto";
 import { seedHttpCollectionBurst } from "./modules/seed-burst";
-import { probeRouteIdentity } from "./modules/route-identity";
+import { probeRouteIdentity, probeServerTime } from "./modules/route-identity";
 
 const ITERATIONS: Record<string, number> = {
   findById: 500,
@@ -533,6 +533,18 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         urls: { missingUrl, listPlainUrl, listLargeUrl, listFilterUrl },
       });
       console.log(matrix.report);
+
+      // The read-path acceptance gate: HOT vs COLD server time (needs the server to
+      // run with SVELTY_SRV_DUR=1). Judged against COLD p50, never against RPS —
+      // these lanes swing +-8-20% run to run, this split does not.
+      if (createdIds.length > 1) {
+        const hotUrl = `${collectionUrl}/${createdIds[0] || stableId}`;
+        const split = await probeServerTime(headers, {
+          hotUrl,
+          coldUrls: createdIds.slice(1, 6).map((id) => `${collectionUrl}/${id}`),
+        });
+        console.log(split.report);
+      }
     }
 
     const summaryMetrics = workloads.map((w) => {

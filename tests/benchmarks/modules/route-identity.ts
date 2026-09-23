@@ -23,6 +23,61 @@
  * already promoted by hand (collection reads) fail a run in the replica bench.
  */
 
+export interface ServerTimeSplit {
+  hot: { n: number; p50: number; mean: number };
+  cold: { n: number; p50: number; mean: number };
+  report: string;
+}
+
+/**
+ * The read-path acceptance gate: server time (`x-srv-dur`, emitted by the lane when
+ * the server runs with `SVELTY_SRV_DUR=1`) for a repeatedly-read id versus distinct
+ * ids. RPS on these lanes swings ±8–20 % run to run, so a change that does not move
+ * this split is not a read-path win — the cold number is the MISS rebuild, and the
+ * hot number is the cache hit that shares the same framework floor.
+ */
+export async function probeServerTime(
+  headers: Record<string, string>,
+  urls: { hotUrl: string; coldUrls: string[]; samples?: number },
+): Promise<ServerTimeSplit> {
+  const samples = urls.samples ?? 7;
+
+  const measure = async (url: string): Promise<number | null> => {
+    const res = await fetch(url, { headers });
+    await res.text();
+    const raw = res.headers.get("x-srv-dur");
+    const ms = raw === null ? Number.NaN : Number(raw);
+    return Number.isFinite(ms) ? ms : null;
+  };
+
+  const collect = async (list: string[]): Promise<number[]> => {
+    const out: number[] = [];
+    for (let i = 0; i < samples; i++) {
+      const ms = await measure(list[i % list.length]);
+      if (ms !== null) out.push(ms);
+    }
+    return out.sort((a, b) => a - b);
+  };
+
+  const stats = (values: number[]) => ({
+    n: values.length,
+    p50: values.length ? values[Math.floor(values.length / 2)] : Number.NaN,
+    mean: values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.NaN,
+  });
+
+  const hot = stats(await collect([urls.hotUrl]));
+  const cold = stats(await collect(urls.coldUrls.length ? urls.coldUrls : [urls.hotUrl]));
+
+  const unavailable = hot.n === 0 && cold.n === 0;
+  const report = unavailable
+    ? "SERVER-TIME gate unavailable — no x-srv-dur header (start the server with SVELTY_SRV_DUR=1)"
+    : `SERVER-TIME gate  HOT p50 ${hot.p50.toFixed(3)} ms (n=${hot.n})  ` +
+      `COLD p50 ${cold.p50.toFixed(3)} ms (n=${cold.n})  ` +
+      `target: COLD ≤ 0.30 ms`;
+
+  return { hot, cold, report };
+}
+
 export interface RouteIdentityResult {
   routeClass: string;
   name: string;
