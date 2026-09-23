@@ -31,6 +31,26 @@
 const importBuildBundle = <T>(name: string): Promise<T> =>
   import("./build/" + name + ".js") as Promise<T>;
 
+/**
+ * Shape of the raw-read-lane bridge the app publishes when
+ * `SVELTY_RAW_READ_LANE=1` (see `src/hooks/raw-read-lane.server.ts`).
+ *
+ * Declared structurally here on purpose: this entry point deliberately stays out
+ * of the TypeScript program (importing app types pulls the generated `build/`
+ * chunks in), and `globalThis` has no index signature — reading the bridge
+ * without a declared type is an implicit-`any` error.
+ */
+type RawLaneResult = { status: number; headers: Record<string, string>; body: string };
+type RawLaneBridge = (input: {
+  method: string;
+  url: string;
+  origin: string;
+  headers: Record<string, string | string[] | undefined>;
+}) => Promise<RawLaneResult | null>;
+
+const rawLaneBridge = (): RawLaneBridge | undefined =>
+  (globalThis as typeof globalThis & { __SVELTY_RAW_LANE__?: RawLaneBridge }).__SVELTY_RAW_LANE__;
+
 async function startBunServer() {
   console.log("[SveltyCMS:Bun] Initializing high-performance Bun runtime...");
 
@@ -105,7 +125,7 @@ async function startBunServer() {
     // The `x-raw-lane: off` request header forces the bridged path for one
     // request (parity with index.cjs) — the equivalence check uses it to compare
     // both transports inside one server run.
-    const rawLane = globalThis.__SVELTY_RAW_LANE__;
+    const rawLane = rawLaneBridge();
     if (
       rawLane &&
       (req.method === "GET" || req.method === "HEAD") &&
