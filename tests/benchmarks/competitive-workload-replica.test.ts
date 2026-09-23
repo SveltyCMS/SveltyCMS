@@ -462,6 +462,62 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       results: [...coldResults, ...warmResults],
     });
 
+    // ── RAW-LANE EQUIVALENCE CHECK (needs SVELTY_RAW_READ_LANE=1 + BENCH_VERIFY_RAW=1) ──
+    // Same server, same session, same database: the only difference between the two
+    // fetches is `x-raw-lane: off`, which forces the bridged path. Any status or body
+    // difference is therefore a real divergence between the transports, not drift.
+    if (process.env.BENCH_VERIFY_RAW === "1") {
+      const verifyId = createdIds[0] || stableId;
+      const probe = async (url: string, init: RequestInit = {}, raw = true) => {
+        const res = await fetch(url, {
+          ...init,
+          headers: {
+            // The harness's own auth headers — without them every probe is a 401 and
+            // the check would "pass" while testing nothing.
+            ...headers,
+            ...(raw ? {} : { "x-raw-lane": "off" }),
+            ...(init.headers as Record<string, string>),
+          },
+        });
+        const body = init.method === "HEAD" ? "" : await res.text();
+        return { status: res.status, body, etag: res.headers.get("etag") };
+      };
+      const cases: Array<{ name: string; url: string; init?: RequestInit }> = [
+        { name: "point read", url: `${collectionUrl}/${verifyId}` },
+        { name: "point read (missing id)", url: missingUrl },
+        { name: "list plain", url: listPlainUrl },
+        { name: "HEAD point read", url: `${collectionUrl}/${verifyId}`, init: { method: "HEAD" } },
+      ];
+      const mismatches: string[] = [];
+      for (const c of cases) {
+        const rawRes = await probe(c.url, c.init, true);
+        const bridged = await probe(c.url, c.init, false);
+        if (rawRes.status !== bridged.status) {
+          mismatches.push(`${c.name}: status ${rawRes.status} vs ${bridged.status}`);
+        } else if (rawRes.body !== bridged.body) {
+          mismatches.push(`${c.name}: body ${rawRes.body.length} B vs ${bridged.body.length} B`);
+        }
+        console.log(
+          `RAW-VERIFY ${c.name}: status ${rawRes.status}/${bridged.status} bytes ${rawRes.body.length}/${bridged.body.length} ${rawRes.body === bridged.body ? "identical" : "DIFFERS"}`,
+        );
+      }
+      // Conditional request: the lane's If-None-Match → 304 path must survive the raw transport.
+      const initial = await probe(`${collectionUrl}/${verifyId}`, {}, true);
+      if (initial.etag) {
+        const conditional = { headers: { "if-none-match": initial.etag } } as RequestInit;
+        const raw304 = await probe(`${collectionUrl}/${verifyId}`, conditional, true);
+        const bridged304 = await probe(`${collectionUrl}/${verifyId}`, conditional, false);
+        if (raw304.status !== bridged304.status) {
+          mismatches.push(`if-none-match: ${raw304.status} vs ${bridged304.status}`);
+        }
+        console.log(`RAW-VERIFY if-none-match: ${raw304.status}/${bridged304.status}`);
+      }
+      if (mismatches.length > 0) {
+        throw new Error(`Raw-lane equivalence failed: ${mismatches.join("; ")}`);
+      }
+      console.log("RAW-VERIFY all cases identical between raw and bridged transports");
+    }
+
     const summaryMetrics = workloads.map((w) => {
       const cold = coldResults.find((r) => r.shortLabel === `${w.shortLabel}.cold`);
       const warm = warmResults.find((r) => r.shortLabel === w.shortLabel);

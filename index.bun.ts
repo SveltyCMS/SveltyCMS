@@ -99,6 +99,35 @@ async function startBunServer() {
     if (process.env.DEBUG_HEADERS) {
       console.log(`[SveltyCMS:Bun] ${req.method} ${req.url}`);
     }
+    // 🧪 PROTOTYPE fast path (SVELTY_RAW_READ_LANE=1) — kept in parity with
+    // index.cjs: lane-served bytes are written straight to the socket, and every
+    // other request (or any error) goes to the SvelteKit handler.
+    // The `x-raw-lane: off` request header forces the bridged path for one
+    // request (parity with index.cjs) — the equivalence check uses it to compare
+    // both transports inside one server run.
+    const rawLane = globalThis.__SVELTY_RAW_LANE__;
+    if (
+      rawLane &&
+      (req.method === "GET" || req.method === "HEAD") &&
+      req.headers["x-raw-lane"] !== "off"
+    ) {
+      rawLane({
+        method: req.method,
+        url: req.url || "/",
+        origin: process.env.ORIGIN || "http://127.0.0.1",
+        headers: req.headers,
+      })
+        .then((out) => {
+          if (!out) {
+            handler(req, res);
+            return;
+          }
+          res.writeHead(out.status, out.headers);
+          res.end(out.body);
+        })
+        .catch(() => handler(req, res));
+      return;
+    }
     handler(req, res);
   });
   // Small JSON responses should not wait for Nagle coalescing. `http.Server`

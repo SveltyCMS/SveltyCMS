@@ -59,6 +59,7 @@ import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-reg
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 import { initHardwareProfile, getHardwareProfile, describeHardware } from "@utils/hardware-profile";
 import { startCpuProfilerIfEnabled } from "@utils/cpu-profiler";
+import { installRawReadLane } from "./hooks/raw-read-lane.server";
 
 // 🧠 ONE HARDWARE DETECTION AT PROCESS START: detects the host once and publishes
 // the shared profile to the global registry — every module, chunk and worker
@@ -73,6 +74,11 @@ logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
 // only writes on a clean exit, so that run leaves no file at all. Off by
 // default: one env read when unset.
 if (!building) void startCpuProfilerIfEnabled();
+
+// 🧪 PROTOTYPE: publish the raw point-read fast path for the server entry
+// (`index.cjs` / `index.bun.ts`) when SVELTY_RAW_READ_LANE=1. Installs nothing by
+// default — the env read is the whole cost of leaving it off.
+installRawReadLane();
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
 // app internals, so it consults this registry (globalThis bridge) at upgrade

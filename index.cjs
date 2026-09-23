@@ -70,6 +70,38 @@ async function loadApp() {
       console.log(`[SveltyCMS] Request: ${req.method} ${req.url}`);
       console.log("[SveltyCMS] Headers:", JSON.stringify(req.headers));
     }
+    // 🧪 PROTOTYPE fast path (SVELTY_RAW_READ_LANE=1): the app publishes a
+    // lane-served point read that returns prebuilt status/headers/body, so the
+    // bytes go straight to the socket instead of through adapter-node's
+    // IncomingMessage → Request and Response → stream bridging. Falls back to the
+    // real handler whenever the bridge is absent, the lane declines, or anything
+    // throws — a prototype must never become the reason a request fails.
+    // The `x-raw-lane: off` request header forces the bridged path for one
+    // request, which is what makes response equivalence checkable inside a single
+    // server run (same session, same id, only the transport differs).
+    const rawLane = globalThis.__SVELTY_RAW_LANE__;
+    if (
+      rawLane &&
+      (req.method === "GET" || req.method === "HEAD") &&
+      req.headers["x-raw-lane"] !== "off"
+    ) {
+      rawLane({
+        method: req.method,
+        url: req.url || "/",
+        origin: process.env.ORIGIN || "http://127.0.0.1",
+        headers: req.headers,
+      })
+        .then((out) => {
+          if (!out) {
+            handler(req, res);
+            return;
+          }
+          res.writeHead(out.status, out.headers);
+          res.end(out.body);
+        })
+        .catch(() => handler(req, res));
+      return;
+    }
     handler(req, res);
   });
   // Small JSON responses should not wait for Nagle coalescing. `http.Server`
