@@ -58,6 +58,7 @@ import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 import { initHardwareProfile, getHardwareProfile, describeHardware } from "@utils/hardware-profile";
+import { startCpuProfilerIfEnabled } from "@utils/cpu-profiler";
 
 // 🧠 ONE HARDWARE DETECTION AT PROCESS START: detects the host once and publishes
 // the shared profile to the global registry — every module, chunk and worker
@@ -65,6 +66,13 @@ import { initHardwareProfile, getHardwareProfile, describeHardware } from "@util
 // object and tunes itself for THIS machine.
 initHardwareProfile();
 logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
+
+// 🔬 OPT-IN V8 SAMPLING: `SVELTY_CPU_PROFILE=<dir>` writes a `.cpuprofile`
+// snapshot every interval, which is what makes cold-path attribution possible
+// under a harness that SIGTERMs then SIGKILLs the child — `node --cpu-prof`
+// only writes on a clean exit, so that run leaves no file at all. Off by
+// default: one env read when unset.
+if (!building) void startCpuProfilerIfEnabled();
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
 // app internals, so it consults this registry (globalThis bridge) at upgrade

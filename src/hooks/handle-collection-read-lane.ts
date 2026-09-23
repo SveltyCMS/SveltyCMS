@@ -267,10 +267,13 @@ async function rebuildWarmCollectionRead(
     entryId && row && typeof row === "object"
       ? `"${String(row._id ?? entryId)}-${String(row.updatedAt ?? "")}"`
       : generateContentEtag(apiBody);
-  const { tags, skipSharedL1 } = collectionResponseCacheTags(collectionId, entryId);
+  // Point reads never reach the shared cache — `responseCache.set` returns
+  // before its tag write for them — so building an entry-tag array there is
+  // allocation the cold random-id path pays for and throws away.
+  const tags = entryId ? null : collectionResponseCacheTags(collectionId, null).tags;
   responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
-    tags,
-    skipSharedL1,
+    ...(tags ? { tags } : {}),
+    skipSharedL1: entryId != null,
   });
   return { body: apiBody, etag, miss: true };
 }

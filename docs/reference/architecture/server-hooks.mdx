@@ -425,6 +425,19 @@ The identical sites measured in isolation (Node 24, undici) cost ~9–14 µs for
 
 **Machine-noise band (stated honestly)**: three runs per side of a fingerprint-pinned build (`BENCH_DOCS=10000 BENCH_CONCURRENCY=8 bun test tests/benchmarks/competitive-workload-replica.test.ts`, SQLite; runs whose build artifact changed mid-flight are discarded) give `findByIdRandom` warm sequential **0.430 / 0.451 / 0.515 ms** before and **0.356 / 0.443 / 0.469 ms** after, warm 8c **2.215 / 2.236 / 2.273 ms** before and **2.266 / 2.384 / 2.698 ms** after — medians 0.451 vs 0.443 ms (seq) and 2.236 vs 2.384 ms (8c), i.e. ±13–20 % run-to-run noise that swallows the difference in both directions. The single 2.698 ms outlier is the one run taken while a concurrent benchmark was active on the same machine; the same build re-measured 2.266 ms. The two audit fixes do not sit on this row's code path by construction (lane-served reads never enter the compression stage, `serveCachedEntry` and `handleLocalContext` are pipeline-only), so the pair is a regression check, not an improvement — and it shows no regression.
 
+#### Reusable CPU sampling for soak runs (2026-09-23)
+
+Attributing a lane needs V8 samples from a _replica_ run, and `node --cpu-prof` cannot supply them: V8 writes its `.cpuprofile` only on a clean exit, so a soak or benchmark harness that SIGTERMs its child and SIGKILLs it a moment later leaves no file at all.
+
+`SVELTY_CPU_PROFILE=<dir>` closes that gap. Sampling starts at boot, and every `SVELTY_CPU_PROFILE_INTERVAL_MS` (default 30 s, floor 1 s) the profiler stops, writes the snapshot atomically (`.tmp` + rename, so a hard kill can never leave a truncated file as the newest one), keeps the newest two, and resumes. The profile on disk is therefore at most one interval old regardless of how the process dies. Unset, the switch costs one env read at boot and imports nothing else.
+
+```bash
+SVELTY_CPU_PROFILE=prof/soak SVELTY_CPU_PROFILE_INTERVAL_MS=5000 bun run preview
+# → prof/soak/cpu-<iso stamp>-000.cpuprofile  →  Chrome DevTools / speedscope
+```
+
+Snapshots are ordinary V8 profiles (`nodes`, `samples`, `timeDeltas`), so the same tooling that reads `--cpu-prof` output reads them. `tests/unit/utils/cpu-profiler.test.ts` pins the disabled path, snapshot loadability and the rotation bound.
+
 ### Competitive Comparison (2026)
 
 Comparative overhead figures must be like-for-like: our own numbers above are **HTTP end-to-end per request** (0.4–2.0 ms), while the rows below describe **middleware-chaining overhead** in other stacks. Those are different measurement domains and are not a ranking — treat the table as a pointer to external documentation, not as a measured comparison (see AGENTS.md §2b on comparative advertising).
