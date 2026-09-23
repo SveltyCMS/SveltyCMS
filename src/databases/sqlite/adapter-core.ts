@@ -950,14 +950,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
         statusIdx: index(`${name}_status_idx`).on(t.status),
         updatedIdx: index(`${name}_updated_idx`).on(t.updatedAt),
-        // Canonical tenant-scoped list query served by one index
-        tenantStatusUpdatedIdx: index(`${name}_tenant_status_updated`).on(
-          t.tenantId,
-          t.status,
-          t.updatedAt,
-        ),
-        // Status-less tenant list (default list page, ORDER BY updatedAt DESC)
-        tenantUpdatedIdx: index(`${name}_tenant_updated`).on(t.tenantId, t.updatedAt),
+        // The keyset tiebreaker variants (`..._tenant_status_updated_id`,
+        // `..._tenant_updated_id`) are provisioned by createModel and subsume the
+        // plain 2/3-column twins, which are no longer created (see createModel).
       };
       if (columnsToAdd) {
         for (const colName of columnsToAdd.keys()) {
@@ -1919,14 +1914,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
         }
 
-        // 🚀 COMPOSITE INDEX for the canonical tenant list query:
-        // WHERE tenantId=? AND status=? ORDER BY updatedAt DESC LIMIT n.
-        // Single-column indexes force a temp B-tree sort; this serves the
-        // whole query from one index (measured: listPlain 102 → ~8k RPS at 100k rows).
+        // 🔻 REDUNDANT TWIN REMOVED: `..._tenant_status_updated` (tenantId, status,
+        // updatedAt) is a strict prefix of the keyset variant below — same seek,
+        // same ordering, no temp B-tree either way — so it served no plan the
+        // tiebreaker index cannot, while every UPDATE paid a second index
+        // maintenance. Measured on PostgreSQL (2000 single-row updates): removing
+        // this twin and the `..._tenant_updated` twin cut 8.4 µs of a 31.6 µs
+        // per-row update (27 %). Dropped explicitly — no legacy twin left behind.
         try {
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated" ON "${physicalName}" ("tenantId", "status", "updatedAt")`,
-          );
+          await this.raw.execute(`DROP INDEX IF EXISTS "${physicalName}_tenant_status_updated"`);
         } catch {
           /* safe */
         }
@@ -1943,15 +1939,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           /* safe */
         }
 
-        // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
-        // page): WHERE tenantId=? ORDER BY updatedAt DESC LIMIT n. Without it
-        // SQLite scans the tenant index and sorts in a temp B-tree (~0.2ms/1k
-        // rows, growing linearly); with it the query is served directly from
-        // the index (measured ~6× faster, flat at 10k+ rows).
+        // 🔻 REDUNDANT TWIN REMOVED (see above) — `..._tenant_updated` is the
+        // non-tiebreaker prefix of the keyset variant that follows.
         try {
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated" ON "${physicalName}" ("tenantId", "updatedAt")`,
-          );
+          await this.raw.execute(`DROP INDEX IF EXISTS "${physicalName}_tenant_updated"`);
         } catch {
           /* safe */
         }

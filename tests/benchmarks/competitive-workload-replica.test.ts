@@ -221,7 +221,11 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const payload = JSON.stringify({ count: Math.floor(Math.random() * 1000) + 1 });
       const res = await fetch(`${collectionUrl}/${targetId}`, {
         method: "PATCH",
-        headers,
+        // A/B instrument: RFC 7240 minimal-return lever (default = harness protocol parity).
+        headers:
+          process.env.BENCH_PREFER_MINIMAL === "1"
+            ? { ...headers, prefer: "return=minimal" }
+            : headers,
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -1675,13 +1675,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
           }
         }
 
-        // 🚀 COVERING COMPOSITE INDEX for the canonical tenant list query:
-        // WHERE tenantId=? AND status=? AND isDeleted=0 ORDER BY updatedAt DESC
-        // LIMIT n — avoids filesort and enables keyset seeks on deep pages.
+        // 🔻 REDUNDANT TWIN REMOVED: `..._tenant_status_updated` (tenantId, status,
+        // updatedAt) is a strict prefix of the keyset variant below — the same seek
+        // and the same output order, so it served no plan the tiebreaker index
+        // cannot, while every UPDATE paid a second index maintenance + redo entry.
+        // Dropped explicitly — no legacy twin is left behind.
         try {
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_updated\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`updatedAt\`)`,
-          );
+          await this.raw.execute(`DROP INDEX IF EXISTS \`${physicalName}_tenant_status_updated\``);
         } catch {
           /* safe */
         }
@@ -1696,14 +1696,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
         } catch {
           /* safe */
         }
-        // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
-        // page): WHERE tenantId=? ORDER BY updatedAt DESC LIMIT n — avoids the
-        // filesort the status-composite index cannot serve without a status
-        // predicate (middle column unconstrained).
+        // 🔻 REDUNDANT TWIN REMOVED (see above) — `..._tenant_updated` is the
+        // non-tiebreaker prefix of the keyset variant that follows.
         try {
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_updated\` ON \`${physicalName}\` (\`tenantId\`, \`updatedAt\`)`,
-          );
+          await this.raw.execute(`DROP INDEX IF EXISTS \`${physicalName}_tenant_updated\``);
         } catch {
           /* safe */
         }
