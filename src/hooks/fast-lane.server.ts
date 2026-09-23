@@ -133,6 +133,11 @@ const collectionReadLane: FastLane = async (input) => {
   out.headers.forEach((value, name) => {
     headers[name] = value;
   });
+  // Test-only transport marker: a measured equivalence run must know whether these
+  // bytes came from the lane or the fallback (identical bytes prove nothing if the
+  // lane never served). Gated on the verification env, so production responses
+  // carry no transport fingerprint.
+  if (process.env.BENCH_VERIFY_RAW === "1") headers["x-fast-lane-served"] = "1";
   const body = out.status === 204 || out.status === 304 ? "" : await out.text();
   // Node would otherwise fall back to chunked encoding for a body without a
   // declared length — the lane's own writer emits one computed chunk.

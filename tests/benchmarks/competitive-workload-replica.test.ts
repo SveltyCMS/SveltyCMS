@@ -28,6 +28,7 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import crypto from "node:crypto";
 import { seedHttpCollectionBurst } from "./modules/seed-burst";
+import { probeRouteIdentity } from "./modules/route-identity";
 
 const ITERATIONS: Record<string, number> = {
   findById: 500,
@@ -516,6 +517,22 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         throw new Error(`Raw-lane equivalence failed: ${mismatches.join("; ")}`);
       }
       console.log("RAW-VERIFY all cases identical between raw and bridged transports");
+    }
+
+    // ── ROUTE-CLASS IDENTITY MATRIX (BENCH_VERIFY_ROUTES=1) ──
+    // Advisory, never fails the run: proves per class whether the bridged body is
+    // byte-stable (the precondition for lane-serving it) and reports raw-vs-bridged
+    // bytes for every class in the taxonomy. Classes are promoted to a strict gate
+    // one at a time, with their own evidence.
+    if (process.env.BENCH_VERIFY_ROUTES === "1") {
+      const matrix = await probeRouteIdentity({
+        baseUrl,
+        headers,
+        collectionUrl,
+        entryId: createdIds[0] || stableId,
+        urls: { missingUrl, listPlainUrl, listLargeUrl, listFilterUrl },
+      });
+      console.log(matrix.report);
     }
 
     const summaryMetrics = workloads.map((w) => {
