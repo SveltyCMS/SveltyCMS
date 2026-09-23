@@ -66,7 +66,7 @@
   "scripts": {
     "dev": "vite dev",
     "devv": "LAUNCH_EDITOR='code' vite dev --open",
-    "start": "bun index.bun.ts",
+    "start": "bun index.cjs",
     "start:bun": "bun build/index.js",
     "start:node": "node index.cjs",
     "update": "bun update && bun run audit:sbom",

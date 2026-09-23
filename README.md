@@ -214,7 +214,7 @@ We use the unified **Vite+ (VoidZero)** toolchain and support dual-target execut
 - **Development**: `bun run dev` (or `npm run dev` / `pnpm run dev` on `localhost:5173`)
 - **Production Build**: `bun run build` (or `npm run build`)
 - **Production Server (Node.js)**: `npm run start:node` or `node index.cjs` (standard production server powered by Node 24 V8 engine)
-- **Production Server (Bun)**: `bun run start:bun` or `bun index.bun.ts` (native high-throughput `Bun.serve` runtime)
+- **Production Server (Bun)**: `bun run start:bun` (native high-throughput `Bun.serve` runtime) or `bun index.cjs` (the shared `node:http` entry on the Bun runtime)
 - **Container**: `docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest` (official multi-arch image, SQLite default)
 - **Preview**: `bun run preview` (runs on `localhost:4173`)
 - **Linting**: `bun run check` (oxfmt + oxlint — project-wide checks in <50ms)

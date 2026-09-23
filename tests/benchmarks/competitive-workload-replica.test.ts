@@ -462,7 +462,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       results: [...coldResults, ...warmResults],
     });
 
-    // ── RAW-LANE EQUIVALENCE CHECK (needs SVELTY_RAW_READ_LANE=1 + BENCH_VERIFY_RAW=1) ──
+    // ── FAST-LANE EQUIVALENCE CHECK (needs SVELTY_FAST_LANE=1 + BENCH_VERIFY_RAW=1) ──
     // Same server, same session, same database: the only difference between the two
     // fetches is `x-raw-lane: off`, which forces the bridged path. Any status or body
     // difference is therefore a real divergence between the transports, not drift.
@@ -475,7 +475,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
             // The harness's own auth headers — without them every probe is a 401 and
             // the check would "pass" while testing nothing.
             ...headers,
-            ...(raw ? {} : { "x-raw-lane": "off" }),
+            ...(raw ? {} : { "x-fast-lane": "off" }),
             ...(init.headers as Record<string, string>),
           },
         });

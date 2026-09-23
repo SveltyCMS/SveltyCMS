@@ -621,14 +621,11 @@ async function run() {
     let serverLogs = "";
     /** True when the shared server child has exited (crash / kill). */
     let serverExited = false;
-    const isBunRuntime = process.env.RUNTIME === "bun";
-    // Prefer index.bun.ts when RUNTIME=bun, index.cjs when Node (Yjs /ws on upgrade)
-    const serverEntry =
-      isBunRuntime && fs.existsSync(path.join(process.cwd(), "index.bun.ts"))
-        ? "index.bun.ts"
-        : fs.existsSync(path.join(process.cwd(), "index.cjs"))
-          ? "index.cjs"
-          : "build/index.js";
+    // One entry for both runtimes: `index.cjs` loads the shared
+    // `index.server.mjs`, so a RUNTIME=bun matrix row needs no separate entry file.
+    const serverEntry = fs.existsSync(path.join(process.cwd(), "index.cjs"))
+      ? "index.cjs"
+      : "build/index.js";
     const runtimeExe = isBunRuntime ? "bun" : "node";
 
     /**
@@ -643,9 +640,7 @@ async function run() {
       const yjs = path.join(process.cwd(), "build", "yjs-sync-server.js");
       const needsHandler = !fs.existsSync(handler);
       const needsAdapter = !fs.existsSync(adapterEntry);
-      const needsYjs =
-        (serverEntry.endsWith("index.cjs") || serverEntry.endsWith("index.bun.ts")) &&
-        !fs.existsSync(yjs);
+      const needsYjs = serverEntry.endsWith("index.cjs") && !fs.existsSync(yjs);
       // Detect deploy-stripped builds (testing backdoor removed)
       let stripped = false;
       if (fs.existsSync(handler)) {
