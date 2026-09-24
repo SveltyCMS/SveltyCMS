@@ -33,6 +33,8 @@ export function clampPageSize(value: unknown, fallback = 50): number {
 export interface CollectionQueryParams {
   limit: number;
   offset: number;
+  /** Opaque keyset cursor (REST exposure of the SDK's `cursor` — deep pagination without offset scans). */
+  cursor?: string;
   sortField?: string;
   sortDirection: "asc" | "desc";
   publicationFilter?: "published" | "draft" | "all";
@@ -65,6 +67,7 @@ function parseCommaSeparatedList(value: string): string[] {
 export function parseCollectionQueryParams(searchParams: URLSearchParams): CollectionQueryParams {
   let limit = 50;
   let offset = 0;
+  let cursor: string | undefined = undefined;
   let sortField: string | undefined = undefined;
   let sortDirection: "asc" | "desc" = "desc";
   let publicationFilter: "published" | "draft" | "all" | undefined = undefined;
@@ -82,6 +85,9 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
     } else if (key === "offset") {
       const n = Number(value);
       if (!isNaN(n) && n >= 0) offset = n;
+    } else if (key === "cursor") {
+      // Opaque keyset cursor — pass-through; the SDK decodes and validates it.
+      if (!cursor && value) cursor = value;
     } else if (key === "sortField" || key === "sort") {
       if (!sortField) {
         if (value.startsWith("-")) {
@@ -124,6 +130,7 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
   return {
     limit,
     offset,
+    cursor,
     sortField,
     sortDirection,
     publicationFilter,

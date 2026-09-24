@@ -17,6 +17,7 @@
 
 <script lang="ts">
 	import { browser } from '$app/env';
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
 
 	// props
@@ -35,7 +36,7 @@
 
 {#if emailList.files && emailList.files.length}
 	{#if browser}
-		{#await import('@better-svelte-email/preview')}
+		{#await import('@better-svelte-email/preview/EmailPreview.svelte')}
 			<!-- Loading State -->
 			<div class="flex h-full items-center justify-center p-10">
 				<div class="text-center">
@@ -44,9 +45,11 @@
 				</div>
 			</div>
 		{:then module}
-			<!-- Resolved State - Dynamic component with any typing for third-party module -->
-			{const EmailPreviewComponent = module.EmailPreview as any}
-			<EmailPreviewComponent {emailList} />
+			<!-- Resolved State — the subpath export is the client-safe Svelte component;
+				 the package ROOT is Node-only (fs/url + Svelte server renderer) and must
+				 never enter the client bundle. -->
+			{const EmailPreviewComponent = module.default as any}
+			<EmailPreviewComponent page={{ params: {}, data: { emails: emailList }, url: page.url }} />
 		{:catch error}
 			<!-- Error State -->
 			<div class="rounded border border-error-500/20 bg-error-500/10 p-4 text-error-500">

@@ -347,6 +347,11 @@ export async function handleCollectionFind(
     user,
     limit: params.limit,
     offset: params.offset,
+    cursor: params.cursor,
+    // First keyset page opts in with `keyset=true`; continuation pages carry
+    // `cursor` (which implies keyset). Without either, responses stay
+    // byte-identical to the offset shape.
+    keyset: params.cursor !== undefined || url.searchParams.get("keyset") === "true",
     sortField: params.sortField,
     sortDirection: params.sortDirection,
     filter: params.filter,

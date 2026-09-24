@@ -55,6 +55,21 @@ To fetch entries from a specific collection, use the ID-based endpoint.
 **Endpoint**: `GET /api/collections/{collectionId}`  
 **Advanced Filtering**: See the [Content & Search Reference](./content.mdx) for deep query syntax.
 
+### Keyset pagination (deep pages without offset scans)
+
+Offset pagination costs grow linearly with depth (the database must scan and skip every preceding row). For deep or continuously-appended lists, pass an opaque **keyset cursor** instead:
+
+```
+GET /api/collections/posts?sortField=publishedAt&sortDirection=desc&limit=50&keyset=true
+GET /api/collections/posts?sortField=publishedAt&sortDirection=desc&limit=50&cursor=<meta.nextCursor>
+```
+
+- `keyset=true` opts the FIRST page into keyset mode; every continuation page passes `cursor` instead (carrying a cursor implies keyset). Without either, responses keep the offset shape byte-identical.
+- `cursor` is an opaque, order-bound token (base64url, self-describing: sort field + value + `_id` tiebreaker + direction) — never build one client-side, always take it from the previous response's `meta.nextCursor`.
+- The response includes `meta.hasMore` (boolean) and, while more rows exist, `meta.nextCursor`.
+- The cursor's `_id` tiebreaker makes the walk stable over duplicate sort values (`(field < v) OR (field = v AND _id < id)`): every row is visited exactly once, no overlap, no skip.
+- `offset` is ignored in keyset mode; keyset pages bypass the query cache by design (each page is a unique key whose `meta` must not be dropped).
+
 ### Conditional revalidation (ETag / 304)
 
 Collection find and entry GET responses include a **weak collection-generation ETag**:

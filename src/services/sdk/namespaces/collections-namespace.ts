@@ -41,7 +41,14 @@ import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { copyDataWithFreshRowIds } from "@utils/data-utils";
 import { resolvePopulatedRelations } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
-import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
+import {
+  decodePageCursor,
+  defaultPageSortOption,
+  encodePageCursor,
+  mergeKeysetFilter,
+  resolvePageSort,
+  withIdTiebreaker,
+} from "@src/databases/core/page-utils";
 import { parseIdLookup } from "@src/databases/core/lookup-query";
 import { nowISODateString } from "@src/utils/date";
 import { clampPageSize } from "@utils/api-params";
@@ -557,6 +564,18 @@ export class CollectionsNamespace {
     const schema = await this.schemaOf(collectionId, tenantId);
     const normalizedFilter = normalizeRelationshipFilter(filter);
     const decodedCursor = decodePageCursor(options.cursor);
+    // A supplied cursor that fails to decode must fail the request, not
+    // silently fall back to an offset page (which would return duplicates).
+    if (options.cursor && !decodedCursor) {
+      throw new AppError("Invalid keyset cursor", 400);
+    }
+    // Keyset mode: cursor-driven deep pagination, opted into by `keyset: true`
+    // (first page) or by carrying a cursor (continuation pages). Cursor pages
+    // bypass the L1/L2 query cache (every page is a unique key with meta the
+    // cache would drop) and fetch limit+1 so `hasMore` + `nextCursor` come
+    // from the rows actually returned — the REST exposure of W2 (deep-offset
+    // cliff). Without the opt-in, responses stay byte-identical to before.
+    const keysetMode = decodedCursor !== null || options.keyset === true;
     const baseQuery: any = decodedCursor
       ? mergeKeysetFilter(normalizedFilter as Record<string, unknown>, decodedCursor)
       : normalizedFilter;
@@ -619,21 +638,41 @@ export class CollectionsNamespace {
         ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
         : undefined);
 
+    // Keyset mode: the cursor is self-describing, so a walk without an explicit
+    // sort continues in the cursor's own field/direction; the `_id` tiebreaker
+    // is appended so the emitted ORDER BY matches the compound (field, _id)
+    // cursor filter — without it, rows sharing the sort value order arbitrarily
+    // and the `(field = v AND _id …)` branch skips or repeats them. The first
+    // keyset page without a sort falls back to the findPage default (updatedAt
+    // desc) so the walk's order is defined once and never drifts.
+    const sortForDb = keysetMode
+      ? withIdTiebreaker(
+          sort ??
+            (decodedCursor
+              ? decodedCursor.f
+                ? { [decodedCursor.f]: decodedCursor.d === "asc" ? 1 : -1 }
+                : { _id: decodedCursor.d === "asc" ? 1 : -1 }
+              : defaultPageSortOption()),
+        )
+      : sort;
+
     const skipRequestCache = bypassCache || options.bypassRequestCache;
-    const cacheKey = buildFindCacheKey({
-      schemaId: schema._id as string,
-      tenantId,
-      filter,
-      query,
-      limit,
-      offset,
-      sort,
-      decodedCursor,
-      effectiveFilter: effectivePublicationFilter,
-      skipRequestCache,
-      bypassCache,
-      options,
-    });
+    const cacheKey = keysetMode
+      ? null
+      : buildFindCacheKey({
+          schemaId: schema._id as string,
+          tenantId,
+          filter,
+          query,
+          limit,
+          offset,
+          sort,
+          decodedCursor,
+          effectiveFilter: effectivePublicationFilter,
+          skipRequestCache,
+          bypassCache,
+          options,
+        });
 
     if (cacheKey) {
       const cacheHit = await readThroughCache(cacheKey, tenantId, {
@@ -654,9 +693,9 @@ export class CollectionsNamespace {
 
     const fetchFromDb = () =>
       this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
-        limit,
-        offset,
-        sort,
+        limit: keysetMode ? limit + 1 : limit,
+        offset: keysetMode ? 0 : offset,
+        sort: sortForDb,
         fields: options.fields,
         populate: options.populate,
       });
@@ -664,6 +703,33 @@ export class CollectionsNamespace {
     const result = cacheKey
       ? await cacheService.coalesceQuery(cacheKey, fetchFromDb)
       : await fetchFromDb();
+
+    // Keyset continuation: slice the probe row and derive the next cursor from
+    // the last returned row. The cursor's own field/direction are authoritative
+    // when the caller repeats them (self-describing cursor), so a walk never
+    // drifts from the ORDER BY its pages were built with.
+    if (keysetMode && result.success && Array.isArray(result.data)) {
+      const hasMore = result.data.length > limit;
+      if (hasMore) result.data = result.data.slice(0, limit);
+      const cursorSort = resolvePageSort(sortForDb);
+      const last = hasMore ? (result.data[result.data.length - 1] as any) : null;
+      if (hasMore && last && last._id !== undefined && last._id !== null) {
+        const payload: Parameters<typeof encodePageCursor>[0] = {
+          id: String(last._id),
+          d: cursorSort.direction,
+        };
+        if (cursorSort.field !== "_id") {
+          payload.f = cursorSort.field;
+          payload.v = (last[cursorSort.field] as string | number | boolean | null) ?? null;
+        }
+        (result as { meta?: Record<string, unknown> }).meta = {
+          hasMore: true,
+          nextCursor: encodePageCursor(payload),
+        };
+      } else {
+        (result as { meta?: Record<string, unknown> }).meta = { hasMore: false };
+      }
+    }
 
     if (result.success && result.data) {
       if (hot._hasActiveWidgets) {

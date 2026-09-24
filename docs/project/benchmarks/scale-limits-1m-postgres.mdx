@@ -48,7 +48,7 @@ tags:
 
 ## The cliffs (weaknesses found, ranked by impact)
 
-> **Status 2026-09-24 (evening session):** W1 fixed (lazy expression index, measured 60× on the sort), W4 fixed (build patch, verified 821 KB bulk), W3 implemented (capacity-gated list admission, unit-tested), W5 **refuted** by a controlled A/B (see below), W2 deferred (SDK keyset cursor needs the composite-keyset fix before REST exposure).
+> **Status 2026-09-24 (evening session):** W1 fixed (lazy expression index, measured 60× on the sort), W4 fixed (build patch, verified 821 KB bulk), W3 implemented (capacity-gated list admission, unit-tested), W5 **refuted** by a controlled A/B (see below), W2 **closed** — the composite keyset fix + the REST `cursor` surface shipped together (see below).
 
 ### W1 — Dynamic-field sort/filter is a full scan + sort (the hard cliff) ✅ FIXED
 
@@ -56,9 +56,9 @@ tags:
 
 **Fix shipped (lazy expression index, `SVELTY_LAZY_SORT_INDEXES=0` opts out):** the first sorted query on a dynamic scalar field schedules `CREATE INDEX IF NOT EXISTS ((data->>'field'))` in the background (`onDynamicSort` hook in `sql-adapter-core.ts`, PostgreSQL implementation in `postgresql/adapter-core.ts`). The ORDER BY already emits that exact literal expression, so PostgreSQL serves every subsequent sort with an index scan. Bounded registry (64 entries, FIFO), one build per (collection, field) per process, fire-and-forget (no query pays the build), field names regex-gated to plain identifiers before inlining. Measured: **167–340 ms → 5.1 ms** per request at 1.1M rows (DB part 0.08 ms); the physical-column materialization path (`indexed: true`) remains the explicit option. MariaDB/SQLite keep the old behaviour (SQLite binds the JSON path as a parameter, so an expression index cannot match); Mongo fields are native.
 
-### W2 — Deep-offset pagination is a scan-skip ⏸️ DEFERRED (documented)
+### W2 — Deep-offset pagination is a scan-skip ✅ CLOSED (REST keyset cursor)
 
-`offset=1 000 000` costs 143 ms (index scan skipping a million rows) and grows linearly. The SDK already has keyset pagination (`decodePageCursor` / `mergeKeysetFilter` / `encodePageCursor`), but the REST list endpoint only accepts `offset`. Exposing the cursor on `/api/collections` is deferred on purpose: the SDK's field-based keyset currently merges a single-condition filter (`field < v`), so rows sharing a sort value can repeat/skip across pages — the composite keyset (`(field < v) OR (field = v AND _id < id)`) must be fixed in `mergeKeysetFilter` first, then the REST surface ships with it. No hard limit was introduced meanwhile.
+`offset=1 000 000` costs 143 ms (index scan skipping a million rows) and grows linearly. The composite keyset merge already existed in `mergeKeysetFilter` (`(field < v) OR (field = v AND _id < id)`) with the `withIdTiebreaker` ORDER BY contract — the missing piece was the REST surface. **Shipped 2026-09-24:** `GET /api/collections/{id}?cursor=…` parses the opaque cursor (`parseCollectionQueryParams`; the first page opts in with `keyset=true`, a carried cursor implies keyset), the SDK `find` keyset mode applies the `_id` tiebreaker to the ORDER BY, fetches `limit+1` and emits `meta.hasMore` / `meta.nextCursor` (self-describing cursor — a walk without an explicit sort continues in the cursor's own field/direction); cursor pages bypass the query cache by design so `meta` is never dropped, and a cursor that fails to decode is a 400 instead of a silent offset fallback. The response envelope passes `meta` through both the dispatcher handler and the read lane. Contract: `tests/integration/api/collections-keyset-cursor.test.ts` (asc + desc walks over duplicate sort values visit every row exactly once, no overlap, no skip) + `tests/unit/utils/api-params.test.ts`. No hard limit was ever introduced.
 
 ### W3 — High-cardinality list URLs churn the L1 list tier ✅ IMPLEMENTED
 

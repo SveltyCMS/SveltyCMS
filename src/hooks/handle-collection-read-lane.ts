@@ -274,6 +274,11 @@ async function rebuildWarmCollectionRead(
         tenantId: locals.tenantId as DatabaseId,
         limit: listParams!.limit,
         offset: listParams!.offset,
+        cursor: listParams!.cursor,
+        // First keyset page opts in with `keyset=true`; continuation pages
+        // carry `cursor` (which implies keyset). Same contract as the
+        // dispatcher handler — see handleCollectionFind.
+        keyset: listParams!.cursor !== undefined || event.url.searchParams.get("keyset") === "true",
         sortField: listParams!.sortField,
         sortDirection: listParams!.sortDirection,
         filter: listParams!.filter,

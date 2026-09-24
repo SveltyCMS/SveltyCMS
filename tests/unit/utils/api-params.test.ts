@@ -16,6 +16,7 @@ describe("parseCollectionQueryParams", () => {
     const params = parseCollectionQueryParams(new URLSearchParams());
     expect(params.limit).toBe(50);
     expect(params.offset).toBe(0);
+    expect(params.cursor).toBeUndefined();
     expect(params.sortField).toBeUndefined();
     expect(params.sortDirection).toBe("desc");
     expect(params.publicationFilter).toBeUndefined();
@@ -25,6 +26,17 @@ describe("parseCollectionQueryParams", () => {
     expect(params.stream).toBe(false);
     expect(params.includeCount).toBe(false);
     expect(params.filter).toEqual({});
+  });
+
+  it("passes the opaque keyset cursor through verbatim", () => {
+    const cursor = "azI6ZDpjb3VudDpuOjEyMzphYmM";
+    const params = parseCollectionQueryParams(new URLSearchParams({ cursor }));
+    expect(params.cursor).toBe(cursor);
+  });
+
+  it("ignores an empty cursor value", () => {
+    const params = parseCollectionQueryParams(new URLSearchParams({ cursor: "" }));
+    expect(params.cursor).toBeUndefined();
   });
 
   it("should parse standard pagination and sorting correctly", () => {
