@@ -405,6 +405,8 @@ import {
 import { createLoaders } from "./loaders";
 
 import { AppError } from "@utils/error-handling";
+import { validateCsrfForRequest } from "@utils/security/csrf-utils";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { withMutableHeaders } from "@utils/hook-utils";
 
@@ -776,6 +778,26 @@ async function handleRequest(event: RequestEvent) {
 
   if (!locals.user) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
+  }
+
+  // 🔒 CSRF parity with the REST dispatcher: a session-authenticated POST must
+  // pass the same-origin fast path or present the double-submit token — the
+  // attacker model is a browser session cookie riding a cross-origin POST, and
+  // Yoga batching (limit 10) means a POST can hide mutations, so the gate
+  // covers every POST rather than only parsed mutations. Server-to-server
+  // credentials (API key / token) carry no cookie an attacker can ride and
+  // are exempt; GET stays exempt as a safe method (queries only).
+  if (
+    request.method === "POST" &&
+    !(locals.user as { isApiKey?: boolean })?.isApiKey &&
+    !(locals.user as { isApiToken?: boolean })?.isApiToken &&
+    (globalThis as any).process?.env?.TEST_MODE !== "true"
+  ) {
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+    const csrf = validateCsrfForRequest(event.cookies, request, isSecure);
+    if (!csrf.isValid) {
+      throw new AppError(`Security violation: ${csrf.error}`, 403, "CSRF_VIOLATION");
+    }
   }
 
   const publicationFilterParam = url.searchParams.get("publicationFilter");

@@ -136,6 +136,7 @@ The gateway enforces strict limits to prevent malicious queries:
 - **Query Cost Budget**: Static cost analysis runs at parse time; queries over the budget (1000) are rejected with a `QUERY_TOO_EXPENSIVE` GraphQL error before validation/execution.
 - **Introspection Block**: `__schema`/`__type` introspection is blocked unconditionally in production (`NODE_ENV=production`) — also via `BLOCK_GRAPHQL_INTROSPECTION=true` in any environment. This is belt-and-suspenders on top of Yoga's default.
 - **Payload Anomaly Detection**: Native recursive scanning for SQLi and XSS before execution (see the WAF layer in the security hooks).
+- **CSRF (parity with REST, 2026-09-24)**: every authenticated `POST /api/graphql` must pass the same-origin fast path or the double-submit token (`X-CSRF-Token` + `csrf_token` cookie, constant-time, rotated on use) — Yoga batching means a POST can hide mutations, so the gate covers every POST rather than only parsed mutation operations. Exempt: `GET` (safe method, queries only), server-to-server API-key/token callers (no cookie an attacker can ride), and `TEST_MODE`. Cross-origin browser clients should use API keys for mutations or send the token; same-origin clients are unaffected.
 
 ---
 

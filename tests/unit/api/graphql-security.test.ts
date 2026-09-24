@@ -176,6 +176,69 @@ describe("GraphQL dispatcher auth gate (catch-all /api/graphql)", () => {
   });
 });
 
+describe("GraphQL CSRF gate (parity with REST dispatcher)", () => {
+  const admin = () => createMockUser({ _id: "u1", role: "admin", isAdmin: true } as any);
+
+  // The global unit setup sets TEST_MODE=true (the gate mirrors the REST
+  // dispatcher's skip) — stub it off so the gate itself is under test.
+  beforeEach(() => {
+    vi.stubEnv("TEST_MODE", "false");
+  });
+
+  it("rejects cross-origin POST without the double-submit token (403 CSRF_VIOLATION)", async () => {
+    const res = await invokeGraphql(
+      "mutation { ping }",
+      {},
+      {
+        user: admin(),
+        tenantId: "t1",
+        bypass: true,
+        // Cross-origin attack shape: hostile Origin, no CSRF header.
+        headers: { host: "localhost", origin: "https://evil.example.com", "x-csrf-token": "" },
+      },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("accepts same-origin POST via the origin fast path", async () => {
+    const res = await invokeGraphql(
+      "{ __typename }",
+      {},
+      {
+        user: admin(),
+        tenantId: "t1",
+        bypass: true,
+        headers: { host: "localhost", origin: "http://localhost", "x-csrf-token": "" },
+      },
+    );
+    expect(res.status).not.toBe(403);
+  });
+
+  it("accepts POST with a matching double-submit token (no origin)", async () => {
+    // Default mock-event shape: CSRF cookie + header for state-changing methods.
+    const res = await invokeGraphql(
+      "{ __typename }",
+      {},
+      { user: admin(), tenantId: "t1", bypass: true },
+    );
+    expect(res.status).not.toBe(403);
+  });
+
+  it("exempts server-to-server API-key callers (no cookie to ride)", async () => {
+    const res = await invokeGraphql(
+      "mutation { ping }",
+      {},
+      {
+        user: createMockUser({ _id: "k1", role: "admin", isAdmin: true, isApiKey: true } as any),
+        tenantId: "t1",
+        bypass: true,
+        headers: { host: "localhost", origin: "https://service.example.com", "x-csrf-token": "" },
+      },
+    );
+    expect(res.status).not.toBe(403);
+  });
+});
+
 /**
  * Defense-in-depth mirrors the Subscription.subscribe guards in
  * src/routes/api/graphql/+server.ts (contentStructureUpdated, entryUpdated, onPing).

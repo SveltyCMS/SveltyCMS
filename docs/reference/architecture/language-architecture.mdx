@@ -392,6 +392,8 @@ The component automatically reads from `AVAILABLE_CONTENT_LANGUAGES`, so no code
 
 ### Field Schema Definition
 
+Fields are marked translatable with `translated: true` — either in code (below) or in the admin UI via the **Translated** toggle on a field's edit dialog (Collection Builder → field → Default tab, next to _Required_). Both paths round-trip: the GUI toggle persists to the collection definition, and the GUI → code generator emits `translated: true`, so code- and GUI-defined collections stay in sync.
+
 ```
 // config/collections/Posts/fields.ts
 import type { FieldInstance } from "@src/content/types";

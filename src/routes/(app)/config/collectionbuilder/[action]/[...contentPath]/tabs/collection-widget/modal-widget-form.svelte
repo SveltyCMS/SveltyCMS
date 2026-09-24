@@ -58,6 +58,7 @@
 				db_fieldName: '',
 				icon: '',
 				required: false,
+				translated: false,
 				permissions: {},
 				widget: {}
 			};
@@ -288,6 +289,24 @@
 							type="checkbox"
 							aria-label="Required field"
 							bind:checked={local.required}
+							class="h-5 w-5 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+						/>
+					</div>
+
+					<div
+						class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50"
+					>
+						<div>
+							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Translated</p>
+							<p class="text-xs text-surface-500 dark:text-surface-400">
+								Stores one value per content language (field-level i18n)
+							</p>
+						</div>
+						<input
+							type="checkbox"
+							aria-label="Translated field"
+							data-testid="widget-field-translated"
+							bind:checked={local.translated}
 							class="h-5 w-5 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 						/>
 					</div>

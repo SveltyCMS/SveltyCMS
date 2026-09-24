@@ -92,6 +92,7 @@ export function generateCollectionTypeScript(
     };
 
     if (field.required) props.required = true;
+    if (field.translated) props.translated = true;
     if (field.description) props.description = field.description;
     if (field.icon) props.icon = field.icon;
 
@@ -101,9 +102,16 @@ export function generateCollectionTypeScript(
       for (const [k, v] of Object.entries(widgetObj)) {
         if (
           !k.startsWith("_") &&
-          !["Name", "key", "label", "db_fieldName", "required", "icon", "description"].includes(
-            k,
-          ) &&
+          ![
+            "Name",
+            "key",
+            "label",
+            "db_fieldName",
+            "required",
+            "translated",
+            "icon",
+            "description",
+          ].includes(k) &&
           v !== undefined
         ) {
           props[k] = v;

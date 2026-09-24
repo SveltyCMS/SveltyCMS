@@ -63,4 +63,33 @@ describe("collection-code-generator", () => {
     expect(code).toContain('db_fieldName: "price"');
     expect(code).toContain('currency: "USD"');
   });
+
+  it("emits translated: true for field-level i18n fields", () => {
+    const mockFields: FieldInstance[] = [
+      {
+        label: "Title",
+        db_fieldName: "title",
+        required: true,
+        translated: true,
+        widget: { Name: "Input" } as any,
+      } as FieldInstance,
+      {
+        label: "Slug",
+        db_fieldName: "slug",
+        required: false,
+        translated: false,
+        widget: { Name: "Input" } as any,
+      } as FieldInstance,
+    ];
+
+    const code = generateCollectionTypeScript({ name: "Posts" }, mockFields);
+
+    // The GUI toggle must survive the GUI → code round-trip (code-based collections).
+    expect(code).toContain("translated: true");
+    expect(code).toContain('db_fieldName: "title"');
+    // Untranslated fields keep the flag absent (factory default), not false-noise.
+    const slugBlock = code.split("widgets.Input({")[2];
+    expect(slugBlock).toBeDefined();
+    expect(slugBlock).not.toContain("translated");
+  });
 });
