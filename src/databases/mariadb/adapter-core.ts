@@ -782,6 +782,28 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
       const cols = Object.keys(values);
       if (cols.length === 0) return super.upsert(collection, query, data, options);
+
+      // 🐛 PARTIAL-UPSERT MERGE: `col = VALUES(col)` (below) replaces the JSON `data`
+      // blob wholesale, so every field the payload did not mention is deleted.
+      // Measured on the live engine: `{"title":"Seed","value":7,"tags":["a"]}`
+      // upserted with `{"title":"Upserted Partial"}` becomes
+      // `{"title":"Upserted Partial"}` — value/tags gone. This override was added
+      // after the shared path had already been fixed for exactly this data-loss class
+      // (`jsonUpsertMergeSet`, and the docblock above it names the failing contract:
+      // tests/integration/databases/adapter-parity.test.ts "keeps the fields a partial
+      // upsert payload does not mention"), and it bypasses that fix.
+      //
+      // A payload that carries the blob therefore goes back through the shared path,
+      // which applies the dialect-correct merge AND the JS hydration MariaDB needs for
+      // RFC 7396 patches — reimplementing that here would be a second merge
+      // implementation to keep in sync. The single-round-trip fast path stays for
+      // payloads that only touch physical columns; a full-document upsert of a
+      // blob-backed collection costs one extra round trip in exchange for not losing
+      // columns (the correct trade for a sync/import path).
+      const dataColumn = this.getColumn(table, "data");
+      if (dataColumn && ("data" in values || (dataColumn.name ?? "") in values)) {
+        return super.upsert(collection, query, data, options);
+      }
       // Drizzle def property names may differ from physical column names
       // (e.g. plugin_storage: collectionName → `collection`).
       const physicalName = (c: string) =>
