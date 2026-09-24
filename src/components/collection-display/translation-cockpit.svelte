@@ -69,7 +69,7 @@ Features:
 
 	// System languages for Admin UI
 	const availableSystemLangs = $derived.by(() => {
-		return mergeSystemLanguages(publicEnv?.SYSTEM_LANGUAGES, bundledLocales);
+		return mergeSystemLanguages(publicEnv?.LOCALES, bundledLocales);
 	});
 
 	const systemLangOptions = $derived(
@@ -145,7 +145,10 @@ Features:
 
 		let count = 0;
 		for (const field of translatableFields) {
-			const fieldName = getFieldName(field, false);
+			const fieldName = getFieldName(
+				field as Partial<import('@src/content/types').FieldInstance> & { label: string },
+				false
+			);
 			const fieldLabel = (field as any).label || fieldName;
 
 			// Check if already translated in targetLocale

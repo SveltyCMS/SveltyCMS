@@ -18,6 +18,7 @@ import { CacheCategory } from "@src/databases/cache/types";
 import type { DatabaseId } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { validateId } from "@src/databases/core/id-contract";
+import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -316,10 +317,14 @@ export class RouteResourceStateMachine {
         const result = await cms.collections.findById(parsed.collectionId, parsed.entryId, opts);
         if (!result?.success || result.data == null) return false;
         const item = Array.isArray(result.data) ? result.data[0] : result.data;
+        // Same shared trim as the warm read lane's MISS rebuild and the
+        // dispatcher fallback — a prewarmed TURBO-HIT must serve the same
+        // point-read bytes as a cold MISS, otherwise the payload for one URL
+        // depends on who filled the cache last.
         stashTurboEnvelope(
           `/api/collections/${parsed.collectionId}/${parsed.entryId}`,
           "",
-          { success: true, data: item },
+          trimPointReadEnvelope({ success: true, data: item }),
           tenantId,
           userId,
         );

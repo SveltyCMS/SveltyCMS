@@ -226,6 +226,82 @@ describe("collection read lane single-flight", () => {
     );
   });
 
+  it("trims the point-read payload through the shared helper (byte-identity contract)", async () => {
+    findByIdMock.mockResolvedValue({
+      success: true,
+      data: {
+        _id: "abc",
+        status: "published",
+        tenantId: "global",
+        isDeleted: false,
+        createdAt: "2026-09-24T08:00:00.000Z",
+        updatedAt: "2026-09-24T09:00:00.000Z",
+        collection: null,
+        locale: null,
+        publishedAt: "2026-01-01T00:00:00.000Z",
+        slug: "point-slug",
+        title: "point",
+        _collection: { id: "BenchmarkStable", name: "BenchmarkStable", label: "BenchmarkStable" },
+      },
+    });
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const entryEvent = () =>
+      createMockEvent("/api/collections/BenchmarkStable/abc", {
+        method: "GET",
+        sessionCookie: sessionId,
+        user,
+      });
+
+    const res = await tryCollectionReadLane({ event: entryEvent(), resolve });
+    const body = await res.text();
+    const payload = JSON.parse(body) as { data: Record<string, unknown> };
+
+    // System columns + SDK meta are gone from the HTTP representation.
+    expect(payload.data._collection).toBeUndefined();
+    expect(payload.data.tenantId).toBeUndefined();
+    expect(payload.data.isDeleted).toBeUndefined();
+    expect(payload.data.createdAt).toBeUndefined();
+    expect(payload.data.updatedAt).toBeUndefined();
+    expect(payload.data.collection).toBeUndefined(); // null mirror column
+    expect(payload.data.locale).toBeUndefined(); // null mirror column
+    // Document content survives — including non-null mirror columns.
+    expect(payload.data._id).toBe("abc");
+    expect(payload.data.status).toBe("published");
+    expect(payload.data.slug).toBe("point-slug");
+    expect(payload.data.title).toBe("point");
+    expect(payload.data.publishedAt).toBe("2026-01-01T00:00:00.000Z");
+    // The point etag still reads _id + updatedAt off the RAW row (trimmed out
+    // of the body, but the validator must survive).
+    expect(res.headers.get("etag")).toBe('"abc-2026-09-24T09:00:00.000Z"');
+
+    // The L1 point tier holds the trimmed bytes — a TURBO-HIT serves the same
+    // payload as the MISS rebuild. The 2-touch admission admits on the second
+    // sighting (see `pointAdmission` in response-cache), so read once more.
+    const second = await tryCollectionReadLane({ event: entryEvent(), resolve });
+    expect(second.headers.get("X-Cache")).toBe("MISS");
+    const key = buildUserResponseCacheKey("/api/collections/BenchmarkStable/abc", "", user._id);
+    expect(responseCache.get(key, null)?.body).toBe(await second.text());
+  });
+
+  it("leaves list rows untrimmed — the trim is point-read only", async () => {
+    findMock.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          _id: "1",
+          title: "cached",
+          _collection: { id: "BenchmarkStable", name: "BenchmarkStable", label: "BenchmarkStable" },
+        },
+      ],
+    });
+    const resolve = vi.fn(async () => new Response("pipeline"));
+
+    const res = await tryCollectionReadLane({ event: listEvent(), resolve });
+    const body = await res.text();
+    expect(body).toContain("_collection");
+    expect(body).toContain("BenchmarkStable");
+  });
+
   it("scopes the L1 entry to the per-request tenant, not the session tenant", async () => {
     vi.stubEnv("TEST_MODE", "true");
     // Session was resolved for tenant A; the request explicitly targets tenant B.

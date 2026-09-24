@@ -16,6 +16,8 @@
  * - Admin/session only (non-admin still uses the full RBAC/FLAC pipeline)
  * - Stashes turbo L1 on first set (point-reads use a dedicated FIFO)
  * - Serve-stale lists after write; single-flight only on true miss
+ * - Trims the point-read payload through the shared `trimPointReadEnvelope`
+ *   helper (byte-identity with the `handleCollectionEntry` dispatcher fallback)
  * - Labels every owned response: `X-Cache: TURBO-HIT` on hit, `MISS`/`BYPASS`
  *   on the rebuild, so lane attribution is never ambiguous
  */
@@ -40,6 +42,7 @@ import {
 } from "@src/services/cache/response-cache";
 import type { DatabaseId } from "@src/content/types";
 import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
+import { trimPointReadEnvelope } from "@utils/point-read-payload";
 
 interface CoalescedCollectionRead {
   body: string;
@@ -289,13 +292,29 @@ async function rebuildWarmCollectionRead(
       });
   marks?.set("db", performance.now() - dbT0);
 
+  // Point-read etag reads `_id` + `updatedAt` off the RAW SDK row — computed
+  // before the shared trim below, which drops `updatedAt` from the HTTP
+  // representation (byte-identity with the dispatcher fallback). Hashing the
+  // whole body on every random miss was a full scan of a document the caller
+  // will not revalidate.
+  const record = result as { success?: boolean; data?: unknown; meta?: unknown };
+  const rawRow = record.data as { _id?: unknown; updatedAt?: unknown } | null;
+  const pointEtag =
+    entryId && rawRow && typeof rawRow === "object"
+      ? `"${String(rawRow._id ?? entryId)}-${String(rawRow.updatedAt ?? "")}"`
+      : null;
   // One JSON string. The lane builds the only Response, from the prebuilt
   // security-header template. A second Response here was pure overhead on a miss.
-  const record = result as { success?: boolean; data?: unknown; meta?: unknown };
+  // `trimPointReadEnvelope` copies the single row (arrays pass through), so the
+  // SDK request cache / L2 never see the trimmed payload.
+  const envelope = trimPointReadEnvelope(record) as {
+    data?: unknown;
+    meta?: unknown;
+  };
   const apiBody =
-    record.meta !== undefined
-      ? JSON.stringify({ success: true, data: record.data, meta: record.meta })
-      : JSON.stringify({ success: true, data: record.data });
+    envelope.meta !== undefined
+      ? JSON.stringify({ success: true, data: envelope.data, meta: envelope.meta })
+      : JSON.stringify({ success: true, data: envelope.data });
   (locals as { apiBody?: string }).apiBody = apiBody;
   if (
     typeof apiBody !== "string" ||
@@ -304,22 +323,22 @@ async function rebuildWarmCollectionRead(
   ) {
     return null;
   }
-  // Point reads change updatedAt on write. Hashing the whole body on every
-  // random miss was a full scan of a document the caller will not revalidate.
-  const row = record.data as { _id?: unknown; updatedAt?: unknown } | null;
-  const etag =
-    entryId && row && typeof row === "object"
-      ? `"${String(row._id ?? entryId)}-${String(row.updatedAt ?? "")}"`
-      : generateContentEtag(apiBody);
+  const etag = pointEtag ?? generateContentEtag(apiBody);
   // Point reads never reach the shared cache — `responseCache.set` returns
   // before its tag write for them — so building an entry-tag array there is
   // allocation the cold random-id path pays for and throws away.
   const tags = entryId ? null : collectionResponseCacheTags(collectionId, null).tags;
   marks?.set("build", performance.now() - dbT0);
-  responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
-    ...(tags ? { tags } : {}),
-    skipSharedL1: entryId != null,
-  });
+  responseCache.set(
+    pathKey,
+    { body: apiBody, etag },
+    300_000,
+    cacheTenant,
+    // Point reads pass a bare options object: the `...(tags ? { tags } : {})`
+    // spread used to allocate an empty literal on every random-id miss. Lists
+    // keep the exact same options as before (tags present, skipSharedL1 false).
+    tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
+  );
   marks?.set("cachewrite", performance.now() - dbT0);
   return { body: apiBody, etag, miss: true };
 }

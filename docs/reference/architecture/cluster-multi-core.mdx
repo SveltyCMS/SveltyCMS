@@ -119,6 +119,20 @@ Per-worker efficiency leaves ~1.0 already at K=2 and falls to 0.15–0.20 at K=8
 
 Read the curve, not a single row: run-to-run spread on this machine is ±8–30 % per lane, so a step is only real when the efficiency row moves monotonically across K.
 
+### Per-tier memory + tail accounting (2026-09-24)
+
+`tests/benchmarks/probe-cache-tiers.test.ts` drives each tier with targeted load and snapshots `/api/system/health?verbose=true` (process RSS is reachable there) + `/api/dashboard/cache-metrics` between phases — the qualitative "bounded" claim is now quantified:
+
+| Tier                                      | Driven by                          | Measured                                                                                                                                 |
+| :---------------------------------------- | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| Point-read FIFO (`responseCache.pointL1`) | 2 100 distinct ids × 3 passes      | 2 000/2 100 resident (2-touch admission; FIFO cap), ≈ 6.8 MB @ 1.2 KB/entry ×3 copies; `cacheService` Δ 0 (lane uses `skipCacheService`) |
+| List tier (`responseCache.localL1`)       | 1 500 unique list URLs × 2 passes  | 1 500/1 500 resident, ≈ 53.5 MB for the bodies (12.2 KB/entry ×3 copies); all URLs share ONE canonical find key (unparsed cache-buster)  |
+| L1 content cache (`cacheService.l1` LRU)  | 400 identical `refresh=true` lists | 0 entries Δ — the canonical key serves every URL (bypass only skips the response cache read)                                             |
+| GraphQL response/schema cache             | 200 identical POSTs                | 199/200 HITs                                                                                                                             |
+| **Process RSS**                           | full probe (≈ 10 k requests)       | **234.9 → 472.7 MB (+237.8 MB)** — the tiers are the bulk of the delta, consistent with the soak verdict (commitment, not retention)     |
+
+Write-lane tails (Postgres, 8c, `probe-write-split.test.ts`): create srv-dur p50 3.89 / p95 5.41 / p99 7.44 / **p999 18.19 ms** — the p999 is the WAL-flush outlier class; update p50 3.58 / p95 4.75 / p99 5.14 / p999 5.24 ms. App phases stay flat into the tail (security/parse/schema/prep ≤ 0.18 ms p999) — `dbwrite` owns the tail exactly like the median.
+
 ## Non-goals (decisions NOT taken)
 
 - **`worker_threads`**: request handling is I/O-bound; threads share a heap (GC coupling) and buy nothing over processes here. Not used.

@@ -24,6 +24,7 @@ import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
 import { prefersMinimalReturn } from "@utils/http-preferences";
+import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { streamingExportResponse, streamingJsonResponse } from "./streaming";
 import {
   collectExportColumns,
@@ -445,9 +446,14 @@ export async function handleCollectionEntry(
     bypassCache: params.bypassCache,
     populate: params.populate,
   });
+  // Same shared trim as the warm read lane's MISS rebuild — the
+  // BENCH_VERIFY_RAW=1 byte-identity gate compares both transports for the
+  // same request, so the point-read payload must be shaped in exactly one
+  // place. `trimPointReadEnvelope` copies, so the SDK request cache / L2
+  // entries (which hold this very envelope) never see the trimmed row.
   return successResponse(
     event,
-    result,
+    trimPointReadEnvelope(result),
     200,
     typeof conditional === "string" ? collectionEtagResponseHeaders(conditional) : undefined,
   );

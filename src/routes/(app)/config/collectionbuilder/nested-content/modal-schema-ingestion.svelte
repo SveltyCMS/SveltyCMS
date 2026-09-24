@@ -276,7 +276,7 @@ Features:
 					<div
 						class="flex items-center justify-between rounded border border-surface-500/20 bg-white px-2.5 py-1.5 text-xs dark:bg-surface-800"
 					>
-						<span class="font-medium truncate max-w-[120px]">{field.label}</span>
+						<span class="font-medium truncate max-w-30">{field.label}</span>
 						<div class="flex items-center gap-1">
 							<Badge variant="surface" size="sm" class="font-mono text-[10px]">
 								{field.widgetKey}

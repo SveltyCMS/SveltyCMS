@@ -54,7 +54,7 @@ tags:
 
 `ORDER BY data->>'count'` cannot be served by any stock index. At 1.1M rows the planner chooses a **parallel seq scan over the whole table + top-N heapsort**: 167–234 ms with warm buffers, **3.8 s** with cold buffers (measured via `EXPLAIN ANALYZE`), and it scales linearly with row count.
 
-**Fix shipped (lazy expression index, `SVELTY_LAZY_SORT_INDEXES=0` opts out):** the first sorted query on a dynamic scalar field schedules `CREATE INDEX IF NOT EXISTS ((data->>'field'))` in the background (`onDynamicSort` hook in `sql-adapter-core.ts`, PostgreSQL implementation in `postgresql/adapter-core.ts`). The ORDER BY already emits that exact literal expression, so PostgreSQL serves every subsequent sort with an index scan. Bounded registry (64 entries, FIFO), one build per (collection, field) per process, fire-and-forget (no query pays the build), field names regex-gated to plain identifiers before inlining. Measured: **167–340 ms → 5.1 ms** per request at 1.1M rows (DB part 0.08 ms); the physical-column materialization path (`indexed: true`) remains the explicit option. MariaDB/SQLite keep the old behaviour (SQLite binds the JSON path as a parameter, so an expression index cannot match); Mongo fields are native.
+**Fix shipped (lazy expression index, `SVELTY_LAZY_SORT_INDEXES=0` opts out):** the first sorted query on a dynamic scalar field schedules `CREATE INDEX IF NOT EXISTS ((data->>'field'))` in the background (`onDynamicSort` hook in `sql-adapter-core.ts`, PostgreSQL implementation in `postgresql/adapter-core.ts`). The ORDER BY already emits that exact literal expression, so PostgreSQL serves every subsequent sort with an index scan. Bounded registry (64 entries, FIFO), one build per (collection, field) per process, fire-and-forget (no query pays the build), field names regex-gated to plain identifiers before inlining. Measured: **167–340 ms → 5.1 ms** per request at 1.1M rows (DB part 0.08 ms); the physical-column materialization path (`indexed: true`) remains the explicit option. MariaDB/SQLite keep the old behaviour (SQLite binds the JSON path as a parameter, so an expression index cannot match) — MariaDB's own 1M cost is measured in the cross-engine section below, and its `onDynamicSort` is still a no-op (open follow-up); Mongo fields are native.
 
 ### W2 — Deep-offset pagination is a scan-skip ✅ CLOSED (REST keyset cursor)
 
@@ -86,6 +86,29 @@ Create/update at 1.1M rows cost ~7 ms vs ~5 ms at 100k (−28 % throughput) — 
 | bulk seed      |         140k docs/s |    ~34k docs/s | ~24 % (not scored)     |
 
 With W5 refuted, the write gap is app work on the write lane (session/CSRF revalidation, invalidation machinery, response serialization) on top of the WAL-commit floor — the next lever is a write-lane decomposition (the same `x-srv-dur` split methodology that decomposed the read MISS), not more DB or index work.
+
+## Cross-engine at 1M: MariaDB (2026-09-24, re-verified)
+
+> **Correction (same evening):** the first reading of this run — "MariaDB sails through the Postgres cliffs" (dynamic sort 10 ms, deep offset 3.35 ms) — **did not survive SQL-level re-verification and is retracted.** The queries were re-run directly against the confirmed 1M-row table (`collection_benchmarkstable` = 1 000 552 rows, `EXPLAIN` + timed medians below); the earlier numbers could not be reproduced at this row count and were most likely captured while the table was still partially seeded (the run that hit the provisioning race). **The W1/W2 cliffs are engine-shaped, not Postgres-specific — MariaDB shows the same cliff class.**
+
+Measured directly against MariaDB 12.3 at 1M rows (SQL level, warm buffers, 5-run medians — the exact SQL shapes the adapter emits):
+
+| Workload (SQL level, 1M rows)                                        |      MariaDB |                       PostgreSQL (~1.12M) | Reading                                                                                                                                                                                                                                                                                                                                                                                           |
+| :------------------------------------------------------------------- | -----------: | ----------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Point read (PK)                                                      |       0.6 ms |                                   0.32 ms | parity — both page-cache-bound                                                                                                                                                                                                                                                                                                                                                                    |
+| List plain (limit 10)                                                |       0.5 ms |                                    2.6 ms | parity — flat index scan                                                                                                                                                                                                                                                                                                                                                                          |
+| Filter + sort, **physical** field                                    |       0.4 ms |                                    0.1 ms | parity — index-served; the earlier "MariaDB 2×" reading was small-table noise                                                                                                                                                                                                                                                                                                                     |
+| **Filter + sort, dynamic field**                                     | **4 254 ms** | **3.8 s cold / 167–234 ms warm (pre-W1)** | **W1 exists on MariaDB** — full scan (947k rows examined, `type=ALL`) + filesort, _text_ ordering (`JSON_UNQUOTE(JSON_EXTRACT(data,'$.count'))`); top-20 values for `-count` are `999,999,…` — the lexicographic artifact is identical on both engines (Postgres `->>` is also TEXT). MariaDB has **no lazy-index mitigation** (`onDynamicSort` is a PostgreSQL-only hook) — follow-up, see below |
+| **Deep offset (`offset=1M`), probe shape**                           |   **522 ms** |                                    143 ms | the probe sends no `sort`, so the emitted query has **no ORDER BY** — a shapeless skip (engine-picked order, not a pagination contract). MariaDB walks ~948k rows via a covering index scan; Postgres seq-scans. Neither number describes real pagination                                                                                                                                         |
+| **Deep offset, deterministic** (`ORDER BY updatedAt DESC, _id DESC`) | **3 777 ms** |      143 ms (shapeless; keyset p50 16 ms) | the real deep-pagination shape: index scan + filesort over ~948k rows — **the W2 cliff exists on MariaDB too**; the REST keyset cursor is the portable fix                                                                                                                                                                                                                                        |
+| `includeCount` (status filter)                                       |   **690 ms** |                                    2.8 ms | COUNT over 666 699 matching rows — the earlier 1.6 ms was a cached/small-table sample                                                                                                                                                                                                                                                                                                             |
+| Insert, bare (12 stock indexes)                                      |       2.0 ms |                                   ~1.7 ms | probe wall numbers (create 8.96 ms / update 9.65 ms) remain plausible — writes ~30 % slower, same commit-bound shape (InnoDB flush)                                                                                                                                                                                                                                                               |
+
+**What survives from the original run:** point reads, plain lists, writes and the negative-cache lane are parity-class on both engines (wall numbers in the probe run were consistent with the SQL floor here). **What does not survive:** every "MariaDB has no cliff" claim — at 1M rows the dynamic-sort and deep-offset costs are the same order of magnitude as PostgreSQL's, and on top of that the W1 lazy-expression-index fix is PostgreSQL-only, so a MariaDB deployment at this scale has _no code-level mitigation_ today. Two honest boundaries on this table: (1) the numbers are SQL-level, not full HTTP lane (the probe's own lane numbers for this engine were taken without `SVELTY_SRV_DUR`); (2) the dynamic-sort column compares MariaDB's text sort to Postgres's pre-W1 text sort — both sort lexicographically on numeric dynamic fields, which is the documented cross-engine semantic (materialize with `indexed: true` for native numeric order).
+
+**Lesson recorded:** cross-engine scale claims enter these docs only after SQL-level re-verification against a confirmed row count (`SELECT COUNT(*)` first, `EXPLAIN` second, timed medians third) — the exact query shapes live in the Reproduction section below.
+
+Two side findings from the MariaDB seeding run: (1) **bulk insert under first-touch provisioning** — the first `POST …/bulk` chunks against a just-created collection returned 400 (`Failed query`) under 8 concurrent writers while `createModel` provisioned the table; per-item fallback seeded the rows, and every later bulk POST against the same collection succeeds — a provisioning race to pin down in the adapter contract, not a data-loss path. (2) **MariaDB W1 follow-up (open):** an `onDynamicSort` implementation for MariaDB (generated-column or `CAST(… AS DECIMAL)` expression index, both feasible on 12.3) would close the 4.25 s text-sort at 1M the way the lazy expression index closed it on PostgreSQL — tracked in the roadmap.
 
 ## Verdicts on the external weak-point analysis (2026-09-24)
 
@@ -130,6 +153,22 @@ bun test tests/benchmarks/probe-scale-limits.test.ts
 ```
 
 `SCALE_ITERS` / `SCALE_SLOW` tune sample counts; the probe is excluded from the benchmark matrix (`SKIP_IN_MATRIX`).
+
+**SQL-level re-verification (the MariaDB correction above):** against the seeded 1M table (`sveltycms-mariadb` → database `sveltycms_test`, table `collection_benchmarkstable`, 1 000 552 rows — confirm with `SELECT COUNT(*)` first, then `EXPLAIN`, then timed medians). The three query shapes the adapter actually emits:
+
+```sql
+-- W1: dynamic sort on a JSON field (global tenant → no tenant predicate; text ordering)
+SELECT _id FROM collection_benchmarkstable
+  WHERE status = 'published'
+  ORDER BY JSON_UNQUOTE(JSON_EXTRACT(data, '$.count')) DESC LIMIT 20;
+
+-- W2 probe shape: no sort param → NO ORDER BY (shapeless skip, not pagination)
+SELECT _id FROM collection_benchmarkstable LIMIT 10 OFFSET 1000000;
+
+-- W2 real contract: deterministic deep offset (keyset-tiebreaker index exists)
+SELECT _id FROM collection_benchmarkstable
+  ORDER BY updatedAt DESC, _id DESC LIMIT 10 OFFSET 1000000;
+```
 
 ## Related
 

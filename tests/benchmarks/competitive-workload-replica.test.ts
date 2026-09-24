@@ -10,6 +10,7 @@
  * - CSRF cookie + Origin + X-CSRF-Token (production auth)
  * - Low-overhead stream draining (`res.arrayBuffer()`) and pre-encoded URL paths
  * - Full try...finally process lifecycle guard
+ * - Opt-in concurrency sweep (`SWEEP_CONCURRENCY=1,4,16,32`) for the read lanes
  */
 
 import {
@@ -57,6 +58,14 @@ const SOAK_SECONDS = Number(process.env.BENCH_SOAK_SECONDS) || 0;
 const DEEP_WARMUP = Number(process.env.BENCH_DEEP_WARMUP || 250);
 const DEEP_WARMUP_WRITES = Number(process.env.BENCH_DEEP_WARMUP_WRITES || 150);
 const SEED_COUNT = Number(process.env.BENCH_DOCS) || 500;
+// Opt-in concurrency sweep (external harness conSweep lane): re-measures the
+// findById + listLarge read lanes at each worker count after the normal
+// phases. Unset by default — zero impact on the standard run.
+const SWEEP_CONCURRENCY = (process.env.SWEEP_CONCURRENCY || "")
+  .split(",")
+  .map((s) => Number(s.trim()))
+  .filter((n) => Number.isInteger(n) && n > 0);
+const SWEEP_ITERS = Number(process.env.SWEEP_ITERS) || 2000;
 
 const gcSync = async () => {
   if (typeof globalThis.gc === "function") globalThis.gc();
@@ -452,6 +461,45 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       if (instabilityMax > 0 && instability > instabilityMax) {
         throw new Error(
           `Soak instability ${instability.toFixed(1)}% exceeds BENCH_SOAK_INSTABILITY_MAX=${instabilityMax}% (min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)} RPS)`,
+        );
+      }
+    }
+
+    // ── PHASE 5 (opt-in): CONCURRENCY SWEEP (SWEEP_CONCURRENCY=1,4,16,32) ──
+    // Harness conSweep lane: the findById + listLarge read workloads re-run at
+    // each worker count with a fixed iteration budget, exposing the scaling
+    // curve and its contention knee. Skipped entirely when the env is unset,
+    // so the default run path is unchanged.
+    if (SWEEP_CONCURRENCY.length > 0) {
+      logger.info(
+        `\n🧪 [PHASE 5] Concurrency sweep: ${SWEEP_CONCURRENCY.join(",")}c × ${SWEEP_ITERS} iters (findById, listLarge)...`,
+      );
+      const sweepRows: Array<{ label: string; concurrency: number; rps: number }> = [];
+      for (const w of workloads) {
+        if (w.shortLabel !== "findById" && w.shortLabel !== "listLarge") continue;
+        for (const c of SWEEP_CONCURRENCY) {
+          const res = await runBenchmark({
+            name: `${w.shortLabel} (Sweep ${c}c)`,
+            warmupIterations: 0,
+            iterations: SWEEP_ITERS,
+            concurrency: c,
+            onIteration: w.fn,
+          });
+          sweepRows.push({ label: w.shortLabel, concurrency: c, rps: res.rps });
+          exportResult(res);
+          exportMetric(`competitive.sweep.${w.shortLabel}.c${c}.rps`, res.rps, "req/s");
+          logger.info(
+            `  → ${w.shortLabel} @ ${c}c: ${res.rps.toLocaleString()} RPS | avg ${res.avgMs}ms p95 ${res.p95Ms}ms p99 ${res.p99Ms}ms`,
+          );
+        }
+      }
+      console.log(`\n=== CONCURRENCY SWEEP — RPS (${SWEEP_ITERS} iters/step) ===`);
+      console.log(`${"workload".padEnd(14)} ${"concurrency".padStart(11)} ${"rps".padStart(14)}`);
+      for (const row of sweepRows) {
+        console.log(
+          `${row.label.padEnd(14)} ${String(row.concurrency).padStart(11)} ${Math.round(row.rps)
+            .toLocaleString()
+            .padStart(14)}`,
         );
       }
     }

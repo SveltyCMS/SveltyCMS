@@ -55,6 +55,8 @@ To fetch entries from a specific collection, use the ID-based endpoint.
 **Endpoint**: `GET /api/collections/{collectionId}`  
 **Advanced Filtering**: See the [Content & Search Reference](./content.mdx) for deep query syntax.
 
+**Single entry**: `GET /api/collections/{collectionId}/{entryId}`. The HTTP point-read payload is the document row **minus** the SDK-injected `_collection` meta and the platform-managed system columns (`tenantId`, `isDeleted`, `createdAt`, `updatedAt`), plus the physical mirror columns (`collection`, `locale`, `publishedAt`) only while they are null (a non-null mirror value is document content and survives). `_id`, `status`, `slug` and every content field are always present. This trim is the single shared contract in `src/utils/point-read-payload.ts` — the warm read lane's MISS rebuild, the dispatcher fallback and the predictive turbo stash all serialize through it, so the payload is byte-identical regardless of which transport served it; the LocalCMS/SDK result is never trimmed (server-side consumers keep every system column).
+
 ### Keyset pagination (deep pages without offset scans)
 
 Offset pagination costs grow linearly with depth (the database must scan and skip every preceding row). For deep or continuously-appended lists, pass an opaque **keyset cursor** instead:

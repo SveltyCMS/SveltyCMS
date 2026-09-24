@@ -10,7 +10,7 @@
  *   seed    — login, seed PROBE_SEED docs, write the id pool to
  *             tmp/cluster-probe-ids.json, print `SEEDED <n> <ms>`.
  *   measure — read the id pool, login, run PROBE_OPS (warmup + measure),
- *             print `OP <op> <rps>` per line.
+ *             print `OP <op> <rps>` + `OPLAT <op> <p50> <p95> <p99>` per line.
  *
  * Node ≥ 24 (native type stripping). Erasable TS only.
  */
@@ -119,12 +119,22 @@ function p50(arr: number[]): number {
   return s[Math.floor(s.length / 2)];
 }
 
+/** Linear-interpolated percentile (same convention as benchmark-utils). */
+function pct(arr: number[], p: number): number {
+  if (arr.length === 0) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const idx = (p / 100) * (s.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return lo === hi ? s[lo] : s[lo] * (1 - (idx - lo)) + s[hi] * (idx - lo);
+}
+
 async function runOp(
   auth: { cookie: string; csrfToken: string },
   op: string,
   ids: string[],
   seconds: number,
-): Promise<number> {
+): Promise<{ rps: number; p50: number; p95: number; p99: number }> {
   const headers = authHeaders(auth);
   const target = (i: number) => {
     if (op === "create") {
@@ -184,9 +194,14 @@ async function runOp(
     throw new Error(`${op}: ${err.n} errors vs ${ok.n} ok (${detail})`);
   }
   console.error(
-    `  [client] ${op.padEnd(16)} p50 ${p50(latencies).toFixed(1)}ms | ${ok.n} ok / ${err.n} err`,
+    `  [client] ${op.padEnd(16)} p50 ${p50(latencies).toFixed(1)}ms p95 ${pct(latencies, 95).toFixed(1)}ms p99 ${pct(latencies, 99).toFixed(1)}ms | ${ok.n} ok / ${err.n} err`,
   );
-  return ok.n / seconds;
+  return {
+    rps: ok.n / seconds,
+    p50: p50(latencies),
+    p95: pct(latencies, 95),
+    p99: pct(latencies, 99),
+  };
 }
 
 async function main(): Promise<void> {
@@ -204,8 +219,11 @@ async function main(): Promise<void> {
   const ids = loadIds();
   for (const op of OPS) {
     await runOp(auth, op, ids, WARMUP);
-    const rps = await runOp(auth, op, ids, SECONDS);
-    console.log(`OP ${op} ${Math.round(rps)}`);
+    const measured = await runOp(auth, op, ids, SECONDS);
+    console.log(`OP ${op} ${Math.round(measured.rps)}`);
+    console.log(
+      `OPLAT ${op} ${measured.p50.toFixed(1)} ${measured.p95.toFixed(1)} ${measured.p99.toFixed(1)}`,
+    );
   }
 }
 

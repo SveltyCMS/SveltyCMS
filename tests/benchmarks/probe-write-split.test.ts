@@ -7,7 +7,7 @@
  *
  * ### Features:
  * - Runs against a shared server started with SVELTY_SRV_SPLIT=1 + SVELTY_SRV_DUR=1
- * - Phase p50s per write lane (security = WAF+CSRF+session+tenant)
+ * - Phase buckets (create + update + srv-dur) report p50/avg/p95/p99/p999
  * - Namespace sub-phases (schema/prep/encrypt/dbwrite/postwrite) attribute the
  *   SDK-side work inside the persist phase
  * - Cold-session delta: first point read after a fresh login (full session
@@ -180,13 +180,19 @@ test("write-lane split + cold-session auth price", async () => {
       });
       await Promise.all(workers);
       const wall = performance.now() - t0;
-      const p50 = (arr: number[]) => {
+      const pct = (arr: number[], p: number) => {
         const s = [...arr].sort((a, b) => a - b);
-        return s[Math.floor(s.length / 2)] ?? 0;
+        if (s.length === 0) return 0;
+        const idx = (p / 100) * (s.length - 1);
+        const lo = Math.floor(idx);
+        const hi = Math.ceil(idx);
+        return lo === hi ? s[lo] : s[lo] * (1 - (idx - lo)) + s[hi] * (idx - lo);
       };
       const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
       const fmt = (arr: number[]) =>
-        arr.length ? `p50 ${p50(arr).toFixed(3)}ms avg ${avg(arr).toFixed(3)}` : "—";
+        arr.length
+          ? `p50 ${pct(arr, 50).toFixed(3)}ms avg ${avg(arr).toFixed(3)}ms p95 ${pct(arr, 95).toFixed(3)}ms p99 ${pct(arr, 99).toFixed(3)}ms p999 ${pct(arr, 99.9).toFixed(3)}ms`
+          : "—";
       console.log(
         `${name.padEnd(8)} ${Math.round((count / wall) * 1000)
           .toLocaleString()

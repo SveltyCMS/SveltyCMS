@@ -15,7 +15,8 @@
  * - Seeds once on the first sweep step (CLUSTER_SEED, default 20_000 docs);
  *   the id pool persists in tmp/cluster-probe-ids.json
  * - Production mode (real sessions, WAF, rate limit, fast lanes)
- * - Prints RPS(K) + per-worker efficiency so the DB-ceiling crossover is visible
+ * - Prints RPS(K) + per-worker efficiency + p50/p95/p99 tail latency per op
+ *   per worker count, so the DB-ceiling crossover is visible
  *
  * ### Run (requires `bun run build` first):
  *   DB_TYPE=postgresql DB_HOST=127.0.0.1 DB_PORT=5433 DB_USER=bench \
@@ -88,9 +89,16 @@ function cleanup(code: number): void {
 
 // ── Primary branch: sweep worker counts and measure ────────────────────────
 
+interface LatStat {
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
 interface StepResult {
   workers: number;
   rps: Record<string, number>;
+  lats: Record<string, LatStat>;
 }
 
 async function waitReady(timeoutMs: number): Promise<void> {
@@ -151,7 +159,9 @@ function runClient(env: Record<string, string>): Promise<string[]> {
         buf = buf.slice(idx + 1);
         if (line) {
           lines.push(line);
-          console.log(`  ${line}`);
+          // OPLAT rows are machine-consumed for the aggregate latency table;
+          // the human-readable per-op latency line already goes to stderr.
+          if (!line.startsWith("OPLAT ")) console.log(`  ${line}`);
         }
       }
     });
@@ -193,11 +203,16 @@ async function main(): Promise<void> {
     }
     const lines = await runClient({ ...clientEnv, PROBE_MODE: "measure" });
     const rps: Record<string, number> = {};
+    const lats: Record<string, LatStat> = {};
     for (const line of lines) {
       const m = /^OP (\S+) (\d+)$/.exec(line);
       if (m) rps[m[1]] = Number(m[2]);
+      const lm = /^OPLAT (\S+) ([\d.]+) ([\d.]+) ([\d.]+)$/.exec(line);
+      if (lm) {
+        lats[lm[1]] = { p50: Number(lm[2]), p95: Number(lm[3]), p99: Number(lm[4]) };
+      }
     }
-    results.push({ workers: k, rps });
+    results.push({ workers: k, rps, lats });
     await stopWorkers();
   }
 
@@ -217,5 +232,17 @@ async function main(): Promise<void> {
       return `${(base ? (r / base / k).toFixed(2) : "—").padStart(9)}`;
     }).join("");
     console.log(`${`${op}/worker-eff`.padEnd(16)} ${eff}  (rps ÷ K ÷ rps(K=1))`);
+  }
+
+  // ── Tail latency summary: p50/p95/p99 per op per worker count ──
+  const fmtLat = (l?: LatStat) =>
+    l ? `${l.p50.toFixed(1)}/${l.p95.toFixed(1)}/${l.p99.toFixed(1)}` : "—";
+  console.log(`\n=== tail latency (p50/p95/p99 ms) ===`);
+  console.log(`${`op`.padEnd(16)} ${SWEEP.map((k) => `K=${k}`.padStart(21)).join("")}`);
+  for (const op of OPS) {
+    const row = SWEEP.map((k) =>
+      fmtLat(results.find((r) => r.workers === k)?.lats[op]).padStart(21),
+    ).join("");
+    console.log(`${op.padEnd(16)} ${row}`);
   }
 }
