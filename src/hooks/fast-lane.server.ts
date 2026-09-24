@@ -115,13 +115,39 @@ function cookieLookup(cookieHeader: string | null) {
 }
 
 /**
+ * Minimal URL facade for the lane — `new URL()` pays a full WHATWG parse
+ * (~10-15µs) per request on the hot path, but the lane only ever reads
+ * `pathname`, `search`, `searchParams`, `protocol` and `hostname`. All five
+ * derive from the raw `req.url` + the entry's `origin` with plain string
+ * slicing, so the facade is allocation-light and byte-identical in behaviour
+ * for the lane's access surface (`handleApiError` also reads only
+ * `event.url.pathname`).
+ */
+function fastLaneUrl(input: FastLaneInput): URL {
+  const raw = input.url || "/";
+  const q = raw.indexOf("?");
+  const pathname = q >= 0 ? raw.slice(0, q) : raw;
+  const search = q >= 0 ? raw.slice(q) : "";
+  const schemeEnd = input.origin.indexOf("://");
+  const protocol = schemeEnd >= 0 ? input.origin.slice(0, schemeEnd + 1) : "http:";
+  const hostname = schemeEnd >= 0 ? input.origin.slice(schemeEnd + 3) : input.origin;
+  return {
+    pathname,
+    search,
+    searchParams: new URLSearchParams(search),
+    protocol,
+    hostname,
+  } as unknown as URL;
+}
+
+/**
  * Collection point-read/list lane. Byte-for-byte the SvelteKit lane: the same
  * `tryCollectionReadLane` decides, including its warm-turbo-session and admin
  * requirements and its `If-None-Match → 304` handling.
  */
 const collectionReadLane: FastLane = async (input) => {
   const getHeader = headerLookup(input.headers);
-  const url = new URL(input.url, input.origin);
+  const url = fastLaneUrl(input);
   // The lane reads `request.method`, `request.headers.get`, `url` and `cookies`.
   // A real `Request` would mean paying the bridging cost this lane exists to avoid.
   const request = { method: input.method, headers: { get: getHeader } } as unknown as Request;

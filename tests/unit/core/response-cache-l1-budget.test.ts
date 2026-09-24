@@ -117,6 +117,10 @@ describe("ResponseCache L1 byte budget", () => {
 
   it("decrements on invalidate, expiry, doc-scoped drop and invalidateAll", () => {
     responseCache.set(LIST_KEY, entry("d"), 300_000, "global");
+    // Point admission is 2-touch — a single sighting takes no slot (and the
+    // trimLocal hygiene now clears the admission filters between tests), so
+    // each point key is seen twice to be admitted.
+    responseCache.set(pointKey("doc-1"), entry("e"), 300_000, "global");
     responseCache.set(pointKey("doc-1"), entry("e"), 300_000, "global");
     expect(responseCache.getL1ByteStats().listBytes).toBeGreaterThan(0);
     expect(responseCache.getL1ByteStats().pointBytes).toBeGreaterThan(0);
@@ -147,6 +151,7 @@ describe("ResponseCache L1 byte budget", () => {
 
     // 4. Tenant-wide purge.
     responseCache.set(LIST_KEY, entry("g"), 300_000, "global");
+    responseCache.set(pointKey("doc-2"), entry("h"), 300_000, "global");
     responseCache.set(pointKey("doc-2"), entry("h"), 300_000, "global");
     void responseCache.invalidateAll("global");
     const purged = responseCache.getL1ByteStats();

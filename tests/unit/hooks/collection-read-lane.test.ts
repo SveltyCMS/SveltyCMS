@@ -26,13 +26,17 @@ vi.mock("@src/databases/tenant-adapter", () => ({
 }));
 
 vi.mock("@src/services/sdk", () => ({
-  LocalCMS: {
-    getLocals: () => ({
-      collections: {
-        find: findMock,
-        findById: findByIdMock,
-      },
-    }),
+  // The lane now holds one cached `LocalCMS` instance per process instead of
+  // building a per-request `getLocals` bridge, so the mock provides the same
+  // constructor shape with the two namespace methods the lane consumes.
+  LocalCMS: class {
+    constructor() {
+      /* adapter ignored */
+    }
+    collections = {
+      find: findMock,
+      findById: findByIdMock,
+    };
   },
 }));
 

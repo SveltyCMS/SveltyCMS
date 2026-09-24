@@ -148,6 +148,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Return dialect-specific JSON field extraction SQL (e.g., json_extract, JSON_EXTRACT, data->>). */
   public abstract getJsonField(field: string): SQL;
 
+  /**
+   * Called when a sort targets a dynamic `data` field with no physical column.
+   * Adapters with an expression-index capability (PostgreSQL) schedule a lazy
+   * `CREATE INDEX IF NOT EXISTS` here so repeated sorts stop paying the
+   * scan+sort (see `postgresql/adapter-core.ts`). Default: no-op.
+   */
+  protected onDynamicSort(_collection: string, _tableName: string, _field: string): void {}
+
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
   public abstract createDynamicTableDefinition(name: string): any;
 
@@ -1418,7 +1426,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
                   lastRef,
                   false,
                 );
-                if (dataCol) sortCol = this.getJsonField(s.field);
+                if (dataCol) {
+                  sortCol = this.getJsonField(s.field);
+                  // Lazy sort-index hook: adapters with an expression-index
+                  // capability (PostgreSQL) schedule a one-time index build so
+                  // the NEXT identical sort is index-served. Default no-op.
+                  this.onDynamicSort(collection, tableName, s.field);
+                }
               }
               if (sortCol) {
                 sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));

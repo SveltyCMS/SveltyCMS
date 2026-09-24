@@ -52,6 +52,20 @@ interface CoalescedCollectionRead {
 const inflightCollectionReads = new Map<string, Promise<CoalescedCollectionRead | null>>();
 const MAX_INFLIGHT_COLLECTION_READS = 64;
 
+/**
+ * Stateless SDK bridge — one instance per process. `LocalCMS.getLocals()`
+ * allocates a fresh locals bridge (~25 closures) on every call; the lane only
+ * ever reads `collections.findById`/`find` with explicit user/tenant options,
+ * so a cached instance serves identical results without the per-request
+ * allocation on the hot miss path.
+ */
+let laneCms: LocalCMS | null = null;
+function getLaneCms(): LocalCMS | null {
+  if (!dbAdapter) return null;
+  if (!laneCms) laneCms = new LocalCMS(dbAdapter);
+  return laneCms;
+}
+
 /** True for GET/HEAD of a collection list or single entry. */
 export function isSimpleCollectionRead(event: RequestEvent): boolean {
   const method = event.request.method;
@@ -86,6 +100,20 @@ export function isSimpleCollectionRead(event: RequestEvent): boolean {
 
 /** `SVELTY_SRV_DUR=1` records server time for inspect-mixed-cycle. Off on the replica. */
 const STAMP_SRV_DUR = process.env.SVELTY_SRV_DUR === "1";
+/**
+ * `SVELTY_SRV_SPLIT=1` decomposes a MISS rebuild into its phases and stamps
+ * them on the response (`x-srv-split`): lookup (cache get), db (findById),
+ * build (stringify + etag), cachewrite (responseCache.set), serve (Response
+ * build). Zero cost when off; the map is only allocated on misses while on.
+ */
+const STAMP_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT === "1";
+
+function stampSrvSplit(headers: Headers, marks: ReadonlyMap<string, number>): void {
+  if (!STAMP_SRV_SPLIT || marks.size === 0) return;
+  const parts: string[] = [];
+  marks.forEach((ms, label) => parts.push(`${label}=${ms.toFixed(2)}`));
+  headers.set("x-srv-split", parts.join(";"));
+}
 
 /**
  * Session id from classifyRequest when the hook already parsed the cookie.
@@ -140,8 +168,10 @@ async function executeWarmCollectionRead(
     url.searchParams.get("bypassCache") === "true" ||
     listParams?.bypassCache === true;
 
-  const srvT0 = STAMP_SRV_DUR ? performance.now() : 0;
+  const srvT0 = STAMP_SRV_DUR || STAMP_SRV_SPLIT ? performance.now() : 0;
+  const marks = STAMP_SRV_SPLIT ? new Map<string, number>() : null;
   const cached = bypass ? null : responseCache.get(pathKey, cacheTenant);
+  marks?.set("lookup", performance.now() - srvT0);
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
     stampSrvDur(res.headers, srvT0);
@@ -155,13 +185,16 @@ async function executeWarmCollectionRead(
     collectionId,
     entryId,
     listParams,
+    marks,
   );
   if (rebuilt) {
     // The leader is a miss. Waiters share the body the leader just cached
     // and are labelled as hits. Both use the prebuilt security headers.
     const res = rebuilt.response ?? serveTurboCacheEntry(event, rebuilt);
+    marks?.set("serve", performance.now() - srvT0);
     if (rebuilt.miss) res.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
     stampSrvDur(res.headers, srvT0);
+    if (marks) stampSrvSplit(res.headers, marks);
     return res;
   }
   return null;
@@ -174,6 +207,7 @@ async function coalesceCollectionRefill(
   collectionId: string,
   entryId: string | null,
   listParams: ReturnType<typeof parseCollectionQueryParams> | null,
+  marks: Map<string, number> | null,
 ): Promise<CoalescedCollectionRead | null> {
   const flightKey = `${cacheTenant ?? ""}:${pathKey}`;
   const inflight = inflightCollectionReads.get(flightKey);
@@ -202,6 +236,7 @@ async function coalesceCollectionRefill(
       collectionId,
       entryId,
       listParams,
+      marks,
     );
     return published;
   } finally {
@@ -218,10 +253,12 @@ async function rebuildWarmCollectionRead(
   collectionId: string,
   entryId: string | null,
   listParams: ReturnType<typeof parseCollectionQueryParams> | null,
+  marks: Map<string, number> | null,
 ): Promise<CoalescedCollectionRead | null> {
   const { locals } = event;
-  if (!dbAdapter) return null;
-  const cms = LocalCMS.getLocals(dbAdapter, locals);
+  const cms = getLaneCms();
+  if (!cms) return null;
+  const dbT0 = marks ? performance.now() : 0;
   const result = entryId
     ? await cms.collections.findById(collectionId, entryId, {
         user: locals.user,
@@ -245,6 +282,7 @@ async function rebuildWarmCollectionRead(
         populate: listParams!.populate,
         fields: listParams!.fields,
       });
+  marks?.set("db", performance.now() - dbT0);
 
   // One JSON string. The lane builds the only Response, from the prebuilt
   // security-header template. A second Response here was pure overhead on a miss.
@@ -272,10 +310,12 @@ async function rebuildWarmCollectionRead(
   // before its tag write for them — so building an entry-tag array there is
   // allocation the cold random-id path pays for and throws away.
   const tags = entryId ? null : collectionResponseCacheTags(collectionId, null).tags;
+  marks?.set("build", performance.now() - dbT0);
   responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
     ...(tags ? { tags } : {}),
     skipSharedL1: entryId != null,
   });
+  marks?.set("cachewrite", performance.now() - dbT0);
   return { body: apiBody, etag, miss: true };
 }
 

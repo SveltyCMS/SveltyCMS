@@ -272,6 +272,11 @@ const SKIP_IN_MATRIX = new Set([
   "chaos-resilience",
   "data-residency-failover",
   "database-failover",
+  // ── Diagnostic probes (run manually, not in the matrix) ──
+  "probe-point-read-split", // x-srv-split instrumentation probe, needs SVELTY_SRV_SPLIT=1
+  "probe-relationship-scale", // 500k-doc relationship/sort scale probe, seeds its own dataset
+  "probe-scale-limits", // 1M+ dataset complexity limit probe, needs the seeded bench-db
+  "probe-write-split", // write-lane phase decomposition + cold-session auth price, needs SVELTY_SRV_SPLIT=1
 ]);
 
 /**
@@ -623,6 +628,7 @@ async function run() {
     let serverExited = false;
     // One entry for both runtimes: `index.cjs` loads the shared
     // `index.server.mjs`, so a RUNTIME=bun matrix row needs no separate entry file.
+    const isBunRuntime = process.env.RUNTIME === "bun";
     const serverEntry = fs.existsSync(path.join(process.cwd(), "index.cjs"))
       ? "index.cjs"
       : "build/index.js";

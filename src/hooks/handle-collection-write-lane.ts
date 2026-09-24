@@ -33,6 +33,21 @@ import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 import { prefersMinimalReturn } from "@utils/http-preferences";
 
+/**
+ * `SVELTY_SRV_SPLIT=1` stamps the write lane's phases on the response
+ * (`x-srv-split`): security (WAF + CSRF + session/turbo + tenant), persist
+ * (the SDK create/update incl. detached post-write scheduling), serve
+ * (envelope + security headers). Zero cost when off.
+ */
+const STAMP_WRITE_SPLIT = process.env.SVELTY_SRV_SPLIT === "1";
+
+function stampWriteSplit(headers: Headers, marks: Map<string, number>): void {
+  if (!STAMP_WRITE_SPLIT || marks.size === 0) return;
+  const parts: string[] = [];
+  marks.forEach((ms, label) => parts.push(`${label}=${ms.toFixed(2)}`));
+  headers.set("x-srv-split", parts.join(";"));
+}
+
 function unwrapWritePayload(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const obj = raw as Record<string, unknown>;
@@ -50,6 +65,19 @@ function unwrapWritePayload(raw: unknown): unknown {
 }
 
 const SKIP_COLLECTION_IDS = new Set(["search", "reorder", "warm-cache", "list"]);
+
+/**
+ * Stateless SDK bridge — one instance per process (same pattern as the read
+ * lane: `LocalCMS.getLocals()` allocates a fresh facade per request, the
+ * namespaces are stateless per adapter and tenancy comes from
+ * `applyAdapterTenantContext`).
+ */
+let laneCms: LocalCMS | null = null;
+function getLaneCms(): LocalCMS | null {
+  if (!dbAdapter) return null;
+  if (!laneCms) laneCms = new LocalCMS(dbAdapter);
+  return laneCms;
+}
 
 /** True for simple REST create (POST collection) or update (PATCH/PUT entry). */
 export function isSimpleCollectionWrite(event: RequestEvent): boolean {
@@ -82,6 +110,8 @@ function hasWarmSession(event: RequestEvent): boolean {
 
 async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response | null> {
   const { request, url, cookies, locals } = event;
+  const t0 = STAMP_WRITE_SPLIT ? performance.now() : 0;
+  const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
   const wafCheck = wafGuard.inspectEvent(event);
   if (wafCheck.blocked) {
     throw new AppError(wafCheck.reason ?? "Security Policy Violation", 400);
@@ -111,6 +141,7 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
   const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
   if (tenantP) await tenantP;
+  marks?.set("security", performance.now() - t0);
 
   if (!isAdmin(turbo.user) && turbo.user?.role !== "admin") {
     throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
@@ -121,7 +152,8 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   const entryId = parts[3];
   const raw = await request.json();
   const data = unwrapWritePayload(raw);
-  const cms = LocalCMS.getLocals(dbAdapter, locals);
+  const cms = getLaneCms();
+  if (!cms) return null;
   const tenantId = locals.tenantId as DatabaseId;
   const user = locals.user;
 
@@ -139,6 +171,7 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
       ...(minimal ? { skipReturning: true } : {}),
     });
   }
+  marks?.set("persist", performance.now() - t0);
 
   // L1/L2 invalidation is already scheduled by collections.create/update
   // (schedulePostWrite). A second invalidateCollection here double-bumps the
@@ -159,6 +192,8 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
     request.headers.get("Origin"),
     url.pathname,
   );
+  marks?.set("serve", performance.now() - t0);
+  if (marks) stampWriteSplit(res.headers, marks);
   return res;
 }
 

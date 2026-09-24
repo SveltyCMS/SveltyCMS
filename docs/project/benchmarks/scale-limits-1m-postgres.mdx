@@ -1,0 +1,138 @@
+---
+path: /docs/project/benchmarks/scale-limits-1m-postgres
+title: Scale Limits at 1M+ Documents
+description: Measured behaviour of SveltyCMS on an untweaked PostgreSQL at 1.1M–1.5M documents — where the cost cliffs are, which are code and which are hardware.
+order: 90
+icon: "mdi:chart-timeline-variant-shimmer"
+author: SveltyCMS
+created: 2026-09-24
+updated: 2026-09-24
+tags:
+  - "benchmarks"
+  - "scale"
+  - "postgresql"
+  - "performance"
+---
+
+# 🏔️ Scale Limits at 1M+ Documents (PostgreSQL, untweaked)
+
+> **What this page is:** the measured behaviour of the current code on the current hardware **without database tweaks** — the same stock `bench-db` container (`postgres:latest` 18.4, `shared_buffers=128MB`, no manual indexes, no partitioning) the competitive harness uses. It answers "what happens at 500k / 1M / more" with numbers, and separates code-level weaknesses from hardware/page-cache physics.
+
+> **Method:** `tests/benchmarks/probe-scale-limits.test.ts` (diagnostic probe, excluded from the matrix) against a production-mode server (fast lane active). Forced cache misses via `bypassCache=true` + a cache-busting `x` parameter, so every sample is a real query, not a cache hit. Slow lanes: 3 sequential samples. Fast lanes: 8 workers × 100 iterations. Measured 2026-09-24, single host, Windows-native Node, containerized PostgreSQL via host port 5433.
+
+**Dataset at measurement time:**
+
+| Table                          |      Rows | Shape                                                           |
+| :----------------------------- | --------: | :-------------------------------------------------------------- |
+| `collection_BenchmarkStable`   | 1 124 332 | ~1.8 KB/row (`data` jsonb + physical columns), 12 stock indexes |
+| `collection_benchmark_posts`   | 1 500 300 | `author` relation → `benchmark_authors`                         |
+| `collection_benchmark_authors` |     6 010 | relation target                                                 |
+
+## The matrix (avg ms per request; RPS at 8 workers)
+
+| Workload                             | Mode |           Cost | Throughput | Verdict                                                 |
+| :----------------------------------- | :--- | -------------: | ---------: | :------------------------------------------------------ |
+| Point read, random PK                | seq  |         3–9 ms |          — | page-cache-bound (see L1)                               |
+| Point read, random PK                | 8c   |        2.94 ms |  2 641 RPS | ≈ −40 % vs 100k docs (~4.5k RPS)                        |
+| List plain (limit 10), real query    | seq  |         2.6 ms |          — | flat — index scan, no dataset dependency                |
+| List populated (`populate=author`)   | 8c   |        4.94 ms |  1 566 RPS | **O(page)** — relation cost ≈ +0.05 ms at 1.5M          |
+| Filter + sort, **physical** field    | 8c   |       13.05 ms |    583 RPS | DB itself: 0.1 ms (indexed) — see W3                    |
+| Filter + sort, **dynamic** field     | seq  | **167–234 ms** |     ~4 RPS | **W1 — the hard cliff** (3.8 s cold buffers)            |
+| List large (limit 100), dynamic sort | seq  |         166 ms |     ~6 RPS | same cliff as W1                                        |
+| `includeCount=true`                  | seq  |         2.8 ms |          — | COUNT over the filtered set (count-cache helps in prod) |
+| Deep offset (`offset=1 000 000`)     | seq  |         143 ms |     ~7 RPS | **W2 — the offset cliff**                               |
+| GraphQL list (limit 10)              | 8c   |        3.71 ms |  2 094 RPS | flat                                                    |
+| Create (small doc)                   | 8c   |         7.0 ms |  1 126 RPS | −28 % vs 100k (~1.56k RPS) — W5 index upkeep            |
+| Update (patch counter)               | 8c   |         7.4 ms |  1 054 RPS | same as create                                          |
+| Missing id (404)                     | 8c   |        0.88 ms |  8 798 RPS | flat — negative path is size-independent                |
+
+## The cliffs (weaknesses found, ranked by impact)
+
+> **Status 2026-09-24 (evening session):** W1 fixed (lazy expression index, measured 60× on the sort), W4 fixed (build patch, verified 821 KB bulk), W3 implemented (capacity-gated list admission, unit-tested), W5 **refuted** by a controlled A/B (see below), W2 deferred (SDK keyset cursor needs the composite-keyset fix before REST exposure).
+
+### W1 — Dynamic-field sort/filter is a full scan + sort (the hard cliff) ✅ FIXED
+
+`ORDER BY data->>'count'` cannot be served by any stock index. At 1.1M rows the planner chooses a **parallel seq scan over the whole table + top-N heapsort**: 167–234 ms with warm buffers, **3.8 s** with cold buffers (measured via `EXPLAIN ANALYZE`), and it scales linearly with row count.
+
+**Fix shipped (lazy expression index, `SVELTY_LAZY_SORT_INDEXES=0` opts out):** the first sorted query on a dynamic scalar field schedules `CREATE INDEX IF NOT EXISTS ((data->>'field'))` in the background (`onDynamicSort` hook in `sql-adapter-core.ts`, PostgreSQL implementation in `postgresql/adapter-core.ts`). The ORDER BY already emits that exact literal expression, so PostgreSQL serves every subsequent sort with an index scan. Bounded registry (64 entries, FIFO), one build per (collection, field) per process, fire-and-forget (no query pays the build), field names regex-gated to plain identifiers before inlining. Measured: **167–340 ms → 5.1 ms** per request at 1.1M rows (DB part 0.08 ms); the physical-column materialization path (`indexed: true`) remains the explicit option. MariaDB/SQLite keep the old behaviour (SQLite binds the JSON path as a parameter, so an expression index cannot match); Mongo fields are native.
+
+### W2 — Deep-offset pagination is a scan-skip ⏸️ DEFERRED (documented)
+
+`offset=1 000 000` costs 143 ms (index scan skipping a million rows) and grows linearly. The SDK already has keyset pagination (`decodePageCursor` / `mergeKeysetFilter` / `encodePageCursor`), but the REST list endpoint only accepts `offset`. Exposing the cursor on `/api/collections` is deferred on purpose: the SDK's field-based keyset currently merges a single-condition filter (`field < v`), so rows sharing a sort value can repeat/skip across pages — the composite keyset (`(field < v) OR (field = v AND _id < id)`) must be fixed in `mergeKeysetFilter` first, then the REST surface ships with it. No hard limit was introduced meanwhile.
+
+### W3 — High-cardinality list URLs churn the L1 list tier ✅ IMPLEMENTED
+
+With `bypassCache=true` and a unique cache-busting parameter per request, the filter+sort-physical lane measured 13 ms at 8c against a **0.1 ms** query. Corrected attribution: that number is the lane's per-request rebuild work (36 KB `JSON.stringify` + cache write at 8c), not eviction churn — the tier was below capacity during the probe. The churn risk is real at capacity, and it is now gated: the list tier keeps first-touch admission **while it has room** (lists are re-read), and switches to 2-touch admission **at the entry or byte bound**, so a flood of unique list URLs costs one bounded `Set` insert instead of evict-and-reinsert cycles. Replacements of already-admitted keys always land (the post-write dispatcher re-set). Unit-tested in `tests/unit/core/request-classifier-and-response-cache.test.ts`.
+
+### W4 — adapter-node's default `BODY_SIZE_LIMIT` (512 KB) breaks large bulk payloads ✅ FIXED
+
+The `index.cjs` entry raises `BODY_SIZE_LIMIT` to 100 MB before the handler loads; the `build/index.js` (adapter-node) entry did not, so a bulk seed chunk of 500 ~1 KB docs (≈ 530 KB) was rejected with a kit-level 413 and the caller fell back to per-item creates — exactly why the external container seeded at ~1.4k docs/s instead of ~30k. **Fix shipped:** the build patch (`adapterNodeBuildPatchPlugin`) rewrites the handler chunk's `BODY_SIZE_LIMIT` default from `512K` to `100M` (the kit parser accepts K/M/G suffixes only — `100MB` would throw at boot). The app's own 15 MB `API_MAX_BODY_SIZE_BYTES` guard stays the real ceiling. Verified live: an 821 KB bulk POST returns 201 on the patched adapter-node entry.
+
+### W5 — Write cost grows with the index count ❌ REFUTED by measurement
+
+Create/update at 1.1M rows cost ~7 ms vs ~5 ms at 100k (−28 % throughput) — but a controlled A/B (`scripts/benchmark-matrix/probe-write-index-cost.ts`, 100k rows, 8c, identical column set) measures the 12-index + GIN shape at **0.93–0.97× of the 4-index shape**: insert 3 152 vs 3 237 RPS, update 2 917 vs 3 138 RPS. Index maintenance costs **3–7 %**, not the gap. The write gap lives in the application layer — see the ceiling map below.
+
+## Ceiling gap map (CMS vs the raw driver, 2026-09-24)
+
+`bun scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql --scale=1000,100000,1000000` measures the bare driver floor per operation; the CMS column is the freshest recorded replica row (100k docs, 8c, production mode, same host). **Reads are at the driver ceiling — writes have the only remaining 2× headroom:**
+
+| Op             | Driver ceiling (8c) |       CMS (8c) | Gap                    |
+| :------------- | ------------------: | -------------: | :--------------------- |
+| findById (hot) |           15.4k RPS |      16.0k RPS | **at ceiling (cache)** |
+| findMissing    |           15.4k RPS |      17.6k RPS | above (negative cache) |
+| listPlain      |            8.0k RPS | 11.3–13.5k RPS | above (cache)          |
+| create         |            3.2k RPS |       1.5k RPS | **~50 % of ceiling**   |
+| update         |            2.9k RPS |       1.5k RPS | **~50 % of ceiling**   |
+| bulk seed      |         140k docs/s |    ~34k docs/s | ~24 % (not scored)     |
+
+With W5 refuted, the write gap is app work on the write lane (session/CSRF revalidation, invalidation machinery, response serialization) on top of the WAL-commit floor — the next lever is a write-lane decomposition (the same `x-srv-dur` split methodology that decomposed the read MISS), not more DB or index work.
+
+## Verdicts on the external weak-point analysis (2026-09-24)
+
+A reviewer analysis claimed three weak spots (security overhead, write collapse under load, list serialization). Each was re-measured against the write-lane split probe (`tests/benchmarks/probe-write-split.test.ts`, `x-srv-split` phases, PostgreSQL, 8c) and the controlled driver A/Bs:
+
+| Claim                                            | Verdict                             | Measurement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| :----------------------------------------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Security middleware binds CPU at concurrency     | **Refuted**                         | security phase (WAF + CSRF + session + tenant) p50 **0.010–0.020 ms** per request at 8c; the real auth price is **once per session** — the first read after a fresh login costs ~3.8 ms (full session validation + device policy), every later request rides the turbo-auth cache                                                                                                                                                                                                                                                                                                           |
+| Writes collapse under load via blocking hooks    | **Partially real, different cause** | create/update run at **~50 % of the driver ceiling** (1.5k vs 3.2k/2.9k RPS) — but the post-write is already detached (microtask-debounced invalidation, coalesced outbox queue), `RETURNING *` costs **0–7 %** (measured A/B), indexes **3–7 %** (W5 refuted), and the audit chain + outbox (when enabled — the external container runs them) add ~2–2.5 ms per write as the price of the integrity guarantees. The remaining gap is spread across the SDK write path (validation/sanitize/hooks/row mapping) on the WAL-commit floor — the batching lever stays documented in the roadmap |
+| List serialization is the concurrency bottleneck | **Refuted**                         | listLarge at 8c is 2.0–2.5 ms / 3.1–4.3k RPS (not seconds); the lane serializes each MISS exactly once, caches the bytes and serves hits with the byte hand-off (fixed 2026-09-24)                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+No code change was needed for claims 1 and 3 — they are already the measured behaviour. For claim 2 the write lane now reuses the process-wide `LocalCMS` instance (same pattern as the read lane), removing the per-request facade allocation; the remaining write headroom is commit-bound and documented in the roadmap.
+
+## Hardware/page-cache limits (not code)
+
+### L1 — Random point reads become page-cache-bound
+
+A PK lookup itself executes in 0.32 ms (2 buffers) at any size. But a 1.4 GB table against `shared_buffers=128MB` means most random lookups read pages from the OS cache: ~3 ms sequential, overlapping to 2.6k RPS at 8c, versus ~0.7 ms / 4.5k RPS at 100k docs. Fixes live in the deployment (larger `shared_buffers`, faster disk, partitioning), not in application code.
+
+### L2 — `includeCount` is a COUNT over the filtered set
+
+2.8 ms at 1.1M rows with no filter — linear in the matching rows. In production the count-cache and the 180 s query cache absorb repeats; a cold, high-cardinality `includeCount` workload is the exception.
+
+## Known ceilings (by design, not defects)
+
+| Ceiling                    | Value         | Effect at 1M+                                                                                  |
+| :------------------------- | :------------ | :--------------------------------------------------------------------------------------------- |
+| `MAX_PAGE_SIZE` (REST/SDK) | 200           | a `limit` above it is clamped — pagination must page                                           |
+| Point-read L1 FIFO         | 2 000 entries | cache hit rate for uniform-random ids ≈ 0.2 % at 1M docs (by design — see `response-cache.ts`) |
+| Query cache TTL            | 180 s         | repeated identical filter/sort queries are served from cache — hides W1 for same-URL traffic   |
+| Bulk chunk ceiling         | 500 items/req | larger datasets seed in more requests, not bigger ones                                         |
+
+## Reproduction
+
+```bash
+# bench-db (the competitive harness's session Postgres) must be running:
+docker start bench-db
+
+DB_TYPE=postgresql DB_HOST=127.0.0.1 DB_PORT=5433 DB_USER=bench DB_PASSWORD=bench \
+DB_NAME=sveltycms_bench SVELTY_BENCHMARK_SERVER_MODE=production \
+bun test tests/benchmarks/probe-scale-limits.test.ts
+```
+
+`SCALE_ITERS` / `SCALE_SLOW` tune sample counts; the probe is excluded from the benchmark matrix (`SKIP_IN_MATRIX`).
+
+## Related
+
+- [Benchmarks index](./index.mdx)
+- [Roadmap 2026](../roadmap-2026.mdx) — the fast-lane and competitive-lane work
+- [Server Hooks & Middleware](../../reference/architecture/server-hooks.mdx) — cold point-read attribution table

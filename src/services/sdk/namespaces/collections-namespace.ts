@@ -1128,7 +1128,9 @@ export class CollectionsNamespace {
     // 🚀 SYNC L1 HIT: Use synchronous L1 check instead of async L2 get.
     // For findByIdRandom (10K distinct IDs), the async cacheService.get() costs
     // ~5µs per miss just in microtask overhead — getSync eliminates that.
-    if (!bypassCache) {
+    // Callers that opted out of the shared cache (skipCacheService — the HTTP
+    // read lane) never wrote this key, so the probe is a guaranteed miss.
+    if (!bypassCache && !options.skipCacheService) {
       const syncCached = cacheService.getSync?.<any>(cacheKey, (tenantId || undefined) as string);
       if (syncCached !== undefined && syncCached !== null) {
         CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);

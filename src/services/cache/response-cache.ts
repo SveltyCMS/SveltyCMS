@@ -41,6 +41,8 @@ const MAX_POINT_L1_ENTRIES = 2000;
  * one Set insert per id and never takes a response slot.
  */
 const MAX_POINT_ADMISSION = 8192;
+/** Bound for the list tier's capacity-gated admission filter (see `admitListRead`). */
+const MAX_LIST_ADMISSION = 8192;
 /**
  * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
  * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
@@ -273,6 +275,17 @@ class ResponseCacheService {
    * cached as before. Bounded FIFO so the filter itself cannot grow without limit.
    */
   private pointAdmission = new Set<string>();
+  /**
+   * Capacity-gated 2-touch filter for the LIST tier. First-touch admission is
+   * kept while the tier has room (lists are re-read far more often than random
+   * point reads, so the first sighting should cache like before). Once the tier
+   * sits at its entry OR byte bound, only a second sighting buys a slot — a
+   * high-cardinality list URL stream (search pages, many distinct query
+   * strings) then costs one Set insert per URL instead of evict-and-reinsert
+   * churn (putEntry + byte accounting + index + enforce) on every request,
+   * which at 8c measured ~13 ms per request against a 0.1 ms query.
+   */
+  private listAdmission = new Set<string>();
   /** fullKey → classification, so FIFO eviction and surgical invalidation stay O(touched). */
   private l1Meta = new Map<
     string,
@@ -328,6 +341,29 @@ class ResponseCacheService {
     if (this.pointAdmission.size > MAX_POINT_ADMISSION) {
       const oldest = this.pointAdmission.values().next().value;
       if (oldest !== undefined) this.pointAdmission.delete(oldest);
+    }
+    return false;
+  }
+
+  /**
+   * True when this LIST-tier key may take a slot. Below capacity every key is
+   * admitted (first touch caches — lists are re-read); at capacity the tier
+   * switches to 2-touch admission so a flood of unique list URLs cannot churn
+   * the store. Replacements of an already-admitted key always pass — the
+   * dispatcher re-sets list entries after writes and that re-set must land.
+   */
+  private admitListRead(fullKey: string, store: Map<string, CachedResponseEntry>): boolean {
+    if (store.has(fullKey)) return true;
+    const atCapacity = store.size >= MAX_L1_ENTRIES || this.l1Bytes >= this.l1ByteBudget(false);
+    if (!atCapacity) return true;
+    if (this.listAdmission.has(fullKey)) {
+      this.listAdmission.delete(fullKey);
+      return true;
+    }
+    this.listAdmission.add(fullKey);
+    if (this.listAdmission.size > MAX_LIST_ADMISSION) {
+      const oldest = this.listAdmission.values().next().value;
+      if (oldest !== undefined) this.listAdmission.delete(oldest);
     }
     return false;
   }
@@ -646,9 +682,13 @@ class ResponseCacheService {
 
     const max = inferredPointRead ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
     // 🔎 Point-tier admission: a cold id must not buy a slot (see `pointAdmission`).
-    // The shared L2 write below still happens for callers that opted into it — only the
-    // L1 slot, its indexing and its byte budget are gated.
-    if (!inferredPointRead || this.admitPointRead(fullKey)) {
+    // List-tier admission is capacity-gated (see `admitListRead`). The shared L2
+    // write below still happens for callers that opted into it — only the L1 slot,
+    // its indexing and its byte budget are gated.
+    const admitted = inferredPointRead
+      ? this.admitPointRead(fullKey)
+      : this.admitListRead(fullKey, store);
+    if (admitted) {
       this.putEntry(store, fullKey, entry);
       this.enforceL1Capacity(store, max);
       this.indexKey(fullKey, key, tenantId);
@@ -776,6 +816,8 @@ class ResponseCacheService {
     this.listIndex.clear();
     this.entryIndex.clear();
     this.graphqlIndex.clear();
+    this.pointAdmission.clear();
+    this.listAdmission.clear();
   }
 }
 

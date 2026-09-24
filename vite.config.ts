@@ -833,14 +833,27 @@ function copyWorkerFilePlugin(): Plugin {
  *    Fix: restore the adapter-node v5 runtime contract — read `ORIGIN` from
  *    the environment at server start. When unset, behaviour is unchanged.
  *
- * 2. On Windows, Rolldown's code-splitting group for the adapter's `dir.js`
- *    entry (which should emit `build/dir.js`) fails to match the Windows
- *    path, so `dir.js` gets INLINED into the handler chunk as
- *    `const dir = dirname(fileURLToPath(import.meta.url))`. Since the chunk
- *    lives in `build/server/chunks/`, `dir` resolves there instead of the
- *    build root, and every client asset 404s (asset_dir =
- *    `<chunks>/client`) — the app never hydrates. On Linux the group splits
- *    correctly, so this only rewrites the inlined form when present.
+ * 3. `build/index.js` (adapter-node entry) gets the SAME fast-lane dispatch
+ *    that `index.server.mjs` performs for the `index.cjs` entry: GET/HEAD
+ *    requests consult `globalThis.__SVELTY_FAST_LANES__` (published by
+ *    `installFastLanes()` at boot) before the full SvelteKit pipeline. Both
+ *    entries call the identical lane functions, so auth, tenancy, publication
+ *    clamping and security headers stay in one place — only the transport is
+ *    shared, and `BENCH_VERIFY_RAW=1` proves both transports byte-identical
+ *    inside a single server run. Also adds the per-socket `noDelay` that
+ *    `index.server.mjs` sets, so small JSON responses are not held by Nagle.
+ *    Both edits are pattern-guarded: a changed adapter-node template leaves
+ *    the entry untouched (with a warning) instead of corrupting it.
+ *
+ * 4. The handler chunk's kit-level `BODY_SIZE_LIMIT` default (512K) is
+ *    raised to 100M — the same value `index.server.mjs` configures for the
+ *    `index.cjs` entry (the kit parser accepts K/M/G suffixes only, so
+ *    "100MB" would throw at boot). The app's own 15MB
+ *    `API_MAX_BODY_SIZE_BYTES` guard (`@utils/api-body-limits`) is the real
+ *    ceiling for API bodies, so the kit default must never reject a body the
+ *    app would accept (a 500-doc bulk seed chunk is ~530KB — at 512K it
+ *    failed with a kit-level 413 and the seeder fell back to per-item
+ *    creates). Pattern-guarded like the other patches.
  */
 function adapterNodeBuildPatchPlugin(): Plugin {
   return {
@@ -883,6 +896,22 @@ function adapterNodeBuildPatchPlugin(): Plugin {
               await fsPromises.writeFile(filePath, code);
               log.info(`patched adapter handler (${path.relative(CWD, filePath)})`);
             }
+
+            // Kit-level body ceiling: the app enforces its own 15MB
+            // API_MAX_BODY_SIZE_BYTES in the dispatcher, so the kit default
+            // must never reject first (see the plugin doc comment). Applied
+            // BEFORE the write above — all three patches land in one write.
+            const bodyLimitPattern = /parse_as_bytes\(env\("BODY_SIZE_LIMIT", "512K"\)\)/;
+            if (bodyLimitPattern.test(code)) {
+              code = code.replace(
+                bodyLimitPattern,
+                'parse_as_bytes(env("BODY_SIZE_LIMIT", "100M"))',
+              );
+              changed = true;
+            }
+            if (changed) {
+              await fsPromises.writeFile(filePath, code);
+            }
           }
         }
 
@@ -898,6 +927,78 @@ function adapterNodeBuildPatchPlugin(): Plugin {
             );
             await fsPromises.writeFile(bunHandlerPath, code);
             log.info(`patched svelte-adapter-bun handler (${path.relative(CWD, bunHandlerPath)})`);
+          }
+        }
+
+        // Patch the adapter-node ENTRY (build/index.js) with the fast-lane
+        // dispatch + per-socket noDelay — see the plugin doc comment above.
+        // The entry imports `handler` from the (possibly hashed) chunk, so the
+        // patch only touches the listener body and never the import graph.
+        const nodeEntryPath = path.resolve(CWD, "build/index.js");
+        if (existsSync(nodeEntryPath)) {
+          let code = readFileSync(nodeEntryPath, "utf8");
+          let changed = false;
+
+          const serverPattern = /const httpServer = http\.createServer\(\);/;
+          if (serverPattern.test(code)) {
+            code = code.replace(
+              serverPattern,
+              "const httpServer = http.createServer();\n" +
+                "//#region svelty-fast-lanes (patched): same socket policy as index.server.mjs\n" +
+                'httpServer.on("connection", (socket) => socket.setNoDelay(true));\n' +
+                "//#endregion",
+            );
+            changed = true;
+          } else {
+            log.warn(
+              `adapter-node entry patch: http.createServer pattern not found in ${path.relative(CWD, nodeEntryPath)}`,
+            );
+          }
+
+          const listenerPattern =
+            /return handler\(req, res, \(\) => \{\n\t\tres\.statusCode = 404;\n\t\tres\.end\(\);\n\t\}\);/;
+          if (listenerPattern.test(code)) {
+            code = code.replace(
+              listenerPattern,
+              "const __svelty_next = () => {\n" +
+                "\t\tres.statusCode = 404;\n" +
+                "\t\tres.end();\n" +
+                "\t};\n" +
+                "\t//#region svelty-fast-lanes (patched): consult the lane registry before the full pipeline\n" +
+                '\tconst __svelty_lanes = globalThis["__SVELTY_FAST_LANES__"];\n' +
+                '\tif (__svelty_lanes && (req.method === "GET" || req.method === "HEAD") && req.headers["x-fast-lane"] !== "off") {\n' +
+                "\t\t__svelty_lanes({\n" +
+                "\t\t\tmethod: req.method,\n" +
+                '\t\t\turl: req.url || "/",\n' +
+                '\t\t\torigin: process.env.ORIGIN || `http://${req.headers.host || "localhost"}`,\n' +
+                "\t\t\theaders: req.headers,\n" +
+                "\t\t})\n" +
+                "\t\t\t.then((out) => {\n" +
+                "\t\t\t\tif (!out) {\n" +
+                "\t\t\t\t\thandler(req, res, __svelty_next);\n" +
+                "\t\t\t\t\treturn;\n" +
+                "\t\t\t\t}\n" +
+                "\t\t\t\tres.writeHead(out.status, out.headers);\n" +
+                "\t\t\t\tres.end(out.body);\n" +
+                "\t\t\t})\n" +
+                "\t\t\t.catch(() => handler(req, res, __svelty_next));\n" +
+                "\t\treturn;\n" +
+                "\t}\n" +
+                "\t//#endregion\n" +
+                "\treturn handler(req, res, __svelty_next);",
+            );
+            changed = true;
+          } else {
+            log.warn(
+              `adapter-node entry patch: request-listener pattern not found in ${path.relative(CWD, nodeEntryPath)}`,
+            );
+          }
+
+          if (changed) {
+            await fsPromises.writeFile(nodeEntryPath, code);
+            log.info(
+              `patched adapter-node entry with fast lanes (${path.relative(CWD, nodeEntryPath)})`,
+            );
           }
         }
       },

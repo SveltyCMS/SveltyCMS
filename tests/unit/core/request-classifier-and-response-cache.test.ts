@@ -362,4 +362,58 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     expect(responseCache.get(list, tenant)?.body).toBe('{"items":[]}');
     await responseCache.clearLocal();
   });
+
+  test("list tier admits first touch while below capacity", async () => {
+    await responseCache.clearLocal();
+    const tenant = "list-first-touch";
+    const key = buildUserResponseCacheKey("/api/collections/posts", "?limit=10", "user-1");
+    responseCache.set(key, { body: '{"items":[]}', etag: '"l"' }, 60_000, tenant);
+    expect(responseCache.get(key, tenant)?.body).toBe('{"items":[]}');
+    await responseCache.clearLocal();
+  });
+
+  test("list tier switches to 2-touch admission at entry capacity", async () => {
+    await responseCache.clearLocal();
+    const tenant = "list-capacity";
+    // Fill the 2000-slot tier with tiny bodies so the byte budget is not the
+    // binding constraint — the entry cap is what the gate reads.
+    for (let i = 0; i < 2000; i++) {
+      responseCache.set(
+        buildUserResponseCacheKey("/api/collections/posts", `?x=${i}`, "user-1"),
+        { body: "{}", etag: '"e"' },
+        60_000,
+        tenant,
+      );
+    }
+    const fresh = buildUserResponseCacheKey("/api/collections/posts", "?x=fresh", "user-1");
+    // First sighting at capacity: remembered in the filter, no slot taken.
+    responseCache.set(fresh, { body: '{"fresh":1}', etag: '"f"' }, 60_000, tenant);
+    expect(responseCache.get(fresh, tenant)).toBeNull();
+    // Second sighting: admitted.
+    responseCache.set(fresh, { body: '{"fresh":1}', etag: '"f"' }, 60_000, tenant);
+    expect(responseCache.get(fresh, tenant)?.body).toBe('{"fresh":1}');
+    await responseCache.clearLocal();
+  });
+
+  test("replacement of an admitted list entry always lands (post-write re-set)", async () => {
+    await responseCache.clearLocal();
+    const tenant = "list-replace";
+    for (let i = 0; i < 2000; i++) {
+      responseCache.set(
+        buildUserResponseCacheKey("/api/collections/posts", `?x=${i}`, "user-1"),
+        { body: "{}", etag: '"e"' },
+        60_000,
+        tenant,
+      );
+    }
+    const key = buildUserResponseCacheKey("/api/collections/posts", "?x=hot", "user-1");
+    // Admit via two touches…
+    responseCache.set(key, { body: '{"v":1}', etag: '"1"' }, 60_000, tenant);
+    responseCache.set(key, { body: '{"v":1}', etag: '"1"' }, 60_000, tenant);
+    expect(responseCache.get(key, tenant)?.body).toBe('{"v":1}');
+    // …then the dispatcher-style re-set with a fresh body must replace, never skip.
+    responseCache.set(key, { body: '{"v":2}', etag: '"2"' }, 60_000, tenant);
+    expect(responseCache.get(key, tenant)?.body).toBe('{"v":2}');
+    await responseCache.clearLocal();
+  });
 });
