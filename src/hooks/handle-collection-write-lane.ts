@@ -21,6 +21,7 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { getTurboAuthContext } from "./handle-turbo-get";
+import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
 import { wafGuard } from "./handle-waf-guard";
 import { dbAdapter } from "@src/databases/db";
@@ -169,6 +170,9 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   if (!isSimpleCollectionWrite(event) || !hasWarmSession(event) || !dbAdapter) {
     return resolve(event);
   }
+  // 🛡️ Operational-state gate: the write lane never runs `handle-system-state`,
+  // so a MAINTENANCE/RECOVERY/FAILED instance must not accept mutations here.
+  if (!isLaneServingAllowed()) return resolve(event);
   try {
     return await handleRateLimit({
       event,

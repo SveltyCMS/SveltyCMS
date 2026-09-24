@@ -1600,6 +1600,20 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 
 ---
 
+### 3.26 September 2026 — Fast lanes on by default, gated by system state
+
+The raw-transport fast lanes answered a narrow request class (warm-session admin collection reads) straight to the socket, skipping adapter-node's `IncomingMessage → Request` and `Response → stream` bridging while calling the very same lane function the pipeline calls. They shipped opt-in (`SVELTY_FAST_LANE=1`, default off) with two open questions: the bypass point sits before every hook, and no lane re-applied the `system-state` decision.
+
+- **`system-state` is now re-implemented for lane traffic** (`src/hooks/lane-state-gate.ts`), against the same module-level state mirror the gatekeeper reads, with the same predicate as `handleTurboPipeline`: `READY`/`WARMED`/`WARMING`/`DEGRADED` serve, `SETUP`/`IDLE`/`INITIALIZING`/`MAINTENANCE`/`RECOVERY`/`FAILED` decline to the pipeline. Consulted in the read lane, the write lane and the registry dispatch — the last one so a lane added later cannot serve a state the operator took the instance out of.
+- **Default flipped to ON** (`SVELTY_FAST_LANE=0` opts out) so the setting is a documented deployment default rather than a benchmark-only flag, and the transport is symmetric rather than a comparison artifact.
+- **Regression caught by measurement**: the lane shim converted the prebuilt body with `Response.text()` and handed the string to `res.end()`, so every wide list body was decoded and re-encoded per request — `listLarge` TURBO-HIT **2.64 ms bridged → 4.76 ms through the lane**. Handing Node the bytes (`arrayBuffer()`, `content-length` from `byteLength`) restores **2.85 ms**.
+- **Measured, paired** (PostgreSQL, 10 000 docs, 8c, replica protocol, 3–4 rounds per arm): `findByIdRandom` **3,235 → 3,655 RPS median (+13 %)** with the lane on versus off; `findById` **7,067 → 9,194**; `listPlain` **7,187 → 10,876**; `findMissing` **8,138 → 9,496**. A dedicated 20,000-read load driver agrees: **3,080 → 4,401 RPS**, with the server-only CPU profile putting ~10 % of samples in undici `Request` construction, 5.7 % in adapter-node's static-asset check and ~12 % in socket writes.
+- **Confirmed at the published dataset size** (100,000 docs, paired, `update` carried as the control lane because it is not lane-served): `findByIdRandom` **2,631 → 3,919 (+49 %)** and **3,139 → 3,883 (+24 %)**, median **2,885 → 3,901 RPS (+35 %)** — **+11 % over the published competitor row (3,504 RPS)** — while the control stayed flat at ±3 %. This supersedes an earlier session's reading that the row goes neutral or negative at 100 k; that reading predated the byte hand-off fix and was taken with the lane still opt-in.
+- **Write coalescing was built, gated, and rejected by its own gate** (`SVELTY_WRITE_COALESCE`, since deleted) — see the roadmap entry: 120/128 concurrent PATCHes batched correctly at an average size of 5 and every caller got its own row, but the lane measured **−29 % median over three alternated pairs** on PostgreSQL (median 1,305 → 933 RPS, warm p95 7.7 → 15.7–20.4 ms) against a flat control, because at 8 workers PostgreSQL already group-commits overlapping statements. The negative result is recorded rather than shipped as an off-by-default path.
+- **Verification**: unit **4,866/4,866**; `tests/unit/hooks/fast-lane-policy.test.ts` pins the state matrix, the dispatch backstop and the default-on/opt-out contract; `collection-read-lane.test.ts` establishes its operational-state precondition explicitly.
+
+---
+
 **References:**
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)

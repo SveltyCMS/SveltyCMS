@@ -12,22 +12,27 @@
  * transports byte-identical inside a single server run.
  *
  * ### Features:
- * - `SVELTY_FAST_LANE=1` registers the lanes; unset ⇒ one env read at boot
+ * - ON by default for the `node:http` entry; `SVELTY_FAST_LANE=0` opts out and
+ *   installs nothing (one env read at boot)
  * - lane registry: adding a lane never touches the server entry
  * - `LANE_BYPASSED_HOOKS` policy + a guard test that fails when a new pipeline
  *   hook appears unclassified (divergence must be a decision, not an accident)
+ * - operational-state gate: `handle-system-state` never runs for lane traffic, so
+ *   the gate re-applies its readiness predicate before any lane is consulted
  * - any lane error falls back to the full SvelteKit pipeline
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./handle-collection-read-lane";
+import { isLaneServingAllowed } from "./lane-state-gate";
 
 /** What the server entry writes to the socket. */
 export interface FastLaneResult {
   status: number;
   headers: Record<string, string>;
-  body: string;
+  /** Written verbatim — bytes stay bytes so a large body is never decoded and re-encoded. */
+  body: string | Uint8Array;
 }
 
 /** Plain inputs the entry point can produce without a SvelteKit `Request`. */
@@ -54,6 +59,12 @@ export const FAST_LANE_REGISTRY = "__SVELTY_FAST_LANES__";
  * skipped for lane traffic. The list is the *decision*, not documentation: the
  * guard test (`tests/unit/hooks/fast-lane-policy.test.ts`) reads the pipelines in
  * `hooks.server.ts` and fails when a hook exists that this set does not classify.
+ *
+ * "Skipped" is not "unhandled": a lane owns the checks its request class needs
+ * (session auth, tenancy scoping, publication clamping, security headers,
+ * WAF/CSRF/rate-limit for the write lane) and `lane-state-gate.ts` re-applies the
+ * `system-state` decision for every lane. What stays off the lane path is the
+ * *generic* work those hooks do for page traffic.
  */
 export const LANE_BYPASSED_HOOKS: ReadonlySet<string> = new Set([
   "security",
@@ -138,27 +149,46 @@ const collectionReadLane: FastLane = async (input) => {
   // lane never served). Gated on the verification env, so production responses
   // carry no transport fingerprint.
   if (process.env.BENCH_VERIFY_RAW === "1") headers["x-fast-lane-served"] = "1";
-  const body = out.status === 204 || out.status === 304 ? "" : await out.text();
+  // 🚀 BYTE HAND-OFF: `arrayBuffer()` keeps the body as bytes. `text()` decoded a
+  // (possibly 200 KB) list body to a JS string only for `res.end()` to encode it
+  // back — two full passes plus the intermediate string on the lane's largest
+  // response. Measured: listLarge TURBO-HIT 2.6 ms bridged → 4.8 ms through the
+  // decode/re-encode, back to parity once the bytes are written through.
+  const body: string | Uint8Array =
+    out.status === 204 || out.status === 304 ? "" : new Uint8Array(await out.arrayBuffer());
   // Node would otherwise fall back to chunked encoding for a body without a
   // declared length — the lane's own writer emits one computed chunk.
   if (!headers["content-length"] && out.status !== 204 && out.status !== 304) {
-    headers["content-length"] = String(Buffer.byteLength(body));
+    headers["content-length"] = String(
+      typeof body === "string" ? Buffer.byteLength(body) : body.byteLength,
+    );
   }
   return { status: out.status, headers, body };
 };
 
 /**
- * Publish the registry for the server entry. No-op unless `SVELTY_FAST_LANE=1`,
- * so a default boot installs nothing and the entry's dispatch is a no-op.
+ * Publish the registry for the server entry.
+ *
+ * Default ON: the lanes are the same functions the pipeline calls, reached
+ * without adapter-node's `IncomingMessage → Request` / `Response → stream`
+ * bridging, and `BENCH_VERIFY_RAW=1` proves both transports byte-identical in a
+ * single server run. `SVELTY_FAST_LANE=0` is the documented opt-out (an operator
+ * who front-ends the app with their own HTTP layer, or wants every byte to go
+ * through the framework pipeline, installs nothing).
  */
 export function installFastLanes(): void {
-  if (process.env.SVELTY_FAST_LANE !== "1") return;
+  if (process.env.SVELTY_FAST_LANE === "0") return;
   if (lanes.length === 0) registerFastLane(collectionReadLane);
 
   const host = globalThis as typeof globalThis & {
     [FAST_LANE_REGISTRY]?: (input: FastLaneInput) => Promise<FastLaneResult | null>;
   };
   host[FAST_LANE_REGISTRY] = async (input) => {
+    // 🛡️ STATE GATE (fail-closed): lanes run before `handle-system-state`, so this
+    // is where MAINTENANCE / RECOVERY / FAILED / SETUP traffic is turned away to
+    // the pipeline. Checked here as well as inside each lane so a lane added
+    // later cannot serve a state the operator took the instance out of.
+    if (!isLaneServingAllowed()) return null;
     for (const lane of lanes) {
       try {
         const out = await lane(input);
@@ -173,7 +203,7 @@ export function installFastLanes(): void {
     }
     return null;
   };
-  logger.info(`[FastLane] ${lanes.length} lane(s) registered (SVELTY_FAST_LANE=1)`);
+  logger.info(`[FastLane] ${lanes.length} lane(s) registered`);
   // Deliberate stderr write: the A/B harness forwards the spawned server's stderr,
   // while `logger` writes to the app log sink — this is the proof that the lanes
   // (and not the fallback) are live in a measured run.

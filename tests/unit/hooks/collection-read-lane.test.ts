@@ -37,6 +37,7 @@ vi.mock("@src/services/sdk", () => ({
 }));
 
 import { tryCollectionReadLane } from "@src/hooks/handle-collection-read-lane";
+import { setSystemState } from "@src/stores/system/state.svelte.ts";
 
 describe("collection read lane single-flight", () => {
   const sessionId = "read-lane-coalesce-session";
@@ -54,6 +55,10 @@ describe("collection read lane single-flight", () => {
     findMock.mockReset();
     findByIdMock.mockReset();
     setTurboAuthContext(sessionId, user as never, [], null);
+    // The lane re-applies the `handle-system-state` readiness decision itself
+    // (`lane-state-gate`), so every test here must run in an operational state.
+    // The non-operational side of that gate is covered in fast-lane-policy.test.ts.
+    setSystemState("READY");
   });
 
   function listEvent() {

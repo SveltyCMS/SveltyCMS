@@ -25,6 +25,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
+import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
@@ -283,7 +284,7 @@ async function rebuildWarmCollectionRead(
  * session is cold, the caller is not admin, or the path is not a simple GET.
  */
 export const tryCollectionReadLane: Handle = async ({ event, resolve }) => {
-  if (!isSimpleCollectionRead(event) || !dbAdapter) {
+  if (!isSimpleCollectionRead(event) || !dbAdapter || !isLaneServingAllowed()) {
     return resolve(event);
   }
   const sessionId = sessionIdOf(event);

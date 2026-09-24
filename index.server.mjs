@@ -9,7 +9,7 @@
  * - process environment for the generated handler (body limit, threadpool,
  *   ORIGIN, NODE_ENV, proxy headers, timeouts) — set BEFORE importing it, since
  *   adapter-node reads `BODY_SIZE_LIMIT` at module-evaluation time
- * - the HTTP listener, including the opt-in fast-lane dispatch (see
+ * - the HTTP listener, including the fast-lane dispatch (see
  *   `src/hooks/fast-lane.server.ts`): a lane answers with prebuilt
  *   status/headers/body and the bytes go straight to the socket
  * - the Yjs collaboration WebSocket server on /ws
@@ -124,7 +124,8 @@ export async function startServer() {
       log(`${req.method} ${req.url}`);
     }
 
-    // 🧪 OPT-IN FAST LANE: the app answers lane-shaped GET/HEAD requests with
+    // 🚀 FAST LANE (on by default; the app publishes the registry unless
+    // `SVELTY_FAST_LANE=0`): lane-shaped GET/HEAD requests are answered with
     // prebuilt status/headers/body, so the bytes are written straight to the
     // socket instead of going through adapter-node's IncomingMessage → Request
     // and Response → stream bridging. Anything else — not a lane request, the
