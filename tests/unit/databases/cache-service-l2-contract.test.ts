@@ -21,7 +21,6 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { FakeRedis } from "./fake-redis";
-import { isDockerRunning } from "../../integration/helpers/docker";
 
 async function getCacheServiceClass(): Promise<any> {
   const module = await import("@src/databases/cache/cache-service?bun-unmock=" + Date.now());
@@ -221,15 +220,46 @@ describe("CacheService L2 contract — in-memory FakeRedis (always on)", () => {
 });
 
 /**
- * Real Redis: only when explicitly reachable.
- * Do NOT use isDockerRunning() under CI — that helper always returns true when
- * `CI=true`, which would enable this suite on unit jobs without a Redis service
- * and hang afterEach on connect/quit (hook timeout 10s).
- * Local: auto-detect a running docker redis (tests/docker-compose.yml redis profile).
+ * Real Redis: only when one actually answers on the port.
+ *
+ * The probe is a TCP connect, NOT `isDockerRunning()`: that helper returns `true`
+ * for every caller the moment `CI=true` (the integration matrix always starts its
+ * own profile, so the optimism is correct there), which makes it useless for the
+ * only question this suite has — is a Redis listening here?
+ *
+ * Trusting the flag in a unit job without the service is what caused the previous
+ * `process.env.CI !== "true"` guard: the suite would have been enabled, then hung
+ * `afterEach` on connect/quit until the 10 s hook timeout. That guard bought the
+ * timeout back at the cost of 11 tests that NEVER ran in CI while every developer
+ * ran them locally — two different suites under one name. A real probe plus the
+ * redis profile started by the CI unit job means both run the same 11 tests, and
+ * a machine without Redis still skips honestly instead of failing.
+ *
+ * `TEST_REDIS_URL` stays authoritative: an operator who pins it gets a loud
+ * failure rather than a silent skip.
  */
+const DEFAULT_REDIS_URL = "redis://127.0.0.1:6379";
+
+async function isReachable(url: string, timeoutMs = 500): Promise<boolean> {
+  const { connect } = await import("node:net");
+  const parsed = new URL(url);
+  return new Promise<boolean>((resolve) => {
+    const socket = connect({ host: parsed.hostname, port: Number(parsed.port || 6379) });
+    const done = (reachable: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(reachable);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => done(true));
+    socket.once("timeout", () => done(false));
+    socket.once("error", () => done(false));
+  });
+}
+
 const redisUrl =
   process.env.TEST_REDIS_URL ||
-  (process.env.CI !== "true" && isDockerRunning("redis") ? "redis://127.0.0.1:6379" : undefined);
+  ((await isReachable(DEFAULT_REDIS_URL)) ? DEFAULT_REDIS_URL : undefined);
 
 /**
  * Dedicated logical DB so this suite's `flushDb()` can never wipe state that

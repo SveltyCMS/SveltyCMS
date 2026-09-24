@@ -190,8 +190,22 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: workspace-meta
+      # The CacheService L2 contract suite
+      # (tests/unit/databases/cache-service-l2-contract.test.ts) drives a REAL Redis
+      # across two service instances: tenant isolation, cross-instance invalidation,
+      # the stampede lock and pub/sub L1 propagation. Without a Redis it skips
+      # itself, which is how CI ended up running 4855 tests + 11 skipped while every
+      # developer ran all 4866 — two different suites under one name. The profile has
+      # a redis-cli healthcheck, so `--wait` returns only once it answers.
+      - name: Start Redis (CacheService L2 contract)
+        if: matrix.task == '04-unit'
+        run: docker compose -f tests/docker-compose.yml --profile redis up -d --wait
       - name: Run Task
         run: ${{ matrix.run }}
+        env:
+          # Authoritative in the unit job: a Redis that fails to come up must fail the
+          # suite loudly, not be swallowed as another silent skip. Empty elsewhere.
+          TEST_REDIS_URL: ${{ matrix.task == '04-unit' && 'redis://127.0.0.1:6379' || '' }}
       - name: CVE Audit Summary
         if: matrix.task == '05-cve-audit'
         run: |
