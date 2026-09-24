@@ -1,12 +1,15 @@
 /**
  * @file tests/benchmarks/probe-write-split.test.ts
  * @description Write-lane phase decomposition + cold-session auth price.
- * @summary create/update at 8c with `x-srv-split` phases (security/persist/serve),
- * plus the first-request-after-login cost vs a warm turbo-session read.
+ * @summary create/update at 8c with `x-srv-split` phases (security/parse/schema/
+ * prep/encrypt/dbwrite/postwrite/persist/serve) + `x-srv-dur`, plus the
+ * first-request-after-login cost vs a warm turbo-session read.
  *
  * ### Features:
- * - Runs against a shared server started with SVELTY_SRV_SPLIT=1
+ * - Runs against a shared server started with SVELTY_SRV_SPLIT=1 + SVELTY_SRV_DUR=1
  * - Phase p50s per write lane (security = WAF+CSRF+session+tenant)
+ * - Namespace sub-phases (schema/prep/encrypt/dbwrite/postwrite) attribute the
+ *   SDK-side work inside the persist phase
  * - Cold-session delta: first point read after a fresh login (full session
  *   validation) vs the warm turbo-served read — the real per-session auth price
  */
@@ -34,6 +37,10 @@ function parseSplit(header: string | null): Record<string, number> {
 }
 
 test("write-lane split + cold-session auth price", async () => {
+  // Propagated to the spawned server via ...process.env (setupBenchmarkServer).
+  process.env.SVELTY_SRV_SPLIT = "1";
+  process.env.SVELTY_SRV_DUR = "1";
+
   let stop: (() => Promise<void>) | null = null;
   try {
     const info = await setupBenchmarkServer();
@@ -117,6 +124,8 @@ test("write-lane split + cold-session auth price", async () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const split = parseSplit(res.headers.get("x-srv-split"));
       (globalThis as any).__lastCreateSplit = split;
+      const dur = parseFloat(res.headers.get("x-srv-dur") || "");
+      if (Number.isFinite(dur)) (globalThis as any).__lastCreateDur = dur;
       await res.arrayBuffer();
     };
     const update = async () => {
@@ -129,12 +138,25 @@ test("write-lane split + cold-session auth price", async () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const split = parseSplit(res.headers.get("x-srv-split"));
       (globalThis as any).__lastUpdateSplit = split;
+      const dur = parseFloat(res.headers.get("x-srv-dur") || "");
+      if (Number.isFinite(dur)) (globalThis as any).__lastUpdateDur = dur;
       await res.arrayBuffer();
     };
 
     const collect = async (name: string, fn: () => Promise<void>) => {
       for (let i = 0; i < 30; i++) await fn();
-      const buckets: Record<string, number[]> = { security: [], persist: [], serve: [] };
+      const buckets: Record<string, number[]> = {
+        security: [],
+        parse: [],
+        schema: [],
+        prep: [],
+        encrypt: [],
+        dbwrite: [],
+        postwrite: [],
+        persist: [],
+        serve: [],
+        srvDur: [],
+      };
       const t0 = performance.now();
       let count = 0;
       const workers = Array.from({ length: 8 }, async () => {
@@ -149,6 +171,10 @@ test("write-lane split + cold-session auth price", async () => {
               const v = split[k];
               if (Number.isFinite(v)) buckets[k].push(v);
             }
+            const dur = (globalThis as any)[
+              name === "create" ? "__lastCreateDur" : "__lastUpdateDur"
+            ];
+            if (Number.isFinite(dur)) buckets.srvDur.push(dur);
           }
         }
       });
@@ -159,14 +185,26 @@ test("write-lane split + cold-session auth price", async () => {
         return s[Math.floor(s.length / 2)] ?? 0;
       };
       const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+      const fmt = (arr: number[]) =>
+        arr.length ? `p50 ${p50(arr).toFixed(3)}ms avg ${avg(arr).toFixed(3)}` : "—";
       console.log(
         `${name.padEnd(8)} ${Math.round((count / wall) * 1000)
           .toLocaleString()
-          .padStart(6)} RPS | ` +
-          `security p50 ${p50(buckets.security).toFixed(3)}ms avg ${avg(buckets.security).toFixed(3)} | ` +
-          `persist p50 ${p50(buckets.persist).toFixed(3)}ms avg ${avg(buckets.persist).toFixed(3)} | ` +
-          `serve p50 ${p50(buckets.serve).toFixed(3)}ms avg ${avg(buckets.serve).toFixed(3)}`,
+          .padStart(6)} RPS | srv-dur ${fmt(buckets.srvDur)}`,
       );
+      for (const k of [
+        "security",
+        "parse",
+        "schema",
+        "prep",
+        "encrypt",
+        "dbwrite",
+        "postwrite",
+        "persist",
+        "serve",
+      ]) {
+        console.log(`          ${k.padEnd(10)} ${fmt(buckets[k])}`);
+      }
     };
 
     console.log("\n=== WRITE-LANE SPLIT (8c) ===");

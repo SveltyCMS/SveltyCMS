@@ -245,27 +245,52 @@ describe("User API Extended Integration", () => {
       expect([401, 403]).toContain(response.status);
     });
 
-    it("should reject upload exceeding max file size", async () => {
-      // Use payload just over the 524288-byte (0.5MB) server limit so the server
-      // rejects it cleanly without OOM or socket-closure issues.
+    it("should accept a ~513KB upload (kit transport limit removed, app ceiling governs)", async () => {
+      // W4 (2026-09-24): the kit-level 512KB BODY_SIZE_LIMIT was the redundant,
+      // lower limit and is now raised — the app's own API_MAX_BODY_SIZE_BYTES
+      // (15 MB, dispatcher) is the real ceiling. A payload that the old kit
+      // limit rejected at the transport must now reach the app guard and be
+      // handled cleanly: accepted (200) because it is below 15 MB, or 400 if
+      // media validation rejects the zero-filled body — never a transport
+      // 413/drop. This is the regression guard for the body-limit patch.
       const bigBytes = new Uint8Array(524288 + 1024);
       bigBytes.fill(0x00);
       bigBytes.set(tinyPngBytes().slice(0, 8), 0);
 
       const formData = createAvatarFormData(bigBytes, "big.png", "image/png");
 
-      try {
-        const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
-          method: "POST",
-          headers: { Cookie: adminCookie, Origin: API_BASE_URL },
-          body: formData,
-        });
-        // Server should reject with 413/400; 401 means session lost mid-suite
-        expect([400, 401, 413, 500]).toContain(response.status);
-      } catch (err) {
-        // Dropped connection is an acceptable rejection mode for oversized bodies
-        expect(String(err)).toMatch(/socket|closed|ECONNRESET|fetch|network/i);
-      }
+      const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
+        method: "POST",
+        headers: { Cookie: adminCookie, Origin: API_BASE_URL },
+        body: formData,
+      });
+      // 200 = accepted below the app ceiling; 400 = media rejects the
+      // zero-filled image content; 401 = session lost mid-suite. A transport
+      // drop (fetch throw) fails this test — that is the stale-kit-limit
+      // behavior the regression guard exists for.
+      expect([200, 400, 401]).toContain(response.status);
+
+      // Always re-mint admin session so later suites are not stuck with a dead cookie
+      adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+    });
+
+    it("should reject upload above the app ceiling (15 MB dispatcher guard)", async () => {
+      // The dispatcher rejects declared Content-Length > API_MAX_BODY_SIZE_BYTES
+      // with 413 PAYLOAD_TOO_LARGE before any byte is read — the real ceiling
+      // now that the kit transport limit no longer masks it.
+      const overBytes = new Uint8Array(15 * 1024 * 1024 + 1024);
+      overBytes.fill(0x00);
+      overBytes.set(tinyPngBytes().slice(0, 8), 0);
+
+      const formData = createAvatarFormData(overBytes, "too-big.png", "image/png");
+
+      const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
+        method: "POST",
+        headers: { Cookie: adminCookie, Origin: API_BASE_URL },
+        body: formData,
+      });
+      // 413 = app ceiling enforced; 401 = session lost mid-suite.
+      expect([413, 401]).toContain(response.status);
 
       // Always re-mint admin session so later suites are not stuck with a dead cookie
       adminCookie = await prepareAuthenticatedContext({ skipReset: true });

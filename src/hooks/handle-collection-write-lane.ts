@@ -34,10 +34,17 @@ import type { DatabaseId } from "@src/content/types";
 import { prefersMinimalReturn } from "@utils/http-preferences";
 
 /**
+ * `SVELTY_SRV_DUR=1` records total server time for the write lane (`x-srv-dur`)
+ * — the same header the read lane stamps, so hot and cold writes are comparable
+ * against the read acceptance gate. Off on the replica.
+ */
+const STAMP_SRV_DUR = process.env.SVELTY_SRV_DUR === "1";
+/**
  * `SVELTY_SRV_SPLIT=1` stamps the write lane's phases on the response
- * (`x-srv-split`): security (WAF + CSRF + session/turbo + tenant), persist
- * (the SDK create/update incl. detached post-write scheduling), serve
- * (envelope + security headers). Zero cost when off.
+ * (`x-srv-split`): security (WAF + CSRF + session/turbo + tenant), parse
+ * (request.json + envelope unwrap), the namespace sub-phases (schema, prep,
+ * encrypt, dbwrite, postwrite), persist (whole SDK call) and serve (envelope +
+ * security headers). Zero cost when off.
  */
 const STAMP_WRITE_SPLIT = process.env.SVELTY_SRV_SPLIT === "1";
 
@@ -46,6 +53,11 @@ function stampWriteSplit(headers: Headers, marks: Map<string, number>): void {
   const parts: string[] = [];
   marks.forEach((ms, label) => parts.push(`${label}=${ms.toFixed(2)}`));
   headers.set("x-srv-split", parts.join(";"));
+}
+
+function stampSrvDur(headers: Headers, started: number): void {
+  if (!STAMP_SRV_DUR) return;
+  headers.set("x-srv-dur", (performance.now() - started).toFixed(2));
 }
 
 function unwrapWritePayload(raw: unknown): unknown {
@@ -110,6 +122,7 @@ function hasWarmSession(event: RequestEvent): boolean {
 
 async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response | null> {
   const { request, url, cookies, locals } = event;
+  const srvT0 = STAMP_SRV_DUR || STAMP_WRITE_SPLIT ? performance.now() : 0;
   const t0 = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
   const wafCheck = wafGuard.inspectEvent(event);
@@ -150,8 +163,10 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   const parts = url.pathname.split("/").filter(Boolean);
   const collectionId = parts[2];
   const entryId = parts[3];
+  const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const raw = await request.json();
   const data = unwrapWritePayload(raw);
+  if (marks) marks.set("parse", performance.now() - tParse);
   const cms = getLaneCms();
   if (!cms) return null;
   const tenantId = locals.tenantId as DatabaseId;
@@ -160,7 +175,11 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   let result: unknown;
   const minimal = request.method !== "POST" && prefersMinimalReturn(request.headers.get("prefer"));
   if (request.method === "POST") {
-    result = await cms.collections.create(collectionId, data, { user, tenantId });
+    result = await cms.collections.create(collectionId, data, {
+      user,
+      tenantId,
+      ...(marks ? { __phaseMarks: marks } : {}),
+    });
   } else {
     // `skipReturning` is the adapter-agnostic half of the minimal ack: the row is not read
     // back at all (no SQL `RETURNING`, no Mongo `findOneAndUpdate`), so the saving is
@@ -168,6 +187,7 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
     result = await cms.collections.update(collectionId, entryId, data, {
       user,
       tenantId,
+      ...(marks ? { __phaseMarks: marks } : {}),
       ...(minimal ? { skipReturning: true } : {}),
     });
   }
@@ -194,6 +214,7 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   );
   marks?.set("serve", performance.now() - t0);
   if (marks) stampWriteSplit(res.headers, marks);
+  stampSrvDur(res.headers, srvT0);
   return res;
 }
 

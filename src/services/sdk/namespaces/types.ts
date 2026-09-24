@@ -49,6 +49,14 @@ export interface LocalApiOptions {
    * skipped. All four adapters implement it (`BaseQueryOptions.skipReturning`).
    */
   skipReturning?: boolean;
+  /**
+   * Internal — per-request phase decomposition for the write lane
+   * (`SVELTY_SRV_SPLIT=1`). The collection namespace stamps sub-phase
+   * durations (`schema`, `prep`, `encrypt`, `dbwrite`, `postwrite`) into this
+   * map so the HTTP lane can attribute create/update latency without touching
+   * the adapter. Callers never read it; absent by default (zero cost).
+   */
+  __phaseMarks?: Map<string, number>;
 }
 
 export interface TokenOptions extends LocalApiOptions {

@@ -431,6 +431,24 @@ The identical sites measured in isolation (Node 24, undici) cost ~9–14 µs for
 
 **Machine-noise band (stated honestly)**: three runs per side of a fingerprint-pinned build (`BENCH_DOCS=10000 BENCH_CONCURRENCY=8 bun test tests/benchmarks/competitive-workload-replica.test.ts`, SQLite; runs whose build artifact changed mid-flight are discarded) give `findByIdRandom` warm sequential **0.430 / 0.451 / 0.515 ms** before and **0.356 / 0.443 / 0.469 ms** after, warm 8c **2.215 / 2.236 / 2.273 ms** before and **2.266 / 2.384 / 2.698 ms** after — medians 0.451 vs 0.443 ms (seq) and 2.236 vs 2.384 ms (8c), i.e. ±13–20 % run-to-run noise that swallows the difference in both directions. The single 2.698 ms outlier is the one run taken while a concurrent benchmark was active on the same machine; the same build re-measured 2.266 ms. The two audit fixes do not sit on this row's code path by construction (lane-served reads never enter the compression stage, `serveCachedEntry` and `handleLocalContext` are pipeline-only), so the pair is a regression check, not an improvement — and it shows no regression.
 
+#### Write-lane decomposition — `x-srv-split` sub-phases + `x-srv-dur` (2026-09-24)
+
+The write lane's first split (security / persist / serve) proved the security phase costs **p50 0.010–0.020 ms** per write — but "persist" was still a black box containing everything between `request.json()` and the envelope. The lane now stamps the same `x-srv-split` header with per-request sub-phase _durations_ handed in via `LocalApiOptions.__phaseMarks` (internal, absent by default — the `performance.now()` call sites are skipped entirely when no map is passed):
+
+| Phase     | Measured where                                                                                                        |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------- |
+| security  | lane: WAF inspect + CSRF + turbo-session + tenant context (cumulative from t0)                                        |
+| parse     | lane: `request.json()` + envelope unwrap                                                                              |
+| schema    | namespace: `peekReadySchema`/`schemaOf` + `ensureWidgets` + hot flags                                                 |
+| prep      | namespace: `prepareWritePayload` (sanitize + validate + defaults) + publication gate + `beforeSave` + widget pipeline |
+| encrypt   | namespace: `encryptWritePayload` (no-op when the schema has no encrypted fields)                                      |
+| dbwrite   | namespace: `persistWithOutbox` — the adapter INSERT/UPDATE incl. outbox scheduling                                    |
+| postwrite | namespace: `decryptReadResult` + `schedulePostWrite` + list-warm scheduling                                           |
+| persist   | lane: the whole SDK create/update call (cumulative from t0)                                                           |
+| serve     | lane: envelope + security headers (cumulative from t0)                                                                |
+
+`update` additionally stamps `snapshot` (the pre-write revision read — only present when the collection enables `revision`). `SVELTY_SRV_DUR=1` now also stamps total server time (`x-srv-dur`) on write-lane responses, so hot writes are comparable against the read lane's acceptance gate. Collect the p50s per phase with `tests/benchmarks/probe-write-split.test.ts` (see its header for the env recipe).
+
 #### Reusable CPU sampling for soak runs (2026-09-23)
 
 Attributing a lane needs V8 samples from a _replica_ run, and `node --cpu-prof` cannot supply them: V8 writes its `.cpuprofile` only on a clean exit, so a soak or benchmark harness that SIGTERMs its child and SIGKILLs it a moment later leaves no file at all.

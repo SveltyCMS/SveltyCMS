@@ -115,6 +115,21 @@ function fieldEncryptionContext(
 }
 
 /**
+ * Per-request phase marks (write lane, `SVELTY_SRV_SPLIT=1`). Zero cost when
+ * the caller passes no `__phaseMarks` map — the `performance.now()` call sites
+ * are skipped entirely, and the set is a single Map write per phase.
+ */
+function markWritePhase(options: LocalApiOptions, label: string, t0: number): void {
+  const marks = options.__phaseMarks;
+  if (marks) marks.set(label, performance.now() - t0);
+}
+
+/** Cheap start timestamp for a write phase — 0 when no marks map is present. */
+function writePhaseT0(options: LocalApiOptions): number {
+  return options.__phaseMarks ? performance.now() : 0;
+}
+
+/**
  * Encryption context for the read path.
  *
  * `decryptReadResult` ignores its context entirely unless the schema declares
@@ -1262,6 +1277,7 @@ export class CollectionsNamespace {
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    const tSchema = writePhaseT0(options);
     const peeked = peekReadySchema(tenantId, collectionId);
     const schema = peeked
       ? peeked
@@ -1270,8 +1286,10 @@ export class CollectionsNamespace {
         : await this.schemaOf(collectionId, tenantId);
     if (peeked) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     const hot = ensureSchemaHotFlags(schema);
+    markWritePhase(options, "schema", tSchema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
+    const tPrep = writePhaseT0(options);
     const m1 = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
     let entryData = prepareWritePayload(data, schema, hot, {
       user,
@@ -1327,12 +1345,16 @@ export class CollectionsNamespace {
       finalData = payload[0] ?? finalData;
     }
     m2?.();
+    markWritePhase(options, "prep", tPrep);
 
     const collectionName = this.getCollectionName(schema._id as string);
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    const tEnc = writePhaseT0(options);
     const mEnc = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     finalData = await encryptWritePayload(finalData, hot, encCtx);
     mEnc?.();
+    markWritePhase(options, "encrypt", tEnc);
+    const tDb = writePhaseT0(options);
     const m3 = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "create",
@@ -1349,7 +1371,9 @@ export class CollectionsNamespace {
       { skipSideEffects: options.skipSideEffects },
     );
     m3?.();
+    markWritePhase(options, "dbwrite", tDb);
 
+    const tPost = writePhaseT0(options);
     const decryptedCreate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
@@ -1371,6 +1395,7 @@ export class CollectionsNamespace {
         );
       }
     }
+    markWritePhase(options, "postwrite", tPost);
 
     return decryptedCreate;
   }
@@ -1378,6 +1403,7 @@ export class CollectionsNamespace {
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    const tSchema = writePhaseT0(options);
     const peekedUpdate = peekReadySchema(tenantId, collectionId);
     const schema = peekedUpdate
       ? peekedUpdate
@@ -1386,7 +1412,9 @@ export class CollectionsNamespace {
         : await this.schemaOf(collectionId, tenantId);
     if (peekedUpdate) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     const hot = ensureSchemaHotFlags(schema);
+    markWritePhase(options, "schema", tSchema);
 
+    const tPrep = writePhaseT0(options);
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
     let updateData = prepareWritePayload(data, schema, hot, {
       user,
@@ -1442,12 +1470,14 @@ export class CollectionsNamespace {
       finalData = payload[0] ?? finalData;
     }
     m2u?.();
+    markWritePhase(options, "prep", tPrep);
 
     // 🛡️ REVISION TRACKING: for revision-enabled collections, snapshot the entry
     // BEFORE the write so the update can persist the previous version. Best-effort
     // — a failed snapshot must never fail the update itself.
     const revisionEnabled = schema.revision === true && !options.skipSideEffects;
     let previousSnapshot: any = null;
+    const tSnap = writePhaseT0(options);
     const mRev =
       revisionEnabled && PROFILE_WRITE_ENABLED ? profileMark("ns:revision-snapshot") : null;
     if (revisionEnabled) {
@@ -1465,11 +1495,15 @@ export class CollectionsNamespace {
       }
     }
     mRev?.();
+    markWritePhase(options, "snapshot", tSnap);
 
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    const tEnc = writePhaseT0(options);
     const mEncU = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     finalData = await encryptWritePayload(finalData, hot, encCtx);
     mEncU?.();
+    markWritePhase(options, "encrypt", tEnc);
+    const tDb = writePhaseT0(options);
     const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "update",
@@ -1495,7 +1529,9 @@ export class CollectionsNamespace {
       { skipSideEffects: options.skipSideEffects },
     );
     m3u?.();
+    markWritePhase(options, "dbwrite", tDb);
 
+    const tPost = writePhaseT0(options);
     const decryptedUpdate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
@@ -1520,6 +1556,7 @@ export class CollectionsNamespace {
         );
       }
     }
+    markWritePhase(options, "postwrite", tPost);
 
     return decryptedUpdate;
   }
