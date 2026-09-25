@@ -190,7 +190,7 @@ A lightweight brand editor (Skeleton-inspired) lives on the **Palette & Import**
 | **Expanded shades**              | Shows 50 / 500 / 950 previews                                            |
 | **Apply / Reset / Clear**        | Commit, restore Corporate defaults, or remove only the palette CSS block |
 
-Seeds expand via `color-mix` into full scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Advanced → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
+Seeds expand via a hue-preserving OKLCH ramp into full 50–950 scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Advanced → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
 
 ### Export / Import
 
@@ -219,7 +219,7 @@ Theme JSON exports carry a `properties` map (`--color-primary-500`, `--color-sur
 }
 ```
 
-Shorthand keys expand to full 50–950 shade scales via CSS `color-mix()` — light `surface` values anchor at `--color-surface-50`; other palettes anchor at `-500`.
+Shorthand keys expand to full 50–950 shade scales via a hue-preserving OKLCH ramp — light `surface` values anchor at `--color-surface-50`; other palettes anchor at `-500`.
 
 On import or boot sync, SveltyCMS maps those tokens to **runtime admin CSS** scoped to `:root` (plus `.admin-theme-container` / `[data-admin-theme]`) — so every utility (`bg-primary-500`, `text-tertiary-500`), every `--admin-*` semantic role, and even portalled overlays update immediately, across the whole admin panel. Dark-mode overrides are emitted under `html.dark` so they keep the specificity edge over the light `:root` block.
 
@@ -610,7 +610,7 @@ Navigate to **Config → Design System → Palette & Import**:
 
 1. In the **Palette Studio**, input the client's corporate primary color (e.g., `#1e40af` for corporate navy, `#047857` for emerald).
 2. Choose a matching secondary and surface seed.
-3. SveltyCMS instantly generates full 50–950 tint and shade scales via native CSS `color-mix()` algorithms, automatically binding semantic variables (`--admin-bg-*`, `--admin-border-*`).
+3. SveltyCMS instantly generates full 50–950 tint and shade scales via a hue-preserving OKLCH ramp, automatically binding semantic variables (`--admin-bg-*`, `--admin-border-*`).
 4. Click **Live apply** to verify the aesthetic in real time across the current admin workspace.
 
 #### Step 3: Enable Branded Login

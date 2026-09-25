@@ -221,6 +221,11 @@ const ROOT_GATE_EXEMPTIONS: Record<string, { methods: readonly string[]; reason:
     reason:
       "bare GET /api/auth returns only the caller's own session user (self-read); every mutation on the namespace stays gated",
   },
+  forms: {
+    methods: ["POST"],
+    reason:
+      "public form submission sink: POST /api/forms/:collection is unauthenticated by design (handler honeypot + rate-limit); the bare root has no collection segment and is rejected with 400 by handleFormsRoutes, so it exposes no data",
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -363,6 +368,11 @@ const PUBLIC_ROUTE_CONTRACT: readonly PublicRouteExpectation[] = [
     path: "/api/stripe/config",
     kind: "prefix",
     reason: "publishable Stripe config for checkout UI",
+  },
+  {
+    path: "/api/forms",
+    kind: "prefix",
+    reason: "public form submission sink (POST-only; honeypot + rate-limited server-side)",
   },
 ];
 

@@ -103,9 +103,14 @@ The **WebMCP plugin** (`src/plugins/webmcp/`) enables browser-based AI agents to
 
 | `navigate_to` | Nav | Navigate to a specific admin path |
 | `get_current_route` | Nav | Returns current admin route and parameters |
+| `design_collection` | Builder | AI-assisted collection schema design (proposal draft) |
+| `refine_collection` | Builder | Refine collection proposal via natural language instructions |
+| `diff_collection_schema` | Builder | Structural AST diff between active schema and AI proposal |
+| `scaffold_widget` | Builder | Scaffold complete 3-pillar Svelte 5 widget files |
+| `list_available_widgets` | Builder | Discover all registered system widgets and field types |
 
 > [!IMPORTANT]
-> **Draft-by-Default Airgap**: All mutation tools (`create_entry`, `update_entry`) forcefully set `status: "draft"`. The `delete_entry` tool only performs soft-deletes (never `permanent=true`). This ensures AI agents cannot publish or permanently destroy content without human review.
+> **Draft-by-Default Airgap**: All mutation and builder tools (`create_entry`, `update_entry`, `design_collection`, `scaffold_widget`) operate under strict airgap boundaries. Entries are saved as `draft`, and collection schemas are proposed as drafts requiring human review and compilation via the Collection Builder GUI. This ensures AI agents cannot publish unvetted code or destroy content.
 
 ## 4. AI-Native Generative Layouts
 

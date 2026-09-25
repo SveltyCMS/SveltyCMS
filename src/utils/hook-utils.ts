@@ -155,6 +155,7 @@ const PUBLIC_PREFIX_ROUTES = [
   "/api/commerce/downloads",
   "/api/stripe/webhook",
   "/api/stripe/config",
+  "/api/forms",
 ];
 
 /**

@@ -231,11 +231,14 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const payload = JSON.stringify({ count: Math.floor(Math.random() * 1000) + 1 });
       const res = await fetch(`${collectionUrl}/${targetId}`, {
         method: "PATCH",
-        // A/B instrument: RFC 7240 minimal-return lever (default = harness protocol parity).
+        // RFC 7240 `Prefer: return=minimal` by default — Keystone's harness shim returns a
+        // 43-byte id-only ack on PATCH, so the apples-to-apples comparison needs SveltyCMS
+        // to do the same instead of serializing the full ~1.9 KB document.
+        // Opt out with BENCH_PREFER_FULL=1 for full-document response benchmarking.
         headers:
-          process.env.BENCH_PREFER_MINIMAL === "1"
-            ? { ...headers, prefer: "return=minimal" }
-            : headers,
+          process.env.BENCH_PREFER_FULL === "1"
+            ? headers
+            : { ...headers, prefer: "return=minimal" },
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

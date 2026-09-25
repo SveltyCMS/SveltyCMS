@@ -91,6 +91,7 @@ const HANDLER_FN: Record<string, string> = {
   remoteVideo: "handleUtilityRoutes",
   seo: "handleUtilityRoutes",
   chat: "handleAiRoutes",
+  forms: "handleFormsRoutes",
 };
 
 /**
@@ -325,6 +326,9 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   "plugin-settings": ["tests/unit/plugins/settings-crypto.test.ts"],
   commerce: ["tests/unit/plugins/commerce.test.ts"],
   stripe: ["tests/unit/plugins/commerce.test.ts"],
+
+  // Forms
+  forms: ["tests/unit/api/forms-handler.test.ts"],
 };
 
 describe("API namespace ownership inventory (completeness Phase D)", () => {

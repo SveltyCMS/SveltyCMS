@@ -6,11 +6,14 @@
  * - CSS inject prevention: blocks @import, @media, url(), expression(), javascript:
  * - Regex-based CSS parsing: handles both minified and pretty-printed CSS
  * - Property validation: ensures only --prefixed custom properties pass through
- * - Value validation in expand: palette values checked before color-mix generation
+ * - Value validation in expand: palette values checked before ramp/color-mix generation
+ * - Hex seeds expand through a hue-preserving OKLCH ramp (`@utils/color-ramp`)
  *
  * Maps theme JSON exports and shorthand palette formats to StoredAdminTheme.
  * Used by admin-theme-service when importing presets and by the palette studio.
  */
+
+import { generateColorRamp, RAMP_STEPS } from "@utils/color-ramp";
 
 /** 🛡️ Validates CSS values against injection attacks */
 function isUnsafeValue(value: string): boolean {
@@ -108,6 +111,11 @@ export function mapThemePropertiesToCss(properties: Record<string, string>): str
 
 /**
  * Expands shorthand palette properties to full shade scales.
+ *
+ * Hex seeds expand through a hue-preserving OKLCH ramp (`generateColorRamp`):
+ * `surface` is anchored on its lightest step (50), every other role on 500 so
+ * the brand color is emitted verbatim. Non-hex values (`oklch()`, named colors)
+ * keep the previous `color-mix` behavior so imported presets stay valid.
  */
 export function expandShorthandPaletteProperties(
   palette: Record<string, string>,
@@ -118,6 +126,12 @@ export function expandShorthandPaletteProperties(
     if (!prefix) continue;
     // Validate value before expanding
     if (isUnsafeValue(value)) continue;
+
+    const ramp = generateColorRamp(value, { anchor: key === "surface" ? 50 : 500 });
+    if (ramp) {
+      for (const step of RAMP_STEPS) expanded[`${prefix}-${step}`] = ramp[step];
+      continue;
+    }
 
     if (key === "surface") {
       // Full surface scale so dark-mode --admin-bg-card/page can elevate cards

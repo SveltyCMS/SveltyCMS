@@ -1431,12 +1431,18 @@ export async function handleExportRoutes(
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   if (request.method === "POST") {
-    const { type } = await request.json().catch(() => ({}));
+    const { type, preview } = await request.json().catch(() => ({}));
     if (type === "users") {
       const result = await cms.auth.listUsers({ tenantId });
       if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
       const items = Array.isArray(result.data) ? result.data : [];
       return streamingArrayResponse(items, items.length);
+    }
+    if (type === "static-site") {
+      const { publishStaticSite } = await import("@src/services/site/static-publisher.server");
+      // `preview: true` renders a route manifest without swapping the live directory.
+      const result = await publishStaticSite({ tenantId, dryRun: preview === true });
+      return successResponse(event, result);
     }
     return successResponse(event, { success: true, message: "Export started" });
   }

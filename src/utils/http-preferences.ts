@@ -22,7 +22,6 @@ export function prefersMinimalReturn(
   header?: string | null | undefined,
   urlOrQuery?: URL | URLSearchParams | string | null | undefined,
 ): boolean {
-  if (process.env.BENCH_PREFER_MINIMAL === "1") return true;
   if (urlOrQuery) {
     const searchParams =
       urlOrQuery instanceof URL

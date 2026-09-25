@@ -1636,6 +1636,41 @@ The raw-transport fast lanes answered a narrow request class (warm-session admin
 
 ---
 
+### 3.27 September 2026 — WebMCP Agentic Builder, Native Forms, Layout-Aware Responsive Images, Multi-Breakpoint Canvas & Atomic SSG
+
+To lead visual and headless CMS platforms (such as Instatic) through 2026/2027, six architectural pillars were implemented and verified with zero-overhead principles:
+
+- **WebMCP Builder Tools (`src/plugins/webmcp/tools/builder.ts`)**:
+  - Standardized Model Context Protocol tool endpoints (`design_collection`, `refine_collection`, `diff_collection_schema`, `scaffold_widget`, `list_available_widgets`) allowing Cursor, Claude Code, and external AI agents to author and evolve schemas directly over standard WebMCP protocol.
+  - **Draft-by-Default Airgap**: AI proposals generate structured AST diffs and validated draft schemas rather than mutating live production tables, preventing untracked schema drifts.
+  - Integrated with `fetchApi` including CSRF token headers and session credentials.
+- **Native Zero-Config Form Ingestion (`src/routes/api/[...path]/handlers/forms.ts`)**:
+  - Direct headless/static site form ingestion at `POST /api/forms/:collection`.
+  - Built-in honeypot spam protection (`_hp`, `_gotcha`) without third-party recaptcha tracking.
+  - GDPR-compliant, privacy-first SHA-256 IP salt hashing (`_formIpHash`).
+  - Publishes events to internal `EventBus` (`form:submit`) enabling zero-latency automations and notifications.
+- **Layout-Aware Responsive Images (`src/components/ui/image.svelte`)**:
+  - Native `layout` presets (`full`, `half`, `third`, `quarter`) calculating mathematical, layout-aware `sizes` strings across standard viewport breakpoints.
+  - Zero-CLS placeholder blur styling utilizing ThumbHash/LQIP hashes to eliminate layout shifts during hydration.
+- **Multi-Breakpoint Split Canvas (`src/plugins/editable-website/live-preview.svelte`)**:
+  - Live side-by-side synchronized rendering of Desktop (fluid `min-w-[580px]`) and Mobile (`375px`) viewports.
+  - Real-time two-way postMessage synchronization for click-to-edit and field highlight.
+- **Atomic Static Site Generator (`src/services/site/static-publisher.server.ts`)**:
+  - Pre-renders published `pages` into a sibling staging directory (`<target>.staging-<uuid>`) so the final swap is a same-filesystem, atomic `rename` (never `EXDEV`).
+  - Moves the previous build aside and restores it if the swap fails — the live directory is never deleted before its replacement exists.
+  - `dryRun` preview mode renders the route manifest (`path` + byte length per route) without touching the live site — the "preview before it goes live" step.
+  - Schema-aware hardening: text fields HTML-escaped, authored `body` run through the server-side `sanitizeHtml`, and slugs reduced to traversal-proof `[A-Za-z0-9_-]` segments.
+  - Exposed via `POST /api/export` with `{ "type": "static-site", "preview": true|false }`.
+- **Hue-Preserving OKLCH Palette Ramp (`src/utils/color-ramp.ts`)** — inspired by Instatic's Core Framework token engine:
+  - One brand hex expands to a full, perceptually even 50–950 ladder: the seed lands verbatim on its anchor step (`500` for accents, `50` for surfaces), hue is preserved, and chroma tapers toward the extremes.
+  - Out-of-gamut steps are mapped by **reducing chroma**, never by clipping RGB (clipping would shift the hue).
+  - Replaces the previous 3-step `color-mix` shorthand expansion in `@utils/theme-preset-mapper`, so accent roles now get the same complete ladder as surfaces; non-hex input keeps the old `color-mix` path.
+- **Verification**:
+  - Unit tests: `tests/unit/plugins/webmcp-builder.test.ts` (4/4), `tests/unit/api/forms-handler.test.ts` (4/4), `tests/unit/site/static-publisher.test.ts` (5/5), `tests/unit/color-ramp.test.ts` (7/7) passing in <500ms.
+  - All security and risk audits (`risk-audit.ts`: 5/5) clean.
+
+---
+
 **References:**
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)

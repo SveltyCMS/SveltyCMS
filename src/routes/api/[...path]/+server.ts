@@ -159,6 +159,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   stripe: { handler: "commerce", fn: "handleStripeRoutes" },
   seo: { handler: "utility", fn: "handleUtilityRoutes" },
   chat: { handler: "system", fn: "handleAiRoutes" },
+  forms: { handler: "forms", fn: "handleFormsRoutes" },
 
   // Deprecated Aliases
   "import-data": { handler: "content-transfer", fn: "handleImporterRoutes" },
@@ -247,6 +248,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   stripe: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
   seo: "collection:read",
   chat: "system:settings",
+  forms: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
 
   // Utility / ops namespaces previously fail-closed to isAdmin() only because
   // they were missing from this map. Explicit mappings keep fail-closed for
@@ -319,6 +321,11 @@ export function _checkEndpointPermission(
   // User management endpoints
   // GDPR self-service: any authenticated user; handler enforces self-or-admin
   if (namespace === "gdpr") {
+    return true;
+  }
+
+  // Forms public submission: POST /api/forms/:collection is unauthenticated (handler validates & rate-limits)
+  if (namespace === "forms" && method === "POST") {
     return true;
   }
 

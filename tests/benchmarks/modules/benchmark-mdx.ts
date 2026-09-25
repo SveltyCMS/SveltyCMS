@@ -1378,7 +1378,43 @@ function atomicWrite(docPath: string, content: string): void {
 
   const tmpPath = docPath + ".tmp." + Date.now();
   fs.writeFileSync(tmpPath, content, "utf8");
-  fs.renameSync(tmpPath, docPath);
+  renameWithRetry(tmpPath, docPath);
+}
+
+/**
+ * Rename `from` onto `to`, retrying transient Windows lock failures.
+ *
+ * On Windows, Defender / the search indexer / an editor file-watcher can hold a
+ * brief handle on the freshly written destination, so `renameSync` intermittently
+ * fails with EPERM/EBUSY/EACCES even though the same write succeeded a moment
+ * earlier — which previously left the ledger's run-summary stale plus an orphan
+ * `.tmp.*` file. Backoff + retry makes the swap reliable; a genuine failure still
+ * throws after cleaning up the temp.
+ */
+function renameWithRetry(from: string, to: string, attempts = 5): void {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      fs.renameSync(from, to);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      const transient = code === "EPERM" || code === "EBUSY" || code === "EACCES";
+      if (!transient || attempt === attempts - 1) {
+        try {
+          fs.unlinkSync(from);
+        } catch {
+          /* best-effort */
+        }
+        throw err;
+      }
+      sleepSync(25 * (attempt + 1));
+    }
+  }
+}
+
+/** Synchronous sleep — `Atomics.wait` is permitted on the Node main thread. */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 // ─────────────────────────────────────────────────────────────

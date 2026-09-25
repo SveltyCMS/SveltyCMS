@@ -1,6 +1,6 @@
 /**
  * @vitest-environment node
- * @file tests/unit/skeleton-preset-mapper.test.ts
+ * @file tests/unit/preset-mapper.test.ts
  * @description Unit tests for Skeleton.dev preset → SveltyCMS admin CSS mapping.
  */
 
@@ -89,12 +89,14 @@ describe("preset-mapper", () => {
       surface: "#f8fafc",
     });
     expect(expanded["--color-primary-500"]).toBe("#0f766e");
-    expect(expanded["--color-primary-50"]).toContain("color-mix");
-    expect(expanded["--color-primary-950"]).toContain("color-mix");
+    expect(expanded["--color-primary-50"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expanded["--color-primary-950"]).toMatch(/^#[0-9a-f]{6}$/);
     expect(expanded["--color-surface-50"]).toBe("#f8fafc");
-    expect(expanded["--color-surface-500"]).toContain("color-mix");
-    expect(expanded["--color-surface-800"]).toContain("color-mix");
-    expect(expanded["--color-surface-950"]).toContain("color-mix");
+    expect(expanded["--color-surface-500"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expanded["--color-surface-800"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expanded["--color-surface-950"]).toMatch(/^#[0-9a-f]{6}$/);
+    // Full 11-step ladder now emitted for accent roles too (was 3 steps).
+    expect(Object.keys(expanded).filter((k) => k.startsWith("--color-primary-"))).toHaveLength(11);
   });
 
   it("maps default.json shorthand properties to customCss", () => {

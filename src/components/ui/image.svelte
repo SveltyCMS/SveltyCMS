@@ -52,6 +52,17 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 	};
 
 	/* -------------------------------------------------------------------------- */
+	/*  Layout-aware sizes preset ladder                                          */
+	/* -------------------------------------------------------------------------- */
+
+	const LAYOUT_SIZES: Record<string, string> = {
+		full: '100vw',
+		half: '(min-width: 768px) 50vw, 100vw',
+		third: '(min-width: 1024px) 33.3vw, (min-width: 640px) 50vw, 100vw',
+		quarter: '(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw'
+	};
+
+	/* -------------------------------------------------------------------------- */
 	/*  Asset shape — accepts MediaImage from the CMS or a plain object           */
 	/* -------------------------------------------------------------------------- */
 
@@ -60,11 +71,13 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 		_id?: string | null;
 		id?: string | null;
 		thumbnails?: ThumbnailSet | null;
+		placeholder?: string | null;
 		alt?: string | null;
 		description?: string | null;
 		metadata?: {
 			width?: number | null;
 			height?: number | null;
+			placeholder?: string | null;
 			altText?: string | null;
 			description?: string | null;
 		} | null;
@@ -81,6 +94,10 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 		src?: string;
 		/** Preset width ladder: selects which thumbnail keys to include in srcset */
 		preset?: 'thumbnail' | 'card' | 'default' | 'hero';
+		/** Layout preset automatically calculating optimal responsive sizes attribute */
+		layout?: 'full' | 'half' | 'third' | 'quarter';
+		/** Low-quality image placeholder (LQIP base64 data-URL or blurhash) */
+		placeholder?: string;
 		/** Responsive sizes attribute (default: '100vw') */
 		sizes?: string;
 		/** When true, loading="eager" + fetchpriority="high" */
@@ -95,6 +112,8 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 		asset,
 		src: directSrc,
 		preset = 'default',
+		layout,
+		placeholder: placeholderProp,
 		sizes = '100vw',
 		priority = false,
 		class: className,
@@ -108,6 +127,14 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 
 	/** Resolve the fallback source URL — asset.url or directSrc */
 	const src = $derived<string>((asset?.url || directSrc || '') as string);
+
+	/** Resolve responsive sizes attribute from layout or explicit sizes prop */
+	const resolvedSizes = $derived<string>(layout ? (LAYOUT_SIZES[layout] ?? sizes) : sizes);
+
+	/** Resolve placeholder data-URI for zero-CLS blur */
+	const placeholder = $derived<string | undefined>(
+		placeholderProp ?? asset?.placeholder ?? asset?.metadata?.placeholder ?? undefined
+	);
 
 	/** Resolve alt text: prop > asset.alt > asset.metadata.altText > asset.description > '' */
 	const alt = $derived<string>(
@@ -178,7 +205,7 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 	{src}
 	{alt}
 	{loading}
-	{sizes}
+	sizes={resolvedSizes}
 	decoding="async"
 	width={imgWidth}
 	height={imgHeight}
@@ -187,5 +214,7 @@ so installs that serve media from a separate origin (`MEDIASERVER_URL`) stay cor
 	role={decorative ? 'presentation' : undefined}
 	aria-hidden={decorative ? 'true' : undefined}
 	class={className}
+	style:background-image={placeholder ? `url("${placeholder}")` : undefined}
+	style:background-size={placeholder ? 'cover' : undefined}
 	{...restProps}
 />

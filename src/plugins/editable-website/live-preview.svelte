@@ -353,16 +353,17 @@
 		</div>
 
 		<div class="mb-3 flex justify-center gap-1">
-			{#each [{ label: 'Desktop', width: '100%', icon: 'mdi:monitor' }, { label: 'Tablet', width: '768px', icon: 'mdi:tablet' }, { label: 'Mobile', width: '375px', icon: 'mdi:cellphone' }] as device (device.label)}
+			{#each [{ label: 'Desktop', width: '100%', icon: 'mdi:monitor' }, { label: 'Tablet', width: '768px', icon: 'mdi:tablet' }, { label: 'Mobile', width: '375px', icon: 'mdi:cellphone' }, { label: 'Split Canvas', width: 'canvas', icon: 'mdi:view-parallel' }] as device (device.label)}
 				<Button
-					variant="primary"
+					variant={previewWidth === device.width ? 'primary' : 'outline'}
 					onclick={() => (previewWidth = device.width)}
 					title={device.label}
 					aria-label={device.label}
 					size="sm"
-					class="min-w-0 p-0!"
+					class="min-w-0 px-2"
 				>
-					<iconify-icon icon={device.icon} width={20}></iconify-icon>
+					<iconify-icon icon={device.icon} width={18}></iconify-icon>
+					<span class="ms-1 hidden text-xs sm:inline">{device.label}</span>
 				</Button>
 			{/each}
 		</div>
@@ -370,33 +371,47 @@
 		<div
 			class="relative flex-1 overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
 		>
-			<div
-				class="h-full w-full bg-white transition-all duration-300"
-				style="width: {previewWidth}; margin: 0 auto;"
-			>
+			{#if previewWidth === 'canvas'}
 				{#if authorizedUrl}
-					<iframe
-						bind:this={iframeEl}
-						src={authorizedUrl}
-						title="Live Preview Content"
-						class="h-full w-full transition-opacity duration-500"
-						style:opacity={active ? 1 : 0.3}
-						sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-					></iframe>
-
-					{#if !isConnected}
+					<div class="flex h-full w-full gap-2 overflow-x-auto p-2">
+						<!-- Desktop Viewport -->
 						<div
-							transition:fade
-							class="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+							class="flex h-full min-w-145 flex-1 flex-col overflow-hidden rounded border border-surface-500/20 bg-white shadow-xs"
 						>
-							<div class="text-center text-white">
-								<div
-									class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-white/30 border-t-white"
-								></div>
-								<p class="font-medium">Connecting Handshake...</p>
+							<div
+								class="flex items-center justify-between border-b border-surface-500/10 bg-surface-500/10 px-2 py-1 text-[11px] font-medium text-surface-500"
+							>
+								<span>Desktop View</span>
+								<span>Fluid</span>
 							</div>
+							<iframe
+								bind:this={iframeEl}
+								src={authorizedUrl}
+								title="Desktop Live Preview"
+								class="h-full w-full transition-opacity duration-500"
+								style:opacity={active ? 1 : 0.3}
+								sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+							></iframe>
 						</div>
-					{/if}
+						<!-- Mobile Viewport -->
+						<div
+							class="flex h-full w-93.75 shrink-0 flex-col overflow-hidden rounded border border-surface-500/20 bg-white shadow-xs"
+						>
+							<div
+								class="flex items-center justify-between border-b border-surface-500/10 bg-surface-500/10 px-2 py-1 text-[11px] font-medium text-surface-500"
+							>
+								<span>Mobile View</span>
+								<span>375px</span>
+							</div>
+							<iframe
+								src={authorizedUrl}
+								title="Mobile Live Preview"
+								class="h-full w-full transition-opacity duration-500"
+								style:opacity={active ? 1 : 0.3}
+								sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+							></iframe>
+						</div>
+					</div>
 				{:else}
 					<div class="flex h-full flex-col items-center justify-center gap-3">
 						<div
@@ -405,7 +420,44 @@
 						<p class="text-sm text-surface-500">Generating secure preview session...</p>
 					</div>
 				{/if}
-			</div>
+			{:else}
+				<div
+					class="h-full w-full bg-white transition-all duration-300"
+					style="width: {previewWidth}; margin: 0 auto;"
+				>
+					{#if authorizedUrl}
+						<iframe
+							bind:this={iframeEl}
+							src={authorizedUrl}
+							title="Live Preview Content"
+							class="h-full w-full transition-opacity duration-500"
+							style:opacity={active ? 1 : 0.3}
+							sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+						></iframe>
+
+						{#if !isConnected}
+							<div
+								transition:fade
+								class="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+							>
+								<div class="text-center text-white">
+									<div
+										class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-white/30 border-t-white"
+									></div>
+									<p class="font-medium">Connecting Handshake...</p>
+								</div>
+							</div>
+						{/if}
+					{:else}
+						<div class="flex h-full flex-col items-center justify-center gap-3">
+							<div
+								class="h-8 w-8 animate-spin rounded-full border-4 border-surface-500/30 border-t-primary-500"
+							></div>
+							<p class="text-sm text-surface-500">Generating secure preview session...</p>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<div

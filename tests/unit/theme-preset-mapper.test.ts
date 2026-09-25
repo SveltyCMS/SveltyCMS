@@ -94,12 +94,14 @@ describe("theme-preset-mapper", () => {
       surface: "#f8fafc",
     });
     expect(expanded["--color-primary-500"]).toBe("#0f766e");
-    expect(expanded["--color-primary-50"]).toContain("color-mix");
-    expect(expanded["--color-primary-950"]).toContain("color-mix");
+    expect(expanded["--color-primary-50"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expanded["--color-primary-950"]).toMatch(/^#[0-9a-f]{6}$/);
     expect(expanded["--color-surface-50"]).toBe("#f8fafc");
-    expect(expanded["--color-surface-500"]).toContain("color-mix");
-    expect(expanded["--color-surface-800"]).toContain("color-mix");
-    expect(expanded["--color-surface-950"]).toContain("color-mix");
+    expect(expanded["--color-surface-500"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expanded["--color-surface-800"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expanded["--color-surface-950"]).toMatch(/^#[0-9a-f]{6}$/);
+    // Full 11-step ladder now emitted for accent roles too (was 3 steps).
+    expect(Object.keys(expanded).filter((k) => k.startsWith("--color-primary-"))).toHaveLength(11);
   });
 
   it("binds --admin-bg-card roles when surface tokens are imported", () => {
