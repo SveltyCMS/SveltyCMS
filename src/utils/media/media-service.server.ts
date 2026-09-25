@@ -38,10 +38,12 @@ import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { assertMimeAgreement, resolveRemoteAssetMime, sniffMimeType } from "./slim-sniffer.server";
 import { collectionTableName } from "@src/databases/core/collection-name";
-import type { SharpFactory, SharpOverlayOptions } from "./media-processing.server";
+import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
+import type { SharpOverlayOptions } from "./sharp-loader.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
+import { scheduleVariantJob } from "./variant-job-scheduler.server";
 
 /* -------------------------------------------------------------------------- */
 /* Security helpers for SVG attribute injection defense                       */
@@ -440,9 +442,11 @@ export class MediaService {
   }
 
   /**
-   * Fire-and-forget variant generation for streamed (large file) uploads.
-   * Re-reads the file from storage, generates responsive variants, and
-   * updates the media record with variant metadata asynchronously.
+   * Fire-and-forget variant generation for streamed (large file) uploads and
+   * storage repairs. Schedules through the single-flight coalescer: identical
+   * concurrent uploads share one pipeline run, bulk imports are FIFO-bounded
+   * instead of saturating libvips, and the record update happens per
+   * subscriber once the shared run resolves.
    */
   private generateVariantsForStreamedFile(
     hash: string,
@@ -452,56 +456,53 @@ export class MediaService {
     uploadResult: DatabaseResult<MediaItem>,
     tenantId?: DatabaseId | null,
   ): void {
-    // Defer to microtask to avoid blocking the response
-    Promise.resolve().then(async () => {
-      try {
-        const { getFile } = await import("./media-storage.server");
-        const fileBuffer = await getFile(relPath);
-        const variants = await processImageWithPresets(
-          fileBuffer,
-          hash,
-          ["thumbnail", "card", "default"],
-          tenantId,
-        );
-
-        if (!uploadResult.success) {
-          logger.warn("[MediaService] Cannot generate variants — upload result indicates failure");
-          return;
-        }
-        if (variants.length > 0 && uploadResult.data) {
-          const recordId = (uploadResult.data as { _id?: DatabaseId })._id;
-          if (recordId) {
-            await this.db.crud.update(
-              "media_items",
-              recordId as DatabaseId,
-              {
-                metadata: {
-                  imageVariants: variants.map((v) => ({
-                    preset: v.preset,
-                    width: v.width,
-                    height: v.height,
-                    format: v.format,
-                    quality: v.quality,
-                    path: v.path,
-                    size: v.size,
-                  })),
-                },
-              } as unknown as EntityUpdate<DbMediaItem>,
+    scheduleVariantJob({
+      hash,
+      relPath,
+      tenantId,
+      onVariants: async (variants) => {
+        try {
+          if (!uploadResult.success) {
+            logger.warn(
+              "[MediaService] Cannot generate variants — upload result indicates failure",
             );
-            logger.debug("[Media] Variants generated for streamed upload", {
-              hash: hash.slice(0, 12),
-              count: variants.length,
-            });
+            return;
           }
+          if (variants.length > 0 && uploadResult.data) {
+            const recordId = (uploadResult.data as { _id?: DatabaseId })._id;
+            if (recordId) {
+              await this.db.crud.update(
+                "media_items",
+                recordId as DatabaseId,
+                {
+                  metadata: {
+                    imageVariants: variants.map((v) => ({
+                      preset: v.preset,
+                      width: v.width,
+                      height: v.height,
+                      format: v.format,
+                      quality: v.quality,
+                      path: v.path,
+                      size: v.size,
+                    })),
+                  },
+                } as unknown as EntityUpdate<DbMediaItem>,
+              );
+              logger.debug("[Media] Variants generated for streamed upload", {
+                hash: hash.slice(0, 12),
+                count: variants.length,
+              });
+            }
+          }
+        } catch (err) {
+          logger.warn(
+            "[Media] Background variant generation for streamed upload failed — original intact",
+            {
+              error: err instanceof Error ? err.message : String(err),
+            },
+          );
         }
-      } catch (err) {
-        logger.warn(
-          "[Media] Background variant generation for streamed upload failed — original intact",
-          {
-            error: err instanceof Error ? err.message : String(err),
-          },
-        );
-      }
+      },
     });
   }
 
@@ -659,9 +660,11 @@ export class MediaService {
       return { metadata, thumbnails };
     }
     try {
-      const sharpMod = await import("sharp");
-      const sharp: SharpFactory = (sharpMod.default || sharpMod) as SharpFactory;
-      const imgMeta = await sharp(buffer).metadata();
+      const sharp = await getSharp();
+      const imgMeta = await sharp(buffer, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "none",
+      }).metadata();
       if (imgMeta.width) metadata.width = imgMeta.width;
       if (imgMeta.height) metadata.height = imgMeta.height;
       const dotIdx = filename.lastIndexOf(".");
@@ -1171,8 +1174,7 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem> {
     const { hashFileContent } = await import("./media-processing.server");
-    const sharpMod = await import("sharp");
-    const sharp: SharpFactory = (sharpMod.default || sharpMod) as SharpFactory;
+    const sharp = await getSharp();
 
     // 1. Load existing record
     const res = await this.db.crud.findOne<DbMediaItem>(
@@ -1185,7 +1187,10 @@ export class MediaService {
 
     // 2. Read original file + get dimensions once (reused by blur/watermark)
     const originalBuffer = await getFile(existing.path);
-    const meta = await sharp(originalBuffer).metadata();
+    const meta = await sharp(originalBuffer, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+      failOn: "none",
+    }).metadata();
     const imgW = meta.width ?? 1;
     const imgH = meta.height ?? 1;
 
@@ -1202,7 +1207,7 @@ export class MediaService {
     } = manipulations;
 
     // 3. Build Sharp pipeline — order matters: geometry first, then colour, then composites
-    let pipeline = sharp(originalBuffer, { failOn: "none" });
+    let pipeline = sharp(originalBuffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" });
 
     // — Geometry —
     if (rotation) pipeline = pipeline.rotate(rotation);
@@ -1385,7 +1390,10 @@ export class MediaService {
             const wmW = Math.min(Math.round(wm.width ?? 100), workW - wmLeft);
             const wmH = Math.min(Math.round(wm.height ?? 100), workH - wmTop);
             if (wmW > 0 && wmH > 0) {
-              const wmBuf = await sharp(Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"))
+              const wmBuf = await sharp(Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"), {
+                limitInputPixels: MAX_INPUT_PIXELS,
+                failOn: "none",
+              })
                 .resize(wmW, wmH, { fit: "contain" })
                 .ensureAlpha()
                 .toBuffer();

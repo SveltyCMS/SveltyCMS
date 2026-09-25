@@ -19,11 +19,11 @@ import type { ISODateString } from "@src/content/types";
 
 export const TENANTS = {
   primary: {
-    tenantId: "tenant_00000000-0000-4000-a000-000000000001" as const,
+    tenantId: "tenant_00000000-0000-7000-a000-000000000001" as const,
     name: "Primary Tenant",
   },
   secondary: {
-    tenantId: "tenant_00000000-0000-4000-a000-000000000002" as const,
+    tenantId: "tenant_00000000-0000-7000-a000-000000000002" as const,
     name: "Secondary Tenant",
   },
 } as const;
@@ -44,7 +44,7 @@ export const TEST_PASSWORD = "Password123!";
 
 export const USERS = {
   admin: {
-    _id: "user_00000000-0000-4000-a000-0000000000a1" as const,
+    _id: "user_00000000-0000-7000-a000-0000000000a1" as const,
     username: "admin",
     email: "admin@example.com",
     password: TEST_PASSWORD,
@@ -53,7 +53,7 @@ export const USERS = {
     tenantId: PRIMARY_TENANT,
   },
   developer: {
-    _id: "user_00000000-0000-4000-a000-0000000000d1" as const,
+    _id: "user_00000000-0000-7000-a000-0000000000d1" as const,
     username: "developer",
     email: "developer@test.com",
     password: TEST_PASSWORD,
@@ -62,7 +62,7 @@ export const USERS = {
     tenantId: PRIMARY_TENANT,
   },
   editor: {
-    _id: "user_00000000-0000-4000-a000-0000000000e1" as const,
+    _id: "user_00000000-0000-7000-a000-0000000000e1" as const,
     username: "editor",
     email: "editor@test.com",
     password: TEST_PASSWORD,
@@ -71,7 +71,7 @@ export const USERS = {
     tenantId: PRIMARY_TENANT,
   },
   viewer: {
-    _id: "user_00000000-0000-4000-a000-0000000000v1" as const,
+    _id: "user_00000000-0000-7000-a000-0000000000v1" as const,
     username: "viewer",
     email: "viewer@test.com",
     password: TEST_PASSWORD,
@@ -150,13 +150,13 @@ export const FIXED_DATE = {
 
 export const COLLECTIONS = {
   posts: {
-    _id: "col_00000000-0000-4000-a000-0000000000p1",
+    _id: "col_00000000-0000-7000-a000-0000000000p1",
     name: "posts",
     label: "Posts",
     tenantId: PRIMARY_TENANT,
   },
   pages: {
-    _id: "col_00000000-0000-4000-a000-0000000000p2",
+    _id: "col_00000000-0000-7000-a000-0000000000p2",
     name: "pages",
     label: "Pages",
     tenantId: PRIMARY_TENANT,

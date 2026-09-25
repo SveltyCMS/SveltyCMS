@@ -14,6 +14,7 @@ import { logger } from "@utils/logger";
 import { takeProfileSpans } from "@src/utils/write-profiler";
 import type { DatabaseId } from "@src/content/types";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 // 🟢 ESM require shim: package.json is "type": "module", so raw require()
 // throws ReferenceError under Node/vitest — only Bun provided it. createRequire
@@ -294,7 +295,7 @@ let _benchmarkBootMs = 0;
 /** Track seed overhead */
 let _benchmarkSeedMs = 0;
 /** Current run ID (shared across matrix subprocesses) */
-const _currentRunId = process.env.BENCHMARK_RUN_ID || crypto.randomUUID();
+const _currentRunId = process.env.BENCHMARK_RUN_ID || generateUUID();
 
 // ── configuration ────────────────────────────────────────────────────────────
 const RESULTS_DIR = process.env.RESULTS_DIR ?? "tests/benchmarks/results";
@@ -1212,7 +1213,7 @@ export async function seedThroughputDocs(
   for (let i = 0; i < count; i += BATCH) {
     const end = Math.min(i + BATCH, count);
     const docs = Array.from({ length: end - i }, () => {
-      const _id = crypto.randomUUID();
+      const _id = generateUUID();
       ids.push(_id);
       return { _id, title: `Throughput Doc ${ids.length - 1}`, count: 0, tenantId };
     });
@@ -1524,7 +1525,7 @@ export async function seedBenchmarkState(): Promise<void> {
   // and format-compliant with the enterprise _id contract on collection tables.
   const AUTHOR_UUIDS = Array.from(
     { length: 10 },
-    (_, i) => `10000000-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
+    (_, i) => `10000000-0000-7000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
   );
   const authors = AUTHOR_UUIDS.map((_id, i) => ({ _id, name: `Author ${i + 1}`, tenantId }));
   try {
@@ -1547,7 +1548,7 @@ export async function seedBenchmarkState(): Promise<void> {
   } catch (err: any) {
     logger.warn(`[BenchSeed] Entry seeding failed (non-fatal): ${err.message}`);
   }
-  const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
+  const STABLE_ENTRY_ID = "20000000-0000-7000-8000-000000000001";
   const stablePayload = {
     _id: STABLE_ENTRY_ID,
     title: "Stable Benchmark Entry",
@@ -2071,7 +2072,7 @@ export function exportSubMetric(
 
 export const STABLE_COLLECTION = "BenchmarkStable";
 // Enterprise _id contract: collection-table entries require UUIDv4 ids.
-export const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
+export const STABLE_ENTRY_ID = "20000000-0000-7000-8000-000000000001";
 // Kept for env-config compatibility (harness secret). It is NEVER sent as a
 // request header — benchmark servers run in production mode where x-test-secret
 // grants nothing and /api/testing is 403.
@@ -2319,9 +2320,9 @@ export function generateRealisticEntry(
 ) {
   const size = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
-    _id: crypto.randomUUID(),
+    _id: generateUUID(),
     title: `Post Title ${i} - SveltyCMS Performance Audit`,
-    slug: `post-${i}-${Math.random().toString(36).substring(7)}`,
+    slug: `post-${i}-${generateUUID()}`,
     content: "A".repeat(size),
     score: Math.floor(Math.random() * 10000),
     category: Math.random() > 0.5 ? "A" : "B",

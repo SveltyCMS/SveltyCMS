@@ -13,6 +13,7 @@
 
 import { fail, type RequestEvent } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@utils/date";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import {
@@ -262,7 +263,7 @@ export const actions = {
     const license = await getMigrationLicenseTier(locals);
 
     try {
-      const txnToken = crypto.randomUUID?.() || `dry_${Date.now()}`;
+      const txnToken = generateUUID();
       const prepared = await prepareMigrationEnvelope(
         await file.text(),
         format,

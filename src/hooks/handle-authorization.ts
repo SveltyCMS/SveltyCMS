@@ -33,6 +33,7 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
 import { seedRoleTiers } from "@utils/rate-limit/role-tiers";
+import { invalidateRoleBitset } from "@src/databases/auth/permissions";
 
 const IS_BUN_TEST =
   typeof globalThis !== "undefined" && !!(globalThis as any).process?.env?.BUN_TEST;
@@ -439,6 +440,12 @@ export async function invalidateUserCountCache(tenantId?: string | null): Promis
 }
 export async function invalidateRolesCache(tenantId?: string | null): Promise<void> {
   const key = getCacheKey(tenantId);
+  const cached = rolesCache.get(key);
+  if (cached?.data) {
+    for (const role of cached.data) {
+      invalidateRoleBitset(role);
+    }
+  }
   rolesCache.delete(key);
   cacheService.delete(`roles:${key}`, tenantId ?? undefined).catch(() => {});
 }

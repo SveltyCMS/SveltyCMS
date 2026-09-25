@@ -16,6 +16,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "./logger";
+import { generateUUID } from "@utils/native-utils";
 import { paths } from "./path-resolver";
 
 // 🛡️ Lock to prevent concurrent migration attempts
@@ -246,7 +247,7 @@ export async function runFullMigration(
   if (isMigrating) throw new Error("Migration already in progress");
   isMigrating = true;
 
-  const migrationId = crypto.randomUUID();
+  const migrationId = generateUUID();
   logger.info(`[Migration ${migrationId}] Starting ${direction} for tenant ${tenantId}`);
 
   const result: MigrationResult = {

@@ -18,8 +18,8 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
-import crypto from "node:crypto";
 import { seedHttpCollectionBurst } from "./modules/seed-burst";
+import { generateUUID } from "@utils/native-utils";
 
 const CONCURRENCY = 8;
 const ITERS = 150;
@@ -41,7 +41,7 @@ test("Write Matrix Cliff Reproduction Audit", async () => {
       connection: "keep-alive",
     };
 
-    const runId = crypto.randomUUID().slice(0, 8);
+    const runId = generateUUID().slice(0, 8);
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
 
     // ── 0. SEEDING ──

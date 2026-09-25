@@ -4,7 +4,6 @@
  * @summary Measures direct adapter write throughput, read throughput, and percentile latencies with zero HTTP overhead.
  */
 
-import { randomUUID } from "node:crypto";
 import {
   test,
   setupBenchmarkServer,
@@ -17,6 +16,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const WRITE_DOCS = 100;
 const WRITES_PER_DOC = 10;
@@ -93,7 +93,7 @@ async function run() {
       const limit = Math.min(i + 50, WRITE_DOCS);
       const docs = [];
       for (let j = i; j < limit; j++) {
-        const _id = crypto.randomUUID();
+        const _id = generateUUID();
         writeDocIds.push(_id);
         docs.push({
           _id,
@@ -161,7 +161,7 @@ async function run() {
     await Promise.all(
       readCols.map(async (name, c) => {
         await db.collection.createModel({ _id: name, name, fields: [] }).catch(() => {});
-        const ids = Array.from({ length: DOCS_PER_COLLECTION }, () => randomUUID());
+        const ids = Array.from({ length: DOCS_PER_COLLECTION }, () => generateUUID());
         docIdsByCollection[c] = ids;
         const docs = ids.map((id, i) => ({
           _id: id,

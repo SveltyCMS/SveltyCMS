@@ -20,7 +20,7 @@ import type {
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
+import { dateToISODateString, isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
@@ -422,9 +422,7 @@ export class Auth {
       amr: sessionData.amr ?? (user.is2FAEnabled ? ["pwd", "mfa"] : ["pwd"]),
       mfaVerifiedAt:
         (sessionData as any).mfaVerifiedAt ??
-        (sessionData.amr?.includes("mfa")
-          ? (new Date().toISOString() as ISODateString)
-          : undefined),
+        (sessionData.amr?.includes("mfa") ? (nowISODateString() as ISODateString) : undefined),
     };
     await this.sessionStore.set(session._id, user, sessionData.expires, sessionMetadata);
 

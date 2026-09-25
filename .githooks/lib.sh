@@ -50,7 +50,11 @@ get_estimate_sec() {
     *Format*|*lint*)    echo 3  ;;
     *SBOM*)             echo 2  ;;
     *Lint-staged*)      echo 3  ;;
-    *Unit*)             echo 38 ;;
+    *Unit*)             echo 35 ;;
+    *Secret*)           echo 3  ;;
+    *Tenant*)           echo 5  ;;
+    *Backdoor*|*Probe*) echo 3  ;;
+    *Bundle*)           echo 3  ;;
     *Build*|*build*)    echo 90 ;;
     *Integration*)      echo 150 ;;
     *)                  echo 30 ;;

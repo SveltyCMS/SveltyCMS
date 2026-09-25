@@ -16,7 +16,7 @@ const TEST_TENANT = "global" as DatabaseId;
 
 /** Raw-SQL escape hatch used only to reset the benchmark table (best-effort). */
 type RawSqlExecutor = { execute: (query: unknown) => Promise<unknown> };
-const STABLE_ID = "30000000-0000-4000-8000-000000000001";
+const STABLE_ID = "30000000-0000-7000-8000-000000000001";
 
 process.env.ENCRYPTION_KEY =
   process.env.ENCRYPTION_KEY || "0000000000000000000000000000000000000000000000000000000000000000";

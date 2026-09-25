@@ -24,27 +24,43 @@ export function computeFieldDiff(
 ): DiffEntry[] {
   const diffs: DiffEntry[] = [];
 
-  // Create a map for quick lookup and to maintain field ordering
+  // Create maps for quick lookup and field ordering without intermediate array allocations
   const fieldMap = new Map<string, FieldInstance>();
+  const orderMap = fields ? new Map<string, number>() : null;
+  const allKeys = new Set<string>();
+
   if (fields) {
-    fields.forEach((f) => fieldMap.set(f.db_fieldName, f));
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      fieldMap.set(f.db_fieldName, f);
+      orderMap!.set(f.db_fieldName, i);
+      if (!f.db_fieldName.startsWith("_") || f.db_fieldName === "_id") {
+        allKeys.add(f.db_fieldName);
+      }
+    }
   }
 
-  const allKeys = new Set([
-    ...(fields ? fields.map((f) => f.db_fieldName) : []),
-    ...Object.keys(oldData || {}),
-    ...Object.keys(newData || {}),
-  ]);
+  if (oldData) {
+    for (const key in oldData) {
+      if (!key.startsWith("_") || key === "_id") {
+        allKeys.add(key);
+      }
+    }
+  }
 
-  // Filter out system fields (underscore prefixed) except for _id
-  const keysToCompare = Array.from(allKeys).filter((key) => !key.startsWith("_") || key === "_id");
+  if (newData) {
+    for (const key in newData) {
+      if (!key.startsWith("_") || key === "_id") {
+        allKeys.add(key);
+      }
+    }
+  }
 
-  // Sort keys based on field ordering if available
-  if (fields) {
-    const orderMap = new Map(fields.map((f, i) => [f.db_fieldName, i]));
+  const keysToCompare = Array.from(allKeys);
+  if (orderMap) {
     keysToCompare.sort((a, b) => {
-      const orderA = orderMap.has(a) ? orderMap.get(a)! : 999;
-      const orderB = orderMap.has(b) ? orderMap.get(b)! : 999;
+      const orderA = orderMap.get(a) ?? 999;
+      const orderB = orderMap.get(b) ?? 999;
       return orderA - orderB;
     });
   }

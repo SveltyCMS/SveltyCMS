@@ -10,6 +10,7 @@
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { createClient } from "redis";
 import { resolveSqlitePath } from "@src/databases/config-state";
@@ -85,10 +86,7 @@ export async function getSetupDatabaseAdapter(
   dbAdapter: IDBAdapter;
   connectionString: string;
 }> {
-  const correlationId =
-    typeof globalThis.crypto?.randomUUID === "function"
-      ? globalThis.crypto.randomUUID()
-      : (await import("node:crypto")).randomUUID();
+  const correlationId = generateUUID();
 
   logger.info(`🔌 Connecting to ${config.type}...`);
   const connectionString = buildDatabaseConnectionString(config);

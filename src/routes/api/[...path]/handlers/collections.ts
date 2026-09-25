@@ -22,7 +22,7 @@ import { prepareCollectionFields } from "@src/content/content-utils";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
-import { successResponse, rawResponse } from "./base";
+import { successResponse, fastSuccessResponse, rawResponse } from "./base";
 import { prefersMinimalReturn } from "@utils/http-preferences";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { streamingExportResponse, streamingJsonResponse } from "./streaming";
@@ -541,30 +541,27 @@ export async function handleCollectionUpdate(
         ? await profileSpan("handler:json", () => event.request.json())
         : await event.request.json()),
   );
+  const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
         cms.collections.update(collectionId, entryId, rawData, {
           user: user!,
           tenantId,
-          ...(prefersMinimalReturn(event.request.headers.get("prefer"))
-            ? { skipReturning: true }
-            : {}),
+          ...(isMinimal ? { skipReturning: true } : {}),
         }),
       )
     : await cms.collections.update(collectionId, entryId, rawData, {
         user: user!,
         tenantId,
-        ...(prefersMinimalReturn(event.request.headers.get("prefer"))
-          ? { skipReturning: true }
-          : {}),
+        ...(isMinimal ? { skipReturning: true } : {}),
       });
 
   // RFC 7240: `Prefer: return=minimal` asks for a status-only ack. The default body is the
   // whole merged document (~3.5 KB for a partial PATCH on the competitive update lane),
   // which is 82x what a caller that only needs "it worked" puts on the wire. The write
   // itself, its validation and its hooks are unchanged; only the representation is dropped.
-  if (result?.success && prefersMinimalReturn(event.request.headers.get("prefer"))) {
-    return successResponse(event, { success: true, data: { _id: entryId } });
+  if (result?.success && isMinimal) {
+    return fastSuccessResponse(event, `{"_id":${JSON.stringify(entryId)}}`, { _id: entryId }, 200);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result);

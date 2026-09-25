@@ -180,11 +180,24 @@ export async function startServer() {
     warn(`Yjs collaboration server skipped: ${err?.message || err}`);
   }
 
+  let supervisor;
+  const bgMode = (process.env.SVELTY_BACKGROUND_MODE || "").toLowerCase().trim();
+  if (bgMode !== "inprocess" && bgMode !== "disabled" && bgMode !== "off" && bgMode !== "0") {
+    try {
+      const { startBackgroundSupervisor } = await importBuildBundle("background-supervisor");
+      supervisor = startBackgroundSupervisor();
+      log("Background worker supervisor started (child mode)");
+    } catch (err) {
+      warn(`Background worker supervisor skipped: ${err?.message || err}`);
+    }
+  }
+
   const host = process.env.HOST || "0.0.0.0";
   const port = Number(process.env.PORT) || 4173;
 
   const shutdown = () => {
     if (stopYjs) stopYjs();
+    if (supervisor) supervisor.stop().catch(() => {});
     server.close(() => process.exit(0));
     // A hung keep-alive connection must not hold the process open.
     setTimeout(() => process.exit(0), 5_000).unref?.();

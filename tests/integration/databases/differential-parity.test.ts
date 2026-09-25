@@ -16,10 +16,14 @@
  * single-node docker container has no replica set.
  */
 
+// 🟢 Bun compatibility for bson/mongodb
+import "../../../src/utils/v8-shim";
+
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { connectWithRetry, currentDbType, shouldRunAdapterSuite } from "./adapter-test-env";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const ENGINE = currentDbType() as "sqlite" | "postgresql" | "mariadb" | "mongodb";
 // SQLite is file-based — always run (no docker hint, mirroring sqlite-adapter.test.ts).
@@ -113,8 +117,8 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("raw insert and insert-inside-transaction return identical documents", async () => {
     if (!db) return;
-    const rawId = crypto.randomUUID() as any as DatabaseId;
-    const txnId = crypto.randomUUID() as any as DatabaseId;
+    const rawId = generateUUID() as any as DatabaseId;
+    const txnId = generateUUID() as any as DatabaseId;
     const doc = { title: "parity", enabled: true, views: 7, tenantId: TENANT };
 
     const raw = await db.crud.insert(
@@ -157,7 +161,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("rollback removes rows written by the raw paths inside the transaction", async () => {
     if (!db || !TXN_ENGINES.has(ENGINE)) return;
-    const doomedId = crypto.randomUUID() as any as DatabaseId;
+    const doomedId = generateUUID() as any as DatabaseId;
     const txn = await db.transaction(async (tx) => {
       await (tx as any).insert(
         COLLECTION,
@@ -185,7 +189,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("commit inside a transaction persists raw-written rows", async () => {
     if (!db || !TXN_ENGINES.has(ENGINE)) return;
-    const keptId = crypto.randomUUID() as any as DatabaseId;
+    const keptId = generateUUID() as any as DatabaseId;
     const txn = await db.transaction(async (tx) => {
       const res = await (tx as any).insert(
         COLLECTION,
@@ -210,7 +214,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("read paths return ISODateString dates, never epoch numbers", async () => {
     if (!db) return;
-    const id = crypto.randomUUID() as any as DatabaseId;
+    const id = generateUUID() as any as DatabaseId;
     await db.crud.insert(
       COLLECTION,
       { _id: id, title: "dates", tenantId: TENANT } as any,
@@ -228,7 +232,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("raw findById and Drizzle findOne agree on the same document", async () => {
     if (!db) return;
-    const id = crypto.randomUUID() as any as DatabaseId;
+    const id = generateUUID() as any as DatabaseId;
     await db.crud.insert(
       COLLECTION,
       { _id: id, title: "reads", views: 3, tenantId: TENANT } as any,

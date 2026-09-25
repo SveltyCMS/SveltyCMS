@@ -13,9 +13,10 @@ import type { BaseQueryOptions } from "@src/databases/db-interface";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 describe("relational-utils — id + error helpers", () => {
-  it("generateId returns 32 hex chars (UUID without dashes)", () => {
+  it("generateId returns 32-hex compact UUIDv7 (version nibble at index 12)", () => {
     const id = utils.generateId();
     expect(id).toMatch(/^[0-9a-f]{32}$/i);
+    expect(id[12]).toBe("7"); // RFC 9562 v7 in compact form
     expect(utils.validateId(id)).toBe(true);
   });
 
@@ -25,17 +26,22 @@ describe("relational-utils — id + error helpers", () => {
     expect(a).not.toBe(b);
   });
 
-  it("validateId accepts 32-hex and dashed UUID forms", () => {
-    expect(utils.validateId("a".repeat(32))).toBe(true);
-    expect(utils.validateId("A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4")).toBe(true);
-    expect(utils.validateId("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+  it("validateId accepts v7 dashed and v7 compact forms only", () => {
+    // v7 compact (32-hex): version nibble '7' at index 12, variant [89ab] at 16
+    expect(utils.validateId("0188029ba9b070008456446655440000")).toBe(true);
+    expect(utils.validateId("0188029BA9B07000A456446655440000")).toBe(true);
+    // v7 dashed (36-char)
+    expect(utils.validateId("0188029b-a9b0-7000-8456-446655440000")).toBe(true);
   });
 
-  it("validateId enforces the UUIDv4 version and variant on dashed forms", () => {
-    expect(utils.validateId("550e8400-e29b-41d4-a716-446655440000")).toBe(true); // v4, variant [89ab]
+  it("validateId rejects legacy versions (v1, v4, v5) and bad variants", () => {
+    expect(utils.validateId("550e8400-e29b-41d4-a716-446655440000")).toBe(false); // v4
+    expect(utils.validateId("0188029b-a9b0-4000-8456-446655440000")).toBe(false); // v4-shaped timestamp
     expect(utils.validateId("550e8400-e29b-11d4-a716-446655440000")).toBe(false); // v1
     expect(utils.validateId("550e8400-e29b-51d4-a716-446655440000")).toBe(false); // v5
-    expect(utils.validateId("550e8400-e29b-41d4-c716-446655440000")).toBe(false); // variant c
+    expect(utils.validateId("550e8400-e29b-71d4-c716-446655440000")).toBe(false); // variant c
+    // v4-derived compact forms carry the '4' nibble at index 12 — rejected too
+    expect(utils.validateId("550e8400e29b41d4a716446655440000")).toBe(false);
   });
 
   it("validateId rejects empty, short, and invalid strings", () => {

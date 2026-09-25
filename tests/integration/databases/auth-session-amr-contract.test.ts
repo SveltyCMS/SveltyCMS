@@ -29,6 +29,7 @@ import type {
 } from "@src/databases/db-interface";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { assertRealAdapter } from "@tests/helpers/assert-real-adapter";
+import { generateUUID } from "@utils/native-utils";
 
 const TENANT = "global" as DatabaseId;
 const MFA_AMR = ["pwd", "mfa"];
@@ -37,7 +38,17 @@ let db: DatabaseAdapter;
 const createdSessionIds: DatabaseId[] = [];
 
 function suffix(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${Date.now().toString(36)}-${generateUUID()}`;
+}
+
+/**
+ * `user_id` is varchar(36) on the strict SQL engines (MariaDB/PostgreSQL
+ * enforce it; SQLite does not) — so user identifiers must be real UUIDs,
+ * never descriptive prefixes + suffix (>36 chars). Device ids may be longer
+ * (varchar(64)) and keep the readable prefix.
+ */
+function shortUserId(prefix: string): DatabaseId {
+  return `${prefix}${generateUUID().slice(prefix.length)}` as DatabaseId;
 }
 
 function futureIso(hours = 1): ISODateString {
@@ -91,7 +102,7 @@ afterAll(async () => {
 
 describe("auth sessions — AMR / MFA persistence", () => {
   it("round-trips amr + mfaVerifiedAt through a real read", async () => {
-    const userId = `amr-roundtrip-${suffix()}` as DatabaseId;
+    const userId = shortUserId("amr-roundtrip-");
     const mfaVerifiedAt = new Date().toISOString() as ISODateString;
 
     const written = await createSession(userId, { amr: MFA_AMR, mfaVerifiedAt });
@@ -113,7 +124,7 @@ describe("auth sessions — AMR / MFA persistence", () => {
   });
 
   it("keeps device metadata that other auth paths rely on", async () => {
-    const userId = `amr-device-${suffix()}` as DatabaseId;
+    const userId = shortUserId("amr-device-");
     const written = await createSession(userId);
     const read = await readBack(userId, written._id);
 
@@ -122,7 +133,7 @@ describe("auth sessions — AMR / MFA persistence", () => {
   });
 
   it("keeps the MFA proof across session-id rotation", async () => {
-    const userId = `amr-rotation-${suffix()}` as DatabaseId;
+    const userId = shortUserId("amr-rotation-");
     const mfaVerifiedAt = new Date().toISOString() as ISODateString;
 
     const original = await createSession(userId, { amr: MFA_AMR, mfaVerifiedAt });
@@ -139,7 +150,7 @@ describe("auth sessions — AMR / MFA persistence", () => {
   });
 
   it("does not invent AMR for plain sessions", async () => {
-    const userId = `amr-plain-${suffix()}` as DatabaseId;
+    const userId = shortUserId("amr-plain-");
     const written = await createSession(userId);
     const read = await readBack(userId, written._id);
 

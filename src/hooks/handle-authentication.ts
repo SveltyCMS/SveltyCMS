@@ -24,6 +24,7 @@
 
 import type { ISODateString } from "@databases/db-interface";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
+import { generateSecureToken, generateUUID } from "@utils/native-utils";
 import {
   getSessionCookieName,
   isSecureCookieContext,
@@ -151,7 +152,7 @@ function initRotationRateLimiter() {
     IP: [100, "m"],
     cookie: {
       name: "session_rotation_limit",
-      secret: secret || (dev ? "dev-only-secret-rotation" : crypto.randomUUID()),
+      secret: secret || (dev ? "dev-only-secret-rotation" : generateSecureToken(32)),
       rate: [100, "m"],
       preflight: true,
     },
@@ -713,7 +714,7 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
   if (readSessionCookie(cookies, isSecure) && !isUserPresent) return;
 
   // Generate a unique tenantId per visitor — no shared dedup
-  const tenantId = crypto.randomUUID();
+  const tenantId = generateUUID();
 
   // SET COOKIE FIRST (before async seeding) to prevent race conditions
   // where sign-up arrives mid-seed and generates a different tenantId.

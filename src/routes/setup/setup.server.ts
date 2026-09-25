@@ -9,6 +9,7 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { generateUUID } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import { describeHardware } from "@utils/hardware-profile";
 import { databaseConfigSchema } from "@src/databases/schemas";
@@ -292,7 +293,7 @@ export async function completeSetup(
     if (system.multiTenant && dbAdapter?.system?.tenants) {
       const primaryTenantId = system.siteName
         ? system.siteName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-        : globalThis.crypto.randomUUID();
+        : generateUUID();
 
       // Create the primary tenant if it doesn't exist
       try {

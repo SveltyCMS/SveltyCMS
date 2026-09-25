@@ -21,6 +21,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const ENGINE = (process.env.DB_TYPE ?? "sqlite").toLowerCase() as
   | "sqlite"
@@ -96,7 +97,7 @@ describe(`Aggregation contract — ${ENGINE}`, () => {
     for (const doc of SEED) {
       const res = await db.crud.insert(
         COLLECTION,
-        { _id: crypto.randomUUID(), ...doc, tenantId: TENANT },
+        { _id: generateUUID(), ...doc, tenantId: TENANT },
         tenantOpts,
       );
       expect(res.success, `seed insert failed: ${res.message ?? ""}`).toBe(true);
@@ -105,7 +106,7 @@ describe(`Aggregation contract — ${ENGINE}`, () => {
     const other = await db.crud.insert(
       COLLECTION,
       {
-        _id: crypto.randomUUID(),
+        _id: generateUUID(),
         title: "Z",
         status: "draft",
         views: 1000,

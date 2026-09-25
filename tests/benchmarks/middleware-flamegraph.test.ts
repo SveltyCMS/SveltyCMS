@@ -55,7 +55,7 @@ test("Middleware Flamegraph & Stage Profiler", async () => {
     const wafProbeUrl = `${baseUrl}/api/system/health?probe=safe_input_string`;
     const userMeUrl = `${baseUrl}/api/user/me`;
     const schemaUrl = `${baseUrl}/api/collections/BenchmarkStable/schema`;
-    const restDocUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`;
+    const restDocUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-7000-8000-000000000001`;
     const graphqlUrl = `${baseUrl}/api/graphql`;
 
     // Pre-serialized GraphQL request body

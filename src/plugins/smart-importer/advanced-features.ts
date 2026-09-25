@@ -6,6 +6,7 @@
 
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
+import { generateUUID } from "@utils/native-utils";
 
 /** Normalizes adapter findOne/insert responses ({ success, data } or raw doc). */
 export function unwrapCrudDoc<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -58,7 +59,7 @@ export async function ensureRelationStub(
 
   const stubPayload = {
     title: `Placeholder Stub [ID: ${externalId}]`,
-    slug: `stub-${externalId}-${crypto.randomUUID().slice(0, 6)}`,
+    slug: `stub-${externalId}-${generateUUID().slice(0, 6)}`,
     status: "draft",
     _isStub: true,
     _externalId: externalId,
@@ -259,8 +260,7 @@ export async function harvestInBodyMedia(
         rawBytes.byteOffset,
         rawBytes.byteOffset + rawBytes.byteLength,
       );
-      const filename =
-        remoteUrl.split("/").pop() || `harvested_${crypto.randomUUID().slice(0, 8)}.png`;
+      const filename = remoteUrl.split("/").pop() || `harvested_${generateUUID().slice(0, 8)}.png`;
       const mimeType = resp.headers?.["content-type"] || "image/png";
 
       const savedMedia = await context.mediaService.saveBinary({

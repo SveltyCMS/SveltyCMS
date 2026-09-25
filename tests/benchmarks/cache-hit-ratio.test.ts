@@ -63,7 +63,7 @@ async function runCacheAudit() {
       "content-type": "application/json",
     };
 
-    const entryId = "20000000-0000-4000-8000-000000000001";
+    const entryId = "20000000-0000-7000-8000-000000000001";
     const hitUrl = `${baseUrl}/api/collections/BenchmarkStable/${entryId}`;
     const bypassUrl = `${baseUrl}/api/collections/BenchmarkStable/${entryId}?bypassCache=true`;
     const invalidateBody = JSON.stringify({ count: 0 });

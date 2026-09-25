@@ -18,6 +18,7 @@
 import inlangSettings from "@root/project.inlang/settings.json";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
 import { getFirstCollectionSchema } from "@src/content/first-collection";
+import { generateUUID } from "@utils/native-utils";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
 import type { DatabaseAdapter, Theme, BaseQueryOptions } from "@src/databases/db-interface";
@@ -691,10 +692,7 @@ export async function seedRoles(
         // Admin role gets all permissions
         // For tenant-scoped roles, generate unique IDs to avoid
         // primary key collisions with roles from other tenants
-        const uuid =
-          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : (await import("node:crypto")).randomUUID();
+        const uuid = generateUUID();
         const roleId = (tenantId ? uuid : role._id) as DatabaseId;
 
         // Check if role already exists — by stable id OR by name (case-insensitive).

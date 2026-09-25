@@ -82,6 +82,7 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import { generateUUID } from '@utils/native-utils';
 	import type { FieldDefinition, FieldInstance } from '@src/content/types';
 	import { getFieldName } from '@utils/schema/field-utils';
 
@@ -150,10 +151,7 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 	function createEmptyClause(): AdvancedFilterClause {
 		const defaultField = availableFields[0]?.name || 'status';
 		return {
-			id:
-				typeof crypto !== 'undefined' && crypto.randomUUID
-					? crypto.randomUUID()
-					: `clause-${Date.now()}-${Math.floor(performance.now() * 1000)}`,
+			id: generateUUID(),
 			field: defaultField,
 			operator: 'equals',
 			value: ''

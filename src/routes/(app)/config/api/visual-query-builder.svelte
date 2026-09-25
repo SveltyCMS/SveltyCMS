@@ -9,6 +9,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import { generateUUID } from '@utils/native-utils';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -92,7 +93,7 @@
 		filters = [
 			...filters,
 			{
-				id: Math.random().toString(36).substring(2, 9),
+				id: generateUUID().substring(0, 9),
 				field: 'title',
 				operator: 'contains',
 				value: ''

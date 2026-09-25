@@ -4,7 +4,7 @@
 **SveltyCMS Input — WCAG 3.0 Ready**
 
 Standard text input with label, error state, `aria-invalid`/`aria-describedby` linkage,
-and `crypto.randomUUID()` for accessible ID generation. Supports progressive
+and `generateUUID()` (RFC 9562 v7) for accessible ID generation. Supports progressive
 corner-shape angled corners.
 
 ### Props
@@ -21,7 +21,7 @@ corner-shape angled corners.
 
 ### Features:
 - WCAG 3.0 ready with `aria-invalid`, `aria-describedby`, label/ID `for` linkage
-- `crypto.randomUUID()` for collision-free accessible IDs
+- `generateUUID()` (RFC 9562 v7) for collision-free accessible IDs
 - error message with `role="alert"` live region
 - custom angled corners via clip-path fallback
 - full Svelte 5 runes: $props, $bindable, $derived

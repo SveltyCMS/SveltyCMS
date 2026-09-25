@@ -19,7 +19,7 @@ import {
 
 /** The seeded shape that the harness's own UPDATE scenario used to destroy. */
 const seeded = () => ({
-  _id: "20000000-0000-4000-8000-000000000001",
+  _id: "20000000-0000-7000-8000-000000000001",
   title: "Updated Static Segment Baseline",
   body: "x".repeat(700),
   slug: "stable-segment",

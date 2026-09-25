@@ -8,10 +8,13 @@ import { building, dev } from "$app/env";
 import { metricsService } from "../observability/metrics-service";
 import { AuthGuardService } from "./auth-guard";
 import { securityStore } from "./state-store";
-import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible";
-import { cacheService } from "@src/databases/cache/cache-service";
+import { memoryStore, redisStore } from "@utils/rate-limit";
+import type { TokenBucketConfig, TokenBucketState } from "@utils/rate-limit/token-bucket";
 import fs from "node:fs";
 import path from "node:path";
+
+/** Dump/restore scope: only the WAF's own buckets, never the shared API engine's. */
+const WAF_KEY_PREFIX = "svelty:sec:rl:v13:";
 import { getPressureCostMultiplier } from "@utils/rate-limit/system-pressure";
 import type {
   SecurityIncident,
@@ -126,10 +129,9 @@ interface SurfaceScan {
 
 export class SecurityResponseService {
   private readonly policies: SecurityPolicy[] = [];
-  private readonly limiters = new Map<string, RateLimiterMemory | RateLimiterRedis>();
+  private readonly limiters = new Map<string, TokenBucketConfig>();
   private readonly lastAlertTime = new Map<string, number>();
   private readonly ALERT_COOLDOWN = 5 * 60 * 1000;
-  private restoredData: Record<string, any> = {};
   private readonly DUMP_PATH = path.resolve(process.cwd(), "config/database/security_rl_dump.json");
 
   constructor() {
@@ -137,12 +139,9 @@ export class SecurityResponseService {
     this.restoreStateSync();
   }
 
-  private async getOrCreateLimiter(
-    endpoint: string,
-    tenantId?: string,
-  ): Promise<RateLimiterMemory | RateLimiterRedis> {
+  private getOrCreateLimiter(endpoint: string, tenantId?: string): TokenBucketConfig {
     // Normalize away query strings so /api/graphql?foo=1 and /api/graphql share
-    // one limiter key instead of creating a fresh bucket per query string.
+    // one limiter config instead of creating a fresh bucket per query string.
     const cleanEndpoint = endpoint.split("?")[0] || endpoint;
     const scope = resolveRateLimitScope(cleanEndpoint);
     const cacheKey = tenantId ? `${scope}_${tenantId}` : scope;
@@ -153,43 +152,21 @@ export class SecurityResponseService {
     // load-testing/benchmark deployments (machinery stays fully active).
     const limit = (ENDPOINT_RATE_LIMITS[scope] || GLOBAL_RATE_LIMIT) * SECURITY_RATE_LIMIT_SCALE;
 
-    const keyPrefix = tenantId
-      ? `svelty:sec:rl:v12:${tenantId}:${scope.replace(/\//g, "_").replace(/^_/, "")}`
-      : `svelty:sec:rl:v12:${scope.replace(/\//g, "_").replace(/^_/, "")}`;
-
-    const options = {
-      points: limit,
-      duration: 60, // 1 minute window
-      keyPrefix,
+    // 1-minute fixed window: capacity = limit, full reset at window end — the
+    // exact shape rate-limiter-flexible received (points/duration, no execEvenly).
+    const bucket: TokenBucketConfig = {
+      capacity: limit,
+      refillPerSecond: limit / 60,
+      windowMs: 60_000,
     };
 
-    // 🚀 Robust redis client acquisition with fallback
-    const redisClient = (cacheService as any).getRedisClient ? cacheService.getRedisClient() : null;
-    let limiter: RateLimiterMemory | RateLimiterRedis;
-
-    if (redisClient && redisClient.status === "ready") {
-      limiter = new RateLimiterRedis({ storeClient: redisClient, ...options });
-    } else {
-      limiter = new RateLimiterMemory(options);
-      // 🚀 Restore state if available
-      if (this.restoredData[cacheKey]) {
-        try {
-          limiter.restore(this.restoredData[cacheKey]);
-          delete this.restoredData[cacheKey]; // Clear after restore
-        } catch (err) {
-          logger.debug(`[Security] Failed to restore state for ${cacheKey}`, err);
-        }
-      }
-    }
-
-    this.limiters.set(cacheKey, limiter);
-    return limiter;
+    this.limiters.set(cacheKey, bucket);
+    return bucket;
   }
 
   public reset(): void {
     this.limiters.clear();
     this.lastAlertTime.clear();
-    this.restoredData = {};
     logger.info("[Security] Rate limiters and alert trackers reset");
   }
 
@@ -248,6 +225,27 @@ export class SecurityResponseService {
             surfaceScan = { pathnameClean: false, searchClean: false };
           }
         }
+      }
+    }
+
+    // 🔐 Bot-UA short-circuit (non-GET): a known bot/scanner User-Agent is
+    // blocked outright — it must never consume WAF rate-limit capacity first,
+    // and the verdict stays deterministic even when the shared per-IP bucket
+    // is exhausted. scanUserAgent() reports these tokens as "high" (it never
+    // emits "critical"), so gate on both. Same verdict the payload stage
+    // would return anyway — only moved ahead of the rate limiter, and like
+    // that path it does NOT persist an IP block (parity: repeated probes keep
+    // hitting 403 per-request without poisoning shared per-IP state). The
+    // verdict is also handed down via surfaceScan so analyzePayload never
+    // re-scans the UA (one UA pass per request, mutations included).
+    if (!isReadOnly) {
+      const ua = request.headers.get("user-agent") || "";
+      if (ua) {
+        const uaVerdict = AuthGuardService.scanUserAgent(ua);
+        if (uaVerdict === "high" || uaVerdict === "critical") {
+          return { level: "critical", action: "block", reason: "User-Agent is blocked" };
+        }
+        surfaceScan ??= { pathnameClean: false, searchClean: false, uaVerdict };
       }
     }
 
@@ -553,33 +551,48 @@ export class SecurityResponseService {
       return { level: "none", action: "allow" };
     }
 
-    try {
-      const limiter = await this.getOrCreateLimiter(endpoint, tenantId);
+    const scope = resolveRateLimitScope(endpoint.split("?")[0] || endpoint);
+    const bucket = this.getOrCreateLimiter(endpoint, tenantId);
 
-      // ⚡ ADAPTIVE LOGIC: Scale points (cost) based on system pressure
-      const multiplier = getPressureCostMultiplier();
-      const adaptivePoints = Math.max(1, Math.ceil(points * multiplier));
+    // ⚡ ADAPTIVE LOGIC: Scale points (cost) based on system pressure
+    const multiplier = getPressureCostMultiplier();
+    const adaptivePoints = Math.max(1, Math.ceil(points * multiplier));
 
-      await limiter.consume(ip, adaptivePoints);
-      return { level: "none", action: "allow" };
-    } catch (rej: any) {
-      // 🛡️ FAIL-OPEN on driver/storage errors: only a real rate-limit rejection
-      // (RateLimiterRes with msBeforeNext) should throttle. A transient Redis
-      // outage must NOT lock out every user on the platform.
-      if (rej && typeof rej.msBeforeNext === "number") {
-        const retryAfter = Math.ceil((rej.msBeforeNext || 1000) / 1000);
+    // Per-IP bucket key. v13: the native engine's storage shape differs from
+    // rate-limiter-flexible's, so a fresh prefix avoids stale-key interaction.
+    const key = `svelty:sec:rl:v13:${tenantId ?? "global"}:${scope.replace(/\//g, "_").replace(/^_/, "")}:${ip}`;
+
+    // Redis primary (cluster-wide) via the shared rate-limit engine; local
+    // memory fallback on any failure — fail-open, exactly like the old
+    // rate-limiter-flexible driver errors behaved. Overdraft mode preserves
+    // the WAF's lockout-extension semantics for oversized costs.
+    let result: { allowed: boolean; retryAfterSeconds: number };
+    if (redisStore.isAvailable()) {
+      try {
+        result = await redisStore.checkAndConsume(key, bucket, adaptivePoints, true);
+      } catch (err) {
         logger.warn(
-          `[Security] Rate limit exceeded [IP: ${ip}, Points: ${points}, Retry: ${retryAfter}s]`,
+          "[Security] WAF Redis limiter unavailable — memory fallback",
+          err instanceof Error ? err.message : String(err),
         );
-        return {
-          level: "low",
-          action: "throttle",
-          reason: `Rate limit exceeded (Retry after ${retryAfter}s)`,
-        };
+        result = memoryStore.checkAndConsume(key, bucket, adaptivePoints, true);
       }
-      logger.error("[Security] Rate limiter storage error - failing open", rej);
-      return { level: "none", action: "allow" };
+    } else {
+      result = memoryStore.checkAndConsume(key, bucket, adaptivePoints, true);
     }
+
+    if (!result.allowed) {
+      const retryAfter = Math.max(1, Math.ceil(result.retryAfterSeconds || 1));
+      logger.warn(
+        `[Security] Rate limit exceeded [IP: ${ip}, Points: ${points}, Retry: ${retryAfter}s]`,
+      );
+      return {
+        level: "low",
+        action: "throttle",
+        reason: `Rate limit exceeded (Retry after ${retryAfter}s)`,
+      };
+    }
+    return { level: "none", action: "allow" };
   }
 
   /** Maps threat levels to quantitative point penalties for rate limiting. */
@@ -741,20 +754,15 @@ export class SecurityResponseService {
    */
   public destroySync(): void {
     if (building) return;
-    const data: Record<string, any> = {};
-    let count = 0;
-    for (const [key, limiter] of this.limiters.entries()) {
-      if (limiter instanceof RateLimiterMemory) {
-        data[key] = limiter.dump();
-        count++;
-      }
-    }
+    // Only the WAF's own buckets — the shared API-engine buckets reset on restart.
+    const data = memoryStore.dumpWithPrefix(WAF_KEY_PREFIX);
+    const count = Object.keys(data).length;
     if (count === 0) return;
 
     try {
       fs.mkdirSync(path.dirname(this.DUMP_PATH), { recursive: true });
       fs.writeFileSync(this.DUMP_PATH, JSON.stringify(data), "utf8");
-      logger.info(`[Security] Rate limiter state dumped synchronously (${count} limiters)`);
+      logger.info(`[Security] Rate limiter state dumped synchronously (${count} buckets)`);
     } catch (err) {
       logger.error("[Security] Failed to dump rate limiter state", err);
     }
@@ -771,9 +779,10 @@ export class SecurityResponseService {
       if (!fs.existsSync(this.DUMP_PATH)) return;
 
       const raw = fs.readFileSync(this.DUMP_PATH, "utf8");
-      this.restoredData = JSON.parse(raw);
-      const count = Object.keys(this.restoredData).length;
+      const data = JSON.parse(raw) as Record<string, TokenBucketState>;
+      const count = Object.keys(data).length;
       if (count > 0) {
+        memoryStore.restore(data);
         logger.info(`[Security] Rate limiter state loaded (${count} pending restores)`);
       }
       fs.unlinkSync(this.DUMP_PATH);

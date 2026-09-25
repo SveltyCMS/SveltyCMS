@@ -16,6 +16,7 @@ import "../../../src/utils/v8-shim";
 
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { connectWithRetry, shouldRunAdapterSuite } from "./adapter-test-env";
+import { generateUUID } from "@utils/native-utils";
 
 const gate = shouldRunAdapterSuite("mongodb");
 const describeMongo = gate.run ? describe : describe.skip;
@@ -102,8 +103,8 @@ describeMongo("MongoDB Adapter Integration", () => {
     it("should handle full document lifecycle including metadata", async () => {
       if (!db) return;
 
-      const runId = `mongo-crud-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const testId = crypto.randomUUID() as any as DatabaseId;
+      const runId = `mongo-crud-${Date.now()}-${generateUUID()}`;
+      const testId = generateUUID() as any as DatabaseId;
 
       await db.crud.deleteMany(
         CRUD_COLLECTION,
@@ -244,7 +245,7 @@ describeMongo("MongoDB Adapter Integration", () => {
     it("should support $in operator via CRUD findMany", async () => {
       if (!db) return;
 
-      const runId = `mongo-query-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const runId = `mongo-query-${Date.now()}-${generateUUID()}`;
 
       await db.crud
         .deleteMany(

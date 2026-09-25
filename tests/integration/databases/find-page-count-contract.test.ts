@@ -21,6 +21,7 @@ import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { generateUUID } from "@utils/native-utils";
 
 const TEST_COLLECTION = "find_page_count_contract";
 const TEST_TENANT = "fpc-tenant";
@@ -29,9 +30,9 @@ const tenantOpts = Object.freeze({ tenantId: TEST_TENANT });
 let db: any = null;
 let adapter: any = null;
 
-/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+/** Enterprise _id contract: collection-table entries require UUIDv7 ids. */
 function uid(_p: string) {
-  return crypto.randomUUID();
+  return generateUUID();
 }
 
 beforeAll(async () => {

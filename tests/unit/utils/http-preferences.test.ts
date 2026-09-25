@@ -37,4 +37,18 @@ describe("prefersMinimalReturn", () => {
     expect(prefersMinimalReturn("return=minimal, return=representation")).toBe(false);
     expect(prefersMinimalReturn("return=representation, return=minimal")).toBe(true);
   });
+
+  it("recognises minimal return from URL query parameters", () => {
+    expect(prefersMinimalReturn(null, new URL("https://example.com/api/test?return=minimal"))).toBe(
+      true,
+    );
+    expect(prefersMinimalReturn(null, new URL("https://example.com/api/test?minimal=true"))).toBe(
+      true,
+    );
+    expect(prefersMinimalReturn(null, new URL("https://example.com/api/test?minimal=1"))).toBe(
+      true,
+    );
+    expect(prefersMinimalReturn(null, "?return=minimal")).toBe(true);
+    expect(prefersMinimalReturn(null, new URL("https://example.com/api/test"))).toBe(false);
+  });
 });

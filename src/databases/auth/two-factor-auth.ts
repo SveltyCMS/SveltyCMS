@@ -16,6 +16,7 @@
  */
 
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import { nowISODateString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import {
@@ -198,7 +199,7 @@ export class TwoFactorAuthService {
         twoFactorPending: false,
         totpSecret: encryptedSecret,
         backupCodes: hashedBackupCodes,
-        last2FAVerification: new Date().toISOString() as ISODateString,
+        last2FAVerification: nowISODateString() as ISODateString,
       };
 
       const result = await this.db.updateUserAttributes(userId, updateData, {
@@ -290,7 +291,7 @@ export class TwoFactorAuthService {
         await this.db.updateUserAttributes(
           userId,
           {
-            last2FAVerification: new Date().toISOString() as ISODateString,
+            last2FAVerification: nowISODateString() as ISODateString,
           },
           { tenantId: tenantId ?? undefined },
         );
@@ -322,7 +323,7 @@ export class TwoFactorAuthService {
               userId,
               {
                 backupCodes: updatedBackupCodes,
-                last2FAVerification: new Date().toISOString() as ISODateString,
+                last2FAVerification: nowISODateString() as ISODateString,
               },
               { tenantId },
             );

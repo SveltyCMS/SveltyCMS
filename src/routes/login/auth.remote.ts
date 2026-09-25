@@ -7,6 +7,7 @@
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { auth, dbInitPromise } from "@src/databases/db";
+import { generateUUID } from "@utils/native-utils";
 import { safeParse, flatten } from "valibot";
 import {
   loginFormSchema,
@@ -695,7 +696,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
     tid =
       event.cookies.get("__Host-demo_tenant_id") ||
       event.cookies.get("demo_tenant_id") ||
-      crypto.randomUUID();
+      generateUUID();
   } else {
     if (!t) return { success: false, message: "Invitation required." };
     const td = await auth.validateRegistrationToken(t);

@@ -55,6 +55,15 @@ export abstract class BaseAdapter {
   }
 
   /**
+   * 🚀 PERFORMANCE: Fast check if any hooks are registered for the given action/type.
+   */
+  public hasHooks(type?: HookType, action?: HookAction): boolean {
+    if (this.hooks.length === 0) return false;
+    if (!type && !action) return true;
+    return this.hooks.some((h) => (!type || h.type === type) && (!action || h.action === action));
+  }
+
+  /**
    * Executes all hooks for a specific action and type.
    * ⚡ PERFORMANCE: Uses a pre-filtered cache to avoid O(N) filter on every call.
    */
@@ -285,11 +294,33 @@ export abstract class BaseAdapter {
       return Promise.resolve(this.notConnectedError<T>());
     }
     this.metrics.queryCount++;
-    // skipMeta is the caller's "this is a hot path" flag. Writes already used
-    // it; point reads pass it too. Timing + the trace span were the same order
-    // of cost as a prepared findById.
     const hot = options?.skipMeta === true;
-    const startTime = hot ? 0 : performance.now();
+    if (hot) {
+      try {
+        const p = fn();
+        if (p && typeof (p as any).then === "function") {
+          return (p as Promise<T>).then(
+            (data) => this.okEnvelope(data, true),
+            (error) => {
+              this.metrics.errorCount++;
+              return this.handleError<T>(error, code, message, {
+                suppressErrorLog: options?.suppressErrorLog,
+              });
+            },
+          );
+        }
+        return Promise.resolve(this.okEnvelope(p as T, true));
+      } catch (error) {
+        this.metrics.errorCount++;
+        return Promise.resolve(
+          this.handleError<T>(error, code, message, {
+            suppressErrorLog: options?.suppressErrorLog,
+          }),
+        );
+      }
+    }
+
+    const startTime = performance.now();
     const fail = (error: unknown): DatabaseResult<T> => {
       this.metrics.errorCount++;
       return this.handleError<T>(error, code, message, {
@@ -297,26 +328,22 @@ export abstract class BaseAdapter {
       });
     };
     const succeed = (data: T): DatabaseResult<T> => {
-      if (!hot) {
-        const latency = performance.now() - startTime;
-        this.metrics.lastLatency = latency;
-        if (latency > 500) {
-          this.metrics.slowQueryCount++;
-          const stack =
-            process.env.SVELTY_SQL_DEBUG === "1"
-              ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
-              : "";
-          logger.warn(
-            `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
-          );
-        }
+      const latency = performance.now() - startTime;
+      this.metrics.lastLatency = latency;
+      if (latency > 500) {
+        this.metrics.slowQueryCount++;
+        const stack =
+          process.env.SVELTY_SQL_DEBUG === "1"
+            ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
+            : "";
+        logger.warn(
+          `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
+        );
       }
-      return this.okEnvelope(data, options?.skipMeta === true);
+      return this.okEnvelope(data, false);
     };
     try {
-      // Promise.resolve(thenable) adopts a native Promise without an extra hop;
-      // a sync throw from fn() still maps to handleError (previous try/catch).
-      return Promise.resolve(hot ? fn() : traceSpan(`db:${code}`, fn)).then(succeed, fail);
+      return Promise.resolve(traceSpan(`db:${code}`, fn)).then(succeed, fail);
     } catch (error) {
       return Promise.resolve(fail(error));
     }

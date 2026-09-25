@@ -6,6 +6,7 @@
 	import { onMount } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { fade } from 'svelte/transition';
+	import { generateUUID } from '@utils/native-utils';
 	import type {
 		WorkflowDefinition,
 		WorkflowState,
@@ -100,13 +101,13 @@
 	}
 
 	function addState() {
-		const id = `state_${globalThis.crypto.randomUUID().substring(0, 8)}`;
+		const id = `state_${generateUUID().substring(0, 8)}`;
 		states.push({ id, label: 'New State', color: '#3b82f6' });
 	}
 
 	function addTransition() {
 		if (states.length < 2) return;
-		const id = `trans_${globalThis.crypto.randomUUID().substring(0, 8)}`;
+		const id = `trans_${generateUUID().substring(0, 8)}`;
 		transitions.push({
 			id,
 			from: states[0].id,

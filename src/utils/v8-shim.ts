@@ -36,22 +36,33 @@ if (!(globalThis as any)[SHIM_KEY]) {
     const origGetBuiltinModule = processRef.getBuiltinModule;
 
     processRef.getBuiltinModule = function (this: any, name: string) {
-      if (name === "v8") {
+      if (name === "v8" || name === "node:v8") {
         // Retrieve existing module if possible, or create a safe base object
         let v8Module: any;
         try {
-          v8Module = origGetBuiltinModule.call(this, "v8");
+          v8Module = origGetBuiltinModule.call(this, name);
         } catch {
           v8Module = {};
+        }
+
+        const safeStartupSnapshot = {
+          isBuildingSnapshot: () => false,
+          addDeserializeCallback: () => {},
+          addSerializeCallback: () => {},
+          setDeserializeMainFunction: () => {},
+        };
+
+        if (v8Module?.startupSnapshot) {
+          try {
+            v8Module.startupSnapshot.isBuildingSnapshot = () => false;
+            v8Module.startupSnapshot.addDeserializeCallback = () => {};
+          } catch {}
         }
 
         // Return a frozen object to prevent downstream modification of the shim
         return Object.freeze({
           ...v8Module,
-          startupSnapshot: {
-            isBuildingSnapshot: () => false,
-            addDeserializeCallback: () => {},
-          },
+          startupSnapshot: safeStartupSnapshot,
         });
       }
       return origGetBuiltinModule.call(this, name);

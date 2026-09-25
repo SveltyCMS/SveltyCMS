@@ -728,6 +728,9 @@ export function cleanupTestArtifacts(root: string): void {
     join(root, "config", "test-collections"),
     join(root, ".compiledCollections", "test-collections"),
     join(root, "test-media"),
+    // WAF rate-limiter persistence: state must never leak across harness runs
+    // (a negative bucket dumped <60s before the next boot re-locks logins).
+    join(root, "config", "database", "security_rl_dump.json"),
   ];
   for (const p of paths) {
     try {

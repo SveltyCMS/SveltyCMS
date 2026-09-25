@@ -16,6 +16,7 @@
  */
 
 import { assertSuccess } from "./benchmark-utils";
+import { generateUUID } from "@utils/native-utils";
 
 export interface BenchmarkSanityOptions {
   /** Collection name used by the benchmark */
@@ -70,7 +71,7 @@ export async function validateBenchmarkEnvironment(options: BenchmarkSanityOptio
   // benchmark. This catches adapter-specific error conventions (e.g.,
   // { success: false } vs throwing).
 
-  const sanityId = crypto.randomUUID();
+  const sanityId = generateUUID();
 
   // Test insert
   const insertRes = await db.crud.insert(
@@ -103,7 +104,7 @@ export async function validateBenchmarkEnvironment(options: BenchmarkSanityOptio
   // database-performance.test.ts (E11000 on MongoDB).
 
   if (warmupIterations > 0) {
-    const warmupId = crypto.randomUUID();
+    const warmupId = generateUUID();
     const warmupInsert = await db.crud.insert(
       collectionId,
       { _id: warmupId, title: "Warmup Sanity", status: "active", tenantId },
@@ -119,7 +120,7 @@ export async function validateBenchmarkEnvironment(options: BenchmarkSanityOptio
   // If the benchmark uses bulk operations, verify they work
 
   if (typeof db.crud.insertMany === "function") {
-    const bulkIds = Array.from({ length: 3 }, () => crypto.randomUUID());
+    const bulkIds = Array.from({ length: 3 }, () => generateUUID());
     const bulkRes = await db.crud.insertMany(
       collectionId,
       bulkIds.map((id) => ({ _id: id, title: "Bulk Sanity", status: "active", tenantId })),

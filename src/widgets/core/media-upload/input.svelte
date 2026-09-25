@@ -240,27 +240,37 @@
 	function handleMediaDrop(state: DragDropState<MediaFile>) {
 		const dragged = state.draggedItem;
 		if (!dragged) return;
-		const fromIndex = selectedFiles.indexOf(dragged);
+		const fromIndex = selectedFiles.findIndex(
+			(f) => f._id === dragged._id || (Boolean(dragged.hash) && f.hash === dragged.hash)
+		);
 		if (fromIndex < 0) return;
 
 		const targetEl = state.targetElement?.closest('[data-file-id]') as HTMLElement | null;
 		const targetFileId = targetEl?.dataset?.fileId;
 
+		if (
+			targetFileId &&
+			(targetFileId === dragged._id || targetFileId === selectedFiles[fromIndex]._id)
+		) {
+			return;
+		}
+
 		let targetIndex: number;
 		if (targetFileId) {
 			targetIndex = selectedFiles.findIndex((f) => f._id === targetFileId);
-			if (state.dropPosition === 'after') targetIndex++;
+			if (targetIndex >= 0 && state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = selectedFiles.length;
 		}
+		if (targetIndex < 0) targetIndex = selectedFiles.length;
 		targetIndex = Math.max(0, Math.min(targetIndex, selectedFiles.length));
 
 		if (fromIndex === targetIndex) return;
 		selectedFiles = untrack(() => {
 			const newFiles = [...selectedFiles];
-			newFiles.splice(fromIndex, 1);
+			const [movedItem] = newFiles.splice(fromIndex, 1);
 			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-			newFiles.splice(adjusted, 0, dragged);
+			newFiles.splice(adjusted, 0, movedItem);
 			return newFiles;
 		});
 	}
@@ -286,11 +296,25 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class="relative overflow-hidden rounded border border-surface-500/30 dark:text-surface-50"
+					data-file-id={file._id}
 					animate:flip
-					use:draggable={{ container: 'media-grid', dragData: file, keyboard: true }}
+					use:draggable={{
+						container: 'media-grid',
+						dragData: file,
+						handle: '.media-drag-handle',
+						keyboard: true
+					}}
 					role="listitem"
 					tabindex="0"
 				>
+					<button
+						type="button"
+						class="media-drag-handle absolute inset-s-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+						aria-label={`Drag to reorder ${file.name}`}
+						title="Drag to reorder"
+					>
+						<iconify-icon icon="mdi:drag" width="14"></iconify-icon>
+					</button>
 					<button
 						type="button"
 						class="block w-full text-start"

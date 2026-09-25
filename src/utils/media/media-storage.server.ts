@@ -12,7 +12,6 @@
 
 import path from "node:path";
 import os from "node:os";
-import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { writeFile, readFile, unlink } from "node:fs/promises";
 import { LRUCache } from "lru-cache";
@@ -21,18 +20,9 @@ import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
 import { getMimeType } from "./media-utils";
 import type { ResizedImage } from "./media-models";
-import type { SharpFactory } from "./media-processing.server";
+import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
+import { generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@src/utils/date";
-
-/** Global lazy-loaded sharp instance to eliminate module resolution overhead */
-let _sharp: SharpFactory | null = null;
-async function getSharp(): Promise<SharpFactory> {
-  if (!_sharp) {
-    const mod = await import("sharp");
-    _sharp = (mod.default || mod) as SharpFactory;
-  }
-  return _sharp;
-}
 
 /**
  * Helper to run a process and wait for completion.
@@ -187,7 +177,7 @@ export async function saveResized(
   baseDir: string,
 ): Promise<Record<string, ResizedImage>> {
   const sharp = await getSharp();
-  const baseInstance = sharp(buffer);
+  const baseInstance = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" });
   const meta = await baseInstance.metadata();
 
   const formatConfig = getPublicSettingSync("MEDIA_OUTPUT_FORMAT_QUALITY") as
@@ -304,7 +294,7 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
 
   const buf = Buffer.from(await file.arrayBuffer());
   const sharp = await getSharp();
-  const resized = await sharp(buf)
+  const resized = await sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" })
     .resize(200, 200, { fit: "cover", position: "center" })
     .toBuffer();
 
@@ -321,8 +311,8 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
     return null;
   }
 
-  const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${crypto.randomUUID()}.mp4`);
-  const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${crypto.randomUUID()}.jpg`);
+  const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${generateUUID()}.mp4`);
+  const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${generateUUID()}.jpg`);
   try {
     await writeFile(tempInput, buffer);
     // Capture frame at 1s mark
@@ -365,8 +355,8 @@ export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | nul
     return null;
   }
 
-  const tempInput = path.join(os.tmpdir(), `pdf-input-${crypto.randomUUID()}.pdf`);
-  const tempOutput = path.join(os.tmpdir(), `pdf-output-${crypto.randomUUID()}.jpg`);
+  const tempInput = path.join(os.tmpdir(), `pdf-input-${generateUUID()}.pdf`);
+  const tempOutput = path.join(os.tmpdir(), `pdf-output-${generateUUID()}.jpg`);
   try {
     await writeFile(tempInput, buffer);
     // Use ImageMagick (magick) to extract the first page [0] at 150 DPI

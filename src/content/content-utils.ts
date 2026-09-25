@@ -603,6 +603,39 @@ export interface CollectionFieldPrepFlags {
 }
 
 /**
+ * Whether a partial write names at least one field handled by the prepared
+ * sanitization/constraint plan. Unknown fields are still covered by the
+ * generic payload sanitizer in the write pipeline; this only avoids walking a
+ * schema-specific plan when none of its fields can affect the patch.
+ */
+export function payloadTouchesCollectionFieldPreparation(
+  data: Record<string, unknown>,
+  schema: { fields?: Array<PrepField> },
+  flags?: CollectionFieldPrepFlags,
+): boolean {
+  const sanitize = flags?.sanitize === true;
+  const constraints = flags?.constraints === true;
+  if ((!sanitize && !constraints) || !data) return false;
+
+  const plan = getOrCompilePrepPlan(schema);
+  const touches = (names: readonly string[]) => {
+    for (let i = 0; i < names.length; i++) {
+      if (Object.hasOwn(data, names[i])) return true;
+    }
+    return false;
+  };
+
+  if (sanitize && (touches(plan.sanitizeRich) || touches(plan.sanitizeText))) return true;
+  if (constraints) {
+    if (touches(plan.arrayFields)) return true;
+    for (let i = 0; i < plan.truncateFields.length; i++) {
+      if (Object.hasOwn(data, plan.truncateFields[i].name)) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Single-pass field preparation for collection write paths.
  *
  * Replaces the legacy `sanitizeCollectionFields` → `stripNullRows` →

@@ -6,6 +6,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { FieldInstance } from '@src/content/types';
 	import type { Role } from '@src/databases/auth/types';
+	import { generateUUID } from '@utils/native-utils';
 	import { collections, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
@@ -14,8 +15,6 @@
 	import { logger } from '@utils/logger';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { draggable, droppable } from '@thisux/sveltednd';
-	import type { DragDropState } from '@thisux/sveltednd';
 	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
 	import Button from '@src/components/ui/button.svelte';
@@ -23,6 +22,8 @@
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { generateCollectionTypeScript } from '../../../collection-code-generator';
 	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 
 	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
@@ -41,7 +42,7 @@
 	let items = $state<WidgetListItem[]>(
 		untrack(() =>
 			(fields ?? []).map((f: FieldInstance, i: number) => {
-				const id = (dragIdsByIndex[i] ??= crypto.randomUUID().slice(0, 8));
+				const id = (dragIdsByIndex[i] ??= generateUUID().slice(0, 8));
 				return { id: i + 1, ...f, _dragId: id } as WidgetListItem;
 			})
 		)
@@ -54,7 +55,7 @@
 		let added = false;
 		for (let i = 0; i < nextFields.length; i++) {
 			if (nextDragIds[i] === undefined) {
-				nextDragIds[i] = crypto.randomUUID().slice(0, 8);
+				nextDragIds[i] = generateUUID().slice(0, 8);
 				added = true;
 			}
 		}
@@ -62,7 +63,7 @@
 		items = nextFields.map((f: FieldInstance, i: number) => ({
 			id: i + 1,
 			...f,
-			_dragId: nextDragIds[i] ?? crypto.randomUUID().slice(0, 8)
+			_dragId: nextDragIds[i] ?? generateUUID().slice(0, 8)
 		})) as WidgetListItem[];
 	});
 
@@ -209,7 +210,7 @@
 					: item
 			);
 		} else {
-			const newDragId = crypto.randomUUID().slice(0, 8);
+			const newDragId = generateUUID().slice(0, 8);
 			const newIndex = items.length;
 			dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 			items = [
@@ -235,7 +236,7 @@
 	}
 
 	function duplicateField(field: WidgetListItem) {
-		const newDragId = crypto.randomUUID().slice(0, 8);
+		const newDragId = generateUUID().slice(0, 8);
 		const newIndex = items.length;
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 		const baseName = field.db_fieldName || 'field';
@@ -283,7 +284,7 @@
 		let n = 0;
 		while (existing.has(dbName)) dbName = `new_${base}_${++n}`;
 
-		const newDragId = crypto.randomUUID().slice(0, 8);
+		const newDragId = generateUUID().slice(0, 8);
 		const newIndex = items.length;
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 
@@ -413,7 +414,7 @@
 		let n = 0;
 		while (existing.has(dbName)) dbName = `${target.db_fieldName}_${++n}`;
 
-		const newDragId = crypto.randomUUID().slice(0, 8);
+		const newDragId = generateUUID().slice(0, 8);
 		const newIndex = items.length;
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 

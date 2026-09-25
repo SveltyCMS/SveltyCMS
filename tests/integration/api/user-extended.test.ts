@@ -18,6 +18,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
+import { generateUUID } from "@utils/native-utils";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -75,7 +76,7 @@ async function createUniqueUser(
   adminCookie: string,
   role: string = "editor",
 ): Promise<{ userId: string; email: string; password: string; cookie: string }> {
-  const email = `testuser_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@test.com`;
+  const email = `testuser_${Date.now()}_${generateUUID()}@test.com`;
   const password = "TestPass123!";
 
   // Create user as admin

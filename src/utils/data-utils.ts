@@ -7,12 +7,17 @@
  * - deepCopy: Structured clone with fallback for non-serializable objects
  */
 
+import { generateUUID } from "./native-utils";
+
 /**
  * Deduplicates an array of objects by a specified key.
  * Last-write-wins for duplicate keys.
  */
 export function uniqueItems<T extends Record<string, unknown>>(items: T[], key: string): T[] {
-  const uniqueMap = new Map(items.map((item) => [item[key], item]));
+  const uniqueMap = new Map<unknown, T>();
+  for (let i = 0; i < items.length; i++) {
+    uniqueMap.set(items[i][key], items[i]);
+  }
   return Array.from(uniqueMap.values());
 }
 
@@ -68,7 +73,7 @@ export function copyDataWithFreshRowIds(data: unknown): unknown {
     // Regenerate row IDs for this object
     for (const key of ROW_ID_FIELDS) {
       if (key in obj) {
-        obj[key] = crypto.randomUUID();
+        obj[key] = generateUUID();
       }
     }
 

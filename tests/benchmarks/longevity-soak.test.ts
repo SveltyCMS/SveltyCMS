@@ -44,6 +44,7 @@ import {
 } from "./modules/benchmark-utils";
 import { logger } from "@utils/logger";
 import "../unit/bun-preload.ts";
+import { generateUUID } from "@utils/native-utils";
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || "0.083"); // default 5 min
@@ -408,7 +409,7 @@ async function runSoakTest() {
   // Pre-calculated target endpoints
   const healthUrl = `${baseUrl}/api/system/health`;
   const listUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=5`;
-  const itemUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`;
+  const itemUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-7000-8000-000000000001`;
   const schemaUrl = `${baseUrl}/api/collections/BenchmarkStable/schema`;
   const mutationUrl = `${baseUrl}/api/collections/BenchmarkStable`;
 
@@ -474,7 +475,7 @@ async function runSoakTest() {
         method: "POST",
         headers: baseHeaders,
         body: JSON.stringify({
-          _id: crypto.randomUUID(),
+          _id: generateUUID(),
           title: `Soak Item ${id}`,
           count: id,
         }),

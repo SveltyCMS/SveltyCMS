@@ -28,7 +28,7 @@ const fullRow = (): {
   count: number;
   _collection: { id: string; name: string; label: string };
 } => ({
-  _id: "20000000-0000-4000-8000-000000000001",
+  _id: "20000000-0000-7000-8000-000000000001",
   status: "published",
   tenantId: "global",
   isDeleted: false,
@@ -61,7 +61,7 @@ describe("trimPointReadEnvelope", () => {
     expect("locale" in row).toBe(false);
     expect("publishedAt" in row).toBe(false);
     // Kept: identity, publication control, and every content field.
-    expect(row._id).toBe("20000000-0000-4000-8000-000000000001");
+    expect(row._id).toBe("20000000-0000-7000-8000-000000000001");
     expect(row.status).toBe("published");
     expect(row.slug).toBe("probe-split-1");
     expect(row.title).toBe("Probe article");

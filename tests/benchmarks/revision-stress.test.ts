@@ -22,8 +22,8 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const REVISION_COLLECTION = "bench_revisions";
-const STRESS_TARGET_ID = "30000000-0000-4000-8000-000000000001";
-const CLEAN_TARGET_ID = "30000000-0000-4000-8000-000000000002";
+const STRESS_TARGET_ID = "30000000-0000-7000-8000-000000000001";
+const CLEAN_TARGET_ID = "30000000-0000-7000-8000-000000000002";
 const TOTAL_REVISIONS = 100;
 
 let stopServer: (() => Promise<void>) | null = null;

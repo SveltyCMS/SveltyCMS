@@ -347,9 +347,9 @@ describe("syncContentState", () => {
   it("detectCompilationDrift ignores mtime-only false positives when hash matches", async () => {
     await withTempProject(
       async ({ userCollections, compiledCollections, sourceFile, compiledFile }) => {
-        const { xxhash64 } = await import("hash-wasm");
+        const { fastHash } = await import("@src/utils/native-utils");
         const content = await fs.readFile(sourceFile, "utf8");
-        const sourceHash = await xxhash64(content);
+        const sourceHash = fastHash(content);
 
         await fs.writeFile(
           path.join(compiledCollections, ".compilation-manifest.json"),

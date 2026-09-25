@@ -10,6 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const TEST_COLLECTION = "bulk_contract_test";
 const TEST_TENANT = "bulk-tenant";
@@ -48,9 +49,9 @@ afterAll(async () => {
   }
 });
 
-/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+/** Enterprise _id contract: collection-table entries require UUIDv7 ids. */
 function uid(_p: string) {
-  return crypto.randomUUID();
+  return generateUUID();
 }
 
 describe("Bulk Operations Contract — All Adapters", () => {

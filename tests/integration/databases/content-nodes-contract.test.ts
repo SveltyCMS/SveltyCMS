@@ -19,13 +19,23 @@ import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { contentService } from "@src/content/engine.server";
 import { syncContentState } from "@src/content/index.server";
 import { assertRealAdapter } from "@tests/helpers/assert-real-adapter";
+import { generateUUID } from "@utils/native-utils";
 
 const TENANT: DatabaseId = "global" as DatabaseId;
 const CATEGORY_NODE_TYPE = "category" as const;
 const BUILDER_SOURCE = "builder" as const;
 
 function runSuffix() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${Date.now().toString(36)}-${generateUUID()}`;
+}
+
+/**
+ * `_id` is varchar(36) on the strict SQL engines (MariaDB/PostgreSQL enforce
+ * it; SQLite does not) — node ids must stay ≤36 chars. Prefix + sliced UUID
+ * keeps the readable label without overflowing the column.
+ */
+function shortId(prefix: string): string {
+  return `${prefix}${generateUUID().slice(prefix.length)}`;
 }
 
 function getData<T>(res: { success: boolean; data?: T }): T {
@@ -62,7 +72,7 @@ describe("content.nodes bulkUpdate contract", () => {
   it("reports success only when getStructure can read the inserted path", async () => {
     const suffix = runSuffix();
     const path = `/contract-insert-${suffix}`;
-    const id = `contract-insert-${suffix}`;
+    const id = shortId("contract-insert-");
     cleanupPaths.push(path);
 
     const bulk = await db.content.nodes.bulkUpdate(
@@ -94,7 +104,7 @@ describe("content.nodes bulkUpdate contract", () => {
   it("upserts the same path idempotently with the same _id", async () => {
     const suffix = runSuffix();
     const path = `/contract-idempotent-${suffix}`;
-    const id = `contract-idem-${suffix}`;
+    const id = shortId("contract-idem-");
     cleanupPaths.push(path);
 
     const payload = {
@@ -133,8 +143,8 @@ describe("content.nodes bulkUpdate contract", () => {
   it("upserts by path when bulkUpdate receives a different id for an existing path", async () => {
     const suffix = runSuffix();
     const path = `/contract-path-key-${suffix}`;
-    const originalId = `contract-path-a-${suffix}`;
-    const alternateId = `contract-path-b-${suffix}`;
+    const originalId = shortId("contract-path-a-");
+    const alternateId = shortId("contract-path-b-");
     cleanupPaths.push(path);
 
     expect(
@@ -186,7 +196,7 @@ describe("content.nodes bulkUpdate contract", () => {
     const suffix = runSuffix();
     const originalPath = `/contract-move-a-${suffix}`;
     const movedPath = `/contract-move-b-${suffix}`;
-    const id = `contract-move-${suffix}`;
+    const id = shortId("contract-move-");
     cleanupPaths.push(originalPath, movedPath);
 
     const first = await db.content.nodes.bulkUpdate(
@@ -254,7 +264,7 @@ describe("content.nodes bulkUpdate contract", () => {
   it("deleteMany removes structure nodes by path", async () => {
     const suffix = runSuffix();
     const path = `/contract-delete-${suffix}`;
-    const id = `contract-delete-${suffix}`;
+    const id = shortId("contract-delete-");
 
     expect(
       (
@@ -288,7 +298,7 @@ describe("contentService + syncContentState adapter threading", () => {
   it("gui-save persists via explicit adapter and reads back on the same adapter", async () => {
     const suffix = runSuffix();
     const path = `/contract-gui-${suffix}`;
-    const id = `contract-gui-${suffix}`;
+    const id = shortId("contract-gui-");
     cleanupPaths.push(path);
 
     await syncContentState({
@@ -320,7 +330,7 @@ describe("contentService + syncContentState adapter threading", () => {
   it("getContentStructureFromDatabase without adapter uses live db (not empty mock)", async () => {
     const suffix = runSuffix();
     const path = `/contract-live-db-${suffix}`;
-    const id = `contract-live-${suffix}`;
+    const id = shortId("contract-live-");
     cleanupPaths.push(path);
 
     await db.content.nodes.bulkUpdate(
@@ -351,7 +361,7 @@ describe("content.nodes tenant isolation + fail-closed", () => {
   it("bulkUpdate for A is not readable under tenant B getStructure", async () => {
     const suffix = runSuffix();
     const path = `/contract-iso-a-${suffix}`;
-    const id = `contract-iso-a-${suffix}`;
+    const id = shortId("contract-iso-a-");
     cleanupPaths.push(path);
 
     const bulk = await db.content.nodes.bulkUpdate(

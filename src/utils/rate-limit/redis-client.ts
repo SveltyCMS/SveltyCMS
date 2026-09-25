@@ -23,6 +23,8 @@ local capacity = tonumber(ARGV[1])
 local refillPerSecond = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
 local cost = tonumber(ARGV[4])
+local overdraft = tonumber(ARGV[5]) or 0
+local windowMs = tonumber(ARGV[6]) or 0
 
 local tokens = redis.call('HGET', key, 'tokens')
 local last = redis.call('HGET', key, 'last')
@@ -36,21 +38,37 @@ else
 end
 
 local elapsed = math.max(0, now - last)
-tokens = math.min(capacity, tokens + (elapsed / 1000) * refillPerSecond)
-last = now
+if windowMs > 0 then
+  -- Fixed-Window (WAF): kein Refill waehrend des Fensters; kompletter Reset am Ende.
+  if elapsed >= windowMs then
+    tokens = capacity
+    last = now
+  end
+else
+  tokens = math.min(capacity, tokens + (elapsed / 1000) * refillPerSecond)
+  last = now
+end
 
 local allowed = 0
 if tokens >= cost then
   tokens = tokens - cost
   allowed = 1
+elseif overdraft == 1 then
+  -- WAF-Paritaet: Ablehnung bucht trotzdem ab (negativer Saldo verlaengert
+  -- den Lockout statt einen kostenlosen Retry zu erlauben).
+  tokens = tokens - cost
 end
 
 redis.call('HSET', key, 'tokens', tostring(tokens), 'last', tostring(last))
 redis.call('PEXPIRE', key, 1800000)
 
 local retry = 1
-if allowed == 0 and refillPerSecond > 0 then
-  retry = math.max(1, math.ceil((cost - tokens) / refillPerSecond))
+if allowed == 0 then
+  if windowMs > 0 then
+    retry = math.max(1, math.ceil((last + windowMs - now) / 1000))
+  elseif refillPerSecond > 0 then
+    retry = math.max(1, math.ceil((cost - tokens) / refillPerSecond))
+  end
 end
 
 return { allowed, tokens, retry }
@@ -198,8 +216,9 @@ export class RedisRateLimitStore {
    */
   async checkAndConsume(
     key: string,
-    bucket: { capacity: number; refillPerSecond: number },
+    bucket: { capacity: number; refillPerSecond: number; windowMs?: number },
     cost = 1,
+    overdraft = false,
   ): Promise<RedisBasedBucketResult> {
     if (!this.isAvailable() || !this.client) {
       throw new Error("Redis unavailable");
@@ -217,6 +236,8 @@ export class RedisRateLimitStore {
         String(bucket.refillPerSecond),
         String(Date.now()),
         String(cost),
+        overdraft ? "1" : "0",
+        String(bucket.windowMs ?? 0),
       ])) as unknown[];
 
       const allowed = Number(raw[0]) === 1;

@@ -3,7 +3,7 @@
  * @description Hardened server-side utility for collection manifest persistence.
  *
  * ### Hardening (audit 2026-07):
- * - Atomic rename: crypto.randomUUID() temp files (no race condition on concurrent writes)
+ * - Atomic rename: generateUUID() temp files (no race condition on concurrent writes)
  * - Path traversal guard: resolved path must stay within base directory
  * - Schema validation: readManifest ensures JSON.parse returns an object
  * - Error logging: non-ENOENT errors are logged (corrupted manifests don't fail silently)

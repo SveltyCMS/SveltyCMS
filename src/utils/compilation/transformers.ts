@@ -25,6 +25,21 @@ const compileAliases: Record<string, string> = Object.fromEntries(
   Object.entries(pathAliases).map(([key, value]) => [key, value.replace(/^\.\//, "")]),
 );
 
+// 🚀 Performance: Pre-resolved alias entries avoid per-import Object.entries() + path.resolve()
+const COMPILE_ALIAS_ENTRIES: Array<{ alias: string; resolvedTarget: string }> = Object.entries(
+  compileAliases,
+).map(([alias, target]) => ({
+  alias,
+  resolvedTarget: path.resolve(process.cwd(), target),
+}));
+
+// 🚀 Performance: Process-level directory stat cache avoids repeated sync disk syscalls in AST traversal
+const dirStatCache = new Map<string, boolean>();
+
+export function clearDirStatCache(): void {
+  dirStatCache.clear();
+}
+
 // ─── Schema property markers for _id/tenantId injection ─────────────────
 // Only injected on EXPORTED object literals (ExportAssignment parent).
 const SCHEMA_MARKERS = new Set([
@@ -378,12 +393,16 @@ function isExportedObject(node: ts.ObjectLiteralExpression): boolean {
 /** Resolves directory imports to index.js, bare specifiers get .js */
 function resolveDirImport(sourceFileName: string, specifier: string): string {
   const resolved = path.resolve(path.dirname(sourceFileName), specifier);
-  try {
-    if (statSync(resolved).isDirectory()) return `${specifier.replace(/\/$/, "")}/index.js`;
-  } catch {
-    /* path doesn't exist on disk (virtual resolve) — append .js */
+  let isDir = dirStatCache.get(resolved);
+  if (isDir === undefined) {
+    try {
+      isDir = statSync(resolved).isDirectory();
+    } catch {
+      isDir = false;
+    }
+    dirStatCache.set(resolved, isDir);
   }
-  return `${specifier}.js`;
+  return isDir ? `${specifier.replace(/\/$/, "")}/index.js` : `${specifier}.js`;
 }
 
 // ─── Optimized composite transformer (single AST pass) ─────────────────
@@ -406,6 +425,7 @@ export function createCompositeTransformer(
 ): ts.TransformerFactory<ts.SourceFile> {
   return (context) => (sourceFile) => {
     const sourceFileName = sourceFile.fileName;
+    const sourceDir = path.dirname(path.resolve(sourceFileName));
     let needsUrlImports = false;
     const getUuid = makeUuidFactory(sourceFileName);
 
@@ -440,14 +460,12 @@ export function createCompositeTransformer(
 
         // 2. Alias resolution — rewrite then fall through to .js extension
         let rewriting = specifier;
-        for (const [alias, target] of Object.entries(compileAliases)) {
-          if (!rewriting.startsWith(alias)) continue;
-          const sourceDir = path.dirname(path.resolve(sourceFileName));
-          let relativePath = path
-            .relative(sourceDir, path.resolve(process.cwd(), target))
-            .replace(/\\/g, "/");
+        for (let i = 0; i < COMPILE_ALIAS_ENTRIES.length; i++) {
+          const entry = COMPILE_ALIAS_ENTRIES[i];
+          if (!rewriting.startsWith(entry.alias)) continue;
+          let relativePath = path.relative(sourceDir, entry.resolvedTarget).replace(/\\/g, "/");
           if (!relativePath.startsWith(".")) relativePath = "./" + relativePath;
-          rewriting = relativePath + rewriting.slice(alias.length);
+          rewriting = relativePath + rewriting.slice(entry.alias.length);
           break; // only one alias matches
         }
 

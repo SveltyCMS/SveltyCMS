@@ -16,6 +16,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	import type { Webhook } from '@src/services/background/webhook-service';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
+	import { generateSecureToken } from '@utils/native-utils';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
@@ -147,7 +148,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 			url: '',
 			active: true,
 			events: ['entry:publish'],
-			secret: crypto.randomUUID().replace(/-/g, '')
+			secret: generateSecureToken(16)
 		};
 		formErrors = {};
 		showModal = true;
@@ -395,8 +396,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 								/>
 								<Button
 									variant="ghost"
-									onclick={() =>
-										activeWebhook && (activeWebhook.secret = crypto.randomUUID().replace(/-/g, ''))}
+									onclick={() => activeWebhook && (activeWebhook.secret = generateSecureToken(16))}
 									aria-label="Regenerate secret"
 									size="sm"
 									data-testid="webhook-regenerate-secret"

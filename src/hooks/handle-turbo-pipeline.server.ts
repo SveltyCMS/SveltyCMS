@@ -23,6 +23,7 @@ import {
   getTestSecret,
 } from "@utils/server/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
+import { generateUUID } from "@utils/native-utils";
 import { isRedirect, isHttpError } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { readSessionCookie, isAdmin } from "@src/databases/auth/constants";
@@ -91,7 +92,7 @@ async function getSettingsService() {
 /** Generates a unique request ID for tracing - Optimized for high throughput */
 const generateRequestId = () => {
   // Use CSPRNG for all trace IDs (security hardening)
-  return globalThis.crypto.randomUUID().slice(0, 8) + Date.now().toString(36);
+  return generateUUID().slice(0, 8) + Date.now().toString(36);
 };
 
 /** Logs request performance — ONLY in development mode to avoid string interpolation overhead in production */

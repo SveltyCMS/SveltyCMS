@@ -1414,6 +1414,7 @@ export interface IBatchAdapter {
   bulkInsert<T extends BaseEntity>(
     collection: string,
     items: EntityCreate<T>[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T[]>>;
   bulkUpdate<T extends BaseEntity>(
     collection: string,

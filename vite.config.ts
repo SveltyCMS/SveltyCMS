@@ -16,7 +16,32 @@ import bunAdapter from "svelte-adapter-bun";
 //   ADAPTER=bun          -> svelte-adapter-bun (Bun.serve, fuer bun build/index.js)
 // Der Competitive-Benchmark (benchmark-repo) baut beide Varianten (ARG ADAPTER)
 // und misst sie unter node vs bun (RUNTIME).
-const adapter = process.env.ADAPTER === "bun" ? bunAdapter : nodeAdapter;
+//
+// Windows-resilience: adapter-node (6.0.0-next.12/13) posixifies `entries` but forgets
+// to posixify `builder.getServerDirectory()`, creating mixed slashes ('D:\...\server/env.js')
+// that fail Rolldown's Rust entry resolver on Windows. We wrap the builder transparently:
+function safeNodeAdapter(opts?: Parameters<typeof nodeAdapter>[0]) {
+  const orig = nodeAdapter(opts);
+  return {
+    ...orig,
+    async adapt(builder: Parameters<NonNullable<typeof orig.adapt>>[0]) {
+      const wrappedBuilder = new Proxy(builder, {
+        get(target, prop, receiver) {
+          if (prop === "getServerDirectory") {
+            return () => {
+              const dir = target.getServerDirectory();
+              return typeof dir === "string" ? dir.replace(/\\/g, "/") : dir;
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+      return orig.adapt(wrappedBuilder);
+    },
+  };
+}
+
+const adapter = process.env.ADAPTER === "bun" ? bunAdapter : safeNodeAdapter;
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -802,16 +827,106 @@ function copyWorkerFilePlugin(): Plugin {
   return {
     name: "copy-module-worker",
     apply: "build",
-    async writeBundle() {
-      const src = path.resolve(CWD, "src/content/module-worker.server.ts");
-      const dest = path.resolve(CWD, "build/server/chunks/module-worker.server.ts");
-      try {
-        await fsPromises.mkdir(path.dirname(dest), { recursive: true });
-        await fsPromises.copyFile(src, dest);
-        log.info("Copied module-worker.server.ts to build output");
-      } catch (e: unknown) {
-        log.warn(`Failed to copy worker file: ${(e as Error).message}`);
-      }
+    // The kit adapter finalises `build/` in its own `buildApp`; a `writeBundle`
+    // copy is wiped by that pass. Post-buildApp runs after the adapter, so the
+    // file survives (same pattern as adapterNodeBuildPatchPlugin).
+    buildApp: {
+      order: "post",
+      async handler() {
+        const src = path.resolve(CWD, "src/content/module-worker.server.ts");
+        const dest = path.resolve(CWD, "build/server/chunks/module-worker.server.ts");
+        try {
+          await fsPromises.mkdir(path.dirname(dest), { recursive: true });
+          await fsPromises.copyFile(src, dest);
+          log.info("Copied module-worker.server.ts to build output");
+        } catch (e: unknown) {
+          log.warn(`Failed to copy worker file: ${(e as Error).message}`);
+        }
+      },
+    },
+  };
+}
+
+/**
+ * Bundles the optional Yjs WebSocket collaboration server into `build/` after
+ * the main build. `index.server.mjs` loads `build/yjs-sync-server.js` at
+ * runtime (mounted on `/ws` by the production `index.cjs` entry), so plain
+ * `vite build` must emit it — previously this lived in a separate build
+ * orchestrator script; it now runs as a standard post-build plugin.
+ *
+ * esbuild is imported dynamically so `ESBUILD_WORKER_THREADS=0` (set above for
+ * Vite's own esbuild) is in effect before the API loads.
+ */
+function bundleYjsSyncServerPlugin(): Plugin {
+  return {
+    name: "bundle-yjs-sync-server",
+    apply: "build",
+    // Post-buildApp: emit after the kit adapter has finalised `build/`, so the
+    // bundle survives the adapter's write pass (a `writeBundle` emit is wiped).
+    buildApp: {
+      order: "post",
+      async handler() {
+        const { build: esbuild } = await import("esbuild");
+        await esbuild({
+          entryPoints: [path.resolve(CWD, "src/services/collaboration/yjs-sync-server.ts")],
+          bundle: true,
+          platform: "node",
+          format: "esm",
+          minify: true,
+          treeShaking: true,
+          target: "node24",
+          outfile: path.resolve(CWD, "build/yjs-sync-server.js"),
+          external: ["ws", "yjs", "y-protocols", "lib0"],
+          alias: {
+            "@utils": path.resolve(CWD, "src/utils"),
+          },
+          logLevel: process.argv.includes("--debug") ? "info" : "warning",
+        });
+        log.info("Bundled collaboration server: build/yjs-sync-server.js");
+      },
+    },
+  };
+}
+
+/**
+ * Bundles the background worker process entrypoint and supervisor into `build/`
+ * after the main build.
+ */
+function bundleBackgroundWorkerPlugin(): Plugin {
+  return {
+    name: "bundle-background-worker",
+    apply: "build",
+    buildApp: {
+      order: "post",
+      async handler() {
+        const { build: esbuild } = await import("esbuild");
+        await esbuild({
+          entryPoints: {
+            "background-worker": path.resolve(CWD, "src/services/background/background-entry.ts"),
+            "background-supervisor": path.resolve(
+              CWD,
+              "src/services/background/background-supervisor.ts",
+            ),
+          },
+          bundle: true,
+          platform: "node",
+          format: "esm",
+          minify: true,
+          treeShaking: true,
+          target: "node24",
+          outdir: path.resolve(CWD, "build"),
+          packages: "external",
+          alias: {
+            "@src": path.resolve(CWD, "src"),
+            "@utils": path.resolve(CWD, "src/utils"),
+            "@widgets": path.resolve(CWD, "src/widgets"),
+          },
+          logLevel: process.argv.includes("--debug") ? "info" : "warning",
+        });
+        log.info(
+          "Bundled background worker & supervisor: build/background-worker.js, build/background-supervisor.js",
+        );
+      },
     },
   };
 }
@@ -1270,6 +1385,8 @@ export default defineConfig(() => {
       securityCheckPlugin(),
       clientNodeBuiltinGuardPlugin(),
       copyWorkerFilePlugin(),
+      bundleYjsSyncServerPlugin(),
+      bundleBackgroundWorkerPlugin(),
       adapterNodeBuildPatchPlugin(),
       paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
     ],

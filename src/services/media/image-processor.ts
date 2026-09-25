@@ -29,6 +29,8 @@
 
 import { logger } from "@utils/logger";
 import { saveVariant } from "./image-variant-storage";
+import { getSharp, MAX_INPUT_PIXELS } from "@utils/media/sharp-loader.server";
+import type { SharpFactory } from "@utils/media/sharp-loader.server";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -61,9 +63,6 @@ export interface ImageProcessingConfig {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────
-
-/** Decompression-bomb guard for every Sharp pipeline in this module (100 MP). */
-const LIMIT_INPUT_PIXELS = 100_000_000;
 
 /** Maximum output dimension in pixels for any generated variant.
  * Prevents denial-of-wallet attacks via oversized image requests.
@@ -157,14 +156,7 @@ const DEFAULT_CONFIG: ImageProcessingConfig = {
 
 // ─── Lazy Sharp loader ─────────────────────────────────────────────────────
 
-let _sharp: any = null;
-async function getSharp(): Promise<any> {
-  if (!_sharp) {
-    const mod = await import("sharp");
-    _sharp = mod.default || mod;
-  }
-  return _sharp;
-}
+// One shared warm-up path per process — see `@utils/media/sharp-loader.server`.
 
 /**
  * Minimal structural view of a Sharp pipeline — keeps new code free of `any`
@@ -218,7 +210,7 @@ export async function processImage(
   }
 
   const meta = await sharp(buffer, {
-    limitInputPixels: LIMIT_INPUT_PIXELS,
+    limitInputPixels: MAX_INPUT_PIXELS,
     failOn: "none",
   }).metadata();
   const originalWidth = meta.width ?? 0;
@@ -335,7 +327,7 @@ export async function processImageWithPresets(
 
   const sharp = await getSharp();
   const meta = await sharp(buffer, {
-    limitInputPixels: LIMIT_INPUT_PIXELS,
+    limitInputPixels: MAX_INPUT_PIXELS,
     failOn: "none",
   }).metadata();
   const originalWidth = meta.width ?? 0;
@@ -401,7 +393,7 @@ export async function processImageWithPresets(
  * Generate a single variant at the specified width and format.
  */
 async function generateVariant(
-  sharp: any,
+  sharp: SharpFactory,
   buffer: Buffer,
   hash: string,
   targetWidth: number,
@@ -419,7 +411,7 @@ async function generateVariant(
 
   // Build the sharp pipeline
   const pipeline = applyEncoder(
-    sharp(buffer, { limitInputPixels: LIMIT_INPUT_PIXELS, failOn: "none" })
+    sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" })
       // Auto-fix orientation from EXIF
       .rotate()
       // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
@@ -666,7 +658,7 @@ export function isAnimatedRaster(head: Buffer, mime: string): boolean {
 export async function renderTransformVariant(source: Buffer, plan: TransformPlan): Promise<Buffer> {
   const sharp = await getSharp();
   const pipeline: SharpPipeline = applyEncoder(
-    sharp(source, { limitInputPixels: LIMIT_INPUT_PIXELS, failOn: "none" })
+    sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" })
       .rotate()
       .resize(plan.width || null, plan.height || null, {
         fit: "inside",
@@ -696,7 +688,13 @@ function applyEncoder(
       return pipeline.webp({ quality, effort: 4 });
     case "jpeg":
     case "jpg":
-      return pipeline.jpeg({ quality, mozjpeg: true });
+      // libjpeg-turbo default: measured 9.2× faster JPEG variants at +26 % bytes
+      // (q82, 1920px) — tests/benchmarks/sharp-vs-bun-image.test.ts. mozjpeg stays
+      // available as a deployment-level opt-in (`SVELTY_JPEG_MOZJPEG=1`) for
+      // byte-critical hosts with CPU headroom.
+      return pipeline.jpeg(
+        process.env.SVELTY_JPEG_MOZJPEG === "1" ? { quality, mozjpeg: true } : { quality },
+      );
     case "avif":
       return pipeline.avif({ quality, effort: 4 });
     case "png":

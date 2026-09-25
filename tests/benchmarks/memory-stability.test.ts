@@ -19,6 +19,7 @@ import {
   benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 
 const DURATION_SECONDS = process.env.LONG_RUN === "true" ? 180 : 45;
 const SAMPLING_INTERVAL_MS = 2000;
@@ -157,7 +158,7 @@ export async function runMemoryStabilityAudit() {
 
     const healthUrl = `${baseUrl}/api/system/health`;
     const listUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10`;
-    const itemUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`;
+    const itemUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-7000-8000-000000000001`;
     const mutateUrl = `${baseUrl}/api/collections/BenchmarkStable`;
 
     let mutationSeq = 0;
@@ -183,7 +184,7 @@ export async function runMemoryStabilityAudit() {
             method: "POST",
             headers: baseHeaders,
             body: JSON.stringify({
-              _id: crypto.randomUUID(),
+              _id: generateUUID(),
               title: `Memory Load ${id}`,
               count: id,
             }),

@@ -16,6 +16,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { BASE_HEADERS } from "./security/constants";
 import { isSetupComplete } from "./setup-check-fast";
+import { getTrustedProxies } from "@src/databases/config-state";
 
 // 🚀 Pre-cache to avoid Object.entries allocation and per-iteration filtering on every request
 const STATIC_BASE_HEADER_PAIRS = Object.entries(BASE_HEADERS).filter(
@@ -254,10 +255,27 @@ export function isApiLike(pathname: string): boolean {
 
 export { isAdmin } from "@src/databases/auth/constants";
 
+let cachedTrustedProxies: Set<string> | "all" | null = null;
+
+function isProxyTrusted(ip: string): boolean {
+  if (cachedTrustedProxies === null) {
+    const list = getTrustedProxies();
+    cachedTrustedProxies = list === "all" ? "all" : new Set(list);
+  }
+  if (cachedTrustedProxies === "all") return true;
+  return cachedTrustedProxies.has(ip);
+}
+
+export function invalidateTrustedProxiesCache(): void {
+  cachedTrustedProxies = null;
+}
+
 /**
  * High-performance client IP detection.
- * 🛡️ If getClientAddress fails, returns "0.0.0.0" to prevent IP spoofing via
- * untrusted X-Forwarded-For / X-Real-IP headers.
+ * 🛡️ If getClientAddress fails, returns "0.0.0.0" to prevent IP spoofing.
+ * When behind a reverse proxy, forwarded headers (cf-connecting-ip, x-real-ip,
+ * x-forwarded-for) are only trusted if the direct connection originates from a
+ * host listed in TRUSTED_PROXIES.
  *
  * Memoized per request on `event.locals` — the IP is resolved at most once
  * across the security → rate-limit → auth hook chain instead of calling the
@@ -270,18 +288,39 @@ export function getClientIp(event: RequestEvent): string {
   const cached = locals?.__clientIp;
   if (cached) return cached;
 
+  let rawIp = "0.0.0.0";
   try {
-    const ip = event.getClientAddress();
-    if (locals) locals.__clientIp = ip;
-    return ip;
+    rawIp = event.getClientAddress();
   } catch (err: any) {
     if (process.env.BENCHMARK_DEBUG === "true") {
       logger.debug(
         `[getClientIp] Failed: ${err.message}. Defaulting to 0.0.0.0 to prevent IP spoofing.`,
       );
     }
-    return "0.0.0.0";
   }
+
+  let finalIp = rawIp;
+
+  // 🛡️ TRUSTED_PROXIES: Only inspect forwarded headers if the direct socket connection
+  // originates from an explicitly trusted reverse proxy (Nginx, ALB, Cloudflare).
+  if (rawIp !== "0.0.0.0" && isProxyTrusted(rawIp)) {
+    const cfIp = event.request.headers.get("cf-connecting-ip");
+    const realIp = event.request.headers.get("x-real-ip");
+    const fwdFor = event.request.headers.get("x-forwarded-for");
+
+    if (cfIp) {
+      finalIp = cfIp.trim();
+    } else if (realIp) {
+      finalIp = realIp.trim();
+    } else if (fwdFor) {
+      const parts = fwdFor.split(",");
+      const candidate = parts[0]?.trim();
+      if (candidate) finalIp = candidate;
+    }
+  }
+
+  if (locals) locals.__clientIp = finalIp;
+  return finalIp;
 }
 
 /**

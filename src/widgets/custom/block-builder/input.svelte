@@ -16,6 +16,7 @@
 	import { slide } from 'svelte/transition';
 	import { DEFAULT_BLOCK_PRESETS } from './index';
 	import type { BlockInstance, BlockTypeDefinition, BlockBuilderProps } from './types';
+	import { deepClone, generateUUID } from '@utils/native-utils';
 
 	interface Props {
 		collectionName?: string;
@@ -74,9 +75,9 @@
 
 	function addBlock(def: BlockTypeDefinition) {
 		const newBlock: BlockInstance = {
-			_id: crypto.randomUUID(),
+			_id: generateUUID(),
 			_type: def.type,
-			data: def.defaultData ? JSON.parse(JSON.stringify(def.defaultData)) : {},
+			data: def.defaultData ? deepClone(def.defaultData) : {},
 			collapsed: false
 		};
 		blocks.push(newBlock);
@@ -93,9 +94,9 @@
 		const source = blocks[index];
 		if (!source) return;
 		const duplicated: BlockInstance = {
-			_id: crypto.randomUUID(),
+			_id: generateUUID(),
 			_type: source._type,
-			data: JSON.parse(JSON.stringify(source.data)),
+			data: deepClone(source.data),
 			collapsed: false
 		};
 		blocks.splice(index + 1, 0, duplicated);

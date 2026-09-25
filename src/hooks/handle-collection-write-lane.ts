@@ -27,7 +27,7 @@ import { wafGuard } from "./handle-waf-guard";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
-import { successResponse } from "@src/routes/api/[...path]/handlers/base";
+import { fastSuccessResponse, successResponse } from "@src/routes/api/[...path]/handlers/base";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
@@ -173,7 +173,8 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   const user = locals.user;
 
   let result: unknown;
-  const minimal = request.method !== "POST" && prefersMinimalReturn(request.headers.get("prefer"));
+  const minimal =
+    request.method !== "POST" && prefersMinimalReturn(request.headers.get("prefer"), url);
   if (request.method === "POST") {
     result = await cms.collections.create(collectionId, data, {
       user,
@@ -204,8 +205,26 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   // representation per write). The write above already skipped its read-back, so all that
   // is left is the envelope. Same read on the dispatcher side (`handlers/collections.ts`),
   // so both paths behave identically.
-  const payload = minimal ? { success: true, data: { _id: entryId } } : result;
-  const res = successResponse(event, payload, request.method === "POST" ? 201 : 200);
+  if (minimal) {
+    const res = fastSuccessResponse(
+      event,
+      `{"_id":${JSON.stringify(entryId)}}`,
+      { _id: entryId },
+      200,
+    );
+    applyAllSecurityHeaders(
+      res.headers,
+      url.protocol === "https:",
+      request.headers.get("Origin"),
+      url.pathname,
+    );
+    marks?.set("serve", performance.now() - t0);
+    if (marks) stampWriteSplit(res.headers, marks);
+    stampSrvDur(res.headers, srvT0);
+    return res;
+  }
+
+  const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
   applyAllSecurityHeaders(
     res.headers,
     url.protocol === "https:",

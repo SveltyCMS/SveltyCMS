@@ -20,7 +20,8 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
-	const uuidv4 = () => crypto.randomUUID();
+	import { generateUUID } from '@utils/native-utils';
+	const uuidv4 = () => generateUUID();
 	import type { FieldType } from './index';
 	import Button from '@components/ui/button.svelte';
 
@@ -67,27 +68,30 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	function handleRepeaterDrop(state: DragDropState<{ id: string; data: Record<string, any> }>) {
 		const dragged = state.draggedItem;
 		if (!dragged) return;
-		const fromIndex = items.indexOf(dragged);
+		const fromIndex = items.findIndex((i) => i.id === dragged.id);
 		if (fromIndex < 0) return;
 
 		const targetEl = state.targetElement?.closest('[data-item-id]') as HTMLElement | null;
 		const targetItemId = targetEl?.dataset?.itemId;
 
+		if (targetItemId && targetItemId === dragged.id) return;
+
 		let targetIndex: number;
 		if (targetItemId) {
 			targetIndex = items.findIndex((i) => i.id === targetItemId);
-			if (state.dropPosition === 'after') targetIndex++;
+			if (targetIndex >= 0 && state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = items.length;
 		}
+		if (targetIndex < 0) targetIndex = items.length;
 		targetIndex = Math.max(0, Math.min(targetIndex, items.length));
 
 		if (fromIndex === targetIndex) return;
 		const newItems = untrack(() => {
 			const copy = [...items];
-			copy.splice(fromIndex, 1);
+			const [movedItem] = copy.splice(fromIndex, 1);
 			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-			copy.splice(adjusted, 0, dragged);
+			copy.splice(adjusted, 0, movedItem);
 			return copy;
 		});
 		items = newItems;
@@ -159,7 +163,13 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 			<div
 				class="rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800"
 				animate:flip={{ duration: 300 }}
-				use:draggable={{ container: 'repeater', dragData: item, keyboard: true }}
+				use:draggable={{
+					container: 'repeater',
+					dragData: item,
+					keyboard: true,
+					handle: '.repeater-drag-handle'
+				}}
+				data-item-id={item.id}
 				role="listitem"
 				tabindex="0"
 			>
@@ -169,14 +179,14 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 				>
 					<div class="flex items-center gap-2">
 						<!-- Drag Handle -->
-						<Button
-							variant="ghost"
-							class="cursor-grab active:cursor-grabbing p-1"
+						<button
+							type="button"
+							class="repeater-drag-handle cursor-grab active:cursor-grabbing p-1 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
 							aria-label="Drag to reorder"
 							title="Drag to reorder"
 						>
-							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
-						</Button>
+							<iconify-icon icon="mdi:drag" width={20}></iconify-icon>
+						</button>
 
 						<Button
 							variant="ghost"

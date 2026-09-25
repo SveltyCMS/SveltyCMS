@@ -58,8 +58,12 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
     };
   }
 
-  async bulkInsert(collection: string, data: EntityCreate<any>[]): Promise<DatabaseResult<any[]>> {
-    return (this.adapter as any)["crud"].insertMany(collection, data as any);
+  async bulkInsert(
+    collection: string,
+    data: EntityCreate<any>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<any[]>> {
+    return (this.adapter as any)["crud"].insertMany(collection, data as any, options);
   }
 
   async bulkUpdate(

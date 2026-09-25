@@ -19,6 +19,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult, assertDatabaseSuccess } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const TEST_COLLECTION = "parity_test";
 const TEST_TENANT = "parity-tenant";
@@ -64,9 +65,9 @@ afterAll(async () => {
   }
 });
 
-/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+/** Enterprise _id contract: collection-table entries require UUIDv7 ids. */
 function uid(_prefix: string): string {
-  return crypto.randomUUID();
+  return generateUUID();
 }
 
 const tenantOpts = Object.freeze({ tenantId: TEST_TENANT });

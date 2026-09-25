@@ -580,8 +580,8 @@ export async function handleOidcLoginStart(event: RequestEvent, tenantId?: Datab
   const origin = event.url.origin;
   const redirectUri =
     event.url.searchParams.get("redirect_uri") || `${origin}/api/auth/oidc-callback`;
-  const state = globalThis.crypto.randomUUID();
-  const nonce = globalThis.crypto.randomUUID();
+  const state = generateSecureToken(16);
+  const nonce = generateSecureToken(16);
   const { codeVerifier, codeChallenge } = generatePkce();
 
   // Short-lived cookie for CSRF state and PKCE (HttpOnly)

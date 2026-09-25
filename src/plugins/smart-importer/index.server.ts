@@ -20,6 +20,7 @@
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 import type { PluginLifecycleHooks, PluginMigration } from "../types";
+import { generateUUID } from "@utils/native-utils";
 import type {
   SNCEnvelope,
   SNCEntry,
@@ -298,13 +299,7 @@ export function compileModularSlices(slices: any[]): string {
 export function processEcommerceVariants(variants: any[]): ProductVariant[] {
   if (!Array.isArray(variants)) return [];
   return variants.map((v) => ({
-    id: String(
-      v.id ||
-        v.variant_id ||
-        (typeof crypto !== "undefined"
-          ? crypto.randomUUID()
-          : `var_${Date.now()}_${Math.random().toString(36).slice(2)}`),
-    ),
+    id: String(v.id || v.variant_id || generateUUID()),
     sku: String(v.sku || ""),
     title: String(v.title || v.name || "Default Option"),
     price: parseFloat(v.price || "0"),

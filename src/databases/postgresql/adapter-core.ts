@@ -29,7 +29,7 @@ import type {
   DatabaseId,
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
-import { getTableName } from "drizzle-orm";
+import { getTableColumns, getTableName } from "drizzle-orm";
 import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -299,8 +299,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     idColName: string,
     hasTenant: boolean,
     mergeJsonData: boolean,
+    fields?: string[] | null,
+    skipJson?: boolean,
   ) {
-    const key = `${tableName}:${idColName}:${hasTenant ? "1" : "0"}:${mergeJsonData ? "m" : "r"}:${columns.join(",")}`;
+    const fieldsKey = fields && fields.length > 0 ? fields.join(",") : skipJson ? "nojson" : "all";
+    const key = `${tableName}:${idColName}:${hasTenant ? "1" : "0"}:${mergeJsonData ? "m" : "r"}:${columns.join(",")}:${fieldsKey}`;
     let tpl = this._updateTemplateCache.get(key);
     if (!tpl) {
       const isJsonMap: boolean[] = [];
@@ -331,7 +334,27 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       if (hasTenant) {
         whereSql += ` AND "tenantId" = $${idIdx + 1}`;
       }
-      const sqlWithReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+      let returningClause = "*";
+      if (fields && fields.length > 0) {
+        returningClause = fields
+          .map((f) => {
+            const phys = this.getColumn(table, f);
+            return `"${utils.assertSafeSqlIdentifier(phys?.name ?? f, "column")}"`;
+          })
+          .join(", ");
+      } else if (skipJson) {
+        const physCols = getTableColumns(table);
+        const nonJsonCols = Object.keys(physCols).filter((c) => {
+          const colObj = physCols[c];
+          return (colObj?.name ?? c) !== "data" && (colObj as any)?.dataType !== "json";
+        });
+        if (nonJsonCols.length > 0) {
+          returningClause = nonJsonCols
+            .map((c) => `"${utils.assertSafeSqlIdentifier(physCols[c]?.name ?? c, "column")}"`)
+            .join(", ");
+        }
+      }
+      const sqlWithReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql} RETURNING ${returningClause}`;
       const sqlSkipReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql}`;
       tpl = {
         columns,
@@ -341,6 +364,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         hasTenant,
       };
       this._updateTemplateCache.set(key, tpl);
+      if (this._updateTemplateCache.size >= 256) {
+        const oldest = this._updateTemplateCache.keys().next().value;
+        if (oldest !== undefined) this._updateTemplateCache.delete(oldest);
+      }
     }
     return tpl;
   }
@@ -372,6 +399,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         options.tenantId !== null &&
         options.tenantId !== "global";
 
+      const fieldsOpt = (options as BaseQueryOptions & { fields?: string[] }).fields;
+      const fields = Array.isArray(fieldsOpt) && fieldsOpt.length > 0 ? fieldsOpt : null;
+      const skipJson = options?.skipJson === true;
+
       const tpl = this._getUpdateTemplate(
         table,
         tableName,
@@ -379,6 +410,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         idColName,
         hasTenant,
         getJsonDataPatch(values) !== undefined,
+        fields,
+        skipJson,
       );
       const boundValues: any[] = [];
 
@@ -401,6 +434,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         return utils.convertDatesToISO(reconstructed, {
           ...this.convertDatesOptions,
           table: collection,
+          inPlace: true,
         }) as unknown as T;
       }
 
@@ -409,6 +443,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         return utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
           table: collection,
+          inPlace: true,
         }) as T;
       }
       return null;

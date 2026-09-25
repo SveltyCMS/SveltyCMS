@@ -18,7 +18,7 @@ import { convertDatesToISO } from "@src/databases/core/relational-utils";
 /** A row as the SQL read path returns it: system columns + the JSON blob. */
 function sqlRow() {
   return {
-    _id: "30000000-0000-4000-8000-000000000001",
+    _id: "30000000-0000-7000-8000-000000000001",
     tenantId: "global",
     status: "active",
     createdAt: "2026-09-22T10:00:00.000Z",

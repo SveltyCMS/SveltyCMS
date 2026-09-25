@@ -8,14 +8,16 @@
  * - concurrent renames race on the same path
  *
  * ### Features:
- * - unique temp filename (crypto.randomUUID)
+ * - unique temp filename (generateUUID)
  * - retry with backoff on EPERM/EACCES/EBUSY/ENOENT
  * - Windows fallback: unlink dest then rename, or copyFile + unlink tmp
  */
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+// Relative on purpose: this module is reachable from vite.config.ts's bundled
+// config graph, where `@utils` aliases cannot resolve (see vite.config.ts L490).
+import { generateUUID } from "./native-utils.ts";
 
 const RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY", "ENOENT", "EEXIST"]);
 
@@ -36,7 +38,7 @@ export async function atomicWriteFile(
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
 
-  const tmp = `${filePath}.${randomUUID()}.tmp`;
+  const tmp = `${filePath}.${generateUUID()}.tmp`;
   await fs.writeFile(tmp, content, "utf-8");
 
   let lastErr: unknown;

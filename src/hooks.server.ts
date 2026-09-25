@@ -11,6 +11,9 @@
  *   including errors thrown by earlier middlewares (rate-limit 429, firewall blocks, etc.)
  */
 
+// 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
+import "@utils/v8-shim";
+
 import { metricsService } from "@src/services/observability/metrics-service";
 import { sequence, type Handle, type HandleServerError } from "@sveltejs/kit/hooks";
 import { isRedirect } from "@sveltejs/kit";
@@ -58,6 +61,8 @@ import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 import { initHardwareProfile, getHardwareProfile, describeHardware } from "@utils/hardware-profile";
+import { getSharp } from "@utils/media/sharp-loader.server";
+import { generateUUID } from "@utils/native-utils";
 import { startCpuProfilerIfEnabled } from "@utils/cpu-profiler";
 import { installFastLanes } from "./hooks/fast-lane.server";
 
@@ -143,7 +148,7 @@ function currentSetupStateWithMemo(pathname: string): boolean {
 
 // ✨ ENTERPRISE: Stable Node ID for Distributed Cache Sync (Phase 8)
 if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
-  (globalThis as any).__SVELTY_NODE_ID__ = crypto.randomUUID();
+  (globalThis as any).__SVELTY_NODE_ID__ = generateUUID();
 }
 
 // Only import full CMS hooks if setup is complete to avoid premature DB load
@@ -253,13 +258,13 @@ if (!building) {
         // Here we only APPLY the knobs that must be set on the ready state.
         const hw = getHardwareProfile();
         process.env.UV_THREADPOOL_SIZE = String(hw.threadPoolSize);
-        import("sharp")
+        getSharp()
           .then((sharp) => {
             // Measured: variant pipelines are generated in parallel, so the
             // machine saturates at low libvips concurrency (4≈24 threads on a
             // 24-core host). The profile caps concurrency per tier to leave CPU
             // headroom for the event loop, DB pool and other requests.
-            sharp.default.concurrency(hw.sharpConcurrency);
+            sharp.concurrency(hw.sharpConcurrency);
             logger.debug(
               `[System] Hardware optimized: ThreadPool=${hw.threadPoolSize} | SharpConcurrency=${hw.sharpConcurrency}`,
             );
@@ -297,13 +302,21 @@ if (!building) {
           })
           .catch((err) => logger.error("[System] GraphQL schema pre-warm failed", err));
 
-        // Background services always start — production parity. Benchmark
-        // runs measure the same runtime a real deployment has (pollers,
-        // watchdog, scheduler, outbox all contend for the event loop).
-        // Background services always start — production parity. Benchmark
-        // runs measure the same runtime a real deployment has (pollers,
-        // watchdog, scheduler, outbox all contend for the event loop).
-        {
+        // 🚀 BACKGROUND SERVICES:
+        // Decoupled from the API process when SVELTY_BACKGROUND_MODE is "child"
+        // (supervised separate process). In-process fallback activates for dev / tests.
+        const bgMode = (process.env.SVELTY_BACKGROUND_MODE || "").toLowerCase().trim();
+        const isChildWorker = process.env.SVELTY_IS_BACKGROUND_WORKER === "true";
+        const isExternal = bgMode === "child" && !isChildWorker;
+        const isDisabled = bgMode === "disabled" || bgMode === "off" || bgMode === "0";
+
+        if (isDisabled) {
+          logger.info("[Background] Pollers disabled via SVELTY_BACKGROUND_MODE");
+        } else if (isExternal) {
+          logger.info(
+            "[Background] Pollers delegated to external child worker (SVELTY_BACKGROUND_MODE=child)",
+          );
+        } else {
           jobQueue.startPolling();
           automationService.init();
           watchdog.start();
@@ -915,7 +928,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // tracing is enabled (99.9% of traffic gets a cheap sequential id).
   const traceId =
     (event.locals as any).requestId ||
-    (traceEnabled ? crypto.randomUUID() : `r${(requestSeq++).toString(36)}`);
+    (traceEnabled ? generateUUID() : `r${(requestSeq++).toString(36)}`);
 
   // 🚀 Fast path: skip ALL trace/context overhead when tracing is disabled (99.9% of traffic)
   if (!traceEnabled) {

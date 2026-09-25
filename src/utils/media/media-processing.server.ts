@@ -17,16 +17,7 @@ import { logger } from "@utils/logger";
 import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
-
-// ─── Sharp (lazy, no module-resolution overhead on cold paths) ──────────
-let _sharp: any = null;
-async function getSharp(): Promise<any> {
-  if (!_sharp) {
-    const mod = await import("sharp");
-    _sharp = mod.default || mod;
-  }
-  return _sharp;
-}
+import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
 
 // ─── Hashing ────────────────────────────────────────────────────────────
 
@@ -68,7 +59,7 @@ export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
     const sharp = await getSharp();
     return await sharp(buffer, {
-      limitInputPixels: 100_000_000,
+      limitInputPixels: MAX_INPUT_PIXELS,
       failOn: "none",
     })
       .rotate()
@@ -175,7 +166,7 @@ export class MediaProcessingService {
     try {
       const sharp = await getSharp();
       const instance = sharp(buffer, {
-        limitInputPixels: 100_000_000,
+        limitInputPixels: MAX_INPUT_PIXELS,
         failOn: "none",
       });
       const meta = await instance.metadata();
@@ -253,7 +244,6 @@ export const mediaProcessingService = MediaProcessingService.getInstance();
 
 // ─── Sharp pipeline types (consolidated from sharp-pipeline.ts) ──────────────
 
-import type sharp from "sharp";
 import type {
   Region,
   ResizeOptions,
@@ -299,6 +289,3 @@ export interface SharpPipeline {
   metadata(): Promise<Metadata>;
   clone(): SharpPipeline;
 }
-
-export type SharpFactory = typeof sharp;
-export type SharpOverlayOptions = OverlayOptions;

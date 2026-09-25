@@ -37,7 +37,12 @@ import {
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
-import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
+import {
+  createDepthLimitRule,
+  createMaxAliasesRule,
+  createSuppressHintsRule,
+  markMutationExecuted,
+} from "./rules";
 import {
   registerCollections,
   collectionsResolvers,
@@ -77,6 +82,7 @@ const isIntrospectionBlocked = () =>
 
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
+const suppressHintsRule = createSuppressHintsRule();
 
 /**
  * True when the operation selects an introspection field (`__schema` / `__type`).
@@ -346,6 +352,7 @@ const securityValidationPlugin = {
     // Development stays open for the in-app playground unless BLOCK_GRAPHQL_INTROSPECTION=true.
     if (isIntrospectionBlocked()) {
       addValidationRule(NoSchemaIntrospectionCustomRule);
+      addValidationRule(suppressHintsRule);
     }
     endValidate();
 
@@ -900,6 +907,22 @@ async function handleRequest(event: RequestEvent) {
   }
 
   const isQuery = isReadOnlyQuery(query);
+
+  if (!isQuery && request.method === "POST" && process.env.TEST_MODE !== "true") {
+    const idempotencyKey =
+      request.headers.get("x-idempotency-key") || request.headers.get("x-mutation-id");
+    if (idempotencyKey) {
+      const replayPayload = `${idempotencyKey}:${query}`;
+      if (!markMutationExecuted(replayPayload, variables)) {
+        return new Response(
+          JSON.stringify({
+            errors: [{ message: "Mutation replay detected. Duplicate execution blocked." }],
+          }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+  }
 
   const userId = locals.user?._id || locals.user?.id || null;
   const cacheKey =

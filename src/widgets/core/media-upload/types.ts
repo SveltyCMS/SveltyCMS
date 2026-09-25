@@ -47,4 +47,5 @@ export interface MediaFile {
   thumbnailUrl: string; // URL to a smaller thumbnail
   type: string; // MIME Type
   url: string; // URL to the original file
+  hash?: string;
 }

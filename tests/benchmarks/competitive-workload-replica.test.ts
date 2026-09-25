@@ -27,9 +27,9 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
-import crypto from "node:crypto";
 import { seedHttpCollectionBurst } from "./modules/seed-burst";
 import { probeRouteIdentity, probeServerTime } from "./modules/route-identity";
+import { generateUUID } from "@utils/native-utils";
 
 const ITERATIONS: Record<string, number> = {
   findById: 500,
@@ -123,7 +123,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     };
 
     const dbType = getDbType();
-    const runId = crypto.randomUUID().slice(0, 8);
+    const runId = generateUUID().slice(0, 8);
 
     // ── PRE-COMPUTED URLS & STATIC PAYLOADS ──────────────────────────────
     const gqlBody = JSON.stringify({
@@ -157,7 +157,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       `  ✅ Pre-seeded ${createdIds.length}/${SEED_COUNT} records in ${(seedMs / 1000).toFixed(1)}s (${Math.round(seedRps)} docs/s).`,
     );
 
-    const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
+    const stableId = createdIds[0] || "20000000-0000-7000-8000-000000000001";
     const idCount = createdIds.length || 1;
 
     // ── WORKLOAD HANDLERS (Minimal In-Loop Overhead) ──────────────────────

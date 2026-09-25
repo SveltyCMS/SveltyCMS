@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 // The self-healing proxy in db.ts wraps the adapter. Namespace methods
 // (crud, auth, media, etc.) are proxied, but root-level methods like
@@ -59,8 +60,8 @@ afterAll(async () => {
   }
 });
 
-function uid(p: string) {
-  return `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function uid(_p: string) {
+  return generateUUID();
 }
 
 describe("Transaction Contract — All Adapters", () => {

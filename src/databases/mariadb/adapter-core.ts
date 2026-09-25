@@ -77,6 +77,33 @@ export abstract class AdapterCore extends SqlAdapterCore {
     object,
     { withData?: string; withoutData?: string }
   >();
+  private _mariaInsertTplCache = new Map<
+    string,
+    {
+      sqlPrefix: string;
+      cols: string[];
+    }
+  >();
+  /**
+   * Prepared UPDATE template cache — parity with SQLite's `_updateSqlCache` and
+   * PostgreSQL's `_updateTemplateCache`. Key captures the full column ORDER
+   * (payload key order drives bind order), tenant clause, RETURNING choice and
+   * the JSON merge mode; the per-call loop then only converts/binds values.
+   * FIFO-capped like the SQLite twin.
+   */
+  private _mariaUpdateTplCache = new Map<string, { sqlSkip: string; sqlReturning: string }>();
+  /** Upsert template cache: fixed column list + ON DUPLICATE KEY pairs per column set. */
+  private _mariaUpsertTplCache = new Map<string, string>();
+  /** rawInsertReturning template cache (fixed `?` placeholders, one per column). */
+  private _mariaInsertReturningTplCache = new Map<string, string>();
+
+  /** FIFO-evict a Map cache at `cap` entries (mirrors the SQLite twin). */
+  private evictIfFull(cache: Map<unknown, unknown>, cap = 256): void {
+    if (cache.size >= cap) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+  }
 
   // --------------------------------------------------------------------------
   // Abstract hook implementations
@@ -806,13 +833,25 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
       // Drizzle def property names may differ from physical column names
       // (e.g. plugin_storage: collectionName → `collection`).
-      const physicalName = (c: string) =>
-        utils.assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
-      const colList = cols.map((c) => `\`${physicalName(c)}\``);
-      const placeholders = cols.map(() => "?").join(", ");
-      const updatePairs = cols
-        .filter((c) => c !== idColName)
-        .map((c) => `\`${physicalName(c)}\` = VALUES(\`${physicalName(c)}\`)`);
+      // 🚀 TEMPLATE CACHE: column list, placeholders and the ON DUPLICATE KEY
+      // pairs depend only on the column ORDER — build once per shape.
+      const tplKey = `${tableName}:${cols.join(",")}`;
+      let sqlText = this._mariaUpsertTplCache.get(tplKey);
+      if (!sqlText) {
+        const physicalName = (c: string) =>
+          utils.assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
+        const colList = cols.map((c) => `\`${physicalName(c)}\``).join(", ");
+        const placeholders = cols.map(() => "?").join(", ");
+        const updatePairs = cols
+          .filter((c) => c !== idColName)
+          .map((c) => `\`${physicalName(c)}\` = VALUES(\`${physicalName(c)}\`)`);
+        sqlText =
+          updatePairs.length > 0
+            ? `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePairs.join(", ")} RETURNING *`
+            : `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders}) RETURNING *`;
+        this.evictIfFull(this._mariaUpsertTplCache);
+        this._mariaUpsertTplCache.set(tplKey, sqlText);
+      }
       const params = cols.map((c) => {
         const v = values[c];
         return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
@@ -824,11 +863,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
       // rely on the PK conflict. Tenant WHERE on insert is not applicable.
       void tenantSql;
       void tenantParams;
-
-      const sqlText =
-        updatePairs.length > 0
-          ? `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePairs.join(", ")} RETURNING *`
-          : `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) RETURNING *`;
 
       const rows = (await this.raw.execute(sqlText, params)) as any[];
       if (Array.isArray(rows) && rows.length > 0) {
@@ -868,20 +902,29 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const tableName = getTableName(table);
       const cols = Object.keys(values);
       if (cols.length === 0) return null;
-      const colList = cols
-        .map((c) => {
-          // Drizzle def property names may differ from physical column names
-          // (e.g. plugin_storage: collectionName → `collection`).
-          const phys = this.getColumn(table, c);
-          return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
-        })
-        .map((c) => `\`${c}\``);
-      const placeholders = cols.map(() => "?").join(", ");
+      // 🚀 TEMPLATE CACHE: the column list + fixed `?` placeholders depend only
+      // on the column ORDER — build the SQL once per shape.
+      const tplKey = `${tableName}:${cols.join(",")}`;
+      let sqlText = this._mariaInsertReturningTplCache.get(tplKey);
+      if (!sqlText) {
+        const colList = cols
+          .map((c) => {
+            // Drizzle def property names may differ from physical column names
+            // (e.g. plugin_storage: collectionName → `collection`).
+            const phys = this.getColumn(table, c);
+            return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+          })
+          .map((c) => `\`${c}\``)
+          .join(", ");
+        const placeholders = cols.map(() => "?").join(", ");
+        sqlText = `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders}) RETURNING *`;
+        this.evictIfFull(this._mariaInsertReturningTplCache);
+        this._mariaInsertReturningTplCache.set(tplKey, sqlText);
+      }
       const params = cols.map((c) => {
         const v = values[c];
         return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
       });
-      const sqlText = `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) RETURNING *`;
       const rows = (await this.raw.execute(sqlText, params)) as any[];
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
@@ -988,19 +1031,26 @@ export abstract class AdapterCore extends SqlAdapterCore {
               table: collection,
             }) as T;
           }
-          const colList = cols
-            .map((c) => {
-              // Drizzle def property names may differ from physical column
-              // names (e.g. plugin_storage: collectionName → `collection`).
-              const phys = this.getColumn(table, c);
-              return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
-            })
-            .map((c) => `\`${c}\``)
-            .join(", ");
+          const tplKey = `${tableName}:${cols.join(",")}`;
+          let tpl = this._mariaInsertTplCache.get(tplKey);
+          if (!tpl) {
+            const colList = cols
+              .map((c) => {
+                const phys = this.getColumn(table, c);
+                return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+              })
+              .map((c) => `\`${c}\``)
+              .join(", ");
+            tpl = {
+              sqlPrefix: `INSERT INTO \`${tableName}\` (${colList}) VALUES (`,
+              cols,
+            };
+            this._mariaInsertTplCache.set(tplKey, tpl);
+          }
           const placeholders: string[] = [];
           const params: any[] = [];
-          for (const c of cols) {
-            const v = values[c];
+          for (let i = 0; i < cols.length; i++) {
+            const v = values[cols[i]];
             // Missing/undefined values bind as literal DEFAULT — mysql2
             // throws on undefined bind params.
             if (v === undefined) {
@@ -1012,7 +1062,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             );
             placeholders.push("?");
           }
-          const sqlText = `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders.join(", ")})`;
+          const sqlText = `${tpl.sqlPrefix}${placeholders.join(", ")})`;
           await rawExec(sqlText, params);
           return utils.convertDatesToISO(
             this.synthesizeInsertRow(table, values, { intBooleans: true }),
@@ -1186,22 +1236,50 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const setPairs: string[] = [];
       const params: any[] = [];
       const columns = Object.keys(values);
+      if (columns.length === 0) {
+        return super.update(collection, id, data, options);
+      }
       // 🔀 PARTIAL-UPDATE MERGE: a live patch marker means the `data` blob must merge
       // (`JSON_MERGE_PATCH` is RFC 7396 — exact for the scalar/array patches that
       // reach this point; nested objects and explicit nulls were already merged in
       // JS just above). Without it a PATCH would replace every dynamic field.
       const mergeJsonData = getJsonDataPatch(values) !== undefined;
+
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+
+      // 🚀 NO-READ-BACK: full-document callers skip the RETURNING row read-back
+      // + JSON parse — the row is reconstructed from the prepared values.
+      const skipReturning = (options as any)?.skipReturning === true;
+      // 🚀 TEMPLATE CACHE (parity with SQLite/PG): the SET list, WHERE clause and
+      // both SQL variants depend only on the column ORDER (the key captures it),
+      // tenant clause, merge mode and RETURNING choice — build once per shape.
+      const cacheKey = `${tableName}|${columns.join(",")}|${skipReturning ? 1 : 0}|${mergeJsonData ? 1 : 0}|${tenantSql}`;
+      let tpl = this._mariaUpdateTplCache.get(cacheKey);
+      if (!tpl) {
+        for (const col of columns) {
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`).
+          const phys = this.getColumn(table, col);
+          const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+          const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+          setPairs.push(
+            isJson && mergeJsonData
+              ? `\`${safeCol}\` = JSON_MERGE_PATCH(COALESCE(\`${safeCol}\`, '{}'), ?)`
+              : `\`${safeCol}\` = ?`,
+          );
+        }
+        const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+        const safeTable = utils.assertSafeSqlIdentifier(tableName, "table");
+        const whereSql = `\`${safeIdCol}\` = ?${tenantSql}`;
+        const setSql = setPairs.join(", ");
+        tpl = {
+          sqlSkip: `UPDATE \`${safeTable}\` SET ${setSql} WHERE ${whereSql}`,
+          sqlReturning: `UPDATE \`${safeTable}\` SET ${setSql} WHERE ${whereSql} RETURNING *`,
+        };
+        this.evictIfFull(this._mariaUpdateTplCache);
+        this._mariaUpdateTplCache.set(cacheKey, tpl);
+      }
       for (const col of columns) {
-        // Drizzle def property names may differ from physical column names
-        // (e.g. plugin_storage: collectionName → `collection`).
-        const phys = this.getColumn(table, col);
-        const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
-        const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
-        setPairs.push(
-          isJson && mergeJsonData
-            ? `\`${safeCol}\` = JSON_MERGE_PATCH(COALESCE(\`${safeCol}\`, '{}'), ?)`
-            : `\`${safeCol}\` = ?`,
-        );
         const val = values[col];
         params.push(
           val === null || val === undefined
@@ -1211,18 +1289,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
               : val,
         );
       }
-      if (setPairs.length === 0) {
-        return super.update(collection, id, data, options);
-      }
 
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
-
-      // 🚀 NO-READ-BACK: full-document callers skip the RETURNING row read-back
-      // + JSON parse — the row is reconstructed from the prepared values.
-      const skipReturning = (options as any)?.skipReturning === true;
-      const sqlText = skipReturning
-        ? `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql}`
-        : `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql} RETURNING *`;
+      const sqlText = skipReturning ? tpl.sqlSkip : tpl.sqlReturning;
       const rows = (await rawExec(sqlText, [...params, String(id), ...tenantParams])) as any[];
 
       if (skipReturning) {
@@ -1233,6 +1301,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const converted = utils.convertDatesToISO(reconstructed, {
           mariaDoubleParseJson: true,
           table: collection,
+          inPlace: true,
         }) as unknown as T;
         const finalData =
           this.hooks.length > 0
@@ -1247,6 +1316,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const converted = utils.convertDatesToISO(rows[0], {
           mariaDoubleParseJson: true,
           table: collection,
+          inPlace: true,
         }) as unknown as T;
         const finalData =
           this.hooks.length > 0

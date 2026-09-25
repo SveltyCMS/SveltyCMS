@@ -12,6 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 
 /**
  * 🔴 FIX 6: Sentinel return from `acquireLock` that distinguishes a genuine L2
@@ -90,7 +91,7 @@ export class CacheLockManager {
     const lockKey = `lock:${key}`;
     // CSPRNG only (AGENTS.md §2.1): crypto is always present in Node ≥20 — never
     // fall back to weak randomness for a lock-ownership token.
-    const ownerId = globalThis.crypto.randomUUID();
+    const ownerId = generateUUID();
 
     try {
       const result = await l2.set(lockKey, ownerId, {

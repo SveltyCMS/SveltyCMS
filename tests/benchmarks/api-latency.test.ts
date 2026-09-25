@@ -24,6 +24,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 
 /**
  * `handle-compression.ts` only takes the streaming (genuinely async) zstd path
@@ -281,7 +282,7 @@ async function seedZstdPayloadCollection(): Promise<boolean> {
 
     const padding = "x".repeat(ZSTD_ROW_BYTES);
     const docs = Array.from({ length: ZSTD_ROWS }, (_, i) => ({
-      _id: crypto.randomUUID(),
+      _id: generateUUID(),
       title: `zstd payload ${i}`,
       content: `${padding}-${i}`,
       tenantId: "global",

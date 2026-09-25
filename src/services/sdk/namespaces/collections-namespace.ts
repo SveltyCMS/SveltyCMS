@@ -53,6 +53,7 @@ import { parseIdLookup } from "@src/databases/core/lookup-query";
 import { nowISODateString } from "@src/utils/date";
 import { clampPageSize } from "@utils/api-params";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
+import { validateRequiredFields } from "@src/widgets/widget-validation";
 
 import {
   getDbModuleLazy,
@@ -990,16 +991,18 @@ export class CollectionsNamespace {
     }
 
     let result;
+    const bulkOptions = { tenantId, ...(options as any) };
     if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
       result = await this._dbAdapter.batch.bulkInsert(
         this.getCollectionName(schema._id as string),
         entries as any[],
+        bulkOptions,
       );
     } else if (this._dbAdapter.crud && typeof this._dbAdapter.crud.insertMany === "function") {
       result = await this._dbAdapter.crud.insertMany(
         this.getCollectionName(schema._id as string),
         entries as any[],
-        { tenantId } as any,
+        bulkOptions,
       );
     } else {
       throw new Error("Adapter does not support bulk operations.");
@@ -1350,8 +1353,14 @@ export class CollectionsNamespace {
       : PROFILE_WRITE_ENABLED
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
-    if (peeked) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
-    const hot = ensureSchemaHotFlags(schema);
+    let hot = ensureSchemaHotFlags(schema);
+    // A populated hot flag means every declared lazy widget was already loaded
+    // before the flag plan was frozen. Avoid the per-write widget-name array,
+    // registry scan, and resolved-Promise hop on warm write paths.
+    if (hot._hasActiveWidgets === undefined) {
+      await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
+      hot = ensureSchemaHotFlags(schema);
+    }
     markWritePhase(options, "schema", tSchema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
@@ -1371,13 +1380,31 @@ export class CollectionsNamespace {
     // 🚪 Publication gate: workflows with gatePublication block direct
     // publishing of brand-new entries (no instance exists yet — the workflow
     // must approve before publish). System writes bypass the gate.
-    if (!system && (data as { status?: string } | null)?.status === "publish") {
+    if (
+      !system &&
+      ((data as { status?: string } | null)?.status === "publish" ||
+        (data as { status?: string } | null)?.status === "published")
+    ) {
       const workflowService = await getWorkflowServiceLazy();
       await workflowService.assertPublishAllowed(
         schema._id as string,
         (tenantId as string | undefined) ?? undefined,
         effectiveUser,
       );
+
+      if (schema.fields && schema.fields.length > 0) {
+        const { valid, missingFields } = validateRequiredFields(
+          entryData,
+          schema.fields as FieldInstance[],
+        );
+        if (!valid) {
+          throw new AppError(
+            missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+            400,
+            "FIELD_VALIDATION_ERROR",
+          );
+        }
+      }
     }
 
     const mBefore = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
@@ -1476,8 +1503,14 @@ export class CollectionsNamespace {
       : PROFILE_WRITE_ENABLED
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
-    if (peekedUpdate) await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
-    const hot = ensureSchemaHotFlags(schema);
+    let hot = ensureSchemaHotFlags(schema);
+    // See create(): only schemas whose flag plan could not be frozen yet need
+    // a lazy-factory check. This preserves widget processing on a cold schema
+    // while keeping established PATCHes entirely synchronous before validation.
+    if (hot._hasActiveWidgets === undefined) {
+      await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
+      hot = ensureSchemaHotFlags(schema);
+    }
     markWritePhase(options, "schema", tSchema);
 
     const tPrep = writePhaseT0(options);
@@ -1494,10 +1527,16 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
+    let preloadedExisting: any = null;
+
     // 🚪 Publication gate: workflows with gatePublication only allow status
     // "publish" while the entry's workflow instance is in a final state.
     // System writes (scheduled publishing, sync, imports) bypass the gate.
-    if (!system && (data as { status?: string } | null)?.status === "publish") {
+    if (
+      !system &&
+      ((data as { status?: string } | null)?.status === "publish" ||
+        (data as { status?: string } | null)?.status === "published")
+    ) {
       const workflowService = await getWorkflowServiceLazy();
       await workflowService.assertPublishAllowed(
         schema._id as string,
@@ -1505,6 +1544,33 @@ export class CollectionsNamespace {
         effectiveUser,
         entryId,
       );
+
+      if (schema.fields && schema.fields.length > 0) {
+        preloadedExisting = await this._dbAdapter.crud.findOne(
+          this.getCollectionName(schema._id as string),
+          { _id: entryId } as any,
+          { tenantId: tenantId as DatabaseId },
+        );
+        const existingData =
+          preloadedExisting.success && preloadedExisting.data
+            ? (preloadedExisting.data as unknown as Record<string, unknown>)
+            : undefined;
+        const merged = {
+          ...existingData,
+          ...updateData,
+        };
+        const { valid, missingFields } = validateRequiredFields(
+          merged,
+          schema.fields as FieldInstance[],
+        );
+        if (!valid) {
+          throw new AppError(
+            missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+            400,
+            "FIELD_VALIDATION_ERROR",
+          );
+        }
+      }
     }
 
     const mBeforeU = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
@@ -1548,11 +1614,13 @@ export class CollectionsNamespace {
       revisionEnabled && PROFILE_WRITE_ENABLED ? profileMark("ns:revision-snapshot") : null;
     if (revisionEnabled) {
       try {
-        const prev = await this._dbAdapter.crud.findOne(
-          this.getCollectionName(schema._id as string),
-          { _id: entryId } as any,
-          { tenantId: tenantId as DatabaseId },
-        );
+        const prev =
+          preloadedExisting ??
+          (await this._dbAdapter.crud.findOne(
+            this.getCollectionName(schema._id as string),
+            { _id: entryId } as any,
+            { tenantId: tenantId as DatabaseId },
+          ));
         if (prev.success && prev.data) {
           previousSnapshot = prev.data;
         }
@@ -1585,6 +1653,8 @@ export class CollectionsNamespace {
             // (SQL `RETURNING`, Mongo `findOneAndUpdate`) is skipped when the caller only
             // wants to know the write landed — see `LocalApiOptions.skipReturning`.
             ...(options.skipReturning ? { skipReturning: true } : {}),
+            ...((options as any).fields ? { fields: (options as any).fields } : {}),
+            ...((options as any).skipJson ? { skipJson: (options as any).skipJson } : {}),
           },
         ),
       schema,

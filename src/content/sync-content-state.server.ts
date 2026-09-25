@@ -17,7 +17,6 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { xxhash64 } from "hash-wasm";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNode, ContentNodeOperation, Schema } from "./types";
 import { getSchemaPath } from "./first-collection";
@@ -37,7 +36,7 @@ import {
   getCompiledCollectionsPath,
 } from "@utils/tenant.server";
 import { contentStore } from "@stores/content-registry.svelte";
-import { deepClone } from "@utils/native-utils";
+import { deepClone, fastHash } from "@utils/native-utils";
 import { shouldRequireLayoutInvalidate } from "./content-hmr";
 
 export type SyncContentReason =
@@ -450,7 +449,7 @@ export async function detectCompilationDrift(
       if (knownHash) {
         try {
           const content = await fs.readFile(sourcePath, "utf8");
-          const sourceHash = await xxhash64(content);
+          const sourceHash = fastHash(content);
           if (sourceHash === knownHash) {
             hashConfirmedFresh++;
             continue;

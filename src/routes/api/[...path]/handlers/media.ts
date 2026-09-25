@@ -4,6 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import crypto from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
@@ -1175,7 +1176,7 @@ export async function handleMediaStreamUpload(
     throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
   }
 
-  const operationId = crypto.randomUUID();
+  const operationId = generateUUID();
   let uploadFolder = "global";
   const uploaded: {
     fileName: string;

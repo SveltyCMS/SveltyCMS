@@ -16,6 +16,15 @@
 import { logger } from "@utils/logger";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { DatabaseId } from "@src/content/types";
+import type { MediaService } from "@src/utils/media/media-service.server";
+
+/**
+ * Max concurrent `saveMedia` calls for one multi-file field value. Bounded so a
+ * 20-file widget upload can neither blow memory (concurrent sharp pipelines +
+ * buffers) nor spike DB writes — the gallery action parallelizes unbounded, the
+ * widget path keeps a ceiling.
+ */
+const MULTI_UPLOAD_CONCURRENCY = 4;
 
 /** Minimal user shape needed for upload attribution */
 interface UploadUser {
@@ -62,7 +71,7 @@ function resolveFolderPath(ctx: UploadContext): string {
 async function processSingleFile(
   file: File,
   ctx: UploadContext,
-  service: any, // MediaService — dynamically imported
+  service: MediaService,
 ): Promise<DatabaseId | null> {
   const folderPath = resolveFolderPath(ctx);
   const saved = await service.saveMedia(file, String(ctx.user._id), "private", folderPath);
@@ -79,26 +88,41 @@ async function processSingleFile(
 /**
  * Processes all File objects in the value and returns an array of media IDs.
  * Non-File values (existing IDs) are passed through unchanged.
+ *
+ * Files are saved through a bounded worker pool (order-preserving): a
+ * sequential loop made a 10-file entry wait on 10 × (write + insert +
+ * metadata) wall time; the pool caps at `MULTI_UPLOAD_CONCURRENCY` and a
+ * failed file skips its slot without disturbing the others.
  */
 async function processMultiFiles(
   files: unknown[],
   ctx: UploadContext,
-  service: any,
+  service: MediaService,
 ): Promise<DatabaseId[]> {
   const folderPath = resolveFolderPath(ctx);
-  const ids: DatabaseId[] = [];
+  const ids = Array.from<DatabaseId | null>({ length: files.length }).fill(null);
 
-  for (const item of files) {
-    if (item instanceof File) {
-      const saved = await service.saveMedia(item, String(ctx.user._id), "private", folderPath);
-      if (saved.success) {
-        ids.push(saved.data._id);
+  // Single-threaded cursor: the check + increment between awaits is atomic, so
+  // each item is claimed exactly once without locks.
+  let cursor = 0;
+  const workerCount = Math.min(MULTI_UPLOAD_CONCURRENCY, files.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (cursor < files.length) {
+      const index = cursor++;
+      const item = files[index]!;
+      if (item instanceof File) {
+        const saved = await service.saveMedia(item, String(ctx.user._id), "private", folderPath);
+        if (saved.success) {
+          ids[index] = saved.data._id;
+        }
+      } else {
+        ids[index] = item as DatabaseId;
       }
-    } else {
-      ids.push(item as DatabaseId);
     }
-  }
-  return ids;
+  });
+
+  await Promise.all(workers);
+  return ids.filter((id): id is DatabaseId => id !== null);
 }
 
 /**

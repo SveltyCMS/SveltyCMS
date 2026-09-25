@@ -57,10 +57,10 @@ if [ "$HAS_CODE_CHANGES" = false ]; then
 fi
 
 info "Pre-commit already verified: format, lint, unit tests."
-info "Pre-push: build + CVE audit + secret scan + SQLite integration"
+info "Pre-push: build + quality + security + backdoor probe + SQLite integration"
 echo ""
 
-TOTAL=8; OK=0
+TOTAL=9; OK=0
 
 # Step 1 — Production build (mirrors CI build job)
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
@@ -85,17 +85,22 @@ fi
 "$PM_BIN" audit --severity=high 2>&1 || true
 OK=$((OK + 1))
 
-# Step 4 — Secret misuse scan (mirrors CI whitebox)
+# Step 4 — Secret misuse scan (mirrors CI whitebox 06-secret-misuse)
 if run "🔑  Secret Misuse Scan" pm_run scripts/scan-secret-misuse.ts --strict; then
   OK=$((OK + 1))
 fi
 
-# Step 5 — Tenant isolation gate (mirrors CI whitebox)
+# Step 5 — Tenant isolation gate (mirrors CI whitebox 04b-tenant-gate)
 if run "🛡️  Tenant Isolation Gate" pm_run test:tenant; then
   OK=$((OK + 1))
 fi
 
-# Step 6 — SQLite integration tests
+# Step 6 — Deploy Backdoor Probe (A01) (mirrors CI whitebox 07-deploy-backdoor)
+if run "🚪  Deploy Backdoor Probe (A01)" pm_run scripts/probe-deploy-testing-api.ts; then
+  OK=$((OK + 1))
+fi
+
+# Step 7 — SQLite integration tests
 if run "🗄️  Integration tests (SQLite)" pm_run scripts/run-integration.ts --no-build; then
   OK=$((OK + 1))
 fi

@@ -12,6 +12,7 @@
 
 import { onDestroy } from "svelte";
 import { logger } from "./logger";
+import { generateUUID } from "@utils/native-utils";
 
 export type KeyCombo = string;
 
@@ -117,7 +118,7 @@ export function registerHotkey(
   deprecatedPreventDefault?: boolean,
 ): () => void {
   const norm = normalizeCombo(combo);
-  const id = crypto.randomUUID();
+  const id = generateUUID();
 
   const opts: HotkeyOptions =
     typeof options === "string"

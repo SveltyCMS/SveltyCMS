@@ -30,7 +30,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
-import crypto from "node:crypto";
+import { generateUUID } from "@utils/native-utils";
 
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
@@ -61,7 +61,7 @@ const middlewareScenarios = [
   {
     name: "Full Security + Auth Pipeline",
     shortLabel: "Auth+Security",
-    path: "/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001",
+    path: "/api/collections/BenchmarkStable/20000000-0000-7000-8000-000000000001",
     method: "GET",
     concurrency: 8,
   },
@@ -119,7 +119,7 @@ async function runHooksAudit() {
     const totalPayloadCapacityNeeded = (baseIterationsPost + warmupCount) * maxTotalRuns * 2;
     const postPayloads = Array.from({ length: totalPayloadCapacityNeeded }, (_, idx) =>
       JSON.stringify({
-        _id: crypto.randomUUID(),
+        _id: generateUUID(),
         title: `Middleware Audit Entry ${idx}`,
       }),
     );

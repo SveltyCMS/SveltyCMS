@@ -23,6 +23,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { validateDatabaseResult } from "@tests/helpers/result-validator";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const TEST_COLLECTION = "error_contract_test";
 const TEST_TENANT = "error-contract-tenant";
@@ -70,7 +71,7 @@ describe("Error Contract — All Adapters", () => {
   // ─────────────────────────────────────────────────────────────
 
   describe("Duplicate Key (Unique Constraint)", () => {
-    const DUP_ID = crypto.randomUUID();
+    const DUP_ID = generateUUID();
 
     beforeAll(async () => {
       const res = await db.crud.insert(
@@ -132,7 +133,7 @@ describe("Error Contract — All Adapters", () => {
   // ─────────────────────────────────────────────────────────────
 
   describe("Missing Record (Not Found)", () => {
-    const MISSING_ID = crypto.randomUUID();
+    const MISSING_ID = generateUUID();
 
     it("findOne returns { success: true, data: null } for missing record", async () => {
       const result = await db.crud.findOne(
@@ -227,7 +228,7 @@ describe("Error Contract — All Adapters", () => {
       const result = await db.crud.insert(
         TEST_COLLECTION,
         {
-          _id: crypto.randomUUID(),
+          _id: generateUUID(),
           title: "Shape Test",
           status: "active",
           tenantId: TEST_TENANT,

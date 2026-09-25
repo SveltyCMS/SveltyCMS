@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { currentDbType } from "./adapter-test-env";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const C = "bulkfix_test";
 const isSqlite = currentDbType() === "sqlite";
@@ -50,8 +51,8 @@ describe.skipIf(!isSqlite)(
         .catch(() => {});
     }, 15000);
 
-    function uid(p: string) {
-      return `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    function uid(_p: string) {
+      return generateUUID();
     }
 
     it("gruppiert heterogene Updates nach identischem Payload und setzt korrekt", async () => {

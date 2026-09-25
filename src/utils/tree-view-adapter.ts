@@ -12,6 +12,7 @@
  */
 
 import type { ContentNode } from "@databases/db-interface";
+import { generateUUID } from "@utils/native-utils";
 
 export interface TreeViewItem extends Record<string, any> {
   _id?: any;
@@ -33,7 +34,7 @@ export interface TreeViewItem extends Record<string, any> {
 export function toTreeViewData(nodes: ContentNode[], parentPath = ""): TreeViewItem[] {
   return nodes.reduce<TreeViewItem[]>((acc, node) => {
     const n = node as any;
-    const id = String(n.id || n._id || crypto.randomUUID());
+    const id = String(n.id || n._id || generateUUID());
     const path = parentPath ? `${parentPath}.${id}` : id;
 
     // Explicitly pick allowed properties, excluding database-heavy 'children'

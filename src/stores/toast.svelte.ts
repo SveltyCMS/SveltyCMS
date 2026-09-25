@@ -9,6 +9,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { browser } from "$app/env";
 import { screen, ScreenSize } from "@stores/screen-size-store.svelte.ts";
 
@@ -474,9 +475,7 @@ class ToastStore {
   }
 
   private generateId(): string {
-    return typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    return generateUUID();
   }
 
   private persist(): void {

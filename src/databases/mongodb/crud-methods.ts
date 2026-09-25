@@ -1091,6 +1091,66 @@ export class MongoCrudMethods<T extends BaseEntity> {
     };
 
     const totalMode = options.total ?? "none";
+    const canEstimate = shouldUseEstimateCount(query, {
+      mode: totalMode === "none" ? "auto" : totalMode,
+      tenantId: options.tenantId as string | null | undefined,
+      includeDeleted: options.includeDeleted,
+    });
+
+    // 🚀 SINGLE-ROUNDTRIP $facet: when exact count is requested or query cannot be estimated,
+    // execute data slice + count in one aggregation pipeline instead of two network roundtrips.
+    if (
+      totalMode !== "none" &&
+      !canEstimate &&
+      !cursor &&
+      typeof (this.model as any).aggregate === "function"
+    ) {
+      try {
+        const secureQuery = this.adapter.mapQuery(
+          safeQuery(pageQuery, options.tenantId as string, {
+            systemScope: options.systemScope,
+            includeDeleted: options.includeDeleted,
+            bypassSafeQuery: options.bypassSafeQuery,
+          }),
+        );
+
+        const mongoSort: Record<string, 1 | -1> = {};
+        for (const [k, dir] of Object.entries(resolvedSort)) {
+          mongoSort[k] = dir === "desc" ? -1 : 1;
+        }
+
+        const skipCount = options.offset && options.offset > 0 ? options.offset : 0;
+        const pipeline: Record<string, unknown>[] = [{ $match: secureQuery }];
+        if (Object.keys(mongoSort).length > 0) {
+          pipeline.push({ $sort: mongoSort });
+        }
+        pipeline.push({
+          $facet: {
+            data: [{ $skip: skipCount }, { $limit: pageSize + 1 }],
+            total: [{ $count: "count" }],
+          },
+        });
+
+        const facetRes = await (this.model as any).aggregate(pipeline).exec();
+        if (Array.isArray(facetRes) && facetRes.length > 0) {
+          const rawDocs = facetRes[0].data || [];
+          const totalDocs = facetRes[0].total?.[0]?.count ?? 0;
+          const mappedDocs = rawDocs.map((doc: any) => this.mapDates(doc) as T);
+          return {
+            success: true,
+            data: buildFindPageResult(
+              mappedDocs,
+              pageSize,
+              { total: totalDocs, estimated: false },
+              resolvedSort,
+            ),
+          };
+        }
+      } catch (err) {
+        logger.debug("[MongoDB] $facet pipeline fallback to 2-step", err);
+      }
+    }
+
     const countPromise =
       totalMode !== "none"
         ? this.count(query, {

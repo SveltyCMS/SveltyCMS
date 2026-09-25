@@ -16,11 +16,17 @@ import type { DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { assertRealAdapter } from "@tests/helpers/assert-real-adapter";
+import { generateUUID } from "@utils/native-utils";
 
 const TENANT: DatabaseId = "global" as DatabaseId;
 
 function runSuffix() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${Date.now().toString(36)}-${generateUUID()}`;
+}
+
+/** `_id` is varchar(36) on the strict SQL engines — ids must stay ≤36 chars. */
+function shortId(prefix: string): string {
+  return `${prefix}${generateUUID().slice(prefix.length)}`;
 }
 
 function getData<T>(res: { success: boolean; data?: T }): T {
@@ -49,7 +55,7 @@ afterAll(async () => {
 describe("collection.getSchema / getSchemaById contract", () => {
   async function seedCollectionNode(name: string) {
     const suffix = runSuffix();
-    const id = `contract-schema-${suffix}`;
+    const id = shortId("contract-schema-");
     const path = `/collection/${name.toLowerCase()}-${suffix}`;
     cleanupPaths.push(path);
 

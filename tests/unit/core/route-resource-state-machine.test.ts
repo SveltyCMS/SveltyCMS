@@ -58,10 +58,10 @@ describe("RouteResourceStateMachine", () => {
 describe("parseCollectionRoute", () => {
   it("maps API, locale, collections, and admin paths", () => {
     expect(
-      parseCollectionRoute("/api/collections/posts/550e8400-e29b-41d4-a716-446655440000"),
+      parseCollectionRoute("/api/collections/posts/550e8400-e29b-71d4-a716-446655440000"),
     ).toEqual({
       collectionId: "posts",
-      entryId: "550e8400-e29b-41d4-a716-446655440000",
+      entryId: "550e8400-e29b-71d4-a716-446655440000",
     });
     expect(parseCollectionRoute("/en/collections/posts")).toEqual({
       collectionId: "posts",
@@ -77,7 +77,7 @@ describe("parseCollectionRoute", () => {
 describe("fillPredictedTurboCache", () => {
   it("does not write a turbo envelope without a user (FLAC)", async () => {
     const filled = await routeResourceStateMachine.fillPredictedTurboCache(
-      "/api/collections/posts/550e8400-e29b-41d4-a716-446655440000",
+      "/api/collections/posts/550e8400-e29b-71d4-a716-446655440000",
       "global",
       null,
     );

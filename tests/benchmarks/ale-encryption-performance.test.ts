@@ -22,6 +22,7 @@ import { test, describe, expect } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { encryptDocumentFields } from "@utils/security/field-encryption";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -111,7 +112,7 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
 
     async function makeDoc(i: number) {
       return {
-        _id: crypto.randomUUID() as any,
+        _id: generateUUID() as any,
         title: `ALE entry ${i}`,
         email: `user${i}@example.com`,
         tenantId: TEST_TENANT,

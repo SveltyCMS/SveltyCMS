@@ -7,7 +7,7 @@
 
 import type { DatabaseId } from "@src/content/types";
 import { logger } from "@src/utils/logger";
-import { generateUUID as uuidv4 } from "@utils/native-utils";
+import { generateUUID } from "@utils/native-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import type { DatabaseError, PaginatedResult, PaginationOptions } from "../db-interface";
 import type { Model, Schema, Connection } from "mongoose";
@@ -54,10 +54,10 @@ export function createDatabaseError(
 // ===================================================================================
 
 /**
- * Generates a compact, dash-less UUID, ideal for database identifiers.
+ * Generates a compact, dash-less RFC 9562 UUIDv7 (time-ordered) for database identifiers.
  */
 export function generateId(): DatabaseId {
-  return uuidv4().replace(/-/g, "") as DatabaseId;
+  return generateUUID().replace(/-/g, "") as DatabaseId;
 }
 
 /**

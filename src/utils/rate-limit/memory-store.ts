@@ -52,7 +52,12 @@ export class MemoryRateLimitStore {
   }
 
   /** Fuehrt checkAndConsume auf dem lokalen Bucket aus. */
-  checkAndConsume(key: string, bucket: TokenBucketConfig, cost = 1): MemoryConsumeResult {
+  checkAndConsume(
+    key: string,
+    bucket: TokenBucketConfig,
+    cost = 1,
+    overdraft = false,
+  ): MemoryConsumeResult {
     const now = Date.now();
     let entry = this.buckets.get(key);
 
@@ -63,7 +68,7 @@ export class MemoryRateLimitStore {
       this.buckets.set(key, entry);
     }
 
-    const result = consumeToken(entry.state, now, bucket, cost);
+    const result = consumeToken(entry.state, now, bucket, cost, overdraft);
     entry.state = result.state;
     entry.lastActiveMs = now;
 
@@ -86,6 +91,34 @@ export class MemoryRateLimitStore {
   /** Anzahl der aktuell getrackten Buckets. */
   size(): number {
     return this.buckets.size;
+  }
+
+  /** Serialisiert alle Buckets (Shutdown-Persistenz, WAF-Dump). */
+  dump(): Record<string, TokenBucketState> {
+    const out: Record<string, TokenBucketState> = {};
+    for (const [key, entry] of this.buckets) {
+      out[key] = entry.state;
+    }
+    return out;
+  }
+
+  /** Serialisiert nur Buckets mit dem angegebenen Key-Praefix (z.B. WAF-Scope). */
+  dumpWithPrefix(prefix: string): Record<string, TokenBucketState> {
+    const out: Record<string, TokenBucketState> = {};
+    for (const [key, entry] of this.buckets) {
+      if (key.startsWith(prefix)) out[key] = entry.state;
+    }
+    return out;
+  }
+
+  /** Stellt Buckets aus einem frueheren dump() wieder her. */
+  restore(data: Record<string, TokenBucketState>): void {
+    const now = Date.now();
+    for (const [key, state] of Object.entries(data)) {
+      if (typeof state?.tokens === "number" && typeof state?.lastRefillMs === "number") {
+        this.buckets.set(key, { state, lastActiveMs: now });
+      }
+    }
   }
 
   private evictIfFull(): void {

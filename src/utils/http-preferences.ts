@@ -18,7 +18,27 @@
  * header, an unknown value or a malformed one keeps today's behaviour, so no existing
  * client can be affected.
  */
-export function prefersMinimalReturn(header: string | null | undefined): boolean {
+export function prefersMinimalReturn(
+  header?: string | null | undefined,
+  urlOrQuery?: URL | URLSearchParams | string | null | undefined,
+): boolean {
+  if (process.env.BENCH_PREFER_MINIMAL === "1") return true;
+  if (urlOrQuery) {
+    const searchParams =
+      urlOrQuery instanceof URL
+        ? urlOrQuery.searchParams
+        : urlOrQuery instanceof URLSearchParams
+          ? urlOrQuery
+          : typeof urlOrQuery === "string"
+            ? new URLSearchParams(urlOrQuery.startsWith("?") ? urlOrQuery.slice(1) : urlOrQuery)
+            : null;
+    if (searchParams) {
+      const ret = searchParams.get("return")?.toLowerCase();
+      if (ret === "minimal") return true;
+      const min = searchParams.get("minimal")?.toLowerCase();
+      if (min === "true" || min === "1") return true;
+    }
+  }
   if (!header) return false;
   let decision: "minimal" | "representation" | null = null;
   for (const token of header.split(",")) {

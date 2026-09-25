@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { generateUUID } from "@utils/native-utils";
 
 // Egress boundary is mocked (network): polish.ts and index.server.ts now await
 // validateEgressUrl before fetching import-controlled asset URLs — DNS/IP
@@ -37,8 +38,7 @@ function createMockDB() {
     crud: {
       insert: async (collection: string, data: any) => {
         if (!collections[collection]) collections[collection] = new Map();
-        const id =
-          data._id || data._externalId || `id_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const id = data._id || data._externalId || `id_${Date.now()}_${generateUUID()}`;
         const doc = { _id: id, ...data };
         collections[collection].set(id, doc);
         return { success: true, data: doc };

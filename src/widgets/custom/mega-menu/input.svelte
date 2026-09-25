@@ -42,6 +42,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	// biome-ignore lint/correctness/noUnusedImports: used for recursive rendering in template
 	import MegaMenuInput from './input.svelte';
 	import type { MenuEditContext, MenuItem } from './types';
+	import { generateUUID } from '@utils/native-utils';
 
 	let {
 		field,
@@ -68,7 +69,7 @@ Interactive menu builder with add/edit/reorder capabilities
 			...(value || []),
 			{
 				// biome-ignore lint/style/useNamingConvention: system standard
-				_id: crypto.randomUUID(),
+				_id: generateUUID(),
 				// biome-ignore lint/style/useNamingConvention: system standard
 				_fields: {},
 				children: []
@@ -193,7 +194,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	function addChildItem(parentItem: MenuItem) {
 		const newChild: MenuItem = {
 			// biome-ignore lint/style/useNamingConvention: system standard
-			_id: crypto.randomUUID(),
+			_id: generateUUID(),
 			// biome-ignore lint/style/useNamingConvention: system standard
 			_fields: {},
 			children: []

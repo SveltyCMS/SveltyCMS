@@ -23,7 +23,7 @@
  * - 3b: `changedJsPaths` / `noOp` for surgical HMR + model provisioning
  */
 
-import { xxhash64 } from "hash-wasm";
+import { fastHash } from "../native-utils.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -40,7 +40,7 @@ import {
 import { isBenchmarkArtifact, isBenchmarkRuntime } from "../benchmark-runtime.ts";
 import { isBenchmarkRelativePath } from "../benchmark-paths.ts";
 import { assertLiveDataWriteAllowed } from "../benchmark-sandbox.ts";
-import { atomicWriteFile } from "../atomic-write.ts";
+import { atomicWriteFile, atomicWriteJson } from "../atomic-write.ts";
 import { createCompositeTransformer } from "./transformers.ts";
 import { pathAliases } from "../../../path-aliases.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
@@ -366,6 +366,8 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
     // ─── Worker pool: index-based cursor (O(1) dequeue) ──────────────────
     let cursor = 0;
+    // 🚀 Performance: Cache shared dependency reads/hashes across worker tasks
+    const depHashCache = new Map<string, string>();
 
     const worker = async () => {
       while (cursor < sourceFiles.length) {
@@ -391,7 +393,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
         try {
           const content = await fs.readFile(sourcePath, "utf8");
-          const sourceHash = await xxhash64(content);
+          const sourceHash = fastHash(content);
 
           // Quick skip: hash + tenant match + output exists + deps unchanged
           const existing = manifest.get(targetPath);
@@ -416,8 +418,12 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
             for (const depRel of existing.deps) {
               const depPath = path.join(userCollections, depRel);
               try {
-                const depContent = await fs.readFile(depPath, "utf8");
-                const depHash = await xxhash64(depContent);
+                let depHash = depHashCache.get(depPath);
+                if (!depHash) {
+                  const depContent = await fs.readFile(depPath, "utf8");
+                  depHash = fastHash(depContent);
+                  depHashCache.set(depPath, depHash);
+                }
                 const depExisting = manifest.get(
                   path.resolve(compiledCollections, path.dirname(relativePath), depRel),
                 );
@@ -658,7 +664,6 @@ async function saveManifest(
   assertLiveDataWriteAllowed(manifestPath);
 
   // Windows-safe atomic write (EPERM on rename under parallel Playwright workers)
-  const { atomicWriteJson } = await import("../atomic-write.ts");
   await atomicWriteJson(manifestPath, payload);
 }
 

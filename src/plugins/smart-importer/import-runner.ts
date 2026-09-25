@@ -4,6 +4,7 @@
  */
 
 import { nowISODateString } from "@utils/date";
+import { generateUUID } from "@utils/native-utils";
 import type { FieldMapping, MigrationProgress, SNCEnvelope } from "./types";
 import {
   parseWizardImportOptions,
@@ -218,7 +219,7 @@ export async function runMigrationImport(
   const { normalizeCollectionId } = await import("./collection-scaffold");
   const targetCollection = normalizeCollectionId(params.targetCollection);
 
-  const txnToken = crypto.randomUUID?.() || `txn_${Date.now()}`;
+  const txnToken = generateUUID();
   const prepared = await prepareMigrationEnvelope(
     params.fileText,
     params.format,

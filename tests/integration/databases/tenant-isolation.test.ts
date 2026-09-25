@@ -18,6 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { waitForServer, cleanupTestDatabase, getApiBaseUrl } from "../helpers/server";
 import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
+import { generateUUID } from "@utils/native-utils";
 
 const API = getApiBaseUrl();
 const SECRET =
@@ -119,7 +120,7 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
 
   it("authenticated list as B never returns tenant A marker", async () => {
     const marker = `iso-marker-${Date.now()}`;
-    const entryId = crypto.randomUUID();
+    const entryId = generateUUID();
 
     // bulk-seed under tenant A — collection was provisioned in beforeAll
     const seed = await testing(

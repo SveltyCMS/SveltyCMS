@@ -5,7 +5,7 @@
  * ### Hardening (audit 2026-07):
  * - JSON structural validation: filters malformed localStorage entries silently
  * - Quota awareness: logs storage-full errors instead of failing silently
- * - CSPRNG-based IDs: crypto.randomUUID() with timestamp fallback
+ * - CSPRNG-based IDs: generateUUID() (RFC 9562 v7, no fallback)
  * - SSR-safe: isBrowser checks both window and localStorage
  *
  * Client-first via localStorage; same shape can later sync to a user prefs API.
@@ -19,6 +19,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import type { SmartTableLayoutPrefs, SmartTableSort } from "@components/ui/smart-table/types";
 import type { CollectionFilterMap } from "@utils/collection-query-filters";
 
@@ -102,7 +103,7 @@ export function saveView(
   }
 
   const created: SmartTableSavedView = {
-    id: crypto.randomUUID?.() || `v_${Date.now()}`,
+    id: generateUUID(),
     name: input.name,
     createdAt: now,
     updatedAt: now,

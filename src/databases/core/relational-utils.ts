@@ -9,7 +9,7 @@
  * - Centralized tenant filter logic (shouldBypass, getEffectiveTenantId, getTenantCondition, applyTenantFilter)
  */
 
-import { generateUUID as uuidv4 } from "@utils/native-utils";
+import { generateUUID } from "@utils/native-utils";
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import type {
   BaseQueryOptions,
@@ -25,7 +25,8 @@ import { normalizeCollectionTableName, collectionTableName } from "./collection-
 
 export { isoDateStringToDate, nowISODateString };
 
-export const generateId = () => uuidv4().replace(/-/g, "") as DatabaseId;
+/** Compact RFC 9562 UUIDv7 (32-hex, time-ordered) for relational `_id` columns. */
+export const generateId = () => generateUUID().replace(/-/g, "") as DatabaseId;
 
 export { validateId } from "./id-contract";
 

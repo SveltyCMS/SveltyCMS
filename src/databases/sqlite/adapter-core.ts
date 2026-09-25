@@ -505,6 +505,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const converted = utils.convertDatesToISO(reconstructed, {
           ...this.convertDatesOptions,
           table: collection,
+          inPlace: true,
         }) as unknown as T;
         mConvR?.();
         return converted;
@@ -524,6 +525,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const converted = utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
           table: collection,
+          inPlace: true,
         }) as T;
         mConv?.();
         return converted;

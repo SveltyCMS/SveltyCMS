@@ -40,16 +40,18 @@ describe("Form Double-Submit & Replay Guard Benchmark", () => {
     expect(rps).toBeGreaterThan(100_000);
   });
 
-  it("measures strict RFC-4122 v4 validation throughput", () => {
+  it("measures strict RFC 9562 v7 validation throughput", () => {
     const validId = generateSubmissionId();
     const invalidLength = "12345678-1234-4234-8234";
     const invalidVersion = "12345678-1234-1234-8234-123456789abc"; // version 1
+    const legacyV4 = "12345678-1234-4234-8234-123456789abc"; // legacy version 4
     const invalidVariant = "12345678-1234-4234-0234-123456789abc"; // variant 0
     const nonHex = "12345678-1234-4234-8234-123456789xyz";
 
     expect(isValidSubmissionId(validId)).toBe(true);
     expect(isValidSubmissionId(invalidLength)).toBe(false);
     expect(isValidSubmissionId(invalidVersion)).toBe(false);
+    expect(isValidSubmissionId(legacyV4)).toBe(false);
     expect(isValidSubmissionId(invalidVariant)).toBe(false);
     expect(isValidSubmissionId(nonHex)).toBe(false);
 

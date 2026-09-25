@@ -18,7 +18,7 @@ import {
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import { monitorEventLoopDelay } from "node:perf_hooks";
-import crypto from "node:crypto";
+import { generateUUID } from "@utils/native-utils";
 
 const BURST_COUNT = 200;
 const CONCURRENT_WORKERS = 16;
@@ -73,7 +73,7 @@ test("Event Loop Lag & Microtask Saturation Benchmark", async () => {
     );
 
     // ── 2. PRE-COMPUTE WRITE BURST PAYLOADS ─────────────────────────────────
-    const runId = crypto.randomUUID().slice(0, 8);
+    const runId = generateUUID().slice(0, 8);
     const payloads = Array.from({ length: BURST_COUNT }, (_, i) =>
       JSON.stringify({
         title: `Burst Item ${i} ${runId}`,

@@ -20,6 +20,7 @@
 
 import { browser } from "$app/env";
 import { isAdmin } from "@src/databases/auth/constants";
+import { generateUUID } from "@utils/native-utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -486,7 +487,7 @@ export function togglePathInPrefs(
     favorites.push({
       // CSPRNG id — these key the FloatingNav {#each}, and Date.now() collisions
       // (same-ms double toggle) would corrupt keyed reconciliation.
-      id: `fav_${crypto.randomUUID()}`,
+      id: `fav_${generateUUID()}`,
       path: norm,
       tooltip: meta.name,
       icon: meta.icon || "mdi:bookmark",

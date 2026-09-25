@@ -1,12 +1,12 @@
 /**
  * @file tests/benchmarks/etag-hash.test.ts
- * @description Benchmarks ETag hash performance: XXH3 vs SHA-256 vs MD5 vs SHA-1 (Optimized)
+ * @description Benchmarks ETag hash performance: fastHash (native FNV-1a) vs SHA-256 vs MD5 vs SHA-1 (Optimized)
  * @summary Measures raw hash throughput, sub-microsecond latency, and buffer digestion speeds.
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
 import "../unit/bun-preload.ts";
-import { xxhash3 } from "hash-wasm";
+import { fastHash } from "@utils/native-utils";
 import crypto from "node:crypto";
 
 const staticTimestamp = "2026-06-27T20:20:56.000Z";
@@ -84,22 +84,10 @@ function measureSync(fn: () => void, iterations: number, warmup = 500): number {
   return (performance.now() - start) / iterations;
 }
 
-async function measureAsync(
-  fn: () => Promise<unknown>,
-  iterations: number,
-  warmup = 100,
-): Promise<number> {
-  for (let w = 0; w < warmup; w++) await fn();
-
-  const start = performance.now();
-  for (let i = 0; i < iterations; i++) await fn();
-  return (performance.now() - start) / iterations;
-}
-
 describe("ETag Hash Performance", () => {
-  beforeAll(async () => {
-    // Prime WASM bytecode and JIT engines
-    await xxhash3("prime-warmup-token");
+  beforeAll(() => {
+    // Prime JIT engines
+    fastHash("prime-warmup-token");
   });
 
   for (const [name, payload] of Object.entries(PAYLOADS)) {
@@ -107,9 +95,9 @@ describe("ETag Hash Performance", () => {
     const sizeKB = (payload.length / 1024).toFixed(1);
     const iterations = name === "large" ? 5000 : 50000;
 
-    it(`${name} (${sizeKB} KB) — XXH3 vs MD5 vs SHA-1 vs SHA-256`, async () => {
-      // 1. Measure WASM XXH3 (True XXH3 algorithm)
-      const xxh3Time = await measureAsync(() => xxhash3(payload), iterations);
+    it(`${name} (${sizeKB} KB) — fastHash vs MD5 vs SHA-1 vs SHA-256`, async () => {
+      // 1. Measure native synchronous FNV-1a fastHash (64-bit)
+      const fastHashTime = measureSync(() => fastHash(payload), iterations);
 
       // 2. Measure Native Crypto
       const md5Time = measureSync(() => md5Hash(payload), iterations);
@@ -119,29 +107,29 @@ describe("ETag Hash Performance", () => {
       // 3. Measure Buffer zero-copy digestion (Engine internal optimization)
       const nativeFastTime = measureSync(() => bunNativeHash(bufferPayload), iterations);
 
-      const speedupVsSHA256 = (sha256Time / xxh3Time).toFixed(1);
-      const speedupVsMD5 = (md5Time / xxh3Time).toFixed(1);
-      const speedupVsSHA1 = (sha1Time / xxh3Time).toFixed(1);
+      const speedupVsSHA256 = (sha256Time / fastHashTime).toFixed(1);
+      const speedupVsMD5 = (md5Time / fastHashTime).toFixed(1);
+      const speedupVsSHA1 = (sha1Time / fastHashTime).toFixed(1);
 
       console.log(
         `\n  ${name.toUpperCase()} (${sizeKB} KB, ${iterations.toLocaleString()} iterations):`,
       );
-      console.log(`    XXH3 (WASM):      ${(xxh3Time * 1000).toFixed(3)} µs`);
+      console.log(`    fastHash (native): ${(fastHashTime * 1000).toFixed(3)} µs`);
       console.log(
-        `    MD5:              ${(md5Time * 1000).toFixed(3)} µs  (${speedupVsMD5}× vs XXH3)`,
+        `    MD5:              ${(md5Time * 1000).toFixed(3)} µs  (${speedupVsMD5}× vs fastHash)`,
       );
       console.log(
-        `    SHA-1:            ${(sha1Time * 1000).toFixed(3)} µs  (${speedupVsSHA1}× vs XXH3)`,
+        `    SHA-1:            ${(sha1Time * 1000).toFixed(3)} µs  (${speedupVsSHA1}× vs fastHash)`,
       );
       console.log(
-        `    SHA-256:          ${(sha256Time * 1000).toFixed(3)} µs  (${speedupVsSHA256}× vs XXH3)`,
+        `    SHA-256:          ${(sha256Time * 1000).toFixed(3)} µs  (${speedupVsSHA256}× vs fastHash)`,
       );
       console.log(`    Native Fast-Hash: ${(nativeFastTime * 1000).toFixed(3)} µs (Zero-Copy)`);
 
       if (payload.length > 1000) {
-        expect(xxh3Time).toBeLessThan(sha256Time);
+        expect(fastHashTime).toBeLessThan(sha256Time);
       } else {
-        expect(xxh3Time).toBeLessThan(0.015);
+        expect(fastHashTime).toBeLessThan(0.015);
       }
     }, 30_000);
   }

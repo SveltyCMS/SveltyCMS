@@ -8,6 +8,9 @@
  * Compose defaults as fallback.
  */
 
+// 🟢 Bun compatibility for bson/mongodb
+import "../../../src/utils/v8-shim";
+
 import {
   DOCKER_DEFAULT_DB_CREDENTIALS,
   getDefaultDbPort,

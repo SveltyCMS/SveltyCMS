@@ -27,6 +27,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SiteName from '@src/components/site-name.svelte';
 	// Components
 	import FloatingPaths from '@src/components/system/floating-paths.svelte';
+	import { generateUUID } from '@utils/native-utils';
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
 	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
@@ -209,7 +210,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		try {
 			deviceId = localStorage.getItem('sveltycms-device-id') || '';
 			if (!deviceId) {
-				deviceId = crypto.randomUUID();
+				deviceId = generateUUID();
 				localStorage.setItem('sveltycms-device-id', deviceId);
 			}
 		} catch {

@@ -64,7 +64,7 @@ async function runMixedWorkloadAudit() {
       {
         type: "REST Read",
         cumulativeWeight: 60,
-        url: `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`,
+        url: `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-7000-8000-000000000001`,
         method: "GET",
         body: undefined,
       },

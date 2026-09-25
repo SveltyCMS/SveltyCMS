@@ -20,6 +20,7 @@
 
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
+import { generateUUID } from "@utils/native-utils";
 
 // ============================================================================
 // 1. PII Scrubbing Engine (GDPR/CCPA)
@@ -170,7 +171,7 @@ export class AuditLogger {
     dbAdapter?: any,
   ): Promise<AuditEntry> {
     const entry: AuditEntry = {
-      id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: `audit_${generateUUID()}`,
       timestamp: nowISODateString(),
       action,
       user,

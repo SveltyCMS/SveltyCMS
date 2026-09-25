@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { generateUUID } from "@utils/native-utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,7 +114,7 @@ function matchIdentity(source: IdentityRecord, targetPool: IdentityRecord[]): Ma
 
 function makeTarget(overrides: Partial<IdentityRecord> = {}): IdentityRecord {
   return {
-    id: overrides.id ?? `target-${Math.random().toString(36).slice(2, 7)}`,
+    id: overrides.id ?? `target-${generateUUID()}`,
     type: overrides.type ?? "collection",
     name: overrides.name ?? "DefaultName",
     ...overrides,
@@ -122,7 +123,7 @@ function makeTarget(overrides: Partial<IdentityRecord> = {}): IdentityRecord {
 
 function makeSource(overrides: Partial<IdentityRecord> = {}): IdentityRecord {
   return {
-    id: overrides.id ?? `source-${Math.random().toString(36).slice(2, 7)}`,
+    id: overrides.id ?? `source-${generateUUID()}`,
     type: overrides.type ?? "collection",
     name: overrides.name ?? "DefaultSource",
     ...overrides,

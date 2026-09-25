@@ -5,6 +5,7 @@
 
 // Utils
 import { contentSystem } from "@src/content/index.server";
+import { generateUUID } from "@utils/native-utils";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 // System Logger
 import {
@@ -289,7 +290,7 @@ async function handleGoogleUser(
         inviteRole = adminRole?._id || "admin";
         tenantId = (cookies.get("__Host-demo_tenant_id") ||
           cookies.get("demo_tenant_id") ||
-          crypto.randomUUID()) as DatabaseId;
+          generateUUID()) as DatabaseId;
       } else if (isTestOAuthMock) {
         inviteRole = url.searchParams.get("__test_role__") || "admin";
       } else {

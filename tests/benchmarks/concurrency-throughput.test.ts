@@ -50,7 +50,7 @@ async function run() {
     // Generate deterministic UUID fallback array to ensure zero undefined URL interpolation
     docIds = Array.from(
       { length: maxDocs },
-      (_, i) => `20000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+      (_, i) => `20000000-0000-7000-8000-${String(i + 1).padStart(12, "0")}`,
     );
   }
 

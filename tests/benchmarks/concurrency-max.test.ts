@@ -48,7 +48,7 @@ async function run() {
     // Fallback deterministic IDs if seeder returns partial or empty set
     docIds = Array.from(
       { length: DOCS },
-      (_, i) => `20000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+      (_, i) => `20000000-0000-7000-8000-${String(i + 1).padStart(12, "0")}`,
     );
   }
 

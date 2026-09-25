@@ -16,6 +16,7 @@
 import { ThemeManager } from "@src/databases/theme-manager";
 import type { ThemeConfig as AdminThemeSettings } from "@components/ui/theme-context.svelte";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { mapPresetToAdminTheme, type ThemePreset } from "@utils/theme-preset-mapper";
 import { auditPresetJson, type ContrastWarning } from "@utils/theme-contrast";
 import type { DatabaseId } from "@src/content/types";
@@ -262,7 +263,7 @@ export class AdminThemeService {
     };
 
     const result = await db.system.themes.install({
-      _id: globalThis.crypto.randomUUID(),
+      _id: generateUUID(),
       name,
       path: `/themes/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       isActive: false,

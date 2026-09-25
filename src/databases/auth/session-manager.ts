@@ -18,7 +18,7 @@
 
 // Auth
 import type { ISODateString, User, DatabaseId } from "@databases/db-interface";
-import { isoDateStringToDate } from "@utils/date";
+import { isoDateStringToDate, nowISODateString, dateToISODateString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { SessionStore, SessionMetadata, SessionData } from "./types";
@@ -115,7 +115,7 @@ class InMemorySessionManager implements SessionStore {
       if (mfaVerifiedAt !== undefined) {
         session.mfaVerifiedAt = mfaVerifiedAt;
       } else if (amr.includes("mfa") && !session.mfaVerifiedAt) {
-        session.mfaVerifiedAt = new Date().toISOString() as ISODateString;
+        session.mfaVerifiedAt = nowISODateString() as ISODateString;
       }
     }
   }
@@ -152,7 +152,9 @@ class InMemorySessionManager implements SessionStore {
     const dbUser = await dbValidationFn(sessionId);
     if (dbUser) {
       // Cache the user in memory for future access (assuming 1 hour expiration)
-      const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString() as ISODateString;
+      const expiration = dateToISODateString(
+        new Date(Date.now() + 60 * 60 * 1000),
+      ) as ISODateString;
       await this.set(sessionId, dbUser, expiration);
     }
     return dbUser;
@@ -271,7 +273,7 @@ class RedisSessionManager implements SessionStore {
           if (mfaVerifiedAt !== undefined) {
             parsed.mfaVerifiedAt = mfaVerifiedAt;
           } else if (amr.includes("mfa") && !parsed.mfaVerifiedAt) {
-            parsed.mfaVerifiedAt = new Date().toISOString() as ISODateString;
+            parsed.mfaVerifiedAt = nowISODateString() as ISODateString;
           }
           const ttlSeconds = Math.floor((new Date(parsed.expiresAt).getTime() - Date.now()) / 1000);
           if (ttlSeconds > 0) {
@@ -342,7 +344,9 @@ class RedisSessionManager implements SessionStore {
     const dbUser = await dbValidationFn(sessionId);
     if (dbUser) {
       // Cache the validated user (assuming 1 hour expiration)
-      const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString() as ISODateString;
+      const expiration = dateToISODateString(
+        new Date(Date.now() + 60 * 60 * 1000),
+      ) as ISODateString;
       await this.set(sessionId, dbUser, expiration);
     }
     return dbUser;

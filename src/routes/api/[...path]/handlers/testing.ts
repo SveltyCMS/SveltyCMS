@@ -811,7 +811,7 @@ export async function handleTestingRoutes(
         for (let i = 0; i < count; i += BATCH) {
           const end = Math.min(i + BATCH, count);
           const docs = Array.from({ length: end - i }, () => ({
-            _id: crypto.randomUUID(),
+            _id: generateUUID(),
             title: `Throughput Doc`,
             count: 0,
             tenantId,
@@ -1485,7 +1485,7 @@ export async function handleTestingRoutes(
       // Seed authors — deterministic UUIDv4 ids (version 4 / variant 8),
       // format-compliant with the enterprise _id contract on collection tables.
       const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
-        _id: `10000000-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
+        _id: `10000000-0000-7000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
         name: `Author ${i + 1}`,
         tenantId,
       }));
@@ -1510,7 +1510,7 @@ export async function handleTestingRoutes(
       });
 
       // Seed stable entry and redirects in parallel (upsert stable entry for re-runs)
-      const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
+      const STABLE_ENTRY_ID = "20000000-0000-7000-8000-000000000001";
       const stablePayload = {
         _id: STABLE_ENTRY_ID,
         title: "Stable Benchmark Entry",
@@ -1539,14 +1539,14 @@ export async function handleTestingRoutes(
           "redirects",
           [
             {
-              _id: "30000000-0000-4000-8000-000000000001",
+              _id: "30000000-0000-7000-8000-000000000001",
               source: "/old-path-1",
               target: "/new-path-1",
               type: 301,
               tenantId,
             },
             {
-              _id: "30000000-0000-4000-8000-000000000002",
+              _id: "30000000-0000-7000-8000-000000000002",
               source: "/old-path-2",
               target: "/new-path-2",
               type: 301,
@@ -1743,7 +1743,7 @@ export async function handleTestingRoutes(
       if (!collectionId || collectionId.length > 64) {
         throw new AppError("Invalid collectionId", 400);
       }
-      const entryId = String(params.entryId || crypto.randomUUID());
+      const entryId = String(params.entryId || generateUUID());
       const title = String(params.title || `E2E Trash Item ${generateUUID().slice(0, 6)}`);
       const collectionName = collectionTableName(collectionId);
 

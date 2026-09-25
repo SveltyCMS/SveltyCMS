@@ -79,14 +79,27 @@ for (let i = 0; i < DB_TYPES.length; i++) {
   const stderr = runProc.stderr || "";
   const combined = stdout + "\n" + stderr;
 
-  // Parse pass/fail/skip summary numbers from bun test output
-  const passMatch = combined.match(/(\d+)\s+pass/);
-  const failMatch = combined.match(/(\d+)\s+fail/);
-  const skipMatch = combined.match(/(\d+)\s+skip/);
+  // Parse pass/fail/skip summary numbers from bun test output.
+  // NEVER use the FIRST match: earlier log lines can look like counters
+  // (e.g. the passing test "…should lockout account after 5 failed login
+  // attempts" matches /(\d+)\s+fail/ and used to hijack the count). The
+  // harness's definitive report block wins; last summary line is the fallback.
+  const reportMatch = combined.match(/Total:\s*(\d+)\s*│\s*Pass:\s*(\d+)\s*│\s*Fail:\s*(\d+)/);
+  const allPass = [...combined.matchAll(/(\d+)\s+pass\b/g)];
+  const allFail = [...combined.matchAll(/(\d+)\s+fail\b/g)];
+  const allSkip = [...combined.matchAll(/(\d+)\s+skip\b/g)];
 
-  const passedCount = passMatch ? parseInt(passMatch[1], 10) : 0;
-  const failedCount = failMatch ? parseInt(failMatch[1], 10) : 0;
-  const skippedCount = skipMatch ? parseInt(skipMatch[1], 10) : 0;
+  const passedCount = reportMatch
+    ? parseInt(reportMatch[2], 10)
+    : allPass.length
+      ? parseInt(allPass[allPass.length - 1][1], 10)
+      : 0;
+  const failedCount = reportMatch
+    ? parseInt(reportMatch[3], 10)
+    : allFail.length
+      ? parseInt(allFail[allFail.length - 1][1], 10)
+      : 0;
+  const skippedCount = allSkip.length > 0 ? parseInt(allSkip[allSkip.length - 1][1], 10) : 0;
 
   // Parse specific failure lines
   const failures: Array<{ suite: string; name: string; durationMs?: number }> = [];

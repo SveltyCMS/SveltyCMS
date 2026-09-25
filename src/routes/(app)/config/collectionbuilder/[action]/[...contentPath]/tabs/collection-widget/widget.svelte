@@ -86,7 +86,11 @@
 		const dragged = state.draggedItem;
 		if (!dragged) return;
 
-		const fromIndex = fields.indexOf(dragged);
+		const fromIndex = fields.findIndex(
+			(f) =>
+				(f.id !== undefined && f.id === dragged.id) ||
+				(Boolean(f.label) && f.label === dragged.label)
+		);
 		if (fromIndex < 0) return;
 
 		// Find target item via DOM data attribute
@@ -96,19 +100,20 @@
 		let targetIndex: number;
 		if (targetLabel) {
 			targetIndex = fields.findIndex((f) => f.label === targetLabel);
-			if (state.dropPosition === 'after') targetIndex++;
+			if (targetIndex >= 0 && state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = fields.length;
 		}
+		if (targetIndex < 0) targetIndex = fields.length;
 		targetIndex = Math.max(0, Math.min(targetIndex, fields.length));
 
 		if (fromIndex === targetIndex) return;
 
 		fields = untrack(() => {
 			const newFields = [...fields];
-			newFields.splice(fromIndex, 1);
+			const [movedItem] = newFields.splice(fromIndex, 1);
 			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-			newFields.splice(adjusted, 0, dragged);
+			newFields.splice(adjusted, 0, movedItem);
 			return newFields;
 		});
 
@@ -244,21 +249,16 @@
 		role="table"
 		aria-label="Field list"
 	>
-		<section
-			use:droppable={{
-				container: 'widget-fields',
-				callbacks: { onDrop: handleFieldDrop },
-				direction: 'vertical',
-				attributes: { dragOverClass: 'bg-secondary-200' }
-			}}
-			class="my-1 w-full"
-			role="list"
-			aria-label="Field list"
-		>
+		<section class="my-1 w-full" role="list" aria-label="Field list">
 			{#each fields as field (field.id)}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
-					use:draggable={{ container: 'widget-fields', dragData: field, keyboard: true }}
+					use:draggable={{
+						container: 'widget-fields',
+						dragData: field,
+						handle: '.field-drag-handle',
+						keyboard: true
+					}}
 					use:droppable={{
 						container: 'widget-fields',
 						callbacks: { onDrop: handleFieldDrop },
@@ -271,11 +271,20 @@
 					tabindex="0"
 					aria-label="Field: {field.label}. Press Space to grab, arrows to move."
 				>
-					<div
-						class="preset-ghost-tertiary-500 inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-10 w-10 rounded-full dark:preset-ghost-primary-500"
-						role="cell"
-					>
-						{field.id}
+					<div class="flex items-center gap-1" role="cell">
+						<button
+							type="button"
+							class="field-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none"
+							aria-label="Drag {field.label}"
+							title="Drag to reorder"
+						>
+							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
+						</button>
+						<div
+							class="preset-ghost-tertiary-500 inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-8 w-8 rounded-full dark:preset-ghost-primary-500"
+						>
+							{field.id}
+						</div>
 					</div>
 
 					<div role="cell" class="flex justify-center">

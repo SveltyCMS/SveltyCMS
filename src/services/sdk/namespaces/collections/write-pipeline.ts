@@ -16,6 +16,7 @@
  */
 
 import {
+  payloadTouchesCollectionFieldPreparation,
   prepareCollectionFields,
   validateNumberFieldPlans,
   type CollectionFieldPrepFlags,
@@ -77,12 +78,17 @@ export function prepareWritePayload(
   let entryData: any;
   const mFields = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:fields") : null;
   if (hot._hasSanitizableFields === true || hot._hasConstrainedFields === true) {
-    // Sanitize + constraints pass — single walk over schema.fields, lazy clone.
+    // The plan is schema-cached. For a partial patch that names none of its
+    // fields (for example `{ count }` on a collection with rich text), generic
+    // payload sanitization below remains in force and this field-specific pass
+    // cannot change the result.
     const prepFlags: CollectionFieldPrepFlags = {
       sanitize: hot._hasSanitizableFields,
       constraints: hot._hasConstrainedFields,
     };
-    entryData = prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags);
+    entryData = payloadTouchesCollectionFieldPreparation(data, schema as PrepFieldSchema, prepFlags)
+      ? prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags)
+      : data;
     if (entryData === data) entryData = { ...data };
   } else {
     // Fast path: no sanitizable/constrained fields → one shallow copy for the

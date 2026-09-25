@@ -20,6 +20,7 @@
  */
 
 import { untrack } from "svelte";
+import { generateUUID } from "@utils/native-utils";
 
 type Placement =
   | "top"
@@ -190,7 +191,7 @@ export function useFloating(options: FloatingOptions) {
   let staticSide = $state<string>("top");
   let positionCalculated = $state(false);
 
-  const anchorName = `--f-${Math.random().toString(36).slice(2, 8)}`;
+  const anchorName = `--f-${generateUUID().slice(0, 8)}`;
 
   $effect(() => {
     const ref = options.reference();

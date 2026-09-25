@@ -19,6 +19,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { normalizeEmail } from "@utils/normalize-email";
 import { verifyDummyPassword } from "@utils/security/crypto";
+import { dateToISODateString, nowISODateString } from "@utils/date";
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 
@@ -60,7 +61,7 @@ export async function sendMagicLinkForEmail(
       const exp = new Date(Date.now() + MAGIC_LINK_TTL_MS);
       const token = await auth.createToken({
         user_id: user._id,
-        expires: exp.toISOString() as ISODateString,
+        expires: dateToISODateString(exp) as ISODateString,
         type: "magic_link",
       });
 
@@ -146,7 +147,7 @@ export async function verifyMagicLink({
     // Success! Create session
     const session = await auth.createSession({
       user_id: user._id as DatabaseId,
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+      expires: dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)),
     });
     const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
     cookies.set(sessionCookie.name, sessionCookie.value, {
@@ -160,7 +161,7 @@ export async function verifyMagicLink({
         user._id as any,
         {
           lastAuthMethod: "magic_link",
-          lastActiveAt: new Date().toISOString() as any,
+          lastActiveAt: nowISODateString() as any,
         },
         withSystemScope("bootstrap"),
       )

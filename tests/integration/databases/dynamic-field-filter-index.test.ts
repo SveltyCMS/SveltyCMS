@@ -28,6 +28,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTableName } from "drizzle-orm";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const ENGINE = (process.env.DB_TYPE ?? "sqlite").toLowerCase() as
   | "sqlite"
@@ -95,7 +96,7 @@ describe(`Dynamic-field filter — ${ENGINE}`, () => {
       await db.crud.insert(
         COLLECTION,
         {
-          _id: crypto.randomUUID(),
+          _id: generateUUID(),
           title: `Row ${i}`,
           views: 100 + i,
           flag: i === 0,
@@ -107,7 +108,7 @@ describe(`Dynamic-field filter — ${ENGINE}`, () => {
     // A row whose numeric field is stored as TEXT — the type-fidelity probe.
     await db.crud.insert(
       COLLECTION,
-      { _id: crypto.randomUUID(), title: "Stringly typed", views: "101", tenantId: TENANT },
+      { _id: generateUUID(), title: "Stringly typed", views: "101", tenantId: TENANT },
       tenantOpts,
     );
   }, 120_000);
@@ -168,7 +169,7 @@ describe(`Dynamic-field filter — ${ENGINE}`, () => {
     // containment with a nested object (`{"meta":{"lang":…}}`).
     await db.crud.insert(
       COLLECTION,
-      { _id: crypto.randomUUID(), title: "Nested", meta: { lang: "en" }, tenantId: TENANT },
+      { _id: generateUUID(), title: "Nested", meta: { lang: "en" }, tenantId: TENANT },
       tenantOpts,
     );
 
@@ -190,7 +191,7 @@ describe(`Dynamic-field filter — ${ENGINE}`, () => {
     for (const views of [4, 16, 32]) {
       await db.crud.insert(
         COLLECTION,
-        { _id: crypto.randomUUID(), title: `Range ${views}`, views, tenantId: TENANT },
+        { _id: generateUUID(), title: `Range ${views}`, views, tenantId: TENANT },
         tenantOpts,
       );
     }

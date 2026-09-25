@@ -88,21 +88,19 @@ async function getStorage() {
   return _storageAdapter!;
 }
 
-// Compute resolved media base path once at first request
+// Compute resolved media base path at request time (refreshed when configured folder changes)
 let _mediaBase: string | null = null;
 let _mediaFolder: string | null = null;
 function getMediaPaths() {
-  if (!_mediaBase) {
-    // Same resolution as the write path (storage-adapters): under any
-    // benchmark/test harness, process.env.MEDIA_FOLDER (the sandbox) wins
-    // over a stale DB setting — otherwise uploads land in the sandbox but
-    // /files serves from ./mediaFolder → 404. Sync + memoized: zero cost on
-    // the file-serving hot path.
-    const mf = (resolveConfiguredMediaFolder() || "mediaFolder")
-      .replace(/^\.\//, "")
-      .replace(/^\/+|\/+$/g, "");
-    _mediaFolder = mf;
-    _mediaBase = path.resolve(process.cwd(), mf);
+  const rawFolder = resolveConfiguredMediaFolder() || "mediaFolder";
+  if (!_mediaBase || _mediaFolder !== rawFolder) {
+    _mediaFolder = rawFolder;
+    if (path.isAbsolute(rawFolder)) {
+      _mediaBase = path.resolve(rawFolder);
+    } else {
+      const mf = rawFolder.replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
+      _mediaBase = path.resolve(process.cwd(), mf);
+    }
   }
   return { folder: _mediaFolder!, base: _mediaBase! };
 }

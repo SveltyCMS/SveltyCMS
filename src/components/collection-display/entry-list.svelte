@@ -583,28 +583,40 @@ bulk actions, and predictive preloading.
 		const dragged = state.draggedItem;
 		if (!dragged) return;
 
-		const fromIndex = displayTableHeaders.indexOf(dragged);
+		const fromIndex = displayTableHeaders.findIndex(
+			(h) => h.id === dragged.id || (Boolean(dragged.name) && h.name === dragged.name)
+		);
 		if (fromIndex < 0) return;
 
 		const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
 		const targetHeaderId = targetEl?.dataset?.headerId;
 
+		if (
+			targetHeaderId &&
+			(targetHeaderId === dragged.id || targetHeaderId === displayTableHeaders[fromIndex].id)
+		) {
+			return;
+		}
+
 		let targetIndex: number;
 		if (targetHeaderId) {
 			targetIndex = displayTableHeaders.findIndex((h) => h.id === targetHeaderId);
-			if (state.dropPosition === 'after') targetIndex++;
+			if (targetIndex >= 0 && state.dropPosition === 'after') {
+				targetIndex++;
+			}
 		} else {
 			targetIndex = displayTableHeaders.length;
 		}
+		if (targetIndex < 0) targetIndex = displayTableHeaders.length;
 		targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
 
 		if (fromIndex === targetIndex) return;
 
 		displayTableHeaders = untrack(() => {
 			const newItems = [...displayTableHeaders];
-			newItems.splice(fromIndex, 1);
+			const [movedItem] = newItems.splice(fromIndex, 1);
 			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-			newItems.splice(adjusted, 0, dragged);
+			newItems.splice(adjusted, 0, movedItem);
 			return newItems;
 		});
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
@@ -858,6 +870,7 @@ bulk actions, and predictive preloading.
 		},
 		set value(v: boolean) {
 			displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: v }));
+			entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 		}
 	};
 
@@ -1041,6 +1054,7 @@ bulk actions, and predictive preloading.
 		displayTableHeaders = displayTableHeaders.map((h) =>
 			h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h
 		);
+		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
 	function resetViewSettings() {
@@ -1049,6 +1063,8 @@ bulk actions, and predictive preloading.
 			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
 		}
 		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
+		displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
+		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
 	// Advanced Filters State & Handler
@@ -1402,49 +1418,56 @@ bulk actions, and predictive preloading.
 						Reset View
 					</Button>
 				</div>
+				<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
 				<section
-					use:droppable={{
-						container: 'columns',
-						callbacks: { onDrop: handleColumnDrop },
-						direction: 'horizontal',
-						attributes: {
-							dragOverClass: 'bg-secondary-200'
-						}
-					}}
 					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
 					role="list"
 					aria-label="Drag columns to reorder"
 				>
 					{#each displayTableHeaders as header (header.id)}
-						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 						<div
 							animate:flip={{ duration: 300 }}
-							use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
+							use:draggable={{
+								container: 'columns',
+								dragData: header,
+								keyboard: true,
+								handle: '.column-drag-handle'
+							}}
 							use:droppable={{
 								container: 'columns',
 								callbacks: { onDrop: handleColumnDrop },
 								direction: 'horizontal',
-								attributes: { dragOverClass: 'bg-secondary-200' }
+								attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
 							}}
 							data-header-id={header.id}
 							role="listitem"
-							tabindex="0"
-							aria-label={`Column: ${header.label}. Press Space to grab, arrows to move.`}
+							class="inline-flex items-center rounded-lg border transition-all {header.visible
+								? 'bg-surface-500/10 dark:bg-surface-800 border-surface-500/30 dark:border-surface-600 text-surface-900 dark:text-surface-100'
+								: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-surface-400 dark:text-surface-500'}"
 						>
-							<Button
-								variant="tertiary"
+							<button
+								type="button"
+								class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+								aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
+								title="Drag to reorder"
+							>
+								<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
+							</button>
+
+							<button
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}
-								aria-label="toggle-column-visibility"
-								class="chip {header.visible
-									? ''
-									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
+								aria-label={`Toggle visibility of ${header.label} column`}
+								class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
 							>
 								{#if header.visible}
-									<iconify-icon icon="fa:check" width={24} class="me-1"></iconify-icon>
+									<iconify-icon icon="fa:check" width={14} class="text-success-500"></iconify-icon>
+								{:else}
+									<iconify-icon icon="mdi:eye-off-outline" width={14} class="text-surface-400"
+									></iconify-icon>
 								{/if}
 								<span class="capitalize">{header.label}</span>
-							</Button>
+							</button>
 						</div>
 					{/each}
 				</section>

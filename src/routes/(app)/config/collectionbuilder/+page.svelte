@@ -37,6 +37,7 @@ None (TreeView has its own keyboard navigation)
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ContentNode, DatabaseId } from '@src/databases/db-interface';
 	import { nowISODateString } from '@src/utils/date';
+	import { generateUUID } from '@utils/native-utils';
 	import { hasDuplicateSiblingName } from '@src/content';
 	import { getDescendantIds } from './collectionbuilder-utils';
 	import { rethrow } from '@utils/error-handling';
@@ -293,7 +294,7 @@ None (TreeView has its own keyboard navigation)
 		if (isCategory) {
 			// Duplicate only the category (no attached collections)
 			const now = nowISODateString();
-			const newId = crypto.randomUUID() as unknown as DatabaseId;
+			const newId = generateUUID() as unknown as DatabaseId;
 			const baseName = (original.name || 'category').toString().replace(/\s+/g, '_');
 			const newName = `${baseName}_copy`;
 			const rootCount = currentConfig.filter((n) => !n.parentId).length;
@@ -323,7 +324,7 @@ None (TreeView has its own keyboard navigation)
 		}
 
 		// Single collection duplicate  use id-based path so DB and refresh keep stable path (not name-based)
-		const newId = crypto.randomUUID() as unknown as DatabaseId;
+		const newId = generateUUID() as unknown as DatabaseId;
 		const baseName = (
 			original.name ||
 			(original.collectionDef as { name?: string })?.name ||
@@ -560,7 +561,7 @@ None (TreeView has its own keyboard navigation)
 						}
 					} else {
 						// Create new category — immediate save
-						const newId = crypto.randomUUID() as unknown as DatabaseId;
+						const newId = generateUUID() as unknown as DatabaseId;
 						const path = uniquePathForCategory(form.newCategoryName);
 						const newCategory: ContentNode = {
 							_id: newId,

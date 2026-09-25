@@ -82,7 +82,7 @@ export {
  * implementations. Random bytes above 256 - (256 % charset.length) are discarded
  * and re-sampled, guaranteeing uniform distribution across all characters.
  *
- * For UUID-based tokens, consider `crypto.randomUUID()` from `@utils/native-utils.ts`.
+ * For UUID-based tokens, consider `generateUUID()` (RFC 9562 v7) from `@utils/native-utils.ts`.
  *
  * @param length - Desired token length (default: 32, providing ~190 bits of entropy)
  * @returns Cryptographically secure random token with uniform distribution

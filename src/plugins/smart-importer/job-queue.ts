@@ -7,6 +7,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import type { FieldMapping, SNCEnvelope } from "./types";
 import type { IngestionOptions } from "./index.server";
 import { nowISODateString } from "@utils/date";
@@ -60,7 +61,7 @@ class ImportJobQueue {
     options: IngestionOptions,
   ): ImportJob {
     const job: ImportJob = {
-      id: crypto.randomUUID?.() || `job_${Date.now()}`,
+      id: generateUUID(),
       status: "queued",
       sourcePlatform: envelope.sourcePlatform,
       targetCollection,

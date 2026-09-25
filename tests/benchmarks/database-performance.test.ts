@@ -28,10 +28,11 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import { toQueryOptions } from "@src/databases/policy";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";
-const STABLE_ID = "20000000-0000-4000-8000-000000000001";
+const STABLE_ID = "20000000-0000-7000-8000-000000000001";
 /** Title of the single row the blob-filter scenario matches (see createDynamicFieldFilterTest). */
 const DYNAMIC_FILTER_TITLE = "Dynamic Filter Probe";
 
@@ -95,7 +96,7 @@ export async function runDatabaseBenchmark() {
     await (db as any).crud.insert(
       COLLECTION_ID,
       {
-        _id: crypto.randomUUID(),
+        _id: generateUUID(),
         title: DYNAMIC_FILTER_TITLE,
         status: "active",
         tenantId: TEST_TENANT,
@@ -246,7 +247,7 @@ export async function runDatabaseBenchmark() {
 
 function createInsertTest(db: any) {
   return async () => {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const result = await db.crud.insert(
       COLLECTION_ID,
       {
@@ -346,7 +347,7 @@ function createDeleteTest(db: any) {
   return async () => {
     if (deleteBuffer.length === 0) {
       const freshBatch = Array.from({ length: REFILL_BATCH }, () => ({
-        _id: crypto.randomUUID() as any,
+        _id: generateUUID() as any,
         title: "Dynamic Deletion Seed",
         status: "to_delete",
         value: 0,
@@ -537,7 +538,7 @@ function createCountCachedTest(db: any) {
 function createBulkInsertTest(db: any) {
   return async () => {
     const batch = Array.from({ length: 100 }, () => ({
-      _id: crypto.randomUUID() as any,
+      _id: generateUUID() as any,
       title: "Bulk item",
       tenantId: TEST_TENANT,
     }));
@@ -553,7 +554,7 @@ function createBulkUpdateTest(db: any, mode: "heterogeneous" | "homogeneous") {
   return async () => {
     if (!seeded) {
       const batch = Array.from({ length: 100 }, () => ({
-        _id: crypto.randomUUID() as any,
+        _id: generateUUID() as any,
         title: `Bulk upd ${mode}`,
         status: "active",
         value: 0,
@@ -650,7 +651,7 @@ async function prepareCollection(db: any) {
 
   // Initial delete pool replenishment
   const initialDeleteBatch = Array.from({ length: 500 }, () => ({
-    _id: crypto.randomUUID() as any,
+    _id: generateUUID() as any,
     title: "To remove initial",
     status: "to_delete",
     value: 0,

@@ -12,6 +12,9 @@ process.env.BUN_TEST = "true";
 import { plugin } from "bun";
 import { compile } from "svelte/compiler";
 
+// 🟢 Bun compatibility for bson/mongodb
+import "../../src/utils/v8-shim";
+
 // 1. Run the master setup file which establishes all mocks and shims
 import "./setup";
 

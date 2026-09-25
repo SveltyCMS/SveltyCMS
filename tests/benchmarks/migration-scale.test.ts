@@ -4,7 +4,6 @@
  * @summary Measures bulk ingestion throughput for 10,000 entries, random point-lookups, and indexed range scans across large datasets.
  */
 
-import { randomUUID } from "node:crypto";
 import {
   test,
   runBenchmark,
@@ -20,6 +19,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 
 const COLLECTION_ID = "bench_migration_large";
 const TOTAL_ENTRIES = 10_000;
@@ -49,7 +49,7 @@ function precomputeBulkPayloads(): {
   const batches = Array.from({ length: TOTAL_BATCHES }, (_, batchIndex) => {
     const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
       const absoluteIndex = batchIndex * BATCH_SIZE + j;
-      const id = randomUUID();
+      const id = generateUUID();
       allIds.push(id);
       return {
         _id: id,

@@ -82,9 +82,9 @@ describe("Yjs collaboration ACL", () => {
   });
 
   it("parses entry:{collectionId}:{entryId}", () => {
-    expect(parseEntryDocId("entry:posts:20000000-0000-4000-8000-000000000001")).toEqual({
+    expect(parseEntryDocId("entry:posts:20000000-0000-7000-8000-000000000001")).toEqual({
       collectionId: "posts",
-      entryId: "20000000-0000-4000-8000-000000000001",
+      entryId: "20000000-0000-7000-8000-000000000001",
     });
     expect(parseEntryDocId("entry:blog-posts:abc")).toEqual({
       collectionId: "blog-posts",

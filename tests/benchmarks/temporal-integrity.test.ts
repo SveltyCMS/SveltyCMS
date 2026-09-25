@@ -22,7 +22,7 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "BenchmarkStable";
-const TARGET_DOC_ID = "20000000-0000-4000-8000-000000000001";
+const TARGET_DOC_ID = "20000000-0000-7000-8000-000000000001";
 
 let stopServer: (() => Promise<void>) | null = null;
 

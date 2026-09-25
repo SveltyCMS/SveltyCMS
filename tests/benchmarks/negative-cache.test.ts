@@ -17,6 +17,7 @@ import {
   stabilize,
 } from "./modules/benchmark-utils";
 import type { DatabaseId } from "@src/content/types";
+import { generateUUID } from "@utils/native-utils";
 
 function forceGarbageCollection() {
   if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
@@ -62,7 +63,7 @@ test("Negative Cache Performance Audit", async () => {
   const results: any[] = [];
 
   // ── 1. DIRECT ADAPTER MISS BASELINE (ZERO SDK) ────────────────────────────
-  const adapterKeys = Array.from({ length: 1000 }, () => crypto.randomUUID() as DatabaseId);
+  const adapterKeys = Array.from({ length: 1000 }, () => generateUUID() as DatabaseId);
   let adapterCursor = 0;
 
   forceGarbageCollection();
@@ -86,10 +87,7 @@ test("Negative Cache Performance Audit", async () => {
 
   // ── 2. SDK FIRST MISS (COLD DB ROUNDTRIP / CACHE POPULATION) ──────────────
   const COLD_ITERATIONS = 300;
-  const coldKeys = Array.from(
-    { length: COLD_ITERATIONS * 4 },
-    () => crypto.randomUUID() as DatabaseId,
-  );
+  const coldKeys = Array.from({ length: COLD_ITERATIONS * 4 }, () => generateUUID() as DatabaseId);
   let coldCursor = 0;
 
   forceGarbageCollection();
@@ -113,10 +111,7 @@ test("Negative Cache Performance Audit", async () => {
 
   // ── 3. SUBSEQUENT MISSES (NEGATIVE L1 CACHE HIT) ──────────────────────────
   const HOT_KEY_COUNT = 100;
-  const hotMissingKeys = Array.from(
-    { length: HOT_KEY_COUNT },
-    () => crypto.randomUUID() as DatabaseId,
-  );
+  const hotMissingKeys = Array.from({ length: HOT_KEY_COUNT }, () => generateUUID() as DatabaseId);
 
   // Pre-seed negative cache entries
   console.log("   → Pre-warming negative cache sentinels...");

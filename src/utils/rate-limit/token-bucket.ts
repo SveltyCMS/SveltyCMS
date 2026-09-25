@@ -21,6 +21,13 @@ export interface TokenBucketConfig {
   capacity: number;
   /** Refill-Rate in Tokens pro Sekunde. */
   refillPerSecond: number;
+  /**
+   * Fixed-Window-Modus (WAF-Paritaet): statt kontinuierlichem Refill wird der
+   * Bucket erst nach Ablauf des Fensters KOMPLETT auf `capacity` zurueckgesetzt
+   * (rate-limiter-flexible-Semantik: `duration` ohne `execEvenly`). Der Lockout
+   * ist damit hart auf die Fensterlaenge begrenzt.
+   */
+  windowMs?: number;
 }
 
 export interface TokenBucketState {
@@ -53,6 +60,14 @@ export function refillBucket(
   const elapsedMs = Math.max(0, nowMs - state.lastRefillMs);
   if (elapsedMs <= 0) return state;
 
+  if (config.windowMs) {
+    // Fixed-Window: kein Refill waehrend des Fensters; am Fensterende voller Reset.
+    if (elapsedMs >= config.windowMs) {
+      return { tokens: config.capacity, lastRefillMs: nowMs };
+    }
+    return state;
+  }
+
   const refillAmount = (elapsedMs / 1000) * config.refillPerSecond;
   return {
     tokens: Math.min(config.capacity, state.tokens + refillAmount),
@@ -65,12 +80,17 @@ export function refillBucket(
  * konsumiert werden kann. Bei `allowed === false` bleibt der Zustand UNVERAENDERT
  * (nur der Refill wird angewendet), damit kein bereits entleerter Bucket weiter
  * belastet wird und der Client nach dem Refill sauber wieder reinkommt.
+ *
+ * `overdraft` (WAF-Paritaet): Ablehnungen buchen trotzdem ab — der Saldo darf
+ * negativ werden, damit ein uebergrosser Consume den Lockout verlaengert statt
+ * ein kostenloser Retry zu sein (rate-limiter-flexible-Semantik).
  */
 export function consumeToken(
   state: TokenBucketState,
   nowMs: number,
   config: TokenBucketConfig,
   cost = 1,
+  overdraft = false,
 ): BucketResult {
   const refilled = refillBucket(state, nowMs, config);
   const c = Math.max(1, cost);
@@ -85,6 +105,26 @@ export function consumeToken(
       tokens: next.tokens,
       allowed: true,
       retryAfterSeconds: 0,
+    };
+  }
+
+  if (overdraft) {
+    // Ablehnung bucht trotzdem ab: Saldo darf negativ werden.
+    const next: TokenBucketState = {
+      tokens: refilled.tokens - c,
+      lastRefillMs: refilled.lastRefillMs,
+    };
+    // Retry-Zeit: kontinuierlich = Defizit/Refill-Rate; Fenster = Rest des Fensters.
+    const retryAfterSeconds = config.windowMs
+      ? Math.max(1, Math.ceil((refilled.lastRefillMs + config.windowMs - nowMs) / 1000))
+      : config.refillPerSecond > 0
+        ? Math.max(1, Math.ceil((c - next.tokens) / config.refillPerSecond))
+        : 60;
+    return {
+      state: next,
+      tokens: next.tokens,
+      allowed: false,
+      retryAfterSeconds,
     };
   }
 

@@ -25,9 +25,8 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
-import crypto from "node:crypto";
-
 import { seedHttpCollectionBurst } from "./modules/seed-burst";
+import { generateUUID } from "@utils/native-utils";
 
 // SQLite is the entry engine (1→10k). Scale engines go to 100k unless overridden.
 const ENTRY_STEPS = [1, 10, 100, 1000, 5000, 10000];
@@ -79,7 +78,7 @@ test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
       connection: "keep-alive",
     };
 
-    const runId = crypto.randomUUID().slice(0, 8);
+    const runId = generateUUID().slice(0, 8);
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
     const gqlUrl = `${baseUrl}/api/graphql`;
     const gqlBody = JSON.stringify({
@@ -122,7 +121,7 @@ test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
       await stabilize(200);
 
       const idCount = createdIds.length || 1;
-      const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
+      const stableId = createdIds[0] || "20000000-0000-7000-8000-000000000001";
 
       // 1. Uniform Random PK Lookup
       const findByIdRandom = async () => {

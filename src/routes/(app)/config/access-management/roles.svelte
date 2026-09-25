@@ -20,6 +20,7 @@ It provides the following functionality:
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import type { Role } from '@src/databases/auth/types';
 	import type { DatabaseId, ISODateString } from '@src/databases/db-interface';
+	import { generateUUID } from '@utils/native-utils';
 	import { modalState } from '@utils/modal.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
@@ -114,7 +115,7 @@ It provides the following functionality:
 			return;
 		}
 
-		const roleId = currentRoleId ?? crypto.randomUUID().replace(/-/g, '');
+		const roleId = currentRoleId ?? generateUUID().replace(/-/g, '');
 		const newRole = {
 			_id: roleId as DatabaseId,
 			id: roleId,

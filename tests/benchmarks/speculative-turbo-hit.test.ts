@@ -15,8 +15,8 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
-import crypto from "node:crypto";
 import { seedHttpCollectionBurst } from "./modules/seed-burst";
+import { generateUUID } from "@utils/native-utils";
 
 test("Speculative LocalCMS turbo fill vs cold findById", async () => {
   let stopServer: (() => Promise<void>) | null = null;
@@ -32,7 +32,7 @@ test("Speculative LocalCMS turbo fill vs cold findById", async () => {
       "x-test-security": "true",
       connection: "keep-alive",
     };
-    const runId = crypto.randomUUID().slice(0, 8);
+    const runId = generateUUID().slice(0, 8);
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
     const created = await seedHttpCollectionBurst({
       url: collectionUrl,

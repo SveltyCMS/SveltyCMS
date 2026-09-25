@@ -22,7 +22,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
 
-const ENTRY_ID = "20000000-0000-4000-8000-000000000001";
+const ENTRY_ID = "20000000-0000-7000-8000-000000000001";
 const COLLECTION_ID = "BenchmarkStable";
 
 async function runCacheAudit() {

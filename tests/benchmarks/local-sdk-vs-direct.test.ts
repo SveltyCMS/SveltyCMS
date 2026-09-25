@@ -20,6 +20,7 @@ import { ensureFullInitialization, getDb } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { toQueryOptions } from "@src/databases/policy";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -60,7 +61,7 @@ async function run() {
   const tenantOpts = Object.freeze({ tenantId: T });
 
   const N = 2000;
-  const known = crypto.randomUUID();
+  const known = generateUUID();
 
   // Pre-seed known key
   await db.crud
@@ -68,9 +69,9 @@ async function run() {
     .catch(() => {});
 
   // Pre-allocate deterministic key pools to eliminate Math.random / string churn in loops
-  const directKeys = Array.from({ length: N }, () => crypto.randomUUID());
-  const sdkKeys = Array.from({ length: N }, () => crypto.randomUUID());
-  const detachedKeys = Array.from({ length: N }, () => crypto.randomUUID());
+  const directKeys = Array.from({ length: N }, () => generateUUID());
+  const sdkKeys = Array.from({ length: N }, () => generateUUID());
+  const detachedKeys = Array.from({ length: N }, () => generateUUID());
 
   const results: any[] = [];
 

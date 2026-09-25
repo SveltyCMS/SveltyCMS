@@ -20,11 +20,12 @@ import type {
 } from "@src/databases/db-interface";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { assertRealAdapter } from "@tests/helpers/assert-real-adapter";
+import { generateUUID } from "@utils/native-utils";
 
 const TENANT: DatabaseId = "global" as DatabaseId;
 
 function runSuffix() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${Date.now().toString(36)}-${generateUUID()}`;
 }
 
 function getData<T>(res: { success: boolean; data?: T }): T {

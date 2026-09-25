@@ -10,6 +10,9 @@
  * @env MONGO_COMPRESSORS         Wire compression: `zstd,snappy`, `none`. Default: `auto`.
  */
 
+// 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
+import "@utils/v8-shim";
+
 import { createRequire } from "node:module";
 if (import.meta.env?.SSR && typeof (globalThis as any).require === "undefined") {
   (globalThis as any).require = createRequire(import.meta.url);
@@ -26,6 +29,24 @@ import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+/**
+ * Operator translation table — module-scoped so the hot query-mapping walk
+ * never allocates it per condition (`addMongoCondition` runs per filter key).
+ */
+const MONGO_OP_MAP: Record<string, string> = {
+  $eq: "$eq",
+  $ne: "$ne",
+  $gt: "$gt",
+  $gte: "$gte",
+  $lt: "$lt",
+  $lte: "$lte",
+  $in: "$in",
+  $nin: "$nin",
+  $exists: "$exists",
+  $contains: "$regex",
+  $like: "$regex",
+};
 
 /**
  * Mongoose global toObject/toJSON options mutate SHARED global state — apply
@@ -252,20 +273,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
    * 🚀 Fused: Direct walk — no intermediate IR objects (symmetry with drizzle-sql-helpers mapQuery).
    */
   private addMongoCondition(out: Record<string, any>, field: string, operator: string, value: any) {
-    const opMap: Record<string, string> = {
-      $eq: "$eq",
-      $ne: "$ne",
-      $gt: "$gt",
-      $gte: "$gte",
-      $lt: "$lt",
-      $lte: "$lte",
-      $in: "$in",
-      $nin: "$nin",
-      $exists: "$exists",
-      $contains: "$regex",
-      $like: "$regex",
-    };
-    const mongoOp = opMap[operator] || operator;
+    const mongoOp = MONGO_OP_MAP[operator] || operator;
     let v = value;
     // 🛡️ User input must be regex-escaped: raw interpolation allowed pattern
     // injection ("a.b" matching any char) and ReDoS via crafted patterns.

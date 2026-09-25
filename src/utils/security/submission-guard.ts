@@ -4,16 +4,18 @@
  * High-performance double-submit and replay protection guard for HTML forms.
  *
  * Implements:
- * - CSPRNG-backed RFC 4122 v4 submission ID generation
- * - Strict RFC 4122 v4 structure and nibble validation (version 4, variant 10xx)
+ * - CSPRNG-backed RFC 9562 v7 submission ID generation
+ * - Strict RFC 9562 v7 structure and nibble validation (version 7, variant 10xx)
  * - Thread-safe, bounded memory replay cache with 60-second sliding TTL
  * - Automatic lazy pruning to protect heap boundaries under concurrent load
  *
  * ### Features:
  * - zero external dependencies (pure Web Crypto + Bitwise checks)
- * - strict version/variant bitmask verification (rejects UUIDv1/v7 or non-standard tokens)
+ * - strict version/variant bitmask verification (rejects UUIDv1/v4 or non-standard tokens)
  * - atomic mark-and-test replay detection (O(1) Map operations)
  */
+
+import { generateUUID } from "@utils/native-utils";
 
 /** Replay cache entry duration in milliseconds (60s default). */
 export const SUBMISSION_ID_TTL_MS = 60_000;
@@ -25,23 +27,20 @@ export const MAX_SUBMISSION_CACHE_ENTRIES = 10_000;
 const seenSubmissions = new Map<string, number>();
 
 /**
- * Generates an RFC 4122 compliant version 4 UUID using native CSPRNG.
+ * Generates an RFC 9562 compliant version 7 UUID using native CSPRNG.
  * Safe for embedding in form hidden inputs `<input type="hidden" name="_id" value={submissionId} />`.
  */
 export function generateSubmissionId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  throw new Error("Secure crypto.randomUUID is not available in current execution environment");
+  return generateUUID();
 }
 
 /**
- * Validates whether a given token is a valid, RFC 4122 v4 UUID string.
+ * Validates whether a given token is a valid, RFC 9562 v7 UUID string.
  *
  * Checks:
  * 1. String of exactly 36 ASCII characters
  * 2. Hyphen positions at 8, 13, 18, and 23
- * 3. Version nibble at index 14 is exactly '4'
+ * 3. Version nibble at index 14 is exactly '7'
  * 4. Variant nibble at index 19 is '8', '9', 'a', 'b', 'A', or 'B' (RFC 4122 Variant 1)
  * 5. All other characters are valid hexadecimal characters [0-9a-fA-F]
  */
@@ -60,8 +59,8 @@ export function isValidSubmissionId(id: unknown): id is string {
     return false;
   }
 
-  // Check Version 4 nibble (index 14 must be '4')
-  if (id.charCodeAt(14) !== 52) {
+  // Check Version 7 nibble (index 14 must be '7')
+  if (id.charCodeAt(14) !== 55) {
     return false;
   }
 
@@ -96,7 +95,7 @@ export function isValidSubmissionId(id: unknown): id is string {
 /**
  * Records a submission ID in the replay cache.
  *
- * @param id The validated RFC 4122 v4 submission ID
+ * @param id The validated RFC 9562 v7 submission ID
  * @param ttlMs Optional TTL override in milliseconds (defaults to 60,000ms)
  * @returns `true` if the submission was NOT previously seen (accepted),
  *          `false` if the ID was already recorded and has not yet expired (replay detected!).

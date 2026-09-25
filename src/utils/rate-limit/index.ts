@@ -155,9 +155,12 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
   };
 }
 
-/** Setzt alle Storen zurück (Tests / Reset). */
+/** Setzt alle Storen zurueck (Tests / Reset). */
 export function resetRateLimitStores(): void {
   memoryStore.reset();
 }
+
+/** Shared store singletons for callers that need per-key buckets (e.g. the WAF). */
+export { memoryStore, redisStore };
 
 export { RedisRateLimitStore, MemoryRateLimitStore };

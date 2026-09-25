@@ -21,6 +21,7 @@ const PLAN_STORE_TTL = 30 * 60 * 1000; // 30 minutes
 import { raise } from "@utils/error-handling";
 import { type RequestEvent } from "@sveltejs/kit";
 import { successResponse } from "./base";
+import { generateUUID } from "@utils/native-utils";
 import type { DatabaseId } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
 
@@ -136,7 +137,7 @@ export async function handleConfigRoutes(
 
     // Build a plan from detected changes
     const plan = {
-      planId: crypto.randomUUID(),
+      planId: generateUUID(),
       operationType: "config-promotion" as const,
       mode: (body.mode as string) || "merge",
       risk: "safe",

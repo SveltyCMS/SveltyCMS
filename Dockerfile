@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # SveltyCMS — Production Dockerfile
 #
 # Multi-stage build:
@@ -30,13 +30,21 @@ WORKDIR /app
 
 # Install dependencies first (layer-cached unless lockfile changes)
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production=false
+RUN bun install --frozen-lockfile
 
-# Copy source and build
+# Copy source and build with all DB adapters compiled
 COPY . .
-RUN bun run build
+RUN COMPILE_ALL_ADAPTERS=true bun run build
 
-# -- Stage 2: Runtime ---------------------------------------------------------
+# -- Stage 2: Production Dependencies -----------------------------------------
+# Strips ~400+ MB of devDependencies (Vitest, Playwright, linters) from runtime image
+FROM oven/bun:1 AS prod-deps
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+
+# -- Stage 3: Runtime ---------------------------------------------------------
 FROM node:24-slim AS runtime
 WORKDIR /app
 
@@ -75,17 +83,17 @@ ENV DB_TYPE=sqlite
 # ENV ORIGIN=https://your-domain.com   # Required for CSRF / absolute URL generation
 # ENV BODY_SIZE_LIMIT=104857600        # 100 MB upload limit
 
+# Pre-create state and media mount points with correct ownership for node user
+RUN mkdir -p /app/config /app/mediaFolder && chown -R node:node /app
+
 # -- Production Artifacts -----------------------------------------------------
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/node_modules ./node_modules
-COPY index.cjs package.json ./
+COPY --chown=node:node --from=builder /app/build ./build
+COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
+COPY --chown=node:node index.cjs package.json ./
 
 # -- Persistent state ---------------------------------------------------------
-# SQLite data (config/database/) and the setup-wizard-generated config/private.ts
-# both live under /app/config. Mount a volume here so the database and secrets
-# survive container restarts:
-#   docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
-VOLUME ["/app/config"]
+# SQLite data, secrets (config/private.ts), and local uploads survive container restarts
+VOLUME ["/app/config", "/app/mediaFolder"]
 
 EXPOSE 4173
 

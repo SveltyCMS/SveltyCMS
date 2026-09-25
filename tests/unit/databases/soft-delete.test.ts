@@ -250,10 +250,10 @@ describe("Soft Delete Engine", () => {
       mockModel.findOneAndUpdate.mockReturnValue({
         exec: vi
           .fn()
-          .mockResolvedValue({ _id: "10000000-0000-4000-8000-000000000001", title: "n" }),
+          .mockResolvedValue({ _id: "10000000-0000-7000-8000-000000000001", title: "n" }),
       });
 
-      await crud.update("10000000-0000-4000-8000-000000000001", {
+      await crud.update("10000000-0000-7000-8000-000000000001", {
         title: "n",
         createdAt: "2020-01-01T00:00:00.000Z",
       });

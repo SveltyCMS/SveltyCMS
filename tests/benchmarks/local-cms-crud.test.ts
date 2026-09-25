@@ -19,6 +19,7 @@ import {
 import "../unit/bun-preload.ts";
 import type { DatabaseId } from "@src/content/types";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { generateUUID } from "@utils/native-utils";
 
 const COLLECTION = "BenchmarkStable";
 const TENANT = "global" as unknown as DatabaseId;
@@ -103,7 +104,7 @@ async function runLocalCmsCrudBenchmark() {
   const directOpts = Object.freeze({ tenantId: TENANT });
 
   // Seed a stable UUIDv4 id for findById / update
-  const seedId = crypto.randomUUID();
+  const seedId = generateUUID();
   const seedRes = await cms.collections.create(
     COLLECTION,
     { _id: seedId, title: "seed", count: 0 },
@@ -195,7 +196,7 @@ async function runLocalCmsCrudBenchmark() {
     const createIterations = Math.min(ITER, 600);
     const createWarmup = Math.min(WARM, 80);
     const totalCreateRuns = (createIterations + createWarmup) * 2;
-    const createIds = Array.from({ length: totalCreateRuns }, () => crypto.randomUUID());
+    const createIds = Array.from({ length: totalCreateRuns }, () => generateUUID());
     let createCursor = 0;
 
     forceGarbageCollection();
@@ -253,7 +254,7 @@ async function runLocalCmsCrudBenchmark() {
     const mixedIterations = Math.min(ITER, 400);
     const mixedWarmup = Math.min(WARM, 40);
     const totalMixedRuns = (mixedIterations + mixedWarmup) * 2;
-    const mixedIds = Array.from({ length: totalMixedRuns }, () => crypto.randomUUID());
+    const mixedIds = Array.from({ length: totalMixedRuns }, () => generateUUID());
     let mixedCursor = 0;
 
     forceGarbageCollection();

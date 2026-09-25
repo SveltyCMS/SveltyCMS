@@ -24,7 +24,7 @@ describe("isSimpleCollectionWrite", () => {
     expect(isSimpleCollectionWrite(evt("POST", "/api/collections/Articles"))).toBe(true);
     expect(
       isSimpleCollectionWrite(
-        evt("PATCH", "/api/collections/Articles/00000000-0000-4000-8000-000000000001"),
+        evt("PATCH", "/api/collections/Articles/00000000-0000-7000-8000-000000000001"),
       ),
     ).toBe(true);
   });
@@ -39,7 +39,7 @@ describe("isSimpleCollectionWrite", () => {
 
 describe("isSimpleCollectionRead", () => {
   it("matches GET/HEAD of a single entry and collection lists", () => {
-    const id = "00000000-0000-4000-8000-000000000001";
+    const id = "00000000-0000-7000-8000-000000000001";
     expect(isSimpleCollectionRead(evt("GET", `/api/collections/Articles/${id}`))).toBe(true);
     expect(isSimpleCollectionRead(evt("HEAD", `/api/collections/Articles/${id}`))).toBe(true);
     expect(isSimpleCollectionRead(evt("GET", "/api/collections/Articles"))).toBe(true);

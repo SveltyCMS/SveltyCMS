@@ -196,14 +196,16 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	<!-- Filter -->
 	<SystemTooltip title={table_filter_toggle()}>
 		<Button
-			variant="ghost"
+			variant={filterShow ? 'secondary' : 'ghost'}
 			type="button"
 			onclick={() => {
 				filterShow = !filterShow;
 				if (filterShow) closeOpenStates('filter');
 			}}
 			aria-label={table_filter_toggle()}
-			class="rounded-full"
+			class="rounded-full {filterShow
+				? 'bg-primary-500/20 text-primary-500 dark:bg-primary-500/30'
+				: ''}"
 		>
 			<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
 		</Button>
@@ -212,14 +214,16 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	<!-- Column Order & Visibility -->
 	<SystemTooltip title={table_column_toggle()}>
 		<Button
-			variant="ghost"
+			variant={columnShow ? 'secondary' : 'ghost'}
 			type="button"
 			onclick={() => {
 				columnShow = !columnShow;
 				if (columnShow) closeOpenStates('column');
 			}}
 			aria-label={table_column_toggle()}
-			class="rounded-full"
+			class="rounded-full {columnShow
+				? 'bg-primary-500/20 text-primary-500 dark:bg-primary-500/30'
+				: ''}"
 		>
 			<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
 		</Button>

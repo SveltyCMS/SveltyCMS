@@ -12,6 +12,7 @@
 
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
+import { getSharp, MAX_INPUT_PIXELS } from "@utils/media/sharp-loader.server";
 
 /** Matches `MEDIA_OUTPUT_FORMAT_QUALITY.format` in public config */
 export type CmsMediaOutputFormat = "original" | "jpg" | "webp" | "avif";
@@ -89,8 +90,11 @@ export async function optimizeMedia(
   const inputSize = buffer.byteLength;
 
   try {
-    const sharp = (await import("sharp")).default;
-    let pipeline = sharp(Buffer.from(buffer)).resize(cfg.maxWidth, cfg.maxHeight, {
+    const sharp = await getSharp();
+    let pipeline = sharp(Buffer.from(buffer), {
+      limitInputPixels: MAX_INPUT_PIXELS,
+      failOn: "none",
+    }).resize(cfg.maxWidth, cfg.maxHeight, {
       fit: "inside",
       withoutEnlargement: true,
     });
