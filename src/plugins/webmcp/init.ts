@@ -1,9 +1,14 @@
 /**
  * @file src/plugins/webmcp/init.ts
- * @description Initialization and registration logic for WebMCP tools — headless server gateway.
+ * @description Client-side WebMCP bootstrap (browser `document.modelContext` bridge).
  *
- * Runs on both server and client; no longer blocks on typeof window check.
- * Server-side uses db adapter directly; client-side uses browser modelContext.
+ * Imported by `+layout.svelte`, so this module lives in the CLIENT graph and must
+ * stay free of server-only imports. Headless/server registration lives in
+ * `init.server.ts` (never imported from client code).
+ *
+ * ### Features:
+ * - Registers the client-safe content/navigation/virtual-collection/builder tools
+ * - No-ops cleanly when `document.modelContext` is unavailable
  */
 
 import { logger } from "@utils/logger";
@@ -11,39 +16,14 @@ import { registerContentTools } from "./tools/content";
 import { registerNavigationTools } from "./tools/navigation";
 import { registerVirtualCollectionTools } from "./tools/virtual-collections";
 import { registerBuilderTools } from "./tools/builder";
-import type { IDBAdapter } from "@src/databases/db-interface";
 
-/**
- * Initializes the AI agent interface by registering available tools.
- *
- * @param db - Optional database adapter for server-side operation.
- *   When omitted, falls back to browser modelContext (client-side).
- */
-export async function initWebMCP(db?: IDBAdapter): Promise<void> {
-  logger.info("[WebMCP] Initializing AI agent interface (headless gateway)...");
+/** Register the browser-side AI tools with `document.modelContext`. */
+export async function initWebMCP(): Promise<void> {
+  logger.info("[WebMCP] Initializing AI agent interface (browser bridge)...");
 
-  // Server-side: register tools directly with db adapter
-  if (typeof window === "undefined") {
-    try {
-      if (db) {
-        registerContentTools(db);
-        registerNavigationTools(db);
-        registerVirtualCollectionTools(db);
-        registerBuilderTools();
-        logger.info("[WebMCP] Server-side AI tools registered with db adapter.");
-      } else {
-        logger.warn("[WebMCP] No db adapter provided for server-side registration.");
-      }
-    } catch (err) {
-      logger.error("[WebMCP] Failed to register server-side tools", {
-        error: err,
-      });
-    }
-    return;
-  }
+  if (typeof window === "undefined") return;
 
-  // Client-side: register tools with browser modelContext
-  const docAny = window.document as any;
+  const docAny = window.document as unknown as { modelContext?: unknown };
   if (!docAny?.modelContext) {
     logger.warn("[WebMCP] document.modelContext not available. AI bridge inactive.");
     return;

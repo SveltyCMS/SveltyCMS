@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { registerBuilderTools } from "@src/plugins/webmcp/tools/builder";
+import { registerBuilderServerTools } from "@src/plugins/webmcp/tools/builder.server";
 import {
   getServerTool,
   searchServerTools,
@@ -13,7 +13,7 @@ import {
 
 describe("WebMCP Builder Tools", () => {
   beforeEach(() => {
-    registerBuilderTools();
+    registerBuilderServerTools();
   });
 
   it("registers builder tools in the server registry", () => {
