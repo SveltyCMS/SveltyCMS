@@ -1,9 +1,18 @@
 # .github/workflows/auto-release.yaml
 # Release triggers (each run has exactly one event; the job `if:` accepts all three):
-#   1. CI succeeds on `main`  → release the version recorded in package.json (primary path)
+#   1. CI succeeds on `main`  → release the version recorded in package.json (primary path).
+#      A version that already carries its `v*` tag is skipped: the release for that
+#      commit already happened, so there is nothing to tag (see "Determine version").
 #   2. a `v*` tag is pushed   → release from the tag name (manual/emergency fallback)
-#   3. manual dispatch        → release the explicit `version` input (fallback)
+#   3. manual dispatch        → release the explicit `version` input (fallback), or the
+#      `bump` input, which derives the next version and commits it back
 # Tag pushes by github-actions[bot] are ignored so a release cannot loop.
+#
+# INVARIANT: the automatic path never writes to `main`. A `workflow_run` is pinned to
+# the SHA that CI validated, so main has usually advanced by the time this job runs;
+# committing a derived bump on top of that stale SHA can only be rejected (protected
+# branch / non-fast-forward) and would tag a commit CI never validated. The version is
+# prepared on `next` and merged to `main` — that is what CI tags.
 #
 # The GitHub Release is created independently of npm publish — a missing/invalid
 # NPM_TOKEN or registry failure must never swallow the release (that previously
@@ -85,9 +94,10 @@ jobs:
           elif [ -n "$MANUAL_VERSION" ]; then
             echo "value=$MANUAL_VERSION" >> $GITHUB_OUTPUT
             echo "source=manual input" >> $GITHUB_OUTPUT
-          else
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            # Manual `bump` input: a human asked for the next version, so derive it
+            # from the tags, write it into package.json, and commit the bump back.
             PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
-            # If the current package.json version is already tagged, derive the next SemVer version:
             if git rev-parse "v$PKG_VERSION" >/dev/null 2>&1; then
               echo "ℹ️ Version v$PKG_VERSION already has a tag. Deriving next version via scripts/version.ts..."
               BUMP_STRATEGY="${BUMP_CHOICE:-auto}"
@@ -100,25 +110,58 @@ jobs:
               echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
               echo "source=package.json" >> $GITHUB_OUTPUT
             fi
+          else
+            # Automatic path (CI passed on `main`). package.json is the single source
+            # of truth: when its version already carries a `v*` tag, this commit is
+            # not a release commit (main advanced with a docs/fix/merge commit, or
+            # this is a re-run) — skip idempotently instead of deriving a version CI
+            # never validated. Releasing a new version stays: `bun run version:bump`
+            # on `next` → commit → merge to `main`.
+            PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
+            if git rev-parse "v$PKG_VERSION" >/dev/null 2>&1; then
+              echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
+              echo "source=already released" >> $GITHUB_OUTPUT
+              echo "skip=true" >> $GITHUB_OUTPUT
+            else
+              echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
+              echo "source=package.json" >> $GITHUB_OUTPUT
+            fi
           fi
         env:
           MANUAL_VERSION: ${{ github.event.inputs.version }}
           BUMP_CHOICE: ${{ github.event.inputs.bump }}
 
-      # If version was bumped by script, commit updated package.json to repository
+      # Only reachable through the manual dispatch `bump` input (the automatic path
+      # never writes to `main`, see the header note).
       - name: Commit version bump
         if: steps.version.outputs.bumped == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # scripts/version.ts is idempotent: when the derived version already matches
+          # the manifest it writes nothing, and an empty `git commit` is a hard
+          # failure. The manifest already holds the version to release, so tag it.
+          if git diff --quiet -- package.json; then
+            echo "::notice title=No version to write::package.json already holds v${{ steps.version.outputs.value }}"
+            exit 0
+          fi
           git commit -am "chore(release): bump version to v${{ steps.version.outputs.value }}"
           git push origin HEAD:${{ github.event.workflow_run.head_branch || 'main' }}
+
+      # Green run, explicit reason: nothing is broken when a commit on `main` is not
+      # a release commit. Without this the skipped steps would look like a silent no-op.
+      - name: Skipped release
+        if: steps.version.outputs.skip == 'true'
+        run: |
+          echo "::notice title=Release skipped::v${{ steps.version.outputs.value }} already has a tag — ${{ github.sha }} is not a release commit, so there is nothing to tag. Bump package.json on next and merge to main to release."
+          echo "ℹ️ Skipped: package.json ${{ steps.version.outputs.value }} is already released."
 
       # An existing tag means this version was released before (e.g. a re-run):
       # skip idempotently. `bun run version:bump` refuses to derive an
       # already-tagged version locally, which is the fail-fast re-release guard.
       - name: Create git tag
         id: tag-step
+        if: steps.version.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -138,6 +181,7 @@ jobs:
       # must happen even when npm publish cannot. softprops generates release notes
       # from the commit range since the last tag.
       - name: Create GitHub Release
+        if: steps.version.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.value }}
@@ -152,13 +196,16 @@ jobs:
       # granted at the workflow level. The GitHub Release was created earlier, so
       # a registry failure here never swallows it.
       - name: Set up QEMU (multi-arch)
+        if: steps.version.outputs.skip != 'true'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        if: steps.version.outputs.skip != 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Docker metadata (SemVer + latest)
         id: docker-meta
+        if: steps.version.outputs.skip != 'true'
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/sveltycms/sveltycms
@@ -168,6 +215,7 @@ jobs:
             type=raw,value=v${{ steps.version.outputs.value }}
 
       - name: Log in to GitHub Container Registry
+        if: steps.version.outputs.skip != 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -175,6 +223,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
+        if: steps.version.outputs.skip != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -188,6 +237,7 @@ jobs:
 
       - name: Verify npm authentication
         id: npm-auth
+        if: steps.version.outputs.skip != 'true'
         continue-on-error: true
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
@@ -200,7 +250,7 @@ jobs:
 
       - name: Check existing npm version
         id: npm-check
-        if: steps.npm-auth.outcome == 'success'
+        if: steps.version.outputs.skip != 'true' && steps.npm-auth.outcome == 'success'
         continue-on-error: true
         run: |
           PKG_NAME=$(node -e "console.log(require('./package.json').name)")
@@ -214,7 +264,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.value }}
 
       - name: Publish to npm
-        if: steps.npm-auth.outcome == 'success' && steps.npm-check.outputs.published != 'true'
+        if: steps.version.outputs.skip != 'true' && steps.npm-auth.outcome == 'success' && steps.npm-check.outputs.published != 'true'
         continue-on-error: true
         run: npm publish --access public
         env:

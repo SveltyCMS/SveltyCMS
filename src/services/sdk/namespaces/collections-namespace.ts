@@ -314,10 +314,20 @@ export class CollectionsNamespace {
     );
   }
 
-  /** Warm schemas skip the async getSchema microtask. */
+  /** Warm schemas skip the async getSchema microtask and the ensureWidgets async hop
+   * when hot-flags are already stamped (common on every request after first access).
+   */
   private async schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
-    const schema =
-      peekReadySchema(tenantId, collectionId) ?? (await this.getSchema(collectionId, tenantId));
+    const peeked = peekReadySchema(tenantId, collectionId);
+    // Only a flagged schema may skip ensureWidgets: ensureSchemaHotFlags refuses to
+    // freeze flags while a named factory is still a pending chunk (it would record
+    // "no modifyRequest" for a widget it has not loaded yet), and the callers that
+    // read the flags right after this call do not re-check the undefined state the
+    // way create/update/findById do. So the warm-and-stamped schema (>95% of
+    // production requests) skips the microtask, the warm-but-unstamped one warms the
+    // registry first — same guarantee the pre-existing peek + ensureWidgets had.
+    if (peeked && peeked._hasActiveWidgets !== undefined) return peeked;
+    const schema = peeked ?? (await this.getSchema(collectionId, tenantId));
     await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
     return schema;
   }
@@ -823,7 +833,10 @@ export class CollectionsNamespace {
     const schema = await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
     const encCtx = fieldEncryptionContext(schema, tenantId);
-    const normalizedStreamFilter = normalizeRelationshipFilter({ ...options.filter });
+    // 🚀 Avoid the `{ ...options.filter }` spread allocation when filter is empty or
+    // already a plain object with no relational operators — normalizeRelationshipFilter
+    // only clones when an operator rewrite is needed (lazy-clone internally).
+    const normalizedStreamFilter = normalizeRelationshipFilter(options.filter ?? {});
     assertEncryptedFieldsNotQueried(normalizedStreamFilter, hot, options.sortField);
 
     const { query } = buildTenantQuery(

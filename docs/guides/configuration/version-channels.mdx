@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:source-branch"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-09-19"
+updated: "2026-09-26"
 tags:
   - "version"
   - "update"
@@ -41,6 +41,7 @@ main:   CI runs (whitebox → build → DB matrix → bench → E2E)
         4. npm publish (best-effort — npm never blocks the release)
 
         the created tag is always the package.json version ✅
+        a version that already carries its tag is skipped ✅
 ```
 
 ### Deriving the next version
@@ -76,6 +77,8 @@ Two further safety rails (as of September 2026): the script refuses to run while
 The same refusals cover an explicit target: a literal that is not `MAJOR.MINOR.PATCH`, a version that already carries a `v*` tag, or one lower than `package.json` (a downgrade). Because the derived proposal comes from the tag rather than the manifest, it can equal `package.json` — that means the pending version _is_ the next release above the newest tag, so a `patch` bump reports nothing to write and the script says so, pointing at the explicit form (`bun run version:bump 0.0.10`) for any other release.
 
 The version flows from `next` → `main` through the normal merge. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.10 && git push origin v0.0.10`) triggers the same pipeline from the tag name.
+
+**The automatic path never writes to `main`.** Because CI triggers the release, a commit that lands on `main` _after_ a release (a docs fix, a merge) leaves `package.json` at the already-tagged version; that run releases nothing — it logs a `Release skipped` notice and exits green. Only a prepared version is tagged: `bun run version:bump` on `next`, commit, merge to `main`. Deriving a bump on the runner instead would have to push to the protected branch from a stale SHA, and would tag a commit CI never validated. The `bump` input on a manual dispatch is the one path that still writes the manifest and commits it back.
 
 > **npm token caveat**: the GitHub Release (tag + release notes) is created **before** npm publish and never blocked by it. If `NPM_TOKEN` is missing or invalid, the run logs a warning and skips publishing — the release still exists, so the in-app update check (`/api/system/version/check`) keeps working.
 
