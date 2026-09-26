@@ -1455,6 +1455,7 @@ export class CollectionsNamespace {
         this._dbAdapter.crud.insert(collectionName, finalData, {
           tenantId: tenantId as DatabaseId,
           ...txOpts,
+          ...(options.skipReturning ? { skipReturning: true } : {}),
         }),
       schema,
       tenantId,

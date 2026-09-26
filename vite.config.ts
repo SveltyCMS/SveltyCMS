@@ -899,7 +899,8 @@ function bundleBackgroundWorkerPlugin(): Plugin {
     buildApp: {
       order: "post",
       async handler() {
-        const { build: esbuild } = await import("esbuild");
+        const { build: esbuild, transform } = await import("esbuild");
+        const { compileModule } = await import("svelte/compiler");
         await esbuild({
           entryPoints: {
             "background-worker": path.resolve(CWD, "src/services/background/background-entry.ts"),
@@ -916,7 +917,36 @@ function bundleBackgroundWorkerPlugin(): Plugin {
           target: "node24",
           outdir: path.resolve(CWD, "build"),
           packages: "external",
+          plugins: [
+            {
+              name: "compile-svelte-runes-modules",
+              setup(build) {
+                build.onLoad({ filter: /\.svelte\.[cm]?[jt]s$/ }, async (args) => {
+                  // The SvelteKit build transforms rune modules automatically;
+                  // this standalone esbuild bundle does not. Strip TypeScript
+                  // first, then compile runes so `$state`/`$derived` never leak
+                  // into the Node child as undefined globals.
+                  const stripped = await transform(readFileSync(args.path, "utf8"), {
+                    loader: args.path.endsWith(".ts") ? "ts" : "js",
+                    format: "esm",
+                    target: "esnext",
+                  });
+                  const compiled = compileModule(stripped.code, {
+                    filename: args.path,
+                    generate: "server",
+                    dev: false,
+                  });
+                  return { contents: compiled.js.code, loader: "js" };
+                });
+              },
+            },
+          ],
           alias: {
+            // The worker runs directly under Node, outside SvelteKit's module
+            // loader. Transitive services import `$app/env`, so leaving that
+            // virtual specifier external makes the child crash and restart
+            // forever in production.
+            "$app/env": path.resolve(CWD, "src/services/background/background-runtime-env.ts"),
             "@src": path.resolve(CWD, "src"),
             "@utils": path.resolve(CWD, "src/utils"),
             "@widgets": path.resolve(CWD, "src/widgets"),

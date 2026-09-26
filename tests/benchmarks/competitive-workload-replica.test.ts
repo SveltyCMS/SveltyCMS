@@ -220,7 +220,14 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         publishDate: "2026-01-01T00:00:00.000Z",
         content: "Created by the comparative benchmark harness.",
       });
-      const res = await fetch(collectionUrl, { method: "POST", headers, body: payload });
+      const res = await fetch(collectionUrl, {
+        method: "POST",
+        headers:
+          process.env.BENCH_PREFER_FULL === "1"
+            ? headers
+            : { ...headers, prefer: "return=minimal" },
+        body: payload,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await res.arrayBuffer();
     };

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:1f9289ed-8830-4dc3-8fd3-326482d532f9",
+  "serialNumber": "urn:uuid:00332921-2d9d-45d3-8276-466c3b264f44",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-25T18:03:33.752Z",
+    "timestamp": "2026-09-26T10:51:40.076Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -35,13 +35,13 @@
     {
       "type": "library",
       "name": "@asamuzakjp/css-color",
-      "version": "7.0.1",
-      "purl": "pkg:npm/@asamuzakjp/css-color@7.0.1",
+      "version": "7.1.0",
+      "purl": "pkg:npm/@asamuzakjp/css-color@7.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-C9duntabagkBZ1LebM7FKmphR4Q1pBclLxVbZETQV0akkFjV0ooFxo8FlvAQyKj9F6l8rEnmidgcTlpyxFYizg=="
+          "content": "sha512-s6vMrO4hds+skR2OMmdwSORZiiEbqhAjd56W/0gc/x4PYpTibh/ey5Oy9ywkZ+ycX9EgTcJruhE1T/KkbU7LNA=="
         }
       ]
     },
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1140.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1140.0",
+      "version": "3.1141.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1141.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7cf3xOyX6L5fyWZgPkVIrbsf/7cmKccKdRa3mkF467qchzgIiqAl/meG/SYdMdoY8JZYWGh0RobzoXiyKuGneA=="
+          "content": "sha512-uOVH37xGLenAdJkCPCin/JJG2PgWrFcSsDnQ9+C9Zq8N9Oalo5ol4xmn5fG28iWAlA/b/9boQZgHbMh+UsIhcg=="
         }
       ]
     },
@@ -3415,13 +3415,13 @@
     {
       "type": "library",
       "name": "@smithy/signature-v4",
-      "version": "5.7.3",
-      "purl": "pkg:npm/@smithy/signature-v4@5.7.3",
+      "version": "5.7.4",
+      "purl": "pkg:npm/@smithy/signature-v4@5.7.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7ImGm+FkHRLcBaRttIAMZ6bzJZWb2cJGoYjq46F2UjycujWzrL9GEN9h4w7eQyXJYnltrUhxbbieBAIRrdqpow=="
+          "content": "sha512-tHy0K0VtqNd5Y7Y41h0a0Lhh0L1GzC08dTWg0F7vRJWFtTENg7IZikf3wQkanYIRdb7ngoIPMTmqgUi401fEeQ=="
         }
       ]
     },
@@ -4481,13 +4481,13 @@
     {
       "type": "library",
       "name": "@types/node",
-      "version": "26.6.2",
-      "purl": "pkg:npm/@types/node@26.6.2",
+      "version": "26.6.3",
+      "purl": "pkg:npm/@types/node@26.6.3",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-X1P21scMv4zGKLYqjdGjaKa7COa0RKVYYZZN/NfvLQ1JegxFhdhpZG/Lyn8AXx6CDUavKAd11v6BvfpkDByK8g=="
+          "content": "sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg=="
         }
       ]
     },
@@ -6002,13 +6002,13 @@
     {
       "type": "library",
       "name": "esrap",
-      "version": "2.3.13",
-      "purl": "pkg:npm/esrap@2.3.13",
+      "version": "2.3.14",
+      "purl": "pkg:npm/esrap@2.3.14",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Dc8aMY0tqJNIN3ahtccEm/UWma05Mt/N7NBGdTMtJ1bR5SyctNEFVaOUfmkzVXe6Psk8MPfiiqUafXIoMbWCsQ=="
+          "content": "sha512-Bj/f1mOb6SnJ5f+5wOF/eqOKfvY+g+nJIKLQRqrEFOJ2mrMVORqQ6Ot7RTL1GhFctr0o+i0o1xfsNLeuA+mu4A=="
         }
       ]
     },
@@ -7081,13 +7081,13 @@
     {
       "type": "library",
       "name": "lint-staged",
-      "version": "17.5.1",
-      "purl": "pkg:npm/lint-staged@17.5.1",
+      "version": "17.6.0",
+      "purl": "pkg:npm/lint-staged@17.6.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7EDuco1xnBMeVpvAbeMq1U5KXwJGLmY8q6l+Ye78r36C4mPc+Vg1Z2SK8gHyRTyvPro90A0q5/FAZ+Au23d6QQ=="
+          "content": "sha512-nOhBfYkZEwkFtNzD5pK9s9LkcWoxJ+whLzEnhqi9nl7zTB5n7tg8+9iYgMGx2Wm3VlLu8cbNj0RACzY+nWi5iQ=="
         }
       ]
     },

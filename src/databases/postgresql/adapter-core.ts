@@ -449,6 +449,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       return null;
     } catch (err: any) {
       if (err?.code === "23505") throw err;
+      logger.debug(`[PostgreSQL] rawUpdateReturning fallback for ${collection}:`, err);
       return null;
     }
   }
@@ -1853,6 +1854,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           /* table may not exist yet — ALTER path still runs */
         }
 
+        const addedColumns = new Set<string>();
         for (const col of columns) {
           try {
             // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
@@ -1864,6 +1866,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               `ALTER TABLE "${physicalName}" ADD COLUMN "${colName}" ${col.type}`,
             );
             existingCols.add(colName);
+            addedColumns.add(colName);
 
             // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
             // the `data` blob — copy them into the new column so filters and
@@ -1893,6 +1896,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
 
         for (const colNameRaw of dynamicCols) {
+          if (!addedColumns.has(colNameRaw)) continue;
           try {
             // 🛡️ Same allow-list as the ALTER loop — dynamicCols can carry
             // admin-typed labels too.

@@ -1,10 +1,17 @@
 /**
  * @file tests/unit/services/background-supervisor.test.ts
- * @description Unit tests for BackgroundSupervisor lifecycle, modes, and health status.
+ * @description Unit tests for BackgroundSupervisor lifecycle, modes, health status,
+ * and the standalone worker's SvelteKit virtual-module boundary.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { BackgroundSupervisor } from "@src/services/background/background-supervisor";
+import {
+  browser as workerBrowser,
+  building as workerBuilding,
+} from "@src/services/background/background-runtime-env";
 
 describe("BackgroundSupervisor", () => {
   const originalEnv = { ...process.env };
@@ -72,5 +79,15 @@ describe("BackgroundSupervisor", () => {
     const status = supervisor.getStatus();
     expect(status.running).toBe(false);
     expect(status.workerStatus).toBe("offline");
+  });
+
+  it("bundles a runtime replacement for SvelteKit's virtual environment module", () => {
+    const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
+    expect(viteConfig).toContain('"$app/env": path.resolve(');
+    expect(viteConfig).toContain('"src/services/background/background-runtime-env.ts"');
+    expect(viteConfig).toContain('name: "compile-svelte-runes-modules"');
+    expect(viteConfig).toContain("compileModule(stripped.code");
+    expect(workerBrowser).toBe(false);
+    expect(workerBuilding).toBe(false);
   });
 });

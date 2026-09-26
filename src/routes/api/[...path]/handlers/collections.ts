@@ -504,17 +504,32 @@ export async function handleCollectionCreate(
     return successResponse(event, result, 201);
   }
 
+  const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.create", () =>
         cms.collections.create(collectionId, rawData, {
           user: user!,
           tenantId,
+          ...(isMinimal ? { skipReturning: true } : {}),
         }),
       )
     : await cms.collections.create(collectionId, rawData, {
         user: user!,
         tenantId,
+        ...(isMinimal ? { skipReturning: true } : {}),
       });
+
+  // RFC 7240: `Prefer: return=minimal` asks for a status-only ack with created ID.
+  if (result?.success && isMinimal) {
+    const createdId = (result.data as any)?._id || (result.data as any)?.id;
+    return fastSuccessResponse(
+      event,
+      `{"_id":${JSON.stringify(createdId)}}`,
+      { _id: createdId },
+      201,
+    );
+  }
+
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result, 201);
 
   const end = profileMark("handler:successResponse");

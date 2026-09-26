@@ -65,6 +65,12 @@ function initBunFallback() {
   const isBrowser = typeof window !== "undefined";
   if (isBrowser) return;
 
+  // The standalone background bundle has no Vite glob transform and does not
+  // execute widget factories. Its only scanner consumer is telemetry metadata;
+  // attempting the CommonJS fallback from the ESM child emits a noisy dynamic-
+  // require error and cannot load source TypeScript modules anyway.
+  if (process.env.SVELTY_IS_BACKGROUND_WORKER === "true") return;
+
   // 🚀 RESILIENCE: If we already have modules, don't run fallback
   if (Object.keys(coreModuleLoaders).length > 0 || Object.keys(coreModules).length > 0) {
     return;
