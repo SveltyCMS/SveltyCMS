@@ -122,7 +122,7 @@
     "benchmark:ci": "bun scripts/benchmark-matrix/index.ts --ci",
     "benchmark:core": "bun run verify:benchmark-local && bun run scripts/run-core-benchmarks.ts",
     "preview": "PORT=4173 node build/index.js",
-    "prepare": "git config core.hooksPath .githooks",
+    "prepare": "git config core.hooksPath .githooks || exit 0",
     "version:bump": "bun run scripts/version.ts",
     "repair:drizzle": "node -e \"try{require('fs').accessSync('node_modules/drizzle-orm/sql/index.js');process.exit(0)}catch(e){process.exit(1)}\" || (npm remove drizzle-orm 2>/dev/null; npm install drizzle-orm)",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",

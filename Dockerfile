@@ -17,7 +17,9 @@
 #
 # Healthcheck:
 #   curl (3 ms) replaces `node -e "fetch(...)"` (180–220 ms + 35 MB RAM/tick).
-#   node:24-slim (Debian Bookworm) ships curl — no extra apt-get layer needed.
+#   node:24-slim does NOT ship curl, so it is installed in the runtime stage
+#   below — a HEALTHCHECK whose binary is missing never succeeds, which leaves
+#   the container permanently unhealthy for compose/Swarm/k8s.
 #
 # 12-Factor config:
 #   All runtime configuration is injected via environment variables.
@@ -28,7 +30,9 @@
 FROM oven/bun:1 AS builder
 WORKDIR /app
 
-# Install dependencies first (layer-cached unless lockfile changes)
+# Install dependencies first (layer-cached unless lockfile changes). `.git/` is
+# excluded from the build context, so the `prepare` hook installer is a no-op
+# here — it must stay tolerant of a missing git work tree (see package.json).
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
@@ -47,6 +51,13 @@ RUN bun install --frozen-lockfile --production
 # -- Stage 3: Runtime ---------------------------------------------------------
 FROM node:24-slim AS runtime
 WORKDIR /app
+
+# -- Healthcheck dependency ---------------------------------------------------
+# curl for the HEALTHCHECK below; the slim base image does not ship it.
+# --no-install-recommends keeps the layer to curl plus its shared libraries.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
 
 # -- V8 Heap Tuning -----------------------------------------------------------
 # Prevents Premature Tenuring GC pauses at high RPS (see file header).
@@ -89,7 +100,10 @@ RUN mkdir -p /app/config /app/mediaFolder && chown -R node:node /app
 # -- Production Artifacts -----------------------------------------------------
 COPY --chown=node:node --from=builder /app/build ./build
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node index.cjs package.json ./
+# index.cjs is the CJS shim (container/Passenger) and imports the shared server
+# entry index.server.mjs — a tracked source file, not a build artifact, so both
+# must ship. Only build/ is produced by the builder stage.
+COPY --chown=node:node index.cjs index.server.mjs package.json ./
 
 # -- Persistent state ---------------------------------------------------------
 # SQLite data, secrets (config/private.ts), and local uploads survive container restarts
@@ -101,6 +115,7 @@ EXPOSE 4173
 # curl: 3 ms / 0 MB RAM per tick (vs 180-220 ms / 35 MB for `node -e fetch(...)`)
 # start_period: 15 s covers SveltyCMS cold-start + DB init.
 # Use start_interval: 1s in docker-compose.yml (Docker 25+) for fast ready-detection.
+# Needs the curl installed in the runtime stage above.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -fsS http://127.0.0.1:4173/healthz || exit 1
 
