@@ -93,7 +93,7 @@
 		filters = [
 			...filters,
 			{
-				id: generateUUID().substring(0, 9),
+				id: generateUUID(),
 				field: 'title',
 				operator: 'contains',
 				value: ''

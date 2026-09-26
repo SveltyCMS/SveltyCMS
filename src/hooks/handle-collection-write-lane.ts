@@ -120,7 +120,20 @@ function hasWarmSession(event: RequestEvent): boolean {
   return getTurboAuthContext(sessionId) !== null;
 }
 
-async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response | null> {
+/** Resolve the warm turbo-auth context, or null for a cold/unknown session. */
+export function resolveWarmWriteSession(
+  event: RequestEvent,
+): NonNullable<ReturnType<typeof getTurboAuthContext>> | null {
+  const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
+  const sessionId = readSessionCookie(event.cookies, isSecure);
+  // Slides TTL — must use getTurboAuthContext, not a raw Map get.
+  return sessionId ? getTurboAuthContext(sessionId) : null;
+}
+
+async function executeWarmCollectionWrite(
+  event: RequestEvent,
+  turboContext?: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+): Promise<Response | null> {
   const { request, url, cookies, locals } = event;
   const srvT0 = STAMP_SRV_DUR || STAMP_WRITE_SPLIT ? performance.now() : 0;
   const t0 = STAMP_WRITE_SPLIT ? performance.now() : 0;
@@ -137,10 +150,12 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   }
 
   const sessionId = readSessionCookie(cookies, isSecure);
-  const turbo = sessionId ? getTurboAuthContext(sessionId) : null;
+  const turbo = turboContext ?? (sessionId ? getTurboAuthContext(sessionId) : null);
   // Expired turbo → fall through to the full auth pipeline (session cookie
   // is still valid). A 401 here is what aborted 14/100k seed rows at ~60s
   // with no application log — the request never reached create().
+  // A caller that supplies `turboContext` (the raw fast lane) has already
+  // resolved the session, so this cannot race its own pre-check.
   if (!turbo) {
     return null;
   }
@@ -238,26 +253,56 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
 }
 
 /**
- * Warm-session collection create/update. Returns null when the request must
- * use the full API_WRITE sequence (cold session, bulk, increment, …).
+ * Serve a warm-session write from an already-resolved session context.
+ *
+ * `turbo` is passed in so the transport lane and the SvelteKit pipeline observe
+ * the same session decision — no TTL race between the pre-check and the write.
+ * This NEVER falls through: once a caller has committed to serving, every path
+ * returns a `Response`. That guarantee is what lets the raw fast lane read the
+ * request body safely (a body can only be consumed once a response is certain).
  */
-export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
-  if (!isSimpleCollectionWrite(event) || !hasWarmSession(event) || !dbAdapter) {
-    return resolve(event);
-  }
-  // 🛡️ Operational-state gate: the write lane never runs `handle-system-state`,
-  // so a MAINTENANCE/RECOVERY/FAILED instance must not accept mutations here.
-  if (!isLaneServingAllowed()) return resolve(event);
+export async function serveWarmCollectionWrite(
+  event: RequestEvent,
+  turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+): Promise<Response> {
   try {
     return await handleRateLimit({
       event,
       resolve: async () => {
-        const written = await executeWarmCollectionWrite(event);
-        return written ?? resolve(event);
+        const written = await executeWarmCollectionWrite(event, turbo);
+        // Unreachable while `turbo` is supplied and the adapter exists, but the
+        // body may already be consumed here, so answer rather than fall through.
+        return (
+          written ??
+          handleApiError(
+            new AppError("Write lane unavailable", 503, "WRITE_LANE_UNAVAILABLE"),
+            event,
+          )
+        );
       },
     });
   } catch (err) {
     if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);
     throw err;
   }
+}
+
+/**
+ * Warm-session collection create/update. Returns `resolve(event)` when the
+ * request must use the full API_WRITE sequence (cold session, bulk, increment, …).
+ *
+ * Before the state gate / session pre-checks, `resolve` runs with the request
+ * body UNREAD — so a caller that re-dispatches unserved requests to the full
+ * pipeline (the raw fast lane) never has to replay a consumed body.
+ */
+export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
+  if (!isSimpleCollectionWrite(event) || !dbAdapter || !hasWarmSession(event)) {
+    return resolve(event);
+  }
+  // 🛡️ Operational-state gate: the write lane never runs `handle-system-state`,
+  // so a MAINTENANCE/RECOVERY/FAILED instance must not accept mutations here.
+  if (!isLaneServingAllowed()) return resolve(event);
+  const turbo = resolveWarmWriteSession(event);
+  if (!turbo) return resolve(event);
+  return serveWarmCollectionWrite(event, turbo);
 };

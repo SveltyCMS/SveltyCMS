@@ -1671,6 +1671,17 @@ To lead visual and headless CMS platforms (such as Instatic) through 2026/2027, 
 
 ---
 
+### 3.28 September 2026 — Opt-in write fast lane (mutation bodies through the raw transport)
+
+The raw fast-lane transport only carried warm-session collection reads; writes stayed on adapter-node's bridged path because they need the request body. The write lane now has a transport twin, **opt-in** (`SVELTY_FAST_LANE_WRITE=1`, default off) until an equivalence run:
+
+- **One implementation, not two** — `collectionWriteLane` calls the same `tryCollectionWriteLane` the pipeline calls, so WAF path inspect, CSRF same-origin/double-submit, rate limiting, warm-session admin/RBAC, per-request tenant resolution and the security-header contract are all reused unchanged.
+- **Never consume a body you cannot answer** — the lane refactor passes the already-resolved turbo context into `serveWarmCollectionWrite`, which now guarantees a `Response` after commit (no TTL race), and the entry exposes the body **lazily** (`readBody()`): a lane that declines (cold session, non-simple path, maintenance state) returns to the pipeline with the stream unread. A hard body cap (256 KiB default, `SVELTY_FAST_LANE_MAX_BODY`) rejects oversized payloads before they are buffered.
+- **Rate-limit parity by construction** — the entry resolves the client address with adapter-node's exact `ADDRESS_HEADER`/`XFF_DEPTH` rules and reproduces its failure mode (`undefined` → throw → `getClientIp` fails closed to `0.0.0.0`), so lane and pipeline bucket identically; `Set-Cookie` emitted inside the lane is carried on the result.
+- **Verification** — `tests/unit/hooks/fast-lane-write-policy.test.ts` pins the four invariants: write lane unregistered without the opt-in, declines without consuming the body, reads the body exactly once when committed, and fails closed on the client address.
+
+---
+
 **References:**
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)

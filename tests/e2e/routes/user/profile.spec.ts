@@ -253,6 +253,10 @@ test.describe.serial("User Profile Management", () => {
       await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
       await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
 
+      // The GDPR banner is a high z-index overlay that swallows the click below
+      // (intermittent because consent storage can be cleared between specs).
+      await dismissCookieConsent(page);
+
       await page
         .getByTestId("edit-user-settings-btn")
         .or(page.getByRole("button", { name: /Edit User Settings/i }))

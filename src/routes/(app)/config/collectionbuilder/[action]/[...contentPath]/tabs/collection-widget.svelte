@@ -42,7 +42,7 @@
 	let items = $state<WidgetListItem[]>(
 		untrack(() =>
 			(fields ?? []).map((f: FieldInstance, i: number) => {
-				const id = (dragIdsByIndex[i] ??= generateUUID().slice(0, 8));
+				const id = (dragIdsByIndex[i] ??= generateUUID());
 				return { id: i + 1, ...f, _dragId: id } as WidgetListItem;
 			})
 		)
@@ -55,7 +55,7 @@
 		let added = false;
 		for (let i = 0; i < nextFields.length; i++) {
 			if (nextDragIds[i] === undefined) {
-				nextDragIds[i] = generateUUID().slice(0, 8);
+				nextDragIds[i] = generateUUID();
 				added = true;
 			}
 		}
@@ -63,7 +63,7 @@
 		items = nextFields.map((f: FieldInstance, i: number) => ({
 			id: i + 1,
 			...f,
-			_dragId: nextDragIds[i] ?? generateUUID().slice(0, 8)
+			_dragId: nextDragIds[i] ?? generateUUID()
 		})) as WidgetListItem[];
 	});
 
@@ -210,7 +210,7 @@
 					: item
 			);
 		} else {
-			const newDragId = generateUUID().slice(0, 8);
+			const newDragId = generateUUID();
 			const newIndex = items.length;
 			dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 			items = [
@@ -236,7 +236,7 @@
 	}
 
 	function duplicateField(field: WidgetListItem) {
-		const newDragId = generateUUID().slice(0, 8);
+		const newDragId = generateUUID();
 		const newIndex = items.length;
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 		const baseName = field.db_fieldName || 'field';
@@ -284,7 +284,7 @@
 		let n = 0;
 		while (existing.has(dbName)) dbName = `new_${base}_${++n}`;
 
-		const newDragId = generateUUID().slice(0, 8);
+		const newDragId = generateUUID();
 		const newIndex = items.length;
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 
@@ -414,7 +414,7 @@
 		let n = 0;
 		while (existing.has(dbName)) dbName = `${target.db_fieldName}_${++n}`;
 
-		const newDragId = generateUUID().slice(0, 8);
+		const newDragId = generateUUID();
 		const newIndex = items.length;
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 

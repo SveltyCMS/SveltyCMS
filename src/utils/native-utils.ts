@@ -94,6 +94,11 @@ export function generateUUIDv7(): string {
 /**
  * Generates the latest standard UUID (RFC 9562 Version 7, time-ordered).
  * Replaces random UUIDv4 across the entire CMS stack for optimal database B-tree indexing.
+ *
+ * ⚠️ Never shorten it with `slice(0, 8)` for a list key or item identity: UUIDv7's
+ * leading hex chars are the millisecond timestamp, so they are constant for weeks
+ * (every "short id" in a process would be identical — it broke `{#each (key)}`).
+ * Use the full UUID, which is unique.
  */
 export function generateUUID(): string {
   return generateUUIDv7();

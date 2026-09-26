@@ -43,18 +43,19 @@ export function registerBuilderTools(): void {
   const modelContext = getModelContext();
   if (!modelContext) return;
 
-  const registerTool = (
-    modelContext as unknown as {
-      registerTool: (def: {
-        name: string;
-        description: string;
-        parameters: Record<string, unknown>;
-        execute: (params: unknown) => Promise<unknown>;
-      }) => void;
-    }
-  ).registerTool;
+  // Bind the method to its context: the polyfill's `registerTool` is a class
+  // method that reads private fields, so a destructured (unbound) call throws
+  // "Cannot read properties of undefined".
+  const ctx = modelContext as unknown as {
+    registerTool: (def: {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+      execute: (params: unknown) => Promise<unknown>;
+    }) => void;
+  };
 
-  registerTool({
+  ctx.registerTool({
     name: "design_collection",
     description: "Generate a validated collection schema proposal from natural language intent.",
     parameters: {

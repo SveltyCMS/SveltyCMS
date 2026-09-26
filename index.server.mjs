@@ -106,6 +106,84 @@ function configureRuntimeEnv() {
  */
 const importBuildBundle = (name) => import("./build/" + name + ".js");
 
+/**
+ * Write-lane opt-in. Mutations carry bodies, so the lane is off unless the
+ * operator enables it (`SVELTY_FAST_LANE_WRITE=1`) after an equivalence run.
+ */
+const WRITE_LANE_ENABLED = process.env.SVELTY_FAST_LANE_WRITE === "1";
+/** Hard cap for a lane-read mutation body; larger bodies go through the pipeline. */
+const FAST_LANE_MAX_BODY = Number(process.env.SVELTY_FAST_LANE_MAX_BODY) || 262144;
+
+// adapter-node's address configuration, read at boot exactly as it does.
+const ADDRESS_HEADER = (process.env.ADDRESS_HEADER || "").toLowerCase();
+const XFF_DEPTH = Number.parseInt(process.env.XFF_DEPTH || "1", 10);
+
+/**
+ * Resolve the client address exactly as adapter-node's `getClientAddress()`
+ * would (same ADDRESS_HEADER / XFF_DEPTH rules, same failure shape). Returning
+ * `undefined` where adapter-node would throw keeps `getClientIp`'s fail-closed
+ * `0.0.0.0` behaviour, so rate-limit bucketing is identical on lane and pipeline.
+ */
+function resolveClientAddress(req) {
+  if (ADDRESS_HEADER) {
+    if (!(ADDRESS_HEADER in req.headers)) return undefined;
+    const value = req.headers[ADDRESS_HEADER] || "";
+    if (ADDRESS_HEADER === "x-forwarded-for") {
+      const addresses = String(value).split(",");
+      if (!(XFF_DEPTH >= 1) || XFF_DEPTH > addresses.length) return undefined;
+      return String(addresses[addresses.length - XFF_DEPTH]).trim();
+    }
+    return String(value);
+  }
+  return (
+    (req.connection && req.connection.remoteAddress) ||
+    (req.connection && req.connection.socket && req.connection.socket.remoteAddress) ||
+    (req.socket && req.socket.remoteAddress) ||
+    (req.info && req.info.remoteAddress) ||
+    undefined
+  );
+}
+
+/**
+ * Read a request body for the write lane, bounded by `limit`. Lazy: the lane only
+ * calls this after it has committed to answering, so a declined lane never
+ * consumes the stream (the generated handler can still read it). Over-limit bodies
+ * reject; the lane drains the rest and answers 413.
+ */
+function readRequestBody(req, limit) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    const cleanup = () => {
+      req.off("data", onData);
+      req.off("end", onEnd);
+      req.off("error", onError);
+    };
+    const onData = (chunk) => {
+      total += chunk.length;
+      if (total > limit) {
+        cleanup();
+        // Drain (discard) the remainder so the socket is not left blocked, then fail.
+        req.resume();
+        reject(new Error("FAST_LANE_PAYLOAD_TOO_LARGE"));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(Buffer.concat(chunks, total));
+    };
+    const onError = (err) => {
+      cleanup();
+      reject(err);
+    };
+    req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
+  });
+}
+
 function dispatchFastLane(input) {
   const dispatch = globalThis[FAST_LANE_REGISTRY];
   if (typeof dispatch !== "function") return Promise.resolve(null);
@@ -124,22 +202,30 @@ export async function startServer() {
       log(`${req.method} ${req.url}`);
     }
 
-    // 🚀 FAST LANE (on by default; the app publishes the registry unless
-    // `SVELTY_FAST_LANE=0`): lane-shaped GET/HEAD requests are answered with
-    // prebuilt status/headers/body, so the bytes are written straight to the
-    // socket instead of going through adapter-node's IncomingMessage → Request
-    // and Response → stream bridging. Anything else — not a lane request, the
-    // lane declining, or any throw — goes to the generated handler.
-    if (
-      (req.method === "GET" || req.method === "HEAD") &&
-      req.headers[FAST_LANE_OPT_OUT_HEADER] !== "off"
-    ) {
-      dispatchFastLane({
+    // 🚀 FAST LANE (read lane on by default; write lane opt-in): lane-shaped
+    // requests are answered with prebuilt status/headers/body, so the bytes are
+    // written straight to the socket instead of going through adapter-node's
+    // IncomingMessage → Request and Response → stream bridging. Anything else —
+    // not a lane request, the lane declining, or any throw — goes to the
+    // generated handler.
+    const isRead = req.method === "GET" || req.method === "HEAD";
+    const isWrite =
+      WRITE_LANE_ENABLED &&
+      (req.method === "POST" || req.method === "PATCH" || req.method === "PUT") &&
+      (req.url || "").startsWith("/api/collections/");
+
+    if ((isRead || isWrite) && req.headers[FAST_LANE_OPT_OUT_HEADER] !== "off") {
+      const input = {
         method: req.method,
         url: req.url || "/",
         origin: process.env.ORIGIN || "http://127.0.0.1",
         headers: req.headers,
-      })
+        clientAddress: resolveClientAddress(req),
+      };
+      // Lazy: the write lane only reads the body once it commits to answering.
+      if (isWrite) input.readBody = () => readRequestBody(req, FAST_LANE_MAX_BODY);
+
+      dispatchFastLane(input)
         .then((out) => {
           if (!out) {
             handler(req, res);

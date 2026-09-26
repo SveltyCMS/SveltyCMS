@@ -101,13 +101,13 @@
 	}
 
 	function addState() {
-		const id = `state_${generateUUID().substring(0, 8)}`;
+		const id = `state_${generateUUID()}`;
 		states.push({ id, label: 'New State', color: '#3b82f6' });
 	}
 
 	function addTransition() {
 		if (states.length < 2) return;
-		const id = `trans_${generateUUID().substring(0, 8)}`;
+		const id = `trans_${generateUUID()}`;
 		transitions.push({
 			id,
 			from: states[0].id,
