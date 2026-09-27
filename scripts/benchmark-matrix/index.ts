@@ -303,6 +303,7 @@ const SKIP_IN_MATRIX = new Set([
   "probe-relationship-scale", // 500k-doc relationship/sort scale probe, seeds its own dataset
   "probe-scale-limits", // 1M+ dataset complexity limit probe, needs the seeded bench-db
   "probe-write-split", // write-lane phase decomposition + cold-session auth price, needs SVELTY_SRV_SPLIT=1
+  "probe-write-attrib", // update cost attribution: in-process crud.update c=1/c=8 vs HTTP lane (bridged/raw)
 ]);
 
 /**

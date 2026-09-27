@@ -1725,6 +1725,38 @@ already requires for that class of claim; single-session legs carry a floor wide
 effect. Measurement hygiene: bisect legs wrote to an isolated `RESULTS_DIR` (no trend-store rows); the two
 ad-hoc runs that did record (42 rows) were removed from `history.sqlite`.
 
+### 3.38 September 2026 — The write lane's "unlocated 1.5 ms" resolved: it was never server-side
+
+**The claim on trial** (§3.36, first proposal): an update measured `localcms.update_ms` 0.057 ms in-process
+but 2.23 ms over HTTP against 0.525–0.84 ms HTTP reads — "so ~1.5 ms is server-side and write-specific".
+Resolved with a dedicated probe (`tests/benchmarks/probe-write-attrib.test.ts`): the same operation
+measured three ways — in-process `db.crud.update` at c=1 and c=8, and an HTTP PATCH through the lane with
+`x-srv-split`/`x-srv-dur` — SQLite, production build, warm session, 300 iterations per arm.
+
+| measurement (p50)                 |    run 1 |    run 2 |
+| :-------------------------------- | -------: | -------: |
+| in-process `crud.update` c=1      | 0.063 ms | 0.067 ms |
+| in-process `crud.update` c=8      | 0.576 ms | 0.606 ms |
+| HTTP wall (bridged)               | 1.476 ms | 1.521 ms |
+| HTTP wall (raw write lane)        | 1.251 ms | 1.306 ms |
+| HTTP `x-srv-dur` (server-stamped) | 0.380 ms | 0.360 ms |
+| HTTP `dbwrite` (adapter phase)    | 0.160 ms | 0.150 ms |
+
+**Why the 1.5 ms never existed.** Both halves of the original pairing were wrong: the 0.057 ms baseline was
+`crud.atomicIncrement` — a single `count = count + 1` statement outside the SDK pipeline (validation,
+hooks, audit/outbox, invalidation, envelope) — not the update the lane runs; and the 2.23 ms arm was a
+_client-observed_ HTTP wall. Against the lane's own stamps the server cost of that update is **0.35–0.40 ms
+total, 0.15–0.16 ms of it `dbwrite`**; ~0.9–1.1 ms of the client number is client `fetch` + loopback
+transport — the same class as the ~1.1 ms per-request client floor the read row already documents. At 8c
+the write row is dominated by write serialization, and the in-process c=1→c=8 pair proves it is
+engine-side, not HTTP-side: the same call goes 0.063 → 0.576 ms (×9) without a request in sight.
+
+**Transport A/B (both orderings).** The opt-in raw write lane (no adapter-node bridging,
+`SVELTY_FAST_LANE_WRITE=1`) measured **−15 % client wall** (1.48/1.52 → 1.25/1.31 ms) with server-stamped
+time unchanged (0.38/0.40 → 0.35/0.36 ms) — reproduced with the arms in both orders. That is the paired
+transport evidence the write lane's default flip was waiting for; the remaining gate is the
+`BENCH_VERIFY_RAW=1` byte-equivalence proof plus a c=8 paired run.
+
 ---
 
 ## Related
