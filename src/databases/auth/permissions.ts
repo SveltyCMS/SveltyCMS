@@ -11,6 +11,13 @@ import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
 import { permissionCache } from "@utils/security/permission-cache";
 import { isAdmin } from "./constants";
+import {
+  getPermissionBit,
+  getRolePermMask,
+  computeUserPermMask,
+  registerBitmaskPermission,
+  invalidateRoleBitsetsGlobally,
+} from "./permission-bitmask";
 // Auth
 import type { Permission, Role, User } from "./types";
 
@@ -53,7 +60,9 @@ corePermissions.forEach((permission) => {
 export function registerPermission(permission: Permission): void {
   permissionRegistry.set(permission._id, permission);
   indexPermission(permission);
+  registerBitmaskPermission(permission._id);
   permissionCache.invalidateAll();
+  invalidateRoleBitsetsGlobally();
   logger.trace(`Permission registered: ${permission._id}`);
 }
 
@@ -98,11 +107,13 @@ export function getRoleBitset(role: Role): Uint32Array {
 
 export function invalidateRoleBitset(role: Role): void {
   delete (role as any).__bitset;
+  invalidateRoleBitsetsGlobally();
 }
 
 export function setRolePermissions(role: Role, permissions: string[]): Role {
   role.permissions = permissions;
   delete (role as any).__bitset;
+  invalidateRoleBitsetsGlobally();
   return role;
 }
 
@@ -156,8 +167,8 @@ export function hasPermissionWithRoles(
 }
 
 /**
- * Un-cached permission evaluation — the decision engine behind hasPermissionWithRoles.
- * Split out so the result can be cached (and invalidated) as a unit.
+ * Fast 64-bit bitmask permission evaluation — the decision engine behind hasPermissionWithRoles.
+ * Evaluates ((userMask & reqBit) !== 0n) with zero memory allocations.
  */
 function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles: Role[]): boolean {
   // Direct user-level permission override fast path
@@ -165,59 +176,56 @@ function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles
     return true;
   }
 
+  // Future FLAC / Field-Level Access Control forward-compatibility
+  if (permissionId.startsWith("field:")) {
+    return evaluateFieldPermission(user, permissionId, safeRoles);
+  }
+
+  const reqBit = getPermissionBit(permissionId);
+  if (reqBit !== 0n) {
+    const userMask = computeUserPermMask(user, safeRoles);
+    return (userMask & reqBit) !== 0n;
+  }
+
+  // Fallback for unmapped dynamic permissions
+  return evaluateUnmappedPermission(user, permissionId, safeRoles);
+}
+
+/**
+ * Forward-compatible handler for future Field-Level Access Control (FLAC).
+ * Supports field:collection:fieldName:read/write conventions.
+ */
+function evaluateFieldPermission(user: User, permissionId: string, safeRoles: Role[]): boolean {
+  if (Array.isArray(user.permissions) && user.permissions.includes(permissionId)) {
+    return true;
+  }
   const userRoleLower = (user.role || "").toLowerCase();
   const defaultRoleName = DEFAULT_ROLE_NAMES[userRoleLower];
-  let matchedAnyRole = false;
-
-  const index = permissionToBitIndex.get(permissionId);
-  const bitMask = index !== undefined ? 1 << (index & 31) : 0;
-  const wordIndex = index !== undefined ? index >> 5 : -1;
-
-  // Single linear walk — zero array allocations, instant admin & bitset matching
-  for (let ri = 0, rlen = safeRoles.length; ri < rlen; ri++) {
-    const role = safeRoles[ri];
+  for (let i = 0; i < safeRoles.length; i++) {
+    const role = safeRoles[i];
     const matches =
       role._id === user.role || (defaultRoleName ? role.name === defaultRoleName : false);
     if (!matches) continue;
-    matchedAnyRole = true;
-
-    // ADMIN OVERRIDE: If ANY matching role is admin, grant all permissions
-    if (role.isAdmin) {
-      logger.trace("Admin role granted permission", {
-        email: user.email,
-        permissionId,
-      });
-      return true;
-    }
-
-    if (index !== undefined) {
-      const bitset = getRoleBitset(role);
-      const granted =
-        wordIndex < bitset.length
-          ? (bitset[wordIndex] & bitMask) !== 0
-          : role.permissions?.includes(permissionId);
-      if (granted) return true;
-    } else if (role.permissions?.includes(permissionId)) {
-      return true;
-    }
+    if (role.isAdmin) return true;
+    if (role.permissions?.includes(permissionId)) return true;
   }
+  return false;
+}
 
-  if (!matchedAnyRole) {
-    logger.warn("Role not found for user", {
-      email: user.email,
-      userRoleId: user.role,
-      rolesAvailable: safeRoles.map((r) => r._id),
-    });
-    return false;
+/**
+ * Fallback evaluator for unmapped dynamic permissions outside the 64-bit window.
+ */
+function evaluateUnmappedPermission(user: User, permissionId: string, safeRoles: Role[]): boolean {
+  const userRoleLower = (user.role || "").toLowerCase();
+  const defaultRoleName = DEFAULT_ROLE_NAMES[userRoleLower];
+  for (let i = 0; i < safeRoles.length; i++) {
+    const role = safeRoles[i];
+    const matches =
+      role._id === user.role || (defaultRoleName ? role.name === defaultRoleName : false);
+    if (!matches) continue;
+    if (role.isAdmin) return true;
+    if (role.permissions?.includes(permissionId)) return true;
   }
-
-  logger.warn("Permission denied for user across all roles", {
-    email: user.email,
-    userId: user._id,
-    userRoleId: user.role,
-    permissionId,
-    rolesAvailable: safeRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
-  });
   return false;
 }
 
@@ -230,6 +238,7 @@ export function invalidatePermissionCache(userId?: string): void {
   } else {
     permissionCache.invalidateAll();
   }
+  invalidateRoleBitsetsGlobally();
 }
 
 // Check if a user has permission by action and type
@@ -280,18 +289,13 @@ export function hasPermissionByAction(
     return false;
   }
 
-  const index = permissionToBitIndex.get(permission._id);
-  if (index === undefined) {
-    return false;
+  const reqBit = getPermissionBit(permission._id);
+  if (reqBit !== 0n) {
+    const roleMask = getRolePermMask(userRole);
+    return (roleMask & reqBit) !== 0n;
   }
 
-  const bitset = getRoleBitset(userRole);
-  const wordIndex = index >> 5;
-  if (wordIndex >= bitset.length) {
-    return false;
-  }
-
-  return (bitset[wordIndex] & (1 << (index & 31))) !== 0;
+  return userRole.permissions?.includes(permission._id) ?? false;
 }
 
 // Get permissions for a specific role (with roles parameter)

@@ -121,6 +121,22 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     return this._getRepo(collection).findOne({ _id: id } as QueryFilter<T>, options);
   }
 
+  async findPointWireStream(
+    collection: string,
+    id: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
+    return this._getRepo(collection).findPointWireStream(collection, id, options);
+  }
+
+  async findListWireStream<T extends BaseEntity>(
+    collection: string,
+    query?: QueryFilter<T>,
+    options?: FindOptions<T>,
+  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>> {
+    return this._getRepo(collection).findListWireStream(collection, query, options);
+  }
+
   async find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

@@ -134,6 +134,14 @@ Warm concurrent 8-worker HTTP (`SVELTY_BENCHMARK_SERVER_MODE=production`, `BENCH
 
 60-second soak (same 8 workers): **2,020 avg RPS** (min 1,826, max 2,224, instability 17.9%).
 
+#### The Architectural Paradox: Why SveltyCMS is Both Faster AND More Secure
+
+In conventional architectures, security and performance stand in opposition: adding authentication, authorization, CSRF protection, and audit logging slows down request execution. SveltyCMS resolves this trade-off through architectural design:
+
+1. **Compiled ORM vs. Runtime AST Construction:** Drizzle ORM prepared statements eliminate the per-query AST allocation and type parsing required by Knex.js in Strapi and Directus.
+2. **Single-Pass SQL Batching vs. N+1 Cascade:** Relational lookups (`author`) execute in a single SQL join rather than recursive populate loops, avoiding database connection pool exhaustion under load.
+3. **Synchronous In-Memory Security Checks:** Bitmask-based RBAC, token resolution, and in-memory SHA-256 audit chaining execute in microseconds without synchronous per-request database I/O, keeping the full enterprise security stack active while outperforming unauthenticated or minimally gated community editions.
+
 Versus the raw PostgreSQL ceiling (same host, same day, `raw-db-ceiling.ts --db=postgresql`, 100k rows, 8-worker). CMS ÷ driver is **not** a competitor column; turbo-HIT lists can exceed an uncached HTTP floor.
 
 | Op (8-worker) | CMS replica RPS | Raw HTTP floor | Raw driver (100k) | CMS / driver |

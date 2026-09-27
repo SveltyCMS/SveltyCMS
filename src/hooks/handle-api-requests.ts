@@ -146,7 +146,7 @@ export function serveCachedEntry(cached: any, request: Request): Response {
   return new Response(body, { status: 200, headers: responseHeaders });
 }
 
-// 10ms batch flusher for L2 pattern invalidations so write storms don't saturate event loop
+// 50ms batch flusher for L2 pattern invalidations so write storms don't saturate event loop
 const _pendingPatterns = new Set<string>();
 let _patternFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -163,7 +163,7 @@ function schedulePatternClear(pattern: string, tenantId?: DatabaseId | null) {
           .clearByPattern(pat, tid === "default" ? undefined : (tid as DatabaseId))
           .catch(() => {});
       }
-    }, 10);
+    }, 50);
     if (typeof _patternFlushTimer?.unref === "function") {
       _patternFlushTimer.unref();
     }

@@ -205,6 +205,11 @@ Ordered sequence for internationalization:
 
 ## 🚀 Future & Enterprise Initiatives
 
+- **2027 Architecture Overhaul: Two-Plane Core & Direct-to-Wire Streaming** ([Architecture 2027](./architecture-2027.mdx)) — strategic separation into an opt-in compiled Wire Plane and an enterprise Domain Plane:
+  1. _Wire Plane Compiled Projections_ (In Progress): Database engine JSON generation (`findPublishedProjection` on PostgreSQL/SQLite/MariaDB) piped from driver buffers directly to the HTTP socket for public published reads where FLAC and relational populates are absent.
+  2. _Fast-Lane Socket Hand-Off & Admission Predicate_ (In Progress): Direct socket streaming for pre-compiled read projections via `fast-lane.server.ts` gated by `isWirePlaneAdmissible()`, while retaining the full SvelteKit pipeline for admin chrome, writes, GraphQL Yoga, and complex relations.
+  3. _Precomputed Dynamic Session Bitsets_ (In Progress): Dynamic `Uint32Array` permission evaluation with session-cached allow-masks (`permBits`, `permRev`) and atomic cross-worker invalidation broadcasts.
+  4. _Bounded Enterprise DSN Pools & RLS Hardening_ (In Progress): Shared connection pool + Row-Level Security (`set_config('app.tenant_id', ..., true)`) as the scalable SaaS default, with dedicated driver pool slices (`MAX_TENANT_POOLS` LRU cap) strictly for enterprise tenants with custom database URLs.
 - **Cross-Source Data Merge (v3.1)**: Federated queries across heterogeneous databases.
 - **Visual Studio Query Builder**: In-app drag-and-drop visual pipeline builder for complex database aggregations.
 - **GraphQL Supergraph & Federation**: Apollo Federation v2 compatibility for multi-service enterprise architectures.

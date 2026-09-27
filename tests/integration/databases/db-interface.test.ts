@@ -785,6 +785,68 @@ describe("Database Interface Contract Tests", () => {
       });
       expect(deleteResA.success).toBe(true);
     });
+
+    it("should support Direct-to-Wire point stream and list stream with structural parity", async () => {
+      if (!db?.crud) return;
+
+      const collection = "system_preferences";
+      const testId = `wire-test-${Date.now()}` as any;
+      const testDoc = {
+        _id: testId as DatabaseId,
+        key: `wire_key_${testId}`,
+        value: { title: "Wire Streaming", priority: 1 },
+        scope: "system",
+        visibility: "private",
+        tenantId: TEST_TENANT,
+      };
+
+      // 1. Insert record
+      const insertRes = await db.crud.insert(collection, testDoc as any, {
+        tenantId: TEST_TENANT,
+      });
+      expect(insertRes.success).toBe(true);
+
+      // 2. Point wire stream
+      const pointWire = await db.crud.findPointWireStream(collection, testId, {
+        tenantId: TEST_TENANT,
+      });
+      expect(pointWire.success).toBe(true);
+      expect(pointWire.data).toBeDefined();
+      expect(typeof pointWire.data?.wireBody).toBe("string");
+      expect(pointWire.data?.etag).toBeDefined();
+
+      const parsedPoint = JSON.parse(pointWire.data!.wireBody);
+      expect(parsedPoint.success).toBe(true);
+      expect(parsedPoint.data._id).toBe(String(testId));
+
+      // 3. List wire stream
+      const listWire = await db.crud.findListWireStream(
+        collection,
+        {},
+        {
+          tenantId: TEST_TENANT,
+          limit: 10,
+        },
+      );
+      expect(listWire.success).toBe(true);
+      expect(listWire.data).toBeDefined();
+      expect(typeof listWire.data?.wireBody).toBe("string");
+
+      const parsedList = JSON.parse(listWire.data!.wireBody);
+      expect(parsedList.success).toBe(true);
+      expect(Array.isArray(parsedList.data)).toBe(true);
+
+      // 4. Tenant isolation with point wire stream
+      const otherTenantWire = await db.crud.findPointWireStream(collection, testId, {
+        tenantId: "other-tenant",
+      });
+      if (otherTenantWire.success) {
+        expect(otherTenantWire.data).toBeNull();
+      }
+
+      // Cleanup
+      await db.crud.delete(collection, testId, { tenantId: TEST_TENANT });
+    });
   });
 
   describe("Utility & Consistency Contract", () => {

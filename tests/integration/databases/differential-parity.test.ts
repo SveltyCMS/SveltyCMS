@@ -255,4 +255,37 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
     expect((byId as any).data?.title).toBe((byQuery as any).data?.title);
     expect((byId as any).data?.views).toBe((byQuery as any).data?.views);
   });
+
+  it("Direct-to-Wire findPointWireStream agrees byte-for-byte with findOne", async () => {
+    if (!db) return;
+    const id = generateUUID() as any as DatabaseId;
+    await db.crud.insert(
+      COLLECTION,
+      { _id: id, title: "wire_stream_test", views: 42, tenantId: TENANT } as any,
+      {
+        tenantId: TENANT,
+      } as any,
+    );
+
+    const wireRes = await db.crud.findPointWireStream(COLLECTION, id, { tenantId: TENANT });
+    expect(wireRes.success).toBe(true);
+    expect(wireRes.data).toBeDefined();
+
+    const wireParsed = JSON.parse(wireRes.data!.wireBody);
+    expect(wireParsed.success).toBe(true);
+    expect(wireParsed.data._id).toBe(id);
+    expect(wireParsed.data.title).toBe("wire_stream_test");
+    expect(wireParsed.data.views).toBe(42);
+
+    const listWire = await db.crud.findListWireStream(COLLECTION, {}, { tenantId: TENANT });
+    expect(listWire.success).toBe(true);
+    expect(listWire.data).toBeDefined();
+
+    const listParsed = JSON.parse(listWire.data!.wireBody);
+    expect(listParsed.success).toBe(true);
+    expect(Array.isArray(listParsed.data)).toBe(true);
+    const found = listParsed.data.find((item: any) => item._id === id);
+    expect(found).toBeDefined();
+    expect(found.title).toBe("wire_stream_test");
+  });
 });

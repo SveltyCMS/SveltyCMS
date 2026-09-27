@@ -5,7 +5,7 @@
 
 import { safeQuery, isMultiTenantMode } from "@src/utils/security/safe-query";
 import { hasTenantBypass } from "../system-tenant-scope";
-import { nowISODateString } from "@utils/date";
+import { nowISODateString, toISOString } from "@utils/date";
 import mongoose, { type Model } from "mongoose";
 import type {
   BaseEntity,
@@ -179,6 +179,88 @@ export class MongoCrudMethods<T extends BaseEntity> {
           "FIND_ONE_ERROR",
           `Failed to find document in ${this.model.modelName}`,
         ),
+      };
+    }
+  }
+
+  /**
+   * Direct-to-Wire point stream for MongoDB (2027 architecture parity):
+   * Queries native collection cursor with system-column exclusion projection,
+   * bypassing Mongoose document instance wrapping.
+   */
+  async findPointWireStream(
+    _collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
+    try {
+      const filter: Record<string, unknown> = { _id: id, isDeleted: { $ne: true } };
+      if (options.tenantId) filter.tenantId = options.tenantId;
+
+      const rawDoc = await this.model.collection.findOne(filter, {
+        projection: { _collection: 0, tenantId: 0, createdAt: 0, isDeleted: 0 },
+      });
+      if (!rawDoc) return { success: true, data: null };
+
+      const doc = plainNativeDoc<Record<string, unknown>>(rawDoc);
+      const updatedAt = doc.updatedAt ? toISOString(doc.updatedAt) : "";
+      delete doc.updatedAt;
+      const wireBody = JSON.stringify({ success: true, data: doc });
+      const etag = `"${String(id)}-${updatedAt}"`;
+      return { success: true, data: { wireBody, etag } };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || `Failed to stream point wire payload from ${this.model.modelName}`,
+        data: null,
+      };
+    }
+  }
+
+  /**
+   * Direct-to-Wire list stream for MongoDB (2027 architecture parity):
+   * Queries native collection cursor with system-column exclusion projection,
+   * bypassing Mongoose document instance wrapping.
+   */
+  async findListWireStream(
+    _collection: string,
+    query: QueryFilter<T> = {},
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>> {
+    try {
+      const filter: Record<string, unknown> = {
+        ...(query as Record<string, unknown>),
+        isDeleted: { $ne: true },
+      };
+      if (options.tenantId) filter.tenantId = options.tenantId;
+
+      const limit = Math.min(options?.limit ?? 50, 100);
+      const skip = options?.offset ?? 0;
+
+      const cursor = this.model.collection
+        .find(filter, {
+          projection: { _collection: 0, tenantId: 0, createdAt: 0, isDeleted: 0 },
+        })
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const rawDocs = await cursor.toArray();
+      const docs = rawDocs.map((d) => {
+        const doc = plainNativeDoc<Record<string, unknown>>(d);
+        if (doc && doc.updatedAt) {
+          doc.updatedAt = toISOString(doc.updatedAt);
+        }
+        return doc;
+      });
+
+      const wireBody = JSON.stringify({ success: true, data: docs });
+      return { success: true, data: { wireBody } };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || `Failed to stream list wire payload from ${this.model.modelName}`,
+        data: null,
       };
     }
   }

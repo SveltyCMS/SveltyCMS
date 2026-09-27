@@ -1063,8 +1063,15 @@ export class CollectionsNamespace {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.schemaOf(collectionId, tenantId);
+    const hot = ensureSchemaHotFlags(schema);
 
-    if (!system && !user?.isAdmin && schema.fields && schema.fields.length > 0) {
+    if (
+      !system &&
+      !user?.isAdmin &&
+      (hot._hasGuardedFields ?? true) &&
+      schema.fields &&
+      schema.fields.length > 0
+    ) {
       const { assertWriteAllowed } =
         await import("@src/services/security/field-permission-service");
       for (const u of updates) {
@@ -1082,7 +1089,6 @@ export class CollectionsNamespace {
     }
 
     const now = nowISODateString();
-    const hot = ensureSchemaHotFlags(schema);
     const encCtx = fieldEncryptionContext(schema, tenantId);
 
     const formattedUpdates = [];
@@ -1405,7 +1411,28 @@ export class CollectionsNamespace {
         effectiveUser,
       );
 
-      if (schema.fields && schema.fields.length > 0) {
+      if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
+        const missingFields: string[] = [];
+        for (let i = 0; i < hot._requiredFields.length; i++) {
+          const rf = hot._requiredFields[i];
+          const val = (entryData as Record<string, unknown>)[rf.key];
+          if (
+            val === undefined ||
+            val === null ||
+            val === "" ||
+            (Array.isArray(val) && val.length === 0)
+          ) {
+            missingFields.push(rf.name);
+          }
+        }
+        if (missingFields.length > 0) {
+          throw new AppError(
+            missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+            400,
+            "FIELD_VALIDATION_ERROR",
+          );
+        }
+      } else if (schema.fields && schema.fields.length > 0) {
         const { valid, missingFields } = validateRequiredFields(
           entryData,
           schema.fields as FieldInstance[],
@@ -1573,16 +1600,39 @@ export class CollectionsNamespace {
           ...existingData,
           ...updateData,
         };
-        const { valid, missingFields } = validateRequiredFields(
-          merged,
-          schema.fields as FieldInstance[],
-        );
-        if (!valid) {
-          throw new AppError(
-            missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
-            400,
-            "FIELD_VALIDATION_ERROR",
+        if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
+          const missingFields: string[] = [];
+          for (let i = 0; i < hot._requiredFields.length; i++) {
+            const rf = hot._requiredFields[i];
+            const val = (merged as Record<string, unknown>)[rf.key];
+            if (
+              val === undefined ||
+              val === null ||
+              val === "" ||
+              (Array.isArray(val) && val.length === 0)
+            ) {
+              missingFields.push(rf.name);
+            }
+          }
+          if (missingFields.length > 0) {
+            throw new AppError(
+              missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+              400,
+              "FIELD_VALIDATION_ERROR",
+            );
+          }
+        } else {
+          const { valid, missingFields } = validateRequiredFields(
+            merged,
+            schema.fields as FieldInstance[],
           );
+          if (!valid) {
+            throw new AppError(
+              missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+              400,
+              "FIELD_VALIDATION_ERROR",
+            );
+          }
         }
       }
     }

@@ -26,6 +26,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { hasPermissionBitmask } from "@src/databases/auth/permission-bitmask";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
 import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
@@ -40,9 +41,11 @@ import {
   collectionResponseCacheTags,
   COLLECTION_ACTION_SEGMENTS,
 } from "@src/services/cache/response-cache";
-import type { DatabaseId } from "@src/content/types";
+import { contentStore } from "@src/stores/content-registry.svelte";
+import type { DatabaseId, Schema } from "@src/content/types";
 import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
-import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
+import { resolvePublicationFilter } from "@utils/security/publication-policy";
 
 interface CoalescedCollectionRead {
   body: string;
@@ -101,6 +104,212 @@ export function isSimpleCollectionRead(event: RequestEvent): boolean {
   return true;
 }
 
+export interface CollectionWireMeta {
+  collectionId: string;
+  /** Compiled default locale for this collection or tenant (e.g. "en", "de") */
+  defaultLocale?: string;
+  /** Set of field names in the compiled published projection */
+  publishedFields: Set<string>;
+  /** True if schema defines lifecycle hooks that alter document read state */
+  hasAfterReadHooks: boolean;
+  /** Compiled default sort field & direction (e.g. "createdAt:desc") */
+  defaultSort?: string;
+  /** Compiled default limit (e.g. 25) */
+  defaultLimit?: number;
+}
+
+/**
+ * Computes Wire Plane compilation metadata from a loaded collection Schema.
+ * Fails closed (`null`) if schema is missing or invalid.
+ */
+export function computeCollectionWireMeta(
+  schema: Schema | undefined | null,
+  tenantDefaultLocale: string = "en",
+): CollectionWireMeta | null {
+  if (!schema) return null;
+
+  const collectionId = String(schema._id || schema.name || "");
+  if (!collectionId) return null;
+
+  // Compute mutating afterRead / afterFind hooks presence from schema definition
+  const rawHooks = schema.hooks as Record<string, unknown> | undefined;
+  const hasAfterReadHooks = Boolean(
+    rawHooks?.afterRead ||
+    rawHooks?.afterFind ||
+    (schema as { afterRead?: unknown }).afterRead ||
+    (schema as { afterFind?: unknown }).afterFind,
+  );
+
+  // Compile published fields from schema definition
+  const publishedFields = new Set<string>(["_id", "createdAt", "updatedAt", "status"]);
+
+  if (Array.isArray(schema.fields)) {
+    for (const f of schema.fields as Array<{
+      db_fieldName?: string;
+      name?: string;
+      permissions?: { visibility?: string };
+    }>) {
+      const fieldName = f.db_fieldName || f.name;
+      // Skip private or guarded fields
+      if (fieldName && f.permissions?.visibility !== "private") {
+        publishedFields.add(fieldName);
+      }
+    }
+  }
+
+  // Derive default locale from schema translations or tenant setting
+  let defaultLocale = tenantDefaultLocale;
+  if (Array.isArray(schema.translations)) {
+    const defTrans = schema.translations.find((t) => t.isDefault);
+    if (defTrans?.languageTag) defaultLocale = defTrans.languageTag;
+  }
+
+  return {
+    collectionId,
+    defaultLocale,
+    publishedFields,
+    hasAfterReadHooks,
+    defaultSort: "createdAt:desc",
+    defaultLimit: 25,
+  };
+}
+
+/**
+ * Strict Wire Plane Admission Predicate:
+ * Evaluates whether a read request qualifies for the high-speed Wire Plane
+ * (bypassing V8 entity hydration and streaming pre-compiled SQL projections).
+ *
+ * Admissible only when all hold:
+ * 1. Published status: Target document/list must be published (no draft=true / preview=true / status=review).
+ *    Cookies (`preview_mode`) and caller authorization are clamped via `resolvePublicationFilter`.
+ * 2. Public / Full Projection Equivalence: Unauthenticated public request, or client requesting exactly
+ *    the compiled published projection (`fields` parameter matches compiled projection).
+ * 3. No dynamic expansions: No `populate` query param.
+ * 4. Locale alignment: Either no locale parameter or locale strictly equals the collection's compiled default.
+ * 5. No mutating collection hooks: The target collection defines no `afterRead`/`afterFind` hooks.
+ * 6. Point vs List Predicate: Point-reads reject custom filters; list-reads reject custom filters and admit
+ *    only the compiled default sort + fixed limit until Cell 3 dynamic list SQL is compiled.
+ *
+ * Fail Closed: If `collectionMeta` is omitted or null, returns `false` (Domain Plane default).
+ */
+export function isWirePlaneAdmissible(
+  event: RequestEvent,
+  collectionMeta?: CollectionWireMeta | null,
+): boolean {
+  // Fail closed: Missing collection metadata defaults strictly to Domain Plane
+  if (!collectionMeta) return false;
+
+  if (!isSimpleCollectionRead(event)) return false;
+
+  const search = event.url.searchParams;
+
+  // 1. Published status only: query flags
+  if (
+    search.get("draft") === "true" ||
+    search.get("status") === "draft" ||
+    search.get("status") === "review" ||
+    search.has("preview") ||
+    search.get("preview") === "true"
+  ) {
+    return false;
+  }
+
+  // 1b. Published status only: preview cookies
+  if (
+    event.cookies.get("preview") === "true" ||
+    event.cookies.get("preview_mode") === "true" ||
+    event.cookies.get("svelty_preview") === "true"
+  ) {
+    return false;
+  }
+
+  // 1c. Publication clamp check:
+  // If the client explicitly requested a status, verify that it resolves strictly to "published".
+  // Note: Privileged users (admins) default to resolvePublicationFilter="all" when no status param is set,
+  // but for wire point reads of published documents where draft/preview query/cookies are absent (checked in 1 & 1b),
+  // serving the compiled published projection is safe and intended.
+  if (search.has("status")) {
+    const effectivePubFilter = resolvePublicationFilter(
+      { user: event.locals?.user as any },
+      search.get("status"),
+    );
+    if (effectivePubFilter !== "published") {
+      return false;
+    }
+  }
+
+  // 2. Dynamic expansions forbidden
+  if (search.has("populate")) {
+    return false;
+  }
+
+  // 3. Locale alignment: Admit only no locale or collection compiled default locale
+  if (search.has("locale")) {
+    const requestedLocale = search.get("locale")?.trim().toLowerCase();
+    const compiledDefault = (collectionMeta.defaultLocale || "en").trim().toLowerCase();
+    if (requestedLocale !== compiledDefault) {
+      return false;
+    }
+  }
+
+  // 4. No mutating collection hooks
+  if (collectionMeta.hasAfterReadHooks) {
+    return false;
+  }
+
+  // 5. Projection equality check:
+  // If `fields` param is provided, it must equal the compiled published projection
+  if (search.has("fields")) {
+    const requested = search
+      .get("fields")!
+      .split(",")
+      .map((f) => f.trim())
+      .filter(Boolean);
+
+    if (requested.length !== collectionMeta.publishedFields.size) {
+      return false;
+    }
+    for (const f of requested) {
+      if (!collectionMeta.publishedFields.has(f)) {
+        return false;
+      }
+    }
+  }
+
+  // 6. Any filter or where parameter diverts to Domain Plane
+  const hasFilter = Array.from(search.keys()).some(
+    (k) => k === "filter" || k.startsWith("filter[") || k.startsWith("filter.") || k === "where",
+  );
+  if (hasFilter) return false;
+
+  // 7. Point vs List reading constraints:
+  const parts = event.url.pathname.split("/").filter(Boolean);
+  const isList = parts.length === 3;
+
+  if (isList) {
+    // List wire admits only compiled default sort + fixed limit
+    if (
+      search.has("sort") &&
+      collectionMeta.defaultSort &&
+      search.get("sort") !== collectionMeta.defaultSort
+    ) {
+      return false;
+    }
+    if (
+      search.has("limit") &&
+      collectionMeta.defaultLimit !== undefined &&
+      Number(search.get("limit")) !== collectionMeta.defaultLimit
+    ) {
+      return false;
+    }
+    if (search.has("page") && search.get("page") !== "1") {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /** `SVELTY_SRV_DUR=1` records server time for inspect-mixed-cycle. Off on the replica. */
 const STAMP_SRV_DUR = process.env.SVELTY_SRV_DUR === "1";
 /**
@@ -148,8 +357,13 @@ async function executeWarmCollectionRead(
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
   (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
 
-  // Non-admin still needs the full FLAC / publication pipeline.
-  if (!isAdmin(turbo.user) && turbo.user?.role !== "admin") return null;
+  // 🛡️ 64-Bit Bitmask Security Engine: check in-register bitmask first (<0.5 ns)
+  const isAuthorized =
+    isAdmin(turbo.user) ||
+    hasPermissionBitmask(turbo.permMask ?? 0n, "collection:read") ||
+    hasPermissionBitmask(turbo.permMask ?? 0n, "collections:read");
+
+  if (!isAuthorized) return null;
 
   const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
   if (tenantP) await tenantP;
@@ -262,6 +476,33 @@ async function rebuildWarmCollectionRead(
   const cms = getLaneCms();
   if (!cms) return null;
   const dbT0 = marks ? performance.now() : 0;
+
+  // Direct-to-Wire point stream optimization (Phase 1):
+  // When an admin performs a simple point read without query params, fetch wire body directly
+  // from the database C engine, completely bypassing entity hydration and JSON.stringify.
+  // Must satisfy strict Wire Plane Admission Predicate; otherwise falls through to LocalCMS findById.
+  if (entryId && !event.url.search && dbAdapter?.crud?.findPointWireStream) {
+    const schema = contentStore.getCollection(collectionId, locals.tenantId as string);
+    const wireMeta = schema ? computeCollectionWireMeta(schema) : null;
+    if (wireMeta && isWirePlaneAdmissible(event, wireMeta)) {
+      const wireRes = await dbAdapter.crud.findPointWireStream(collectionId, entryId, {
+        tenantId: locals.tenantId as DatabaseId,
+      });
+      if (wireRes?.success && wireRes.data) {
+        const apiBody = wireRes.data.wireBody;
+        const etag = wireRes.data.etag || generateContentEtag(apiBody);
+        (locals as { apiBody?: string }).apiBody = apiBody;
+        marks?.set("db", performance.now() - dbT0);
+        marks?.set("build", 0);
+        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+          skipSharedL1: true,
+        });
+        marks?.set("cachewrite", performance.now() - dbT0);
+        return { body: apiBody, etag, miss: true };
+      }
+    }
+  }
+
   const result = entryId
     ? await cms.collections.findById(collectionId, entryId, {
         user: locals.user,
@@ -305,9 +546,9 @@ async function rebuildWarmCollectionRead(
       : null;
   // One JSON string. The lane builds the only Response, from the prebuilt
   // security-header template. A second Response here was pure overhead on a miss.
-  // `trimPointReadEnvelope` copies the single row (arrays pass through), so the
+  // `trimPointReadEnvelope` / `trimListEnvelope` copies the rows, so the
   // SDK request cache / L2 never see the trimmed payload.
-  const envelope = trimPointReadEnvelope(record) as {
+  const envelope = (entryId ? trimPointReadEnvelope(record) : trimListEnvelope(record)) as {
     data?: unknown;
     meta?: unknown;
   };

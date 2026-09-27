@@ -176,6 +176,7 @@ interface SessionCacheEntry {
   user: User;
   amr?: string[];
   mfaVerifiedAt?: string;
+  permMask?: bigint;
 }
 
 /**
@@ -391,17 +392,21 @@ async function getUserFromSession(
       const storedData = await store.getSessionData(sessionId as DatabaseId);
       if (storedData) {
         const safeStoredUser = toSafeSessionUser(storedData.user);
+        const permMask =
+          storedData.permMask !== undefined ? BigInt(storedData.permMask) : undefined;
         setSessionInCache(sessionId, {
           user: safeStoredUser,
           timestamp: now,
           amr: storedData.amr,
           mfaVerifiedAt: storedData.mfaVerifiedAt,
+          permMask,
         });
         return {
           status: "ok",
           user: safeStoredUser,
           amr: storedData.amr,
           mfaVerifiedAt: storedData.mfaVerifiedAt,
+          permMask,
         };
       }
     } else {
@@ -1017,6 +1022,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           locals.sessionAmr = resolution.status === "ok" ? resolution.amr : undefined;
           locals.mfaVerifiedAt = resolution.status === "ok" ? resolution.mfaVerifiedAt : undefined;
           locals.permissions = user.permissions || [];
+          // Expose 64-bit bitmask for per-request zero-allocation permission checks
+          locals.permMask = resolution.status === "ok" ? (resolution as any).permMask : undefined;
           // Note: the layout user cache (`layout:user:<id>`) is owned by
           // getFreshLayoutUser(), which re-reads the user from the DB at most once
           // per TTL. A per-request write here kept that entry permanently warm and

@@ -118,6 +118,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     }
   >();
 
+  /** Cache for Direct-to-Wire SQL JSON statements (2027 architecture). */
+  private _rawFindPointWireSqlCache = new WeakMap<
+    object,
+    {
+      base: string;
+      tenant: string;
+    }
+  >();
+
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
 
@@ -321,6 +330,127 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       return null;
     } catch (rawErr: any) {
       logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Direct-to-Wire point stream optimization for SQLite:
+   * Generates `{ success: true, data: { ... } }` directly inside SQLite C engine
+   * via json_object and json_patch, completely bypassing V8 JS object hydration and JSON.stringify.
+   */
+  protected override async rawFindPointWireStream(
+    table: any,
+    _collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<{ wireBody: string; etag: string } | null> {
+    try {
+      const tableName = getTableName(table);
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return null; // Non-collection tables without a JSON blob use findOne fallback
+
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+        options,
+        "sqlite",
+      );
+      let cachedWireSql = this._rawFindPointWireSqlCache.get(table);
+      if (!cachedWireSql) {
+        const quoted = `"${tableName}"`;
+        const hasSlugCol = !!this.getColumn(table, "slug");
+        const hasStatusCol = !!this.getColumn(table, "status");
+
+        const dataExpr = `json(json_patch(COALESCE("data", '{}'), json_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})))`;
+
+        cachedWireSql = {
+          base: `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
+          tenant: `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+        };
+        this._rawFindPointWireSqlCache.set(table, cachedWireSql);
+      }
+
+      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
+      let sqlText: string;
+      let params: unknown[];
+      if (useTenantCache) {
+        sqlText = cachedWireSql.tenant;
+        params = [String(id), ...tenantParams];
+      } else if (!tenantSql) {
+        sqlText = cachedWireSql.base;
+        params = [String(id)];
+      } else {
+        sqlText = `${cachedWireSql.base.replace(` WHERE "_id" = ? LIMIT 1`, ` WHERE "_id" = ?${tenantSql} LIMIT 1`)}`;
+        params = [String(id), ...tenantParams];
+      }
+
+      const rawRow = this.prepareAndExecute(sqlText, "get", ...params) as
+        | { wire_body: string; updated_at: number | string }
+        | undefined;
+
+      if (!rawRow || !rawRow.wire_body) return null;
+      return {
+        wireBody:
+          typeof rawRow.wire_body === "string"
+            ? rawRow.wire_body
+            : JSON.stringify(rawRow.wire_body),
+        etag: `"${String(id)}-${String(rawRow.updated_at ?? "")}"`,
+      };
+    } catch (err: any) {
+      logger.debug("[SQLite rawFindPointWireStream] falling back:", err?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Direct-to-Wire list stream optimization for SQLite:
+   * Generates `{ success: true, data: [ ... ] }` directly inside SQLite C engine
+   * via json_group_array and json_object.
+   */
+  protected override async rawFindListWireStream<T extends BaseEntity>(
+    table: any,
+    _collection: string,
+    _query: QueryFilter<T>,
+    options: FindOptions<T>,
+  ): Promise<{ wireBody: string; etag?: string } | null> {
+    try {
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return null;
+
+      const tableName = getTableName(table);
+      const limit = Math.min(options?.limit ?? 50, 100);
+      const offset = options?.offset ?? 0;
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+        options,
+        "sqlite",
+      );
+
+      const hasSlugCol = !!this.getColumn(table, "slug");
+      const hasStatusCol = !!this.getColumn(table, "status");
+      const hasDeletedCol = !!this.getColumn(table, "isDeleted");
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+
+      const dataExpr = `json(json_patch(COALESCE("data", '{}'), json_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})))`;
+      const quoted = `"${tableName}"`;
+      const whereBase = hasDeletedCol ? '"isDeleted" = 0' : "1 = 1";
+      const orderBy = hasUpdatedAtCol ? '"updatedAt" DESC' : '"_id" DESC';
+      const subquery = `SELECT * FROM ${quoted} WHERE ${whereBase}${tenantSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+      const listSql = `SELECT json_object('success', json('true'), 'data', json(COALESCE(json_group_array(${dataExpr}), '[]'))) AS wire_body FROM (${subquery})`;
+
+      const rawRow = this.prepareAndExecute(listSql, "get", ...tenantParams, limit, offset) as
+        | { wire_body: string }
+        | undefined;
+
+      if (!rawRow || !rawRow.wire_body) return null;
+      return {
+        wireBody:
+          typeof rawRow.wire_body === "string"
+            ? rawRow.wire_body
+            : JSON.stringify(rawRow.wire_body),
+      };
+    } catch (err: any) {
+      logger.debug("[SQLite rawFindListWireStream] falling back:", err?.message);
       return null;
     }
   }

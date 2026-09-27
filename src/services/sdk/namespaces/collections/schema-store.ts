@@ -59,6 +59,12 @@ export type SchemaHotFlags = {
   _hasEncryptedFields?: boolean;
   /** db_fieldName of fields stored as AES-256-GCM envelopes. */
   _encryptedFieldNames?: string[];
+  /** True when schema declares required fields. */
+  _hasRequiredFields?: boolean;
+  /** Pre-compiled required fields for zero-allocation validation on publish. */
+  _requiredFields?: Array<{ name: string; key: string }>;
+  /** True when schema has fields with field-level permissions or visibility restrictions. */
+  _hasGuardedFields?: boolean;
 };
 
 const _schemaCache = new LRUCache<string, Schema>({ max: 500 });
@@ -137,6 +143,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   const dateTimeFieldNames: string[] = [];
   const numberFields: NumberFieldPlan[] = [];
   const encryptedFieldNames: string[] = [];
+  const requiredFields: Array<{ name: string; key: string }> = [];
   let hasNumberFields = false;
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
@@ -195,6 +202,31 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
     ) {
       hasConstrainedFields = true;
     }
+    if ((f as { required?: boolean }).required) {
+      const key = String(dbName || f.name || "");
+      const name = String(f.name || dbName || "unknown");
+      if (key) requiredFields.push({ name, key });
+    }
+  }
+
+  let hasGuardedFields = false;
+  for (const f of fields) {
+    const p = f.permissions;
+    if (p) {
+      if (
+        (Array.isArray(p.readRoles) && p.readRoles.length > 0) ||
+        (Array.isArray(p.writeRoles) && p.writeRoles.length > 0) ||
+        p.requiredAuth
+      ) {
+        hasGuardedFields = true;
+        break;
+      }
+    }
+    const extra = f as { hidden?: boolean; visibility?: string };
+    if (extra.hidden || extra.visibility === "hidden" || extra.visibility === "private") {
+      hasGuardedFields = true;
+      break;
+    }
   }
 
   s._hasActiveWidgets = activeWidgetFieldNames.length > 0;
@@ -208,6 +240,9 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._hasConstrainedFields = hasConstrainedFields;
   s._hasEncryptedFields = encryptedFieldNames.length > 0;
   s._encryptedFieldNames = encryptedFieldNames;
+  s._hasRequiredFields = requiredFields.length > 0;
+  s._requiredFields = requiredFields;
+  s._hasGuardedFields = hasGuardedFields;
   return s;
 }
 

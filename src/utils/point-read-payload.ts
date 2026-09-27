@@ -78,3 +78,43 @@ export function trimPointReadEnvelope(envelope: unknown): unknown {
   if (!data || typeof data !== "object" || Array.isArray(data)) return envelope;
   return { ...env, data: trimPointReadRow(data) };
 }
+
+/**
+ * Trim a `{ success, data, meta? }` SDK envelope for HTTP list serialization.
+ * Strips per-row `_collection` duplications across all items and hoists
+ * `meta._collection` once onto the top-level envelope.
+ */
+export function trimListEnvelope(envelope: unknown): unknown {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) return envelope;
+  const env = envelope as Record<string, unknown>;
+  const data = env.data;
+  if (!data || !Array.isArray(data) || data.length === 0) return envelope;
+
+  let collectionMeta: unknown = undefined;
+  const first = data[0];
+  if (first && typeof first === "object" && "_collection" in first) {
+    collectionMeta = (first as Record<string, unknown>)._collection;
+  }
+
+  const trimmedArray: unknown[] = [];
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i];
+    if (item && typeof item === "object") {
+      const row = { ...(item as Record<string, unknown>) };
+      delete row._collection;
+      trimmedArray.push(row);
+    } else {
+      trimmedArray.push(item);
+    }
+  }
+
+  const updatedMeta = collectionMeta
+    ? { ...(env.meta as Record<string, unknown>), _collection: collectionMeta }
+    : env.meta;
+
+  return {
+    ...env,
+    data: trimmedArray,
+    ...(updatedMeta !== undefined ? { meta: updatedMeta } : {}),
+  };
+}

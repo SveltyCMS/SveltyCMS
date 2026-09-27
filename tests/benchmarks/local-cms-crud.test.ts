@@ -152,6 +152,30 @@ async function runLocalCmsCrudBenchmark() {
     });
     results.push({ ...adapterFind, layer: "DB", shortLabel: "Adapter Read" });
 
+    // ── 1b. DIRECT-TO-WIRE POINT STREAM (2027 ENGINE C-STREAM) ──────────────
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log("   → 1b. Measuring Direct-to-Wire Point Stream (C-Engine JSON)...");
+    const wireFind = await runBenchmark({
+      name: "Direct-to-Wire Point Stream",
+      iterations: ITER,
+      warmupIterations: WARM,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      silent: true,
+      onIteration: async () => {
+        const res = await db.crud.findPointWireStream(
+          COLLECTION,
+          seedId as unknown as DatabaseId,
+          directOpts,
+        );
+        if (!res?.success || !res.data) throw new Error("findPointWireStream failed");
+      },
+    });
+    results.push({ ...wireFind, layer: "WIRE", shortLabel: "Point Wire Stream" });
+
     // ── 2. LOCALCMS findById (WARM L1 HIT) ──────────────────────────────────
     forceGarbageCollection();
     await stabilize(100);

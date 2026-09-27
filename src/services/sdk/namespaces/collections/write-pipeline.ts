@@ -144,7 +144,12 @@ export function prepareWritePayload(
   const fieldValidationError = (messages: string[]) =>
     new AppError(messages.join("; "), 400, "FIELD_VALIDATION_ERROR");
 
-  const needsWriteGuard = !system && !user?.isAdmin && !!schema.fields && schema.fields.length > 0;
+  const needsWriteGuard =
+    !system &&
+    !user?.isAdmin &&
+    (hot._hasGuardedFields ?? true) &&
+    !!schema.fields &&
+    schema.fields.length > 0;
 
   if (hot._hasHooks && schema.hooks) {
     const hookCtx = {

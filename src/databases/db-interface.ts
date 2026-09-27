@@ -941,6 +941,21 @@ export interface ICrudAdapter {
     query: QueryFilter<T>,
     options?: FindOptions<T>,
   ): Promise<DatabaseResult<T | null>>;
+  /**
+   * 🚀 Direct-to-Wire Streaming (2027 Architecture):
+   * Returns pre-serialized JSON wire payload directly from the database engine,
+   * completely bypassing V8 object hydration, DTO spreading, and JSON.stringify().
+   */
+  findPointWireStream?(
+    collection: string,
+    id: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>>;
+  findListWireStream?<T extends BaseEntity>(
+    collection: string,
+    query?: QueryFilter<T>,
+    options?: FindOptions<T>,
+  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>>;
   find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

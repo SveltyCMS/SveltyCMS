@@ -37,6 +37,7 @@ interface TurboAuthContext {
   roles: Role[];
   tenantId: DatabaseId | null;
   expiresAt: number;
+  permMask?: bigint;
 }
 
 const turboAuthCache = new Map<string, TurboAuthContext>();
@@ -54,6 +55,7 @@ export function setTurboAuthContext(
   user: User,
   roles: Role[],
   tenantId: DatabaseId | null,
+  permMask?: bigint,
 ): void {
   if (turboAuthCache.has(sessionId)) {
     turboAuthCache.delete(sessionId);
@@ -67,6 +69,7 @@ export function setTurboAuthContext(
     roles,
     tenantId,
     expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
+    permMask,
   });
 }
 

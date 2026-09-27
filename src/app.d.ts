@@ -106,6 +106,8 @@ declare global {
       sessionAmr?: string[];
       /** ISO timestamp when MFA was verified for this session. */
       mfaVerifiedAt?: string;
+      /** 64-bit BigInt permission bitmask for the current session/user. */
+      permMask?: bigint;
       tenantId?: DatabaseId | null;
       theme: Theme | null;
       user: User | null;

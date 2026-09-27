@@ -26,6 +26,8 @@ import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
 import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
+import { isAdmin } from "./constants";
+import { computeUserPermMask, ADMIN_PERM_MASK } from "./permission-bitmask";
 import type { Permission, Role, Session, SessionStore, Token, User, ApiKey } from "./types";
 
 export {
@@ -418,13 +420,35 @@ export class Auth {
       throw error(500, "User not found for session");
     }
 
+    let permMask = (sessionData as any).permMask;
+    if (permMask === undefined) {
+      if (isAdmin(user)) {
+        permMask = ADMIN_PERM_MASK;
+      } else {
+        try {
+          const roles = await this.db.auth.getAllRoles({ tenantId: sessionData.tenantId });
+          permMask = computeUserPermMask(user, roles);
+        } catch {
+          permMask = computeUserPermMask(user, []);
+        }
+      }
+    }
+    const permMaskHex =
+      typeof permMask === "bigint"
+        ? "0x" + permMask.toString(16)
+        : typeof permMask === "string"
+          ? permMask
+          : undefined;
+
     const sessionMetadata = {
       amr: sessionData.amr ?? (user.is2FAEnabled ? ["pwd", "mfa"] : ["pwd"]),
       mfaVerifiedAt:
         (sessionData as any).mfaVerifiedAt ??
         (sessionData.amr?.includes("mfa") ? (nowISODateString() as ISODateString) : undefined),
+      permMask: permMaskHex,
     };
     await this.sessionStore.set(session._id, user, sessionData.expires, sessionMetadata);
+    session.permMask = permMaskHex;
 
     // Session device policy (enterprise-configurable):
     //   single-per-device (default) — evict other non-rotated sessions of this
@@ -965,9 +989,6 @@ export class Auth {
         },
         options,
       );
-
-      await this.sessionStore.set(session._id, user, expiresAt);
-
       return { user, sessionId: session._id };
     } catch (err: any) {
       // Vite 8 dev-mode HMR cycle — non-fatal, retry will succeed

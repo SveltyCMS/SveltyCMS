@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-18"
+updated: "2026-09-27"
 tags:
   - "security"
   - "auth"
@@ -21,6 +21,7 @@ tags:
   - "webauthn"
   - "passkeys"
   - "guest-auth"
+  - "bitmask"
 ---
 
 # Authentication & Authorization System
@@ -66,15 +67,16 @@ SveltyCMS employs dual-cookie architecture enforcing strict browser boundaries:
 
 Every engine persists the same authoritative record — `auth_sessions` (Mongo: the sessions collection) carries:
 
-| Column                                 | Purpose                                                                                                         |
-| :------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
-| `_id`                                  | 32-char CSPRNG session token, rotated on login and renewal.                                                     |
-| `user_id`                              | Owning user; all sessions are purged when the user is deleted.                                                  |
-| `expires`                              | Absolute expiry — the L0/L1 caches never outlive it.                                                            |
-| `tenantId`                             | Tenant scope: a session is valid only inside the tenant it was created for.                                     |
-| `userAgent` / `deviceId` / `ipAddress` | Device binding and the session listing in the admin UI.                                                         |
-| `amr`                                  | Authentication Method References (RFC 8176), e.g. `["pwd"]` or `["pwd","mfa"]` — drives the `mfaRequired` gate. |
-| `mfaVerifiedAt`                        | When the second factor was proven for this session; `null` until then.                                          |
+| Column                                 | Purpose                                                                                                                                                                                                                                                                                                                                                                  |
+| :------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_id`                                  | 32-char CSPRNG session token, rotated on login and renewal.                                                                                                                                                                                                                                                                                                              |
+| `user_id`                              | Owning user; all sessions are purged when the user is deleted.                                                                                                                                                                                                                                                                                                           |
+| `expires`                              | Absolute expiry — the L0/L1 caches never outlive it.                                                                                                                                                                                                                                                                                                                     |
+| `tenantId`                             | Tenant scope: a session is valid only inside the tenant it was created for.                                                                                                                                                                                                                                                                                              |
+| `userAgent` / `deviceId` / `ipAddress` | Device binding and the session listing in the admin UI.                                                                                                                                                                                                                                                                                                                  |
+| `amr`                                  | Authentication Method References (RFC 8176), e.g. `["pwd"]` or `["pwd","mfa"]` — drives the `mfaRequired` gate.                                                                                                                                                                                                                                                          |
+| `mfaVerifiedAt`                        | When the second factor was proven for this session; `null` until then.                                                                                                                                                                                                                                                                                                   |
+| `permMask`                             | **Phase 2 (2026-09):** 64-bit `BigInt` hex string encoding all granted permissions; embedded at `createSession` time, deserialized to `locals.permMask: bigint` by `handle-authentication.ts`. Enables O(1) `(mask & bit) !== 0n` checks in the API dispatcher with zero per-request memory allocation. Bit 63 is reserved for future Field-Level Access Control (FLAC). |
 
 - **Cross-engine parity**: the columns are declared once in the system schema spec and materialised per adapter (Drizzle schemas plus boot legacy-tail `ALTER`s for existing databases, Mongo `SessionSchema`). MariaDB stores `mfaVerifiedAt` as `DATETIME(3)` so millisecond precision survives the round-trip; MariaDB also double-encodes JSON columns, so reads normalise `amr` through the shared `parseJsonField` boundary.
 - **Rotation carries the MFA proof**: `rotateToken` copies `amr`, `mfaVerifiedAt`, and the device metadata onto the new row — renewing a cookie never downgrades or silently upgrades the session's authentication strength.
@@ -105,10 +107,19 @@ Orchestrates the 3-layer cache and manages the session lifecycle (create, valida
 
 ### RBAC & Permissions (`auth/permissions.ts`)
 
-Implements complex permission checks against roles and explicit user permissions.
+SveltyCMS uses a **two-tier evaluation strategy** for maximum performance:
 
-- **Admin Bypass**: Users with the `ADMIN` role bypass all permission checks.
-- **Isomorphic Guards**: Same logic runs on both client and server.
+1. **Hot path — 64-bit bitmask (Phase 2, 2026-09)**  
+   `_checkEndpointPermission` receives `locals.permMask` (a `bigint` embedded in the session at login) and the canonical permission's pre-computed bit (`getPermissionBit`). The evaluation is `(mask & bit) !== 0n` — a single CPU register AND with zero allocations.
+
+2. **Fallback — role bitset + LRU cache**  
+   For permissions outside the 64-bit window (bits 43-62 = dynamic plugin permissions), or sessions created before Phase 2, the role-bitset path with LRU `permissionCache` runs.
+
+3. **FLAC forward-compatibility (bit 63 reserved)**  
+   `field:*` prefixed permissions route to `evaluateFieldPermission`, which will evolve into a full Field-Level Access Control engine in 2027.
+
+- **Admin bypass**: `isAdmin(user)` short-circuits before any bitmask check.
+- **Cross-worker invalidation**: `SharedArrayBuffer` + `Atomics` monotonic counter propagates role bitset invalidations to all worker threads within one event-loop tick (`invalidateRoleBitsetsGlobally`).
 
 ---
 
@@ -171,12 +182,14 @@ Also supports social OAuth-style providers (**Google**, **GitHub**) where config
 
 ## 5. Performance Benchmarks
 
-| Operation            | Cache Layer  | Latency | Status              |
-| :------------------- | :----------- | :------ | :------------------ |
-| **Validate Session** | Memory (L0)  | < 0.1ms | **Instant**         |
-| **Validate Session** | Redis (L1)   | 0.8ms   | **Sub-ms**          |
-| **Validate Session** | MongoDB (L2) | 15ms    | **Persistent Sync** |
-| **Check Permission** | Cached       | < 0.5ms | **Optimized**       |
+| Operation                         | Cache Layer         | Latency                   | Status               |
+| :-------------------------------- | :------------------ | :------------------------ | :------------------- |
+| **Validate Session**              | Memory (L0)         | < 0.1ms                   | **Instant**          |
+| **Validate Session**              | Redis (L1)          | 0.8ms                     | **Sub-ms**           |
+| **Validate Session**              | MongoDB (L2)        | 15ms                      | **Persistent Sync**  |
+| **Check Permission (bitmask)**    | `locals.permMask`   | **`(mask & bit) !== 0n`** | **O(1) register op** |
+| **Check Permission (cache hit)**  | LRU permissionCache | < 0.01ms                  | **Sub-10µs**         |
+| **Check Permission (full roles)** | Role bitset eval    | < 0.5ms                   | **Fallback path**    |
 
 ## 6. Security Standards & Compliance
 

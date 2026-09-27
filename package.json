@@ -1,6 +1,6 @@
 {
   "name": "create-sveltycms",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Scaffold a new SveltyCMS headless CMS project — SvelteKit 3 + Svelte 5 + 4 databases",
   "keywords": [
     "AI-Powered CMS",
@@ -95,6 +95,9 @@
     "lint:benchmark-mdx": "bun run scripts/lint-benchmark-mdx.ts",
     "test": "bun run test:unit",
     "test:unit": "svelte-kit sync && node ./node_modules/vitest/vitest.mjs run",
+    "test:unit:core": "node ./node_modules/vitest/vitest.mjs run tests/unit/auth tests/unit/hooks tests/unit/security tests/unit/databases",
+    "test:unit:fast": "node ./node_modules/vitest/vitest.mjs run --bail 1",
+    "test:unit:watch": "node ./node_modules/vitest/vitest.mjs watch",
     "test:unit:changed": "bun run scripts/test-unit-changed.ts",
     "test:unit:area": "node ./node_modules/vitest/vitest.mjs run",
     "test:doctor": "bun run scripts/test-doctor.ts",
@@ -191,7 +194,7 @@
     "typescript": "6.0.3",
     "uqr": "^0.1.3",
     "valibot": "^1.5.0",
-    "ws": "^8.21.3",
+    "ws": "^8.22.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33"
   },

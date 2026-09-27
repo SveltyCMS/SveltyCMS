@@ -565,6 +565,26 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
+  /** Adapter-specific direct-to-wire point stream optimization — returns null when not handled natively. */
+  protected async rawFindPointWireStream(
+    _table: any,
+    _collection: string,
+    _id: DatabaseId,
+    _options: BaseQueryOptions,
+  ): Promise<{ wireBody: string; etag: string } | null> {
+    return null;
+  }
+
+  /** Adapter-specific direct-to-wire list stream optimization — returns null when not handled natively. */
+  protected async rawFindListWireStream<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _query: QueryFilter<T>,
+    _options: FindOptions<T>,
+  ): Promise<{ wireBody: string; etag?: string } | null> {
+    return null;
+  }
+
   /**
    * Adapter-specific raw INSERT…RETURNING — returns null when not used.
    * MariaDB/PostgreSQL override this to skip Drizzle's per-call AST building
@@ -1241,14 +1261,65 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
       const where = this.mapQuery(table, q as any, options);
 
-      const results = await this.getDrizzleInstance(options)
-        .select(this.getPhysicalSelection(table))
-        .from(table)
-        .where(where)
-        .limit(1);
+      const isDynamic =
+        this.useDynamicSqlInFindMany &&
+        (collection.toLowerCase().includes("benchmark") ||
+          collection.startsWith("collection_") ||
+          !helpers.isSystemTable(collection));
 
-      const data = results.length
-        ? (utils.convertDatesToISO(results[0], {
+      let results;
+      if (isDynamic) {
+        let cachedEntry = this._dynamicColListCache.get(table);
+        if (!cachedEntry) {
+          cachedEntry = {};
+          this._dynamicColListCache.set(table, cachedEntry);
+        }
+        let cached = cachedEntry["withData"];
+        if (!cached) {
+          const selection = this.getPhysicalSelection(table);
+          const columns = Object.keys(selection);
+          const colList = columns
+            .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+            .join(", ");
+          cached = { colList, columns };
+          cachedEntry["withData"] = cached;
+        }
+
+        let escapedTable = this._escapedTableNameCache.get(table);
+        if (!escapedTable) {
+          escapedTable = this.quoteIdentifier(
+            utils.assertSafeSqlIdentifier(getTableName(table), "table"),
+          );
+          this._escapedTableNameCache.set(table, escapedTable);
+        }
+
+        const sqlQuery = sql`SELECT ${sql.raw(cached.colList)} FROM ${sql.raw(
+          escapedTable,
+        )} WHERE ${where || sql`1=1`} LIMIT 1`;
+
+        const db = this.getDrizzleInstance(options);
+        results = await this.executeDynamicSql(db, sqlQuery, options);
+      } else {
+        results = await this.getDrizzleInstance(options)
+          .select(this.getPhysicalSelection(table))
+          .from(table)
+          .where(where)
+          .limit(1);
+      }
+
+      let firstRow = results.length ? results[0] : null;
+      if (firstRow && Array.isArray(firstRow)) {
+        const obj: any = {};
+        const cols = Object.keys(this.getPhysicalSelection(table));
+        for (let c = 0; c < cols.length; c++) {
+          const val = firstRow[c];
+          if (val !== undefined) obj[cols[c]] = val;
+        }
+        firstRow = obj;
+      }
+
+      const data = firstRow
+        ? (utils.convertDatesToISO(firstRow, {
             inPlace: true,
             table: collection,
           }) as T)
@@ -1257,6 +1328,64 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
     }, "FIND_ONE_FAILED");
+  }
+
+  // --------------------------------------------------------------------------
+  // 🚀 Direct-to-Wire Streaming (Phase 1): findPointWireStream & findListWireStream
+  // --------------------------------------------------------------------------
+
+  async findPointWireStream(
+    collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
+    if (typeof collection !== "string" || !id) {
+      return { success: false, message: "Invalid collection or id" };
+    }
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+
+      // 1. Try engine-specific raw wire stream (direct C-engine JSON generation)
+      const rawWire = await this.rawFindPointWireStream(table, collection, id, options);
+      if (rawWire) return rawWire;
+
+      // 2. Engine fallback: execute findOne and format wire payload
+      const findRes = await this.findOne(collection, { _id: id } as any, options as any);
+      const record =
+        findRes && typeof findRes === "object" && "success" in findRes
+          ? (findRes as { success: boolean; data: unknown }).data
+          : findRes;
+      if (!record) return null;
+      const wireBody = JSON.stringify({ success: true, data: record });
+      const etag = `"${String((record as any)._id ?? id)}-${String((record as any).updatedAt ?? "")}"`;
+      return { wireBody, etag };
+    }, "FIND_POINT_WIRE_STREAM_FAILED");
+  }
+
+  async findListWireStream<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T> = {},
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>> {
+    if (typeof collection !== "string") {
+      return { success: false, message: "Invalid collection" };
+    }
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+
+      // 1. Try engine-specific raw list wire stream
+      const rawWire = await this.rawFindListWireStream(table, collection, query, options);
+      if (rawWire) return rawWire;
+
+      // 2. Engine fallback: execute findMany and format wire payload
+      const recordsResult = await this.findMany(collection, query, options);
+      const records =
+        recordsResult.success && Array.isArray(recordsResult.data) ? recordsResult.data : [];
+      const wireBody = JSON.stringify({ success: true, data: records });
+      return { wireBody };
+    }, "FIND_LIST_WIRE_STREAM_FAILED");
   }
 
   // --------------------------------------------------------------------------
@@ -1450,25 +1579,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const db = this.getDrizzleInstance(options);
           const rawRows = await this.executeDynamicSql(db, sqlQuery, options);
 
-          const numCols = columns.length;
           const numRows = rawRows.length;
-          results = [];
-          for (let r = 0; r < numRows; r++) {
-            const row = rawRows[r];
-            const obj: any = {};
-            if (Array.isArray(row)) {
+          if (numRows > 0 && Array.isArray(rawRows[0])) {
+            const numCols = columns.length;
+            results = [];
+            for (let r = 0; r < numRows; r++) {
+              const row = rawRows[r];
+              const obj: any = {};
               for (let c = 0; c < numCols; c++) {
                 const val = row[c];
                 if (val !== undefined) obj[columns[c]] = val;
               }
-            } else if (row && typeof row === "object") {
-              for (let c = 0; c < numCols; c++) {
-                const colName = columns[c];
-                const val = row[colName];
-                if (val !== undefined) obj[colName] = val;
-              }
+              results.push(obj);
             }
-            results.push(obj);
+          } else {
+            results = rawRows;
           }
         } else {
           let builder: any = this.getDrizzleInstance(options)

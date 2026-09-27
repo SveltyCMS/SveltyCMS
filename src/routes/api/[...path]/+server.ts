@@ -28,6 +28,7 @@ import {
 } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles, isMfaRequiredForUser } from "@src/databases/auth/permissions";
+import { getPermissionBit, hasPermissionBitmask } from "@src/databases/auth/permission-bitmask";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
 import {
@@ -265,6 +266,9 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
 
 /**
  * Checks authorization for endpoints in a fail-closed manner.
+ * When the session carries a 64-bit `permMask` (Phase 2 bitmask engine),
+ * the hot inner path is a single `(mask & bit) !== 0n` CPU register operation.
+ * Falls back to `hasPermissionWithRoles` for unmapped/dynamic permissions.
  */
 // Exported with `_` prefix (SvelteKit route modules only allow `_`-prefixed
 // custom exports) so the security-audit benchmark can measure the REAL
@@ -276,6 +280,7 @@ export function _checkEndpointPermission(
   namespace: string,
   segments: string[],
   sessionAmr?: string[],
+  permMask?: bigint,
 ): boolean {
   // Check if endpoint is an exempt auth/2FA/logout path
   const action = segments[1];
@@ -383,6 +388,15 @@ export function _checkEndpointPermission(
   }
 
   const requiredPermission = typeof mapping === "function" ? mapping(method) : mapping;
+
+  // 🚀 64-bit bitmask fast-path: single CPU register instruction when permMask present
+  if (permMask !== undefined) {
+    const reqBit = getPermissionBit(requiredPermission);
+    if (reqBit !== 0n) {
+      return hasPermissionBitmask(permMask, reqBit);
+    }
+  }
+
   return hasPermissionWithRoles(user, requiredPermission, roles);
 }
 
@@ -531,7 +545,15 @@ export const _handler = async (event: RequestEvent) => {
   ) {
     const roles = locals.roles || [];
     if (
-      !_checkEndpointPermission(user, roles, request.method, namespace, segments, locals.sessionAmr)
+      !_checkEndpointPermission(
+        user,
+        roles,
+        request.method,
+        namespace,
+        segments,
+        locals.sessionAmr,
+        locals.permMask,
+      )
     ) {
       throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
     }

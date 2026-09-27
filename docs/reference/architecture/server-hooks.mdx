@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-09-22"
+updated: "2026-09-27"
 tags:
   - "architecture"
   - "hooks"
@@ -92,8 +92,8 @@ const apiPipeline = [
   handleSystemState, //  4. AUTHORITATIVE GATEKEEPER
   handleTurboGet, //  5. 🚀 TURBO GET (Session Cache + responseCache L1 for GETs)
   handleCompression, //  6. ESM-Native Streaming (Zstd/Brotli/Gzip)
-  handleAuthentication, //  7. Identity, Session Token Validation (__Host-auth_sessions)
-  handleAuthorization, //  8. Role-Based Access Control (Bitset & Roles)
+  handleAuthentication, //  7. Identity, Session Token Validation (__Host-auth_sessions) → sets locals.permMask
+  handleAuthorization, //  8. RBAC: bitmask (Phase 2) + role bitset + legacy fallback, sets locals.roles
   handleLocalContext, //  9. Zero-Latency CMS Bridge (LocalCMS) & Content System per Tenant
   handleAuditLogging, // 10. Fire-and-Forget Audit Trails (mutations only)
   handleApiRequests, // 11. API Caching (ETags, L1 Sync Cache)
@@ -111,6 +111,14 @@ const apiPipeline = [
 > - **Zero-Overhead Dispatch**: `wrapHandle` passes raw resolved handlers directly to SvelteKit `sequence()`, eliminating nested timing closures unless `ENABLE_HOOK_TIMING=1` is set.
 > - **Fast Guest Resolution**: `handleAuthentication` detects credential-free safe reads and resolves guest locals in 0 microseconds without cookie scanning.
 > - **Asynchronous Audit Outbox**: `handleAuditLogging` enqueues mutation entries into an in-memory ring buffer flushed via microtasks, decoupling response flushes from audit disk writes.
+
+> **2026-09 Phase 2 — 64-Bit Bitmask Security Engine**:
+>
+> - **`handleAuthentication`** now deserializes the session `permMask` hex string to `locals.permMask: bigint` (zero allocation — `BigInt(hex)`) and stores it in the session L0 cache alongside `amr`.
+> - **`handleAuthorization`** forwards `locals.permMask` to `setTurboAuthContext` so the turbo fast-path carries the bitmask across request boundaries.
+> - **API dispatcher (`+server.ts`)**: `_checkEndpointPermission` accepts an optional `permMask?: bigint`. When present, it calls `getPermissionBit(permission)` → `hasPermissionBitmask(mask, bit)` — evaluated as `(mask & bit) !== 0n`, a single CPU register operation with **zero heap allocations**. Falls back to the role-based LRU cache path for unmapped/dynamic permissions.
+> - **Cross-worker invalidation**: `SharedArrayBuffer` + `Atomics.compareExchange` version counter ensures role bitset cache misses cascade to all Node.js worker threads within one event-loop tick.
+> - **FLAC reservation**: bit 63 is permanently reserved for Field-Level Access Control (FLAC) — `field:*` permissions already route to the forward-compatible `evaluateFieldPermission` handler.
 
 > **2026-07 Security Hardening**: Turbo-auth restricted to GET/HEAD/OPTIONS (mutations pass through CSRF). `x-tenant-id` header only trusted when user is authenticated. Turbo-auth cache invalidated on role change, block, delete, and unblock. Auth methods use `safeCall` pattern (return `DatabaseResult` instead of throwing). `invalidateTurboAuthForUser()` exported for programmatic session revocation.
 

@@ -408,12 +408,13 @@ async function runSoakTest() {
 
   // Pre-calculated target endpoints
   const healthUrl = `${baseUrl}/api/system/health`;
-  const listUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=5`;
-  const itemUrl = `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-7000-8000-000000000001`;
+  const baseListUrl = `${baseUrl}/api/collections/BenchmarkStable`;
   const schemaUrl = `${baseUrl}/api/collections/BenchmarkStable/schema`;
   const mutationUrl = `${baseUrl}/api/collections/BenchmarkStable`;
 
   let mutationId = 0;
+  let readCursor = 0;
+  let listCursor = 0;
 
   // Workload definition with cumulative CDF weights for O(1) selection.
   // Default mix: 35 % health, 25 % list, 20 % item read, 10 % schema, 10 % write.
@@ -433,7 +434,8 @@ async function runSoakTest() {
     {
       cumulativeWeight: 60,
       fn: async () => {
-        const res = await fetch(listUrl, {
+        const offset = (listCursor = (listCursor + 5) % 200);
+        const res = await fetch(`${baseListUrl}?limit=5&offset=${offset}`, {
           method: "GET",
           headers: baseHeaders,
           signal: AbortSignal.timeout(8000),
@@ -445,7 +447,9 @@ async function runSoakTest() {
     {
       cumulativeWeight: 80,
       fn: async () => {
-        const res = await fetch(itemUrl, {
+        const idNum = (readCursor = (readCursor + 1) % 500) + 1;
+        const dynId = `20000000-0000-7000-8000-${String(idNum).padStart(12, "0")}`;
+        const res = await fetch(`${baseListUrl}/${dynId}`, {
           method: "GET",
           headers: baseHeaders,
           signal: AbortSignal.timeout(8000),

@@ -76,18 +76,18 @@ export function buildTenantQuery(
   actor: ActorContext,
   requestedPublicationFilter: PublicationFilter | string | null | undefined,
 ): { query: any; effectiveFilter: PublicationFilter } {
-  // 🚀 Avoid the double-spread `{ ...filter, ...(tenantId && {...}) }` when
-  // tenantId is absent. applyPublicationToQuery mutates, so we only need to
-  // clone when we must add tenantId (multi-tenant path). Single-tenant and
-  // unauthenticated reads skip one object allocation per request.
+  const effectiveFilter = resolvePublicationFilter(actor, requestedPublicationFilter ?? null);
   let query: any;
   if (tenantId) {
     query = { ...filter, tenantId: tenantId as DatabaseId };
+    applyPublicationToQuery(query, effectiveFilter);
+  } else if (effectiveFilter === "all") {
+    // Zero-allocation fast path: unconstrained queries skip shallow clone entirely
+    query = filter;
   } else {
     query = { ...filter };
+    applyPublicationToQuery(query, effectiveFilter);
   }
-  const effectiveFilter = resolvePublicationFilter(actor, requestedPublicationFilter ?? null);
-  applyPublicationToQuery(query, effectiveFilter);
   return { query, effectiveFilter };
 }
 

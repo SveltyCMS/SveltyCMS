@@ -1680,7 +1680,22 @@ To lead visual and headless CMS platforms (such as Instatic) through 2026/2027, 
 
 ---
 
-### 3.28 September 2026 — Opt-in write fast lane (mutation bodies through the raw transport)
+### 3.29 September 2026 — 2027 Two-Plane Core: Clean-Channel Micro-Kernel Dispatcher, Wire Plane Admission, & Dynamic Bitsets
+
+Separated read operations into an opt-in compiled Wire Plane and an enterprise Domain Plane, establishing the foundation for sub-millisecond edge queries with full fallback safety:
+
+- **Clean-Channel Micro-Kernel Dispatcher (`src/hooks/kernel-dispatcher.server.ts`)** — Consolidated fast-lane read execution into a 4-stage pipeline (Parse, Security, Query, Stream) executing ahead of router hydration. Cold sessions and non-qualifying requests fall through to the Domain Plane without eager rejection.
+- **Fail-Closed Wire Admission Predicate (`isWirePlaneAdmissible` in `src/hooks/handle-collection-read-lane.ts`)** — Rigorous admission gate guarding Direct-to-Wire SQL streams: checks published status (rejects drafts, review status, and preview cookies), prohibits dynamic relational expansions (`populate`), validates compiled default locale alignment, enforces projection equivalence (`fields`), and verifies absence of mutating `afterRead` hooks.
+- **Multidimensional Dynamic Bitsets (`src/databases/auth/permission-bitmask.ts`)** — Augmented permission evaluation with multidimensional dynamic bitset chunks (`permBits: number[]`, `permRev: number`) cached in sessions (`SessionManager`), enabling $O(1)$ in-register authorization checks for hundreds of permissions beyond 64 bits.
+- **LRU-Bounded Tenant Pools (`src/databases/postgresql/adapter-core.ts`)** — Introduced connection pool slice bounding (`MAX_TENANT_POOLS`, default 16) for dedicated multi-tenant DSNs to prevent socket and memory exhaustion under high tenant density.
+- **The 4-Cell Benchmark Contract (`docs/project/architecture-2027.mdx`)** — Codified performance classification rules distinguishing Cell 1 (in-memory L1 cache hits), Cell 2 (Domain Plane miss), Cell 3 (Wire Plane direct SQL miss), and Cell 4 (driver hardware limits), preventing cache-hit category errors.
+- **Verification**:
+  - `tests/unit/hooks/collection-read-lane.test.ts` (16 tests passing) validating all admission predicate constraints.
+  - `tests/unit/hooks/kernel-dispatcher.test.ts` (11 tests passing) verifying 4-stage pipeline execution, fall-through behavior, and wire gating.
+  - `tests/unit/auth/sessions/session-multidimensional-bitset.test.ts` verifying dynamic bitset encoding and session persistence.
+  - `tests/unit/multi-tenancy/physical-pool-partitioning.test.ts` verifying tenant pool slice bounding.
+
+---
 
 The raw fast-lane transport only carried warm-session collection reads; writes stayed on adapter-node's bridged path because they need the request body. The write lane now has a transport twin, **opt-in** (`SVELTY_FAST_LANE_WRITE=1`, default off) until an equivalence run:
 

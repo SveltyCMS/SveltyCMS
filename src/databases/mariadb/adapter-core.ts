@@ -61,6 +61,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
   };
 
   public pool: mysql.Pool | null = null;
+  /** Map of tenant ID to dedicated mysql2 connection pool */
+  private _tenantPools = new Map<string, mysql.Pool>();
+  /** The tenant ID for the current request context, set by setTenantContext() */
+  private _currentTenantId: string | null = null;
+  private _rawPoolConfig: any = null;
+
+  /** Active tenant for pool routing (null = unset). */
+  public get currentTenantId(): string | null {
+    return this._currentTenantId;
+  }
+
   public get db(): MySql2Database<typeof schema> {
     if (!this._db) {
       throw new Error(
@@ -269,6 +280,104 @@ export abstract class AdapterCore extends SqlAdapterCore {
       return null;
     } catch (rawErr: any) {
       logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Direct-to-Wire point stream optimization for MariaDB:
+   * Generates `{ success: true, data: { ... } }` directly inside MariaDB C engine
+   * via JSON_OBJECT and JSON_MERGE_PATCH, completely bypassing V8 JS object hydration.
+   */
+  protected override async rawFindPointWireStream(
+    table: any,
+    _collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<{ wireBody: string; etag: string } | null> {
+    try {
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return null; // Non-collection tables without a JSON blob use findOne fallback
+
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol.name || "_id";
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+      const updatedAtSelect = hasUpdatedAtCol ? "`updatedAt`" : "NULL";
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+
+      const hasSlugCol = !!this.getColumn(table, "slug");
+      const hasStatusCol = !!this.getColumn(table, "status");
+
+      const dataExpr = `JSON_MERGE_PATCH(COALESCE(\`data\`, '{}'), JSON_OBJECT('_id', \`${idColName}\`${hasStatusCol ? ", 'status', `status`" : ""}${hasSlugCol ? ", 'slug', `slug`" : ""}))`;
+
+      const safeTable = `\`${utils.assertSafeSqlIdentifier(tableName, "table")}\``;
+      const rawSql = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
+
+      const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const first = rows[0];
+      return {
+        wireBody:
+          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
+        etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
+      };
+    } catch (err: any) {
+      logger.debug("[MariaDB rawFindPointWireStream] falling back:", err?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Direct-to-Wire list stream optimization for MariaDB:
+   * Generates `{ success: true, data: [ ... ] }` directly inside MariaDB C engine
+   * via JSON_ARRAYAGG and JSON_OBJECT.
+   */
+  protected override async rawFindListWireStream<T extends BaseEntity>(
+    table: any,
+    _collection: string,
+    _query: QueryFilter<T>,
+    options: FindOptions<T>,
+  ): Promise<{ wireBody: string; etag?: string } | null> {
+    try {
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return null;
+
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol.name || "_id";
+      const limit = Math.min(options?.limit ?? 50, 100);
+      const offset = options?.offset ?? 0;
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+
+      const hasSlugCol = !!this.getColumn(table, "slug");
+      const hasStatusCol = !!this.getColumn(table, "status");
+      const hasDeletedCol = !!this.getColumn(table, "isDeleted");
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+
+      const dataExpr = `JSON_MERGE_PATCH(COALESCE(\`data\`, '{}'), JSON_OBJECT('_id', \`${idColName}\`${hasStatusCol ? ", 'status', `status`" : ""}${hasSlugCol ? ", 'slug', `slug`" : ""}))`;
+
+      const safeTable = `\`${utils.assertSafeSqlIdentifier(tableName, "table")}\``;
+      const whereBase = hasDeletedCol ? "`isDeleted` = 0" : "1 = 1";
+      const orderBy = hasUpdatedAtCol ? "`updatedAt` DESC" : `\`${idColName}\` DESC`;
+      const subquery = `SELECT * FROM ${safeTable} WHERE ${whereBase}${tenantSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+      const listSql = `SELECT JSON_OBJECT('success', true, 'data', COALESCE(JSON_ARRAYAGG(${dataExpr}), JSON_ARRAY())) AS wire_body FROM (${subquery}) sub`;
+
+      const rows = (await this.getRawExec(options)(listSql, [
+        ...tenantParams,
+        limit,
+        offset,
+      ])) as any[];
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const first = rows[0];
+      return {
+        wireBody:
+          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
+      };
+    } catch (err: any) {
+      logger.debug("[MariaDB rawFindListWireStream] falling back:", err?.message);
       return null;
     }
   }
@@ -485,6 +594,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             };
       }
 
+      this._rawPoolConfig = poolConfig;
       this.pool = mysql.createPool(poolConfig);
       this.activeDatabaseName =
         poolConfig.database ||
@@ -551,6 +661,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   async disconnect(): Promise<DatabaseResult<void>> {
+    await this.closeAllTenantPools();
     if (this.pool) {
       (this as any).__intentionalDisconnect__ = true;
       await this.pool.end();
@@ -706,13 +817,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
     execute: (sql: string, params?: any[]) => Promise<any>;
     client: any;
   } {
+    const pool =
+      (this._currentTenantId && this._tenantPools.get(this._currentTenantId)) || this.pool;
     return {
       execute: async (sqlText: string, params: any[] = []) => {
-        if (!this.pool) throw new Error("Database not connected");
-        const [rows] = await this.pool.execute(sqlText, params);
+        if (!pool) throw new Error("Database not connected");
+        const [rows] = await pool.execute(sqlText, params);
         return rows;
       },
-      client: this.pool,
+      client: pool,
     };
   }
 
@@ -973,7 +1086,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return rows;
       };
     }
-    return (sqlText: string, params: any[] = []) => this.raw.execute(sqlText, params);
+    const tenantId = (options?.tenantId as string) || this._currentTenantId;
+    const pool = (tenantId && this._tenantPools.get(tenantId)) || this.pool;
+    return async (sqlText: string, params: any[] = []) => {
+      if (!pool) throw new Error("Database not connected");
+      const [rows] = await pool.execute(sqlText, params);
+      return rows;
+    };
   }
 
   override async insert<T extends BaseEntity>(
@@ -1822,5 +1941,112 @@ export abstract class AdapterCore extends SqlAdapterCore {
       undefined,
       { isWrite: true },
     );
+  }
+
+  // --------------------------------------------------------------------------
+  // Per-Tenant Dedicated Connection Pool Partitioning (Phase 4)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Sets the tenant context for the current request context.
+   * Directs raw statement execution to the dedicated tenant pool slice when configured.
+   */
+  public setTenantContext(tenantId: string | null): void {
+    this._currentTenantId = tenantId;
+  }
+
+  /**
+   * Retrieves or creates a dedicated connection pool slice for a tenant.
+   */
+  public getTenantPool(tenantId: string): mysql.Pool {
+    const existing = this._tenantPools.get(tenantId);
+    if (existing) return existing;
+
+    if (!this._rawPoolConfig) {
+      throw new Error(
+        "[MariaDBAdapter] MariaDB is not connected — cannot create dedicated tenant pool",
+      );
+    }
+
+    const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
+    const tenantConfig = {
+      ...this._rawPoolConfig,
+      connectionLimit: poolSize,
+    };
+
+    const pool = mysql.createPool(tenantConfig);
+    this._tenantPools.set(tenantId, pool);
+    logger.debug(`Created dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
+    return pool;
+  }
+
+  /**
+   * Registers a dedicated connection URL or config for a specific tenant.
+   * Replaces any existing pool for that tenant.
+   */
+  public setTenantPool(
+    tenantId: string,
+    connectionUrlOrConfig: string | Record<string, any>,
+  ): void {
+    const existing = this._tenantPools.get(tenantId);
+    if (existing) {
+      existing.end().catch(() => {
+        logger.debug(`Failed to close existing pool for tenant "${tenantId}"`);
+      });
+    }
+
+    const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
+    let pool: mysql.Pool;
+    if (typeof connectionUrlOrConfig === "string") {
+      pool = mysql.createPool({
+        uri: connectionUrlOrConfig,
+        connectionLimit: poolSize,
+        waitForConnections: true,
+        charset: "utf8mb4",
+      });
+    } else {
+      pool = mysql.createPool({
+        ...connectionUrlOrConfig,
+        connectionLimit: poolSize,
+        waitForConnections: true,
+        charset: "utf8mb4",
+      });
+    }
+
+    this._tenantPools.set(tenantId, pool);
+    logger.info(`Configured dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
+  }
+
+  /**
+   * Closes and removes the dedicated connection pool for a tenant.
+   */
+  public async closeTenantPool(tenantId: string): Promise<void> {
+    const pool = this._tenantPools.get(tenantId);
+    if (pool) {
+      await pool.end();
+      this._tenantPools.delete(tenantId);
+      logger.info(`Closed dedicated connection pool for tenant "${tenantId}"`);
+    }
+  }
+
+  /**
+   * Closes and removes all dedicated connection pools across all tenants.
+   */
+  public async closeAllTenantPools(): Promise<void> {
+    if (this._tenantPools.size === 0) return;
+    const entries = Array.from(this._tenantPools.entries());
+    this._tenantPools.clear();
+    this._currentTenantId = null;
+
+    await Promise.all(
+      entries.map(([tenantId, pool]) =>
+        pool
+          .end()
+          .catch((err: unknown) =>
+            logger.warn(`Failed to close pool for tenant "${tenantId}":`, err),
+          ),
+      ),
+    );
+    logger.info("Closed all per-tenant connection pools in MariaDB");
   }
 }

@@ -319,9 +319,13 @@ export class AuditService {
         this.buffer.push(fullEntry);
         // 🛡️ ENTERPRISE MODE: AUDIT_CHAIN_SYNC awaits persistence before returning,
         // guaranteeing the entry survives even if the process dies mid-request.
-        if (flags?.chainSync || this.buffer.length >= this.MAX_BUFFER_SIZE) {
+        if (flags?.chainSync) {
           await this.flush().catch((err) =>
             logger.error("[AuditService] Failed to flush audit logs:", err),
+          );
+        } else if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+          void this.flush().catch((err) =>
+            logger.error("[AuditService] Failed to flush audit logs in background:", err),
           );
         }
       })

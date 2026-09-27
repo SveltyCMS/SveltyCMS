@@ -15,11 +15,13 @@ import { resetTotpEncryptionKeyCache } from "@src/databases/auth/totp";
 describe("TOTP Secret Encryption", () => {
   beforeEach(() => {
     vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
+    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
     resetTotpEncryptionKeyCache();
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
     resetTotpEncryptionKeyCache();
   });
 
@@ -60,6 +62,7 @@ describe("TOTP Secret Encryption", () => {
 
   it("should decrypt to null for tampered ciphertext", async () => {
     vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
+    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
     const { encryptTotpSecret, decryptTotpSecret, resetTotpEncryptionKeyCache } =
       await import("@src/databases/auth/totp");
     resetTotpEncryptionKeyCache();

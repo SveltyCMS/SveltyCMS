@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:856ee14d-2162-4725-93ab-55a3be66f6ae",
+  "serialNumber": "urn:uuid:2d8aaf5c-7852-4ab7-9fa0-8f8630d0e3be",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-26T12:23:16.199Z",
+    "timestamp": "2026-09-27T07:54:52.575Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "name": "create-sveltycms",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "type": "application",
-      "purl": "pkg:npm/create-sveltycms@0.1.1"
+      "purl": "pkg:npm/create-sveltycms@0.1.2"
     }
   },
   "components": [
@@ -35,26 +35,26 @@
     {
       "type": "library",
       "name": "@asamuzakjp/css-color",
-      "version": "7.1.0",
-      "purl": "pkg:npm/@asamuzakjp/css-color@7.1.0",
+      "version": "7.1.2",
+      "purl": "pkg:npm/@asamuzakjp/css-color@7.1.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-s6vMrO4hds+skR2OMmdwSORZiiEbqhAjd56W/0gc/x4PYpTibh/ey5Oy9ywkZ+ycX9EgTcJruhE1T/KkbU7LNA=="
+          "content": "sha512-99DHAnXDB5z6EEK+9GMpVI7Mw4oxj97dY5bpOzMnjADQWxI8rN6TvTduuFLUhUMlS7/CfVZ06tcZsus6cltnNw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@asamuzakjp/dom-selector",
-      "version": "9.2.1",
-      "purl": "pkg:npm/@asamuzakjp/dom-selector@9.2.1",
+      "version": "9.2.2",
+      "purl": "pkg:npm/@asamuzakjp/dom-selector@9.2.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-NT4s3yZLjovPpliRpTvdsdzyPjqRqiCZj9MxnarBihbaY5MbAG7DWAJcrLlhmC7xKTNCXsTELcqB8YsqpLnUFQ=="
+          "content": "sha512-lSWTBMjAcmu2xn5yEDU7jh6QDV+C8GEKtdJ4pIQhXh26RkKQ7S3FuQlt+zZkUbTdJ4d3XyV1kPI/G0zWXxqaqw=="
         }
       ]
     },
@@ -6002,13 +6002,13 @@
     {
       "type": "library",
       "name": "esrap",
-      "version": "2.3.14",
-      "purl": "pkg:npm/esrap@2.3.14",
+      "version": "2.4.0",
+      "purl": "pkg:npm/esrap@2.4.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Bj/f1mOb6SnJ5f+5wOF/eqOKfvY+g+nJIKLQRqrEFOJ2mrMVORqQ6Ot7RTL1GhFctr0o+i0o1xfsNLeuA+mu4A=="
+          "content": "sha512-CQPcneEHw/czj32uwQC52nYnax8H4SXt25FCM+LIwGZ49cMIxpOj3bP8wmzcI+Z0HIy5KkClaPhRLfCySzwHPA=="
         }
       ]
     },
@@ -7354,13 +7354,13 @@
     {
       "type": "library",
       "name": "micromark-util-types",
-      "version": "2.0.2",
-      "purl": "pkg:npm/micromark-util-types@2.0.2",
+      "version": "2.0.3",
+      "purl": "pkg:npm/micromark-util-types@2.0.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Yw0ECSpJoViF1qTU4DC6NwtC4aWGt1EkzaQB8KPPyCRR8z9TWeV0HbEFGTO+ZY1wB22zmxnJqhPyTpOVCpeHTA=="
+          "content": "sha512-oxB2Ik03hI0gv+VNn9tnh1t1YEe9MDPptViAEgfdf3YQHsn0pzGTgCdlSCJXcwhqm8phaEuM7zeEu3QQzVBrPg=="
         }
       ]
     },
@@ -9538,13 +9538,13 @@
     {
       "type": "library",
       "name": "ws",
-      "version": "8.21.3",
-      "purl": "pkg:npm/ws@8.21.3",
+      "version": "8.22.0",
+      "purl": "pkg:npm/ws@8.22.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw=="
+          "content": "sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg=="
         }
       ]
     },
@@ -10045,13 +10045,13 @@
     {
       "type": "library",
       "name": "ansi-regex",
-      "version": "6.3.0",
-      "purl": "pkg:npm/ansi-regex@6.3.0",
+      "version": "6.4.0",
+      "purl": "pkg:npm/ansi-regex@6.4.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-WpDfL7NO6j7tH88IDBNVdUJxDh9nmCteAVW9dsep846XdwF4naCBK+/tGLX3KJgcpgMRXCFlTM2hKGoK9FsdrQ=="
+          "content": "sha512-KzTVk2tCWAHtYrvvvaP8bJKJq2pVinhLcGEQdtLIYPbmNGNyYe8QwNaTUYQp2J7/vIsUKt5QCqAfUkYyG9DkOw=="
         }
       ]
     },

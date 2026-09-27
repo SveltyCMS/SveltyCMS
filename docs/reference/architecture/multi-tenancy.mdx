@@ -770,20 +770,21 @@ API tokens can be created with a specific tenant scope, limiting their access to
 
 Enterprise deployments can configure dedicated PostgreSQL connection pools per tenant, providing connection-level isolation beyond RLS:
 
-| Method                                   | Description                                                                                                                                                           |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getTenantPool(tenantId)`                | Returns existing pool or creates one from `DATABASE_URL` with `application_name=tenant_{id}`. Pool size configurable via `TENANT_DB_POOL_SIZE` env var (default: 10). |
-| `setTenantPool(tenantId, connectionUrl)` | Registers a dedicated database URL for a tenant — true database-level isolation.                                                                                      |
-| `closeTenantPool(tenantId)`              | Closes and removes a tenant's dedicated pool.                                                                                                                         |
-| `closeAllTenantPools()`                  | Cleanup during `disconnect()`.                                                                                                                                        |
+| Method                                   | Description                                                                                                                                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `getTenantPool(tenantId)`                | Returns existing pool or creates one from `DATABASE_URL` with `application_name=tenant_{id}`. Pool size configurable via `TENANT_DB_POOL_SIZE` env var (default: 10). Bounded by `MAX_TENANT_POOLS` (default: 16). |
+| `setTenantPool(tenantId, connectionUrl)` | Registers a dedicated database URL for a tenant — true database-level isolation. Dedicated DSN pools bypass cross-tenant GUC session injection.                                                                    |
+| `closeTenantPool(tenantId)`              | Closes and removes a tenant's dedicated pool.                                                                                                                                                                      |
+| `closeAllTenantPools()`                  | Cleanup during `disconnect()`.                                                                                                                                                                                     |
 
 **How it works:**
 
 1. When `setTenantContext(tenantId)` is called per-request, it stores the active tenant ID
 2. The `getSql()` method checks if that tenant has a dedicated pool in `_tenantPools`
 3. If yes → routes all queries to the tenant's private pool (no shared pool contention, separate connection limit)
-4. If no → falls back to the shared pool with RLS (current behavior)
+4. If no → falls back to the shared pool with RLS (`set_config('app.tenant_id', $1, true)`)
 5. Dedicated pools appear as `application_name = tenant_tenant-abc` in `pg_stat_activity` for monitoring
+6. **Bounded LRU Eviction (`MAX_TENANT_POOLS`, default: 16):** When pool capacity is reached, the least recently used idle pool is gracefully ended with `pool.end()`. Pools with active in-flight queries are never evicted.
 
 This is optional — most deployments use the shared pool with RLS. Dedicated pools are for enterprise customers needing separate connection limits and per-tenant DB load monitoring.
 

@@ -426,10 +426,14 @@ function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void
         );
     const sessionId = resolvedSessionId || null;
     if (!sessionId) return;
-    // No RBAC bitset here: permission evaluation compiles bitsets per ROLE
-    // (`role.__bitset` in permissions.ts) and nothing ever read the per-session
-    // copy that used to ride along in the turbo context.
-    setTurboAuthContext(sessionId, user, roles, event.locals.tenantId || null);
+    // Forward the 64-bit bitmask so turbo GET can pass it to request consumers
+    setTurboAuthContext(
+      sessionId,
+      user,
+      roles,
+      event.locals.tenantId || null,
+      event.locals.permMask,
+    );
   } catch {}
 }
 

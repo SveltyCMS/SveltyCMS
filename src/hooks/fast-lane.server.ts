@@ -29,6 +29,7 @@ import { logger } from "@utils/logger";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./handle-collection-read-lane";
 import { tryCollectionWriteLane } from "./handle-collection-write-lane";
 import { isLaneServingAllowed } from "./lane-state-gate";
+import { dispatchKernel } from "./kernel-dispatcher.server";
 
 /** What the server entry writes to the socket. */
 export interface FastLaneResult {
@@ -334,6 +335,7 @@ const collectionWriteLane: FastLane = async (input) => {
 export function installFastLanes(): void {
   if (process.env.SVELTY_FAST_LANE === "0") return;
   if (lanes.length === 0) {
+    registerFastLane(dispatchKernel);
     registerFastLane(collectionReadLane);
     if (WRITE_LANE_ENABLED) registerFastLane(collectionWriteLane);
   }

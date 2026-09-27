@@ -40,7 +40,11 @@ vi.mock("@src/services/sdk", () => ({
   },
 }));
 
-import { tryCollectionReadLane } from "@src/hooks/handle-collection-read-lane";
+import {
+  tryCollectionReadLane,
+  isWirePlaneAdmissible,
+  computeCollectionWireMeta,
+} from "@src/hooks/handle-collection-read-lane";
 import { setSystemState } from "@src/stores/system/state.svelte.ts";
 
 describe("collection read lane single-flight", () => {
@@ -326,5 +330,172 @@ describe("collection read lane single-flight", () => {
     expect(responseCache.get(key, "tenant-b")?.body).toContain("scoped");
     expect(responseCache.get(key, "tenant-a")).toBeNull();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
+  const dummySchema = {
+    _id: "posts",
+    name: "posts",
+    fields: [
+      { db_fieldName: "title", type: "string" },
+      { db_fieldName: "slug", type: "string" },
+      { db_fieldName: "secretNotes", type: "string", permissions: { visibility: "private" } },
+    ],
+    translations: [{ languageTag: "en", isDefault: true, translationName: "English" }],
+  } as any;
+
+  it("fails closed when collectionMeta is omitted or null", () => {
+    const event = createMockEvent("/api/collections/posts/post-1", { method: "GET" });
+    expect(isWirePlaneAdmissible(event, null)).toBe(false);
+    expect(isWirePlaneAdmissible(event, undefined)).toBe(false);
+  });
+
+  it("computes collection wire meta correctly from schema", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en");
+    expect(meta).not.toBeNull();
+    expect(meta?.collectionId).toBe("posts");
+    expect(meta?.defaultLocale).toBe("en");
+    expect(meta?.hasAfterReadHooks).toBe(false);
+    // Should include system fields + public fields, but exclude private field secretNotes
+    expect(meta?.publishedFields.has("_id")).toBe(true);
+    expect(meta?.publishedFields.has("title")).toBe(true);
+    expect(meta?.publishedFields.has("slug")).toBe(true);
+    expect(meta?.publishedFields.has("secretNotes")).toBe(false);
+
+    // If schema has afterRead hook:
+    const hookedSchema = { ...dummySchema, hooks: { afterRead: vi.fn() } };
+    const hookedMeta = computeCollectionWireMeta(hookedSchema, "en");
+    expect(hookedMeta?.hasAfterReadHooks).toBe(true);
+  });
+
+  it("admits valid public point-read without drafts or expansions", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en");
+    const event = createMockEvent("/api/collections/posts/post-1", { method: "GET" });
+    expect(isWirePlaneAdmissible(event, meta)).toBe(true);
+  });
+
+  it("rejects draft or preview query parameters and cookies", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en");
+
+    // draft query param
+    const draftEvent = createMockEvent("/api/collections/posts/post-1?draft=true", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(draftEvent, meta)).toBe(false);
+
+    // status=draft
+    const statusDraftEvent = createMockEvent("/api/collections/posts/post-1?status=draft", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(statusDraftEvent, meta)).toBe(false);
+
+    // status=review
+    const statusReviewEvent = createMockEvent("/api/collections/posts/post-1?status=review", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(statusReviewEvent, meta)).toBe(false);
+
+    // preview query param
+    const previewEvent = createMockEvent("/api/collections/posts/post-1?preview=true", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(previewEvent, meta)).toBe(false);
+
+    // preview cookie
+    const cookieEvent = createMockEvent("/api/collections/posts/post-1", {
+      method: "GET",
+      cookies: { preview_mode: "true" } as any,
+    });
+    expect(isWirePlaneAdmissible(cookieEvent, meta)).toBe(false);
+  });
+
+  it("rejects relational populate and mutating hooks", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en");
+    const populateEvent = createMockEvent("/api/collections/posts/post-1?populate=author", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(populateEvent, meta)).toBe(false);
+
+    const mutatingMeta = { ...meta!, hasAfterReadHooks: true };
+    const standardEvent = createMockEvent("/api/collections/posts/post-1", { method: "GET" });
+    expect(isWirePlaneAdmissible(standardEvent, mutatingMeta)).toBe(false);
+  });
+
+  it("handles locale parameter alignment correctly", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en");
+
+    // No locale param -> admissible
+    const noLocaleEvent = createMockEvent("/api/collections/posts/post-1", { method: "GET" });
+    expect(isWirePlaneAdmissible(noLocaleEvent, meta)).toBe(true);
+
+    // Locale matching collection default ("en") -> admissible
+    const matchLocaleEvent = createMockEvent("/api/collections/posts/post-1?locale=en", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(matchLocaleEvent, meta)).toBe(true);
+
+    // Locale differing from default ("de") -> rejected to Domain plane
+    const mismatchLocaleEvent = createMockEvent("/api/collections/posts/post-1?locale=de", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(mismatchLocaleEvent, meta)).toBe(false);
+  });
+
+  it("admits fields param only if it equals the compiled published projection", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en")!;
+    const publishedCols = Array.from(meta.publishedFields).join(",");
+
+    // Exact match -> admissible
+    const exactFieldsEvent = createMockEvent(
+      `/api/collections/posts/post-1?fields=${publishedCols}`,
+      {
+        method: "GET",
+      },
+    );
+    expect(isWirePlaneAdmissible(exactFieldsEvent, meta)).toBe(true);
+
+    // Partial subset -> rejected to Domain plane
+    const subsetFieldsEvent = createMockEvent("/api/collections/posts/post-1?fields=_id,title", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(subsetFieldsEvent, meta)).toBe(false);
+
+    // Extraneous field -> rejected to Domain plane
+    const extraFieldsEvent = createMockEvent(
+      `/api/collections/posts/post-1?fields=${publishedCols},bogus`,
+      {
+        method: "GET",
+      },
+    );
+    expect(isWirePlaneAdmissible(extraFieldsEvent, meta)).toBe(false);
+  });
+
+  it("enforces list-wire predicate constraints (default sort + limit, no custom filter)", () => {
+    const meta = computeCollectionWireMeta(dummySchema, "en")!;
+
+    // Standard list with default sort / limit -> admissible
+    const defaultListEvent = createMockEvent("/api/collections/posts", { method: "GET" });
+    expect(isWirePlaneAdmissible(defaultListEvent, meta)).toBe(true);
+
+    // Custom filter -> rejected (list wire does not yet support dynamic filter compilation)
+    const filteredListEvent = createMockEvent("/api/collections/posts?filter[title]=test", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(filteredListEvent, meta)).toBe(false);
+
+    // Non-default sort -> rejected
+    const sortedListEvent = createMockEvent("/api/collections/posts?sort=title:asc", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(sortedListEvent, meta)).toBe(false);
+
+    // Non-default limit -> rejected
+    const limitListEvent = createMockEvent("/api/collections/posts?limit=50", { method: "GET" });
+    expect(isWirePlaneAdmissible(limitListEvent, meta)).toBe(false);
+
+    // Pagination page > 1 -> rejected
+    const pageListEvent = createMockEvent("/api/collections/posts?page=2", { method: "GET" });
+    expect(isWirePlaneAdmissible(pageListEvent, meta)).toBe(false);
   });
 });

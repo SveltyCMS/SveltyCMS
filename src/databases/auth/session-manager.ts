@@ -42,6 +42,9 @@ class InMemorySessionManager implements SessionStore {
       expiresAt: Date;
       amr?: string[];
       mfaVerifiedAt?: ISODateString;
+      permMask?: bigint;
+      permBits?: number[];
+      permRev?: number;
     }
   > = new Map();
   private static readonly MAX_SESSIONS = 10000;
@@ -75,6 +78,9 @@ class InMemorySessionManager implements SessionStore {
       user: session.user,
       amr: session.amr,
       mfaVerifiedAt: session.mfaVerifiedAt,
+      permMask: session.permMask,
+      permBits: session.permBits,
+      permRev: session.permRev,
     };
   }
 
@@ -96,11 +102,21 @@ class InMemorySessionManager implements SessionStore {
     // Defense-in-depth: never retain credential material (password hash, TOTP
     // secret, backup codes, reset/refresh tokens) in the session store.
     const amr = metadata?.amr ?? (user.is2FAEnabled ? ["pwd", "mfa"] : ["pwd"]);
+    const permMask =
+      metadata?.permMask !== undefined
+        ? typeof metadata.permMask === "bigint"
+          ? metadata.permMask
+          : BigInt(metadata.permMask)
+        : undefined;
+
     this.sessions.set(sessionId, {
       user: toSafeSessionUser(user),
       expiresAt: expirationDate,
       amr,
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
+      permMask,
+      permBits: metadata?.permBits,
+      permRev: metadata?.permRev,
     });
   }
 
@@ -218,6 +234,9 @@ class RedisSessionManager implements SessionStore {
             user: parsed.user,
             amr: parsed.amr,
             mfaVerifiedAt: parsed.mfaVerifiedAt,
+            permMask: parsed.permMask ? BigInt(parsed.permMask) : undefined,
+            permBits: parsed.permBits,
+            permRev: parsed.permRev,
           };
         }
       }
@@ -236,12 +255,22 @@ class RedisSessionManager implements SessionStore {
   ): Promise<void> {
     const expirationDate = isoDateStringToDate(expiration);
     const amr = metadata?.amr ?? (user.is2FAEnabled ? ["pwd", "mfa"] : ["pwd"]);
+    const permMaskStr =
+      metadata?.permMask !== undefined
+        ? typeof metadata.permMask === "bigint"
+          ? "0x" + metadata.permMask.toString(16)
+          : String(metadata.permMask)
+        : undefined;
+
     // Defense-in-depth: never retain credential material in Redis either.
     const sessionData = {
       user: toSafeSessionUser(user),
       expiresAt: expirationDate,
       amr,
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
+      permMask: permMaskStr,
+      permBits: metadata?.permBits,
+      permRev: metadata?.permRev,
     };
 
     try {

@@ -24,7 +24,7 @@ import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, fastSuccessResponse, rawResponse } from "./base";
 import { prefersMinimalReturn } from "@utils/http-preferences";
-import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
 import { streamingExportResponse, streamingJsonResponse } from "./streaming";
 import {
   collectExportColumns,
@@ -363,7 +363,7 @@ export async function handleCollectionFind(
   });
   return successResponse(
     event,
-    result,
+    trimListEnvelope(result),
     200,
     typeof conditional === "string" ? collectionEtagResponseHeaders(conditional) : undefined,
   );

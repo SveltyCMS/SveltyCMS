@@ -99,6 +99,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
   /** Map of tenant ID to dedicated postgres.js connection pool */
   private _tenantPools = new Map<string, ReturnType<typeof postgres>>();
+  /** Tracks active in-flight query count per tenant pool to prevent evicting busy pools */
+  private _tenantPoolInflight = new Map<string, number>();
+  /** Set of tenants with dedicated isolated DSNs (which can safely skip cross-tenant GUC) */
+  private _dedicatedDsnTenants = new Set<string>();
   /** The tenant ID for the current request context, set by setTenantContext() */
   private _currentTenantId: string | null = null;
 
@@ -505,6 +509,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   >();
 
+  /** Cache for Direct-to-Wire SQL JSON statements (2027 architecture). */
+  private _rawFindPointWireSqlCache = new WeakMap<
+    any,
+    {
+      base: string;
+      tenant: string;
+    }
+  >();
+
   protected override async rawFindById<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
@@ -585,6 +598,121 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         table: collection,
         skipJson: !wantsData,
       }) as unknown as T;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Direct-to-Wire point stream optimization for PostgreSQL:
+   * Generates `{ success: true, data: { ... } }` directly inside PostgreSQL C engine
+   * via jsonb_build_object, completely bypassing V8 JS object hydration and JSON.stringify.
+   */
+  protected override async rawFindPointWireStream(
+    table: any,
+    _collection: string,
+    id: DatabaseId,
+    options: import("../db-interface").BaseQueryOptions,
+  ): Promise<{ wireBody: string; etag: string } | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    if (!exec) return null;
+
+    try {
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return null; // Non-collection tables without a JSON blob use findOne fallback
+
+      const tableName = getTableName(table);
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"::text' : "NULL::text";
+
+      let cachedWireSql = this._rawFindPointWireSqlCache.get(table);
+      if (!cachedWireSql) {
+        const safeTable = `"${utils.assertSafeSqlIdentifier(tableName, "table")}"`;
+        const hasSlugCol = !!this.getColumn(table, "slug");
+        const hasStatusCol = !!this.getColumn(table, "status");
+
+        const dataExpr = `(CASE WHEN "data" IS NULL THEN jsonb_build_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""}) ELSE ("data" || jsonb_build_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})) END)`;
+
+        cachedWireSql = {
+          base: `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
+          tenant: `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+        };
+        this._rawFindPointWireSqlCache.set(table, cachedWireSql);
+      }
+
+      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 2 });
+      const hasTenant = tenantClause.sql !== "";
+      const sqlText = hasTenant ? cachedWireSql.tenant : cachedWireSql.base;
+      const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
+      const rows = await exec.unsafe(sqlText, params, { prepare: true });
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const first = rows[0];
+      return {
+        wireBody:
+          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
+        etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Direct-to-Wire list stream optimization for PostgreSQL:
+   * Generates `{ success: true, data: [ ... ] }` directly inside PostgreSQL C engine
+   * via jsonb_agg and jsonb_build_object.
+   */
+  protected override async rawFindListWireStream<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    _collection: string,
+    _query: import("../db-interface").QueryFilter<T>,
+    options: import("../db-interface").FindOptions<T>,
+  ): Promise<{ wireBody: string; etag?: string } | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    if (!exec) return null;
+
+    try {
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return null;
+
+      const tableName = getTableName(table);
+      const safeTable = `"${utils.assertSafeSqlIdentifier(tableName, "table")}"`;
+      const limit = Math.min(options?.limit ?? 50, 100);
+      const offset = options?.offset ?? 0;
+      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 1 });
+      const hasTenant = tenantClause.sql !== "";
+
+      const hasSlugCol = !!this.getColumn(table, "slug");
+      const hasStatusCol = !!this.getColumn(table, "status");
+      const hasDeletedCol = !!this.getColumn(table, "isDeleted");
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+
+      const dataExpr = `(CASE WHEN sub.data IS NULL THEN jsonb_build_object('_id', sub._id${hasStatusCol ? ", 'status', sub.status" : ""}${hasSlugCol ? ", 'slug', sub.slug" : ""}) ELSE (sub.data || jsonb_build_object('_id', sub._id${hasStatusCol ? ", 'status', sub.status" : ""}${hasSlugCol ? ", 'slug', sub.slug" : ""})) END)`;
+
+      const whereBase = hasDeletedCol ? '"isDeleted" = false' : "1 = 1";
+      const whereClause = hasTenant
+        ? `WHERE ${whereBase} ${tenantClause.sql}`
+        : `WHERE ${whereBase}`;
+
+      const limitIndex = hasTenant ? tenantClause.params.length + 1 : 1;
+      const offsetIndex = limitIndex + 1;
+      const orderBy = hasUpdatedAtCol ? '"updatedAt" DESC' : '"_id" DESC';
+      const subquery = `SELECT * FROM ${safeTable} ${whereClause} ORDER BY ${orderBy} LIMIT $${limitIndex} OFFSET $${offsetIndex}`;
+      const listSql = `SELECT jsonb_build_object('success', true, 'data', COALESCE(jsonb_agg(${dataExpr}), '[]'::jsonb))::text AS wire_body FROM (${subquery}) sub`;
+
+      const params = hasTenant ? [...tenantClause.params, limit, offset] : [limit, offset];
+
+      const rows = await exec.unsafe(listSql, params, { prepare: true });
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const first = rows[0];
+      return {
+        wireBody:
+          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
+      };
     } catch {
       return null;
     }
@@ -2013,10 +2141,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!this.sql) {
       throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
     }
-    // Shared postgres.js pools multiplex connections: a pool-level
-    // set_config() would land on a random socket and leak or vanish.
-    // Apply session GUC only on a dedicated tenant pool (is_local=false)
-    // or on a caller-provided txn client (is_local=true, same connection).
+    // Dedicated DSN pools connect to an isolated database that cannot see other tenants;
+    // they may skip GUC only when they have a dedicated isolated DSN and no shared tables exist.
+    const isDedicatedDsn = tenantId ? this._dedicatedDsnTenants.has(tenantId) : false;
+    if (isDedicatedDsn && !sql) {
+      return;
+    }
     const tenantPool = tenantId ? this._tenantPools.get(tenantId) : undefined;
     const exec = sql ?? tenantPool;
     if (!exec) return;
@@ -2111,9 +2241,77 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @returns A postgres.js connection pool dedicated to this tenant
    * @throws {Error} if DATABASE_URL is not configured
    */
+  /**
+   * Evicts the oldest idle dedicated tenant pool when capacity limit is reached.
+   * Never evicts a pool that currently has in-flight queries.
+   */
+  private _evictOldestIdleTenantPool(maxTenantPools: number): void {
+    if (this._tenantPools.size < maxTenantPools) return;
+
+    let candidateKey: string | null = null;
+    for (const key of this._tenantPools.keys()) {
+      const inFlight = this._tenantPoolInflight.get(key) ?? 0;
+      if (inFlight === 0) {
+        candidateKey = key;
+        break;
+      }
+    }
+
+    if (!candidateKey) {
+      logger.warn(
+        `[PostgreSQLAdapter] All ${this._tenantPools.size} dedicated pools have active queries. Skipping LRU eviction.`,
+      );
+      return;
+    }
+
+    const evicted = this._tenantPools.get(candidateKey);
+    this._tenantPools.delete(candidateKey);
+    this._tenantPoolInflight.delete(candidateKey);
+    this._dedicatedDsnTenants.delete(candidateKey);
+
+    if (evicted) {
+      evicted.end().catch((err: unknown) => {
+        logger.debug(
+          `[PostgreSQLAdapter] Failed to close evicted pool for tenant "${candidateKey}":`,
+          err,
+        );
+      });
+    }
+    logger.info(
+      `[PostgreSQLAdapter] LRU evicted idle dedicated pool for tenant "${candidateKey}" (cap: ${maxTenantPools})`,
+    );
+  }
+
+  /**
+   * Tracks query start on a dedicated tenant pool for eviction safety.
+   */
+  public trackTenantPoolQueryStart(tenantId: string): void {
+    this._tenantPoolInflight.set(tenantId, (this._tenantPoolInflight.get(tenantId) ?? 0) + 1);
+  }
+
+  /**
+   * Tracks query completion on a dedicated tenant pool.
+   */
+  public trackTenantPoolQueryEnd(tenantId: string): void {
+    const cur = this._tenantPoolInflight.get(tenantId) ?? 1;
+    if (cur <= 1) {
+      this._tenantPoolInflight.delete(tenantId);
+    } else {
+      this._tenantPoolInflight.set(tenantId, cur - 1);
+    }
+  }
+
   public getTenantPool(tenantId: string): ReturnType<typeof postgres> {
     const existing = this._tenantPools.get(tenantId);
-    if (existing) return existing;
+    if (existing) {
+      // Re-insert to refresh LRU order
+      this._tenantPools.delete(tenantId);
+      this._tenantPools.set(tenantId, existing);
+      return existing;
+    }
+
+    const maxTenantPools = parseInt(process.env.MAX_TENANT_POOLS || "16", 10);
+    this._evictOldestIdleTenantPool(maxTenantPools);
 
     const baseUrl = process.env.DATABASE_URL;
     if (!baseUrl) {
@@ -2154,6 +2352,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       existing.end().catch(() => {
         logger.debug(`Failed to close existing pool for tenant "${tenantId}"`);
       });
+      this._tenantPools.delete(tenantId);
+      this._tenantPoolInflight.delete(tenantId);
+      this._dedicatedDsnTenants.delete(tenantId);
+    } else {
+      const maxTenantPools = parseInt(process.env.MAX_TENANT_POOLS || "16", 10);
+      this._evictOldestIdleTenantPool(maxTenantPools);
     }
 
     const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
@@ -2167,6 +2371,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     });
 
     this._tenantPools.set(tenantId, pool);
+    this._dedicatedDsnTenants.add(tenantId);
     logger.info(`Configured dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
   }
 
@@ -2181,6 +2386,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (pool) {
       await pool.end();
       this._tenantPools.delete(tenantId);
+      this._tenantPoolInflight.delete(tenantId);
+      this._dedicatedDsnTenants.delete(tenantId);
       logger.info(`Closed dedicated connection pool for tenant "${tenantId}"`);
     }
   }
@@ -2194,6 +2401,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
     const entries = Array.from(this._tenantPools.entries());
     this._tenantPools.clear();
+    this._tenantPoolInflight.clear();
+    this._dedicatedDsnTenants.clear();
     this._currentTenantId = null;
 
     await Promise.all(

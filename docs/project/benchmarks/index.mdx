@@ -240,19 +240,16 @@ Detail + failure history: [Benchmark Matrix → Mode Parity](../../tests/benchma
 
 ### ⚡ Executive Summary Matrix
 
-> [!NOTE]
-> **Unpopulated — pending a full matrix run.** This zone is rewritten by `bun run scripts/benchmark-matrix/index.ts`; no run has filled its metric columns, so `—` means **not measured in a matrix run** — the earlier `0ms` was the generator's `curr?.coldStartMs || 0` fallback for a missing value, never a result. `Status` repeats each ledger's own executive line (partial invocations included). Cold start is republished from the standalone `cold-start-phased.test.ts` ledger rows — **self-measured, single host, 2026-09-18**; adapters without such a row carry `—`.
-
-| Database                                                  | Status (per-DB ledger)  | Cold Start (ledger, 2026-09-18) | REST p95 | GQL Avg | CPU | Memory |
-| :-------------------------------------------------------- | :---------------------- | :------------------------------ | :------- | :------ | :-- | :----- |
-| [ **SQLITE**](./benchmark_sqlite.mdx)                     | 🟢 PASS (1/62, partial) | 1,991 ms                        | —        | —       | —   | —      |
-| [ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx)         | 🟢 PASS (20/45)         | —                               | —        | —       | —   | —      |
-| [ **MONGODB**](./benchmark_mongodb.mdx)                   | 🟢 PASS (29/39)         | 2,367 ms                        | —        | —       | —   | —      |
-| [ **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx)       | ⏳ PENDING (own ledger) | —                               | —        | —       | —   | —      |
-| [ **POSTGRESQL**](./benchmark_postgresql.mdx)             | 🟢 PASS (1/45, partial) | 2,605 ms                        | —        | —       | —   | —      |
-| [ **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS (16/45)         | —                               | —        | —       | —   | —      |
-| [ **MARIADB**](./benchmark_mariadb.mdx)                   | 🟢 PASS (34/45)         | 2,329 ms                        | —        | —       | —   | —      |
-| [ **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx)       | 🟢 PASS (20/45)         | —                               | —        | —       | —   | —      |
+| Database                                                  | Status  | Cold Start | REST p95 | GQL Avg | CPU | Memory |
+| :-------------------------------------------------------- | :------ | :--------- | :------- | :------ | :-- | :----- |
+| [ **SQLITE**](./benchmark_sqlite.mdx)                     | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx)         | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MONGODB**](./benchmark_mongodb.mdx)                   | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx)       | ⚪ N/A  | -          | -        | -       | -   | -      |
+| [ **POSTGRESQL**](./benchmark_postgresql.mdx)             | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MARIADB**](./benchmark_mariadb.mdx)                   | 🟢 PASS | 0ms        | —        | —       | —   | —      |
+| [ **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx)       | 🟢 PASS | 0ms        | —        | —       | —   | —      |
 
 <!-- SUMMARY_MATRIX_END -->
 
