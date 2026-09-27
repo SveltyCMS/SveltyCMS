@@ -62,7 +62,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     // The documented pipeline subset runs through `core/aggregation-translator.ts`;
     // stages SQL cannot express fail closed with `NOT_SUPPORTED`.
     supportsAggregation: true,
-    supportsStreaming: false,
+    supportsStreaming: true,
     supportsPartitioning: true,
     maxBatchSize: 1000,
     maxQueryComplexity: 100,

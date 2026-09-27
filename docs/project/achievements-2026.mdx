@@ -1499,6 +1499,8 @@ numeric schema, which cannot validate. Honest scope: the client bundle is **byte
 absent from the bundle, so the win is explicit dependency surfaces, dead-import removal and
 refactor safety, not shipped bytes.
 
+**13. MariaDB cursor streaming enabled.** Switched `supportsStreaming: true` in MariaDB `AdapterCore` (`src/databases/mariadb/adapter-core.ts`), allowing non-buffered streaming queries via `streamMany` and exports across large datasets without accumulating intermediate row arrays in Node/Bun memory.
+
 **Verification:** `bun run test:unit` **552 files / 4 895 tests** green in **18.8 s**;
 `bun run test:integration` **719 tests / 76 files (694 pass, 25 skip)** against a freshly built
 four-adapter harness; `svelte-check` **0 errors / 0 warnings across 6 785 files**;

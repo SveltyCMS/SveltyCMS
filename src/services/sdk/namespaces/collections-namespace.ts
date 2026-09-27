@@ -632,12 +632,13 @@ export class CollectionsNamespace {
               action: "find",
             });
           }
-          (row as any)._collection = (schema as any)._collectionMeta || {
+          const collectionMeta = (schema as any)._collectionMeta || {
             id: schema._id,
             name: schema.name,
             label: schema.label,
           };
-          (schema as any)._collectionMeta = (row as any)._collection;
+          (schema as any)._collectionMeta = collectionMeta;
+          (row as any)._collection = collectionMeta;
         }
         const envelope = { success: true, data: row ? [row] : [] };
         return decryptReadResult(envelope, hot, encCtx, { clone: true });
