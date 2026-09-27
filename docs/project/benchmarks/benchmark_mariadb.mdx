@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(27/09/2026, 14:32:30)
+(27/09/2026, 22:46:48)
 
 **✅ PASS** · 34/45 tests · 11 skipped · **MARIADB** · Bun 1.4.2
 
@@ -50,7 +50,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    13 | 🟢     | —       | 0      |
+| **Core**       |    13 | 🟢     | +121%   | 0      |
 | **API**        |     9 | 🟢     | —       | 0      |
 | **Scale**      |    18 | 🟢     | —       | 0      |
 | **Resilience** |     5 | 🟢     | —       | 0      |
@@ -89,12 +89,44 @@ xychart-beta
 ```
 
 </details>
+<details>
+<summary>📊 Regression severity matrix (quadrant)</summary>
+
+```mermaid
+quadrantChart
+  title "Regression severity (impact vs delta)"
+  x-axis Low latency impact --> High latency impact
+  y-axis Low delta --> High delta
+  quadrant-1 Monitor
+  quadrant-2 Investigate soon
+  quadrant-3 Acceptable variance
+  quadrant-4 Critical — fix first
+    COMPETITIVE 9-WORKLOAD REPLI: [0.95, 0.95]
+```
+
+</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
+> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
+
 <!-- EXECUTIVE_ALERTS_START -->
-<!-- EXECUTIVE_ALERTS_END -->
-<!-- EXECUTIVE_END -->
+
+> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
+
+### 🔴 Top Regressions
+
+> ✅ None — no latency metric is more than 10 % above its baseline.
+
+### 🟢 Top Improvements
+
+> **competitive-workload-replica [listPlain (Warm Concurrent 8c)]** (mariadb): -35% | 0.68ms vs 1.05ms baseline
+> **competitive-workload-replica [listPlain (Warm Sequential)]** (mariadb): -33% | 0.21ms vs 0.31ms baseline
+> **competitive-workload-replica [findById (Warm Sequential)]** (mariadb): -31% | 0.18ms vs 0.26ms baseline
+> **competitive-workload-replica [Seed Burst (500 docs, HTTP)]** (mariadb): -29% | 0.13ms vs 0.18ms baseline
+> **competitive-workload-replica [listFilterSort (Warm Sequential)]** (mariadb): -27% | 0.23ms vs 0.32ms baseline
+
+<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
@@ -135,7 +167,17 @@ xychart-beta
 
 ### Historical Trends (2026-09-27)
 
-> ⏳ No production-parity history recorded yet (`server_mode='production'`).
+> **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
+
+> **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
+
+**Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, server_mode, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='mariadb' AND redis=0 ORDER BY timestamp DESC`
+
+**Series:** 1 · **DB:** mariadb
+
+| Metric                              | Trend | Sparkline (last 7) | Latest  |
+| ----------------------------------- | ----- | ------------------ | ------- |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▂▂▁▄▃█▅`          | 3.536ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -631,8 +673,16 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 3.536ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+Throughput dropped 92% — check connection pool saturation or lock contention.  
+**Severe degradation** (+121%) — review recent commits immediately.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        COMPETITIVE 9-WORKLOAD REPLICA (MARIADB)                         ║
@@ -652,6 +702,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ║ mixed (Concurrent 8c 50/50)    │        7.745 ms │ p95:       12.067 ms │ RPS:        716 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>

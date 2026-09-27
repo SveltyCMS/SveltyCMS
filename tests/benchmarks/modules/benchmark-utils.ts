@@ -390,6 +390,15 @@ function criticalValue95(n: number): number {
 }
 
 /**
+ * Slow-call factor: a sample is "slow" when it exceeds this multiple of the row's
+ * own median. 3× keeps the signal on the tail (not on ordinary spread) while
+ * staying measurable with a few hundred samples.
+ */
+const SLOW_CALL_FACTOR = 3;
+/** Fallback threshold for rows whose median is zero (aggregate/batch rows). */
+const DEFAULT_SLOW_THRESHOLD_MS = 1;
+
+/**
  * 🚀 ENTERPRISE STATISTICS: Robust outlier removal using Interquartile Range (IQR).
  * Eliminates noise from GC spikes or background OS jitter.
  * NOTE: applied to the MEAN only — tail percentiles are always read from raw data.
@@ -433,6 +442,12 @@ export function computeStatistics(
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
+  // 🎯 Slow-call rate over the RAW sample (see the field comment in `result`).
+  const rawP50 = percentile(rawSorted, 50);
+  const slowThresholdMs = rawP50 > 0 ? rawP50 * SLOW_CALL_FACTOR : DEFAULT_SLOW_THRESHOLD_MS;
+  const slowCount = rawSorted.filter((t) => t > slowThresholdMs).length;
+  const slowRatePer1000 = rawSorted.length > 0 ? (slowCount / rawSorted.length) * 1000 : 0;
+
   // 🚀 Confidence Interval (95%) — t-distribution for small samples,
   // z = 1.96 for large n.
   const critical = criticalValue95(n);
@@ -452,6 +467,15 @@ export function computeStatistics(
     runs: config.runs || 1,
     concurrency: config.concurrency || 1,
     cv: Number(cv.toFixed(2)),
+    // 🎯 Slow-call RATE — the tail as a frequency, not a maximum. `p99` of a
+    // 200-sample row IS the 2nd-worst sample, so it swings several-fold between
+    // identical runs (measured 2026-09-27: the same replica row graded 🟢 and 🔴
+    // across three back-to-back runs). `count(t > 3 × p50) / n` converges, so a fix
+    // can be proven against it. The threshold is relative to the row's own median,
+    // which keeps it comparable across workloads of different absolute latency.
+    slowCount,
+    slowRatePer1000: Number(slowRatePer1000.toFixed(2)),
+    slowThresholdMs: Number(slowThresholdMs.toFixed(3)),
     totalMs: Number(sum.toFixed(3)),
     errorRate: Number((config.errorRate || 0).toFixed(4)),
     timestamp: new Date().toISOString(),
@@ -1840,9 +1864,22 @@ export async function exportResult(r: any) {
     metric: r.name,
     layer: r.layer || undefined,
     avgMs: r.avgMs ?? 0,
+    // Real percentiles from the raw sample array (computeStatistics reads the
+    // untrimmed sample for these) — the local variance report classifies tail
+    // stability on them. They used to be dropped here, which forced that report to
+    // reconstruct p50/p99 from avg/p95/cv and grade an estimate.
+    p50Ms: r.p50Ms ?? 0,
     p95Ms: r.p95Ms ?? 0,
+    p99Ms: r.p99Ms ?? 0,
+    minMs: r.minMs ?? 0,
+    maxMs: r.maxMs ?? 0,
+    iterations: r.iterations ?? 0,
     rps: r.rps ?? 0,
     cv: r.cv ?? 0,
+    // Slow-call rate (see computeStatistics): the tail as a converging frequency.
+    slowCount: r.slowCount ?? 0,
+    slowRatePer1000: r.slowRatePer1000 ?? 0,
+    slowThresholdMs: r.slowThresholdMs ?? 0,
     coldFirstMs: r.coldFirstMs,
     coldAvgMs: r.coldAvgMs,
     coldP95Ms: r.coldP95Ms,

@@ -513,7 +513,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
 
       const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES ${rowTuples.join(", ")} RETURNING *`;
+      // 🔬 Parity with the single-row `db:ins:stmt` above — one mark per executed
+      // statement keeps N = Σ db:*:stmt ÷ ns:persist comparable for bulk inserts.
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       const rows = await this.prepareAndExecuteWrite(rawSql, "all", ...allParams);
+      mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         return convertArrayDatesToISO(rows, {
           ...this.convertDatesOptions,
@@ -2264,6 +2268,47 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     safeExec(`PRAGMA mmap_size=${mmapBytes}`);
     safeExec(`PRAGMA cache_size=-${cacheSizeKb}`);
     safeExec(`PRAGMA wal_autocheckpoint=${walCheckpoint}`);
+  }
+
+  /**
+   * Run one WAL checkpoint now and report what it did.
+   *
+   * Exists so housekeeping can be *scheduled* instead of discovered. The 2026-09-27
+   * interleaved A/B (achievements §3.35) put every >10 ms write statement in the
+   * auto-checkpoint's fsync path — `db:upd:stmt` p50 0.108 ms → max 17.4 ms, zero
+   * stalls with `SQLITE_WAL_AUTOCHECKPOINT=0` — and a checkpoint is a synchronous call
+   * that blocks the event loop for its whole duration. A caller that knows the server
+   * is idle can move that cost out of the request path; `wal_autocheckpoint=0` removes
+   * the surprise version. `frames` is what remains uncheckpointed afterwards (0 = fully
+   * caught up), so a scheduler can decide whether to come back.
+   */
+  public runWalCheckpoint(mode: "PASSIVE" | "FULL" | "TRUNCATE" = "PASSIVE"): {
+    success: boolean;
+    frames: number;
+    busy: boolean;
+  } {
+    if (!this._sqlite) return { success: false, frames: -1, busy: false };
+    try {
+      const rows = this.prepareAndExecute(`PRAGMA wal_checkpoint(${mode})`, "all") as
+        | Record<string, unknown>[]
+        | undefined;
+      const row = rows?.[0] ?? {};
+      const pick = (name: string): number => {
+        for (const [key, value] of Object.entries(row)) {
+          if (key.toLowerCase() === name) return Number(value ?? 0);
+        }
+        return 0;
+      };
+      // Columns: busy | log | checkpointed.
+      const log = pick("log");
+      const checkpointed = pick("checkpointed");
+      return { success: true, frames: Math.max(0, log - checkpointed), busy: pick("busy") !== 0 };
+    } catch (error) {
+      logger.debug(
+        `[SQLite] wal_checkpoint(${mode}) failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return { success: false, frames: -1, busy: false };
+    }
   }
 
   private async resolvePath(config: string | SQLiteConfig): Promise<string> {

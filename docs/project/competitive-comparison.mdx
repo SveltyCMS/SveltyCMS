@@ -190,7 +190,7 @@ The ceiling probe measures the engine **without** the CMS (native driver) and a 
 | `create`      |           1,871 |           8.4k |         22% |                  11.1k |
 | `update`      |           1,686 |           8.6k |         20% |                  10.9k |
 
-> **Methodology:** production `index.cjs`, `BENCHMARK=true`, Node `NODE_OPTIONS=--max-semi-space-size=128 --max-old-space-size=1024` (same V8 young-gen as the production Dockerfile). Single-entry PATCH/PUT now invalidates only that document’s turbo key plus list/GraphQL keys — sibling `findById` hits stay warm. Self-measured; no third-party audit. Complies with EU Directive 2006/114/EC and German UWG §6 (no competitor RPS from a different harness).
+> **Methodology:** production `index.cjs`, `BENCHMARK=true`, Node `NODE_OPTIONS=--max-semi-space-size=64 --max-old-space-size=1024` (same V8 young-gen as the production Dockerfile). Single-entry PATCH/PUT now invalidates only that document’s turbo key plus list/GraphQL keys — sibling `findById` hits stay warm. Self-measured; no third-party audit. Complies with EU Directive 2006/114/EC and German UWG §6 (no competitor RPS from a different harness).
 
 **Reproduce (SQLite entry):**
 

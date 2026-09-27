@@ -42,6 +42,32 @@ import {
 } from "../../src/utils/benchmark-sandbox";
 import { getTestApiSecret } from "./config";
 
+/**
+ * 🔬 Attribution knobs forwarded to the benchmark server.
+ *
+ * The server env is a whitelist (`getBenchmarkTestEnv`) — a switch that is not
+ * listed here silently measures the *default* configuration. That is why the write
+ * profiler's documented `PROFILE_WRITE=1` could never be used from the matrix: the
+ * env never reached the server. Forwarding is deliberate but not free — these change
+ * the configuration under measurement, so a run with any of them set prints a banner
+ * and its numbers must be reported as an override run.
+ */
+const DIAGNOSTIC_KEYS = [
+  "PROFILE_WRITE",
+  "LOG_LEVEL",
+  "SQLITE_SYNCHRONOUS",
+  "SQLITE_BUSY_TIMEOUT",
+  "SQLITE_WAL_AUTOCHECKPOINT",
+  "SVELTY_WAL_CHECKPOINT",
+  "SVELTY_SRV_SPLIT",
+  "SVELTY_SRV_DUR",
+] as const;
+const DIAGNOSTIC_ENV: Record<string, string> = {};
+for (const key of DIAGNOSTIC_KEYS) {
+  const value = process.env[key];
+  if (value) DIAGNOSTIC_ENV[key] = value;
+}
+
 /** After these tests the shared server is often unhealthy — force restart. */
 const DESTRUCTIVE_OR_STRESS_TESTS = new Set([
   "concurrency-max",
@@ -572,6 +598,12 @@ async function run() {
 
     printBenchmarkIsolationBanner(db);
 
+    if (Object.keys(DIAGNOSTIC_ENV).length > 0) {
+      console.log(
+        `  🔬 Diagnostic overrides active: ${JSON.stringify(DIAGNOSTIC_ENV)} — these numbers describe THAT configuration, not the defaults.`,
+      );
+    }
+
     // Always ensure media sandbox exists (local + ci-fresh — avoids ENOENT on first upload)
     try {
       fs.mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
@@ -620,10 +652,25 @@ async function run() {
         // Always point media at sandbox (ci-fresh wizard may leave mediaFolder missing)
         MEDIA_FOLDER: mediaFolderRel,
         ...(profile === "local" ? { BENCHMARK_LOCAL_SANDBOX: "1" } : {}),
+        ...DIAGNOSTIC_ENV,
       }),
     } as Record<string, string>;
 
     let serverLogs = "";
+    // 🔬 A diagnostic run's whole value is the server-side log (`[WRITE-PROFILE]`
+    // span lines); the in-memory buffer is dropped on success, so persist it.
+    const diagnosticLogPath = Object.keys(DIAGNOSTIC_ENV).length
+      ? path.join(process.cwd(), "tests", "benchmarks", "results", db, "diagnostic-server.log")
+      : null;
+    let diagnosticLog: fs.WriteStream | null = null;
+    if (diagnosticLogPath) {
+      fs.mkdirSync(path.dirname(diagnosticLogPath), { recursive: true });
+      fs.writeFileSync(
+        diagnosticLogPath,
+        `# diagnostic run ${new Date().toISOString()} ${JSON.stringify(DIAGNOSTIC_ENV)}\n`,
+      );
+      diagnosticLog = fs.createWriteStream(diagnosticLogPath, { flags: "a" });
+    }
     /** True when the shared server child has exited (crash / kill). */
     let serverExited = false;
     // One entry for both runtimes: `index.cjs` loads the shared
@@ -697,6 +744,7 @@ async function run() {
       const appendLog = (d: Buffer) => {
         serverLogs += d.toString();
         if (serverLogs.length > 50_000) serverLogs = serverLogs.slice(-40_000);
+        if (diagnosticLog?.writable) diagnosticLog.write(d);
       };
       proc.stdout?.on("data", appendLog);
       proc.stderr?.on("data", appendLog);
@@ -1112,6 +1160,8 @@ async function run() {
       const reportName = useRedis ? `benchmark_${db}_redis.mdx` : `benchmark_${db}.mdx`;
       console.log(`  Evaluated: ${reportName} \u2192 ${trend}`);
     }
+
+    diagnosticLog?.end();
 
     totalFailed += failed;
 

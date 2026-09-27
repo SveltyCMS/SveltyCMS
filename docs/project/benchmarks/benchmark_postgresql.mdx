@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(27/09/2026, 14:32:28)
+(27/09/2026, 22:41:35)
 
 **✅ PASS** · 34/45 tests · 11 skipped · **POSTGRESQL** · Bun 1.4.2
 
@@ -102,15 +102,32 @@ quadrantChart
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
     API LAYER LATENCY: [0.95, 0.95]
+    COMPETITIVE 9-WORKLOAD REPLI: [0.35, 0.16]
 ```
 
 </details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
+> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
+
 <!-- EXECUTIVE_ALERTS_START -->
-<!-- EXECUTIVE_ALERTS_END -->
-<!-- EXECUTIVE_END -->
+
+> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
+
+### 🔴 Top Regressions
+
+> ✅ None — no latency metric is more than 10 % above its baseline.
+
+### 🟢 Top Improvements
+
+> **competitive-workload-replica [create (Warm Sequential)]** (postgresql): -67% | 1.84ms vs 5.51ms baseline
+> **competitive-workload-replica [update (Warm Sequential)]** (postgresql): -59% | 2.12ms vs 5.17ms baseline
+> **competitive-workload-replica [listPlain (Warm Concurrent 8c)]** (postgresql): -47% | 0.61ms vs 1.15ms baseline
+> **competitive-workload-replica [create (Warm Concurrent 8c)]** (postgresql): -44% | 4.28ms vs 7.65ms baseline
+> **competitive-workload-replica [listPlain (Warm Sequential)]** (postgresql): -44% | 0.20ms vs 0.36ms baseline
+
+<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
@@ -159,13 +176,14 @@ quadrantChart
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, server_mode, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='postgresql' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 3 · **DB:** postgresql
+**Series:** 4 · **DB:** postgresql
 
-| Metric                   | Trend | Sparkline (last 7) | Latest   |
-| ------------------------ | ----- | ------------------ | -------- |
-| LOCAL CMS CRUD (warm)    | 🟢    | `▂▂▄▂▁█▄`          | 2.235ms  |
-| MEDIA PERFORMANCE (warm) | 🟢    | `▁▁▇█`             | 50.006ms |
-| API LATENCY (warm)       | ⚪    | `▄▂▁▁█`            | 6.032ms  |
+| Metric                              | Trend | Sparkline (last 7) | Latest   |
+| ----------------------------------- | ----- | ------------------ | -------- |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▂▂▁▅▃█▄`          | 2.121ms  |
+| LOCAL CMS CRUD (warm)               | 🟢    | `▂▂▄▂▁█▄`          | 2.235ms  |
+| MEDIA PERFORMANCE (warm)            | 🟢    | `▁▁▇█`             | 50.006ms |
+| API LATENCY (warm)                  | ⚪    | `▄▂▁▁█`            | 6.032ms  |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -640,8 +658,16 @@ Throughput dropped 90% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 2.121ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+Throughput dropped 88% — check connection pool saturation or lock contention.  
+**Severe degradation** (+74%) — review recent commits immediately.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                       COMPETITIVE 9-WORKLOAD REPLICA (POSTGRESQL)                       ║
@@ -661,6 +687,7 @@ Throughput dropped 90% — check connection pool saturation or lock contention.
 ║ mixed (Concurrent 8c 50/50)    │        7.491 ms │ p95:       10.122 ms │ RPS:      1,007 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>

@@ -16,6 +16,7 @@
 import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import {
   getJsonDataPatch,
   jsonPatchNeedsJsMerge,
@@ -937,7 +938,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
       void tenantSql;
       void tenantParams;
 
+      // 🔬 Parity with SQLite/PG's `db:ins:stmt` — the upsert is a *write* statement and
+      // was the last unmarked MariaDB write path (measured N = 0.57 before this mark).
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       const rows = (await this.raw.execute(sqlText, params)) as any[];
+      mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
         return {
@@ -998,7 +1003,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const v = values[c];
         return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
       });
+      // 🔬 Parity with SQLite's `db:ins:stmt` — see the PostgreSQL adapter for why the
+      // count matters (N = Σ db:*:stmt ÷ ns:persist) and what this span contains.
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       const rows = (await this.raw.execute(sqlText, params)) as any[];
+      mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
         return convertDatesToISO(rows[0], {
@@ -1244,7 +1253,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
           valuesSql.push(`(${rowPlaceholders.join(", ")})`);
         }
         const sqlText = `INSERT INTO \`${safeTableName}\` (${colList}) VALUES ${valuesSql.join(", ")}`;
+        // 🔬 Parity with the single-row `db:ins:stmt` — one mark per *chunk*
+        // statement (chunkSize is params-bound, so long batches emit several).
+        const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
         await rawExec(sqlText, params);
+        mStmt?.();
       }
 
       const skipReturning = (options as any)?.skipReturning === true;
@@ -1369,7 +1382,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       const sqlText = skipReturning ? tpl.sqlSkip : tpl.sqlReturning;
+      // 🔬 Parity with SQLite/PG's `db:upd:stmt` — without this mark MariaDB's writes
+      // produced fewer statement spans than writes (measured N = 0.44), which made its
+      // round-trip count uncountable. One mark per statement, so
+      // N = Σ db:*:stmt ÷ ns:persist and per-statement latency compare across engines.
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
       const rows = (await rawExec(sqlText, [...params, String(id), ...tenantParams])) as any[];
+      mStmt?.();
 
       if (skipReturning) {
         const reconstructed = {

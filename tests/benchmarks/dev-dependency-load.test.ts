@@ -46,7 +46,7 @@ interface ExecOptions {
 
 /**
  * The matrix exports a heap cap to every child
- * (`NODE_OPTIONS=--max-semi-space-size=128 --max-old-space-size=1024`) so its *server*
+ * (`NODE_OPTIONS=--max-semi-space-size=64 --max-old-space-size=1024`) so its *server*
  * memory readings stay stable. These three DX binaries are independent developer tools,
  * not the CMS server: under a 1 GB cap `svelte-check` aborts with a V8 fatal error on this
  * repo (measured 2026-09-27: exit 134 about 12 s in, "Native stack trace" in

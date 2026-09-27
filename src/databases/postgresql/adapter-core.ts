@@ -20,6 +20,7 @@
 
 import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
 import type {
@@ -235,7 +236,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         boundValues.push(bindPgParam(synthesized[tpl.synthCols[i]], tpl.isJsonMap[i]));
       }
 
+      // 🔬 Parity with the SQLite adapter's `db:ins:stmt`: one mark per statement, so
+      // statement *counts* (N = Σ db:*:stmt ÷ ns:persist) and per-statement latency are
+      // comparable across engines. On PostgreSQL this span additionally contains pool
+      // acquisition + the TCP round trip, which SQLite's in-process call has no
+      // equivalent of — that difference is exactly what the engine comparison measures.
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       await exec.unsafe(tpl.sqlText, boundValues, { prepare: true });
+      mStmt?.();
       return convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
@@ -300,7 +308,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         .join(", ");
 
       const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES ${rowTuples.join(", ")}`;
+      // 🔬 Parity with the single-row `db:ins:stmt` above — one mark per statement.
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       await exec.unsafe(sqlText, boundValues, { prepare: false });
+      mStmt?.();
 
       return convertArrayDatesToISO(synthesizedRows, {
         ...this.convertDatesOptions,
@@ -456,7 +467,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const skipReturning = (options as any)?.skipReturning === true;
 
       if (skipReturning) {
+        const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
         await exec.unsafe(tpl.sqlSkipReturning, boundValues, { prepare: true });
+        mStmt?.();
         const reconstructed = {
           ...values,
           [idColName]: id,
@@ -468,7 +481,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }) as unknown as T;
       }
 
+      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
       const rows = await exec.unsafe(tpl.sqlWithReturning, boundValues, { prepare: true });
+      mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         return convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,

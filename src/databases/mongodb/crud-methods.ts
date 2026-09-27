@@ -6,6 +6,7 @@
 import { safeQuery, isMultiTenantMode } from "@src/utils/security/safe-query";
 import { hasTenantBypass } from "../system-tenant-scope";
 import { nowISODateString, toISOString } from "@utils/date";
+import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import mongoose, { type Model } from "mongoose";
 import type {
   BaseEntity,
@@ -428,7 +429,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // 🚀 insertOne avoids Mongoose Document construction + full validation graph
       // (parity with SQL prepareValues + INSERT — validation stays at LocalCMS layer)
       try {
+        // 🔬 Parity with the SQL engines' `db:ins:stmt` (see the PostgreSQL adapter): one
+        // mark per driver statement, so N = Σ db:*:stmt ÷ ns:persist and per-statement
+        // latency compare across all four adapters.
+        const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
         await this.model.collection.insertOne(doc as any, insertOpts as any);
+        mStmt?.();
       } catch (insertErr: any) {
         // Fallback to document.save() when schema validators / casting are required
         if (
@@ -679,6 +685,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
     id: string,
     startTime: number,
   ): Promise<DatabaseResult<T>> {
+    const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
     await this.model
       .updateOne(
         query,
@@ -686,6 +693,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         { runValidators: false, cloneUpdate: false, strict: false },
       )
       .exec();
+    mStmt?.();
     return {
       success: true,
       data: this.mapDates({ _id: id, ...updateData }) as T,

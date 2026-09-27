@@ -2273,7 +2273,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       .where(and(...conditions));
 
     if (skipReturning) {
+      // 🔬 The ORM fallback path (`db:upd:orm`) — marked so a fallback row is never
+      // confused with an adapter fast path when comparing statement counts or latency
+      // (MariaDB's raw UPDATE path returns null, so its updates land here by design).
+      const mOrm = PROFILE_WRITE_ENABLED ? profileMark("db:upd:orm") : null;
       await query;
+      mOrm?.();
       // Reconstruct the row from the prepared values (full-doc callers only;
       // no affected-rows check — MariaDB reports 0 for matched-but-unchanged
       // updates, which would false-positive "not found").
@@ -2291,7 +2296,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
 
     if (this.updateReturnsRows) {
+      const mOrm = PROFILE_WRITE_ENABLED ? profileMark("db:upd:orm") : null;
       const results = await query.returning();
+      mOrm?.();
       let res = results[0];
       if (!res) {
         // Prefer optimized findById over full select *

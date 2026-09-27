@@ -36,6 +36,10 @@ import { watchdog } from "@src/services/system/watchdog";
 import { telemetryService } from "@src/services/observability/telemetry-service";
 import { startScheduler } from "@src/services/scheduler";
 import { startBehavioralEngine } from "@src/services/intelligence/behavioral-learner";
+import {
+  startWalCheckpointScheduler,
+  type WalCheckpointResult,
+} from "@src/services/background/wal-checkpoint.server";
 import { outboxService } from "@src/services/outbox";
 // ESM shims for CJS packages that still read __filename / __dirname at runtime
 if (typeof (globalThis as any).__filename === "undefined") {
@@ -326,6 +330,9 @@ if (!building) {
           // Transactional outbox — deliver pending events (webhooks fan-out)
           outboxService.startPolling(5_000);
 
+          // 🧹 WAL housekeeping — see startWalHousekeeping().
+          startWalHousekeeping();
+
           // Telemetry check
           const globalWithTelemetry = globalThis as typeof globalThis & {
             __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
@@ -450,6 +457,34 @@ if (!building) {
 
 // ✨ ENTERPRISE: Graceful Shutdown Registry
 let inFlightRequests = 0;
+
+/**
+ * Schedule SQLite WAL checkpoints when the deployment opted in
+ * (`SVELTY_WAL_CHECKPOINT=1`, paired with `SQLITE_WAL_AUTOCHECKPOINT=0`).
+ *
+ * The measured 2026-09-27 A/B (achievements §3.35) put every >10 ms write statement in
+ * the auto-checkpoint's synchronous fsync path. With the auto-checkpoint disabled, this
+ * runs the checkpoint when `inFlightRequests` is 0 — the cost lands in a quiet moment
+ * instead of on a waiting request — and forces one after 60 s without an idle window so
+ * a never-idle server cannot grow the WAL without bound.
+ *
+ * Adapter-agnostic: only SQLite exposes `runWalCheckpoint`, so other engines no-op.
+ */
+function startWalHousekeeping(): void {
+  if (process.env.SVELTY_WAL_CHECKPOINT !== "1") return;
+  const adapter = dbAdapter as
+    | { runWalCheckpoint?: (mode: "PASSIVE") => WalCheckpointResult }
+    | null
+    | undefined;
+  if (typeof adapter?.runWalCheckpoint !== "function") return;
+
+  const stop = startWalCheckpointScheduler({
+    checkpoint: (mode) => adapter.runWalCheckpoint!(mode),
+    isIdle: () => inFlightRequests === 0,
+  });
+  (globalThis as { __SVELTY_WAL_CHECKPOINT_STOP__?: () => void }).__SVELTY_WAL_CHECKPOINT_STOP__ =
+    stop;
+}
 /** Cheap per-request id sequence for the non-trace path (see handle()). */
 let requestSeq = 0;
 

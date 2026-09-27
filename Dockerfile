@@ -12,7 +12,7 @@
 #   to Old Space before the Scavenge GC can collect them ("Premature Tenuring").
 #   This triggers 80–120 ms Major Mark-Sweep pauses at t≈15s and t≈55s in a
 #   60s soak-test, collapsing throughput from 1 100 to ~720 RPS.
-#   --max-semi-space-size=128  → 98 % of objects die young (< 1 ms Scavenge)
+#   --max-semi-space-size=64   → 98 % of objects die young (< 1 ms Scavenge)
 #   --max-old-space-size=1024  → explicit budget; adjust to container memory
 #
 # Healthcheck:
