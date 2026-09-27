@@ -174,7 +174,8 @@
 
 	/**
 	 * Detect if the thumbnails record has _webp variant entries.
-	 * When MEDIA_OUTPUT_FORMAT is "webp" or "avif", no _webp suffix variants are generated.
+	 * Only `MEDIA_OUTPUT_FORMAT_QUALITY.format: "original"` pairs each step with a
+	 * WebP sidecar; an explicit jpeg/webp/avif writes one file per step.
 	 */
 	function hasWebpVariants(thumbnails: Record<string, any>): boolean {
 		return Object.keys(thumbnails).some((k) => k.endsWith('_webp'));

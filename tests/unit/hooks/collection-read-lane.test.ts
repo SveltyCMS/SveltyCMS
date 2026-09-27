@@ -471,10 +471,10 @@ describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
     expect(isWirePlaneAdmissible(extraFieldsEvent, meta)).toBe(false);
   });
 
-  it("enforces list-wire predicate constraints (default sort + limit, no custom filter)", () => {
+  it("enforces list-wire predicate constraints (compiled default limit, no custom filter)", () => {
     const meta = computeCollectionWireMeta(dummySchema, "en")!;
 
-    // Standard list with default sort / limit -> admissible
+    // Standard list, no params -> admissible
     const defaultListEvent = createMockEvent("/api/collections/posts", { method: "GET" });
     expect(isWirePlaneAdmissible(defaultListEvent, meta)).toBe(true);
 
@@ -484,18 +484,46 @@ describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
     });
     expect(isWirePlaneAdmissible(filteredListEvent, meta)).toBe(false);
 
-    // Non-default sort -> rejected
+    // Any sort -> rejected while no compiled default order exists (fail closed)
     const sortedListEvent = createMockEvent("/api/collections/posts?sort=title:asc", {
       method: "GET",
     });
     expect(isWirePlaneAdmissible(sortedListEvent, meta)).toBe(false);
+    const defaultOrderListEvent = createMockEvent("/api/collections/posts?sort=createdAt:desc", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(defaultOrderListEvent, meta)).toBe(false);
 
-    // Non-default limit -> rejected
+    // The compiled default limit (50, the parser fallback) is admissible; others are not
     const limitListEvent = createMockEvent("/api/collections/posts?limit=50", { method: "GET" });
-    expect(isWirePlaneAdmissible(limitListEvent, meta)).toBe(false);
+    expect(isWirePlaneAdmissible(limitListEvent, meta)).toBe(true);
+    const otherLimitEvent = createMockEvent("/api/collections/posts?limit=25", { method: "GET" });
+    expect(isWirePlaneAdmissible(otherLimitEvent, meta)).toBe(false);
+
+    // Keyset/cursor are not served by a compiled statement yet -> fail closed
+    const keysetListEvent = createMockEvent("/api/collections/posts?keyset=true", {
+      method: "GET",
+    });
+    expect(isWirePlaneAdmissible(keysetListEvent, meta)).toBe(false);
+    const cursorListEvent = createMockEvent("/api/collections/posts?cursor=abc", { method: "GET" });
+    expect(isWirePlaneAdmissible(cursorListEvent, meta)).toBe(false);
 
     // Pagination page > 1 -> rejected
     const pageListEvent = createMockEvent("/api/collections/posts?page=2", { method: "GET" });
     expect(isWirePlaneAdmissible(pageListEvent, meta)).toBe(false);
+  });
+
+  it("accepts both spellings of a compiled default sort and rejects every other order", () => {
+    const meta = {
+      ...computeCollectionWireMeta(dummySchema, "en")!,
+      defaultSort: "createdAt:desc",
+    };
+    const sort = (value: string) =>
+      createMockEvent(`/api/collections/posts?sort=${value}`, { method: "GET" });
+
+    expect(isWirePlaneAdmissible(sort("createdAt:desc"), meta)).toBe(true);
+    expect(isWirePlaneAdmissible(sort("-createdAt"), meta)).toBe(true);
+    expect(isWirePlaneAdmissible(sort("title:asc"), meta)).toBe(false);
+    expect(isWirePlaneAdmissible(sort("+createdAt"), meta)).toBe(false);
   });
 });

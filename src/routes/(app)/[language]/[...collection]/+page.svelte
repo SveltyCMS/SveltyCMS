@@ -51,7 +51,8 @@ This page dynamically switches between List views and Field editors based on the
 			pageSize: number;
 		};
 		revisions: any[];
-		statusFacets?: Record<string, number>;
+		/** Streamed by the loader: resolves to {} on failure, never rejects. */
+		statusFacets?: Promise<Partial<Record<string, number>>>;
 		listMetrics?: Record<string, unknown> | null;
 	}
 
@@ -70,6 +71,11 @@ This page dynamically switches between List views and Field editors based on the
 	);
 	const revisions = $derived(data?.revisions || []);
 	const serverContentLanguage = $derived(data?.contentLanguage);
+
+	// Streamed status facets — pending renders empty chips, then swaps in counts.
+	const statusFacets = $derived(
+		data?.statusFacets ?? Promise.resolve<Partial<Record<string, number>>>({})
+	);
 
 	// Track initial collectionValue to detect changes
 	let initialCollectionValue = $state('');
@@ -531,7 +537,7 @@ This page dynamically switches between List views and Field editors based on the
 				{entries}
 				{pagination}
 				contentLanguage={serverContentLanguage}
-				statusFacets={data?.statusFacets ?? {}}
+				{statusFacets}
 				{listMetrics}
 			/>
 		{/key}

@@ -42,6 +42,7 @@
 // Core SveltyCMS services
 import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
+import type { StatusFacetCounts } from "@src/services/core/collection-filter-engine";
 import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error, redirect } from "@sveltejs/kit";
@@ -197,16 +198,20 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         editEntryId: editEntryId || undefined,
       });
 
-    // Status facets for filter chips (non-blocking failure → empty map)
-    let statusFacets: Partial<Record<string, number>> = {};
-    try {
-      statusFacets = await collectionService.getStatusFacets({
-        collection: currentCollection,
-        tenantId,
+    // Status facets for filter chips — streamed so the list paints without
+    // waiting for the 5 × crud.count chain. Soft-fail is preserved: the
+    // promise resolves to {} on any error and never rejects, so consumers can
+    // {#await} it unconditionally. No rethrow here on purpose — rethrowing an
+    // HttpError would reject the stream and take the whole page down.
+    const statusFacets: Promise<StatusFacetCounts> = collectionService
+      .getStatusFacets({ collection: currentCollection, tenantId })
+      .catch((err: unknown): StatusFacetCounts => {
+        logger.debug("Status facets unavailable — chips render without counts", {
+          error: err instanceof Error ? err.message : "unknown error",
+          collection,
+        });
+        return {};
       });
-    } catch {
-      statusFacets = {};
-    }
 
     // In-process list metrics (SSR snapshot for ?debug=table badge)
     const listMetrics = summarizeListQueryMetrics("CollectionService.getCollectionData");

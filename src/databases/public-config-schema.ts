@@ -45,7 +45,14 @@ export const publicConfigSchema = object({
   ]),
   MEDIA_FOLDER: pipe(string(), minLength(1)),
   MEDIA_OUTPUT_FORMAT_QUALITY: object({
-    format: union([literal("original"), literal("jpg"), literal("webp"), literal("avif")]),
+    // `jpeg` is the default derivative format; `jpg` is its historical spelling.
+    format: union([
+      literal("jpeg"),
+      literal("jpg"),
+      literal("webp"),
+      literal("avif"),
+      literal("original"),
+    ]),
     quality: pipe(number(), minValue(1), maxValue(100)),
   }),
   MEDIASERVER_URL: optional(string()),

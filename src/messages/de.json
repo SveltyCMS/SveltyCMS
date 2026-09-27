@@ -542,7 +542,7 @@
   "mediaConfig_IMAGE_SIZE_helper": "Die Größen der Bilder, die die Site generiert.",
   "mediaConfig_MEDIASERVER_URL_helper": "Die URL des Medienservers. (Standard ist localhost als: '')",
   "mediaConfig_MEDIA_FOLDER_helper": "Der Ordner, in dem die Mediendateien der Site gespeichert werden. (Standard: \"mediaFolder\")",
-  "mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Format- und Qualitätseinstellungen für Mediendateien. (Standard: Format: \"Original\", Qualität: 80)",
+  "mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Format- und Qualitätseinstellungen für Mediendateien. (Standard: Format: \"jpeg\", Qualität: 80; webp/avif optional)",
   "mediaConfig_description": "Medieneinstellungen für die Site.",
   "media_root_title": "Medien Stammordner",
   "media_upload_file_too_large": "{filename} überschreitet die maximale Dateigröße von {maxSize}",

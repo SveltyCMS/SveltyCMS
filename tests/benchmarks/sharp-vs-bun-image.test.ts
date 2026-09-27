@@ -164,7 +164,7 @@ function bunThumb(buf: Buffer): Promise<Buffer> {
     .buffer();
 }
 
-/** CMS derivative fan-out parity: 4 variants from one decode-heavy source (turbo jpeg — the shipped `applyEncoder` config). */
+/** CMS derivative fan-out parity: 4 variants from one decode-heavy source (the pre-2026-09-27 mix of WebP + turbo JPEG). */
 async function sharpLadder(buf: Buffer): Promise<Buffer[]> {
   const sharp = await getSharp();
   return Promise.all([
@@ -254,6 +254,34 @@ async function bunLadder(buf: Buffer): Promise<Buffer[]> {
   return Promise.all([make(320, "webp"), make(640, "webp"), make(960, "jpeg"), make(1920, "jpeg")]);
 }
 
+/**
+ * Shipped default since 2026-09-27: JPEG at every step
+ * (`DEFAULT_DERIVATIVE_FORMAT` in `src/utils/media/media-models.ts`). The ladder runs
+ * its steps in parallel, so this should track the `JPEG 1920` row.
+ */
+async function sharpJpegLadder(buf: Buffer): Promise<Buffer[]> {
+  const sharp = await getSharp();
+  return Promise.all(
+    [320, 640, 960, 1920].map((w) =>
+      sharp(buf, { limitInputPixels: LIMIT_INPUT_PIXELS, failOn: "none" })
+        .rotate()
+        .resize(w, null, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 82 })
+        .toBuffer(),
+    ),
+  );
+}
+
+/** Same default-format ladder through Bun.Image. */
+async function bunJpegLadder(buf: Buffer): Promise<Buffer[]> {
+  const make = (w: number) =>
+    new bunImageCtor!(buf)
+      .resize(w, w, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .buffer();
+  return Promise.all([make(320), make(640), make(960), make(1920)]);
+}
+
 // ─── Scenario list ──────────────────────────────────────────────────────────
 
 interface Scenario {
@@ -291,6 +319,15 @@ const SCENARIOS: Scenario[] = [
     shortLabel: "Ladder x4",
     sharpFn: sharpLadder,
     bunFn: bunLadder,
+    warmup: 5,
+    iterations: 10,
+  },
+  {
+    key: "variant_ladder_x4_jpeg_default",
+    name: "Variant ladder x4 (shipped default: jpeg)",
+    shortLabel: "Ladder x4 jpeg",
+    sharpFn: sharpJpegLadder,
+    bunFn: bunJpegLadder,
     warmup: 5,
     iterations: 10,
   },

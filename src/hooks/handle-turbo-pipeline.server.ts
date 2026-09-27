@@ -230,6 +230,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
   const pathname = event.url.pathname;
 
+  // One derivation reused by the deep-setup check and the bootstrap bypass below — both
+  // previously re-tested the same two predicates on every request. Semantics unchanged.
+  const isSetupRoute =
+    pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+
   // 🚀 ONE-SHOT CLASSIFICATION: Computes isStatic/isApi/isBootstrap/isPublic once.
   // All downstream hooks read from locals.__flags via getRequestFlags().
   const flags = classifyRequest(pathname, event.locals as any);
@@ -256,10 +261,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // ── 0a. TERMINAL TEST BYPASS ──────────────────────────────────────────
   const isTest = IS_TEST_MODE;
 
-  const testSecret =
-    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
+  // `Headers.get` is case-insensitive: the second lookup was dead, and off-test the
+  // read itself is skipped.
+  const testSecret = isTest ? event.request.headers.get("x-test-secret") : null;
 
-  if (isTest && testSecret) {
+  if (testSecret) {
     const expected = process.env.TEST_API_SECRET || getTestSecret();
 
     if (expected && testSecret === expected) {
@@ -490,10 +496,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // (testRedisConnection, testEmailConnection, etc.) with a 302 redirect, returning
     // HTML instead of JSON and causing "Unexpected token '<'" errors.
     {
-      const isSetupRouteDeep =
-        pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-      const shouldForceDeepSetupCheck =
-        isSetupRouteDeep || process.env.STRICT_SETUP_CHECK === "true";
+      const shouldForceDeepSetupCheck = isSetupRoute || IS_STRICT_SETUP_CHECK;
       if (shouldForceDeepSetupCheck) {
         setupState = await getSetupState();
       }
@@ -504,8 +507,6 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 5. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
     const isLoginDuringSetup = pathname === "/login" && setupState !== SetupState.COMPLETE;
-    const isSetupRoute =
-      pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       // Security Gate: Block /setup routes if setup is already complete

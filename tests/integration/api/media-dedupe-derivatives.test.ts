@@ -6,7 +6,8 @@
  *
  * Asserts outcomes, not call counts:
  * - a 400 px source gets derivatives that are never wider than the source, and the SIZES
- *   fan-out stays at or below the configured ladder (one primary + one WebP sidecar per step)
+ *   fan-out stays at or below the configured ladder (default: one file per step in the
+ *   derivative format — `original` mode adds a WebP sidecar per step, so the bound is two)
  * - re-uploading byte-identical content returns the SAME record id and rewrites NOTHING —
  *   every original/derivative file keeps its `W/"size-mtime"` ETag, which is only possible
  *   when no encode ran (the pre-#2 order re-encoded all four sizes before the hash lookup)
@@ -179,8 +180,9 @@ describe("Media pipeline — dedupe order and derivative ladder", () => {
       expect(thumb?.size, `${key} size`).toBeGreaterThan(0);
     }
 
-    // Fan-out bound: at most one primary + one WebP sidecar per configured ladder step.
-    // A 400 px source can only justify the 200 px step, so it must stay far below it.
+    // Fan-out bound: at most one candidate per configured ladder step (two in `original`
+    // mode, where each step also gets a WebP sidecar). A 400 px source can only justify
+    // the 200 px step, so it must stay far below it.
     const stepKeys = new Set(thumbs.map(([key]) => key.replace(/_webp$/, "")));
     expect(stepKeys.size).toBeLessThanOrEqual(LADDER_STEPS);
     expect(thumbs.length).toBeLessThanOrEqual(LADDER_STEPS);

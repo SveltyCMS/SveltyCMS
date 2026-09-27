@@ -319,6 +319,16 @@ describe("relational-utils — tenant filter centralization", () => {
     expect(utils.buildRawTenantFilter({ tenantId: undefined })).toBe("");
   });
 
+  it("returns the shared empty tenant clause unchanged (same reference) when no scope applies", () => {
+    // `EMPTY_TENANT_CLAUSE` is a frozen module singleton: identity across calls is the
+    // zero-allocation proof (a fresh `{ sql: "", params: [] }` would fail `toBe`).
+    const global = utils.buildRawTenantClause({ tenantId: "global" as any }, "postgres");
+    const unscoped = utils.buildRawTenantClause(undefined, "postgres");
+    expect(global).toBe(unscoped);
+    expect(global.sql).toBe("");
+    expect(global.params).toBe(unscoped.params);
+  });
+
   it("buildRawTenantClause uses bound placeholders per dialect", () => {
     expect(utils.buildRawTenantClause({ tenantId: "t-1" as any }, "sqlite")).toEqual({
       sql: ` AND "tenantId" = ?`,

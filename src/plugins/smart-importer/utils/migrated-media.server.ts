@@ -4,7 +4,8 @@
  *
  * Uses the same storage + `saveResizedImages` variant generation as gallery uploads
  * (`media-storage.server.ts` / `process-media` job), including format conversion
- * from `MEDIA_OUTPUT_FORMAT_QUALITY` and auto-WebP sidecars.
+ * from `MEDIA_OUTPUT_FORMAT_QUALITY` (JPEG by default) and the `original`-mode
+ * WebP sidecars.
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import path from "node:path";

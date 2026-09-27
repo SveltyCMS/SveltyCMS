@@ -2,23 +2,27 @@
  * @file tests/unit/media/processing/media-storage.test.ts
  * @description Unit tests for `saveResized()` in media-storage.server.ts.
  *
- * Covers the two invariants the function owns (media pipeline plan §3 #3):
+ * Covers the invariants the function owns (media pipeline plan §3 #3):
  * - Never upscale: a ladder step wider than the decoded source is dropped.
- * - One write per path: the primary output and WebP sidecar share a path when the
- *   primary is itself WebP, and that pair is written once.
+ * - One output per step: JPEG is the default derivative format, `webp`/`avif` are
+ *   opt-ins, an unrecognised value falls back to JPEG.
+ * - One write per path: in `original` mode the primary output and WebP sidecar share a
+ *   path when the primary is itself WebP, and that pair is written once.
  *
- * Plus the size ladder contract, the WebP sidecar keys, and the recorded
- * width/height fallbacks. `sharp` and the storage adapter are mocked (engine + I/O).
+ * Plus the size ladder contract, the `original`-mode WebP sidecar keys, the alpha
+ * fallback and the recorded width/height fallbacks. `sharp` and the storage adapter are
+ * mocked (engine + I/O).
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** sharp stub — the engine boundary. */
 const sharpState = vi.hoisted(() => ({
-  meta: { width: 1920, height: 1080, format: "jpeg" } as {
+  meta: { width: 1920, height: 1080, format: "jpeg", hasAlpha: false } as {
     width?: number;
     height?: number;
     format: string;
+    hasAlpha?: boolean;
   },
   /** Widths handed to `resize()`, i.e. the ladder steps actually encoded. */
   resizes: [] as number[],
@@ -84,31 +88,50 @@ const { SIZES, saveResized } = await import("@src/utils/media/media-storage.serv
 const BUFFER = Buffer.from("source-bytes");
 
 /** Ladder steps that fit inside a source of `width` (0/undefined = unreadable source). */
-const expectedKeys = (width: number | undefined) =>
+const expectedKeys = (width: number | undefined, withSidecar = false) =>
   Object.entries(SIZES)
     .filter(([, w]) => w > 0 && (!width || w <= width))
-    .flatMap(([key]) => [key, `${key}_webp`])
+    .flatMap(([key]) => (withSidecar ? [key, `${key}_webp`] : [key]))
     .sort();
 
 beforeEach(() => {
-  sharpState.meta = { width: 1920, height: 1080, format: "jpeg" };
+  sharpState.meta = { width: 1920, height: 1080, format: "jpeg", hasAlpha: false };
   sharpState.resizes.length = 0;
   storage.uploads.length = 0;
   settings.format = undefined;
 });
 
 describe("saveResized — variant ladder", () => {
-  it("emits every configured size plus a WebP sidecar carrying the ladder dimensions", async () => {
+  it("defaults to JPEG: one file per ladder step, no WebP sidecar", async () => {
     const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
 
     expect(Object.keys(out).sort()).toEqual(expectedKeys(1920));
+    expect(Object.keys(out).some((key) => key.endsWith("_webp"))).toBe(false);
+    // Exactly one upload per step — the default format is the whole derivative set.
+    expect(storage.uploads).toHaveLength(Object.keys(out).length);
+    expect(out.thumbnail).toEqual({
+      url: "/files/global/thumbnail/photo-abc123.jpg",
+      width: 200,
+      height: 113, // round((200 / 1920) * 1080) — the encoder reported no height
+      size: 42,
+      mimeType: "image/jpeg",
+    });
+    expect(out.lg.height).toBe(675); // round((1200 / 1920) * 1080)
+  });
+
+  it("emits every configured size plus a WebP sidecar in `original` mode", async () => {
+    settings.format = { format: "original", quality: 80 };
+
+    const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
+
+    expect(Object.keys(out).sort()).toEqual(expectedKeys(1920, true));
     // One upload per primary + one per sidecar.
     expect(storage.uploads).toHaveLength(Object.keys(out).length);
 
     expect(out.thumbnail).toEqual({
       url: "/files/global/thumbnail/photo-abc123.jpg",
       width: 200,
-      height: 113, // round((200 / 1920) * 1080) — the encoder reported no height
+      height: 113,
       size: 42,
       mimeType: "image/jpeg",
     });
@@ -119,7 +142,17 @@ describe("saveResized — variant ladder", () => {
       size: 42,
       mimeType: "image/webp",
     });
-    expect(out.lg.height).toBe(675); // round((1200 / 1920) * 1080)
+  });
+
+  it("keeps WebP for a source with alpha — a JPEG primary would flatten it", async () => {
+    sharpState.meta = { width: 1920, height: 1080, format: "png", hasAlpha: true };
+
+    const out = await saveResized(BUFFER, "abc123", "logo", "png", "global");
+
+    expect(out.thumbnail.url).toBe("/files/global/thumbnail/logo-abc123.webp");
+    expect(out.thumbnail.mimeType).toBe("image/webp");
+    // The configured format was JPEG, so no WebP sidecar is added on top.
+    expect(Object.keys(out).some((key) => key.endsWith("_webp"))).toBe(false);
   });
 
   it("never upscales: drops ladder steps wider than the decoded source", async () => {
@@ -146,8 +179,10 @@ describe("saveResized — variant ladder", () => {
   });
 });
 
-describe("saveResized — one write per path", () => {
-  it("writes once when the source extension is already WebP", async () => {
+describe("saveResized — format resolution", () => {
+  it("writes once when the source extension is already WebP (original mode)", async () => {
+    settings.format = { format: "original", quality: 80 };
+
     const out = await saveResized(BUFFER, "abc123", "photo", "webp", "global");
 
     const primaryKeys = Object.entries(SIZES)
@@ -163,13 +198,16 @@ describe("saveResized — one write per path", () => {
   });
 
   it.each([
-    ["original (unset)", undefined, "jpg", "image/jpeg"],
-    ["jpg", { format: "jpg", quality: 90 }, "jpg", "image/jpeg"],
-    ["avif", { format: "avif", quality: 50 }, "avif", "image/avif"],
-    ["webp", { format: "webp", quality: 80 }, "webp", "image/webp"],
+    ["jpeg (unset)", undefined, "jpg", "image/jpeg", false],
+    ["jpeg", { format: "jpeg", quality: 85 }, "jpg", "image/jpeg", false],
+    ["jpg (alias of jpeg)", { format: "jpg", quality: 90 }, "jpg", "image/jpeg", false],
+    ["avif", { format: "avif", quality: 50 }, "avif", "image/avif", false],
+    ["webp", { format: "webp", quality: 80 }, "webp", "image/webp", false],
+    ["original", { format: "original", quality: 80 }, "jpg", "image/jpeg", true],
+    ["unrecognised (fail-safe)", { format: "heic", quality: 80 }, "jpg", "image/jpeg", false],
   ])(
     "MEDIA_OUTPUT_FORMAT_QUALITY=%s rewrites the primary extension and MIME type",
-    async (_label, formatConfig, expectedExt, expectedMime) => {
+    async (_label, formatConfig, expectedExt, expectedMime, expectsSidecar) => {
       settings.format = formatConfig;
 
       const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
@@ -177,12 +215,11 @@ describe("saveResized — one write per path", () => {
       expect(out.thumbnail.url).toBe(`/files/global/thumbnail/photo-abc123.${expectedExt}`);
       expect(out.thumbnail.mimeType).toBe(expectedMime);
 
-      // A WebP primary needs no sidecar; every other format still gets one.
-      const sidecar = out.thumbnail_webp;
-      if (expectedExt === "webp") {
-        expect(sidecar).toBeUndefined();
+      // Only `original` mode pairs a step with a WebP sidecar.
+      if (expectsSidecar) {
+        expect(out.thumbnail_webp?.mimeType).toBe("image/webp");
       } else {
-        expect(sidecar?.mimeType).toBe("image/webp");
+        expect(out.thumbnail_webp).toBeUndefined();
       }
     },
   );

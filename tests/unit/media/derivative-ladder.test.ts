@@ -11,7 +11,8 @@
  *
  * Features:
  * - source-clamped ladder (a 400 px source writes the 200 px step only)
- * - fan-out bound (files ≤ 2 × resizeable SIZES — one primary plus one WebP sidecar per step)
+ * - JPEG is the default derivative format (one file per step, no WebP sidecar)
+ * - `original` mode fan-out bound (files ≤ 2 × resizeable SIZES — one primary plus one WebP sidecar)
  * - already-WebP source ⇒ primary and sidecar share a path ⇒ exactly one encode and write
  * - `withoutEnlargement` reaches the encoder on every step
  */
@@ -85,6 +86,20 @@ vi.mock("../../../src/utils/media/storage-adapters", () => ({
   getConfig: () => ({}),
 }));
 
+/** Settings boundary — `undefined` exercises the JPEG default. */
+const settings = vi.hoisted(() => ({
+  format: undefined as { format?: string; quality?: number } | undefined,
+}));
+
+vi.mock("@src/services/core/settings-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@src/services/core/settings-service")>();
+  return {
+    ...actual,
+    getPublicSettingSync: (key: string) =>
+      key === "MEDIA_OUTPUT_FORMAT_QUALITY" ? settings.format : undefined,
+  };
+});
+
 const { saveResizedImages, getImageSizes } = await import("@src/utils/media/media-storage.server");
 
 const RESIZEABLE_SIZES = Object.entries(getImageSizes()).filter(([, w]) => w > 0);
@@ -105,6 +120,7 @@ describe("saveResized — SIZES ladder", () => {
     state.encodes = 0;
     state.width = 400;
     state.height = 300;
+    settings.format = undefined;
   });
 
   it("clamps the ladder to the source: a 400 px icon writes the thumbnail step only", async () => {
@@ -112,8 +128,21 @@ describe("saveResized — SIZES ladder", () => {
 
     const stepDirs = [...new Set(writes.map((w) => w.relPath.split("/")[1]))];
     expect(stepDirs).toEqual(["thumbnail"]);
-    expect(Object.keys(thumbs).sort()).toEqual(["thumbnail", "thumbnail_webp"]);
-    expect(writes).toHaveLength(2);
+    expect(Object.keys(thumbs)).toEqual(["thumbnail"]);
+    expect(writes).toHaveLength(1);
+  });
+
+  it("defaults to JPEG: one derivative file per ladder step, no WebP sidecar", async () => {
+    state.width = 1920;
+    state.height = 1080;
+
+    const { thumbs, writes } = await runLadder();
+
+    expect(writes).toHaveLength(RESIZEABLE_SIZES.length);
+    expect(Object.keys(thumbs).sort()).toEqual(RESIZEABLE_SIZES.map(([key]) => key).sort());
+    expect(writes.every((w) => w.relPath.endsWith(".jpg"))).toBe(true);
+    // One encode per step — the format is the whole derivative set.
+    expect(state.encodes).toBe(RESIZEABLE_SIZES.length);
   });
 
   it("never records a variant wider than the source it derives from", async () => {
@@ -128,7 +157,8 @@ describe("saveResized — SIZES ladder", () => {
     expect(state.resizeCalls.every((c) => c.width <= state.width)).toBe(true);
   });
 
-  it("keeps the fan-out at one primary + one WebP sidecar per step (≤ 2 × SIZES)", async () => {
+  it("keeps the fan-out at one primary + one WebP sidecar per step in `original` mode", async () => {
+    settings.format = { format: "original", quality: 80 };
     state.width = 1920;
     state.height = 1080;
 
@@ -147,6 +177,7 @@ describe("saveResized — SIZES ladder", () => {
   });
 
   it("writes each step once when the source is already WebP (no primary/sidecar collision)", async () => {
+    settings.format = { format: "original", quality: 80 };
     state.width = 1920;
     state.height = 1080;
 

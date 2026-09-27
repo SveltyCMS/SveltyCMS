@@ -363,7 +363,7 @@ Cache keys are **user-scoped** (`u:{userId}:…`) with deep-sorted GraphQL varia
 | `createdAt` insert-only                        | ✅      | ✅                  | ✅                    | ✅ (stripped from `$set`)                                                                                                                       |
 | postgres.js JSON/array param bind              | N/A     | ✅ (`::jsonb`)      | N/A                   | N/A                                                                                                                                             |
 
-> **SQL family gets ~5-8 fewer allocations per filtered query. MongoDB gets ~2-3 fewer (result pool + fused mapQuery) plus no per-document validation re-run on update/upsert. All 4 databases benefit from shared BaseAdapter optimizations.**
+> **SQL family gets ~5-8 fewer allocations per filtered query (self-assessed estimate — not instrumented). MongoDB gets ~2-3 fewer (result pool + fused mapQuery) plus no per-document validation re-run on update/upsert. All 4 databases benefit from shared BaseAdapter optimizations. Paths that promise _no_ allocation are pinned by reference-identity assertions (`tests/unit/core/relational-utils.test.ts`, `tests/unit/security/safe-query-manual.test.ts`).**
 
 ### Credential list hot-path
 

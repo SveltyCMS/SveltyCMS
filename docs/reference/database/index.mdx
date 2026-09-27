@@ -113,7 +113,7 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 | Targeted column UPDATE (omit empty `data`) | ✅     | ✅           | ✅           | ✅ (`$set` only) |
 | `createdAt` insert-only on UPDATE          | ✅     | ✅           | ✅           | ✅               |
 
-> **SQL family**: ~5-8 fewer allocations per filtered query. **MongoDB**: ~2-3 fewer (result pool + fused mapQuery). **All 4**: benefit from shared BaseAdapter optimizations plus the core widget/session/cache pipeline. See [Performance Architecture](./performance-architecture.mdx#core--adapter-communication-all-4-engines).
+> **SQL family**: ~5-8 fewer allocations per filtered query (self-assessed estimate — not instrumented). **MongoDB**: ~2-3 fewer (result pool + fused mapQuery). **All 4**: benefit from shared BaseAdapter optimizations plus the core widget/session/cache pipeline. The paths that promise _no_ allocation are pinned by reference-identity assertions (`tests/unit/core/relational-utils.test.ts`, `tests/unit/security/safe-query-manual.test.ts`). See [Performance Architecture](./performance-architecture.mdx#core--adapter-communication-all-4-engines).
 
 ## 📈 Performance Benchmarks (SQLite, Latest)
 

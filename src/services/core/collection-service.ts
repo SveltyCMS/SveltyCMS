@@ -26,6 +26,7 @@ import type { User } from "@src/databases/auth/types";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import type { BaseEntity, DatabaseId, IDBAdapter } from "@src/databases/db-interface";
+import { dbAdapter } from "@src/databases/db";
 import {
   applyFiltersToQueryBuilder,
   compileSecureFilters,
@@ -231,7 +232,6 @@ export class CollectionService {
     tenantId?: string | null;
   }): Promise<StatusFacetCounts> {
     const collectionId = String(input.collection._id ?? input.collection.name ?? "unknown");
-    const dbAdapter = await getDbAdapter();
     if (!dbAdapter) throw error(500, "Database adapter is not available.");
 
     const baseWhere: Record<string, unknown> = {};
@@ -278,7 +278,6 @@ export class CollectionService {
       editEntryId,
     } = params;
 
-    const dbAdapter = await getDbAdapter();
     if (!dbAdapter) {
       throw error(500, "Database adapter is not available.");
     }

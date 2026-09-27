@@ -80,10 +80,11 @@ logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
 // default: one env read when unset.
 if (!building) void startCpuProfilerIfEnabled();
 
-// 🧪 OPT-IN FAST LANES: publish the lane registry for the server entry
-// (`index.server.mjs`) when SVELTY_FAST_LANE=1. Installs nothing by default — the
-// env read is the whole cost of leaving it off. See `hooks/fast-lane.server.ts`
-// for the bypass policy and the guard that keeps it honest.
+// 🧪 FAST LANES: publish the lane registry for the server entry (`index.server.mjs`).
+// The collection READ lane is **on by default** (`SVELTY_FAST_LANE=0` opts out); the
+// collection WRITE lane is opt-in (`SVELTY_FAST_LANE_WRITE=1`) because it carries
+// mutation bodies. See `hooks/fast-lane.server.ts` for the bypass policy
+// (`LANE_BYPASSED_HOOKS`) and the guards that keep both lanes honest.
 installFastLanes();
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import

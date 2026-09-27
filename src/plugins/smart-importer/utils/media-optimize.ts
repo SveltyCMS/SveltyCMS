@@ -13,9 +13,10 @@
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { getSharp, MAX_INPUT_PIXELS } from "@utils/media/sharp-loader.server";
+import { normalizeDerivativeFormat, type DerivativeFormat } from "@utils/media/media-models";
 
-/** Matches `MEDIA_OUTPUT_FORMAT_QUALITY.format` in public config */
-export type CmsMediaOutputFormat = "original" | "jpg" | "webp" | "avif";
+/** Matches `MEDIA_OUTPUT_FORMAT_QUALITY.format` in public config (JPEG by default). */
+export type CmsMediaOutputFormat = DerivativeFormat;
 
 export interface MediaOptimizeConfig {
   maxWidth: number;
@@ -32,7 +33,7 @@ const DEFAULT_OPTIMIZE_CONFIG: MediaOptimizeConfig = {
   maxWidth: 1920,
   maxHeight: 1080,
   quality: 80,
-  convertTo: "original",
+  convertTo: "jpeg",
   generateSrcSet: true,
   srcSetWidths: [320, 640, 1280, 1920],
   detectFocalPoint: true,
@@ -41,11 +42,12 @@ const DEFAULT_OPTIMIZE_CONFIG: MediaOptimizeConfig = {
 
 /**
  * Reads site-wide media format settings (same source as `media-storage.server.ts`).
+ * An unrecognised value falls back to the JPEG default instead of failing the import.
  */
 export function getMediaOutputFormatSettings(): Pick<MediaOptimizeConfig, "convertTo" | "quality"> {
   const settings = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY;
   return {
-    convertTo: (settings?.format ?? "original") as CmsMediaOutputFormat,
+    convertTo: normalizeDerivativeFormat(settings?.format),
     quality: settings?.quality ?? 80,
   };
 }

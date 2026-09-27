@@ -81,20 +81,31 @@ async function prepareBaseImage(): Promise<Buffer> {
     .toBuffer();
 }
 
-/** Creates an isolated worker-safe buffer with unique trailing bytes */
-function createWorkerImageBuffer(seq: number): Buffer {
-  const buf = Buffer.allocUnsafe(baseJpegBuffer.length + 4);
+/**
+ * Creates an isolated worker-safe buffer with unique trailing bytes.
+ *
+ * `tag` is folded in as a second uint32 so the SAME process sequence produces a
+ * different SHA-256 in every matrix run: the media service short-circuits uploads whose
+ * hash already has a row AND whose files still exist (`saveMedia`'s dedupe branch), so a
+ * leftover fixture from an earlier run would time "nothing was written" as a green win.
+ * Fan-out/duplicate rows pass `RUN_TAG` explicitly; the SDK/HTTP rows do too.
+ */
+function createWorkerImageBuffer(seq: number, tag = 0): Buffer {
+  const buf = Buffer.allocUnsafe(baseJpegBuffer.length + 8);
   baseJpegBuffer.copy(buf);
-  buf.writeUInt32BE(seq, baseJpegBuffer.length);
+  buf.writeUInt32BE(seq >>> 0, baseJpegBuffer.length);
+  buf.writeUInt32BE(tag >>> 0, baseJpegBuffer.length + 4);
   return buf;
 }
 
 /**
  * Per-process tag (fits in a uint32) folded into every benchmark image.
  *
- * Derivative fan-out and duplicate-upload rows MUST upload content that has never existed in
- * this sandbox: a leftover record from an earlier matrix run would turn the first upload into
- * a dedupe hit, and the row would then measure "nothing was written" as a green result.
+ * Every media row MUST upload content that has never existed in this sandbox: a leftover
+ * record from an earlier matrix run turns the upload into a dedupe hit (hash row + files
+ * still present ⇒ zero encodes), and the row would then measure "nothing was written" as a
+ * 60× better result — observed across the 10:40 / 10:58 / 18:07 matrix runs of identical
+ * code (115 ms / 1.9 ms / 115 ms for the same SDK row).
  */
 const RUN_TAG = Date.now() % 2_000_000_000;
 
@@ -337,7 +348,7 @@ async function runMediaAudit() {
       silent: true,
       onIteration: async () => {
         const currentSeq = sdkSeq++;
-        const imageBuffer = createWorkerImageBuffer(currentSeq);
+        const imageBuffer = createWorkerImageBuffer(currentSeq, RUN_TAG);
 
         const file = new File([new Uint8Array(imageBuffer)], `sdk-media-${currentSeq}.jpg`, {
           type: "image/jpeg",
@@ -363,10 +374,10 @@ async function runMediaAudit() {
     await stabilize(150);
 
     console.log("   → 2. Measuring HTTP Multipart Upload & Processing Pipeline...");
-    // Seed out of the SDK range so the HTTP phase produces unique buffers —
-    // byte-identical buffers would hash-collide with the SDK uploads and hit
-    // the media dedup branch (crud.update without a real insert), which is not
-    // what this phase claims to measure.
+    // Seed out of the SDK range so the HTTP phase produces unique buffers — byte-identical
+    // buffers would hash-collide with the SDK uploads and hit the media dedupe branch
+    // (crud.update without a real insert), which is not what this phase claims to measure.
+    // Both ranges also carry `RUN_TAG` so no earlier run can seed that branch either.
     let httpSeq = 1_000_000;
     const uploadHeaders: Record<string, string> = {
       ...benchmarkAuthHeaders(),
@@ -385,7 +396,7 @@ async function runMediaAudit() {
       silent: true,
       onIteration: async () => {
         const currentSeq = httpSeq++;
-        const imageBuffer = createWorkerImageBuffer(currentSeq);
+        const imageBuffer = createWorkerImageBuffer(currentSeq, RUN_TAG);
 
         const formData = new FormData();
         const blob = new Blob([new Uint8Array(imageBuffer)], { type: "image/jpeg" });

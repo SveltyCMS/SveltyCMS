@@ -4,7 +4,7 @@
 **Status facet chips for collection lists (P1).**
 
 ### Props
-- `facets` (Record<string, number>): Counts by status key.
+- `facets` (Partial<Record<string, number>>): Counts by status key (missing keys render as 0).
 - `active` (string): Currently selected status filter (or empty).
 - `onSelect` (fn): Called with status value or '' to clear.
 -->
@@ -18,7 +18,7 @@
 		active = '',
 		onSelect
 	}: {
-		facets?: Record<string, number>;
+		facets?: Partial<Record<string, number>>;
 		active?: string;
 		onSelect: (status: string) => void;
 	} = $props();
@@ -31,7 +31,7 @@
 		{ key: StatusTypes.archive, label: 'Archived', variant: 'error' as const }
 	];
 
-	const total = $derived(Object.values(facets).reduce((a, b) => a + (Number(b) || 0), 0));
+	const total = $derived(Object.values(facets).reduce((a: number, b) => a + (Number(b) || 0), 0));
 	const hasAny = $derived(total > 0 || Object.keys(facets).length > 0);
 </script>
 

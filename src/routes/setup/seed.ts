@@ -1355,8 +1355,9 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "MEDIA_OUTPUT_FORMAT_QUALITY",
-    value: { format: "webp", quality: 80 },
-    description: "Image format and quality settings",
+    value: { format: "jpeg", quality: 80 },
+    description:
+      "Derivative output format (jpeg default; webp/avif opt-in, original = source format + WebP sidecar) and quality",
   },
   {
     key: "IMAGE_SIZES",

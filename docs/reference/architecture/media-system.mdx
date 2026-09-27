@@ -227,7 +227,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 ### Phase II: Processing (Deep Metadata & AI)
 
 - **Deep Metadata Extraction (opt-in)**: EXIF/IPTC/XMP, dominant colour and the 32 px WebP placeholder are extracted by `MediaProcessingService.getMetadata()` — called by `POST /api/media/process` and the SDK, not on every serve. The deep pass is more than a header read: `metadata()` **plus** `stats()` and a `resize(32,32).webp()` thumbnail (a full decode). Results are cached 24 h per file hash; `fastPath: true` returns the header-only fields (`format`, `width`, `height`, `space`, `channels`) without the decode.
-- **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one primary output plus a WebP sidecar per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>`. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
+- **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one output per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>` — **JPEG by default**, see [Derivative output format](#derivative-output-format) for the setting, the opt-ins and the measured cost. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
 - **Responsive variants (deferred)**: after the record exists, a fire-and-forget job derives `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` and stores them in `metadata.imageVariants`. Those paths are hash-keyed, so re-running the job is idempotent. This is the second pipeline that [#1](../../project/media-pipeline-plan.mdx) collapses into the ladder.
 - **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
 - **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
@@ -243,6 +243,36 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 - **On-Demand Transforms**: `/files/**?w=&h=&q=&fmt=` produces cached raster variants on the delivery route (no separate `/api/media/*` transform endpoint exists). See [On-Demand Image Transforms](#-on-demand-image-transforms) below for the parameter contract, clamps, cache layout and fallback rules.
 - **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
 - **Lazy Loading**: lazy thumbnail decoding in `media-grid.svelte` / `media-table.svelte` keeps the gallery responsive with thousands of files using Svelte 5 runes. (`virtual-media-grid.svelte` implements a windowed grid but is **unmounted** today.)
+
+### Derivative output format
+
+Upload-time derivatives (the `SIZES` ladder) are written in **JPEG by default**: the encoder — not the resize — dominates ladder cost, and JPEG is the cheapest encode of the three formats this pipeline can write.
+
+| Operation (sharp 0.35.x)                         | Cost       |
+| :----------------------------------------------- | :--------- |
+| AVIF 640 — the most expensive                    | 102–143 ms |
+| JPEG 1920                                        | 40–57 ms   |
+| 4-step ladder (parallel encodes)                 | 40–57 ms   |
+| Full 1080p upload (original + ladder + metadata) | 104–117 ms |
+| WebP 320 q82 (reference point)                   | 24 ms      |
+
+_Self-measured, 2026-09-27, this machine. The ladder runs its steps in parallel, so its wall time is the slowest single encode: JPEG at every step costs the same as the JPEG 1920 row, while AVIF is the most expensive option — 102–143 ms at 640 px alone, before any other step finishes._
+
+The format comes from the public setting `MEDIA_OUTPUT_FORMAT_QUALITY` (`{ format, quality }`, quality default `80`):
+
+| `format`                | Primary output per step         | WebP sidecar (`{key}_webp`) |
+| :---------------------- | :------------------------------ | :-------------------------- |
+| `jpeg` (default), `jpg` | JPEG — `image/jpeg`, `.jpg`     | no                          |
+| `webp`                  | WebP — `image/webp`             | n/a (the primary is WebP)   |
+| `avif`                  | AVIF — `image/avif`             | no                          |
+| `original`              | the source format (pre-2026-09) | yes                         |
+
+- **Opting into WebP/AVIF** — set the same record, e.g. `{ "format": "webp", "quality": 80 }` or `{ "format": "avif", "quality": 50 }`. The setup wizard seeds `{ "format": "jpeg", "quality": 80 }` for new installs; the value is stored per tenant with the other public settings (`setPublicSetting` / `cms.system.settings.set`). Nested-object settings such as this one and `IMAGE_SIZES` are not part of the System Settings form yet.
+- **Existing installs keep what they stored.** A site that already saved `{ "format": "webp" }` keeps producing WebP until the value is changed — a stored setting always wins over the default.
+- **Fail safe**: an absent or unrecognised `format` (e.g. `heic`) falls back to JPEG (`normalizeDerivativeFormat()` in `media-models.ts`), so derivatives are never skipped over a typo.
+- **Transparency is preserved**: JPEG has no alpha channel, so a source whose decoded `hasAlpha` is true is written as WebP for that ladder instead of being flattened onto the encoder's background.
+- **WebP sidecars** belong to `original` mode — the pre-2026-09 pairing of a source-format primary with a modern-format alternative. An explicit `jpeg`/`webp`/`avif` writes exactly one file per step; a per-request alternative is available from the delivery route (`/files/**?fmt=webp`, or `Accept` negotiation).
+- **Unchanged**: the original upload is stored byte-for-byte and never re-encoded, and the 32 px LQIP lives on its own rule (`metadata.placeholder` stays a WebP data-URI, `media-processing.server.ts`).
 
 ---
 

@@ -19,7 +19,11 @@ import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
 import { getMimeType } from "./media-utils";
-import type { ResizedImage } from "./media-models";
+import {
+  normalizeDerivativeFormat,
+  type DerivativeFormat,
+  type ResizedImage,
+} from "./media-models";
 import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
 import { generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@src/utils/date";
@@ -153,7 +157,7 @@ export async function getFile(rel: string): Promise<Buffer> {
 /**
  * Resize & save image variants with multi-format optimization.
  *
- * Two invariants this function owns (media pipeline plan §3 #3):
+ * Three invariants this function owns (media pipeline plan §3 #3):
  *
  * - **Never upscale.** A ladder step wider than the decoded source is dropped before
  *   any encode, and `withoutEnlargement` backstops the encoder, so a variant file can
@@ -161,13 +165,19 @@ export async function getFile(rel: string): Promise<Buffer> {
  *   is read here anyway, so the clamp costs nothing extra. The recorded `width`/`height`
  *   come from the encoder output, not from the request, so the map never claims a size
  *   the file does not have.
+ * - **One output per step in the default format.** The derivative format comes from
+ *   `MEDIA_OUTPUT_FORMAT_QUALITY.format` and defaults to **JPEG** — the cheapest encode
+ *   of the set (measured 2026-09-27, `docs/reference/architecture/media-system.mdx`).
+ *   `webp`/`avif` stay available as opt-ins, an unrecognised value falls back to JPEG,
+ *   and `original` keeps the source format. A transparent source keeps WebP: JPEG has no
+ *   alpha channel and would leave the transparent area on the encoder's background.
  * - **One write per path.** The primary output and the WebP sidecar resolve to the same
- *   path whenever the primary is itself WebP (an already-WebP source, or a WebP
- *   `MEDIA_OUTPUT_FORMAT_QUALITY`). That pair is encoded and saved once instead of twice.
+ *   path whenever the primary is itself WebP. That pair is written once instead of twice;
+ *   an already-WebP source is therefore charged a single encode per step.
  *
- * `thumbnails` keys are unchanged (`{key}` for the primary, `{key}_webp` for the sidecar);
- * steps dropped by the clamp are simply absent, which `mediaUrl`/`mediaDisplayUrl`
- * already fall back from.
+ * `thumbnails` keys are `{key}` for the primary plus `{key}_webp` for the sidecar, which
+ * only `original` mode writes (see below); steps dropped by the clamp are simply absent,
+ * which `mediaUrl`/`mediaDisplayUrl` already fall back from.
  */
 export async function saveResized(
   buffer: Buffer,
@@ -183,12 +193,26 @@ export async function saveResized(
   const formatConfig = getPublicSettingSync("MEDIA_OUTPUT_FORMAT_QUALITY") as
     | { format?: string; quality?: number }
     | undefined;
-  const format = formatConfig?.format ?? "original";
+  const configuredFormat = normalizeDerivativeFormat(formatConfig?.format);
+  /**
+   * JPEG cannot represent an alpha channel — `jpeg()` drops it and leaves the
+   * transparent area on the encoder's background. Sources that carry alpha keep WebP,
+   * the smallest format that preserves it.
+   */
+  const format: DerivativeFormat =
+    configuredFormat === "jpeg" && meta.hasAlpha === true ? "webp" : configuredFormat;
+  /**
+   * The WebP sidecar belongs to `original` mode (source-format primary + modern-format
+   * alternative). An explicit `jpeg`/`webp`/`avif` means exactly that format — one encode
+   * and one file per step. A per-request WebP alternative is available through
+   * `/files/**?fmt=webp` (or `Accept` negotiation) on the delivery route.
+   */
+  const wantsWebpSidecar = configuredFormat === "original";
   const quality = formatConfig?.quality ?? 80;
 
-  // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP), clamped to the source.
-  // An unknown source width keeps the operator's ladder untouched — dropping every
-  // step on a metadata miss would silently produce no derivatives at all.
+  // The format is clamped to the source below (never upscaled). An unknown source width
+  // keeps the operator's ladder untouched — dropping every step on a metadata miss would
+  // silently produce no derivatives at all.
   const sourceWidth = meta.width ?? 0;
   const variants = Object.entries(SIZES).filter(
     ([, w]) => w > 0 && (sourceWidth === 0 || w <= sourceWidth),
@@ -202,7 +226,7 @@ export async function saveResized(
       withoutEnlargement: true,
     });
 
-    // 1. Original format (or configured default)
+    // 1. Configured output format (`original` = keep the source format)
     let outExt = ext;
     let mimeType = getMimeType(`file.${ext}`) || "application/octet-stream";
     let instance = baseVariant.clone();
@@ -215,7 +239,7 @@ export async function saveResized(
       instance = instance.avif({ quality });
       outExt = "avif";
       mimeType = "image/avif";
-    } else if (format === "jpg") {
+    } else if (format === "jpeg") {
       instance = instance.jpeg({ quality });
       outExt = "jpg";
       mimeType = "image/jpeg";
@@ -224,8 +248,8 @@ export async function saveResized(
     const fileName = `${baseName}-${hash}.${outExt}`;
     const relPath = path.posix.join(baseDir, key, fileName);
     const webpRelPath = path.posix.join(baseDir, key, `${baseName}-${hash}.webp`);
-    /** False when the primary output IS the WebP sidecar's target path. */
-    const sidecarNeeded = webpRelPath !== relPath;
+    /** False when the sidecar is not wanted, or the primary IS the sidecar's target path. */
+    const sidecarNeeded = wantsWebpSidecar && webpRelPath !== relPath;
 
     // Fallbacks for a source whose height could not be read; a real encode reports its own.
     const fallbackHeight = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;

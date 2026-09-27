@@ -62,7 +62,7 @@ RUN apt-get update \
 # -- V8 Heap Tuning -----------------------------------------------------------
 # Prevents Premature Tenuring GC pauses at high RPS (see file header).
 # Adjust --max-old-space-size to 75-80 % of available container memory.
-ENV NODE_OPTIONS="--max-semi-space-size=128 --max-old-space-size=1024"
+ENV NODE_OPTIONS="--max-semi-space-size=64 --max-old-space-size=1024"
 
 # -- Runtime Configuration (12-Factor: all config via environment) ------------
 # Provide these at runtime via `docker run -e` or a compose `environment:` block.

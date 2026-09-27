@@ -52,6 +52,51 @@ export const REMOTE_VIDEO_PROVIDERS = ["youtube", "vimeo"] as const;
 export type RemoteVideoProvider = (typeof REMOTE_VIDEO_PROVIDERS)[number] | (string & {});
 
 /* -------------------------------------------------------------------------- */
+/* Derivative output formats                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Output formats the derivative ladder writes — the runtime list mirrors
+ * `MEDIA_OUTPUT_FORMAT_QUALITY.format` in the public config schema.
+ *
+ * `original` keeps the source format and pairs every step with a WebP sidecar
+ * (the pre-2026-09 behaviour, kept as an explicit opt-in).
+ */
+export const DERIVATIVE_FORMATS = ["jpeg", "webp", "avif", "original"] as const;
+
+export type DerivativeFormat = (typeof DERIVATIVE_FORMATS)[number];
+
+/**
+ * Default derivative format — JPEG, the cheapest encode of the set, so the ladder
+ * cost stays dominated by the resize rather than the encoder. See
+ * `docs/reference/architecture/media-system.mdx` ("Derivative output format").
+ */
+export const DEFAULT_DERIVATIVE_FORMAT: DerivativeFormat = "jpeg";
+
+/**
+ * Normalise an operator-configured derivative format. Fail-safe by design: a
+ * non-string or an unrecognised value keeps `DEFAULT_DERIVATIVE_FORMAT` instead of
+ * guessing a format the install may not be able to write. `jpg` is the historical
+ * spelling of `jpeg` and means the same encoder.
+ */
+export function normalizeDerivativeFormat(value: unknown): DerivativeFormat {
+  if (typeof value !== "string") return DEFAULT_DERIVATIVE_FORMAT;
+  switch (value.trim().toLowerCase()) {
+    case "webp":
+      return "webp";
+    case "avif":
+      return "avif";
+    case "original":
+      return "original";
+    case "jpg":
+    case "jpeg":
+      return "jpeg";
+    default:
+      return DEFAULT_DERIVATIVE_FORMAT;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Shared building blocks                                                     */
 /* -------------------------------------------------------------------------- */
 

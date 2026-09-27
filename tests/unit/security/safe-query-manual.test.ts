@@ -30,6 +30,12 @@ describe("safeQuery Hardening", () => {
     resetSafeQueryCache();
   });
 
+  it("returns the caller's object unchanged (same reference, no clone) on the bypass path", () => {
+    // Reference identity is the allocation proof: a defensive copy would fail this.
+    const query = { name: "test", count: 2 };
+    expect(safeQuery(query, "tenant-1", { bypassSafeQuery: true })).toBe(query);
+  });
+
   it("should allow scoped tenantId in multi-tenant mode", () => {
     // Set multi-tenant mode in the mocked config
     (globalThis as any).__privateEnv = { MULTI_TENANT: true };

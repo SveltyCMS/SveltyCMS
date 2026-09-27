@@ -213,8 +213,11 @@ export function computeCollectionWireMeta(
     defaultLocale,
     publishedFields,
     hasAfterReadHooks,
-    defaultSort: "createdAt:desc",
-    defaultLimit: 25,
+    // No compiled default ORDER BY exists: an unsorted `findMany` emits none, so the
+    // predicate refuses any `sort=` until a compiled list statement pins one (see
+    // `normalizeSortParam`). `defaultLimit` mirrors the query parser's fallback (50) —
+    // the only limit a compiled statement could claim.
+    defaultLimit: 50,
   };
 }
 
@@ -237,9 +240,23 @@ const WIRE_KNOWN_PARAMS = new Set([
   "sort",
   "limit",
   "page",
-  "cursor",
-  "keyset",
 ]);
+
+/**
+ * Normalizes the two spellings of an order into one comparable form:
+ * `-field` → `field:desc`, `field:asc`/`field:desc` unchanged, `field` → `field:asc`.
+ * The predicate compares a request's `sort=` against the collection's compiled default
+ * through this, so `sort=-createdAt` and `sort=createdAt:desc` are the same request.
+ */
+function normalizeSortParam(raw: string | null): string | null {
+  if (!raw) return null;
+  const value = raw.trim().replace(/^\+/, "");
+  if (!value) return null;
+  if (value.startsWith("-")) return `${value.slice(1)}:desc`;
+  const [field, direction] = value.split(":");
+  if (field && direction) return `${field}:${direction.toLowerCase()}`;
+  return `${value}:asc`;
+}
 
 /**
  * Strict Wire Plane Admission Predicate:
@@ -255,7 +272,8 @@ const WIRE_KNOWN_PARAMS = new Set([
  * 4. Locale alignment: Either no locale parameter or locale strictly equals the collection's compiled default.
  * 5. No mutating collection hooks: The target collection defines no `afterRead`/`afterFind` hooks.
  * 6. Point vs List Predicate: Point-reads reject custom filters; list-reads reject custom filters and admit
- *    only the compiled default sort + fixed limit until Cell 3 dynamic list SQL is compiled.
+ *    only the compiled default sort (fail closed when none is compiled) + fixed limit until Cell 3
+ *    dynamic list SQL is compiled.
  *
  * Fail Closed: If `collectionMeta` is omitted or null, returns `false` (Domain Plane default).
  */
@@ -354,13 +372,15 @@ export function isWirePlaneAdmissible(
   const isList = parts.length === 3;
 
   if (isList) {
-    // List wire admits only compiled default sort + fixed limit
-    if (
-      search.has("sort") &&
-      collectionMeta.defaultSort &&
-      search.get("sort") !== collectionMeta.defaultSort
-    ) {
-      return false;
+    // List wire admits only the compiled default sort + fixed limit. Fail closed when no
+    // default order is compiled — the statement would have to invent one — and compare the
+    // two spellings of the same order (`-createdAt` / `createdAt:desc`) as equal.
+    if (search.has("sort")) {
+      const requestedSort = normalizeSortParam(search.get("sort"));
+      const compiledSort = collectionMeta.defaultSort
+        ? normalizeSortParam(collectionMeta.defaultSort)
+        : null;
+      if (!compiledSort || requestedSort !== compiledSort) return false;
     }
     if (
       search.has("limit") &&

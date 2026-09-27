@@ -10,7 +10,7 @@ bulk actions, and predictive preloading.
 
 ### Features:
 - **Search & Filter**: Server-side search plus schema-aware `createSmartFilter` (text/select/date/number/boolean).
-- **Status facets**: Server `getStatusFacets` chips for quick status filtering.
+- **Status facets**: Streamed server `getStatusFacets` chips (resolves to `{}` on failure).
 - **Saved views**: Named filter/sort/layout presets via Smart Table views menu.
 - **Column resize**: Drag headers; widths persist per collection `layoutKey`.
 - **List metrics**: `?debug=table` shows p50/p95/hit% from SSR `listMetrics`.
@@ -26,7 +26,7 @@ bulk actions, and predictive preloading.
 - `contentLanguage` (String): The language for displaying translatable field data.
 - `breadcrumb` (Array, optional): Breadcrumb navigation paths.
 - `collectionStats` (Object, optional): Stats like count and last modified.
-- `statusFacets` (Record, optional): Status counts for facet chips.
+- `statusFacets` (Promise<Partial<Record<string, number>>>, optional): Streamed status counts for facet chips; never rejects, resolves to `{}`.
 - `listMetrics` (Object, optional): SSR list-query metrics for `?debug=table`.
 
 ### Keyboard Shortcuts
@@ -143,12 +143,12 @@ bulk actions, and predictive preloading.
 		contentLanguage: propContentLanguage,
 		breadcrumb = [],
 		collectionStats = null,
-		statusFacets = {},
+		statusFacets = Promise.resolve<Partial<Record<string, number>>>({}),
 		listMetrics = null
 	}: EntryListProps & {
 		breadcrumb?: Array<{ name: string; path: string }>;
 		collectionStats?: { _id: string; name: string; count: number; lastModified: string } | null;
-		statusFacets?: Record<string, number>;
+		statusFacets?: Promise<Partial<Record<string, number>>>;
 		listMetrics?: {
 			count: number;
 			hitRate: number;
@@ -1388,13 +1388,23 @@ bulk actions, and predictive preloading.
 		</div>
 	{/if}
 
-	<!-- Status facet chips (server counts) -->
+	<!-- Status facet chips (server counts; streamed promise never rejects → {} fallback) -->
 	<div class="mb-2 shrink-0">
-		<SmartTableStatusFacets
-			facets={statusFacets}
-			active={activeStatusFacet}
-			onSelect={onStatusFacetSelect}
-		/>
+		{#await statusFacets}
+			<SmartTableStatusFacets
+				facets={{}}
+				active={activeStatusFacet}
+				onSelect={onStatusFacetSelect}
+			/>
+		{:then facets}
+			<SmartTableStatusFacets {facets} active={activeStatusFacet} onSelect={onStatusFacetSelect} />
+		{:catch}
+			<SmartTableStatusFacets
+				facets={{}}
+				active={activeStatusFacet}
+				onSelect={onStatusFacetSelect}
+			/>
+		{/await}
 	</div>
 
 	{#if columnShow}

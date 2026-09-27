@@ -63,6 +63,20 @@ const PG_TEXT_DATE_TYPES = {
   },
 };
 
+/**
+ * Idle reclaim for every postgres.js pool (shared, replica, dedicated tenant).
+ *
+ * `DATABASE_IDLE_TIMEOUT` is documented in `Dockerfile` / `docker-compose.example.yml`
+ * ("0 keeps the pool permanently warm") but was never read — the shared pool hardcoded
+ * 30 s and replica/tenant pools left the driver default, so the documented setting was
+ * silently ignored. `0` disables the reclaim; non-finite or negative values fall back to
+ * 30 s.
+ */
+function pgIdleTimeout(override?: unknown): number {
+  const raw = Number(override ?? process.env.DATABASE_IDLE_TIMEOUT ?? 30);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 30;
+}
+
 /** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
 function bindPgParam(v: unknown, asJson: boolean): unknown {
   if (v === undefined) return null;
@@ -1365,6 +1379,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           max: 50,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
+          // Same documented idle policy as the primary pool (0 = never reclaim).
+          idle_timeout: pgIdleTimeout(),
         });
         this.allReplicaSqls.push(replicaSql);
         if (region !== "unknown") this.replicaSqls.set(region, replicaSql);
@@ -1457,7 +1473,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           max: Number(process.env.DATABASE_MAX_CONNECTIONS) || Math.max(poolFloor, hw.dbPoolSize),
           connect_timeout: 10,
           prepare: effectivePrepare,
-          idle_timeout: 30,
+          idle_timeout: pgIdleTimeout(),
           max_lifetime: 60 * 60,
           keepalive: true,
           keepaliveInitialDelayMillis: 10000,
@@ -1493,7 +1509,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
           prepare: usePrepared,
-          idle_timeout: Number(c.idle_timeout || 30),
+          idle_timeout: pgIdleTimeout(c.idle_timeout),
           max_lifetime: Number(c.max_lifetime || 60 * 60),
           keepalive: c.keepalive ?? true,
           keepaliveInitialDelayMillis: Number(c.keepaliveInitialDelayMillis || 10000),
@@ -2300,6 +2316,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       max: poolSize,
       transform: { undefined: null },
       types: PG_TEXT_DATE_TYPES,
+      idle_timeout: pgIdleTimeout(),
       connection: {
         application_name: `tenant_${tenantId}`,
       },
@@ -2342,6 +2359,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       max: poolSize,
       transform: { undefined: null },
       types: PG_TEXT_DATE_TYPES,
+      idle_timeout: pgIdleTimeout(),
       connection: {
         application_name: `tenant_${tenantId}`,
       },
