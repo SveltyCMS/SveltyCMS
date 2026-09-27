@@ -11,6 +11,7 @@
  */
 
 import { error, json } from "@sveltejs/kit";
+import { dbAdapter } from "@src/databases/db";
 import { isAdmin } from "@src/databases/auth/constants";
 import type { DashboardWidgetConfig } from "@src/content/types";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -35,10 +36,8 @@ async function loadUserDashboardLayout(
   tenantId: DatabaseId | null | undefined,
 ): Promise<DashboardWidgetConfig[] | null> {
   try {
-    const { getDb } = await import("@src/databases/db");
-    const db = getDb();
-    if (!db?.system?.preferences) return null;
-    const result = await db.system.preferences.get(LAYOUT_KEY, {
+    if (!dbAdapter?.system?.preferences) return null;
+    const result = await dbAdapter.system.preferences.get(LAYOUT_KEY, {
       scope: "user",
       userId: userId as DatabaseId,
       tenantId,

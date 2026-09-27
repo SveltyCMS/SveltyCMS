@@ -48,9 +48,6 @@ import { deepClone } from "@utils/native-utils";
 
 const clientSchemaMemo = new WeakMap<object, Schema>();
 
-// Helper to get dbAdapter safely via dynamic import to avoid circular dep issues
-const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;
-
 /** Fresh window: 60s — list data changes often during editorial work. */
 const COLLECTION_QUERY_TTL_MS = 60_000;
 /** Stale window: 5 min — serve stale while revalidating (SWR). */
