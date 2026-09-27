@@ -328,6 +328,26 @@ All metrics self-measured via `bun test tests/benchmarks/` — reproducible on a
 - **Incident response**: [Full runbook](./incident-response.mdx)
 - **0 published CVEs** — private reporting via [GitHub Security Advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories)
 
+## 10. Core Logic & Database Query Hardening
+
+SveltyCMS embeds a multi-tier defense-in-depth model directly into its custom business and database access logic:
+
+### 10.1 SQL Injection Protection (Parametrization & Identifier Whitelisting)
+
+- **Prepared Parameter Binding**: Weder in PostgreSQL (`postgres.js`), MariaDB (`mysql2`), noch SQLite (`bun:sqlite`/`better-sqlite3`) werden dynamische Werte konkateniert. Alle Filter (`safeQuery`, `mapQuery`, `prepareValues`) binden Werte ausschließlich als platzhalterbasierte Parameter (`?` bzw. `$1, $2, ...`).
+- **Identifier Whitelisting (`assertSafeSqlIdentifier`)**: Dynamische Spaltennamen oder Tabellenbezeichner werden in `src/databases/core/relational-utils.ts` durch `assertSafeSqlIdentifier` gegen den regulären Ausdruck `/^[A-Za-z_][A-Za-z0-9_]*$/` validiert. Jeder Bezeichner mit Semikolons, Quotes, Backticks oder Whitespace löst sofort eine Exception aus, bevor das SQL zusammengesetzt wird. Zudem erzwingt die Routine eine Maximallänge von 63 Zeichen (PostgreSQL `NAMEDATALEN`), um Kollisionen durch stumme Identifier-Kürzung auszuschließen.
+
+### 10.2 Mandanten-Isolation & Ghost-Column Schutz
+
+- **Fail-Closed Tenant Guard (`safeQuery`)**: In `src/utils/security/safe-query.ts`: Im `MULTI_TENANT`-Modus wird jede Datenbankabfrage abgefangen. Fehlt der `tenantId`-Kontext oder versucht ein Client, Daten eines fremden Mandanten abzufragen, blockiert `safeQuery` bzw. `assertTenantContext` die Abfrage mit `TENANT_CONTEXT_MISSING` (HTTP 500) und redigiert PII-Felder (`email`, `secret`, `token`, etc.) im Log.
+- **Physical Column Selection (`getPhysicalSelection`)**: Auf Core-Tabellen (`content_nodes`, `audit_logs`, `auth_users`) werden Spalten über explizite Sets selektiert (`getPhysicalSelection` in `src/databases/core/drizzle-sql-helpers.ts`). Dies verhindert "Ghost Columns" und ungewollte Daten-Leaks in minifizierten Produktions-Chunks.
+
+### 10.3 Authentication & Granular Access Control (RBAC)
+
+- **Granular Endpoint Permissions (`ENDPOINT_PERMISSIONS`)**: Jeder `/api`-Endpunkt ist in einer zentralen Matrix typisiert und fail-closed abgesichert. Routen ohne explizites Permission-Mapping werden im Middleware-Hook mit HTTP 403 abgewiesen.
+- **Constant-Time Operations (`timingSafeStringEqual`)**: Alle API-Keys, Session-Tokens, Webhook-Signaturen und Passwörter werden in $O(\max(\text{lenA}, \text{lenB}))$ bitweise verglichen, um CPU-Cache-Line-Timing-Angriffe auszuschließen.
+- **64-Bit Bitmask Security Engine (`permission-bitmask.ts`)**: Rollenberechtigungen werden in Single-Instruction CPU-Register-Prüfungen (`((mask & req) !== 0n)`) ausgewertet. Ein dynamischer Revisions-Zähler mit `SharedArrayBuffer`/`Atomics` und `BroadcastChannel("sveltycms:roles")` invalidiert Rollen-Caches im Speicher atomar über alle Worker-Threads hinweg, sobald ein Administrator Rechte modifiziert.
+
 ---
 
 ## Related
