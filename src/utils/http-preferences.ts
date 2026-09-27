@@ -36,6 +36,8 @@ export function prefersMinimalReturn(
       if (ret === "minimal") return true;
       const min = searchParams.get("minimal")?.toLowerCase();
       if (min === "true" || min === "1") return true;
+      const fields = searchParams.get("fields")?.trim().toLowerCase();
+      if (fields === "_id" || fields === "id" || fields === "none") return true;
     }
   }
   if (!header) return false;

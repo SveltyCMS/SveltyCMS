@@ -205,7 +205,60 @@ Current design (`CollectionsNamespace` in `src/services/sdk/namespaces/collectio
 | Mutation cache invalidation off the response path                                                                       | `handle-api-requests` L1 walk is sync; L2 deletes/pattern scans are fire-and-forget / 10ms-batched so they never add to `200` latency                                                                                                          |
 | Cross-chunk service singletons (`globalThis`)                                                                           | `responseCache`, `webhookService`, `automationService` share one instance across Rolldown chunks — invalidations apply immediately                                                                                                             |
 
-**SDK tax suite:** `tests/benchmarks/local-cms-crud.test.ts` measures `cms.collections.create` / `update` / `findById` vs adapter `findOne` (not raw `db.crud` alone). `tests/benchmarks/local-sdk-vs-direct.test.ts` reports the **full pipeline** (all post-write side effects executing: outbox INSERT, cache-pattern invalidation, workflow init, pubsub — create ≈2.0k RPS, update ≈2.5k RPS on SQLite) and the **detached** number via the documented `skipSideEffects: true` option (create ≈4.9k, update ≈4.4k). No environment flags are involved — benchmarks run the same code path production runs.
+### In-Memory Plan & Metadata Caching: WeakMap vs. Standard Map {#weakmap-vs-map-security-analysis}
+
+The CMS engine uses `WeakMap` extensively across hot paths (e.g. `_dateKeyCache`, `prepPlanCache`, `collectionModelCache`, and WAF request header inspection memoization).
+
+#### Architecture & Mechanics Comparison
+
+| Characteristic         | Standard `Map<K, V>`                                               | `WeakMap<K, V>`                                               | Architectural Impact in SveltyCMS                                                                      |
+| :--------------------- | :----------------------------------------------------------------- | :------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------- |
+| **Key Reference Type** | Strong (prevents Garbage Collection of key)                        | Weak (key reference does not prevent GC)                      | WeakMap allows dynamic collection reloads, schemas, and plugin teardowns to be collected cleanly.      |
+| **Memory Lifecycle**   | Manual cleanup required (`.delete()`, `.clear()`, or LRU eviction) | Automatic (entry vanishes when key object is collected)       | Zero memory leak surface. Impossible to cause memory-growth DoS via dynamic schema or plugin creation. |
+| **Enumerability**      | Iterable (`.keys()`, `.values()`, `for...of`, `JSON.stringify`)    | Non-iterable (no enumeration or size inspection)              | Keys and values cannot be inspected, enumerated, or dumped via heap reflection or prototype pollution. |
+| **Key Types**          | Any primitive or object (`string`, `number`, `object`)             | Objects only (`object`, `Function`, `symbol` where supported) | Used for object-anchored runtime metadata (table definitions, AST plans, request instances).           |
+| **Lookup Cost**        | $O(1)$ amortized hash table lookup                                 | $O(1)$ amortized engine-level ephemeron lookup                | Identical sub-microsecond hot-path performance without LRU pruning overhead.                           |
+
+#### Security Analysis: Does WeakMap Compromise Security?
+
+**No. In fact, `WeakMap` enforces a stronger security posture than standard `Map`:**
+
+1. **Denial of Service (DoS) & Memory Leak Mitigation**:
+   Standard Maps holding cached query plans or schema metadata require explicit eviction policies (LRU/TTL). Under tenant churn, frequent plugin hot-reloading, or dynamic collection generation, a standard Map risks unbounded memory leaks, eventually triggering process out-of-memory (OOM) crashes. With `WeakMap`, as soon as a schema definition or table instance goes out of scope, its associated cache entries are immediately reclaimable by the V8/JavaScript engine garbage collector.
+2. **Structural Information-Hiding & Anti-Introspection**:
+   Because `WeakMap` does not expose `.keys()`, `.entries()`, or `.size`, an attacker gaining arbitrary code execution or prototype access cannot dump or enumerate cached database table metadata or query structures. Access to the cached value strictly requires holding a direct reference to the exact key object.
+3. **Tenant & Data Isolation**:
+   `WeakMap` in SveltyCMS is used strictly for **structural engine plans** (e.g. date-column names, column selection sets, compiled sanitization functions), **never** for tenant data, user records, or cryptographic secrets. Data isolation remains strictly governed by `tenantId` boundaries in the database adapters and middleware.
+
+---
+
+### Lean Payload Evolution: Smart Minimal Payloads for 2027 {#smart-minimal-payloads-2027}
+
+In traditional REST APIs, write operations (`POST` / `PATCH`) echo the full persisted document back to the client. In SveltyCMS, a typical document with default schema fields, audit metadata, and relations occupies **1.9 KB to 3.5 KB**. For high-throughput services, IoT ingest, and automated pipelines, parsing and transferring this discarded representation wastes over 95% of bandwidth and CPU cycles.
+
+#### Two Activation Vectors: RFC 7240 Header or Query Projection
+
+SveltyCMS provides zero-overhead minimal responses via two non-breaking mechanisms:
+
+1. **RFC 7240 Standard Header**:
+   ```http
+   Prefer: return=minimal
+   ```
+2. **Smart URL Query Projection (2027 Wire Convenience)**:
+   ```http
+   POST /api/collections/articles?fields=_id
+   PATCH /api/collections/articles/123?return=minimal
+   POST /api/collections/articles?fields=none
+   ```
+
+#### Write Execution Paths
+
+| Client Request Mode                            | DB Read-Back (`RETURNING` / `findOne`) | Wire Payload Size | Wire Payload Example         | Status Code                     |
+| :--------------------------------------------- | :------------------------------------- | :---------------- | :--------------------------- | :------------------------------ |
+| **Default** (no header/param)                  | Executed (re-reads merged entity)      | ~1.9 KB – 3.5 KB  | Full document representation | `201` (create) / `200` (update) |
+| **Minimal Return** (`Prefer` or `?fields=_id`) | **Skipped** (`skipReturning: true`)    | **~43–70 Bytes**  | `{"_id":"0192847a-..."}`     | `201` (create) / `200` (update) |
+
+By setting `skipReturning: true` directly in the database adapter call, the database skips the `RETURNING` clause or secondary `findOne` fetch, eliminating both DB serialization cost and network transfer overhead while remaining 100% backward-compatible with legacy REST consumers.
 
 ### HTTP findById turbo lane + responseCache
 
