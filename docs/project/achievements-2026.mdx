@@ -1668,6 +1668,63 @@ drift, which is exactly what the ratio metric could not survive.
 < 20 ms") failed once at 658 ms against its 500 ms budget during a full-suite run and passes 8/8 in 119 ms
 alone — a contention flake of the documented kind ("perf assertions need JIT warm-up"), left for the owner.
 
+### 3.37 September 2026 — The vendor-leg bisect executed: no reproducible regression in `e1efe15..e4994ef`
+
+**The claim under test.** The external harness's last three legs read tag `v0.1.2` (`e1efe15b2`) as faster
+than `main` (`e4994eff6`) on **all 11 lanes** (+8 … +82 %, e.g. `findMissing` +82 %, `findByIdRandom`
++52 %, `graphql` +36 %) while its keystone anchor moved 1.1 %. `e1efe15b2` is an ancestor of `main`, so
+the claim implies a regression from one of the **8 commits** in between. This entry records the local
+bisect: protocol-parity replica (`tests/benchmarks/competitive-workload-replica.test.ts`, 10 workloads,
+10 000 docs, seq + 8 c, median of 3 rounds), one build per commit, SQLite and PostgreSQL.
+
+**Confound found first.** The Dockerfile's `NODE_OPTIONS` semi-space changed **128 → 64 inside
+`e4994eff6`** (the benchmark harness default likewise) — the vendor's tag image ran 128 and its main image
+64, a config difference shipped in the same commit box as the code claims. Every bisect leg therefore
+pins `NODE_OPTIONS` explicitly, and a 2 × 2 (tag/main × 64/128) was measured: **no consistent semi-space
+effect** (128 helped `findById`/`graphql` slightly and hurt `listPlain` on both commits).
+
+**Result: no persistent regression.** The two large single-run dips both recover inside the range — which
+a real regression cannot do — and both failed to reproduce on re-run:
+
+| commit             |     `list_plain` warm 8c | note                               |
+| :----------------- | -----------------------: | :--------------------------------- |
+| `e1efe15b2` (tag)  | 13 307 / 13 792 (2 runs) | baseline                           |
+| `54bd19f76`        |                   13 310 | flat                               |
+| `5be703223`        |                **9 786** | re-run **10 916** — not reproduced |
+| `db6becec6`        |                   12 770 | recovered                          |
+| `d091b2178`        |                   11 332 |                                    |
+| `60fd09c3f`        |                **9 804** | re-run **11 229** — not reproduced |
+| `d9060a465`        |                   11 712 | recovered                          |
+| `e4994eff6` (main) | 11 309 / 13 700 (2 runs) |                                    |
+
+**The noise floor is the finding** — identical builds, repeated runs, same session, this host:
+
+| lane (phase)                    |  run A |  run B |         Δ |
+| :------------------------------ | -----: | -----: | --------: |
+| `findById` warm-seq (tag)       |  4 993 |  4 613 |      −8 % |
+| `findByIdRandom` warm-seq (tag) |  2 818 |  3 424 | **+21 %** |
+| `listLarge` warm-seq (tag)      |  1 779 |  1 277 | **−28 %** |
+| `findMissing` warm-seq (tag)    |  3 859 |  5 184 | **+34 %** |
+| `findMissing` warm-seq (main)   |  3 423 |  5 440 | **+59 %** |
+| `graphql` warm-seq (main)       |    619 |    456 | **−26 %** |
+| `findById` warm 8c (main)       | 10 905 | 13 332 | **+22 %** |
+| `listPlain` warm 8c (main)      | 11 309 | 13 700 | **+21 %** |
+
+PostgreSQL (the vendor-likely engine) agrees: `cold.findByIdRandom` on main across **three** runs reads
+2 212 / 2 438 / 2 887 against tag's 2 702 / 2 630 (2.7 % spread between the two tag runs) — the one lane
+where main looked persistently slower dissolves into main's own 26 % spread. The vendor's smallest
+attributed deltas (+8 … +20 %) sit **below** this host's run-to-run floor; its largest (+52 %, +82 %) are
+not reproducible in either engine with ≥ 2 samples per side.
+
+**Conclusions.** (1) No commit in `e1efe15b2..e4994eff6` shows a persistent, monotone lane regression —
+the local replication of the vendor protocol does not reproduce the tag > main ordering on SQLite or
+PostgreSQL. (2) The only structural change in the range that could act globally is the Dockerfile
+semi-space 128 → 64, and the local A/B says it does not explain a uniform slowdown. (3) A vendor-side
+bisect needs alternated pairs (≥ 3 per side, identical `NODE_OPTIONS`) per the protocol this project
+already requires for that class of claim; single-session legs carry a floor wider than the attributed
+effect. Measurement hygiene: bisect legs wrote to an isolated `RESULTS_DIR` (no trend-store rows); the two
+ad-hoc runs that did record (42 rows) were removed from `history.sqlite`.
+
 ---
 
 ## Related
