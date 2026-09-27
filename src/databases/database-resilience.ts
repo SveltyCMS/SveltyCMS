@@ -710,9 +710,15 @@ export async function preWarmConnectionPool(
             warmed++;
             return;
           }
-          // PostgreSQL/MariaDB: try pool.query or raw SQL
+          // PostgreSQL / raw SQL adapter: try sql tag
           if (typeof adapter.sql !== "undefined") {
             await adapter.sql`SELECT 1`;
+            warmed++;
+            return;
+          }
+          // MariaDB / MySQL: try pool.query
+          if (typeof adapter.pool?.query === "function") {
+            await adapter.pool.query("SELECT 1");
             warmed++;
             return;
           }

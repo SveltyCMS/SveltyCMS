@@ -188,13 +188,13 @@ async function executeWarmCollectionWrite(
   const user = locals.user;
 
   let result: unknown;
-  const minimal =
-    request.method !== "POST" && prefersMinimalReturn(request.headers.get("prefer"), url);
+  const minimal = prefersMinimalReturn(request.headers.get("prefer"), url);
   if (request.method === "POST") {
     result = await cms.collections.create(collectionId, data, {
       user,
       tenantId,
       ...(marks ? { __phaseMarks: marks } : {}),
+      ...(minimal ? { skipReturning: true } : {}),
     });
   } else {
     // `skipReturning` is the adapter-agnostic half of the minimal ack: the row is not read
@@ -221,11 +221,18 @@ async function executeWarmCollectionWrite(
   // is left is the envelope. Same read on the dispatcher side (`handlers/collections.ts`),
   // so both paths behave identically.
   if (minimal) {
+    const isPost = request.method === "POST";
+    const resId = isPost
+      ? (result as any)?.data?._id ||
+        (result as any)?.data?.id ||
+        (result as any)?._id ||
+        (result as any)?.id
+      : entryId;
     const res = fastSuccessResponse(
       event,
-      `{"_id":${JSON.stringify(entryId)}}`,
-      { _id: entryId },
-      200,
+      `{"_id":${JSON.stringify(resId)}}`,
+      { _id: resId },
+      isPost ? 201 : 200,
     );
     applyAllSecurityHeaders(
       res.headers,
