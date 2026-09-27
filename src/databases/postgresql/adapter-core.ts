@@ -66,8 +66,9 @@ const PG_TEXT_DATE_TYPES = {
 /** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
 function bindPgParam(v: unknown, asJson: boolean): unknown {
   if (v === undefined) return null;
+  if (asJson) return v === null ? null : typeof v === "string" ? v : JSON.stringify(v);
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
   if (v instanceof Date) return v.toISOString();
-  if (asJson) return v === null ? null : JSON.stringify(v);
   if (v !== null && typeof v === "object") return JSON.stringify(v);
   return v;
 }
@@ -215,7 +216,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
 
       const tpl = this._getInsertTemplate(table, tableName, synthesized);
-      const boundValues: any[] = [];
+      const boundValues: unknown[] = [];
       for (let i = 0; i < tpl.synthCols.length; i++) {
         boundValues.push(bindPgParam(synthesized[tpl.synthCols[i]], tpl.isJsonMap[i]));
       }
@@ -428,7 +429,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         fields,
         skipJson,
       );
-      const boundValues: any[] = [];
+      const boundValues: unknown[] = [];
 
       for (let i = 0; i < columns.length; i++) {
         boundValues.push(bindPgParam(values[columns[i]], tpl.isJsonMap[i]));

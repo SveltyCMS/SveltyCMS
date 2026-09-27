@@ -840,9 +840,10 @@ export function applyTenantFilterToMongoQuery<T extends Record<string, unknown>>
  */
 const _safeSqlIdentifierSet = new Set<string>();
 const SAFE_SQL_IDENTIFIER_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
-/** Physical columns present on every collection table — skip regex after the type check. */
+/** Physical columns present on every collection and core table — skip regex after the type check. */
 const COMMON_SQL_IDENTIFIERS = new Set([
   "_id",
+  "id",
   "tenantId",
   "status",
   "data",
@@ -855,7 +856,55 @@ const COMMON_SQL_IDENTIFIERS = new Set([
   "locale",
   "collection",
   "publishedAt",
+  "title",
+  "name",
+  "email",
+  "role",
+  "roles",
+  "roleIds",
+  "permissions",
+  "token",
+  "expires",
+  "type",
+  "metadata",
+  "schema",
+  "order",
+  "key",
+  "value",
+  "description",
+  "content",
+  "tags",
+  "path",
+  "category",
+  "translations",
+  "thumbnails",
+  "version",
+  "author",
+  "userId",
+  "user_id",
+  "mimeType",
+  "size",
+  "width",
+  "height",
+  "alt",
+  "url",
+  "folder",
+  "folderId",
 ]);
+
+/**
+ * Pre-registers a batch of known safe SQL identifiers (e.g. from compiled collection definitions)
+ * into the fast-path set, bypassing regex validation on future queries.
+ */
+export function registerSafeSqlIdentifiers(names: Iterable<string>): void {
+  for (const name of names) {
+    if (typeof name === "string" && name.length <= 63 && SAFE_SQL_IDENTIFIER_REGEX.test(name)) {
+      if (_safeSqlIdentifierSet.size < 4096) {
+        _safeSqlIdentifierSet.add(name);
+      }
+    }
+  }
+}
 
 export function assertSafeSqlIdentifier(name: string, label = "field"): string {
   if (typeof name !== "string") {

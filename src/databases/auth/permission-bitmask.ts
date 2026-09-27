@@ -242,6 +242,7 @@ export function computeUserPermMask(user: User, roles: Role[] = []): bigint {
  * Accepts either a pre-computed BigInt bit or a permission string ID.
  */
 export function hasPermissionBitmask(userMask: bigint, reqBit: bigint | string): boolean {
+  if (userMask === ADMIN_PERM_MASK) return true;
   const bit = typeof reqBit === "string" ? getPermissionBit(reqBit) : reqBit;
   if (bit === 0n) return false;
   return (userMask & bit) !== 0n;

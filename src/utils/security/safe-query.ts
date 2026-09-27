@@ -131,8 +131,13 @@ export function safeQuery<T extends Record<string, any>>(
   }
 
   if (!options.includeDeleted) {
-    if (!hasChanges) secureQuery = { ...query };
-    secureQuery.isDeleted = { $ne: true };
+    const del = query.isDeleted;
+    const isAlreadyFiltered =
+      del !== null && typeof del === "object" && (del as Record<string, unknown>).$ne === true;
+    if (!isAlreadyFiltered) {
+      if (!hasChanges) secureQuery = { ...query };
+      secureQuery.isDeleted = { $ne: true };
+    }
   }
 
   return secureQuery;
