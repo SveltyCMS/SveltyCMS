@@ -162,20 +162,31 @@ class NavigationManager {
     return this.navigating;
   }
 
-  private async executeNavigation(action: string, task: () => Promise<void>): Promise<void> {
-    if (this.navigating) {
-      this.navAbortController?.abort(); // Cancel previous if user spams clicks
-    }
-    this.navAbortController = new AbortController();
+  private async executeNavigation(
+    action: string,
+    task: (signal: AbortSignal) => Promise<void>,
+  ): Promise<void> {
+    // Rapid clicks must not stack navigations. The in-flight run is aborted, and its
+    // `signal` lets the task bail out before it mutates state or pushes a route —
+    // the previous version created a controller nobody ever read, so it cancelled
+    // nothing (and the stale run cleared the newer run's loading state).
+    this.navAbortController?.abort();
+    const controller = new AbortController();
+    this.navAbortController = controller;
 
     this.navigating = true;
     globalLoadingStore.startLoading(loadingOperations.navigation, action);
 
     try {
-      await task();
+      await task(controller.signal);
     } finally {
-      globalLoadingStore.stopLoading(loadingOperations.navigation);
-      this.navigating = false;
+      // Only the newest navigation owns the loading state: a superseded call must
+      // not hide the spinner the newer one just started.
+      if (this.navAbortController === controller) {
+        this.navAbortController = null;
+        globalLoadingStore.stopLoading(loadingOperations.navigation);
+        this.navigating = false;
+      }
     }
   }
 
@@ -183,11 +194,13 @@ class NavigationManager {
    * Navigate to list view and reset state.
    */
   async toList(options?: { invalidate?: boolean }): Promise<void> {
-    await this.executeNavigation("toList", async () => {
+    await this.executeNavigation("toList", async (signal) => {
+      if (signal.aborted) return;
       collections.resetChanges();
       setCollectionValue({});
 
       if (!(await modeTransitionGuard.transitionTo("view"))) return;
+      if (signal.aborted) return;
 
       await goto(page.url.pathname, {
         refreshAll: options?.invalidate ?? true,
@@ -202,8 +215,9 @@ class NavigationManager {
   async toEdit(entryId: string): Promise<void> {
     if (!entryId?.trim()) return;
 
-    await this.executeNavigation(`toEdit(${entryId})`, async () => {
+    await this.executeNavigation(`toEdit(${entryId})`, async (signal) => {
       if (!(await modeTransitionGuard.transitionTo("edit"))) return;
+      if (signal.aborted) return;
       await goto(`${page.url.pathname}?edit=${encodeURIComponent(entryId)}`);
     });
   }
@@ -212,8 +226,9 @@ class NavigationManager {
    * Navigate to create entry view.
    */
   async toCreate(): Promise<void> {
-    await this.executeNavigation("toCreate", async () => {
+    await this.executeNavigation("toCreate", async (signal) => {
       if (!(await modeTransitionGuard.transitionTo("create"))) return;
+      if (signal.aborted) return;
       await goto(`${page.url.pathname}?create=true`);
     });
   }

@@ -3,8 +3,12 @@
  * @description Unit tests for the Date Range widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import DateRangeWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import DateRangeWidget from "@widgets/custom/date-range";
 import { safeParse } from "valibot";
 
 describe("Date Range Widget - Validation", () => {

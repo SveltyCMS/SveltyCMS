@@ -62,26 +62,59 @@ export interface WidgetScaffoldConfig {
 
 // ─── Valibot Type Mapping ─────────────────────────────────────────────────
 
-function fieldToValidator(field: WidgetField): string {
-  const base =
-    field.type === "number" ? "v.number()" : field.type === "toggle" ? "v.boolean()" : "v.string()";
+/** Members of `valibot` the generated widget may reference. Collected per scaffold so the emitted
+ *  import is a named, tree-shakeable list containing exactly what the widget uses — widget
+ *  definitions are client-bundled, and `import * as v` would defeat tree-shaking there. */
+type ValibotMember =
+  | "object"
+  | "string"
+  | "number"
+  | "boolean"
+  | "minLength"
+  | "maxLength"
+  | "minValue"
+  | "maxValue"
+  | "pipe";
+
+function fieldToValidator(field: WidgetField, used: Set<ValibotMember>): string {
+  let base: string;
+  if (field.type === "number") {
+    used.add("number");
+    base = "number()";
+  } else if (field.type === "toggle") {
+    used.add("boolean");
+    base = "boolean()";
+  } else {
+    used.add("string");
+    base = "string()";
+  }
 
   const pipes: string[] = [];
 
-  if (field.required) {
-    pipes.push(`v.minLength(1, "${field.label} is required")`);
+  // "Required" is only a length constraint for strings: valibot's `number()`/`boolean()` already
+  // reject `undefined`, and `minLength` applied to them produces a schema that cannot validate
+  // (pre-existing scaffolder bug, fixed 2026-09-27 — a required numeric field generated
+  // `pipe(number(), minLength(1, …))`).
+  if (field.required && field.type !== "number" && field.type !== "toggle") {
+    used.add("minLength");
+    pipes.push(`minLength(1, "${field.label} is required")`);
   }
   if (field.maxLength) {
-    pipes.push(`v.maxLength(${field.maxLength})`);
+    used.add("maxLength");
+    pipes.push(`maxLength(${field.maxLength})`);
   }
   if (field.type === "number" && field.min !== undefined) {
-    pipes.push(`v.minValue(${field.min})`);
+    used.add("minValue");
+    pipes.push(`minValue(${field.min})`);
   }
   if (field.type === "number" && field.max !== undefined) {
-    pipes.push(`v.maxValue(${field.max})`);
+    used.add("maxValue");
+    pipes.push(`maxValue(${field.max})`);
   }
 
-  return pipes.length ? `v.pipe(${base}, ${pipes.join(", ")})` : base;
+  if (pipes.length === 0) return base;
+  used.add("pipe");
+  return `pipe(${base}, ${pipes.join(", ")})`;
 }
 
 function fieldToGuiSchema(field: WidgetField): string {
@@ -99,9 +132,15 @@ function fieldToGuiSchema(field: WidgetField): string {
 
 function generateIndex(config: WidgetScaffoldConfig): string {
   const kebab = widgetNameToFolder(config.name);
-  const validators = config.fields.map((f) => `  ${f.name}: ${fieldToValidator(f)},`).join("\n");
+  // `object` is always used for the schema itself; the field validators add their own members.
+  const usedValibot = new Set<ValibotMember>(["object"]);
+  const validators = config.fields
+    .map((f) => `  ${f.name}: ${fieldToValidator(f, usedValibot)},`)
+    .join("\n");
 
   const guiSchema = config.fields.map((f) => `    ${f.name}: ${fieldToGuiSchema(f)},`).join("\n");
+
+  const valibotImport = `import { ${[...usedValibot].sort().join(", ")} } from "valibot";`;
 
   return `/**
  * @file src/widgets/core/${kebab}/index.ts
@@ -113,7 +152,7 @@ ${config.fields.map((f) => ` * - \`${f.name}\` (${f.type})${f.required ? " — r
  */
 
 import { createWidget } from "@widgets/widgetFactory";
-import * as v from "valibot";
+${valibotImport}
 
 export default createWidget<{
 ${config.fields.map((f) => `  ${f.name}?: ${f.type === "number" ? "number" : "string"};`).join("\n")}
@@ -122,7 +161,7 @@ ${config.fields.map((f) => `  ${f.name}?: ${f.type === "number" ? "number" : "st
   label: "${config.label}",
   description: "${config.description}",
   icon: "${config.icon || "mdi:puzzle"}",
-  validationSchema: () => v.object({
+  validationSchema: () => object({
 ${validators}
   }),
   GuiSchema: {

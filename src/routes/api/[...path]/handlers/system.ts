@@ -20,35 +20,35 @@ import { getSystemStatus } from "@src/databases/resilience-integration";
 import { requireDashboardWidgetLicense } from "./dashboard";
 import { streamingArrayResponse } from "./streaming";
 import { buildLogExport, type LogExportFormat, type LogExportType } from "@src/utils/log-export";
-import * as v from "valibot";
+import { any, array, boolean, minLength, object, optional, pipe, record, string } from "valibot";
 
-const SaveWebhookSchema = v.object({
-  id: v.optional(v.string()),
-  name: v.optional(v.string()),
-  url: v.optional(v.string()),
-  events: v.optional(v.array(v.string())),
-  event: v.optional(v.string()),
-  active: v.optional(v.boolean()),
-  secret: v.optional(v.string()),
-  headers: v.optional(v.record(v.string(), v.string())),
+const SaveWebhookSchema = object({
+  id: optional(string()),
+  name: optional(string()),
+  url: optional(string()),
+  events: optional(array(string())),
+  event: optional(string()),
+  active: optional(boolean()),
+  secret: optional(string()),
+  headers: optional(record(string(), string())),
 });
 
-const ImportPresetSchema = v.object({
-  presetJson: v.pipe(v.string(), v.minLength(1, "presetJson is required")),
+const ImportPresetSchema = object({
+  presetJson: pipe(string(), minLength(1, "presetJson is required")),
 });
 
-const CreateThemeSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(1, "name is required")),
-  settings: v.optional(v.any()),
+const CreateThemeSchema = object({
+  name: pipe(string(), minLength(1, "name is required")),
+  settings: optional(any()),
 });
 
-const ThemeIdSchema = v.object({
-  themeId: v.pipe(v.string(), v.minLength(1, "themeId is required")),
+const ThemeIdSchema = object({
+  themeId: pipe(string(), minLength(1, "themeId is required")),
 });
 
-const CloneThemeSchema = v.object({
-  sourceId: v.pipe(v.string(), v.minLength(1, "sourceId is required")),
-  name: v.pipe(v.string(), v.minLength(1, "name is required")),
+const CloneThemeSchema = object({
+  sourceId: pipe(string(), minLength(1, "sourceId is required")),
+  name: pipe(string(), minLength(1, "name is required")),
 });
 
 export async function handleSystemRoutes(

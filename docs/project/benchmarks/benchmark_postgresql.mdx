@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(27/09/2026, 01:59:13)
+(27/09/2026, 14:32:28)
 
 **✅ PASS** · 34/45 tests · 11 skipped · **POSTGRESQL** · Bun 1.4.2
 
@@ -61,14 +61,14 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario               | Latency | Trend  | Budget   | Result  |
-| ---------------------- | ------- | ------ | -------- | ------- |
-| **Cold Start**         | 0ms     | ⚪ (—) | < 5000ms | 🟢 PASS |
-| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | 🔴 FAIL |
-| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | 🔴 FAIL |
-| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | 🔴 FAIL |
-| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | 🔴 FAIL |
-| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | 🔴 FAIL |
+| Scenario               | Latency | Trend  | Budget   | Result |
+| ---------------------- | ------- | ------ | -------- | ------ |
+| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
+| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
+| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
+| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
+| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
+| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
 
 ### Historical pulse
 
@@ -108,18 +108,9 @@ quadrantChart
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
 <!-- EXECUTIVE_ALERTS_START -->
-
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
-### 🔴 Top Regressions
-
-> **🔴 media-performance** (postgresql): +3907% | 50.01ms vs 1.25ms baseline
-> **🔴 api-latency** (postgresql): +84% | 2.72ms vs 1.48ms baseline
-
-<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
+<!-- EXECUTIVE_ALERTS_END -->
+<!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
@@ -160,7 +151,7 @@ quadrantChart
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-09-26)
+### Historical Trends (2026-09-27)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 

@@ -65,15 +65,15 @@ flowchart TB
 
 ### Component Roles
 
-| Component              | Path                                                          | Role                                                 |
-| ---------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| **header-edit**        | `src/components/header-edit.svelte`                           | Mobile save/cancel/delete actions, validation gating |
-| **right-sidebar**      | `src/components/right-sidebar.svelte`                         | Desktop save/status/scheduling actions               |
-| **fields**             | `src/components/collection-display/fields.svelte`             | Dynamic field rendering, validation                  |
-| **widget-loader**      | `src/components/collection-display/widget-loader.svelte`      | Async widget loading with error handling             |
-| **translation-status** | `src/components/collection-display/translation-status.svelte` | Translation progress per language                    |
-| **TokenPicker**        | `src/components/TokenPicker.svelte`                           | Dynamic token insertion for fields                   |
-| **Revisions**          | (within fields)                                               | Historical snapshots with revert capability          |
+| Component              | Path                                                          | Role                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **header-edit**        | `src/components/header-edit.svelte`                           | Mobile save/cancel/delete actions, validation gating                                                                                               |
+| **right-sidebar**      | `src/components/right-sidebar.svelte`                         | Desktop save/status/scheduling actions                                                                                                             |
+| **fields**             | `src/components/collection-display/fields.svelte`             | Dynamic field rendering, validation                                                                                                                |
+| **widget-loader**      | `src/components/collection-display/widget-loader.svelte`      | Async widget loading with error handling                                                                                                           |
+| **translation-status** | `src/components/collection-display/translation-status.svelte` | Translation progress per language                                                                                                                  |
+| **TokenPicker**        | `src/components/token-picker.svelte`                          | Dynamic token insertion for fields (component is **unwired**: `fields.svelte` keeps the `openTokenPicker()` handler but nothing mounts the picker) |
+| **Revisions**          | (within fields)                                               | Historical snapshots with revert capability                                                                                                        |
 
 ---
 

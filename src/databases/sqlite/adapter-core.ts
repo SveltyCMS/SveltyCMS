@@ -16,15 +16,28 @@ import type {
   EntityCreate,
   ISqlAdapter,
 } from "../db-interface";
-import * as helpers from "../core/drizzle-sql-helpers";
+import {
+  isSystemTable,
+  resolveSystemTableName,
+  shouldMaterializeField,
+} from "../core/drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
+// Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
 import * as schema from "./schema";
 import { sql, type SQL } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
-import * as utils from "../core/relational-utils";
-import { registerTableSchema } from "../core/relational-utils";
+import {
+  applyTenantFilter,
+  assertFiniteAmount,
+  assertSafeSqlIdentifier,
+  buildRawTenantClause,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  createDatabaseError,
+  registerTableSchema,
+} from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
@@ -122,8 +135,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   private _rawFindPointWireSqlCache = new WeakMap<
     object,
     {
+      /** `SELECT … FROM table` prefix shared by every variant below. */
+      selectPrefix: string;
       base: string;
       tenant: string;
+      /** Published-only variants; `null` when the table has no `status` column. */
+      basePub: string | null;
+      tenantPub: string | null;
     }
   >();
 
@@ -200,9 +218,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   ): Promise<Record<string, unknown> | null> {
     const tableName = getTableName(table);
     const idColName = (this.getColumn(table, "_id") || this.getColumn(table, "id"))?.name ?? "_id";
-    const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "sqlite");
+    const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
     const row = this.prepareAndExecute(
-      `SELECT "data" FROM "${utils.assertSafeSqlIdentifier(tableName, "table")}" WHERE "${utils.assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql} LIMIT 1`,
+      `SELECT "data" FROM "${assertSafeSqlIdentifier(tableName, "table")}" WHERE "${assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql} LIMIT 1`,
       "get",
       String(id),
       ...tenantParams,
@@ -257,10 +275,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
       const tableName = getTableName(table);
       // Bound parameters for _id + tenantId (no string interpolation of identifiers/values)
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-        options,
-        "sqlite",
-      );
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
       // Projection: when fields are all physical columns, skip the data blob
       // (avoids JSON.parse + flattenDataColumn on the hot read path).
       const fields = options?.fields;
@@ -317,7 +332,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       if (rawRow) {
         if (!wantsData) {
           // Projected read: normalize dates/booleans without the blob parse.
-          return utils.convertDatesToISO(rawRow, {
+          return convertDatesToISO(rawRow, {
             inPlace: true,
             table: collection,
             skipJson: true,
@@ -325,7 +340,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }
         // inPlace: the driver row is a fresh object — parse/flatten the data
         // blob in place instead of copying every key into a new object.
-        return utils.convertDatesToISO(rawRow, { inPlace: true, table: collection }) as T;
+        return convertDatesToISO(rawRow, { inPlace: true, table: collection }) as T;
       }
       return null;
     } catch (rawErr: any) {
@@ -352,10 +367,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
       const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-        options,
-        "sqlite",
-      );
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
       let cachedWireSql = this._rawFindPointWireSqlCache.get(table);
       if (!cachedWireSql) {
         const quoted = `"${tableName}"`;
@@ -363,25 +375,40 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const hasStatusCol = !!this.getColumn(table, "status");
 
         const dataExpr = `json(json_patch(COALESCE("data", '{}'), json_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})))`;
+        const selectPrefix = `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
 
         cachedWireSql = {
-          base: `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
-          tenant: `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+          selectPrefix,
+          base: `${selectPrefix} WHERE "_id" = ? LIMIT 1`,
+          tenant: `${selectPrefix} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+          // Wire Plane publication guarantee (see `requirePublished`): compiled
+          // into the statement so unpublished rows never reach the socket.
+          basePub: hasStatusCol
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" = 'publish' LIMIT 1`
+            : null,
+          tenantPub: hasStatusCol
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" = 'publish' AND "tenantId" = ? LIMIT 1`
+            : null,
         };
         this._rawFindPointWireSqlCache.set(table, cachedWireSql);
       }
 
       const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
+      const wantPublished = options?.requirePublished === true;
+      // Fail closed: no `status` column means the engine cannot prove the row is
+      // published, so the caller's Domain-Plane clamp decides instead.
+      if (wantPublished && !cachedWireSql.basePub) return null;
       let sqlText: string;
       let params: unknown[];
       if (useTenantCache) {
-        sqlText = cachedWireSql.tenant;
+        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
         params = [String(id), ...tenantParams];
       } else if (!tenantSql) {
-        sqlText = cachedWireSql.base;
+        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
         params = [String(id)];
       } else {
-        sqlText = `${cachedWireSql.base.replace(` WHERE "_id" = ? LIMIT 1`, ` WHERE "_id" = ?${tenantSql} LIMIT 1`)}`;
+        const publishedSql = wantPublished ? ` AND "status" = 'publish'` : "";
+        sqlText = `${cachedWireSql.selectPrefix} WHERE "_id" = ?${tenantSql}${publishedSql} LIMIT 1`;
         params = [String(id), ...tenantParams];
       }
 
@@ -399,58 +426,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       };
     } catch (err: any) {
       logger.debug("[SQLite rawFindPointWireStream] falling back:", err?.message);
-      return null;
-    }
-  }
-
-  /**
-   * Direct-to-Wire list stream optimization for SQLite:
-   * Generates `{ success: true, data: [ ... ] }` directly inside SQLite C engine
-   * via json_group_array and json_object.
-   */
-  protected override async rawFindListWireStream<T extends BaseEntity>(
-    table: any,
-    _collection: string,
-    _query: QueryFilter<T>,
-    options: FindOptions<T>,
-  ): Promise<{ wireBody: string; etag?: string } | null> {
-    try {
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return null;
-
-      const tableName = getTableName(table);
-      const limit = Math.min(options?.limit ?? 50, 100);
-      const offset = options?.offset ?? 0;
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-        options,
-        "sqlite",
-      );
-
-      const hasSlugCol = !!this.getColumn(table, "slug");
-      const hasStatusCol = !!this.getColumn(table, "status");
-      const hasDeletedCol = !!this.getColumn(table, "isDeleted");
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-
-      const dataExpr = `json(json_patch(COALESCE("data", '{}'), json_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})))`;
-      const quoted = `"${tableName}"`;
-      const whereBase = hasDeletedCol ? '"isDeleted" = 0' : "1 = 1";
-      const orderBy = hasUpdatedAtCol ? '"updatedAt" DESC' : '"_id" DESC';
-      const subquery = `SELECT * FROM ${quoted} WHERE ${whereBase}${tenantSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
-      const listSql = `SELECT json_object('success', json('true'), 'data', json(COALESCE(json_group_array(${dataExpr}), '[]'))) AS wire_body FROM (${subquery})`;
-
-      const rawRow = this.prepareAndExecute(listSql, "get", ...tenantParams, limit, offset) as
-        | { wire_body: string }
-        | undefined;
-
-      if (!rawRow || !rawRow.wire_body) return null;
-      return {
-        wireBody:
-          typeof rawRow.wire_body === "string"
-            ? rawRow.wire_body
-            : JSON.stringify(rawRow.wire_body),
-      };
-    } catch (err: any) {
-      logger.debug("[SQLite rawFindListWireStream] falling back:", err?.message);
       return null;
     }
   }
@@ -481,11 +456,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const cacheKey = `${tableName}|${cols.join(",")}`;
       let tpl = this._insertTemplateCache.get(cacheKey);
       if (!tpl) {
-        const colList = cols
-          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
-          .join(", ");
+        const colList = cols.map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`).join(", ");
         const placeholders = cols.map(() => "?").join(", ");
-        const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders})`;
+        const sqlText = `INSERT INTO "${assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders})`;
         tpl = { cols, sqlText };
         if (this._insertTemplateCache.size >= 256) {
           const oldest = this._insertTemplateCache.keys().next().value;
@@ -498,7 +471,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       await this.prepareAndExecuteWrite(tpl.sqlText, "run", ...params);
       mStmt?.();
       const mConv = PROFILE_WRITE_ENABLED ? profileMark("db:ins:conv") : null;
-      const converted = utils.convertDatesToISO(synthesized, {
+      const converted = convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
       }) as T;
@@ -526,7 +499,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const cols = Object.keys(batchValues[0]);
       if (cols.length === 0) return null;
 
-      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
+      const colList = cols.map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`).join(", ");
       const rowPlaceholder = `(${cols.map(() => "?").join(", ")})`;
       const rowTuples: string[] = [];
       const allParams: any[] = [];
@@ -542,7 +515,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES ${rowTuples.join(", ")} RETURNING *`;
       const rows = await this.prepareAndExecuteWrite(rawSql, "all", ...allParams);
       if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertArrayDatesToISO(rows, {
+        return convertArrayDatesToISO(rows, {
           ...this.convertDatesOptions,
           table: collection,
         }) as T[];
@@ -586,10 +559,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const params: unknown[] = [];
       for (let i = 0; i < columns.length; i++) params.push(values[columns[i]]);
 
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-        options,
-        "sqlite",
-      );
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
       const skipReturning = (options as { skipReturning?: boolean })?.skipReturning === true;
       // A live partial-update patch marker means the `data` blob must MERGE, not
       // replace. Only patches that `json_patch` expresses exactly reach this point
@@ -603,7 +573,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         for (let i = 0; i < columns.length; i++) {
           const col = columns[i];
           const phys = this.getColumn(table, col);
-          const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+          const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
           const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
           setPairs.push(
             isJson && mergeJsonData
@@ -611,11 +581,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               : `"${safeCol}" = ?`,
           );
         }
-        const whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql}`;
+        const whereSql = `"${assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql}`;
         const setSql = setPairs.join(", ");
         rawSql = skipReturning
-          ? `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql}`
-          : `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+          ? `UPDATE "${assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql}`
+          : `UPDATE "${assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
         if (this._updateSqlCache.size >= 256) {
           const oldest = this._updateSqlCache.keys().next().value;
           if (oldest) this._updateSqlCache.delete(oldest);
@@ -632,7 +602,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           [idColName]: id,
         } as Record<string, unknown>;
         const mConvR = PROFILE_WRITE_ENABLED ? profileMark("db:upd:conv") : null;
-        const converted = utils.convertDatesToISO(reconstructed, {
+        const converted = convertDatesToISO(reconstructed, {
           ...this.convertDatesOptions,
           table: collection,
           inPlace: true,
@@ -652,7 +622,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         const mConv = PROFILE_WRITE_ENABLED ? profileMark("db:upd:conv") : null;
-        const converted = utils.convertDatesToISO(rows[0], {
+        const converted = convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
           table: collection,
           inPlace: true,
@@ -702,11 +672,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
       // defense-in-depth for direct calls) + parameterized tenant WHERE.
       const tenantCol = this.getColumn(table, "tenantId");
-      if (tenantCol) utils.applyTenantFilter([], tenantCol, options);
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-        options,
-        "sqlite",
-      );
+      if (tenantCol) applyTenantFilter([], tenantCol, options);
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
 
       // Prepare per-row values once — same shape as crud.update's SET clause
       // (id column included by prepareValues, stripped from SET below).
@@ -753,7 +720,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           const params: unknown[] = [];
           for (const col of setCols) {
             const phys = this.getColumn(table, col);
-            const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+            const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
             const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
             // Merge wrapper for a live partial-update patch (subset patches that
             // `json_patch` cannot express were filtered out above).
@@ -808,7 +775,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               whens.push("WHEN ? THEN ?");
               params.push(chunkIds[i], values[col]);
             }
-            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
             const caseSql = `CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`;
             setPairs.push(
               jsonWrap
@@ -818,7 +785,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
 
           const idPlaceholders = chunkIds.map(() => "?").join(", ");
-          const rawSql = `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setPairs.join(", ")} WHERE "${utils.assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})${tenantSql}`;
+          const rawSql = `UPDATE "${assertSafeSqlIdentifier(tableName, "table")}" SET ${setPairs.join(", ")} WHERE "${assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})${tenantSql}`;
           const res = this.prepareAndExecute(
             rawSql,
             "run",
@@ -877,7 +844,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     this._resolving.add(collection);
 
     try {
-      if (helpers.isSystemTable(collection)) {
+      if (isSystemTable(collection)) {
         const aliased = this.getAliasedTable(collection);
         if (aliased) {
           this.tableRegistry.set(collection, aliased);
@@ -890,20 +857,17 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // (SELECT/INSERT/DDL) across the adapter. Dash-stripping alone did not
       // stop quote/backtick breakout from admin-typed collection names — fail
       // closed BEFORE any SQL is assembled.
-      utils.assertSafeSqlIdentifier(cleanId, "collection");
+      assertSafeSqlIdentifier(cleanId, "collection");
       // ⚠️ Composite length guard: the interpolated identifier is
       // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
       // not enough — the composite can exceed SQLite's identifier limits and
       // would be silently truncated, colliding with a longer sibling name.
       // Fail closed on the FINAL identifier (normalizeCollectionTableName is
       // the single source of truth for the physical name derivation).
-      const tableName = utils.assertSafeSqlIdentifier(
-        normalizeCollectionTableName(collection),
-        "table",
-      );
+      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
+      if (isSystemTable(cleanName) && cleanName !== collection) {
         return this.getTable(cleanName);
       }
 
@@ -949,7 +913,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                 for (const field of def.fields) {
                   // Row-store hybrid: every scalar field becomes a column
                   // (indexed/unique fields too, when scalar-shaped).
-                  if (helpers.shouldMaterializeField(field)) {
+                  if (shouldMaterializeField(field)) {
                     const fieldName = field.db_fieldName || field.label;
                     if (fieldName && !columnsToAdd.has(fieldName)) {
                       let colType = "text";
@@ -984,7 +948,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   protected getAliasedTable(collection: string): any {
     const schemaAny = this.schema as any;
-    const physicalName = helpers.resolveSystemTableName(collection);
+    const physicalName = resolveSystemTableName(collection);
     if (schemaAny[physicalName]) return schemaAny[physicalName];
     const camelName = physicalName.replace(/_([a-z])/g, (g: string) => g[1].toUpperCase());
     if (schemaAny[camelName]) return schemaAny[camelName];
@@ -1153,7 +1117,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               const maxParams = 900;
               const chunkSize = Math.max(1, Math.floor(maxParams / colListArr.length));
               const colList = colListArr
-                .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+                .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
                 .join(", ");
               const rowsOut: any[] = [];
               for (let start = 0; start < len; start += chunkSize) {
@@ -1199,7 +1163,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                 return batchValues as unknown as T[];
               }
               if (rowsOut.length === len) {
-                return utils.convertArrayDatesToISO(rowsOut, { table: collection }) as T[];
+                return convertArrayDatesToISO(rowsOut, { table: collection }) as T[];
               }
               // RETURNING mismatch after committed chunks — re-inserting via
               // the Drizzle path would duplicate the committed rows.
@@ -1225,20 +1189,20 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             try {
               const results = await (query as any).returning();
               this._insertManyReturningSupported = true;
-              return utils.convertArrayDatesToISO(results as any, {
+              return convertArrayDatesToISO(results as any, {
                 table: collection,
               }) as T[];
             } catch (err: any) {
               this._insertManyReturningSupported = false;
               logger.debug("[SQLite] insertMany returning fallback:", err.message);
               await (query as any);
-              return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
+              return convertArrayDatesToISO(batchValues as Record<string, any>[], {
                 table: collection,
               }) as T[];
             }
           }
           await (query as any);
-          return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
+          return convertArrayDatesToISO(batchValues as Record<string, any>[], {
             table: collection,
           }) as T[];
         };
@@ -1759,7 +1723,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       return {
         success: false,
         message: e.message,
-        error: utils.createDatabaseError("HEALTH_CHECK_FAILED", e.message, e),
+        error: createDatabaseError("HEALTH_CHECK_FAILED", e.message, e),
       };
     }
   }
@@ -1790,7 +1754,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // the allow-list (fail closed) instead of trusting quote-doubling alone.
         const rawNames = conflictTarget.map((col: any) => {
           const name = col && typeof col === "object" && "name" in col ? col.name : String(col);
-          return `"${utils.assertSafeSqlIdentifier(name, "conflict-target")}"`;
+          return `"${assertSafeSqlIdentifier(name, "conflict-target")}"`;
         });
         const rawTarget = sql.raw(rawNames.join(", "));
         // Strip undefined values — Drizzle SQLite insert crashes on undefined column values
@@ -1829,15 +1793,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
         const now = new Date();
         const nowMs = now.getTime();
-        const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-          options,
-          "sqlite",
-        );
+        const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
         const dataCol = this.getColumn(table, "data");
         const idStr = String(id);
         // Identifiers may be embedded; values (_id, amount, tenantId, timestamp) are always bound.
-        const safeField = utils.assertSafeSqlIdentifier(field);
-        const amountNum = utils.assertFiniteAmount(amount);
+        const safeField = assertSafeSqlIdentifier(field);
+        const amountNum = assertFiniteAmount(amount);
         // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
         // increment the column directly (json_set on `data` would no-op for new
         // rows whose field never entered the blob).
@@ -1864,7 +1825,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               ...tenantParams,
             );
             if (Array.isArray(rows) && rows.length > 0) {
-              return utils.convertDatesToISO(rows[0], {
+              return convertDatesToISO(rows[0], {
                 table: collection,
               }) as Record<string, unknown>;
             }
@@ -1889,7 +1850,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           if (!Array.isArray(selectRows) || selectRows.length === 0) {
             throw new Error(`Entry not found after increment: ${idStr}`);
           }
-          return utils.convertDatesToISO(selectRows[0], {
+          return convertDatesToISO(selectRows[0], {
             table: collection,
           }) as Record<string, unknown>;
         });
@@ -1945,7 +1906,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           for (const field of schemaData.fields) {
             // Row-store hybrid: scalar fields become physical columns — the
             // `data` blob keeps only dynamic fields for new rows.
-            if (helpers.shouldMaterializeField(field)) {
+            if (shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "TEXT";
@@ -2004,7 +1965,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         for (const col of allColumnsToEnsure) {
           try {
             // Defense-in-depth: schema-defined column names are interpolated as identifiers
-            const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
+            const safeColName = assertSafeSqlIdentifier(col.name, "column");
             const exists = existingCols.has(safeColName);
             if (!exists) {
               await this.raw.execute(

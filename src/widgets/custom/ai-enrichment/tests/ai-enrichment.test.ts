@@ -1,10 +1,14 @@
 /**
- @file src/widgets/custom/ai-enrichment/tests/ai-enrichment.test.ts
+ * @file src/widgets/custom/ai-enrichment/tests/ai-enrichment.test.ts
  * @description Unit tests for the AI Enrichment widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import AIEnrichmentWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import AIEnrichmentWidget from "@widgets/custom/ai-enrichment";
 import { safeParse } from "valibot";
 
 describe("AI Enrichment Widget - Validation", () => {

@@ -16,11 +16,16 @@
  */
 
 import { WebSocketServer, type WebSocket } from "ws";
-import * as Y from "yjs";
-import * as syncProtocol from "y-protocols/sync";
-import * as awarenessProtocol from "y-protocols/awareness";
-import * as decoding from "lib0/decoding";
-import * as encoding from "lib0/encoding";
+import { Doc as YDoc } from "yjs";
+import {
+  readSyncMessage,
+  messageYjsSyncStep2,
+  messageYjsUpdate,
+  writeSyncStep1,
+} from "y-protocols/sync";
+import { Awareness, applyAwarenessUpdate } from "y-protocols/awareness";
+import { createDecoder, readVarUint } from "lib0/decoding";
+import { createEncoder, toUint8Array, writeUint8Array, writeVarUint } from "lib0/encoding";
 import type { Server, IncomingMessage } from "node:http";
 import { logger } from "@utils/logger";
 import { getWsAuthenticator, type WsAuthResult } from "./ws-auth-registry";
@@ -37,8 +42,8 @@ interface YjsSyncServerOptions {
 }
 
 type DocEntry = {
-  doc: Y.Doc;
-  awareness: awarenessProtocol.Awareness;
+  doc: YDoc;
+  awareness: Awareness;
   /** Set of connected WebSocket clients for this document (for broadcasting) */
   clients: Set<WebSocket>;
   idleTimer?: any;
@@ -69,13 +74,13 @@ function getOrCreateDoc(docId: string, tenantId?: string): DocEntry {
     return entry;
   }
 
-  const doc = new Y.Doc();
+  const doc = new YDoc();
   doc.on("update", (_update: Uint8Array, _origin: unknown) => {
     // Server-originated updates should not be rebroadcast — the
     // per-client message handler already broadcasts incoming updates.
   });
 
-  const awareness = new awarenessProtocol.Awareness(doc);
+  const awareness = new Awareness(doc);
   awareness.setLocalState(null);
 
   entry = { doc, awareness, clients: new Set() };
@@ -104,34 +109,31 @@ function broadcast(entry: DocEntry, sender: WebSocket, data: Uint8Array): void {
 // ---------------------------------------------------------------------------
 
 function handleMessage(ws: WebSocket, entry: DocEntry, data: Uint8Array): void {
-  const decoder = decoding.createDecoder(data);
-  const messageType = decoding.readVarUint(decoder);
+  const decoder = createDecoder(data);
+  const messageType = readVarUint(decoder);
 
   if (messageType === messageSync) {
     // The remaining bytes (from decoder.pos) are the inner sync protocol message
-    const replyEncoder = encoding.createEncoder();
-    const syncType = syncProtocol.readSyncMessage(decoder, replyEncoder, entry.doc, "server");
+    const replyEncoder = createEncoder();
+    const syncType = readSyncMessage(decoder, replyEncoder, entry.doc, "server");
 
     // Send reply to the requesting client (wrapped with outer type)
-    const reply = encoding.toUint8Array(replyEncoder);
+    const reply = toUint8Array(replyEncoder);
     if (reply.byteLength > 0) {
-      const wrapped = encoding.createEncoder();
-      encoding.writeVarUint(wrapped, messageSync);
-      encoding.writeUint8Array(wrapped, reply);
-      ws.send(encoding.toUint8Array(wrapped));
+      const wrapped = createEncoder();
+      writeVarUint(wrapped, messageSync);
+      writeUint8Array(wrapped, reply);
+      ws.send(toUint8Array(wrapped));
     }
 
     // If it was an update (syncStep2 or update), broadcast to other clients
-    if (
-      syncType === syncProtocol.messageYjsSyncStep2 ||
-      syncType === syncProtocol.messageYjsUpdate
-    ) {
+    if (syncType === messageYjsSyncStep2 || syncType === messageYjsUpdate) {
       broadcast(entry, ws, data);
     }
   } else if (messageType === messageAwareness) {
     // Extract the inner awareness update bytes (remaining after outer varUint)
     const awarenessUpdate = data.slice(decoder.pos);
-    awarenessProtocol.applyAwarenessUpdate(entry.awareness, awarenessUpdate, "server");
+    applyAwarenessUpdate(entry.awareness, awarenessUpdate, "server");
 
     // Broadcast awareness state changes to all other clients
     broadcast(entry, ws, data);
@@ -202,10 +204,10 @@ export function startYjsSyncServer(options: YjsSyncServerOptions): () => void {
 
     // Send the server's sync step 1 to kick off synchronization
     {
-      const encoder = encoding.createEncoder();
-      encoding.writeVarUint(encoder, messageSync);
-      syncProtocol.writeSyncStep1(encoder, entry.doc);
-      ws.send(encoding.toUint8Array(encoder));
+      const encoder = createEncoder();
+      writeVarUint(encoder, messageSync);
+      writeSyncStep1(encoder, entry.doc);
+      ws.send(toUint8Array(encoder));
     }
 
     ws.on("message", (raw) => {

@@ -107,7 +107,7 @@ export async function applyUserAttributeUpdate(
 
   try {
     const { invalidateLayoutUserCache } = await import("@utils/server/layout-caches.server");
-    invalidateLayoutUserCache(resolvedId, tenantId as string | undefined);
+    await invalidateLayoutUserCache(resolvedId, tenantId as string | undefined);
   } catch {
     /* server cache helper unavailable */
   }

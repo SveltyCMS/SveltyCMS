@@ -14,7 +14,20 @@
  * - widget registry awareness via {@link validateAgainstRegistry}
  */
 
-import * as v from "valibot";
+import {
+  array,
+  boolean,
+  check,
+  minLength,
+  object,
+  optional,
+  pipe,
+  record,
+  regex,
+  safeParse,
+  string,
+  unknown,
+} from "valibot";
 import { AppError } from "@utils/error-handling";
 import type { CollectionDesignProposal } from "./types";
 
@@ -40,40 +53,40 @@ export const FIELD_NAME_REGEX = /^[a-z][a-zA-Z0-9_]*$/;
 /** Product slug convention: lowercase letters, digits and hyphens only. */
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
-const proposalFieldSchema = v.pipe(
-  v.object({
-    name: v.pipe(v.string(), v.minLength(1, "field name must not be empty")),
-    label: v.optional(v.string()),
-    widget: v.pipe(v.string(), v.minLength(1, "widget must not be empty")),
-    type: v.optional(v.string()),
-    required: v.optional(v.boolean()),
-    translated: v.optional(v.boolean()),
-    validation: v.optional(v.record(v.string(), v.unknown())),
+const proposalFieldSchema = pipe(
+  object({
+    name: pipe(string(), minLength(1, "field name must not be empty")),
+    label: optional(string()),
+    widget: pipe(string(), minLength(1, "widget must not be empty")),
+    type: optional(string()),
+    required: optional(boolean()),
+    translated: optional(boolean()),
+    validation: optional(record(string(), unknown())),
   }),
-  v.check(
+  check(
     (field) => FIELD_NAME_REGEX.test(field.name),
     `field name must match ${FIELD_NAME_REGEX.toString()}`,
   ),
-  v.check(
+  check(
     (field) => !RESERVED_FIELD_NAMES.has(field.name),
     `field name is reserved for system use (${[...RESERVED_FIELD_NAMES].join(", ")})`,
   ),
 );
 
-const collectionDesignProposalSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(1, "collection name must not be empty")),
-  slug: v.pipe(v.string(), v.regex(SLUG_REGEX, `slug must match ${SLUG_REGEX.toString()}`)),
-  label: v.pipe(v.string(), v.minLength(1, "label must not be empty")),
-  description: v.optional(v.string()),
-  fields: v.pipe(
-    v.array(proposalFieldSchema),
-    v.minLength(1, "at least one field is required"),
-    v.check(
+const collectionDesignProposalSchema = object({
+  name: pipe(string(), minLength(1, "collection name must not be empty")),
+  slug: pipe(string(), regex(SLUG_REGEX, `slug must match ${SLUG_REGEX.toString()}`)),
+  label: pipe(string(), minLength(1, "label must not be empty")),
+  description: optional(string()),
+  fields: pipe(
+    array(proposalFieldSchema),
+    minLength(1, "at least one field is required"),
+    check(
       (fields) => new Set(fields.map((field) => field.name)).size === fields.length,
       "field names must be unique",
     ),
   ),
-  rationale: v.optional(v.array(v.string())),
+  rationale: optional(array(string())),
 });
 
 /**
@@ -83,7 +96,7 @@ const collectionDesignProposalSchema = v.object({
  *         output does not satisfy the proposal contract.
  */
 export function validateProposal(raw: unknown): CollectionDesignProposal {
-  const result = v.safeParse(collectionDesignProposalSchema, raw);
+  const result = safeParse(collectionDesignProposalSchema, raw);
   if (!result.success) {
     const issues = result.issues.map((issue) => issue.message).join("; ");
     throw new AppError(

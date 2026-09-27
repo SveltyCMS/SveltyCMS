@@ -28,12 +28,12 @@ if (typeof window !== "undefined") {
   throw new Error("logger.server.ts cannot be imported in browser code");
 }
 
-import * as crypto from "node:crypto";
-import * as fs from "node:fs";
-import * as fsp from "node:fs/promises";
-import * as path from "node:path";
-import * as sp from "node:stream/promises";
-import * as zlib from "node:zlib";
+import { createHmac, randomBytes } from "node:crypto";
+import { createReadStream, createWriteStream, type WriteStream } from "node:fs";
+import { mkdir, open, readdir, rename, stat as fspStat, unlink } from "node:fs/promises";
+import { join } from "node:path";
+import { pipeline } from "node:stream/promises";
+import { createGzip } from "node:zlib";
 
 import { logger as coreLogger, mask } from "./logger";
 import type { LogLevel } from "./logger";
@@ -44,7 +44,7 @@ export type { LogLevel, LoggableValue } from "./logger";
 
 // ── Configuration & State ──
 const LOG_DIR = "logs";
-const LOG_FILE = path.join(LOG_DIR, "app.log");
+const LOG_FILE = join(LOG_DIR, "app.log");
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // Chain secret: production REQUIRES a real LOG_CHAIN_SECRET. Falling back to the
@@ -56,20 +56,19 @@ const HAS_CHAIN_SECRET = Boolean(process.env.LOG_CHAIN_SECRET);
 const HMAC_SECRET =
   process.env.LOG_CHAIN_SECRET ||
   (process.env.NODE_ENV === "production"
-    ? crypto.randomBytes(32).toString("hex")
+    ? randomBytes(32).toString("hex")
     : "svelty-cms-default-log-secret");
 
 let chainSecretWarned = false;
 
-let stream: fs.WriteStream | null = null;
+let stream: WriteStream | null = null;
 let lastHash = "";
 let currentFileSize = 0;
 
 // ── Utilities ──
 
 function chainHash(prev: string, content: string): string {
-  return crypto
-    .createHmac("sha256", HMAC_SECRET)
+  return createHmac("sha256", HMAC_SECRET)
     .update(prev + content)
     .digest("hex");
 }
@@ -97,7 +96,7 @@ function safeStringify(args: unknown[]): string {
 
 // ── File Engine ──
 
-async function ensureStream(): Promise<fs.WriteStream> {
+async function ensureStream(): Promise<WriteStream> {
   if (stream && !stream.destroyed) return stream;
 
   // Warn once at first actual write, not at module load — keeps `svelte-kit build`
@@ -109,16 +108,16 @@ async function ensureStream(): Promise<fs.WriteStream> {
     );
   }
 
-  await fsp.mkdir(LOG_DIR, { recursive: true });
+  await mkdir(LOG_DIR, { recursive: true });
 
   try {
-    const stat = await fsp.stat(LOG_FILE);
+    const stat = await fspStat(LOG_FILE);
     currentFileSize = stat.size;
 
     // Read only the last 4KB to find the chain hash — avoids OOM on 5MB files
     const chunkSize = Math.min(currentFileSize, 4096);
     if (chunkSize > 0) {
-      const handle = await fsp.open(LOG_FILE, "r");
+      const handle = await open(LOG_FILE, "r");
       const buf = Buffer.alloc(chunkSize);
       await handle.read(buf, 0, chunkSize, currentFileSize - chunkSize);
       await handle.close();
@@ -133,7 +132,7 @@ async function ensureStream(): Promise<fs.WriteStream> {
     currentFileSize = 0;
   }
 
-  stream = fs.createWriteStream(LOG_FILE, { flags: "a" });
+  stream = createWriteStream(LOG_FILE, { flags: "a" });
   return stream;
 }
 
@@ -153,24 +152,24 @@ async function rotate() {
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const rotated = `${LOG_FILE}.${ts}`;
 
-    await fsp.rename(LOG_FILE, rotated);
+    await rename(LOG_FILE, rotated);
     currentFileSize = 0;
     lastHash = "";
 
     // Compress the rotated file in the background
-    const src = fs.createReadStream(rotated);
-    const dst = fs.createWriteStream(`${rotated}.gz`);
-    await sp.pipeline(src, zlib.createGzip(), dst);
-    await fsp.unlink(rotated);
+    const src = createReadStream(rotated);
+    const dst = createWriteStream(`${rotated}.gz`);
+    await pipeline(src, createGzip(), dst);
+    await unlink(rotated);
 
     // Clean up old archives (non-blocking concurrent stat)
-    const files = await fsp.readdir(LOG_DIR);
+    const files = await readdir(LOG_DIR);
     const archives = await Promise.all(
       files
         .filter((f) => f.startsWith("app.log.") && f.endsWith(".gz"))
         .map(async (f) => {
-          const filePath = path.join(LOG_DIR, f);
-          const stats = await fsp.stat(filePath);
+          const filePath = join(LOG_DIR, f);
+          const stats = await fspStat(filePath);
           return { name: filePath, time: stats.mtimeMs };
         }),
     );
@@ -178,7 +177,7 @@ async function rotate() {
     archives.sort((a, b) => b.time - a.time);
 
     if (archives.length > 5) {
-      await Promise.all(archives.slice(5).map((f) => fsp.unlink(f.name).catch(() => {})));
+      await Promise.all(archives.slice(5).map((f) => unlink(f.name).catch(() => {})));
     }
   } catch (e: any) {
     if (e.code !== "ENOENT") console.error("[Logger] Rotation failed:", e.message);

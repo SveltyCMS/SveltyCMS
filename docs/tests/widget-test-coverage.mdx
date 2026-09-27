@@ -1,64 +1,63 @@
 ---
 path: "docs/tests/widget-test-coverage.mdx"
 title: "Widget Test Coverage"
-description: "Comprehensive widget testing documentation for SveltyCMS widget system."
+description: "How SveltyCMS tests its widget system: core suites, portable custom-widget suites, the shared fixture boundary, and the commands to run them."
 icon: "mdi:widgets"
 published: true
 order: 9
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-05-06"
+updated: "2026-09-27"
 tags:
   - "testing"
   - "widgets"
   - "coverage"
+  - "vitest"
 ---
 
 # Widget Test Coverage
 
 ## Executive Summary
 
-SveltyCMS has achieved **100% Unit Test Coverage** for all core widgets. The testing architecture has transitioned to a modular, portable pattern that supports both high-performance core verification and isolated marketplace widget testing.
+Every widget that ships with SveltyCMS has at least one dedicated validation suite. Widget tests are **black-box**: they call the `createWidget` factory and assert on the returned `validationSchema`, so they need no DOM and no Svelte mount, and they stay fast enough for the pre-commit gate.
 
-### Test Statistics
+Two rules keep the suite honest:
 
-| Category           | Test Files | Status        | Coverage                                  |
-| :----------------- | :--------- | :------------ | :---------------------------------------- |
-| **Core Widgets**   | 12         | ✅ 100% Pass  | Validation, Defaults, Aggregations, i18n  |
-| **Custom Widgets** | 3+         | ✅ 100% Pass  | Portable tests (Address, Price, Repeater) |
-| **Widget System**  | 2          | ✅ 100% Pass  | Factory Pattern, Validation Utils         |
-| **Total**          | **17+**    | ✅ **Passed** | **Vitest Compatibility**                  |
+1. **One home per widget suite.** Custom-widget suites live with the widget (`src/widgets/custom/<name>/tests/`) so a widget folder stays portable and marketplace-ready. A suite for the same widget must not be duplicated under `tests/unit/`.
+2. **Mock the message barrel, never the behaviour.** Widget `index.ts` files import exactly one `widget_*_description()` from the Paraglide barrel (1 400+ generated modules, ~5 s of Vite transform per file). Suites replace it with `WIDGET_MESSAGES` from the shared fixture — a widget that starts calling a new message fails at import instead of silently rendering `undefined`.
+
+### Test Statistics (self-assessed, 2026-09-27)
+
+| Category                  | Suites | Location                           | What they cover                                                              |
+| :------------------------ | :----- | :--------------------------------- | :--------------------------------------------------------------------------- |
+| **Core widgets**          | 13     | `tests/unit/widgets/core/`         | Validation schemas, defaults, filter/sort fragments, i18n shapes             |
+| **Portable custom**       | 16     | `src/widgets/custom/<name>/tests/` | Validation schemas + accept/reject cases, co-located with the widget         |
+| **Custom (non-portable)** | 1      | `tests/unit/widgets/custom/`       | `block-builder` — its suite is not co-located yet                            |
+| **Widget system**         | 13     | `tests/unit/widgets/`              | Factory contract, governance, desugaring, relation integrity, chaos boundary |
+| **Shared fixture**        | 1      | `tests/unit/widgets/test-utils.ts` | `getSchema`, `CHAOS_CASES`, `testChaos`, `WIDGET_MESSAGES`                   |
+
+Run everything with `bun run test:unit`; the counts above are structure, not pass/fail — CI is the source of truth for a green tree.
 
 ---
 
-## 🏗️ New Testing Architecture
+## 🏗️ Testing Architecture
 
-Following the **May 2026 Stabilization**, the widget testing suite is organized into two primary categories:
+### 1. Core Widget Suites (`tests/unit/widgets/core/`)
 
-### 1. Core Widget Tests (`tests/unit/widgets/core/`)
+The backbone of the CMS — every core widget has a dedicated file asserting its data contract:
 
-Core widgets are the backbone of the CMS. Each widget now has a dedicated test file ensuring zero regressions in data contracts and validation schemas.
+- ✅ `checkbox.test.ts` · `date-time.test.ts` · `email.test.ts` · `group.test.ts`
+- ✅ `input.test.ts` · `number.test.ts` · `radio.test.ts` · `select.test.ts`
+- ✅ `relation.test.ts` · `rich-text.test.ts` · `slug.test.ts`
+- ✅ `media-upload.test.ts` + `media-upload-process.test.ts`
 
-- ✅ `checkbox.test.ts`
-- ✅ `date-time.test.ts`
-- ✅ `email.test.ts`
-- ✅ `group.test.ts`
-- ✅ `input.test.ts`
-- ✅ `media-upload.test.ts`
-- ✅ `number.test.ts`
-- ✅ `radio.test.ts`
-- ✅ `relation.test.ts`
-- ✅ `rich-text.test.ts`
-- ✅ `select.test.ts`
-- ✅ `slug.test.ts`
+### 2. Portable Custom Widget Suites (`src/widgets/custom/<name>/tests/`)
 
-### 2. Portable Custom Widgets (`src/widgets/custom/[name]/tests/`)
+Inspired by the **Drupal module pattern**, custom widgets are self-contained: definition, input, display and tests travel together in one folder.
 
-Inspired by the **Drupal Module Pattern**, custom widgets are now self-contained. Their tests live inside the widget folder, making them fully portable and marketplace-ready.
-
-- ✅ `address/tests/address.test.ts`
-- ✅ `price/tests/price.test.ts`
-- ✅ `repeater/tests/repeater.test.ts`
+- **Co-located today (16):** `address`, `ai-enrichment`, `color-picker`, `currency`, `date-range`, `geolocation`, `json-editor`, `markdown`, `mega-menu`, `phone-number`, `price`, `rating`, `remote-video`, `repeater`, `seo`, `tags`
+- Verified in `vitest.config.ts` (`src/widgets/custom/**/tests/**/*.test.ts`), so a new widget folder is picked up without config changes.
+- Each suite imports the widget through the `@widgets` alias and the fixture through `@tests/unit/widgets/test-utils`, so the file stays valid wherever the widget folder is moved.
 
 ---
 
@@ -66,59 +65,78 @@ Inspired by the **Drupal Module Pattern**, custom widgets are now self-contained
 
 ### Validation Schema Testing (Black-Box)
 
-We test widgets without mounting Svelte components to keep the CI pipeline extremely fast. We validate the `validationSchema` returned by the `createWidget` factory.
+We test widgets without mounting Svelte components, which keeps the gate fast: the assertion target is the `validationSchema` returned by the factory.
 
 ```typescript
 import { safeParse } from "valibot";
+import { getSchema } from "@tests/unit/widgets/test-utils";
 import EmailWidget from "@widgets/core/email";
 
-test("Email Widget Validation", () => {
-  const field = EmailWidget({ label: "Email", required: true });
-  const schema = (field.widget.validationSchema as any)(field);
+const schema = getSchema(EmailWidget({ label: "Email", required: true }));
 
-  expect(safeParse(schema, "test@example.com").success).toBe(true);
-  expect(safeParse(schema, "invalid-email").success).toBe(false);
-});
+expect(safeParse(schema, "test@example.com").success).toBe(true);
+expect(safeParse(schema, "invalid-email").success).toBe(false);
 ```
 
-### Multilingual Support
+`getSchema` handles both factory-shaped and static schemas, so suites do not cast to `any` and do not need to know which shape a widget chose.
 
-Tests verify that translated fields correctly handle `Record<string, string>` structures versus primitive values.
+### Table-Driven Case Sets
 
-### Database Aggregations
+Payload variants belong in one `it.each` table (`ACCEPTED_CASES` / `REJECTED_CASES`) instead of one `it` per case: the schema is built once per field configuration and each row isolates one rule. `price` and `seo` are the reference implementations.
 
-Verified via unit tests ensuring that `filters` and `sorts` return valid MongoDB/SQL-compatible query fragments.
+### Paraglide Boundary Mock
+
+```typescript
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+```
+
+The `vi.mock` factory must be async for the mock to stay hoisted. `WIDGET_MESSAGES` is exhaustive for the widget graph on purpose: a missing entry throws at import rather than hiding a regression.
+
+### Multilingual Fields
+
+Suites assert that translated fields accept `Record<string, string>` structures as well as primitive values.
+
+### Database Fragments
+
+`filters` and `sorts` returned by widget aggregations are asserted to be valid MongoDB/SQL-compatible fragments.
 
 ---
 
 ## 🚀 Execution Guide
 
-### Run All Widget Tests (Bun)
+### Run All Widget Tests
 
 ```
 bun run test:unit
 ```
 
-### Run Specific Core Test
+### Run a Specific Core Suite
 
 ```
-bun test tests/unit/widgets/core/input.test.ts
+bun x vitest run tests/unit/widgets/core/input.test.ts
 ```
 
-### Run Portable Custom Test
+### Run a Specific Portable Suite
 
 ```
-bun test src/widgets/custom/address/tests/address.test.ts
+bun x vitest run src/widgets/custom/address/tests/address.test.ts
 ```
+
+> [!NOTE]
+> Vitest is the canonical runner (never `bun:test`). The `test:unit` script applies the project aliases and the SQLite test setup, so always go through it or `bun x vitest run <path>`.
 
 ---
 
 ## Status Report
 
-- ✅ **Core Logic Coverage**: 100%
-- ✅ **Schema Validation**: 100%
-- ✅ **Portable Pattern**: Fully Implemented
-- ✅ **Bun Runner Stability**: Verified
+- ✅ **Core logic coverage**: every core widget has a dedicated suite
+- ✅ **Schema validation**: asserted through the factory output, not internals
+- ✅ **Portable pattern**: 16 custom widgets co-located with their suites
+- ✅ **Runner**: Vitest (worker pool sized from CPU cores; see `vitest.config.ts`)
+- ⏳ **Open**: `block-builder` still lives under `tests/unit/widgets/custom/` — move it when the widget folder is next touched
 
 ---
 

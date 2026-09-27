@@ -4,7 +4,7 @@
  * Implements batching, awareness throttling, and silent-drop recovery.
  */
 
-import * as Y from "yjs";
+import { Doc as YDoc, applyUpdate, mergeUpdates } from "yjs";
 import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from "y-protocols/awareness";
 import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant";
 import { browser } from "$app/env";
@@ -12,14 +12,14 @@ import { logger } from "@utils/logger";
 
 export interface SseProviderOptions {
   docId: string;
-  yDoc: Y.Doc;
+  yDoc: YDoc;
   tenantId?: string;
   awareness?: Awareness;
 }
 
 export class SseProvider {
   public docId: string;
-  public doc: Y.Doc;
+  public doc: YDoc;
   public awareness: Awareness;
   public tenantId?: string;
 
@@ -63,7 +63,7 @@ export class SseProvider {
       const res = await fetch(`/api/collaboration/yjs?docId=${this.docId}`);
       const data = await res.json();
       if (data.success && data.stateBase64) {
-        Y.applyUpdate(this.doc, decodeBase64ToYjs(data.stateBase64), "server");
+        applyUpdate(this.doc, decodeBase64ToYjs(data.stateBase64), "server");
         this.status = "connected";
       }
     } catch (e) {
@@ -94,7 +94,7 @@ export class SseProvider {
         const data = JSON.parse(event.data);
         if (data.docId !== this.docId) return;
         if (data.event === "yjs:sync" && data.origin === "server") {
-          Y.applyUpdate(this.doc, decodeBase64ToYjs(data.updateBase64), "server");
+          applyUpdate(this.doc, decodeBase64ToYjs(data.updateBase64), "server");
         } else if (data.event === "yjs:awareness" && data.origin === "server") {
           // 👥 Remote presence: applying with origin "server" makes the
           // subsequent awareness "update" event carry origin "server", which
@@ -125,7 +125,7 @@ export class SseProvider {
   private async sendBatchedUpdates() {
     if (this.updateBuffer.length === 0) return;
 
-    const batched = Y.mergeUpdates(this.updateBuffer);
+    const batched = mergeUpdates(this.updateBuffer);
     this.updateBuffer = [];
     this.batchTimeout = null;
 

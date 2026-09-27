@@ -2,7 +2,8 @@
  * @file tests/unit/widgets/relation-data-integrity.test.ts
  * @description Relation widget: single/multiple, min/max, chaos, data integrity.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("./test-utils")).WIDGET_MESSAGES);
 import { safeParse } from "valibot";
 import RelationWidget from "@widgets/core/relation";
 import { getSchema, testChaos } from "./test-utils";

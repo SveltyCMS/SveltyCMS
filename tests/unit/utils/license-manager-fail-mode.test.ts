@@ -2,7 +2,7 @@
  * @file tests/unit/utils/license-manager-fail-mode.test.ts
  * @description Fail-open (with key) vs fail-closed (no key) on marketplace errors.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPrivateSettingSync = vi.fn();
 
@@ -11,39 +11,85 @@ vi.mock("@src/services/core/settings-service", () => ({
   getPublicSettingSync: vi.fn(() => undefined),
 }));
 
+const FAIL_OPEN: LicenseStatusShape = {
+  active: true,
+  daysRemaining: null,
+  hasLicense: true,
+};
+
+interface LicenseStatusShape {
+  active: boolean;
+  daysRemaining: number | null;
+  hasLicense: boolean;
+}
+
+/** Point `getPrivateSettingSync` at a master license key. */
+function withMasterKey(key = "test-master-key") {
+  getPrivateSettingSync.mockImplementation((setting: string) =>
+    setting === "LICENSE_KEY" ? key : undefined,
+  );
+}
+
 describe("checkExtensionLicense fail modes", () => {
   beforeEach(() => {
-    vi.resetModules();
+    vi.resetModules(); // the license cache and in-flight map are module singletons
     getPrivateSettingSync.mockReset();
-    // Clear any global fetch mocks
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("fails closed when marketplace is down and no license key is configured", async () => {
+    getPrivateSettingSync.mockReturnValue(undefined);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
         throw new Error("marketplace unreachable");
       }),
     );
-  });
 
-  it("fails closed when marketplace is down and no license key is configured", async () => {
-    getPrivateSettingSync.mockReturnValue(undefined);
     const { checkExtensionLicense } = await import("@utils/license-manager");
     const status = await checkExtensionLicense("plugin", "pagespeed");
+
     expect(status.active).toBe(false);
     expect(status.hasLicense).toBe(false);
   });
 
   it("fails open when marketplace is down but a license key is present", async () => {
-    getPrivateSettingSync.mockImplementation((key: string) => {
-      if (key === "LICENSE_KEY") return "test-master-key";
-      return undefined;
-    });
-    // verifyKeyWithMarketplace will throw via fetch — catch path with key → open
+    withMasterKey();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("marketplace unreachable");
+      }),
+    );
+
     const { checkExtensionLicense } = await import("@utils/license-manager");
     const status = await checkExtensionLicense("plugin", "pagespeed");
-    // May return active:true from catch, or false if verify returns null then trial fails.
-    // With key + throw inside try after verify returns null, trial may still run.
-    // Ensure we don't require active if verify null-paths; only assert no crash.
-    expect(status).toBeDefined();
-    expect(typeof status.active).toBe("boolean");
+
+    // A marketplace outage must not brick a paid install. (The previous assertion —
+    // `status` is an object — also passed when the manager wrongly failed closed.)
+    expect(status).toEqual(FAIL_OPEN);
+  });
+
+  it("does not fail open when the marketplace answers but rejects the key", async () => {
+    withMasterKey("revoked-key");
+    const fetchMock = vi.fn(async () => ({
+      status: 200,
+      ok: true,
+      json: async () => ({ valid: false }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { checkExtensionLicense } = await import("@utils/license-manager");
+    const status = await checkExtensionLicense("plugin", "pagespeed");
+
+    // A reachable marketplace that says "invalid" is not an outage: fail-open is
+    // reserved for transport failures, so a revoked key must not stay licensed.
+    expect(fetchMock).toHaveBeenCalled();
+    expect(status.active).toBe(false);
+    expect(status.hasLicense).toBe(false);
   });
 });

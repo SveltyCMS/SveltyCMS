@@ -56,7 +56,7 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 - **85-95% cache hit rate** with dual-layer Redis + MongoDB.
 - **79% smaller payloads** via smart field selection.
 - **O(log n) queries** through comprehensive indexing.
-- **Automatic Indexing**: Background `IndexOptimizer` ensures fields remain optimized as schemas change.
+- **Automatic Indexing**: Index provisioning is schema-driven inside `createModel` — every collection table gets its compound, tenant-scoped and (MongoDB) text indexes at model-creation time, so an `indexed`/`unique` field change lands its index in the same call.
 
 ### Count estimate + `findPage` (shared contract)
 
@@ -141,7 +141,7 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 
 - **L2 Schema Persistence**: The full `Schema` object is stored in the database. Cold starts skip the filesystem scan entirely if the DB version matches.
 - **Typed Collection Proxy**: Generated types provide full IntelliSense for database operations, reducing developer error and improving speed.
-- **Index Optimizer**: A background service that periodically verifies and builds missing indexes based on field configurations.
+- **Automatic Indexing**: Index provisioning is schema-driven inside `MongoCollectionMethods.createModel` → `createIndexes` — compound, tenant-scoped and text indexes land in the same call that creates the model.
 
 - **Native Bulk Operations (NEW)**: Replaced iterative batching with native `bulkWrite`, yielding a ~50% improvement in high-throughput data ingestion and updates.
 

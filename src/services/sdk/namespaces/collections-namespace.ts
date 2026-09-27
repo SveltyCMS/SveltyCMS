@@ -26,6 +26,7 @@ import { modifyStream, type EntryData } from "@utils/modify-request";
 import { prepareCollectionFields } from "@src/content/content-utils";
 import {
   applyPublicationToQuery,
+  isPublishedStatus,
   publicationCacheSuffix,
   resolvePublicationFilter,
 } from "@utils/security/publication-policy";
@@ -1289,9 +1290,19 @@ export class CollectionsNamespace {
           : result.data
         : null;
 
+    // Publication clamp: a clamped caller may only see published rows. The stored
+    // status is `publish` while this filter is named `published`, so both must be
+    // compared through the shared predicate — comparing the strings directly
+    // denied every row. Rows without a status are not status-versioned and keep
+    // passing through (unchanged behaviour).
     if (item && effectivePublicationFilter !== "all") {
-      if (item.status && item.status !== effectivePublicationFilter) {
-        item = null;
+      const status = (item as { status?: unknown }).status;
+      if (typeof status === "string") {
+        const allowed =
+          effectivePublicationFilter === "published"
+            ? isPublishedStatus(status)
+            : status === "draft" || status === "unpublish";
+        if (!allowed) item = null;
       }
     }
 

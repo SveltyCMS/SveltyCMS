@@ -123,10 +123,15 @@ test.describe("SignIn & SignOut Flows", () => {
     await emailField.fill("test@test.de");
     await page.getByTestId("signin-password").fill("Test123!");
     await dismissCookieConsent(page);
-    await page.getByTestId("signin-submit").click({ force: true });
 
-    // Leave /login after successful auth (destination varies by seeded collections)
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 20_000 });
+    // The submit can be swallowed by the consent overlay or land before hydration attaches the
+    // handler, leaving the page on /login. Re-submit until the URL actually changes (observed
+    // once in ~6 local runs, 2026-09-27) — the outcome assertion stays exact, so a genuinely
+    // failed login still fails after the budget.
+    await expect(async () => {
+      await page.getByTestId("signin-submit").click({ force: true });
+      await expect(page).not.toHaveURL(/\/login/, { timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
 
     const signOutButton = page.getByRole("button", { name: /sign out/i });
     if (await signOutButton.isVisible({ timeout: 10_000 }).catch(() => false)) {

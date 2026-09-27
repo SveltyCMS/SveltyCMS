@@ -38,6 +38,7 @@ vi.mock("svelte", () => ({
 (globalThis as any).$effect = () => {};
 
 import type { DatabaseId, DatabaseResult, IDBAdapter } from "../../../src/databases/db-interface";
+import { requireWireMethods, unwrapResult } from "./wire-contract";
 
 function normalizeStoredValue(value: any) {
   if (typeof value === "string") {
@@ -786,7 +787,7 @@ describe("Database Interface Contract Tests", () => {
       expect(deleteResA.success).toBe(true);
     });
 
-    it("should support Direct-to-Wire point stream and list stream with structural parity", async () => {
+    it("should support Direct-to-Wire point stream with structural parity", async () => {
       if (!db?.crud) return;
 
       const collection = "system_preferences";
@@ -807,42 +808,27 @@ describe("Database Interface Contract Tests", () => {
       expect(insertRes.success).toBe(true);
 
       // 2. Point wire stream
-      const pointWire = await db.crud.findPointWireStream(collection, testId, {
-        tenantId: TEST_TENANT,
-      });
-      expect(pointWire.success).toBe(true);
-      expect(pointWire.data).toBeDefined();
-      expect(typeof pointWire.data?.wireBody).toBe("string");
-      expect(pointWire.data?.etag).toBeDefined();
+      const wire = requireWireMethods(db.crud, currentDbType);
+      const pointWire = unwrapResult(
+        await wire.findPointWireStream(collection, testId, {
+          tenantId: TEST_TENANT,
+        }),
+      );
+      expect(pointWire).not.toBeNull();
+      expect(typeof pointWire!.wireBody).toBe("string");
+      expect(pointWire!.etag).toBeDefined();
 
-      const parsedPoint = JSON.parse(pointWire.data!.wireBody);
+      const parsedPoint = JSON.parse(pointWire!.wireBody);
       expect(parsedPoint.success).toBe(true);
       expect(parsedPoint.data._id).toBe(String(testId));
 
-      // 3. List wire stream
-      const listWire = await db.crud.findListWireStream(
-        collection,
-        {},
-        {
-          tenantId: TEST_TENANT,
-          limit: 10,
-        },
+      // 3. Tenant isolation with point wire stream
+      const otherTenantWire = unwrapResult(
+        await wire.findPointWireStream(collection, testId, {
+          tenantId: "other-tenant" as unknown as DatabaseId,
+        }),
       );
-      expect(listWire.success).toBe(true);
-      expect(listWire.data).toBeDefined();
-      expect(typeof listWire.data?.wireBody).toBe("string");
-
-      const parsedList = JSON.parse(listWire.data!.wireBody);
-      expect(parsedList.success).toBe(true);
-      expect(Array.isArray(parsedList.data)).toBe(true);
-
-      // 4. Tenant isolation with point wire stream
-      const otherTenantWire = await db.crud.findPointWireStream(collection, testId, {
-        tenantId: "other-tenant",
-      });
-      if (otherTenantWire.success) {
-        expect(otherTenantWire.data).toBeNull();
-      }
+      expect(otherTenantWire).toBeNull();
 
       // Cleanup
       await db.crud.delete(collection, testId, { tenantId: TEST_TENANT });

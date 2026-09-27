@@ -48,6 +48,22 @@ describe("widget-scaffolder pillar filenames", () => {
     tempDirs = [];
   });
 
+  it("emits a named, tree-shakeable valibot import (no `import * as v`)", async () => {
+    const outputDir = await makeTempDir();
+    const result = await generateWidget({ ...BASE_CONFIG, outputDir });
+
+    // Widget definitions are client-bundled — a namespace import would defeat tree-shaking and
+    // an unused named member would ship dead code, so the list must be exact.
+    expect(result.definition).toMatch(/^import \{[^}]+\} from "valibot";$/m);
+    expect(result.definition).not.toContain("import * as v");
+    expect(result.definition).not.toMatch(/\bv\./);
+
+    const match = /^import \{ ([^}]+) \} from "valibot";$/m.exec(result.definition);
+    const imported = match![1].split(", ").sort();
+    // BASE_CONFIG: number field with min/max + required, plus one optional text field.
+    expect(imported).toEqual(["maxValue", "minValue", "number", "object", "pipe", "string"]);
+  });
+
   it("writes kebab-case pillar filenames (no Input.svelte / Display.svelte)", async () => {
     const outputDir = await makeTempDir();
     await generateWidget({ ...BASE_CONFIG, outputDir });

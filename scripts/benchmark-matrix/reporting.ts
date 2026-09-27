@@ -65,16 +65,33 @@ import { writeHistoryArchive } from "../../tests/benchmarks/modules/benchmark-re
  * Best-effort oxfmt pass on a freshly written report. The generated MDX must stay
  * `bun run check`-clean — the dev-dependency-load DX benchmark runs the real
  * toolchain and fails when generated docs drift from oxfmt's table alignment.
- * Fire-and-forget: formatting is cosmetic and must never fail the run itself.
+ *
+ * Awaited (bounded to 20 s) rather than fire-and-forget: an `unref()`d child can
+ * outlive the run, so an immediately following `bun run check` sees the unformatted
+ * file (observed 2026-09-27). It still never fails the run — errors and timeouts are
+ * swallowed, because formatting is cosmetic.
  */
-function formatMdxDoc(filePath: string): void {
+async function formatMdxDoc(filePath: string): Promise<void> {
   try {
-    const child = spawn("bun", ["x", "oxfmt", filePath], {
-      cwd: process.cwd(),
-      stdio: "ignore",
-      shell: process.platform === "win32",
+    await new Promise<void>((resolve) => {
+      const child = spawn("bun", ["x", "oxfmt", filePath], {
+        cwd: process.cwd(),
+        stdio: "ignore",
+        shell: process.platform === "win32",
+      });
+      const timer = setTimeout(() => {
+        child.kill();
+        resolve();
+      }, 20_000);
+      child.on("exit", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.on("error", () => {
+        clearTimeout(timer);
+        resolve();
+      });
     });
-    child.unref();
   } catch {
     /* best-effort */
   }
@@ -776,25 +793,36 @@ async function writeRankedExecutiveSummary(
     // in the trend schema, so this summary silently never rendered.)
     const dbType = dbKey.replace("-redis", "");
     const redisOn = dbKey.includes("redis") ? 1 : 0;
+    // Series identity is (test_id, metric): one test records several sub-metrics per
+    // run (api-latency → Cold + TURBO-HIT; media-performance → 7 series). Grouping by
+    // test_id alone compared a "Cold" row against a median of mixed series and
+    // reported ±70–130% artefacts as regressions. The window function keeps the last
+    // 6 samples PER SERIES, so current vs baseline always compares like with like.
     const regressions = db
       .query(
-        `SELECT test_id, avg_ms, p95_ms, rps, phase, timestamp
-         FROM runs
-         WHERE db_type = ? AND redis = ? AND status = 'SUCCESS' AND avg_ms > 0
-           AND run_mode = 'matrix'
-           AND COALESCE(NULLIF(server_mode, ''), 'unknown') = 'production'
-         ORDER BY timestamp DESC
-         LIMIT 200`,
+        `SELECT test_id, metric, avg_ms, p95_ms, rps, phase, timestamp FROM (
+           SELECT test_id, metric, avg_ms, p95_ms, rps, phase, timestamp,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY test_id, COALESCE(metric, '')
+                    ORDER BY timestamp DESC, id DESC
+                  ) AS rn
+           FROM runs
+           WHERE db_type = ? AND redis = ? AND status = 'SUCCESS' AND avg_ms > 0
+             AND run_mode = 'matrix'
+             AND COALESCE(NULLIF(server_mode, ''), 'unknown') = 'production'
+         ) WHERE rn <= 6
+         ORDER BY test_id, metric, timestamp DESC`,
       )
       .all(dbType, redisOn) as any[];
 
     if (regressions.length < 2) continue;
 
-    // Group by test_id, compute deltas
+    // Group by series = test_id + metric, compute deltas
     const byTest = new Map<string, any[]>();
     for (const r of regressions) {
-      if (!byTest.has(r.test_id)) byTest.set(r.test_id, []);
-      byTest.get(r.test_id)!.push(r);
+      const key = `${r.test_id}\u0000${r.metric ?? ""}`;
+      if (!byTest.has(key)) byTest.set(key, []);
+      byTest.get(key)!.push(r);
     }
 
     const lines: string[] = [];
@@ -807,14 +835,18 @@ async function writeRankedExecutiveSummary(
 
     // Find tests with >10% degradation
     const degraded: Array<{
-      testId: string;
+      label: string;
       deltaPct: number;
       current: number;
       baseline: number;
     }> = [];
 
-    for (const [testId, runs] of byTest) {
+    for (const [key, runs] of byTest) {
       if (runs.length < 2) continue;
+      const sep = key.indexOf("\u0000");
+      const testId = key.slice(0, sep);
+      const metric = key.slice(sep + 1);
+      const label = metric ? `${testId} [${metric}]` : testId;
       const current = runs[0];
       const prev = runs.slice(1, Math.min(6, runs.length));
       const med = (arr: number[]) => {
@@ -827,7 +859,7 @@ async function writeRankedExecutiveSummary(
 
       if (Math.abs(deltaPct) > 10) {
         degraded.push({
-          testId,
+          label,
           deltaPct,
           current: current.avg_ms,
           baseline: bAvg,
@@ -839,15 +871,34 @@ async function writeRankedExecutiveSummary(
 
     degraded.sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct));
 
-    // Top regressions
+    // Direction matters: these are latency metrics, so a NEGATIVE delta is faster.
+    // Listing an improvement under "Top Regressions" (with a red dot) inverted the
+    // sign of every good result and buried the real ones.
+    const regressionsOnly = degraded.filter((d) => d.deltaPct > 0);
+    const improvements = degraded.filter((d) => d.deltaPct < 0);
+
     lines.push("");
-    lines.push("### \u{1F534} Top Regressions");
-    for (const d of degraded.slice(0, 5)) {
-      const icon = Math.abs(d.deltaPct) > 20 ? "\u{1F534}" : "\u{1F7E0}";
-      const dir = d.deltaPct > 0 ? "+" : "";
-      lines.push(
-        `> **${icon} ${d.testId}** (${dbKey}): ${dir}${d.deltaPct.toFixed(0)}% | ${d.current.toFixed(2)}ms vs ${d.baseline.toFixed(2)}ms baseline`,
-      );
+    if (regressionsOnly.length > 0) {
+      lines.push("### \u{1F534} Top Regressions");
+      for (const d of regressionsOnly.slice(0, 5)) {
+        const icon = d.deltaPct > 20 ? "\u{1F534}" : "\u{1F7E0}";
+        lines.push(
+          `> **${icon} ${d.label}** (${dbKey}): +${d.deltaPct.toFixed(0)}% | ${d.current.toFixed(2)}ms vs ${d.baseline.toFixed(2)}ms baseline`,
+        );
+      }
+    } else {
+      lines.push("### \u{1F534} Top Regressions");
+      lines.push("> \u2705 None — no latency metric is more than 10 % above its baseline.");
+    }
+
+    if (improvements.length > 0) {
+      lines.push("");
+      lines.push("### \u{1F7E2} Top Improvements");
+      for (const d of improvements.slice(0, 5)) {
+        lines.push(
+          `> **${d.label}** (${dbKey}): ${d.deltaPct.toFixed(0)}% | ${d.current.toFixed(2)}ms vs ${d.baseline.toFixed(2)}ms baseline`,
+        );
+      }
     }
 
     // Write ranked regressions into EXECUTIVE alerts slot (replace, never append)
@@ -896,7 +947,7 @@ async function writeRankedExecutiveSummary(
       const tmpPath = docPath + ".tmp." + Date.now();
       await fs.writeFile(tmpPath, doc, "utf8");
       await fs.rename(tmpPath, docPath);
-      formatMdxDoc(docPath);
+      await formatMdxDoc(docPath);
     } catch {
       /* best-effort */
     }
@@ -982,9 +1033,11 @@ async function updateBenchmarkIndexReport(
       const fmt = (value: number | undefined, digits: number, unit: string): string =>
         Number.isFinite(value) ? `${(value as number).toFixed(digits)}${unit}` : "—";
       // Cold start is optional too: `curr?.coldStartMs || 0` published a fake "0ms"
-      // measurement for adapters whose cold-start script never ran. Missing ⇒ "—".
+      // measurement for adapters whose cold-start script never ran, and a stored 0
+      // slipped past a finite-check. Only a positive measurement renders as one.
       const rawColdStart = curr?.coldStartMs;
-      const coldStartCell = Number.isFinite(rawColdStart) ? `${rawColdStart}ms` : "—";
+      const coldStartCell =
+        Number.isFinite(rawColdStart) && (rawColdStart as number) > 0 ? `${rawColdStart}ms` : "—";
       tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ${status} | ${coldStartCell} | ${fmt(m.collections, 3, "ms")} | ${fmt(m.graphqlAvg, 3, "ms")} | ${fmt(m.systemCpu, 1, "%")} | ${fmt(m.memGrowth, 1, "MB")} |\n`;
     } else {
       tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ⚪ N/A | - | - | - | - | - |\n`;
@@ -997,6 +1050,8 @@ async function updateBenchmarkIndexReport(
   );
 
   await fs.writeFile(indexFilePath, doc);
+  // The summary matrix carries the same format contract as the per-DB ledgers.
+  await formatMdxDoc(indexFilePath);
   log.info("Updated index summary matrix in docs/project/benchmarks/index.mdx");
 }
 
@@ -1159,9 +1214,14 @@ tags:
       dbWarningBox += `>\n> *Please investigate potential database adapter performance bottlenecks or environment variance.*\n\n`;
     }
 
-    const fmtMs = (val: number): string => (val > 0 ? val.toFixed(3) + "ms" : "N/A");
+    // Metrics that a partial run never recorded arrive as `undefined`/NaN, not 0.
+    // `undefined <= 0` is false, so the old guard fell through to "🔴 FAIL" and the
+    // ledger published unmeasured rows as failures (and NaN index pressure as a
+    // SQLite LOCK WALL). Only a positive finite value can be graded.
+    const fmtMs = (val: number): string =>
+      Number.isFinite(val) && val > 0 ? val.toFixed(3) + "ms" : "N/A";
     const fmtStatus = (val: number, budget: number): string =>
-      val <= 0 ? "⚪ N/A" : val <= budget ? "🟢 PASS" : "🔴 FAIL";
+      !Number.isFinite(val) || val <= 0 ? "⚪ N/A" : val <= budget ? "🟢 PASS" : "🔴 FAIL";
 
     let extraWarnings = dbWarningBox;
     if (curr?.error || status === "FAILED") {
@@ -1172,10 +1232,14 @@ tags:
     }
 
     // An unmeasured cold start must never render as a measurement: `curr?.coldStartMs || 0`
-    // published "Cold Start 0ms 🟢 PASS" in generated ledgers. Unmeasured rows reuse this
-    // table's own placeholders ("N/A" latency, "⚪ N/A" result) instead of a fake number.
+    // published "Cold Start 0ms 🟢 PASS" in generated ledgers, and the runtime stores a
+    // literal 0 for runs whose cold-start script never executed. Only a positive finite
+    // value is a measurement; everything else renders as N/A.
     const rawColdStart = curr?.coldStartMs;
-    const coldStartMs = Number.isFinite(rawColdStart) ? (rawColdStart as number) : null;
+    const coldStartMs =
+      Number.isFinite(rawColdStart) && (rawColdStart as number) > 0
+        ? (rawColdStart as number)
+        : null;
 
     const latencyRows = [
       {
@@ -1214,7 +1278,7 @@ tags:
         result:
           m.indexPressureStatus === -1
             ? "🔴 FAIL"
-            : m.indexPressure <= 0
+            : !Number.isFinite(m.indexPressure) || m.indexPressure <= 0
               ? "⚪ N/A"
               : m.indexPressure <= 250
                 ? "🟢 PASS"
@@ -1553,7 +1617,7 @@ tags:
 
     await fs.writeFile(filePath, doc);
     writeHistoryArchive(dbKey, filePath);
-    formatMdxDoc(filePath);
+    await formatMdxDoc(filePath);
     log.info(`Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`);
   }
 }

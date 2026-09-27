@@ -74,7 +74,16 @@ async function processSingleFile(
   service: MediaService,
 ): Promise<DatabaseId | null> {
   const folderPath = resolveFolderPath(ctx);
-  const saved = await service.saveMedia(file, String(ctx.user._id), "private", folderPath);
+  // `saveMedia(file, userId, access, tenantId, basePath)` — the folder goes in the 5th
+  // slot (`_basePath`); passing it as the 4th scoped the media to a phantom tenant and
+  // dropped the folder (caught by tsc, 2026-09-27).
+  const saved = await service.saveMedia(
+    file,
+    ctx.user._id,
+    "private",
+    ctx.tenantId as DatabaseId,
+    folderPath,
+  );
   if (saved.success) {
     return saved.data._id;
   }
@@ -111,7 +120,13 @@ async function processMultiFiles(
       const index = cursor++;
       const item = files[index]!;
       if (item instanceof File) {
-        const saved = await service.saveMedia(item, String(ctx.user._id), "private", folderPath);
+        const saved = await service.saveMedia(
+          item,
+          ctx.user._id,
+          "private",
+          ctx.tenantId as DatabaseId,
+          folderPath,
+        );
         if (saved.success) {
           ids[index] = saved.data._id;
         }

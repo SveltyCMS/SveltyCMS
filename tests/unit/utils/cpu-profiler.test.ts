@@ -63,7 +63,9 @@ describe("cpu-profiler", () => {
     const status = await startCpuProfilerIfEnabled();
     if (status === "unavailable") ctx.skip();
 
-    burnCpu(60);
+    // V8 samples at 1 ms (SAMPLING_INTERVAL_US); ~25 ms is far more than the
+    // single sample the assertions below need.
+    burnCpu(25);
     const snapshot = await takeCpuProfilerSnapshot();
 
     expect(snapshot).not.toBeNull();
@@ -87,8 +89,10 @@ describe("cpu-profiler", () => {
     const status = await startCpuProfilerIfEnabled();
     if (status === "unavailable") ctx.skip();
 
+    // Rotation is a directory-boundedness contract, so the burn only needs to
+    // give V8 something to sample — not a statically visible window.
     for (let i = 0; i < 3; i++) {
-      burnCpu(20);
+      burnCpu(5);
       expect(await takeCpuProfilerSnapshot()).not.toBeNull();
     }
 
@@ -100,7 +104,7 @@ describe("cpu-profiler", () => {
     expect(readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toHaveLength(0);
 
     // Sampling resumed: a later window still yields a profile.
-    burnCpu(20);
+    burnCpu(25);
     const later = await takeCpuProfilerSnapshot();
     expect(later).not.toBeNull();
     expect(later!.samples).toBeGreaterThan(0);
@@ -113,7 +117,6 @@ describe("cpu-profiler", () => {
     const status = await startCpuProfilerIfEnabled();
     if (status === "unavailable") ctx.skip();
 
-    burnCpu(20);
     await stopCpuProfiler();
     expect(await takeCpuProfilerSnapshot()).toBeNull();
 

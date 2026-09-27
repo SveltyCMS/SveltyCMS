@@ -369,13 +369,13 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
 ### Case Study: Smart AI-Driven Migration Pro
 
-| Layer       | File                               | Purpose                                            |
-| ----------- | ---------------------------------- | -------------------------------------------------- |
-| Config Page | `config/migration/+page.svelte`    | Drag-drop upload, format detection, progress UI    |
-| Config Page | `config/migration/+page.server.ts` | Server actions: detect, dryRun, import, rollback   |
-| Plugin      | `smart-importer/index.ts`          | Plugin metadata, config, slot registration         |
-| Plugin      | `smart-importer/index.server.ts`   | 7 AST compilers, 8 format parsers, UCP engine, DLQ |
-| Plugin      | `smart-importer/components/`       | TransformationTree.svelte (visual schema mapper)   |
+| Layer       | File                               | Purpose                                                                      |
+| ----------- | ---------------------------------- | ---------------------------------------------------------------------------- |
+| Config Page | `config/migration/+page.svelte`    | Drag-drop upload, format detection, progress UI                              |
+| Config Page | `config/migration/+page.server.ts` | Server actions: detect, dryRun, import, rollback                             |
+| Plugin      | `smart-importer/index.ts`          | Plugin metadata, config, slot registration                                   |
+| Plugin      | `smart-importer/index.server.ts`   | 7 AST compilers, 8 format parsers, UCP engine, DLQ                           |
+| Plugin      | `smart-importer/components/`       | TransformationTree.svelte (visual schema mapper — present but **unmounted**) |
 
 **Conditional tile**: The Migration tile only appears in the Config grid when the plugin is installed and enabled. The config page's `+page.server.ts` checks `pluginRegistry.getPluginState('smart-importer', tenantId)`.
 

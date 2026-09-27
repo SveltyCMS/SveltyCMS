@@ -3,8 +3,12 @@
  * @description Unit tests for the MegaMenu widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import MegaMenuWidget, { validateMenuStructure } from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import MegaMenuWidget, { validateMenuStructure } from "@widgets/custom/mega-menu";
 import { safeParse } from "valibot";
 
 describe("MegaMenu Widget - Validation", () => {

@@ -3,8 +3,12 @@
  * @description Unit tests for the Geolocation widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import GeolocationWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import GeolocationWidget from "@widgets/custom/geolocation";
 import { safeParse } from "valibot";
 
 describe("Geolocation Widget - Validation", () => {

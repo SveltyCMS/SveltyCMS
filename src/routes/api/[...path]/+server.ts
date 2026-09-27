@@ -41,6 +41,9 @@ import {
 // Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
 // eliminates dynamic import resolution overhead entirely on 95%+ of API traffic.
 import { isChunkedExportResponse } from "./handlers/streaming";
+// Namespace imports on purpose: each handler module is registered wholesale as a dispatcher
+// surface in `namespaceHandlers` below. Converting these to named imports would mean listing
+// every export of seven modules for no runtime or bundle benefit (server-only route).
 import * as collectionsHandler from "./handlers/collections";
 import * as contentHandler from "./handlers/content";
 import * as authHandler from "./handlers/auth";

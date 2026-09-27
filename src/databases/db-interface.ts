@@ -145,6 +145,14 @@ export interface BaseQueryOptions {
   systemScope?: SystemTenantScope;
   includeDeleted?: boolean;
   bypassSafeQuery?: boolean; // 🚀 ULTRA FAST PATH: Skip all security and allocation checks
+  /**
+   * 🚀 WIRE PLANE ONLY: when true, the Direct-to-Wire reader
+   * (`findPointWireStream`) may only return rows whose `status` is published.
+   * Adapters enforce it in the generated SQL where the table has a `status`
+   * column and fail closed (`null`) where it cannot, so the caller falls back
+   * to the Domain Plane, whose clamp decides instead.
+   */
+  requirePublished?: boolean;
   silent?: boolean; // Useful for skipping trigger/audit logs
   skipMeta?: boolean; // 🚀 PERFORMANCE: Skip executionTime/meta object allocation
   suppressErrorLog?: boolean; // 🚀 SECURITY/PERF: Mute error logging for expected failures
@@ -314,17 +322,6 @@ export interface DatabaseCapabilities {
   nativeUpsert?: boolean;
   upsertByQuery?: boolean;
   supportsConflictTargets?: boolean;
-}
-
-export interface IDialectProvider {
-  /** Apply database-specific performance pragmas or settings */
-  applyOptimizations(): Promise<void>;
-
-  /** Handle dialect-specific schema/migration tweaks */
-  normalizeSchema(schema: any): any;
-
-  /** Execute raw commands with dialect-specific syntax (e.g. pragma vs set) */
-  executeTuningCommand(cmd: string): Promise<void>;
 }
 
 export interface PerformanceMetrics {
@@ -951,11 +948,6 @@ export interface ICrudAdapter {
     id: DatabaseId,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>>;
-  findListWireStream?<T extends BaseEntity>(
-    collection: string,
-    query?: QueryFilter<T>,
-    options?: FindOptions<T>,
-  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>>;
   find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

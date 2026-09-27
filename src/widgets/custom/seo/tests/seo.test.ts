@@ -1,114 +1,88 @@
 /**
  * @file src/widgets/custom/seo/tests/seo.test.ts
  * @description Unit tests for the SEO widget validation logic.
+ *
+ * The schema is built once per required/optional variant (it is a pure function of
+ * the field config) and the payload cases are table-driven, so each case isolates
+ * one rule instead of re-deriving the widget nine times.
  */
 
-import { describe, it, expect } from "vitest";
-import SeoWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
 import { safeParse } from "valibot";
+import SeoWidget from "@widgets/custom/seo";
+import { getSchema } from "@tests/unit/widgets/test-utils";
 
-describe("SEO Widget - Validation", () => {
-  const validSeoData = {
-    title: "Test Title",
-    description: "Test Description",
-    focusKeyword: "test",
-    robotsMeta: "index, follow",
-    canonicalUrl: "https://example.com",
-    twitterCard: "summary",
-  };
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
 
-  it("should validate correct SEO data", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
+const validSeoData = {
+  title: "Test Title",
+  description: "Test Description",
+  focusKeyword: "test",
+  robotsMeta: "index, follow",
+  canonicalUrl: "https://example.com",
+  twitterCard: "summary",
+};
 
-    const result = safeParse(schema, validSeoData);
-    expect(result.success).toBe(true);
-  });
-
-  it("should reject title exceeding 60 characters", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    const invalidData = {
-      ...validSeoData,
+/** Overrides that must be rejected by the schema. */
+const REJECTED_CASES: Array<[string, Record<string, unknown>]> = [
+  [
+    "a title exceeding 60 characters",
+    {
       title:
         "This title is definitely way too long and should exceed the sixty character limit specified in the schema",
-    };
-    expect(safeParse(schema, invalidData).success).toBe(false);
+    },
+  ],
+  ["a description exceeding 160 characters", { description: "A".repeat(161) }],
+  ["a malformed canonical URL", { canonicalUrl: "not-a-url" }],
+  [
+    "JSON-LD containing an XSS payload",
+    {
+      schemaMarkup: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "<script>alert('xss')</script>",
+      }),
+    },
+  ],
+];
+
+/** Overrides that must stay accepted. */
+const ACCEPTED_CASES: Array<[string, Record<string, unknown>]> = [
+  ["a complete payload", {}],
+  ["an omitted canonical URL", { canonicalUrl: undefined }],
+  ["an empty canonical URL", { canonicalUrl: "" }],
+  [
+    "safe JSON-LD schema markup",
+    {
+      schemaMarkup: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Test Page",
+      }),
+    },
+  ],
+];
+
+describe("SEO Widget - Validation", () => {
+  const requiredSchema = getSchema(SeoWidget({ label: "SEO", required: true }));
+  const optionalSchema = getSchema(SeoWidget({ label: "SEO", required: false }));
+
+  it.each(ACCEPTED_CASES)("accepts %s", (_label, overrides) => {
+    expect(safeParse(requiredSchema, { ...validSeoData, ...overrides }).success).toBe(true);
   });
 
-  it("should reject description exceeding 160 characters", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    const invalidData = {
-      ...validSeoData,
-      description: "A".repeat(161),
-    };
-    expect(safeParse(schema, invalidData).success).toBe(false);
+  it.each(REJECTED_CASES)("rejects %s", (_label, overrides) => {
+    expect(safeParse(requiredSchema, { ...validSeoData, ...overrides }).success).toBe(false);
   });
 
-  it("should validate optional canonical URL", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    const dataWithoutUrl = { ...validSeoData, canonicalUrl: undefined };
-    expect(safeParse(schema, dataWithoutUrl).success).toBe(true);
-
-    const dataWithEmptyUrl = { ...validSeoData, canonicalUrl: "" };
-    expect(safeParse(schema, dataWithEmptyUrl).success).toBe(true);
+  it("rejects null when required", () => {
+    expect(safeParse(requiredSchema, null).success).toBe(false);
   });
 
-  it("should reject invalid canonical URL", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    const invalidData = { ...validSeoData, canonicalUrl: "not-a-url" };
-    expect(safeParse(schema, invalidData).success).toBe(false);
-  });
-
-  it("should validate safe JSON-LD schema markup", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    const validSchema = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      name: "Test Page",
-    });
-
-    const dataWithSchema = { ...validSeoData, schemaMarkup: validSchema };
-    expect(safeParse(schema, dataWithSchema).success).toBe(true);
-  });
-
-  it("should reject malicious JSON-LD schema markup", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    const maliciousSchema = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      name: "<script>alert('xss')</script>",
-    });
-
-    const dataWithMaliciousSchema = {
-      ...validSeoData,
-      schemaMarkup: maliciousSchema,
-    };
-    expect(safeParse(schema, dataWithMaliciousSchema).success).toBe(false);
-  });
-
-  it("should handle required constraint", () => {
-    const field = SeoWidget({ label: "SEO", required: true });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    expect(safeParse(schema, null).success).toBe(false);
-  });
-
-  it("should allow null if not required", () => {
-    const field = SeoWidget({ label: "SEO", required: false });
-    const schema = (field.widget.validationSchema as any)(field);
-
-    expect(safeParse(schema, null).success).toBe(true);
+  it("allows null when not required", () => {
+    expect(safeParse(optionalSchema, null).success).toBe(true);
   });
 });

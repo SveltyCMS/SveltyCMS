@@ -240,6 +240,19 @@ bun run scripts/benchmark-matrix/index.ts --db=postgresql --only=database-perfor
 > git checkout -- docs/project/benchmarks/
 > ```
 
+### Harness Contracts for Spawned Tooling (2026-09-27)
+
+Two runner behaviours were fixed after a full local matrix run left the tree red. Both are
+contracts, not conveniences — a run must leave a tree that `bun run check` accepts, and a probe
+must measure the tool rather than the harness.
+
+| Contract                                                                                                                                                                                                                                                 | Why it exists                                                                                                                                                                                                                                                                                                                                                 |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Generated MDX is oxfmt-formatted before the run ends.** `formatMdxDoc()` (`scripts/benchmark-matrix/reporting.ts`) awaits the formatter (bounded to 20 s) and now also runs for `docs/project/benchmarks/index.mdx`, not just the per-adapter ledgers. | The pass was fire-and-forget (`unref()`), so it could outlive the run while the next `bun run check` read the unformatted file; the summary writer had no pass at all.                                                                                                                                                                                        |
+| **DX-tool probes run without the matrix's heap cap.** `tests/benchmarks/dev-dependency-load.test.ts` spawns `oxfmt` / `svelte-check` / `oxlint` with `NODE_OPTIONS` stripped (`dxToolEnv()`), and its binary resolution is unchanged.                    | The matrix exports `NODE_OPTIONS=--max-semi-space-size=128 --max-old-space-size=1024` to children. Under that 1 GB cap `svelte-check` aborts with a V8 fatal error about 12 s in (exit 134, `node::OnFatalError` native stack), which the probe reads as "Type Check failed" — no developer shell carries that cap, and `svelte-check` walks all 6 785 files. |
+
+Both fixes were verified by running the matrix and then `bun run check` immediately afterwards, and by running the DX probe alone.
+
 ## Key Features
 
 ### Statistical Regression Detection

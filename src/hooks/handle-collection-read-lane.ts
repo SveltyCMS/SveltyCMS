@@ -26,7 +26,14 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
-import { hasPermissionBitmask } from "@src/databases/auth/permission-bitmask";
+import {
+  hasPermissionBitmask,
+  isPermissionBitsetStale,
+} from "@src/databases/auth/permission-bitmask";
+import {
+  getAllowedFieldSet,
+  hasGuardedFields,
+} from "@src/services/security/field-permission-service";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
 import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
@@ -45,7 +52,7 @@ import { contentStore } from "@src/stores/content-registry.svelte";
 import type { DatabaseId, Schema } from "@src/content/types";
 import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
 import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
-import { resolvePublicationFilter } from "@utils/security/publication-policy";
+import { resolvePublicationFilter, type ActorContext } from "@utils/security/publication-policy";
 
 interface CoalescedCollectionRead {
   body: string;
@@ -70,6 +77,40 @@ function getLaneCms(): LocalCMS | null {
   if (!dbAdapter) return null;
   if (!laneCms) laneCms = new LocalCMS(dbAdapter);
   return laneCms;
+}
+
+/**
+ * FLAC exemption for the lane (fail closed).
+ *
+ * The lane emits its own `Response` and therefore never runs
+ * `handleTokenResolution`, which is where the read path applies
+ * `applyFieldPermissionsToBody`. The lane may serve a caller only when their
+ * field view is provably the stored one:
+ *
+ * 1. no `FIELD_PERMISSIONS` policy for this collection + role, and
+ * 2. the compiled schema declares no `readRoles`-guarded field.
+ *
+ * Both are cached lookups (policy config TTL + `WeakMap` on the field array), so
+ * the check costs nothing measurable on the hot path. Anything else falls
+ * through to the pipeline, which redacts.
+ */
+function isLaneFlacExempt(
+  collectionId: string,
+  tenantId: string | null,
+  role: string | undefined,
+): boolean {
+  try {
+    if (getAllowedFieldSet(collectionId, role)) return false;
+    const schema = contentStore.getCollection(collectionId, tenantId as string) as
+      | { fields?: unknown[] }
+      | undefined;
+    const fields = schema?.fields;
+    return !Array.isArray(fields) || !hasGuardedFields(fields as never);
+  } catch {
+    // Fail closed: any doubt about the field policy sends the request to the
+    // pipeline, which owns redaction.
+    return false;
+  }
 }
 
 /** True for GET/HEAD of a collection list or single entry. */
@@ -150,7 +191,10 @@ export function computeCollectionWireMeta(
       permissions?: { visibility?: string };
     }>) {
       const fieldName = f.db_fieldName || f.name;
-      // Skip private or guarded fields
+      // Editor-visible projection only: fields marked `visibility: "private"` are
+      // excluded. This set feeds the `fields=` equality admission below; FLAC
+      // redaction itself is enforced by the lane's `isLaneFlacExempt` gate
+      // (readRoles / requiredAuth / hidden decline the lane entirely).
       if (fieldName && f.permissions?.visibility !== "private") {
         publishedFields.add(fieldName);
       }
@@ -173,6 +217,29 @@ export function computeCollectionWireMeta(
     defaultLimit: 25,
   };
 }
+
+/**
+ * Query parameters the Wire Plane admission rules reason about. A parameter outside
+ * this set (plus the `filter[...]` / `filter.` prefixes, checked separately) fails the
+ * predicate: the compiled wire body cannot honour what admission did not validate, so
+ * the request must divert to the Domain Plane instead of being served while a
+ * parameter is silently ignored.
+ */
+const WIRE_KNOWN_PARAMS = new Set([
+  "fields",
+  "locale",
+  "status",
+  "preview",
+  "draft",
+  "populate",
+  "filter",
+  "where",
+  "sort",
+  "limit",
+  "page",
+  "cursor",
+  "keyset",
+]);
 
 /**
  * Strict Wire Plane Admission Predicate:
@@ -307,6 +374,13 @@ export function isWirePlaneAdmissible(
     }
   }
 
+  // 8. Fail closed on any parameter the compiled wire projection cannot honour.
+  for (const key of search.keys()) {
+    if (WIRE_KNOWN_PARAMS.has(key)) continue;
+    if (key.startsWith("filter[") || key.startsWith("filter.")) continue;
+    return false;
+  }
+
   return true;
 }
 
@@ -343,6 +417,12 @@ function stampSrvDur(headers: Headers, started: number): void {
   headers.set("x-srv-dur", (performance.now() - started).toFixed(2));
 }
 
+/** Role name for the FLAC policy lookup — read from the resolved session user, never the client. */
+function roleOf(user: unknown): string | undefined {
+  const role = (user as { role?: unknown } | null | undefined)?.role;
+  return typeof role === "string" ? role : undefined;
+}
+
 async function executeWarmCollectionRead(
   event: RequestEvent,
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
@@ -357,13 +437,19 @@ async function executeWarmCollectionRead(
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
   (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
 
-  // 🛡️ 64-Bit Bitmask Security Engine: check in-register bitmask first (<0.5 ns)
-  const isAuthorized =
-    isAdmin(turbo.user) ||
-    hasPermissionBitmask(turbo.permMask ?? 0n, "collection:read") ||
-    hasPermissionBitmask(turbo.permMask ?? 0n, "collections:read");
+  // 🛡️ 64-Bit Bitmask Security Engine: check in-register bitmask first (<0.5 ns).
+  // The lane answers `/api/collections` GET, whose entry in `ENDPOINT_PERMISSIONS`
+  // requires `collections:read` — the lane must be exactly as strict as the
+  // endpoint map, never more permissive.
+  const admin = isAdmin(turbo.user);
+  const isAuthorized = admin || hasPermissionBitmask(turbo.permMask ?? 0n, "collections:read");
 
   if (!isAuthorized) return null;
+
+  // 🛡️ Stale grants: a role/permission mutation bumps the global epoch while this
+  // context keeps its compiled mask. Decline until the pipeline re-resolves the
+  // session: detecting it is one `Atomics.load`, not a database round-trip.
+  if (isPermissionBitsetStale(turbo.permRev)) return null;
 
   const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
   if (tenantP) await tenantP;
@@ -374,6 +460,13 @@ async function executeWarmCollectionRead(
   const parts = url.pathname.split("/").filter(Boolean);
   const collectionId = parts[2];
   const entryId = parts.length === 4 ? parts[3] : null;
+
+  // 🔐 FLAC gate — before any cache lookup, so a body stored before a policy
+  // change can never outlive it. Non-exempt callers use the full pipeline, which
+  // redacts in `handleTokenResolution`.
+  if (!admin && !isLaneFlacExempt(collectionId, cacheTenant, roleOf(turbo.user))) {
+    return null;
+  }
   const listParams = !entryId ? parseCollectionQueryParams(url.searchParams) : null;
   if (listParams && (listParams.stream || listParams.limit >= MAX_PAGE_SIZE)) {
     return null;
@@ -477,17 +570,30 @@ async function rebuildWarmCollectionRead(
   if (!cms) return null;
   const dbT0 = marks ? performance.now() : 0;
 
-  // Direct-to-Wire point stream optimization (Phase 1):
-  // When an admin performs a simple point read without query params, fetch wire body directly
-  // from the database C engine, completely bypassing entity hydration and JSON.stringify.
-  // Must satisfy strict Wire Plane Admission Predicate; otherwise falls through to LocalCMS findById.
-  if (entryId && !event.url.search && dbAdapter?.crud?.findPointWireStream) {
+  // Direct-to-Wire point stream optimization (Phase 1): a simple published point read
+  // whose query parameters are exactly the compiled defaults fetches the wire body
+  // directly from the database engine, bypassing entity hydration and JSON.stringify.
+  // The admission predicate owns that decision (unknown parameters fail closed inside
+  // it); anything it declines falls through to LocalCMS findById below.
+  if (entryId && dbAdapter?.crud?.findPointWireStream) {
     const schema = contentStore.getCollection(collectionId, locals.tenantId as string);
     const wireMeta = schema ? computeCollectionWireMeta(schema) : null;
     if (wireMeta && isWirePlaneAdmissible(event, wireMeta)) {
-      const wireRes = await dbAdapter.crud.findPointWireStream(collectionId, entryId, {
-        tenantId: locals.tenantId as DatabaseId,
-      });
+      const wireRes = await dbAdapter.crud.findPointWireStream(
+        collectionId,
+        entryId as DatabaseId,
+        {
+          tenantId: locals.tenantId as DatabaseId,
+          // Publication clamp parity: the Domain Plane resolves the caller's clamp
+          // from the same policy function, and the wire SQL enforces it in-engine,
+          // so a wire-served point read can never expose a row the caller is denied.
+          requirePublished:
+            resolvePublicationFilter(
+              { user: locals.user } as ActorContext,
+              event.url.searchParams.get("status"),
+            ) !== "all",
+        },
+      );
       if (wireRes?.success && wireRes.data) {
         const apiBody = wireRes.data.wireBody;
         const etag = wireRes.data.etag || generateContentEtag(apiBody);

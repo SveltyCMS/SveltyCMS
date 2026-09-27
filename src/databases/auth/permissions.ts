@@ -29,20 +29,10 @@ export interface PermissionConfig {
   name: string;
 }
 
-// Bitset mapping maps permission ID to a unique bit index
-const permissionToBitIndex = new Map<string, number>();
-const bitIndexToPermission: string[] = [];
-let nextBitIndex = 0;
-
 // Action index maps action:type:contextId string to the Permission object
 const permissionActionIndex = new Map<string, Permission>();
 
 function indexPermission(permission: Permission) {
-  if (!permissionToBitIndex.has(permission._id)) {
-    permissionToBitIndex.set(permission._id, nextBitIndex);
-    bitIndexToPermission[nextBitIndex] = permission._id;
-    nextBitIndex++;
-  }
   const key = `${permission.action}:${permission.type}:${permission.contextId || ""}`;
   permissionActionIndex.set(key, permission);
 }
@@ -76,39 +66,11 @@ export function getPermissionById(permissionId: string): Permission | undefined 
   return permissionRegistry.get(permissionId);
 }
 
-// Compile a role's permissions into a Uint32Array bitset, cached directly on the role
-export function getRoleBitset(role: Role): Uint32Array {
-  const requiredSize = Math.max(1, Math.ceil(nextBitIndex / 32));
-  let bitset = (role as any).__bitset as Uint32Array | undefined;
-
-  if (bitset && bitset.length >= requiredSize) {
-    return bitset;
-  }
-
-  bitset = new Uint32Array(requiredSize);
-
-  for (const permId of role.permissions || []) {
-    let index = permissionToBitIndex.get(permId);
-    if (index === undefined) {
-      index = nextBitIndex;
-      permissionToBitIndex.set(permId, index);
-      bitIndexToPermission[index] = permId;
-      nextBitIndex++;
-    }
-    const wordIndex = index >> 5;
-    if (wordIndex < bitset.length) {
-      bitset[wordIndex] |= 1 << (index & 31);
-    }
-  }
-
-  (role as any).__bitset = bitset;
-  return bitset;
-}
-
-export function invalidateRoleBitset(role: Role): void {
-  delete (role as any).__bitset;
-  invalidateRoleBitsetsGlobally();
-}
+// The legacy Uint32Array role bitset (`getRoleBitset`) and its permission→bit-index
+// maps were removed here: zero call sites, and a second permission encoding beside the
+// 64-bit `permMask` (see permission-bitmask.ts) is a correctness hazard, not a fast
+// path. Authorization reads `permMask` / `computeUserPermMask` only; the global role
+// epoch in permission-bitmask.ts is what invalidates cached grants.
 
 export function setRolePermissions(role: Role, permissions: string[]): Role {
   role.permissions = permissions;

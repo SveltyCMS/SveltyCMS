@@ -14,6 +14,24 @@ import { isAdmin } from "@src/databases/auth/constants";
 
 export type PublicationFilter = "published" | "draft" | "all";
 
+/**
+ * Every status value that counts as *published*.
+ *
+ * The canonical writer (`applyPublicationToQuery`, `toggleEntryStatus`,
+ * `StatusTypes.publish`) stores `"publish"`; the Smart-Importer's WordPress
+ * mapper stores `"published"`. Both are accepted here so the read clamp and
+ * the query filter cannot disagree about what a published row looks like.
+ */
+export const PUBLISHED_STATUS_LIST: readonly string[] = ["publish", "published"];
+export const PUBLISHED_STATUS_VALUES: ReadonlySet<string> = new Set(PUBLISHED_STATUS_LIST);
+
+/** True when a row's `status` means "published". */
+export function isPublishedStatus(row: unknown): boolean {
+  if (!row || typeof row !== "object") return false;
+  const status = (row as { status?: unknown }).status;
+  return typeof status === "string" && PUBLISHED_STATUS_VALUES.has(status);
+}
+
 export interface ActorContext {
   user?: {
     _id?: string;

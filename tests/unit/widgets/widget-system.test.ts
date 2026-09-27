@@ -23,6 +23,8 @@ import { registerForJsonRender } from "@src/services/json-render/catalog";
 import { boolean, minLength, number, object, string } from "valibot";
 import { createWidget, type FieldConfig, type WidgetConfig } from "@widgets/widget-factory";
 
+vi.mock("@src/paraglide/messages", async () => (await import("./test-utils")).WIDGET_MESSAGES);
+
 describe("Widget System - Factory Pattern", () => {
   describe("createWidget Function", () => {
     test("should create widget factory with minimal config", () => {

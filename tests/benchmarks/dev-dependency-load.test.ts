@@ -38,16 +38,41 @@ function resolveBin(name: string): string {
 /**
  * Asynchronous process execution with timeout guarding and buffer draining.
  */
+interface ExecOptions {
+  timeoutMs?: number;
+  /** Environment for the child; defaults to this process's environment. */
+  env?: Record<string, string | undefined>;
+}
+
+/**
+ * The matrix exports a heap cap to every child
+ * (`NODE_OPTIONS=--max-semi-space-size=128 --max-old-space-size=1024`) so its *server*
+ * memory readings stay stable. These three DX binaries are independent developer tools,
+ * not the CMS server: under a 1 GB cap `svelte-check` aborts with a V8 fatal error on this
+ * repo (measured 2026-09-27: exit 134 about 12 s in, "Native stack trace" in
+ * `node::OnFatalError`), and no developer shell carries that cap. Strip it for the
+ * toolchain probes so the benchmark measures the tools rather than the harness's budget.
+ */
+function dxToolEnv(): Record<string, string | undefined> {
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  return env;
+}
+
+/**
+ * Asynchronous process execution with timeout guarding and buffer draining.
+ */
 function executeCommand(
   cmd: string,
   args: string[],
-  timeoutMs = 120_000,
+  { timeoutMs = 120_000, env = process.env }: ExecOptions = {},
 ): Promise<{ durationMs: number; exitCode: number; stderr: string; stdout: string }> {
   return new Promise((resolve, reject) => {
     const start = performance.now();
     const proc = spawn(cmd, args, {
       shell: isWindows && (cmd.endsWith(".cmd") || cmd.endsWith(".bat")),
       stdio: ["ignore", "pipe", "pipe"],
+      env,
     });
 
     let stdout = "";
@@ -95,9 +120,11 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
 
   // ── 1. FAST FORMATTER (oxfmt / prettier fallback) ─────────────────────────
   console.log("   → Benchmarking Fast Format...");
-  const fmtRes = await executeCommand(oxfmtExec, ["--check", "src"]).catch(async () => {
+  const fmtRes = await executeCommand(oxfmtExec, ["--check", "src"], {
+    env: dxToolEnv(),
+  }).catch(async () => {
     // Fallback through runner if direct binary execution differs
-    return executeCommand(process.execPath, ["run", "format"]);
+    return executeCommand(process.execPath, ["run", "format"], { env: dxToolEnv() });
   });
 
   results.push({
@@ -112,13 +139,12 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
 
   // ── 2. TYPE CHECKING (svelte-check) ───────────────────────────────────────
   console.log("   → Benchmarking Type Check (svelte-check)...");
-  const checkRes = await executeCommand(svelteCheckExec, [
-    "--tsconfig",
-    "./tsconfig.json",
-    "--threshold",
-    "error",
-  ]).catch(async () => {
-    return executeCommand(process.execPath, ["run", "check"]);
+  const checkRes = await executeCommand(
+    svelteCheckExec,
+    ["--tsconfig", "./tsconfig.json", "--threshold", "error"],
+    { env: dxToolEnv() },
+  ).catch(async () => {
+    return executeCommand(process.execPath, ["run", "check"], { env: dxToolEnv() });
   });
 
   results.push({
@@ -135,8 +161,10 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
 
   // ── 3. RUST LINTER (oxlint) ───────────────────────────────────────────────
   console.log("   → Benchmarking Fast Lint (oxlint)...");
-  const lintRes = await executeCommand(oxlintExec, ["src", "--deny-warnings"]).catch(async () => {
-    return executeCommand(process.execPath, ["run", "lint"]);
+  const lintRes = await executeCommand(oxlintExec, ["src", "--deny-warnings"], {
+    env: dxToolEnv(),
+  }).catch(async () => {
+    return executeCommand(process.execPath, ["run", "lint"], { env: dxToolEnv() });
   });
 
   results.push({

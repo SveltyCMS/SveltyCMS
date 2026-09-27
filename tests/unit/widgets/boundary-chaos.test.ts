@@ -3,7 +3,8 @@
  * @description Boundary chaos tests for core widget validation schemas.
  * Every widget tested with null, NaN, extreme values, unicode, and XSS payloads.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("./test-utils")).WIDGET_MESSAGES);
 import { safeParse } from "valibot";
 import InputWidget from "@widgets/core/input";
 import NumberWidget from "@widgets/core/number";
@@ -11,11 +12,7 @@ import EmailWidget from "@widgets/core/email";
 import CheckboxWidget from "@widgets/core/checkbox";
 import RadioWidget from "@widgets/core/radio";
 import SlugWidget from "@widgets/core/slug";
-
-const getSchema = (field: any) => {
-  const raw = field.widget.validationSchema;
-  return typeof raw === "function" ? raw(field) : raw;
-};
+import { CHAOS_CASES, getSchema } from "./test-utils";
 
 const WIDGETS = [
   { name: "Input", factory: InputWidget },
@@ -24,17 +21,6 @@ const WIDGETS = [
   { name: "Checkbox", factory: CheckboxWidget },
   { name: "Radio", factory: RadioWidget },
   { name: "Slug", factory: SlugWidget },
-];
-
-const CHAOS = [
-  { label: "null", value: null },
-  { label: "undefined", value: undefined },
-  { label: "empty string", value: "" },
-  { label: "empty array", value: [] },
-  { label: "NaN", value: NaN },
-  { label: "10K string", value: "x".repeat(10_000) },
-  { label: "unicode", value: "こんにちは🌍" },
-  { label: "XSS payload", value: "<script>alert(1)</script>" },
 ];
 
 describe("Widget Boundary Chaos Tests", () => {
@@ -54,7 +40,7 @@ describe("Widget Boundary Chaos Tests", () => {
       it("handles all chaos inputs without throwing", () => {
         const field = factory({ label: "Test" });
         const s = getSchema(field);
-        for (const { label, value } of CHAOS) {
+        for (const { label, value } of CHAOS_CASES) {
           expect(() => safeParse(s, value), `${name} on ${label}`).not.toThrow();
         }
       });

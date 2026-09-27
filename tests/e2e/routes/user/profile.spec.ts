@@ -12,7 +12,7 @@ import { ADMIN_CREDENTIALS, TEST_API_HEADERS } from "../../helpers/api";
 import { loginAsAdmin } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { confirmModal } from "../../helpers/confirm-modal";
-import { expectToast } from "../../helpers/stable";
+import { expectToast, getAppDialog } from "../../helpers/stable";
 import { openUserManagement } from "../../helpers/user-page";
 
 /**
@@ -257,18 +257,22 @@ test.describe.serial("User Profile Management", () => {
       // (intermittent because consent storage can be cleared between specs).
       await dismissCookieConsent(page);
 
-      await page
+      // Hydration-race guard (same idiom as the avatar tests below): the SSR button renders
+      // before its onclick is attached, so a first click can be swallowed and the dialog never
+      // opens. Re-click until the dialog is actually visible — a genuine failure still fails.
+      const editSettingsBtn = page
         .getByTestId("edit-user-settings-btn")
         .or(page.getByRole("button", { name: /Edit User Settings/i }))
-        .first()
-        .click();
+        .first();
 
       // Scope to the edit dialog so Save/username resolve unambiguously
-      const editDialog = page
-        .getByRole("dialog", { name: /Edit User Data|edit user/i })
-        .or(page.getByRole("dialog").filter({ hasText: /username/i }))
-        .first();
-      await expect(editDialog).toBeVisible({ timeout: 15_000 });
+      const editDialog = getAppDialog(page, /Edit User Data|edit user|username/i);
+      await expect(async () => {
+        await editSettingsBtn
+          .click({ timeout: 2_000 })
+          .catch(() => editSettingsBtn.evaluate((el: HTMLElement) => el.click()));
+        await expect(editDialog).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 15_000 });
 
       // Unique username each run — avoids uniqueness validation failures
       const newUsername = `TestUser_${Date.now().toString(36).slice(-6)}`;

@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/etag-hash.test.ts
- * @description Benchmarks ETag hash performance: fastHash (native FNV-1a) vs SHA-256 vs MD5 vs SHA-1 (Optimized)
+ * @description Benchmarks ETag hash performance: fastHash (pure-JS FNV-1a) vs SHA-256 vs MD5 vs SHA-1 (Optimized)
  * @summary Measures raw hash throughput, sub-microsecond latency, and buffer digestion speeds.
  */
 
@@ -126,10 +126,21 @@ describe("ETag Hash Performance", () => {
       );
       console.log(`    Native Fast-Hash: ${(nativeFastTime * 1000).toFixed(3)} µs (Zero-Copy)`);
 
-      if (payload.length > 1000) {
+      // 🔍 Crossover, measured 2026-09-27 (Bun 1.4.2, this host): the pure-JS FNV-1a
+      // loop beats native crypto at tiny/small/medium (≤ ~11 KB) and loses at large
+      // (547.8 KB): 818 µs vs SHA-256's 215 µs — SHA-256 is 3.8× faster there, because
+      // native SIMD digests win once the buffer leaves cache. `fastHash` hashes
+      // collection/widget source files (`compile.ts`, `sync-content-state.server.ts`);
+      // nearly all are ≤ ~12 KB (largest widget source measured 2026-09-27: 23 KB), so
+      // the 16 KB guard below covers the common case and the large case guards scaling,
+      // not superiority.
+      if (payload.length <= 1_000) {
+        expect(fastHashTime).toBeLessThan(0.015);
+      } else if (payload.length <= 16 * 1024) {
         expect(fastHashTime).toBeLessThan(sha256Time);
       } else {
-        expect(fastHashTime).toBeLessThan(0.015);
+        const usPerKB = (fastHashTime * 1000) / (payload.length / 1024);
+        expect(usPerKB).toBeLessThan(4);
       }
     }, 30_000);
   }

@@ -1,138 +1,207 @@
 /**
  * @file tests/unit/media/processing/media-storage.test.ts
- * @description Unit tests for the parallel thumbnail generation in saveResized().
+ * @description Unit tests for `saveResized()` in media-storage.server.ts.
  *
- * verifies:
- * - All thumbnail sizes are processed (not just a subset)
- * - WebP variants are generated alongside primary format when format !== "webp"
- * - WebP variants are NOT generated when primary format is already WebP
- * - The height is correctly proportionally computed from the original aspect ratio
+ * Covers the two invariants the function owns (media pipeline plan §3 #3):
+ * - Never upscale: a ladder step wider than the decoded source is dropped.
+ * - One write per path: the primary output and WebP sidecar share a path when the
+ *   primary is itself WebP, and that pair is written once.
+ *
+ * Plus the size ladder contract, the WebP sidecar keys, and the recorded
+ * width/height fallbacks. `sharp` and the storage adapter are mocked (engine + I/O).
  */
 
-import { describe, it, expect } from "vitest";
-import { SIZES } from "../../../../src/utils/media/media-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The SIZES constant includes configured sizes + built-in "original" (0) and "thumbnail" (200)
-// We only care about sizes with w > 0 (the resizeable ones)
-const resizeableSizes = Object.entries(SIZES).filter(([, w]) => w > 0);
+/** sharp stub — the engine boundary. */
+const sharpState = vi.hoisted(() => ({
+  meta: { width: 1920, height: 1080, format: "jpeg" } as {
+    width?: number;
+    height?: number;
+    format: string;
+  },
+  /** Widths handed to `resize()`, i.e. the ladder steps actually encoded. */
+  resizes: [] as number[],
+}));
 
-describe("saveResized — size enumeration", () => {
-  it("has at least 1 resizeable thumbnail size (configurable via IMAGE_SIZES)", () => {
-    expect(resizeableSizes.length).toBeGreaterThanOrEqual(1);
-  });
+/** Storage stub — the I/O boundary. */
+const storage = vi.hoisted(() => ({ uploads: [] as string[] }));
 
-  it("includes a thumbnail size of 200px", () => {
-    expect(SIZES.thumbnail).toBe(200);
-  });
-
-  it("all resizeable sizes have positive width", () => {
-    for (const [, w] of resizeableSizes) {
-      expect(w).toBeGreaterThan(0);
-    }
-  });
-
-  it("all size keys are lowercase kebab-case", () => {
-    for (const [key] of resizeableSizes) {
-      expect(key).toMatch(/^[a-z][a-z0-9-]*$/);
-    }
-  });
+vi.mock("sharp", () => {
+  const instance: Record<string, unknown> = {
+    metadata: () => Promise.resolve(sharpState.meta),
+    resize: (w: number) => {
+      sharpState.resizes.push(w);
+      return instance;
+    },
+    // Mirrors sharp's `resolveWithObject` shape, minus width/height: the code
+    // under test must fall back to the requested ladder step.
+    toBuffer: (opts?: { resolveWithObject?: boolean }) =>
+      Promise.resolve(
+        opts?.resolveWithObject
+          ? { data: Buffer.from("mock-buffer"), info: { size: 42 } }
+          : Buffer.from("mock-buffer"),
+      ),
+    webp: () => instance,
+    jpeg: () => instance,
+    avif: () => instance,
+  };
+  instance.clone = () => instance;
+  const factory = () => instance;
+  return { default: factory };
 });
 
-describe("saveResized — parallel execution contract", () => {
-  it("processes each size as an independent promise (no sequential coupling)", async () => {
-    // Simulate what the parallel saveResized does: each size task is independent
-    const trace: number[] = [];
-    const tasks = resizeableSizes.map(async ([, w], idx) => {
-      // Each task should start immediately (not wait for previous)
-      trace.push(idx);
-      await new Promise((r) => setTimeout(r, Math.random() * 5));
-      return w;
+vi.mock("@src/utils/media/storage-adapters", () => ({
+  getStorageAdapter: () => ({
+    upload: async (_data: unknown, relPath: string) => {
+      storage.uploads.push(relPath);
+      return `/files/${relPath}`;
+    },
+    exists: async () => false,
+    download: async () => Buffer.alloc(0),
+    remove: async () => {},
+    getUrl: (relPath: string) => `/files/${relPath}`,
+  }),
+  getConfig: () => ({}),
+}));
+
+/** Settings boundary — controls the output-format override per test. */
+const settings = vi.hoisted(() => ({
+  format: undefined as { format?: string; quality?: number } | undefined,
+}));
+
+vi.mock("@src/services/core/settings-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@src/services/core/settings-service")>();
+  return {
+    ...actual,
+    getPublicSettingSync: (key: string) =>
+      key === "MEDIA_OUTPUT_FORMAT_QUALITY" ? settings.format : undefined,
+  };
+});
+
+const { SIZES, saveResized } = await import("@src/utils/media/media-storage.server");
+
+const BUFFER = Buffer.from("source-bytes");
+
+/** Ladder steps that fit inside a source of `width` (0/undefined = unreadable source). */
+const expectedKeys = (width: number | undefined) =>
+  Object.entries(SIZES)
+    .filter(([, w]) => w > 0 && (!width || w <= width))
+    .flatMap(([key]) => [key, `${key}_webp`])
+    .sort();
+
+beforeEach(() => {
+  sharpState.meta = { width: 1920, height: 1080, format: "jpeg" };
+  sharpState.resizes.length = 0;
+  storage.uploads.length = 0;
+  settings.format = undefined;
+});
+
+describe("saveResized — variant ladder", () => {
+  it("emits every configured size plus a WebP sidecar carrying the ladder dimensions", async () => {
+    const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
+
+    expect(Object.keys(out).sort()).toEqual(expectedKeys(1920));
+    // One upload per primary + one per sidecar.
+    expect(storage.uploads).toHaveLength(Object.keys(out).length);
+
+    expect(out.thumbnail).toEqual({
+      url: "/files/global/thumbnail/photo-abc123.jpg",
+      width: 200,
+      height: 113, // round((200 / 1920) * 1080) — the encoder reported no height
+      size: 42,
+      mimeType: "image/jpeg",
     });
+    expect(out.thumbnail_webp).toEqual({
+      url: "/files/global/thumbnail/photo-abc123.webp",
+      width: 200,
+      height: 113,
+      size: 42,
+      mimeType: "image/webp",
+    });
+    expect(out.lg.height).toBe(675); // round((1200 / 1920) * 1080)
+  });
 
-    const results = await Promise.all(tasks);
-    expect(results.length).toBe(resizeableSizes.length);
-    // All tasks should have started before any completed — trace proves parallel dispatch
-    expect(trace.length).toBe(resizeableSizes.length);
+  it("never upscales: drops ladder steps wider than the decoded source", async () => {
+    sharpState.meta = { width: 700, height: 500, format: "jpeg" };
+
+    const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
+
+    expect(Object.keys(out).sort()).toEqual(expectedKeys(700));
+    // The clamp happens before any encode, not just before the write.
+    expect(sharpState.resizes.sort((a, b) => a - b)).toEqual([200, 600]);
+    expect(sharpState.resizes).not.toContain(900);
+    expect(sharpState.resizes).not.toContain(1200);
+  });
+
+  it("keeps the full ladder when the source width is unreadable and falls back to the step width for height", async () => {
+    sharpState.meta = { width: undefined, height: undefined, format: "jpeg" };
+
+    const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
+
+    expect(Object.keys(out).sort()).toEqual(expectedKeys(undefined));
+    // No source height → height mirrors the requested width instead of a ratio.
+    expect(out.thumbnail.height).toBe(200);
+    expect(out.lg.height).toBe(1200);
   });
 });
 
-describe("saveResized — aspect ratio calculation", () => {
-  it("computes proportional height correctly", () => {
-    const meta = { width: 1920, height: 1080 };
-    const sizes = [
-      { w: 200, expected: Math.round((200 / 1920) * 1080) },
-      { w: 400, expected: Math.round((400 / 1920) * 1080) },
-      { w: 800, expected: Math.round((800 / 1920) * 1080) },
-    ];
+describe("saveResized — one write per path", () => {
+  it("writes once when the source extension is already WebP", async () => {
+    const out = await saveResized(BUFFER, "abc123", "photo", "webp", "global");
 
-    for (const { w, expected } of sizes) {
-      const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
-      expect(height).toBe(expected);
-    }
+    const primaryKeys = Object.entries(SIZES)
+      .filter(([, w]) => w > 0)
+      .map(([key]) => key)
+      .sort();
+    expect(Object.keys(out).sort()).toEqual(primaryKeys);
+    expect(Object.keys(out).some((key) => key.endsWith("_webp"))).toBe(false);
+
+    // No path is written twice.
+    expect(new Set(storage.uploads).size).toBe(storage.uploads.length);
+    expect(out.thumbnail.url).toBe("/files/global/thumbnail/photo-abc123.webp");
   });
 
-  it("uses width as fallback when metadata has no height", () => {
-    // When meta.height is falsy (null/undefined), the fallback is just `w`
-    const meta = { width: 1920, height: null as number | null };
-    const w = 200;
-    const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
-    expect(height).toBe(200);
-  });
+  it.each([
+    ["original (unset)", undefined, "jpg", "image/jpeg"],
+    ["jpg", { format: "jpg", quality: 90 }, "jpg", "image/jpeg"],
+    ["avif", { format: "avif", quality: 50 }, "avif", "image/avif"],
+    ["webp", { format: "webp", quality: 80 }, "webp", "image/webp"],
+  ])(
+    "MEDIA_OUTPUT_FORMAT_QUALITY=%s rewrites the primary extension and MIME type",
+    async (_label, formatConfig, expectedExt, expectedMime) => {
+      settings.format = formatConfig;
 
-  it("uses width as fallback when metadata has no width", () => {
-    const meta = { width: null as number | null, height: 500 };
-    const w = 200;
-    const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
-    expect(height).toBe(Math.round((200 / 200) * 500));
-  });
-});
+      const out = await saveResized(BUFFER, "abc123", "photo", "jpg", "global");
 
-describe("saveResized — format selection logic", () => {
-  it("determines outExt and mimeType for jpg format", () => {
-    const ext = "jpg";
-    let outExt = ext;
-    let mimeType = "image/jpeg";
-    // Simulate "jpg" format path
-    outExt = "jpg";
-    mimeType = "image/jpeg";
-    expect(outExt).toBe("jpg");
-    expect(mimeType).toBe("image/jpeg");
-  });
+      expect(out.thumbnail.url).toBe(`/files/global/thumbnail/photo-abc123.${expectedExt}`);
+      expect(out.thumbnail.mimeType).toBe(expectedMime);
 
-  it("determines outExt and mimeType for webp format", () => {
-    const ext = "jpg";
-    let outExt = ext;
-    let mimeType = "image/jpeg";
-    // Simulate "webp" format path
-    outExt = "webp";
-    mimeType = "image/webp";
-    expect(outExt).toBe("webp");
-    expect(mimeType).toBe("image/webp");
-  });
-
-  it("determines outExt and mimeType for avif format", () => {
-    const ext = "png";
-    let outExt = ext;
-    let mimeType = "image/png";
-    // Simulate "avif" format path
-    outExt = "avif";
-    mimeType = "image/avif";
-    expect(outExt).toBe("avif");
-    expect(mimeType).toBe("image/avif");
-  });
+      // A WebP primary needs no sidecar; every other format still gets one.
+      const sidecar = out.thumbnail_webp;
+      if (expectedExt === "webp") {
+        expect(sidecar).toBeUndefined();
+      } else {
+        expect(sidecar?.mimeType).toBe("image/webp");
+      }
+    },
+  );
 });
 
 describe("SIZES — configuration contract", () => {
-  it("exports SIZES as a readonly object", () => {
-    expect(SIZES).toBeTypeOf("object");
-    expect(Object.keys(SIZES).length).toBeGreaterThan(0);
-  });
-
-  it("has an 'original' key with value 0", () => {
+  it("is a frozen object with an 'original' sentinel of 0", () => {
+    expect(Object.isFrozen(SIZES)).toBe(true);
     expect(SIZES.original).toBe(0);
   });
 
-  it("has a 'thumbnail' key with value 200", () => {
+  it("keeps a 200px thumbnail and positive, kebab-cased resizeable steps", () => {
     expect(SIZES.thumbnail).toBe(200);
+
+    const resizeable = Object.entries(SIZES).filter(([, w]) => w > 0);
+    expect(resizeable.length).toBeGreaterThanOrEqual(1);
+    for (const [key, w] of resizeable) {
+      expect(w).toBeGreaterThan(0);
+      expect(key).toMatch(/^[a-z][a-z0-9-]*$/);
+    }
   });
 });

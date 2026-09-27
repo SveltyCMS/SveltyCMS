@@ -103,6 +103,29 @@ test.describe("Universal Accessibility Audits", () => {
       { timeout: 10_000 },
     );
 
+    // Same rule for the cookie-consent banner, which fades in 600 ms AFTER mount: an
+    // audit that starts before it settles reports `#cookie-heading` at 1.52:1
+    // (fg #d1d1d1 over white = the text colour composited at ~19 % opacity).
+    // Settled = the visitor already responded (banner never mounts) or the banner is
+    // mounted at effective opacity 1. No fixed sleep.
+    await page.waitForFunction(
+      () => {
+        if (localStorage.getItem("sveltycms_consent")) return true;
+        const el = document.querySelector("#cookie-heading");
+        if (!el) return false; // about to mount — keep waiting
+        let effective = 1;
+        let node: Element | null = el;
+        while (node && node !== document.documentElement) {
+          const o = Number.parseFloat(getComputedStyle(node).opacity);
+          if (!Number.isNaN(o)) effective *= o;
+          node = node.parentElement;
+        }
+        return effective >= 0.999;
+      },
+      undefined,
+      { timeout: 15_000 },
+    );
+
     // Run Axe audit
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

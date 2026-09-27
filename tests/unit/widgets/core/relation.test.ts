@@ -13,6 +13,8 @@
 import RelationWidget from "@widgets/core/relation";
 import { safeParse } from "valibot";
 
+vi.mock("@src/paraglide/messages", async () => (await import("../test-utils")).WIDGET_MESSAGES);
+
 describe("Relation Widget - Validation", () => {
   it("should validate a single ID when required", () => {
     const field = RelationWidget({

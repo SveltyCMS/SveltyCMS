@@ -259,7 +259,7 @@ Dashboard widgets respect licensing exactly like custom widgets and plugins — 
 
 1. Set `license`/`price` in `widget.json`.
 2. Client-side: on mount, resolve `checkExtensionLicense("dashboard", "<widget-id>")` and render `<UpgradePrompt extensionId="dashboard:<widget-id>" price="€X.XX" />` when inactive.
-3. Server-side: register the backing endpoint in `DASHBOARD_ENDPOINT_LICENSE` in `src/routes/api/[...path]/handlers/dashboard-license.ts` (or call `requireDashboardWidgetLicense("<widget-id>")` directly). The handler returns `403 LICENSE_REQUIRED` when the trial expired without a license — the same pattern plugins use in lifecycle hooks.
+3. Server-side: register the backing endpoint in `DASHBOARD_ENDPOINT_LICENSE` in `src/routes/api/[...path]/handlers/dashboard.ts` (or call `requireDashboardWidgetLicense("<widget-id>")` directly). The handler returns `403 LICENSE_REQUIRED` when the trial expired without a license — the same pattern plugins use in lifecycle hooks.
 4. Document the license verification endpoint in your widget's `.mdx` (`GET /api/system/license-status?type=dashboard&id=<widget-id>`).
 
 Unit test the gate in `tests/unit/api/dashboard-license-gate.test.ts` (map coverage + pass/fail paths).

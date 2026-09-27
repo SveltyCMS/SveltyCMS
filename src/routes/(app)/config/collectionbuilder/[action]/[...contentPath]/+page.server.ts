@@ -34,7 +34,26 @@ import {
   getCollectionFilePath,
   getCollectionsPath,
 } from "@utils/tenant.server";
-import * as ts from "typescript";
+import {
+  createPrinter,
+  createSourceFile,
+  factory,
+  isIdentifier,
+  isVariableStatement,
+  NewLineKind,
+  type Node,
+  NodeFlags,
+  type ObjectLiteralElementLike,
+  type ObjectLiteralExpression,
+  ScriptTarget,
+  type SourceFile,
+  SyntaxKind,
+  transform,
+  type TransformerFactory,
+  visitEachChild,
+  visitNode,
+  type VisitResult,
+} from "typescript";
 import type { PageServerLoad } from "./$types";
 
 // Type definitions for widget field structure
@@ -547,19 +566,19 @@ export const schema: Schema = {
 };`;
 
     // Parse the source code into an AST
-    const sourceFile = ts.createSourceFile(
+    const sourceFile = createSourceFile(
       `${data.contentName}.ts`,
       sourceCode,
-      ts.ScriptTarget.ESNext,
+      ScriptTarget.ESNext,
       true, // setParentNodes
     );
 
     // Transform the AST to inject the collection data
-    const transformationResult = ts.transform(sourceFile, [createCollectionTransformer(data)]);
+    const transformationResult = transform(sourceFile, [createCollectionTransformer(data)]);
     const transformedSourceFile = transformationResult.transformed[0];
 
     // Print the transformed AST back to code
-    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+    const printer = createPrinter({ newLine: NewLineKind.LineFeed });
     let result = printer.printFile(transformedSourceFile);
 
     // Clean up the 🗑️ markers and unescape JSON quotes (format off the request path)
@@ -578,15 +597,15 @@ export const schema: Schema = {
 }
 
 // Transformer factory to inject collection data into the AST
-function createCollectionTransformer(data: CollectionData): ts.TransformerFactory<ts.SourceFile> {
+function createCollectionTransformer(data: CollectionData): TransformerFactory<SourceFile> {
   return (context) => {
     return (sourceFile) => {
-      const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+      const visitor = (node: Node): VisitResult<Node> => {
         // Find the schema object literal and replace its properties
         if (
-          ts.isVariableStatement(node) &&
+          isVariableStatement(node) &&
           node.declarationList.declarations.some(
-            (decl) => ts.isIdentifier(decl.name) && decl.name.text === "schema",
+            (decl) => isIdentifier(decl.name) && decl.name.text === "schema",
           )
         ) {
           // Create the schema object with actual data
@@ -594,120 +613,120 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 
           // Create new variable declaration (TypeScript 5.9+ API)
           // createVariableDeclaration(name, exclamationToken, type, initializer)
-          const newDeclaration = ts.factory.createVariableDeclaration(
-            ts.factory.createIdentifier("schema"),
+          const newDeclaration = factory.createVariableDeclaration(
+            factory.createIdentifier("schema"),
             undefined, // exclamation token
             undefined, // type  - let TypeScript infer
             schemaObject, // initializer
           );
 
           // Create new variable statement with export modifier
-          return ts.factory.createVariableStatement(
-            [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
-            ts.factory.createVariableDeclarationList([newDeclaration], ts.NodeFlags.Const),
+          return factory.createVariableStatement(
+            [factory.createModifier(SyntaxKind.ExportKeyword)],
+            factory.createVariableDeclarationList([newDeclaration], NodeFlags.Const),
           );
         }
 
-        return ts.visitEachChild(node, visitor, context);
+        return visitEachChild(node, visitor, context);
       };
 
-      return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+      return visitNode(sourceFile, visitor) as SourceFile;
     };
   };
 }
 
 // Create TypeScript AST nodes for the schema object
-function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
-  const properties: ts.ObjectLiteralElementLike[] = [];
+function createSchemaObjectLiteral(data: CollectionData): ObjectLiteralExpression {
+  const properties: ObjectLiteralElementLike[] = [];
 
   // _id — derived from content name for consistent collection identification
   const collectionId = data.contentName.toLowerCase().replace(/\s+/g, "_");
   properties.push(
-    ts.factory.createPropertyAssignment(
-      ts.factory.createIdentifier("_id"),
-      ts.factory.createStringLiteral(collectionId),
+    factory.createPropertyAssignment(
+      factory.createIdentifier("_id"),
+      factory.createStringLiteral(collectionId),
     ),
   );
 
   // name — display name for the collection
   properties.push(
-    ts.factory.createPropertyAssignment(
-      ts.factory.createIdentifier("name"),
-      ts.factory.createStringLiteral(data.contentName),
+    factory.createPropertyAssignment(
+      factory.createIdentifier("name"),
+      factory.createStringLiteral(data.contentName),
     ),
   );
 
   // Add icon property
   properties.push(
-    ts.factory.createPropertyAssignment(
-      ts.factory.createIdentifier("icon"),
-      ts.factory.createStringLiteral(data.collectionIcon),
+    factory.createPropertyAssignment(
+      factory.createIdentifier("icon"),
+      factory.createStringLiteral(data.collectionIcon),
     ),
   );
 
   // Add status property
   properties.push(
-    ts.factory.createPropertyAssignment(
-      ts.factory.createIdentifier("status"),
-      ts.factory.createStringLiteral(data.collectionStatus),
+    factory.createPropertyAssignment(
+      factory.createIdentifier("status"),
+      factory.createStringLiteral(data.collectionStatus),
     ),
   );
 
   // Add description property
   properties.push(
-    ts.factory.createPropertyAssignment(
-      ts.factory.createIdentifier("description"),
-      ts.factory.createStringLiteral(String(data.collectionDescription || "")),
+    factory.createPropertyAssignment(
+      factory.createIdentifier("description"),
+      factory.createStringLiteral(String(data.collectionDescription || "")),
     ),
   );
 
   // Add slug property
   properties.push(
-    ts.factory.createPropertyAssignment(
-      ts.factory.createIdentifier("slug"),
-      ts.factory.createStringLiteral(data.collectionSlug),
+    factory.createPropertyAssignment(
+      factory.createIdentifier("slug"),
+      factory.createStringLiteral(data.collectionSlug),
     ),
   );
 
   // Add fields property - this is more complex as it contains processed widget calls
   const fieldsString = JSON.stringify(data.fields);
   // Parse the fields as a JavaScript expression (this handles the widget calls)
-  const fieldsExpression = ts.factory.createIdentifier(`🗑️${fieldsString}🗑️`);
+  const fieldsExpression = factory.createIdentifier(`🗑️${fieldsString}🗑️`);
 
   properties.push(
-    ts.factory.createPropertyAssignment(ts.factory.createIdentifier("fields"), fieldsExpression),
+    factory.createPropertyAssignment(factory.createIdentifier("fields"), fieldsExpression),
   );
 
   // Permissions & Settings tab — persisted to TypeScript for code↔GUI parity
   if (data.entriesPerPage && data.entriesPerPage !== 20) {
     properties.push(
-      ts.factory.createPropertyAssignment(
-        ts.factory.createIdentifier("entriesPerPage"),
-        ts.factory.createNumericLiteral(data.entriesPerPage),
+      factory.createPropertyAssignment(
+        factory.createIdentifier("entriesPerPage"),
+        factory.createNumericLiteral(data.entriesPerPage),
       ),
     );
   }
   if (data.defaultSortField && data.defaultSortField !== "createdAt") {
     properties.push(
-      ts.factory.createPropertyAssignment(
-        ts.factory.createIdentifier("defaultSortField"),
-        ts.factory.createStringLiteral(data.defaultSortField),
+      factory.createPropertyAssignment(
+        factory.createIdentifier("defaultSortField"),
+        factory.createStringLiteral(data.defaultSortField),
       ),
     );
   }
   if (data.defaultSortDir && data.defaultSortDir !== "desc") {
     properties.push(
-      ts.factory.createPropertyAssignment(
-        ts.factory.createIdentifier("defaultSortDir"),
-        ts.factory.createStringLiteral(data.defaultSortDir),
+      factory.createPropertyAssignment(
+        factory.createIdentifier("defaultSortDir"),
+        factory.createStringLiteral(data.defaultSortDir),
       ),
     );
   }
   if (data.apiVisible === false) {
     properties.push(
-      ts.factory.createPropertyAssignment(
-        ts.factory.createIdentifier("apiVisible"),
-        ts.factory.createFalse(),
+      factory.createPropertyAssignment(
+        factory.createIdentifier("apiVisible"),
+        factory.createFalse(),
       ),
     );
   }
@@ -715,12 +734,12 @@ function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpres
   if (data.federationEnrichments?.length) {
     const enrichmentsJson = JSON.stringify(data.federationEnrichments);
     properties.push(
-      ts.factory.createPropertyAssignment(
-        ts.factory.createIdentifier("federationEnrichments"),
-        ts.factory.createIdentifier(`🗑️${enrichmentsJson}🗑️`),
+      factory.createPropertyAssignment(
+        factory.createIdentifier("federationEnrichments"),
+        factory.createIdentifier(`🗑️${enrichmentsJson}🗑️`),
       ),
     );
   }
 
-  return ts.factory.createObjectLiteralExpression(properties, true);
+  return factory.createObjectLiteralExpression(properties, true);
 }

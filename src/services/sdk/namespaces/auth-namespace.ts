@@ -225,6 +225,28 @@ export class AuthNamespace {
     });
   }
 
+  /**
+   * Drop the cached layout-user snapshot for one user.
+   *
+   * `getFreshLayoutUser()` (src/utils/server/layout-caches.server.ts) feeds the (app)
+   * layout — including the sidebar/profile avatar — from a 15 s L1 entry, and only the
+   * `PUT /api/user/update-user-attributes` route invalidates it. Any profile write that
+   * goes through this namespace instead must clear it too, or the UI keeps serving the
+   * old snapshot for up to 15 s (E2E `profile.spec.ts:174` "Delete Avatar" reproduced
+   * exactly that on 2026-09-27: the avatar persisted, the modal's refreshed page data
+   * still said `avatar: null`, so the delete button never rendered).
+   *
+   * Best-effort: the entry expires on its own, and the helper is server-only.
+   */
+  private async invalidateLayoutUserSnapshot(userId: string, tenantId?: DatabaseId | null) {
+    try {
+      const { invalidateLayoutUserCache } = await import("@utils/server/layout-caches.server");
+      await invalidateLayoutUserCache(String(userId), tenantId ?? undefined);
+    } catch {
+      // Non-critical — caches expire naturally after TTL
+    }
+  }
+
   async saveAvatar(avatar: string, options: UserUpdateOptions) {
     return safeCall(async () => {
       const { userId, tenantId } = options;
@@ -236,6 +258,7 @@ export class AuthNamespace {
         { tenantId: tenantId as DatabaseId },
       );
       if (!result.success) throw new AppError(result.message || "Failed to save avatar", 400);
+      await this.invalidateLayoutUserSnapshot(userId, tenantId as DatabaseId);
       return result.data;
     });
   }
@@ -296,6 +319,7 @@ export class AuthNamespace {
         { tenantId: tenantId as DatabaseId },
       );
       if (!result.success) throw new AppError(result.message || "Failed to delete avatar", 400);
+      await this.invalidateLayoutUserSnapshot(userId, tenantId as DatabaseId);
       return result.data;
     });
   }
@@ -343,6 +367,8 @@ export class AuthNamespace {
       } catch {
         // Non-critical — caches expire naturally after TTL
       }
+      // The (app) layout reads its own 15 s snapshot (avatar, name) — clear it as well.
+      await this.invalidateLayoutUserSnapshot(userId, tenantId as DatabaseId | null | undefined);
       // Adapter returns DatabaseResult; Auth facade may return bare User
       return (result as { data?: unknown }).data !== undefined
         ? (result as { data: unknown }).data

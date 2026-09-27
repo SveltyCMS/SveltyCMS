@@ -3,8 +3,12 @@
  * @description Unit tests for the Markdown widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import MarkdownWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import MarkdownWidget from "@widgets/custom/markdown";
 import { safeParse } from "valibot";
 
 describe("Markdown Widget - Validation", () => {

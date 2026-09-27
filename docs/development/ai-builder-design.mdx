@@ -72,7 +72,7 @@ Everything below is implemented and can be composed — no new infrastructure is
 1. **Prompt box** in the Collection Builder ("Design with AI…").
 2. AI returns a **structured proposal**: collection meta + field list with suggested widgets, validation, and rationale per field.
 3. **Interactive refinement** (chat): "make ingredients a repeating group", "add a publication date with smart scheduling".
-4. **Diff preview**: the proposal is rendered against the current schema (add/remove/change), with a **Schema Warning modal** for anything that would be lost on re-save (existing `modal-schema-warning.svelte`).
+4. **Diff preview**: the proposal is rendered against the current schema (add/remove/change), with a **Schema Warning modal** for anything that would be lost on re-save (`modal-schema-warning.svelte` exists but is **unmounted** — reuse it and wire it here).
 5. **Draft-gated creation**: the collection is created as a **draft schema** — not active until an admin approves (reuses the WebMCP airgap philosophy).
 6. **Approval writes the file** through the existing AST write path (`generateCollectionFileWithAST` / `createSchemaObjectLiteral`), now extended to carry the code-only properties.
 

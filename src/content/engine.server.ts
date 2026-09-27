@@ -11,7 +11,7 @@
  */
 
 import { existsSync, watch, type FSWatcher } from "node:fs";
-import * as fsPromises from "node:fs/promises";
+import { mkdir, readdir, stat, unlink, utimes } from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import { CacheCategory } from "@src/databases/cache/types";
@@ -242,7 +242,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
 
   promise = (async () => {
     if (!existsSync(collectionsDir)) {
-      await fsPromises.mkdir(collectionsDir, { recursive: true });
+      await mkdir(collectionsDir, { recursive: true });
     }
     const fileList: { fullPath: string; mtime: number }[] = [];
 
@@ -258,7 +258,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
 
     async function walk(dir: string) {
       try {
-        const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+        const entries = await readdir(dir, { withFileTypes: true });
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.debug(`[Scanner] readdir ${dir} found ${entries.length} entries`);
         }
@@ -283,7 +283,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
               return;
             }
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
-            const stats = await fsPromises.stat(fullPath);
+            const stats = await stat(fullPath);
             fileList.push({ fullPath, mtime: stats.mtimeMs });
           }),
         );
@@ -344,14 +344,14 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             });
             _schemaCache.delete(file.fullPath);
             _mtimeTree.delete(file.fullPath);
-            await fsPromises.unlink(file.fullPath).catch(() => {});
+            await unlink(file.fullPath).catch(() => {});
             // Touch the source .ts file to trigger Vite HMR recompilation
             const tsPath = file.fullPath
               .replace(".compiledCollections", "config/collections")
               .replace(/\.js$/, ".ts");
             try {
               const now = new Date();
-              await fsPromises.utimes(tsPath, now, now);
+              await utimes(tsPath, now, now);
             } catch {
               /* source may not exist */
             }
@@ -369,13 +369,13 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             });
             _schemaCache.delete(file.fullPath);
             _mtimeTree.delete(file.fullPath);
-            await fsPromises.unlink(file.fullPath).catch(() => {});
+            await unlink(file.fullPath).catch(() => {});
             const tsPath = file.fullPath
               .replace(".compiledCollections", "config/collections")
               .replace(/\.js$/, ".ts");
             try {
               const now = new Date();
-              await fsPromises.utimes(tsPath, now, now);
+              await utimes(tsPath, now, now);
             } catch {
               /* source may not exist */
             }
@@ -942,7 +942,7 @@ export const contentService = {
       return null;
     }
 
-    const stats = await fsPromises.stat(fullPath).catch(() => null);
+    const stats = await stat(fullPath).catch(() => null);
     if (!stats) return null;
 
     const cacheKey = `schema:${fullPath}`;

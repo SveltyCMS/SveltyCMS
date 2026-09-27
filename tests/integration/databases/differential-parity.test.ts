@@ -21,6 +21,7 @@ import "../../../src/utils/v8-shim";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
+import { requireWireMethods, unwrapResult } from "./wire-contract";
 import { connectWithRetry, currentDbType, shouldRunAdapterSuite } from "./adapter-test-env";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateUUID } from "@utils/native-utils";
@@ -258,6 +259,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("Direct-to-Wire findPointWireStream agrees byte-for-byte with findOne", async () => {
     if (!db) return;
+    const wire = requireWireMethods(db.crud, ENGINE);
     const id = generateUUID() as any as DatabaseId;
     await db.crud.insert(
       COLLECTION,
@@ -267,25 +269,66 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
       } as any,
     );
 
-    const wireRes = await db.crud.findPointWireStream(COLLECTION, id, { tenantId: TENANT });
-    expect(wireRes.success).toBe(true);
-    expect(wireRes.data).toBeDefined();
+    const wireRes = unwrapResult(
+      await wire.findPointWireStream(COLLECTION, id, { tenantId: TENANT }),
+    );
+    expect(wireRes).not.toBeNull();
 
-    const wireParsed = JSON.parse(wireRes.data!.wireBody);
+    const wireParsed = JSON.parse(wireRes!.wireBody);
     expect(wireParsed.success).toBe(true);
     expect(wireParsed.data._id).toBe(id);
     expect(wireParsed.data.title).toBe("wire_stream_test");
     expect(wireParsed.data.views).toBe(42);
+  });
 
-    const listWire = await db.crud.findListWireStream(COLLECTION, {}, { tenantId: TENANT });
-    expect(listWire.success).toBe(true);
-    expect(listWire.data).toBeDefined();
+  it("requirePublished hides unpublished rows from the wire plane on every engine", async () => {
+    if (!db) return;
+    const wire = requireWireMethods(db.crud, ENGINE);
+    const draftId = generateUUID() as any as DatabaseId;
+    const publishedId = generateUUID() as any as DatabaseId;
+    await db.crud.insert(
+      COLLECTION,
+      { _id: draftId, title: "wire_draft", views: 1, status: "draft", tenantId: TENANT } as any,
+      { tenantId: TENANT } as any,
+    );
+    await db.crud.insert(
+      COLLECTION,
+      {
+        _id: publishedId,
+        title: "wire_published",
+        views: 2,
+        status: "publish",
+        tenantId: TENANT,
+      } as any,
+      { tenantId: TENANT } as any,
+    );
 
-    const listParsed = JSON.parse(listWire.data!.wireBody);
-    expect(listParsed.success).toBe(true);
-    expect(Array.isArray(listParsed.data)).toBe(true);
-    const found = listParsed.data.find((item: any) => item._id === id);
-    expect(found).toBeDefined();
-    expect(found.title).toBe("wire_stream_test");
+    // Without the flag the wire plane is a pure transport fast path: it must keep
+    // agreeing with `findOne` (the differential contract above).
+    const unguarded = unwrapResult(
+      await wire.findPointWireStream(COLLECTION, draftId, { tenantId: TENANT }),
+    );
+    expect(unguarded).not.toBeNull();
+
+    // With the flag — what the read lane passes for a publication-clamped caller —
+    // the draft must never reach the socket, while the published row still does.
+    const draftWire = unwrapResult(
+      await wire.findPointWireStream(COLLECTION, draftId, {
+        tenantId: TENANT,
+        requirePublished: true,
+      }),
+    );
+    expect(draftWire).toBeNull();
+
+    const publishedWire = unwrapResult(
+      await wire.findPointWireStream(COLLECTION, publishedId, {
+        tenantId: TENANT,
+        requirePublished: true,
+      }),
+    );
+    expect(publishedWire).not.toBeNull();
+    const publishedBody = JSON.parse(publishedWire!.wireBody);
+    expect(publishedBody.data._id).toBe(publishedId);
+    expect(publishedBody.data.status).toBe("publish");
   });
 });

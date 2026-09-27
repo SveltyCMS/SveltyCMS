@@ -15,7 +15,18 @@
  * - full Schema property set used by the Collection Builder write path
  */
 
-import * as ts from "typescript";
+import {
+  type CallExpression,
+  createPrinter,
+  type Expression,
+  factory,
+  NewLineKind,
+  NodeFlags,
+  type ObjectLiteralElementLike,
+  type ObjectLiteralExpression,
+  type PropertyAssignment,
+  SyntaxKind,
+} from "typescript";
 import { AppError } from "@utils/error-handling";
 import type { CollectionDesignProposal, ProposalField } from "./types";
 
@@ -31,47 +42,47 @@ export interface SchemaAstOptions {
   status?: string;
 }
 
-function stringProp(name: string, value: string): ts.PropertyAssignment {
-  return ts.factory.createPropertyAssignment(
-    ts.factory.createIdentifier(name),
-    ts.factory.createStringLiteral(value),
+function stringProp(name: string, value: string): PropertyAssignment {
+  return factory.createPropertyAssignment(
+    factory.createIdentifier(name),
+    factory.createStringLiteral(value),
   );
 }
 
-function boolProp(name: string, value: boolean): ts.PropertyAssignment {
-  return ts.factory.createPropertyAssignment(
-    ts.factory.createIdentifier(name),
-    value ? ts.factory.createTrue() : ts.factory.createFalse(),
+function boolProp(name: string, value: boolean): PropertyAssignment {
+  return factory.createPropertyAssignment(
+    factory.createIdentifier(name),
+    value ? factory.createTrue() : factory.createFalse(),
   );
 }
 
-function literalFromUnknown(value: unknown): ts.Expression {
-  if (typeof value === "string") return ts.factory.createStringLiteral(value);
+function literalFromUnknown(value: unknown): Expression {
+  if (typeof value === "string") return factory.createStringLiteral(value);
   if (typeof value === "number" && Number.isFinite(value)) {
-    return ts.factory.createNumericLiteral(value);
+    return factory.createNumericLiteral(value);
   }
   if (typeof value === "boolean") {
-    return value ? ts.factory.createTrue() : ts.factory.createFalse();
+    return value ? factory.createTrue() : factory.createFalse();
   }
-  if (value === null) return ts.factory.createNull();
+  if (value === null) return factory.createNull();
   if (Array.isArray(value)) {
-    return ts.factory.createArrayLiteralExpression(value.map(literalFromUnknown), true);
+    return factory.createArrayLiteralExpression(value.map(literalFromUnknown), true);
   }
   if (value && typeof value === "object") {
-    const props: ts.ObjectLiteralElementLike[] = [];
+    const props: ObjectLiteralElementLike[] = [];
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (!WIDGET_NAME_RE.test(k)) continue;
       props.push(
-        ts.factory.createPropertyAssignment(ts.factory.createIdentifier(k), literalFromUnknown(v)),
+        factory.createPropertyAssignment(factory.createIdentifier(k), literalFromUnknown(v)),
       );
     }
-    return ts.factory.createObjectLiteralExpression(props, true);
+    return factory.createObjectLiteralExpression(props, true);
   }
-  return ts.factory.createStringLiteral(String(value));
+  return factory.createStringLiteral(String(value));
 }
 
-function createFieldConfigLiteral(field: ProposalField): ts.ObjectLiteralExpression {
-  const properties: ts.ObjectLiteralElementLike[] = [
+function createFieldConfigLiteral(field: ProposalField): ObjectLiteralExpression {
+  const properties: ObjectLiteralElementLike[] = [
     stringProp("db_fieldName", field.name),
     stringProp("label", field.label?.trim() || field.name),
     boolProp("required", field.required === true),
@@ -85,17 +96,14 @@ function createFieldConfigLiteral(field: ProposalField): ts.ObjectLiteralExpress
       if (!WIDGET_NAME_RE.test(key)) continue;
       if (value === undefined) continue;
       properties.push(
-        ts.factory.createPropertyAssignment(
-          ts.factory.createIdentifier(key),
-          literalFromUnknown(value),
-        ),
+        factory.createPropertyAssignment(factory.createIdentifier(key), literalFromUnknown(value)),
       );
     }
   }
-  return ts.factory.createObjectLiteralExpression(properties, true);
+  return factory.createObjectLiteralExpression(properties, true);
 }
 
-function createWidgetCall(field: ProposalField): ts.CallExpression {
+function createWidgetCall(field: ProposalField): CallExpression {
   if (!WIDGET_NAME_RE.test(field.widget)) {
     throw new AppError(
       `Widget name "${field.widget}" is not a valid identifier for schema generation.`,
@@ -104,10 +112,10 @@ function createWidgetCall(field: ProposalField): ts.CallExpression {
       { widget: field.widget },
     );
   }
-  return ts.factory.createCallExpression(
-    ts.factory.createPropertyAccessExpression(
-      ts.factory.createIdentifier("widgets"),
-      ts.factory.createIdentifier(field.widget),
+  return factory.createCallExpression(
+    factory.createPropertyAccessExpression(
+      factory.createIdentifier("widgets"),
+      factory.createIdentifier(field.widget),
     ),
     undefined,
     [createFieldConfigLiteral(field)],
@@ -117,17 +125,17 @@ function createWidgetCall(field: ProposalField): ts.CallExpression {
 function createSchemaObjectLiteral(
   proposal: CollectionDesignProposal,
   options: SchemaAstOptions,
-): ts.ObjectLiteralExpression {
+): ObjectLiteralExpression {
   const collectionId = proposal.slug;
   const icon = options.icon?.trim() || "mdi:creation";
   const status = options.status?.trim() || "draft";
 
-  const fieldsExpression = ts.factory.createArrayLiteralExpression(
+  const fieldsExpression = factory.createArrayLiteralExpression(
     proposal.fields.map((field) => createWidgetCall(field)),
     true,
   );
 
-  return ts.factory.createObjectLiteralExpression(
+  return factory.createObjectLiteralExpression(
     [
       stringProp("_id", collectionId),
       stringProp("name", proposal.label || proposal.name),
@@ -135,7 +143,7 @@ function createSchemaObjectLiteral(
       stringProp("status", status),
       stringProp("description", proposal.description || ""),
       stringProp("slug", proposal.slug),
-      ts.factory.createPropertyAssignment(ts.factory.createIdentifier("fields"), fieldsExpression),
+      factory.createPropertyAssignment(factory.createIdentifier("fields"), fieldsExpression),
     ],
     true,
   );
@@ -165,29 +173,29 @@ import type { Schema } from '@src/content/types';
 `;
 
   const schemaObject = createSchemaObjectLiteral(proposal, options);
-  const declaration = ts.factory.createVariableStatement(
-    [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
-    ts.factory.createVariableDeclarationList(
+  const declaration = factory.createVariableStatement(
+    [factory.createModifier(SyntaxKind.ExportKeyword)],
+    factory.createVariableDeclarationList(
       [
-        ts.factory.createVariableDeclaration(
-          ts.factory.createIdentifier("schema"),
+        factory.createVariableDeclaration(
+          factory.createIdentifier("schema"),
           undefined,
-          ts.factory.createTypeReferenceNode("Schema"),
+          factory.createTypeReferenceNode("Schema"),
           schemaObject,
         ),
       ],
-      ts.NodeFlags.Const,
+      NodeFlags.Const,
     ),
   );
 
-  const sourceFile = ts.factory.createSourceFile(
+  const sourceFile = factory.createSourceFile(
     [declaration],
-    ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
-    ts.NodeFlags.None,
+    factory.createToken(SyntaxKind.EndOfFileToken),
+    NodeFlags.None,
   );
 
-  const printer = ts.createPrinter({
-    newLine: ts.NewLineKind.LineFeed,
+  const printer = createPrinter({
+    newLine: NewLineKind.LineFeed,
     removeComments: false,
   });
   const body = printer.printFile(sourceFile);

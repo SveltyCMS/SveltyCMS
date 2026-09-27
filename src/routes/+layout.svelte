@@ -32,6 +32,14 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import { registerPluginSlots } from '@src/plugins/index';
 	registerPluginSlots();
 
+	// Deterministic DOM ids: hand every render (each SSR request, each client hydration) a fresh id
+	// map. Without this, the UI kit's `generateId()` falls back to a process-global counter, so
+	// server-rendered ids drift away from the client's and `label[for]` / `aria-describedby` /
+	// `aria-controls` associations break after hydration (measured 2026-09-27 as `select-2` [SSR]
+	// vs `select-0` [hydrated] in the design-system E2E). Must run in the instance script —
+	// `setContext` is initialization-only.
+	initIdGenerator();
+
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { browser } from '$app/env';
 	import { page } from '$app/state';
@@ -51,6 +59,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import { getLocale, locales } from '@src/paraglide/runtime';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { applyDocumentLanguage, applySystemLanguage } from '@utils/system-locale';
+	import { initIdGenerator } from '@utils/id-generator';
 	import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
 	import { initWebMCP } from '@src/plugins/webmcp/init';
 	// Global Settings

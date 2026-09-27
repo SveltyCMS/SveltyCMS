@@ -18,6 +18,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import type { DatabaseId } from "@src/content/types";
+import { requireWireMethods } from "@tests/integration/databases/wire-contract";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateUUID } from "@utils/native-utils";
 
@@ -157,6 +158,10 @@ async function runLocalCmsCrudBenchmark() {
     await stabilize(100);
 
     console.log("   → 1b. Measuring Direct-to-Wire Point Stream (C-Engine JSON)...");
+    // Optional on `ICrudAdapter` — assert it loudly instead of a non-null assertion, so a
+    // benchmark run names the adapter that lost the contract (same helper as the
+    // integration parity suites).
+    const wire = requireWireMethods(db.crud, "benchmark adapter");
     const wireFind = await runBenchmark({
       name: "Direct-to-Wire Point Stream",
       iterations: ITER,
@@ -166,7 +171,7 @@ async function runLocalCmsCrudBenchmark() {
       trimOutliers: "iqr",
       silent: true,
       onIteration: async () => {
-        const res = await db.crud.findPointWireStream(
+        const res = await wire.findPointWireStream(
           COLLECTION,
           seedId as unknown as DatabaseId,
           directOpts,

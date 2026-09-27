@@ -42,19 +42,18 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-> [!NOTE]
-> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
+(27/09/2026, 14:32:30)
 
-**✅ PASS** _(partial invocation)_ · 1/45 tests · 44 skipped · **mariadb** · standalone run
+**✅ PASS** · 34/45 tests · 11 skipped · **MARIADB** · Bun 1.4.2
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    19 | 🟢     | +19%    | 0      |
-| **API**        |     0 | ⚪     | —       | 0      |
-| **Scale**      |     0 | ⚪     | —       | 0      |
-| **Resilience** |     0 | ⚪     | —       | 0      |
+| **Core**       |    13 | 🟢     | —       | 0      |
+| **API**        |     9 | 🟢     | —       | 0      |
+| **Scale**      |    18 | 🟢     | —       | 0      |
+| **Resilience** |     5 | 🟢     | —       | 0      |
 
 ### Issues (action required)
 
@@ -62,63 +61,31 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                 | Latency | Trend                                        | Budget | Result |
-| ------------------------ | ------- | -------------------------------------------- | ------ | ------ |
-| **Database Performance** | 1.927ms | 🔴 slower: 1.62ms → 1.93ms (+19%) (2 runs)   | < 5ms  | 🟢     |
-| **Database Performance** | 0.430ms | ⚪ stable at 0.387ms (±0.023ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.694ms | 🔴 slower: 0.633ms → 0.694ms (+10%) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 1.797ms | 🔴 slower: 1.73ms → 1.80ms (+4%) (2 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 3.487ms | ⚪ stable at 3.57ms (±0.055ms) (2 runs)      | < 5ms  | 🟢     |
-| **Database Performance** | 0.679ms | ⚪ stable at 0.682ms (±0.082ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.681ms | ⚪ stable at 0.681ms (±0.011ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.541ms | ⚪ stable at 0.565ms (±0.012ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.784ms | ⚪ stable at 0.810ms (±0.022ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.796ms | ⚪ stable at 0.784ms (±0.020ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.412ms | ⚪ stable at 0.445ms (±0.118ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.376ms | ⚪ stable at 0.387ms (±0.031ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.607ms | ⚪ stable at 0.597ms (±0.029ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.331ms | ⚪ stable at 0.329ms (±0.009ms) (2 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.001ms | ⚪ stable at 0.001ms (2 runs)                | < 5ms  | 🟢     |
-| **Database Performance** | 1.645ms | ⚪ stable at 1.66ms (±0.041ms) (2 runs)      | < 5ms  | 🟢     |
-| **Database Performance** | 3.300ms | ⚪ stable at 3.41ms (±0.462ms) (2 runs)      | < 5ms  | 🟢     |
-| **Database Performance** | 3.640ms | 🟢 faster: 3.95ms → 3.64ms (-8%) (2 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 1.432ms | ⚪ stable at 1.35ms (±0.058ms) (2 runs)      | < 5ms  | 🟢     |
+| Scenario               | Latency | Trend  | Budget   | Result |
+| ---------------------- | ------- | ------ | -------- | ------ |
+| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
+| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
+| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
+| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
+| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
+| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric                                          | Trend | Sparkline | Latest  |
-| ----------------------------------------------- | ----- | --------- | ------- |
-| database performance (BULK INSERT (100)) (warm) | 🟢    | `▁█▃`     | 3.300ms |
+| Metric | Trend | Sparkline | Latest |
+| ------ | ----- | --------- | ------ |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
 
 ```mermaid
 xychart-beta
-  title "mariadb REST p95 (last 10 runs)"
+  title "MARIADB REST p95 (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-```
-
-</details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Database Performance: [0.95, 0.95]
-    Database Performance: [0.22, 0.56]
-    Database Performance: [0.36, 0.48]
 ```
 
 </details>
@@ -127,7 +94,6 @@ quadrantChart
 
 <!-- EXECUTIVE_ALERTS_START -->
 <!-- EXECUTIVE_ALERTS_END -->
-
 <!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
@@ -167,7 +133,7 @@ quadrantChart
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-09-25)
+### Historical Trends (2026-09-27)
 
 > ⏳ No production-parity history recorded yet (`server_mode='production'`).
 
@@ -364,14 +330,8 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 1.432ms · ↗️ ⚪ stable at 1.35ms (±0.058ms) (2 runs) (2026-09-25 17:21:54) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MARIADB)                           ║
@@ -400,7 +360,6 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ║ BULK UPDATE (100 homogeneous) │ Cold:     9.93 ms │ Warm:     1.432 ms │ p95:     1.910 ms │     668 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

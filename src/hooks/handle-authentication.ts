@@ -187,7 +187,7 @@ interface SessionCacheEntry {
  *               the caller must NOT delete the session cookie on this status
  */
 export type SessionResolution =
-  | { status: "ok"; user: User; amr?: string[]; mfaVerifiedAt?: string }
+  | { status: "ok"; user: User; amr?: string[]; mfaVerifiedAt?: string; permMask?: bigint }
   | { status: "invalid" }
   | { status: "transient" };
 

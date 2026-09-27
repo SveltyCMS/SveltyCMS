@@ -13,7 +13,11 @@
 
 import AddressWidget from "@widgets/custom/address";
 import { safeParse } from "valibot";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
 
 describe("Address Widget - Validation", () => {
   const validAddress = {

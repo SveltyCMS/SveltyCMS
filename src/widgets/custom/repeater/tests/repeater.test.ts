@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/widgets/repeater.test.ts
+ * @file src/widgets/custom/repeater/tests/repeater.test.ts
  * @description Unit tests for the Repeater widget
  *
  * Tests:
@@ -11,6 +11,11 @@
 
 import RepeaterWidget from "@widgets/custom/repeater";
 import { parse } from "valibot";
+
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
 
 // Mock dependencies
 // Mock Svelte store

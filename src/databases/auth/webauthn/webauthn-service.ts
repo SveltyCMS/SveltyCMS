@@ -9,7 +9,7 @@
  * - Assertion verification via native crypto
  */
 
-import * as crypto from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { Authenticator, User } from "@src/databases/auth/types";
 import { parseAuthData, verifyAssertionSignature } from "./attestation";
 import { decodeCBOR } from "./cbor-decoder";
@@ -51,7 +51,7 @@ export interface AuthenticationResponseJSON {
 }
 
 export function generateWebAuthnChallenge(): string {
-  return Buffer.from(crypto.randomBytes(32)).toString("base64url");
+  return Buffer.from(randomBytes(32)).toString("base64url");
 }
 
 export function bufferToBase64Url(buffer: Buffer | Uint8Array): string {
@@ -67,7 +67,7 @@ export function resolveRpId(hostname: string): string {
 }
 
 export function verifyRpIdHash(authData: Buffer, rpId: string): boolean {
-  const expected = crypto.createHash("sha256").update(rpId).digest();
+  const expected = createHash("sha256").update(rpId).digest();
   return authData.subarray(0, 32).equals(expected);
 }
 

@@ -412,7 +412,6 @@ Provides an organized interface for navigating hierarchical content structures.
 			const isFav = collectionMetadata.isFavorite(node._id);
 			const nodeTags = collectionMetadata.getTags(node._id);
 			const matchesTag = selectedTagFilter ? nodeTags.includes(selectedTagFilter) : true;
-			const matchesFav = showOnlyFavorites ? isFav : true;
 
 			if (node.nodeType === 'category') {
 				const filtered = (node.children ?? [])

@@ -17,6 +17,7 @@ import type {
   ICrudAdapter,
   IBatchAdapter,
 } from "../db-interface";
+// Namespace import on purpose: the module is exposed wholesale as the public `utils` field below.
 import * as relationalUtils from "./relational-utils";
 import { buildCollectionCacheTags } from "./collection-name";
 

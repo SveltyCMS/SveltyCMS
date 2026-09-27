@@ -3,8 +3,12 @@
  * @description Unit tests for the PhoneNumber widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import PhoneNumberWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import PhoneNumberWidget from "@widgets/custom/phone-number";
 import { safeParse } from "valibot";
 
 describe("PhoneNumber Widget - Validation", () => {

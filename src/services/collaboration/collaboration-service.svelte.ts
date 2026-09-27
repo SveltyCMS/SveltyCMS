@@ -8,7 +8,7 @@ import { browser } from "$app/env";
 import { page } from "$app/state";
 import { collections } from "@src/stores/collection-store.svelte";
 import { logger } from "@utils/logger";
-import * as Y from "yjs";
+import { Doc as YDoc } from "yjs";
 import { untrack } from "svelte";
 
 export interface CollaborativeUser {
@@ -27,7 +27,7 @@ class CollaborationService {
   isCollaborative = $state(false);
 
   // Internal state
-  private ydoc: Y.Doc | null = null;
+  private ydoc: YDoc | null = null;
   private provider: any = null; // Will be SseProvider or HocuspocusProvider
   private awareness: any = null;
   private currentEntryId: string | null = null;
@@ -71,7 +71,7 @@ class CollaborationService {
     logger.info(`[Collaboration] Initializing for ${collectionId}/${entryId}`);
 
     try {
-      this.ydoc = new Y.Doc();
+      this.ydoc = new YDoc();
 
       // Lazy load provider only when needed
       if (!this.SseProvider) {
@@ -217,7 +217,7 @@ class CollaborationService {
     this.currentCollectionId = null;
   }
 
-  getYDoc(): Y.Doc | null {
+  getYDoc(): YDoc | null {
     return this.ydoc;
   }
 }

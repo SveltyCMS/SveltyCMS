@@ -671,11 +671,11 @@ graph TB
 
 **Three methods** were added to the PostgreSQL adapter (`src/databases/postgresql/adapter-core.ts`):
 
-| Method                                      | When called              | Purpose                                                                           |
-| ------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
-| `setTenantContext(tenantId)`                | Per-request (after auth) | Sets `SET SESSION app.tenant_id = ?` so all subsequent queries are scoped         |
-| `enforceTenantPolicy(collection, tenantId)` | Setup/migration          | Runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and creates the isolation policy |
-| `getTenantContext()`                        | Diagnostics              | Returns the current session's `app.tenant_id` setting                             |
+| Method                                      | When called              | Purpose                                                                                                                                                                                                                       |
+| ------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setTenantContext(tenantId)`                | Per-request (after auth) | Sets `app.tenant_id` via `set_config(…)` only on a transaction-scoped client (`is_local = true`) or a per-tenant dedicated pool; the shared pool is never targeted — it relies on the app-level `WHERE "tenantId" = ?` filter |
+| `enforceTenantPolicy(collection, tenantId)` | Setup/migration          | Runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and creates the isolation policy                                                                                                                                             |
+| `getTenantContext()`                        | Diagnostics              | Returns the current session's `app.tenant_id` setting                                                                                                                                                                         |
 
 **How the flow works:**
 
@@ -685,11 +685,8 @@ graph TB
    CREATE POLICY tenant_isolation ON collection_posts
      FOR ALL USING (tenant_id = current_setting('app.tenant_id')::text);
    ```
-2. **Per-request** — After tenant resolution, `setTenantContext(tenantId)` sets the session variable:
-   ```sql
-   SET SESSION app.tenant_id = 'tenant-123';
-   ```
-3. **Automatic enforcement** — PostgreSQL applies the RLS policy to every subsequent query. Rows where `tenant_id` doesn't match the session value are silently filtered — no application code changes needed.
+2. **Per-request** — After tenant resolution, `setTenantContext(tenantId)` records the active tenant and sets `app.tenant_id` only where it can: on a transaction-scoped client (`is_local = true`) or on the tenant's dedicated pool. On the shared pool the call returns early — isolation there is the application-level `WHERE "tenantId" = ?` filter.
+3. **Scope of RLS** — the policy filters every query that runs on a connection where `app.tenant_id` was set: the transaction-scoped client or a tenant's dedicated pool. On the shared pool the GUC is never set, so the policy has nothing to compare against — per-request isolation there is the application-level `WHERE "tenantId" = ?` filter.
 
 > **Note**: RLS is PostgreSQL-specific. MariaDB uses `WHERE` clause injection via the CRUD guard. MongoDB uses partial filter expressions. The `IDBAdapter` interface defines `enforceTenantPolicy?()` and `getTenantContext?()` as optional methods — adapters that don't support RLS simply don't implement them.
 
@@ -782,11 +779,11 @@ Enterprise deployments can configure dedicated PostgreSQL connection pools per t
 1. When `setTenantContext(tenantId)` is called per-request, it stores the active tenant ID
 2. The `getSql()` method checks if that tenant has a dedicated pool in `_tenantPools`
 3. If yes → routes all queries to the tenant's private pool (no shared pool contention, separate connection limit)
-4. If no → falls back to the shared pool with RLS (`set_config('app.tenant_id', $1, true)`)
+4. If no → the shared pool is used with the app-level `WHERE "tenantId" = ?` filter; `set_config` is never issued there (the call returns early when the tenant has no dedicated pool)
 5. Dedicated pools appear as `application_name = tenant_tenant-abc` in `pg_stat_activity` for monitoring
 6. **Bounded LRU Eviction (`MAX_TENANT_POOLS`, default: 16):** When pool capacity is reached, the least recently used idle pool is gracefully ended with `pool.end()`. Pools with active in-flight queries are never evicted.
 
-This is optional — most deployments use the shared pool with RLS. Dedicated pools are for enterprise customers needing separate connection limits and per-tenant DB load monitoring.
+This is optional — most deployments use the shared pool with the application-level `tenantId` filter. Dedicated pools are for enterprise customers needing separate connection limits and per-tenant DB load monitoring.
 
 ### Per-Tenant Rate Limiting
 

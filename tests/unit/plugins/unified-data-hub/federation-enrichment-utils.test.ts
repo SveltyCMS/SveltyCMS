@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeFederationEnrichments,
   validateFederationEnrichment,
-} from "@plugins/unified-data-hub/server/federation-enrichment-utils";
+} from "@plugins/unified-data-hub/federation-enrichment-utils";
 
 describe("federation enrichment utils", () => {
   it("normalizes and deduplicates enrichments", () => {

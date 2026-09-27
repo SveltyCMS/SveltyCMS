@@ -12,6 +12,8 @@
 import RichTextWidget from "@widgets/core/rich-text";
 import { safeParse } from "valibot";
 
+vi.mock("@src/paraglide/messages", async () => (await import("../test-utils")).WIDGET_MESSAGES);
+
 describe("RichText Widget - Validation", () => {
   it("should validate simple HTML content", () => {
     const field = RichTextWidget({ label: "Content" });

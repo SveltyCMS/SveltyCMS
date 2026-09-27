@@ -33,7 +33,7 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
 import { seedRoleTiers } from "@utils/rate-limit/role-tiers";
-import { invalidateRoleBitset } from "@src/databases/auth/permissions";
+import { invalidateRoleBitsetsGlobally } from "@src/databases/auth/permission-bitmask";
 
 const IS_BUN_TEST =
   typeof globalThis !== "undefined" && !!(globalThis as any).process?.env?.BUN_TEST;
@@ -446,9 +446,9 @@ export async function invalidateRolesCache(tenantId?: string | null): Promise<vo
   const key = getCacheKey(tenantId);
   const cached = rolesCache.get(key);
   if (cached?.data) {
-    for (const role of cached.data) {
-      invalidateRoleBitset(role);
-    }
+    // One global epoch bump invalidates every cached grants view: the per-role bitset
+    // cache this loop used to clear was removed with the legacy Uint32Array slice.
+    invalidateRoleBitsetsGlobally();
   }
   rolesCache.delete(key);
   cacheService.delete(`roles:${key}`, tenantId ?? undefined).catch(() => {});

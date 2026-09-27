@@ -14,7 +14,39 @@
  *       nested under exported schema objects (widget calls in `fields`) run.
  */
 
-import * as ts from "typescript";
+import {
+  SyntaxKind,
+  factory,
+  isBindingElement,
+  isCallExpression,
+  isExportAssignment,
+  isExportDeclaration,
+  isExportSpecifier,
+  isIdentifier,
+  isImportClause,
+  isImportDeclaration,
+  isImportSpecifier,
+  isNamedImports,
+  isNamespaceImport,
+  isObjectLiteralExpression,
+  isParameter,
+  isPropertyAccessExpression,
+  isPropertyAssignment,
+  isStringLiteral,
+  isVariableDeclaration,
+  isVariableDeclarationList,
+  isVariableStatement,
+  visitEachChild,
+  visitNode,
+  type CallExpression,
+  type Identifier,
+  type Node,
+  type ObjectLiteralExpression,
+  type SourceFile,
+  type TransformerFactory,
+  type VisitResult,
+  type Visitor,
+} from "typescript";
 import path from "node:path";
 import { statSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -73,120 +105,115 @@ function makeUuidFactory(sourceFileName: string) {
 
 // ─── Widget factory call detection (shared) ────────────────────────────
 /** True when the call is `widgets.X(...)` or `globalThis.widgets.X(...)`. */
-function isWidgetFactoryCall(call: ts.CallExpression): boolean {
+function isWidgetFactoryCall(call: CallExpression): boolean {
   const callee = call.expression;
-  if (!ts.isPropertyAccessExpression(callee)) return false;
+  if (!isPropertyAccessExpression(callee)) return false;
   const base = callee.expression;
-  if (ts.isIdentifier(base)) return base.text === "widgets";
+  if (isIdentifier(base)) return base.text === "widgets";
   return (
-    ts.isPropertyAccessExpression(base) &&
-    ts.isIdentifier(base.expression) &&
+    isPropertyAccessExpression(base) &&
+    isIdentifier(base.expression) &&
     base.expression.text === "globalThis" &&
-    ts.isIdentifier(base.name) &&
+    isIdentifier(base.name) &&
     base.name.text === "widgets"
   );
 }
 
 /** True when an object literal already carries a `uuid` property. */
-function hasUuidProperty(obj: ts.ObjectLiteralExpression): boolean {
+function hasUuidProperty(obj: ObjectLiteralExpression): boolean {
   return obj.properties.some(
-    (prop) =>
-      ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === "uuid",
+    (prop) => isPropertyAssignment(prop) && isIdentifier(prop.name) && prop.name.text === "uuid",
   );
 }
 
 // ─── Guard: is this identifier a declaration name (don't rewrite)? ──────
-function isDeclarationPosition(node: ts.Identifier): boolean {
+function isDeclarationPosition(node: Identifier): boolean {
   const p = node.parent;
   return (
-    (ts.isVariableDeclaration(p) && p.name === node) ||
-    (ts.isParameter(p) && p.name === node) ||
-    (ts.isBindingElement(p) && p.name === node) ||
-    (ts.isPropertyAssignment(p) && p.name === node) ||
-    ts.isImportSpecifier(p) ||
-    ts.isImportClause(p) ||
-    ts.isNamespaceImport(p) ||
-    ts.isExportSpecifier(p) ||
-    (ts.isPropertyAccessExpression(p) && p.name === node)
+    (isVariableDeclaration(p) && p.name === node) ||
+    (isParameter(p) && p.name === node) ||
+    (isBindingElement(p) && p.name === node) ||
+    (isPropertyAssignment(p) && p.name === node) ||
+    isImportSpecifier(p) ||
+    isImportClause(p) ||
+    isNamespaceImport(p) ||
+    isExportSpecifier(p) ||
+    (isPropertyAccessExpression(p) && p.name === node)
   );
 }
 
 // ─── Individual transformers (backward compatible) ──────────────────────
 
-export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
-  (context) => (sourceFile) => {
-    const getUuid = makeUuidFactory(sourceFile.fileName);
-    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-      if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-        const moduleSpecifier = node.moduleSpecifier.text;
+export const widgetTransformer: TransformerFactory<SourceFile> = (context) => (sourceFile) => {
+  const getUuid = makeUuidFactory(sourceFile.fileName);
+  const visitor = (node: Node): VisitResult<Node> => {
+    if (isImportDeclaration(node) && isStringLiteral(node.moduleSpecifier)) {
+      const moduleSpecifier = node.moduleSpecifier.text;
+      if (node.importClause?.namedBindings && isNamedImports(node.importClause.namedBindings)) {
+        const hasWidgetsAlias = node.importClause.namedBindings.elements.some(
+          (element) => element.name.text === "widgets",
+        );
         if (
-          node.importClause?.namedBindings &&
-          ts.isNamedImports(node.importClause.namedBindings)
+          hasWidgetsAlias &&
+          (moduleSpecifier.includes("@src/stores/widget-store.svelte.ts") ||
+            /widgets/.test(moduleSpecifier))
         ) {
-          const hasWidgetsAlias = node.importClause.namedBindings.elements.some(
-            (element) => element.name.text === "widgets",
-          );
-          if (
-            hasWidgetsAlias &&
-            (moduleSpecifier.includes("@src/stores/widget-store.svelte.ts") ||
-              /widgets/.test(moduleSpecifier))
-          ) {
-            return [];
-          }
+          return [];
         }
       }
+    }
 
-      // Rewrite `widgets` identifier → `globalThis.widgets` (skip declarations)
-      if (ts.isIdentifier(node) && node.text === "widgets" && !isDeclarationPosition(node)) {
-        return ts.factory.createPropertyAccessExpression(
-          ts.factory.createIdentifier("globalThis"),
-          ts.factory.createIdentifier("widgets"),
-        );
-      }
+    // Rewrite `widgets` identifier → `globalThis.widgets` (skip declarations)
+    if (isIdentifier(node) && node.text === "widgets" && !isDeclarationPosition(node)) {
+      return factory.createPropertyAccessExpression(
+        factory.createIdentifier("globalThis"),
+        factory.createIdentifier("widgets"),
+      );
+    }
 
-      // Widget call argument UUID injection (deterministic, hash-derived).
-      // Fires on the FIRST-ARGUMENT object literal of a widget factory call
-      // (`widgets.X({...})` or pre-written `globalThis.widgets.X({...})`), never
-      // on the call node itself: in this pre-order traversal the callee
-      // identifier is still bare `widgets` when the call is visited, so a
-      // call-level check can never observe the rewritten `globalThis.widgets`.
-      // Injecting on the argument lets the framework rebuild the call with the
-      // enriched object; descend afterwards so nested widget calls (groups,
-      // repeaters) are processed too.
-      if (
-        ts.isObjectLiteralExpression(node) &&
-        node.parent &&
-        ts.isCallExpression(node.parent) &&
-        node.parent.arguments[0] === node &&
-        isWidgetFactoryCall(node.parent) &&
-        !hasUuidProperty(node)
-      ) {
-        const withUuid = ts.factory.updateObjectLiteralExpression(node, [
-          ts.factory.createPropertyAssignment("uuid", ts.factory.createStringLiteral(getUuid())),
-          ...node.properties,
-        ]);
-        return ts.visitEachChild(withUuid, visitor, context);
-      }
+    // Widget call argument UUID injection (deterministic, hash-derived).
+    // Fires on the FIRST-ARGUMENT object literal of a widget factory call
+    // (`widgets.X({...})` or pre-written `globalThis.widgets.X({...})`), never
+    // on the call node itself: in this pre-order traversal the callee
+    // identifier is still bare `widgets` when the call is visited, so a
+    // call-level check can never observe the rewritten `globalThis.widgets`.
+    // Injecting on the argument lets the framework rebuild the call with the
+    // enriched object; descend afterwards so nested widget calls (groups,
+    // repeaters) are processed too.
+    if (
+      isObjectLiteralExpression(node) &&
+      node.parent &&
+      isCallExpression(node.parent) &&
+      node.parent.arguments[0] === node &&
+      isWidgetFactoryCall(node.parent) &&
+      !hasUuidProperty(node)
+    ) {
+      const withUuid = factory.updateObjectLiteralExpression(node, [
+        factory.createPropertyAssignment("uuid", factory.createStringLiteral(getUuid())),
+        ...node.properties,
+      ]);
+      return visitEachChild(withUuid, visitor, context);
+    }
 
-      return ts.visitEachChild(node, visitor, context);
-    };
-    return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    return visitEachChild(node, visitor, context);
   };
+  return visitNode(sourceFile, visitor) as SourceFile;
+};
 
-export const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> =
+export const addJsExtensionTransformer: TransformerFactory<SourceFile> =
   (context) => (sourceFile) => {
-    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+    const visitor = (node: Node): VisitResult<Node> => {
       if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        (isImportDeclaration(node) || isExportDeclaration(node)) &&
         node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
+        isStringLiteral(node.moduleSpecifier)
       ) {
         const specifier = node.moduleSpecifier.text;
         if (specifier.startsWith(".") && !SKIP_JS_EXT.test(specifier)) {
           const resolved = resolveDirImport(sourceFile.fileName, specifier);
-          const ns = ts.factory.createStringLiteral(resolved);
-          if (ts.isImportDeclaration(node)) {
-            return ts.factory.updateImportDeclaration(
+          const ns = factory.createStringLiteral(resolved);
+          if (isImportDeclaration(node)) {
+            return factory.updateImportDeclaration(
               node,
               node.modifiers,
               node.importClause,
@@ -194,7 +221,7 @@ export const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> =
               node.assertClause,
             );
           }
-          return ts.factory.updateExportDeclaration(
+          return factory.updateExportDeclaration(
             node,
             node.modifiers,
             node.isTypeOnly,
@@ -204,57 +231,57 @@ export const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> =
           );
         }
       }
-      return ts.visitEachChild(node, visitor, context);
+      return visitEachChild(node, visitor, context);
     };
-    return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    return visitNode(sourceFile, visitor) as SourceFile;
   };
 
-export const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> =
+export const commonjsToEsModuleTransformer: TransformerFactory<SourceFile> =
   (context) => (sourceFile) => {
     let needsFileURLToPath = false;
-    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-      if (ts.isIdentifier(node) && node.text === "__filename") {
+    const visitor = (node: Node): VisitResult<Node> => {
+      if (isIdentifier(node) && node.text === "__filename") {
         needsFileURLToPath = true;
-        return ts.factory.createCallExpression(
-          ts.factory.createIdentifier("fileURLToPath"),
+        return factory.createCallExpression(
+          factory.createIdentifier("fileURLToPath"),
           undefined,
           [],
         );
       }
-      if (ts.isIdentifier(node) && node.text === "__dirname") {
+      if (isIdentifier(node) && node.text === "__dirname") {
         needsFileURLToPath = true;
-        return ts.factory.createCallExpression(
-          ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier("path"), "dirname"),
+        return factory.createCallExpression(
+          factory.createPropertyAccessExpression(factory.createIdentifier("path"), "dirname"),
           undefined,
           [],
         );
       }
-      return ts.visitEachChild(node, visitor, context);
+      return visitEachChild(node, visitor, context);
     };
-    let transformedFile = ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    let transformedFile = visitNode(sourceFile, visitor) as SourceFile;
 
     if (needsFileURLToPath) {
-      const urlImport = ts.factory.createImportDeclaration(
+      const urlImport = factory.createImportDeclaration(
         undefined,
-        ts.factory.createImportClause(
+        factory.createImportClause(
           false,
           undefined,
-          ts.factory.createNamedImports([
-            ts.factory.createImportSpecifier(
+          factory.createNamedImports([
+            factory.createImportSpecifier(
               false,
               undefined,
-              ts.factory.createIdentifier("fileURLToPath"),
+              factory.createIdentifier("fileURLToPath"),
             ),
           ]),
         ),
-        ts.factory.createStringLiteral("url"),
+        factory.createStringLiteral("url"),
       );
-      const pathImport = ts.factory.createImportDeclaration(
+      const pathImport = factory.createImportDeclaration(
         undefined,
-        ts.factory.createImportClause(false, ts.factory.createIdentifier("path"), undefined),
-        ts.factory.createStringLiteral("path"),
+        factory.createImportClause(false, factory.createIdentifier("path"), undefined),
+        factory.createStringLiteral("path"),
       );
-      transformedFile = ts.factory.updateSourceFile(transformedFile, [
+      transformedFile = factory.updateSourceFile(transformedFile, [
         urlImport,
         pathImport,
         ...transformedFile.statements,
@@ -264,13 +291,13 @@ export const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile>
     return transformedFile;
   };
 
-export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
+export const aliasResolverTransformer: TransformerFactory<SourceFile> =
   (context) => (sourceFile) => {
-    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+    const visitor = (node: Node): VisitResult<Node> => {
       if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        (isImportDeclaration(node) || isExportDeclaration(node)) &&
         node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
+        isStringLiteral(node.moduleSpecifier)
       ) {
         const specifier = node.moduleSpecifier.text;
         for (const [alias, target] of Object.entries(compileAliases)) {
@@ -283,10 +310,10 @@ export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
             if (!relativePath.startsWith(".")) relativePath = "./" + relativePath;
 
             const remaining = specifier.slice(alias.length);
-            const newSpecifier = ts.factory.createStringLiteral(relativePath + remaining);
+            const newSpecifier = factory.createStringLiteral(relativePath + remaining);
 
-            if (ts.isImportDeclaration(node)) {
-              return ts.factory.updateImportDeclaration(
+            if (isImportDeclaration(node)) {
+              return factory.updateImportDeclaration(
                 node,
                 node.modifiers,
                 node.importClause,
@@ -294,7 +321,7 @@ export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
                 node.assertClause,
               );
             }
-            return ts.factory.updateExportDeclaration(
+            return factory.updateExportDeclaration(
               node,
               node.modifiers,
               node.isTypeOnly,
@@ -305,9 +332,9 @@ export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
           }
         }
       }
-      return ts.visitEachChild(node, visitor, context);
+      return visitEachChild(node, visitor, context);
     };
-    return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    return visitNode(sourceFile, visitor) as SourceFile;
   };
 
 /**
@@ -316,15 +343,15 @@ export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
  * (ExportAssignment or ExportDeclaration ancestor).
  */
 export const schemaTransformer =
-  (tenantId?: string | null): ts.TransformerFactory<ts.SourceFile> =>
+  (tenantId?: string | null): TransformerFactory<SourceFile> =>
   (context) =>
   (sourceFile) => {
-    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-      if (ts.isObjectLiteralExpression(node) && isExportedObject(node)) {
+    const visitor = (node: Node): VisitResult<Node> => {
+      if (isObjectLiteralExpression(node) && isExportedObject(node)) {
         const hasSchemaMarkers = node.properties.some(
           (prop) =>
-            ts.isPropertyAssignment(prop) &&
-            ts.isIdentifier(prop.name) &&
+            isPropertyAssignment(prop) &&
+            isIdentifier(prop.name) &&
             SCHEMA_MARKERS.has(prop.name.text),
         );
 
@@ -332,7 +359,7 @@ export const schemaTransformer =
           let updated = node;
           const hasProp = (name: string) =>
             updated.properties.some(
-              (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === name,
+              (p) => isPropertyAssignment(p) && isIdentifier(p.name) && p.name.text === name,
             );
 
           if (!hasProp("_id")) {
@@ -343,20 +370,18 @@ export const schemaTransformer =
               .toLowerCase()
               .replace(/[^a-z0-9]/g, "");
 
-            updated = ts.factory.updateObjectLiteralExpression(updated, [
-              ts.factory.createPropertyAssignment("_id", ts.factory.createStringLiteral(slugId)),
+            updated = factory.updateObjectLiteralExpression(updated, [
+              factory.createPropertyAssignment("_id", factory.createStringLiteral(slugId)),
               ...updated.properties,
             ]);
           }
 
           if (tenantId !== undefined && !hasProp("tenantId")) {
             const tenantValue =
-              tenantId === null
-                ? ts.factory.createNull()
-                : ts.factory.createStringLiteral(tenantId);
+              tenantId === null ? factory.createNull() : factory.createStringLiteral(tenantId);
 
-            updated = ts.factory.updateObjectLiteralExpression(updated, [
-              ts.factory.createPropertyAssignment("tenantId", tenantValue),
+            updated = factory.updateObjectLiteralExpression(updated, [
+              factory.createPropertyAssignment("tenantId", tenantValue),
               ...updated.properties,
             ]);
           }
@@ -365,25 +390,25 @@ export const schemaTransformer =
         }
       }
 
-      return ts.visitEachChild(node, visitor, context);
+      return visitEachChild(node, visitor, context);
     };
 
-    return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    return visitNode(sourceFile, visitor) as SourceFile;
   };
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 /** True when this object literal belongs to an exported declaration (export default/const/let/var). */
-function isExportedObject(node: ts.ObjectLiteralExpression): boolean {
+function isExportedObject(node: ObjectLiteralExpression): boolean {
   // export default { ... }
-  if (ts.isExportAssignment(node.parent) && node.parent.expression === node) return true;
+  if (isExportAssignment(node.parent) && node.parent.expression === node) return true;
   // export const schema = { ... }  /  export let x = { ... }  /  export var y = { ... }
-  if (ts.isVariableDeclaration(node.parent) && node.parent.initializer === node) {
+  if (isVariableDeclaration(node.parent) && node.parent.initializer === node) {
     const gparent = node.parent.parent;
-    if (ts.isVariableDeclarationList(gparent) && gparent.declarations[0] === node.parent) {
+    if (isVariableDeclarationList(gparent) && gparent.declarations[0] === node.parent) {
       const ggparent = gparent.parent;
-      if (ts.isVariableStatement(ggparent)) {
-        return ggparent.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+      if (isVariableStatement(ggparent)) {
+        return ggparent.modifiers?.some((m) => m.kind === SyntaxKind.ExportKeyword) ?? false;
       }
     }
   }
@@ -422,7 +447,7 @@ function resolveDirImport(sourceFileName: string, specifier: string): string {
 export function createCompositeTransformer(
   tenantId?: string | null,
   stableId?: string,
-): ts.TransformerFactory<ts.SourceFile> {
+): TransformerFactory<SourceFile> {
   return (context) => (sourceFile) => {
     const sourceFileName = sourceFile.fileName;
     const sourceDir = path.dirname(path.resolve(sourceFileName));
@@ -438,20 +463,20 @@ export function createCompositeTransformer(
         .replace(/[^a-z0-9]/g, "");
     };
 
-    const visitor: ts.Visitor = (node) => {
+    const visitor: Visitor = (node) => {
       // ── Import/Export declarations ────────────────────────────────
       if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        (isImportDeclaration(node) || isExportDeclaration(node)) &&
         node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
+        isStringLiteral(node.moduleSpecifier)
       ) {
         const specifier = node.moduleSpecifier.text;
 
         // 1. Widget proxy removal
         if (
-          ts.isImportDeclaration(node) &&
+          isImportDeclaration(node) &&
           node.importClause?.namedBindings &&
-          ts.isNamedImports(node.importClause.namedBindings) &&
+          isNamedImports(node.importClause.namedBindings) &&
           node.importClause.namedBindings.elements.some((el) => el.name.text === "widgets") &&
           (specifier.includes("@src/stores/widget-store.svelte.ts") || /widgets/.test(specifier))
         ) {
@@ -475,16 +500,16 @@ export function createCompositeTransformer(
         }
 
         if (rewriting !== specifier) {
-          const ns = ts.factory.createStringLiteral(rewriting);
-          return ts.isImportDeclaration(node)
-            ? ts.factory.updateImportDeclaration(
+          const ns = factory.createStringLiteral(rewriting);
+          return isImportDeclaration(node)
+            ? factory.updateImportDeclaration(
                 node,
                 node.modifiers,
                 node.importClause,
                 ns,
                 node.assertClause,
               )
-            : ts.factory.updateExportDeclaration(
+            : factory.updateExportDeclaration(
                 node,
                 node.modifiers,
                 node.isTypeOnly,
@@ -494,27 +519,27 @@ export function createCompositeTransformer(
               );
         }
 
-        return ts.visitEachChild(node, visitor, context);
+        return visitEachChild(node, visitor, context);
       }
 
       // ── Identifiers ──────────────────────────────────────────────
-      if (ts.isIdentifier(node)) {
+      if (isIdentifier(node)) {
         // 4. `widgets` → `globalThis.widgets` (skip declarations & property names)
         if (node.text === "widgets" && !isDeclarationPosition(node)) {
-          return ts.factory.createPropertyAccessExpression(
-            ts.factory.createIdentifier("globalThis"),
-            ts.factory.createIdentifier("widgets"),
+          return factory.createPropertyAccessExpression(
+            factory.createIdentifier("globalThis"),
+            factory.createIdentifier("widgets"),
           );
         }
 
         // 5. __filename / __dirname → ESM equivalents
         if (node.text === "__filename" || node.text === "__dirname") {
           needsUrlImports = true;
-          const urlExpr = ts.factory.createCallExpression(
-            ts.factory.createPropertyAccessExpression(
-              ts.factory.createMetaProperty(
-                ts.SyntaxKind.ImportKeyword,
-                ts.factory.createIdentifier("meta"),
+          const urlExpr = factory.createCallExpression(
+            factory.createPropertyAccessExpression(
+              factory.createMetaProperty(
+                SyntaxKind.ImportKeyword,
+                factory.createIdentifier("meta"),
               ),
               "url",
             ),
@@ -522,17 +547,14 @@ export function createCompositeTransformer(
             [],
           );
           if (node.text === "__filename") {
-            return ts.factory.createCallExpression(
-              ts.factory.createIdentifier("fileURLToPath"),
+            return factory.createCallExpression(
+              factory.createIdentifier("fileURLToPath"),
               undefined,
               [urlExpr],
             );
           }
-          return ts.factory.createCallExpression(
-            ts.factory.createPropertyAccessExpression(
-              ts.factory.createIdentifier("path"),
-              "dirname",
-            ),
+          return factory.createCallExpression(
+            factory.createPropertyAccessExpression(factory.createIdentifier("path"), "dirname"),
             undefined,
             [urlExpr],
           );
@@ -540,34 +562,29 @@ export function createCompositeTransformer(
       }
 
       // ── Schema object literals (exported only) ───────────────────
-      if (ts.isObjectLiteralExpression(node) && isExportedObject(node)) {
+      if (isObjectLiteralExpression(node) && isExportedObject(node)) {
         const hasMarker = node.properties.some(
-          (p) =>
-            ts.isPropertyAssignment(p) &&
-            ts.isIdentifier(p.name) &&
-            SCHEMA_MARKERS.has(p.name.text),
+          (p) => isPropertyAssignment(p) && isIdentifier(p.name) && SCHEMA_MARKERS.has(p.name.text),
         );
         if (hasMarker) {
           let obj = node;
           const hp = (n: string) =>
             obj.properties.some(
-              (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === n,
+              (p) => isPropertyAssignment(p) && isIdentifier(p.name) && p.name.text === n,
             );
 
           if (!hp("_id")) {
             const slugId = getStableId();
-            obj = ts.factory.updateObjectLiteralExpression(obj, [
-              ts.factory.createPropertyAssignment("_id", ts.factory.createStringLiteral(slugId)),
+            obj = factory.updateObjectLiteralExpression(obj, [
+              factory.createPropertyAssignment("_id", factory.createStringLiteral(slugId)),
               ...obj.properties,
             ]);
           }
           if (tenantId !== undefined && !hp("tenantId")) {
-            obj = ts.factory.updateObjectLiteralExpression(obj, [
-              ts.factory.createPropertyAssignment(
+            obj = factory.updateObjectLiteralExpression(obj, [
+              factory.createPropertyAssignment(
                 "tenantId",
-                tenantId === null
-                  ? ts.factory.createNull()
-                  : ts.factory.createStringLiteral(tenantId),
+                tenantId === null ? factory.createNull() : factory.createStringLiteral(tenantId),
               ),
               ...obj.properties,
             ]);
@@ -577,7 +594,7 @@ export function createCompositeTransformer(
           // nested under an exported schema (fields arrays hold the widget
           // factory calls): `widgets` identifiers stayed bare and no widget-call
           // UUID was ever injected for the canonical collection shape.
-          return ts.visitEachChild(obj, visitor, context);
+          return visitEachChild(obj, visitor, context);
         }
       }
 
@@ -590,47 +607,47 @@ export function createCompositeTransformer(
       // rebuild the call with the enriched object; descend afterwards so nested
       // widget calls (groups, repeaters) are processed too.
       if (
-        ts.isObjectLiteralExpression(node) &&
+        isObjectLiteralExpression(node) &&
         node.parent &&
-        ts.isCallExpression(node.parent) &&
+        isCallExpression(node.parent) &&
         node.parent.arguments[0] === node &&
         isWidgetFactoryCall(node.parent) &&
         !hasUuidProperty(node)
       ) {
-        const withUuid = ts.factory.updateObjectLiteralExpression(node, [
-          ts.factory.createPropertyAssignment("uuid", ts.factory.createStringLiteral(getUuid())),
+        const withUuid = factory.updateObjectLiteralExpression(node, [
+          factory.createPropertyAssignment("uuid", factory.createStringLiteral(getUuid())),
           ...node.properties,
         ]);
-        return ts.visitEachChild(withUuid, visitor, context);
+        return visitEachChild(withUuid, visitor, context);
       }
 
-      return ts.visitEachChild(node, visitor, context);
+      return visitEachChild(node, visitor, context);
     };
 
-    let result = ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+    let result = visitNode(sourceFile, visitor) as SourceFile;
 
     if (needsUrlImports) {
-      const urlImport = ts.factory.createImportDeclaration(
+      const urlImport = factory.createImportDeclaration(
         undefined,
-        ts.factory.createImportClause(
+        factory.createImportClause(
           false,
           undefined,
-          ts.factory.createNamedImports([
-            ts.factory.createImportSpecifier(
+          factory.createNamedImports([
+            factory.createImportSpecifier(
               false,
               undefined,
-              ts.factory.createIdentifier("fileURLToPath"),
+              factory.createIdentifier("fileURLToPath"),
             ),
           ]),
         ),
-        ts.factory.createStringLiteral("url"),
+        factory.createStringLiteral("url"),
       );
-      const pathImport = ts.factory.createImportDeclaration(
+      const pathImport = factory.createImportDeclaration(
         undefined,
-        ts.factory.createImportClause(false, ts.factory.createIdentifier("path"), undefined),
-        ts.factory.createStringLiteral("path"),
+        factory.createImportClause(false, factory.createIdentifier("path"), undefined),
+        factory.createStringLiteral("path"),
       );
-      result = ts.factory.updateSourceFile(result, [urlImport, pathImport, ...result.statements]);
+      result = factory.updateSourceFile(result, [urlImport, pathImport, ...result.statements]);
     }
 
     return result;

@@ -23,7 +23,13 @@ import type {
   DatabaseResult,
   ISqlAdapter,
 } from "../db-interface";
-import * as utils from "./relational-utils";
+import {
+  applyTenantFilter,
+  convertIsoDatesForDrizzleWrite,
+  createDatabaseError,
+  getTenantCondition,
+  sameBatchPayload,
+} from "./relational-utils";
 import { executeWrite } from "./drizzle-sql-helpers";
 import { getJsonDataPatch } from "./json-data-patch";
 
@@ -156,7 +162,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
             else if (res.error) errors.push(res.error);
           }
         } catch (error) {
-          const dbError = utils.createDatabaseError(
+          const dbError = createDatabaseError(
             "BATCH_OP_FAILED",
             error instanceof Error ? error.message : String(error),
             error,
@@ -240,10 +246,10 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
         assertTenantContext(options, "batch.bulkUpdate");
 
         // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
-        if (updates.length === 1 || utils.sameBatchPayload(updates)) {
+        if (updates.length === 1 || sameBatchPayload(updates)) {
           const ids = updates.map((u) => u.id as string);
           const conditions: SQL[] = [inArray((table as any)._id, ids)];
-          utils.applyTenantFilter(conditions, (table as any).tenantId, options);
+          applyTenantFilter(conditions, (table as any).tenantId, options);
           // 🐛 PREPARE-PARITY FIX: route through prepareValues (like
           // crud.update) instead of dumping the raw payload into Drizzle
           // .set(). Drizzle silently DROPS keys that are not physical columns
@@ -251,7 +257,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
           // but nothing persisted, the Zahl-Feld class). prepareValues moves
           // non-column fields into the JSON `data` blob and preserves number
           // types; updatedAt/tenantId stamps come from the same helper.
-          const values = utils.convertIsoDatesForDrizzleWrite(
+          const values = convertIsoDatesForDrizzleWrite(
             this.core.prepareValues(
               table,
               updates[0].data as Record<string, unknown>,
@@ -298,14 +304,14 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
         if (rawBulk !== null && rawBulk !== undefined) return rawBulk;
 
         let modifiedCount = 0;
-        const tenantCond = utils.getTenantCondition((table as any).tenantId, options);
+        const tenantCond = getTenantCondition((table as any).tenantId, options);
         // 🔒 TRANSACTION SPAN: the per-row loop is one BEGIN…COMMIT — run it
         // under the adapter's write lock (SQLite write mutex; no-op elsewhere)
         // so no other writer interleaves mid-transaction.
         await this.core.withWriteLock(() =>
           this.db.transaction(async (tx: any) => {
             for (const update of updates) {
-              const rowValues = utils.convertIsoDatesForDrizzleWrite(
+              const rowValues = convertIsoDatesForDrizzleWrite(
                 this.core.prepareValues(
                   table,
                   update.data as Record<string, unknown>,

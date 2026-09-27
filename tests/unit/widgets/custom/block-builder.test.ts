@@ -10,6 +10,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("../test-utils")).WIDGET_MESSAGES);
 import BlockBuilderWidget, { DEFAULT_BLOCK_PRESETS } from "@widgets/custom/block-builder";
 import { parse } from "valibot";
 

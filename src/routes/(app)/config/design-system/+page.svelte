@@ -118,18 +118,25 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 	$effect(() => {
 		if (userPrefs) {
-			if (userPrefs.density !== undefined && myDensity !== userPrefs.density) {
-				myDensity = userPrefs.density || '';
-			}
-			if (userPrefs.variant !== undefined && myVariant !== userPrefs.variant) {
-				myVariant = userPrefs.variant || '';
-			}
-			if (userPrefs.reducedMotion !== undefined && myReducedMotion !== userPrefs.reducedMotion) {
-				myReducedMotion = userPrefs.reducedMotion ?? false;
-			}
-			if (userPrefs.highContrast !== undefined && myHighContrast !== userPrefs.highContrast) {
-				myHighContrast = userPrefs.highContrast ?? false;
-			}
+			// Read-only dependency: the effect must re-run when *server* prefs change, never when
+			// the local form state changes. Without `untrack` the writes below re-trigger the
+			// effect through the reads above, so every local edit was instantly reverted to the
+			// persisted value and then saved back — the select could never be changed once a
+			// preference existed (E2E `design-system.spec.ts:68`, 2026-09-27).
+			untrack(() => {
+				if (userPrefs.density !== undefined && myDensity !== userPrefs.density) {
+					myDensity = userPrefs.density || '';
+				}
+				if (userPrefs.variant !== undefined && myVariant !== userPrefs.variant) {
+					myVariant = userPrefs.variant || '';
+				}
+				if (userPrefs.reducedMotion !== undefined && myReducedMotion !== userPrefs.reducedMotion) {
+					myReducedMotion = userPrefs.reducedMotion ?? false;
+				}
+				if (userPrefs.highContrast !== undefined && myHighContrast !== userPrefs.highContrast) {
+					myHighContrast = userPrefs.highContrast ?? false;
+				}
+			});
 		}
 	});
 

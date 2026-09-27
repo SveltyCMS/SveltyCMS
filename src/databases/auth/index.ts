@@ -1083,6 +1083,18 @@ export class Auth {
       } catch {
         // Non-critical — turbo contexts expire naturally after TTL
       }
+      // 🛡️ The (app) layout serves its user snapshot from a 15 s L1 entry
+      // (`layout-caches.server.ts`) — clear it here as well so an avatar/name edit is visible on
+      // the next navigation instead of after the TTL. Every facade-level write lands in this
+      // method, including the internal role/2FA/admin writers above, so the invalidation cannot
+      // be forgotten by a caller that bypasses the HTTP route helper.
+      try {
+        const { invalidateLayoutUserCache } = await import("@utils/server/layout-caches.server");
+        const tenant = options?.tenantId ? String(options.tenantId) : undefined;
+        await invalidateLayoutUserCache(String(userId), tenant);
+      } catch {
+        // Non-critical — the snapshot expires naturally after TTL
+      }
       return result.data;
     }
     throw error(500, "Failed to update user attributes");

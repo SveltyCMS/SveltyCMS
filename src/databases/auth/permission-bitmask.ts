@@ -87,7 +87,14 @@ export const PERMISSION_BITS: Record<string, bigint> = {
 export const ADMIN_PERM_MASK: bigint = 0xffff_ffff_ffff_ffffn;
 export const EMPTY_PERM_MASK: bigint = 0n;
 
-/** Bit 63 is reserved as the field-permission overflow indicator for future FLAC */
+/**
+ * Bit 63 is a PRESENCE INDICATOR, never a grant: it is set when a role or user holds at
+ * least one `field:*` permission so the 64-bit mask can signal "this principal has
+ * field-level grants". No authorization path may read it as "all field permissions" —
+ * a `field:*` id resolves to `0n` in `getPermissionBit` (so `hasPermissionBitmask`
+ * stays fail-closed) and field-level access control is string-based in
+ * `field-permission-service.ts`.
+ */
 export const FIELD_PERMISSION_OVERFLOW_BIT: bigint = 1n << 63n;
 
 // Dynamic permission bit registry (for dynamically registered permissions, bits 43..62)

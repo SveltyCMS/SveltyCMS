@@ -3,7 +3,8 @@
  * @description Unit tests for the Input widget
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("../test-utils")).WIDGET_MESSAGES);
 import InputWidget from "@widgets/core/input";
 import { safeParse } from "valibot";
 

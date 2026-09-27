@@ -79,7 +79,7 @@
 {#if showBanner && !consentStore.responded}
 	<div
 		transition:fade={{ duration: 300 }}
-		class="fixed inset-x-0 bottom-0 z-9999 p-4 md:bottom-6 md:start-6 md:end-auto md:w-full md:max-w-md"
+		class="fixed inset-x-0 bottom-0 z-9999 p-4 md:bottom-6 md:inset-s-6 md:inset-e-auto md:w-full md:max-w-md"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="cookie-heading"
@@ -92,11 +92,11 @@
 			<div class="flex items-start gap-3">
 				<div class="text-5xl" aria-hidden="true">🍪</div>
 				<div class="flex-1 text-center">
-					<h2 id="cookie-heading" class="text-xl font-bold text-gray-900 dark:text-white">
+					<h2 id="cookie-heading" class="text-xl font-bold text-surface-900 dark:text-surface-100">
 						{cookie_heading()}
 					</h2>
 
-					<p id="cookie-description" class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+					<p id="cookie-description" class="mt-2 text-sm text-surface-600 dark:text-surface-400">
 						{cookie_description()}
 					</p>
 				</div>
@@ -110,10 +110,12 @@
 					<!-- Necessary (always on) -->
 					<div class="flex items-center justify-between">
 						<div>
-							<div class="font-medium text-gray-900 dark:text-white">
+							<div class="font-medium text-surface-900 dark:text-surface-100">
 								{cookie_necessary_title()}
 							</div>
-							<div class="text-xs text-gray-500">{cookie_necessary_desc()}</div>
+							<div class="text-xs text-surface-500 dark:text-surface-400">
+								{cookie_necessary_desc()}
+							</div>
 						</div>
 						<Toggle value={true} disabled />
 					</div>
@@ -121,10 +123,12 @@
 					<!-- Analytics -->
 					<div class="flex items-center justify-between">
 						<div>
-							<div class="font-medium text-gray-900 dark:text-white">
+							<div class="font-medium text-surface-900 dark:text-surface-100">
 								{cookie_analytics_title()}
 							</div>
-							<div class="text-xs text-gray-500">{cookie_analytics_desc()}</div>
+							<div class="text-xs text-surface-500 dark:text-surface-400">
+								{cookie_analytics_desc()}
+							</div>
 						</div>
 						<Toggle bind:value={preferences.analytics} />
 					</div>
@@ -132,10 +136,12 @@
 					<!-- Marketing -->
 					<div class="flex items-center justify-between">
 						<div>
-							<div class="font-medium text-gray-900 dark:text-white">
+							<div class="font-medium text-surface-900 dark:text-surface-100">
 								{cookie_marketing_title()}
 							</div>
-							<div class="text-xs text-gray-500">{cookie_marketing_desc()}</div>
+							<div class="text-xs text-surface-500 dark:text-surface-400">
+								{cookie_marketing_desc()}
+							</div>
 						</div>
 						<Toggle bind:value={preferences.marketing} />
 					</div>

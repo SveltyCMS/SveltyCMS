@@ -8,7 +8,7 @@
  * redirect to /login (stale storageState), matching appearance.spec.ts.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
 
@@ -25,6 +25,21 @@ async function openWorkspace(page: Page, tab: string): Promise<void> {
 }
 
 test.describe("Design System workspace", () => {
+  /**
+   * Select an option and verify the *state* accepted it.
+   *
+   * `selectOption` can land before Svelte hydration has attached the binding; the change is
+   * then dropped and the DOM snaps back to its server-rendered value (measured 2026-09-27 on
+   * a busy host: `:46` settled on "cozy", `:68` on ""). Retrying the interaction until the
+   * DOM holds the value keeps the assertions strict — it proves the input landed instead of
+   * merely waiting longer, and a state that genuinely reverts still fails here.
+   */
+  async function selectOptionVerified(select: Locator, value: string): Promise<void> {
+    await expect(async () => {
+      await select.selectOption({ value });
+      await expect(select).toHaveValue(value, { timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
+  }
   test("loads Design System with tabs", async ({ page }) => {
     await openWorkspace(page, "overrides");
     await expect(page.getByRole("heading", { level: 1, name: /design system/i })).toBeVisible({
@@ -49,7 +64,7 @@ test.describe("Design System workspace", () => {
 
     const densitySelect = page.getByTestId("design-system-preview").getByLabel(/^density$/i);
     await expect(densitySelect).toBeVisible({ timeout: 10_000 });
-    await densitySelect.selectOption("compact");
+    await selectOptionVerified(densitySelect, "compact");
     await expect(densitySelect).toHaveValue("compact");
     await expect(page.getByText(/structural tokens/i)).toBeVisible({ timeout: 10_000 });
   });
@@ -85,7 +100,7 @@ test.describe("Design System workspace", () => {
     const target = densityOptions.find((o) => o.label !== originalLabel) ?? densityOptions[1];
 
     try {
-      await densitySelect.selectOption({ label: target.label });
+      await selectOptionVerified(densitySelect, target.value);
       await page.getByTestId("appearance-save-overrides").click();
       await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
 
@@ -109,7 +124,7 @@ test.describe("Design System workspace", () => {
       try {
         const select = page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i);
         if (await select.isVisible({ timeout: 2_000 }).catch(() => false)) {
-          await select.selectOption({ label: originalLabel });
+          await selectOptionVerified(select, originalValue);
           await page.getByTestId("appearance-save-overrides").click();
           await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
         }

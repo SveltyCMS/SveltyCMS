@@ -36,7 +36,8 @@ import {
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("./test-utils")).WIDGET_MESSAGES);
 import type { WidgetFactory } from "@widgets/types";
 
 interface ShippedCustomWidget {

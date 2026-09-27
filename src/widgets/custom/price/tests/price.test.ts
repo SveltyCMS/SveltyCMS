@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/widgets/price.test.ts
+ * @file src/widgets/custom/price/tests/price.test.ts
  * @description Unit tests for the Price widget
  *
  * Tests:
@@ -11,6 +11,11 @@
 
 import PriceWidget from "@widgets/custom/price";
 import { parse } from "valibot";
+
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
 
 // Mock dependencies
 vi.mock("@stores/widgetStore.svelte", () => ({ widgets: {} }));

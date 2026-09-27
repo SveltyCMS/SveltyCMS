@@ -3,8 +3,12 @@
  * @description Unit tests for the Currency widget validation logic
  */
 
-import { describe, it, expect } from "vitest";
-import CurrencyWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import CurrencyWidget from "@widgets/custom/currency";
 import { safeParse } from "valibot";
 
 describe("Currency Widget - Validation", () => {

@@ -27,7 +27,15 @@ import { fastHash } from "../native-utils.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import * as ts from "typescript";
+import {
+  ModuleKind,
+  ModuleResolutionKind,
+  ScriptTarget,
+  preProcessFile,
+  transpileModule,
+  version,
+  type CompilerOptions,
+} from "typescript";
 // RELATIVE import (not `@utils/...`): vite.config.ts dynamically imports this
 // module, and Vite's config loader (esbuild) cannot resolve path aliases — a
 // bare `@utils/hardware-profile` here breaks `svelte-kit sync` for the project.
@@ -63,10 +71,10 @@ const MANIFEST_FINGERPRINT_KEY = "__fingerprint";
 const MANIFEST_VERSION_KEY = "__version";
 
 // ─── Compiler options used for fingerprinting ─────────────────────────
-const COMPILER_OPTIONS: ts.CompilerOptions = {
-  target: ts.ScriptTarget.ESNext,
-  module: ts.ModuleKind.ESNext,
-  moduleResolution: ts.ModuleResolutionKind.NodeJs,
+const COMPILER_OPTIONS: CompilerOptions = {
+  target: ScriptTarget.ESNext,
+  module: ModuleKind.ESNext,
+  moduleResolution: ModuleResolutionKind.NodeJs,
   allowJs: true,
   checkJs: false,
   skipLibCheck: true,
@@ -79,7 +87,7 @@ const COMPILER_OPTIONS: ts.CompilerOptions = {
 // ─── Compiler fingerprint — invalidates manifest when toolchain changes ─
 async function computeFingerprint(): Promise<string> {
   const input = JSON.stringify({
-    ts: ts.version,
+    ts: version,
     compilerOptions: COMPILER_OPTIONS,
     aliases: compileAliases,
     transformerVersion: TRANSFORMER_VERSION,
@@ -462,7 +470,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
           // 5. Transform & compile with single-pass composite transformer
           const compositeTransformer = createCompositeTransformer(options.tenantId, stableId);
-          const compilation = ts.transpileModule(content, {
+          const compilation = transpileModule(content, {
             compilerOptions: COMPILER_OPTIONS,
             transformers: { before: [compositeTransformer] },
             fileName: sourcePath,
@@ -541,7 +549,7 @@ function extractDependencies(
   userCollections: string,
 ): string[] {
   try {
-    const info = ts.preProcessFile(content, true, true);
+    const info = preProcessFile(content, true, true);
     const deps: string[] = [];
     const seen = new Set<string>();
     for (const ref of info.importedFiles) {

@@ -14,7 +14,7 @@
  * - Cryptographic signature verification using P-256 and RS256
  */
 
-import * as crypto from "node:crypto";
+import { createHash, createPublicKey, verify } from "node:crypto";
 import { decodeCBORPartial } from "./cbor-decoder";
 
 export interface ParsedAuthData {
@@ -109,20 +109,17 @@ export function verifyAssertionSignature(options: {
   publicKeyJWK: any;
 }): boolean {
   // 1. Hash the clientDataJSON
-  const clientDataHash = crypto
-    .createHash("sha256")
-    .update(Buffer.from(options.clientDataJSON))
-    .digest();
+  const clientDataHash = createHash("sha256").update(Buffer.from(options.clientDataJSON)).digest();
 
   // 2. Concatenate authData and clientDataHash to form verification data
   const verifyData = Buffer.concat([Buffer.from(options.authenticatorData), clientDataHash]);
 
   // 3. Import public key from JWK format
-  const publicKey = crypto.createPublicKey({
+  const publicKey = createPublicKey({
     key: options.publicKeyJWK,
     format: "jwk",
   });
 
   // 4. Verify signature with SHA-256
-  return crypto.verify("sha256", verifyData, publicKey, Buffer.from(options.signature));
+  return verify("sha256", verifyData, publicKey, Buffer.from(options.signature));
 }

@@ -1,5 +1,5 @@
 /**
- * @file tests/bun/utils/dateUtils.test.ts
+ * @file tests/unit/utils/date.test.ts
  * @description Tests for date utility functions
  *
  * Tests:
@@ -82,8 +82,7 @@ describe("Date Utils - Formatting", () => {
     const date = new Date("2025-01-20T12:00:00.000Z");
     const formatted = formatDisplayDate(date);
 
-    expect(typeof formatted).toBe("string");
-    expect(formatted.length).toBeGreaterThan(0);
+    expect(formatted).toContain("2025");
   });
 
   it("should format display date with locale", () => {
@@ -119,20 +118,18 @@ describe("Date Utils - Formatting", () => {
     expect(typeof relative).toBe("string");
   });
 
-  it("should handle timestamp inputs in formatting", () => {
-    const timestamp = Date.now();
-    const formatted = formatDisplayDate(timestamp);
+  it("treats Date, ISO-string and timestamp inputs as the same instant", () => {
+    const date = new Date("2025-01-20T12:00:00.000Z");
 
-    expect(typeof formatted).toBe("string");
-    expect(formatted.length).toBeGreaterThan(0);
-  });
+    const fromDate = formatDisplayDate(date);
+    const fromString = formatDisplayDate("2025-01-20T12:00:00.000Z");
+    const fromTimestamp = formatDisplayDate(date.getTime());
 
-  it("should handle string inputs in formatting", () => {
-    const dateString = "2025-01-20T12:00:00.000Z";
-    const formatted = formatDisplayDate(dateString);
-
-    expect(typeof formatted).toBe("string");
-    expect(formatted.length).toBeGreaterThan(0);
+    expect(fromDate.length).toBeGreaterThan(0);
+    // Equality across input types is the real contract — "is a non-empty string"
+    // also held for an implementation that returned a constant.
+    expect(fromString).toBe(fromDate);
+    expect(fromTimestamp).toBe(fromDate);
   });
 
   it("should safely resolve active UI locale without throwing", () => {

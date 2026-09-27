@@ -3,7 +3,8 @@
  * @description Unit tests for the Checkbox widget
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("../test-utils")).WIDGET_MESSAGES);
 import CheckboxWidget from "@widgets/core/checkbox";
 import { safeParse } from "valibot";
 

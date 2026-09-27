@@ -19,8 +19,18 @@
  * - Falls back gracefully to Node.js os module if SystemMonitor unavailable
  */
 
-import * as os from "node:os";
-import * as fs from "node:fs/promises";
+import {
+  arch,
+  cpus as osCpus,
+  freemem,
+  hostname,
+  loadavg,
+  platform,
+  release,
+  totalmem,
+  uptime,
+} from "node:os";
+import { statfs } from "node:fs/promises";
 import { getLatestSnapshot, getCpuHistory, getCpuInfo } from "@utils/system-monitor";
 import { getHardwareProfile, type HardwareProfile } from "@utils/hardware-profile";
 
@@ -71,11 +81,11 @@ export interface SystemInfoResponse {
 
 function getOsBaseline(): SystemInfoResponse["os"] {
   return {
-    platform: os.platform(),
-    release: os.release(),
-    hostname: os.hostname(),
-    uptime: os.uptime(),
-    arch: os.arch(),
+    platform: platform(),
+    release: release(),
+    hostname: hostname(),
+    uptime: uptime(),
+    arch: arch(),
   };
 }
 
@@ -86,7 +96,7 @@ function getOsBaseline(): SystemInfoResponse["os"] {
 async function getDiskSpaceBaseline(): Promise<SystemInfoResponse["disk"]["root"]> {
   try {
     // statfs is available on Linux/macOS. Returns blocks and block size.
-    const stats = await fs.statfs("/");
+    const stats = await statfs("/");
     const totalBytes = stats.blocks * stats.bsize;
     const freeBytes = stats.bfree * stats.bsize;
 
@@ -117,7 +127,7 @@ function formatMemory(total: number, free: number, snapshotPercent?: number): Me
 export async function getSystemInfo(): Promise<SystemInfoResponse> {
   const osData = getOsBaseline();
   const diskData = await getDiskSpaceBaseline();
-  const cpus = os.cpus();
+  const cpus = osCpus();
 
   try {
     const snapshot = getLatestSnapshot();
@@ -153,7 +163,7 @@ export async function getSystemInfo(): Promise<SystemInfoResponse> {
         // The shared boot-time profile — same object all pools/threads read from.
         profile: getHardwareProfile(),
       },
-      memory: formatMemory(os.totalmem(), os.freemem(), snapshot?.memory),
+      memory: formatMemory(totalmem(), freemem(), snapshot?.memory),
       disk: { root: diskData },
     };
   } catch {
@@ -169,9 +179,9 @@ export async function getSystemInfo(): Promise<SystemInfoResponse> {
         historicalLoad: { usage: [], timestamps: [] },
         currentUsage: 0,
         currentLoad: 0,
-        loadAverage: os.loadavg(),
+        loadAverage: loadavg(),
       },
-      memory: formatMemory(os.totalmem(), os.freemem()),
+      memory: formatMemory(totalmem(), freemem()),
     };
   }
 }

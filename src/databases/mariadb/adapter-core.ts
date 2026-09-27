@@ -32,15 +32,23 @@ import type {
   FindOptions,
   QueryFilter,
 } from "../db-interface";
-import * as helpers from "../core/drizzle-sql-helpers";
+import { isSystemTable, shouldMaterializeField } from "../core/drizzle-sql-helpers";
 import { getTableName } from "drizzle-orm";
+// Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
 import * as schema from "./schema";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { sql, type SQL } from "drizzle-orm";
 import { mysqlTable, varchar, json, datetime, boolean, int } from "drizzle-orm/mysql-core";
-import * as utils from "../core/relational-utils";
-import { registerTableSchema } from "../core/relational-utils";
+import {
+  applyTenantFilter,
+  assertFiniteAmount,
+  assertSafeSqlIdentifier,
+  buildRawTenantClause,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  registerTableSchema,
+} from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { extractPkConflictId } from "../core/lookup-query";
@@ -159,9 +167,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
   ): Promise<Record<string, unknown> | null> {
     const tableName = getTableName(table);
     const idColName = (this.getColumn(table, "_id") || this.getColumn(table, "id"))?.name ?? "_id";
-    const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+    const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
     const rows = (await this.getRawExec(options)(
-      `SELECT \`data\` FROM \`${utils.assertSafeSqlIdentifier(tableName, "table")}\` WHERE \`${utils.assertSafeSqlIdentifier(idColName, "column")}\` = ?${tenantSql} LIMIT 1`,
+      `SELECT \`data\` FROM \`${assertSafeSqlIdentifier(tableName, "table")}\` WHERE \`${assertSafeSqlIdentifier(idColName, "column")}\` = ?${tenantSql} LIMIT 1`,
       [String(id), ...tenantParams],
     )) as Array<{ data?: unknown }> | undefined;
     return parseJsonDataBlob(rows?.[0]?.data);
@@ -214,7 +222,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (!idCol) throw new Error("ID column not found");
       const idColName = idCol.name || "_id";
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
       // Projection-aware: skip the JSON data blob when all requested fields
       // are physical columns (avoids LONGTEXT transfer + JSON.parse on reads).
       const fields = options?.fields;
@@ -250,7 +258,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
       // Defense-in-depth: tableName derives from getTable (already allow-listed),
       // but assert again at the raw-SQL site so the invariant is local.
-      const rawSql = `SELECT ${selectCols} FROM \`${utils.assertSafeSqlIdentifier(
+      const rawSql = `SELECT ${selectCols} FROM \`${assertSafeSqlIdentifier(
         tableName,
         "table",
       )}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
@@ -266,13 +274,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (Array.isArray(rows) && rows.length > 0) {
         const row = rows[0];
         if (!wantsData) {
-          return utils.convertDatesToISO(row, {
+          return convertDatesToISO(row, {
             ...this.convertDatesOptions,
             table: collection,
             skipJson: true,
           }) as T;
         }
-        return utils.convertDatesToISO(row, {
+        return convertDatesToISO(row, {
           ...this.convertDatesOptions,
           table: collection,
         }) as T;
@@ -305,15 +313,23 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const idColName = idCol.name || "_id";
       const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? "`updatedAt`" : "NULL";
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
 
       const hasSlugCol = !!this.getColumn(table, "slug");
       const hasStatusCol = !!this.getColumn(table, "status");
 
       const dataExpr = `JSON_MERGE_PATCH(COALESCE(\`data\`, '{}'), JSON_OBJECT('_id', \`${idColName}\`${hasStatusCol ? ", 'status', `status`" : ""}${hasSlugCol ? ", 'slug', `slug`" : ""}))`;
 
-      const safeTable = `\`${utils.assertSafeSqlIdentifier(tableName, "table")}\``;
-      const rawSql = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
+      const safeTable = `\`${assertSafeSqlIdentifier(tableName, "table")}\``;
+      // Wire Plane publication guarantee: fail closed when the table cannot express it.
+      const publishedSql =
+        options?.requirePublished === true
+          ? hasStatusCol
+            ? " AND `status` = 'publish'"
+            : null
+          : "";
+      if (publishedSql === null) return null;
+      const rawSql = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE \`${idColName}\` = ?${publishedSql}${tenantSql} LIMIT 1`;
 
       const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
       if (!Array.isArray(rows) || rows.length === 0) return null;
@@ -325,59 +341,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
       };
     } catch (err: any) {
       logger.debug("[MariaDB rawFindPointWireStream] falling back:", err?.message);
-      return null;
-    }
-  }
-
-  /**
-   * Direct-to-Wire list stream optimization for MariaDB:
-   * Generates `{ success: true, data: [ ... ] }` directly inside MariaDB C engine
-   * via JSON_ARRAYAGG and JSON_OBJECT.
-   */
-  protected override async rawFindListWireStream<T extends BaseEntity>(
-    table: any,
-    _collection: string,
-    _query: QueryFilter<T>,
-    options: FindOptions<T>,
-  ): Promise<{ wireBody: string; etag?: string } | null> {
-    try {
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return null;
-
-      const tableName = getTableName(table);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) return null;
-      const idColName = idCol.name || "_id";
-      const limit = Math.min(options?.limit ?? 50, 100);
-      const offset = options?.offset ?? 0;
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
-
-      const hasSlugCol = !!this.getColumn(table, "slug");
-      const hasStatusCol = !!this.getColumn(table, "status");
-      const hasDeletedCol = !!this.getColumn(table, "isDeleted");
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-
-      const dataExpr = `JSON_MERGE_PATCH(COALESCE(\`data\`, '{}'), JSON_OBJECT('_id', \`${idColName}\`${hasStatusCol ? ", 'status', `status`" : ""}${hasSlugCol ? ", 'slug', `slug`" : ""}))`;
-
-      const safeTable = `\`${utils.assertSafeSqlIdentifier(tableName, "table")}\``;
-      const whereBase = hasDeletedCol ? "`isDeleted` = 0" : "1 = 1";
-      const orderBy = hasUpdatedAtCol ? "`updatedAt` DESC" : `\`${idColName}\` DESC`;
-      const subquery = `SELECT * FROM ${safeTable} WHERE ${whereBase}${tenantSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
-      const listSql = `SELECT JSON_OBJECT('success', true, 'data', COALESCE(JSON_ARRAYAGG(${dataExpr}), JSON_ARRAY())) AS wire_body FROM (${subquery}) sub`;
-
-      const rows = (await this.getRawExec(options)(listSql, [
-        ...tenantParams,
-        limit,
-        offset,
-      ])) as any[];
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-      const first = rows[0];
-      return {
-        wireBody:
-          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
-      };
-    } catch (err: any) {
-      logger.debug("[MariaDB rawFindListWireStream] falling back:", err?.message);
       return null;
     }
   }
@@ -441,7 +404,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     this._resolving.add(collection);
 
     try {
-      if (helpers.isSystemTable(collection)) {
+      if (isSystemTable(collection)) {
         const aliased = this.getAliasedTable(collection);
         if (aliased) {
           this.tableRegistry.set(collection, aliased);
@@ -454,7 +417,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       // (rawFindById/insert/update/DDL). Dash-stripping alone did not stop
       // backtick breakout from admin-typed collection names — fail closed
       // BEFORE any SQL is assembled.
-      utils.assertSafeSqlIdentifier(cleanId, "collection");
+      assertSafeSqlIdentifier(cleanId, "collection");
       // ⚠️ Composite length guard: the interpolated identifier is
       // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
       // not enough — the composite can exceed MariaDB's 64-char identifier
@@ -462,13 +425,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
       // sibling name. Fail closed on the FINAL identifier
       // (normalizeCollectionTableName is the single source of truth for the
       // physical name derivation).
-      const tableName = utils.assertSafeSqlIdentifier(
-        normalizeCollectionTableName(collection),
-        "table",
-      );
+      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
+      if (isSystemTable(cleanName) && cleanName !== collection) {
         return this.getTable(cleanName);
       }
 
@@ -952,7 +912,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       let sqlText = this._mariaUpsertTplCache.get(tplKey);
       if (!sqlText) {
         const physicalName = (c: string) =>
-          utils.assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
+          assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
         const colList = cols.map((c) => `\`${physicalName(c)}\``).join(", ");
         const placeholders = cols.map(() => "?").join(", ");
         const updatePairs = cols
@@ -970,7 +930,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
       });
 
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
       // Note: buildRawTenantClause may add a tenantId equality to WHERE; for upsert
       // we instead merge tenantId into the row values (done by prepareValues) and
       // rely on the PK conflict. Tenant WHERE on insert is not applicable.
@@ -982,7 +942,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         this._returningSupported = true;
         return {
           success: true,
-          data: utils.convertDatesToISO(rows[0], {
+          data: convertDatesToISO(rows[0], {
             mariaDoubleParseJson: true,
             table: collection,
           }) as unknown as T,
@@ -1025,7 +985,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             // Drizzle def property names may differ from physical column names
             // (e.g. plugin_storage: collectionName → `collection`).
             const phys = this.getColumn(table, c);
-            return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+            return assertSafeSqlIdentifier(phys?.name ?? c, "column");
           })
           .map((c) => `\`${c}\``)
           .join(", ");
@@ -1041,7 +1001,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const rows = (await this.raw.execute(sqlText, params)) as any[];
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
-        return utils.convertDatesToISO(rows[0], {
+        return convertDatesToISO(rows[0], {
           mariaDoubleParseJson: true,
           table: collection,
         }) as unknown as T;
@@ -1091,7 +1051,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return async (sqlText: string, params: any[] = []) => {
       if (!pool) throw new Error("Database not connected");
       const [rows] = await pool.execute(sqlText, params);
-      return rows;
+      // mysql2 returns OkPacket / ResultSetHeader for non-SELECT statements;
+      // the raw callers only ever read rows, so the union is narrowed here.
+      return rows as unknown as any[];
     };
   }
 
@@ -1145,7 +1107,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           const tableName = getTableName(table);
           const cols = Object.keys(values);
           if (cols.length === 0) {
-            return utils.convertDatesToISO(values, {
+            return convertDatesToISO(values, {
               ...this.convertDatesOptions,
               table: collection,
             }) as T;
@@ -1156,7 +1118,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             const colList = cols
               .map((c) => {
                 const phys = this.getColumn(table, c);
-                return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+                return assertSafeSqlIdentifier(phys?.name ?? c, "column");
               })
               .map((c) => `\`${c}\``)
               .join(", ");
@@ -1183,13 +1145,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
           }
           const sqlText = `${tpl.sqlPrefix}${placeholders.join(", ")})`;
           await rawExec(sqlText, params);
-          return utils.convertDatesToISO(
-            this.synthesizeInsertRow(table, values, { intBooleans: true }),
-            {
-              ...this.convertDatesOptions,
-              table: collection,
-            },
-          ) as T;
+          return convertDatesToISO(this.synthesizeInsertRow(table, values, { intBooleans: true }), {
+            ...this.convertDatesOptions,
+            table: collection,
+          }) as T;
         };
 
         let finalData: T;
@@ -1242,7 +1201,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (len === 0) return [];
       const rawExec = this.getRawExec(options);
       const tableName = getTableName(table);
-      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+      const safeTableName = assertSafeSqlIdentifier(tableName, "table");
 
       const synthesizedRows: Record<string, any>[] = Array.from({ length: len });
       for (let i = 0; i < len; i++) {
@@ -1260,7 +1219,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const colList = Array.from(cols)
         .map((c) => {
           const phys = this.getColumn(table, c);
-          return `\`${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}\``;
+          return `\`${assertSafeSqlIdentifier(phys?.name ?? c, "column")}\``;
         })
         .join(", ");
 
@@ -1292,7 +1251,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (skipReturning) {
         return synthesizedRows as unknown as T[];
       }
-      return utils.convertArrayDatesToISO(synthesizedRows, {
+      return convertArrayDatesToISO(synthesizedRows, {
         ...this.convertDatesOptions,
         mariaDoubleParseJson: true,
         table: collection,
@@ -1364,7 +1323,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       // JS just above). Without it a PATCH would replace every dynamic field.
       const mergeJsonData = getJsonDataPatch(values) !== undefined;
 
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
 
       // 🚀 NO-READ-BACK: full-document callers skip the RETURNING row read-back
       // + JSON parse — the row is reconstructed from the prepared values.
@@ -1379,7 +1338,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           // Drizzle def property names may differ from physical column names
           // (e.g. plugin_storage: collectionName → `collection`).
           const phys = this.getColumn(table, col);
-          const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+          const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
           const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
           setPairs.push(
             isJson && mergeJsonData
@@ -1387,8 +1346,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
               : `\`${safeCol}\` = ?`,
           );
         }
-        const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
-        const safeTable = utils.assertSafeSqlIdentifier(tableName, "table");
+        const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+        const safeTable = assertSafeSqlIdentifier(tableName, "table");
         const whereSql = `\`${safeIdCol}\` = ?${tenantSql}`;
         const setSql = setPairs.join(", ");
         tpl = {
@@ -1417,7 +1376,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           ...values,
           [idColName]: id,
         } as Record<string, unknown>;
-        const converted = utils.convertDatesToISO(reconstructed, {
+        const converted = convertDatesToISO(reconstructed, {
           mariaDoubleParseJson: true,
           table: collection,
           inPlace: true,
@@ -1432,7 +1391,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
-        const converted = utils.convertDatesToISO(rows[0], {
+        const converted = convertDatesToISO(rows[0], {
           mariaDoubleParseJson: true,
           table: collection,
           inPlace: true,
@@ -1482,7 +1441,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (options?.transaction && !txnConn) return null;
       if (updates.length < 2) return null;
       const tableName = getTableName(table);
-      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+      const safeTableName = assertSafeSqlIdentifier(tableName, "table");
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (!idCol) return null;
       const idColName = idCol?.name || "_id";
@@ -1490,9 +1449,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
       // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
       // defense-in-depth for direct calls) + tenant WHERE like rawFindById.
       if (this.getColumn(table, "tenantId")) {
-        utils.applyTenantFilter([], this.getColumn(table, "tenantId"), options);
+        applyTenantFilter([], this.getColumn(table, "tenantId"), options);
       }
-      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
 
       const prepared = updates.map((u) =>
         this.prepareUpdateValues(table, u.data, u.id as string, now, options),
@@ -1547,7 +1506,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           const params: unknown[] = [];
           for (const col of setCols) {
             const phys = this.getColumn(table, col);
-            const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+            const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
             const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
             const jsonWrap =
               isJson && chunk.some((v) => getJsonDataPatch(v) !== undefined)
@@ -1589,7 +1548,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
               whens.push("WHEN ? THEN ?");
               params.push(chunkIds[i], bind(values[col]));
             }
-            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
             const caseSql = `CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`;
             setPairs.push(
               jsonWrap
@@ -1599,7 +1558,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           }
 
           const idPlaceholders = chunkIds.map(() => "?").join(", ");
-          const rawSql = `UPDATE \`${safeTableName}\` SET ${setPairs.join(", ")} WHERE \`${utils.assertSafeSqlIdentifier(idColName, "column")}\` IN (${idPlaceholders})${tenantSql}`;
+          const rawSql = `UPDATE \`${safeTableName}\` SET ${setPairs.join(", ")} WHERE \`${assertSafeSqlIdentifier(idColName, "column")}\` IN (${idPlaceholders})${tenantSql}`;
           const res = await rawExec(rawSql, [...params, ...chunkIds, ...tenantParams]);
           modifiedCount += Number((res as any)?.affectedRows ?? 0);
         }
@@ -1655,18 +1614,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
         if (!idCol) throw new Error("ID column not found");
 
         // Identifiers may be embedded; values (_id, amount, tenantId) are always bound via raw.execute.
-        const safeField = utils.assertSafeSqlIdentifier(field);
-        const amountNum = utils.assertFiniteAmount(amount);
+        const safeField = assertSafeSqlIdentifier(field);
+        const amountNum = assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
         // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
         // increment the column directly (JSON_SET on `data` would no-op for new
         // rows whose field never entered the blob).
         const fieldIsColumn = !!this.getColumn(table, field);
-        const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-          options,
-          "mysql",
-        );
+        const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
         const idColName = idCol.name || "_id";
 
         if (this._returningSupported !== false) {
@@ -1687,7 +1643,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             const rows = (await this.raw.execute(upsertSql, upsertParams)) as any[];
             if (Array.isArray(rows) && rows.length > 0) {
               this._returningSupported = true;
-              return utils.convertDatesToISO(rows[0], {
+              return convertDatesToISO(rows[0], {
                 mariaDoubleParseJson: true,
                 table: collection,
               }) as Record<string, unknown>;
@@ -1727,7 +1683,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           throw new Error(`Entry not found after increment: ${idStr}`);
         }
 
-        return utils.convertDatesToISO(fallbackRows[0], {
+        return convertDatesToISO(fallbackRows[0], {
           mariaDoubleParseJson: true,
           table: collection,
         }) as Record<string, unknown>;
@@ -1788,7 +1744,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           for (const field of schemaData.fields) {
             // Row-store hybrid: scalar fields become physical columns — the
             // `data` blob keeps only dynamic fields for new rows.
-            if (helpers.shouldMaterializeField(field)) {
+            if (shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
@@ -1834,7 +1790,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           try {
             // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
             // before it reaches SHOW COLUMNS/ALTER/CREATE INDEX identifiers.
-            const colName = utils.assertSafeSqlIdentifier(col.name, "column");
+            const colName = assertSafeSqlIdentifier(col.name, "column");
             const query = `SHOW COLUMNS FROM \`${physicalName}\` LIKE '${colName}'`;
             const res = await this.raw.execute(query);
             const exists = res.length > 0;
@@ -1848,7 +1804,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
               // filled; JSON_EXTRACT returns JSON — UNQUOTE for text columns,
               // implicit cast for INT/TINYINT).
               try {
-                const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
+                const safeColName = assertSafeSqlIdentifier(col.name, "column");
                 if (col.type === "INT" || col.type === "TINYINT(1)") {
                   await this.raw.execute(
                     `UPDATE \`${physicalName}\` SET \`${safeColName}\` = CAST(JSON_EXTRACT(\`data\`, '$.${safeColName}') AS SIGNED) WHERE \`${safeColName}\` IS NULL AND \`data\` IS NOT NULL`,
@@ -1871,7 +1827,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           try {
             // 🛡️ Same allow-list as the ALTER loop — dynamicCols can carry
             // admin-typed labels too.
-            const colName = utils.assertSafeSqlIdentifier(colNameRaw, "column");
+            const colName = assertSafeSqlIdentifier(colNameRaw, "column");
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${physicalName}\` (\`${colName}\`)`,

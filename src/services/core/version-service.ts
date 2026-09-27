@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import * as v from "valibot";
+import { array, boolean, object, optional, safeParse, string } from "valibot";
 
 /** Result of an update check — the wire contract of `GET /api/system/version/check`. */
 export interface UpdateCheckResult {
@@ -39,9 +39,9 @@ const FETCH_TIMEOUT_MS = 5000;
 const FALLBACK_VERSION = "0.0.0";
 
 /** Minimal shape of the GitHub releases payload; anything else is a typed failure. */
-const GitHubReleaseSchema = v.object({
-  tag_name: v.string(),
-  prerelease: v.optional(v.boolean(), false),
+const GitHubReleaseSchema = object({
+  tag_name: string(),
+  prerelease: optional(boolean(), false),
 });
 
 /**
@@ -190,7 +190,7 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
       };
     }
 
-    const parsed = v.safeParse(v.array(GitHubReleaseSchema), await response.json());
+    const parsed = safeParse(array(GitHubReleaseSchema), await response.json());
     if (!parsed.success) {
       const reason = "Unexpected GitHub releases payload";
       logger.warn(`[VersionService] ${reason}: ${parsed.issues[0]?.message ?? "unknown issue"}`);

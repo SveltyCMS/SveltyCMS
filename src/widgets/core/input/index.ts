@@ -39,8 +39,10 @@ import {
 import type { InputProps } from "./types";
 
 // ✅ SSOT: Validation Schema - Exported for use in Input.svelte
+// Param typed from the widget props (never `ReturnType<typeof InputWidget>`: that
+// made the schema and the widget infer each other, so both collapsed to `any`).
 export const createValidationSchema = (
-  field: ReturnType<typeof InputWidget>,
+  field: InputProps & { required?: boolean; translated?: boolean },
 ): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
   // Build a string schema with text-specific rules
   const stringRules: unknown[] = [transform((s: string) => (typeof s === "string" ? s.trim() : s))];
@@ -48,20 +50,14 @@ export const createValidationSchema = (
   if (field.required) {
     stringRules.push(minLength(1, "This field is required."));
   }
-  if ((field as InputProps).minLength) {
+  if (field.minLength) {
     stringRules.push(
-      minLength(
-        (field as InputProps).minLength as number,
-        `Must be at least ${(field as InputProps).minLength} characters.`,
-      ),
+      minLength(field.minLength as number, `Must be at least ${field.minLength} characters.`),
     );
   }
-  if ((field as InputProps).maxLength) {
+  if (field.maxLength) {
     stringRules.push(
-      maxLength(
-        (field as InputProps).maxLength as number,
-        `Must be no more than ${(field as InputProps).maxLength} characters.`,
-      ),
+      maxLength(field.maxLength as number, `Must be no more than ${field.maxLength} characters.`),
     );
   }
 

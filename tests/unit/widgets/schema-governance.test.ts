@@ -1,11 +1,12 @@
 /**
- * @file tests/unit/schema-governance.test.ts
+ * @file tests/unit/widgets/schema-governance.test.ts
  * @description Enterprise Schema Governance Audit.
  * Performs static analysis and validation on the widget schema definitions
  * to prevent invalid configurations, reserved keywords, or structural impossibilities.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("@src/paraglide/messages", async () => (await import("./test-utils")).WIDGET_MESSAGES);
 import InputWidget from "@widgets/core/input";
 import NumberWidget from "@widgets/core/number";
 import SelectWidget from "@widgets/core/select";
@@ -52,19 +53,23 @@ describe("Schema Governance & Linter Audit", () => {
     }
   });
 
-  it("should gracefully handle and reject mathematically impossible or conflicting configurations", () => {
-    const numField = NumberWidget({ label: "Number", min: 100, max: 10 }); // Intentional conflict
+  it("fails closed on mathematically impossible configurations instead of throwing", () => {
+    const numField = NumberWidget({ label: "Number", min: 100, max: 10 }); // inverted range
+    const schema = (numField.widget.validationSchema as any)(numField);
 
-    // Ideally, the widget factory or the schema validator should catch min > max.
-    // For this generic test, we ensure that if we try to parse data, it behaves safely.
-    if (numField.widget.validationSchema) {
-      const schema = (numField.widget.validationSchema as any)(numField);
-      const result = safeParse(schema, 50);
-
-      // Depending on Valibot's internal handling of inverted min/max, it should either fail parse or have thrown during schema creation.
-      // The crucial governance point is that it doesn't crash the Node process.
-      expect(result).toBeDefined();
+    // An inverted range can never be satisfied, so every value must be rejected and
+    // parsing must not throw. (The previous assertion — `result` is defined — held for
+    // every possible input, including a schema that accepted everything.)
+    for (const value of [50, 0, 100, 10, 1000]) {
+      expect(() => safeParse(schema, value)).not.toThrow();
+      expect(safeParse(schema, value).success, `min>max must reject ${value}`).toBe(false);
     }
+
+    // Control: a coherent range still accepts in-range values, proving the loop above
+    // is specific to the inverted configuration rather than "numbers never validate".
+    const saneField = NumberWidget({ label: "Number", min: 1, max: 10 });
+    const saneSchema = (saneField.widget.validationSchema as any)(saneField);
+    expect(safeParse(saneSchema, 5).success).toBe(true);
   });
 
   it("should verify schema structural integrity (no missing required meta-fields)", () => {

@@ -3,8 +3,12 @@
  * @description Unit tests for the Rating widget validation logic.
  */
 
-import { describe, it, expect } from "vitest";
-import RatingWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import RatingWidget from "@widgets/custom/rating";
 import { safeParse } from "valibot";
 
 describe("Rating Widget - Validation", () => {

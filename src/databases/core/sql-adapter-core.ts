@@ -35,7 +35,17 @@ import type {
   ICrudAdapter,
   ISqlAdapter,
 } from "../db-interface";
-import * as helpers from "./drizzle-sql-helpers";
+import {
+  // Aliased: the class method `applyOrderBy` below owns the plain name.
+  applyOrderBy as applyOrderByHelper,
+  executeWrite,
+  getColumnHelper,
+  getPhysicalSelection,
+  isSystemTable,
+  mapQuery,
+  SQL_TABLE_ALIASES,
+  SYSTEM_LITERAL_COLUMNS,
+} from "./drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
 import { hasIsoDateTimePrefix, nowISODateString } from "@src/utils/date";
 import {
@@ -49,7 +59,15 @@ import {
   and,
 } from "drizzle-orm";
 import { sql, type SQL } from "drizzle-orm";
-import * as utils from "./relational-utils";
+import {
+  applyTenantFilter,
+  assertSafeSqlIdentifier,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  convertISOToDates,
+  registerTableSchema,
+  validateId,
+} from "./relational-utils";
 import { RelationalAuthModule } from "./relational-auth";
 import { RelationalContentModule } from "./relational-content";
 import { RelationalMediaModule } from "./relational-media";
@@ -69,6 +87,7 @@ import {
   withIdTiebreaker,
 } from "./page-utils";
 import { applyLookupStatus, extractPkConflictId, parseIdLookup } from "./lookup-query";
+import { isPublishedStatus } from "@utils/security/publication-policy";
 import {
   clearJsonDataPatch,
   getJsonDataPatch,
@@ -88,8 +107,8 @@ import { translateAggregation } from "./aggregation-translator";
 // Safe as a module-scope side effect: `registerTableSchema` is idempotent and
 // ADDITIVE (it merges into the single TableMeta registry), so re-evaluating this
 // module can only add column knowledge — never shrink or corrupt it.
-for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS)) {
-  utils.registerTableSchema(tableName, columns as string[]);
+for (const [tableName, columns] of Object.entries(SYSTEM_LITERAL_COLUMNS)) {
+  registerTableSchema(tableName, columns as string[]);
 }
 
 // The curated literal lists predate a few physical columns of the auth tables.
@@ -97,14 +116,14 @@ for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS
 // field set the un-schemed walk saw: a registered table skips the per-key
 // DATE_FIELDS/JSON_FIELDS checks, so any column missing here would read back
 // unparsed/unconverted (a security bug for auth data, not a perf one).
-utils.registerTableSchema("authUsers", [
-  ...helpers.SYSTEM_LITERAL_COLUMNS.authUsers,
+registerTableSchema("authUsers", [
+  ...SYSTEM_LITERAL_COLUMNS.authUsers,
   "preferences", // JSON blob column (JSON_FIELDS)
   "failedAttempts",
   "lockoutUntil", // timestamp column (DATE_FIELDS)
 ]);
-utils.registerTableSchema("authSessions", [
-  ...helpers.SYSTEM_LITERAL_COLUMNS.authSessions,
+registerTableSchema("authSessions", [
+  ...SYSTEM_LITERAL_COLUMNS.authSessions,
   "amr", // JSON array column — normalised by normalizeSessionAmr
   "mfaVerifiedAt", // timestamp column (DATE_FIELDS)
 ]);
@@ -275,7 +294,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         (c) => !c.startsWith("Symbol(") && !c.startsWith("@@") && c !== "_" && c !== "name",
       );
       if (realCols.length > 0) {
-        utils.registerTableSchema(name, realCols);
+        registerTableSchema(name, realCols);
       }
     } catch {
       // Schema extraction is best-effort — fallback to full-key iteration if it fails
@@ -471,7 +490,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   public jsonMergeSetValue(table: any, patch: Record<string, unknown>): SQL {
     const physName = this.getColumn(table, "data")?.name ?? "data";
     const { prefix, suffix } = this.jsonMergeWrapper(
-      this.quoteIdentifier(utils.assertSafeSqlIdentifier(physName, "column")),
+      this.quoteIdentifier(assertSafeSqlIdentifier(physName, "column")),
     );
     return sql`${sql.raw(prefix)}${JSON.stringify(patch)}${sql.raw(suffix)}`;
   }
@@ -575,16 +594,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
-  /** Adapter-specific direct-to-wire list stream optimization — returns null when not handled natively. */
-  protected async rawFindListWireStream<T extends BaseEntity>(
-    _table: any,
-    _collection: string,
-    _query: QueryFilter<T>,
-    _options: FindOptions<T>,
-  ): Promise<{ wireBody: string; etag?: string } | null> {
-    return null;
-  }
-
   /**
    * Adapter-specific raw INSERT…RETURNING — returns null when not used.
    * MariaDB/PostgreSQL override this to skip Drizzle's per-call AST building
@@ -676,7 +685,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Resolve a collection name to a Drizzle schema object (system tables). */
   protected getAliasedTable(collection: string): any {
     const schemaAny = this.schema as any;
-    const alias = helpers.SQL_TABLE_ALIASES[collection];
+    const alias = SQL_TABLE_ALIASES[collection];
     if (alias && schemaAny[alias]) return schemaAny[alias];
     if (schemaAny[collection]) return schemaAny[collection];
     return null;
@@ -802,17 +811,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // --------------------------------------------------------------------------
 
   public isSystemTable(collection: string): boolean {
-    return helpers.isSystemTable(collection);
+    return isSystemTable(collection);
   }
 
   public getColumn(table: any, name: string, forcePhysical = false): any {
-    return helpers.getColumnHelper(
-      table,
-      name,
-      this._tableColumnsCache,
-      this._lastTableRef,
-      forcePhysical,
-    );
+    return getColumnHelper(table, name, this._tableColumnsCache, this._lastTableRef, forcePhysical);
   }
 
   /**
@@ -846,8 +849,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   public getPhysicalSelection(table: any): any {
-    return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, f),
+    return getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
+      getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, f),
     );
   }
 
@@ -870,20 +873,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
     }
 
-    return helpers.getPhysicalSelection(
+    return getPhysicalSelection(
       table,
       this._selectionCache,
-      (t, n, f) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, f),
+      (t, n, f) => getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, f),
       this.shouldExcludeData(table, options),
     );
   }
 
   public mapQuery(table: any, query: any, options: any = {}): any {
-    return helpers.mapQuery(
+    return mapQuery(
       table,
       query,
       options,
-      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
+      (t, n) => getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
       (f) => this.getJsonField(f),
       (v) => this.coerceJsonValue(v),
       (f, v) => this.getJsonEquals(f, v),
@@ -934,11 +937,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   public applyOrderBy(builder: any, table: any, options: any): any {
-    return helpers.applyOrderBy(
+    return applyOrderByHelper(
       builder,
       table,
       options,
-      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
+      (t, n) => getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
       (f) => this.getJsonField(f),
     );
   }
@@ -1008,7 +1011,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
     const isUpdate = options?.isUpdate === true || options?.operation === "update";
     const getCol = (t: any, n: string) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false);
+      getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false);
 
     let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
@@ -1178,7 +1181,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       return values;
     }
 
-    const result = utils.convertISOToDates(values, {
+    const result = convertISOToDates(values, {
       ...this.convertDatesOptions,
       table: getTableName(table),
     });
@@ -1265,7 +1268,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this.useDynamicSqlInFindMany &&
         (collection.toLowerCase().includes("benchmark") ||
           collection.startsWith("collection_") ||
-          !helpers.isSystemTable(collection));
+          !isSystemTable(collection));
 
       let results;
       if (isDynamic) {
@@ -1279,7 +1282,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const selection = this.getPhysicalSelection(table);
           const columns = Object.keys(selection);
           const colList = columns
-            .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+            .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
             .join(", ");
           cached = { colList, columns };
           cachedEntry["withData"] = cached;
@@ -1288,7 +1291,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         let escapedTable = this._escapedTableNameCache.get(table);
         if (!escapedTable) {
           escapedTable = this.quoteIdentifier(
-            utils.assertSafeSqlIdentifier(getTableName(table), "table"),
+            assertSafeSqlIdentifier(getTableName(table), "table"),
           );
           this._escapedTableNameCache.set(table, escapedTable);
         }
@@ -1319,7 +1322,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
 
       const data = firstRow
-        ? (utils.convertDatesToISO(firstRow, {
+        ? (convertDatesToISO(firstRow, {
             inPlace: true,
             table: collection,
           }) as T)
@@ -1331,7 +1334,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   // --------------------------------------------------------------------------
-  // 🚀 Direct-to-Wire Streaming (Phase 1): findPointWireStream & findListWireStream
+  // 🚀 Direct-to-Wire Streaming (Phase 1): findPointWireStream
   // --------------------------------------------------------------------------
 
   async findPointWireStream(
@@ -1340,7 +1343,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
     if (typeof collection !== "string" || !id) {
-      return { success: false, message: "Invalid collection or id" };
+      return {
+        success: false,
+        message: "Invalid collection or id",
+        error: { code: "INVALID_QUERY", message: "Invalid collection or id" },
+      };
     }
     return this.wrap(async () => {
       const table = this.getTable(collection);
@@ -1354,38 +1361,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const findRes = await this.findOne(collection, { _id: id } as any, options as any);
       const record =
         findRes && typeof findRes === "object" && "success" in findRes
-          ? (findRes as { success: boolean; data: unknown }).data
+          ? ((findRes as { success: boolean; data?: unknown }).data ?? null)
           : findRes;
       if (!record) return null;
+      // Wire Plane publication guarantee: the engine-level predicate only exists
+      // where the table has a `status` column. An unfiltered fallback read must
+      // never serialize unpublished bytes to a published-only caller.
+      if (options.requirePublished === true && !isPublishedStatus(record)) return null;
       const wireBody = JSON.stringify({ success: true, data: record });
       const etag = `"${String((record as any)._id ?? id)}-${String((record as any).updatedAt ?? "")}"`;
       return { wireBody, etag };
     }, "FIND_POINT_WIRE_STREAM_FAILED");
-  }
-
-  async findListWireStream<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T> = {},
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>> {
-    if (typeof collection !== "string") {
-      return { success: false, message: "Invalid collection" };
-    }
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-
-      // 1. Try engine-specific raw list wire stream
-      const rawWire = await this.rawFindListWireStream(table, collection, query, options);
-      if (rawWire) return rawWire;
-
-      // 2. Engine fallback: execute findMany and format wire payload
-      const recordsResult = await this.findMany(collection, query, options);
-      const records =
-        recordsResult.success && Array.isArray(recordsResult.data) ? recordsResult.data : [];
-      const wireBody = JSON.stringify({ success: true, data: records });
-      return { wireBody };
-    }, "FIND_LIST_WIRE_STREAM_FAILED");
   }
 
   // --------------------------------------------------------------------------
@@ -1445,7 +1431,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this.useDynamicSqlInFindMany &&
         (collection.toLowerCase().includes("benchmark") ||
           collection.startsWith("collection_") ||
-          !helpers.isSystemTable(collection));
+          !isSystemTable(collection));
 
       let results;
       const excludeData = this.shouldExcludeData(table, options);
@@ -1467,7 +1453,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
               const selection = this.getProjectedSelection(table, options);
               columns = Object.keys(selection);
               colList = columns
-                .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+                .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
                 .join(", ");
               cached = { colList, columns };
               cachedEntry[cacheKey] = cached;
@@ -1478,13 +1464,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             const selection = this.getProjectedSelection(table, options);
             columns = Object.keys(selection);
             colList = columns
-              .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+              .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
               .join(", ");
           }
 
           let escapedTable = this._escapedTableNameCache.get(table);
           if (!escapedTable) {
-            escapedTable = this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table"));
+            escapedTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
             this._escapedTableNameCache.set(table, escapedTable);
           }
 
@@ -1540,7 +1526,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
               },
             };
             for (const s of normalizedSorts) {
-              let sortCol: any = helpers.getColumnHelper(
+              let sortCol: any = getColumnHelper(
                 table,
                 s.field,
                 this._tableColumnsCache,
@@ -1548,7 +1534,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
                 false,
               );
               if (!sortCol) {
-                const dataCol = helpers.getColumnHelper(
+                const dataCol = getColumnHelper(
                   table,
                   "data",
                   this._tableColumnsCache,
@@ -1616,12 +1602,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       // JSON-parse or flatten — but date/boolean normalization still applies
       // (parity with full reads; avoids leaking raw 0/1 or driver Dates).
       const data = excludeData
-        ? utils.convertArrayDatesToISO(results as any, {
+        ? convertArrayDatesToISO(results as any, {
             inPlace: true,
             table: collection,
             skipJson: true,
           })
-        : utils.convertArrayDatesToISO(results as any, {
+        : convertArrayDatesToISO(results as any, {
             inPlace: true,
             table: collection,
           });
@@ -1666,7 +1652,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           pageQuery = pageQuery.limit(take).offset(offset);
           const results = await pageQuery;
           if (!results || results.length === 0) break;
-          const data = utils.convertDatesToISO(results, convertOpts) as T[];
+          const data = convertDatesToISO(results, convertOpts) as T[];
           for (let i = 0; i < data.length; i++) {
             yield data[i];
           }
@@ -1818,7 +1804,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
         const conditions: SQL[] = [eq(idCol, id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
-        utils.applyTenantFilter(conditions, tenantCol, options);
+        applyTenantFilter(conditions, tenantCol, options);
 
         const results = await this.getDrizzleInstance(options)
           .select(this.getProjectedSelection(table, options))
@@ -1829,12 +1815,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (results.length === 0) return null;
         const excludeData = this.shouldExcludeData(table, options);
         return excludeData
-          ? (utils.convertDatesToISO(results[0], {
+          ? (convertDatesToISO(results[0], {
               ...this.convertDatesOptions,
               table: collection,
               skipJson: true,
             }) as T)
-          : (utils.convertDatesToISO(results[0], {
+          : (convertDatesToISO(results[0], {
               ...this.convertDatesOptions,
               table: collection,
             }) as T);
@@ -1978,12 +1964,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     if (
       id === undefined ||
       id === null ||
-      helpers.isSystemTable(collection) ||
+      isSystemTable(collection) ||
       collection.startsWith("plugin_")
     ) {
       return null;
     }
-    if (typeof id !== "string" || !utils.validateId(id)) {
+    if (typeof id !== "string" || !validateId(id)) {
       return {
         success: false,
         message: `Invalid _id format for "${collection}": expected UUIDv4 (32 hex or 36 dashed chars)`,
@@ -2066,20 +2052,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       // (PostgreSQL) only convert on this rare fallback, not the raw hot path.
       const drizzleValues = this.persistTimestampsAsDate
         ? values
-        : utils.convertISOToDates(
-            { ...values },
-            { ...this.convertDatesOptions, table: collection },
-          );
+        : convertISOToDates({ ...values }, { ...this.convertDatesOptions, table: collection });
       const query = this.getDrizzleInstance(options).insert(table).values(drizzleValues);
       if (this.insertReturnsRows && !skipReturning) {
         const result = await (query as any).returning();
-        return utils.convertDatesToISO(result[0], {
+        return convertDatesToISO(result[0], {
           ...this.convertDatesOptions,
           table: collection,
         }) as T;
       }
       await (query as any);
-      return utils.convertDatesToISO(values, {
+      return convertDatesToISO(values, {
         ...this.convertDatesOptions,
         table: collection,
       }) as T;
@@ -2148,21 +2131,18 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const drizzleBatch = this.persistTimestampsAsDate
           ? batchValues
           : (batchValues as Record<string, any>[]).map((row) =>
-              utils.convertISOToDates(
-                { ...row },
-                { ...this.convertDatesOptions, table: collection },
-              ),
+              convertISOToDates({ ...row }, { ...this.convertDatesOptions, table: collection }),
             );
         const query = this.getDrizzleInstance(options).insert(table).values(drizzleBatch);
         if (this.insertReturnsRows) {
           const results = await (query as any).returning();
-          return utils.convertArrayDatesToISO(results as any, {
+          return convertArrayDatesToISO(results as any, {
             ...this.convertDatesOptions,
             table: collection,
           }) as T[];
         } else {
           await (query as any);
-          return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
+          return convertArrayDatesToISO(batchValues as Record<string, any>[], {
             ...this.convertDatesOptions,
             table: collection,
           }) as T[];
@@ -2241,7 +2221,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     const conditions: SQL[] = [eq(idCol, id as any)];
     const tenantCol = this.getColumn(table, "tenantId");
-    utils.applyTenantFilter(conditions, tenantCol, options);
+    applyTenantFilter(conditions, tenantCol, options);
 
     // 🔀 PARTIAL-UPDATE MERGE: when this payload patches the JSON `data` blob, the
     // dialect merge operator handles it inside the UPDATE (no read). Dialects whose
@@ -2286,7 +2266,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     const drizzleUpdate = this.persistTimestampsAsDate
       ? values
-      : utils.convertISOToDates({ ...values }, { ...this.convertDatesOptions, table: collection });
+      : convertISOToDates({ ...values }, { ...this.convertDatesOptions, table: collection });
     const query = this.getDrizzleInstance(options)
       .update(table)
       .set(drizzleUpdate)
@@ -2301,7 +2281,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         ...values,
         [idCol.name]: id,
       } as Record<string, unknown>;
-      const finalData = utils.convertDatesToISO(reconstructed, {
+      const finalData = convertDatesToISO(reconstructed, {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
@@ -2323,7 +2303,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           ? await this.runHooks("after", "update", collection, byId.data, options)
           : byId.data;
       }
-      const finalData = utils.convertDatesToISO(res, {
+      const finalData = convertDatesToISO(res, {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
@@ -2387,10 +2367,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
         const drizzleMany = this.persistTimestampsAsDate
           ? values
-          : utils.convertISOToDates(
-              { ...values },
-              { ...this.convertDatesOptions, table: collection },
-            );
+          : convertISOToDates({ ...values }, { ...this.convertDatesOptions, table: collection });
 
         // Atomic single UPDATE instead of N+1 sequential loop.
         // SQLite drizzle builders are lazy until `.run()`; awaiting the builder
@@ -2490,7 +2467,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
         const conditions: SQL[] = [eq(idCol, id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
-        utils.applyTenantFilter(conditions, tenantCol, options);
+        applyTenantFilter(conditions, tenantCol, options);
 
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
         if (options.permanent || !hasIsDeleted) {
@@ -2703,11 +2680,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * contract, and the benchmark's document-integrity guard is what surfaced it.
    */
   protected jsonUpsertMergeSet(table: any): SQL {
-    const plainName = utils.assertSafeSqlIdentifier(
+    const plainName = assertSafeSqlIdentifier(
       this.getColumn(table, "data")?.name ?? "data",
       "column",
     );
-    const tableName = utils.assertSafeSqlIdentifier(getTableName(table), "table");
+    const tableName = assertSafeSqlIdentifier(getTableName(table), "table");
     const storedRef = `${this.quoteIdentifier(tableName)}.${this.quoteIdentifier(plainName)}`;
     const { prefix, suffix } = this.jsonMergeWrapper(storedRef);
     const mysql = this.type === "mariadb" || this.type === "mysql";
@@ -2744,7 +2721,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
     if (!this.persistTimestampsAsDate) {
       for (let i = 0; i < len; i++) {
-        batchValues[i] = utils.convertISOToDates(
+        batchValues[i] = convertISOToDates(
           { ...batchValues[i] },
           { ...this.convertDatesOptions, table: collection },
         );
@@ -2763,7 +2740,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     const setObj: Record<string, unknown> = {};
     for (const k of cols) {
       if (k === "_id" || k === "id" || k === "createdAt") continue;
-      const phys = utils.assertSafeSqlIdentifier(this.getColumn(table, k)?.name ?? k, "column");
+      const phys = assertSafeSqlIdentifier(this.getColumn(table, k)?.name ?? k, "column");
       setObj[k] = mysql
         ? sql`VALUES(${sql.identifier(phys)})`
         : sql`excluded.${sql.identifier(phys)}`;
@@ -2813,15 +2790,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (wantReturning) {
           const results = await (upserted as { returning: () => Promise<unknown[]> }).returning();
           out.push(
-            ...(utils.convertArrayDatesToISO(results as Record<string, unknown>[], {
+            ...(convertArrayDatesToISO(results as Record<string, unknown>[], {
               ...this.convertDatesOptions,
               table: collection,
             }) as T[]),
           );
         } else {
-          await helpers.executeWrite(upserted);
+          await executeWrite(upserted);
           out.push(
-            ...(utils.convertArrayDatesToISO(chunk as Record<string, unknown>[], {
+            ...(convertArrayDatesToISO(chunk as Record<string, unknown>[], {
               ...this.convertDatesOptions,
               table: collection,
             }) as T[]),
@@ -2922,7 +2899,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (plan.offset !== undefined) query = query.offset(plan.offset);
 
         const rows = (await query) as Record<string, unknown>[];
-        return utils.convertArrayDatesToISO(rows, {
+        return convertArrayDatesToISO(rows, {
           ...this.convertDatesOptions,
           table: collection,
         }) as R[];

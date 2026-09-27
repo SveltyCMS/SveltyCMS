@@ -81,7 +81,7 @@
 
 	let selectedFieldName = $state<string>('');
 	let fieldValueText = $state<string>('');
-	let fieldValueNumber = $state<number | null>(null);
+	let fieldValueNumber = $state<number | undefined>(undefined);
 	let fieldValueBoolean = $state<boolean>(false);
 	let isSubmitting = $state<boolean>(false);
 
@@ -111,7 +111,7 @@
 	const canSubmit = $derived.by(() => {
 		if (!activeField) return false;
 		if (isBooleanField) return true;
-		if (isNumberField) return fieldValueNumber !== null && !isNaN(fieldValueNumber);
+		if (isNumberField) return fieldValueNumber !== undefined && !isNaN(fieldValueNumber);
 		return fieldValueText.trim().length > 0;
 	});
 
@@ -124,7 +124,7 @@
 	function closeModal() {
 		isOpen = false;
 		fieldValueText = '';
-		fieldValueNumber = null;
+		fieldValueNumber = undefined;
 		fieldValueBoolean = false;
 		onClose();
 	}

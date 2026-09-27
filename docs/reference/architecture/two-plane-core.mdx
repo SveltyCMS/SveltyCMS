@@ -1,0 +1,74 @@
+---
+path: "docs/reference/architecture/two-plane-core.mdx"
+title: "Two-Plane Core"
+description: "How SveltyCMS splits request handling into a compiled Wire Plane for safe published reads and a Domain Plane for everything else — and where each half is documented."
+order: 45
+icon: "mdi:source-branch"
+author: "SveltyCMS Team"
+created: "2026-09-27"
+updated: "2026-09-27"
+tags:
+  - "architecture"
+  - "performance"
+  - "security"
+  - "lanes"
+  - "caching"
+---
+
+# Two-Plane Core
+
+SveltyCMS answers reads through **two explicit planes**. The distinction exists so that a fast path
+can never quietly become a second implementation of the CMS:
+
+- **Domain Plane** — the full engine: Drizzle ORM hydration, field-level access control (FLAC),
+  draft/published revisions, lifecycle hooks, relational populates, GraphQL Yoga. It _decides_
+  everything: visibility, redaction, shape.
+- **Wire Plane** — an opt-in fast path for reads that are **already known to be safe**: compiled
+  engine-side JSON (`json_build_object` / `json_object` / lean Mongo projection) written straight to
+  the response, skipping hydration and `JSON.stringify`. It may only **decline**; it never decides.
+
+> [!IMPORTANT]
+> The asymmetry is the design. A Wire Plane result that is empty or inadmissible falls back to the
+> Domain Plane, which re-applies the caller's real permissions, publication clamp and field policy.
+> That is what makes the fast path safe to keep fast.
+
+## Which plane answers a request
+
+| Request class                                                                   | Plane        |
+| :------------------------------------------------------------------------------ | :----------- |
+| Public/authenticated read of a **published** row with no custom query shape     | Wire Plane   |
+| Any `filter` / `where`, non-default `sort` / `limit` / `page`, `stream=true`    | Domain Plane |
+| Drafts, previews, review status, `populate`, non-default locale, mutating hooks | Domain Plane |
+| Caller with a `FIELD_PERMISSIONS` policy or a `readRoles`-guarded field         | Domain Plane |
+| Admin UI, writes, GraphQL, revisions, relations, exports                        | Domain Plane |
+| Warm-session hits of an already-served response (L1 / HTTP 304)                 | Cache Plane  |
+
+The Wire Plane is guarded by six fail-closed checks evaluated **before** any cache lookup:
+operational state, endpoint parity (`collections:read`), grant freshness (`permRev` epoch), FLAC
+exemption, publication clamp (`requirePublished`), and the wire admission predicate itself. They are
+tabulated with their rules in the [collection read lane](./server-hooks.mdx) section of the hooks
+reference.
+
+## Where each half is documented
+
+| Topic                                                                | Canonical doc                                                                                  |
+| :------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| Lane mechanics, bypass policy, gate table, the WAF gap               | [Server Hooks & Middleware](./server-hooks.mdx)                                                |
+| Benchmark classification (Cells 1–4) and the honest yardstick        | [Performance Architecture](../database/performance-architecture.mdx#4-cell-benchmark-contract) |
+| Tenant isolation: shared pool + RLS, bounded dedicated DSN pools     | [Multi-tenancy](./multi-tenancy.mdx)                                                           |
+| What is shipped per phase, and the open decisions                    | [Roadmap 2026](../../project/roadmap-2026.mdx)                                                 |
+| How this came to be — including what was rejected and why            | [Achievements 3.29–3.31](../../project/achievements-2026.mdx)                                  |
+| Permission evaluation (`permMask`, `permRev`, the unused `permBits`) | `src/databases/auth/permission-bitmask.ts` + the roadmap's Phase-2 item                        |
+
+## Deliberate trade-off
+
+Lane-served reads skip the `security` hook, so they are not WAF-inspected or heap-shed — a bounded
+gap with compensating controls (warm session, the six gates, the state gate). It is not silently
+accepted: it is an open decision in the [roadmap](../../project/roadmap-2026.mdx). Rate limiting is
+not part of that gap — the API read pipeline already skips it for GETs.
+
+## Status
+
+The compiled point path ships on all four adapters; list-wire is defined but not routed; no Cell-3
+matrix has been published. Treat "Wire Plane" as **partial** until the roadmap's Phase-5 acceptance
+criteria are met — the phase table and criteria live in the [roadmap](../../project/roadmap-2026.mdx).

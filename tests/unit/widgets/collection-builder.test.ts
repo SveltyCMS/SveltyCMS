@@ -13,6 +13,8 @@
 import type { WidgetConfig } from "@widgets/widget-factory";
 import { createWidget } from "@widgets/widget-factory";
 
+vi.mock("@src/paraglide/messages", async () => (await import("./test-utils")).WIDGET_MESSAGES);
+
 // Mock widget store data
 const mockWidgetStore = {
   widgetFunctions: {} as Record<string, ReturnType<typeof createWidget>>,

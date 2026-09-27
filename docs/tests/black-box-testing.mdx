@@ -185,7 +185,7 @@ For specialized testing of edge cases (e.g. injecting network failures or verify
 
 To maintain extreme test velocity, widgets are tested as logic units rather than UI components. By isolating the `validationSchema` from the Svelte component, we verify the data contract without the overhead of DOM mounting.
 
-- **Portable Verification**: Tests reside within the widget folder (`src/widgets/custom/.../tests/`) and execute via Bun.
+- **Portable Verification**: Tests reside within the widget folder (`src/widgets/custom/.../tests/`) and execute under Vitest (`bun x vitest run <path>`, or `bun run test:unit` for the whole suite).
 - **Strict Contracts**: Every widget must pass a "Boundary Chaos" test, ensuring it rejects invalid data types and out-of-range values.
 - **Schema Parity**: Unit tests use the exact same Valibot schema that the production API uses for server-side validation.
 

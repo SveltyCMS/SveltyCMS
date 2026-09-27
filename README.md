@@ -73,8 +73,8 @@ Most CMS architectures treat security as an expensive middleware tax: every requ
    - **Tamper-Evident Audit Chaining:** SHA-256 hash chaining of mutation entries runs in-memory (< 2 µs) with asynchronous non-blocking flushes.
    - **Synchronous RBAC & Instant Invalidation:** In-process Bitmask/Set role authorization drops synchronously on role mutation without waiting for TTL expiration or re-querying the database on every HTTP hit.
    - **Native Field-Level Encryption (ALE):** AES-256-GCM encryption with HKDF domain separation executes synchronously in < 18 µs (< 3% write duration overhead).
-4. **Eco-Efficiency & Empirical Benchmark Verification:**
-   With ~111 MB peak heap footprint and up to 65.2 RPS per 1% CPU utilization, SveltyCMS delivers up to 10×–70× higher origin-API throughput per compute unit compared to legacy runtime monoliths. All efficiency claims are verified via reproducible in-repo benchmarks across our database matrix.
+4. **Eco-Efficiency & Benchmark Verification:**
+   Efficiency is tracked in the [benchmark ledger](./docs/project/benchmarks/index.mdx) (methodology, database matrix, and reproduction commands included), and the read-plane architecture is described in [Two-Plane Core](./docs/reference/architecture/two-plane-core.mdx).
 
 ## 🚀 Quick Start
 
@@ -258,7 +258,7 @@ SveltyCMS implements **A++ enterprise-grade security** with 4-layer defense-in-d
 
 You can log in with email/password, Google OAuth, or GitHub OAuth. Role- and field-based access control lets you define precisely who can view, edit, or delete content.
 
-📖 **[Full Security Documentation](./docs/architecture/security/index.mdx)**
+📖 **[Full Security Documentation](./docs/reference/security/index.mdx)**
 
 ## 🎨 Modern Theming & Design System
 
@@ -354,7 +354,7 @@ Self-measured suites under `tests/benchmarks/` with per-DB MDX reports. **Not** 
 | `findPage` vs dual `findMany`+`count`        | ~1.6–5.7× on that path (2026-08-04 matrix) |
 | L1 count cache hit                           | ~0.024–0.029 ms (all four engines)         |
 
-Methodology and EU-safe competitive framing: [benchmarks](./docs/project/benchmarks/index.mdx) · [performance architecture](./docs/reference/database/performance-architecture.mdx) · [achievements log](./docs/project/achievements-2026.mdx).
+Methodology and EU-safe competitive framing: [benchmarks](./docs/project/benchmarks/index.mdx) · [performance architecture](./docs/reference/database/performance-architecture.mdx) · [two-plane core](./docs/reference/architecture/two-plane-core.mdx) · [achievements log](./docs/project/achievements-2026.mdx).
 
 ### How to run
 
@@ -377,7 +377,7 @@ bun run scripts/benchmark-matrix/index.ts --sql
 - 🧪 **[Test status](./docs/tests/test-status.mdx)** — What to run; CI is source of truth for pass/fail
 - 🔒 **[Security](./docs/reference/security/index.mdx)** — Architecture (self-assessment, not a third-party audit)
 - 🔄 **[Upgrading SveltyCMS](./docs/guides/configuration/upgrading.mdx)** — Safe update guide
-- 🏗️ **Architecture: Database Resilience** — [./docs/architecture/database-resilience.mdx](./docs/architecture/database-resilience.mdx)
+- 🏗️ **Architecture: Database Resilience** — [./docs/reference/database/database-resilience.mdx](./docs/reference/database/database-resilience.mdx)
 - 🤝 **[Contributing Guide](./CONTRIBUTING.md)** — How to contribute
 
 ## 🔌 Quick API Examples

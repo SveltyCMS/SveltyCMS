@@ -43,8 +43,19 @@ export function layoutUserCountKey(tenantId: string): string {
   return `layout:userCount:${tenantId}`;
 }
 
-export function invalidateLayoutUserCache(userId: string, tenantId?: string | null): void {
-  void cacheService.delete(layoutUserCacheKey(userId), tenantId ?? undefined).catch(() => {});
+/**
+ * Drops the cached layout snapshot for one user.
+ *
+ * **Awaited by callers on purpose**: the previous `void cacheService.delete(…)` returned
+ * before the delete landed, so a save→reload round-trip could be answered from the old
+ * snapshot (observed 2026-09-27 while tracing E2E `profile.spec.ts:174`). Invalidation is
+ * part of the write's contract — the module header says so — so it is awaited.
+ */
+export async function invalidateLayoutUserCache(
+  userId: string,
+  tenantId?: string | null,
+): Promise<void> {
+  await cacheService.delete(layoutUserCacheKey(userId), tenantId ?? undefined).catch(() => {});
 }
 
 /**

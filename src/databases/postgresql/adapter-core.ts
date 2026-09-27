@@ -28,15 +28,24 @@ import type {
   DatabaseResult,
   DatabaseId,
 } from "../db-interface";
-import * as helpers from "../core/drizzle-sql-helpers";
+import { isSystemTable, shouldMaterializeField } from "../core/drizzle-sql-helpers";
 import { getTableColumns, getTableName } from "drizzle-orm";
+// Namespace import on purpose: the whole module is exposed as `adapter.schema` (public surface).
+// Not dead — removing it breaks adapter construction (verified 2026-09-27).
 import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql as drizzleSql, type SQL } from "drizzle-orm";
 import { pgTable, varchar, jsonb, timestamp, boolean, integer } from "drizzle-orm/pg-core";
-import * as utils from "../core/relational-utils";
-import { registerTableSchema } from "../core/relational-utils";
+import {
+  applyTenantFilter,
+  assertFiniteAmount,
+  assertSafeSqlIdentifier,
+  buildRawTenantClause,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  registerTableSchema,
+} from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 
@@ -101,6 +110,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   private _tenantPools = new Map<string, ReturnType<typeof postgres>>();
   /** Tracks active in-flight query count per tenant pool to prevent evicting busy pools */
   private _tenantPoolInflight = new Map<string, number>();
+  /** Last-use timestamp per dedicated tenant pool — eviction takes the least recently used idle pool */
+  private _tenantPoolLastUsed = new Map<string, number>();
   /** Set of tenants with dedicated isolated DSNs (which can safely skip cross-tenant GUC) */
   private _dedicatedDsnTenants = new Set<string>();
   /** The tenant ID for the current request context, set by setTenantContext() */
@@ -164,7 +175,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const colList = synthCols
         .map((c) => {
           const phys = this.getColumn(table, c);
-          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+          return `"${assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
         })
         .join(", ");
       const isJsonMap: boolean[] = [];
@@ -175,7 +186,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         isJsonMap[i] = isJson;
         return isJson ? `$${i + 1}::jsonb` : `$${i + 1}`;
       });
-      const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
+      const sqlText = `INSERT INTO "${assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
       tpl = { synthCols, sqlText, isJsonMap };
       this._insertTemplateCache.set(key, tpl);
     }
@@ -210,7 +221,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
 
       await exec.unsafe(tpl.sqlText, boundValues, { prepare: true });
-      return utils.convertDatesToISO(synthesized, {
+      return convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
@@ -238,7 +249,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const len = batchValues.length;
       if (len === 0) return [];
       const tableName = getTableName(table);
-      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+      const safeTableName = assertSafeSqlIdentifier(tableName, "table");
 
       const synthesizedRows: Record<string, any>[] = [];
       for (let i = 0; i < len; i++) {
@@ -269,14 +280,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const colList = tpl.synthCols
         .map((c) => {
           const phys = this.getColumn(table, c);
-          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+          return `"${assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
         })
         .join(", ");
 
       const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES ${rowTuples.join(", ")}`;
       await exec.unsafe(sqlText, boundValues, { prepare: false });
 
-      return utils.convertArrayDatesToISO(synthesizedRows, {
+      return convertArrayDatesToISO(synthesizedRows, {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T[];
@@ -316,7 +327,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const col = columns[i];
         const phys = this.getColumn(table, col);
         const physName = phys?.name ?? col;
-        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+        const safeCol = assertSafeSqlIdentifier(physName, "column");
         const isJson = physName === "data" || (phys as any)?.dataType === "json";
         isJsonMap[i] = isJson;
         // `||` is a SHALLOW, null-keeping merge — exactly MongoDB's per-field `$set`
@@ -331,8 +342,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         );
       }
       const idIdx = columns.length + 1;
-      const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
-      const safeTable = utils.assertSafeSqlIdentifier(tableName, "table");
+      const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+      const safeTable = assertSafeSqlIdentifier(tableName, "table");
       const setSql = setPairs.join(", ");
       let whereSql = `"${safeIdCol}" = $${idIdx}`;
       if (hasTenant) {
@@ -343,7 +354,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         returningClause = fields
           .map((f) => {
             const phys = this.getColumn(table, f);
-            return `"${utils.assertSafeSqlIdentifier(phys?.name ?? f, "column")}"`;
+            return `"${assertSafeSqlIdentifier(phys?.name ?? f, "column")}"`;
           })
           .join(", ");
       } else if (skipJson) {
@@ -354,7 +365,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         });
         if (nonJsonCols.length > 0) {
           returningClause = nonJsonCols
-            .map((c) => `"${utils.assertSafeSqlIdentifier(physCols[c]?.name ?? c, "column")}"`)
+            .map((c) => `"${assertSafeSqlIdentifier(physCols[c]?.name ?? c, "column")}"`)
             .join(", ");
         }
       }
@@ -435,7 +446,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           ...values,
           [idColName]: id,
         } as Record<string, unknown>;
-        return utils.convertDatesToISO(reconstructed, {
+        return convertDatesToISO(reconstructed, {
           ...this.convertDatesOptions,
           table: collection,
           inPlace: true,
@@ -444,7 +455,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       const rows = await exec.unsafe(tpl.sqlWithReturning, boundValues, { prepare: true });
       if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertDatesToISO(rows[0], {
+        return convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
           table: collection,
           inPlace: true,
@@ -482,11 +493,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const tableName = getTableName(table);
       const idColName =
         (this.getColumn(table, "_id") || this.getColumn(table, "id"))?.name ?? "_id";
-      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 2 });
+      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
       const hasTenant = tenantClause.sql !== "";
       const sqlText =
-        `SELECT "data" FROM "${utils.assertSafeSqlIdentifier(tableName, "table")}"` +
-        ` WHERE "${utils.assertSafeSqlIdentifier(idColName, "column")}" = $1${hasTenant ? ' AND "tenantId" = $2' : ""} LIMIT 1`;
+        `SELECT "data" FROM "${assertSafeSqlIdentifier(tableName, "table")}"` +
+        ` WHERE "${assertSafeSqlIdentifier(idColName, "column")}" = $1${hasTenant ? ' AND "tenantId" = $2' : ""} LIMIT 1`;
       const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       return parseJsonDataBlob(Array.isArray(rows) && rows.length > 0 ? rows[0]?.data : null);
@@ -513,8 +524,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   private _rawFindPointWireSqlCache = new WeakMap<
     any,
     {
+      /** `SELECT … FROM table` prefix shared by every variant below. */
+      selectPrefix: string;
       base: string;
       tenant: string;
+      /** Published-only variants; `null` when the table has no `status` column. */
+      basePub: string | null;
+      tenantPub: string | null;
     }
   >();
 
@@ -558,12 +574,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       let cachedSql = this._rawFindByIdSqlCache.get(table);
       if (!cachedSql) {
-        const safeTable = `"${utils.assertSafeSqlIdentifier(tableName, "table")}"`;
+        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
         const selectWithData = this.getRawFindByIdCols(table, true)
-          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+          .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
           .join(", ");
         const selectWithoutData = this.getRawFindByIdCols(table, false)
-          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+          .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
           .join(", ");
 
         cachedSql = {
@@ -578,7 +594,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // Reuse the shared tenant-clause contract (respects bypass + "global")
       // so the raw path scopes identically to SQLite/MariaDB and the Drizzle
       // fallback below.
-      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 2 });
+      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
       const hasTenant = tenantClause.sql !== "";
 
       const sqlText = hasTenant
@@ -593,7 +609,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return null;
 
-      return utils.convertDatesToISO(rows[0], {
+      return convertDatesToISO(rows[0], {
         ...this.convertDatesOptions,
         table: collection,
         skipJson: !wantsData,
@@ -629,22 +645,42 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       let cachedWireSql = this._rawFindPointWireSqlCache.get(table);
       if (!cachedWireSql) {
-        const safeTable = `"${utils.assertSafeSqlIdentifier(tableName, "table")}"`;
+        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
         const hasSlugCol = !!this.getColumn(table, "slug");
         const hasStatusCol = !!this.getColumn(table, "status");
 
         const dataExpr = `(CASE WHEN "data" IS NULL THEN jsonb_build_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""}) ELSE ("data" || jsonb_build_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})) END)`;
+        const selectPrefix = `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         cachedWireSql = {
-          base: `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
-          tenant: `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+          selectPrefix,
+          base: `${selectPrefix} WHERE "_id" = $1 LIMIT 1`,
+          tenant: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+          // Wire Plane publication guarantee (see `requirePublished`): compiled
+          // into the statement so unpublished rows never reach the socket.
+          basePub: hasStatusCol
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" = 'publish' LIMIT 1`
+            : null,
+          tenantPub: hasStatusCol
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" = 'publish' AND "tenantId" = $2 LIMIT 1`
+            : null,
         };
         this._rawFindPointWireSqlCache.set(table, cachedWireSql);
       }
 
-      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 2 });
+      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
       const hasTenant = tenantClause.sql !== "";
-      const sqlText = hasTenant ? cachedWireSql.tenant : cachedWireSql.base;
+      const wantPublished = options?.requirePublished === true;
+      // Fail closed: no `status` column means the engine cannot prove the row is
+      // published, so the caller's Domain-Plane clamp decides instead.
+      if (wantPublished && !cachedWireSql.basePub) return null;
+      const sqlText = wantPublished
+        ? hasTenant
+          ? cachedWireSql.tenantPub!
+          : cachedWireSql.basePub!
+        : hasTenant
+          ? cachedWireSql.tenant
+          : cachedWireSql.base;
       const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return null;
@@ -653,65 +689,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         wireBody:
           typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
         etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Direct-to-Wire list stream optimization for PostgreSQL:
-   * Generates `{ success: true, data: [ ... ] }` directly inside PostgreSQL C engine
-   * via jsonb_agg and jsonb_build_object.
-   */
-  protected override async rawFindListWireStream<T extends import("../db-interface").BaseEntity>(
-    table: any,
-    _collection: string,
-    _query: import("../db-interface").QueryFilter<T>,
-    options: import("../db-interface").FindOptions<T>,
-  ): Promise<{ wireBody: string; etag?: string } | null> {
-    const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return null;
-    const exec = txnSql ?? this.sql!;
-    if (!exec) return null;
-
-    try {
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return null;
-
-      const tableName = getTableName(table);
-      const safeTable = `"${utils.assertSafeSqlIdentifier(tableName, "table")}"`;
-      const limit = Math.min(options?.limit ?? 50, 100);
-      const offset = options?.offset ?? 0;
-      const tenantClause = utils.buildRawTenantClause(options, "postgres", { paramIndex: 1 });
-      const hasTenant = tenantClause.sql !== "";
-
-      const hasSlugCol = !!this.getColumn(table, "slug");
-      const hasStatusCol = !!this.getColumn(table, "status");
-      const hasDeletedCol = !!this.getColumn(table, "isDeleted");
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-
-      const dataExpr = `(CASE WHEN sub.data IS NULL THEN jsonb_build_object('_id', sub._id${hasStatusCol ? ", 'status', sub.status" : ""}${hasSlugCol ? ", 'slug', sub.slug" : ""}) ELSE (sub.data || jsonb_build_object('_id', sub._id${hasStatusCol ? ", 'status', sub.status" : ""}${hasSlugCol ? ", 'slug', sub.slug" : ""})) END)`;
-
-      const whereBase = hasDeletedCol ? '"isDeleted" = false' : "1 = 1";
-      const whereClause = hasTenant
-        ? `WHERE ${whereBase} ${tenantClause.sql}`
-        : `WHERE ${whereBase}`;
-
-      const limitIndex = hasTenant ? tenantClause.params.length + 1 : 1;
-      const offsetIndex = limitIndex + 1;
-      const orderBy = hasUpdatedAtCol ? '"updatedAt" DESC' : '"_id" DESC';
-      const subquery = `SELECT * FROM ${safeTable} ${whereClause} ORDER BY ${orderBy} LIMIT $${limitIndex} OFFSET $${offsetIndex}`;
-      const listSql = `SELECT jsonb_build_object('success', true, 'data', COALESCE(jsonb_agg(${dataExpr}), '[]'::jsonb))::text AS wire_body FROM (${subquery}) sub`;
-
-      const params = hasTenant ? [...tenantClause.params, limit, offset] : [limit, offset];
-
-      const rows = await exec.unsafe(listSql, params, { prepare: true });
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-      const first = rows[0];
-      return {
-        wireBody:
-          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
       };
     } catch {
       return null;
@@ -757,7 +734,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
       // defense-in-depth for direct calls) + tenant WHERE like rawUpdateReturning.
       if (this.getColumn(table, "tenantId"))
-        utils.applyTenantFilter([], this.getColumn(table, "tenantId"), options);
+        applyTenantFilter([], this.getColumn(table, "tenantId"), options);
 
       const prepared = updates.map((u) =>
         this.prepareUpdateValues(table, u.data, u.id as string, now, options),
@@ -809,7 +786,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           for (const col of setCols) {
             const phys = this.getColumn(table, col);
             const physName = phys?.name ?? col;
-            const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+            const safeCol = assertSafeSqlIdentifier(physName, "column");
             const isJson = physName === "data" || (phys as any)?.dataType === "json";
             // Merge wrapper for a live partial-update patch (`||` is an exact
             // shallow merge on PostgreSQL, and subset patches were filtered above).
@@ -860,7 +837,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               boundValues.push(String(chunkIds[i]), bindPgParam(values[col], isJson));
               whens.push(`WHEN $${idParam} THEN $${valParam}${isJson ? "::jsonb" : ""}`);
             }
-            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
             const caseSql = `CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`;
             setPairs.push(
               jsonWrap && isJson
@@ -873,7 +850,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           const idPlaceholders = chunkIds.map((_, i) => `$${idParamIdx + i + 1}`).join(", ");
           boundValues.push(...chunkIds);
 
-          let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})`;
+          let whereSql = `"${assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})`;
           if (
             options?.tenantId !== undefined &&
             options.tenantId !== null &&
@@ -883,7 +860,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             whereSql += ` AND "tenantId" = $${boundValues.length}`;
           }
 
-          const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+          const safeTableName = assertSafeSqlIdentifier(tableName, "table");
           const rawSql = `UPDATE "${safeTableName}" SET ${setPairs.join(", ")} WHERE ${whereSql}`;
           const res = await db.unsafe(rawSql, boundValues, { prepare: true });
           modifiedCount += Number((res as any)?.count ?? 0);
@@ -955,7 +932,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           const colList = Array.from(cols)
             .map((c) => {
               const phys = this.getColumn(table, c);
-              return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+              return `"${assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
             })
             .join(", ");
           const rowsOut: any[] = [];
@@ -995,7 +972,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               }
               valuesSql.push(`(${rowPlaceholders.join(", ")})`);
             }
-            const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(
+            const sqlText = `INSERT INTO "${assertSafeSqlIdentifier(
               getTableName(table),
               "table",
             )}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
@@ -1009,7 +986,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           if (rowsOut.length === len) {
             return {
               success: true as const,
-              data: utils.convertArrayDatesToISO(rowsOut, {
+              data: convertArrayDatesToISO(rowsOut, {
                 ...this.convertDatesOptions,
                 table: collection,
               }) as T[],
@@ -1129,8 +1106,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       if (oldest !== undefined) this._dynamicSortIndexes.delete(oldest);
     }
 
-    const safeTable = utils.assertSafeSqlIdentifier(tableName, "table");
-    const indexName = utils.assertSafeSqlIdentifier(`${tableName}_${field}_expr_idx`, "index");
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const indexName = assertSafeSqlIdentifier(`${tableName}_${field}_expr_idx`, "index");
     void (async () => {
       try {
         await this.raw.execute(
@@ -1288,7 +1265,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     this._resolving.add(collection);
 
     try {
-      if (helpers.isSystemTable(collection)) {
+      if (isSystemTable(collection)) {
         const aliased = this.getAliasedTable(collection);
         if (aliased) {
           this.tableRegistry.set(collection, aliased);
@@ -1301,20 +1278,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // (rawFindById/insert/insertMany/update/DDL). Dash-stripping alone did
       // not stop quote breakout from admin-typed collection names — fail
       // closed BEFORE any SQL is assembled.
-      utils.assertSafeSqlIdentifier(cleanId, "collection");
+      assertSafeSqlIdentifier(cleanId, "collection");
       // ⚠️ Composite length guard: the interpolated identifier is
       // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
       // not enough — the composite can exceed NAMEDATALEN=63 and PG would
       // silently truncate, colliding with a longer sibling name. Fail closed
       // on the FINAL identifier (normalizeCollectionTableName is the single
       // source of truth for the physical name derivation).
-      const tableName = utils.assertSafeSqlIdentifier(
-        normalizeCollectionTableName(collection),
-        "table",
-      );
+      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
+      if (isSystemTable(cleanName) && cleanName !== collection) {
         return this.getTable(cleanName);
       }
 
@@ -1822,8 +1796,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         if (!idCol) throw new Error("ID column not found");
 
         // Identifiers may be embedded; values (_id, amount, tenantId) are always bound.
-        const safeField = utils.assertSafeSqlIdentifier(field);
-        const amountNum = utils.assertFiniteAmount(amount);
+        const safeField = assertSafeSqlIdentifier(field);
+        const amountNum = assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
         // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
@@ -1832,11 +1806,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const fieldIsColumn = !!this.getColumn(table, field);
 
         // $1 = id, $2 = amount, $3 = tenantId (optional)
-        const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
-          options,
-          "postgres",
-          { paramIndex: 3 },
-        );
+        const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "postgres", {
+          paramIndex: 3,
+        });
         const params: unknown[] = [idStr, amountNum, ...tenantParams];
 
         const sqlQuery = fieldIsColumn
@@ -1923,7 +1895,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           for (const field of schemaData.fields) {
             // Row-store hybrid: scalar fields become physical columns — the
             // `data` blob keeps only dynamic fields for new rows.
-            if (helpers.shouldMaterializeField(field)) {
+            if (shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
@@ -1988,7 +1960,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
             // before it reaches ALTER/CREATE INDEX identifiers (the backfill
             // loop below already asserts).
-            const colName = utils.assertSafeSqlIdentifier(col.name, "column");
+            const colName = assertSafeSqlIdentifier(col.name, "column");
             if (existingCols.has(colName)) continue;
             await this.raw.execute(
               `ALTER TABLE "${physicalName}" ADD COLUMN "${colName}" ${col.type}`,
@@ -2028,7 +2000,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           try {
             // 🛡️ Same allow-list as the ALTER loop — dynamicCols can carry
             // admin-typed labels too.
-            const colName = utils.assertSafeSqlIdentifier(colNameRaw, "column");
+            const colName = assertSafeSqlIdentifier(colNameRaw, "column");
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
@@ -2091,7 +2063,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // `jsonb_ops` and exactly what `@>` needs. Write cost measured within
         // run-to-run noise (interleaved rounds: −0.9 % inserts, +5.4 % updates).
         // A collection that is write-only can opt out with `jsonIndex: false`.
-        if ((schema as { jsonIndex?: boolean } | undefined)?.jsonIndex !== false) {
+        if ((schemaData as { jsonIndex?: boolean } | undefined)?.jsonIndex !== false) {
           try {
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${physicalName}_data_gin" ON "${physicalName}" USING gin ("data" jsonb_path_ops)`,
@@ -2249,11 +2221,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (this._tenantPools.size < maxTenantPools) return;
 
     let candidateKey: string | null = null;
+    let candidateLastUsed = Number.POSITIVE_INFINITY;
     for (const key of this._tenantPools.keys()) {
       const inFlight = this._tenantPoolInflight.get(key) ?? 0;
-      if (inFlight === 0) {
+      if (inFlight > 0) continue;
+      const lastUsed = this._tenantPoolLastUsed.get(key) ?? 0;
+      if (lastUsed < candidateLastUsed) {
+        candidateLastUsed = lastUsed;
         candidateKey = key;
-        break;
       }
     }
 
@@ -2267,6 +2242,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const evicted = this._tenantPools.get(candidateKey);
     this._tenantPools.delete(candidateKey);
     this._tenantPoolInflight.delete(candidateKey);
+    this._tenantPoolLastUsed.delete(candidateKey);
     this._dedicatedDsnTenants.delete(candidateKey);
 
     if (evicted) {
@@ -2304,9 +2280,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public getTenantPool(tenantId: string): ReturnType<typeof postgres> {
     const existing = this._tenantPools.get(tenantId);
     if (existing) {
-      // Re-insert to refresh LRU order
-      this._tenantPools.delete(tenantId);
-      this._tenantPools.set(tenantId, existing);
+      this._tenantPoolLastUsed.set(tenantId, Date.now());
       return existing;
     }
 
@@ -2331,6 +2305,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     });
 
     this._tenantPools.set(tenantId, pool);
+    this._tenantPoolLastUsed.set(tenantId, Date.now());
     logger.debug(`Created dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
     return pool;
   }
@@ -2354,6 +2329,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       });
       this._tenantPools.delete(tenantId);
       this._tenantPoolInflight.delete(tenantId);
+      this._tenantPoolLastUsed.delete(tenantId);
       this._dedicatedDsnTenants.delete(tenantId);
     } else {
       const maxTenantPools = parseInt(process.env.MAX_TENANT_POOLS || "16", 10);
@@ -2371,6 +2347,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     });
 
     this._tenantPools.set(tenantId, pool);
+    this._tenantPoolLastUsed.set(tenantId, Date.now());
     this._dedicatedDsnTenants.add(tenantId);
     logger.info(`Configured dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
   }
@@ -2387,6 +2364,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       await pool.end();
       this._tenantPools.delete(tenantId);
       this._tenantPoolInflight.delete(tenantId);
+      this._tenantPoolLastUsed.delete(tenantId);
       this._dedicatedDsnTenants.delete(tenantId);
       logger.info(`Closed dedicated connection pool for tenant "${tenantId}"`);
     }

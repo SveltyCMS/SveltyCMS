@@ -12,6 +12,7 @@ import { payloadTouchesCollectionFieldPreparation } from "@src/content/content-u
 import {
   prepareWritePayload,
   writeTouchesActiveWidgets,
+  type PrepFieldSchema,
 } from "@src/services/sdk/namespaces/collections/write-pipeline";
 import { ensureSchemaHotFlags } from "@src/services/sdk/namespaces/collections/schema-store";
 import type { Schema } from "@src/content/types";
@@ -70,7 +71,10 @@ describe("ensureSchemaHotFlags DateTime inline", () => {
 });
 
 describe("partial write field preparation", () => {
-  const schema = {
+  // Typed with the same structural view the production write pipeline passes to the
+  // content helpers (`PrepFieldSchema`) — a full `Schema` cast is not assignable to it,
+  // because `FieldDefinition[]` allows widget placeholders without `db_fieldName`.
+  const schema: PrepFieldSchema & { _id: string; name: string } = {
     _id: "Articles",
     name: "Articles",
     fields: [
@@ -79,7 +83,7 @@ describe("partial write field preparation", () => {
       { db_fieldName: "tags", widget: { Name: "Input" }, type: "array" },
       { db_fieldName: "count", widget: { Name: "Input" }, type: "number" },
     ],
-  } as Schema;
+  };
 
   const flags = { sanitize: true, constraints: true };
 

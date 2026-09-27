@@ -102,7 +102,10 @@
 		if (item.installed) return;
 		installingId = item.id;
 		try {
-			const res = await fetchApi('/api/marketplace/install', {
+			const res = await fetchApi<{
+				licenseRequired?: boolean;
+				package?: { version?: string };
+			}>('/api/marketplace/install', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 				body: JSON.stringify({
@@ -111,11 +114,15 @@
 					licenseKey: key || undefined
 				})
 			});
-			const body = await res.json().catch(() => ({}));
-			if (!res.ok) {
-				throw new Error(body?.message || body?.error || `HTTP ${res.status}`);
+			if (!res.success) {
+				throw new Error(res.message || res.error || 'Install failed');
 			}
-			const payload = body?.data ?? body;
+			// Some endpoints spread their payload at the top level (`{ success, ...data }`),
+			// others nest it under `data` — accept both, as the previous parse did.
+			const payload = (res.data ?? res) as {
+				licenseRequired?: boolean;
+				package?: { version?: string };
+			};
 			if (payload?.licenseRequired) {
 				licenseTarget = item;
 				licenseOpen = true;
@@ -144,7 +151,7 @@
 	async function submitLicense() {
 		if (!licenseKey.trim()) return;
 		try {
-			const res = await fetchApi('/api/marketplace/license', {
+			const res = await fetchApi<unknown>('/api/marketplace/license', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 				body: JSON.stringify({
@@ -152,7 +159,7 @@
 					pluginId: licenseTarget?.id
 				})
 			});
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			if (!res.success) throw new Error(res.message || res.error || 'License check failed');
 			licenseOpen = false;
 			if (licenseTarget) await installItem(licenseTarget, licenseKey.trim());
 		} catch (err) {

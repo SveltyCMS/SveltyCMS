@@ -48,7 +48,12 @@ import type {
   QueryOptimizationHints,
 } from "../db-interface";
 import { normalizeSortDirection } from "./page-utils";
-import * as utils from "./relational-utils";
+import {
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  convertISOToDates,
+  createDatabaseError,
+} from "./relational-utils";
 import { getJsonDataPatch } from "./json-data-patch";
 
 /**
@@ -572,7 +577,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       const results = await q;
       return {
         success: true,
-        data: utils.convertArrayDatesToISO(
+        data: convertArrayDatesToISO(
           results as Record<string, unknown>[],
           this.dateConversionOptions,
         ) as unknown as T[],
@@ -592,7 +597,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       this.prepareReadConversion();
       const q = this.buildQuery();
       const stream = await (q as any).stream();
-      const convert = utils.convertDatesToISO;
+      const convert = convertDatesToISO;
       const opts = this.dateConversionOptions;
 
       async function* generator() {
@@ -620,7 +625,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       return {
         success: true,
         data: result
-          ? (utils.convertDatesToISO(
+          ? (convertDatesToISO(
               result as Record<string, unknown>,
               this.dateConversionOptions,
             ) as unknown as T)
@@ -638,7 +643,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       return {
         success: false,
         message: "Document not found",
-        error: utils.createDatabaseError("NOT_FOUND", "Document not found"),
+        error: createDatabaseError("NOT_FOUND", "Document not found"),
       };
     }
     return res as DatabaseResult<T>;
@@ -689,7 +694,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 
       // Single statement: merge inside the UPDATE (no read) when a patch is live.
       if (jsonPatch) this.core.applyJsonMergeToSet?.(prepared, table, jsonPatch);
-      const drizzleSet = utils.convertISOToDates(
+      const drizzleSet = convertISOToDates(
         { ...prepared, updatedAt: prepared.updatedAt ?? new Date() },
         this.dateConversionOptions,
       ) as unknown as Record<string, unknown>;

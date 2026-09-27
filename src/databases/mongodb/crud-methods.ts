@@ -33,6 +33,7 @@ import {
   withIdTiebreaker,
 } from "../core/page-utils";
 import { applyLookupStatus, parseIdLookup } from "../core/lookup-query";
+import { PUBLISHED_STATUS_LIST } from "@utils/security/publication-policy";
 
 /**
  * Native `collection.findOne` may return a BSON ObjectId `_id`. Stringify so
@@ -184,9 +185,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
   }
 
   /**
-   * Direct-to-Wire point stream for MongoDB (2027 architecture parity):
-   * Queries native collection cursor with system-column exclusion projection,
-   * bypassing Mongoose document instance wrapping.
+   * Direct-to-Wire point stream for MongoDB: builds the `{ success, data }` JSON
+   * envelope in JS around a driver-level `collection.findOne` with a system-column
+   * exclusion projection. MongoDB has no engine-side JSON to stream, so the gain
+   * over `findOne` is avoiding Mongoose hydration — not `JSON.stringify`.
    */
   async findPointWireStream(
     _collection: string,
@@ -194,8 +196,15 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
     try {
-      const filter: Record<string, unknown> = { _id: id, isDeleted: { $ne: true } };
-      if (options.tenantId) filter.tenantId = options.tenantId;
+      // Fail closed on a missing tenant, exactly like `findOne`.
+      const filter = this.adapter.mapQuery(
+        safeQuery({ _id: id } as unknown as QueryFilter<T>, options.tenantId as string, {
+          systemScope: options.systemScope,
+          includeDeleted: options.includeDeleted,
+        }),
+      );
+      // Wire Plane publication guarantee: express it in the query (see `requirePublished`).
+      if (options.requirePublished === true) filter.status = { $in: PUBLISHED_STATUS_LIST };
 
       const rawDoc = await this.model.collection.findOne(filter, {
         projection: { _collection: 0, tenantId: 0, createdAt: 0, isDeleted: 0 },
@@ -209,58 +218,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const etag = `"${String(id)}-${updatedAt}"`;
       return { success: true, data: { wireBody, etag } };
     } catch (err: any) {
+      const message =
+        err?.message || `Failed to stream point wire payload from ${this.model.modelName}`;
       return {
         success: false,
-        message: err?.message || `Failed to stream point wire payload from ${this.model.modelName}`,
-        data: null,
-      };
-    }
-  }
-
-  /**
-   * Direct-to-Wire list stream for MongoDB (2027 architecture parity):
-   * Queries native collection cursor with system-column exclusion projection,
-   * bypassing Mongoose document instance wrapping.
-   */
-  async findListWireStream(
-    _collection: string,
-    query: QueryFilter<T> = {},
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<{ wireBody: string; etag?: string } | null>> {
-    try {
-      const filter: Record<string, unknown> = {
-        ...(query as Record<string, unknown>),
-        isDeleted: { $ne: true },
-      };
-      if (options.tenantId) filter.tenantId = options.tenantId;
-
-      const limit = Math.min(options?.limit ?? 50, 100);
-      const skip = options?.offset ?? 0;
-
-      const cursor = this.model.collection
-        .find(filter, {
-          projection: { _collection: 0, tenantId: 0, createdAt: 0, isDeleted: 0 },
-        })
-        .sort({ updatedAt: -1 })
-        .skip(skip)
-        .limit(limit);
-
-      const rawDocs = await cursor.toArray();
-      const docs = rawDocs.map((d) => {
-        const doc = plainNativeDoc<Record<string, unknown>>(d);
-        if (doc && doc.updatedAt) {
-          doc.updatedAt = toISOString(doc.updatedAt);
-        }
-        return doc;
-      });
-
-      const wireBody = JSON.stringify({ success: true, data: docs });
-      return { success: true, data: { wireBody } };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.message || `Failed to stream list wire payload from ${this.model.modelName}`,
-        data: null,
+        message,
+        error: createDatabaseError(err, "FIND_POINT_WIRE_STREAM_FAILED", message),
       };
     }
   }

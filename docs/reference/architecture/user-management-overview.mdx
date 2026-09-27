@@ -46,7 +46,11 @@ This powerful component is conditionally rendered at the bottom of the page for 
 - **Functionality**: Provides a unified table interface to view, search, filter, and perform batch actions (delete, block, unblock) on all users or registration tokens in the system.
 - **Performance Optimized**: The system has been optimized to remove server-side pre-loading of all users and tokens, improving initial page load performance.
 
-### 3. Two-Factor Authentication (`two-factor-setup-modal.svelte` / `two-factor-verify-modal.svelte`)
+### 3. Two-Factor Authentication (`modal-two-factor-auth.svelte` → `two-factor-verify-modal.svelte`)
+
+The user page mounts `modal-two-factor-auth.svelte` (setup + verify); disable uses
+`two-factor-verify-modal.svelte`. A standalone `two-factor-setup-modal.svelte` exists but is
+**unmounted** — treat `modal-two-factor-auth.svelte` as the live entry point.
 
 Security is enhanced through an integrated TOTP-based 2FA system. These modal components are displayed on the user page, allowing users to:
 

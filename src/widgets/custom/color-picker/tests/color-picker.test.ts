@@ -3,8 +3,12 @@
  * @description Unit tests for the ColorPicker widget validation logic
  */
 
-import { describe, it, expect } from "vitest";
-import ColorPickerWidget from "../index";
+import { describe, expect, it, vi } from "vitest";
+vi.mock(
+  "@src/paraglide/messages",
+  async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
+);
+import ColorPickerWidget from "@widgets/custom/color-picker";
 import { safeParse } from "valibot";
 
 describe("ColorPicker Widget - Validation", () => {

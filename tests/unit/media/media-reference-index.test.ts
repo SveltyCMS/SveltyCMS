@@ -53,6 +53,12 @@ describe("MediaReferenceIndex.collectPublishedIds", () => {
       ]);
     }
     index.markBuilt();
+
+    // JIT warm-up outside the timed window: a cold run of this loop has been
+    // measured at >70ms on CI, which flaked the budget below (parity rule:
+    // "perf assertions need JIT warm-up"). Warm first, then time the steady state.
+    for (let n = 0; n < 1_000; n++) index.collectPublishedIds(ids, () => true);
+
     const t0 = performance.now();
     for (let n = 0; n < 2_000; n++) {
       index.collectPublishedIds(ids, () => true);

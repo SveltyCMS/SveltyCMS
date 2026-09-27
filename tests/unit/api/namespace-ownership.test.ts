@@ -300,8 +300,8 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   ],
   debug: ["tests/unit/api/dispatcher-security-matrix.test.ts"],
   "openapi.json": ["tests/unit/api/openapi.test.ts", "tests/integration/api/openapi.test.ts"],
-  "remote-video": ["tests/unit/widgets/custom/remote-video.test.ts"],
-  remoteVideo: ["tests/unit/widgets/custom/remote-video.test.ts"],
+  "remote-video": ["src/widgets/custom/remote-video/tests/remote-video.test.ts"],
+  remoteVideo: ["src/widgets/custom/remote-video/tests/remote-video.test.ts"],
   seo: ["tests/unit/api/dispatcher-security-matrix.test.ts"],
 
   // Enterprise

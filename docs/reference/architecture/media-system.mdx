@@ -185,7 +185,7 @@ The media system prevents mutation of assets referenced by published content ent
 
 2. **Handler Layer** (`handlers/media.ts`): A `checkMediaNotReferencedByPublishedContent()` helper is called in all 6 mutation handlers before performing the operation. Returns **409 Conflict** with details identifying which content entries reference the asset.
 
-3. **UI Layer** (`media-grid.svelte`, `media-table.svelte`, `virtual-media-grid.svelte`): Edit/delete buttons are disabled with contextual tooltip "Referenced by published content". A lock badge appears at the top-left of affected media cards.
+3. **UI Layer** (`media-grid.svelte`, `media-table.svelte`): Edit/delete buttons are disabled with contextual tooltip "Referenced by published content". A lock badge appears at the top-left of affected media cards.
 
 4. **Server Load** (`+page.server.ts`): Batched `Promise.allSettled` pre-checks all visible media items for published references before rendering.
 
@@ -242,7 +242,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 - **On-Demand Transforms**: `/files/**?w=&h=&q=&fmt=` produces cached raster variants on the delivery route (no separate `/api/media/*` transform endpoint exists). See [On-Demand Image Transforms](#-on-demand-image-transforms) below for the parameter contract, clamps, cache layout and fallback rules.
 - **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
-- **Lazy Loading**: `virtual-media-grid.svelte` handles 10,000+ files with sub-millisecond scroll performance using Svelte 5 runes.
+- **Lazy Loading**: lazy thumbnail decoding in `media-grid.svelte` / `media-table.svelte` keeps the gallery responsive with thousands of files using Svelte 5 runes. (`virtual-media-grid.svelte` implements a windowed grid but is **unmounted** today.)
 
 ---
 

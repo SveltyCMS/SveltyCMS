@@ -2,26 +2,27 @@
  * @file tests/unit/utils/logger.test.ts
  * @description Logger level gates, once(), and isEnabled — keep CMS diagnostics cheap.
  *
- * Uses the real module via relative import path so global @utils/logger mock does not apply.
+ * Uses the real module via `vi.importActual` so the global @utils/logger mock does not apply.
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-
-// Load real logger from source (bypass the global vi.mock("@utils/logger", ...) in tests/unit/setup.ts)
-const loadLogger = () => vi.importActual<typeof import("@utils/logger")>("@utils/logger");
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
 describe("logger (levels & once)", () => {
-  const originalError = console.error;
   let logger: typeof import("@utils/logger").logger;
+  let errorSpy: MockInstance<typeof console.error>;
+  /**
+   * `once()` de-duplicates against a module-level key set, so every test needs a
+   * key no other test used. A counter keeps that deterministic (no clock/random).
+   */
+  let keySeq = 0;
+  const uniqueKey = (prefix: string) => `${prefix}-${++keySeq}`;
 
   beforeEach(async () => {
-    console.error = vi.fn();
-    // Fresh import after cache bust for once keys isolation is hard (module singleton);
-    // use unique keys per test instead.
-    logger = (await loadLogger()).logger;
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    logger = (await vi.importActual<typeof import("@utils/logger")>("@utils/logger")).logger;
   });
 
   afterEach(() => {
-    console.error = originalError;
+    vi.restoreAllMocks();
   });
 
   it("exposes isEnabled and isLevel as cheap gates", () => {
@@ -32,23 +33,27 @@ describe("logger (levels & once)", () => {
   });
 
   it("once() emits only the first call for a key", () => {
-    const key = `test-once-${Date.now()}-${Math.random()}`;
+    const key = uniqueKey("test-once");
+
     expect(logger.once(key, "error", "first")).toBe(true);
     expect(logger.once(key, "error", "second")).toBe(false);
-    expect(console.error).toHaveBeenCalled();
-    const calls = (console.error as ReturnType<typeof vi.fn>).mock.calls.length;
+    expect(errorSpy).toHaveBeenCalled();
+    const calls = errorSpy.mock.calls.length;
+
     expect(logger.once(key, "error", "third")).toBe(false);
-    expect((console.error as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls);
+    expect(errorSpy.mock.calls.length).toBe(calls);
   });
 
   it("channel.once namespaces keys", () => {
     const ch = logger.channel("auth");
-    const key = `ch-${Date.now()}-${Math.random()}`;
+    const key = uniqueKey("ch");
+
     ch.once(key, "error", "a");
     ch.once(key, "error", "b");
-    const calls = (console.error as ReturnType<typeof vi.fn>).mock.calls.length;
+    const calls = errorSpy.mock.calls.length;
+
     ch.once(key, "error", "c");
-    expect((console.error as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls);
+    expect(errorSpy.mock.calls.length).toBe(calls);
   });
 
   it("masks secret keys but keeps ordinary context keys", () => {
@@ -63,7 +68,7 @@ describe("logger (levels & once)", () => {
       cacheKey: "collection:posts",
       email: "jane@example.com",
     });
-    const out = (console.error as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const out = errorSpy.mock.calls[0][0] as string;
     expect(out).toContain("[REDACTED]");
     expect(out).not.toContain("hunter2");
     expect(out).not.toContain("sk-123");
@@ -80,7 +85,8 @@ describe("logger (levels & once)", () => {
   });
 
   it("resolveLogConfig: QUIET/BENCHMARK flag suppress above warn on server", async () => {
-    const { resolveLogConfig } = await loadLogger();
+    const { resolveLogConfig } =
+      await vi.importActual<typeof import("@utils/logger")>("@utils/logger");
     expect(resolveLogConfig({ QUIET: "true", NODE_ENV: "test" }).quiet).toBe(true);
     expect(resolveLogConfig({ BENCHMARK: "true", NODE_ENV: "test" }).quiet).toBe(true);
     expect(resolveLogConfig({ NODE_ENV: "test" }).quiet).toBe(false);
@@ -96,7 +102,8 @@ describe("logger (levels & once)", () => {
   });
 
   it("resolveLogConfig: level resolution honors LOG_LEVEL, LOG_LEVELS, prod default, invalid fallback", async () => {
-    const { resolveLogConfig } = await loadLogger();
+    const { resolveLogConfig } =
+      await vi.importActual<typeof import("@utils/logger")>("@utils/logger");
     expect(resolveLogConfig({ LOG_LEVEL: "error", NODE_ENV: "test" }).level).toBe("error");
     expect(resolveLogConfig({ LOG_LEVELS: "debug", NODE_ENV: "test" }).level).toBe("debug");
     expect(resolveLogConfig({ VITE_LOG_LEVELS: "warn" }).level).toBe("warn");
@@ -115,9 +122,11 @@ describe("logger (levels & once)", () => {
   });
 
   it("masked args never leak secrets through the once() path either", () => {
-    const key = `mask-once-${Date.now()}-${Math.random()}`;
+    const key = uniqueKey("mask-once");
+
     logger.once(key, "error", "boot", { token: "tok-secret", tenantId: "t1" });
-    const out = (console.error as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const out = errorSpy.mock.calls[0][0] as string;
+
     expect(out).toContain("[REDACTED]");
     expect(out).not.toContain("tok-secret");
     expect(out).toContain('"tenantId":"t1"');

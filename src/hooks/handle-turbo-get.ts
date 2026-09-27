@@ -23,6 +23,7 @@ import {
 } from "@src/services/cache/collection-etag";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
+import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
 import { resolveRequestTenant } from "./request-tenant";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
@@ -38,6 +39,15 @@ interface TurboAuthContext {
   tenantId: DatabaseId | null;
   expiresAt: number;
   permMask?: bigint;
+  /**
+   * Role/permission epoch this context was compiled at.
+   *
+   * Turbo consumers (fast lanes) authorize from `permMask` without running the
+   * auth pipeline, so a role edit would otherwise keep serving the old grants
+   * for the whole sliding TTL. `isPermissionBitsetStale()` compares this value
+   * against the live epoch and forces a fall-through to the pipeline instead.
+   */
+  permRev?: number;
 }
 
 const turboAuthCache = new Map<string, TurboAuthContext>();
@@ -56,6 +66,7 @@ export function setTurboAuthContext(
   roles: Role[],
   tenantId: DatabaseId | null,
   permMask?: bigint,
+  permRev?: number,
 ): void {
   if (turboAuthCache.has(sessionId)) {
     turboAuthCache.delete(sessionId);
@@ -70,6 +81,7 @@ export function setTurboAuthContext(
     tenantId,
     expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
     permMask,
+    permRev: permRev ?? getRoleBitsetVersion(),
   });
 }
 
