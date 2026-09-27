@@ -78,9 +78,20 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 **Full unit suite is not re-run on push.** Multi-adapter DB matrix, E2E, and benchmarks are CI-only. Docs-only pushes skip build + integration.
 
+**Release preparation (opt-in).** `bun run git push --release` (or `--release=patch|minor|major`) arms a
+post-gate step: once the nine checks pass, `scripts/version.ts auto` derives the next SemVer version from
+the Conventional Commits since the highest `v*` tag, commits `package.json` as
+`chore(release): bump version to vX.Y.Z`, and prints the push that publishes it. The flag is consumed by
+`scripts/git-safe.ts` (git never forwards hook arguments), which is why the hook reads `SVELTY_RELEASE`.
+The bump runs only behind a full green gate and never inside the triggering push — git resolves the
+pushed refs first — so the release commit stays local until you push again; re-running is a no-op within
+the same release cycle. Manual equivalent: `bun run gate --release`.
+
 ```bash
 bun run gate                               # pre-push gate (build + verifiers + tenant + SQLite)
+bun run gate --release                     # …then bump + commit the next SemVer version
 bun run prepush                            # same as gate
+bun run git push --release origin HEAD:next HEAD:main   # gate + release, one command
 bun test --timeout 300000 tests/integration/   # Integration only (needs build/)
 bun run test:doctor                        # unit + SQLite integration + gate map
 bun run risk:audit                         # same scanners as pre-commit step 4

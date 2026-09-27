@@ -57,6 +57,28 @@ bun run version:bump 0.0.10       # set exactly this version (no commit detectio
 bun run version:bump --dry-run    # print the decision, change nothing
 ```
 
+### Preparing the bump on push
+
+The pre-push gate can run the derivation for you. `bun run git push --release` arms a release step in
+`.githooks/pre-push` (kind optional: `--release=patch|minor|major`, default `auto`); once all nine checks
+pass, the hook runs `scripts/version.ts`, commits the manifest as
+`chore(release): bump version to vX.Y.Z` and prints the push that publishes it. The flag is consumed by
+`scripts/git-safe.ts`, which exports `SVELTY_RELEASE` for the hook — git never forwards hook arguments.
+The manual equivalent is `bun run gate --release`.
+
+Three properties keep it safe to automate: it runs **after** the full gate (a version that ships for a
+tree the gate never validated is the stray bump §8 of `AGENTS.md` warns about); the release commit
+**cannot** travel inside the push that triggered it, because git resolves the pushed refs before the hook
+runs — so the bump stays local and reversible (`git reset --hard HEAD~1`) until you push again; and
+re-running is a no-op, since the derivation is stable within one release cycle. It is skipped on the
+docs-only and `--only-failures` paths, and a `version.ts` refusal fails the hook (the push is blocked)
+rather than leaving behind a push that looks released but is not.
+
+> **Check the proposal before the second push.** `auto` derives from the **highest reachable `v*` tag**,
+> which is not always `git describe`'s nearest tag: with a stale `v0.2.0` in history and `0.1.2` in the
+> manifest, the proposal is `0.3.0`. The commit is local until you push it, so a wrong proposal costs one
+> `git reset` — or pass an explicit target (`bun run version:bump 0.2.0`) instead of `auto`.
+
 **Auto policy** (default) — Conventional Commits subjects mapped to SemVer, highest rule first:
 
 | Commits since the latest `v*` tag                                                                                     | Result            |
@@ -72,7 +94,7 @@ SemVer §7 defines MINOR as new backwards-compatible functionality, so a `feat` 
 
 Two rules keep the tag and the manifest in lockstep (as of September 2026): the release workflow tags whatever version it finds in `package.json`, and `scripts/version.ts` derives the next `package.json` version from the latest `v*` tag — it reads git, not the hand-edited manifest, so the two cannot drift apart. Because the script refuses to derive a version that already carries a tag, re-releasing an existing version fails fast locally instead of the runner quietly skipping tag creation.
 
-Two further safety rails (as of September 2026): the script refuses to run while `package.json` has uncommitted changes (`--dry-run` still previews the decision and prints a warning), and it never creates a commit or a tag — committing the bumped manifest and merging to `main` stays a human decision.
+Two further safety rails (as of September 2026): the script refuses to run while `package.json` has uncommitted changes (`--dry-run` still previews the decision and prints a warning), and it never creates a commit or a tag on its own — committing the bumped manifest and merging to `main` stays a human decision. The one exception is the opt-in pre-push release step above, which does commit the bump — and only after an explicit `--release` request and a full green gate.
 
 The same refusals cover an explicit target: a literal that is not `MAJOR.MINOR.PATCH`, a version that already carries a `v*` tag, or one lower than `package.json` (a downgrade). Because the derived proposal comes from the tag rather than the manifest, it can equal `package.json` — that means the pending version _is_ the next release above the newest tag, so a `patch` bump reports nothing to write and the script says so, pointing at the explicit form (`bun run version:bump 0.0.10`) for any other release.
 

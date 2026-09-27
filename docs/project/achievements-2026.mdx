@@ -108,7 +108,7 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 - **Automated Bottleneck Detection: Heap Stability, Pool Contention & P95/P99 Variance (2026-09-26):**
   - **Heap Stability Regression Guard** (`tests/unit/benchmarks/heap-stability.test.ts`): Three automated tests that fail fast when a code change causes unbounded heap growth: (1) 1 k-doc transformation burst asserts <25 MB retained delta post-GC; (2) 3-burst asymptotic leak check asserts <15 MB gradient across 500-doc waves — catches commitment-ratchet leaks that only converge over many rounds; (3) 256-item LRU eviction cap asserts <10 MB post-GC after 2,000 inserts of 8 KB payloads, matching the internal `BoundedCache` contract.
   - **Connection Pool & Mutex Contention Test** (`tests/integration/databases/pool-contention.test.ts`): Fires 20 concurrent background-worker-pattern tasks (outbox/audit/status-poll simulation) against 20 concurrent foreground CRUD writes and asserts: zero deadlocks, all 40 operations succeed, sub-50 ms post-contention query latency. Runs on SQLite locally, switches to PostgreSQL in CI via `currentDbType()`.
-  - **P95/P99 Latency Variance Report** (`scripts/verify-benchmark-local.ts`): `generateLatencyVarianceReport(db)` reads all 10 standard benchmark JSON result files per engine, computes P50/P95/P99 (from raw samples when available, tail-spread estimated otherwise), tailRatio (p99/p50), and CV%, and classifies each workload as `EXCELLENT` (<2× tail ratio) / `ACCEPTABLE` / `WATCH` / `HIGH_VARIANCE` (>4.5×). `printLatencyVarianceReport()` outputs a human-readable table; `generateLatencyVarianceSummary()` exposes machine-readable totals for CI integration.
+  - **P95/P99 Latency Variance Report** (`scripts/verify-benchmark-local.ts`): `generateLatencyVarianceReport(db)` grades the **last recorded** `competitive-workload-replica` run — rows selected by `testFile` and grouped by `runId`, never by filename — using the run's own **recorded** p50/p99 percentiles, the sample count behind them, and the absolute tail excess (`p99 − p50`). Each workload is classified `EXCELLENT` (<2× tail ratio) / `ACCEPTABLE` (≤3×) / `WATCH` (≤4.5×) / `HIGH_VARIANCE` (>4.5×); a row whose percentiles are absent, or backed by fewer than 100 samples (where “p99” is the maximum), is reported `UNMEASURED` with the reason instead of an estimated band. Aggregate rows (p50 = 0 ms, e.g. the seed burst) are listed as excluded, not as unmeasured, so `--strict` stays passable. `printLatencyVarianceReport()` renders the table (naming the graded run and its age) and `latencyVariancePasses()` is the strict verdict — a 🔴 tail or an unmeasured row fails it, 🟡/🔵 stay informational. **Superseded** (see §3.34): an earlier revision reconstructed p50/p99 from `avg`/`p95`/`cv` when the JSON lacked them and graded those estimates, and read ten hardcoded filenames from a metric-naming scheme the harness had stopped writing.
   - **Background Worker Stability** (`src/services/background/background-runtime-env.ts`): The standalone background worker was crashing and restarting in production because its esbuild bundle could not resolve `$app/env` (a SvelteKit virtual module). The fix: a lightweight runtime replacement (`browser=false`, `building=false`, `dev=NODE_ENV!==production`, `version=npm_package_version`) aliased in vite.config.ts so the worker never tries to load SvelteKit's virtual module loader. A companion esbuild plugin now strips TypeScript and compiles `.svelte.ts` rune modules (`$state`/`$derived`) inside the bundle so runes never leak into the Node child as undefined globals. Verified in `tests/unit/services/background-supervisor.test.ts`.
   - **RFC 7240 `Prefer: return=minimal` Fast Path (create + update)**: `handleCollectionCreate` and `handleCollectionUpdate` now detect the `Prefer: return=minimal` request header (or `?return=minimal` query param) and pass `skipReturning: true` to the adapter, then return a lean `{"_id":"..."}` response (~70 B) instead of the full merged document (~3.5 KB). Removes the full `RETURNING *` PostgreSQL round-trip on the happy path for callers that only need confirmation. Measured: update +4.3% RPS paired median on PostgreSQL 5k docs 8c.
   - **PostgreSQL Schema Migration Guard** (`adapter-core.ts`): `addedColumns` Set tracks which columns were actually `ADD COLUMN`ed in the current migration run. The subsequent `CREATE INDEX` loop now skips columns that already had indexes — eliminates redundant `CREATE INDEX IF NOT EXISTS` calls on large schemas with many existing materialized fields.
@@ -1511,6 +1511,162 @@ specs that documented them: `profile.spec.ts` green across `--repeat-each=3`, an
 `design-system.spec.ts` **18/18** across three repeats. The local host's remaining contention
 residue is tracked as an open item in the test-status dashboard and the roadmap — not claimed as
 passing here.
+
+### 3.33 September 2026 — Release preparation on push & a manifest writer that cannot lie
+
+**`--release` on the pre-push gate.** `bun run git push --release` (optionally
+`--release=patch|minor|major`) arms a release step in `.githooks/pre-push`: once all nine checks pass,
+`scripts/version.ts auto` derives the next version from the Conventional Commits since the highest `v*`
+tag, the manifest is committed as `chore(release): bump version to vX.Y.Z` — the subject the release
+workflow itself writes on its manual path — and the hook prints the push that publishes it. The flag is
+consumed by `scripts/git-safe.ts`, which exports `SVELTY_RELEASE` for the hook, because git never
+forwards hook arguments to it.
+
+Two properties are deliberate. The step runs **after** the full gate, never before: `auto-release.yaml`
+tags whatever `package.json` holds, so a bump for a tree the gate never validated is exactly the stray
+bump AGENTS.md §8 warns about. And the release commit cannot travel inside the push that triggered it —
+git resolves the pushed refs before the hook runs — so the hook prints the command to repeat instead of
+implying the push was the release; the bump stays local and reversible until that second push. Re-running
+is a no-op: within one release cycle the derivation is stable, so a second push finds the manifest already
+at the version and commits nothing. Skipped on the docs-only and `--only-failures` paths (both warn), and
+refused with a non-zero exit when `version.ts` refuses — a push that looks released but is not would be
+worse than a blocked push.
+
+> **Known trap, observed 2026-09-27:** a stale `v0.2.0` tag survives in history, so `auto` derives
+> `0.1.2 → 0.3.0` (highest reachable tag wins over `git describe`'s nearest `v0.1.2`). The first real
+> `--release` would therefore skip the 0.2.x line the manifest never entered. Delete the stale tag or pass
+> an explicit target (`bun run version:bump 0.2.0`) before arming it.
+
+**A manifest writer that could not find the field it was looking at.** `replaceVersionField()` was
+line-anchored (`^\s*"version"\s*:…$` with the `m` flag), so a manifest whose version field shares a line
+with other keys was refused with `could not locate the top-level "version" field in package.json`,
+although the field was right there. It was found by the throwaway-repo probe that verifies the release
+step, not by a user report. The writer is now a depth-tracking scan (`locateVersionValue()`) that skips
+whole string tokens: a nested `"version"`, the word inside another value, and braces or escaped quotes
+inside strings cannot fool it, and minified and pretty-printed manifests both rewrite byte-for-byte except
+for the value (10 new tests in `tests/unit/scripts/version-manifest-write.test.ts`; the 33 policy tests of
+`version-bump.test.ts` unchanged and green).
+
+**Escapes that printed as escapes.** `info()` / `warn()` in `.githooks/lib.sh` passed their message
+through `%s`, so every `${BOLD}…${NC}` embedded in a hint — four pre-existing failure hints plus the new
+release hint — rendered as a literal `\033[1m` in a color terminal. They now use `%b`; the message
+arguments are hardcoded strings plus validated enums, so interpreting escapes cannot mangle caller data.
+
+**Verification:** the release step was exercised end-to-end in a throwaway repo (tag `v0.1.0` + one `feat`
+commit): run 1 bumped `0.1.0 → 0.2.0` and committed it, run 2 no-opped, run 3 (dirty manifest) refused and
+returned non-zero — the exit code that blocks the push. Unit tests: `git-safe-release` (7),
+`version-manifest-write` (10) and `version-bump` (33) green; `bun run scripts/version.ts --dry-run` against
+this repository prints its decision without writing. No throughput claim attaches to this entry — it is
+release tooling.
+
+### 3.34 September 2026 — A tail report that measured nothing, and the tails it was hiding
+
+**The verdict was an estimate of the thing it claimed to measure.** `verify-benchmark-local.ts` graded tail
+stability from `p99/p50`, but when a result JSON lacked `p50Ms`/`p99Ms` it reconstructed them —
+`avg/(1+(cv/100)²·0.15)` and `p95 + max(0.1,(p95−p50)·1.5)` — and graded those. Two consequences: a verdict
+about an invented number is not a measurement, and the estimator was structurally biased against
+sub-millisecond rows, because high CV _shrinks_ the derived p50 and the derived p99 then grows with the gap.
+That is why every sequential row read 🔴/🟡 while concurrent rows of the same workload read 🟢.
+
+**It was also reading a month-old file set.** The report named ten files from a metric-naming scheme the
+harness no longer writes (`findById__Sequential_.json`; today's runs write `findById__Warm_Sequential_.json`
+plus `1c` variants and five further workloads). Rows are now selected by content
+(`testFile === "competitive-workload-replica"`) and grouped by `runId`, and only the newest run is graded, so
+superseded names cannot resurface as phantom workloads.
+
+**What the honest version says** (run `6b4c300a`, measured 2026-09-27, 20 workloads after excluding the
+`p50 = 0` seed-burst aggregate row):
+
+| Band                |   n | Workloads                                                                                                  |
+| :------------------ | --: | :--------------------------------------------------------------------------------------------------------- |
+| 🟢 EXCELLENT (<2×)  |   8 | every read path — `findById` 0.34→0.49 ms, `findByIdRandom`, `findMissing`, `listPlain`, `create` (1c/seq) |
+| 🔵 ACCEPTABLE (≤3×) |   7 | `graphql` 3.19→6.47 ms, `listLarge`, `listPlain` sequential, `update` sequential                           |
+| 🟡 WATCH (≤4.5×)    |   3 | `create @8c` (5.16→19.81 ms), `listFilterSort` sequential, `mixed @8c`                                     |
+| 🔴 JITTER ALERT     |   2 | `update @8c` (5.08→26.67 ms, +21.6 ms), `mixed` sequential (0.79→4.62 ms)                                  |
+
+The write-path tails are real and now measurable — previously they were _hidden_ behind an estimator that
+flattered concurrent rows and punished sequential ones at random. Chasing them is a roadmap item, not a
+claim in this entry.
+
+**Also fixed in the same file:** `--report=variance` (documented in the test-status dashboard) fell through
+to the full pre-flight because the flag was matched with `includes("--report")`; the CLI now matches the flag
+family, and `main()` runs only under `import.meta.main`, so importing the module for tests no longer spawns
+the pre-flight. A printed-table test then caught a live defect no type checker can see: a stray `+` made the
+footer `` `…` + + `…` `` coerce its band counts to numbers → `NaN`. TypeScript accepts unary `+` on a string,
+so only an output assertion finds it.
+
+**Verification:** `tests/unit/scripts/verify-benchmark-local.test.ts` grew from 3 to 23 tests — a
+fixture-driven contract for discovery (by `testFile`, newest `runId` only), grading (recorded percentiles
+only: the August row the old estimator turned into `p50 0.73 / p99 3.68` now reports UNMEASURED, with `p50Ms`
+asserted _not_ to be 0.73), the 100-sample floor, the aggregate-row exclusion, the printed table (no `NaN`,
+real `P99−P50`, the graded run named) and the strict gate. `generateLatencyVarianceReportFromDir()` is the
+directory-injectable core the fixtures drive.
+
+### 3.35 September 2026 — The write tail attributed: WAL checkpoint I/O, not GC
+
+The two 🔴 rows from §3.34 (`update @8c` 5.08→26.67 ms, `mixed` sequential 0.79→4.62 ms) have one root
+cause, and it is not the application: **SQLite's auto-checkpoint fsyncing while requests wait**.
+
+**Method.** `PROFILE_WRITE=1` on the replica attributes each write to its spans (`ns:persist`,
+`db:upd|ins:stmt`, `prepare-values`, `conv`, `outbox`), and ~5 000 statements per run resolve a rare tail
+far better than a 300-sample benchmark row. The switch had never worked: the benchmark server env is a
+whitelist (`getBenchmarkTestEnv`), so `PROFILE_WRITE` never reached the server. `scripts/benchmark-matrix/index.ts`
+now forwards `PROFILE_WRITE` / `LOG_LEVEL` / `SQLITE_*` explicitly, prints a banner for override runs, and
+persists the server log to `results/<db>/diagnostic-server.log` (the in-memory buffer was dropped on success).
+
+**Where the tail is** (9 726 writes, one profiled run): everything above the statement is microseconds —
+sanitize+validate p99 0.059 ms, encrypt 0.060, outbox 0.029, `prepare-values` 0.020, `conv` 0.016. The whole
+tail sits in the SQL statement: `db:upd:stmt` p50 **0.108 ms**, p99 0.716 ms, max **17.4 ms**.
+
+**Interleaved A/B** (five arms, one replica run each; stalls = statements > 10 ms, out of ~5 200):
+
+| Arm                                     | `db:upd:stmt` > 10 ms |         max | `db:ins:stmt` > 10 ms |         max |
+| :-------------------------------------- | --------------------: | ----------: | --------------------: | ----------: |
+| control                                 |                    31 |     22.5 ms |                    33 |     20.1 ms |
+| control (repeat)                        |                    26 |     25.0 ms |                    25 |     25.1 ms |
+| `SQLITE_SYNCHRONOUS=OFF`                |                 **0** |      5.0 ms |                 **0** |      6.1 ms |
+| `SQLITE_WAL_AUTOCHECKPOINT=0`           |                 **0** |      5.3 ms |                 **0** |      5.1 ms |
+| `WAL_AUTOCHECKPOINT=16000` (128 MB WAL) |                     7 | **36.2 ms** |                    16 | **43.2 ms** |
+
+Removing _either_ the checkpoint or its fsync removes every stall; making checkpoints rarer makes the
+surviving ones **bigger** (their cost scales with the WAL size), so "raise the threshold" is the wrong
+lever. `SYNCHRONOUS=OFF` is not shippable (power-loss durability) and `AUTOCHECKPOINT=0` alone leaves the
+WAL unbounded — the fix is moving housekeeping **off the request path** (checkpoint from a separate
+connection or a background scheduler, size cap as the safety valve), tracked as the roadmap item above.
+
+**Also measured in the same session:** with zero statement stalls the write rows' ratios fall from 7.4× to
+2.7× (`update`) and 3.6× (`create`) — the residual spread is the synchronous driver serializing eight
+concurrent writers, which is the second lever (worker-connection writes) and is not yet shipped. The
+`auth-performance` 500 seen once in the interrupted full matrix did **not** reproduce in isolation (the
+reject path answers 401/403 and logs `Invalid or non-existent API key provided`), so it is recorded here as
+unverified rather than fixed.
+
+### 3.36 September 2026 — Tail as a rate, and five suggestions verified before building any of them
+
+**Shipped: the slow-call rate.** `computeStatistics()` now records `slowCount` / `slowRatePer1000` /
+`slowThresholdMs` (samples above 3 × the row's own p50, over the raw sample) and the variance report shows
+`SLOW‰` in place of the CV column (CV stays in the model and the JSON). Rationale: `p99` of a few hundred
+samples **is** the 2nd-worst sample, so it swings several-fold between identical runs; a rate converges, and
+it reorders the problem immediately — first reading (one run, 20 workloads): `mixed (Warm Sequential)`
+5.36×/**175 ‰** (the worst row by frequency, only 2nd by ratio), `listLarge @8c` 4.45×/75 ‰,
+`findByIdRandom @8c` 3.78×/34 ‰, `update @8c` 7.5×/26.7 ‰, and the sub-millisecond reads at 0.0 ‰.
+That run was also uniformly faster than its predecessors (`findById @8c` p50 0.58 vs 0.68–1.21 ms) — host
+drift, which is exactly what the ratio metric could not survive.
+
+**Five proposals, verified before implementation** (the point of the exercise — two died on contact):
+
+| Proposal                                 | Verdict                                  | Evidence                                                                                                                                                                                                                                                                                                                                                         |
+| :--------------------------------------- | :--------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Instrument the write lane                | **verified, top lever**                  | the same update is `localcms.update_ms` **0.057 ms** in-process and `adapter.write.avg` 0.061 ms, but **2.23 ms over HTTP**, while HTTP _reads_ sit at `truth.http.p95` 0.525 / `rest.point_read` 0.84 ms with the same client — so ~1.5 ms is server-side and write-specific. The lane is also the profiler's blind spot: no `handler:*` span ever fires on it. |
+| Noop control row + rate + 3-run ensemble | **verified, half shipped**               | the metric-keyed trend table (`benchmark-history.ts`: `loadHistory`/`persistRun`) makes ensemble grading a read-side change; the rate is shipped above; the floor (`truth.http.p95` 0.525 ms) shows the ratio contract cannot grade sub-ms rows — band semantics (absolute vs floor-relative) still needs a decision.                                            |
+| Checkpoint off the request path          | **verified feasible, better home found** | `hooks.server.ts` already exposes `inFlightRequests` (graceful shutdown), so no new machinery is needed — and the watchdog/memory governor live in the **background worker process** (`services/background/background-entry.ts`), whose checkpoint cannot block the API event loop at all.                                                                       |
+| Collapse commits per write               | **falsified**                            | an entire in-process update _including its commits_ is 0.057 ms and `adapter.throughput.write_rps` is 29 525 — commits are not the expense; the 17 ms events are checkpoints (proven by the §3.35 A/B).                                                                                                                                                          |
+| Worker-connection writes                 | **falsified**                            | `initWorkerConnection` is used only by `handle-test-isolation.ts` for per-worker test DBs — there is no worker-thread write path, and the DB work it would offload is 0.057 ms.                                                                                                                                                                                  |
+
+**Also observed, not fixed:** `tests/unit/security/audit-ledger-integrity.test.ts` ("200 O(1) leaf appends in
+
+< 20 ms") failed once at 658 ms against its 500 ms budget during a full-suite run and passes 8/8 in 119 ms
+alone — a contention flake of the documented kind ("perf assertions need JIT warm-up"), left for the owner.
 
 ---
 

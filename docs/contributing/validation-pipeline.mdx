@@ -47,6 +47,8 @@ Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 
 Docs-only pushes skip build + integration. Multi-DB matrix, benchmarks, and Playwright E2E are **not** on pre-push — they run in CI.
 
+**Release preparation** — `--release[=kind]` runs `scripts/version.ts` after a green gate, commits the manifest as `chore(release): bump version to vX.Y.Z` and prints the push that publishes it. Reaches the hook two ways: `bun run gate --release`, or `bun run git push --release …` (the wrapper consumes the flag and exports `SVELTY_RELEASE`, since git never forwards hook arguments). Skipped on the docs-only and `--only-failures` paths — a release commit is only prepared behind a full gate. Details: [Release Pipeline](../guides/configuration/version-channels.mdx).
+
 > [!IMPORTANT]
 > **No double-run rule:** full unit suite runs on pre-commit only. Pre-push does **not** re-run all unit tests.
 

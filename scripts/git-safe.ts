@@ -7,12 +7,14 @@
  *   Blocks --no-verify on commit/push. Usage:
  *     bun run scripts/git-safe.ts commit -m "msg"
  *     bun run scripts/git-safe.ts push
+ *     bun run scripts/git-safe.ts push --release[=auto|patch|minor|major]
  *
  * ### Library mode (imported by test-smart.ts):
  *   import { getChangedPaths, resolveDiffBase } from "./git-safe";
  *
  * ### Features:
  * - blocks --no-verify on commit and push
+ * - `push --release` arms the post-gate SemVer bump in the pre-push hook
  * - provides git utility functions for change detection
  * - passes through all other git commands untouched
  */
@@ -101,6 +103,59 @@ export function getChangedPaths(): string[] {
 const PROTECTED_COMMANDS = new Set(["commit", "push"]);
 const BLOCKED_FLAGS = ["--no-verify", "-n"];
 
+const RELEASE_KINDS = ["auto", "patch", "minor", "major"] as const;
+export type ReleaseKind = (typeof RELEASE_KINDS)[number];
+
+/**
+ * Splits `--release[=kind]` out of a `git push` argv. git has no such flag, so
+ * the wrapper consumes it and exports `SVELTY_RELEASE` for the pre-push hook
+ * instead — git never forwards hook arguments, but every hook inherits the
+ * environment of the git process that spawned it.
+ * Throws on an unknown kind so a typo cannot quietly arm the default bump.
+ * Exported for unit tests.
+ */
+export function extractReleaseRequest(argv: string[]): {
+  args: string[];
+  kind: ReleaseKind | null;
+} {
+  const index = argv.findIndex((arg) => arg === "--release" || arg.startsWith("--release="));
+  if (index === -1) return { args: [...argv], kind: null };
+
+  const flag = argv[index]!;
+  const kind = flag.includes("=") ? flag.slice(flag.indexOf("=") + 1) : "auto";
+  if (!(RELEASE_KINDS as readonly string[]).includes(kind)) {
+    throw new Error(`--release=${kind} is not a bump kind (${RELEASE_KINDS.join("|")})`);
+  }
+
+  const args = [...argv];
+  args.splice(index, 1);
+  if (args.some((arg) => arg === "--release" || arg.startsWith("--release="))) {
+    throw new Error("--release given more than once — pass a single bump kind");
+  }
+  return { args, kind: kind as ReleaseKind };
+}
+
+/** Consumes `--release` in place (args + environment) after reporting the arming. */
+function armReleaseMode(args: string[]): void {
+  let request: { args: string[]; kind: ReleaseKind | null };
+  try {
+    request = extractReleaseRequest(args);
+  } catch (error) {
+    console.error(`\n🛑 ${error instanceof Error ? error.message : String(error)}\n`);
+    return process.exit(1);
+  }
+  if (!request.kind) return;
+
+  args.length = 0;
+  args.push(...request.args);
+  process.env.SVELTY_RELEASE = request.kind;
+  console.log(
+    `\n🔖 Release mode armed (${request.kind}) — once the pre-push gate is green,\n` +
+      `   scripts/version.ts writes the next SemVer version, the manifest is committed as\n` +
+      `   \`chore(release): bump version to vX.Y.Z\` and the push that publishes it is printed.\n`,
+  );
+}
+
 function main() {
   const args = process.argv.slice(2);
 
@@ -163,6 +218,10 @@ function main() {
         console.error("");
       }
     }
+  }
+
+  if (subcommand === "push") {
+    armReleaseMode(args);
   }
 
   runGit(args);

@@ -9,7 +9,15 @@
 # POLICY: --no-verify is blocked by git-safe.ts by default.
 #
 # Flags:
-#   --only-failures   Skip build, re-run only previously failed suites via test:smart
+#   --only-failures      Skip build, re-run only previously failed suites via test:smart
+#   --release[=kind]     After a green gate, bump package.json through scripts/version.ts
+#                        (kind: auto|patch|minor|major — default auto), commit it as
+#                        `chore(release): bump version to vX.Y.Z` and print the push
+#                        that publishes it. Real pushes pass it to the wrapper:
+#                        `bun run git push --release …` (git-safe exports SVELTY_RELEASE
+#                        for this hook — git itself never forwards hook arguments).
+#                        Skipped on the docs-only and --only-failures paths: a release
+#                        commit is only ever prepared behind a full green gate.
 # =============================================================================
 set -u
 [ "${CI:-false}" = "true" ] && exit 0
@@ -21,6 +29,8 @@ require_bun
 header "Pre-Push"
 
 ONLY_FAILURES=false
+RELEASE_KIND="${SVELTY_RELEASE:-}"
+PUSH_REFS=""
 
 # Parse optional arguments
 for arg in "$@"; do
@@ -28,8 +38,35 @@ for arg in "$@"; do
     --only-failures)
       ONLY_FAILURES=true
       ;;
+    --release)
+      RELEASE_KIND=auto
+      ;;
+    --release=*)
+      RELEASE_KIND="${arg#--release=}"
+      ;;
   esac
 done
+
+case "$RELEASE_KIND" in
+  ""|auto|patch|minor|major) ;;
+  *)
+    printf '%b\n' "  ${RED}✘${NC} --release=${RELEASE_KIND} is not a bump kind (auto|patch|minor|major)."
+    exit 1
+    ;;
+esac
+
+# git hands the refs it is about to push on stdin — one
+# `<local ref> <local sha> <remote ref> <remote sha>` line per ref. Capture them
+# while they are readable: they rebuild the exact "push again" hint after a
+# release commit, and git never forwards them as arguments. `[ ! -t 0 ]` keeps
+# manual runs (`bun run gate --release`) from blocking on a terminal.
+if [ ! -t 0 ]; then
+  while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    case "$remote_ref" in
+      refs/heads/*) PUSH_REFS="$PUSH_REFS HEAD:${remote_ref#refs/heads/}" ;;
+    esac
+  done
+fi
 
 # ── Smart skip: if only docs changed, skip build + integration ───────────
 if ! has_push_changes '\.(md|mdx)$' || has_push_changes '\.(ts|js|svelte|css|json)$'; then
@@ -40,6 +77,10 @@ fi
 
 if [ "$ONLY_FAILURES" = true ]; then
   info "Running only previously failed suites (--only-failures)"
+  if [ -n "$RELEASE_KIND" ]; then
+    warn "Release step skipped — --only-failures retries suites without a full gate."
+    info "Prepare the release directly: ${BOLD}bun run version:bump ${RELEASE_KIND}${NC}"
+  fi
   echo ""
   TOTAL=1; OK=0
   if run "🔁  Smart retry (failed suites)" bun run test:smart --only-failures; then
@@ -51,6 +92,10 @@ fi
 
 if [ "$HAS_CODE_CHANGES" = false ]; then
   warn "Only docs changed — skipping build and integration tests"
+  if [ -n "$RELEASE_KIND" ]; then
+    warn "Release step skipped — it runs after the full gate, not on a docs-only push."
+    info "Prepare the release directly: ${BOLD}bun run version:bump ${RELEASE_KIND}${NC}"
+  fi
   echo ""
   summary 1 1
   exit 0
@@ -111,6 +156,22 @@ res=$?
 if [ "$res" -eq 0 ]; then
   # Clean up temporary precheck cache once push checks pass
   rm -rf .precheck-cache 2>/dev/null || true
+
+  # ── Optional release preparation (--release / SVELTY_RELEASE) ────────────
+  # Deliberately after the full gate: auto-release.yaml tags whatever
+  # package.json holds, so a bump that ships without a green gate is the
+  # "stray bump" AGENTS.md §8 warns about. The release commit lands on top of
+  # the pushed refs, never inside them.
+  if [ -n "$RELEASE_KIND" ]; then
+    PUSH_REMOTE="$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2>/dev/null).remote" 2>/dev/null || true)"
+    [ -n "$PUSH_REMOTE" ] || PUSH_REMOTE="origin"
+    [ -n "$PUSH_REFS" ] || PUSH_REFS=" HEAD"
+    RELEASE_PUSH_HINT="bun run git push ${PUSH_REMOTE}${PUSH_REFS}"
+    if ! prepare_release "$RELEASE_KIND"; then
+      printf '\n%b\n' "  ${RED}${BOLD}Push blocked — the code checks passed, the release step did not.${NC}"
+      res=1
+    fi
+  fi
 fi
 
 exit "$res"

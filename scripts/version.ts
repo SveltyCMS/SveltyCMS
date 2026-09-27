@@ -354,18 +354,79 @@ function readPackageVersion(raw: string): string {
   return parsed.version;
 }
 
-/** Replaces only the top-level version value, keeping every other byte intact. */
-function replaceVersionField(raw: string, from: string, to: string): string {
-  const pattern = /^([ \t]*"version"[ \t]*:[ \t]*)"([^"]*)"([ \t]*,[ \t]*)?$/m;
-  const match = pattern.exec(raw);
-  if (!match) throw new Error('could not locate the top-level "version" field in package.json');
-  if (match[2] !== from) {
-    throw new Error(
-      `first "version" field is "${match[2]}" but the parsed version is "${from}" — refusing to rewrite`,
-    );
+/** Replaces only the top-level version value, keeping every other byte intact. Exported for unit tests. */
+export function replaceVersionField(raw: string, from: string, to: string): string {
+  const span = locateVersionValue(raw, from);
+  return raw.slice(0, span.start + 1) + to + raw.slice(span.end);
+}
+
+/**
+ * Byte span of the top-level `"version"` **value** (quotes included), located by a
+ * depth-tracking scan over the raw JSON text. Whole string tokens are skipped, so an
+ * escaped quote cannot shift the depth and neither a nested `"version"` key nor the
+ * word inside a value can ever be rewritten. The previous line-anchored regex only
+ * matched a pretty-printed manifest and reported `could not locate the top-level
+ * "version" field` for a minified one whose field was right there — a lie the release
+ * path cannot afford, now that `--release` bumps the manifest automatically.
+ * Exported for unit tests.
+ */
+export function locateVersionValue(raw: string, from: string): { start: number; end: number } {
+  let depth = 0;
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw.charAt(index);
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      continue;
+    }
+    if (char !== '"') continue;
+
+    let end = index + 1;
+    while (end < raw.length) {
+      const current = raw.charAt(end);
+      if (current === "\\") {
+        end += 2;
+        continue;
+      }
+      if (current === '"') break;
+      end += 1;
+    }
+    const token = raw.slice(index, end + 1);
+
+    if (depth === 1 && token === '"version"') {
+      const separator = /^[ \t\r\n]*:[ \t\r\n]*/.exec(raw.slice(end + 1));
+      if (!separator) {
+        throw new Error('the top-level "version" field has no `:` separator');
+      }
+      const valueStart = end + 1 + separator[0].length;
+      if (raw.charAt(valueStart) !== '"') {
+        throw new Error('the top-level "version" field is not a string');
+      }
+      let valueEnd = valueStart + 1;
+      while (valueEnd < raw.length) {
+        const current = raw.charAt(valueEnd);
+        if (current === "\\") {
+          valueEnd += 2;
+          continue;
+        }
+        if (current === '"') break;
+        valueEnd += 1;
+      }
+      const found = raw.slice(valueStart + 1, valueEnd);
+      if (found !== from) {
+        throw new Error(
+          `first "version" field is "${found}" but the parsed version is "${from}" — refusing to rewrite`,
+        );
+      }
+      return { start: valueStart, end: valueEnd };
+    }
+
+    index = end;
   }
-  const line = `${match[1]}"${to}"${match[3] ?? ""}`;
-  return raw.slice(0, match.index) + line + raw.slice(match.index + match[0].length);
+  throw new Error('could not locate the top-level "version" field in package.json');
 }
 
 function report(label: string, value: string): void {

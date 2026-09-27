@@ -118,19 +118,19 @@ CI runs 8 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on 
 
 ### Commands
 
-| Category  | Command                                                    | Purpose                                                                                       |
-| :-------- | :--------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
-| Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                       |
-| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile                                          |
-|           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                |
-| Tests     | `bun run test:unit`                                        | Vitest unit suite (~40s)                                                                      |
-|           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners                                     |
-|           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                                                          |
-|           | `bun run test:integration`                                 | Build + SQLite integration (harness)                                                          |
-|           | `bun run test:tenant`                                      | Tenant lint (`--full` on dirty trees) + tenant unit suite                                     |
-|           | `bun run test:e2e`                                         | Playwright (CI-parity; `-- --grep` for one shard)                                             |
-| Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`)                                        |
-| CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above |
+| Category  | Command                                                    | Purpose                                                                                                                 |
+| :-------- | :--------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                                                 |
+| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile                                                                    |
+|           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                                          |
+| Tests     | `bun run test:unit`                                        | Vitest unit suite (~40s)                                                                                                |
+|           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners                                                               |
+|           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                                                                                    |
+|           | `bun run test:integration`                                 | Build + SQLite integration (harness)                                                                                    |
+|           | `bun run test:tenant`                                      | Tenant lint (`--full` on dirty trees) + tenant unit suite                                                               |
+|           | `bun run test:e2e`                                         | Playwright (CI-parity; `-- --grep` for one shard)                                                                       |
+| Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`); `push --release` bumps + commits the version after a green gate |
+| CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above                           |
 
 Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit → SBOM sync; pre-push = build (4 adapters) → SQLite integration. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract) before touching product code.
 
@@ -159,9 +159,9 @@ Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit �
 ## 8. Version Control & Releases
 
 - Branches: `next` (dev), `main` (stable). All work lands on `next`.
-- **Release flow** — when stable: 1) bump `package.json` version on `next` (this is what the admin badge shows and CI tags), 2) merge `next` → `main`, 3) CI passes on `main` → `auto-release.yaml` creates+pushes tag `vX.Y.Z`, creates the GitHub Release (auto-generated notes), and publishes to npm. The GitHub Release is **independent of npm publish** — a missing/invalid `NPM_TOKEN` warns but never blocks the release.
+- **Release flow** — when stable: 1) bump `package.json` version on `next` (this is what the admin badge shows and CI tags), 2) merge `next` → `main`, 3) CI passes on `main` → `auto-release.yaml` creates+pushes tag `vX.Y.Z`, creates the GitHub Release (auto-generated notes), and publishes to npm. The GitHub Release is **independent of npm publish** — a missing/invalid `NPM_TOKEN` warns but never blocks the release. Step 1 can be automated: `bun run git push --release` runs `scripts/version.ts` **after** the pre-push gate is green and commits the manifest (`--release=patch|minor|major` overrides `auto`). The bump never travels in the triggering push — push again to publish it; skipped on docs-only and `--only-failures` runs.
 - **Emergency paths** — push a tag manually (`git tag vX.Y.Z && git push origin vX.Y.Z` — the workflow listens for `v*` pushes) or `Actions → Auto Release → Run workflow`.
-- **Version source** — `package.json` drives the release; the tag is created FROM it. Bump it only when preparing a release — a stray bump ships the wrong version.
+- **Version source** — `package.json` drives the release; the tag is created FROM it. Bump it only when preparing a release — a stray bump ships the wrong version. (`auto` derives from the highest reachable `v*` tag, which can be _above_ the manifest — check the printed proposal before the publishing push.)
 - **Hardened git** — `bun run git commit`/`push` block `--no-verify` (bypassing requires the raw system git binary). If the gate fails, fix the issue — never bypass. Ultimate enforcement is GitHub branch protection.
 
 ## 9. Docs, Roadmap & Help

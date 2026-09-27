@@ -77,9 +77,12 @@ header() {
     ""
 }
 
-# ── Info / warning helpers ─────────────────────────────────────────
-info()  { printf "  ${CYAN}ℹ${NC}  %s\n" "$1"; }
-warn()  { printf "  ${YELLOW}⚠${NC}  %s\n" "$1"; }
+# ── Info / warning helpers ───────────────────────────────────────
+# `%b` (not `%s`) for the message: callers embed ${BOLD}/${CYAN} in it, and `%s`
+# prints those escapes as literal text. Message arguments are hardcoded strings plus
+# validated enums, so interpreting the escapes cannot mangle caller data.
+info()  { printf "  ${CYAN}ℹ${NC}  %b\n" "$1"; }
+warn()  { printf "  ${YELLOW}⚠${NC}  %b\n" "$1"; }
 
 # ── Run a step ─────────────────────────────────────────────────────
 run() {
@@ -188,6 +191,54 @@ summary() {
     return 1
   fi
   return 0
+}
+
+# ── Release preparation (pre-push, opt-in via --release / SVELTY_RELEASE) ──
+# Writes the next SemVer version into package.json (scripts/version.ts derives it
+# from the Conventional Commits since the highest reachable v* tag), then commits
+# the manifest with the same subject auto-release.yaml uses on its manual path.
+#
+# The push this hook gates already has its SHAs resolved, so the release commit
+# cannot travel in it — the caller prints the push to repeat.
+# Idempotent per release cycle: a second run derives the same version, finds the
+# manifest already at it, writes nothing and commits nothing.
+#
+# Callers must treat a non-zero return as a failed gate step: a push that looks
+# released but is not is worse than a blocked push.
+prepare_release() {
+  local kind="$1"
+  printf '\n%b\n' "${BOLD}${MAGENTA}🔖 Release preparation${NC}  ${DIM}scripts/version.ts ${kind}${NC}"
+
+  if ! pm_run scripts/version.ts "$kind"; then
+    printf '%b\n' "  ${RED}✘${NC} version.ts refused to write ${BOLD}package.json${NC} — release not prepared."
+    info "The refusal above names the reason (dirty manifest, tagged version, downgrade)."
+    return 1
+  fi
+
+  if [ -z "$(git status --porcelain -- package.json 2>/dev/null)" ]; then
+    printf '%b\n' "  ${GREEN}✔${NC} package.json already carries the derived version — nothing committed."
+    return 0
+  fi
+
+  local version
+  version="$(node -p "require('./package.json').version" 2>/dev/null || echo '')"
+  if [ -z "$version" ]; then
+    printf '%b\n' "  ${RED}✘${NC} cannot read the version back from package.json — the write stays uncommitted."
+    return 1
+  fi
+
+  # Runs the normal commit path (pre-commit checks included): a release commit
+  # is never smuggled past the gate that validates it.
+  if ! git add package.json || ! git commit -m "chore(release): bump version to v${version}"; then
+    printf '%b\n' "  ${RED}✘${NC} release commit failed — package.json is staged and uncommitted."
+    return 1
+  fi
+
+  printf '%b\n' "  ${GREEN}✔${NC} release commit ${BOLD}chore(release): bump version to v${version}${NC}"
+  info "A bump is not part of the push that just ran (git resolved its SHAs first)."
+  if [ -n "${RELEASE_PUSH_HINT:-}" ]; then
+    info "Push again to publish it: ${BOLD}${RELEASE_PUSH_HINT}${NC}"
+  fi
 }
 
 # ── Change detection ──────────────────────────────────────────────
