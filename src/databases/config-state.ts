@@ -14,6 +14,7 @@ import { isCiRunner, isAutomatedTestHarness } from "@utils/private-config-policy
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { safeParse, type InferOutput } from "valibot";
 import path from "node:path";
+import { mkdirSync } from "node:fs";
 
 /** Read env at runtime — production builds inline bare `process.env.*` to `{}`. */
 function runtimeEnv(): NodeJS.ProcessEnv {
@@ -548,26 +549,34 @@ export function getDatabaseConnectionString(): string {
 /**
  * Enhanced SQLite path resolver.
  * Distinguishes between directory paths and network addresses (IPs/localhost).
+ *
+ * Routing priority:
+ * 1. Test harness (flag) or isolated-DB name → `config/test-database/`
+ * 2. Explicit directory host (`/…`, `./…`, `D:\…`) → that directory
+ * 3. Network address / default → `config/database/`
  */
 export function resolveSqlitePath(host: string | undefined, name: string): string {
   const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
 
-  // Test mode: use config/test-database/ to avoid clobbering dev DB
-  // Only activate if the directory exists to avoid breaking CI which creates
-  // config/database/ but not config/test-database/
-  const isTest =
-    isAutomatedTestHarness() ||
-    (typeof process !== "undefined" && (name.includes("test") || name.includes("benchmark")));
+  // Test mode: use config/test-database/ to avoid clobbering dev DB.
+  // The name check is the shared classifier also used by enforceTestSafety()
+  // (test/bench/e2e/_functional, minus production-like names), so runtime
+  // routing and the safety gate can never disagree on what a harness DB is.
+  const isTest = isAutomatedTestHarness() || isIsolatedTestDbName(name);
   if (isTest) {
+    // Static ESM imports — a bare `require("node:fs")` inside this try silently
+    // threw in the esbuild-built background-worker bundle ("Dynamic require of
+    // node:fs is not supported"), the catch fell through, and every worker
+    // process wrote its DB to `config/database/` instead of the test folder.
+    // The return below is OUTSIDE the try: mkdir failure (static import cannot
+    // throw, but a read-only FS can) must never re-route the resolved path.
     try {
-      const { mkdirSync } = require("node:fs");
-      const { join } = require("node:path");
-      const testDir = join(process.cwd(), "config", "test-database");
-      mkdirSync(testDir, { recursive: true });
-      return `config/test-database/${finalName}`;
+      mkdirSync(path.join(process.cwd(), "config", "test-database"), { recursive: true });
     } catch {
-      // FS check not available (edge runtime) — fall through
+      // Best-effort: the directory may already exist on a read-only FS — the
+      // path is still the correct one, and a connect failure will surface there.
     }
+    return `config/test-database/${finalName}`;
   }
 
   // If host is an IP or localhost, it's NOT a directory for SQLite
