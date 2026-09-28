@@ -1894,6 +1894,115 @@ earlier session — host drift between sessions is 7–59 % on this box.)
 
 ---
 
+### 3.40 September 2026 — The 380 KB list miss's build mark, found and cut: an 8 ms FNV fold → native digest (−84 %)
+
+**The open measurement, closed.** §3.39 left one explicit next step: re-measure the list saturation with the
+compression path separated from the build path. The new diagnostic probe
+`tests/benchmarks/probe-list-compression-ab.test.ts` does exactly that — `Accept-Encoding: identity` vs `zstd`
+at c=1/2/4/8 on a 199-row / 381 681 B list (220 × ~1.5 KB rows seeded through the API into `BenchmarkStable`,
+one unique `probe=` cache key per request so every request is a true miss and single-flight coalescing cannot
+fold the arms together), reporting client p50/RPS plus the `x-srv-split` deltas (`db−lookup`, `build−db`,
+`cachewrite−build`, `serve−cachewrite`).
+
+**Result, before any change (SQLite, production build):** `buildΔ` (trim + stringify + etag) is **6.2–6.4 ms on
+both encodings** — compression is not in the build; `cacheΔ` isolates it: identity 0.14–0.16 ms vs zstd
+**0.96 / 7.16 / 15.6 / 29.1 ms** at c=1/2/4/8 (the awaited `compressAsync` plus its worker-pool queueing;
+server `x-srv-dur` p50 grows 7.5 → 35.5 ms on the zstd arm). The zstd response is 5 132 B where identity is
+381 681 B, so at c=8 the client is _faster_ on zstd (p50 53.2 vs 63.8 ms, 136 vs 119 RPS) despite the server
+paying more — the compression wait buys a 74× smaller transfer and pays for itself on the wire.
+
+**The build mark profiled:** an in-process profile of the exact lane steps on the captured 381 681-char body:
+`Buffer.byteLength` 0.004 ms, `Buffer.from` 0.083 ms — and `generateContentEtag` (FNV-1a 64 over UTF-16 code
+units) **8.2 ms (Bun) / 3.9–7.9 ms (Node)**. It is the entire build segment, and the single most expensive
+per-request op on the large-list path. Two same-output rewrites were measured and rejected: int-limb fold
+1.03×, reciprocal-multiply carry 1.00× — FNV-1a is a serial multiply-accumulate chain, so arithmetic
+micro-optimisation cannot move it; byte-wise FNV (different output) only 2×.
+
+**The fix — size-gated native digest.** `generateContentEtag` keeps the FNV fold byte-identical below 1 KiB
+(small settings/GraphQL/point payloads: zero validator churn), and above it returns `"s256|<sha256-hex>"`
+computed with `crypto.hash("sha256", body, "hex")` (fallback `createHash`). The T15 contract is unchanged —
+the validator still covers the entire body, so any content change flips it — and the digest is 20–50× faster
+at every measured size (0.0013 ms @1 KiB, 0.10–0.21 ms @380 KB). One function backs lane, dispatcher, GraphQL
+and turbo-stash etags, so the win lands on every large-body miss path at once.
+
+**Result, after (same probe, same shape):** `buildΔ` **6.4 → 0.94–1.01 ms (−84 %)**; identity p50 c=1
+**8.84 → 3.26 ms**, RPS **99/119 → 252/343** at c=1/c=8; zstd `cacheΔ` @c=8 **29.1 → 7.75 ms** (less event-loop
+contention in front of the worker pool); in-process etag cost 9.8 → **0.102 ms**. Regression test:
+`tests/unit/core/request-classifier-and-response-cache.test.ts` pins `"…16-hex"` below the threshold,
+`"s256|…64-hex"` above, plus determinism and sensitivity.
+
+**Harness findings (the flagged 401, diagnosed).** The "fresh `DB_NAME`s 401" note from §3.39: in local profile
+the pre-boot seeder creates the sandbox DB through the env-only adapter path, which materialises only the
+content/collection schema — no `auth_users`/`system_preferences` — so `seedBenchmarkState`'s `createUser`
+silently no-ops (its result is unchecked) and the server can never authenticate. Snapshotting a completed DB
+(`VACUUM INTO config/test-database/<name>.sqlite`) restores it. Also: seeding POSTs must carry
+`content-type: application/json` — Bun's fetch sends `text/plain` for string bodies and the write lane then
+500s with `Unexpected end of JSON input` (probe-side bug, fixed in the probe).
+
+### 3.41 September 2026 — Harness DBs stop landing in the user's folder, composite indexes get a policy, and the update lane's residual is _proven_ to be the durable commit
+
+**Three threads, one honest measurement discipline: no claim without a falsification run.**
+
+**1. The E2E/benchmark databases that appeared in `config/database/` (root cause: a `require`).** The
+user's live-data folder had accumulated `e2e_auth_test.sqlite`, `bench_parent.sqlite`, `benchmark_shared.sqlite`,
+`sveltycms_test.sqlite` and a set of `probe_*` scratch DBs — none of which belong there. Fingerprints showed
+36-table, 0-row shells (auth/settings empty, only worker-written `svelty_jobs` rows), i.e. harness debris, not
+user data. Root cause proven from the worker's own log
+(`[DB] Registry resolved connection string: config/database/probe_test_whoF.sqlite`): `resolveSqlitePath()`
+(`src/databases/config-state.ts`) created the test folder via a bare `require("node:fs")` **inside the `try` that
+also returned the test path**. In the esbuild-built background-worker bundle that `require` throws
+(`Dynamic require of "node:fs" is not supported`), the `catch` swallowed it, control fell through the
+`if (isTest)` block, and the network-address branch answered `config/database/<name>.sqlite`. Fix: static ESM
+imports (they cannot throw), best-effort `mkdirSync`, and the `return` **outside** the `try` so a mkdir failure can
+never re-route the path again. The name heuristic now calls the shared `isIsolatedTestDbName()` classifier that
+`enforceTestSafety()` already uses (`test`/`bench`/`e2e`/`_functional`, minus production-like names) instead of a
+divergent `includes("test") || includes("benchmark")` copy. Verified after rebuild by running the worker directly:
+harness flag + `probe_test_whoG` → `config/test-database/…`, harness flag + plain `probe_plainA` →
+`config/test-database/…`, no flag + `probe_plainB` → `config/database/…` (true-dev behaviour preserved).
+Regression guard: `tests/unit/databases/resolve-sqlite-path.test.ts` — 10 tests covering flag routing, classifier
+names, dev names, explicit POSIX/Windows/relative hosts, `.sqlite` canonicalization, and — because this is the
+actual incident — a **real** mkdir failure (a `process.cwd` spy pointing at an existing _file_, so no fs mocking
+can be dodged). The guard was falsified before shipping: moving the `return` back inside the `try` makes it fail
+with `expected 'config/test-database/probe_test_worker.sqlite' / received 'config/database/probe_test_worker.sqlite'`
+— exactly the incident's signature.
+
+**2. The covering composite index now has a policy (all three SQL engines).** `createModel` used to provision
+`(tenantId, status, <col>, _id)` for **every** materialized column; each one is maintained on **every** write,
+because `updatedAt` is indexed and rewritten by each update, so PostgreSQL can never take the HOT path and must
+insert into all indexes on the table. A psql A/B on a narrow table (3 vs 4 indexes, 2 000-row batches, alternating
+orders) measured that cost directly: **+11–17 % per extra index** (≈ 0.7 µs/row/index). The policy — shared by
+PostgreSQL, MariaDB and SQLite via `buildCompositeIndexColumns()` in `src/databases/core/drizzle-sql-helpers.ts` —
+provisions the composite only for **declared query targets**: `indexed: true` fields, numeric fields (the default
+`listFilterSort` sort target), and the `publishedAt` base column. Equality-lookup base columns (`collection`,
+`slug`, `locale`) and storage-only columns (`unique`, `materialize: true`) keep their single-column index (still
+filterable) but no longer pay for a covering twin; legacy twins are dropped explicitly, following the existing
+`…_tenant_status_updated` twin-drop precedent. The default list order is untouched — it is served by
+`…_tenant_status_updated_id`, which the policy always creates. On the 113 k-row benchmark table the policy takes
+the index set **15 → 12** (`pg_indexes`, verified after a shipped-code boot). Coverage:
+`tests/unit/databases/composite-index-policy.test.ts` (eligibility + column-set contract) and the cross-engine
+integration block `Composite-index policy — {engine}` in `tests/integration/databases/dynamic-field-filter-index.test.ts`
+(a numeric field keeps its composite; `unique`/`materialize`/lookup columns do not; their single-column index
+exists) — green on SQLite **and** PostgreSQL.
+
+**3. Where the update lane's residual actually goes — the durable commit, measured.** The write-split probe
+(`tests/benchmarks/probe-write-split.test.ts`, PostgreSQL, production-mode server, 2 400 iterations at 8c) puts the
+update lane at `x-srv-dur` p50 **3.67 ms / avg 3.78 ms**, decomposed as security 0.014 · parse 0.081 · schema
+0.000 · prep 0.028 · encrypt 0.011 · **dbwrite 3.548** · postwrite 0.026 · serve 0.058 ms. Every app phase sums to
+**~0.16 ms (4 %)**; `dbwrite` owns 94 %. Then the same statement was measured with and without the durability
+wait (psql, single-row autocommit = the app's pattern): **1.566 / 1.658 / 4.496 ms with `synchronous_commit=on`
+vs 0.310 / 0.347 / 0.430 ms with `off`** — i.e. ~75–85 % of `dbwrite` is the WAL fsync/commit wait on this host's
+Docker volume, and 200 rows in one transaction cost **42–44 µs/row** for all the actual tuple+index work. That is
+why neither the composite policy nor the earlier numeric-materialization change can move the lane here: the
+effect sizes are single-digit µs against a ~3.7 ms commit-dominated op, and the replica's own pair
+(update 1 280 → 1 406 RPS) also moved the _read_ lanes +21–32 %, i.e. host drift, not policy. Both facts are now
+recorded as such — the policy ships as a **write-amplification/WAL reduction**, not as a latency claim.
+
+**Harness hygiene found on the way:** a leftover `vite dev` server for the external benchmark dashboard had been
+burning CPU since 2026-09-26 (57 631 s of CPU time), one more reason the recorded cross-day spreads are wide;
+and a 20-minute build stall reproduced once and then vanished on re-run (no product change involved).
+
+---
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)
