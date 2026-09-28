@@ -35,8 +35,13 @@ import {
   hasGuardedFields,
 } from "@src/services/security/field-permission-service";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
-import { STASH_MIN_BYTES, scheduleTurboVariantStash } from "./response-compression-stash";
 import {
+  STASH_MAX_BYTES,
+  STASH_MIN_BYTES,
+  scheduleTurboVariantStash,
+} from "./response-compression-stash";
+import {
+  compressAsync,
   compressSync,
   hasNativeCompression,
   negotiateEncoding,
@@ -726,25 +731,31 @@ async function rebuildWarmCollectionRead(
 
   // The pipeline compresses every response it owns; lane responses bypass
   // `handleCompression`, so a large list would leave the socket as identity
-  // bytes (measured 2026-09-28: 260 791 B uncompressed for a zstd-only client).
-  // Inside the buffered budget the lane mirrors the pipeline's sync tier and
-  // seeds the variant into both the response and the cache entry. Beyond it,
-  // the pipeline's STREAMING tier owns the encoding — buffering a 255 KiB body
-  // here measured 10.8 ms/request and +668 % co-tenant p95, so the lane declines
-  // and lets the pipeline compress while sending. The duplicate DB read is the
-  // rare big miss's price; hits stay on the lane.
+  // bytes (measured 2026-09-28: 260 791 B for a zstd-only client). Compress the
+  // negotiated encoding once and hand the variant to both the response and the
+  // cache entry.
+  //
+  // ≤ 64 KiB uses the sync tier (exactly the pipeline's) — microseconds.
+  // Above 64 KiB the one-shot native zstd/brotli/gzip APIs run on the libuv
+  // worker pool, so the body is compressed OFF the request thread. Declining
+  // the request instead (letting the pipeline stream it) was measured worse:
+  // the lane had already built the rows, the pipeline rebuilt them, and the
+  // same 199-row list cost 15.0 ms vs 10.8 ms with co-tenant p95 7.39 vs
+  // 2.50 ms — the duplicate build dwarfs the compression.
   let compressedVariants: Record<string, Uint8Array> | undefined;
   if (tags) {
     const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
     if (acceptEncoding) {
       const bodyBytes = Buffer.byteLength(apiBody, "utf8");
-      if (bodyBytes > SYNC_MAX_SIZE) return null;
-      if (bodyBytes > STASH_MIN_BYTES) {
+      if (bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
         const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
           contentLength: bodyBytes,
         });
         if (algo) {
-          const variant = compressSync(apiBody, algo, bodyBytes);
+          const variant =
+            bodyBytes <= SYNC_MAX_SIZE
+              ? compressSync(apiBody, algo, bodyBytes)
+              : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
           if (variant) compressedVariants = { [algo]: variant };
         }
       }

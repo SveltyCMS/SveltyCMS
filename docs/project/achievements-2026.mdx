@@ -1804,6 +1804,28 @@ So compression is **~1 ms of a ~15 ms miss** — the cost is the cache-busted mi
 build + 256 KB serialisation/drain), and cached hits serve the variant for free at sub-millisecond latency.
 No level/threshold change was warranted; the open lever is the list-miss path, not the encoding.
 
+**Round 2 (same day) — the miss path decomposed, and a wrong turn corrected.** Lane marks (`x-srv-split`)
+plus `ENABLE_HOOK_TIMING=1` on a 199-row / 257 027 B list (SQLite) read: **lane HIT 0.79 ms (ttfb 0.79,
+drain 0.00)** vs **miss ttfb 14.98 / drain 0.23 ms** — the server is late, not the wire — and the whole
+nested hook chain accounted for only ~3.7 ms, so the rest was the row build (≈0.055 ms/row). Two fixes:
+
+- **`streamingJsonResponse` (and `streamingExportResponse`) are pull-driven now.** The old writer ran a
+  `start()` loop and slept a hard-coded `setTimeout(10)` whenever `desiredSize <= 0` — a count-based stream's
+  HWM is 1, so that was _most_ iterations (the `limit = MAX_PAGE_SIZE` path had been measured at ~3.1 s per
+  request), and the export writer yielded `setTimeout(0)` **per record** (a 10 k-row export paid ~10 s of
+  timers). The stream now calls `pull()` only when it wants data: backpressure is structural, zero timers.
+  Pinned by `tests/unit/api/streaming-json-response.test.ts` (identical bytes, `maxItems`, error marker, and
+  a 500-item drain that would take ≥ 5 s under the old sleep).
+- **The lane no longer declines > 64 KiB lists to the pipeline.** Declining meant the lane had already built
+  the rows, discarded them, and the pipeline rebuilt them: **15.0 ms vs 10.8 ms** for the same list, co-tenant
+  p95 **7.39 → 2.50 ms**. The lane now compresses the negotiated encoding itself — sync at ≤ 64 KiB, one-shot
+  **async** (libuv pool, `compressAsync`) above — and seeds the variant into the response and the entry.
+
+**Measured after both fixes** (api-latency zstd audit, SQLite, 254.7 KiB cache-busted list): warm
+**22.7 → 11.4 ms**, **87 → 175 RPS**, co-tenant p95 during the burst **7.39 → 2.93 ms**; turbo point read in
+the same run 0.711 ms / 11 097 RPS. The remaining ~7 ms of the 11.4 is the SDK list build itself (row
+hydration + per-row JSON) — the list wire plane is the next lever, recorded in the roadmap.
+
 ---
 
 ## Related

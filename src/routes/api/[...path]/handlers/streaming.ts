@@ -38,67 +38,70 @@ export function streamingJsonResponse(
   totalCount?: number,
   options: {
     maxItems?: number;
-    enableBackpressure?: boolean;
   } = {},
 ) {
-  const { maxItems = Infinity, enableBackpressure = true } = options;
+  const { maxItems = Infinity } = options;
+  const source = iterator as AsyncIterable<any>;
+  const iter =
+    typeof (source as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
+      ? (source as AsyncIterable<any>)[Symbol.asyncIterator]()
+      : (source as any[])[Symbol.iterator]();
 
   let itemCount = 0;
-  let isClosed = false;
+  let first = true;
+  let done = false;
 
-  const stream = new ReadableStream({
-    async start(controller) {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      // Opening bracket (pre-encoded zero-allocation chunk)
+      controller.enqueue(OPEN_DATA_CHUNK);
+    },
+
+    /**
+     * Pull-driven: the stream calls this only when its queue wants data, so
+     * backpressure is the stream's own model — no timers. The previous
+     * `start()`-loop slept a hard-coded 10 ms whenever `desiredSize <= 0`
+     * (HWM defaults to 1), which cost 8–15 ms per large list response.
+     */
+    async pull(controller) {
+      if (done) return;
+      if (itemCount >= maxItems) {
+        finishJsonStream(controller, totalCount, itemCount);
+        done = true;
+        return;
+      }
+
+      let step: IteratorResult<unknown>;
       try {
-        // Opening bracket (pre-encoded zero-allocation chunk)
-        controller.enqueue(OPEN_DATA_CHUNK);
-
-        let first = true;
-
-        for await (const item of iterator as AsyncIterable<any>) {
-          if (isClosed) break;
-          if (itemCount >= maxItems) break;
-
-          if (!first) controller.enqueue(COMMA_CHUNK);
-
-          controller.enqueue(SHARED_TEXT_ENCODER.encode(JSON.stringify(item)));
-          first = false;
-          itemCount++;
-
-          // Backpressure — yield to the event loop if the buffer is full
-          if (
-            enableBackpressure &&
-            controller.desiredSize !== null &&
-            controller.desiredSize <= 0
-          ) {
-            await new Promise((resolve) => setTimeout(resolve, 10));
-          }
-        }
-
-        // Closing metadata — includes both total and returned counts
-        const metadata =
-          totalCount !== undefined
-            ? `,"metadata":{"totalCount":${totalCount},"returned":${itemCount}}`
-            : "";
-
-        controller.enqueue(SHARED_TEXT_ENCODER.encode(`]${metadata}}`));
+        step = await iter.next();
       } catch (err) {
         logger.error("[Streaming] Error during JSON stream:", err);
-        // Send partial data with error marker rather than corrupting the JSON
+        // Send partial data with an error marker rather than corrupting the JSON
         try {
           controller.enqueue(STREAM_ERROR_CHUNK);
         } catch {
           /* already closed */
         }
-      } finally {
-        if (!isClosed) {
-          controller.close();
-          isClosed = true;
-        }
+        controller.close();
+        done = true;
+        return;
       }
+
+      if (step.done) {
+        finishJsonStream(controller, totalCount, itemCount);
+        done = true;
+        return;
+      }
+
+      if (!first) controller.enqueue(COMMA_CHUNK);
+      controller.enqueue(SHARED_TEXT_ENCODER.encode(JSON.stringify(step.value)));
+      first = false;
+      itemCount++;
     },
 
     cancel() {
-      isClosed = true;
+      done = true;
+      void (iter as { return?: () => unknown }).return?.();
     },
   });
 
@@ -110,6 +113,20 @@ export function streamingJsonResponse(
       "Cache-Control": "no-cache",
     },
   });
+}
+
+/** Closing bracket + optional metadata — identical bytes to the legacy writer. */
+function finishJsonStream(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  totalCount: number | undefined,
+  itemCount: number,
+): void {
+  const metadata =
+    totalCount !== undefined
+      ? `,"metadata":{"totalCount":${totalCount},"returned":${itemCount}}`
+      : "";
+  controller.enqueue(SHARED_TEXT_ENCODER.encode(`]${metadata}}`));
+  controller.close();
 }
 
 /**
@@ -124,20 +141,11 @@ export function streamingArrayResponse(
 }
 const NEWLINE_CHUNK = SHARED_TEXT_ENCODER.encode("\n");
 
-async function yieldForBackpressure(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-): Promise<void> {
-  if (controller.desiredSize !== null && controller.desiredSize <= 0) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  }
-}
-
 export interface StreamingExportOptions {
   format: CollectionExportFormat;
   filename: string;
   columns?: readonly string[];
   maxItems?: number;
-  enableBackpressure?: boolean;
 }
 
 /**
@@ -159,48 +167,65 @@ export function streamingExportResponse(
   iterator: AsyncIterable<any> | any[],
   options: StreamingExportOptions,
 ): Response {
-  const {
-    format,
-    filename,
-    columns = [],
-    maxItems = Infinity,
-    enableBackpressure = true,
-  } = options;
+  const { format, filename, columns = [], maxItems = Infinity } = options;
   const isCsv = format === "csv";
+  const source = iterator as AsyncIterable<any>;
+  const iter =
+    typeof (source as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
+      ? (source as AsyncIterable<any>)[Symbol.asyncIterator]()
+      : (source as any[])[Symbol.iterator]();
   let itemCount = 0;
-  let isClosed = false;
+  let done = false;
 
+  // Pull-driven (2026-09-28): the cursor advances only when the stream wants a
+  // record, so backpressure is structural — the previous `start()`-loop yielded
+  // `setTimeout(0)` per record, a per-row tax on every large export.
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        if (isCsv) {
-          controller.enqueue(SHARED_TEXT_ENCODER.encode(encodeCsvHeader(columns)));
-        }
-
-        for await (const item of iterator as AsyncIterable<any>) {
-          if (isClosed || itemCount >= maxItems) break;
-          const record =
-            item && typeof item === "object" ? (item as Record<string, unknown>) : { value: item };
-          const line = isCsv ? csvRowFromRecord(record, columns) : encodeNdjsonLine(record);
-          controller.enqueue(SHARED_TEXT_ENCODER.encode(line));
-          itemCount++;
-          if (enableBackpressure) await yieldForBackpressure(controller);
-        }
-
-        if (!isCsv && itemCount === 0) {
-          controller.enqueue(NEWLINE_CHUNK);
-        }
-      } catch (err) {
-        logger.error("[StreamingExport] Error during export stream:", err);
-      } finally {
-        if (!isClosed) {
-          controller.close();
-          isClosed = true;
-        }
+    start(controller) {
+      if (isCsv) {
+        controller.enqueue(SHARED_TEXT_ENCODER.encode(encodeCsvHeader(columns)));
       }
     },
+
+    async pull(controller) {
+      if (done) return;
+      if (itemCount >= maxItems) {
+        finishExportStream(controller, isCsv, itemCount);
+        done = true;
+        return;
+      }
+
+      let step: IteratorResult<unknown>;
+      try {
+        step = await iter.next();
+      } catch (err) {
+        logger.error("[StreamingExport] Error during export stream:", err);
+        controller.close();
+        done = true;
+        return;
+      }
+
+      if (step.done) {
+        finishExportStream(controller, isCsv, itemCount);
+        done = true;
+        return;
+      }
+
+      const record =
+        step.value && typeof step.value === "object"
+          ? (step.value as Record<string, unknown>)
+          : { value: step.value };
+      controller.enqueue(
+        SHARED_TEXT_ENCODER.encode(
+          isCsv ? csvRowFromRecord(record, columns) : encodeNdjsonLine(record),
+        ),
+      );
+      itemCount++;
+    },
+
     cancel() {
-      isClosed = true;
+      done = true;
+      void (iter as { return?: () => unknown }).return?.();
     },
   });
 
@@ -214,6 +239,18 @@ export function streamingExportResponse(
       "X-Export-Format": format,
     },
   });
+}
+
+/** Empty-NDJSON newline, then close — identical bytes to the legacy writer. */
+function finishExportStream(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  isCsv: boolean,
+  itemCount: number,
+): void {
+  if (!isCsv && itemCount === 0) {
+    controller.enqueue(NEWLINE_CHUNK);
+  }
+  controller.close();
 }
 
 /**
