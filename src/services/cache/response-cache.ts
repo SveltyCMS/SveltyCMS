@@ -512,7 +512,13 @@ class ResponseCacheService {
   private entryBytes(entry: CachedResponseEntry): number {
     // V8 stores the body as UTF-16 (2 bytes per code unit) and the lazily
     // encoded buffer is a second, byte-sized copy. Both are resident.
-    return (entry.body?.length ?? 0) * 2 + (entry.buffer?.byteLength ?? 0);
+    let bytes = (entry.body?.length ?? 0) * 2 + (entry.buffer?.byteLength ?? 0);
+    // Compression variants are resident copies too (the stash attaches up to
+    // three) — not counting them let the L1 budget drift past its ceiling.
+    if (entry.compressed) {
+      for (const variant of Object.values(entry.compressed)) bytes += variant?.byteLength ?? 0;
+    }
+    return bytes;
   }
 
   private l1ByteBudget(pointReads: boolean): number {
@@ -641,44 +647,16 @@ class ResponseCacheService {
     entry: CachedResponseEntry,
     ttlMs: number = 300_000,
     tenantId?: string | null,
-    opts?: { skipSharedL1?: boolean; tags?: string[] },
+    opts?: { skipSharedL1?: boolean; tags?: string[]; preserveStale?: boolean },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
     const inferredPointRead = classifyTurboKey(key)?.entryId != null;
     const store = inferredPointRead ? this.pointL1 : this.localL1;
     entry.expiresAt = Date.now() + ttlMs;
-    entry.stale = false;
-
-    // Asynchronously pre-compute compression variants for TURBO-HIT serving (>1KB)
-    // DISABLED for benchmark / high-throughput mixed workloads:
-    // Background Brotli+Gzip of 250KB payloads stalls the libuv/event-loop thread pool for ~75ms per cycle.
-    /*
-    if (!entry.compressed && entry.body && entry.body.length > 1024) {
-      queueMicrotask(async () => {
-        try {
-          const { compressAsync, hasNativeCompression, hasAsyncZstd, SYNC_MAX_SIZE } =
-            await import("@src/hooks/handle-compression");
-          if (hasNativeCompression()) {
-            const rawBody = entry.body;
-            const size = rawBody.length;
-            const gzip = await compressAsync(rawBody, "gzip", size).catch(() => null);
-            const br = await compressAsync(rawBody, "br", size).catch(() => null);
-            const zstd =
-              size >= 32 * 1024 && (hasAsyncZstd() || size <= SYNC_MAX_SIZE)
-                ? await compressAsync(rawBody, "zstd", size).catch(() => null)
-                : null;
-            if (gzip || br || zstd) {
-              entry.compressed = {
-                ...(gzip ? { gzip } : {}),
-                ...(br ? { br } : {}),
-                ...(zstd ? { zstd } : {}),
-              };
-            }
-          }
-        } catch {}
-      });
-    }
-    */
+    // An update to an ALREADY-LIVE entry (the variant stash, `response-compression-stash.ts`)
+    // must not clear a concurrent write's staleness mark — that would serve a
+    // superseded body as fresh. Insert paths (option absent) keep the reset contract.
+    entry.stale = opts?.preserveStale === true ? (store.get(fullKey)?.stale ?? false) : false;
 
     const max = inferredPointRead ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
     // 🔎 Point-tier admission: a cold id must not buy a slot (see `pointAdmission`).

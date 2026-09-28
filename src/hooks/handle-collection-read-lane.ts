@@ -35,6 +35,13 @@ import {
   hasGuardedFields,
 } from "@src/services/security/field-permission-service";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
+import { STASH_MIN_BYTES, scheduleTurboVariantStash } from "./response-compression-stash";
+import {
+  compressSync,
+  hasNativeCompression,
+  negotiateEncoding,
+  SYNC_MAX_SIZE,
+} from "./handle-compression";
 import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
 import { dbAdapter } from "@src/databases/db";
@@ -60,6 +67,8 @@ interface CoalescedCollectionRead {
   /** Leader of a miss. Waiters omit this and are served as turbo hits. */
   miss?: boolean;
   response?: Response;
+  /** Negotiated variant the leader already computed (also seeded into the cache). */
+  compressed?: Record<string, Uint8Array>;
 }
 
 const inflightCollectionReads = new Map<string, Promise<CoalescedCollectionRead | null>>();
@@ -505,6 +514,24 @@ async function executeWarmCollectionRead(
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
     stampSrvDur(res.headers, srvT0);
+    if (!cached.compressed) {
+      // Lazy variant warm-up: the first re-hit is the proof that this key is
+      // actually re-read — point-read misses deliberately skip the CPU because
+      // random per-id keys are evicted before a second read (see
+      // response-compression-stash.ts). The stash runs after the response.
+      const bodyBytes = cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
+      void scheduleTurboVariantStash({
+        key: pathKey,
+        body: cached.body,
+        etag: cached.etag,
+        byteLength: bodyBytes,
+        ttlMs: cached.expiresAt ? Math.max(1_000, cached.expiresAt - Date.now()) : 300_000,
+        tenantId: cacheTenant,
+        setOptions: entryId
+          ? { skipSharedL1: true }
+          : { tags: collectionResponseCacheTags(collectionId, null).tags, skipSharedL1: false },
+      });
+    }
     return res;
   }
 
@@ -696,9 +723,39 @@ async function rebuildWarmCollectionRead(
   // allocation the cold random-id path pays for and throws away.
   const tags = entryId ? null : collectionResponseCacheTags(collectionId, null).tags;
   marks?.set("build", performance.now() - dbT0);
+
+  // The pipeline compresses every response it owns; lane responses bypass
+  // `handleCompression`, so a large list would leave the socket as identity
+  // bytes (measured 2026-09-28: 260 791 B uncompressed for a zstd-only client).
+  // Inside the buffered budget the lane mirrors the pipeline's sync tier and
+  // seeds the variant into both the response and the cache entry. Beyond it,
+  // the pipeline's STREAMING tier owns the encoding — buffering a 255 KiB body
+  // here measured 10.8 ms/request and +668 % co-tenant p95, so the lane declines
+  // and lets the pipeline compress while sending. The duplicate DB read is the
+  // rare big miss's price; hits stay on the lane.
+  let compressedVariants: Record<string, Uint8Array> | undefined;
+  if (tags) {
+    const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
+    if (acceptEncoding) {
+      const bodyBytes = Buffer.byteLength(apiBody, "utf8");
+      if (bodyBytes > SYNC_MAX_SIZE) return null;
+      if (bodyBytes > STASH_MIN_BYTES) {
+        const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+          contentLength: bodyBytes,
+        });
+        if (algo) {
+          const variant = compressSync(apiBody, algo, bodyBytes);
+          if (variant) compressedVariants = { [algo]: variant };
+        }
+      }
+    }
+  }
+
   responseCache.set(
     pathKey,
-    { body: apiBody, etag },
+    compressedVariants
+      ? { body: apiBody, etag, compressed: compressedVariants }
+      : { body: apiBody, etag },
     300_000,
     cacheTenant,
     // Point reads pass a bare options object: the `...(tags ? { tags } : {})`
@@ -707,7 +764,23 @@ async function rebuildWarmCollectionRead(
     tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
   );
   marks?.set("cachewrite", performance.now() - dbT0);
-  return { body: apiBody, etag, miss: true };
+  if (tags) {
+    // Fill the remaining encodings in the background (the served one is passed
+    // in so it is never compressed twice). Point reads skip this entirely.
+    void scheduleTurboVariantStash({
+      key: pathKey,
+      body: apiBody,
+      etag,
+      byteLength: Buffer.byteLength(apiBody, "utf8"),
+      ttlMs: 300_000,
+      tenantId: cacheTenant,
+      setOptions: { tags, skipSharedL1: false },
+      have: compressedVariants,
+    });
+  }
+  return compressedVariants
+    ? { body: apiBody, etag, miss: true, compressed: compressedVariants }
+    : { body: apiBody, etag, miss: true };
 }
 
 /**

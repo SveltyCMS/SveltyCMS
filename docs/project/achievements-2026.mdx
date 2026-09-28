@@ -1757,6 +1757,43 @@ time unchanged (0.38/0.40 → 0.35/0.36 ms) — reproduced with the arms in both
 transport evidence the write lane's default flip was waiting for; the remaining gate is the
 `BENCH_VERIFY_RAW=1` byte-equivalence proof plus a c=8 paired run.
 
+### 3.39 September 2026 — Lane responses get their compression back (and the >64 KiB tier gets its first honest number)
+
+**The gap.** Fast-lane responses bypass `handleCompression` (`LANE_BYPASSED_HOOKS`) and
+`serveTurboCacheEntry` can only serve an encoding that was attached to the entry — so every lane-served
+list left the socket as identity bytes. Measured 2026-09-28 through the zstd audit: a **260 791 B** body
+answered a zstd-only client uncompressed, and the whole zstd/co-tenant scenario in `api-latency.test.ts`
+reported `api.zstd.available=0` (skipped) — the tier was unmeasurable, not slow.
+
+**What shipped.** `src/hooks/response-compression-stash.ts` — one shared variant implementation for the
+read lane and the API dispatcher, with a precise contract:
+
+- **Hits are free**: list entries carry `compressed` variants (`zstd` with the CMS dictionary, `br`/`gzip`
+  ≤ `SYNC_MAX_SIZE`); `serveTurboCacheEntry` already negotiates `Accept-Encoding` per request. The
+  response-cache's internal precompute turned out to be **commented-out dead code**, so lane entries had
+  never carried a variant at all.
+- **First re-hit warms lazily**: point-read misses are high-cardinality and skip the CPU; the second
+  request for any key schedules the stash — a re-read is the proof that the key is worth compressing.
+- **Miss path inside the buffered budget**: the lane compresses ≤ 64 KiB synchronously (exactly the
+  pipeline's own sync tier) and seeds the variant into both the response and the cache entry.
+- **Safety rails**: in-flight guard per key, expanded output dropped, a body that produced nothing is
+  marked attempted (`compressed: {}`) so later hits do not retry, `preserveStale` keeps a concurrent
+  write's staleness decision (the old `set()` forced `stale = false`), and a superseded body is never
+  overwritten (body/etag re-check before the re-set). `entryBytes()` now counts variant bytes, so the L1
+  budget no longer drifts when variants are attached.
+
+**Beyond 64 KiB the lane declines to the pipeline** (compress-while-sending, no full-body wait). Buffering
+the same 255 KiB body in-lane measured **10.8 ms/request, 183 RPS, co-tenant p95 0.33 → 2.50 ms** — rejected.
+The pipeline's streaming tier is now measurable end-to-end and lands at **22.7 ms warm / p95 24.8 ms /
+87 RPS with co-tenant p95 0.30 → 7.39 ms** on this host (cache-busted, so every request pays a fresh
+compression). That is a property of the app-wide streaming compression tier — now visible for the first
+time — not of the lane change; a level/threshold decision for > 64 KiB bodies is the next lever, tracked in
+the roadmap.
+
+**Verification**: `tests/unit/hooks/response-compression-stash.test.ts` (9 cases: gates, builder guards,
+hit-stash, supersession, staleness, size no-op) + 51/51 across the neighbouring hook suites; the api-latency
+probe now reports `zstd active: … body 254.7 KiB (> 64 KiB async tier)` instead of a skip.
+
 ---
 
 ## Related

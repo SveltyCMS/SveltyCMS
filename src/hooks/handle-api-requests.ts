@@ -40,14 +40,11 @@ import {
 } from "@src/services/cache/collection-etag";
 import {
   negotiateEncoding,
-  compressAsync,
-  compressZstd,
   hasNativeCompression,
-  hasAsyncZstd,
   setCompressionHeaders,
   addVaryHeader,
-  SYNC_MAX_SIZE,
 } from "./handle-compression";
+import { buildCompressionVariants } from "./response-compression-stash";
 import {
   getCollectionFromPath,
   getCollectionFields,
@@ -377,22 +374,13 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                 // so the hook keeps its own write in that case.
                 const dispatcherTurboWritten =
                   !url.searchParams.has("tenantId") && locals.__dispatcherTurboWrite === true;
-                const responseBodyBytes = responseBody
-                  ? Buffer.byteLength(responseBody, "utf8")
-                  : 0;
                 if (!dispatcherTurboWritten) {
-                  // `compressed: {}` is a sentinel that suppresses responseCache's
-                  // internal async br/gzip precompute — the fire-and-forget IIFE
-                  // below is the single compressor for this body (br+gzip+zstd),
-                  // so the internal microtask would only re-compress it for a
-                  // dead write.
+                  // No `compressed` field here: the fire-and-forget stash below is
+                  // the single compressor for this body (br+gzip+zstd) — the entry
+                  // simply serves raw until the variants land.
                   responseCache.set(
                     turboKey,
-                    {
-                      body: responseBody,
-                      etag,
-                      ...(responseBodyBytes > 1024 ? { compressed: {} } : {}),
-                    },
+                    { body: responseBody, etag },
                     API_CACHE_TTL_S * 1000,
                     currentTenantId,
                   );
@@ -417,46 +405,12 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                       (pathSegs[1] === "collections" || pathSegs[1] === "content") &&
                       pathSegs[3] !== "list" &&
                       pathSegs[3] !== "search";
-                    const compressedPayloads: Record<string, Uint8Array> = {};
-                    const compressionTasks: Promise<void>[] = [];
-                    // 🔴 FIX 8 (event-loop load): sync br/gzip compression runs on the
-                    // request thread. `Promise.resolve().then(...)` only DEFERS the work a
-                    // tick — it does not offload the CPU to another thread. For large bodies
-                    // that is real event-loop blocking per concurrent request. Only sync
-                    // compress bodies at/below SYNC_MAX_SIZE; everything larger goes through
-                    // the genuinely-async `compressZstd` (libuv thread pool) and/or the
-                    // streaming tier in handleCompression (never the sync path).
-                    if (!skipCompression && hasNativeCompression() && bodyBytes <= SYNC_MAX_SIZE) {
-                      compressionTasks.push(
-                        compressAsync(responseBody!, "br", bodyBytes)
-                          .then((br) => {
-                            if (br && br.byteLength < bodyBytes) compressedPayloads.br = br;
-                          })
-                          .catch(() => {}),
-                      );
-                      compressionTasks.push(
-                        compressAsync(responseBody!, "gzip", bodyBytes)
-                          .then((gz) => {
-                            if (gz && gz.byteLength < bodyBytes) compressedPayloads.gzip = gz;
-                          })
-                          .catch(() => {}),
-                      );
-                    }
-                    // 🔴 FIX 7/8: the native async zstd API runs on the libuv
-                    // worker pool, so it is safe at any size — but a runtime with
-                    // only the sync API must not rip a body above SYNC_MAX_SIZE on
-                    // the request thread. Skip the call entirely in that case;
-                    // callers serve br/gzip/uncompressed instead of stalling.
-                    if (!skipCompression && (hasAsyncZstd() || bodyBytes <= SYNC_MAX_SIZE)) {
-                      compressionTasks.push(
-                        compressZstd(responseBody!, bodyBytes)
-                          .then((zstd) => {
-                            if (zstd && zstd.byteLength < bodyBytes) compressedPayloads.zstd = zstd;
-                          })
-                          .catch(() => {}),
-                      );
-                    }
-                    await Promise.all(compressionTasks);
+                    const compressedPayloads = skipCompression
+                      ? {}
+                      : // Shared builder with the collection read lane — one
+                        // implementation of the size/API guards
+                        // (see response-compression-stash.ts).
+                        await buildCompressionVariants(responseBody!, bodyBytes);
 
                     // 🚀 Stash the variants into the L1 turbo entry too —
                     // handleTurboGet previously re-compressed the cached body on

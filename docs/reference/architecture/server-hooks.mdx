@@ -416,6 +416,8 @@ The rejection fix above generalised: **every API response built by hand must dec
 
 The `findByIdRandom` competitive row is a different path from the rejects: a warm admin session on `GET /api/collections/:collection/:entryId` is served by the **collection read lane** (`hooks.server.ts` → `tryCollectionReadLane`), which returns from `handle` directly — no middleware chain, and therefore no compression stage at all (the response only gets its `content-length` at socket-write time, when Node writes a single-chunk `end()`). Verified on-wire: lane `HYPER_TURBO`, `x-cache: MISS`, 676 B body + 26 headers (1279 B), `content-length: 676`.
 
+**Update (2026-09-28):** the lane now owns its compression instead of skipping it. Inside the buffered budget (≤ 64 KiB) it compresses the negotiated encoding synchronously — the same tier this pipeline uses — and seeds the variant into the same L1 entry; later hits serve stashed `zstd`/`br`/`gzip` variants for free (the response-cache's own variant precompute had been commented-out dead code, so no lane entry had ever carried one). Above 64 KiB the lane declines and lets the streaming tier compress while sending: buffering 255 KiB in-lane measured 10.8 ms/request vs 22.7 ms streamed, and the streamed figure is the app-wide tier's cost — now measurable via `api-latency.test.ts` instead of skipped (see achievements §3.39). Implementation: `src/hooks/response-compression-stash.ts`.
+
 `PROFILE_WRITE=1` spans averaged over one full replica run (n = 6790 misses, SQLite, 10k docs, 8c) attribute the lane's own work as follows (parent spans include queueing, leaves do not):
 
 | Stage                             |      avg | Note                                                                    |
