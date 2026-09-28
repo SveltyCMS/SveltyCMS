@@ -170,11 +170,18 @@ The `VersionCheck` component (`src/components/version-check.svelte`) appears in 
 - Fetches `/api/system/version/check` every hour to compare against the latest GitHub release
 - Shows a clickable badge linking to the releases page
 
-| Badge State            | Meaning                                                             |
-| ---------------------- | ------------------------------------------------------------------- |
-| **Green** (`success`)  | You are up to date                                                  |
-| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.10 recommended") |
-| **Grey** (`surface`)   | Could not check for updates (network/GitHub API issue)              |
+| Badge State            | Meaning                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Green** (`success`)  | You are up to date                                                                                     |
+| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.10 recommended")                                    |
+| **Grey** (`surface`)   | Could not check for updates — network/GitHub API issue, **or** the caller is not signed in (see below) |
+
+The update check is **authenticated by design** (`system:read` via the fail-closed dispatcher, pinned by
+`tests/integration/api/version.test.ts` → _"should require authentication"_): the endpoint performs an outbound
+GitHub lookup, so an anonymous caller must not be able to trigger it. The installed version keeps its own public
+endpoint (`/api/system/version`). On `/setup` and `/login` there is no session yet, so the component shows the
+installed version with a grey badge and **no** error alert — a 401/403 there is an authorization answer, not a
+failed check (`src/components/version-check.svelte`).
 
 ---
 

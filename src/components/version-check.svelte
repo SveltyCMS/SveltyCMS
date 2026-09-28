@@ -18,8 +18,11 @@ refreshed by one mechanism: the hourly interval below.
 ### Features
 	- Single state object + severity-keyed presentation
 	- Up to date (success), update available (warning), GitHub error (warning),
-	  unreachable (critical), no data (info)
+	  not authorized / no data (info), unreachable (critical)
 	- Accessible ARIA status label + polite live region; reduced-motion safe
+	- Pre-auth surfaces (/setup, /login) show the installed version with a grey badge
+	  instead of a red alert: the check is authenticated by design, so a 401/403 there
+	  is an authorization answer, not a failure
 -->
 
 <script lang="ts">
@@ -251,6 +254,21 @@ refreshed by one mechanism: the hourly interval below.
 			});
 
 			if (!response.ok) {
+				// 401/403 is an authorization answer, not a failure: the update check is
+				// authenticated by design (it performs an outbound GitHub lookup), so a
+				// pre-auth surface (/setup, /login) legitimately cannot run it. Rendering
+				// that as `unreachable` painted a red alert over the installed version and
+				// implied the version machinery was broken.
+				if (response.status === 401 || response.status === 403) {
+					state = {
+						error: null,
+						lastChecked: Date.now(),
+						latestVersion: null,
+						outcome: 'unavailable',
+						remoteVersion: null
+					};
+					return;
+				}
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
