@@ -1877,6 +1877,20 @@ earlier session — host drift between sessions is 7–59 % on this box.)
   list, so under MULTI_TENANT the wrapper hid `findPointWireStream` and every lane read silently fell
   back to the Domain Plane. The wire method is now delegated through the same tenant-options guard as
   every other op.
+- **Row-shape lever profiled and falsified (same day).** A faithful stage replay of the list build
+  (199 rows × ~1.3 KB blob, 16 keys/row, real `convertDatesToISO` + `trimListEnvelope` + stringify)
+  costs **0.66 ms total (3.3 µs/row)**: blob `JSON.parse` 0.27 ms, parse+flatten+date/bool conversion
+  0.38 ms, trim copy 0.03 ms, `JSON.stringify` of the 364 KB envelope 0.31 ms. A blob-only projection
+  shape saves ~0.2 ms, dropping the blob entirely ~0.5 ms — the row shape is **not** where the list
+  cost lives. The 310 KB (199 × ~1.5 KB) list's _real_ `x-srv-split` build mark is **6.4 ms**, ~10×
+  the stage replay: the remaining mass is string materialisation (body + ETag hash + variant
+  handling) and the GC that rides on it, not per-row parsing. Concurrency check on that shape
+  (cache-bypassed, identity): p50 8.64 / 9.28 / 12.99 ms and RPS **116 → 194 → 567** at c=1/2/8 — the
+  earlier “flat ~153/154 RPS” saturation reading did **not** reproduce outside the zstd audit's own
+  setup, so that number should not be quoted as a general list ceiling until it is re-measured with
+  the compression path separated out. Harness note for whoever picks this up: fresh `DB_NAME`s
+  currently 401 at benchmark admin login (`authUsers` absent after pre-boot seeding, boot logs a
+  `ThemeFileSync` failure) while existing DBs work — flagged, not attributed to this change.
 
 ---
 
