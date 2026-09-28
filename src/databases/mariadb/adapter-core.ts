@@ -37,6 +37,7 @@ import {
   isSystemTable,
   shouldMaterializeField,
   buildCompositeIndexColumns,
+  getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
 import { getTableName } from "drizzle-orm";
 // Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
@@ -52,6 +53,7 @@ import {
   buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
+  getTableBooleanColumns,
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
@@ -323,7 +325,27 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const hasSlugCol = !!this.getColumn(table, "slug");
       const hasStatusCol = !!this.getColumn(table, "status");
 
-      const dataExpr = `JSON_MERGE_PATCH(COALESCE(\`data\`, '{}'), JSON_OBJECT('_id', \`${idColName}\`${hasStatusCol ? ", 'status', `status`" : ""}${hasSlugCol ? ", 'slug', `slug`" : ""}))`;
+      // Row-store hybrid: materialized fields live in real columns and the
+      // `data` blob keeps only dynamic fields, so a blob-only wire body would
+      // silently drop them. `JSON_SET` merges them back and — unlike
+      // `JSON_MERGE_PATCH`/RFC 7396 — KEEPS an explicit `null`, matching the
+      // Domain-Plane flatten (columns win; an unset column is `null`, not a
+      // missing key). A boolean column is expressed as a comparison so the JSON
+      // carries true/false, not TINYINT 0/1.
+      const overrides: string[] = [`'$."_id"', \`${idColName}\``];
+      if (hasStatusCol) overrides.push(`'$."status"', \`status\``);
+      if (hasSlugCol) overrides.push(`'$."slug"', \`slug\``);
+      const boolCols = getTableBooleanColumns(tableName);
+      for (const rawName of getMaterializedFieldColumns(table)) {
+        // The JSON path is a string literal — a name that cannot be embedded
+        // verbatim means no faithful wire body, so decline (findOne fallback).
+        if (!/^[A-Za-z0-9_]+$/.test(rawName)) return null;
+        const name = assertSafeSqlIdentifier(rawName, "column");
+        const col = `\`${name}\``;
+        overrides.push(`'$."${name}"', ${boolCols?.has(rawName) ? `(${col} = 1)` : col}`);
+      }
+
+      const dataExpr = `JSON_SET(COALESCE(\`data\`, '{}')${overrides.map((o) => `, ${o}`).join("")})`;
 
       const safeTable = `\`${assertSafeSqlIdentifier(tableName, "table")}\``;
       // Wire Plane publication guarantee: fail closed when the table cannot express it.

@@ -9,7 +9,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { shouldMaterializeField } from "@src/databases/core/drizzle-sql-helpers";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  getMaterializedFieldColumns,
+  shouldMaterializeField,
+} from "@src/databases/core/drizzle-sql-helpers";
 
 describe("shouldMaterializeField", () => {
   it("materializes number and integer fields so a counter patch does not rewrite JSON", () => {
@@ -43,6 +47,29 @@ describe("shouldMaterializeField", () => {
         widget: { Name: "RichText" },
       }),
     ).toBe(false);
+  });
+
+  it("materialized field columns are the table definition minus the system columns", () => {
+    // The Direct-to-Wire point stream builds its JSON from the `data` blob, so it
+    // must merge exactly these columns back (see getMaterializedFieldColumns).
+    const table = sqliteTable("collection_x", {
+      _id: text("_id").primaryKey(),
+      tenantId: text("tenantId"),
+      collection: text("collection"),
+      slug: text("slug"),
+      locale: text("locale"),
+      publishedAt: integer("publishedAt"),
+      status: text("status"),
+      isDeleted: integer("isDeleted"),
+      createdAt: integer("createdAt"),
+      updatedAt: integer("updatedAt"),
+      data: text("data"),
+      views: integer("views"),
+      sku: text("sku"),
+    });
+
+    expect(getMaterializedFieldColumns(table)).toEqual(["views", "sku"]);
+    expect(getMaterializedFieldColumns(null)).toEqual([]);
   });
 
   it("still materializes an indexed string and refuses encrypted or object fields", () => {

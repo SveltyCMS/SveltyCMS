@@ -33,6 +33,7 @@ import {
   isSystemTable,
   shouldMaterializeField,
   buildCompositeIndexColumns,
+  getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
 import { getTableColumns, getTableName } from "drizzle-orm";
 // Namespace import on purpose: the whole module is exposed as `adapter.schema` (public surface).
@@ -683,7 +684,23 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const hasSlugCol = !!this.getColumn(table, "slug");
         const hasStatusCol = !!this.getColumn(table, "status");
 
-        const dataExpr = `(CASE WHEN "data" IS NULL THEN jsonb_build_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""}) ELSE ("data" || jsonb_build_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})) END)`;
+        // Row-store hybrid: materialized fields live in real columns and the
+        // `data` blob keeps only dynamic fields, so a blob-only wire body would
+        // silently drop them. `||` concatenates (unlike jsonb merge rules it
+        // KEEPS explicit nulls) and jsonb_build_object maps a boolean column to
+        // JSON true/false, so the wire body matches the Domain-Plane flatten
+        // (columns win; an unset column is `null`, never a missing key).
+        const pairs: string[] = [`'_id', "_id"`];
+        if (hasStatusCol) pairs.push(`'status', "status"`);
+        if (hasSlugCol) pairs.push(`'slug', "slug"`);
+        for (const rawName of getMaterializedFieldColumns(table)) {
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return null;
+          const name = assertSafeSqlIdentifier(rawName, "column");
+          pairs.push(`'${name}', "${name}"`);
+        }
+
+        const doc = `jsonb_build_object(${pairs.join(", ")})`;
+        const dataExpr = `(CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)`;
         const selectPrefix = `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         cachedWireSql = {

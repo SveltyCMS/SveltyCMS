@@ -221,6 +221,39 @@ export function buildCompositeIndexColumns(fields: unknown): Set<string> {
 }
 
 /**
+ * Base columns every collection table carries — never field materializations.
+ * The wire plane's JSON generator needs the complement of this set to know which
+ * physical columns hold *field* values (see `getMaterializedFieldColumns`).
+ */
+export const COLLECTION_SYSTEM_COLUMNS: ReadonlySet<string> = new Set([
+  "_id",
+  "tenantId",
+  "status",
+  "isDeleted",
+  "createdAt",
+  "updatedAt",
+  "data",
+  "collection",
+  "slug",
+  "locale",
+  "publishedAt",
+]);
+
+/**
+ * Physical columns that hold materialized *field* values for a collection table
+ * (table definition minus the system columns).
+ *
+ * The row-store hybrid keeps materialized fields in real columns and the `data`
+ * blob only for dynamic fields — so any reader that builds its payload from the
+ * blob alone (the Direct-to-Wire point stream) silently drops them. This is the
+ * shared list those readers must merge back, in table-definition order.
+ */
+export function getMaterializedFieldColumns(table: any): string[] {
+  if (!table) return [];
+  return Object.keys(getTableColumns(table)).filter((name) => !COLLECTION_SYSTEM_COLUMNS.has(name));
+}
+
+/**
  * Escape LIKE wildcards in user input so `%`, `_` and `\` are matched
  * literally. Callers MUST pair the result with `ESCAPE '\'` (bound as a
  * parameter — never inlined, see `$regex` below) on every LIKE expression.

@@ -21,6 +21,7 @@ import {
   resolveSystemTableName,
   shouldMaterializeField,
   buildCompositeIndexColumns,
+  getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
@@ -37,6 +38,7 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
   createDatabaseError,
+  getTableBooleanColumns,
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
@@ -375,7 +377,31 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const hasSlugCol = !!this.getColumn(table, "slug");
         const hasStatusCol = !!this.getColumn(table, "status");
 
-        const dataExpr = `json(json_patch(COALESCE("data", '{}'), json_object('_id', "_id"${hasStatusCol ? ", 'status', \"status\"" : ""}${hasSlugCol ? ", 'slug', \"slug\"" : ""})))`;
+        // Row-store hybrid: materialized fields live in real columns and the
+        // `data` blob keeps only dynamic fields, so a blob-only wire body would
+        // silently drop them. Merge them back with `json_set` (not
+        // `json_patch`/RFC 7396, which DELETES null-valued keys — the wire body
+        // must match the Domain-Plane flatten, where columns win and an unset
+        // column is `null`, not a missing key).
+        const overrides: string[] = [`'$."_id"', "_id"`];
+        if (hasStatusCol) overrides.push(`'$."status"', "status"`);
+        if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
+        const boolCols = getTableBooleanColumns(tableName);
+        for (const rawName of getMaterializedFieldColumns(table)) {
+          // The JSON path is a string literal — a name that cannot be embedded
+          // verbatim means no faithful wire body, so decline (findOne fallback).
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return null;
+          const name = assertSafeSqlIdentifier(rawName, "column");
+          const col = `"${name}"`;
+          // INTEGER 0/1 booleans must become JSON true/false (parity with the
+          // Drizzle `mode: "boolean"` read path); anything else stays as stored.
+          const value = boolCols?.has(rawName)
+            ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
+            : col;
+          overrides.push(`'$."${name}"', ${value}`);
+        }
+
+        const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
         const selectPrefix = `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
 
         cachedWireSql = {

@@ -10,6 +10,8 @@
  * - read paths return ISODateString dates (epoch-ms leak guard)
  * - update outside vs inside a transaction converge to the same row
  * - raw findById vs Drizzle findOne return the same document
+ * - wire plane (findPointWireStream) agrees field-for-field with findOne —
+ *   including materialized columns (row-store hybrid) and explicit nulls
  *
  * Runs against the CURRENT DB_TYPE engine (SQLite always; PG/Maria on their
  * matrix jobs / local docker). Mongo's transaction tests are skipped — the
@@ -95,6 +97,10 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
           { db_fieldName: "title", widget: { Name: "Input" }, type: "string" },
           { db_fieldName: "enabled", widget: { Name: "Checkbox" }, type: "boolean" },
           { db_fieldName: "views", widget: { Name: "Input" }, type: "number" },
+          // Materialized columns outside the blob: an indexed boolean (0/1 in the
+          // engine, true/false in the contract) and an indexed string.
+          { db_fieldName: "flag", widget: { Name: "Checkbox" }, type: "boolean", indexed: true },
+          { db_fieldName: "sku", widget: { Name: "Input" }, type: "string", indexed: true },
         ],
       } as any);
     } catch (err: unknown) {
@@ -279,6 +285,54 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
     expect(wireParsed.data._id).toBe(id);
     expect(wireParsed.data.title).toBe("wire_stream_test");
     expect(wireParsed.data.views).toBe(42);
+  });
+
+  it("wire plane keeps materialized columns and explicit nulls", async () => {
+    if (!db) return;
+    const wire = requireWireMethods(db.crud, ENGINE);
+    const cases = [
+      { label: "full", flag: true, sku: "A-1", views: 42 },
+      { label: "false", flag: false, sku: "B-2", views: 7 },
+      // Unset columns: the Domain Plane returns `null`, never a missing key —
+      // the wire body must agree (a JSON merge that deletes null keys would not).
+      { label: "nulls", flag: null, sku: null, views: null },
+    ];
+
+    for (const c of cases) {
+      const id = generateUUID() as any as DatabaseId;
+      const inserted = await db.crud.insert(
+        COLLECTION,
+        {
+          _id: id,
+          title: `wire_${c.label}`,
+          flag: c.flag,
+          sku: c.sku,
+          views: c.views,
+          tenantId: TENANT,
+        } as any,
+        { tenantId: TENANT } as any,
+      );
+      expect(inserted.success, `insert ${c.label}`).toBe(true);
+
+      const doc = (
+        await db.crud.findOne(
+          COLLECTION,
+          { _id: id } as any,
+          {
+            tenantId: TENANT,
+          } as any,
+        )
+      )?.data as Record<string, unknown>;
+      const wireRes = unwrapResult(
+        await wire.findPointWireStream(COLLECTION, id, { tenantId: TENANT }),
+      );
+      expect(wireRes, `no wire body for ${c.label}`).not.toBeNull();
+      const wireData = JSON.parse(wireRes!.wireBody).data as Record<string, unknown>;
+
+      for (const key of ["views", "flag", "sku"] as const) {
+        expect(wireData[key], `${key} (${c.label})`).toEqual(doc[key]);
+      }
+    }
   });
 
   it("requirePublished hides unpublished rows from the wire plane on every engine", async () => {
