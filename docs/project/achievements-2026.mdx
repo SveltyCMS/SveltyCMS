@@ -1826,6 +1826,15 @@ nested hook chain accounted for only ~3.7 ms, so the rest was the row build (≈
 the same run 0.711 ms / 11 097 RPS. The remaining ~7 ms of the 11.4 is the SDK list build itself (row
 hydration + per-row JSON) — the list wire plane is the next lever, recorded in the roadmap.
 
+**8c re-verification, same session** (`BENCH_ZSTD_CONCURRENCY=2` vs `=8` on one build — the audit row is
+knob-controlled now and the matrix forwards it): the row goes **13.0 ms / 153 RPS (2c) → 49.4 ms / 154 RPS
+(8c)**. Latency scales with concurrency while throughput stays flat, so the large-list miss path is
+_saturated_ at ~150–175 RPS, and the ceiling matches the synchronous SDK row build (~6–7 ms of event-loop
+work per request, interleaved across 8 in-flight builds, while compression itself is off-thread). The
+point-read rows at the same 8c kept 9 676 RPS, which isolates the cap to the list build — the empirical
+case for the list wire plane below. (The c=2 point re-measured 13.0 / 153 here against 11.4 / 175 in the
+earlier session — host drift between sessions is 7–59 % on this box.)
+
 ---
 
 ## Related

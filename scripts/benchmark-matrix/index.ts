@@ -61,6 +61,9 @@ const DIAGNOSTIC_KEYS = [
   "SVELTY_WAL_CHECKPOINT",
   "SVELTY_SRV_SPLIT",
   "SVELTY_SRV_DUR",
+  // Test-side knob (api-latency zstd transfer row) — forwarded so matrix runs can
+  // re-measure the row at 8c instead of silently measuring the default 2.
+  "BENCH_ZSTD_CONCURRENCY",
 ] as const;
 const DIAGNOSTIC_ENV: Record<string, string> = {};
 for (const key of DIAGNOSTIC_KEYS) {

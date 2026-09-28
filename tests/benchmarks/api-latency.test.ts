@@ -27,10 +27,12 @@ import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 
 /**
- * `handle-compression.ts` only takes the streaming (genuinely async) zstd path
- * above `SYNC_MAX_SIZE` (64 KiB) — below it the sync native call is the intended
- * behaviour. The probe refuses to report numbers for a body that cannot exercise
- * the claim.
+ * Above `SYNC_MAX_SIZE` (64 KiB) compression never runs the sync native call on
+ * the request thread: lane-served responses (the `limit=199` list below is one)
+ * compress one-shot on the libuv pool (`compressAsync`); pipeline-owned responses
+ * use `handle-compression.ts`'s streaming tier. Below 64 KiB the sync native call
+ * is the intended behaviour. The probe refuses to report numbers for a body that
+ * cannot exercise the async tier.
  */
 const ZSTD_ASYNC_MIN_BYTES = 64 * 1024;
 /** Coordination samples — small n keeps the whole scenario inside seconds. */
@@ -319,8 +321,9 @@ interface ZstdAuditOutcome {
  * zstd-async coverage (achievements 2026: “zstd is no longer synchronous on the
  * event loop”).
  *
- * Two things are measured against a body above `SYNC_MAX_SIZE` (64 KiB), which is
- * the tier where the streaming zstd transform (not the sync native call) applies:
+ * Two things are measured against a body above `SYNC_MAX_SIZE` (64 KiB), the tier
+ * where compression leaves the sync native call (one-shot `compressAsync` here —
+ * the lane owns this response — instead of the pipeline's streaming transform):
  * 1. a large GET with `Accept-Encoding: zstd` including the full body drain;
  * 2. the co-tenant path — how a normal TURBO-HIT request behaves while that
  *    compressed payload is produced/sent. A synchronous compressor would show up
@@ -349,11 +352,11 @@ async function runZstdAudit(
   // is deterministic (200 × ~1 KiB) and exceeds `SYNC_MAX_SIZE`; the OpenAPI spec
   // and the stable collection list are the fallbacks.
   //
-  // `limit=199`, not 200: at `MAX_PAGE_SIZE` (200) the handler switches to
-  // `streamingJsonResponse`, whose deliberate 10 ms/tick backpressure sleep would
-  // dominate the measurement (measured: ~3.1 s per request). Below the cap the
-  // body is built once with a real `Content-Length` > 64 KiB, which is exactly the
-  // tier the async zstd transform serves.
+  // `limit=199`, not 200: at `MAX_PAGE_SIZE` (200) the lane declines and the
+  // dispatcher switches to `streamingJsonResponse` (pull-driven; chunked) — a
+  // different body-building path. Below the cap the lane builds the buffered list
+  // the production path serves, and its body exceeds 64 KiB, which is exactly the
+  // tier `compressAsync` serves.
   const seeded = await seedZstdPayloadCollection();
   if (seeded) {
     // The server caches its schema store at boot — a runtime-created collection is
@@ -432,7 +435,9 @@ async function runZstdAudit(
     iterations: 40,
     warmupIterations: 8,
     runs: 2,
-    concurrency: 2,
+    // Default 2. `BENCH_ZSTD_CONCURRENCY=8` re-measures this row at the same 8c as
+    // the rows above (standalone runs inherit the env; the matrix forwards it).
+    concurrency: Number(process.env.BENCH_ZSTD_CONCURRENCY) || 2,
     trimOutliers: "iqr",
     silent: true,
     onIteration: async () => {
