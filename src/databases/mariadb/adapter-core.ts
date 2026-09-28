@@ -33,7 +33,11 @@ import type {
   FindOptions,
   QueryFilter,
 } from "../db-interface";
-import { isSystemTable, shouldMaterializeField } from "../core/drizzle-sql-helpers";
+import {
+  isSystemTable,
+  shouldMaterializeField,
+  buildCompositeIndexColumns,
+} from "../core/drizzle-sql-helpers";
 import { getTableName } from "drizzle-orm";
 // Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
 import * as schema from "./schema";
@@ -1757,6 +1761,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
         ];
 
         const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
+        // 🚀 COMPOSITE-INDEX POLICY: the covering `(tenantId, status, col, _id)`
+        // index is provisioned only for declared query targets (indexed fields,
+        // numeric sort columns, the publishedAt base column) — see
+        // `buildCompositeIndexColumns`. Every extra index is maintained on EVERY
+        // write, and InnoDB has no HOT equivalent, so an unused covering index is
+        // pure write amplification (PostgreSQL twin measured: +11–17 % per index).
+        const compositeCols = buildCompositeIndexColumns(schemaData.fields);
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
           const materialized = new Map<string, string>();
@@ -1851,10 +1862,29 @@ export abstract class AdapterCore extends SqlAdapterCore {
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${physicalName}\` (\`${colName}\`)`,
             );
-            // 🚀 Covering composite index for filter+sort on dynamic columns:
+            // 🚀 Covering composite index for filter+sort — provisioned only for
+            // declared query targets (see buildCompositeIndexColumns):
             // WHERE tenantId=? AND status=? ORDER BY colName, _id
+            if (compositeCols.has(colNameRaw)) {
+              await this.raw.execute(
+                `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_${colName}_id\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`${colName}\`, \`_id\`)`,
+              );
+            }
+          } catch {
+            /* safe */
+          }
+        }
+
+        // 🔻 COMPOSITE CLEANUP: legacy tables carry the covering index for every
+        // materialized column. Dropping the ones the policy no longer provisions
+        // is what makes the per-write saving real on upgrades; after the first
+        // boot it is a name lookup that finds nothing.
+        for (const colNameRaw of dynamicCols) {
+          if (compositeCols.has(colNameRaw)) continue;
+          try {
+            const colName = assertSafeSqlIdentifier(colNameRaw, "column");
             await this.raw.execute(
-              `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_${colName}_id\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`${colName}\`, \`_id\`)`,
+              `DROP INDEX IF EXISTS \`${physicalName}_tenant_status_${colName}_id\``,
             );
           } catch {
             /* safe */

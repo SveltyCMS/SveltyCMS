@@ -18,6 +18,10 @@
  * 2. **Plan** — on PostgreSQL the SQL the adapter itself builds must be served by the
  *    GIN index, not a sequential scan (asserted by running `EXPLAIN` on that exact
  *    rendered SQL, so the check cannot test a hand-written stand-in).
+ * 3. **Index policy** — the covering composite `(tenantId, status, col, _id)` is
+ *    provisioned only for declared query targets (numeric / `indexed` fields and
+ *    the `publishedAt` base column), on every SQL engine; storage-only columns
+ *    keep their single-column index only. See `buildCompositeIndexColumns`.
  *
  * SQLite/MariaDB intentionally keep the extraction form: neither has a single index
  * that serves arbitrary JSON paths, so their native answer is column materialization
@@ -61,6 +65,24 @@ function renderFilterSql(
   const table = db.getTable(collection);
   const condition = db.mapQuery(table, filter, tenantOpts);
   return db.db.select({ _id: table._id }).from(table).where(condition).toSQL();
+}
+
+/**
+ * Index names provisioned on a collection table — engine-native catalog per
+ * adapter. MongoDB is skipped by the caller (it manages indexes through its own
+ * schema, not a SQL catalog).
+ */
+async function provisionedIndexNames(collection: string): Promise<string[]> {
+  const table = physicalName(collection);
+  const rows = (await db.raw.execute(
+    ENGINE === "postgresql"
+      ? `SELECT indexname AS name FROM pg_indexes WHERE tablename = $1`
+      : ENGINE === "mariadb"
+        ? `SELECT DISTINCT index_name AS name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ?`
+        : `SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?`,
+    [table],
+  )) as Array<{ name: string }>;
+  return rows.map((r) => String(r.name));
 }
 
 /** PostgreSQL-only assertions (plan checks) — skipped elsewhere with a reason. */
@@ -295,5 +317,64 @@ describePg("Dynamic-field filter plan — postgresql", () => {
     expect(plan).toContain("_data_gin");
     expect(plan).toMatch(/Bitmap Index Scan|Index Scan/);
     expect(plan).not.toMatch(/Seq Scan on/);
+  });
+});
+
+/** MongoDB keeps no SQL index catalog — its indexes come from the schema, not createModel. */
+const describeSql = ENGINE === "mongodb" ? describe.skip : describe;
+if (ENGINE === "mongodb") {
+  console.log("⏭️ Composite-index policy checks skipped — MongoDB has no SQL index catalog");
+}
+
+describeSql(`Composite-index policy — ${ENGINE}`, () => {
+  const POLICY_COLLECTION = `dynidx_${ENGINE}`;
+
+  beforeAll(async () => {
+    await ensureFullInitialization();
+    db = getDb();
+    if (!db) throw new Error("Database not initialized");
+
+    await db.collection
+      ?.createModel({
+        _id: POLICY_COLLECTION,
+        name: POLICY_COLLECTION,
+        fields: [
+          { db_fieldName: "title", widget: { Name: "Input" } }, // never materialized
+          { db_fieldName: "views", type: "number" }, // numeric → declared query target
+          { db_fieldName: "sku", type: "string", unique: true }, // storage-only column
+          { db_fieldName: "summary", type: "string", materialize: true }, // storage-only column
+        ],
+      })
+      .catch(() => {});
+  }, 120_000);
+
+  afterAll(async () => {
+    await db.crud
+      .deleteMany(POLICY_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .catch(() => {});
+  });
+
+  it("provisions covering composites only for declared query targets", async () => {
+    const table = physicalName(POLICY_COLLECTION);
+    const names = await provisionedIndexNames(POLICY_COLLECTION);
+    const composite = (col: string) => `${table}_tenant_status_${col}_id`;
+
+    // Eligible: the numeric field and the publishedAt base sort column.
+    expect(names, `missing composite for views on ${table}`).toContain(composite("views"));
+    expect(names, `missing composite for publishedAt on ${table}`).toContain(
+      composite("publishedAt"),
+    );
+
+    // Storage-only + equality-lookup columns must not pay for a covering twin.
+    for (const col of ["sku", "summary", "title", "collection", "slug", "locale"]) {
+      expect(names, `${col} should have no covering composite on ${table}`).not.toContain(
+        composite(col),
+      );
+    }
+
+    // …but their single-column index is what keeps them filterable.
+    expect(names).toContain(`${table}_sku_idx`);
+    expect(names).toContain(`${table}_summary_idx`);
+    expect(names).toContain(`${table}_views_idx`);
   });
 });

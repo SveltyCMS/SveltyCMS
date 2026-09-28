@@ -20,6 +20,7 @@ import {
   isSystemTable,
   resolveSystemTableName,
   shouldMaterializeField,
+  buildCompositeIndexColumns,
 } from "../core/drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
@@ -1904,6 +1905,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           { name: "locale", type: "TEXT" },
           { name: "publishedAt", type: "INTEGER" },
         ];
+        // 🚀 COMPOSITE-INDEX POLICY: the covering `(tenantId, status, col, _id)`
+        // index is provisioned only for declared query targets (indexed fields,
+        // numeric sort columns, the publishedAt base column) — see
+        // `buildCompositeIndexColumns`. Every extra index is maintained on EVERY
+        // write, and `updatedAt` is indexed + rewritten by each update, so no
+        // write can skip index maintenance (measured: +11–17 % per extra index).
+        const compositeCols = buildCompositeIndexColumns(schemaData.fields);
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
           const materialized = new Map<string, string>();
@@ -2001,10 +2009,31 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${col.name}")`,
             );
-            // 🚀 Covering composite index for filter+sort on dynamic columns:
+            // 🚀 Covering composite index for filter+sort — provisioned only for
+            // declared query targets (see buildCompositeIndexColumns):
             // WHERE tenantId=? AND status=? ORDER BY col.name, _id
+            if (compositeCols.has(col.name)) {
+              await this.raw.execute(
+                `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_${col.name}_id" ON "${physicalName}" ("tenantId", "status", "${col.name}", "_id")`,
+              );
+            }
+          } catch {
+            /* safe */
+          }
+        }
+
+        // 🔻 COMPOSITE CLEANUP: legacy tables carry the covering index for every
+        // materialized column. Dropping the ones the policy no longer provisions
+        // is what makes the per-write saving real on upgrades; after the first
+        // boot it is a name lookup that finds nothing. NOTE: the boot
+        // warm-registry fast path (see _warmTableRegistry) skips the whole DDL
+        // block for already-provisioned tables — a fresh table, or a forced
+        // re-provision, is what applies this policy on SQLite.
+        for (const col of dynamicCols) {
+          if (compositeCols.has(col.name)) continue;
+          try {
             await this.raw.execute(
-              `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_${col.name}_id" ON "${physicalName}" ("tenantId", "status", "${col.name}", "_id")`,
+              `DROP INDEX IF EXISTS "${physicalName}_tenant_status_${col.name}_id"`,
             );
           } catch {
             /* safe */

@@ -144,32 +144,80 @@ export function isScalarMaterializableField(field: any): boolean {
 }
 
 /**
- * Whether a field becomes a physical column (row-store hybrid). Columns are
- * ONLY created when there is a query benefit: indexed/unique fields (real
- * constraints + indexed filters/sorts) or an explicit `materialize: true`
- * opt-in — plus a scalar shape. Plain scalar fields stay in the `data` blob:
- * on network adapters every extra column costs a bind on writes and a decode
- * on reads (measured regression when ALL scalars were materialized: PG INSERT
- * +51%, PG FIND MANY +99%, Maria INSERT +109%, FIND MANY +86%), while the
- * blob keeps rows narrow. SQLite pays less per column (in-process), but the
- * policy stays adapter-agnostic and predictable.
+ * Whether a field becomes a physical column (row-store hybrid).
+ *
+ * Indexed, unique, and `materialize: true` scalars get a column. So do
+ * `number` / `integer` fields: a counter patch (`{ views: n }`) must be
+ * `SET "views" = $1`, not a rewrite of the JSON `data` blob. On PostgreSQL
+ * that rewrite also maintains the `jsonb_path_ops` GIN index on every bump.
+ * Strings and long text stay in the blob — materializing every scalar was
+ * measured as PG INSERT +51% and FIND MANY +99%.
  */
 export function shouldMaterializeField(field: any): boolean {
   if (!field || typeof field !== "object") return false;
   // AES-GCM ciphertext is non-deterministic — unique/index columns cannot match plaintext.
   if (field.encrypt === true) return false;
-  const needsColumn = field.indexed || field.unique || field.materialize === true;
+  const type = field.type;
+  const isNumeric = type === "number" || type === "integer";
+  const needsColumn = field.indexed || field.unique || field.materialize === true || isNumeric;
   if (!needsColumn) return false;
   // Explicit opt-in still requires a scalar shape — an object/array widget
   // must never become a scalar SQL column (breaks its shape on reads).
   if (field.materialize === true) return isScalarMaterializableField(field);
-  const type = field.type;
   if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
     return false;
   }
   const widget = widgetNameOf(field);
   if (widget && NON_SCALAR_WIDGETS.has(widget)) return false;
   return true;
+}
+
+/**
+ * Base columns that earn the covering composite `(tenantId, status, <col>, _id)`.
+ * `publishedAt` is the by-convention sort target ("newest first"); `collection`,
+ * `slug` and `locale` are equality-lookup columns whose single-column index
+ * already serves every filter that uses them.
+ */
+export const COMPOSITE_INDEX_BASE_COLUMNS: ReadonlySet<string> = new Set(["publishedAt"]);
+
+/**
+ * Whether a materialized field earns the covering composite index.
+ *
+ * Materialization and *query* value are different questions. A column is created
+ * because it must be queryable at all (`indexed`/`unique`/`materialize`), or
+ * because numerics are first-class filter/sort targets. The 4-column covering
+ * index is only worth its per-write maintenance when the field is a *declared*
+ * query target:
+ *   - `indexed: true` — the schema author asked to filter/sort on it, or
+ *   - numeric — `listFilterSort`-style lanes sort by numeric columns by default.
+ * `unique` / `materialize: true`-only columns keep their single-column index
+ * (filtering still works) but never pay for a covering twin.
+ *
+ * Measured (PostgreSQL 2026-09-28): one extra index on a column an UPDATE does
+ * not touch costs ~11–17 % on a 2 000-row UPDATE — HOT is impossible whenever
+ * `updatedAt` is indexed and written by every update, so the planner maintains
+ * every index on the table.
+ */
+export function earnsCompositeIndex(field: any): boolean {
+  if (!shouldMaterializeField(field)) return false;
+  const type = field.type;
+  return field.indexed === true || type === "number" || type === "integer";
+}
+
+/**
+ * Names of the columns that earn the covering composite index for one table
+ * (base sort column + eligible fields). Shared by the PostgreSQL, MariaDB and
+ * SQLite adapters so all three provision the same index set.
+ */
+export function buildCompositeIndexColumns(fields: unknown): Set<string> {
+  const columns = new Set<string>(COMPOSITE_INDEX_BASE_COLUMNS);
+  if (!Array.isArray(fields)) return columns;
+  for (const field of fields as any[]) {
+    if (!earnsCompositeIndex(field)) continue;
+    const name = field?.db_fieldName || field?.label;
+    if (name) columns.add(name);
+  }
+  return columns;
 }
 
 /**
