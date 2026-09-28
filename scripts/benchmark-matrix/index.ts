@@ -307,6 +307,7 @@ const SKIP_IN_MATRIX = new Set([
   "probe-scale-limits", // 1M+ dataset complexity limit probe, needs the seeded bench-db
   "probe-write-split", // write-lane phase decomposition + cold-session auth price, needs SVELTY_SRV_SPLIT=1
   "probe-write-attrib", // update cost attribution: in-process crud.update c=1/c=8 vs HTTP lane (bridged/raw)
+  "probe-list-compression-ab", // list-miss compression A/B + build-segment profile, needs SVELTY_SRV_SPLIT=1
 ]);
 
 /**

@@ -90,7 +90,7 @@ SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...pa
 
 - **Zero-Latency Dispatching**: Internal server-to-server calls bypass HTTP overhead via the `LocalCMS` bridge.
 - **Fail-Closed Security**: Every request must pass central authorization before being dispatched.
-- **ETag Conditional Requests**: GET 200 responses include an ETag. Collection find/entry GETs use a weak collection-generation validator (`W/"cv1|…"`) so `If-None-Match` can 304 **before** the database query; other GET handlers use an FNV-1a content hash of the body. See [Collections](./collections.mdx).
+- **ETag Conditional Requests**: GET 200 responses include an ETag. Collection find/entry GETs use a weak collection-generation validator (`W/"cv1|…"`) so `If-None-Match` can 304 **before** the database query; other GET handlers use a size-gated content hash of the body (FNV-1a up to 1 KiB, native SHA-256 above). See [Collections](./collections.mdx).
 - **API Versioning**: All responses include `X-API-Version: 1` header. `/api/v1/` path prefix automatically routes to the current API version.
 
 ---

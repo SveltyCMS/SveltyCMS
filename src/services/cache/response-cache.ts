@@ -7,12 +7,14 @@
  *
  * ### Features:
  * - FNV-1a 64-bit query hashing (zero-allocation, no 32-bit collision space)
+ * - size-gated content ETags (FNV-1a up to 1 KiB, native SHA-256 `"s256|…"` above)
  * - bounded list/GraphQL L1 + dedicated point-read L1 (FIFO, first set admits)
  * - tenant-scoped L1/L2 invalidation
  * - surgical L1 drop (written doc + lists/GraphQL; sibling findById stays)
  * - pre-computed compression variants for TURBO-HIT serving
  */
 
+import * as nodeCrypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
 
 export interface CachedResponseEntry {
@@ -114,9 +116,43 @@ function fnv1a64Hex(input: string): string {
 }
 
 /**
- * Deterministic Content-Based ETag calculation (FNV-1a 64-bit, quoted 16 hex).
+ * Payload size (chars) from which the ETag switches from the JS FNV fold to the
+ * native SHA-256 digest.
+ *
+ * Measured 2026-09-28 (`tests/benchmarks/probe-list-compression-ab.test.ts`, Node 24,
+ * ~380 KB list body): the JS fold is 7.9 ms at that size — it *is* the lane's whole
+ * `build` mark (6.4 ms measured in-server) — and no arithmetic rewrite helps
+ * (int-limb 1.03x, reciprocal-multiply 1.00x: FNV-1a is a serial
+ * multiply-accumulate chain, so the multiplications are the critical path).
+ * The native digest is 0.10–0.21 ms at the same size and already faster at 1 KiB,
+ * so this gate only protects small payloads from native-call churn and keeps their
+ * existing validators byte-identical.
+ */
+const NATIVE_HASH_MIN_CHARS = 1024;
+
+/** One-shot native SHA-256 (OpenSSL, SHA-NI accelerated) over the body — hex, no Buffer copy. */
+type NativeHash = (algorithm: string, data: string, encoding: "hex") => string;
+function nativeSha256Hex(body: string): string {
+  // `crypto.hash` is Node 20.12+/21.7+; fall back to createHash on runtimes
+  // without the one-shot API (older Node, some Bun builds).
+  const oneShot = (nodeCrypto as { hash?: NativeHash }).hash;
+  return typeof oneShot === "function"
+    ? oneShot("sha256", body, "hex")
+    : nodeCrypto.createHash("sha256").update(body).digest("hex");
+}
+
+/**
+ * Deterministic Content-Based ETag calculation.
+ *
+ * Up to `NATIVE_HASH_MIN_CHARS`: FNV-1a 64-bit over UTF-16 code units (quoted
+ * 16 hex) — allocation-free, byte-identical to every existing validator.
+ * Above: `"s256|<sha256-hex>"` — the T15 contract is unchanged (the validator
+ * still covers the full body, so any content change flips it); only the hash
+ * engine moves out of the JS loop, which is what makes large list/GraphQL
+ * bodies cheap to revalidate.
  */
 export function generateContentEtag(body: string): string {
+  if (body.length >= NATIVE_HASH_MIN_CHARS) return `"s256|${nativeSha256Hex(body)}"`;
   return `"${fnv1a64Hex(body)}"`;
 }
 

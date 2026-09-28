@@ -249,6 +249,22 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     expect(etag1.startsWith('"')).toBe(true);
   });
 
+  test("large bodies use the native digest, small bodies stay on the FNV fold", () => {
+    // < 1 KiB: unchanged FNV-1a 64-bit (16 hex) — byte-identical to existing validators.
+    const small = '{"data":"'.concat("x".repeat(100)).concat('"}');
+    const smallEtag = generateContentEtag(small);
+    expect(smallEtag).toMatch(/^"[0-9a-f]{16}"$/);
+
+    // >= 1 KiB: "s256|<sha256-hex>" — still a full-content strong validator
+    // (2026-09-28: the JS fold cost 7.9 ms on a 380 KB list body — the lane's
+    // entire build segment; the native digest is ~0.1 ms).
+    const large = '{"data":"'.concat("x".repeat(2048)).concat('"}');
+    const largeEtag = generateContentEtag(large);
+    expect(largeEtag).toMatch(/^"s256\|[0-9a-f]{64}"$/);
+    expect(generateContentEtag(large)).toBe(largeEtag);
+    expect(generateContentEtag(large + "x")).not.toBe(largeEtag);
+  });
+
   test("invalidates response cache on clearLocal / invalidateAll", async () => {
     const key = buildGraphQLResponseCacheKey("query { ping }", {}, "all", "u1");
     responseCache.set(key, { body: '{"data":true}', etag: '"123"' }, 60_000);
