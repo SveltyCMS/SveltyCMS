@@ -17,6 +17,7 @@ import {
 } from "@utils/api-body-limits";
 import { AppError, raise } from "@utils/error-handling";
 import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
+import { getOverallState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import {
@@ -449,10 +450,16 @@ export const _handler = async (event: RequestEvent) => {
   // Public payload stays minimal — no memory/resilience/dbType disclosure.
   if (namespace === "system" && segments[1] === "health") {
     const connected = isDbConnected();
+    // 🔴 READINESS TRUTHFULNESS (2026-09-28): DB presence alone is not readiness —
+    // the same fix as the turbo pipeline's `buildHealthResponse` (same predicate:
+    // derived overall state + strict `ready`).
+    const overallState = getOverallState();
+    const ready = isSystemReady();
     return json(
       {
-        status: connected ? "healthy" : "initializing",
-        overallStatus: connected ? "READY" : "INITIALIZING",
+        status: ready ? "healthy" : "initializing",
+        overallStatus: overallState,
+        ready,
         database: connected,
         uptime: process.uptime(),
         timestamp: Date.now(),

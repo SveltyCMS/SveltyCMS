@@ -56,6 +56,7 @@ import {
   tryCollectionWriteLane,
 } from "./hooks/handle-collection-write-lane";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./hooks/handle-collection-read-lane";
+import { isSystemReady } from "@src/stores/system/state.svelte.ts";
 import { resetIdCounters } from "@utils/id-generator";
 import { handleApiError } from "@utils/error-handling";
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
@@ -899,9 +900,16 @@ export const handle: Handle = async ({ event, resolve }) => {
         event.url.searchParams.has("verbose") ||
         event.url.searchParams.has("hooks") ||
         event.url.searchParams.has("gc");
+      // 🔴 READINESS TRUTHFULNESS (2026-09-28): `overallStatus`/`status` alone are
+      // DB-presence derived, so a server still warming its boot cache counted as
+      // ready and every benchmark leg measured the warm-up itself. `ready` is the
+      // strict predicate (operational state AND the boot pre-warm settled);
+      // harnesses require it (`data.ready !== false`) before measuring.
+      const ready = isSystemReady();
       const health: Record<string, unknown> = {
         status: isReady ? "healthy" : "unhealthy",
         overallStatus: state,
+        ready,
         database: isDbConnected ? "connected" : "disconnected",
         timestamp: Date.now(),
         uptime: process.uptime(),

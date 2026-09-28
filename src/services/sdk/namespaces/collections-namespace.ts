@@ -44,6 +44,7 @@ import { resolvePopulatedRelations } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import {
   decodePageCursor,
+  defaultListSortOption,
   defaultPageSortOption,
   encodePageCursor,
   mergeKeysetFilter,
@@ -667,7 +668,13 @@ export class CollectionsNamespace {
                 : { _id: decodedCursor.d === "asc" ? 1 : -1 }
               : defaultPageSortOption()),
         )
-      : sort;
+      : // Deterministic default order (2026-09-28): an unsorted list read must have a
+        // defined row order — without one the engine picks the access path, and the
+        // LIMIT/OFFSET window can differ between two plans of the same query (SDK path
+        // vs the Direct-to-Wire list statement), which also makes OFFSET pagination
+        // non-deterministic. `_id` asc is unique and always indexed; the wire plane
+        // compiles the same ORDER BY, which is what makes byte parity provable.
+        (sort ?? defaultListSortOption());
 
     const skipRequestCache = bypassCache || options.bypassRequestCache;
     const cacheKey = keysetMode

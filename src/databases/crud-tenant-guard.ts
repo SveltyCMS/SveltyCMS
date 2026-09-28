@@ -164,6 +164,26 @@ export function createTenantGuardedCrud(
     restore: async (collection, id, options) =>
       inner.restore(collection, id, g(options, `${collection}.restore`)),
 
+    // Direct-to-Wire point reads keep the same tenant-options guard as every other
+    // op. Without this delegation the wrapper (multi-tenant mode) hides the method —
+    // an explicit method list cannot see prototype members — and the read lane's
+    // wire branch would quietly fall back to the Domain Plane whenever MULTI_TENANT
+    // is on.
+    ...(typeof inner.findPointWireStream === "function"
+      ? {
+          findPointWireStream: async (
+            collection: string,
+            id: DatabaseId,
+            options?: BaseQueryOptions,
+          ) =>
+            inner.findPointWireStream!(
+              collection,
+              id,
+              g(options, `${collection}.findPointWireStream`),
+            ),
+        }
+      : {}),
+
     atomicIncrement: async (collection, id, field, amount, options) =>
       inner.atomicIncrement!(
         collection,

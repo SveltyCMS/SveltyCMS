@@ -1835,6 +1835,49 @@ point-read rows at the same 8c kept 9 676 RPS, which isolates the cap to the lis
 case for the list wire plane below. (The c=2 point re-measured 13.0 / 153 here against 11.4 / 175 in the
 earlier session — host drift between sessions is 7–59 % on this box.)
 
+**Same day — readiness truthfulness, a deterministic list order, and the list wire plane measured (then shelved).**
+
+- **Health is truthful now.** Three responders reported `overallStatus: "READY"` from DB presence alone
+  while the boot cache-warming subsystem was still `initializing` — every harness (and operator probe)
+  then measured the warm-up itself. The turbo pipeline's `buildHealthResponse`, the dispatcher's
+  HYPER-TURBO health branch and the hooks.server responder now all emit the derived state plus the
+  strict `ready` predicate (`isSystemReady()`: operational state AND the boot pre-warm settled), and the
+  benchmark harnesses (`isHealthReady` in the matrix, the standalone wait) require `ready !== false`
+  before measuring. Verified live: `{"status":"healthy","overallStatus":"READY","ready":true,…}` on the
+  bench server; the waits still pass.
+- **Unsorted list reads have a deterministic order.** `defaultListSortOption()` (`updatedAt` desc,
+  `_id` desc) is now the SDK `find` default for every non-keyset read. Without an ORDER BY the engine
+  picks the access path, so the same logical query could return _different LIMIT/OFFSET windows_ under
+  two plans (proven: `SELECT rowid,_id` served from the `_id` auto-index vs `SELECT <all cols>` served
+  from a table scan, same table, different first rows) — a real pagination bug, and the reason a
+  compiled list statement could never be byte-stable. The order matches the keyset default and rides
+  the `(tenantId, updatedAt, _id)` index (no temp B-tree, verified via `EXPLAIN QUERY PLAN`). Note for a
+  rolling deploy: the default-list response cache key stays `…:find:default_50`, so entries cached
+  under the old (unspecified) order live out their TTL — bodies are otherwise identical.
+- **The list wire plane (engine-built `data` JSON) was implemented to byte parity and measured — it
+  loses.** On SQLite it was built to completion (row = `json_object` over the physical selection +
+  `json_remove` blob splice; fail-closed `bad_rows` guard for NULL/non-object blobs; the lane frames the
+  exact envelope incl. `meta.executionTime` = BaseAdapter's constant wrap meta and the
+  `_collection`-only-when-rows rule) and reached **provable byte parity**: the integration differential
+  suite compares wire output against the domain envelope byte-for-byte, and an HTTP A/B on the bench
+  server (`x-wire: list` marker) returned **37 916 B == 37 916 B**. Then the timing: on a _fresh_ bench
+  DB (201 rows), a 50-row × ~750 B list measures **wire p50 5.05 ms (SQL alone 1.7–2.9 ms) vs domain
+  p50 2.43 ms** — SQLite's JSON functions are text-based (render + `json_remove` re-render + splice
+  copies ≈ 58 µs/row) and `node:sqlite` is synchronous anyway, so nothing moves off the event loop.
+  On PostgreSQL/MariaDB the same idea cannot be byte-identical at all: `json_build_object` /
+  `JSON_OBJECT` render **spaced** JSON (`{"a" : 1}`) and `jsonb` additionally reorders keys, so V8
+  `JSON.stringify` bytes are unattainable without value-corrupting string surgery (the shipped PG point
+  wire already serves engine-formatted bytes, so parity there means _stability_, not identity);
+  MongoDB has no engine-side JSON without `$function`. Conclusion: **the remaining ~7 ms of a large
+  list miss is not removable by engine JSON** — the saturation evidence (153 RPS at 2c / 154 at 8c)
+  stands, the lever does not. The SQLite implementation, the lane branch and the interfaces were
+  removed again (no dead code); the reusable pieces kept are the deterministic order and the
+  point-wire delegation fix below.
+- **Point-wire delegation in the tenant guard.** `createTenantGuardedCrud` builds an explicit method
+  list, so under MULTI_TENANT the wrapper hid `findPointWireStream` and every lane read silently fell
+  back to the Domain Plane. The wire method is now delegated through the same tenant-options guard as
+  every other op.
+
 ---
 
 ## Related

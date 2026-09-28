@@ -1766,6 +1766,10 @@ export async function setupBenchmarkServer() {
           db === true ||
           db === "connected";
         // Match integration test: accept SETUP, READY, WARMED, DEGRADED, etc.
+        // 🔴 READINESS TRUTHFULNESS (2026-09-28): the server reports a strict
+        // `ready` flag (DB connected AND the boot pre-warm settled). Require it
+        // when present, or legs start measuring the warm-up itself; `undefined`
+        // keeps older builds runnable.
         if (
           [
             "READY",
@@ -1777,7 +1781,8 @@ export async function setupBenchmarkServer() {
             "IDLE",
             "INITIALIZING",
           ].includes(status) &&
-          dbOk
+          dbOk &&
+          data.ready !== false
         ) {
           healthy = true;
           break;

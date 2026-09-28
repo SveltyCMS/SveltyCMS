@@ -131,6 +131,26 @@ export function defaultPageSortOption(): { updatedAt: -1 } {
 }
 
 /**
+ * Deterministic default order for a plain (non-keyset) list read.
+ *
+ * Without an explicit ORDER BY every engine may serve the same logical SELECT
+ * from different access paths (covering index vs table scan), so two callers of
+ * the same query — the SDK's `findMany` and the Direct-to-Wire list statement —
+ * can receive *different LIMIT windows*, not merely a different order, and
+ * OFFSET pagination becomes non-deterministic. `updatedAt` desc + `_id` desc is
+ * the same order the keyset default uses, is total (`_id` is unique) and rides
+ * the `(tenantId, updatedAt, _id)` composite index on every SQL engine, so the
+ * ORDER BY costs no temp sort. The list wire plane compiles the same ORDER BY
+ * into its statement, which is what makes wire-vs-domain byte parity provable.
+ */
+export function defaultListSortOption(): [string, "desc"][] {
+  return [
+    ["updatedAt", "desc"],
+    ["_id", "desc"],
+  ];
+}
+
+/**
  * Appends the deterministic `_id` tiebreaker to a sort spec so keyset
  * pagination stays seek-stable.
  *

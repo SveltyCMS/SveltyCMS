@@ -22,7 +22,7 @@ import {
   isSetupComplete,
   getTestSecret,
 } from "@utils/server/setup-check";
-import { getSystemState } from "@src/stores/system/state.svelte.ts";
+import { getOverallState, getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import { generateUUID } from "@utils/native-utils";
 import { isRedirect, isHttpError } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
@@ -121,9 +121,18 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
 
   const includeDiagnostics =
     searchParams.has("verbose") || searchParams.has("hooks") || searchParams.has("gc");
+  // 🔴 READINESS TRUTHFULNESS (2026-09-28): this fast responder used to report
+  // `overallStatus: "READY"` from DB presence alone, so harnesses (and operator
+  // probes) saw a ready instance while the boot cache-warming subsystem was still
+  // `initializing` — benchmark legs then measured the warm-up itself. Report the
+  // derived overall state plus the strict `ready` predicate (DB connected AND the
+  // boot pre-warm settled) — the same pair the dispatcher's health handler emits.
+  const overallState = getOverallState();
+  const ready = isSystemReady();
   const health: Record<string, unknown> = {
-    status: db ? "healthy" : "initializing",
-    overallStatus: db ? "READY" : "SETUP",
+    status: ready ? "healthy" : "initializing",
+    overallStatus: overallState,
+    ready,
     database: !!db,
     timestamp: Date.now(),
     uptime: process.uptime(),

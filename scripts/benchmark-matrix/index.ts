@@ -397,7 +397,12 @@ function isHealthReady(data: Record<string, unknown>): boolean {
   const db = data.database;
   const dbOk = db === true || db === "connected";
   const readyStates = new Set(["READY", "WARMED", "DEGRADED"]);
-  return readyStates.has(status) && dbOk;
+  // 🔴 READINESS TRUTHFULNESS (2026-09-28): `overallStatus` alone let a server
+  // that was still warming its boot cache count as ready, so every benchmark leg
+  // measured the warm-up itself. The server now reports a strict `ready` flag
+  // (DB connected AND the boot pre-warm settled); require it when present —
+  // `undefined` keeps older builds runnable.
+  return readyStates.has(status) && dbOk && data.ready !== false;
 }
 
 async function waitForServerReady(url: string, maxAttempts = 90): Promise<boolean> {
