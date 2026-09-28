@@ -26,6 +26,20 @@ const OPEN_DATA_CHUNK = SHARED_TEXT_ENCODER.encode('{"success":true,"data":[');
 const COMMA_CHUNK = SHARED_TEXT_ENCODER.encode(",");
 const STREAM_ERROR_CHUNK = SHARED_TEXT_ENCODER.encode('],"error":"Stream interrupted"}');
 
+/** True when the source exposes an async iterator (DB cursor/generator) rather than a plain array. */
+function isAsyncIterableSource(source: unknown): source is AsyncIterable<unknown> {
+  return (
+    typeof (source as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
+  );
+}
+
+/** Normalize an async-iterable-or-array source to one iterator; `pull()` awaits either protocol. */
+function toStreamIterator(
+  source: AsyncIterable<unknown> | Iterable<unknown>,
+): AsyncIterator<unknown> | Iterator<unknown> {
+  return isAsyncIterableSource(source) ? source[Symbol.asyncIterator]() : source[Symbol.iterator]();
+}
+
 /**
  * Creates a streaming JSON response from an async iterable or array.
  *
@@ -41,11 +55,7 @@ export function streamingJsonResponse(
   } = {},
 ) {
   const { maxItems = Infinity } = options;
-  const source = iterator as AsyncIterable<any>;
-  const iter =
-    typeof (source as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
-      ? (source as AsyncIterable<any>)[Symbol.asyncIterator]()
-      : (source as any[])[Symbol.iterator]();
+  const iter = toStreamIterator(iterator);
 
   let itemCount = 0;
   let first = true;
@@ -169,11 +179,7 @@ export function streamingExportResponse(
 ): Response {
   const { format, filename, columns = [], maxItems = Infinity } = options;
   const isCsv = format === "csv";
-  const source = iterator as AsyncIterable<any>;
-  const iter =
-    typeof (source as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
-      ? (source as AsyncIterable<any>)[Symbol.asyncIterator]()
-      : (source as any[])[Symbol.iterator]();
+  const iter = toStreamIterator(iterator);
   let itemCount = 0;
   let done = false;
 

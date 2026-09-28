@@ -238,10 +238,12 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const payload = JSON.stringify({ count: Math.floor(Math.random() * 1000) + 1 });
       const res = await fetch(`${collectionUrl}/${targetId}`, {
         method: "PATCH",
-        // RFC 7240 `Prefer: return=minimal` by default — Keystone's harness shim returns a
-        // 43-byte id-only ack on PATCH, so the apples-to-apples comparison needs SveltyCMS
-        // to do the same instead of serializing the full ~1.9 KB document.
-        // Opt out with BENCH_PREFER_FULL=1 for full-document response benchmarking.
+        // RFC 7240 `Prefer: return=minimal` by default. The external harness's Keystone
+        // shim response shape has changed over time (historically an id-only ack, later
+        // the full document), so a cross-vendor update comparison is only valid when
+        // BOTH sides use the same protocol — verify the shim's current shape before
+        // quoting a delta. BENCH_PREFER_FULL=1 benchmarks full-document responses on
+        // our side to match a full-document competitor row in the same session.
         headers:
           process.env.BENCH_PREFER_FULL === "1"
             ? headers

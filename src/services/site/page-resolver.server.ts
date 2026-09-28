@@ -62,6 +62,13 @@ export async function resolveSitePage(options: ResolveSitePageOptions): Promise<
 
     return result.data[0] as SitePage;
   } catch (err) {
+    // An install with no `pages` collection is the normal empty homepage
+    // (the loader then redirects). That is not a failed resolve.
+    const code = (err as { code?: string } | null)?.code;
+    if (code === "COLLECTION_NOT_FOUND") {
+      logger.debug("[Site] Pages collection is not installed", { slug, entryId });
+      return null;
+    }
     logger.warn("[Site] Page resolve failed", { slug, entryId, error: err });
     return null;
   }

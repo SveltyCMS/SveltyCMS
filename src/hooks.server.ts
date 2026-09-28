@@ -332,7 +332,9 @@ if (!building) {
           outboxService.startPolling(5_000);
 
           // 🧹 WAL housekeeping — see startWalHousekeeping().
-          startWalHousekeeping();
+          await startWalHousekeeping().catch((err) =>
+            logger.error("[WAL] Housekeeping scheduler failed to start", err),
+          );
 
           // Telemetry check
           const globalWithTelemetry = globalThis as typeof globalThis & {
@@ -383,59 +385,18 @@ if (!building) {
           logger.debug("[System] Lazy write-path modules pre-warmed");
         }
 
-        // 🚀 Pre-build and JIT-warm all cached middleware pipelines so the first request
-        // skips the sequence() assembly, module loading and V8 JIT warm-up stalls.
-        // Safe: getPipeline guards fullMiddlewareInitialized internally.
+        // Pre-build the cached middleware pipelines so the first request skips
+        // sequence() assembly. Do not invoke them here: SvelteKit's sequence()
+        // reads the request AsyncLocalStorage, and a synthetic event has no
+        // store ("Could not get the request store"). The handlers compile on
+        // the first real request.
         try {
-          const [pRead, pWrite, pSSR] = await Promise.all([
+          await Promise.all([
             getPipeline(RequestLane.API_READ),
             getPipeline(RequestLane.API_WRITE),
             getPipeline(RequestLane.APP_SSR),
           ]);
-
-          // Synthetic warmup request to prime V8 / JSC compilation & closures
-          const dummyUrl = new URL("http://localhost/api/system/health");
-          const dummyEvent = {
-            url: dummyUrl,
-            request: new Request(dummyUrl, {
-              headers: { "x-internal-warmup": "1" },
-            }),
-            locals: { lane: RequestLane.API_READ, tenantId: "global" } as any,
-            cookies: { get: () => undefined, set: () => {}, delete: () => {} } as any,
-            params: {},
-            route: { id: "/api/system/health" },
-            isDataRequest: false,
-            isSubRequest: false,
-            platform: undefined,
-            fetch: globalThis.fetch,
-            getClientAddress: () => "127.0.0.1",
-            setHeaders: () => {},
-          } as unknown as import("@sveltejs/kit").RequestEvent;
-
-          void Promise.allSettled([
-            pRead({ event: dummyEvent, resolve: async () => new Response("ok") }),
-            pWrite({
-              event: {
-                ...dummyEvent,
-                request: new Request(dummyUrl, {
-                  method: "POST",
-                  headers: { "x-internal-warmup": "1" },
-                }),
-                locals: { lane: RequestLane.API_WRITE, tenantId: "global" } as any,
-              } as any,
-              resolve: async () => new Response("ok"),
-            }),
-            pSSR({
-              event: {
-                ...dummyEvent,
-                url: new URL("http://localhost/"),
-                locals: { lane: RequestLane.APP_SSR, tenantId: "global" } as any,
-              } as any,
-              resolve: async () => new Response("ok"),
-            }),
-          ]);
-
-          logger.debug("[System] Middleware pipelines pre-built and JIT-warmed");
+          logger.debug("[System] Middleware pipelines pre-built");
         } catch (err) {
           logger.warn("[System] Pipeline pre-build failed (non-fatal):", err);
         }
@@ -471,20 +432,27 @@ let inFlightRequests = 0;
  *
  * Adapter-agnostic: only SQLite exposes `runWalCheckpoint`, so other engines no-op.
  */
-function startWalHousekeeping(): void {
+async function startWalHousekeeping(): Promise<void> {
   if (process.env.SVELTY_WAL_CHECKPOINT !== "1") return;
-  const adapter = dbAdapter as
+  // Dynamic import keeps the DB layer out of the hook's boot graph (the same
+  // pattern as the GraphQL pre-warm above); the module is already loaded at READY.
+  const { getDb } = await import("@src/databases/db");
+  // Structural narrowing: only the SQLite adapter exposes `runWalCheckpoint`.
+  const adapter = getDb() as unknown as
     | { runWalCheckpoint?: (mode: "PASSIVE") => WalCheckpointResult }
     | null
     | undefined;
   if (typeof adapter?.runWalCheckpoint !== "function") return;
+  const checkpoint = adapter.runWalCheckpoint.bind(adapter);
 
-  const stop = startWalCheckpointScheduler({
-    checkpoint: (mode) => adapter.runWalCheckpoint!(mode),
+  const globalWithWal = globalThis as { __SVELTY_WAL_CHECKPOINT_STOP__?: () => void };
+  // HMR re-evaluates this module — never stack schedulers.
+  globalWithWal.__SVELTY_WAL_CHECKPOINT_STOP__?.();
+
+  globalWithWal.__SVELTY_WAL_CHECKPOINT_STOP__ = startWalCheckpointScheduler({
+    checkpoint,
     isIdle: () => inFlightRequests === 0,
   });
-  (globalThis as { __SVELTY_WAL_CHECKPOINT_STOP__?: () => void }).__SVELTY_WAL_CHECKPOINT_STOP__ =
-    stop;
 }
 /** Cheap per-request id sequence for the non-trace path (see handle()). */
 let requestSeq = 0;
