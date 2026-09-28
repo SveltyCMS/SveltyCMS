@@ -404,6 +404,26 @@ describe("ConfigService", () => {
       expect(manifest.resources).toBeDefined();
     });
 
+    it("honours SVELTY_CONFIG_SYNC_DIR as the export root", async () => {
+      // The config-promotion benchmark exports once per iteration (~40 folders per
+      // run). The explicit override is what keeps those out of the developer's
+      // config/sync — and `assertLiveDataWriteAllowed` fails closed if a local
+      // benchmark forgets it.
+      mockFindMany.mockResolvedValue({ success: true, data: [] });
+      const previous = process.env.SVELTY_CONFIG_SYNC_DIR;
+      process.env.SVELTY_CONFIG_SYNC_DIR = "scratch/config-sync";
+      try {
+        const result = await service.performExport({ tenantId: "tenant-1" });
+
+        expect(result.dirPath.replace(/\\/g, "/")).toContain(
+          "scratch/config-sync/export_tenant-1_",
+        );
+      } finally {
+        if (previous === undefined) delete process.env.SVELTY_CONFIG_SYNC_DIR;
+        else process.env.SVELTY_CONFIG_SYNC_DIR = previous;
+      }
+    });
+
     it("exports collections data when present", async () => {
       const entity = makeEntity({ _id: "col-1", name: "blog" });
       mockFindMany.mockImplementation(async (collection: string) => {

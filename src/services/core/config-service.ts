@@ -13,6 +13,7 @@ import { dbAdapter } from "@src/databases/db";
 import type { Role } from "@src/databases/auth/types";
 import type { Widget, Theme } from "@src/databases/db-interface";
 import { createChecksum } from "@utils/security/crypto";
+import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchmark-sandbox";
 import { getSchemaPath } from "@src/content/first-collection";
 import { logger } from "@utils/logger";
 
@@ -141,11 +142,14 @@ export class ConfigService {
     tenantId?: string;
   } = {}): Promise<{ dirPath: string }> {
     logger.debug(`Exporting configuration for tenant: ${tenantId || "global"}...`);
+    // Export root: explicit SVELTY_CONFIG_SYNC_DIR → benchmark sandbox → the
+    // live `config/sync`. Benchmarks must never mint export folders in the
+    // developer's project (~40 per `config-promotion` run before this).
     const exportDir = path.resolve(
-      process.cwd(),
-      "config/sync",
+      resolveConfigSyncRoot(),
       `export_${tenantId || "global"}_${Date.now()}`,
     );
+    assertLiveDataWriteAllowed(exportDir);
     await fs.mkdir(exportDir, { recursive: true });
 
     // Fetch active state for all resource types

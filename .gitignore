@@ -50,6 +50,7 @@ trash/*
 media/*
 mediaFolder/
 test-media/
+test-config-sync/
 mediaFiles/
 .compiledCollections/*
 .compiledCollections

@@ -174,20 +174,31 @@ _File counts verified against the tree on 2026-09-22._
 
 Local benchmarks use a sandboxed environment that protects live developer data in `config/` and `.compiledCollections/`. Two profiles govern behavior:
 
-| Profile      | When                                     | Behavior                                                                                                                   |
-| ------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **local**    | `config/private.ts` exists (dev machine) | Runtime env-only config, isolated `benchmark_shared` DB, sandbox compiled/manifest/media trees, external services disabled |
-| **ci-fresh** | No `config/private.ts` (CI runners)      | Seeds state in-process (roles + admin + collections), no wizard needed — `BENCHMARK` force-completes setup                 |
+| Profile      | When                                     | Behavior                                                                                                                                   |
+| ------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **local**    | `config/private.ts` exists (dev machine) | Runtime env-only config, isolated `benchmark_shared` DB, sandbox compiled/manifest/media/**config-sync** trees, external services disabled |
+| **ci-fresh** | No `config/private.ts` (CI runners)      | Seeds state in-process (roles + admin + collections), no wizard needed — `BENCHMARK` force-completes setup                                 |
 
 ### Sandbox Isolation (`src/utils/benchmark-sandbox.ts`)
 
-| Live Path                            | Sandbox Equivalent                                                    |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| `.compiledCollections/`              | `.compiledCollections/test/_local_sandbox/`                           |
-| `.compilation-manifest.json`         | `.compiledCollections/test/_local_sandbox/.compilation-manifest.json` |
-| `config/database/sveltycms.db`       | `config/database/benchmark_shared.db`                                 |
-| `mediaFolder/`                       | `config/benchmark-sandbox/media/`                                     |
-| `config/collections/*.ts` (non-test) | Bootstrap regen skipped; writes blocked (fail-closed)                 |
+Every row is a path a benchmark was once caught writing to; `assertLiveDataWriteAllowed()` fails closed on the
+live column during the **local** profile.
+
+| Live Path                                              | Sandbox Equivalent                                                                                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config/private.ts`                                    | Read-only — runtime is env-only (`BENCHMARK=true`), `config/private.test.ts` is the only bootstrap a harness may read                       |
+| `config/database/<name>.sqlite`                        | `config/test-database/<name>.sqlite` (`resolveSqlitePath` routes harness/isolated DB names there)                                           |
+| `.compiledCollections/` + `.compilation-manifest.json` | `.compiledCollections/test-collections/_local_sandbox/<tenant>/`                                                                            |
+| `mediaFolder/`                                         | `test-media/benchmark-sandbox/` (`MEDIA_FOLDER` in `getBenchmarkTestEnv`)                                                                   |
+| `config/sync/`                                         | `test-config-sync/` — `ConfigService.performExport` writes one `export_<tenant>_<ts>/` folder per call (`SVELTY_CONFIG_SYNC_DIR` overrides) |
+| `config/collections/*.ts` (non-test)                   | Bootstrap regen skipped; writes blocked (fail-closed)                                                                                       |
+
+**Why `config/sync/` is on this list (2026-09-28):** `tests/benchmarks/config-promotion.test.ts` exports once per
+iteration, so three benchmark runs had minted **148** `config/sync/export_global_*` folders in the developer's
+project. `resolveConfigSyncRoot()` now resolves explicit env → sandbox → live, `performExport` calls
+`assertLiveDataWriteAllowed(exportDir)`, and the benchmark banner prints the active root. The export folders are
+write-only artifacts (`performImport` reads the DB/source tree, never the export directory), so redirecting them
+changes nothing about what an import applies.
 
 ### Runtime Modes
 

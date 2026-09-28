@@ -93,6 +93,15 @@ export const paths = {
   },
 
   /**
+   * Config-Sync export root (`/config/sync`). Live developer tree — benchmark
+   * runs must write to `paths.benchmark.sandboxConfigSync` instead (see
+   * `resolveConfigSyncRoot()` in benchmark-sandbox.ts).
+   */
+  get configSync(): string {
+    return path.join(cwd(), "config", "sync");
+  },
+
+  /**
    * Live developer bootstrap only (`config/private.ts`).
    * Prefer `activePrivateConfig` for loaders that run under TEST_MODE / precheck.
    */
@@ -127,6 +136,7 @@ export const paths = {
         "_local_sandbox",
       ),
       sandboxMedia: path.join(root, "test-media", "benchmark-sandbox"),
+      sandboxConfigSync: path.join(root, "test-config-sync"),
     };
   },
 

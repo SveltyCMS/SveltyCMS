@@ -11,7 +11,7 @@
  *
  * ### Features:
  * - profile resolution (`local` | `ci-fresh`)
- * - sandbox path helpers for compiled output and media
+ * - sandbox path helpers for compiled output, media and Config-Sync exports
  * - fail-closed live-data write guard
  */
 
@@ -25,6 +25,7 @@ const SANDBOX_COMPILED_ROOT = path.relative(paths.root, paths.benchmark.sandboxC
 const SANDBOX_MEDIA_REL = path
   .relative(paths.root, paths.benchmark.sandboxMedia)
   .replace(/\\/g, "/");
+const SANDBOX_CONFIG_SYNC_ROOT = path.relative(paths.root, paths.benchmark.sandboxConfigSync);
 
 /** Inlined from test-db-credentials to break circular dependency (benchmark-sandbox ↔ test-db-credentials). */
 function getBenchmarkSandboxDbName(dbType: string): string {
@@ -78,6 +79,27 @@ export function getLocalSandboxMediaRoot(): string {
   return path.resolve(process.cwd(), SANDBOX_MEDIA_REL);
 }
 
+/** Isolated Config-Sync export root for local benchmarks (mirrors `test-media`). */
+export function getLocalSandboxConfigSyncRoot(): string {
+  return path.resolve(process.cwd(), SANDBOX_CONFIG_SYNC_ROOT);
+}
+
+/**
+ * Config-Sync export root (`ConfigService.performExport`).
+ *
+ * Precedence: explicit `SVELTY_CONFIG_SYNC_DIR` → sandbox during a local
+ * benchmark → live `config/sync`. The same shape as
+ * `resolveCompiledCollectionsPath()`, so a benchmark (`config-promotion`) that
+ * exports once per iteration can no longer mint ~40 `config/sync/export_*`
+ * folders in the developer's project on every run.
+ */
+export function resolveConfigSyncRoot(): string {
+  const explicit = process.env.SVELTY_CONFIG_SYNC_DIR;
+  if (explicit) return path.resolve(process.cwd(), explicit);
+  if (isLocalBenchmarkSandbox()) return getLocalSandboxConfigSyncRoot();
+  return paths.configSync;
+}
+
 /** 🛡️ Hardened: live roots re-resolved each call so chdir/tests stay correct */
 function getLiveRoots(): string[] {
   // Always protect BOTH live private.ts and private.test.ts — under automated
@@ -91,6 +113,7 @@ function getLiveRoots(): string[] {
     paths.compiledCollections,
     paths.database,
     paths.media,
+    paths.configSync,
   ].map((p) => path.normalize(p));
 }
 
@@ -121,12 +144,15 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
   // 1. Allow sandbox paths
   const sandboxCompiled = getLocalSandboxCompiledRoot();
   const sandboxMedia = getLocalSandboxMediaRoot();
+  const sandboxConfigSync = getLocalSandboxConfigSyncRoot();
 
   if (
     normalizedTarget === sandboxCompiled ||
     normalizedTarget.startsWith(sandboxCompiled + path.sep) ||
     normalizedTarget === sandboxMedia ||
-    normalizedTarget.startsWith(sandboxMedia + path.sep)
+    normalizedTarget.startsWith(sandboxMedia + path.sep) ||
+    normalizedTarget === sandboxConfigSync ||
+    normalizedTarget.startsWith(sandboxConfigSync + path.sep)
   ) {
     return;
   }
@@ -156,6 +182,7 @@ export interface BenchmarkIsolationSummary {
   dbName: string;
   compiledRoot: string;
   mediaRoot: string;
+  configSyncRoot: string;
   liveConfigProtected: boolean;
 }
 
@@ -167,6 +194,7 @@ export function getBenchmarkIsolationSummary(dbType = "sqlite"): BenchmarkIsolat
     dbName: process.env.DB_NAME || getBenchmarkSandboxDbName(dbType),
     compiledRoot: resolveCompiledCollectionsPath(null),
     mediaRoot: profile === "local" ? getLocalSandboxMediaRoot() : "(live media settings)",
+    configSyncRoot: profile === "local" ? getLocalSandboxConfigSyncRoot() : paths.configSync,
     liveConfigProtected: profile === "local",
   };
 }
@@ -208,6 +236,7 @@ export function printBenchmarkIsolationBanner(dbType = "sqlite"): void {
     console.log(`     database              → ${summary.dbName}`);
     console.log(`     compiled/manifest     → ${summary.compiledRoot}`);
     console.log(`     media                 → ${summary.mediaRoot}`);
+    console.log(`     config sync           → ${summary.configSyncRoot}`);
     console.log("     external services     → Redis/SMTP/AI/webhooks disabled (BENCHMARK mode)");
   } else {
     console.log("  🧪 CI-fresh mode: setup wizard simulates first install (private.test.ts only)");

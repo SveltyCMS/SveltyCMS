@@ -120,5 +120,44 @@ describe("benchmark-sandbox", () => {
     expect(summary.profile).toBe("local");
     expect(summary.liveConfigProtected).toBe(true);
     expect(summary.dbName).toBe("benchmark_shared");
+    expect(summary.configSyncRoot).toBe(path.join(ROOT, "test-config-sync"));
+  });
+
+  it("resolves the live config/sync root outside a benchmark", () => {
+    expect(sandbox.resolveConfigSyncRoot()).toBe(path.join(ROOT, "config", "sync"));
+  });
+
+  it("honours an explicit SVELTY_CONFIG_SYNC_DIR", () => {
+    vi.stubEnv("SVELTY_CONFIG_SYNC_DIR", "scratch/config-sync");
+
+    expect(sandbox.resolveConfigSyncRoot()).toBe(path.join(ROOT, "scratch", "config-sync"));
+  });
+
+  it("redirects config sync to the sandbox during a local benchmark", () => {
+    vi.spyOn(fs, "existsSync").mockImplementation((p) => {
+      const target = typeof p === "string" ? p : p.toString();
+      return target === PRIVATE_TS;
+    });
+    vi.stubEnv("BENCHMARK", "true");
+
+    expect(sandbox.resolveConfigSyncRoot()).toBe(path.join(ROOT, "test-config-sync"));
+  });
+
+  it("blocks writes to live config/sync during a local benchmark", () => {
+    // Regression guard: the config-promotion benchmark exported once per
+    // iteration straight into config/sync, minting ~150 export_* folders in the
+    // developer's project. The guard must fail closed, the sandbox must not.
+    vi.spyOn(fs, "existsSync").mockImplementation((p) => {
+      const target = typeof p === "string" ? p : p.toString();
+      return target === PRIVATE_TS;
+    });
+    vi.stubEnv("BENCHMARK", "true");
+
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "config", "sync", "export_global_1")),
+    ).toThrow(/SECURITY VIOLATION/);
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "test-config-sync", "export_global_1")),
+    ).not.toThrow();
   });
 });
