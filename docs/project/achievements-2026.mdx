@@ -1794,6 +1794,16 @@ the roadmap.
 hit-stash, supersession, staleness, size no-op) + 51/51 across the neighbouring hook suites; the api-latency
 probe now reports `zstd active: … body 254.7 KiB (> 64 KiB async tier)` instead of a skip.
 
+**Follow-up A/B (same day) — the level/threshold hypothesis is falsified.** The 22.7 ms / +7.4 ms co-tenant
+in that probe invited a compression-settings fix; isolation says otherwise. `zstdCompress` on a 244 KiB body
+measures **0.30–0.55 ms at every level 1→15**, and the CMS dictionary artifact (`static/dictionaries/cms-payloads.dict`)
+is **absent in-repo**, so `{dict}` is a no-op — neither level nor dictionary is a lever. End-to-end, the same
+256 074 B list: **identity warm 0.95 ms · identity miss 14.10 ms · zstd warm (stashed variant) 0.72 ms ·
+zstd miss (lane declines → pipeline, compression included) 15.16 ms**, co-tenant point read 0.38 → 0.65 ms.
+So compression is **~1 ms of a ~15 ms miss** — the cost is the cache-busted miss path itself (DB read +
+build + 256 KB serialisation/drain), and cached hits serve the variant for free at sub-millisecond latency.
+No level/threshold change was warranted; the open lever is the list-miss path, not the encoding.
+
 ---
 
 ## Related
