@@ -35,6 +35,7 @@ import {
   getDockerDefaultDbCredentials,
   getIntegrationDbName,
 } from "../src/utils/test-db-credentials.ts";
+import { isIsolatedTestDbName } from "../src/utils/test-db-safety.ts";
 
 // ── Constants (aligned with tests/integration/helpers/server.ts) ─────────────
 
@@ -717,9 +718,9 @@ export function detectDockerAdapterHints(): {
  * - config/private.test.ts (auto-generated test config)
  * - config/test-database/ (SQLite DB files for tests)
  * - config/test-collections/ (collection files for tests)
- * - config/collections/*.ts (preset-generated collection files)
- * - config/database/*.sqlite / *.db (leftover SQLite DBs from prior runs)
- * - .compiledCollections/ (compiled collection output)
+ * - .compiledCollections/test-collections/ (compiled collection output)
+ * - config/database/<harness-named>.sqlite / .db + WAL sidecars — never
+ *   live-named files (shared test-name classifier, see `sweepHarnessSqliteFiles`)
  */
 export function cleanupTestArtifacts(root: string): void {
   const paths = [
@@ -739,5 +740,39 @@ export function cleanupTestArtifacts(root: string): void {
       /* ok */
     }
   }
+  const swept = sweepHarnessSqliteFiles(root);
+  if (swept.length > 0) {
+    console.log(`🧹 Swept harness DB leftovers from the live folder: ${swept.join(", ")}`);
+  }
   console.log("🧹 Test artifacts cleaned (live config/database and config/collections protected)");
+}
+
+/** File shapes a SQLite database and its WAL sidecars can take in a folder. */
+const SQLITE_ARTIFACT_SUFFIX = /\.(sqlite|db)(-(wal|shm))?$/i;
+
+/**
+ * Harness databases must never accumulate in the live `config/database/` folder.
+ * `resolveSqlitePath` routes harness/isolated names to `config/test-database/`,
+ * but pre-fix builds and interrupted runs left `<name>.sqlite` shells (+ WAL
+ * sidecars) behind — runs only cleaned their *own* DB name at start, and the
+ * end-of-run cleanup swept nothing in the live folder (this function).
+ * Only shared-classifier names are swept (`test`/`bench`/`e2e`/`_functional`,
+ * minus prod/live/main patterns) — a live-named file is never touched.
+ */
+function sweepHarnessSqliteFiles(root: string): string[] {
+  const liveDir = join(root, "config", "database");
+  if (!existsSync(liveDir)) return [];
+  const removed: string[] = [];
+  for (const entry of readdirSync(liveDir)) {
+    if (!SQLITE_ARTIFACT_SUFFIX.test(entry)) continue;
+    const logicalName = entry.replace(/-(wal|shm)$/i, "").replace(/\.(sqlite|db)$/i, "");
+    if (!isIsolatedTestDbName(logicalName)) continue;
+    try {
+      unlinkSync(join(liveDir, entry));
+      removed.push(entry);
+    } catch {
+      /* locked — leave it for the next run */
+    }
+  }
+  return removed;
 }

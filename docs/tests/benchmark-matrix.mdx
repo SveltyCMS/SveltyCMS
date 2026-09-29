@@ -188,10 +188,14 @@ live column during the **local** profile.
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `config/private.ts`                                    | Read-only — runtime is env-only (`BENCHMARK=true`), `config/private.test.ts` is the only bootstrap a harness may read                       |
 | `config/database/<name>.sqlite`                        | `config/test-database/<name>.sqlite` (`resolveSqlitePath` routes harness/isolated DB names there)                                           |
+| Harness-classified DB leftovers in `config/database/`  | Swept by `cleanupTestArtifacts()` at harness start **and** end (`.sqlite`/`.db` + `-wal`/`-shm`; live-named files are never touched)        |
 | `.compiledCollections/` + `.compilation-manifest.json` | `.compiledCollections/test-collections/_local_sandbox/<tenant>/`                                                                            |
 | `mediaFolder/`                                         | `test-media/benchmark-sandbox/` (`MEDIA_FOLDER` in `getBenchmarkTestEnv`)                                                                   |
 | `config/sync/`                                         | `test-config-sync/` — `ConfigService.performExport` writes one `export_<tenant>_<ts>/` folder per call (`SVELTY_CONFIG_SYNC_DIR` overrides) |
 | `config/collections/*.ts` (non-test)                   | Bootstrap regen skipped; writes blocked (fail-closed)                                                                                       |
+
+Guard for the sweep row: `tests/unit/scripts/integration-harness-cleanup.test.ts` pins that harness shells are
+removed while live-named files (`sveltycms.db`, `sveltycms.db.sqlite`, scratch `probe_plainA.sqlite`) survive.
 
 **Why `config/sync/` is on this list (2026-09-28):** `tests/benchmarks/config-promotion.test.ts` exports once per
 iteration, so three benchmark runs had minted **148** `config/sync/export_global_*` folders in the developer's
