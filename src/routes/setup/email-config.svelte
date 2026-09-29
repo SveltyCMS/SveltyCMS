@@ -499,15 +499,17 @@
 		<!-- Collapsible content -->
 		{#if showWhySmtp}
 			<div id="why-smtp-content" class="ms-8 mt-2 space-y-2">
-				<p class="text-surface-600-300 text-sm">{setup_email_why_desc()}</p>
-				<ul class="text-surface-600-300 list-inside list-disc space-y-1 text-sm">
+				<p class="text-surface-600 dark:text-surface-400 text-sm">{setup_email_why_desc()}</p>
+				<ul class="text-surface-600 dark:text-surface-400 list-inside list-disc space-y-1 text-sm">
 					<li>{setup_email_feature_user_mgmt()}</li>
 					<li>{setup_email_feature_password()}</li>
 					<li>{setup_email_feature_2fa()}</li>
 					<li>{setup_email_feature_notifications()}</li>
 					<li>{setup_email_feature_workflow()}</li>
 				</ul>
-				<p class="text-surface-600-300 mt-2 text-sm italic">{setup_email_skip_note()}</p>
+				<p class="text-surface-600 dark:text-surface-400 mt-2 text-sm italic">
+					{setup_email_skip_note()}
+				</p>
 			</div>
 		{/if}
 	</div>

@@ -164,83 +164,50 @@
 
 		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
 			<div data-testid="access-mgmt-tabs">
-				<Tabs.List
-					class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800"
-				>
+				<Tabs.List>
 					<Tabs.Trigger
 						value="0"
-						class="flex-1"
 						data-testid="access-tab-permissions"
 						aria-current={currentTab === '0' ? 'page' : undefined}
 					>
-						<div class="flex items-center justify-center gap-1 py-4">
-							<iconify-icon icon="mdi:shield-lock-outline" width={24}></iconify-icon>
-							<span
-								class={currentTab === '0'
-									? 'text-secondary-500 dark:text-tertiary-500 font-bold'
-									: ''}>{system_permission()}</span
-							>
-						</div>
+						<iconify-icon icon="mdi:shield-lock-outline" width="18" height="18" aria-hidden="true"
+						></iconify-icon>
+						{system_permission()}
 					</Tabs.Trigger>
 					<Tabs.Trigger
 						value="1"
-						class="flex-1"
 						data-testid="access-tab-roles"
 						aria-current={currentTab === '1' ? 'page' : undefined}
 					>
-						<div class="flex items-center justify-center gap-1 py-4">
-							<iconify-icon icon="mdi:account-group" width={24}></iconify-icon>
-							<span
-								class={currentTab === '1'
-									? 'text-secondary-500 dark:text-tertiary-500 font-bold'
-									: ''}>{system_roles()}</span
-							>
-						</div>
+						<iconify-icon icon="mdi:account-group" width="18" height="18" aria-hidden="true"
+						></iconify-icon>
+						{system_roles()}
 					</Tabs.Trigger>
 					<Tabs.Trigger
 						value="2"
-						class="flex-1"
 						data-testid="access-tab-admin"
 						aria-current={currentTab === '2' ? 'page' : undefined}
 					>
-						<div class="flex items-center justify-center gap-1 py-4">
-							<iconify-icon icon="mdi:account-cog" width={24}></iconify-icon>
-							<span
-								class={currentTab === '2'
-									? 'text-secondary-500 dark:text-tertiary-500 font-bold'
-									: ''}>Admin</span
-							>
-						</div>
+						<iconify-icon icon="mdi:account-cog" width="18" height="18" aria-hidden="true"
+						></iconify-icon>
+						Admin
 					</Tabs.Trigger>
 					<Tabs.Trigger
 						value="3"
-						class="flex-1"
 						data-testid="access-tab-tokens"
 						aria-current={currentTab === '3' ? 'page' : undefined}
 					>
-						<div class="flex items-center justify-center gap-1 py-4">
-							<iconify-icon icon="mdi:web" width={24}></iconify-icon>
-							<span
-								class={currentTab === '3'
-									? 'text-secondary-500 dark:text-tertiary-500 font-bold'
-									: ''}>Website Tokens</span
-							>
-						</div>
+						<iconify-icon icon="mdi:web" width="18" height="18" aria-hidden="true"></iconify-icon>
+						Website Tokens
 					</Tabs.Trigger>
 					<Tabs.Trigger
 						value="4"
-						class="flex-1"
 						data-testid="access-tab-sso"
 						aria-current={currentTab === '4' ? 'page' : undefined}
 					>
-						<div class="flex items-center justify-center gap-1 py-4">
-							<iconify-icon icon="mdi:shield-key-outline" width={24}></iconify-icon>
-							<span
-								class={currentTab === '4'
-									? 'text-secondary-500 dark:text-tertiary-500 font-bold'
-									: ''}>SSO & OIDC</span
-							>
-						</div>
+						<iconify-icon icon="mdi:shield-key-outline" width="18" height="18" aria-hidden="true"
+						></iconify-icon>
+						SSO & OIDC
 					</Tabs.Trigger>
 				</Tabs.List>
 			</div>

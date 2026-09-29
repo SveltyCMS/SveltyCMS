@@ -40,10 +40,10 @@
 			class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 		>
 			<div
-				class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-50"
+				class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40"
 			>
 				<div
-					class="flex gap-2"
+					class="flex gap-1"
 					role="tablist"
 					aria-label="Extension categories"
 					data-testid="extensions-tabs"
@@ -52,20 +52,16 @@
 						<Button
 							variant="ghost"
 							onclick={() => (activeTab = tab.id)}
-							class="relative px-6 py-4 font-medium {activeTab === tab.id
-								? 'text-tertiary-500 dark:text-primary-500'
-								: 'text-surface-500 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-100'}"
+							class="rounded-none! border-b-2 px-4 py-3 text-sm font-medium {activeTab === tab.id
+								? 'border-primary-500 text-primary-600 dark:text-primary-500'
+								: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 							aria-selected={activeTab === tab.id}
 							role="tab"
 							data-testid={`extensions-tab-${tab.id}`}
 						>
-							<iconify-icon icon={tab.icon} width="20" class="text-xl"></iconify-icon>
+							<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"
+							></iconify-icon>
 							<span>{tab.label}</span>
-							{#if activeTab === tab.id}
-								<div
-									class="absolute bottom-0 inset-s-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"
-								></div>
-							{/if}
 						</Button>
 					{/each}
 				</div>
@@ -79,7 +75,7 @@
 					<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
 					<span>Marketplace</span>
 					<span
-						class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase 'text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
+						class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
 					>
 						In-app
 					</span>

@@ -853,7 +853,7 @@ None (TreeView has its own keyboard navigation)
 							You have unsaved organizational changes. Click <strong>Save</strong> to persist.
 						</div>
 					{/if}
-					<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">
+					<p class="mb-6 text-center text-surface-600 dark:text-primary-500">
 						{collection_description()}
 					</p>
 

@@ -696,9 +696,10 @@ Advanced icon picker with search, pagination, and favorites.
 					role="tab"
 					aria-selected={activeTab === 'search'}
 					onclick={() => switchTab('search')}
-					class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
-						? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+					class="flex-1 rounded-none! border-b-2 px-4 py-3 text-sm font-medium transition-colors {activeTab ===
+					'search'
+						? 'border-primary-500 text-primary-600 dark:text-primary-500'
+						: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 				>
 					Search
 				</Button>
@@ -710,9 +711,10 @@ Advanced icon picker with search, pagination, and favorites.
 						role="tab"
 						aria-selected={activeTab === 'favorites'}
 						onclick={() => switchTab('favorites')}
-						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
-							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+						class="flex-1 rounded-none! border-b-2 px-4 py-3 text-sm font-medium transition-colors {activeTab ===
+						'favorites'
+							? 'border-primary-500 text-primary-600 dark:text-primary-500'
+							: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 					>
 						Favorites ({favorites.length})
 					</Button>
@@ -725,9 +727,10 @@ Advanced icon picker with search, pagination, and favorites.
 						role="tab"
 						aria-selected={activeTab === 'recent'}
 						onclick={() => switchTab('recent')}
-						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
-							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+						class="flex-1 rounded-none! border-b-2 px-4 py-3 text-sm font-medium transition-colors {activeTab ===
+						'recent'
+							? 'border-primary-500 text-primary-600 dark:text-primary-500'
+							: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 					>
 						Recent ({recentSelections.length})
 					</Button>

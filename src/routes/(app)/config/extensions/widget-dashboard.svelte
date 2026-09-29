@@ -268,37 +268,40 @@ Features:
 
 		<!-- Tab Navigation -->
 		<div
-			class="flex gap-2 border-b border-gray-200 dark:border-gray-700"
+			class="flex gap-1 border-b border-surface-500/30 dark:border-surface-500/40"
 			role="tablist"
 			aria-label="Widget Categories"
 		>
 			<button
 				onclick={() => (activeTab = 'installed')}
-				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'installed'
-					? 'border-tertiary-600 text-tertiary-600 dark:border-tertiary-400 dark:text-tertiary-400'
-					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+				class="rounded-none border-b-2 px-4 py-3 text-sm font-medium transition-colors {activeTab ===
+				'installed'
+					? 'border-primary-500 text-primary-600 dark:text-primary-500'
+					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 				role="tab"
 				aria-selected={activeTab === 'installed'}
 				aria-controls="installed-panel"
 				id="bg-installed-tab"
 			>
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:package-variant" width="24" class="text-xl"></iconify-icon>
+					<iconify-icon icon="mdi:package-variant" width="18" height="18" aria-hidden="true"
+					></iconify-icon>
 					<span>Installed Widgets</span>
 				</div>
 			</button>
 			<button
 				onclick={() => (activeTab = 'marketplace')}
-				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'marketplace'
-					? 'border-tertiary-600 text-tertiary-600 dark:border-tertiary-400 dark:text-tertiary-400'
-					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+				class="rounded-none border-b-2 px-4 py-3 text-sm font-medium transition-colors {activeTab ===
+				'marketplace'
+					? 'border-primary-500 text-primary-600 dark:text-primary-500'
+					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 				role="tab"
 				aria-selected={activeTab === 'marketplace'}
 				aria-controls="marketplace-panel"
 				id="bg-marketplace-tab"
 			>
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:store" width="24" class="text-xl"></iconify-icon>
+					<iconify-icon icon="mdi:store" width="18" height="18" aria-hidden="true"></iconify-icon>
 					<span>Marketplace</span>
 					<span
 						class="rounded-full bg-tertiary-500/10 px-2 py-0.5 text-xs font-medium text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400"

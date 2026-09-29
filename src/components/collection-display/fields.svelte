@@ -622,60 +622,37 @@
 		onValueChange={(e) => (localTabSet = e.value)}
 		class="flex flex-1 flex-col items-center"
 	>
-		<Tabs.List
-			class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full"
-		>
+		<Tabs.List class="flex justify-between md:justify-around w-full">
 			<Tabs.Trigger value="0" class="flex-1">
-				<div class="flex items-center justify-center gap-2 py-2">
-					<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"
-					></iconify-icon>
-					{button_edit()}
-				</div>
+				<iconify-icon icon="mdi:pen" width="18" height="18" aria-hidden="true"></iconify-icon>
+				{button_edit()}
 			</Tabs.Trigger>
 
 			{#if collections.active?.revision}
 				<Tabs.Trigger value="1" class="flex-1">
-					<div class="flex items-center justify-center gap-2 py-2">
-						<iconify-icon
-							icon="mdi:history"
-							width="20"
-							class="text-tertiary-500 dark:text-primary-500"
-						></iconify-icon>
-						{applayout_version()}
-						<Badge variant="secondary">{revisions.length}</Badge>
-					</div>
+					<iconify-icon icon="mdi:history" width="18" height="18" aria-hidden="true"></iconify-icon>
+					{applayout_version()}
+					<Badge variant="secondary">{revisions.length}</Badge>
 				</Tabs.Trigger>
 			{/if}
 
 			{#if user?.isAdmin}
 				<Tabs.Trigger value="3" class="flex-1">
-					<div class="flex items-center justify-center gap-2 py-2">
-						<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"
-						></iconify-icon>
-						API
-					</div>
+					<iconify-icon icon="mdi:api" width="18" height="18" aria-hidden="true"></iconify-icon>
+					API
 				</Tabs.Trigger>
 			{/if}
 
 			<!-- Plugin Slots Triggers -->
 			{#each entryEditSlots as slot (slot.id)}
 				<Tabs.Trigger value={slot.id} class="flex-1">
-					<div class="flex items-center justify-center gap-2 py-2">
-						{#if slot.props?.icon}
-							<iconify-icon
-								icon={slot.props.icon}
-								width="20"
-								class="text-tertiary-500 dark:text-primary-500"
-							></iconify-icon>
-						{:else}
-							<iconify-icon
-								icon="mdi:puzzle-outline"
-								width="20"
-								class="text-tertiary-500 dark:text-primary-500"
-							></iconify-icon>
-						{/if}
-						{slot.props?.label || slot.id}
-					</div>
+					<iconify-icon
+						icon={slot.props?.icon || 'mdi:puzzle-outline'}
+						width="18"
+						height="18"
+						aria-hidden="true"
+					></iconify-icon>
+					{slot.props?.label || slot.id}
 				</Tabs.Trigger>
 			{/each}
 

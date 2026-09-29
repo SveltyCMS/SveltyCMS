@@ -47,21 +47,15 @@
 >
 	<div class="wrapper" data-testid="upload-media-page">
 		<Tabs bind:value={tabSet}>
-			<Tabs.List
-				class="flex border-b border-surface-200-800 font-bold"
-				{...{ 'data-testid': 'upload-media-tabs' }}
-			>
+			<Tabs.List {...{ 'data-testid': 'upload-media-tabs' }}>
 				<Tabs.Trigger value="0" class="flex-1" data-testid="upload-tab-local">
-					<div class="flex items-center justify-center gap-2 py-4">
-						<iconify-icon icon="mdi:database" width="24"></iconify-icon>
-						<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_local_upload()}</p>
-					</div>
+					<iconify-icon icon="mdi:database" width="18" height="18" aria-hidden="true"
+					></iconify-icon>
+					{uploadMedia_local_upload()}
 				</Tabs.Trigger>
 				<Tabs.Trigger value="1" class="flex-1" data-testid="upload-tab-remote">
-					<div class="flex items-center justify-center gap-2 py-4">
-						<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
-						<p class="text-tertiary-500 dark:text-primary-500">{uploadMedia_remote_upload()}</p>
-					</div>
+					<iconify-icon icon="mdi:radio" width="18" height="18" aria-hidden="true"></iconify-icon>
+					{uploadMedia_remote_upload()}
 				</Tabs.Trigger>
 
 				<Tabs.Indicator />

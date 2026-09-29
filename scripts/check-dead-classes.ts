@@ -51,6 +51,15 @@ const DEAD_CLASS_PATTERNS = [
       /\bvariant-(?:filled|soft|ringed|glass|primary|secondary|tertiary|surface|success|warning|error)\b/g,
     reason: "Legacy Skeleton variant class has no matching CSS rules in Tailwind v4.",
   },
+  {
+    // Skeleton's light/dark range syntax (`text-surface-600-300`, `bg-surface-100-900`).
+    // Tailwind v4 here has single shades only, so the class is dead — an element keeps
+    // its inherited colour and the drift is invisible until someone looks closely.
+    regex:
+      /\b(?:bg|text|border|ring|divide|from|via|to|fill|stroke|shadow|outline|decoration|accent|caret|placeholder)-(?:surface|primary|secondary|tertiary|success|warning|error)-\d{2,3}-\d{3}\b/g,
+    reason:
+      "Legacy Skeleton range token (e.g. '-600-300' = light/dark pair) has no CSS rules in Tailwind v4. Use an explicit pair: 'text-surface-600 dark:text-surface-300'.",
+  },
 ];
 
 for (const file of targetFiles) {
@@ -92,6 +101,6 @@ if (offenses.length > 0) {
   }
   process.exit(1);
 } else {
-  console.log("✅ Dead class scanner: No legacy variant-* or broken preset-* classes found.");
+  console.log("✅ Dead class scanner: No legacy variant-*/preset-*/range-token classes found.");
   process.exit(0);
 }

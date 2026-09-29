@@ -742,7 +742,7 @@
 				data-testid="admin-tab-users"
 				onclick={() => showView('users')}
 				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList
-					? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+					? 'border-primary-500 text-primary-600 dark:text-primary-500'
 					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			>
 				<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
@@ -756,7 +756,7 @@
 				data-testid="admin-tab-tokens"
 				onclick={() => showView('tokens')}
 				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken
-					? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+					? 'border-primary-500 text-primary-600 dark:text-primary-500'
 					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			>
 				<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>

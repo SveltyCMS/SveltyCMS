@@ -205,7 +205,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 						<Button
 							variant="ghost"
 							class="flex-1 py-3 text-center text-sm font-medium {activeTab === tab
-								? 'bg-tertiary-500! dark:bg-primary-500! text-white! dark:text-surface-900!'
+								? 'bg-primary-500! text-white!'
 								: 'text-surface-600! dark:text-surface-400!'}"
 							onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
 							role="tab"
