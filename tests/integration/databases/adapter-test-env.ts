@@ -92,7 +92,7 @@ export function adapterConnectionConfig(engine: AdapterEngine): {
   return { host, port, user, password, database, uri };
 }
 
-/** Retry connect with clear errors (CI race: wait-on TCP before DB accepts auth). */
+/** Retry connect with clear errors (CI race: TCP wait before DB accepts auth). */
 export async function connectWithRetry(
   engine: AdapterEngine,
   connect: (uri: string) => Promise<{ success: boolean; message?: string }>,

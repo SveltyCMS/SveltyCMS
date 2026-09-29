@@ -175,7 +175,7 @@ function hintForError(error: string): string {
     return "→ Selector: use data-testid; confirm page shell rendered (not login/500)";
   }
   if (/net::err|econnrefused|connection refused/.test(e)) {
-    return "→ Server down: wait-on / trap killed preview; check PORT 4173 and build/index.js";
+    return "→ Server down: wait-for-ready / trap killed preview; check PORT 4173 and build/index.js";
   }
   if (/csrf|403|forbidden/.test(e)) {
     return "→ Authz/CSRF: use fetchApi / testing headers; verify ENDPOINT_PERMISSIONS";

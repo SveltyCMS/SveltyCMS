@@ -323,13 +323,13 @@ jobs:
         if: matrix.db != 'sqlite'
         run: |
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
-          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+          bun run scripts/wait-for-ready.ts tcp:127.0.0.1:${{ matrix.port }} --timeout=90000 --interval=2000
 
       - name: Start UDH External Postgres Fixture
         if: matrix.db != 'postgresql'
         run: |
           docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
-          bun x wait-on tcp:127.0.0.1:5432 --timeout 90000 --interval 2000
+          bun run scripts/wait-for-ready.ts tcp:127.0.0.1:5432 --timeout=90000 --interval=2000
 
       - name: Run Integration Tests
         env:
@@ -392,7 +392,7 @@ jobs:
         if: matrix.db != 'sqlite'
         run: |
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
-          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+          bun run scripts/wait-for-ready.ts tcp:127.0.0.1:${{ matrix.port }} --timeout=90000 --interval=2000
 
       - name: Create UDH Fixture Database (PostgreSQL only)
         if: matrix.db == 'postgresql'
@@ -403,7 +403,7 @@ jobs:
         if: matrix.db != 'postgresql'
         run: |
           docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
-          bun x wait-on tcp:127.0.0.1:5432 --timeout 90000 --interval 2000
+          bun run scripts/wait-for-ready.ts tcp:127.0.0.1:5432 --timeout=90000 --interval=2000
 
       - name: Run Core Benchmarks
         env:
@@ -601,15 +601,12 @@ jobs:
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
           trap "kill $SERVER_PID 2>/dev/null || true" INT TERM
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
-          # Quick verification that the process is still alive after wait-on
-          # (listening socket + config loading can race — detect exits early)
-          if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "❌ Server process exited after listen — crash in preview.log:"
+          # HTTP readiness probe (not just TCP accept) — fails fast if the server exits.
+          if ! bun run scripts/wait-for-ready.ts http://127.0.0.1:4173/api/system/health --timeout=180000 --interval=500 --pid=$SERVER_PID; then
+            echo "❌ Server did not become ready — crash in preview.log:"
             tail -100 preview.log
             exit 1
           fi
-          echo "✅ Server process alive (PID $SERVER_PID)"
           echo "PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173" >> $GITHUB_ENV
           echo "ORIGIN=${ORIGIN}" >> $GITHUB_ENV
 
@@ -791,9 +788,8 @@ jobs:
           fi
           SERVER_PID=$!
           trap "kill $SERVER_PID 2>/dev/null || true" EXIT INT TERM
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
-          if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "Server process exited after listen - crash in preview.log:"
+          if ! bun run scripts/wait-for-ready.ts http://127.0.0.1:4173/api/system/health --timeout=120000 --interval=500 --pid=$SERVER_PID; then
+            echo "Server did not become ready - crash in preview.log:"
             tail -100 preview.log
             exit 1
           fi
