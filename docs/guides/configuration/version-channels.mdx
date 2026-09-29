@@ -112,7 +112,7 @@ The version flows from `next` → `main` through the normal merge. When CI passe
 | -------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Version Service**        | `src/services/core/version-service.ts`        | Reads local version from `package.json`, checks GitHub Releases API for newer versions                                                         |
 | **Version Handler**        | `src/routes/api/[...path]/handlers/system.ts` | REST endpoints `/api/system/version` (public: installed version) and `/api/system/version/check` (authenticated: update check)                 |
-| **VersionCheck Component** | `src/components/version-check.svelte`         | Admin UI badge — displays current version with green/yellow/grey status                                                                        |
+| **VersionCheck Component** | `src/components/version-check.svelte`         | Admin UI badge — displays current version; the badge background carries the status (primary / warning / surface / error)                       |
 | **Version Tests**          | `tests/unit/api/version.test.ts`              | Unit tests for `compareVersions` (SemVer incl. prerelease precedence) and `checkForUpdates` — these import the real implementation, not a copy |
 | **Auto Release**           | `.github/workflows/auto-release.yaml`         | CI pass on `main` (or manual `v*` tag push / dispatch) → tag, GitHub Release, npm publish                                                      |
 
@@ -167,21 +167,24 @@ If GitHub is unreachable, the endpoint returns `latestVersion: null` with `updat
 The `VersionCheck` component (`src/components/version-check.svelte`) appears in the admin interface and:
 
 - Reads `PKG_VERSION` from `publicEnv` (loaded from `package.json` at server boot via `settings-service.ts` → `+layout.server.ts`)
-- Fetches `/api/system/version/check` every hour to compare against the latest GitHub release
+- Fetches `/api/system/version/check` every hour to compare against the latest GitHub release (not on `/setup` — see below)
 - Shows a clickable badge linking to the releases page
 
-| Badge State            | Meaning                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ |
-| **Green** (`success`)  | You are up to date                                                                                     |
-| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.10 recommended")                                    |
-| **Grey** (`surface`)   | Could not check for updates — network/GitHub API issue, **or** the caller is not signed in (see below) |
+| Badge State            | Meaning                                                                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Green** (`primary`)  | You are up to date (also the `/setup` install screen, where the check cannot run)                     |
+| **Yellow** (`warning`) | A newer version is available (e.g. "Update to v0.0.10 recommended"), or GitHub answered with an error |
+| **Grey** (`surface`)   | Waiting for the check, or no verdict (not authorized / no data)                                       |
+| **Red** (`error`)      | The check request itself failed (network / timeout) — an error alert is shown                         |
 
 The update check is **authenticated by design** (`system:read` via the fail-closed dispatcher, pinned by
 `tests/integration/api/version.test.ts` → _"should require authentication"_): the endpoint performs an outbound
 GitHub lookup, so an anonymous caller must not be able to trigger it. The installed version keeps its own public
-endpoint (`/api/system/version`). On `/setup` and `/login` there is no session yet, so the component shows the
-installed version with a grey badge and **no** error alert — a 401/403 there is an authorization answer, not a
-failed check (`src/components/version-check.svelte`).
+endpoint (`/api/system/version`). `/setup` mounts the badge before a session exists, so the component does not call
+the endpoint at all and presents the installed version in the brand-green (`primary`) colour with **no** status
+dot and **no** error alert — a pre-auth request could only answer 401, and a grey "unavailable" badge described
+the check rather than the version. `/login` keeps a fixed neutral transparent pill that never repaints (status colour, dots included, are gone there), and the authenticated surfaces
+(sidebar, config) keep the real check (`src/components/version-check.svelte`).
 
 ---
 

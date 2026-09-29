@@ -17,12 +17,13 @@ refreshed by one mechanism: the hourly interval below.
 
 ### Features
 	- Single state object + severity-keyed presentation
-	- Up to date (success), update available (warning), GitHub error (warning),
-	  not authorized / no data (info), unreachable (critical)
+	- Status is carried by the badge **background** (primary = up to date, warning = update /
+	  GitHub error, error = unreachable, surface = checking / unavailable) — no status dot
 	- Accessible ARIA status label + polite live region; reduced-motion safe
-	- Pre-auth surfaces (/setup, /login) show the installed version with a grey badge
-	  instead of a red alert: the check is authenticated by design, so a 401/403 there
-	  is an authorization answer, not a failure
+	- /setup mounts the badge before a session exists and the update check is authenticated
+	  by design (401 pre-auth), so it presents the installed version in the primary colour
+	  without fetching instead of a grey “check unavailable” state that describes the check
+	  rather than the version; /login renders a fixed neutral pill that never repaints
 -->
 
 <script lang="ts">
@@ -48,7 +49,7 @@ refreshed by one mechanism: the hourly interval below.
 		message?: string;
 	}
 
-	type BadgeKind = 'success' | 'warning' | 'error' | 'surface';
+	type BadgeKind = 'primary' | 'success' | 'warning' | 'error' | 'surface';
 	type BadgeVariant = 'filled' | 'tonal' | 'outlined' | 'ghost';
 	type Severity = 'critical' | 'warning' | 'info' | 'success' | 'unknown';
 
@@ -127,35 +128,18 @@ refreshed by one mechanism: the hourly interval below.
 			}
 		};
 
-	/** Rendered Badge variant, status dot and transparent-overlay classes per severity. */
-	const SEVERITY_STYLES: Record<Severity, { badge: BadgeKind; dot: string; transparent: string }> =
-		{
-			success: {
-				badge: 'success',
-				dot: 'bg-tertiary-500 dark:bg-primary-500',
-				transparent: 'bg-tertiary-500 dark:bg-primary-500/20 text-success-600 dark:text-success-400'
-			},
-			warning: {
-				badge: 'warning',
-				dot: 'bg-warning-500',
-				transparent: 'bg-warning-500/20 text-warning-600 dark:text-warning-400'
-			},
-			critical: { badge: 'error', dot: 'bg-error-500', transparent: 'bg-error-500/20 text-black' },
-			info: {
-				badge: 'surface',
-				dot: 'bg-surface-500',
-				transparent: 'bg-surface-900/10 dark:text-white'
-			},
-			unknown: {
-				badge: 'surface',
-				dot: 'bg-surface-500',
-				transparent: 'bg-surface-900/10 dark:text-white'
-			}
-		};
+	/** Badge variant per severity — the badge **background** is the status signal (no dot). */
+	const SEVERITY_STYLES: Record<Severity, { badge: BadgeKind }> = {
+		success: { badge: 'primary' },
+		warning: { badge: 'warning' },
+		critical: { badge: 'error' },
+		info: { badge: 'surface' },
+		unknown: { badge: 'surface' }
+	};
 
 	/** Informational fill for `VersionStatus.badgeColor`; the rendered badge uses `variant`. */
 	const SEVERITY_FILL: Record<Severity, string> = {
-		success: 'bg-tertiary-500 dark:bg-primary-500 text-white',
+		success: 'bg-primary-500 text-white',
 		warning: 'bg-warning-500 text-white',
 		critical: 'bg-surface-500 text-white',
 		info: 'bg-surface-500 text-white',
@@ -172,7 +156,16 @@ refreshed by one mechanism: the hourly interval below.
 		remoteVersion: null
 	});
 
-	const presentation = $derived(PRESENTATION[state.outcome]);
+	// Route context — resolved in the browser only, defensively (SSR has no location).
+	const isLoginRoute = $derived(browser ? window.location.pathname.startsWith('/login') : false);
+	const effectiveTransparent = $derived(transparent || isLoginRoute);
+	// /setup renders this badge before any session exists, and the update check is
+	// authenticated by design, so its outcome there can only ever be `unavailable`.
+	// The install screen shows the installed version in the success colour instead —
+	// a grey "check unavailable" badge described the check, not the version.
+	const isSetupRoute = $derived(browser ? window.location.pathname.startsWith('/setup') : false);
+
+	const presentation = $derived(isSetupRoute ? PRESENTATION.current : PRESENTATION[state.outcome]);
 	const severityStyle = $derived(SEVERITY_STYLES[presentation.severity]);
 	const githubVersion = $derived(
 		state.outcome === 'update' && state.latestVersion
@@ -181,9 +174,12 @@ refreshed by one mechanism: the hourly interval below.
 	);
 	const isLoading = $derived(state.outcome === 'loading');
 	const versionStatusMessage = $derived(
-		state.outcome === 'update' && state.latestVersion
-			? `Update to v${state.latestVersion} recommended`
-			: presentation.message
+		isSetupRoute
+			? // No check runs on /setup, so don't claim "up to date" — state the installed version.
+				`Application version ${pkg}`
+			: state.outcome === 'update' && state.latestVersion
+				? `Update to v${state.latestVersion} recommended`
+				: presentation.message
 	);
 
 	/** Resolved status — the callback prop and headless snippets consume this shape. */
@@ -200,12 +196,11 @@ refreshed by one mechanism: the hourly interval below.
 		lastChecked: state.lastChecked
 	});
 
-	// Transparent mode styling - check pathname defensively
-	const isLoginRoute = $derived(browser ? window.location.pathname.startsWith('/login') : false);
-	const effectiveTransparent = $derived(transparent || isLoginRoute);
-
 	// Get appropriate ARIA label
 	const statusAriaLabel = $derived.by(() => {
+		if (isSetupRoute) {
+			return `Application version ${pkg}`;
+		}
 		if (isLoading) {
 			return 'Checking application version';
 		}
@@ -247,6 +242,11 @@ refreshed by one mechanism: the hourly interval below.
 	}
 
 	async function checkVersion(): Promise<void> {
+		// /setup has no session, so the authenticated check can only answer 401 and the badge
+		// there is presentational (success colour, no status dot). Don't poll an endpoint that
+		// cannot succeed — it only produced 401 noise in the console.
+		if (isSetupRoute) return;
+
 		try {
 			const response = await fetch(CHECK_ENDPOINT, {
 				headers: { Accept: 'application/json' },
@@ -306,22 +306,14 @@ refreshed by one mechanism: the hourly interval below.
 			href={GITHUB_RELEASES_URL}
 			target="_blank"
 			rel="noopener noreferrer"
-			class={`absolute bottom-5 inset-s-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${severityStyle.transparent} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`}
+			class="absolute bottom-5 inset-s-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full bg-surface-900/10 dark:text-white px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
 			aria-label={statusAriaLabel}
 			aria-live="polite"
 		>
-			<!-- Transparent mode -->
+			<!-- Transparent mode — fixed neutral pill: status never repaints it, so no
+			     critical ping either (a pre-auth check failure is not actionable here). -->
 			<span class="text-black">Ver.</span>
 			<span class="text-white">{pkg}</span>
-
-			{#if !isLoading && presentation.severity === 'critical'}
-				<span class="flex h-2 w-2">
-					<span
-						class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75 motion-reduce:hidden"
-					></span>
-					<span class="relative inline-flex h-2 w-2 rounded-full bg-error-500"></span>
-				</span>
-			{/if}
 		</a>
 	{:else}
 		<SystemTooltip title={versionStatusMessage}>
@@ -349,11 +341,9 @@ refreshed by one mechanism: the hourly interval below.
 					{/if}
 				</span>
 
-				<!-- Status indicator dot (only show when check is complete) -->
-				{#if !compact && !isLoading && presentation.severity !== 'unknown'}
-					<span class="inline-block h-2 w-2 rounded-full {severityStyle.dot}" aria-hidden="true"
-					></span>
-				{/if}
+				<!-- Status dot removed: the badge colour already carries the status, and a dot
+				     inside the filled badge rendered hue-on-hue — it could never be read as a
+				     signal (grey/blue on the success fill). -->
 			</Badge>
 		</SystemTooltip>
 	{/if}
