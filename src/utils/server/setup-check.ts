@@ -110,10 +110,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
     if (!hasAdmin || !hasRoles) {
       if (process.env.TEST_MODE !== "true") {
+        const missing = [!hasAdmin && "an admin account", !hasRoles && "roles"]
+          .filter(Boolean)
+          .join(" and ");
         logger
           .channel("setupCheck")
-          .warn(
-            `Config exists but DB is missing ${!hasAdmin ? "ADMIN" : ""}${!hasAdmin && !hasRoles ? "/" : ""}${!hasRoles ? "ROLES" : ""}`,
+          .info(
+            `Setup incomplete: a database is configured, but it has no ${missing} yet — staying in setup mode.`,
           );
       }
       setupDbStatus = false;

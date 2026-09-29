@@ -362,8 +362,11 @@ export function installFastLanes(): void {
     return null;
   };
   logger.info(`[FastLane] ${lanes.length} lane(s) registered`);
-  // Deliberate stderr write: the A/B harness forwards the spawned server's stderr,
-  // while `logger` writes to the app log sink — this is the proof that the lanes
-  // (and not the fallback) are live in a measured run.
-  process.stderr.write(`[FastLane] ${lanes.length} lane(s) registered\n`);
+  // Deliberate stderr write: the external A/B harness forwards the spawned server's
+  // stderr, while `logger` writes to the app log sink — this is the proof that the lanes
+  // (and not the fallback) are live in a measured run. Production builds only: a dev
+  // console already shows the logger line, and two identical lines per boot read as a bug.
+  if (process.env.NODE_ENV === "production") {
+    process.stderr.write(`[FastLane] ${lanes.length} lane(s) registered\n`);
+  }
 }

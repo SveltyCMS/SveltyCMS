@@ -259,7 +259,11 @@ export async function ensureFullInitialization(): Promise<any | null> {
         cfg = mutableCfg;
       }
 
-      logger.info(`[Boot] Loading adapters for ${cfg?.DB_TYPE}...`);
+      logger.info(
+        cfg?.DB_TYPE
+          ? `[Boot] Loading the ${cfg.DB_TYPE} adapter...`
+          : "[Boot] No database configured yet — loading adapters in setup mode...",
+      );
       let adapter = await dbInit.loadAdapters(cfg);
       if (!adapter) throw new Error("Failed to load database adapter");
       logger.info(`[Boot] Adapter loaded. Connecting...`);

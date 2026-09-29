@@ -42,7 +42,6 @@ export default defineConfig({
       "$app/paths": path.resolve(__dirname, "tests/unit/mocks/$app/paths.ts"),
       "$app/forms": path.resolve(__dirname, "tests/unit/mocks/$app/forms.ts"),
       "$app/server": path.resolve(__dirname, "tests/unit/mocks/$app/server.ts"),
-      "$env/dynamic/private": path.resolve(__dirname, "tests/unit/mocks/$env/dynamic/private.ts"),
       "bun:sqlite": path.resolve(__dirname, "tests/unit/mocks/bun-sqlite.ts"),
     },
   },

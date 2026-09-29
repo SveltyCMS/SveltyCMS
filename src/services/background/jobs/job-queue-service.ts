@@ -226,6 +226,7 @@ class JobQueueService {
       return;
     }
 
+    const startedAt = Date.now();
     try {
       logger.debug(`[JobQueue] Executing job ${job._id} (${job.taskType})`);
       await handler(job.payload, job);
@@ -235,7 +236,9 @@ class JobQueueService {
         status: "completed",
         progress: 100,
       });
-      logger.info(`[JobQueue] Job ${job._id} completed successfully`);
+      logger.info(
+        `[JobQueue] Job ${job._id} (${job.taskType}) completed in ${Date.now() - startedAt}ms`,
+      );
     } catch (error: any) {
       const errMessage = error.message;
       logger.error(`[JobQueue] Job ${job._id} failed:`, error);

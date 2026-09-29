@@ -23,7 +23,9 @@ export async function fetchAndRedirectToFirstCollection(
       return redirectUrl;
     }
 
-    logger.warn("No collections found via getSmartFirst(), returning null.");
+    logger.debug(
+      "[Collections] No collection available yet — skipping the first-collection redirect.",
+    );
     return null; // Return null if no collections are configured
   } catch (err) {
     logger.error("Error in fetchAndRedirectToFirstCollection:", err);

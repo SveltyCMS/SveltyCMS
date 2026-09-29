@@ -133,12 +133,26 @@ function formatAnsi(msg: string): string {
   return out;
 }
 
+/** `YYYY-MM-DD HH:mm:ss ±HH:MM` in local time. Vite and Node print local time, and a
+ *  bare `toISOString()` put UTC next to it (18:37 beside 16:37) in the dev console. */
+function formatLocalTimestamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const offsetMin = -date.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? "+" : "-";
+  const abs = Math.abs(offsetMin);
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ` +
+    `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+  );
+}
+
 // ── Core log function ──────────────────────────────────────────────────────
 function log(level: LogLevel, msg: string, args: unknown[]) {
   if (PRIORITY[level] > CURRENT_PRIORITY) return;
   if (!IS_BROWSER && IS_QUIET && !IS_BENCHMARK_DEBUG && PRIORITY[level] > PRIORITY.warn) return;
 
-  const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
+  const ts = formatLocalTimestamp(new Date());
   const icon = ICONS[level.toUpperCase()] || "\u25CF";
   const method =
     level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";

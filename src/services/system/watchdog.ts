@@ -117,7 +117,8 @@ class SystemWatchdog {
         this.responseCache?.trimLocal();
       },
       now: () => Date.now(),
-      log: (message) => logger.warn(message),
+      log: (message, level = "warn") =>
+        level === "info" ? logger.info(message) : logger.warn(message),
     });
   }
 

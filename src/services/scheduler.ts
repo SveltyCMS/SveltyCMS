@@ -177,6 +177,7 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
   if (!claimResult.success || !claimResult.data) return; // Not claimed — another consumer owns it
 
   const { taskType, payload } = job;
+  const startedAt = Date.now();
   logger.info(`[Scheduler] Executing job ${job._id} (${taskType})`);
 
   try {
@@ -204,7 +205,9 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
     // Create audit log entry
     await createAuditLog(job, "completed");
 
-    logger.info(`[Scheduler] Job ${job._id} completed successfully`);
+    logger.info(
+      `[Scheduler] Job ${job._id} (${taskType}) completed in ${Date.now() - startedAt}ms`,
+    );
   } catch (err: any) {
     const errorMsg = err?.message || String(err);
     logger.error(`[Scheduler] Job ${job._id} failed: ${errorMsg}`);

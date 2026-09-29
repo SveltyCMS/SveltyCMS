@@ -705,12 +705,6 @@ moduleMock("$app/env", () => ({
   default: { browser: false, dev: true, building: false, version: "1.0.0" },
 }));
 
-moduleMock("$env/dynamic/private", () => ({
-  env: process.env,
-  __esModule: true,
-  default: process.env,
-}));
-
 moduleMock("$app/navigation", () => ({
   goto: mock(() => Promise.resolve()),
   invalidate: mock(() => Promise.resolve()),

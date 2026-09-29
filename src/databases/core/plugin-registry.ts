@@ -57,11 +57,11 @@ export class DBPluginRegistry {
    * Uses a basic topological sort to resolve dependencies.
    */
   public async bootAll(adapter: IDBAdapter): Promise<void> {
-    logger.info(`[DB Registry] bootAll started with ${this.plugins.size} plugins`);
+    // One line, not two: “started with N plugins” + “Booting N services” said the
+    // same thing twice with different nouns on every boot.
+    logger.info(`[DB Registry] Booting ${this.plugins.size} services (dependency order)...`);
     this.initialized.clear();
     const queue = Array.from(this.plugins.values());
-
-    logger.info(`[DB Registry] Booting ${queue.length} services...`);
 
     // Zero settling delay — proxy registrations are synchronous.
 

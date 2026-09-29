@@ -22,19 +22,14 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
 
-// Dynamic env loading helper to avoid breaking unit tests
+// Env source for the telemetry endpoint override. SvelteKit 3's dynamic private env
+// (`$app/env/private`) only exposes variables declared via `defineEnvVars`; this
+// project declares none, so the deprecated `$env/dynamic/private` import was an
+// empty module that only warned on every dev boot.
 let env: Record<string, string | undefined> = {};
 if (typeof process !== "undefined" && process.env) {
   env = process.env as Record<string, string | undefined>;
 }
-try {
-  // @ts-ignore
-  import("$env/dynamic/private")
-    .then((mod) => {
-      env = { ...env, ...mod.env };
-    })
-    .catch(() => {});
-} catch {}
 
 // In-memory cache for update checks, backed by globalThis to survive HMR in dev
 const globalWithCache = globalThis as typeof globalThis & {
@@ -72,15 +67,25 @@ export class TelemetryService {
       return { status: "building", latest: null, security_issue: false };
     }
 
-    // Check opt-out settings
+    // Opt-out. The documented switches are environment variables
+    // (docs/reference/architecture/server-hooks.mdx): `SVELTY_TELEMETRY_DISABLED`
+    // and the cross-tool standard `DO_NOT_TRACK`; `SVELTYCMS_TELEMETRY` is the
+    // legacy private-config toggle. All three are honoured.
+    const truthy = (value: unknown) =>
+      value === true || value === "true" || value === 1 || value === "1";
     let isTelemetryEnabled = true;
     try {
-      const setting = await getPrivateSetting("SVELTYCMS_TELEMETRY");
-      if ((setting as any) === false || (setting as any) === "false") {
+      // `unknown`: the stored value is schema-coerced to boolean, but legacy rows
+      // may still carry the raw string.
+      const masterToggle: unknown = await getPrivateSetting("SVELTYCMS_TELEMETRY");
+      if (masterToggle === false || masterToggle === "false") {
         isTelemetryEnabled = false;
       }
     } catch (err) {
       logger.debug("[Telemetry] Could not check opt-out setting, defaulting to enabled", err);
+    }
+    if (truthy(env.SVELTY_TELEMETRY_DISABLED) || truthy(env.DO_NOT_TRACK)) {
+      isTelemetryEnabled = false;
     }
 
     if (!isTelemetryEnabled) {
@@ -283,7 +288,10 @@ export class TelemetryService {
         let clientSecret = await getPrivateSetting("TELEMETRY_CLIENT_SECRET");
 
         if (!clientSecret) {
-          logger.info("📡 Telemetry: No secret found. Registering installation...");
+          logger.info(
+            "📡 Telemetry: registering an anonymous installation ID for update/security notices " +
+              "(opt out: SVELTY_TELEMETRY_DISABLED=true or DO_NOT_TRACK=1).",
+          );
           const registrationSecret = await this.register(installationId);
           if (registrationSecret) {
             clientSecret = registrationSecret;

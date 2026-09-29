@@ -32,7 +32,9 @@ export async function withMigrationLock(
   dbType: string,
   migrateFn: () => Promise<void>,
 ): Promise<boolean> {
-  logger.info(`[MigrationLock] Attempting to acquire lock for ${dbType}...`);
+  // Chatty on purpose-low value: the schema-bootstrap outcome line is the user-facing
+  // one; the lock handshake only matters when it is contested (kept at info below).
+  logger.debug(`[MigrationLock] Attempting to acquire lock for ${dbType}...`);
 
   let acquired = false;
 
@@ -59,7 +61,7 @@ export async function withMigrationLock(
       return false;
     }
 
-    logger.info(`[MigrationLock] Lock acquired. Running migrations for ${dbType}...`);
+    logger.debug(`[MigrationLock] Lock acquired. Running migrations for ${dbType}...`);
     await migrateFn();
     return true;
   } catch (err) {

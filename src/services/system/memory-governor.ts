@@ -56,7 +56,8 @@ export interface MemoryGovernorDeps {
    */
   trimCaches: () => void | Promise<void>;
   now: () => number;
-  log: (message: string) => void;
+  /** Evidence-line sink. `level` lets routine idle reclaims stay at info instead of warn. */
+  log: (message: string, level?: "info" | "warn") => void;
 }
 
 export interface MemoryGovernorConfig {
@@ -210,6 +211,7 @@ export class MemoryGovernor {
             `rss ${mb(before.rss)}→${mb(after.rss)}MB · heap ${mb(before.heapUsed)}→${mb(after.heapUsed)}MB ` +
             `· ext+ab ${mb(before.external + before.arrayBuffers)}→${mb(after.external + after.arrayBuffers)}MB ` +
             `· limit ${mb(after.heapLimit)}MB · busy ${(busyRatio * 100).toFixed(0)}%`,
+          trigger === "idle" ? "info" : "warn",
         );
         if (gain >= this.config.minGainBytes) break;
         if (!this.stillPressured(after)) break;

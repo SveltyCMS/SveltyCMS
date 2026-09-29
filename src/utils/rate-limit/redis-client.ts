@@ -155,7 +155,7 @@ export class RedisRateLimitStore {
       logger.once(
         "rl.redis.online",
         "info",
-        `[RedisRateLimit] Redis verbunden (${url.split("@").pop()})`,
+        `[RedisRateLimit] Redis connected (${url.split("@").pop()})`,
       );
 
       // Periodischer Ping: frueh erkennen, wenn Redis wegbricht.

@@ -2,8 +2,8 @@
  * @file src/databases/config-state.ts
  * @description
  * Centralized, type-safe private configuration loader for the CMS.
- * Prefers SvelteKit $env/dynamic/private, with optional file fallback for setup/complex cases.
- * Avoids circular dependencies and fragile dynamic imports.
+ * Sources: process env (tests/benchmarks) + `config/private*.ts`, with explicit env
+ * overrides taking precedence. Avoids circular dependencies and fragile imports.
  */
 
 import { privateConfigSchema } from "@src/databases/private-config-schema";
@@ -70,21 +70,13 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       const isTest = env("TEST_MODE") === "true" || env("NODE_ENV") === "test";
 
-      // 1. Start with SvelteKit's private env (best practice) or runtime env for tests
-      let svelteEnv: RawEnv = {};
-      if (isTest) {
-        svelteEnv = runtimeEnv() as RawEnv;
-      } else {
-        try {
-          if (import.meta.env?.SSR) {
-            // @ts-ignore - Dynamic SvelteKit environment variable loading
-            const mod = await import("$env/dynamic/private");
-            svelteEnv = mod.env;
-          }
-        } catch {
-          svelteEnv = runtimeEnv() as RawEnv;
-        }
-      }
+      // 1. Environment base. SvelteKit 3 moved the dynamic private env to
+      // `$app/env/private`, which only exposes variables declared via `defineEnvVars`
+      // in `src/env` — this project declares none, so the former
+      // `$env/dynamic/private` import resolved to an empty module and only produced
+      // the per-boot deprecation warning. `config/private.ts` (step 2) and the
+      // explicit env overrides (step 3) are the real sources.
+      const svelteEnv: RawEnv = isTest ? (runtimeEnv() as RawEnv) : {};
 
       let config: RawEnv = { ...svelteEnv };
 
