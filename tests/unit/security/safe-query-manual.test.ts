@@ -45,12 +45,23 @@ describe("safeQuery Hardening", () => {
     expect(result.name).toBe("test");
   });
 
-  it("should throw error on null tenantId in multi-tenant mode", () => {
+  it("should treat an explicit null tenantId as the global scope in multi-tenant mode", () => {
     // Set multi-tenant mode in the mocked config
     (globalThis as any).__privateEnv = { MULTI_TENANT: true };
     const query = { name: "test" };
-    // null should also throw in multi-tenant mode - this is the correct security behavior
-    expect(() => safeQuery(query, null)).toThrow("Security Violation");
+    // `tenantId: null` is the *documented* explicit global scope — rows with
+    // `tenantId IS NULL` (multi-tenancy.mdx → "Explicit Global Scope"), not a
+    // missing context. Rejecting it broke every global-tenant read once
+    // MULTI_TENANT was active (the global admin, public pages, wizard content).
+    const result = safeQuery(query, null);
+    expect((result as any).tenantId).toBeNull();
+    expect(result.name).toBe("test");
+  });
+
+  it("should not overwrite a narrower explicit query filter with the global scope", () => {
+    (globalThis as any).__privateEnv = { MULTI_TENANT: true };
+    const result = safeQuery({ name: "test", tenantId: "tenant-1" }, null);
+    expect((result as any).tenantId).toBe("tenant-1");
   });
 
   it("should throw error on undefined tenantId in multi-tenant mode", () => {
@@ -111,6 +122,8 @@ describe("safeQuery Hardening", () => {
     expect(isMultiTenantMode()).toBe(true);
     expect(() => assertTenantContext({})).toThrow("Security Violation");
     expect(() => assertTenantContext({ tenantId: "t1" })).not.toThrow();
+    // Explicit global scope (IS NULL rows) is a scope decision, not a missing one.
+    expect(() => assertTenantContext({ tenantId: null })).not.toThrow();
     expect(() => assertTenantContext(withSystemScope("bootstrap"))).not.toThrow();
     // Forged systemScope must not pass
     expect(() =>

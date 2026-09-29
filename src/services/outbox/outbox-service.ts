@@ -38,7 +38,12 @@ import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { pubSub } from "@src/services/background/pub-sub";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
-import type { BaseQueryOptions, DatabaseResult } from "@src/databases/db-interface";
+import type {
+  BaseQueryOptions,
+  CountOptions,
+  DatabaseId,
+  DatabaseResult,
+} from "@src/databases/db-interface";
 
 /** Possible delivery statuses for an outbox event */
 export type OutboxEventStatus = "pending" | "delivered" | "failed";
@@ -405,7 +410,13 @@ class OutboxServiceImpl {
     db: NonNullable<ReturnType<typeof getDb>>,
     limit: number,
   ): Promise<OutboxEvent[]> {
+    // Scheduler-domain system capability, same contract as `flushEmitBuffer`:
+    // the poller reads pending events across tenants in one batch (each row
+    // carries its own tenantId, which `_deliver` forwards to webhooks). Without
+    // the branded scope the tenant guard rejects this read in MULTI_TENANT mode
+    // and the 5 s poll logged a stack trace on every tick.
     const result = (await db.crud.findMany(this.collectionName, { status: "pending" } as any, {
+      ...withSystemScope("scheduler"),
       limit,
       sort: { createdAt: "asc" },
     })) as unknown as DatabaseResult<OutboxEvent[]>;
@@ -422,6 +433,10 @@ class OutboxServiceImpl {
     db: NonNullable<ReturnType<typeof getDb>>,
   ): Promise<boolean> {
     const eventId = event._id;
+    // Per-row status updates are the poller's own bookkeeping on rows it just
+    // read — same scheduler-domain capability as the fetch, so the guard does
+    // not reject them under MULTI_TENANT.
+    const systemScope = withSystemScope("scheduler");
 
     try {
       // 1. Internal pub/sub for automations / listeners
@@ -453,6 +468,7 @@ class OutboxServiceImpl {
           deliveredAt: nowISODateString(),
           updatedAt: nowISODateString(),
         } as any,
+        systemScope,
       );
 
       logger.debug(`[Outbox] Delivered ${event.eventType} event ${eventId}`);
@@ -470,6 +486,7 @@ class OutboxServiceImpl {
           lastError: String(error?.message || error).slice(0, 500),
           updatedAt: nowISODateString(),
         } as any,
+        systemScope,
       );
 
       if (isFinal) {
@@ -525,13 +542,15 @@ class OutboxServiceImpl {
     }
 
     try {
+      // System-wide maintenance sweep over delivered rows (no per-tenant
+      // caller) — needs the branded scope under MULTI_TENANT.
       const result = await db.crud.deleteMany(
         this.collectionName,
         {
           status: "delivered",
           deliveredAt: { $lt: olderThan } as any,
         } as any,
-        { permanent: true },
+        { permanent: true, ...withSystemScope("scheduler") },
       );
       return result as DatabaseResult<{ deletedCount: number }>;
     } catch (error: any) {
@@ -559,7 +578,13 @@ class OutboxServiceImpl {
       : this.emitBuffer.length;
 
     try {
-      const result = await db.crud.count(this.collectionName, filter as any);
+      // An explicit tenant scopes the count; a system-wide count (health
+      // checks) needs the branded scope under MULTI_TENANT — a bare count()
+      // is rejected by the tenant guard and read as 0.
+      const countOptions: CountOptions = tenantId
+        ? { tenantId: tenantId as DatabaseId }
+        : withSystemScope("scheduler");
+      const result = await db.crud.count(this.collectionName, filter as any, countOptions);
       return (result.success ? (result.data ?? 0) : 0) + bufferedCount;
     } catch {
       return bufferedCount;

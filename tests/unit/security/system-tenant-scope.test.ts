@@ -66,4 +66,22 @@ describe("SystemTenantScope brand", () => {
       assertTenantContext({ systemScope: { kind: "system", reason: "scheduler" } } as any, "jobs"),
     ).toThrow(/Security Violation/);
   });
+
+  it("validates scopes across duplicated module instances", async () => {
+    const first = await import("@src/databases/system-tenant-scope");
+    const scope = first.createSystemTenantScope("scheduler");
+
+    // Simulate a second copy of this module: Vite's dev SSR runner can load it
+    // alongside the statically imported one, and production chunking can
+    // duplicate it. The registry is parked on globalThis, so copy B must still
+    // recognise a scope minted by copy A — a module-local Symbol brand failed
+    // here and silently rejected legitimate system work.
+    vi.resetModules();
+    const second = await import("@src/databases/system-tenant-scope");
+
+    expect(second.isSystemTenantScope(scope)).toBe(true);
+    expect(second.hasTenantBypass({ systemScope: scope })).toBe(true);
+    // Forged objects still never pass, in either copy.
+    expect(second.isSystemTenantScope({ kind: "system", reason: "scheduler" })).toBe(false);
+  });
 });

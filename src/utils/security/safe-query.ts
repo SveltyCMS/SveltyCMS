@@ -3,8 +3,11 @@
  * @description Tenant isolation helpers shared by Mongo and SQL adapters.
  *
  * ### Security model
- * - When MULTI_TENANT is on, every query must carry a real tenantId (or explicit bypass).
- * - Fail-closed: missing tenant context throws TENANT_CONTEXT_MISSING.
+ * - When MULTI_TENANT is on, every query must carry a tenant scope: a real
+ *   `tenantId`, the **explicit global scope** (`tenantId: null` → rows with
+ *   `tenantId IS NULL`; see docs/reference/architecture/multi-tenancy.mdx),
+ *   or a branded system scope (`withSystemScope`).
+ * - Fail-closed: a MISSING scope (undefined / empty) throws TENANT_CONTEXT_MISSING.
  * - Soft-delete boundary is applied by default for Mongo-style filters.
  *
  * ### Performance
@@ -65,8 +68,23 @@ export function isMultiTenantMode(): boolean {
   return cachedIsMultiTenant;
 }
 
-function hasUsableTenantId(tenantId: unknown): boolean {
-  return tenantId !== undefined && tenantId !== null && tenantId !== "";
+/**
+ * Whether the options carry an explicit tenant scope decision.
+ *
+ * `null` IS such a decision: it selects the **global layer** (rows with
+ * `tenantId IS NULL` — global roles, global collections, system settings, the
+ * global administrator). The string `"global"` maps to "no filter" in
+ * `getEffectiveTenantId`; only a *missing* value (undefined / `""`) means
+ * "no context" and fails closed.
+ *
+ * Deliberately NOT stricter: rejecting the documented explicit global scope
+ * (multi-tenancy.mdx → "Explicit Global Scope") broke every global-tenant read
+ * once MULTI_TENANT was active — including the setup admin visiting public pages.
+ * The API layer keeps its own TENANT_REQUIRED guards, so tenantless *requests*
+ * are still rejected at the boundary.
+ */
+function hasExplicitTenantScope(tenantId: unknown): boolean {
+  return tenantId !== undefined && tenantId !== "";
 }
 
 /**
@@ -81,8 +99,8 @@ export function assertTenantContext(
   if (!isMultiTenantMode()) return;
   // System scope (branded) or ultra-fast path
   if (hasTenantBypass(options)) return;
-  if (hasUsableTenantId(options?.tenantId)) {
-    // Having tenantId present is always safe to proceed (single-tenant stamping ok).
+  if (hasExplicitTenantScope(options?.tenantId)) {
+    // A present tenantId — including the explicit global `null` — is a scope decision.
     return;
   }
 
@@ -107,9 +125,9 @@ export function safeQuery<T extends Record<string, any>>(
 
   const isMultiTenant = isMultiTenantMode();
 
-  if (isMultiTenant && !hasUsableTenantId(tenantId) && !hasTenantBypass(options)) {
+  if (isMultiTenant && !hasExplicitTenantScope(tenantId) && !hasTenantBypass(options)) {
     const redactedQuery = Object.fromEntries(
-      Object.entries(query).map(([k, v]) => [k, PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v]),
+      Object.entries(query).map(([k, v]) => [PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v]),
     );
     logger.error(
       `[SafeQuery] Security Violation! Query: ${JSON.stringify(redactedQuery)}, Options: ${JSON.stringify(options)}, MultiTenant: true`,
@@ -124,7 +142,14 @@ export function safeQuery<T extends Record<string, any>>(
   let secureQuery: any = query;
   let hasChanges = false;
 
-  if (hasUsableTenantId(tenantId) && !hasTenantBypass(options) && query.tenantId !== tenantId) {
+  const queryTenant = (query as { tenantId?: unknown }).tenantId;
+  if (
+    hasExplicitTenantScope(tenantId) &&
+    !hasTenantBypass(options) &&
+    queryTenant !== tenantId &&
+    // The global scope must not widen a narrower explicit filter on the query.
+    !(tenantId === null && hasExplicitTenantScope(queryTenant))
+  ) {
     secureQuery = { ...query };
     secureQuery.tenantId = tenantId;
     hasChanges = true;

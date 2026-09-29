@@ -11,6 +11,7 @@
  */
 
 import { getDb, isDbConnected } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
@@ -132,11 +133,18 @@ class RedirectIndexService {
         error: { code: "NOT_CONNECTED", message: "Database not connected" },
       };
     try {
-      const results = await db.crud.findMany<any>("redirectsMV", {
-        tenantId,
-        source: path,
-        active: true,
-      } as any);
+      const results = await db.crud.findMany<any>(
+        "redirectsMV",
+        {
+          tenantId,
+          source: path,
+          active: true,
+        } as any,
+        // The tenant guard checks the OPTIONS, not the filter: without a scope
+        // here the lookup is rejected under MULTI_TENANT and silently degrades
+        // to "no redirect" (plus a Security Violation on every request).
+        { tenantId: tenantId as DatabaseId },
+      );
       return { success: true, data: results.success ? results.data || [] : [] };
     } catch (err: any) {
       return {

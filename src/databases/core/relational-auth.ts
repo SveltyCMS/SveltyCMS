@@ -485,7 +485,10 @@ export class RelationalAuthModule implements IAuthAdapter {
         // Previously ignored — the admin user-list search silently returned every
         // user, so paginated rows beyond page 1 could never be found by search.
         if (options?.filter && typeof options.filter === "object") {
-          const mapped = this.adapter.mapQuery(this.schema.authUsers, options.filter);
+          // `dbOptions` is forwarded so `applyTenantFilter` sees the caller's tenant
+          // scope / system bypass — mapping without it rejected every scoped call
+          // under MULTI_TENANT.
+          const mapped = this.adapter.mapQuery(this.schema.authUsers, options.filter, dbOptions);
           if (mapped) conditions.push(mapped);
         }
         if (dbOptions?.tenantId !== undefined) {
@@ -534,7 +537,12 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<number>> {
     return this.adapter.wrap(
       async () => {
-        let where = filter ? this.adapter.mapQuery(this.schema.authUsers, filter) : undefined;
+        // `options` is forwarded so `applyTenantFilter` can see the caller's tenant
+        // scope / system bypass — mapping without it rejected every scoped count
+        // under MULTI_TENANT (the wrapped failure then read as -1 → "no admin").
+        let where = filter
+          ? this.adapter.mapQuery(this.schema.authUsers, filter, options)
+          : undefined;
         if (options?.tenantId !== undefined) {
           const tenantWhere =
             options.tenantId === null

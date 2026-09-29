@@ -222,10 +222,24 @@ describe("outboxService.processBatch", () => {
     expect(stats.processed).toBe(1);
     expect(publishMock).toHaveBeenCalled();
     expect(webhookTriggerMock).toHaveBeenCalledWith("entry:create", event.payload, event.tenantId);
+    // The poll reads across tenants as the scheduler-domain capability; a bare
+    // findMany is rejected by the tenant guard under MULTI_TENANT (the 5 s
+    // stack-trace spam this pins against).
+    expect(findManyMock).toHaveBeenCalledWith(
+      "svelty_outbox",
+      { status: "pending" },
+      expect.objectContaining({
+        limit: 30,
+        systemScope: expect.objectContaining({ kind: "system", reason: "scheduler" }),
+      }),
+    );
     expect(updateMock).toHaveBeenCalledWith(
       "svelty_outbox",
       event._id,
       expect.objectContaining({ status: "delivered" }),
+      expect.objectContaining({
+        systemScope: expect.objectContaining({ kind: "system", reason: "scheduler" }),
+      }),
     );
   });
 
@@ -245,6 +259,9 @@ describe("outboxService.processBatch", () => {
         attempts: 1,
         lastError: expect.stringContaining("boom"),
       }),
+      expect.objectContaining({
+        systemScope: expect.objectContaining({ kind: "system", reason: "scheduler" }),
+      }),
     );
   });
 
@@ -263,6 +280,9 @@ describe("outboxService.processBatch", () => {
       expect.objectContaining({
         status: "failed",
         attempts: OUTBOX_MAX_ATTEMPTS,
+      }),
+      expect.objectContaining({
+        systemScope: expect.objectContaining({ kind: "system", reason: "scheduler" }),
       }),
     );
   });
@@ -293,6 +313,38 @@ describe("outboxService.cleanup", () => {
       "svelty_outbox",
       expect.objectContaining({ status: "delivered" }),
       expect.objectContaining({ permanent: true }),
+    );
+  });
+});
+
+describe("outboxService.getPendingCount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("counts system-wide with the branded scope when no tenant is given", async () => {
+    countMock.mockResolvedValue({ success: true, data: 7 });
+    const count = await outboxService.getPendingCount();
+    // Buffered (not yet flushed) events add to the count — the point is that the
+    // DB read is not rejected and swallowed to 0.
+    expect(count).toBeGreaterThanOrEqual(7);
+    expect(countMock).toHaveBeenCalledWith(
+      "svelty_outbox",
+      { status: "pending" },
+      expect.objectContaining({
+        systemScope: expect.objectContaining({ kind: "system", reason: "scheduler" }),
+      }),
+    );
+  });
+
+  it("keeps an explicit tenant scoped", async () => {
+    countMock.mockResolvedValue({ success: true, data: 2 });
+    const count = await outboxService.getPendingCount("tenant-a");
+    expect(count).toBeGreaterThanOrEqual(2);
+    expect(countMock).toHaveBeenCalledWith(
+      "svelty_outbox",
+      { status: "pending", tenantId: "tenant-a" },
+      { tenantId: "tenant-a" },
     );
   });
 });

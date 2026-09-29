@@ -8,9 +8,19 @@
  * `createSystemTenantScope` / `withSystemScope` — never via a free-form boolean.
  *
  * ### Security
- * - Private Symbol brand: plain `{ kind: "system" }` objects do not pass
- *   `isSystemTenantScope` / `hasTenantBypass`.
+ * - Registry brand: only scopes minted by `createSystemTenantScope` (in any copy
+ *   of this module) pass `isSystemTenantScope` / `hasTenantBypass`. Forged
+ *   `{ kind: "system" }` objects never do — membership, not shape.
  * - Reasons are closed unions so call sites document *why* isolation is waived.
+ *
+ * ### Durability across module instances
+ * Validation lives in a `WeakSet` parked on `globalThis`, NOT in a module-local
+ * `Symbol()`: a duplicated module instance (Vite's dev SSR runner vs a static
+ * import, or two production chunks) carries its own symbol, so a scope minted by
+ * copy A failed `isSystemTenantScope` in copy B — the bypass silently failed and
+ * the tenant guard rejected legitimate system work as a Security Violation.
+ * One shared registry validates scopes from every copy; entries are held weakly,
+ * so scopes are collected together with the options bag that referenced them.
  *
  * ### Features:
  * - branded system scope
@@ -32,8 +42,8 @@ export type SystemScopeReason =
   | "cache-warming"
   | "audit-flush";
 
-/** Private brand — not exportable as a forgeable string key. */
-const SYSTEM_SCOPE_BRAND: unique symbol = Symbol("SveltyCMS.SystemTenantScope");
+/** Type-level brand only — erased at runtime. Runtime authority is the registry. */
+declare const SYSTEM_SCOPE_BRAND: unique symbol;
 
 /**
  * Opaque system capability. Only `createSystemTenantScope` produces valid values.
@@ -45,27 +55,30 @@ export type SystemTenantScope = {
 };
 
 /**
+ * Canonical registry, shared by every loaded copy of this module.
+ */
+const scopeRegistryHost = globalThis as typeof globalThis & {
+  __SVELTY_SYSTEM_SCOPE_REGISTRY__?: WeakSet<object>;
+};
+const SYSTEM_SCOPE_REGISTRY: WeakSet<object> =
+  scopeRegistryHost.__SVELTY_SYSTEM_SCOPE_REGISTRY__ ??
+  (scopeRegistryHost.__SVELTY_SYSTEM_SCOPE_REGISTRY__ = new WeakSet<object>());
+
+/**
  * Create a branded system tenant scope for allowlisted infrastructure paths.
  */
 export function createSystemTenantScope(reason: SystemScopeReason): SystemTenantScope {
-  return {
-    [SYSTEM_SCOPE_BRAND]: true,
-    kind: "system",
-    reason,
-  };
+  const scope = { kind: "system", reason } as SystemTenantScope;
+  SYSTEM_SCOPE_REGISTRY.add(scope);
+  return scope;
 }
 
 /**
- * Type guard: true only for brand-bearing scopes from `createSystemTenantScope`.
+ * Type guard: true only for scopes minted by `createSystemTenantScope`
+ * (in any copy of this module).
  */
 export function isSystemTenantScope(value: unknown): value is SystemTenantScope {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { [SYSTEM_SCOPE_BRAND]?: unknown })[SYSTEM_SCOPE_BRAND] === true &&
-    (value as { kind?: unknown }).kind === "system" &&
-    typeof (value as { reason?: unknown }).reason === "string"
-  );
+  return typeof value === "object" && value !== null && SYSTEM_SCOPE_REGISTRY.has(value);
 }
 
 /** Minimal shape for bypass detection (avoids circular imports with db-interface). */
