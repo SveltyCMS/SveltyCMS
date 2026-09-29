@@ -7,6 +7,7 @@
  * - Tree traversal for descendant ID collection
  * - Slug generation with deduplication
  * - Fail-closed payload parsers for remotes / form actions
+ * - Minimum-viable guards for new builder entities (collection / category)
  */
 
 import type { ContentNodeInput, ContentNodeOperation } from "@src/content/types";
@@ -56,6 +57,101 @@ export function parseOperations(ops: unknown): ContentNodeOperation[] | null {
     });
   }
   return out;
+}
+
+/**
+ * Minimum a collection needs to survive the compilation pipeline: at least one
+ * field, and every field resolvable — an identity (`db_fieldName`/`name`) plus
+ * a widget/type (see `docs/reference/architecture/compilation-pipeline.mdx`).
+ *
+ * The compiler and the post-load schema contract tolerate empty fields only as
+ * soft “draft” warnings; the builder must not write such stubs in the first
+ * place — they provision no columns and reach the runtime as drafts.
+ *
+ * Accepts the client array shape or the server field-map (`FieldsData`).
+ */
+export function validateMinimumCollectionFields(
+  fields: unknown,
+): { ok: true } | { ok: false; message: string } {
+  const list = Array.isArray(fields)
+    ? fields
+    : fields && typeof fields === "object"
+      ? Object.values(fields as Record<string, unknown>)
+      : [];
+
+  if (list.length === 0) {
+    return {
+      ok: false,
+      message:
+        "Add at least one field before saving — a collection without fields provisions no columns and loads as a draft.",
+    };
+  }
+
+  for (const [index, raw] of list.entries()) {
+    if (!raw || typeof raw !== "object") {
+      return { ok: false, message: `Field ${index + 1} is not a valid field definition.` };
+    }
+    const field = raw as {
+      db_fieldName?: unknown;
+      name?: unknown;
+      label?: unknown;
+      type?: unknown;
+      widget?: unknown;
+    };
+    const identity =
+      typeof field.db_fieldName === "string" && field.db_fieldName.trim()
+        ? field.db_fieldName.trim()
+        : typeof field.name === "string" && field.name.trim()
+          ? field.name.trim()
+          : "";
+    const label = typeof field.label === "string" && field.label.trim() ? field.label.trim() : "";
+
+    if (!identity) {
+      return {
+        ok: false,
+        message: `Field ${index + 1}${label ? ` (“${label}”)` : ""} needs a database field name (db_fieldName) before saving.`,
+      };
+    }
+
+    const widget = field.widget;
+    const hasWidget =
+      (typeof widget === "string" && widget.trim().length > 0) ||
+      (widget != null &&
+        typeof widget === "object" &&
+        [
+          (widget as { Name?: unknown }).Name,
+          (widget as { name?: unknown }).name,
+          (widget as { type?: unknown }).type,
+        ].some((value) => typeof value === "string" && value.trim().length > 0)) ||
+      (typeof field.type === "string" && field.type.trim().length > 0);
+
+    if (!hasWidget) {
+      return { ok: false, message: `Field “${identity}” needs a widget (type) before saving.` };
+    }
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Minimum for a builder structural node: a path, and — where the operation
+ * carries the node identity (create/rename/update) — a non-empty name. Empty
+ * names previously persisted as unreachable tree junk.
+ */
+export function validateStructureOperation(op: ContentNodeOperation): string | null {
+  const node = op.node as ContentNodeInput;
+  const name = typeof node.name === "string" ? node.name.trim() : "";
+  const path = typeof node.path === "string" ? node.path.trim() : "";
+
+  if (!path) {
+    return "A structure node needs a path before it can be saved.";
+  }
+  if ((op.type === "create" || op.type === "rename" || op.type === "update") && !name) {
+    return node.nodeType === "category"
+      ? "A category needs a name before it can be saved."
+      : "A collection node needs a name before it can be saved.";
+  }
+  return null;
 }
 
 /** Collect category id and all descendant node ids from a flat node list. */

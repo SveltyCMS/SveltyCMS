@@ -105,6 +105,42 @@ describe("saveContentStructure", () => {
     expect(executeGuiStructureSave).not.toHaveBeenCalled();
   });
 
+  it("rejects a create op with an empty node name (minimum-viable guard)", async () => {
+    const { saveContentStructure } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    const result = await saveContentStructure(makeEvent(), [
+      {
+        type: "create",
+        node: { _id: "cat-junk", name: "   ", path: "/junk", nodeType: "category" },
+      },
+    ]);
+
+    expect(result).toMatchObject({
+      status: 400,
+      data: { message: "A category needs a name before it can be saved." },
+    });
+    expect(executeGuiStructureSave).not.toHaveBeenCalled();
+  });
+
+  it("rejects an op with an empty path", async () => {
+    const { saveContentStructure } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    const result = await saveContentStructure(makeEvent(), [
+      {
+        type: "create",
+        node: { _id: "cat-x", name: "Blog", path: "  ", nodeType: "category" },
+      },
+    ]);
+
+    expect(result).toMatchObject({
+      status: 400,
+      data: { message: "A structure node needs a path before it can be saved." },
+    });
+    expect(executeGuiStructureSave).not.toHaveBeenCalled();
+  });
+
   it("handles empty operations array gracefully", async () => {
     executeGuiStructureSave.mockResolvedValue({
       success: true,

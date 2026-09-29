@@ -55,6 +55,7 @@ import {
   type VisitResult,
 } from "typescript";
 import type { PageServerLoad } from "./$types";
+import { validateMinimumCollectionFields } from "../../collectionbuilder-utils";
 
 // Type definitions for widget field structure
 interface WidgetConfig {
@@ -255,7 +256,9 @@ export const actions: Actions = {
         }
       }
 
-      // Widgets Fields — empty / missing is valid for first-save name-only collections
+      // Widgets Fields — parsed next; a field-less or half-formed payload is
+      // rejected by the minimum-viable guard below (stubs provision no columns
+      // and load as drafts — see docs/reference/architecture/compilation-pipeline.mdx).
       let fields: FieldsData = {} as FieldsData;
       if (fieldsData) {
         try {
@@ -269,6 +272,13 @@ export const actions: Actions = {
         } catch {
           return fail(400, { error: "Invalid fields JSON" });
         }
+      }
+
+      // Minimum-viable guard: the builder must not persist a stub that cannot
+      // survive the pipeline (≥1 field, each with db_fieldName + widget/type).
+      const fieldCheck = validateMinimumCollectionFields(fields);
+      if (!fieldCheck.ok) {
+        return fail(400, { error: fieldCheck.message });
       }
 
       // 1. Drift Detection & Safety Check

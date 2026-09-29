@@ -180,14 +180,15 @@ Presets / quick-start use **`invalidate("app:content")`** — no `window.locatio
 
 ## Schema integrity & drift
 
-| Layer                   | Location                         | Role                                                           |
-| :---------------------- | :------------------------------- | :------------------------------------------------------------- |
-| Compile transform       | `transformers.ts`                | Stable `_id`, deterministic widget UUIDs                       |
-| Post-load contract      | `src/content/schema-contract.ts` | Shape, duplicate `db_fieldName`; soft empty-fields draft       |
-| Engine hard validation  | `validateSchemaFields`           | Rejects empty/invalid before DB provision                      |
-| Offline drift           | `detectCompilationDrift`         | mtime prefilter + **manifest `sourceHash`** (xxhash64) confirm |
-| Org drift               | `detectOrganizationalDrift`      | Manifest order/structure vs DB                                 |
-| GUI destructive changes | MigrationEngine                  | Blocks field drops without confirmation                        |
+| Layer                   | Location                         | Role                                                                                                                                                                                                                                      |
+| :---------------------- | :------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compile transform       | `transformers.ts`                | Stable `_id`, deterministic widget UUIDs                                                                                                                                                                                                  |
+| Post-load contract      | `src/content/schema-contract.ts` | Shape, duplicate `db_fieldName`; soft empty-fields draft                                                                                                                                                                                  |
+| Engine schema check     | `validateSchemaFields`           | Hard-fails missing name / duplicate field names; empty fields warn as draft                                                                                                                                                               |
+| Builder minimum guard   | `collectionbuilder-utils.ts`     | Rejects field-less / half-formed saves before the file is written (≥1 field with `db_fieldName` + widget/type; categories need a name — see the [Collection Builder Guide](/docs/guides/content/collection-builder) → Saving Collections) |
+| Offline drift           | `detectCompilationDrift`         | mtime prefilter + **manifest `sourceHash`** (xxhash64) confirm                                                                                                                                                                            |
+| Org drift               | `detectOrganizationalDrift`      | Manifest order/structure vs DB                                                                                                                                                                                                            |
+| GUI destructive changes | MigrationEngine                  | Blocks field drops without confirmation                                                                                                                                                                                                   |
 
 ```typescript
 import { compile } from "@src/utils/compilation/compile";

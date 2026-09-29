@@ -19,7 +19,11 @@ import {
   getCollectionBuilderCms,
   serializeStructureNodes,
 } from "./collectionbuilder-local.server";
-import { parseIdList, parseOperations } from "./collectionbuilder-utils";
+import {
+  parseIdList,
+  parseOperations,
+  validateStructureOperation,
+} from "./collectionbuilder-utils";
 
 /** @deprecated Use `ContentNodeOperation` from `@src/content/types` */
 export type UpsertOperation = ContentNodeOperation;
@@ -42,6 +46,13 @@ export async function saveContentStructure(
 
   const parsed = parseOperations(operations);
   if (!parsed) return fail(400, { message: "Invalid operations" });
+
+  // Minimum-viable guard: empty-name nodes persisted as unreachable tree junk
+  // (the modal validates too, but remotes can be called directly).
+  for (const op of parsed) {
+    const nodeError = validateStructureOperation(op);
+    if (nodeError) return fail(400, { message: nodeError });
+  }
 
   try {
     return await executeGuiStructureSave(tenantId, parsed);

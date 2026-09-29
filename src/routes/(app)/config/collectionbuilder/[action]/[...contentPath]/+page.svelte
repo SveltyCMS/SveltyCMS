@@ -24,6 +24,7 @@
 	import CollectionForm from './tabs/collection-form.svelte';
 	import CollectionWidget from './tabs/collection-widget.svelte';
 	import CollectionPermissions from './tabs/collection-permissions.svelte';
+	import { validateMinimumCollectionFields } from '../../collectionbuilder-utils';
 	import Tabs from '@src/components/ui/tabs.svelte';
 	import Stepper from '@components/ui/stepper.svelte';
 	import type { StepperStep } from '@components/ui/stepper.svelte';
@@ -217,6 +218,15 @@
 		if (!name || name === 'new') {
 			validationStore.setError('name', 'Collection name is required');
 			toast.error('Collection name is required');
+			return;
+		}
+
+		// Minimum-viable guard (the server re-checks): Ctrl+S bypasses the disabled
+		// Save button, and a field-less or half-formed schema only compiles into a
+		// draft stub that provisions no columns.
+		const fieldCheck = validateMinimumCollectionFields(collections.active?.fields ?? []);
+		if (!fieldCheck.ok) {
+			toast.error(fieldCheck.message);
 			return;
 		}
 

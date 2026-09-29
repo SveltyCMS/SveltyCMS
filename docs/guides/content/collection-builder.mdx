@@ -460,11 +460,18 @@ You can reverse-engineer existing database structures and APIs directly into Sve
 
 ### Saving Collections
 
+**Minimum to save** (enforced client- and server-side in the builder — including `Ctrl+S`):
+
+- **At least one field**, and every field needs a database field name (`db_fieldName`) plus a widget/type.
+  A field-less or half-formed schema provisions no columns and would only load as a draft, so the builder rejects it with a toast instead of writing the stub.
+- **A collection name** (`new` is reserved and rejected), and unique.
+- **Categories need a name** — empty-name nodes are rejected by the structure save (empty paths too).
+
 **Save Process**:
 
 1. **Validate Form**:
    - Check all required fields filled
-   - Verify widget configurations
+   - Verify widget configurations and the minimum above (≥1 field with `db_fieldName` + widget)
    - Ensure unique collection name
 
 2. **Click Save Button**:
