@@ -314,15 +314,18 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
       );
       expect(inserted.success, `insert ${c.label}`).toBe(true);
 
-      const doc = (
+      // The result envelope only exposes `data` on the success branch — `unwrapResult`
+      // narrows it and throws the adapter's own message on failure. The index-signature
+      // view is how the dynamic `views`/`flag`/`sku` fields are read below.
+      const doc = unwrapResult(
         await db.crud.findOne(
           COLLECTION,
           { _id: id } as any,
           {
             tenantId: TENANT,
           } as any,
-        )
-      )?.data as Record<string, unknown>;
+        ),
+      ) as unknown as Record<string, unknown>;
       const wireRes = unwrapResult(
         await wire.findPointWireStream(COLLECTION, id, { tenantId: TENANT }),
       );

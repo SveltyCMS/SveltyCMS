@@ -126,6 +126,7 @@ export class AIService {
           stream: false,
         });
         const text = res.response;
+        if (!text) throw new Error("AI JSON generation returned no response text");
         const cleanJson = text.replace(/```json|```/g, "").trim();
         return JSON.parse(cleanJson);
       },
@@ -152,7 +153,7 @@ export class AIService {
           images: [base64],
           stream: false,
         });
-        return res.response
+        return (res.response ?? "")
           .split(",")
           .map((t) => t.trim().toLowerCase())
           .filter((t) => t.length > 0 && t.length < 30)
