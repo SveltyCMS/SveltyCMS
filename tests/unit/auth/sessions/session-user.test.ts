@@ -7,11 +7,16 @@
  * - toSafeSessionUser: strips credential material, zero-allocation fast path
  * - InMemorySessionManager: never retains credential material at the store layer
  * - evaluateSessionAnomaly: pure IP/user-agent drift detection
+ * - decideSessionRisk: IP change logs, user-agent change steps up
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { InMemorySessionManager } from "@src/databases/auth/session-manager";
-import { evaluateSessionAnomaly, toSafeSessionUser } from "@src/databases/auth/session-user";
+import {
+  decideSessionRisk,
+  evaluateSessionAnomaly,
+  toSafeSessionUser,
+} from "@src/databases/auth/session-user";
 import type { User } from "@src/databases/auth/types";
 
 function credentialCarryingUser(): User {
@@ -143,5 +148,20 @@ describe("evaluateSessionAnomaly", () => {
       storedUserAgent: "UA-X",
     });
     expect(drift).toEqual({ ipChanged: false, userAgentChanged: false });
+  });
+});
+
+describe("decideSessionRisk", () => {
+  it("allows a session with no drift", () => {
+    expect(decideSessionRisk({ ipChanged: false, userAgentChanged: false })).toBe("allow");
+  });
+
+  it("logs an IP change and leaves the session able to mutate", () => {
+    expect(decideSessionRisk({ ipChanged: true, userAgentChanged: false })).toBe("log");
+  });
+
+  it("steps up when the user-agent changes, including when the IP also changed", () => {
+    expect(decideSessionRisk({ ipChanged: false, userAgentChanged: true })).toBe("step-up");
+    expect(decideSessionRisk({ ipChanged: true, userAgentChanged: true })).toBe("step-up");
   });
 });

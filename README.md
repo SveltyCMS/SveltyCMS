@@ -244,11 +244,11 @@ See our `package.json` for all available commands.
 
 ## 🔒 Authentication & Security
 
-SveltyCMS implements **A++ enterprise-grade security** with 4-layer defense-in-depth architecture.
+SveltyCMS implements defense in depth. The internal checklist re-checked on 2026-09-29 is **~99.9/100 (99.93)**. That figure is a self-assessment, not a penetration test. See [Security](./docs/reference/security/index.mdx).
 
 **Multi-Layer Protection:**
 
-- **AI Bot Defense Shield** — Proactive detection blocks 28 AI crawler patterns (GPTBot, Claude, Perplexity) and reconnaissance tools (Nmap, SQLMap, Burp Suite). A 45-route honeypot grid with progressive tarpit delays and response poisoning wastes attacker resources.
+- **AI Bot Defense Shield** — Known scanner and AI-crawler user agents, and honeypot paths such as `/wp-` and `/.env`, receive an empty 200. A honeypot hit flags the IP. The socket is not held open.
 - **4-Layer Defense-in-Depth** — Middleware → Dispatcher → Handler → Page Action; every layer re-validates permissions independently with fail-closed defaults.
 - **Enterprise SSO** — Native SAML 2.0 and SCIM 2.0 support for automated user provisioning (Okta, Azure AD).
 - **Zero-Bias Cryptography** — CSPRNG token generation with rejection sampling, Argon2id password hashing (64MB memory-hard), AES-256-GCM encryption, SHA-256 crypto-chained audit logs.

@@ -32,6 +32,8 @@ import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 import { prefersMinimalReturn } from "@utils/http-preferences";
+import { getClientIp } from "@utils/hook-utils";
+import { decideSessionRisk, evaluateSessionAnomaly } from "@src/databases/auth/session-user";
 
 /**
  * `SVELTY_SRV_DUR=1` records total server time for the write lane (`x-srv-dur`)
@@ -158,6 +160,22 @@ async function executeWarmCollectionWrite(
   // resolved the session, so this cannot race its own pre-check.
   if (!turbo) {
     return null;
+  }
+
+  const risk = decideSessionRisk(
+    evaluateSessionAnomaly({
+      currentIp: getClientIp(event),
+      currentUserAgent: request.headers.get("user-agent"),
+      storedIp: turbo.boundIp,
+      storedUserAgent: turbo.boundUserAgent,
+    }),
+  );
+  if (risk === "step-up") {
+    throw new AppError(
+      "Sign in again to continue. This session was presented by a different browser.",
+      403,
+      "SESSION_RISK_STEP_UP",
+    );
   }
 
   locals.user = turbo.user;

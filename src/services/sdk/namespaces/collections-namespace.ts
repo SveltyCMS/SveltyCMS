@@ -34,6 +34,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
+import { isAdmin } from "@src/databases/auth/constants";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
@@ -54,6 +55,7 @@ import {
 import { parseIdLookup } from "@src/databases/core/lookup-query";
 import { nowISODateString } from "@src/utils/date";
 import { clampPageSize } from "@utils/api-params";
+import { redactReadEnvelope, redactRecord } from "@utils/field-access";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
 
@@ -80,6 +82,7 @@ import {
   schemaCacheKey,
   setCachedSchema,
   widgetNamesOf,
+  type SchemaHotFlags,
 } from "./collections/schema-store";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import {
@@ -112,6 +115,34 @@ type ContentSystem = typeof serverContentSystem;
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
   return !!value && typeof (value as { then?: unknown }).then === "function";
+}
+
+/** Admins and system callers keep every field. Everyone else is redacted. */
+function readerMaySeeGuardedFields(
+  user: { _id?: unknown; role?: unknown; isAdmin?: unknown } | null | undefined,
+  system?: boolean,
+): boolean {
+  if (system) return true;
+  if (!user) return false;
+  return user._id === "system" || isAdmin(user);
+}
+
+/**
+ * Decrypt, then drop fields the caller may not read. The cache keeps the full
+ * row; this runs on the way out. Unguarded schemas and admins return the
+ * decrypt result unchanged.
+ */
+async function presentRead(
+  result: unknown,
+  schema: Schema,
+  hot: SchemaHotFlags,
+  encCtx: FieldEncryptionContext,
+  user: LocalApiOptions["user"],
+  system?: boolean,
+): Promise<any> {
+  const decoded = await decryptReadResult(result, hot, encCtx, { clone: true });
+  if (!hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)) return decoded;
+  return redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
 }
 
 function fieldEncryptionContext(
@@ -489,12 +520,14 @@ export class CollectionsNamespace {
 
         if (result.success && result.data) {
           const hot = ensureSchemaHotFlags(collection);
-          const decrypted = await decryptReadResult(
+          const decrypted = (await presentRead(
             { success: true, data: result.data },
+            collection,
             hot,
             fieldEncryptionContext(collection, tenantId),
-            { clone: true },
-          );
+            user,
+            options.system,
+          )) as { data?: unknown };
           let items = Array.isArray(decrypted.data) ? decrypted.data : [];
           if (query) {
             const lowerQuery = query.toLowerCase();
@@ -642,7 +675,7 @@ export class CollectionsNamespace {
           (row as any)._collection = collectionMeta;
         }
         const envelope = { success: true, data: row ? [row] : [] };
-        return decryptReadResult(envelope, hot, encCtx, { clone: true });
+        return presentRead(envelope, schema, hot, encCtx, options.user, options.system);
       }
     }
 
@@ -707,7 +740,7 @@ export class CollectionsNamespace {
           schema._id as string,
           tenantId,
         );
-        return decryptReadResult(cacheHit.payload, hot, encCtx, { clone: true });
+        return presentRead(cacheHit.payload, schema, hot, encCtx, options.user, options.system);
       }
     }
 
@@ -820,7 +853,7 @@ export class CollectionsNamespace {
       } catch {}
     }
 
-    return decryptReadResult(result, hot, encCtx, { clone: true });
+    return presentRead(result, schema, hot, encCtx, options.user, options.system);
   }
 
   async findStreaming(
@@ -884,7 +917,16 @@ export class CollectionsNamespace {
       skipValidation: options.skipValidation,
       action: "find",
     });
-    return decryptReadStream(stream, hot, encCtx);
+    if (!hot._hasGuardedFields || readerMaySeeGuardedFields(user, options.system)) {
+      return decryptReadStream(stream, hot, encCtx);
+    }
+    const fields = schema.fields as FieldInstance[];
+    async function* redacted(): AsyncIterable<unknown> {
+      for await (const doc of decryptReadStream(stream, hot, encCtx)) {
+        yield redactRecord(doc, fields, user);
+      }
+    }
+    return redacted();
   }
 
   async count(
@@ -1189,11 +1231,14 @@ export class CollectionsNamespace {
     const envelope = result?.success
       ? result
       : { success: false, data: [], message: (result as any)?.message };
-    return decryptReadResult(
+    const hot = ensureSchemaHotFlags(schema);
+    return presentRead(
       envelope,
-      ensureSchemaHotFlags(schema),
+      schema,
+      hot,
       fieldEncryptionContext(schema, tenantId),
-      { clone: true },
+      options.user,
+      options.system,
     );
   }
 
@@ -1229,11 +1274,14 @@ export class CollectionsNamespace {
     // pass `skipCacheService` (see `loadOneById`), so probing it on behalf of such a
     // caller is dead work on the cold point-read path.
     if (!skipRequestCache && !options.skipCacheService && hasRequestCache(cacheKey)) {
-      return decryptReadResult(
+      const hot = ensureSchemaHotFlags(schema);
+      return presentRead(
         getRequestCache(cacheKey),
-        ensureSchemaHotFlags(schema),
-        readEncryptionContext(schema, tenantId, ensureSchemaHotFlags(schema)),
-        { clone: true },
+        schema,
+        hot,
+        readEncryptionContext(schema, tenantId, hot),
+        options.user,
+        options.system,
       );
     }
 
@@ -1246,11 +1294,14 @@ export class CollectionsNamespace {
       const syncCached = cacheService.getSync?.<any>(cacheKey, (tenantId || undefined) as string);
       if (syncCached !== undefined && syncCached !== null) {
         CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
-        return decryptReadResult(
+        const hot = ensureSchemaHotFlags(schema);
+        return presentRead(
           syncCached,
-          ensureSchemaHotFlags(schema),
-          readEncryptionContext(schema, tenantId, ensureSchemaHotFlags(schema)),
-          { clone: true },
+          schema,
+          hot,
+          readEncryptionContext(schema, tenantId, hot),
+          options.user,
+          options.system,
         );
       }
     }
@@ -1373,11 +1424,14 @@ export class CollectionsNamespace {
       }
     }
 
-    return decryptReadResult(
+    const hot = ensureSchemaHotFlags(schema);
+    return presentRead(
       finalResult,
-      ensureSchemaHotFlags(schema),
-      readEncryptionContext(schema, tenantId, ensureSchemaHotFlags(schema)),
-      { clone: true },
+      schema,
+      hot,
+      readEncryptionContext(schema, tenantId, hot),
+      options.user,
+      options.system,
     );
   }
 

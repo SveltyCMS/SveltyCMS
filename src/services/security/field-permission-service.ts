@@ -31,6 +31,7 @@
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import { enforceFieldAccess } from "@utils/field-access";
+import { fieldDeclaresGuard } from "@utils/field-guard";
 import type { FieldInstance } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 
@@ -227,7 +228,7 @@ const guardedFieldsWeakMap = new WeakMap<FieldInstance[], boolean>();
 
 /**
  * True when any field in the schema declares per-field restrictions
- * (`readRoles` / `writeRoles` / `requiredAuth` / hidden / private visibility).
+ * (`readRoles` / `writeRoles` / `requiredAuth` / hidden / `permissions.visibility: "private"`).
  * Collections without guarded fields skip the write guard entirely (zero cost).
  * Pre-compiled via WeakMap for O(1) zero-allocation lookup on hot write paths.
  */
@@ -238,23 +239,7 @@ export function hasGuardedFields(fields: FieldInstance[]): boolean {
 
   let isGuarded = false;
   for (const field of fields) {
-    const p = field.permissions;
-    if (p) {
-      if (Array.isArray(p.readRoles) && p.readRoles.length > 0) {
-        isGuarded = true;
-        break;
-      }
-      if (Array.isArray(p.writeRoles) && p.writeRoles.length > 0) {
-        isGuarded = true;
-        break;
-      }
-      if (p.requiredAuth) {
-        isGuarded = true;
-        break;
-      }
-    }
-    const extra = field as { hidden?: boolean; visibility?: string };
-    if (extra.hidden || extra.visibility === "hidden" || extra.visibility === "private") {
+    if (fieldDeclaresGuard(field)) {
       isGuarded = true;
       break;
     }

@@ -5,11 +5,22 @@
  * ### Features:
  * - POST collection and PATCH entry match
  * - bulk/search/increment fall through to the full pipeline
+ * - a changed user-agent steps a warm write up before persist
  */
 
 import { describe, expect, it } from "vitest";
-import { isSimpleCollectionWrite } from "@src/hooks/handle-collection-write-lane";
+import {
+  isSimpleCollectionWrite,
+  serveWarmCollectionWrite,
+} from "@src/hooks/handle-collection-write-lane";
 import { isSimpleCollectionRead } from "@src/hooks/handle-collection-read-lane";
+import {
+  clearTurboAuthCache,
+  getTurboAuthContext,
+  rememberTurboSessionSurface,
+  setTurboAuthContext,
+} from "@src/hooks/handle-turbo-get";
+import { createMockEvent } from "./test-utils";
 import type { RequestEvent } from "@sveltejs/kit";
 
 function evt(method: string, pathname: string): RequestEvent {
@@ -54,5 +65,34 @@ describe("isSimpleCollectionRead", () => {
     expect(isSimpleCollectionRead(evt("GET", "/api/collections/Articles?export=csv"))).toBe(false);
     expect(isSimpleCollectionRead(evt("GET", "/api/collections/Articles?stream=true"))).toBe(false);
     expect(isSimpleCollectionRead(evt("POST", "/api/collections/Articles"))).toBe(false);
+  });
+});
+
+describe("warm collection write step-up", () => {
+  it("rejects a warm write when the user-agent no longer matches the session", async () => {
+    const sessionId = "write-lane-step-up";
+    clearTurboAuthCache();
+    setTurboAuthContext(
+      sessionId,
+      { _id: "user-1", email: "lane@test.local", role: "editor" } as never,
+      [],
+      null,
+    );
+    rememberTurboSessionSurface(sessionId, "127.0.0.1", "UA-Chrome/Stored");
+    const turbo = getTurboAuthContext(sessionId);
+    expect(turbo).not.toBeNull();
+
+    const event = createMockEvent("/api/collections/posts", {
+      method: "POST",
+      sessionCookie: sessionId,
+      userAgent: "UA-Firefox/New",
+      cookies: { csrf_token: "unit-csrf-token" },
+      headers: { "x-csrf-token": "unit-csrf-token" },
+    });
+
+    const res = await serveWarmCollectionWrite(event, turbo!);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "SESSION_RISK_STEP_UP" });
+    clearTurboAuthCache();
   });
 });

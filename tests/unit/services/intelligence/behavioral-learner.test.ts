@@ -59,10 +59,14 @@ describe("Behavioral Learner Engine", () => {
 
     it("is a pure read — repeated calls do not mutate the heat map", () => {
       recordWriteAccess("tenant-pure", "posts", "p1");
+      // Decayed scores move whenever Date.now() crosses a millisecond, so a
+      // live clock makes this assertion fail without any write to the map.
+      vi.spyOn(Date, "now").mockReturnValue(Date.now());
       const before = getHotCollections("tenant-pure", 10);
       for (let i = 0; i < 25; i++) isHotCollection("tenant-pure", "posts");
       const after = getHotCollections("tenant-pure", 10);
       expect(after).toEqual(before);
+      vi.restoreAllMocks();
     });
   });
 

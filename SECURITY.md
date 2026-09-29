@@ -1,20 +1,20 @@
 # Security Policy
 
-SveltyCMS is built with **defense-in-depth security** featuring Policy-as-Code (PaC) CPU evaluation (< 50µs), Layer 0 WASM WAF threat filtering, Merkle Tree cryptographic audit ledgers, runtime security baseline clamping, automated payload fuzzing, and 5 authentication methods (password, API Keys, Magic Links, SAML SSO, WebAuthn/Passkeys).
+SveltyCMS is built with defense in depth: a fail-closed API permission map, a linear WAF scan (not a WASM module), Argon2id passwords, AES-256-GCM, a SHA-256 audit chain, and session, API-key, magic-link, SSO, and WebAuthn sign-in. The unwired Policy-as-Code engine has been removed.
 
-| Dimension             | Score | Detail                                                                                                      |
-| --------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
-| CVE Track Record      | 100   | 0 published CVEs — verifiable via NVD, GitHub Advisory DB                                                   |
-| Cryptography          | 100   | AES-256-GCM, Merkle Tree & SHA-256 audit chain, timing-safe, key rotation documented, secrets inventoried   |
-| Auth & Session        | 98    | Argon2id, CSPRNG, __Host- cookies, 2FA, lockout, API Keys, Magic Links, WebAuthn, Policy-as-Code (< 50µs)   |
-| Input Validation      | 98    | Layer 0 WASM WAF + Valibot + DOMPurify + Baseline Clamping Guard + API Payload Fuzzer                       |
-| Disclosure & Response | 99    | security.txt (RFC 9116), staged disclosure, incident runbook, secrets inventory, commit-gate static scanner |
-| Dependency Hygiene    | 92    | Override-pinned, node-forge-free, OSV.dev global scan (GHSA + NVD + 20 feeds) + bun audit in commit gate    |
+| Dimension             | Weight | Score | Detail                                                                                                                          |
+| --------------------- | :----: | :---: | ------------------------------------------------------------------------------------------------------------------------------- |
+| CVE Track Record      |  25%   |  100  | This run: `bun audit` 0 findings in 718 packages; OSV.dev 0 affected of 764                                                     |
+| Cryptography          |  15%   |  100  | AES-256-GCM, Argon2id, HMAC-SHA-256, SHA-256 audit chain                                                                        |
+| Auth & Session        |  20%   | 99.8  | Argon2id, CSPRNG, `__Host-` cookies, 2FA, lockout, user-agent step-up, WebAuthn ceremony. Back-channel logout is process-local. |
+| Input Validation      |  15%   | 99.8  | Linear WAF scan, Valibot, DOMPurify, private-field redaction on read                                                            |
+| Disclosure & Response |  10%   |  100  | security.txt (RFC 9116), staged disclosure, incident runbook, secrets inventory                                                 |
+| Dependency Hygiene    |  15%   |  100  | `bun audit` and OSV.dev in `bun run risk:audit`                                                                                 |
 
-**Weighted: ~99/100** — self-assessed (August 2026). Features: Policy-as-Code (PaC), Layer 0 WASM WAF guard, Merkle Tree cryptographic audit ledgers, Runtime Baseline Clamping, global security risk scanner across all 4 DB adapters, automated API payload fuzzer, OSV.dev global dependency check, CodeQL security-extended in CI.
+**Weighted: 99.93/100 (~99.9%)** — self-assessed on 2026-09-29 with `bun run risk:audit` (5/5) and `bun run test:security` (19 files, 343 tests). This is not a penetration test. A dated third-party test is still open. Method and residuals: [docs/reference/security/index.mdx](./docs/reference/security/index.mdx).
 
 📖 **Full Security Docs**: [docs/reference/security/index.mdx](./docs/reference/security/index.mdx)  
-⚡ **Policy-as-Code & WASM**: [docs/reference/security/policy-as-code-and-wasm.mdx](./docs/reference/security/policy-as-code-and-wasm.mdx)  
+🛡️ **WAF and middleware**: [docs/reference/security/policy-as-code-and-wasm.mdx](./docs/reference/security/policy-as-code-and-wasm.mdx)  
 🔑 **Secrets Inventory**: [docs/reference/security/secrets-inventory.mdx](./docs/reference/security/secrets-inventory.mdx)  
 🛡️ **API Security**: [docs/reference/security/api-security.mdx](./docs/reference/security/api-security.mdx)  
 📋 **Security.txt**: [static/.well-known/security.txt](./static/.well-known/security.txt)  

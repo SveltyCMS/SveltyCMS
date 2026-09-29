@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-26"
+updated: "2026-09-29"
 tags:
   - "roadmap"
   - "backlog"
@@ -224,8 +224,7 @@ Ordered sequence for internationalization:
   7. Scale datasets verified at 100k **and** 1M documents.
   8. Published networked 4-cell matrix separating Cache-Hit (Cell 1) from Origin-Miss (Cells 2 & 3) — see the Cell-3 decision below.
   9. Equivalence coverage: the differential wire-vs-domain test proves visibility agreement per adapter (`tests/integration/databases/differential-parity.test.ts`). Satisfied for point reads; still to cover the no-`status`-column fail-closed branch.
-  10. Decide the read-lane WAF question (next bullet).
-- **Open decision — read-lane WAF coverage**: `LANE_BYPASSED_HOOKS` skips `handleSecurity` for warm-session lane reads. Measure the cost of re-applying its inspection against Cell 1 and either pay it or record the acceptance with its compensating controls ([read-lane gates](../reference/architecture/server-hooks.mdx)).
+  10. _Read-lane threat scan_ (Shipped — 2026-09-29): before any cache or database read the lane calls `wafGuard.inspectEvent` and returns the honeypot / non-local scanner response. Heap shedding and the Redis WAF limiter stay on `handleSecurity` ([read-lane gates](../reference/architecture/server-hooks.mdx)).
 - **Open decision — Cell 3 evidence**: publish the 4-cell matrix on PostgreSQL **and** SQLite. Until Cell 3 beats Cell 2 on both, the wire plane stays "partial" regardless of how many adapters implement it. Note the repo's own ceiling map already measures `findById` at ~16.0k RPS against a 15.4k driver floor, so the honest expectation is a _cold-miss_ win, not a throughput win.
 - **Cross-Source Data Merge (v3.1)**: Federated queries across heterogeneous databases.
 - **Integration-suite wall-time refactor** ([audit 2026-09-27](../tests/adr-testing-2026.mdx), numbers re-verified by a second agent the same day) — measured redundancy, in priority order:

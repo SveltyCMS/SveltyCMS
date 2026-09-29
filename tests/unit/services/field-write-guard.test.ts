@@ -16,6 +16,8 @@ import {
   getCollectionFields,
   getCollectionFromPath,
 } from "@src/services/security/field-permission-service";
+import { canAccessField, redactReadEnvelope } from "@utils/field-access";
+import { ensureSchemaHotFlags } from "@src/services/sdk/namespaces/collections/schema-store";
 
 const guardedFields = [
   { label: "Title", name: "title", type: "text", required: false, translated: false },
@@ -70,6 +72,38 @@ describe("hasGuardedFields", () => {
   it("returns false for an empty field list", () => {
     expect(hasGuardedFields([])).toBe(false);
   });
+
+  it("treats permissions.visibility private as a guard even with an empty role list", () => {
+    const fields = [
+      {
+        label: "Secret",
+        db_fieldName: "secretNotes",
+        permissions: { visibility: "private", readRoles: [], writeRoles: [] },
+      },
+    ] as any;
+    expect(hasGuardedFields(fields)).toBe(true);
+    expect(canAccessField(fields[0], editor, "read")).toBe(false);
+    expect(canAccessField(fields[0], { _id: "admin", role: "admin" }, "read")).toBe(true);
+    expect(
+      canAccessField(
+        { ...fields[0], permissions: { visibility: "private", readRoles: ["editor"] } },
+        editor,
+        "read",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not treat a public field with an empty role list as a guard", () => {
+    expect(
+      hasGuardedFields([
+        {
+          label: "Title",
+          db_fieldName: "title",
+          permissions: { visibility: "public", readRoles: [], writeRoles: [] },
+        },
+      ] as any),
+    ).toBe(false);
+  });
 });
 
 describe("assertWriteAllowed", () => {
@@ -105,6 +139,57 @@ describe("assertWriteAllowed", () => {
     await expect(
       assertWriteAllowed(hiddenFieldFields, { title: "x", slug: "mine" }, editor),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("rejects writes to a private-visibility field for non-admin roles", async () => {
+    const fields = [
+      {
+        label: "Secret",
+        db_fieldName: "secretNotes",
+        permissions: { visibility: "private", readRoles: [], writeRoles: [] },
+      },
+    ] as any;
+    await expect(assertWriteAllowed(fields, { secretNotes: "nope" }, editor)).rejects.toMatchObject(
+      { status: 403 },
+    );
+  });
+});
+
+describe("read redaction for private visibility", () => {
+  const fields = [
+    { label: "Title", db_fieldName: "title", permissions: { visibility: "public" } },
+    {
+      label: "Secret",
+      db_fieldName: "secretNotes",
+      permissions: { visibility: "private", readRoles: [], writeRoles: [] },
+    },
+  ] as any;
+
+  it("strips the private field for an editor and leaves the source row intact", () => {
+    const row = { _id: "1", title: "Hello", secretNotes: "payroll" };
+    const envelope = { success: true, data: row };
+    const redacted = redactReadEnvelope(envelope, fields, editor) as {
+      data: Record<string, unknown>;
+    };
+    expect(redacted.data.title).toBe("Hello");
+    expect(redacted.data.secretNotes).toBeUndefined();
+    expect(row.secretNotes).toBe("payroll");
+    expect(envelope.data).toBe(row);
+  });
+
+  it("keeps the private field for an admin without copying the envelope", () => {
+    const envelope = { success: true, data: { _id: "1", title: "Hello", secretNotes: "payroll" } };
+    const redacted = redactReadEnvelope(envelope, fields, { _id: "admin", role: "admin" });
+    expect(redacted).toBe(envelope);
+  });
+
+  it("compiles the private flag onto the schema hot path", () => {
+    const schema = ensureSchemaHotFlags({
+      _id: "posts",
+      name: "posts",
+      fields,
+    } as any);
+    expect(schema._hasGuardedFields).toBe(true);
   });
 });
 

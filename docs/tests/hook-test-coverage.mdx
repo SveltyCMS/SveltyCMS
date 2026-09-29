@@ -4,7 +4,7 @@ title: Hook Test Coverage
 description: Comprehensive testing documentation for all SveltyCMS middleware hooks
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-08-06"
+updated: "2026-09-29"
 tags:
   - "testing"
   - "hooks"
@@ -242,7 +242,7 @@ expect(response.status).toBe(200);
 - ✅ `SESSION_TTL_HOURS` applied at login and rotation
 - ✅ **Idle timeout** (`SESSION_IDLE_HOURS`) — sliding clock on the session-cache LRU, signs out idle sessions
 - ✅ **Credential-free session snapshots** — password hash / TOTP secret / backup codes / reset & refresh tokens never enter caches or stores; password-verifying endpoints re-fetch from DB
-- ✅ **Session context anomaly (log-only)** — IP/user-agent drift logged once per session per hour, never locks out
+- ✅ **Session context** — an IP change is logged once per session per hour; a user-agent change steps mutations up until password reauth adopts the new browser
 - ✅ **Max sessions per user** (`SESSION_MAX_PER_USER`) — LRU eviction of the least recently active session at login
 - ✅ **Cross-session revoke re-auth** (stateless HMAC proof, `REAUTH_REQUIRED` enforcement)
 - ✅ **Admin session console API** (list/revoke another user's sessions)

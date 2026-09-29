@@ -39,6 +39,10 @@ interface TurboAuthContext {
   tenantId: DatabaseId | null;
   expiresAt: number;
   permMask?: bigint;
+  /** IP captured with the session. Absent until the auth hook has seen the row. */
+  boundIp?: string | null;
+  /** User-agent captured with the session. A later change steps mutations up. */
+  boundUserAgent?: string | null;
   /**
    * Role/permission epoch this context was compiled at.
    *
@@ -68,7 +72,8 @@ export function setTurboAuthContext(
   permMask?: bigint,
   permRev?: number,
 ): void {
-  if (turboAuthCache.has(sessionId)) {
+  const previous = turboAuthCache.get(sessionId);
+  if (previous) {
     turboAuthCache.delete(sessionId);
   } else if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX) {
     const firstKey = turboAuthCache.keys().next().value;
@@ -82,7 +87,21 @@ export function setTurboAuthContext(
     expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
     permMask,
     permRev: permRev ?? getRoleBitsetVersion(),
+    boundIp: previous?.boundIp,
+    boundUserAgent: previous?.boundUserAgent,
   });
+}
+
+/** Attach the session's original IP and user-agent without rebuilding the context. */
+export function rememberTurboSessionSurface(
+  sessionId: string,
+  ip?: string | null,
+  userAgent?: string | null,
+): void {
+  const ctx = turboAuthCache.get(sessionId);
+  if (!ctx) return;
+  if (ip) ctx.boundIp = ip;
+  if (userAgent) ctx.boundUserAgent = userAgent;
 }
 
 export function getTurboAuthContext(sessionId: string): TurboAuthContext | null {

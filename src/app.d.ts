@@ -106,6 +106,11 @@ declare global {
       sessionAmr?: string[];
       /** ISO timestamp when MFA was verified for this session. */
       mfaVerifiedAt?: string;
+      /** `step-up` when this request's browser does not match the session's browser. */
+      sessionRisk?: "allow" | "log" | "step-up";
+      /** Browser surface the session was bound to. */
+      sessionBoundIp?: string;
+      sessionBoundUserAgent?: string;
       /** 64-bit BigInt permission bitmask for the current session/user. */
       permMask?: bigint;
       tenantId?: DatabaseId | null;

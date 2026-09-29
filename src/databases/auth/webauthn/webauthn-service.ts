@@ -132,6 +132,41 @@ function parseClientData(clientDataJSON: string): {
   return parsed;
 }
 
+/** Bit 0 of authenticator flags: the user was present for this ceremony. */
+const USER_PRESENT_FLAG = 0x01;
+
+function assertWebAuthnClient(
+  clientDataJSON: string,
+  expectedType: string,
+  expectedChallenge: string,
+  expectedOrigin: string,
+): void {
+  const clientData = parseClientData(clientDataJSON);
+  if (clientData.type !== expectedType) {
+    throw new Error(
+      expectedType === "webauthn.create"
+        ? "Invalid registration clientData type"
+        : "Invalid authentication clientData type",
+    );
+  }
+  if (clientData.challenge !== expectedChallenge) {
+    throw new Error(
+      expectedType === "webauthn.create"
+        ? "Registration challenge mismatch"
+        : "Authentication challenge mismatch",
+    );
+  }
+  if (!expectedOrigin || clientData.origin !== expectedOrigin) {
+    throw new Error("WebAuthn origin mismatch");
+  }
+}
+
+function assertUserPresent(flags: number): void {
+  if ((flags & USER_PRESENT_FLAG) === 0) {
+    throw new Error("WebAuthn user presence flag missing");
+  }
+}
+
 /**
  * Parses attestationObject (CBOR) enough to extract authData for registration.
  * Uses a minimal scan: attestationObject is CBOR map; authData is byte string under key -2.
@@ -150,14 +185,14 @@ export function verifyRegistrationResponse(
   response: RegistrationResponseJSON,
   expectedChallenge: string,
   rpId: string,
+  expectedOrigin: string,
 ): Authenticator {
-  const clientData = parseClientData(response.response.clientDataJSON);
-  if (clientData.type !== "webauthn.create") {
-    throw new Error("Invalid registration clientData type");
-  }
-  if (clientData.challenge !== expectedChallenge) {
-    throw new Error("Registration challenge mismatch");
-  }
+  assertWebAuthnClient(
+    response.response.clientDataJSON,
+    "webauthn.create",
+    expectedChallenge,
+    expectedOrigin,
+  );
 
   const authDataBuf = extractAuthDataFromAttestation(response.response.attestationObject);
   if (!verifyRpIdHash(authDataBuf, rpId)) {
@@ -165,6 +200,7 @@ export function verifyRegistrationResponse(
   }
 
   const parsed = parseAuthData(authDataBuf);
+  assertUserPresent(parsed.flags);
   if (!parsed.credentialID || !parsed.credentialPublicKeyJWK) {
     throw new Error("Registration missing credential data");
   }
@@ -187,14 +223,14 @@ export function verifyAuthenticationResponse(
   expectedChallenge: string,
   rpId: string,
   stored: Authenticator,
+  expectedOrigin: string,
 ): { verified: boolean; newCounter: number } {
-  const clientData = parseClientData(response.response.clientDataJSON);
-  if (clientData.type !== "webauthn.get") {
-    throw new Error("Invalid authentication clientData type");
-  }
-  if (clientData.challenge !== expectedChallenge) {
-    throw new Error("Authentication challenge mismatch");
-  }
+  assertWebAuthnClient(
+    response.response.clientDataJSON,
+    "webauthn.get",
+    expectedChallenge,
+    expectedOrigin,
+  );
 
   const authDataBuf = base64UrlToBuffer(response.response.authenticatorData);
   if (!verifyRpIdHash(authDataBuf, rpId)) {
@@ -206,9 +242,12 @@ export function verifyAuthenticationResponse(
     Buffer.from(stored.credentialPublicKey, "base64url").toString("utf8"),
   );
 
+  // The assertion signs authenticatorData || SHA-256(raw clientData bytes).
+  // `clientDataJSON` on the wire is base64url of those bytes.
+  const clientDataRaw = base64UrlToBuffer(response.response.clientDataJSON);
   const verified = verifyAssertionSignature({
     authenticatorData: authDataBuf,
-    clientDataJSON: response.response.clientDataJSON,
+    clientDataJSON: clientDataRaw,
     signature: base64UrlToBuffer(response.response.signature),
     publicKeyJWK,
   });
@@ -216,6 +255,8 @@ export function verifyAuthenticationResponse(
   if (!verified) {
     return { verified: false, newCounter: stored.counter };
   }
+
+  assertUserPresent(parsed.flags);
 
   if (parsed.signCount > 0 && parsed.signCount <= stored.counter) {
     throw new Error("Authenticator sign counter did not increase");

@@ -49,7 +49,13 @@ import {
 import { hashCredentialSha256HexSync } from "@src/utils/security/credential-hash";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
-import { evaluateSessionAnomaly, toSafeSessionUser } from "@src/databases/auth/session-user";
+import { CacheCategory } from "@src/databases/cache/types";
+import {
+  decideSessionRisk,
+  evaluateSessionAnomaly,
+  toSafeSessionUser,
+  type SessionRiskAction,
+} from "@src/databases/auth/session-user";
 
 import { getDbInitPromise, auth, dbAdapter, isDbConnected } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
@@ -95,6 +101,7 @@ import {
   invalidateTurboAuthContext,
   turboAuthCache,
   getTurboAuthContext,
+  rememberTurboSessionSurface,
   setTurboAuthContext,
 } from "./handle-turbo-get";
 import {
@@ -177,6 +184,8 @@ interface SessionCacheEntry {
   amr?: string[];
   mfaVerifiedAt?: string;
   permMask?: bigint;
+  boundIp?: string | null;
+  boundUserAgent?: string | null;
 }
 
 /**
@@ -187,7 +196,16 @@ interface SessionCacheEntry {
  *               the caller must NOT delete the session cookie on this status
  */
 export type SessionResolution =
-  | { status: "ok"; user: User; amr?: string[]; mfaVerifiedAt?: string; permMask?: bigint }
+  | {
+      status: "ok";
+      user: User;
+      amr?: string[];
+      mfaVerifiedAt?: string;
+      permMask?: bigint;
+      risk?: SessionRiskAction;
+      boundIp?: string | null;
+      boundUserAgent?: string | null;
+    }
   | { status: "invalid" }
   | { status: "transient" };
 
@@ -316,7 +334,7 @@ function getIdleWindowMs(): number {
   return hours > 0 ? hours * 60 * 60 * 1000 : 0;
 }
 
-/** Log-only IP/user-agent drift detection (OWASP session guidance). */
+/** IP drift is logged. A new user-agent steps mutations up until the user signs in again. */
 function recordSessionAnomaly(
   sessionId: string,
   clientIp: string | null | undefined,
@@ -326,26 +344,77 @@ function recordSessionAnomaly(
     ip?: string | null;
     userAgent?: string | null;
   } | null,
-): void {
+): { action: SessionRiskAction; storedIp: string | null; storedUserAgent: string | null } {
   const record = sessionRecord ?? null;
-  const drift = evaluateSessionAnomaly({
-    currentIp: clientIp,
-    currentUserAgent: userAgent,
-    storedIp: record?.ipAddress ?? record?.ip ?? null,
-    storedUserAgent: record?.userAgent ?? null,
-  });
-  if (!drift.ipChanged && !drift.userAgentChanged) return;
+  const storedIp = record?.ipAddress ?? record?.ip ?? null;
+  const storedUserAgent = record?.userAgent ?? null;
+  const action = decideSessionRisk(
+    evaluateSessionAnomaly({
+      currentIp: clientIp,
+      currentUserAgent: userAgent,
+      storedIp,
+      storedUserAgent,
+    }),
+  );
+  if (action === "allow") return { action, storedIp, storedUserAgent };
 
   const now = Date.now();
   const last = lastAnomalyLog.get(sessionId);
-  if (last && now - last < SESSION_ANOMALY_LOG_COOLDOWN_MS) return;
-  lastAnomalyLog.set(sessionId, now);
+  if (!last || now - last >= SESSION_ANOMALY_LOG_COOLDOWN_MS) {
+    lastAnomalyLog.set(sessionId, now);
+    logger.warn(
+      `[Auth] Session context change (${action}): session=${sessionId.slice(0, 8)}...` +
+        (action === "step-up" ? " user-agent changed" : " ip changed"),
+    );
+  }
+  return { action, storedIp, storedUserAgent };
+}
 
-  logger.warn(
-    `[Auth] Session context change (log-only, no action taken): session=${sessionId.slice(0, 8)}...` +
-      (drift.ipChanged ? " ip changed" : "") +
-      (drift.userAgentChanged ? " user-agent changed" : ""),
+function riskFromSurface(
+  clientIp: string | null | undefined,
+  userAgent: string | null | undefined,
+  boundIp?: string | null,
+  boundUserAgent?: string | null,
+): SessionRiskAction {
+  return decideSessionRisk(
+    evaluateSessionAnomaly({
+      currentIp: clientIp,
+      currentUserAgent: userAgent,
+      storedIp: boundIp,
+      storedUserAgent: boundUserAgent,
+    }),
   );
+}
+
+/**
+ * After a password step-up, treat the current browser as the session's browser
+ * on this process, on the turbo context, and in the distributed cache.
+ */
+export async function adoptSessionSurface(
+  sessionId: string,
+  ip: string | null,
+  userAgent: string | null,
+  tenantId?: string | null,
+): Promise<void> {
+  const mem = getSessionFromCache(sessionId);
+  if (mem) {
+    mem.boundIp = ip;
+    mem.boundUserAgent = userAgent;
+  }
+  rememberTurboSessionSurface(sessionId, ip, userAgent);
+  await cacheService
+    .set(
+      `session-surface:${sessionId}`,
+      { ip, userAgent },
+      24 * 3600,
+      tenantId ?? "global",
+      CacheCategory.SESSION,
+    )
+    .catch((err: unknown) => {
+      logger.warn(
+        `[Auth] Failed to adopt session surface: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
 }
 
 /** Multi-layer user session retrieval (in-memory → distributed → DB) */
@@ -379,6 +448,9 @@ async function getUserFromSession(
       user: memCached.user,
       amr: memCached.amr,
       mfaVerifiedAt: memCached.mfaVerifiedAt,
+      risk: riskFromSurface(clientIp, userAgent, memCached.boundIp, memCached.boundUserAgent),
+      boundIp: memCached.boundIp,
+      boundUserAgent: memCached.boundUserAgent,
     };
   }
 
@@ -528,14 +600,35 @@ async function getUserFromSession(
             addNegativeSessionHit(sessionId);
             return { status: "invalid" };
           }
-          // 🛡️ Session-context drift (IP / user-agent) — log-only per OWASP
-          // session-management guidance. Never blocks, never logs the actor out.
-          recordSessionAnomaly(sessionId, clientIp, userAgent, sessionResult.data as any);
+          const rawSession = sessionResult.data as {
+            ipAddress?: string | null;
+            ip?: string | null;
+            userAgent?: string | null;
+            amr?: string[];
+            has2fa?: boolean;
+            mfaVerifiedAt?: string;
+          };
+          let storedIp = rawSession.ipAddress ?? rawSession.ip ?? null;
+          let storedUserAgent = rawSession.userAgent ?? null;
+          try {
+            const adopted = await cacheService.get<{
+              ip?: string | null;
+              userAgent?: string | null;
+            }>(`session-surface:${sessionId}`, tenantId ?? "global", CacheCategory.SESSION);
+            if (adopted?.ip) storedIp = adopted.ip;
+            if (adopted?.userAgent) storedUserAgent = adopted.userAgent;
+          } catch (err) {
+            logger.debug("[Auth] Session surface cache unavailable", err);
+          }
+          // IP change is logged. A new user-agent steps mutations up.
+          const risk = recordSessionAnomaly(sessionId, clientIp, userAgent, {
+            ipAddress: storedIp,
+            userAgent: storedUserAgent,
+          });
           logger.debug(
             `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
           );
           const safeUser = toSafeSessionUser(user);
-          const rawSession = sessionResult.data as any;
           const amr: string[] = rawSession.amr ?? (rawSession.has2fa ? ["pwd", "mfa"] : ["pwd"]);
           const mfaVerifiedAt: string | undefined =
             rawSession.mfaVerifiedAt ??
@@ -545,13 +638,23 @@ async function getUserFromSession(
             timestamp: now,
             amr,
             mfaVerifiedAt,
+            boundIp: risk.storedIp,
+            boundUserAgent: risk.storedUserAgent,
           };
           setSessionInCache(sessionId, sessionData);
           const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
           await cacheService
             .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
             .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-          return { status: "ok", user: safeUser, amr, mfaVerifiedAt };
+          return {
+            status: "ok",
+            user: safeUser,
+            amr,
+            mfaVerifiedAt,
+            risk: risk.action,
+            boundIp: risk.storedIp,
+            boundUserAgent: risk.storedUserAgent,
+          };
         } else {
           // Definitive: User not found in DB
           logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
@@ -976,7 +1079,18 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         let resolution: SessionResolution = { status: "invalid" };
         if (turboCtx) {
           user = turboCtx.user;
-          resolution = { status: "ok", user };
+          resolution = {
+            status: "ok",
+            user,
+            risk: riskFromSurface(
+              getClientIp(event),
+              event.request.headers.get("user-agent"),
+              turboCtx.boundIp,
+              turboCtx.boundUserAgent,
+            ),
+            boundIp: turboCtx.boundIp,
+            boundUserAgent: turboCtx.boundUserAgent,
+          };
           (locals as any).roles = turboCtx.roles;
         } else {
           resolution = await getUserFromSession(
@@ -1021,6 +1135,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           locals.session_id = sessionId as DatabaseId;
           locals.sessionAmr = resolution.status === "ok" ? resolution.amr : undefined;
           locals.mfaVerifiedAt = resolution.status === "ok" ? resolution.mfaVerifiedAt : undefined;
+          if (resolution.status === "ok") {
+            locals.sessionRisk = resolution.risk;
+            locals.sessionBoundIp = resolution.boundIp ?? undefined;
+            locals.sessionBoundUserAgent = resolution.boundUserAgent ?? undefined;
+          }
           locals.permissions = user.permissions || [];
           // Expose 64-bit bitmask for per-request zero-allocation permission checks
           locals.permMask = resolution.status === "ok" ? (resolution as any).permMask : undefined;
@@ -1035,6 +1154,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               user,
               (locals as any).roles || [],
               locals.tenantId || null,
+            );
+          }
+          if (sessionId && resolution.status === "ok") {
+            rememberTurboSessionSurface(
+              sessionId as string,
+              resolution.boundIp,
+              resolution.boundUserAgent,
             );
           }
           // Prefer host/header tenant; if only user.tenantId is set, bind that for MT.

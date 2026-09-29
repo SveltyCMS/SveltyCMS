@@ -7,8 +7,8 @@
  *   reset tokens, OAuth refresh tokens, trusted-device fingerprints) from user
  *   objects before they enter the L1/L2 session caches or the in-memory/Redis
  *   session store.
- * - Pure evaluation of session anomalies (IP / user-agent drift) for log-only
- *   OWASP-style detection.
+ * - Pure evaluation of session anomalies (IP / user-agent drift) and the
+ *   risk action that drift produces (log an IP change, step up on a new browser).
  *
  * ### Features:
  * - zero-allocation fast path (returns the original reference when no
@@ -84,6 +84,25 @@ export function evaluateSessionAnomaly(options: {
     userAgentChanged:
       storedUaNorm.length > 0 && currentUaNorm.length > 0 && currentUaNorm !== storedUaNorm,
   };
+}
+
+/**
+ * What the session layer does with a drift result.
+ *
+ * A user-agent change is a different browser on a live session, so mutations
+ * require a fresh sign-in. An IP change alone is logged: mobile networks and
+ * CGNAT rotate addresses without a new browser. Empty stored values stay
+ * `allow` so sessions created before device capture are not challenged.
+ */
+export type SessionRiskAction = "allow" | "log" | "step-up";
+
+export function decideSessionRisk(drift: {
+  ipChanged: boolean;
+  userAgentChanged: boolean;
+}): SessionRiskAction {
+  if (drift.userAgentChanged) return "step-up";
+  if (drift.ipChanged) return "log";
+  return "allow";
 }
 
 /**

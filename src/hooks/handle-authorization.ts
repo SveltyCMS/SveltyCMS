@@ -31,7 +31,7 @@ import { logger } from "@utils/logger";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { testWorkerContext } from "@utils/test-worker-context";
-import { setTurboAuthContext } from "./handle-turbo-get";
+import { rememberTurboSessionSurface, setTurboAuthContext } from "./handle-turbo-get";
 import { seedRoleTiers } from "@utils/rate-limit/role-tiers";
 import { invalidateRoleBitsetsGlobally } from "@src/databases/auth/permission-bitmask";
 
@@ -257,10 +257,50 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
   return workPromise;
 }
 
+const SESSION_RISK_EXEMPT = [
+  "/api/user/sessions/reauth",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/login",
+];
+
+function isSessionRiskExempt(pathname: string): boolean {
+  for (let i = 0; i < SESSION_RISK_EXEMPT.length; i++) {
+    if (pathname === SESSION_RISK_EXEMPT[i] || pathname.startsWith(`${SESSION_RISK_EXEMPT[i]}/`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const { url, locals } = event;
   const { user } = locals;
   const pathname = url.pathname;
+
+  // A live session presented by a different browser must sign in again before
+  // it can mutate. Reads stay available so the sign-in page can load. The
+  // reauth route is exempt so the password proof can adopt the new browser.
+  const method = event.request.method;
+  if (
+    locals.sessionRisk === "step-up" &&
+    method !== "GET" &&
+    method !== "HEAD" &&
+    method !== "OPTIONS" &&
+    !isSessionRiskExempt(pathname)
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return handleApiError(
+        new AppError(
+          "Sign in again to continue. This session was presented by a different browser.",
+          403,
+          "SESSION_RISK_STEP_UP",
+        ),
+        event,
+      );
+    }
+    throw redirect(302, "/login?reason=step-up");
+  }
 
   if ((locals as any).__testBypass) {
     locals.isAdmin = isAdmin(user) || (user as any)?.isAdmin === true;
@@ -433,6 +473,11 @@ function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void
       roles,
       event.locals.tenantId || null,
       event.locals.permMask,
+    );
+    rememberTurboSessionSurface(
+      sessionId,
+      event.locals.sessionBoundIp,
+      event.locals.sessionBoundUserAgent,
     );
   } catch {}
 }

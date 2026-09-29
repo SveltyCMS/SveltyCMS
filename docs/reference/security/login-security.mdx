@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-05-24"
-updated: "2026-09-22"
+updated: "2026-09-29"
 tags:
   - "security"
   - "authentication"
@@ -17,7 +17,7 @@ tags:
 
 # Login Security
 
-This document details how we have implemented the best A++ security for the SveltyCMS authentication flow, along with essential accessibility improvements.
+This document describes the SveltyCMS authentication flow and the accessibility work on the login screen. The numeric self-assessment lives on the [security index](./index.mdx).
 
 ## Security Improvements
 
@@ -127,7 +127,7 @@ The policy is enterprise-configurable via **System Settings → Security → Ses
 
 Session validation is a **4-layer pipeline** (fastest first):
 
-1. **Turbo auth context** (in-memory, 60s absolute TTL) — GET/HEAD/OPTIONS fast path; skips all validation below; never slides on access (anti timing-attack).
+1. **Turbo auth context** (in-memory, 60 seconds, sliding on every hit; 15 minutes when `BENCHMARK=true`) — GET/HEAD/OPTIONS fast path. A hit skips the database validation and still compares the request user-agent with the user-agent bound to the session.
 2. **Session cache** (in-memory LRU, 10k entries) — validated sessions with a 24h trust window. Warm hits are **0 DB round-trips**.
 3. **Distributed cache** (Redis `session:{tenant}:{id}`) + in-memory/Redis session store — cross-node fallback.
 4. **Database** — cold path, **single-flight coalesced** (concurrent cold requests await one validation instead of racing). All four adapters implement `auth.validateSession` as a **single JOIN** (`auth_sessions` ⋈ `auth_users`). On success the user is reused; on definitive miss the session is invalid; on transient failure the cookie is kept. The two-step `getSessionTokenData` + `getUserById` path is only used when `validateSession` is absent (unit-test mocks). Production adapters never fall through to those extra round-trips.
@@ -143,7 +143,7 @@ Lifecycle semantics:
 - **Admin session console** (API): `GET /api/user/sessions?admin=1&userId=X` lists another user's active sessions (admins only); `DELETE /api/user/sessions/:id?admin=1` revokes without a re-auth proof. UI is planned (Access Management).
 - **Negative Bloom cache** short-circuits repeat lookups of revoked/expired sessions (~2392x speedup on repeated misses); the 60s refresh cooldown prevents DB stampedes.
 - **Credential-free session snapshots**: session caches and the in-memory/Redis session store never retain credential material (`password` hash, `totpSecret`, `backupCodes`, `resetToken`, `googleRefreshToken`, `twoFactorTrustedDevices`). The stripping happens at every cache/store write boundary (hook + store `set()`), so `locals.user` exposes identity, role, and permissions only. Password-verifying endpoints (`verify-password`, 2FA disable, session re-auth) always fetch a fresh user from the DB before comparing hashes — the snapshot never doubles as a credential oracle.
-- **Session context anomaly (log-only)**: on the DB validation path, the stored session IP / user-agent is compared against the current request; a drift (e.g. stolen cookie used from another network) is logged once per session per hour (`[Auth] Session context change`) with **no action taken** — no lockout, no logout, per OWASP session-management guidance. Logs feed monitoring/alerting without false-positive lockouts on rotating NATs.
+- **Session context**: the bound IP and user-agent are compared with the current request on a database validation, a warm session-cache hit, and a turbo-auth hit. A user-agent change steps mutations up (`403 SESSION_RISK_STEP_UP` on `/api`, redirect to `/login?reason=step-up` on pages) until `POST /api/user/sessions/reauth` verifies the password and adopts the current browser. An IP-only change is logged once per session per hour (`[Auth] Session context change`) and does not block the request, so a rotating mobile address does not lock the session. Empty stored values stay allowed. GET, HEAD, and OPTIONS stay available. `/api/auth/login`, `/api/auth/logout`, `/login`, and the reauth route stay reachable.
 - **Max sessions per user** (`SESSION_MAX_PER_USER`, default 0 = unlimited): when the cap is exceeded at login, the least recently active session is evicted across all layers (Keycloak-style). Complements the device policy — recommended together with `allow-multiple`.
 
 ### API Endpoints

@@ -1038,12 +1038,14 @@ export const verifyPasskeyAuth = command(
       const stored = findAuthenticatorByCredentialId(user.authenticators, data.assertion.id);
       if (!stored) return { success: false, message: "Unknown passkey credential." };
 
-      const rpId = resolveRpId(new URL(event.request.url).hostname);
+      const requestUrl = new URL(event.request.url);
+      const rpId = resolveRpId(requestUrl.hostname);
       const { verified, newCounter } = verifyAuthenticationResponse(
         data.assertion,
         clientData.challenge,
         rpId,
         stored,
+        requestUrl.origin,
       );
 
       if (!verified)
@@ -1158,8 +1160,14 @@ export const verifyPasskeyRegister = command("unchecked", async (data: { attesta
 
     const { verifyRegistrationResponse, resolveRpId } =
       await import("@src/databases/auth/webauthn/webauthn-service");
-    const rpId = resolveRpId(new URL(event.request.url).hostname);
-    const authenticator = verifyRegistrationResponse(data.attestation, clientData.challenge, rpId);
+    const requestUrl = new URL(event.request.url);
+    const rpId = resolveRpId(requestUrl.hostname);
+    const authenticator = verifyRegistrationResponse(
+      data.attestation,
+      clientData.challenge,
+      rpId,
+      requestUrl.origin,
+    );
 
     const existing = user.authenticators || [];
     await auth.updateUserAttributes(

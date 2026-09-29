@@ -46,6 +46,8 @@ import {
   computeCollectionWireMeta,
 } from "@src/hooks/handle-collection-read-lane";
 import { setSystemState } from "@src/stores/system/state.svelte.ts";
+import { contentStore } from "@src/stores/content-registry.svelte";
+import { PERMISSION_BITS } from "@src/databases/auth/permission-bitmask";
 
 describe("collection read lane single-flight", () => {
   const sessionId = "read-lane-coalesce-session";
@@ -525,5 +527,112 @@ describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
     expect(isWirePlaneAdmissible(sort("-createdAt"), meta)).toBe(true);
     expect(isWirePlaneAdmissible(sort("title:asc"), meta)).toBe(false);
     expect(isWirePlaneAdmissible(sort("+createdAt"), meta)).toBe(false);
+  });
+});
+
+describe("collection read lane private-field gate", () => {
+  const sessionId = "read-lane-private-session";
+  const editor = {
+    _id: "editor-private-1",
+    id: "editor-private-1",
+    role: "editor",
+    isAdmin: false,
+    email: "editor@test.local",
+  };
+
+  beforeEach(async () => {
+    clearTurboAuthCache();
+    await responseCache.clearLocal();
+    findByIdMock.mockReset();
+    setSystemState("READY");
+    contentStore.clear();
+    contentStore.setCollections("global", [
+      {
+        _id: "posts",
+        name: "posts",
+        fields: [
+          { label: "Title", db_fieldName: "title" },
+          {
+            label: "Secret",
+            db_fieldName: "secretNotes",
+            permissions: { visibility: "private", readRoles: [], writeRoles: [] },
+          },
+        ],
+      } as never,
+    ]);
+    setTurboAuthContext(sessionId, editor as never, [], null, PERMISSION_BITS["collections:read"]);
+  });
+
+  it("does not serve a private field from the lane to a non-admin", async () => {
+    findByIdMock.mockResolvedValue({
+      success: true,
+      data: { _id: "post-1", title: "Hello", secretNotes: "payroll" },
+    });
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const event = createMockEvent("/api/collections/posts/post-1", {
+      method: "GET",
+      sessionCookie: sessionId,
+      user: editor,
+    });
+
+    const res = await tryCollectionReadLane({ event, resolve });
+
+    expect(await res.text()).toBe("pipeline");
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(findByIdMock).not.toHaveBeenCalled();
+    contentStore.clear();
+  });
+});
+
+describe("collection read lane threat scan", () => {
+  beforeEach(() => {
+    findByIdMock.mockReset();
+    setSystemState("READY");
+  });
+
+  it("rejects a SQL payload before any cache or database read", async () => {
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const event = createMockEvent("/api/collections/posts/post-1?q=union%20select%201", {
+      method: "GET",
+    });
+
+    const res = await tryCollectionReadLane({ event, resolve });
+
+    expect(res.status).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(findByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty response to a non-local scanner user-agent", async () => {
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const event = createMockEvent("/api/collections/posts/post-1", {
+      method: "GET",
+      hostname: "cms.example",
+      userAgent: "sqlmap/1.7",
+    });
+
+    const res = await tryCollectionReadLane({ event, resolve });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-length")).toBe("0");
+    expect(res.headers.get("x-robots-tag")).toContain("noindex");
+    expect(await res.text()).toBe("");
+    expect(resolve).not.toHaveBeenCalled();
+    expect(findByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("does not treat a scanner user-agent on localhost as a bot", async () => {
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const event = createMockEvent("/api/collections/posts/post-1", {
+      method: "GET",
+      hostname: "localhost",
+      userAgent: "sqlmap/1.7",
+    });
+
+    const res = await tryCollectionReadLane({ event, resolve });
+
+    expect(await res.text()).toBe("pipeline");
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(findByIdMock).not.toHaveBeenCalled();
   });
 });

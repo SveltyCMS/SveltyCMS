@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-09-27"
+updated: "2026-09-29"
 tags:
   - "architecture"
   - "hooks"
@@ -647,24 +647,24 @@ which to the Domain Plane — see [Two-Plane Core](./two-plane-core.mdx).
 **Gates, all evaluated before any cache lookup** (so a lane-served body can never outlive a policy
 change):
 
-| Gate              | Rule                                                                                                                                                                                                                                 |
-| :---------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Operational state | `lane-state-gate.ts` re-applies `handle-system-state`'s predicate (`READY/WARMED/WARMING/DEGRADED` serve) — consulted by the lane, its peer and the registry dispatch                                                                |
-| Endpoint parity   | `collections:read` only — exactly what `ENDPOINT_PERMISSIONS` requires for `/api/collections` GET                                                                                                                                    |
-| Grant freshness   | `isPermissionBitsetStale(turbo.permRev)` declines when a role/permission mutation bumped the global epoch (the turbo mask is a snapshot)                                                                                             |
-| FLAC exemption    | `isLaneFlacExempt()` declines when a `FIELD_PERMISSIONS` policy or a `readRoles`-guarded field applies — the lane never reaches `handleTokenResolution`, the read path's only `applyFieldPermissionsToBody` call site                |
-| Publication clamp | Wire reads pass `requirePublished: true` for publication-clamped callers; the engine compiles `status = 'publish'` and fails closed where a table has no `status` column                                                             |
-| Wire admission    | `isWirePlaneAdmissible()` — published status (no draft/preview flags or cookies), no `populate`, default-locale alignment, no mutating `afterRead`/`afterFind` hooks, default query shape, `fields` equal to the compiled projection |
+| Gate              | Rule                                                                                                                                                                                                                                                                      |
+| :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Operational state | `lane-state-gate.ts` re-applies `handle-system-state`'s predicate (`READY/WARMED/WARMING/DEGRADED` serve) — consulted by the lane, its peer and the registry dispatch                                                                                                     |
+| Endpoint parity   | `collections:read` only — exactly what `ENDPOINT_PERMISSIONS` requires for `/api/collections` GET                                                                                                                                                                         |
+| Grant freshness   | `isPermissionBitsetStale(turbo.permRev)` declines when a role/permission mutation bumped the global epoch (the turbo mask is a snapshot)                                                                                                                                  |
+| FLAC exemption    | `isLaneFlacExempt()` declines when a `FIELD_PERMISSIONS` policy applies or the schema declares a guarded field (`readRoles`, `writeRoles`, `requiredAuth`, hidden, or `permissions.visibility` of `private` or `hidden`). The lane never reaches `handleTokenResolution`. |
+| Publication clamp | Wire reads pass `requirePublished: true` for publication-clamped callers; the engine compiles `status = 'publish'` and fails closed where a table has no `status` column                                                                                                  |
+| Wire admission    | `isWirePlaneAdmissible()` — published status (no draft/preview flags or cookies), no `populate`, default-locale alignment, no mutating `afterRead`/`afterFind` hooks, default query shape, `fields` equal to the compiled projection                                      |
 
 `LANE_BYPASSED_HOOKS` lists every pipeline hook lane traffic never reaches; a guard test fails when
 a hook is added without being classified, so the divergence stays a decision rather than an accident.
 
 > [!NOTE]
-> **Known, bounded gap** — `security` is in that list, so lane-served reads are not WAF-inspected,
-> bot/honeypot-scored or heap-shed. Rate limiting is _not_ a regression (the API_READ pipeline
-> already skips it for GETs). Compensating controls: warm-session requirement, the gates above, and
-> the operational-state gate. Tracked as an open decision in
-> [roadmap-2026](../../project/roadmap-2026.mdx).
+> **Threat scan on the lane** — `security` stays in that list, so lane-served reads do not run heap
+> shedding, the Redis WAF limiter, or the GraphQL shield. Before any cache or database read the lane
+> calls `wafGuard.inspectEvent` (path, query, and headers) and returns the same empty 200 for a
+> honeypot path or a non-local scanner or AI-crawler user agent. Rate limiting is unchanged: the
+> API_READ pipeline already skips it for GETs.
 
 ---
 

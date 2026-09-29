@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-27"
+updated: "2026-09-29"
 tags:
   - "achievements"
   - "log"
@@ -796,13 +796,13 @@ To cement its position as the undisputed category leader against platforms like 
 
 **Is SveltyCMS “state of the art”?** That is a **product judgment**, not a single score. Against **our own** design goals and **self-measured** suites:
 
-| Dimension        | Evidence (self-described / self-measured)                                           | Limits                                                                  |
-| :--------------- | :---------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
-| **Architecture** | Svelte 5 + shared `SqlAdapterCore` + 4 production DB adapters                       | Still a full Node/Bun process; not magically edge-only for all features |
-| **Performance**  | SQLite sub-ms CRUD; networked ~0.5–2 ms RTT; `findPage` / count cache product layer | Not a global speed ranking; not same-harness vs Payload/Strapi/Directus |
-| **Security**     | Fail-closed API, hashed tokens, RBAC, audit chain; scanners in CI                   | ~99/100 is **self-assessment**; no substitute for your pentest          |
-| **Intelligence** | Behavioral learning, AI scaffolder, MCP, marketplace docs                           | Learning warms caches; does not rewrite engines under load              |
-| **Stability**    | Soak / leak benches exist in-repo                                                   | One 5-min soak is evidence of a path, not eternity                      |
+| Dimension        | Evidence (self-described / self-measured)                                           | Limits                                                                           |
+| :--------------- | :---------------------------------------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **Architecture** | Svelte 5 + shared `SqlAdapterCore` + 4 production DB adapters                       | Still a full Node/Bun process; not magically edge-only for all features          |
+| **Performance**  | SQLite sub-ms CRUD; networked ~0.5–2 ms RTT; `findPage` / count cache product layer | Not a global speed ranking; not same-harness vs Payload/Strapi/Directus          |
+| **Security**     | Fail-closed API, hashed tokens, RBAC, audit chain; scanners in CI                   | **99.93/100 (~99.9%)** internal checklist, re-checked 2026-09-29. Not a pentest. |
+| **Intelligence** | Behavioral learning, AI scaffolder, MCP, marketplace docs                           | Learning warms caches; does not rewrite engines under load                       |
+| **Stability**    | Soak / leak benches exist in-repo                                                   | One 5-min soak is evidence of a path, not eternity                               |
 
 **Verdict (neutral):** SveltyCMS is a **self-hosted headless CMS** with strong **documented** security packaging in core, multi-DB adapters, and an automated benchmark culture. Use [Competitive Comparison](./competitive-comparison.mdx) for buyer trade-offs (React ecosystem, marketplace size, MSSQL). Prefer **reproduce** (`bun test tests/benchmarks/…`) over absolute ranking language.
 
@@ -2002,6 +2002,14 @@ burning CPU since 2026-09-26 (57 631 s of CPU time), one more reason the recorde
 and a 20-minute build stall reproduced once and then vanished on re-run (no product change involved).
 
 ---
+
+### 3.42 September 2026 — Session risk, lane threat scan, SSO metadata, WebAuthn ceremony
+
+- **Read lane**: a warm collection `GET` or `HEAD` runs `wafGuard.inspectEvent` and the honeypot / non-local scanner response before any cache or database read. `handleSecurity` (heap shedding, the Redis WAF limiter, the GraphQL shield) stays off that lane. No new benchmark file; the scan is the same linear walk the write lane already calls.
+- **Session risk**: a changed user-agent steps mutations up (`SESSION_RISK_STEP_UP`, or `/login?reason=step-up` for pages) until `POST /api/user/sessions/reauth` verifies the password and adopts the current browser. An IP-only change is logged. Reads stay available.
+- **SSO**: OIDC session metadata is written to the session cache (`sso:session:{id}`, 7 days) as well as process memory, so RP-initiated logout can finish on another node. Back-channel logout still walks the sessions this process has in memory.
+- **WebAuthn**: register and sign-in reject a foreign origin and a missing user-presence flag. The assertion signature is checked over the raw client data bytes.
+- **Self-assessment, re-run 2026-09-29**: the August weights still total **99.93/100 (~99.9%)**. `bun run test:security` passed 343 tests. `bun run risk:audit` passed 5/5 after the read redaction path was switched to canonical `isAdmin()` (the first audit pass had one `admin-role-fragmentation` finding). The two 99.8 rows were not raised. The figure is the internal checklist. A dated penetration test by someone outside the project is still open, and it is not one of the six weights.
 
 ## Related
 

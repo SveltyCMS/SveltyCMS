@@ -11,6 +11,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 import { invokeApi, expectApi } from "../utils/mock-event";
 import { hashPassword } from "@utils/security/crypto";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 
 const dbAdapter = createDbAdapterStub();
 
@@ -508,6 +510,13 @@ describe("User API Unit Tests", () => {
       const result = await response.json();
       expect(result.data.token).toBeDefined();
       expect(result.data.expiresIn).toBe(300);
+      expect(cacheService.set).toHaveBeenCalledWith(
+        "session-surface:sess-current",
+        { ip: "127.0.0.1", userAgent: null },
+        24 * 3600,
+        "t1",
+        CacheCategory.SESSION,
+      );
     });
 
     it("POST user/sessions/reauth rejects a wrong password (403)", async () => {

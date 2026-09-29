@@ -31,7 +31,11 @@ import {
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
-import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
+import {
+  adoptSessionSurface,
+  invalidateSessionCache,
+  primeSessionMemoryCache,
+} from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -784,11 +788,15 @@ export async function handleOidcLoginCallback(
 
   if (exchanged.idToken) {
     try {
-      setSsoSessionMetadata(sessionId, {
-        provider: stored.providerId,
-        idTokenHint: exchanged.idToken,
-        createdAt: new Date().toISOString(),
-      });
+      await setSsoSessionMetadata(
+        sessionId,
+        {
+          provider: stored.providerId,
+          idTokenHint: exchanged.idToken,
+          createdAt: new Date().toISOString(),
+        },
+        tenantId,
+      );
     } catch {
       // non-fatal
     }
@@ -1143,6 +1151,15 @@ async function handleSessionReauth(
 
   const sessionId = String(event.locals.session_id ?? "");
   if (!sessionId) throw new AppError("Session required", 401, "UNAUTHORIZED");
+  // Turbo auth TTL slides on every hit, so the previous browser binding would
+  // keep stepping this session up until it is replaced. The password proof is
+  // that replacement.
+  await adoptSessionSurface(
+    sessionId,
+    getClientIp(event),
+    event.request.headers.get("user-agent"),
+    typeof tenantId === "string" ? tenantId : null,
+  );
   const userId = String(user._id ?? user.id ?? "");
   return successResponse(event, {
     token: signReauthToken(userId, sessionId, Date.now() + REAUTH_TOKEN_TTL_MS),

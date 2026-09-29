@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-08-18"
-updated: "2026-08-18"
+updated: "2026-09-29"
 tags:
   - "security"
   - "owasp"
@@ -19,7 +19,7 @@ tags:
 
 The **OWASP Application Security Verification Standard (ASVS)** is a comprehensive framework defining rigorous security requirements for modern web applications and APIs.
 
-SveltyCMS aligns its security architecture and automated test matrix with **OWASP ASVS v4.0.3 Level 1 (Automated / Baseline)** and **Level 2 (Standard Applications)**.
+SveltyCMS maps its architecture and in-repo tests onto **OWASP ASVS v4.0.3 Level 1 and Level 2**. The checkmarks are that internal mapping. They are not an ASVS certificate and not a penetration test. The Policy-as-Code engine named in earlier copies of this page has been removed. The current inventory is the [security index](./index.mdx).
 
 ---
 
@@ -27,7 +27,7 @@ SveltyCMS aligns its security architecture and automated test matrix with **OWAS
 
 | ASVS Chapter | Domain                             | Level 1 | Level 2 | SveltyCMS Implementation & Verification                                                           |
 | :----------- | :--------------------------------- | :-----: | :-----: | :------------------------------------------------------------------------------------------------ |
-| **V1**       | **Architecture & Threat Modeling** |   ✅    |   ✅    | 4-layer defense-in-depth (`hooks.server.ts`), fail-closed API dispatcher, Policy-as-Code.         |
+| **V1**       | **Architecture & Threat Modeling** |   ✅    |   ✅    | 4-layer defense-in-depth (`hooks.server.ts`), fail-closed `ENDPOINT_PERMISSIONS` map.             |
 | **V2**       | **Authentication**                 |   ✅    |   ✅    | Argon2id (64MB memory cost), 15m lockout after 5 failed attempts, TOTP 2FA, WebAuthn passkeys.    |
 | **V3**       | **Session Management**             |   ✅    |   ✅    | CSPRNG 32-char tokens, `__Host-` cookies, matching logout deletion flags, credential-free caches. |
 | **V4**       | **Access Control**                 |   ✅    |   ✅    | Granular RBAC, tenantId partition on all queries, `hasPermissionWithRoles` authorization guards.  |

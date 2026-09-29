@@ -6,7 +6,7 @@ order: 45
 icon: "mdi:source-branch"
 author: "SveltyCMS Team"
 created: "2026-09-27"
-updated: "2026-09-27"
+updated: "2026-09-29"
 tags:
   - "architecture"
   - "performance"
@@ -53,7 +53,7 @@ reference.
 
 | Topic                                                                | Canonical doc                                                                                  |
 | :------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
-| Lane mechanics, bypass policy, gate table, the WAF gap               | [Server Hooks & Middleware](./server-hooks.mdx)                                                |
+| Lane mechanics, bypass policy, gate table, lane threat scan          | [Server Hooks & Middleware](./server-hooks.mdx)                                                |
 | Benchmark classification (Cells 1–4) and the honest yardstick        | [Performance Architecture](../database/performance-architecture.mdx#4-cell-benchmark-contract) |
 | Tenant isolation: shared pool + RLS, bounded dedicated DSN pools     | [Multi-tenancy](./multi-tenancy.mdx)                                                           |
 | What is shipped per phase, and the open decisions                    | [Roadmap 2026](../../project/roadmap-2026.mdx)                                                 |
@@ -62,10 +62,10 @@ reference.
 
 ## Deliberate trade-off
 
-Lane-served reads skip the `security` hook, so they are not WAF-inspected or heap-shed — a bounded
-gap with compensating controls (warm session, the six gates, the state gate). It is not silently
-accepted: it is an open decision in the [roadmap](../../project/roadmap-2026.mdx). Rate limiting is
-not part of that gap — the API read pipeline already skips it for GETs.
+Lane-served reads skip the `security` hook. Before a cache or database read they run the same path,
+query, and header threat scan as `handleSecurity`, including the honeypot and non-local scanner
+response. Heap shedding and the Redis WAF limiter stay on the full hook. Rate limiting is unchanged:
+the API read pipeline already skips it for GETs.
 
 ## Status
 

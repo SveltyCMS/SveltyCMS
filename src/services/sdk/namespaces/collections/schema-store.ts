@@ -22,6 +22,7 @@ import type { FieldInstance, Schema } from "@src/content/types";
 import type { NumberFieldPlan } from "@src/content/content-utils";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { AppError } from "@utils/error-handling";
+import { fieldDeclaresGuard } from "@utils/field-guard";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 
 export type ContentSystem = typeof serverContentSystem;
@@ -211,19 +212,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
 
   let hasGuardedFields = false;
   for (const f of fields) {
-    const p = f.permissions;
-    if (p) {
-      if (
-        (Array.isArray(p.readRoles) && p.readRoles.length > 0) ||
-        (Array.isArray(p.writeRoles) && p.writeRoles.length > 0) ||
-        p.requiredAuth
-      ) {
-        hasGuardedFields = true;
-        break;
-      }
-    }
-    const extra = f as { hidden?: boolean; visibility?: string };
-    if (extra.hidden || extra.visibility === "hidden" || extra.visibility === "private") {
+    if (fieldDeclaresGuard(f)) {
       hasGuardedFields = true;
       break;
     }

@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-key"
 author: "SveltyCMS Team"
 created: "2026-04-11"
-updated: "2026-08-10"
+updated: "2026-09-29"
 tags:
   - "security"
   - "flac"
@@ -33,12 +33,13 @@ This page describes both, and is explicit about what is enforced in the request 
 | :------------------------------------------------------------------------------------------ | :---------------------------- | :----------------------------------------------------------------------------------------------- |
 | **Filter/search whitelist** — non-readers cannot filter (or search) restricted fields       | ✅ Enforced                   | `collection-filter-engine.ts` uses `canAccessField` per field schema                             |
 | **API read responses** — fields filtered per role policy with pre-compiled Sets             | ✅ Enforced (Zero-Allocation) | `FIELD_PERMISSIONS` setting applied in `handle-token-resolution` + `field-permission-service.ts` |
-| **UI configuration** — per-field `readRoles` / `writeRoles` / `visibility` / `requiredAuth` | ✅ Enforced                   | Collection Builder → field → Permissions tab (`modal-widget-form.svelte`)                        |
-| **Full read-stripping on fetch** (`enforceFieldAccess`, nested + i18n key removal)          | ✅ Enforced                   | `src/utils/field-access.ts` + `field-permission-service.ts`                                      |
-| **Write rejection** — 403 + `UNAUTHORIZED_ACCESS` audit on guarded-field writes             | ✅ Enforced                   | `assertWriteAllowed` in SDK mutation pipeline & API handlers                                     |
+| **UI configuration** — per-field `readRoles` / `writeRoles` / `visibility` / `requiredAuth` | ✅ Enforced                   | `fieldDeclaresGuard` + `canAccessField`. Private with an empty role list is admin-only.          |
+| **Schema read redaction** — private / role-restricted fields removed on SDK reads           | ✅ Enforced                   | `presentRead` in `collections-namespace.ts` after the cache read. The cached row stays complete. |
+| **Settings read filter** (`FIELD_PERMISSIONS`)                                              | ✅ Enforced when configured   | `handle-token-resolution`. Point-read GET/HEAD skips that hook; schema redaction still runs.     |
+| **Write rejection** — 403 + `UNAUTHORIZED_ACCESS` audit on guarded-field writes             | ✅ Enforced                   | `assertWriteAllowed` in the SDK mutation pipeline and API handlers                               |
 
 > [!NOTE]
-> **Parity status (as of August 2026):** Both the read-side response filtering and write-guard mutation pipeline are fully active in production. `field-permission-service.ts` uses pre-compiled `(collection, role)` allowed Sets and zero-allocation `Object.hasOwn` property traversal to ensure sub-millisecond response filtering on high-volume queries.
+> **Parity status (September 2026):** Schema visibility and role lists are enforced on SDK reads and on writes. `FIELD_PERMISSIONS` remains a separate settings filter. Unguarded collections skip both checks. The warm read lane declines a non-admin when any field is guarded, so it never caches a body that still contains a private field for that caller.
 
 ---
 
@@ -46,24 +47,14 @@ This page describes both, and is explicit about what is enforced in the request 
 
 ```mermaid
 graph TD
-    A[Incoming Request] --> B[Middleware: Identity & Roles]
-    B --> C[API Handler / Local SDK]
-    C --> D[modifyRequest Pipeline]
+    A[Incoming Request] --> B[Middleware: Identity and Roles]
+    B --> C[API Handler or Local SDK]
+    C --> D[Schema hot flag _hasGuardedFields]
 
-    subgraph Enforced Today
-        D --> F[FIELD_PERMISSIONS response filter<br/>handle-token-resolution]
-        D --> E[Filter/search whitelist<br/>canAccessField in collection-filter-engine]
-    end
-
-    subgraph Schema FLAC Utilities src/utils/field-access.ts
-        F --> G[canAccessField per-field check]
-        E --> G
-        G --> H[enforceFieldAccess - read stripping]
-        G --> I[enforceFieldAccess - write rejection 403 + audit]
-    end
-
-    H --> J[Sanitized JSON Response]
-    I -- "not yet wired" --> K[Roadmap: mutation pipeline]
+    D --> E[Filter whitelist via canAccessField]
+    D --> F[SDK presentRead redacts on the way out]
+    D --> G[assertWriteAllowed returns 403]
+    C --> H[FIELD_PERMISSIONS settings filter when configured]
 ```
 
 ---
@@ -113,18 +104,18 @@ The memo is invalidated on settings save; admin and absent-policy requests skip 
 
 ### 2. Read Response Filtering (enforced)
 
-API read responses are field-filtered against the `FIELD_PERMISSIONS` policy. Only readable fields reach the client; localized variants and nested paths are covered by the policy structure.
+Two independent filters:
 
-### 3. Physical Stripping + Strict Write Rejection (utility ready, wiring pending)
+- **Schema.** `presentRead` calls `redactReadEnvelope` on `find`, `findById`, `findByIds`, search, and collection streams. A private field and its `field_de` siblings are removed for anyone who is not an admin. The cache stores the full row.
+- **Settings.** `FIELD_PERMISSIONS` filters responses in `handle-token-resolution` when that setting exists. Point-read GET/HEAD skips that hook. Schema redaction still applies.
 
-`enforceFieldAccess` (when wired) will:
+### 3. Write Rejection (enforced)
 
-- **Read**: delete restricted keys from the JSON object, including all localized variants (e.g., `title_de`, `title_fr`) and nested dot-notation paths.
-- **Write**: collect all violations, throw `AppError(403, "FORBIDDEN")`, and emit an `UNAUTHORIZED_ACCESS` audit event with the blocked fields, collection, and entry — before the transaction proceeds.
+`assertWriteAllowed` runs for non-admins when `fieldDeclaresGuard` is true. It collects every denied field, writes an `UNAUTHORIZED_ACCESS` audit event, and throws 403 before the transaction.
 
 ### 4. Fail-Closed Default
 
-Both utilities fail closed: an empty `readRoles` / `writeRoles` array denies **everyone** except admin/system; hidden or `private` fields require explicit role membership; anonymous (public) callers are denied when `requiredAuth` is set.
+`permissions.visibility: "private"` with an empty role list is admin-only on read and on write. A role listed in `readRoles` or `writeRoles` is allowed for that operation. `requiredAuth` denies anonymous callers. A public field with an empty role list is not a guard: the fast path stays on, which matches the Permissions tab ("empty selection follows visibility"). `canAccessField` still denies an empty role array when a caller asks about that field directly, which is how filters behave.
 
 ---
 

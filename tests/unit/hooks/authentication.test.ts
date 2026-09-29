@@ -395,8 +395,8 @@ describe("handleAuthentication Middleware", () => {
     });
   });
 
-  describe("Session Context Anomaly (log-only)", () => {
-    it("logs a user-agent change but keeps the session valid", async () => {
+  describe("Session context risk", () => {
+    it("steps a user-agent change up and keeps the session signed in", async () => {
       const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       try {
         const base = createMockEvent("/dashboard", "drift-session");
@@ -427,8 +427,9 @@ describe("handleAuthentication Middleware", () => {
         await handleAuthentication({ event, resolve });
 
         expect(resolve).toHaveBeenCalled();
-        // Log-only: the session stays valid and the cookie is not deleted
+        // The session stays signed in. Mutations are what the step-up blocks.
         expect(event.locals.user).not.toBeNull();
+        expect(event.locals.sessionRisk).toBe("step-up");
         expect(event.cookies.delete).not.toHaveBeenCalled();
         expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Session context change"));
       } finally {
@@ -466,6 +467,7 @@ describe("handleAuthentication Middleware", () => {
           event,
           resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
         });
+        expect(event.locals.sessionRisk).toBe("allow");
         expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("Session context change"));
       } finally {
         warnSpy.mockRestore();

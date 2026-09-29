@@ -13,7 +13,11 @@
  * ### Features:
  * - GET/HEAD `/api/collections/:collection` (list) or `/:collection/:entryId`
  * - Requires a warm turbo-auth session (cold requests fall through)
- * - Admin/session only (non-admin still uses the full RBAC/FLAC pipeline)
+ * - Runs the same path/query/header threat scan as `handleSecurity` before
+ *   any cache or database read. Heap shedding and the Redis WAF limiter stay
+ *   on the full hook.
+ * - Non-admins whose schema declares a field guard fall through; the SDK
+ *   redacts that response. Admins and unguarded schemas stay on this lane.
  * - Stashes turbo L1 on first set (point-reads use a dedicated FIFO)
  * - Serve-stale lists after write; single-flight only on true miss
  * - Trims the point-read payload through the shared `trimPointReadEnvelope`
@@ -24,7 +28,9 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
-import { handleApiError } from "@utils/error-handling";
+import { AppError, handleApiError } from "@utils/error-handling";
+import { wafGuard } from "./handle-waf-guard";
+import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import {
   hasPermissionBitmask,
@@ -102,7 +108,8 @@ function getLaneCms(): LocalCMS | null {
  * field view is provably the stored one:
  *
  * 1. no `FIELD_PERMISSIONS` policy for this collection + role, and
- * 2. the compiled schema declares no `readRoles`-guarded field.
+ * 2. the compiled schema declares no guarded field (`readRoles`, `writeRoles`,
+ *    `requiredAuth`, hidden, or `permissions.visibility: "private"`).
  *
  * Both are cached lookups (policy config TTL + `WeakMap` on the field array), so
  * the check costs nothing measurable on the hot path. Anything else falls
@@ -798,10 +805,43 @@ async function rebuildWarmCollectionRead(
  * Warm-session collection point-read. Returns the full pipeline when the
  * session is cold, the caller is not admin, or the path is not a simple GET.
  */
+function laneHostIsLocal(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+}
+
+/**
+ * The scan `handleSecurity` runs before it touches a body. Collection GETs have
+ * no body. A block is returned here so a warm cache entry is never the response.
+ */
+function laneThreatResponse(event: RequestEvent): Response | null {
+  const pathLower = event.url.pathname.toLowerCase();
+  const userAgent = event.request.headers.get("user-agent") || "";
+  if (
+    isHoneypotPath(pathLower) ||
+    (isAiOrScannerBot(userAgent) && !laneHostIsLocal(event.url.hostname))
+  ) {
+    return new Response("", {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain",
+        "Content-Length": "0",
+        "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+  const wafCheck = wafGuard.inspectEvent(event);
+  if (!wafCheck.blocked) return null;
+  return handleApiError(new AppError(wafCheck.reason ?? "Security Policy Violation", 400), event);
+}
+
 export const tryCollectionReadLane: Handle = async ({ event, resolve }) => {
   if (!isSimpleCollectionRead(event) || !dbAdapter || !isLaneServingAllowed()) {
     return resolve(event);
   }
+  const threat = laneThreatResponse(event);
+  if (threat) return threat;
   const sessionId = sessionIdOf(event);
   if (!sessionId) return resolve(event);
   const turbo = getTurboAuthContext(sessionId);

@@ -11,11 +11,15 @@
  * - RP-Initiated Logout with post_logout_redirect_uri validation
  * - Configurable redirect URI allowlist per provider
  * - Back-channel logout placeholder for future OP-initiated logout
+ * - SSO metadata is kept in process memory and in the distributed cache so
+ *   another node can finish RP-initiated logout
  * - Integrates with existing session rotation and invalidation
  */
 
 import { createHash, randomBytes } from "node:crypto";
 import { logger } from "@utils/logger";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
 import type { DatabaseId } from "@src/content/types";
@@ -130,6 +134,13 @@ const ssoProviders = new Map<string, SsoProviderConfig>();
 /** Session → SSO metadata mapping (in-memory, keyed by sessionId). */
 const ssoSessionMetadata = new Map<string, SsoSessionMetadata>();
 
+/** Same lifetime as the OIDC session cookie. Shared through the cache's L2. */
+const SSO_META_TTL_S = 7 * 24 * 3600;
+
+function ssoMetaKey(sessionId: string): string {
+  return `sso:session:${sessionId}`;
+}
+
 // ─── Provider management ───────────────────────────────────────────────────
 
 export function registerSsoProvider(config: SsoProviderConfig): void {
@@ -220,16 +231,56 @@ export function clearSsoProviders(): void {
 
 // ─── Session metadata ──────────────────────────────────────────────────────
 
-export function setSsoSessionMetadata(sessionId: string, metadata: SsoSessionMetadata): void {
+export async function setSsoSessionMetadata(
+  sessionId: string,
+  metadata: SsoSessionMetadata,
+  tenantId?: string | null,
+): Promise<void> {
   ssoSessionMetadata.set(sessionId, metadata);
+  await cacheService
+    .set(
+      ssoMetaKey(sessionId),
+      metadata,
+      SSO_META_TTL_S,
+      tenantId ?? "global",
+      CacheCategory.SESSION,
+    )
+    .catch((err: unknown) => {
+      logger.warn(
+        `[SSO] Failed to persist session metadata: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
 }
 
-export function getSsoSessionMetadata(sessionId: string): SsoSessionMetadata | undefined {
-  return ssoSessionMetadata.get(sessionId);
+export async function getSsoSessionMetadata(
+  sessionId: string,
+  tenantId?: string | null,
+): Promise<SsoSessionMetadata | undefined> {
+  const local = ssoSessionMetadata.get(sessionId);
+  if (local) return local;
+  try {
+    const stored = await cacheService.get<SsoSessionMetadata>(
+      ssoMetaKey(sessionId),
+      tenantId ?? "global",
+      CacheCategory.SESSION,
+    );
+    if (stored?.provider) {
+      ssoSessionMetadata.set(sessionId, stored);
+      return stored;
+    }
+  } catch (err) {
+    logger.debug("[SSO] Distributed session metadata unavailable", err);
+  }
+  return undefined;
 }
 
-export function deleteSsoSessionMetadata(sessionId: string): void {
+export function deleteSsoSessionMetadata(sessionId: string, tenantId?: string | null): void {
   ssoSessionMetadata.delete(sessionId);
+  void cacheService.delete(ssoMetaKey(sessionId), tenantId ?? "global").catch((err: unknown) => {
+    logger.debug(
+      `[SSO] Failed to delete distributed session metadata: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  });
 }
 
 // ─── Redirect URI validation ───────────────────────────────────────────────
@@ -301,7 +352,7 @@ export async function performRpInitiatedLogout(
   const { sessionId, idTokenHint, postLogoutRedirectUri, state, tenantId: _tenantId } = params;
 
   // 1. Retrieve SSO metadata
-  const metadata = getSsoSessionMetadata(sessionId);
+  const metadata = await getSsoSessionMetadata(sessionId, _tenantId);
   if (!metadata) {
     // Not an SSO session — fall through to normal logout
     return {
