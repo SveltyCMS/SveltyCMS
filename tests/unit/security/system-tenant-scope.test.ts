@@ -71,14 +71,24 @@ describe("SystemTenantScope brand", () => {
     const first = await import("@src/databases/system-tenant-scope");
     const scope = first.createSystemTenantScope("scheduler");
 
+    // The registry is parked on globalThis precisely so every copy of this
+    // module shares it — that is the cross-copy property under test. Asserting
+    // it directly keeps this pin meaningful under both runners: vitest (unit
+    // suite) can re-evaluate the module, the tenant gate's `bun test` cannot.
+    const registry = (globalThis as { __SVELTY_SYSTEM_SCOPE_REGISTRY__?: WeakSet<object> })
+      .__SVELTY_SYSTEM_SCOPE_REGISTRY__;
+    expect(registry).toBeInstanceOf(WeakSet);
+    expect(registry?.has(scope)).toBe(true);
+
+    const vitest = vi as unknown as { resetModules?: () => void };
+    if (typeof vitest.resetModules !== "function") return;
+    vitest.resetModules();
+
     // Simulate a second copy of this module: Vite's dev SSR runner can load it
     // alongside the statically imported one, and production chunking can
-    // duplicate it. The registry is parked on globalThis, so copy B must still
-    // recognise a scope minted by copy A — a module-local Symbol brand failed
-    // here and silently rejected legitimate system work.
-    vi.resetModules();
+    // duplicate it. Copy B must recognise a scope minted by copy A — a
+    // module-local Symbol brand failed here and silently rejected system work.
     const second = await import("@src/databases/system-tenant-scope");
-
     expect(second.isSystemTenantScope(scope)).toBe(true);
     expect(second.hasTenantBypass({ systemScope: scope })).toBe(true);
     // Forged objects still never pass, in either copy.
