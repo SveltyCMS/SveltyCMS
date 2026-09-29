@@ -217,7 +217,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					></div>
 					{#if useRotationSlider}
 						<div
-							class="absolute top-[42%] start-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
+							class="absolute top-[42%] inset-s-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
 							aria-hidden="true"
 						>
 							<div class="w-[1.5px] h-3.5 bg-[rgba(255,255,255,0.72)] rounded-[1px]"></div>
@@ -304,7 +304,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						aria-hidden="true"
 					></div>
 					<div
-						class="absolute top-[42%] start-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
+						class="absolute top-[42%] inset-s-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
 						aria-hidden="true"
 					>
 						<div class="w-[1.5px] h-3.5 bg-[rgba(255,255,255,0.72)] rounded-[1px]"></div>
