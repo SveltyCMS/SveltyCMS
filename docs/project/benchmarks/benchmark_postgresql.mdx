@@ -42,18 +42,19 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(27/09/2026, 22:41:35)
+> [!NOTE]
+> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** · 34/45 tests · 11 skipped · **POSTGRESQL** · Bun 1.4.2
+**✅ PASS** _(partial invocation)_ · 1/45 tests · 44 skipped · **postgresql** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    13 | 🟢     | +468%   | 0      |
-| **API**        |     9 | 🟢     | —       | 0      |
-| **Scale**      |    18 | 🟢     | —       | 0      |
-| **Resilience** |     5 | 🟢     | —       | 0      |
+| **Core**       |     5 | 🟢     | —       | 0      |
+| **API**        |     0 | ⚪     | —       | 0      |
+| **Scale**      |     0 | ⚪     | —       | 0      |
+| **Resilience** |     0 | ⚪     | —       | 0      |
 
 ### Issues (action required)
 
@@ -61,114 +62,67 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario               | Latency | Trend  | Budget   | Result |
-| ---------------------- | ------- | ------ | -------- | ------ |
-| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
-| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
-| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
-| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
+| Scenario       | Latency | Trend                             | Budget | Result |
+| -------------- | ------- | --------------------------------- | ------ | ------ |
+| **Middleware** | 0.853ms | ⚪ established at 0.853ms (1 run) | < 5ms  | 🟢     |
+| **Middleware** | 0.747ms | ⚪ established at 0.747ms (1 run) | < 5ms  | 🟢     |
+| **Middleware** | 0.354ms | ⚪ established at 0.354ms (1 run) | < 5ms  | 🟢     |
+| **Middleware** | 0.364ms | ⚪ established at 0.364ms (1 run) | < 5ms  | 🟢     |
+| **Middleware** | 3.063ms | ⚪ established at 3.06ms (1 run)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric | Trend | Sparkline | Latest |
-| ------ | ----- | --------- | ------ |
+| Metric                                          | Trend | Sparkline | Latest  |
+| ----------------------------------------------- | ----- | --------- | ------- |
+| api latency (HTTP: findById @ 8c (Cold)) (warm) | 🟢    | `▁`       | 2.717ms |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `▁`       | 5.493ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
 
 ```mermaid
 xychart-beta
-  title "POSTGRESQL REST p95 (last 10 runs)"
+  title "postgresql REST p95 (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
 ```
 
 </details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    API LAYER LATENCY: [0.95, 0.95]
-    COMPETITIVE 9-WORKLOAD REPLI: [0.35, 0.16]
-```
-
-</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
 <!-- EXECUTIVE_ALERTS_START -->
+<!-- EXECUTIVE_ALERTS_END -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
-### 🔴 Top Regressions
-
-> ✅ None — no latency metric is more than 10 % above its baseline.
-
-### 🟢 Top Improvements
-
-> **competitive-workload-replica [create (Warm Sequential)]** (postgresql): -67% | 1.84ms vs 5.51ms baseline
-> **competitive-workload-replica [update (Warm Sequential)]** (postgresql): -59% | 2.12ms vs 5.17ms baseline
-> **competitive-workload-replica [listPlain (Warm Concurrent 8c)]** (postgresql): -47% | 0.61ms vs 1.15ms baseline
-> **competitive-workload-replica [create (Warm Concurrent 8c)]** (postgresql): -44% | 4.28ms vs 7.65ms baseline
-> **competitive-workload-replica [listPlain (Warm Sequential)]** (postgresql): -44% | 0.20ms vs 0.36ms baseline
-
-<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
+<!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-09-26)
+### Current Run Summary (2026-09-30)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a0dff4-e353-75f4-9c62-b30cf727fdad` · **Tests invoked:** 1 · **Metrics:** 21 · **DB:** postgresql
+**Run ID:** `01a0f2ea-fe98-7377-9fe7-89db15cdfec7` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** postgresql
 
-| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                   |
-| ---------------------------- | ----------------------------------- | -------- | -------- | ----- | ----- | ---------------------------------------- |
-| Competitive Workload Replica | findById (Warm Sequential)          | 0.224    | 0.339    | 4438  | 🟢    | ⚪ stable at 0.330ms (±0.246ms) (4 runs) |
-| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 0.780    | 1.024    | 10160 | 🟢    | ⚪ stable at 0.804ms (±0.325ms) (4 runs) |
-| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.405    | 1.284    | 2457  | 🟢    | ⚪ stable at 0.662ms (±0.595ms) (4 runs) |
-| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 1.021    | 2.008    | 7780  | 🟢    | ⚪ stable at 1.45ms (±0.698ms) (4 runs)  |
-| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.481    | 0.994    | 2073  | 🟢    | ⚪ stable at 0.439ms (±0.347ms) (4 runs) |
-| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 1.786    | 2.706    | 4027  | 🟢    | ⚪ stable at 1.55ms (±2.26ms) (4 runs)   |
-| Competitive Workload Replica | listLarge (Warm Sequential)         | 0.654    | 0.999    | 1526  | 🟢    | ⚪ stable at 1.49ms (±1.32ms) (4 runs)   |
-| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 3.494    | 6.519    | 2260  | 🟢    | ⚪ stable at 3.93ms (±3.44ms) (4 runs)   |
-| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.274    | 0.405    | 3627  | 🟢    | ⚪ stable at 0.392ms (±0.428ms) (4 runs) |
-| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 1.715    | 2.966    | 4586  | 🟢    | ⚪ stable at 1.36ms (±0.356ms) (4 runs)  |
-| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.181    | 0.284    | 5506  | 🟢    | ⚪ stable at 0.366ms (±0.339ms) (4 runs) |
-| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 0.763    | 1.037    | 10285 | 🟢    | ⚪ stable at 0.901ms (±0.247ms) (4 runs) |
-| Competitive Workload Replica | create (Warm Sequential)            | 2.878    | 3.407    | 347   | 🟢    | ⚪ stable at 6.32ms (±5.75ms) (4 runs)   |
-| Competitive Workload Replica | create (Warm Concurrent 8c)         | 5.783    | 7.841    | 1364  | 🟢    | ⚪ stable at 9.01ms (±7.84ms) (4 runs)   |
-| Competitive Workload Replica | update (Warm Sequential)            | 3.168    | 4.238    | 315   | 🟢    | ⚪ stable at 5.35ms (±5.63ms) (4 runs)   |
-| Competitive Workload Replica | update (Warm Concurrent 8c)         | 5.526    | 8.258    | 1430  | 🟢    | ⚪ stable at 8.73ms (±7.46ms) (4 runs)   |
-| Competitive Workload Replica | graphql (Warm Sequential)           | 1.403    | 1.686    | 712   | 🟢    | ⚪ stable at 2.28ms (±2.79ms) (4 runs)   |
-| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 3.380    | 4.043    | 2343  | 🟢    | ⚪ stable at 4.81ms (±3.65ms) (4 runs)   |
-| Competitive Workload Replica | mixed (Warm Sequential)             | 1.406    | 3.110    | 710   | 🟢    | ⚪ stable at 2.17ms (±2.57ms) (4 runs)   |
-| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 3.588    | 7.239    | 2147  | 🟢    | ⚪ stable at 4.69ms (±2.00ms) (4 runs)   |
-| Competitive Workload Replica | Seed Burst (100 docs, HTTP)         | 0.402    | 0.402    | 2487  | 🟢    | ⚪ established at 0.402ms (1 run)        |
+| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                            |
+| ----------------- | ----------------------------- | -------- | -------- | ----- | ----- | --------------------------------- |
+| Hooks Performance | Static Asset (No Middleware)  | 0.853    | 1.477    | 4361  | 🟢    | ⚪ established at 0.853ms (1 run) |
+| Hooks Performance | Turbo Pipeline (Light)        | 0.747    | 1.128    | 4954  | 🟢    | ⚪ established at 0.747ms (1 run) |
+| Hooks Performance | Full Security + Auth Pipeline | 0.354    | 0.583    | 10328 | 🟢    | ⚪ established at 0.354ms (1 run) |
+| Hooks Performance | REST with API Caching         | 0.364    | 0.441    | 10688 | 🟢    | ⚪ established at 0.364ms (1 run) |
+| Hooks Performance | Mutation + Audit Logging      | 3.063    | 4.293    | 326   | 🟢    | ⚪ established at 3.06ms (1 run)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-09-27)
+### Historical Trends (2026-09-30)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -348,20 +302,20 @@ Throughput dropped 90% — check connection pool saturation or lock contention.
 
 <!-- SECTION:HOOKS_TRACE:START -->
 <details id="section-hooks_trace">
-<summary><strong>🏷️ Middleware & Hooks Performance</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 1.960ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                                  ║
 ║                           File: tests/benchmarks/hooks-performance.test.ts                            ║
-║                                       Ran: 2026-09-18 18:23:38                                        ║
+║                                       Ran: 2026-09-30 15:24:48                                        ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware) │ Cold:     2.25 ms │ Warm:     0.881 ms │ p95:     2.175 ms │   3,920 RPS ║
-║ Turbo Pipeline (Light)       │ Cold:     1.36 ms │ Warm:     0.612 ms │ p95:     1.799 ms │   5,502 RPS ║
-║ Full Security + Auth Pipeline │ Cold:     7.03 ms │ Warm:     0.900 ms │ p95:     1.929 ms │   4,063 RPS ║
-║ REST with API Caching        │ Cold:     5.29 ms │ Warm:     0.916 ms │ p95:     1.905 ms │   3,988 RPS ║
-║ Mutation (audit logging disabled) │ Cold:     7.72 ms │ Warm:     2.605 ms │ p95:     4.010 ms │     363 RPS ║
+║ Static Asset (No Middleware) │ Cold:     1.96 ms │ Warm:     0.853 ms │ p95:     1.477 ms │   4,361 RPS ║
+║ Turbo Pipeline (Light)       │ Cold:     1.01 ms │ Warm:     0.747 ms │ p95:     1.128 ms │   4,954 RPS ║
+║ Full Security + Auth Pipeline │ Cold:     5.20 ms │ Warm:     0.354 ms │ p95:     0.583 ms │  10,328 RPS ║
+║ REST with API Caching        │ Cold:     3.93 ms │ Warm:     0.364 ms │ p95:     0.441 ms │  10,688 RPS ║
+║ Mutation + Audit Logging     │ Cold:     8.64 ms │ Warm:     3.063 ms │ p95:     4.293 ms │     326 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -508,16 +462,9 @@ Throughput dropped 90% — check connection pool saturation or lock contention.
 
 <!-- SECTION:MIDDLEWARE:START -->
 <details id="section-middleware">
-<summary><strong>🏷️ Middleware</strong> · 🟢 2.605ms · ↘️ ⚪ stable at 3.43ms (±1.49ms) (7 runs) (2026-09-18 18:23:38) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ Middleware</strong> · 🟢 3.063ms · ➡️ ⚪ established at 3.06ms (1 run) (2026-09-30 15:24:48) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 > ⏳ Pending
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -658,34 +605,23 @@ Throughput dropped 90% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 2.121ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ competitive workload replica</strong> · 🟢 2.398ms · ↘️ ⚪ stable at 2.94ms (±0.499ms) (7 runs) (2026-09-30 14:25:54) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
-Throughput dropped 88% — check connection pool saturation or lock contention.  
-**Severe degradation** (+74%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
 
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                       COMPETITIVE 9-WORKLOAD REPLICA (POSTGRESQL)                       ║
-║               File: tests/benchmarks/competitive-workload-replica.test.ts               ║
-║                                Ran: 2026-08-26 17:17:14                                 ║
-║Measures the exact 9 workloads tested in the external benchmark harness against the local server.║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ findById (Concurrent 8c)       │        2.485 ms │ p95:        3.238 ms │ RPS:      3,049 ║
-║ findByIdRandom (Concurrent 8c) │        8.552 ms │ p95:       24.943 ms │ RPS:        913 ║
-║ listPlain (Concurrent 8c)      │        2.607 ms │ p95:        5.279 ms │ RPS:      2,943 ║
-║ listFilterSort (Concurrent 8c) │        2.932 ms │ p95:        3.816 ms │ RPS:      2,573 ║
-║ listLarge (Concurrent 8c)      │        2.517 ms │ p95:        3.550 ms │ RPS:      3,041 ║
-║ findMissing (Concurrent 8c)    │        2.532 ms │ p95:        6.246 ms │ RPS:      3,041 ║
-║ GraphQL Collection Query (Concurrent 8c) │        5.014 ms │ p95:        7.447 ms │ RPS:      1,561 ║
-║ create (Concurrent 8c)         │        8.319 ms │ p95:       11.209 ms │ RPS:        921 ║
-║ update (Concurrent 8c)         │        9.056 ms │ p95:       13.321 ms │ RPS:        859 ║
-║ mixed (Concurrent 8c 50/50)    │        7.491 ms │ p95:       10.122 ms │ RPS:      1,007 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                SVELTYCMS — SEED BURST (DATASET SETUP)                                 ║
+║                      File: tests/benchmarks/competitive-workload-replica.test.ts                      ║
+║                                       Ran: 2026-09-30 14:25:54                                        ║
+║              Seq + concurrent (8 workers), harness iteration counts, median of N rounds.              ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Seed Burst (100000 docs, HTTP) │        0.031 ms │ p95:        0.031 ms │ RPS:     32,736 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- LEDGER_TRUTH_END -->
@@ -717,9 +653,16 @@ Throughput dropped 88% — check connection pool saturation or lock contention.
 
 <!-- SECTION:INGESTION:START -->
 <details id="section-ingestion">
-<summary><strong>🏷️ Ingestion</strong> · 🟢 0.402ms · ➡️ ⚪ established at 0.402ms (1 run) (2026-09-26 23:02:58) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ Ingestion</strong> · 🟢 0.031ms · ↘️ ⚪ stable at 0.035ms (±0.006ms) (7 runs) (2026-09-30 14:25:54) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 > ⏳ Pending
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>

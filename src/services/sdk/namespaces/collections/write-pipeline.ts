@@ -165,6 +165,7 @@ export function prepareWritePayload(
     const mHooks = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:hooks+guard") : null;
     return applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
       createError: fieldValidationError,
+      ...(hot._hasHookFields ? { fields: schema.fields } : {}),
     }).then(async (prepared) => {
       if (needsWriteGuard) {
         await assertWriteAllowed(schema.fields as FieldInstance[], prepared, user, {

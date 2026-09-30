@@ -24,6 +24,7 @@
 
 import { modifyStream, type EntryData } from "@utils/modify-request";
 import { prepareCollectionFields } from "@src/content/content-utils";
+import { runAfterOperation } from "@src/content/schema-hooks";
 import {
   applyPublicationToQuery,
   isPublishedStatus,
@@ -35,10 +36,11 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { isAdmin } from "@src/databases/auth/constants";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
-import type { FieldInstance, Schema } from "@src/content/types";
+import type { CollectionAction, FieldInstance, Schema } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { copyDataWithFreshRowIds } from "@utils/data-utils";
 import { resolvePopulatedRelations } from "./populate-resolver";
@@ -132,6 +134,76 @@ function readerMaySeeGuardedFields(
  * row; this runs on the way out. Unguarded schemas and admins return the
  * decrypt result unchanged.
  */
+/**
+ * Row-ownership scope for a schema (`ownership: { field }`).
+ *
+ * Returns `false` when no restriction applies (no ownership declared, or an
+ * admin/system caller), `null` when the caller cannot see any row (ownership is
+ * declared but the caller has no user id — fail closed), and the extra WHERE
+ * fragment otherwise. Merged into the list query before the cache key, so pages
+ * and counts reflect exactly the rows the caller may read.
+ */
+export function ownershipFilter(
+  schema: Schema,
+  user: unknown,
+  system?: boolean,
+): Record<string, unknown> | null | false {
+  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
+  const field = ownership && typeof ownership === "object" ? ownership.field : undefined;
+  if (typeof field !== "string" || !field) return false;
+  if (system || isAdmin(user)) return false;
+  const ownerId = (user as { _id?: unknown } | undefined | null)?._id;
+  if (ownerId === undefined || ownerId === null || ownerId === "") return null;
+  return { [field]: ownerId };
+}
+
+function ownerValue(row: unknown, field: string): unknown {
+  if (!row || typeof row !== "object") return undefined;
+  const value = (row as Record<string, unknown>)[field];
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return (value as { _id?: unknown })._id;
+  }
+  return value;
+}
+
+/**
+ * Drop rows the caller does not own from a read envelope.
+ *
+ * Envelopes already served by an ownership-scoped query pass through untouched
+ * (the fast paths return the same reference); a foreign row is removed on a
+ * **copied** envelope, so a shared point-read cache entry is never mutated or
+ * poisoned.
+ */
+export function stripUnownedRows(envelope: unknown, field: string, user: unknown): unknown {
+  if (!envelope || typeof envelope !== "object") return envelope;
+  const record = envelope as { data?: unknown };
+  const ownerId = (user as { _id?: unknown } | undefined | null)?._id;
+  const owns = (row: unknown): boolean => {
+    if (ownerId === undefined || ownerId === null || ownerId === "") return false;
+    const value = ownerValue(row, field);
+    return value !== undefined && value !== null && String(value) === String(ownerId);
+  };
+
+  const data = record.data;
+  if (Array.isArray(data)) {
+    let firstForeign = -1;
+    for (let i = 0; i < data.length; i++) {
+      if (!owns(data[i])) {
+        firstForeign = i;
+        break;
+      }
+    }
+    if (firstForeign === -1) return envelope;
+    const kept: unknown[] = data.slice(0, firstForeign);
+    for (let i = firstForeign + 1; i < data.length; i++) {
+      if (owns(data[i])) kept.push(data[i]);
+    }
+    return { ...record, data: kept };
+  }
+  if (data === null || data === undefined || owns(data)) return envelope;
+  return { ...record, data: null };
+}
+
 async function presentRead(
   result: unknown,
   schema: Schema,
@@ -141,8 +213,17 @@ async function presentRead(
   system?: boolean,
 ): Promise<any> {
   const decoded = await decryptReadResult(result, hot, encCtx, { clone: true });
-  if (!hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)) return decoded;
-  return redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
+  const permitted =
+    !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
+      ? decoded
+      : redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
+  // Row ownership: a non-owner never sees the row. The scoped list/count/stream
+  // queries already exclude foreign rows; this guards point reads (and every lane
+  // that reads through a shared cache) by dropping, never mutating, the envelope.
+  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
+  const ownerField = ownership && typeof ownership === "object" ? ownership.field : undefined;
+  if (typeof ownerField !== "string" || !ownerField || system || isAdmin(user)) return permitted;
+  return stripUnownedRows(permitted, ownerField, user);
 }
 
 function fieldEncryptionContext(
@@ -229,6 +310,34 @@ async function getContentSystem(): Promise<ContentSystem> {
 /**
  * Collections Namespace
  */
+/**
+ * Fire-and-forget post-commit `afterOperation` hooks — never awaited, failures
+ * are logged at debug and do not undo the write (mirrors `schedulePostWrite`).
+ */
+function scheduleAfterOperation(
+  schema: Schema,
+  hot: SchemaHotFlags,
+  data: unknown,
+  operation: "create" | "update",
+  user: unknown,
+  tenantId: DatabaseId | null | undefined,
+): void {
+  if (!hot._hasAfterOperationHooks) return;
+  const document = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  void runAfterOperation(schema.hooks, schema.fields, document, {
+    schema,
+    operation,
+    tenantId: tenantId ?? undefined,
+    userId: (user as { _id?: string } | undefined | null)?._id,
+  }).catch((err) => {
+    logger.debug(
+      `[collections] afterOperation hook failed (${operation}): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  });
+}
+
 export class CollectionsNamespace {
   private _proxy: CollectionProxy;
 
@@ -609,6 +718,10 @@ export class CollectionsNamespace {
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.schemaOf(collectionId, tenantId);
     const normalizedFilter = normalizeRelationshipFilter(filter);
+    const ownership = ownershipFilter(schema, options.user, options.system);
+    // Ownership declared but the caller has no user id: fail closed, never fall
+    // back to an unscoped list.
+    if (ownership === null) return { success: true, data: [] };
     const decodedCursor = decodePageCursor(options.cursor);
     // A supplied cursor that fails to decode must fail the request, not
     // silently fall back to an offset page (which would return duplicates).
@@ -625,9 +738,11 @@ export class CollectionsNamespace {
     const baseQuery: any = decodedCursor
       ? mergeKeysetFilter(normalizedFilter as Record<string, unknown>, decodedCursor)
       : normalizedFilter;
+    // Ownership wins over a caller-supplied field of the same name.
+    const scopedQuery = ownership ? { ...baseQuery, ...ownership } : baseQuery;
 
     const { query, effectiveFilter: effectivePublicationFilter } = buildTenantQuery(
-      baseQuery,
+      scopedQuery,
       tenantId,
       { user: options.user, system: options.system },
       options.publicationFilter,
@@ -881,8 +996,14 @@ export class CollectionsNamespace {
     const normalizedStreamFilter = normalizeRelationshipFilter(options.filter ?? {});
     assertEncryptedFieldsNotQueried(normalizedStreamFilter, hot, options.sortField);
 
+    const ownership = ownershipFilter(schema, user, options.system);
+    if (ownership === null) return (async function* emptyStream() {})();
+    const scopedStreamFilter = ownership
+      ? { ...normalizedStreamFilter, ...ownership }
+      : normalizedStreamFilter;
+
     const { query } = buildTenantQuery(
-      normalizedStreamFilter,
+      scopedStreamFilter,
       tenantId,
       { user: options.user, system: options.system },
       options.publicationFilter,
@@ -944,8 +1065,12 @@ export class CollectionsNamespace {
     const normalizedFilter = normalizeRelationshipFilter(filter);
     assertEncryptedFieldsNotQueried(normalizedFilter, ensureSchemaHotFlags(schema));
 
+    const ownership = ownershipFilter(schema, options.user, options.system);
+    if (ownership === null) return { success: true, data: 0 };
+    const scopedFilter = ownership ? { ...normalizedFilter, ...ownership } : normalizedFilter;
+
     const { query } = buildTenantQuery(
-      normalizedFilter,
+      scopedFilter,
       tenantId,
       { user: options.user, system: options.system },
       options.publicationFilter,
@@ -1455,10 +1580,30 @@ export class CollectionsNamespace {
     }
     markWritePhase(options, "schema", tSchema);
 
+    // 🔒 SINGLETON: one document per collection, addressed by a deterministic id.
+    // The existence probe is advisory — the `_id` primary key makes a concurrent
+    // double create fail on the insert instead of persisting two rows.
+    let createData = data;
+    if ((schema as { singleton?: boolean }).singleton === true) {
+      const singletonId = `singleton:${schema._id ?? collectionId}`;
+      const existing = await this._dbAdapter.crud.findOne(
+        this.getCollectionName(schema._id as string),
+        { _id: singletonId } as any,
+        { tenantId: tenantId as DatabaseId },
+      );
+      if (existing?.success && existing.data) {
+        throw new AppError(`Singleton '${collectionId}' already exists`, 409, "SINGLETON_EXISTS");
+      }
+      createData =
+        data && typeof data === "object" && !Array.isArray(data)
+          ? { ...(data as Record<string, unknown>), _id: singletonId }
+          : { _id: singletonId };
+    }
+
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
     const tPrep = writePhaseT0(options);
     const m1 = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
-    let entryData = prepareWritePayload(data, schema, hot, {
+    let entryData = prepareWritePayload(createData, schema, hot, {
       user,
       system,
       operation: "create",
@@ -1595,6 +1740,14 @@ export class CollectionsNamespace {
         decryptedCreate?.data ?? result.data,
         effectiveUser,
         options,
+      );
+      scheduleAfterOperation(
+        schema,
+        hot,
+        decryptedCreate?.data ?? result.data,
+        "create",
+        effectiveUser,
+        tenantId,
       );
       if (!shouldSkipWriteSideEffects(options)) {
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
@@ -1823,6 +1976,14 @@ export class CollectionsNamespace {
         effectiveUser,
         options,
       );
+      scheduleAfterOperation(
+        schema,
+        hot,
+        decryptedUpdate?.data ?? result.data,
+        "update",
+        effectiveUser,
+        tenantId,
+      );
       if (!shouldSkipWriteSideEffects(options)) {
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
@@ -1864,6 +2025,102 @@ export class CollectionsNamespace {
         `[Revisions] Failed to record revision for ${entryId}: ${(err as Error)?.message ?? err}`,
       );
     }
+  }
+
+  /**
+   * Run a declared schema action (`schema.actions[name]`) on one entry.
+   *
+   * The action's own `permission` is the authorization check (admins bypass via
+   * `isAdmin`) — the dispatcher deliberately does not also require
+   * `collections:write`. `patch` and the object returned by `run` merge into one
+   * update; `increment` goes through the adapter's atomic increment. An action
+   * without a `permission` is admin-only (fail closed).
+   */
+  async runAction(
+    collectionId: string,
+    action: string,
+    entryId: string,
+    input: unknown,
+    options: { user?: any; tenantId?: DatabaseId | null; roles?: unknown } = {},
+  ): Promise<{ success: boolean; data?: unknown }> {
+    const { user, tenantId, roles } = options;
+    if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    if (typeof action !== "string" || !action) {
+      throw new AppError("Action name is required", 400, "ACTION_REQUIRED");
+    }
+    if (typeof entryId !== "string" || !entryId) {
+      throw new AppError("Action entry id is required", 400, "ACTION_ENTRY_REQUIRED");
+    }
+
+    const schema = await this.schemaOf(collectionId, tenantId);
+    const actions = (schema as { actions?: Record<string, CollectionAction> }).actions;
+    const definition: CollectionAction | undefined =
+      actions && typeof actions === "object" ? actions[action] : undefined;
+    if (!definition || typeof definition !== "object") {
+      throw new AppError(
+        `Action '${action}' is not defined on '${collectionId}'`,
+        404,
+        "ACTION_NOT_FOUND",
+      );
+    }
+
+    if (!isAdmin(user)) {
+      const allowed = Boolean(
+        definition.permission &&
+        hasPermissionWithRoles(
+          user,
+          definition.permission,
+          Array.isArray(roles) ? (roles as Parameters<typeof hasPermissionWithRoles>[2]) : [],
+        ),
+      );
+      if (!allowed) {
+        throw new AppError(
+          `Forbidden: missing permission for action '${action}'`,
+          403,
+          "ACTION_FORBIDDEN",
+        );
+      }
+    }
+
+    let patch: Record<string, unknown> =
+      definition.patch && typeof definition.patch === "object" && !Array.isArray(definition.patch)
+        ? { ...definition.patch }
+        : {};
+
+    if (typeof definition.run === "function") {
+      const produced = await definition.run({
+        collectionId,
+        entryId,
+        input,
+        user,
+        tenantId: tenantId ?? null,
+        schema,
+      });
+      if (produced && typeof produced === "object" && !Array.isArray(produced)) {
+        patch = { ...patch, ...(produced as Record<string, unknown>) };
+      }
+    }
+
+    const result: { success: boolean; data?: unknown } =
+      Object.keys(patch).length > 0
+        ? await this.update(collectionId, entryId, patch, { user, tenantId })
+        : await this.findById(collectionId, entryId, { tenantId });
+
+    if (definition.increment && typeof definition.increment === "object") {
+      const field = definition.increment.field;
+      if (typeof field === "string" && field) {
+        const incrementResult = await this._dbAdapter.crud.atomicIncrement?.(
+          this.getCollectionName(schema._id as string),
+          entryId as DatabaseId,
+          field,
+          typeof definition.increment.amount === "number" ? definition.increment.amount : 1,
+          { tenantId: tenantId as DatabaseId },
+        );
+        if (incrementResult) return incrementResult;
+      }
+    }
+
+    return result;
   }
 
   async delete(collectionId: string, entryId: string, options: LocalApiOptions = {}) {

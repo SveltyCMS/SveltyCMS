@@ -22,6 +22,13 @@
 
 // Collection Manager
 import { contentSystem } from "@src/content/index.server";
+import {
+  SchemaModelError,
+  cacheControlFor,
+  documentMatches,
+  mergeCacheControl,
+  parseOrderBy,
+} from "@src/content/schema-model";
 import type { FieldInstance, Schema } from "@src/content/types";
 // Types
 import type { User } from "@src/databases/auth/types";
@@ -371,11 +378,11 @@ export async function registerCollections(tenantId?: string | null) {
         name: typeof otherCollection.name === "string" ? otherCollection.name : "",
       }).split("_")[0];
 
-      collectionSchema += `\t\t${inverseFieldName}: [${createCleanTypeName(otherCollection)}]\n`;
+      collectionSchema += `\t\t${inverseFieldName}(where: JSON): [${createCleanTypeName(otherCollection)}]\n`;
 
       resolvers[cleanTypeName][inverseFieldName] = async (
         parent: any,
-        _args: any,
+        args: { where?: unknown },
         context: any,
       ) => {
         const { loaders } = context;
@@ -385,7 +392,17 @@ export async function registerCollections(tenantId?: string | null) {
         const fieldName = getFieldName(otherField);
         const loader = loaders.createInverseLoader(collectionName, fieldName);
 
-        return loader.load(parent._id);
+        const loaded = await loader.load(parent._id);
+        if (!args?.where) return loaded;
+        try {
+          const rows = Array.isArray(loaded) ? loaded : [];
+          return rows.filter((doc) =>
+            documentMatches(doc as Record<string, unknown>, args.where, otherCollection.fields),
+          );
+        } catch (err) {
+          if (err instanceof SchemaModelError) throw new Error(err.message);
+          throw err;
+        }
       };
     }
 
@@ -408,7 +425,7 @@ export async function registerCollections(tenantId?: string | null) {
 
     collectionSchemas.push(`${collectionSchema}\n`);
     queryFields.push(
-      `${cleanTypeName}(pagination: PaginationInput, limit: Int, page: Int): [${cleanTypeName}]`,
+      `${cleanTypeName}(pagination: PaginationInput, limit: Int, page: Int, where: JSON, orderBy: String, take: Int): [${cleanTypeName}]`,
     );
   }
 
@@ -487,7 +504,14 @@ export async function collectionsResolvers(
     const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
     resolvers.Query[cleanTypeName] = async function resolver(
       _parent: unknown,
-      args: { pagination?: { page?: number; limit?: number }; page?: number; limit?: number },
+      args: {
+        pagination?: { page?: number; limit?: number };
+        page?: number;
+        limit?: number;
+        where?: unknown;
+        orderBy?: string;
+        take?: number;
+      },
       context: unknown,
       info?: any,
     ): Promise<DocumentBase[]> {
@@ -498,6 +522,7 @@ export async function collectionsResolvers(
         bypassTenantIsolation?: boolean;
         publicationFilter?: PublicationFilter;
         cms?: any;
+        cacheSlot?: { value: string | null };
       };
       if (!ctx.user) {
         throw new Error("Authentication required");
@@ -525,9 +550,19 @@ export async function collectionsResolvers(
 
       // Same MAX_PAGE_SIZE ceiling as REST — offset is derived from the clamped
       // limit so an over-cap request still returns its first clamped page.
-      const limit = clampPageSize(args.pagination?.limit ?? args.limit, 50);
+      const limit = clampPageSize(args.take ?? args.pagination?.limit ?? args.limit, 50);
       const page = args.pagination?.page ?? args.page ?? 1;
       const fields = extractGraphQLFields(info);
+      let sort: [string, "asc" | "desc"][] | undefined;
+      if (args.orderBy) {
+        try {
+          const ordered = parseOrderBy(args.orderBy, collection.fields, { user: ctx.user });
+          sort = [[ordered.field, ordered.direction]];
+        } catch (err) {
+          if (err instanceof SchemaModelError) throw new Error(err.message);
+          throw err;
+        }
+      }
 
       try {
         let cms = ctx.cms;
@@ -542,7 +577,15 @@ export async function collectionsResolvers(
           publicationFilter: ctx.publicationFilter || "all",
           user: ctx.user,
           fields,
+          filter: args.where,
+          sort,
         });
+        if (result?.success) {
+          const header = cacheControlFor(collection.fields, fields);
+          if (header && ctx.cacheSlot) {
+            ctx.cacheSlot.value = mergeCacheControl(ctx.cacheSlot.value ?? null, header);
+          }
+        }
         const resultArray = (result.success && Array.isArray(result.data)
           ? result.data
           : []) as unknown as DocumentBase[];
@@ -593,6 +636,65 @@ export async function collectionsResolvers(
       }
     };
   }
+
+  if (!resolvers.Mutation) resolvers.Mutation = {};
+  resolvers.Mutation.runCollectionAction = async (
+    _parent: unknown,
+    args: unknown,
+    context: unknown,
+  ) => {
+    const ctx = context as {
+      user?: User;
+      tenantId?: string | null;
+      roles?: unknown;
+      cms?: {
+        collections: {
+          runAction: (
+            collectionId: string,
+            action: string,
+            entryId: string,
+            input: unknown,
+            options: { user?: User; tenantId?: string | null; roles?: unknown },
+          ) => Promise<{ data?: unknown } | null | undefined>;
+        };
+      };
+    };
+    if (!ctx.user) throw new Error("Authentication required");
+    const { collectionId, action, entryId, input } = (args ?? {}) as {
+      collectionId: string;
+      action: string;
+      entryId: string;
+      input?: unknown;
+    };
+    try {
+      let cms: {
+        collections: {
+          runAction: (
+            collectionId: string,
+            action: string,
+            entryId: string,
+            input: unknown,
+            options: { user?: User; tenantId?: string | null; roles?: unknown },
+          ) => Promise<{ data?: unknown } | null | undefined>;
+        };
+      };
+      if (ctx.cms) {
+        cms = ctx.cms;
+      } else {
+        const { LocalCMS } = await import("@src/services/sdk");
+        cms = new LocalCMS(dbAdapter) as typeof cms;
+      }
+      const result = await cms.collections.runAction(collectionId, action, entryId, input, {
+        user: ctx.user,
+        tenantId: ctx.tenantId,
+        roles: ctx.roles,
+      });
+      return result?.data ?? result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(message);
+    }
+  };
 
   return resolvers;
 }

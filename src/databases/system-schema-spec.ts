@@ -48,6 +48,11 @@ export interface ColumnSpec {
   mariadbQuoted?: boolean;
   /** Per-dialect sort-position override (fractional allowed). */
   order?: Partial<Record<Dialect, number>>;
+  /**
+   * Previous physical name. Boot renames when the old column exists and the new
+   * one does not, before ADD. v0.0.8 repairs are not declared here.
+   */
+  renamedFrom?: string;
 }
 
 /** Index: per-dialect name + columns. Rendered inline (MariaDB) or as standalone statements. */

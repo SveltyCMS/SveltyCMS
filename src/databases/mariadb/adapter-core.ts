@@ -11,6 +11,7 @@
  * - automated database auto-creation
  * - JSON_SET / JSON_EXTRACT atomic increments
  * - transaction handling and metadata mapping
+ * - declared field renames and exact decimal/bigint/calendarDay/bytes SQL types
  */
 
 import { logger } from "@src/utils/logger";
@@ -39,6 +40,11 @@ import {
   buildCompositeIndexColumns,
   getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
+import {
+  applyDeclaredFieldRenames,
+  hasDeclaredFieldRename,
+  materializedSqlType,
+} from "@src/databases/core/column-renames";
 import { getTableName } from "drizzle-orm";
 // Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
 import * as schema from "./schema";
@@ -1766,6 +1772,35 @@ export abstract class AdapterCore extends SqlAdapterCore {
     // materialized columns even when this process skips DDL.
     this.rememberMaterializedColumns(schemaData);
 
+    // Declared `renamedFrom` must run even when the table is already provisioned.
+    // Schemas with no rename skip the catalog (hasDeclaredFieldRename is false).
+    if (hasDeclaredFieldRename(schemaData.fields)) {
+      const renameTable = this.getTable(normalizedName);
+      const renamePhysical = getTableName(renameTable as any);
+      await applyDeclaredFieldRenames({
+        dialect: "mariadb",
+        tableKey: `mariadb:${normalizedName}`,
+        physicalName: renamePhysical,
+        fields: schemaData.fields,
+        listColumns: async () => {
+          const names = new Set<string>();
+          try {
+            const res = await this.raw.execute(`SHOW COLUMNS FROM \`${renamePhysical}\``);
+            const rows = Array.isArray(res) ? res : [];
+            for (const row of rows) {
+              const fieldName = (row as { Field?: unknown }).Field;
+              if (fieldName) names.add(String(fieldName));
+            }
+          } catch {
+            /* table may not exist yet */
+          }
+          return names;
+        },
+        execute: (sqlText: string, params?: unknown[]) =>
+          this.raw.execute(sqlText, params as any[]),
+      });
+    }
+
     // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
     if (!force && this._provisionedTables.has(normalizedName)) return;
 
@@ -1817,7 +1852,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
-                if (field.type === "boolean") {
+                const exact = materializedSqlType("mariadb", field.type);
+                if (exact) {
+                  colType = exact;
+                } else if (field.type === "boolean") {
                   colType = "TINYINT(1)";
                 } else if (field.type === "number" || field.type === "integer") {
                   colType = "INT";

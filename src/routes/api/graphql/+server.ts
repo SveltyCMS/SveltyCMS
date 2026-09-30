@@ -473,6 +473,7 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
 
     type Mutation {
       _empty: String
+      runCollectionAction(collectionId: String!, action: String!, entryId: String!, input: JSON): JSON
       ${virtualCollectionsMutationFields}
       ${dataOperationsMutationFields}
     }
@@ -660,6 +661,8 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
         return {
           user: serverContext.user,
           tenantId: serverContext.tenantId,
+          roles: serverContext.roles,
+          cacheSlot: serverContext.cacheSlot,
           dbAdapter: serverContext.dbAdapter,
           cms: serverContext.cms,
           pubSub,
@@ -1034,9 +1037,11 @@ async function handleRequest(event: RequestEvent) {
         ? await profileSpan("gql:getYogaApp", () => _getYogaApp(adapter, locals.tenantId))
         : await _getYogaApp(adapter, locals.tenantId);
 
-      const buildYogaContext = () => ({
+      const yogaCtx = {
         user: locals.user,
         tenantId: locals.tenantId,
+        roles: locals.roles,
+        cacheSlot: { value: null as string | null },
         dbAdapter: adapter,
         cms,
         parsedDocument: (locals as any).__graphqlAst as DocumentNode | undefined,
@@ -1050,7 +1055,7 @@ async function handleRequest(event: RequestEvent) {
           _loaders = value;
         },
         publicationFilter,
-      });
+      };
 
       // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
       // Request only for POST (Yoga needs the body, but we already have bodyText)
@@ -1062,15 +1067,19 @@ async function handleRequest(event: RequestEvent) {
           ? new Request(request.url, { method: "POST", headers: request.headers, body: yogaBody })
           : request;
 
-      const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
+      const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, yogaCtx);
       const yogaResponse = PROFILE_WRITE_ENABLED
         ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
         : await handleYogaRequest();
 
+      const cacheControl = yogaCtx.cacheSlot.value;
+      const skipResponseCache =
+        typeof cacheControl === "string" && cacheControl.startsWith("private");
       // When waiters joined this miss, the body must be published before
       // finally() resolves the inflight promise. Solo misses keep etag+L1
       // off the response path so Yoga RPS is not capped by SHA-256.
-      if (cacheKey && yogaResponse.status === 200) {
+      // A private Cache-Control must not land in the shared response cache.
+      if (cacheKey && yogaResponse.status === 200 && !skipResponseCache) {
         const tenant = locals.tenantId as string;
         if (ownsFlight) {
           const responseBody = await yogaResponse.clone().text();
@@ -1101,6 +1110,7 @@ async function handleRequest(event: RequestEvent) {
 
       return withMutableHeaders(yogaResponse, (headers) => {
         if (cacheKey) headers.set("X-Cache", "MISS");
+        if (cacheControl) headers.set("Cache-Control", cacheControl);
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Internal Server Error";

@@ -47,6 +47,10 @@ export type SchemaHotFlags = {
   _hasNumberFields?: boolean;
   _hasSanitizableFields?: boolean;
   _hasHooks?: boolean;
+  /** Any field declares `hooks` (resolveInput/validate/beforeOperation). */
+  _hasHookFields?: boolean;
+  /** List or field `afterOperation` exists — run it post-commit (fire-and-forget). */
+  _hasAfterOperationHooks?: boolean;
   _hasConstrainedFields?: boolean;
   /** DateTime fields present — normalized synchronously in prepareWritePayload. */
   _hasDateTimeFields?: boolean;
@@ -149,6 +153,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
   let hasDateTimeFields = false;
+  let hasHookFields = false;
+  let hasAfterOperationHooks = false;
 
   for (const f of fields) {
     const pendingName = f.widget?.Name;
@@ -180,6 +186,22 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
         const fieldName = dbName || widgetName;
         if (fieldName) activeWidgetFieldNames.push(fieldName);
       }
+    }
+    const fieldHooks = (
+      f as {
+        hooks?: {
+          resolveInput?: unknown;
+          validate?: unknown;
+          beforeOperation?: unknown;
+          afterOperation?: unknown;
+        };
+      }
+    ).hooks;
+    if (fieldHooks) {
+      if (fieldHooks.resolveInput || fieldHooks.validate || fieldHooks.beforeOperation) {
+        hasHookFields = true;
+      }
+      if (fieldHooks.afterOperation) hasAfterOperationHooks = true;
     }
     const type = (f as { type?: string }).type;
     if (type === "number") {
@@ -225,7 +247,16 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._numberFields = numberFields;
   s._hasNumberFields = hasNumberFields;
   s._hasSanitizableFields = hasSanitizableFields;
-  s._hasHooks = Boolean(schema.hooks?.beforeValidate || schema.hooks?.afterValidate);
+  s._hasHooks = Boolean(
+    schema.hooks?.beforeValidate ||
+    schema.hooks?.afterValidate ||
+    schema.hooks?.resolveInput ||
+    schema.hooks?.validate ||
+    schema.hooks?.beforeOperation ||
+    hasHookFields,
+  );
+  s._hasHookFields = hasHookFields;
+  s._hasAfterOperationHooks = Boolean(schema.hooks?.afterOperation || hasAfterOperationHooks);
   s._hasConstrainedFields = hasConstrainedFields;
   s._hasEncryptedFields = encryptedFieldNames.length > 0;
   s._encryptedFieldNames = encryptedFieldNames;

@@ -25,6 +25,9 @@
  *   (CREATE TABLE IF NOT EXISTS never adds a column). After that pass succeeds
  *   the stored hash includes the reconcile generation, so a healthy boot does
  *   not scan information_schema again.
+ * - a column `renamedFrom` is renamed when the old column exists and the new
+ *   one does not, before ADD. An unused `renamedFrom` does not change the
+ *   fingerprint until a column sets it.
  */
 
 import { createHash } from "node:crypto";
@@ -41,6 +44,7 @@ import {
   type SchemaItem,
   type TableSpec,
 } from "../system-schema-spec";
+import { planColumnReconcile } from "./column-renames";
 
 export interface BootstrapResult {
   success: boolean;
@@ -615,6 +619,25 @@ async function readLiveColumns(
   }
 }
 
+function renameColumnStatement(
+  dialect: Dialect,
+  table: TableSpec,
+  from: string,
+  column: ColumnSpec,
+): string | null {
+  if (!from || !column.type[dialect]) return null;
+  if (dialect === "mariadb") {
+    const tableName = table.mariadbQuotedTable
+      ? quoteIdentifier(table.name, "mariadb")
+      : table.name;
+    return `ALTER TABLE ${tableName} RENAME COLUMN ${quoteIdentifier(from, "mariadb")} TO ${quoteIdentifier(column.name, "mariadb")}`;
+  }
+  if (dialect === "postgresql") {
+    return `ALTER TABLE ${pgTableName(table.name)} RENAME COLUMN ${quoteIdentifier(from, "postgresql")} TO ${pgColumn(column.name)}`;
+  }
+  return `ALTER TABLE ${sqliteIdent(table.name)} RENAME COLUMN ${sqliteIdent(from)} TO ${sqliteIdent(column.name)}`;
+}
+
 function addColumnStatement(dialect: Dialect, table: TableSpec, column: ColumnSpec): string | null {
   const definition = colFor(column, dialect);
   if (!definition) return null;
@@ -664,6 +687,27 @@ async function reconcileMissingColumns(
     const have = live.get(table.name.toLowerCase());
     if (!have || have.size === 0) continue;
     for (const column of sortedColumns(table, dialect)) {
+      const plan = planColumnReconcile(have, column);
+      if (plan.action === "rename") {
+        const statement = renameColumnStatement(dialect, table, plan.from, column);
+        if (statement) {
+          try {
+            await executeBootstrapStatement(dialect, connection, statement);
+            have.delete(plan.from.toLowerCase());
+            have.add(column.name.toLowerCase());
+            added++;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (/duplicate column|already exists/i.test(message)) {
+              have.add(column.name.toLowerCase());
+            } else {
+              failures++;
+              logger.warn(`[${dialect}] Schema column rename failed (continuing): ${message}`);
+            }
+          }
+          continue;
+        }
+      }
       if (!column.type[dialect] || have.has(column.name.toLowerCase())) continue;
       const statement = addColumnStatement(dialect, table, column);
       if (!statement) continue;

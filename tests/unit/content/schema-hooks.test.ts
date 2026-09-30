@@ -13,6 +13,7 @@ import {
   applyAfterValidate,
   applyBeforeValidate,
   applySchemaHookPipeline,
+  runAfterOperation,
   type SchemaHooks,
 } from "@src/content/schema-hooks";
 import type { Schema } from "@src/content/types";
@@ -160,5 +161,126 @@ describe("applySchemaHookPipeline", () => {
     });
     expect(result).toEqual({ x: 1 });
     expect(factory).not.toHaveBeenCalled();
+  });
+});
+
+describe("applySchemaHookPipeline — resolveInput / validate / beforeOperation", () => {
+  it("runs field then list resolveInput before beforeValidate", async () => {
+    const order: string[] = [];
+    const hooks: SchemaHooks = {
+      resolveInput: (data) => {
+        order.push("list:resolveInput");
+        return data;
+      },
+      beforeValidate: (data) => {
+        order.push("beforeValidate");
+        return data;
+      },
+    };
+    const fields = [
+      {
+        db_fieldName: "title",
+        hooks: {
+          resolveInput: (data: Record<string, unknown>) => {
+            order.push("field:resolveInput");
+            return { ...data, resolved: true };
+          },
+        },
+      },
+    ];
+
+    const result = await applySchemaHookPipeline(hooks, { title: "x" }, baseCtx, undefined, {
+      fields,
+    });
+
+    expect(order).toEqual(["field:resolveInput", "list:resolveInput", "beforeValidate"]);
+    expect(result.resolved).toBe(true);
+  });
+
+  it("joins field, list and callback validation errors once and aborts the pipeline", async () => {
+    const beforeOperation = vi.fn((data: Record<string, unknown>) => data);
+    const afterValidate = vi.fn((data: Record<string, unknown>) => data);
+    const hooks: SchemaHooks = {
+      validate: () => "list error",
+      beforeOperation,
+      afterValidate,
+    };
+    const fields = [{ db_fieldName: "title", hooks: { validate: () => ["field error"] } }];
+
+    await expect(
+      applySchemaHookPipeline(hooks, { title: "" }, baseCtx, () => ["callback error"], { fields }),
+    ).rejects.toThrow("field error; list error; callback error");
+    expect(beforeOperation).not.toHaveBeenCalled();
+    expect(afterValidate).not.toHaveBeenCalled();
+  });
+
+  it("runs field then list beforeOperation before afterValidate", async () => {
+    const order: string[] = [];
+    const hooks: SchemaHooks = {
+      beforeOperation: (data) => {
+        order.push("list:beforeOperation");
+        return data;
+      },
+      afterValidate: (data) => {
+        order.push("afterValidate");
+        return data;
+      },
+    };
+    const fields = [
+      {
+        db_fieldName: "title",
+        hooks: {
+          beforeOperation: (data: Record<string, unknown>) => {
+            order.push("field:beforeOperation");
+            return data;
+          },
+        },
+      },
+    ];
+
+    await applySchemaHookPipeline(hooks, { title: "x" }, baseCtx, undefined, { fields });
+    expect(order).toEqual(["field:beforeOperation", "list:beforeOperation", "afterValidate"]);
+  });
+});
+
+describe("runAfterOperation", () => {
+  it("runs field then list afterOperation with the final document", async () => {
+    const order: string[] = [];
+    const hooks: SchemaHooks = {
+      afterOperation: (data) => {
+        order.push("list");
+        expect(data).toEqual({ title: "x" });
+      },
+    };
+    const fields = [
+      {
+        db_fieldName: "title",
+        hooks: {
+          afterOperation: () => {
+            order.push("field");
+          },
+        },
+      },
+    ];
+
+    await runAfterOperation(hooks, fields, { title: "x" }, baseCtx);
+    expect(order).toEqual(["field", "list"]);
+  });
+
+  it("resolves as a no-op without list or field hooks", async () => {
+    await expect(
+      runAfterOperation(undefined, undefined, { a: 1 }, baseCtx),
+    ).resolves.toBeUndefined();
+  });
+
+  it("propagates failures to the caller (write paths catch and log)", async () => {
+    const hooks: SchemaHooks = {
+      afterOperation: () => {
+        throw new Error("audit down");
+      },
+    };
+    await expect(runAfterOperation(hooks, undefined, { a: 1 }, baseCtx)).rejects.toThrow(
+      "audit down",
+    );
   });
 });

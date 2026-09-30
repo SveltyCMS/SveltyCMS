@@ -180,7 +180,8 @@ export interface EntryListMultiButtonProps {
  * Stored in field.permissions. Defaults: public, no auth required, no role restrictions.
  */
 export interface WidgetFieldPermissions {
-  visibility?: "public" | "private";
+  /** `hidden` is a guard like `private`; `public` is the default (no guard). */
+  visibility?: "public" | "private" | "hidden";
   requiredAuth?: boolean;
   readRoles?: string[];
   writeRoles?: string[];
@@ -302,6 +303,30 @@ export interface FederationEnrichment {
   displayFields?: string[];
 }
 
+/** Context passed to a schema action's optional `run` function. */
+export interface CollectionActionContext {
+  collectionId: string;
+  entryId: string;
+  input: unknown;
+  user?: unknown;
+  tenantId?: DatabaseId | null;
+  schema: Schema;
+}
+
+/** A declared schema action — the action's `permission` is the authorization check. */
+export interface CollectionAction {
+  /** Permission id required to run this action (admins bypass via `isAdmin`). */
+  permission?: string;
+  /** Atomic increment applied after `patch`/`run` (default amount 1). */
+  increment?: { field: string; amount?: number };
+  /** Static partial document merged before `run`. */
+  patch?: Record<string, unknown>;
+  /** Server-side resolver returning an additional partial document to merge. */
+  run?: (
+    context: CollectionActionContext,
+  ) => Record<string, unknown> | void | Promise<Record<string, unknown> | void>;
+}
+
 // Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
   _id?: string;
@@ -336,6 +361,23 @@ export interface Schema {
    * All hooks are optional — schemas without hooks work unchanged.
    */
   hooks?: SchemaHooks;
+  /**
+   * Declared actions, keyed by action name. Run via
+   * `POST /api/collections/:id/actions/:name` or GraphQL `runCollectionAction`.
+   */
+  actions?: Record<string, CollectionAction>;
+  /**
+   * Single-document collection. `create` forces `_id` to `singleton:<collectionId>`
+   * and a second create fails with 409 `SINGLETON_EXISTS`.
+   */
+  singleton?: boolean;
+  /**
+   * Row ownership. When set, list/count/stream queries are scoped to
+   * `field === user._id` (admins and system scope bypass), and point reads drop
+   * non-matching rows on a copied envelope. A caller without a user id matches
+   * nothing.
+   */
+  ownership?: { field: string };
   /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */
   federationEnrichments?: FederationEnrichment[];
 }

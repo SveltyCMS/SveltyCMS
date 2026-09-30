@@ -242,9 +242,36 @@ async function handlePostRoutes(
   }
   if (entryId === "bulk")
     return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
+  if (entryId === "actions" && subAction) {
+    return handleCollectionAction(event, cms, tenantId, user, collectionId, subAction);
+  }
   if (subAction === "increment")
     return handleCollectionIncrement(event, cms, tenantId, user, collectionId, entryId!);
   return handleCollectionCreate(event, cms, tenantId, user, collectionId);
+}
+
+async function handleCollectionAction(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  action: string,
+) {
+  const raw = (event.locals as any)?.__parsedJsonBody || (await event.request.json());
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const actionEntryId = body.entryId;
+  if (typeof actionEntryId !== "string" || actionEntryId.length === 0) {
+    throw new AppError("Action entry id is required", 400, "ACTION_ENTRY_REQUIRED");
+  }
+  return successResponse(
+    event,
+    await cms.collections.runAction(collectionId, action, actionEntryId, body.input, {
+      user,
+      tenantId,
+      roles: event.locals.roles,
+    }),
+  );
 }
 
 async function handlePatchRoutes(

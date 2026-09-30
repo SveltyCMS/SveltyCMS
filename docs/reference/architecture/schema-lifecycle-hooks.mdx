@@ -1,24 +1,27 @@
 ---
 path: "docs/reference/architecture/schema-lifecycle-hooks.mdx"
 title: "Schema Lifecycle Hooks"
-description: "beforeValidate / afterValidate transforms on collection create and update."
-updated: "2026-08-04"
+description: "resolveInput, validate, beforeOperation, and afterOperation, plus beforeValidate / afterValidate, on collection create and update."
+updated: "2026-09-30"
 ---
 
 # Schema Lifecycle Hooks
 
-Optional transforms on every document write path (Local API, HTTP, admin) for a collection schema.
+Optional transforms and validators on every document write path (Local API, HTTP, admin) for a collection schema. Field hooks live on `field.hooks`. List hooks live on the collection `hooks` object.
 
 ## Order on create / update
 
-1. Sanitize field inputs
+1. Field and list **`resolveInput`**
 2. **`beforeValidate`** — normalize (trim, slugify, defaults)
-3. Numeric range gate (`validateNumericFields`)
-4. **`afterValidate`** — computed fields after the gate
-5. Plugin / collection `beforeSave` lifecycle
-6. `modifyRequest` (widget validation & transforms)
-7. Persist (`insert` / `update` uses the **final** mutated payload)
-8. `afterSave` + transactional outbox emit
+3. Field and list **`validate`**, together with the numeric/exact gate. `validate` may return many errors; the write aborts once, before persist
+4. **`beforeOperation`**
+5. **`afterValidate`** — computed fields after the gate and `beforeOperation`
+6. Plugin / collection **`beforeSave`** lifecycle
+7. **`modifyRequest`** (widget validation & transforms)
+8. Persist (`insert` / `update` uses the **final** mutated payload)
+9. **`afterOperation`** (post-commit, not awaited — a failure is logged at debug and does not undo the write) alongside `afterSave` + transactional outbox emit
+
+The same order is the contract in [Schema model](./schema-model.mdx).
 
 ## Defining hooks
 
@@ -46,7 +49,7 @@ const posts: Schema = {
 };
 ```
 
-Hooks may be **async**. They must return the data object (not throw for rejection — use validation rules).
+Hooks may be **async**. `resolveInput`, `beforeValidate`, `beforeOperation`, and `afterValidate` return the data object. `validate` collects errors and aborts once before the write. Do not throw from a transform to reject a document. Field hooks use the same names on `field.hooks`.
 
 ## Pure runners (unit-test friendly)
 

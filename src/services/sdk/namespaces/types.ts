@@ -11,6 +11,8 @@ import type { SystemTenantScope } from "@src/databases/system-tenant-scope";
 export interface LocalApiOptions {
   user?: any;
   tenantId?: DatabaseId | null;
+  /** Role documents consulted by action permission checks (`runAction`). */
+  roles?: unknown;
   permanent?: boolean;
   bypassCache?: boolean;
   bypassRequestCache?: boolean;

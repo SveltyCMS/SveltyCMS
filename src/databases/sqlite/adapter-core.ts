@@ -23,6 +23,11 @@ import {
   buildCompositeIndexColumns,
   getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
+import {
+  applyDeclaredFieldRenames,
+  hasDeclaredFieldRename,
+  materializedSqlType,
+} from "@src/databases/core/column-renames";
 import { generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -1925,6 +1930,38 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     // materialized columns even when this process skips DDL.
     this.rememberMaterializedColumns(schemaData);
 
+    // Declared `renamedFrom` must run even when the table is already provisioned.
+    // Schemas with no rename skip the catalog (hasDeclaredFieldRename is false).
+    if (hasDeclaredFieldRename(schemaData.fields)) {
+      const renameTable = this.getTable(normalizedName);
+      const renamePhysical = getTableName(renameTable as any);
+      await applyDeclaredFieldRenames({
+        dialect: "sqlite",
+        tableKey: `sqlite:${normalizedName}`,
+        physicalName: renamePhysical,
+        fields: schemaData.fields,
+        listColumns: async () => {
+          const names = new Set<string>();
+          try {
+            const tableInfo = this.prepareAndExecute(
+              `PRAGMA table_info("${renamePhysical}")`,
+              "all",
+            ) as Array<{ name?: string }>;
+            if (Array.isArray(tableInfo)) {
+              for (const column of tableInfo) {
+                if (column?.name) names.add(String(column.name));
+              }
+            }
+          } catch {
+            /* table may not exist yet */
+          }
+          return names;
+        },
+        execute: (sqlText: string, params?: unknown[]) =>
+          this.raw.execute(sqlText, params as any[]),
+      });
+    }
+
     // 🚀 FAST PATH: table already provisioned in this process — skip all DDL.
     // _provisionedTables is populated by _warmTableRegistry() at boot and by
     // the full DDL path below. A `force` flag overrides for schema migrations.
@@ -1972,8 +2009,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "TEXT";
-                if (field.type === "number" || field.type === "integer" || field.type === "boolean")
+                const exact = materializedSqlType("sqlite", field.type);
+                if (exact) {
+                  colType = exact;
+                } else if (
+                  field.type === "number" ||
+                  field.type === "integer" ||
+                  field.type === "boolean"
+                ) {
                   colType = "INTEGER";
+                }
                 if (
                   !dynamicCols.some((c) => c.name === fieldName) &&
                   !columns.some((c) => c.name === fieldName) &&

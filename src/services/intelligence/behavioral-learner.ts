@@ -93,14 +93,15 @@ function getOrCreateTenant(tenantId: string): TenantBehavior {
  * entries not touched by a recent access — otherwise high stale scores live forever.
  */
 function pruneHeatMap(map: Map<string, AccessRecord>, maxSize: number, now: number): void {
-  // (a) score-based expiry: recompute decay and drop genuinely cold entries.
+  // (a) score-based expiry: drop genuinely cold entries.
   for (const [key, rec] of map) {
-    // Only recompute if stale; freshly-updated records are already decayed.
-    if (now > rec.lastAccess) {
-      applyDecay(rec, now);
-      if (rec.score < MIN_HOT_SCORE) {
-        map.delete(key);
-      }
+    // Pure read: compare the decayed score, never write it back. The previous
+    // `applyDecay(rec, now)` mutated `rec.score` while leaving `lastAccess`
+    // unchanged, so every read decayed the stored score again — repeated reads
+    // shrank entries geometrically and broke the readers-are-side-effect-free
+    // contract that score-based expiry depends on.
+    if (now > rec.lastAccess && decayedScore(rec, now) < MIN_HOT_SCORE) {
+      map.delete(key);
     }
   }
   // (b) size cap (LRU-ish eviction by insertion order).

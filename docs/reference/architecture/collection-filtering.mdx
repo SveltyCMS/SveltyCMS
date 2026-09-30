@@ -97,14 +97,14 @@ Client filter keys
   → tenantId injected in baseWhere (never from client)
 ```
 
-| Layer                | What is enforced                                                                             |
-| -------------------- | -------------------------------------------------------------------------------------------- |
-| **Schema whitelist** | Unknown field names dropped                                                                  |
-| **Unsafe widgets**   | Media, rich text, relations, groups, … never filterable                                      |
-| **FLAC**             | `permissions.readRoles` / hidden fields — non-readers cannot filter (or search) those fields |
-| **Value validation** | Booleans, numbers, dates validated; garbage rejected                                         |
-| **Query builder**    | Only `where` / `whereBetween` / `search` — no Mongo-only objects on SQL adapters             |
-| **Tenant**           | `tenantId` always from session, merged in `baseWhere`                                        |
+| Layer                | What is enforced                                                                                                                                                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Schema whitelist** | Unknown field names dropped                                                                                                                                                                                                                                     |
+| **Unsafe widgets**   | Groups, media, rich text, and the other non-relation unsafe widgets stay unfilterable. Relations are id equality (control type `relation`), not text search. `isFilterable: false`, or a function of `{ user }` that returns false, is dropped at compile time. |
+| **FLAC**             | `permissions.readRoles` / hidden fields — non-readers cannot filter (or search) those fields                                                                                                                                                                    |
+| **Value validation** | Booleans, numbers, dates validated; garbage rejected                                                                                                                                                                                                            |
+| **Query builder**    | Only `where` / `whereBetween` / `search` — no Mongo-only objects on SQL adapters                                                                                                                                                                                |
+| **Tenant**           | `tenantId` always from session, merged in `baseWhere`                                                                                                                                                                                                           |
 
 > [!CAUTION]
 > UI `safeForFiltering` / `allowedFieldIds` are **UX guards only**. Authoritative enforcement is always server-side in `compileSecureFilters`.

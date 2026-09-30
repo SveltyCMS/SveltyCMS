@@ -16,6 +16,7 @@
  * - per-tenant connection pooling for enterprise isolation
  * - shallow JSONB merge on partial updates (`jsonb || jsonb` — a PATCH keeps
  *   every field it does not mention, matching MongoDB's per-field `$set`)
+ * - declared field renames and exact decimal/bigint/calendarDay/bytes SQL types
  */
 
 import { logger } from "@src/utils/logger";
@@ -35,6 +36,11 @@ import {
   buildCompositeIndexColumns,
   getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
+import {
+  applyDeclaredFieldRenames,
+  hasDeclaredFieldRename,
+  materializedSqlType,
+} from "@src/databases/core/column-renames";
 import { getTableColumns, getTableName } from "drizzle-orm";
 // Namespace import on purpose: the whole module is exposed as `adapter.schema` (public surface).
 // Not dead — removing it breaks adapter construction (verified 2026-09-27).
@@ -1953,6 +1959,38 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     // in-memory table def was built without these columns.
     this.rememberMaterializedColumns(schemaData);
 
+    // Declared `renamedFrom` must run even when the table is already provisioned.
+    // Schemas with no rename skip the catalog (hasDeclaredFieldRename is false).
+    if (hasDeclaredFieldRename(schemaData.fields)) {
+      const renameTable = this.getTable(normalizedName);
+      const renamePhysical = getTableName(renameTable as any);
+      await applyDeclaredFieldRenames({
+        dialect: "postgresql",
+        tableKey: `postgresql:${normalizedName}`,
+        physicalName: renamePhysical,
+        fields: schemaData.fields,
+        listColumns: async () => {
+          const names = new Set<string>();
+          try {
+            const plainName = String(renamePhysical).split(".").pop() ?? String(renamePhysical);
+            const cols = await this.raw.execute(
+              `SELECT column_name FROM information_schema.columns WHERE table_name = '${plainName}'`,
+            );
+            if (Array.isArray(cols)) {
+              for (const column of cols) {
+                if (column?.column_name) names.add(String(column.column_name));
+              }
+            }
+          } catch {
+            /* table may not exist yet */
+          }
+          return names;
+        },
+        execute: (sqlText: string, params?: unknown[]) =>
+          this.raw.execute(sqlText, params as any[]),
+      });
+    }
+
     // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
     if (!force && this._provisionedTables.has(normalizedName)) return;
 
@@ -2008,7 +2046,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
-                if (field.type === "boolean") {
+                const exact = materializedSqlType("postgresql", field.type);
+                if (exact) {
+                  colType = exact;
+                } else if (field.type === "boolean") {
                   colType = "BOOLEAN";
                 } else if (field.type === "number" || field.type === "integer") {
                   colType = "INTEGER";

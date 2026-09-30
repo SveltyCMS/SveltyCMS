@@ -125,6 +125,21 @@ function widgetNameOf(field: any): string {
 }
 
 /**
+ * Exact string field types — never coerced through numeric/boolean paths.
+ * Their physical types come from `materializedSqlType` (see column-renames).
+ */
+export const EXACT_STRING_FIELD_TYPES: ReadonlySet<string> = new Set([
+  "decimal",
+  "bigint",
+  "calendarDay",
+  "bytes",
+]);
+
+function isExactStringFieldType(type: unknown): boolean {
+  return typeof type === "string" && EXACT_STRING_FIELD_TYPES.has(type);
+}
+
+/**
  * True when a schema field is a flat scalar that CAN be materialized as a
  * physical column (capability check — see `shouldMaterializeField` for the
  * policy that decides when columns are actually created).
@@ -132,13 +147,20 @@ function widgetNameOf(field: any): string {
 export function isScalarMaterializableField(field: any): boolean {
   if (!field || typeof field !== "object") return false;
   const type = field.type;
-  if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
+  const isExact = isExactStringFieldType(type);
+  if (
+    !isExact &&
+    type !== "string" &&
+    type !== "number" &&
+    type !== "integer" &&
+    type !== "boolean"
+  ) {
     return false;
   }
   const widget = widgetNameOf(field);
   if (widget) {
     if (NON_SCALAR_WIDGETS.has(widget)) return false;
-    if (!MATERIALIZABLE_WIDGETS.has(widget)) return false;
+    if (!isExact && !MATERIALIZABLE_WIDGETS.has(widget)) return false;
   }
   return true;
 }
@@ -159,11 +181,13 @@ export function shouldMaterializeField(field: any): boolean {
   if (field.encrypt === true) return false;
   const type = field.type;
   const isNumeric = type === "number" || type === "integer";
-  const needsColumn = field.indexed || field.unique || field.materialize === true || isNumeric;
+  const isExactString = isExactStringFieldType(type);
+  const needsColumn =
+    field.indexed || field.unique || field.materialize === true || isNumeric || isExactString;
   if (!needsColumn) return false;
   // Explicit opt-in still requires a scalar shape — an object/array widget
   // must never become a scalar SQL column (breaks its shape on reads).
-  if (field.materialize === true) return isScalarMaterializableField(field);
+  if (field.materialize === true || isExactString) return isScalarMaterializableField(field);
   if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
     return false;
   }

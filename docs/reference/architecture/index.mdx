@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:office-building-cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-22"
+updated: "2026-09-30"
 tags:
   - "architecture"
   - "svelte5"
@@ -47,7 +47,8 @@ Database agnosticism and unified data modeling.
 - [🔌 **PostgreSQL Implementation**](../database/postgresql-implementation.mdx) — Native DDL and Drizzle integration.
 - [📦 **SQLite (Edge-Ready)**](../database/sqlite-implementation.mdx) — Native Bun driver for local deployments.
 - [🧬 **Content Type System**](./content-type-system.mdx) — Fields, widgets, and schema mapping.
-- [🪝 **Schema Lifecycle Hooks**](./schema-lifecycle-hooks.mdx) — `beforeValidate` / `afterValidate` on create & update.
+- [📐 **Schema Model**](./schema-model.mdx) — Relation ids, ownership, exact columns, actions, and renames. A full-document update stays the durable commit.
+- [🪝 **Schema Lifecycle Hooks**](./schema-lifecycle-hooks.mdx) — `resolveInput`, `validate`, `beforeOperation`, `afterOperation`, plus `beforeValidate` / `afterValidate` on create and update.
 - [📬 **Transactional Outbox**](./transactional-outbox.mdx) — Atomic events with content mutations + webhook fan-out.
 - [📋 **Validation & Feedback**](./validation-instant-feedback.mdx) — Real-time E2E verification logic.
 - [📊 **Data Operations**](./data-operations) — Six-domain architecture for config promotion, content packages, migrations, importers, backups, and content sync.

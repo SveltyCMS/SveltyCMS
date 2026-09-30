@@ -1,0 +1,90 @@
+---
+path: "docs/reference/architecture/schema-model.mdx"
+title: "Collection Schema Model"
+description: "Lean collection schema contract for people changing the model: relation ids, filters, ownership, hooks, exact string columns, actions, and renamedFrom."
+order: 53
+icon: "mdi:table-cog"
+author: "SveltyCMS Team"
+created: "2026-09-30"
+updated: "2026-09-30"
+tags:
+  - "architecture"
+  - "schema"
+  - "collections"
+  - "graphql"
+  - "hooks"
+---
+
+# Collection schema model
+
+This page is for someone changing the collection schema model, not a newcomer. It describes the lean model being added. The contract lives in `src/content/schema-model.ts`, the hook runners in `src/content/schema-hooks.ts`, and column renames in `src/databases/core/column-renames.ts`.
+
+> [!IMPORTANT]
+> **Status (2026-09-30).** Shipped: column `renamedFrom` replay, exact string columns,
+> hook pipeline (`resolveInput` → `beforeValidate` → `validate` → `beforeOperation` →
+> `afterValidate`) with post-commit `afterOperation`, schema actions (REST + GraphQL)
+> with the action permission check, GraphQL list `where` / `orderBy` / `take`,
+> `cacheHint` → `Cache-Control`, `isFilterable` / `isOrderable`, row ownership, and
+> `singleton`.
+> Planned (tracked in the [2026 Roadmap](../../project/roadmap-2026.mdx)): relation
+> `some` / `none` / `every` compiled to a capped id lookup, nested relation writes,
+> `onDelete`, `type: "virtual"`, and `omit` / `graphql.omit`.
+
+Relation values stay ids. There is no new foreign-key index on the write path, because each extra index is maintained on every update (the composite-index note in [§3.41](../../project/achievements-2026.mdx#341-september-2026-harness-dbs-stop-landing-in-the-users-folder-composite-indexes-get-a-policy-and-the-update-lanes-residual-is-proven-to-be-the-durable-commit)). A full-document update is still the durable commit; this model does not make that PostgreSQL write faster.
+
+## Relations _(planned)_
+
+`some`, `none`, and `every` are evaluated in memory for inverse-relation GraphQL
+filters (`documentMatches`); compiling them to a capped id lookup on the native
+list path — with a 409 `RELATION_FANOUT` when a full page would be needed, and
+400 `RELATION_EVERY_SCALAR_ONLY` / `RELATION_NONE_SCALAR_ONLY` on a multi-value
+relation — is planned. Nested writes `{ connect, disconnect, create }` resolved
+before persist and `onDelete` (`cascade`, `setNull`, `restrict`) are planned too.
+
+## Ownership
+
+`ownership: { field }` scopes list, count, and streaming queries to `field === user._id`
+before the cache key, so pages and counts never include foreign rows. Admins and the system
+scope bypass; a caller without a user id matches nothing. A point read still loads the row
+(the shared cache is untouched), then drops a non-matching row on a copied envelope.
+
+## GraphQL lists
+
+Lists take `where: JSON`, `orderBy: String`, and `take: Int`, using the same operator language: `equals`, `not`, `in`, `gt` / `gte` / `lt` / `lte`, `contains`, `AND` / `OR` / `NOT`, and relation `some` / `none` / `every`. One JSON argument, not a generated input type per field.
+
+Inverse relations take `where` and filter the loaded rows in memory (scalar operators). Where shape cap: 8000 characters, depth 6, 64 nodes. `orderBy` accepts `field`, `+field`, `-field`, `field:asc|desc`, and `field asc|desc`; unknown or non-orderable fields are rejected. `isFilterable: false` (or a `{ user }` function returning false) rejects a filter on that field.
+
+## Hooks
+
+Collection hooks and field hooks (`field.hooks`) are `resolveInput`, `validate`, `beforeOperation`, and `afterOperation`, in addition to the existing `beforeValidate` / `afterValidate`. `validate` may return many errors; the runner aborts once, before the write. `afterOperation` runs after the commit and is not awaited; failures are logged at debug.
+
+Order: field and list `resolveInput`, `beforeValidate`, field and list `validate` plus the numeric/exact gate, `beforeOperation`, `afterValidate`. The `beforeValidate` example and the same order are in [Schema lifecycle hooks](./schema-lifecycle-hooks.mdx).
+
+## Exact columns and virtual fields
+
+`decimal`, `bigint`, `calendarDay`, and `bytes` are exact string columns (SQLite `TEXT`;
+PostgreSQL and MariaDB `VARCHAR(64)`, `VARCHAR(10)`, and `TEXT`). They do not earn a
+covering composite index unless `indexed: true`. `number` stays an integer. Money stays
+minor units. `type: "virtual"` (computed on read and stripped before write) is planned.
+
+## Singleton
+
+`singleton: true` forces `_id` `singleton:${collectionId}` in `create`; a second create is
+409 `SINGLETON_EXISTS`. The `_id` primary key makes a concurrent double create fail on the
+insert instead of persisting two rows.
+
+## Actions
+
+An action on the schema is `{ permission, increment?: { field, amount }, patch?, run? }`. REST is `POST /api/collections/:id/actions/:name` with body `{ entryId, input }`. GraphQL is `runCollectionAction`. The action permission is the check. REST does not also require the generic `collections:write` bit. Admins pass via `isAdmin`.
+
+## Omit, filter, order, and cache hints
+
+`isFilterable` / `isOrderable` are booleans or functions of `{ user }` and are enforced on
+GraphQL filters and sorts. Relation REST filters are id equality, not text search
+([Collection filtering](./collection-filtering.mdx)). `cacheHint: { maxAge, scope }` sets
+GraphQL `Cache-Control` (tightest `maxAge`, private wins). A private hint is not stored in
+the shared GraphQL response cache. `omit` / `graphql.omit` projections are planned.
+
+## Column rename
+
+System `ColumnSpec.renamedFrom` and a collection field `renamedFrom` run when the old column exists and the new one does not, before `ADD`. Mongo uses `$rename` once per process when the model is created. The dropped v0.0.8 repairs are still not replayed unless a column declares `renamedFrom`. See [Upgrading](../../guides/configuration/upgrading.mdx).

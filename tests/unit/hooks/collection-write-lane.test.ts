@@ -68,9 +68,10 @@ describe("extended write lane", () => {
     expect(isCollectionWriteLanePath(evt("POST", "/api/collections/Articles/batch"))).toBe(true);
   });
 
-  it("leaves search, reorder, and single delete on the full pipeline", () => {
+  it("leaves search, reorder, schema actions, and single delete on the full pipeline", () => {
     expect(collectionWriteLaneKind("POST", "/api/collections/search")).toBeNull();
     expect(collectionWriteLaneKind("POST", "/api/collections/reorder")).toBeNull();
+    expect(collectionWriteLaneKind("POST", "/api/collections/Articles/actions/vote")).toBeNull();
     expect(collectionWriteLaneKind("DELETE", `/api/collections/Articles/${id}`)).toBeNull();
     expect(isGraphqlWriteLanePath(evt("POST", "/api/graphql"))).toBe(true);
     expect(isGraphqlWriteLanePath(evt("GET", "/api/graphql"))).toBe(false);

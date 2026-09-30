@@ -9,6 +9,7 @@ import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import mongoose, { type Model, Schema as MongooseSchema } from "mongoose";
 import { DatabaseModule } from "../core/base-adapter";
+import { applyMongoFieldRenames, hasDeclaredFieldRename } from "../core/column-renames";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import type {
   BaseQueryOptions,
@@ -113,6 +114,12 @@ export class MongoCollectionMethods {
     const modelName = normalizeCollectionTableName(collectionId);
 
     if (this.models.has(collectionId) && !force) {
+      if (hasDeclaredFieldRename(schema.fields)) {
+        const existingModel =
+          this.models.get(collectionId)?.model ??
+          (this.connection.models as Record<string, Model<Record<string, unknown>>>)[modelName];
+        if (existingModel) await applyMongoFieldRenames(existingModel, schema.fields);
+      }
       logger.debug(
         `[MongoCollectionMethods] Model ${collectionId} already registered, skipping recreation.`,
       );
@@ -177,6 +184,7 @@ export class MongoCollectionMethods {
     });
 
     const model = this.connection.model(modelName, mongooseSchema);
+    await applyMongoFieldRenames(model, schema.fields);
 
     const wrappedModel: CollectionModel = {
       findOne: async <R = unknown>(query: Record<string, unknown>) => {

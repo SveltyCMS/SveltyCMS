@@ -385,6 +385,17 @@ export function _checkEndpointPermission(
     return hasPermissionWithRoles(user, requiredPerm, roles);
   }
 
+  // The action's own permission is enforced by runAction, not collections:write.
+  if (
+    namespace === "collections" &&
+    method === "POST" &&
+    segments.length === 4 &&
+    segments[2] === "actions" &&
+    segments[3]
+  ) {
+    return !!user;
+  }
+
   const mapping = ENDPOINT_PERMISSIONS[namespace];
   if (!mapping) {
     // Fail-closed: unmapped namespace

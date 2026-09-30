@@ -221,6 +221,10 @@
    ======================================================================== */
 
 /* --- filled: solid background, used for primary actions and status pills --- */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
+
 @utility preset-filled-primary-500 {
   @apply bg-primary-500 text-white shadow-sm;
 }

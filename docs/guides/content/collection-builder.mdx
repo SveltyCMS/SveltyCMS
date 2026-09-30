@@ -43,14 +43,14 @@ The Collection Builder is a visual tool for creating and managing content collec
 
 SveltyCMS is the only headless CMS that achieves **true bidirectional parity** between code and GUI:
 
-| Feature             | Code-First                              | GUI Builder                                   |
-| ------------------- | --------------------------------------- | --------------------------------------------- |
-| Schema definition   | `export const schema: Schema = { ... }` | Visual form → AST → same TypeScript output    |
-| Widget fields       | `fields: [widgets.input({...})]`        | Drag-and-drop widget sidebar                  |
-| Status & visibility | `status: 'published'`                   | Status dropdown + API toggle                  |
-| Sort & pagination   | `entriesPerPage: 30`                    | Settings tab number input                     |
-| Field validation    | Valibot schemas per field               | Visual Logic Builder (`showIf`, `requiredIf`) |
-| Custom hooks        | `beforeSave`, `afterSave` functions     | Coming — Permissions tab code snippets        |
+| Feature             | Code-First                                                                                                                                                     | GUI Builder                                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema definition   | `export const schema: Schema = { ... }`                                                                                                                        | Visual form → AST → same TypeScript output                                                                                                |
+| Widget fields       | `fields: [widgets.input({...})]`                                                                                                                               | Drag-and-drop widget sidebar                                                                                                              |
+| Status & visibility | `status: 'published'`                                                                                                                                          | Status dropdown + API toggle                                                                                                              |
+| Sort & pagination   | `entriesPerPage: 30`                                                                                                                                           | Settings tab number input                                                                                                                 |
+| Field validation    | Valibot schemas per field                                                                                                                                      | Visual Logic Builder (`showIf`, `requiredIf`)                                                                                             |
+| Custom hooks        | Four-step lifecycle on the collection and on a field: `resolveInput`, `validate`, `beforeOperation`, `afterOperation`, plus `beforeValidate` / `afterValidate` | [Schema model](/docs/reference/architecture/schema-model) · [Schema lifecycle hooks](/docs/reference/architecture/schema-lifecycle-hooks) |
 
 **How it works**: When you save in the GUI, the builder uses the TypeScript Compiler API to generate a real `.ts` file. This file is then compiled and stored in the database — identical to what a developer would write by hand. When you open an existing collection, it loads from the database regardless of how it was created.
 
