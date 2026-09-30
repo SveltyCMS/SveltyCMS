@@ -27,6 +27,9 @@ import {
   type TableSpec,
 } from "@src/databases/system-schema-spec";
 import {
+  bootstrapSystemSchema,
+  computeColumnSyncedFingerprint,
+  computeSchemaFingerprint,
   renderBootstrapStatements,
   renderSqliteBatch,
 } from "@src/databases/core/system-schema-bootstrap";
@@ -191,4 +194,78 @@ describe("system schema spec vs drizzle schema.ts", () => {
       });
     });
   }
+});
+
+describe("system schema bootstrap — existing tables", () => {
+  it("adds MariaDB columns missing from a table whose fingerprint already matches", async () => {
+    const fingerprint = computeSchemaFingerprint("mariadb");
+    const statements: string[] = [];
+    const connection = {
+      query: async (statement: string) => {
+        statements.push(statement);
+        if (statement.includes("FROM `svelty_schema_state`")) {
+          return [[{ fingerprint }], []];
+        }
+        if (statement.includes("information_schema.COLUMNS")) {
+          return [
+            [
+              { tableName: "auth_sessions", columnName: "_id" },
+              { tableName: "auth_sessions", columnName: "user_id" },
+              { tableName: "auth_sessions", columnName: "expires" },
+              { tableName: "auth_sessions", columnName: "tenantId" },
+              { tableName: "auth_sessions", columnName: "userAgent" },
+              { tableName: "auth_sessions", columnName: "deviceId" },
+              { tableName: "auth_sessions", columnName: "ipAddress" },
+              { tableName: "auth_sessions", columnName: "createdAt" },
+              { tableName: "auth_sessions", columnName: "updatedAt" },
+            ],
+            [],
+          ];
+        }
+        return [[], []];
+      },
+    };
+
+    const result = await bootstrapSystemSchema("mariadb", connection as never);
+    expect(result.success).toBe(true);
+    expect(result.failures).toBeUndefined();
+
+    const alters = statements.filter((statement) => statement.startsWith("ALTER TABLE"));
+    expect(alters).toEqual([
+      "ALTER TABLE auth_sessions ADD COLUMN amr JSON",
+      "ALTER TABLE auth_sessions ADD COLUMN mfaVerifiedAt DATETIME(3)",
+    ]);
+    expect(
+      statements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS auth_sessions"),
+      ),
+    ).toBe(false);
+    expect(
+      statements.some((statement) => statement.includes(computeColumnSyncedFingerprint("mariadb"))),
+    ).toBe(true);
+  });
+
+  it("skips the column scan once the synced fingerprint is stored", async () => {
+    const synced = computeColumnSyncedFingerprint("mariadb");
+    const statements: string[] = [];
+    const connection = {
+      query: async (statement: string) => {
+        statements.push(statement);
+        if (statement.includes("FROM `svelty_schema_state`")) {
+          return [[{ fingerprint: synced }], []];
+        }
+        return [[], []];
+      },
+    };
+
+    const result = await bootstrapSystemSchema("mariadb", connection as never);
+    expect(result).toMatchObject({ success: true, skipped: true });
+    expect(statements.some((statement) => statement.includes("information_schema"))).toBe(false);
+    expect(statements.some((statement) => statement.startsWith("ALTER TABLE"))).toBe(false);
+    expect(
+      statements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS auth_sessions"),
+      ),
+    ).toBe(false);
+  });
 });

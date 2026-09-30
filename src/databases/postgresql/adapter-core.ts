@@ -1893,6 +1893,27 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${safeField}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${safeField}')::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
             : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
 
+        if (options.skipReturning === true) {
+          const sqlSkip = sqlQuery.replace(/ RETURNING \*$/, "");
+          for (let attempt = 0; attempt < 5; attempt++) {
+            try {
+              const result = await this.raw.execute(sqlSkip, params);
+              const count = Number(result?.count ?? 0);
+              if (count === 0) throw new Error(`Entry not found: ${idStr}`);
+              return { _id: idStr };
+            } catch (err: any) {
+              if (
+                attempt < 4 &&
+                (err?.message?.includes("too many clients") || err?.code === "53300")
+              ) {
+                await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
+                continue;
+              }
+              throw err;
+            }
+          }
+        }
+
         let rows: any[] = [];
         for (let attempt = 0; attempt < 5 && rows.length === 0; attempt++) {
           if (attempt > 0) await new Promise((r) => setTimeout(r, 10 * attempt));

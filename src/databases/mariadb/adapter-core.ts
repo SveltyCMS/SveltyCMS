@@ -1670,6 +1670,19 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
         const idColName = idCol.name || "_id";
 
+        if (options.skipReturning === true) {
+          const updateSql = fieldIsColumn
+            ? `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`
+            : dataCol
+              ? `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`
+              : `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`;
+          const updateParams = [amountNum, idStr, ...tenantParams];
+          const header = await this.raw.execute(updateSql, updateParams);
+          const affected = Number((header as { affectedRows?: number })?.affectedRows ?? 0);
+          if (affected === 0) throw new Error(`Entry not found after increment: ${idStr}`);
+          return { _id: idStr };
+        }
+
         if (this._returningSupported !== false) {
           try {
             // Prefer single-round-trip upsert with bound params when RETURNING is available.

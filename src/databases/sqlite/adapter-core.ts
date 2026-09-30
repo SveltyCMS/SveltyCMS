@@ -1842,6 +1842,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
             : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
 
+        // Prefer: return=minimal — one UPDATE, no row read-back. The ack is
+        // the id. A zero change-count is a missing row, same as the SELECT path.
+        if (options.skipReturning === true) {
+          const updateOnly = updateReturning.replace(/ RETURNING \*$/, "");
+          return this.withWriteLock(async () => {
+            const info = this.prepareAndExecute(
+              updateOnly,
+              "run",
+              amountNum,
+              nowMs,
+              idStr,
+              ...tenantParams,
+            ) as { changes?: number };
+            if (!info?.changes) {
+              throw new Error(`Entry not found after increment: ${idStr}`);
+            }
+            return { _id: idStr };
+          });
+        }
+
         // 🔒 SPAN LOCK: the UPDATE (+ its SELECT read-back) must be atomic —
         // another writer must not interleave between the increment and the
         // returned-row read.

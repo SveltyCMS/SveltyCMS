@@ -1460,6 +1460,34 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const filter: any = { _id: id };
       if (options.tenantId) filter.tenantId = options.tenantId;
 
+      if (options.skipReturning === true) {
+        const written = await this.model
+          .updateOne(
+            filter,
+            {
+              $inc: { [field]: amount } as any,
+              $set: { updatedAt: nowISODateString() },
+            } as any,
+            { strict: false },
+          )
+          .exec();
+        if (!written?.matchedCount) {
+          return {
+            success: false,
+            message: `Entry not found: ${String(id)}`,
+            error: {
+              code: "RECORD_NOT_FOUND",
+              message: `Entry not found: ${String(id)}`,
+            },
+          };
+        }
+        return {
+          success: true,
+          data: { _id: id },
+          meta: { executionTime: performance.now() - startTime },
+        };
+      }
+
       const result = await this.model
         .findOneAndUpdate(
           filter,

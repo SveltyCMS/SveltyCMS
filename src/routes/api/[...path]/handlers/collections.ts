@@ -763,7 +763,7 @@ export async function handleCollectionBulkDelete(
  * Previously these URLs fell through to create(), so delete/clone/status
  * inserted a new document instead of mutating the selected rows.
  */
-async function handleCollectionBatchAction(
+export async function handleCollectionBatchAction(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
@@ -826,7 +826,7 @@ async function handleCollectionBatchAction(
 }
 
 /** PATCH /api/collections/:id/:entryId/status — single or `{ entries: ids[] }` bulk. */
-async function handleCollectionStatusUpdate(
+export async function handleCollectionStatusUpdate(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
@@ -846,10 +846,17 @@ async function handleCollectionStatusUpdate(
   }
 
   const extra = extraStatusFields(body);
-  return successResponse(
-    event,
-    await cms.collections.update(collectionId, entryId, { status, ...extra }, { user, tenantId }),
+  const minimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
+  const result = await cms.collections.update(
+    collectionId,
+    entryId,
+    { status, ...extra },
+    { user, tenantId, ...(minimal ? { skipReturning: true } : {}) },
   );
+  if (minimal && result?.success) {
+    return fastSuccessResponse(event, `{"_id":${JSON.stringify(entryId)}}`, { _id: entryId }, 200);
+  }
+  return successResponse(event, result);
 }
 
 function extraStatusFields(body: Record<string, unknown>): Record<string, unknown> {
@@ -1031,6 +1038,7 @@ export async function handleCollectionIncrement(
   if (!field || typeof amount !== "number") {
     throw new AppError("Invalid payload. Expected { field: string, amount: number }", 400);
   }
+  const minimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
 
   // Resolve physical collection name from schema
   const schema = await (cms.collections as any).getSchema(collectionId, tenantId);
@@ -1043,6 +1051,7 @@ export async function handleCollectionIncrement(
     result = await (cms.db.crud as any).atomicIncrement(collectionName, entryId, field, amount, {
       tenantId,
       bypassSafeQuery: true,
+      ...(minimal ? { skipReturning: true } : {}),
     });
   } else {
     // Fallback: serialized findById + update with cache bypass
@@ -1059,7 +1068,11 @@ export async function handleCollectionIncrement(
       collectionId,
       entryId,
       { [field]: currentVal + amount },
-      { user: _user || { _id: "system", role: "admin" }, tenantId },
+      {
+        user: _user || { _id: "system", role: "admin" },
+        tenantId,
+        ...(minimal ? { skipReturning: true } : {}),
+      },
     );
   }
 
@@ -1067,11 +1080,16 @@ export async function handleCollectionIncrement(
     throw new AppError(result.message || "Failed to increment field", 500);
   }
 
-  // Invalidate cache so subsequent reads get the new value
+  // Invalidate cache so subsequent reads get the new value. The native
+  // increment does not go through schedulePostWrite, so this stays on both acks.
   try {
     await cms.db.monitoring.cache.invalidateCollection(collectionId, { tenantId });
   } catch {
     /* ignore */
+  }
+
+  if (minimal) {
+    return fastSuccessResponse(event, `{"_id":${JSON.stringify(entryId)}}`, { _id: entryId }, 200);
   }
 
   return successResponse(event, result);

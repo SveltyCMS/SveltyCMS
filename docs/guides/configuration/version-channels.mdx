@@ -75,9 +75,11 @@ docs-only and `--only-failures` paths, and a `version.ts` refusal fails the hook
 rather than leaving behind a push that looks released but is not.
 
 > **Check the proposal before the second push.** `auto` derives from the **highest reachable `v*` tag**,
-> which is not always `git describe`'s nearest tag: with a stale `v0.2.0` in history and `0.1.2` in the
-> manifest, the proposal is `0.3.0`. The commit is local until you push it, so a wrong proposal costs one
-> `git reset` — or pass an explicit target (`bun run version:bump 0.2.0`) instead of `auto`.
+> which is not always `git describe`'s nearest tag. A test tag `v0.2.0` (5 July 2026, manifest `0.0.7`)
+> used to outrank `v0.1.2` and propose `0.3.0`; it was deleted on 2026-09-30 and was never on `origin`.
+> The bump commit stays local until you push it, so a wrong proposal costs one `git reset` — or pass an
+> explicit target (`bun run version:bump 0.1.3`) when the range contains `feat` commits but the release
+> should stay a patch on the shipped line.
 
 **Auto policy** (default) — Conventional Commits subjects mapped to SemVer, highest rule first:
 

@@ -20,7 +20,11 @@
  *   indexes, partial indexes, engine-only tables) from RawSqlSpec entries
  * - per-statement warn-and-continue execution (never aborts the whole boot
  *   for one failing statement)
- * - schema fingerprint: an unchanged spec skips the DDL pass on every later boot
+ * - schema fingerprint: an unchanged spec skips the CREATE/INDEX pass on later boots.
+ *   A marker written before column reconcile existed still gets one column pass
+ *   (CREATE TABLE IF NOT EXISTS never adds a column). After that pass succeeds
+ *   the stored hash includes the reconcile generation, so a healthy boot does
+ *   not scan information_schema again.
  */
 
 import { createHash } from "node:crypto";
@@ -365,9 +369,11 @@ function executeSqlite(db: unknown, sql: string): void {
  *   table, changed type/default, new index) produces a new fingerprint and re-runs
  *   the pass — drift-free by construction, unlike a hand-incremented version
  *   number that someone forgets to bump.
- * - there is **no** legacy migration path: the spec is the only schema trail, so a
- *   database provisioned before a spec change must be re-provisioned or migrated
- *   with the release that introduced it (see the upgrade guide).
+ * - a bare spec hash (written before column reconcile) still adds missing
+ *   columns once. `CREATE TABLE IF NOT EXISTS` does not alter an existing table,
+ *   and that no-op used to store the marker and freeze the drift. A successful
+ *   reconcile rewrites the marker to `computeColumnSyncedFingerprint`, and that
+ *   marker skips both the DDL pass and the column scan.
  * - the fingerprint is only stored when **no** statement failed, so a
  *   half-applied schema is retried on the next boot instead of being trusted.
  * - every marker failure (missing table, read error) degrades to "run the pass",
@@ -376,6 +382,21 @@ function executeSqlite(db: unknown, sql: string): void {
 export function computeSchemaFingerprint(dialect: Dialect, spec: unknown = SYSTEM_SCHEMA): string {
   return createHash("sha256")
     .update(`${dialect}\u0000${JSON.stringify(spec)}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/**
+ * Marker stored after column reconcile has succeeded for this spec.
+ * Same 32-hex width as `computeSchemaFingerprint` (the MariaDB column is VARCHAR(64)).
+ * Distinct input, so a database still holding the bare spec hash is reconciled once.
+ */
+export function computeColumnSyncedFingerprint(
+  dialect: Dialect,
+  spec: unknown = SYSTEM_SCHEMA,
+): string {
+  return createHash("sha256")
+    .update(`${dialect}\u0000cols1\u0000${JSON.stringify(spec)}`)
     .digest("hex")
     .slice(0, 32);
 }
@@ -522,6 +543,152 @@ function createStateStore(dialect: Dialect, connection: unknown): SchemaStateSto
 }
 
 // ---------------------------------------------------------------------------
+// Column reconcile
+// ---------------------------------------------------------------------------
+
+/**
+ * Columns the spec declares for a table that already exists. An empty set means
+ * the table is absent (a later CREATE builds it). `null` means introspection
+ * itself failed — the caller must not invent ALTERs for every column.
+ */
+async function readLiveColumns(
+  dialect: Dialect,
+  connection: unknown,
+): Promise<Map<string, Set<string>> | null> {
+  const live = new Map<string, Set<string>>();
+  const add = (table: unknown, column: unknown) => {
+    const tableName = String(table ?? "").toLowerCase();
+    const columnName = String(column ?? "").toLowerCase();
+    if (!tableName || !columnName) return;
+    let cols = live.get(tableName);
+    if (!cols) {
+      cols = new Set();
+      live.set(tableName, cols);
+    }
+    cols.add(columnName);
+  };
+
+  try {
+    if (dialect === "mariadb") {
+      const pool = connection as mysql.Pool;
+      const [rows] = await pool.query(
+        "SELECT TABLE_NAME AS tableName, COLUMN_NAME AS columnName FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()",
+      );
+      if (!Array.isArray(rows)) return null;
+      for (const row of rows as Array<{ tableName?: string; columnName?: string }>) {
+        add(row.tableName, row.columnName);
+      }
+      return live;
+    }
+    if (dialect === "postgresql") {
+      const sql = connection as postgres.Sql;
+      const rows = await sql.unsafe(
+        `SELECT table_name AS "tableName", column_name AS "columnName" FROM information_schema.columns WHERE table_schema = current_schema()`,
+      );
+      if (!Array.isArray(rows)) return null;
+      for (const row of rows as Array<{ tableName?: string; columnName?: string }>) {
+        add(row.tableName, row.columnName);
+      }
+      return live;
+    }
+
+    const client = connection as {
+      query?: (sql: string) => { all?: () => unknown[] };
+    };
+    if (typeof client.query !== "function") return null;
+    const tables = SYSTEM_SCHEMA.filter((item): item is TableSpec => item.kind === "table");
+    for (const table of tables) {
+      const rows =
+        client.query(`SELECT name FROM pragma_table_info(${sqliteIdent(table.name)})`).all?.() ??
+        [];
+      for (const row of rows) {
+        const record = row as { name?: string };
+        add(table.name, record.name);
+      }
+    }
+    return live;
+  } catch (err) {
+    logger.warn(
+      `[${dialect}] System schema column check failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
+function addColumnStatement(dialect: Dialect, table: TableSpec, column: ColumnSpec): string | null {
+  const definition = colFor(column, dialect);
+  if (!definition) return null;
+  if (dialect === "mariadb") {
+    const tableName = table.mariadbQuotedTable
+      ? quoteIdentifier(table.name, "mariadb")
+      : table.name;
+    return `ALTER TABLE ${tableName} ADD COLUMN ${definition}`;
+  }
+  if (dialect === "postgresql") {
+    return `ALTER TABLE ${pgTableName(table.name)} ADD COLUMN ${definition}`;
+  }
+  return `ALTER TABLE ${sqliteIdent(table.name)} ADD COLUMN ${definition}`;
+}
+
+async function executeBootstrapStatement(
+  dialect: Dialect,
+  connection: unknown,
+  statement: string,
+): Promise<void> {
+  if (dialect === "postgresql") {
+    await (connection as postgres.Sql).unsafe(statement);
+    return;
+  }
+  if (dialect === "mariadb") {
+    await (connection as mysql.Pool).query(statement);
+    return;
+  }
+  executeSqlite(connection, statement);
+}
+
+/**
+ * Add spec columns that an existing table does not have yet. Tables with no
+ * live columns are left to CREATE TABLE. Duplicate-column races are success.
+ */
+async function reconcileMissingColumns(
+  dialect: Dialect,
+  connection: unknown,
+): Promise<{ added: number; failures: number }> {
+  const live = await readLiveColumns(dialect, connection);
+  if (!live) return { added: 0, failures: 0 };
+
+  let added = 0;
+  let failures = 0;
+  const tables = SYSTEM_SCHEMA.filter((item): item is TableSpec => item.kind === "table");
+  for (const table of tables) {
+    const have = live.get(table.name.toLowerCase());
+    if (!have || have.size === 0) continue;
+    for (const column of sortedColumns(table, dialect)) {
+      if (!column.type[dialect] || have.has(column.name.toLowerCase())) continue;
+      const statement = addColumnStatement(dialect, table, column);
+      if (!statement) continue;
+      try {
+        await executeBootstrapStatement(dialect, connection, statement);
+        have.add(column.name.toLowerCase());
+        added++;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (/duplicate column|already exists/i.test(message)) {
+          have.add(column.name.toLowerCase());
+          continue;
+        }
+        failures++;
+        logger.warn(`[${dialect}] Schema column add failed (continuing): ${message}`);
+      }
+    }
+  }
+  if (added > 0) {
+    logger.info(`[${dialect}] Added ${added} missing system column(s)`);
+  }
+  return { added, failures };
+}
+
+// ---------------------------------------------------------------------------
 // Public entry
 // ---------------------------------------------------------------------------
 
@@ -544,13 +711,38 @@ export async function bootstrapSystemSchema(
   try {
     const stateStore = createStateStore(dialect, connection);
     const fingerprint = computeSchemaFingerprint(dialect);
+    const syncedFingerprint = computeColumnSyncedFingerprint(dialect);
     const stored = await stateStore.read();
-
-    if (stored === fingerprint) {
+    // Healthy boot: reconcile already succeeded for this spec. No column scan.
+    if (stored === syncedFingerprint) {
       logger.info(
-        `[${dialect}] System schema up to date (${fingerprint.slice(0, 8)}) — skipped the DDL pass`,
+        `[${dialect}] System schema up to date (${syncedFingerprint.slice(0, 8)}) — skipped the DDL pass`,
       );
       return { success: true, skipped: true };
+    }
+
+    // Bare spec hash: CREATE TABLE IF NOT EXISTS already ran and stored a marker
+    // without adding columns that arrived later. Reconcile once, then upgrade
+    // the marker. A spec change falls through to the full DDL pass below.
+    const legacyMarker = stored === fingerprint;
+    const columnSync = await reconcileMissingColumns(dialect, connection);
+    if (legacyMarker) {
+      if (columnSync.failures > 0) {
+        logger.warn(
+          `[${dialect}] System schema marker matches but ${columnSync.failures} column add(s) failed`,
+        );
+      } else {
+        await stateStore.store(syncedFingerprint);
+        logger.info(
+          `[${dialect}] System schema up to date (${syncedFingerprint.slice(0, 8)}) — skipped the DDL pass` +
+            (columnSync.added > 0 ? ` after adding ${columnSync.added} column(s)` : ""),
+        );
+      }
+      return {
+        success: columnSync.failures === 0,
+        skipped: columnSync.added === 0 && columnSync.failures === 0,
+        ...(columnSync.failures > 0 ? { failures: columnSync.failures } : {}),
+      };
     }
 
     logger.info(`[${dialect}] Bootstrapping system schema...`);
@@ -589,7 +781,8 @@ export async function bootstrapSystemSchema(
     }
 
     // Only trust the marker when nothing failed — otherwise the next boot retries.
-    if (failures === 0) await stateStore.store(fingerprint);
+    failures += columnSync.failures;
+    if (failures === 0) await stateStore.store(syncedFingerprint);
 
     logger.info(
       `[${dialect}] System schema bootstrap completed successfully` +

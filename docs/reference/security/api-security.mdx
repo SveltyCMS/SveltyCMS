@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-05-14"
-updated: "2026-09-22"
+updated: "2026-09-30"
 tags:
   - "security"
   - "auth"
@@ -248,7 +248,7 @@ SveltyCMS enforces mandatory multi-factor authentication on a per-role basis:
   - `amr: ["pwd"]` — Password authentication only.
   - `amr: ["pwd", "mfa"]` — Interactive 2FA verified (TOTP, hardware passkey/WebAuthn, backup code).
   - `mfaVerifiedAt` — ISO timestamp recording when second-factor elevation occurred.
-- **Persisted on every engine**: `amr` (JSON/JSONB) and `mfaVerifiedAt` are real `auth_sessions` columns on all four adapters — declared in the system schema spec, materialised by the Drizzle schemas (SQLite/PostgreSQL/MariaDB) and Mongo's `SessionSchema`, and back-filled on existing databases by the boot legacy-tail `ALTER`s. Before this, the SQL adapters accepted and dropped both fields on write, so MFA elevation survived a reload only on Mongo.
+- **Persisted on every engine**: `amr` (JSON/JSONB) and `mfaVerifiedAt` are real `auth_sessions` columns on all four adapters — declared in the system schema spec, materialised by the Drizzle schemas (SQLite/PostgreSQL/MariaDB) and Mongo's `SessionSchema`. An existing SQL table that predates the columns receives them on the next boot. Before the columns existed, the SQL adapters accepted and dropped both fields on write, so MFA elevation survived a reload only on Mongo.
 - **Endpoint Gate Enforcement**: In `_checkEndpointPermission`, requests made under a mandatory-MFA role that carry non-MFA sessions (`amr: ["pwd"]` or `amr: ["pwd", "trusted_device"]`) are immediately rejected with HTTP 403 `MFA_REQUIRED`.
 - **Exempt Routes**: Self-service 2FA setup/verification (`/api/auth/2fa/*`) and session teardown (`/api/auth/logout`) remain accessible so users can authenticate their factor or safely log out.
 - **Trusted-Device Override**: Device-level trust (`__Host-2fa-trusted-device`) is unconditionally disabled for any user assigned to a role with `mfaRequired: true`. Interactive second factor is required on every login.

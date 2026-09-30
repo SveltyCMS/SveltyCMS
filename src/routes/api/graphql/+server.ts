@@ -796,6 +796,7 @@ async function handleRequest(event: RequestEvent) {
   // are exempt; GET stays exempt as a safe method (queries only).
   if (
     request.method === "POST" &&
+    !(locals as { __laneCsrfChecked?: boolean }).__laneCsrfChecked &&
     !(locals.user as { isApiKey?: boolean })?.isApiKey &&
     !(locals.user as { isApiToken?: boolean })?.isApiToken &&
     (globalThis as any).process?.env?.TEST_MODE !== "true"

@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-09-29"
+updated: "2026-09-30"
 tags:
   - "architecture"
   - "hooks"
@@ -632,6 +632,12 @@ The auth context (`{ user, roles, bitset, tenantId }`) is populated by `handleAu
 **File reference**: `src/hooks/handle-turbo-get.ts`, `src/hooks/handle-authentication.ts` (universal check), `src/hooks/handle-authorization.ts` (cache population)
 
 ---
+
+### Collection write lane
+
+A warm admin session is served by `tryCollectionWriteLane` / `tryGraphqlWriteLane` on the SvelteKit `API_WRITE` path, before the ten-hook chain. A cold session falls through with the body unread. The socket twin stays off unless `SVELTY_FAST_LANE_WRITE=1`.
+
+The lane admits `POST /api/collections/:id`, `PATCH`/`PUT /api/collections/:id/:entryId`, and the same collection's `batch`, `batch-clone`, `bulk`, `increment`, and `status` actions, plus `POST /api/graphql`. A non-admin on an extended action falls through before the body is read. The lane still applies the operational-state gate, the header and path scan, the declared body cap, CSRF once (GraphQL does not check the token a second time), the user-agent step-up, the admin check, and the mutation limiter. `Prefer: return=minimal` skips the row read-back on create, update, increment, and status. With no `Prefer` header the response is the full document. The full-document PostgreSQL update stays dominated by the durable commit; this lane does not change that commit.
 
 ### Collection Read Lane — bypass policy, gates & the WAF gap
 

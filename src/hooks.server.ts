@@ -52,8 +52,10 @@ if (typeof (globalThis as any).__dirname === "undefined") {
 import { isSetupComplete } from "./utils/setup-check-fast";
 import { classifyRequest, RequestLane } from "./hooks/handle-request-classifier";
 import {
-  isSimpleCollectionWrite,
+  isCollectionWriteLanePath,
   tryCollectionWriteLane,
+  isGraphqlWriteLanePath,
+  tryGraphqlWriteLane,
 } from "./hooks/handle-collection-write-lane";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./hooks/handle-collection-read-lane";
 import { isSystemReady } from "@src/stores/system/state.svelte.ts";
@@ -795,9 +797,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Warm collection create/update: WAF + CSRF + rate-limit + one persist.
   // Cold sessions fall through to the full API_WRITE sequence.
-  if (lane === RequestLane.API_WRITE && isSimpleCollectionWrite(event)) {
+  if (lane === RequestLane.API_WRITE && isCollectionWriteLanePath(event)) {
     return withLane(
       await tryCollectionWriteLane({
+        event,
+        resolve: async (evt) => {
+          attachRouteSpec(evt);
+          const pipeline = await getPipeline(lane);
+          return pipeline({ event: evt, resolve });
+        },
+      }),
+      lane,
+    );
+  }
+
+  // Warm admin GraphQL POST. Same WAF, CSRF, session-risk, and rate limit as
+  // the collection lane. Cold sessions and non-admins stay on API_WRITE.
+  // The socket write lane stays off: this still enters through the SvelteKit handle.
+  if (lane === RequestLane.API_WRITE && isGraphqlWriteLanePath(event)) {
+    return withLane(
+      await tryGraphqlWriteLane({
         event,
         resolve: async (evt) => {
           attachRouteSpec(evt);

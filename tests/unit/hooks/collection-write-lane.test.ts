@@ -3,13 +3,17 @@
  * @description Shape gate for the warm collection create/update lane.
  *
  * ### Features:
- * - POST collection and PATCH entry match
- * - bulk/search/increment fall through to the full pipeline
+ * - POST collection and PATCH entry match the simple lane
+ * - batch, bulk, increment, and status match the extended lane
+ * - search and GraphQL queries stay off the collection lane
  * - a changed user-agent steps a warm write up before persist
  */
 
 import { describe, expect, it } from "vitest";
 import {
+  collectionWriteLaneKind,
+  isCollectionWriteLanePath,
+  isGraphqlWriteLanePath,
   isSimpleCollectionWrite,
   serveWarmCollectionWrite,
 } from "@src/hooks/handle-collection-write-lane";
@@ -40,11 +44,37 @@ describe("isSimpleCollectionWrite", () => {
     ).toBe(true);
   });
 
-  it("rejects bulk, search, increment, and reads", () => {
+  it("keeps bulk, search, increment, and reads off the simple lane", () => {
     expect(isSimpleCollectionWrite(evt("GET", "/api/collections/Articles"))).toBe(false);
     expect(isSimpleCollectionWrite(evt("POST", "/api/collections/search"))).toBe(false);
     expect(isSimpleCollectionWrite(evt("POST", "/api/collections/Articles/bulk"))).toBe(false);
     expect(isSimpleCollectionWrite(evt("POST", "/api/graphql"))).toBe(false);
+  });
+});
+
+describe("extended write lane", () => {
+  const id = "00000000-0000-7000-8000-000000000001";
+
+  it("admits batch, bulk, increment, and status", () => {
+    expect(collectionWriteLaneKind("POST", "/api/collections/Articles/batch")).toBe("extended");
+    expect(collectionWriteLaneKind("POST", "/api/collections/Articles/bulk")).toBe("extended");
+    expect(collectionWriteLaneKind("PATCH", "/api/collections/Articles/bulk")).toBe("extended");
+    expect(collectionWriteLaneKind("POST", `/api/collections/Articles/${id}/increment`)).toBe(
+      "extended",
+    );
+    expect(collectionWriteLaneKind("PATCH", `/api/collections/Articles/${id}/status`)).toBe(
+      "extended",
+    );
+    expect(isCollectionWriteLanePath(evt("POST", "/api/collections/Articles/batch"))).toBe(true);
+  });
+
+  it("leaves search, reorder, and single delete on the full pipeline", () => {
+    expect(collectionWriteLaneKind("POST", "/api/collections/search")).toBeNull();
+    expect(collectionWriteLaneKind("POST", "/api/collections/reorder")).toBeNull();
+    expect(collectionWriteLaneKind("DELETE", `/api/collections/Articles/${id}`)).toBeNull();
+    expect(isGraphqlWriteLanePath(evt("POST", "/api/graphql"))).toBe(true);
+    expect(isGraphqlWriteLanePath(evt("GET", "/api/graphql"))).toBe(false);
+    expect(isCollectionWriteLanePath(evt("POST", "/api/graphql"))).toBe(false);
   });
 });
 

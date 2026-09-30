@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-29"
+updated: "2026-09-30"
 tags:
   - "achievements"
   - "log"
@@ -1532,10 +1532,10 @@ at the version and commits nothing. Skipped on the docs-only and `--only-failure
 refused with a non-zero exit when `version.ts` refuses — a push that looks released but is not would be
 worse than a blocked push.
 
-> **Known trap, observed 2026-09-27:** a stale `v0.2.0` tag survives in history, so `auto` derives
-> `0.1.2 → 0.3.0` (highest reachable tag wins over `git describe`'s nearest `v0.1.2`). The first real
-> `--release` would therefore skip the 0.2.x line the manifest never entered. Delete the stale tag or pass
-> an explicit target (`bun run version:bump 0.2.0`) before arming it.
+> **Known trap, observed 2026-09-27, removed 2026-09-30:** a test tag `v0.2.0` on the 5 July 2026 commit
+> `6dc2d89` (that commit’s manifest was `0.0.7`) was reachable, so `auto` derived `0.1.2 → 0.3.0`
+> (highest reachable tag wins over `git describe`'s nearest `v0.1.2`). The tag was local only and was
+> deleted. It was never on `origin`. With it gone, the highest reachable tag is `v0.1.2`.
 
 **A manifest writer that could not find the field it was looking at.** `replaceVersionField()` was
 line-anchored (`^\s*"version"\s*:…$` with the `m` flag), so a manifest whose version field shares a line
@@ -2010,6 +2010,11 @@ and a 20-minute build stall reproduced once and then vanished on re-run (no prod
 - **SSO**: OIDC session metadata is written to the session cache (`sso:session:{id}`, 7 days) as well as process memory, so RP-initiated logout can finish on another node. Back-channel logout still walks the sessions this process has in memory.
 - **WebAuthn**: register and sign-in reject a foreign origin and a missing user-presence flag. The assertion signature is checked over the raw client data bytes.
 - **Self-assessment, re-run 2026-09-29**: the August weights still total **99.93/100 (~99.9%)**. `bun run test:security` passed 343 tests. `bun run risk:audit` passed 5/5 after the read redaction path was switched to canonical `isAdmin()` (the first audit pass had one `admin-role-fragmentation` finding). The two 99.8 rows were not raised. The figure is the internal checklist. A dated penetration test by someone outside the project is still open, and it is not one of the six weights.
+
+### 3.43 September 2026 — Missing columns on an existing database, and the warm write lane's remaining URLs
+
+- **Schema boot**: `CREATE TABLE IF NOT EXISTS` does not add a column to a table that already exists. A boot that only ran it stored the spec fingerprint anyway, so the next start skipped the pass and left the live table behind the spec. MariaDB `bench_parent.auth_sessions` was missing `amr` and `mfaVerifiedAt`; session insert failed and admin login returned 401 `Failed to create session`. Boot now adds any spec column an existing table does not have. A bare spec fingerprint triggers that pass once. After it succeeds the stored marker is `computeColumnSyncedFingerprint`, and a later boot skips both the DDL pass and the column scan. Renames and the dropped v0.0.8 repairs are still not replayed. Documented in [Upgrading](../guides/configuration/upgrading.mdx). Test: `tests/unit/databases/schema-spec-parity.test.ts`.
+- **Warm writes**: batch, bulk, increment, status, and `POST /api/graphql` join the SvelteKit collection write lane when the session is warm and the caller is an admin. The socket write lane stays opt-in. `Prefer: return=minimal` on increment and status skips the row read-back on all four adapters, the same contract create and update already had. The default response is still the full document. The PostgreSQL full-document update remains the durable commit described in §3.41.
 
 ## Related
 

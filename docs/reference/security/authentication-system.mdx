@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-27"
+updated: "2026-09-30"
 tags:
   - "security"
   - "auth"
@@ -78,7 +78,7 @@ Every engine persists the same authoritative record — `auth_sessions` (Mongo: 
 | `mfaVerifiedAt`                        | When the second factor was proven for this session; `null` until then.                                                                                                                                                                                                                                                                                                   |
 | `permMask`                             | **Phase 2 (2026-09):** 64-bit `BigInt` hex string encoding all granted permissions; embedded at `createSession` time, deserialized to `locals.permMask: bigint` by `handle-authentication.ts`. Enables O(1) `(mask & bit) !== 0n` checks in the API dispatcher with zero per-request memory allocation. Bit 63 is reserved for future Field-Level Access Control (FLAC). |
 
-- **Cross-engine parity**: the columns are declared once in the system schema spec and materialised per adapter (Drizzle schemas plus boot legacy-tail `ALTER`s for existing databases, Mongo `SessionSchema`). MariaDB stores `mfaVerifiedAt` as `DATETIME(3)` so millisecond precision survives the round-trip; MariaDB also double-encodes JSON columns, so reads normalise `amr` through the shared `parseJsonField` boundary.
+- **Cross-engine parity**: the columns are declared once in the system schema spec and materialised per adapter (Drizzle schemas, Mongo `SessionSchema`). An existing SQL database receives a missing column on the next boot. MariaDB stores `mfaVerifiedAt` as `DATETIME(3)` so millisecond precision survives the round-trip; MariaDB also double-encodes JSON columns, so reads normalise `amr` through the shared `parseJsonField` boundary.
 - **Rotation carries the MFA proof**: `rotateToken` copies `amr`, `mfaVerifiedAt`, and the device metadata onto the new row — renewing a cookie never downgrades or silently upgrades the session's authentication strength.
 
 ### Multi-Tenancy 2.0

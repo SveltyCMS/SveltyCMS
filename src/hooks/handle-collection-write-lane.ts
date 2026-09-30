@@ -9,10 +9,12 @@
  * the Postgres wait the way the ceiling probe does.
  *
  * ### Features:
- * - POST /api/collections/:id and PATCH/PUT /api/collections/:id/:entryId only
+ * - Simple REST create/update, plus batch, bulk, increment, and status
+ * - Warm admin GraphQL POST (`/api/graphql`) — same checks, handler unchanged
  * - Requires a warm turbo-auth session (cold requests fall through)
+ * - Non-admins on the extended routes fall through to the full pipeline
  * - WAF path inspect + CSRF same-origin/double-submit + existing rate-limit hook
- * - Delegates persist to cms.collections.create/update (same adapter path)
+ * - `Prefer: return=minimal` skips the row read-back on every admitted write
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
@@ -33,6 +35,7 @@ import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 import { prefersMinimalReturn } from "@utils/http-preferences";
 import { getClientIp } from "@utils/hook-utils";
+import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { decideSessionRisk, evaluateSessionAnomaly } from "@src/databases/auth/session-user";
 
 /**
@@ -80,6 +83,77 @@ function unwrapWritePayload(raw: unknown): unknown {
 
 const SKIP_COLLECTION_IDS = new Set(["search", "reorder", "warm-cache", "list"]);
 
+export type CollectionWriteLaneKind = "simple" | "extended";
+
+/**
+ * Which warm-lane shape a collection mutation is, or null when the full
+ * API_WRITE pipeline must own it (cold-only routes, reads, reorder).
+ *
+ * Simple: POST /api/collections/:id and PATCH|PUT /api/collections/:id/:entryId.
+ * Extended: batch, bulk create/update, atomic increment, and status. Those
+ * keep the same WAF, CSRF, session-risk, and rate-limit checks. A non-admin
+ * falls through so the pipeline's permission map still decides.
+ */
+export function collectionWriteLaneKind(
+  method: string,
+  pathname: string,
+): CollectionWriteLaneKind | null {
+  if (!pathname.startsWith("/api/collections/")) return null;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length < 3 || parts.length > 5) return null;
+  const collectionId = parts[2];
+  if (!collectionId || SKIP_COLLECTION_IDS.has(collectionId)) return null;
+  const entryId = parts[3];
+  const subAction = parts[4];
+
+  if (method === "POST" && parts.length === 3) return "simple";
+  if (
+    (method === "PATCH" || method === "PUT") &&
+    parts.length === 4 &&
+    entryId &&
+    entryId !== "bulk" &&
+    entryId !== "batch" &&
+    entryId !== "batch-clone"
+  ) {
+    return "simple";
+  }
+
+  if (
+    method === "POST" &&
+    parts.length === 4 &&
+    (entryId === "batch" || entryId === "batch-clone" || entryId === "bulk")
+  ) {
+    return "extended";
+  }
+  if ((method === "PATCH" || method === "PUT") && parts.length === 4 && entryId === "bulk") {
+    return "extended";
+  }
+  if (method === "POST" && parts.length === 5 && subAction === "increment" && entryId) {
+    return "extended";
+  }
+  if (
+    (method === "PATCH" || method === "PUT") &&
+    parts.length === 5 &&
+    subAction === "status" &&
+    entryId
+  ) {
+    return "extended";
+  }
+  return null;
+}
+
+/** True for any collection mutation the warm lane is allowed to admit. */
+export function isCollectionWriteLanePath(event: RequestEvent): boolean {
+  return collectionWriteLaneKind(event.request.method, event.url.pathname) !== null;
+}
+
+/** Warm admin GraphQL mutation. Queries and non-admins stay on the full pipeline. */
+export function isGraphqlWriteLanePath(event: RequestEvent): boolean {
+  if (event.request.method !== "POST") return false;
+  const pathname = event.url.pathname;
+  return pathname === "/api/graphql" || pathname === "/api/graphql/";
+}
+
 /**
  * Stateless SDK bridge — one instance per process (same pattern as the read
  * lane: `LocalCMS.getLocals()` allocates a fresh facade per request, the
@@ -93,25 +167,123 @@ function getLaneCms(): LocalCMS | null {
   return laneCms;
 }
 
+type CollectionHandlerModule = typeof import("@src/routes/api/[...path]/handlers/collections");
+let collectionHandlersPromise: Promise<CollectionHandlerModule> | null = null;
+function loadCollectionHandlers(): Promise<CollectionHandlerModule> {
+  collectionHandlersPromise ??= import("@src/routes/api/[...path]/handlers/collections");
+  return collectionHandlersPromise;
+}
+
+let graphqlPostPromise: Promise<(event: RequestEvent) => Promise<Response>> | null = null;
+function loadGraphqlPost(): Promise<(event: RequestEvent) => Promise<Response>> {
+  graphqlPostPromise ??= import("@src/routes/api/graphql/+server").then((mod) => mod.POST);
+  return graphqlPostPromise;
+}
+
+function finishWarmWrite(
+  event: RequestEvent,
+  res: Response,
+  marks: Map<string, number> | null,
+  srvT0: number,
+  t0: number,
+): Response {
+  applyAllSecurityHeaders(
+    res.headers,
+    event.url.protocol === "https:",
+    event.request.headers.get("Origin"),
+    event.url.pathname,
+  );
+  marks?.set("serve", performance.now() - t0);
+  if (marks) stampWriteSplit(res.headers, marks);
+  stampSrvDur(res.headers, srvT0);
+  return res;
+}
+
+/** WAF, CSRF, session-risk, and tenant bind. Throws on a security reject. */
+async function openWarmMutation(
+  event: RequestEvent,
+  turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+): Promise<void> {
+  const { request, url, cookies, locals } = event;
+  const wafCheck = wafGuard.inspectEvent(event);
+  if (wafCheck.blocked) {
+    throw new AppError(wafCheck.reason ?? "Security Policy Violation", 400);
+  }
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null) {
+    const contentLength = parseInt(declaredLength, 10);
+    if (Number.isFinite(contentLength) && contentLength > API_MAX_BODY_SIZE_BYTES) {
+      throw new AppError(bodyTooLargeMessage(contentLength), 413, "PAYLOAD_TOO_LARGE");
+    }
+  }
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const csrf = validateCsrfForRequest(cookies, request, isSecure);
+  if (!csrf.isValid) {
+    throw new AppError(`Security violation: ${csrf.error}`, 403, "CSRF_VIOLATION");
+  }
+  // GraphQL POST validates CSRF again. The token rotates on a successful
+  // header check, so a second call would reject the request it just accepted.
+  (locals as { __laneCsrfChecked?: boolean }).__laneCsrfChecked = true;
+  const risk = decideSessionRisk(
+    evaluateSessionAnomaly({
+      currentIp: getClientIp(event),
+      currentUserAgent: request.headers.get("user-agent"),
+      storedIp: turbo.boundIp,
+      storedUserAgent: turbo.boundUserAgent,
+    }),
+  );
+  if (risk === "step-up") {
+    throw new AppError(
+      "Sign in again to continue. This session was presented by a different browser.",
+      403,
+      "SESSION_RISK_STEP_UP",
+    );
+  }
+  locals.user = turbo.user;
+  locals.roles = turbo.roles;
+  locals.tenantId = resolveRequestTenant(request, turbo.tenantId);
+  locals.isAdmin = isAdmin(turbo.user);
+  (locals as { __turboAuth?: boolean }).__turboAuth = true;
+  locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
+  (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
+  const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
+  if (tenantP) await tenantP;
+}
+
+async function dispatchExtendedCollectionWrite(
+  event: RequestEvent,
+  cms: LocalCMS,
+  parts: string[],
+): Promise<Response | null> {
+  const handlers = await loadCollectionHandlers();
+  const collectionId = parts[2];
+  const entryId = parts[3];
+  const subAction = parts[4];
+  if (!collectionId) return null;
+  const tenantId = event.locals.tenantId as DatabaseId;
+  const user = event.locals.user;
+  const method = event.request.method;
+  if (method === "POST" && entryId === "bulk") {
+    return handlers.handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
+  }
+  if ((method === "PATCH" || method === "PUT") && entryId === "bulk") {
+    return handlers.handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
+  }
+  if (method === "POST" && (entryId === "batch" || entryId === "batch-clone") && entryId) {
+    return handlers.handleCollectionBatchAction(event, cms, tenantId, user, collectionId, entryId);
+  }
+  if (method === "POST" && subAction === "increment" && entryId) {
+    return handlers.handleCollectionIncrement(event, cms, tenantId, user, collectionId, entryId);
+  }
+  if ((method === "PATCH" || method === "PUT") && subAction === "status" && entryId) {
+    return handlers.handleCollectionStatusUpdate(event, cms, tenantId, user, collectionId, entryId);
+  }
+  return null;
+}
+
 /** True for simple REST create (POST collection) or update (PATCH/PUT entry). */
 export function isSimpleCollectionWrite(event: RequestEvent): boolean {
-  const method = event.request.method;
-  if (method !== "POST" && method !== "PATCH" && method !== "PUT") return false;
-  const pathname = event.url.pathname;
-  if (!pathname.startsWith("/api/collections/")) return false;
-  const parts = pathname.split("/").filter(Boolean);
-  // ["api", "collections", collectionId] or + entryId
-  if (parts.length < 3 || parts.length > 4) return false;
-  if (SKIP_COLLECTION_IDS.has(parts[2])) return false;
-  if (
-    parts.length === 4 &&
-    (parts[3] === "batch" || parts[3] === "bulk" || parts[3] === "increment")
-  ) {
-    return false;
-  }
-  if (method === "POST" && parts.length !== 3) return false;
-  if ((method === "PATCH" || method === "PUT") && parts.length !== 4) return false;
-  return true;
+  return collectionWriteLaneKind(event.request.method, event.url.pathname) === "simple";
 }
 
 function hasWarmSession(event: RequestEvent): boolean {
@@ -140,17 +312,8 @@ async function executeWarmCollectionWrite(
   const srvT0 = STAMP_SRV_DUR || STAMP_WRITE_SPLIT ? performance.now() : 0;
   const t0 = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
-  const wafCheck = wafGuard.inspectEvent(event);
-  if (wafCheck.blocked) {
-    throw new AppError(wafCheck.reason ?? "Security Policy Violation", 400);
-  }
 
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-  const csrf = validateCsrfForRequest(cookies, request, isSecure);
-  if (!csrf.isValid) {
-    throw new AppError(`Security violation: ${csrf.error}`, 403, "CSRF_VIOLATION");
-  }
-
   const sessionId = readSessionCookie(cookies, isSecure);
   const turbo = turboContext ?? (sessionId ? getTurboAuthContext(sessionId) : null);
   // Expired turbo → fall through to the full auth pipeline (session cookie
@@ -162,38 +325,25 @@ async function executeWarmCollectionWrite(
     return null;
   }
 
-  const risk = decideSessionRisk(
-    evaluateSessionAnomaly({
-      currentIp: getClientIp(event),
-      currentUserAgent: request.headers.get("user-agent"),
-      storedIp: turbo.boundIp,
-      storedUserAgent: turbo.boundUserAgent,
-    }),
-  );
-  if (risk === "step-up") {
-    throw new AppError(
-      "Sign in again to continue. This session was presented by a different browser.",
-      403,
-      "SESSION_RISK_STEP_UP",
-    );
-  }
-
-  locals.user = turbo.user;
-  locals.roles = turbo.roles;
-  locals.tenantId = resolveRequestTenant(request, turbo.tenantId);
-  locals.isAdmin = isAdmin(turbo.user);
-  (locals as { __turboAuth?: boolean }).__turboAuth = true;
-  locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
-  (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
-  const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
-  if (tenantP) await tenantP;
+  await openWarmMutation(event, turbo);
   marks?.set("security", performance.now() - t0);
 
+  const kind = collectionWriteLaneKind(request.method, url.pathname);
+  // Non-admins on extended routes are turned back in tryCollectionWriteLane
+  // before this runs, so the body is still unread. A direct caller still
+  // fail-closes.
   if (!isAdmin(turbo.user) && turbo.user?.role !== "admin") {
     throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
   }
 
   const parts = url.pathname.split("/").filter(Boolean);
+  if (kind === "extended") {
+    const extendedCms = getLaneCms();
+    if (!extendedCms) return null;
+    const extended = await dispatchExtendedCollectionWrite(event, extendedCms, parts);
+    if (!extended) return null;
+    return finishWarmWrite(event, extended, marks, srvT0, t0);
+  }
   const collectionId = parts[2];
   const entryId = parts[3];
   const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
@@ -252,29 +402,11 @@ async function executeWarmCollectionWrite(
       { _id: resId },
       isPost ? 201 : 200,
     );
-    applyAllSecurityHeaders(
-      res.headers,
-      url.protocol === "https:",
-      request.headers.get("Origin"),
-      url.pathname,
-    );
-    marks?.set("serve", performance.now() - t0);
-    if (marks) stampWriteSplit(res.headers, marks);
-    stampSrvDur(res.headers, srvT0);
-    return res;
+    return finishWarmWrite(event, res, marks, srvT0, t0);
   }
 
   const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
-  applyAllSecurityHeaders(
-    res.headers,
-    url.protocol === "https:",
-    request.headers.get("Origin"),
-    url.pathname,
-  );
-  marks?.set("serve", performance.now() - t0);
-  if (marks) stampWriteSplit(res.headers, marks);
-  stampSrvDur(res.headers, srvT0);
-  return res;
+  return finishWarmWrite(event, res, marks, srvT0, t0);
 }
 
 /**
@@ -320,8 +452,39 @@ export async function serveWarmCollectionWrite(
  * body UNREAD — so a caller that re-dispatches unserved requests to the full
  * pipeline (the raw fast lane) never has to replay a consumed body.
  */
+export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
+  if (!isGraphqlWriteLanePath(event) || !dbAdapter || !isLaneServingAllowed()) {
+    return resolve(event);
+  }
+  if (!hasWarmSession(event)) return resolve(event);
+  const turbo = resolveWarmWriteSession(event);
+  // Non-admins keep the full authorization pipeline. Body stays unread.
+  if (!turbo || !(isAdmin(turbo.user) || turbo.user?.role === "admin")) {
+    return resolve(event);
+  }
+  const stamp = STAMP_SRV_DUR || STAMP_WRITE_SPLIT;
+  const srvT0 = stamp ? performance.now() : 0;
+  const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
+  try {
+    return await handleRateLimit({
+      event,
+      resolve: async () => {
+        const tSec = STAMP_WRITE_SPLIT ? performance.now() : 0;
+        await openWarmMutation(event, turbo);
+        marks?.set("security", performance.now() - tSec);
+        const post = await loadGraphqlPost();
+        const res = await post(event);
+        return finishWarmWrite(event, res, marks, srvT0, srvT0);
+      },
+    });
+  } catch (err) {
+    if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);
+    throw err;
+  }
+};
+
 export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
-  if (!isSimpleCollectionWrite(event) || !dbAdapter || !hasWarmSession(event)) {
+  if (!isCollectionWriteLanePath(event) || !dbAdapter || !hasWarmSession(event)) {
     return resolve(event);
   }
   // 🛡️ Operational-state gate: the write lane never runs `handle-system-state`,
@@ -329,5 +492,14 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   if (!isLaneServingAllowed()) return resolve(event);
   const turbo = resolveWarmWriteSession(event);
   if (!turbo) return resolve(event);
+  // Batch, bulk, increment, and status are valid for non-admins who hold
+  // collections:write. Leave those on the full pipeline. The body is unread.
+  if (
+    collectionWriteLaneKind(event.request.method, event.url.pathname) === "extended" &&
+    !isAdmin(turbo.user) &&
+    turbo.user?.role !== "admin"
+  ) {
+    return resolve(event);
+  }
   return serveWarmCollectionWrite(event, turbo);
 };
