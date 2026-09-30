@@ -1177,6 +1177,29 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * A previous process may have sorted this field while it still lived in
+   * `data` and left `(data->>'field')` behind. Once the value is a real
+   * column that index is only extra WAL on every update.
+   */
+  protected override onMaterializedFieldsRegistered(
+    physicalTable: string,
+    columns: Map<string, string>,
+  ): void {
+    if (!this.sql || columns.size === 0) return;
+    for (const field of columns.keys()) {
+      let indexName: string;
+      try {
+        indexName = assertSafeSqlIdentifier(`${physicalTable}_${field}_expr_idx`, "index");
+      } catch {
+        continue;
+      }
+      void this.raw.execute(`DROP INDEX IF EXISTS "${indexName}"`).catch(() => {
+        /* missing index or a concurrent DDL race — the column write still stands */
+      });
+    }
+  }
+
+  /**
    * Numeric range comparison on a JSON field via the JSON value itself
    * (`jsonb_typeof(data->'views') = 'number' AND data->'views' >= '4'::jsonb`).
    *
@@ -1903,6 +1926,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!tableName) throw new Error("Schema must have an _id or name");
 
     const normalizedName = tableName.replace(/-/g, "");
+
+    // Register before getTable AND before the DDL fast path. A restarted
+    // process can already be "provisioned" (or skip DDL entirely) while its
+    // in-memory table def was built without these columns.
+    this.rememberMaterializedColumns(schemaData);
 
     // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
     if (!force && this._provisionedTables.has(normalizedName)) return;

@@ -401,6 +401,9 @@ export function prewarmCollectionSchemas(
       }
       if (dbAdapter) {
         try {
+          // Before getTable caches a blob-only def. createModel does this too;
+          // prewarm is the path that runs when DDL was skipped or already finished.
+          (dbAdapter as any).rememberMaterializedColumns?.(s);
           const table = (dbAdapter as any).getTable?.(s._id);
           if (table && (dbAdapter as any).ensureTableSchemaRegistered) {
             (dbAdapter as any).ensureTableSchemaRegistered(table, s._id);

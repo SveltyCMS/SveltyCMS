@@ -7,7 +7,7 @@
  * - Mtime-tree filesystem scanner with L2 schema cache
  * - FS ↔ DB navigation tree reconciliation
  * - Incremental hot-reload for dev watcher
- * - Schema-only fast path for benchmarks
+ * - Schema-only fast path for benchmarks (still provisions physical columns)
  */
 
 import { existsSync, watch, type FSWatcher } from "node:fs";
@@ -686,6 +686,21 @@ export const contentService = {
   },
 
   async fastSyncStore(schemas: Schema[], tenantId?: string | null, dbAdapter?: IDBAdapter) {
+    // skipReconciliation skips orphan pruning, not physical columns. Without
+    // createModel the runtime table registry never learns materialized fields,
+    // so a number patch rewrites the JSON blob (and PostgreSQL then builds a
+    // lazy expression index on `data->>'field'`).
+    if (dbAdapter && schemas.length > 0) {
+      try {
+        await ensurePhysicalModels(schemas, dbAdapter);
+      } catch (err) {
+        logger.warn(
+          `[RECONCILE] Physical model ensure failed during schema sync: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
     const nodes = schemas.map((s) => ({
       ...s,
       nodeType: "collection",

@@ -172,6 +172,52 @@ export function shouldMaterializeField(field: any): boolean {
   return true;
 }
 
+/** System columns — a field must never be registered as a second copy of these. */
+const MATERIALIZED_COLUMN_RESERVED = new Set([
+  "_id",
+  "id",
+  "tenantId",
+  "status",
+  "isDeleted",
+  "createdAt",
+  "updatedAt",
+  "collection",
+  "slug",
+  "locale",
+  "publishedAt",
+  "data",
+]);
+
+/**
+ * Physical column types for the fields `shouldMaterializeField` accepts.
+ *
+ * Values are the shared Drizzle tags (`integer` / `boolean` / `text`) that
+ * `createDynamicTableDefinition` maps per dialect. Callers register this map
+ * before `getTable` so a boot that skips DDL still writes the column instead
+ * of the JSON blob.
+ */
+export function materializedColumnTypes(fields: unknown): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!Array.isArray(fields)) return out;
+  for (const field of fields as any[]) {
+    if (!shouldMaterializeField(field)) continue;
+    const fieldName = field?.db_fieldName || field?.label;
+    if (
+      typeof fieldName !== "string" ||
+      !fieldName ||
+      MATERIALIZED_COLUMN_RESERVED.has(fieldName)
+    ) {
+      continue;
+    }
+    const type = field.type;
+    out.set(
+      fieldName,
+      type === "number" || type === "integer" ? "integer" : type === "boolean" ? "boolean" : "text",
+    );
+  }
+  return out;
+}
+
 /**
  * Base columns that earn the covering composite `(tenantId, status, <col>, _id)`.
  * `publishedAt` is the by-convention sort target ("newest first"); `collection`,

@@ -1901,6 +1901,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     if (!tableName) throw new Error("Schema must have an _id or name");
     const normalizedName = tableName.replace(/-/g, "");
 
+    // Same registry contract as PostgreSQL: the Drizzle def must list
+    // materialized columns even when this process skips DDL.
+    this.rememberMaterializedColumns(schemaData);
+
     // 🚀 FAST PATH: table already provisioned in this process — skip all DDL.
     // _provisionedTables is populated by _warmTableRegistry() at boot and by
     // the full DDL path below. A `force` flag overrides for schema migrations.

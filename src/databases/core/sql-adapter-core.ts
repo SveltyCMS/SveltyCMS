@@ -18,6 +18,7 @@
  * - wrap-off insert/update: skipMeta+isWrite settles without an extra async hop
  * - shared domain module lazy-loading (auth, content, media, system, batch, collection)
  * - shared cache/registry state management
+ * - materialized-column registry shared by createModel and schema prewarm
  */
 import { BaseAdapter } from "./base-adapter";
 import type {
@@ -43,9 +44,11 @@ import {
   getPhysicalSelection,
   isSystemTable,
   mapQuery,
+  materializedColumnTypes,
   SQL_TABLE_ALIASES,
   SYSTEM_LITERAL_COLUMNS,
 } from "./drizzle-sql-helpers";
+import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
 import { hasIsoDateTimePrefix, nowISODateString } from "@src/utils/date";
 import {
@@ -174,6 +177,71 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * scan+sort (see `postgresql/adapter-core.ts`). Default: no-op.
    */
   protected onDynamicSort(_collection: string, _tableName: string, _field: string): void {}
+
+  /**
+   * Fired after materialized columns are registered for a collection.
+   * PostgreSQL drops a leftover `(data->>'field')` expression index so an
+   * update of the real column does not also maintain the blob index.
+   */
+  protected onMaterializedFieldsRegistered(
+    _physicalTable: string,
+    _columns: Map<string, string>,
+  ): void {}
+
+  /**
+   * Record which scalar fields live in real columns, under every spelling
+   * `getTable` might be called with, and drop any cached blob-only def.
+   *
+   * `createModel` is not the only boot path. Production and benchmark servers
+   * load compiled schemas with reconciliation skipped, then `getTable` caches
+   * a definition built while this map is empty. Later writes see no `views`
+   * column and fold the patch into `data`. Registering here is what makes
+   * `materialize: true` (and numeric fields) take effect on that path.
+   */
+  public rememberMaterializedColumns(schema: {
+    _id?: string;
+    id?: string;
+    name?: string;
+    slug?: string;
+    fields?: unknown;
+  }): void {
+    const columns = materializedColumnTypes(schema?.fields);
+    if (columns.size === 0) return;
+
+    const ids = [schema._id, schema.id, schema.name, schema.slug].filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    );
+    const keys = new Set<string>();
+    for (const id of ids) {
+      const bare = id.replace(/-/g, "");
+      keys.add(id);
+      keys.add(bare);
+      keys.add(id.toLowerCase());
+      keys.add(bare.toLowerCase());
+      try {
+        // Physical spelling (hyphens stripped, one collection_ prefix). A
+        // hand-built `collection_${id}` maps hyphenated ids to the wrong table.
+        const physical = normalizeCollectionTableName(id);
+        keys.add(physical);
+        keys.add(physical.toLowerCase());
+      } catch {
+        /* Unsafe collection id — the logical spellings above still apply. */
+      }
+    }
+    for (const key of keys) {
+      this.materializedColumns.set(key, columns);
+      this.tableRegistry.delete(key);
+      this.dynamicTables.delete(key);
+    }
+
+    const primary = ids[0];
+    if (!primary) return;
+    try {
+      this.onMaterializedFieldsRegistered(normalizeCollectionTableName(primary), columns);
+    } catch {
+      /* Identifier rejected — the registry entries above are still in place. */
+    }
+  }
 
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
   public abstract createDynamicTableDefinition(name: string): any;
@@ -722,8 +790,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected tableRegistry = new Map<string, any>();
   protected dynamicTables = new Map<string, any>();
   /**
-   * Row-store hybrid: materialized scalar columns per collection (populated by
-   * createModel; getTable reads it synchronously to build the Drizzle def).
+   * Row-store hybrid: materialized scalar columns per collection.
+   * Filled by `rememberMaterializedColumns` (createModel and schema prewarm).
+   * `getTable` reads it synchronously to build the Drizzle def — a boot that
+   * only warms schemas must still register here, or number patches rewrite
+   * the JSON blob and PostgreSQL builds a `(data->>'field')` expression index.
    */
   protected materializedColumns = new Map<string, Map<string, string>>();
   protected modelRegistry = new Map<string, any>();

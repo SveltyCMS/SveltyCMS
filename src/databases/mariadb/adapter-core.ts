@@ -1749,6 +1749,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
     const normalizedName = tableName.replace(/-/g, "");
 
+    // Same registry contract as PostgreSQL: the Drizzle def must list
+    // materialized columns even when this process skips DDL.
+    this.rememberMaterializedColumns(schemaData);
+
     // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
     if (!force && this._provisionedTables.has(normalizedName)) return;
 
