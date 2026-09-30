@@ -36,12 +36,12 @@ export const createPageSpeedResultsTable: PluginMigration = {
       if (probe.success) {
         logger.info("✅ PageSpeed: pluginPagespeedResults validated.");
       } else {
-        // If probing fails, it might mean the table doesn't exist yet.
-        // In SveltyCMS, we recommend running 'db:push' or 'db:generate'
-        // when adding new plugins that define schemas.
+        // If probing fails, it might mean the table doesn't exist yet. Collection
+        // tables are provisioned by the adapter (`createModel`) — a restart lets the
+        // schema boot pass create or refresh this plugin's collection.
         logger.warn(
           "⚠ PageSpeed: Collection 'pluginPagespeedResults' not detected. " +
-            "Please ensure your database is synchronized (run 'bun run db:push').",
+            "Restart the server so the schema boot pass can provision it.",
         );
       }
     } catch (err) {

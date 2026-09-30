@@ -827,24 +827,26 @@ SveltyCMS uses a 3-pillar widget architecture:
 
 ### How SveltyCMS Compares
 
-| Feature                | SveltyCMS | WordPress    | Drupal | Directus  | Strapi | PayloadCMS | Sanity |
-| ---------------------- | --------- | ------------ | ------ | --------- | ------ | ---------- | ------ |
-| **Architecture**       | Both      | Visual       | Both   | Visual    | Both   | Code-first | Both   |
-| **TypeScript Native**  | ✅        | ❌           | ❌     | ✅        | ✅     | ✅         | ✅     |
-| **Headless**           | ✅        | Plugin       | Plugin | ✅        | ✅     | ✅         | ✅     |
-| **Visual Builder**     | ✅        | ✅           | ✅     | ✅        | ✅     | ❌         | ✅     |
-| **Automated Upgrades** | ✅ (AST)  | ⚠️           | ⚠️     | ⚠️        | ❌     | ❌         | ❌     |
-| **Data Loss Warnings** | ✅        | ❌           | ❌     | ✅        | ⚠️     | ⚠️         | ⚠️     |
-| **Widget System**      | 3-Pillar  | Plugin-based | Module | Interface | Plugin | Field      | Schema |
-| **Self-Hosted**        | ✅        | ✅           | ✅     | ✅        | ✅     | ✅         | Cloud  |
-| **Multi-Tenant**       | ✅        | ❌           | ⚠️     | ✅        | ⚠️     | ✅         | ✅     |
-| **Modern Framework**   | SvelteKit | PHP          | PHP    | Vue       | React  | React      | React  |
+| Feature                | SveltyCMS        | WordPress    | Drupal | Directus  | Strapi | PayloadCMS | Sanity |
+| ---------------------- | ---------------- | ------------ | ------ | --------- | ------ | ---------- | ------ |
+| **Architecture**       | Both             | Visual       | Both   | Visual    | Both   | Code-first | Both   |
+| **TypeScript Native**  | ✅               | ❌           | ❌     | ✅        | ✅     | ✅         | ✅     |
+| **Headless**           | ✅               | Plugin       | Plugin | ✅        | ✅     | ✅         | ✅     |
+| **Visual Builder**     | ✅               | ✅           | ✅     | ✅        | ✅     | ❌         | ✅     |
+| **Automated Upgrades** | ✅ (Schema spec) | —            | —      | —         | —      | —          | —      |
+| **Data Loss Warnings** | ✅               | ❌           | ❌     | ✅        | ⚠️     | ⚠️         | ⚠️     |
+| **Widget System**      | 3-Pillar         | Plugin-based | Module | Interface | Plugin | Field      | Schema |
+| **Self-Hosted**        | ✅               | ✅           | ✅     | ✅        | ✅     | ✅         | Cloud  |
+| **Multi-Tenant**       | ✅               | ❌           | ⚠️     | ✅        | ⚠️     | ✅         | ✅     |
+| **Modern Framework**   | SvelteKit        | PHP          | PHP    | Vue       | React  | React      | React  |
 
 ### Key Differentiators
 
-**🚀 Automated Upgrades (Codemods):**
+**🚀 Automated Upgrades (Schema spec):**
 
-SveltyCMS is one of the few CMS platforms that uses **AST-based codemods** (`ts-morph`) to automatically migrate your custom TypeScript schemas when you upgrade. If a new version introduces a breaking change, our upgrade tool "performs surgery" on your source code to keep it compatible, preserving your comments and formatting.
+Schema changes need no manual migration step. The system schema is declared once in `src/databases/system-schema-spec.ts` and reconciled at boot — missing spec columns are added once, declared `renamedFrom` renames are replayed before the add — and collection fields enter the row-store hybrid on the next provisioning pass. See [Upgrading](../configuration/upgrading.mdx).
+
+> The other cells in the table above are marked `—` rather than graded: compare vendors on their own documentation.
 
 **vs WordPress/Drupal** (Traditional CMS):
 

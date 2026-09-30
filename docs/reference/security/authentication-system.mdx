@@ -377,7 +377,7 @@ interface Authenticator {
 - ✅ Passkey button on sign-in form
 - ✅ Unit tests: `webauthn-cbor` (7 pass), `webauthn-attestation` (4 pass)
 - 🏗️ Settings-page UI for managing registered passkeys (pending)
-- 🏗️ `db:push` for `authenticators` column on SQL deployments (pending)
+- ✅ The `authenticators` column is reconciled by the boot schema pass on SQL deployments (missing spec columns are added once — see [Upgrading](../../guides/configuration/upgrading.mdx))
 
 ### Security Considerations {#security-considerations-4}
 

@@ -15,7 +15,7 @@ tags:
 
 # Upgrading SveltyCMS
 
-SveltyCMS is designed to be upgraded easily while preserving your custom collections and configurations. We provide a CLI tool to automate the process, including dependency updates, database migrations, and **automated code transformations (codemods)**.
+SveltyCMS is designed to be upgraded easily while preserving your custom collections and configurations. We provide a CLI tool to automate the process: fetch and merge, dependency install, SBOM regeneration, and post-upgrade tests. Schema changes need no manual database step — see _Schema & database changes_ below.
 
 > [!IMPORTANT]
 > **One schema path (as of 2026-09-30).** The SQL system schema is declared once in `src/databases/system-schema-spec.ts` and applied at boot from that spec. Fresh databases are created from it (measured: 27 tables + 117 indexes, ~330 ms once). A database that already has the tables receives any **missing spec column** on the next boot (`ALTER TABLE … ADD COLUMN`). `CREATE TABLE IF NOT EXISTS` does not do that by itself, and a boot that only ran it used to store a marker and leave the old table behind — MariaDB login then failed inserting `auth_sessions.amr` / `mfaVerifiedAt`. After that column pass succeeds, the marker is the column-synced fingerprint and later boots skip both the DDL pass and the column scan (~2 ms).
@@ -41,10 +41,11 @@ graph TD
     H -- Yes --> I[Pause: Manual Resolution]
     H -- No --> J[Run bun/npm install]
     J --> J2[Regenerate SBOM]
-    J2 --> K[Run Codemods]
-    K --> L[Run db:push]
-    L --> M[Run test:unit]
-    M --> N[Restore Stash if any]
+    J2 --> M[Run test:unit]
+    M --> Q{--benchmarks?}
+    Q -- Yes --> R[Run benchmark matrix]
+    Q -- No --> N[Restore Stash if any]
+    R --> N
     N --> O[Upgrade Complete]
 ```
 
@@ -56,8 +57,8 @@ graph TD
 
 6. **Dependency Refresh**: Runs `bun install` to ensure all new packages are installed. On Windows, `npm install` is used instead to avoid known `bun install` corruption issues.
 7. **SBOM Sync**: Runs `bun run audit:sbom` to regenerate the CycloneDX SBOM (`sbom.json`) so it matches the updated dependency tree (see _Dependency Updates & SBOM_ below).
-8. **Codemods**: Automatically executes scripts in `scripts/codemods/`. Scripts starting with an underscore (e.g., `_utils.ts`) are ignored by the runner.
-9. **Database & Tests**: Runs `db:push` and `test:unit` to ensure everything is working correctly.
+8. **Tests**: Runs `test:unit` — the same suite the pre-commit gate uses. With `--benchmarks`, the benchmark matrix runs afterwards.
+9. **Schema**: Nothing to run. The system schema is reconciled at the next boot and collection tables are provisioned on demand — see _Schema & database changes_.
 
 ## How to Run the Upgrade
 
@@ -73,11 +74,11 @@ bun run scripts/upgrade.ts
 | --------------- | ----------------------------------------------------------------------- |
 | `--dry-run`     | See what would happen without making any changes.                       |
 | `--skip-tests`  | Do not run the unit test suite after upgrade.                           |
-| `--skip-db`     | Do not run `db:push` after upgrade.                                     |
 | `--skip-sbom`   | Do not regenerate the SBOM after install.                               |
 | `--skip-merge`  | Skip fetch+merge (useful if resuming after manual conflict resolution). |
 | `--force`       | Auto-stash uncommitted changes before upgrade.                          |
 | `--branch=NAME` | Upgrade from a specific branch (defaults to `next`).                    |
+| `--benchmarks`  | Also run the benchmark matrix (opt-in; slow, enterprise-sized run).     |
 
 ## Dependency Updates & SBOM
 
@@ -91,47 +92,34 @@ The SBOM feeds vulnerability scanners (e.g., Dependency-Track, Grype) and suppor
 
 > **Note on `bun outdated`**: packages pinned to an exact version (e.g., `graphql` is pinned to `16.14.2`) or released as a new major outside your declared range will appear as "outdated" but are intentionally left untouched by `bun update`. Review the output and bump `package.json` deliberately for those.
 
-## Codemods
+## Schema & database changes
 
-SveltyCMS uses "codemods" to automate the tedious parts of an upgrade. If a new version renames a property in a configuration file or changes a component's API, a codemod script will automatically update your local files during the upgrade.
+There is no `db:push` (or any other database step) in the upgrade:
 
-### Naming Convention
+- **System schema** — declared once in `src/databases/system-schema-spec.ts` and applied at boot. A database that already has the tables receives any missing spec column on the next start (`ALTER TABLE … ADD COLUMN`), and a declared `ColumnSpec.renamedFrom` renames before the add. After that pass succeeds, the column-synced fingerprint makes later boots skip the DDL pass and the column scan (~2 ms).
+- **Collection tables** — provisioned by the adapter (`createModel`) when a schema is loaded; new fields enter the row-store hybrid on the next provisioning pass (`indexed`, `unique`, `materialize: true`, `number` / `integer`, and the exact string types `decimal` / `bigint` / `calendarDay` / `bytes`).
+- **Aggregation callers** — see the `NOT_SUPPORTED` note in the callout above: a `$min`/`$max` on a non-materialized field is now refused instead of answered lexicographically.
 
-Codemods in `scripts/codemods/` follow a specific naming pattern:
+Start the upgraded server once; the boot log reports what the schema pass added.
 
-- **`NN-description.ts`**: Numbered prefix (e.g., `01-migrate-schema.ts`) determines the execution order.
-- **`_name.ts`**: Files starting with an underscore are treated as internal utilities and are **not** executed by the upgrade runner.
+## Before you upgrade
 
-### Codemod Utilities (`_utils.ts`)
-
-The shared utilities module provides reusable helpers used by all codemod scripts:
-
-- **`MigrationManager`** — Chains multiple migration rules and tracks which changes were applied per file.
-- **`deepUpsertProperty(obj, path, value)`** — Inserts or updates a nested property using dot-notation paths, creating intermediate objects as needed.
-- **`validateSchema(obj)`** — Post-migration validation that checks required fields (`name`, `fields`) still exist after transformation.
-- **`upsertProperty` / `renameProperty`** — Single-level property insertion, update, and rename operations.
-
-### Current Codemods
-
-| #   | File                                 | What it does                                                                                                                             |
-| :-- | :----------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
-| 01  | `01-migrate-collection-schema-v2.ts` | Adds `version: 2` marker and renames deprecated schema fields                                                                            |
-| 02  | `02-update-permissions-structure.ts` | Converts legacy `publicAccess` to structured `permissions` object with merge logic preserving existing role permissions                  |
-| 03  | `03-add-soft-delete-fields.ts`       | Injects `isDeleted` boolean field into every collection schema for soft-delete support                                                   |
-| 04  | `04-migrate-role-names.ts`           | Role name standardization (planned)                                                                                                      |
-| --  | `_utils.ts`                          | Shared utilities: `MigrationManager`, `deepUpsertProperty`, `validateSchema`, `upsertProperty`, `renameProperty`, `createCodemodProject` |
+- **Back up your database.** The rollback tag restores code, not data. Use your engine's tooling (`pg_dump`, `mysqldump`, `mongodump`, or a copy of the SQLite file) and test the restore path at least once.
+- **Read the release notes** for the target version and confirm the branch you track in [Version Channels](./version-channels.mdx).
+- **Container installs** upgrade by deploying the new image tag — the schema is applied on the first boot of the new image; this CLI is for git checkouts.
 
 ## Best Practices
 
-- **Review the Rollback Tag**: Before starting, the tool provides a rollback tag. If anything goes wrong, you can return to your previous state using `git reset --hard <tag-name>`.
+- **Review the Rollback Tag**: Before starting, the tool provides a rollback tag. If anything goes wrong, you can return to your previous state using `git reset --hard <tag-name>` (code only — restore your database backup for data).
 - **Review Changes**: After the script finishes, use `git diff` to review the changes before committing.
 - **Resolve Conflicts**: If the merge fails, the tool will pause. Resolve conflicts in your editor, `git add` the changes, then run the upgrade again with `--skip-merge`.
+- **Verify after starting**: check that `/api/system/health` reports ready and watch the boot log for an `Added N missing system column(s)` line.
 
 ## Troubleshooting
 
 ### Rolling Back
 
-If the upgrade causes issues, you can roll back to the state before the upgrade started:
+If the upgrade causes issues, you can roll back to the state before the upgrade started. This restores **code only** — restore your database backup to roll back data:
 
 ```
 # List available rollback tags
@@ -155,7 +143,7 @@ If conflicts occur:
 
 1. Resolve them in your IDE.
 2. `git add .`
-3. Run `bun run scripts/upgrade.ts --skip-merge` to complete the remaining steps (install, codemods, etc.).
+3. Run `bun run scripts/upgrade.ts --skip-merge` to complete the remaining steps (install, SBOM, tests).
 
 ---
 

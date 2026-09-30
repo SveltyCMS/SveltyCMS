@@ -2,20 +2,23 @@
  * @file scripts/upgrade.ts
  * @description SveltyCMS Enhanced Upgrade CLI
  *
- * Automates fetching updates, merging changes, running codemods,
- * and ensuring environment consistency.
+ * Automates fetching updates, merging changes, refreshing dependencies and the
+ * SBOM, and verifying the result.
  *
  * ### Flags
  * | Flag                  | Description                                          |
  * |-----------------------|------------------------------------------------------|
  * | --dry-run             | Print what would happen, make no changes             |
  * | --skip-tests          | Skip unit tests after upgrade                        |
- * | --skip-benchmarks     | Skip benchmark matrix after upgrade                  |
- * | --skip-db             | Skip database migration step                         |
  * | --skip-sbom           | Skip SBOM regeneration after install                  |
  * | --skip-merge          | Skip fetch+merge (resume after manual conflict fix)  |
  * | --force               | Continue even with uncommitted changes (auto-stash)  |
  * | --branch=<name>       | Upstream branch to merge from (default: next)        |
+ * | --benchmarks          | Also run the benchmark matrix (opt-in, slow)         |
+ *
+ * There is no database step: the system schema is declared in
+ * `src/databases/system-schema-spec.ts` and applied at the next boot (missing
+ * spec columns are added once, declared `renamedFrom` renames are replayed).
  */
 
 import { spawn, type SpawnOptions } from "node:child_process";
@@ -64,44 +67,37 @@ const BRANCH_PATTERN = /^[a-zA-Z0-9._/-]{1,100}$/;
 // CLI option parsing
 // ---------------------------------------------------------------------------
 
-interface UpgradeOptions {
+export interface UpgradeOptions {
   dryRun: boolean;
   skipTests: boolean;
-  skipBenchmarks: boolean;
-  skipDb: boolean;
   skipSbom: boolean;
   skipMerge: boolean;
   force: boolean;
   branch: string;
+  /** Opt-in benchmark matrix (slow) — a plain upgrade does not run it. */
+  benchmarks: boolean;
 }
 
-function parseOptions(): UpgradeOptions {
-  const rawBranch =
-    process.argv.find((a) => a.startsWith("--branch="))?.split("=")[1] ?? DEFAULT_BRANCH;
+export function parseOptions(argv: string[] = process.argv): UpgradeOptions {
+  const rawBranch = argv.find((a) => a.startsWith("--branch="))?.split("=")[1] ?? DEFAULT_BRANCH;
 
   if (!BRANCH_PATTERN.test(rawBranch)) {
-    console.error(
-      pc.red(
-        `❌ Invalid --branch value: "${rawBranch}". ` +
-          `Only alphanumerics, dots, hyphens, underscores, and forward slashes are allowed.`,
-      ),
+    throw new UpgradeError(
+      `Invalid --branch value: "${rawBranch}".`,
+      "Only alphanumerics, dots, hyphens, underscores, and forward slashes are allowed.",
     );
-    process.exit(1);
   }
 
   return {
-    dryRun: process.argv.includes("--dry-run"),
-    skipTests: process.argv.includes("--skip-tests"),
-    skipBenchmarks: process.argv.includes("--skip-benchmarks"),
-    skipDb: process.argv.includes("--skip-db"),
-    skipSbom: process.argv.includes("--skip-sbom"),
-    skipMerge: process.argv.includes("--skip-merge"),
-    force: process.argv.includes("--force"),
+    dryRun: argv.includes("--dry-run"),
+    skipTests: argv.includes("--skip-tests"),
+    skipSbom: argv.includes("--skip-sbom"),
+    skipMerge: argv.includes("--skip-merge"),
+    force: argv.includes("--force"),
     branch: rawBranch,
+    benchmarks: argv.includes("--benchmarks"),
   };
 }
-
-const cli = parseOptions();
 
 // ---------------------------------------------------------------------------
 // runCommand — no shell, proper error handling
@@ -192,6 +188,9 @@ class UpgradeError extends Error {
     this.name = "UpgradeError";
   }
 }
+
+// Parsed once, after the error class so an invalid --branch throws a clean UpgradeError.
+const cli = parseOptions();
 
 // ---------------------------------------------------------------------------
 // Git helpers
@@ -360,17 +359,6 @@ async function stepInstall(): Promise<void> {
   await mustRun("bun", ["install"], "bun install");
 }
 
-async function stepDbMigration(): Promise<void> {
-  step("Running database migrations");
-
-  if (cli.dryRun) {
-    dryLog("bun run db:push");
-    return;
-  }
-
-  await mustRun("bun", ["run", "db:push"], "db:push");
-}
-
 async function stepSbom(): Promise<void> {
   step("Regenerating SBOM");
 
@@ -495,9 +483,8 @@ async function main(): Promise<void> {
     await stepInstall();
     if (!cli.skipSbom) await stepSbom();
 
-    if (!cli.skipDb) await stepDbMigration();
     if (!cli.skipTests) await stepTests();
-    if (!cli.skipBenchmarks) await stepBenchmarks();
+    if (cli.benchmarks) await stepBenchmarks();
   } finally {
     // Always restore stashed changes, even if a later step threw.
     if (stashResult?.stashed && !cli.dryRun) {
@@ -515,18 +502,29 @@ async function main(): Promise<void> {
     console.log(pc.green("✅ Dry run complete — no changes made."));
   } else {
     console.log(pc.green("✅ Upgrade complete! Review your changes and commit."));
+    console.log(
+      pc.dim(
+        "   Schema: nothing to push — the system schema is applied at the next boot (missing columns + declared renames).",
+      ),
+    );
     console.log(pc.dim(`   To undo: git reset --hard ${rollbackTag}`));
   }
 }
 
-main().catch((err) => {
-  console.log();
-  if (err instanceof UpgradeError) {
-    log("error", err.message);
-    if (err.detail) console.log(pc.dim(`  ${err.detail}`));
-  } else {
-    log("error", `Unexpected error: ${(err as Error).message}`);
-    if (process.env.DEBUG) console.error(err);
-  }
-  process.exit(1);
-});
+const isDirectCLI =
+  typeof process !== "undefined" &&
+  (process.argv?.[1]?.includes("upgrade") || process.argv?.[1]?.endsWith("upgrade.ts"));
+
+if (isDirectCLI) {
+  main().catch((err) => {
+    console.log();
+    if (err instanceof UpgradeError) {
+      log("error", err.message);
+      if (err.detail) console.log(pc.dim(`  ${err.detail}`));
+    } else {
+      log("error", `Unexpected error: ${(err as Error).message}`);
+      if (process.env.DEBUG) console.error(err);
+    }
+    process.exit(1);
+  });
+}

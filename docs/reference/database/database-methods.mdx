@@ -229,13 +229,9 @@ SveltyCMS treats website tokens and `sck_` API keys as **credentials**, not user
 - Credential lookup without request tenant context uses branded `withSystemScope(reason)` only (not `bypassSafeQuery`), so `safeQuery` still applies soft-delete boundaries.
 - Do **not** use `bypassSafeQuery` for routine website-token CRUD; it is reserved for other internal fast-paths documented in the MongoDB implementation guide.
 
-### SQL migration note
+### SQL schema note
 
-After pulling schema changes that add the `{ tenantId, name }` compound index, run:
-
-```bash
-bun run db:push
-```
+Adding a field or index does not need a manual push: collection tables are provisioned at runtime (`createModel`) and the system schema is applied at boot from `system-schema-spec.ts` — a missing spec column is added once, then remembered by the column-synced fingerprint. Restart the server after upgrading (see [Upgrading](../../guides/configuration/upgrading.mdx)).
 
 ---
 
