@@ -17,6 +17,8 @@
 	import Input from '@src/components/ui/input.svelte';
 	import Button from '@src/components/ui/button.svelte';
 	import Card from '@src/components/ui/card.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
 
 	let { data = $bindable(null), syncKey = '' } = $props();
@@ -143,13 +145,25 @@
 <div class="space-y-6">
 	<!-- Section Header -->
 	<div class="flex items-center gap-3">
-		<iconify-icon icon="mdi:information-outline" width="24" class="text-primary-500"></iconify-icon>
+		<div
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
+		>
+			<iconify-icon icon="mdi:information-outline" width="24"></iconify-icon>
+		</div>
 		<div>
-			<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
-				Collection Definition
-			</h2>
+			<div class="flex items-center gap-2">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
+					Collection Definition
+				</h2>
+				<SystemTooltip
+					title="Step 1 of the collection builder: Define the core identity, database identifier, icon, description, and organizational tags."
+				>
+					<HelpIcon ariaLabel="Help: Collection Definition" />
+				</SystemTooltip>
+			</div>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
-				Configure the core identity of your collection
+				Step 1: Set up the core identity of your collection. Provide a unique name, choose an icon,
+				and optionally add tags and a description.
 			</p>
 		</div>
 	</div>
@@ -157,36 +171,66 @@
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 		<!-- Left: Name & Database ID -->
 		<Card class="p-6">
-			<h3
-				class="text-base font-semibold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2"
-			>
-				<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>
-				Identity
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
+				>
+					<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>
+					Identity
+				</h3>
+				<SystemTooltip
+					title="Core collection identity. Sets the display name shown to editors and the system database table used for physical storage."
+				>
+					<HelpIcon ariaLabel="Help: Identity" />
+				</SystemTooltip>
+			</div>
 
 			<div class="space-y-4">
-				<Input
-					bind:value={name}
-					label={collection_name()}
-					placeholder={collection_name_placeholder()}
-					required
-					aria-label={collection_name()}
-					data-testid="collection-name-input"
-				/>
+				<div class="space-y-2">
+					<div class="flex items-center gap-1.5">
+						<label
+							for="collection-name-input"
+							class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+						>
+							{collection_name()}
+						</label>
+						<span class="text-error-500" aria-hidden="true">*</span>
+						<SystemTooltip
+							title="The human-readable name of the collection (e.g. 'Articles', 'Products'). Displayed in the sidebar and navigation menus."
+						>
+							<HelpIcon ariaLabel="Help: Collection Name" />
+						</SystemTooltip>
+					</div>
+					<Input
+						id="collection-name-input"
+						bind:value={name}
+						placeholder={collection_name_placeholder()}
+						required
+						aria-label={collection_name()}
+						data-testid="collection-name-input"
+					/>
+				</div>
 
 				{#if name}
 					<div
 						class="rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800 p-3"
 					>
-						<span
-							class="text-[10px] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-1 block"
-						>
-							Database Name
-						</span>
-						<code class="text-sm font-mono font-bold text-primary-600 dark:text-primary-500"
+						<div class="flex items-center justify-between mb-1">
+							<span
+								class="text-[10px] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400"
+							>
+								Database Name
+							</span>
+							<SystemTooltip
+								title="Physical database table or collection name used for queries and schema generation. Auto-slugified from the collection name."
+							>
+								<HelpIcon ariaLabel="Help: Database Name" />
+							</SystemTooltip>
+						</div>
+						<code class="text-sm font-mono font-bold text-tertiary-600 dark:text-primary-500"
 							>{DB_NAME}</code
 						>
-						<p class="text-[11px] text-surface-400 mt-1">
+						<p class="text-[11px] text-surface-500 dark:text-surface-400 mt-1">
 							Auto-generated from collection name — used as the database table name
 						</p>
 					</div>
@@ -196,19 +240,33 @@
 
 		<!-- Right: Icon & Description -->
 		<Card class="p-6">
-			<h3
-				class="text-base font-semibold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2"
-			>
-				<iconify-icon icon="mdi:palette-outline" width="18" class="text-tertiary-500"
-				></iconify-icon>
-				Visual Identity
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
+				>
+					<iconify-icon icon="mdi:palette-outline" width="18" class="text-tertiary-500"
+					></iconify-icon>
+					Visual Identity
+				</h3>
+				<SystemTooltip
+					title="Visual branding and descriptive documentation to help editors easily identify this collection."
+				>
+					<HelpIcon ariaLabel="Help: Visual Identity" />
+				</SystemTooltip>
+			</div>
 
 			<div class="space-y-5">
 				<div class="space-y-2">
-					<span class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50"
-						>{collectionname_labelicon()}</span
-					>
+					<div class="flex items-center gap-1.5">
+						<span class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							>{collectionname_labelicon()}</span
+						>
+						<SystemTooltip
+							title="Icon rendered across the CMS — in the left sidebar, tree-view board, breadcrumb trail, and tabs."
+						>
+							<HelpIcon ariaLabel="Help: Collection Icon" />
+						</SystemTooltip>
+					</div>
 					<IconifyIconsPicker
 						bind:iconselected={selectedIcon}
 						icon={selectedIcon}
@@ -217,18 +275,25 @@
 				</div>
 
 				<div class="space-y-2">
-					<label
-						for="description"
-						class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50"
-						>{collectionname_description()}</label
-					>
+					<div class="flex items-center gap-1.5">
+						<label
+							for="description"
+							class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							>{collectionname_description()}</label
+						>
+						<SystemTooltip
+							title="Optional summary describing the purpose and contents of this collection for other editors and API documentation."
+						>
+							<HelpIcon ariaLabel="Help: Collection Description" />
+						</SystemTooltip>
+					</div>
 					<textarea
 						id="description"
 						aria-label={collectionname_description()}
 						bind:value={description}
 						placeholder={collection_description_placeholder()}
 						title={collectionname_description()}
-						class="w-full rounded border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-32"
+						class="w-full rounded border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900 p-3 text-sm text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500 resize-none min-h-32"
 					></textarea>
 				</div>
 			</div>
@@ -236,24 +301,38 @@
 
 		<!-- Bottom: Organization & Tags -->
 		<Card class="p-6 md:col-span-2">
-			<h3
-				class="text-base font-semibold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2"
-			>
-				<iconify-icon icon="mdi:tag-multiple-outline" width="18" class="text-tertiary-500"
-				></iconify-icon>
-				Organization & Tags
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
+				>
+					<iconify-icon icon="mdi:tag-multiple-outline" width="18" class="text-tertiary-500"
+					></iconify-icon>
+					Organization & Tags
+				</h3>
+				<SystemTooltip
+					title="Organize your content structure with tags and quick-access favorites for flexible categorization, discovery, and filtering."
+				>
+					<HelpIcon ariaLabel="Help: Organization & Tags" />
+				</SystemTooltip>
+			</div>
 
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 				<!-- Tags Manager -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<label
-							for="collection-tags-input"
-							class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50"
-						>
-							Collection Tags
-						</label>
+						<div class="flex items-center gap-1.5">
+							<label
+								for="collection-tags-input"
+								class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50"
+							>
+								Collection Tags
+							</label>
+							<SystemTooltip
+								title="Add one or more comma-separated tags (e.g. 'marketing, blog, api') to group and filter collections in the builder board and left sidebar."
+							>
+								<HelpIcon ariaLabel="Help: Collection Tags" />
+							</SystemTooltip>
+						</div>
 						<span class="text-[11px] text-surface-400"
 							>Comma-separated tags for grouping & filtering</span
 						>
@@ -296,11 +375,16 @@
 
 					{#if suggestedTags.length > 0}
 						<div class="pt-2">
-							<span
-								class="text-[11px] font-bold uppercase tracking-wider text-surface-400 block mb-1.5"
-							>
-								Suggested Tags
-							</span>
+							<div class="flex items-center gap-1.5 mb-1.5">
+								<span class="text-[11px] font-bold uppercase tracking-wider text-surface-400 block">
+									Suggested Tags
+								</span>
+								<SystemTooltip
+									title="Tags already used by other collections in your project. Click any tag to add it instantly without typing."
+								>
+									<HelpIcon ariaLabel="Help: Suggested Tags" />
+								</SystemTooltip>
+							</div>
 							<div class="flex flex-wrap gap-1">
 								{#each suggestedTags as stag (stag)}
 									<Button
@@ -331,9 +415,16 @@
 								class={isFavorite ? 'text-warning-500' : 'text-surface-400'}
 							></iconify-icon>
 							<div>
-								<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-100">
-									Favorite Collection
-								</h4>
+								<div class="flex items-center gap-1.5">
+									<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+										Favorite Collection
+									</h4>
+									<SystemTooltip
+										title="Pin this collection to the top of your sidebar navigation and builder board for instant one-click access."
+									>
+										<HelpIcon ariaLabel="Help: Favorite Collection" />
+									</SystemTooltip>
+								</div>
 								<p class="text-xs text-surface-500 dark:text-surface-400">
 									Pin to Favorites filter chip in sidebar and builder board
 								</p>

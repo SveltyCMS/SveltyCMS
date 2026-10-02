@@ -114,13 +114,13 @@
 									<button
 										type="button"
 										onclick={() => onFormSubmit(item)}
-										class="group relative flex flex-col gap-3 rounded border border-surface-500/30 bg-surface-500/10 p-5 text-start transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
+										class="group relative flex flex-col gap-3 rounded-xl border border-surface-500/30 bg-white p-5 text-start shadow-xs transition-all hover:-translate-y-1 hover:border-tertiary-500 hover:shadow-lg dark:border-surface-500/40 dark:bg-surface-800 dark:hover:border-primary-500"
 										aria-label={`Select ${item} widget`}
 										data-testid={`select-widget-${String(item).toLowerCase()}`}
 									>
 										<div class="flex items-start justify-between w-full">
 											<div
-												class="flex h-12 w-12 items-center justify-center rounded bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
+												class="flex h-12 w-12 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 transition-colors group-hover:bg-tertiary-500 dark:group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-primary-400"
 											>
 												<iconify-icon icon={availableWidgets[item]?.Icon || 'mdi:puzzle'} width="28"
 												></iconify-icon>
@@ -130,11 +130,11 @@
 
 										<div>
 											<h3
-												class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-500"
+												class="text-lg font-bold text-surface-900 group-hover:text-tertiary-600 dark:text-white dark:group-hover:text-primary-400"
 											>
 												{item}
 											</h3>
-											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-50">
+											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-400">
 												{availableWidgets[item]?.Description || 'No description available'}
 											</p>
 										</div>

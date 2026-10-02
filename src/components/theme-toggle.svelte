@@ -57,7 +57,8 @@ Relies on the centralized `themeStore` for state and logic.
 		const current = themeStore.themePreference;
 		if (current === 'system') setThemePreference('light');
 		else if (current === 'light') setThemePreference('dark');
-		else useSystemPreference();
+		else if (current === 'dark') useSystemPreference();
+		else setThemePreference('light');
 	}
 </script>
 

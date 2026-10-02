@@ -264,13 +264,13 @@ Route-driven sidebar content (no dual collapsible section headers):
 	}
 </script>
 
-<div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
+<div class="sidebar-root px-1 flex h-full w-full flex-col justify-between bg-transparent">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
 		<a
 			href="/"
 			aria-label="SveltyCMS Logo"
-			class="-ms-2 flex min-h-12 shrink-0 items-center pe-10 pt-2 no-underline!"
+			class="flex min-h-12 shrink-0 items-center px-2 pt-2 no-underline!"
 			data-sveltekit-preload-data="hover"
 		>
 			<SveltyCMSLogo fill="red" className="h-9" />
@@ -279,19 +279,19 @@ Route-driven sidebar content (no dual collapsible section headers):
 			>
 		</a>
 	{:else}
-		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
+		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 px-2 pt-2">
 			<Button
 				variant="ghost"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', 'hidden')}
 				aria-label={applayout_close_sidebar()}
-				class="p-0! min-w-0 preset-outlined-surface-500"
+				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
 			>
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
+				<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
 			</Button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!">
-				<SveltyCMSLogo fill="red" className="h-9 -ms-2" />
+				<SveltyCMSLogo fill="red" className="h-9" />
 			</a>
 		</div>
 	{/if}
@@ -322,7 +322,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
-		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui
+		class="w-full flex-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui
 			.routeContext.isSystemSettings
 			? 'overflow-y-hidden flex flex-col'
 			: 'overflow-y-auto'}"
@@ -406,24 +406,20 @@ Route-driven sidebar content (no dual collapsible section headers):
 						</div>
 					{/if}
 				</div>
-				<div class="mx-1 border-0 border-t" style="border-color: var(--admin-border-default)"></div>
+				<div class="border-0 border-t" style="border-color: var(--admin-border-default)"></div>
 			{/if}
 
 			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
 			{#if isMediaGalleryRoute}
 				<!-- Media gallery: virtual folder tree (scrollable) + sticky bottom collections button -->
-				<div class="flex flex-col" data-testid="sidebar-media-context">
-					<div
-						class="w-full ps-0 pe-1 text-start space-y-2"
-						role="region"
-						aria-label="Media folders"
-					>
+				<div class="flex flex-col w-full" data-testid="sidebar-media-context">
+					<div class="w-full text-start space-y-2" role="region" aria-label="Media folders">
 						<MediaFolders />
 					</div>
 
-					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
+					<div class="w-full pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
 						<div
-							class="mx-1 mb-2 border-0 border-t"
+							class="mb-2 border-0 border-t"
 							style="border-color: var(--admin-border-default)"
 						></div>
 
@@ -438,25 +434,31 @@ Route-driven sidebar content (no dual collapsible section headers):
 								data-preload="hover"
 								onclick={handleBackToCollections}
 								aria-label="Back to Collections"
-								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
+								class="flex w-full items-center gap-1 rounded-lg h-auto! min-h-11 py-1.5 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
 									? 'justify-start px-3'
-									: 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+									: 'flex-col justify-center px-1'}"
 							>
 								<iconify-icon
 									icon="bi:arrow-left"
 									width={isSidebarFull ? 18 : 16}
 									class="shrink-0 text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
-								<span class="truncate">{isSidebarFull ? 'Collections' : 'Collections'}</span>
+								<span
+									class="truncate text-center {isSidebarFull
+										? 'text-xs'
+										: 'text-[9px] leading-tight font-bold'}"
+								>
+									Collections
+								</span>
 							</Button>
 						</SystemTooltip>
 					</div>
 				</div>
 			{:else if showCollectionsHere}
 				<!-- Default: collection tree only — flex column layout for sticky bottom media link -->
-				<div class="flex flex-col">
+				<div class="flex flex-col w-full">
 					<div
-						class="w-full ps-0 pe-1 text-start"
+						class="w-full text-start"
 						data-testid="sidebar-collections-context"
 						role="region"
 						aria-label="Collections"
@@ -464,9 +466,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 						<Collections />
 					</div>
 
-					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
+					<div class="w-full pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
 						<div
-							class="mx-1 mb-2 border-0 border-t"
+							class="mb-2 border-0 border-t"
 							style="border-color: var(--admin-border-default)"
 						></div>
 
@@ -481,16 +483,22 @@ Route-driven sidebar content (no dual collapsible section headers):
 								data-preload="hover"
 								onclick={handleGoToMediaGallery}
 								aria-label="Go to Media Gallery"
-								class="flex w-full items-center gap-1.5 rounded-lg py-2 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
+								class="flex w-full items-center gap-1 rounded-lg h-auto! min-h-11 py-1.5 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
 									? 'justify-start px-3'
-									: 'flex-col justify-center py-1.5 px-1 text-[10px]'}"
+									: 'flex-col justify-center px-1'}"
 							>
 								<iconify-icon
 									icon="bi:image-fill"
 									width={isSidebarFull ? 20 : 18}
 									class="shrink-0 text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
-								<span class="truncate">{isSidebarFull ? 'Media Gallery' : 'Media'}</span>
+								<span
+									class="truncate text-center {isSidebarFull
+										? 'text-xs'
+										: 'text-[9px] leading-tight font-bold'}"
+								>
+									{isSidebarFull ? 'Media Gallery' : 'Media'}
+								</span>
 							</Button>
 						</SystemTooltip>
 					</div>
@@ -544,8 +552,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 		<AdminZone zone="sidebar" />
 	</div>
 	<!-- Footer -->
-	<div class="mb-2 mt-auto w-full px-1">
-		<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-subtle)"></div>
+	<div class="mb-2 mt-auto w-full">
+		<div class="mb-2 border-0 border-t" style="border-color: var(--admin-border-subtle)"></div>
 
 		<div
 			class="grid w-full items-center justify-center gap-1 {isSidebarFull
@@ -565,8 +573,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-(--admin-border-subtle)]'
-							: 'h-8 w-8 rounded-full hover:bg-(--admin-border-subtle)]'} relative flex items-center justify-center text-center no-underline!"
+							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-(--admin-border-subtle)'
+							: 'h-8 w-8 rounded-full hover:bg-(--admin-border-subtle)'} relative flex items-center justify-center text-center no-underline!"
 					>
 						<Avatar
 							src={avatarUrl}

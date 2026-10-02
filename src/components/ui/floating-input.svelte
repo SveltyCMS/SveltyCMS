@@ -46,6 +46,9 @@ full ARIA validation linkage, and transparent background support for overlays.
 		passwordIconColor?: string;
 		textColor?: string;
 		type?: 'text' | 'email' | 'security';
+		size?: 'sm' | 'md' | 'lg';
+		clearable?: boolean;
+		onClear?: () => void;
 		tabindex?: number;
 		id?: string;
 		autocomplete?: any;
@@ -79,6 +82,9 @@ full ARIA validation linkage, and transparent background support for overlays.
 		passwordIconColor = 'gray',
 		textColor = '',
 		type = 'text',
+		size = 'lg',
+		clearable = false,
+		onClear,
 		tabindex = 0,
 		id = '',
 		autocomplete,
@@ -103,9 +109,40 @@ full ARIA validation linkage, and transparent background support for overlays.
 	const effectiveType = $derived(
 		showPassword && type === 'security' ? 'text' : type === 'security' ? 'password' : type
 	);
-	/** 22px — 18px icon + 4px breathing room */
-	const inputPaddingStart = $derived(icon ? 'ps-7' : 'ps-2');
-	const labelStart = $derived(icon ? 'start-5' : 'start-2');
+
+	const sizeConfig = $derived.by(() => {
+		switch (size) {
+			case 'sm':
+				return {
+					heightClass: 'h-8 text-xs pt-2.5 pb-0.5',
+					labelClass: 'top-1 text-xs peer-placeholder-shown:text-xs',
+					iconSize: 14,
+					clearSize: 14
+				};
+			case 'md':
+				return {
+					heightClass: 'h-10 text-sm pt-3 pb-0.5',
+					labelClass: 'top-1.5 text-sm peer-placeholder-shown:text-sm',
+					iconSize: 16,
+					clearSize: 16
+				};
+			case 'lg':
+			default:
+				return {
+					heightClass: 'h-12 text-base pt-4 pb-1',
+					labelClass: 'top-2.5 text-base peer-placeholder-shown:text-base',
+					iconSize: 18,
+					clearSize: 16
+				};
+		}
+	});
+
+	const hasTrailingAdornment = $derived(type === 'security' || (clearable && !!value));
+	/** 36px with icon (12px padding + 18px icon + 6px space), 12px without */
+	const inputPaddingStart = $derived(icon ? 'ps-9' : 'ps-3');
+	const labelStart = $derived(icon ? 'start-9' : 'start-3');
+	const inputPaddingEnd = $derived(hasTrailingAdornment ? 'pe-10' : 'pe-3');
+
 	/** Legacy `textColor` literals are rendered as inline colors; anything else is a Tailwind class string */
 	const colorLiteral = $derived(textColor === 'black' || textColor === 'white');
 	const colorClass = $derived(textColor && !colorLiteral ? textColor : '');
@@ -197,8 +234,10 @@ full ARIA validation linkage, and transparent background support for overlays.
 			{onkeydown}
 			type={effectiveType}
 			class={cn(
-				'peer block h-12 w-full appearance-none border-0 border-b-2 pe-6 pb-1 pt-4 text-base disabled:opacity-50 transition-[border-color,outline-color,outline-offset] duration-200',
+				'peer block w-full appearance-none border-0 border-b-2 disabled:opacity-50 transition-[border-color,outline-color,outline-offset] duration-200',
+				sizeConfig.heightClass,
 				inputPaddingStart,
+				inputPaddingEnd,
 				bgTransparent
 					? 'border-white/50 text-white focus:border-white focus:outline-2 focus:outline-white bg-transparent focus:bg-transparent'
 					: cn(
@@ -211,7 +250,6 @@ full ARIA validation linkage, and transparent background support for overlays.
 							colorClass
 						),
 				invalid && 'border-error-500! dark:border-error-500!',
-				type === 'security' && 'pe-10',
 				textColor === 'black'
 					? 'autofill-light'
 					: textColor === 'white'
@@ -228,14 +266,34 @@ full ARIA validation linkage, and transparent background support for overlays.
 		{#if icon}
 			<iconify-icon
 				{icon}
-				width="18"
+				width={String(sizeConfig.iconSize)}
 				class={cn(
-					'absolute inset-s-0 top-3',
+					'absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none',
 					bgTransparent ? 'text-white' : iconColor ? '' : 'text-surface-500 dark:text-surface-50'
 				)}
 				style={iconColor ? `color: ${iconColor}` : undefined}
 				aria-hidden="true"
 			></iconify-icon>
+		{/if}
+
+		{#if clearable && value && !disabled}
+			<button
+				type="button"
+				tabindex={0}
+				onclick={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					value = '';
+					onClear?.();
+					onInput?.('');
+					inputElement?.focus();
+				}}
+				aria-label="Clear input"
+				class="absolute end-2 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 hover:bg-surface-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 transition-colors"
+			>
+				<iconify-icon icon="mdi:close" width={String(sizeConfig.clearSize)} aria-hidden="true"
+				></iconify-icon>
+			</button>
 		{/if}
 
 		{#if type === 'security'}
@@ -246,7 +304,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
 				class={cn(
-					'absolute inset-e-2 top-3 hover:opacity-75 focus:outline-none',
+					'absolute end-3 top-1/2 -translate-y-1/2 hover:opacity-75 focus:outline-none cursor-pointer',
 					bgTransparent
 						? 'text-white'
 						: passwordIconColor
@@ -254,7 +312,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 							: 'text-surface-500 dark:text-surface-50'
 				)}
 				style={passwordIconColor ? `color: ${passwordIconColor}` : undefined}
-				width="24"
+				width="20"
 				onkeydown={handleIconKeyDown}
 				onclick={togglePasswordVisibility}
 			></iconify-icon>
@@ -264,9 +322,10 @@ full ARIA validation linkage, and transparent background support for overlays.
 			<label
 				for={currentId}
 				class={cn(
-					'pointer-events-none absolute top-2.5 origin-start transform text-base transition-all duration-200 ease-in-out',
+					'pointer-events-none absolute origin-start transform transition-all duration-200 ease-in-out',
+					sizeConfig.labelClass,
 					labelStart,
-					'peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-placeholder-shown:text-base',
+					'peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100',
 					'peer-focus:-translate-y-2 peer-focus:scale-75',
 					'peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75',
 					bgTransparent

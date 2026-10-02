@@ -140,7 +140,7 @@
     "migrate": "bun run src/plugins/smart-importer/cli.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1143.0",
+    "@aws-sdk/client-s3": "^3.1145.0",
     "@better-svelte-email/components": "^2.3.0",
     "@better-svelte-email/preview": "^2.3.0",
     "@better-svelte-email/server": "^2.3.0",
@@ -185,9 +185,9 @@
     "nodemailer": "^10.0.13",
     "ollama": "^0.6.4",
     "redis": "^6.3.0",
-    "rolldown": "^1.2.11",
+    "rolldown": "^1.2.12",
     "sharp": "^0.35.5",
-    "shiki": "^4.4.3",
+    "shiki": "^4.5.0",
     "stripe": "^22.6.2",
     "svedit": "^0.14.0",
     "svelte-canvas": "^2.1.0",
@@ -212,7 +212,7 @@
     "@testing-library/svelte": "^5.4.2",
     "@types/bun": "^1.4.2",
     "@types/google.maps": "^3.66.4",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "@types/nodemailer": "^8.0.2",
     "@types/ws": "^8.18.2",
     "@vitest/browser": "^5.0.3",
@@ -222,7 +222,7 @@
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
     "fast-check": "^4.10.2",
-    "globals": "^17.12.0",
+    "globals": "^17.13.0",
     "jsdom": "^30.1.1",
     "lint-staged": "^17.6.0",
     "mysql2": "^3.24.4",
@@ -237,7 +237,7 @@
     "tailwindcss": "^4.3.3",
     "ts-morph": "^28.0.0",
     "tsx": "^4.23.15",
-    "vite": "^8.3.1",
+    "vite": "^8.3.2",
     "vitest": "^5.0.3"
   },
   "optionalDependencies": {

@@ -93,14 +93,21 @@
 	}
 </script>
 
-<div class="space-y-6 p-4 sm:p-6 lg:p-8">
+<div class="space-y-6">
 	<!-- Section Header -->
 	<div class="flex items-center gap-3">
-		<iconify-icon icon="mdi:shield-lock-outline" width="24" class="text-primary-500"></iconify-icon>
+		<div
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
+		>
+			<iconify-icon icon="mdi:shield-lock-outline" width="24"></iconify-icon>
+		</div>
 		<div>
-			<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">Permissions</h2>
+			<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
+				Collection Permissions
+			</h2>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
-				Configure which roles can access and modify this collection
+				Step 3: Define role-based access control (RBAC). Configure which roles can view, edit, and
+				write entries in this collection.
 			</p>
 		</div>
 	</div>
@@ -140,13 +147,13 @@
 						{@const roleName = getRoleName(role)}
 						{@const perm = permissions[roleName]}
 						<tr
-							class="border-b border-surface-100 dark:border-surface-500/40 hover:bg-surface-500/10 dark:hover:bg-surface-900/50 transition-colors"
+							class="border-b border-surface-500/20 dark:border-surface-500/40 hover:bg-surface-500/10 dark:hover:bg-surface-900/50 transition-colors"
 						>
 							<!-- Role Name -->
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-3">
 									<div
-										class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-500/10 dark:bg-primary-900/20 text-primary-600 dark:text-primary-500"
+										class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tertiary-500/10 dark:bg-primary-900/20 text-tertiary-600 dark:text-primary-500"
 									>
 										<span class="text-xs font-bold">{getRoleLabel(role).charAt(0)}</span>
 									</div>
@@ -167,7 +174,7 @@
 									<button
 										onclick={() => togglePermission(roleName, 'view')}
 										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.view
-											? 'bg-primary-500/10 dark:bg-primary-900/20 text-primary-600 dark:text-primary-500'
+											? 'bg-tertiary-500/10 dark:bg-primary-900/20 text-tertiary-600 dark:text-primary-500'
 											: 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
 										aria-label={`Toggle view for ${getRoleLabel(role)}`}
 										role="checkbox"
@@ -258,8 +265,9 @@
 				<p class="text-sm font-medium">No roles configured</p>
 				<p class="mt-1 text-xs opacity-60">
 					Manage roles in
-					<a href="/config/access-management" class="text-primary-500 underline"
-						>Access Management</a
+					<a
+						href="/config/access-management"
+						class="text-tertiary-500 dark:text-primary-500 underline">Access Management</a
 					>
 				</p>
 			</div>
@@ -270,7 +278,10 @@
 	<div
 		class="flex items-start gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 p-4"
 	>
-		<iconify-icon icon="mdi:information-outline" width="20" class="text-primary-500 shrink-0 mt-0.5"
+		<iconify-icon
+			icon="mdi:information-outline"
+			width="20"
+			class="text-tertiary-500 dark:text-primary-500 shrink-0 mt-0.5"
 		></iconify-icon>
 		<div class="text-sm text-surface-500 dark:text-surface-400">
 			<p class="font-semibold text-surface-600 dark:text-surface-400 mb-1">How permissions work</p>
@@ -282,7 +293,9 @@
 			<p class="mt-2 text-xs">
 				Collection-level permissions are inherited by all entries. For granular per-field
 				permissions, use the widget inspector. Full RBAC management is available in
-				<a href="/config/access-management" class="text-primary-500 underline">Access Management</a
+				<a
+					href="/config/access-management"
+					class="text-tertiary-500 dark:text-primary-500 underline">Access Management</a
 				>.
 			</p>
 		</div>

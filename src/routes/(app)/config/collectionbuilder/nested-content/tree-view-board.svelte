@@ -54,6 +54,7 @@ offset within the row on the native `dragover` event — that event carries
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
 
@@ -928,54 +929,46 @@ offset within the row on the native `dragover` event — that event carries
 <div class="mb-4 flex flex-wrap items-center gap-2">
 	<div class="relative flex-1 min-w-50">
 		<FloatingInput
+			size="md"
+			clearable
 			bind:value={searchText}
+			onClear={clearSearch}
 			label="Search collections..."
 			icon="mdi:magnify"
 			aria-label="Search collections"
-			inputClass="w-full h-12 pe-8 rounded shadow-sm"
+			inputClass="w-full rounded border border-surface-500/30 dark:border-surface-600"
 		/>
-		{#if searchText}
-			<Button
-				variant="surface"
-				type="button"
-				onclick={clearSearch}
-				aria-label="Clear search"
-				class="p-0! min-w-0 absolute inset-e-2 top-1/2 -translate-y-1/2 z-10"
-			>
-				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
-			</Button>
-		{/if}
 	</div>
 	<!-- Favorites Filter Chip -->
-	<Button
-		variant="outline"
-		type="button"
-		size="sm"
-		onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
-		class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-2 px-3 transition-all {showOnlyFavorites
-			? 'bg-warning-500/20 border-warning-500 text-warning-500 dark:text-warning-400'
-			: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
-		aria-label="Filter by favorites"
-	>
-		<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
-		<span>Favorites</span>
-	</Button>
+	<SystemTooltip title="Filter board to display only favorited collections">
+		<Button
+			variant="surface"
+			type="button"
+			onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
+			aria-label="Filter by favorites"
+		>
+			<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
+			<span>Favorites</span>
+		</Button>
+	</SystemTooltip>
 
 	<!-- Tag Filter Dropdown -->
 	{#if allTags.length > 0}
 		<div class="relative min-w-36">
-			<Select
-				bind:value={selectedTagFilter}
-				options={tagFilterOptions}
-				placeholder="All Tags"
-				allowEmptySelection
-				size="sm"
-			/>
+			<SystemTooltip title="Filter collections by assigned taxonomy tag">
+				<Select
+					bind:value={selectedTagFilter}
+					options={tagFilterOptions}
+					placeholder="All Tags"
+					allowEmptySelection
+					size="sm"
+				/>
+			</SystemTooltip>
 		</div>
 	{/if}
 
 	{#if searchText || showOnlyFavorites || selectedTagFilter}
-		<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
+		<Button variant="outline" type="button" onclick={clearAllFilters} class="">
 			Clear filters
 		</Button>
 	{/if}
@@ -1030,7 +1023,7 @@ offset within the row on the native `dragover` event — that event carries
      ARIA tree, and a non-interactive role must not be focusable. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2"
+	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded"
 	class:is-dragging={dndState.isDragging}
 	onkeydown={handleTreeKeyDown}
 	role={treeRoots.length > 0 ? 'tree' : undefined}
@@ -1169,9 +1162,22 @@ offset within the row on the native `dragover` event — that event carries
 			</p>
 
 			<div class="space-y-4">
+				<div class="flex items-center gap-1.5">
+					<label
+						for="board-tags-input"
+						class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+					>
+						Tags
+					</label>
+					<SystemTooltip
+						title="Assign comma-separated tags to organize, group, and filter this collection across the CMS."
+					>
+						<HelpIcon ariaLabel="Help: Tags" />
+					</SystemTooltip>
+				</div>
 				<Input
+					id="board-tags-input"
 					bind:value={currentTagsInput}
-					label="Tags"
 					placeholder="e.g. news, blog, featured"
 					aria-describedby="board-tags-help"
 					data-testid="board-tags-input"
@@ -1277,9 +1283,14 @@ offset within the row on the native `dragover` event — that event carries
 		position: absolute;
 		inset-inline: 0;
 		height: 2px;
-		background: var(--color-primary-500);
+		background: var(--color-tertiary-500);
 		pointer-events: none;
 		z-index: 2;
+	}
+
+	:global(.dark) .tree-row.line-before::before,
+	:global(.dark) .tree-row.line-after::after {
+		background: var(--color-primary-500);
 	}
 
 	.tree-row.line-before::before {

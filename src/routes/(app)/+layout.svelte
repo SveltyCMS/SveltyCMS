@@ -397,7 +397,7 @@ This layout provides the administrative shell, including sidebars and header con
 		initPredictivePreload();
 		initBounceDetector();
 		widgets.initialize();
-		initializeDarkMode(data.theme as any);
+		initializeDarkMode((data as any).themePreference);
 
 		// Primary Mod+K + Gin/Coffee-style Alt+G (same on Windows, Linux, macOS)
 		registerHotkey('mod+k', () => ui.toggleGlobalSearch(), 'Open global search / command palette');
@@ -532,7 +532,7 @@ This layout provides the administrative shell, including sidebars and header con
 					<!-- Desktop / tablet: inline sidebar (inside flex flow) -->
 					{#if !screen.isMobile && ui.state.leftSidebar !== 'hidden'}
 						<aside
-							class="max-h-dvh border-e bg-surface-500/10 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
+							class="max-h-dvh border-e bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
 							style="width: {ui.state.leftSidebar === 'full'
 								? 'var(--admin-sidebar-width, 240px)'
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
@@ -608,7 +608,7 @@ This layout provides the administrative shell, including sidebars and header con
 						></button>
 						<!-- Drawer -->
 						<div
-							class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh flex-col overflow-visible border-e border-surface-500/30 bg-surface-500/10 px-2! text-center shadow-lg transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900"
+							class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh flex-col overflow-visible border-e border-surface-500/30 bg-surface-500/10 text-center shadow-lg transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900"
 							style="width: {ui.state.leftSidebar === 'full'
 								? 'min(100vw, var(--admin-sidebar-width, 240px))'
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
@@ -635,7 +635,7 @@ This layout provides the administrative shell, including sidebars and header con
 						></button>
 						<!-- Drawer -->
 						<div
-							class="fixed inset-e-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-s border-surface-500/30 bg-surface-500/10 px-2! shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
+							class="fixed inset-e-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-s border-surface-500/30 bg-surface-500/10 shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
 							role="dialog"
 							aria-modal="true"
 							aria-label="Right sidebar"

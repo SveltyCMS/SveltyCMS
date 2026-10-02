@@ -368,9 +368,10 @@ export const checkAuthMethods = query("unchecked", async (email: string) => {
       hasOAuth: false,
     };
   try {
-    const user = await auth.checkUser({
-      email: String(email).trim().toLowerCase(),
-    });
+    const user = await auth.checkUser(
+      { email: String(email).trim().toLowerCase() },
+      withSystemScope("bootstrap"),
+    );
     if (!user) {
       return {
         success: true,

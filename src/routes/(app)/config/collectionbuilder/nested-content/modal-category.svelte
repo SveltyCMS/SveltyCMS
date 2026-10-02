@@ -30,6 +30,8 @@ Features:
 	import type { ContentNode } from '@root/src/databases/db-interface';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 
 	interface Props {
 		body?: string;
@@ -205,48 +207,98 @@ Features:
 			<!-- Left column: Form fields (3/5 width) -->
 			<div class="flex flex-col gap-4 md:col-span-3">
 				<div class="space-y-4">
-					<h3
-						class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
-					>
-						Category Details
-					</h3>
+					<div class="flex items-center justify-between">
+						<h3
+							class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
+						>
+							Category Details
+						</h3>
+						<SystemTooltip
+							title="Configure a folder node to group related collections in a hierarchical tree structure."
+						>
+							<HelpIcon ariaLabel="Help: Category Details" />
+						</SystemTooltip>
+					</div>
 
-					<Input
-						type="text"
-						id="category_name"
-						bind:value={formData.newCategoryName}
-						label={modalcategory_categoryname()}
-						placeholder={modalcategory_placeholder()}
-						error={validationErrors.name}
-						disabled={isSubmitting}
-						data-testid="category-name-input"
-					/>
+					<div class="space-y-2">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="category_name"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							>
+								{modalcategory_categoryname()}
+							</label>
+							<span class="text-error-500" aria-hidden="true">*</span>
+							<SystemTooltip
+								title="Display label of this folder category shown in the tree view and sidebar."
+							>
+								<HelpIcon ariaLabel="Help: Category Name" />
+							</SystemTooltip>
+						</div>
+						<Input
+							type="text"
+							id="category_name"
+							bind:value={formData.newCategoryName}
+							placeholder={modalcategory_placeholder()}
+							error={validationErrors.name}
+							disabled={isSubmitting}
+							data-testid="category-name-input"
+						/>
+					</div>
 
 					<!-- Description field -->
-					<Input
-						type="text"
-						id="category_description"
-						bind:value={formData.newCategoryDescription}
-						label="Description"
-						placeholder="Brief description of this category (optional)"
-						disabled={isSubmitting}
-						data-testid="category-description-input"
-					/>
+					<div class="space-y-2">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="category_description"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							>
+								Description
+							</label>
+							<SystemTooltip
+								title="Optional note describing what collections belong inside this category."
+							>
+								<HelpIcon ariaLabel="Help: Category Description" />
+							</SystemTooltip>
+						</div>
+						<Input
+							type="text"
+							id="category_description"
+							bind:value={formData.newCategoryDescription}
+							placeholder="Brief description of this category (optional)"
+							disabled={isSubmitting}
+							data-testid="category-description-input"
+						/>
+					</div>
 
 					<!-- Slug/Path field (read-only, computed from name) -->
-					<Input
-						type="text"
-						id="category_slug"
-						value={formData.newCategoryName
-							.trim()
-							.toLowerCase()
-							.replace(/\s+/g, '-')
-							.replace(/[^a-z0-9-]/g, '') || 'category'}
-						label="Path (auto-generated)"
-						disabled={true}
-						class="opacity-70"
-						data-testid="category-slug-display"
-					/>
+					<div class="space-y-2">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="category_slug"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							>
+								Path (auto-generated)
+							</label>
+							<SystemTooltip
+								title="Hierarchical URL and filesystem folder path automatically derived from the category name."
+							>
+								<HelpIcon ariaLabel="Help: Path" />
+							</SystemTooltip>
+						</div>
+						<Input
+							type="text"
+							id="category_slug"
+							value={formData.newCategoryName
+								.trim()
+								.toLowerCase()
+								.replace(/\s+/g, '-')
+								.replace(/[^a-z0-9-]/g, '') || 'category'}
+							disabled={true}
+							class="opacity-70"
+							data-testid="category-slug-display"
+						/>
+					</div>
 				</div>
 			</div>
 

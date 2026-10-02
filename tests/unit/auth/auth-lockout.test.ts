@@ -250,6 +250,7 @@ describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
     // Device info is stored on the new session
     expect(createSession).toHaveBeenCalledWith(
       expect.objectContaining({ userAgent: "UA-Chrome/Windows", ipAddress: "1.2.3.4" }),
+      undefined,
     );
     // Same-device non-rotated session is evicted from DB + cache
     expect(dbAdapter.auth.deleteSession).toHaveBeenCalledWith("sess-old-device", undefined);

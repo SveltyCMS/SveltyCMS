@@ -397,11 +397,7 @@
 		}
 	}
 
-	async function handleQuickAdd() {
-		if (!inferredWidget) return;
-		const target = inferredWidget;
-		quickAddInput = '';
-
+	async function addInferredField(target: InferredWidgetResult) {
 		await widgets.initialize();
 		const resolvedKey = getWidgetFunction(target.widgetKey)
 			? target.widgetKey
@@ -437,6 +433,13 @@
 		items = [...items, newWidget];
 		updateStore();
 		toast.success(`Added ${target.label} (${target.displayName})`);
+	}
+
+	async function handleQuickAdd() {
+		if (!inferredWidget) return;
+		const target = inferredWidget;
+		quickAddInput = '';
+		await addInferredField(target);
 	}
 </script>
 
@@ -478,7 +481,7 @@
 					<button
 						type="button"
 						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold'
+							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
 						onclick={() => (viewMode = 'canvas')}
 						data-testid="code-view-mode-canvas"
@@ -488,7 +491,7 @@
 					<button
 						type="button"
 						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold'
+							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
 						onclick={() => (viewMode = 'split')}
 						data-testid="code-view-mode-split"
@@ -498,7 +501,7 @@
 					<button
 						type="button"
 						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold'
+							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
 						onclick={() => (viewMode = 'code')}
 						data-testid="code-view-mode-code"
@@ -523,7 +526,7 @@
 
 		<!-- Code Display Area -->
 		<div
-			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-200 selection:bg-primary-500/30"
+			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-200 selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
 		>
 			<pre class="leading-relaxed whitespace-pre font-mono"><code>{generatedCode}</code></pre>
 		</div>
@@ -552,7 +555,11 @@
 				<div
 					class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400"
 				>
-					<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon="mdi:widgets"
+						width="20"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 					<span
 						>{items.length}
 						{items.length === 1 ? 'Widget' : 'Widgets'}</span
@@ -568,7 +575,7 @@
 					<button
 						type="button"
 						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold'
+							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
 						onclick={() => (viewMode = 'canvas')}
 						data-testid="view-mode-canvas"
@@ -578,7 +585,7 @@
 					<button
 						type="button"
 						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold'
+							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
 						onclick={() => (viewMode = 'split')}
 						data-testid="view-mode-split"
@@ -597,7 +604,8 @@
 
 				<div class="ms-auto flex items-center gap-2">
 					<Button
-						variant="primary"
+						variant="tertiary"
+						class="dark:preset-filled-primary-500"
 						size="sm"
 						onclick={addField}
 						leadingIcon="mdi:plus"
@@ -611,7 +619,7 @@
 			<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 				<!-- Quick Add Bar -->
 				<div
-					class="mx-auto mb-4 max-w-4xl rounded-xl border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/20"
+					class="mx-auto mb-4 max-w-4xl rounded-xl border border-surface-500/30 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900/20 shadow-2xs"
 				>
 					<div class="flex items-center gap-2">
 						<div class="relative flex-1">
@@ -626,12 +634,13 @@
 									}
 								}}
 								placeholder="⚡ Quick-Add: type 'email', 'price', 'cover_photo', 'tags', 'bio' and hit Enter..."
-								class="w-full rounded-lg border border-surface-500/30 bg-white px-3.5 py-2 text-xs sm:text-sm text-surface-900 placeholder:text-surface-400 focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
+								class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3.5 py-2 text-xs sm:text-sm text-surface-900 placeholder:text-surface-400 focus:border-tertiary-500 dark:focus:border-primary-500 focus:bg-white focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
 								data-testid="quick-add-field-input"
 							/>
 						</div>
 						<Button
-							variant="primary"
+							variant="tertiary"
+							class="dark:preset-filled-primary-500"
 							size="sm"
 							disabled={!inferredWidget}
 							onclick={handleQuickAdd}
@@ -643,9 +652,9 @@
 					</div>
 					{#if inferredWidget}
 						<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-							<span class="text-surface-500">Inferred:</span>
+							<span class="text-surface-500 dark:text-surface-400">Inferred widget:</span>
 							<span
-								class="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-0.5 font-medium text-primary-500 dark:bg-primary-500/20"
+								class="inline-flex items-center gap-1 rounded-full bg-tertiary-500/10 px-2.5 py-0.5 font-medium text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400"
 							>
 								<iconify-icon icon={inferredWidget.icon} width="14"></iconify-icon>
 								{inferredWidget.displayName}
@@ -661,7 +670,10 @@
 						container: 'widget-fields',
 						callbacks: { onDrop: handleFieldDrop },
 						direction: 'vertical',
-						attributes: { dragOverClass: 'ring-2 ring-primary-500/40 bg-primary-500/10' }
+						attributes: {
+							dragOverClass:
+								'ring-2 ring-tertiary-500/40 bg-tertiary-500/10 dark:ring-primary-500/40 dark:bg-primary-500/10'
+						}
 					}}
 					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
 					data-testid="widget-fields-list"
@@ -680,7 +692,9 @@
 								container: 'widget-fields',
 								callbacks: { onDrop: handleFieldDrop },
 								direction: 'vertical',
-								attributes: { dragOverClass: 'ring-2 ring-primary-400/50' }
+								attributes: {
+									dragOverClass: 'ring-2 ring-tertiary-500/50 dark:ring-primary-400/50'
+								}
 							}}
 							animate:flip={{ duration: flipDurationMs }}
 							class="group relative"
@@ -690,24 +704,23 @@
 							role="listitem"
 						>
 							<Card
-								class="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:pe-4 transition-all hover:border-primary-500 hover:shadow-md bg-white dark:bg-surface-800"
+								class="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:pe-4 transition-all hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md bg-white dark:bg-surface-800"
 							>
 								<div
-									class="field-drag-handle flex cursor-grab items-center justify-center self-start rounded p-1 text-surface-300 active:cursor-grabbing group-hover:text-primary-500 sm:self-center"
+									class="field-drag-handle flex cursor-grab items-center justify-center self-start rounded p-1 text-surface-400 active:cursor-grabbing group-hover:text-tertiary-500 dark:group-hover:text-primary-500 sm:self-center"
 									aria-hidden="true"
 								>
 									<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
 								</div>
 
 								<div
-									class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
+									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-surface-500/30 bg-tertiary-500/10 text-tertiary-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-primary-400"
 								>
 									<iconify-icon
 										icon={item.icon ||
 											(availableWidgets[(item.widget as any)?.key] as any)?.Icon ||
 											'mdi:widgets'}
-										width="20"
-										class="text-primary-500"
+										width="22"
 									></iconify-icon>
 								</div>
 
@@ -795,14 +808,52 @@
 
 					{#if items.length === 0}
 						<div
-							class="flex h-56 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-500/30 bg-surface-500/30 text-surface-400 dark:border-surface-500/40 dark:bg-surface-900/10 dark:text-surface-50"
+							class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-8 text-center dark:border-surface-500/40 dark:bg-surface-900/20"
 						>
-							<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"
-							></iconify-icon>
-							<p class="text-sm font-medium">Add your first widget to start building</p>
-							<p class="mt-1 max-w-xs text-center text-xs opacity-60">
-								Click or drag a widget from the right palette, or use Add Widget
+							<div
+								class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:widgets-outline" width="32"></iconify-icon>
+							</div>
+							<h3 class="text-base font-bold text-surface-900 dark:text-surface-100">
+								Start Building Your Collection Fields
+							</h3>
+							<p class="mt-1 max-w-md text-xs text-surface-500 dark:text-surface-400">
+								Fields define what data your collection stores. Add fields by clicking or dragging
+								from the Available Widgets palette on the right, typing in the Quick-Add bar above,
+								or picking a starter preset below:
 							</p>
+
+							<!-- Starter Presets -->
+							<div class="mt-4 flex flex-wrap justify-center gap-2">
+								{#each [{ name: 'title', label: 'Title', icon: 'mdi:format-title' }, { name: 'description', label: 'Description', icon: 'mdi:text-box-outline' }, { name: 'cover_image', label: 'Cover Image', icon: 'mdi:image-outline' }, { name: 'published_at', label: 'Publish Date', icon: 'mdi:calendar-clock' }, { name: 'tags', label: 'Tags', icon: 'mdi:tag-outline' }] as starter (starter.name)}
+									<button
+										type="button"
+										onclick={() => {
+											const inferred = inferWidgetFromFieldName(starter.name);
+											if (inferred) addInferredField(inferred);
+										}}
+										class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/30 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 shadow-2xs transition-all hover:border-tertiary-500 hover:text-tertiary-600 hover:shadow-xs dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-300 dark:hover:border-primary-500 dark:hover:text-primary-400"
+									>
+										<iconify-icon
+											icon={starter.icon}
+											width="14"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										+ {starter.label}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{:else}
+						<div
+							class="flex items-center justify-between px-1 text-[11px] text-surface-500 dark:text-surface-400"
+						>
+							<span class="flex items-center gap-1">
+								<iconify-icon icon="mdi:drag" width="14"></iconify-icon>
+								Drag handles to reorder fields
+							</span>
+							<span>Click any field to configure properties & validation</span>
 						</div>
 					{/if}
 				</div>
@@ -814,16 +865,20 @@
 		{:else}
 			<!-- ═══ RIGHT: Palette ═══ -->
 			<aside
-				class="flex w-full shrink-0 flex-col border-t border-surface-500/30 bg-surface-500/80 dark:border-surface-500/40 dark:bg-surface-900/50 lg:w-80 lg:border-t-0 xl:w-96"
+				class="flex w-full shrink-0 flex-col border-t border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900 lg:w-80 lg:border-t-0 lg:border-s xl:w-96"
 				data-testid="widget-palette"
 			>
 				<div
 					class="shrink-0 space-y-3 border-b border-surface-500/30 p-4 dark:border-surface-500/40"
 				>
 					<h3
-						class="flex items-center gap-2 text-sm font-bold tracking-wider text-surface-500 uppercase dark:text-surface-400"
+						class="flex items-center gap-2 text-sm font-bold tracking-wider text-surface-600 uppercase dark:text-surface-400"
 					>
-						<iconify-icon icon="mdi:view-grid-plus-outline" width="16"></iconify-icon>
+						<iconify-icon
+							icon="mdi:view-grid-plus-outline"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
 						Available Widgets
 					</h3>
 					<FloatingInput
@@ -833,7 +888,9 @@
 						aria-label="Search widgets"
 						inputClass="h-9 text-sm rounded"
 					/>
-					<p class="text-[11px] text-surface-500">Click to add, or drag onto the field list.</p>
+					<p class="text-[11px] text-surface-500 dark:text-surface-400">
+						Click to add, or drag onto the field list.
+					</p>
 				</div>
 
 				<div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-4">
@@ -845,7 +902,7 @@
 						{#if list.length > 0}
 							<div>
 								<h4
-									class="mb-2 px-1 text-[10px] font-bold tracking-widest text-surface-400 uppercase"
+									class="mb-2 px-1 text-[11px] font-bold tracking-wider text-surface-600 uppercase dark:text-surface-400"
 								>
 									{title}
 								</h4>
@@ -861,21 +918,21 @@
 											onclick={() => addSidebarWidget(w.key)}
 											data-testid={`quick-add-${w.key.toLowerCase()}`}
 											aria-label={`Add ${w.label} widget`}
-											class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-500/30 bg-white p-3 text-center transition-all hover:border-primary-500 hover:bg-primary-500/10 dark:border-surface-500/40 dark:bg-surface-800 dark:hover:bg-primary-900/20 {tone ===
+											class="group flex flex-col items-center justify-center gap-2 rounded-xl border border-surface-500/30 bg-white p-3 text-center shadow-2xs transition-all hover:border-tertiary-500 hover:shadow-xs hover:bg-tertiary-500/10 dark:hover:border-primary-500 dark:border-surface-500/40 dark:bg-surface-800 dark:hover:bg-primary-900/20 {tone ===
 											'market'
 												? 'hover:border-warning-500'
 												: ''}"
 										>
 											<div
-												class="flex h-9 w-9 items-center justify-center rounded bg-surface-500/10 text-surface-500 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 {tone ===
+												class="flex h-10 w-10 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-surface-700 dark:text-primary-400 transition-colors group-hover:bg-tertiary-500 dark:group-hover:bg-primary-500 group-hover:text-white {tone ===
 												'market'
-													? 'text-warning-500 group-hover:bg-warning-500'
+													? 'bg-warning-500/10 text-warning-500 group-hover:bg-warning-500 group-hover:text-white'
 													: ''}"
 											>
-												<iconify-icon icon={w.icon} width="20"></iconify-icon>
+												<iconify-icon icon={w.icon} width="22" height="22"></iconify-icon>
 											</div>
 											<span
-												class="text-[11px] leading-tight font-semibold text-surface-600 dark:text-surface-400"
+												class="text-xs leading-tight font-semibold text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400"
 												>{w.label}</span
 											>
 										</button>

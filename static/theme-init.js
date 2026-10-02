@@ -1,8 +1,14 @@
 "use strict";
 // Theme initialization (before page render to prevent flicker)
-const THEME_REGEX = /theme=(\w+)/;
 (() => {
-  const c = document.cookie.match(THEME_REGEX)?.[1];
+  // Extract theme preference from cookie or fallback to localStorage
+  const m = document.cookie.match(/(?:^|;\s*)theme=([^;]+)/);
+  let c = m ? decodeURIComponent(m[1].trim()) : null;
+  if (!c) {
+    try {
+      c = localStorage.getItem("theme");
+    } catch {}
+  }
   const h = document.documentElement;
 
   try {

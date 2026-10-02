@@ -26,8 +26,6 @@
 	import CollectionPermissions from './tabs/collection-permissions.svelte';
 	import { validateMinimumCollectionFields } from '../../collectionbuilder-utils';
 	import Tabs from '@src/components/ui/tabs.svelte';
-	import Stepper from '@components/ui/stepper.svelte';
-	import type { StepperStep } from '@components/ui/stepper.svelte';
 	import Button from '@components/ui/button.svelte';
 
 	const action = $derived(page.params.action);
@@ -83,12 +81,6 @@
 	// ── Tab / wizard progress ──
 	let activeTab = $state('define');
 
-	const editorTabs = [
-		{ id: 'define', label: 'Define', icon: 'mdi:information' },
-		{ id: 'widgets', label: 'Widgets', icon: 'mdi:widgets' },
-		{ id: 'permissions', label: 'Permissions', icon: 'mdi:shield-lock' }
-	];
-
 	const TAB_ORDER = ['define', 'widgets', 'permissions'] as const;
 
 	/** Step completion for create/edit wizard UX */
@@ -126,22 +118,8 @@
 		] as const;
 		const completedCount = meta.filter((s) => s.done).length;
 		const allRequiredDone = defineOk && widgetsOk;
-		const currentIndex = Math.max(0, TAB_ORDER.indexOf(activeTab as (typeof TAB_ORDER)[number]));
-		const stepperSteps: StepperStep[] = meta.map((s) => ({
-			id: s.id,
-			label: s.label,
-			icon: s.icon,
-			description: s.description
-		}));
-		const completedFlags = meta.map((s) => s.done);
-		// Allow free navigation between define / widgets / permissions (edit-friendly)
-		const clickable = meta.map(() => true);
 		return {
 			steps: meta,
-			stepperSteps,
-			completedFlags,
-			clickable,
-			currentIndex,
 			completedCount,
 			total: meta.length,
 			defineOk,
@@ -149,6 +127,15 @@
 			allRequiredDone
 		};
 	});
+
+	const editorTabs = $derived(
+		stepProgress.steps.map((s) => ({
+			id: s.id,
+			label: s.label,
+			icon: s.icon,
+			done: s.done
+		}))
+	);
 
 	const canGoNext = $derived.by(() => {
 		if (activeTab === 'define') return stepProgress.defineOk;
@@ -158,11 +145,6 @@
 
 	function goToTab(tabId: string) {
 		activeTab = tabId;
-	}
-
-	function goToStepIndex(index: number) {
-		const id = TAB_ORDER[index];
-		if (id) activeTab = id;
 	}
 
 	function goNext() {
@@ -355,6 +337,36 @@
 	spaceY="4"
 	animate={false}
 >
+	{#snippet subtitle()}
+		<div class="flex flex-wrap items-center gap-2 text-xs">
+			<span class="font-semibold text-surface-600 dark:text-surface-400">
+				Step {activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'} of 3:
+				{activeTab === 'define'
+					? 'Collection Definition'
+					: activeTab === 'widgets'
+						? 'Field Schema'
+						: 'Permissions'}
+			</span>
+			<span class="text-surface-300 dark:text-surface-600">•</span>
+			<span
+				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-400"
+			>
+				{stepProgress.completedCount}/{stepProgress.total} steps ready
+			</span>
+			<span class="text-surface-300 dark:text-surface-600">•</span>
+			{#if !stepProgress.allRequiredDone}
+				<span class="text-warning-500 dark:text-warning-400 font-medium flex items-center gap-1">
+					<iconify-icon icon="mdi:information" width="14"></iconify-icon>
+					Finish Define & add ≥1 widget to save
+				</span>
+			{:else}
+				<span class="text-success-500 dark:text-success-400 font-medium flex items-center gap-1">
+					<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
+					Ready to save
+				</span>
+			{/if}
+		</div>
+	{/snippet}
 	{#snippet actions()}
 		<div class="flex flex-wrap items-center gap-2">
 			{#if action === 'edit'}
@@ -385,14 +397,14 @@
 
 			{#if activeTab !== 'permissions'}
 				<Button
-					variant="primary"
+					variant="tertiary"
 					onclick={goNext}
 					disabled={activeTab === 'define' && !canGoNext}
-					aria-label="Next step"
-					data-testid="collection-step-next"
-					class="flex items-center gap-1"
+					aria-label={activeTab === 'define' ? 'Continue to Widgets' : 'Next step'}
+					data-testid={activeTab === 'define' ? 'collection-define-next' : 'collection-step-next'}
+					class="flex items-center gap-1.5 dark:preset-filled-primary-500"
 				>
-					<span>Next</span>
+					<span>{activeTab === 'define' ? 'Continue to Widgets' : 'Next'}</span>
 					<iconify-icon icon="mdi:arrow-right" width="18"></iconify-icon>
 				</Button>
 			{/if}
@@ -409,7 +421,7 @@
 				disabled={isLoading || !stepProgress.defineOk}
 				aria-label="Save collection"
 				data-testid="save-collection-button"
-				class="flex min-w-25 items-center gap-1"
+				class="flex min-w-25 items-center gap-1 dark:preset-filled-primary-500"
 				title={!stepProgress.defineOk
 					? 'Set collection name and icon first'
 					: !stepProgress.widgetsOk
@@ -426,57 +438,38 @@
 		</div>
 	{/snippet}
 
-	<!-- Wizard progress — shared UI Stepper (same component as Setup) -->
+	<!-- Tab Navigation -->
 	<div
-		class="shrink-0 border-b border-surface-500/30 bg-surface-500/80 px-3 py-3 dark:border-surface-500/40 dark:bg-surface-900/50 sm:px-4"
-		data-testid="collection-wizard-progress"
-		role="status"
-		aria-live="polite"
+		class="z-20 shrink-0 border-b border-surface-500/30 bg-white px-4 pt-2 pb-2 dark:border-surface-500/40 dark:bg-surface-900 shadow-xs"
+		data-testid="collection-editor-tabs"
 	>
-		<div class="mx-auto flex max-w-5xl flex-col gap-2">
-			<Stepper
-				steps={stepProgress.stepperSteps}
-				currentStep={stepProgress.currentIndex}
-				completedSteps={stepProgress.completedFlags}
-				stepClickable={stepProgress.clickable}
-				orientation="horizontal"
-				variant="default"
-				compact={false}
-				onStepClick={goToStepIndex}
-				class="w-full"
+		<div class="flex items-center justify-between gap-4">
+			<Tabs
+				tabs={editorTabs}
+				bind:activeTab
+				onTabChange={(tabId: string) => goToTab(tabId)}
+				variant="underline"
 			/>
-			<p class="text-center text-xs text-surface-500 dark:text-surface-400 sm:text-start">
-				{stepProgress.completedCount}/{stepProgress.total} steps ready
-				{#if !stepProgress.allRequiredDone}
-					<span class="text-warning-600 dark:text-warning-400">
-						— finish Define + Widgets to save a complete collection</span
-					>
+			<p class="text-surface-500 dark:text-surface-400 hidden lg:block text-xs text-end shrink-0">
+				{#if activeTab === 'define'}
+					Set the unique name, database identifier, and icon
+				{:else if activeTab === 'widgets'}
+					Add, configure, and reorder fields from the palette
+				{:else if activeTab === 'permissions'}
+					Configure role-based access rules (View / Edit / Write)
 				{/if}
 			</p>
 		</div>
-	</div>
-
-	<!-- Tab Navigation -->
-	<div
-		class="z-20 shrink-0 border-b border-surface-500/30 bg-white px-4 pt-2 dark:border-surface-500/40 dark:bg-surface-900 shadow-sm"
-		data-testid="collection-editor-tabs"
-	>
-		<Tabs
-			tabs={editorTabs}
-			bind:activeTab
-			onTabChange={(tabId: string) => goToTab(tabId)}
-			variant="underline"
-		/>
 	</div>
 
 	<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
 		<div class="w-full flex-1 overflow-y-auto scroll-smooth">
 			<div
 				class="h-full min-h-0 {activeTab === 'define'
-					? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10'
+					? 'w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'
 					: activeTab === 'widgets'
 						? 'flex h-full min-h-128 flex-col p-0'
-						: 'mx-auto max-w-5xl p-4 sm:p-6'}"
+						: 'w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'}"
 			>
 				{#if activeTab === 'define'}
 					<div
@@ -486,20 +479,6 @@
 						aria-labelledby="tab-define"
 					>
 						<CollectionForm bind:data={collections.active} syncKey={editorSyncKey} />
-						<div
-							class="mt-8 flex justify-end gap-2 border-t border-surface-500/30 pt-6 dark:border-surface-500/40"
-						>
-							<Button
-								variant="primary"
-								onclick={goNext}
-								disabled={!stepProgress.defineOk}
-								data-testid="collection-define-next"
-								class="flex items-center gap-2"
-							>
-								Continue to Widgets
-								<iconify-icon icon="mdi:arrow-right" width="18"></iconify-icon>
-							</Button>
-						</div>
 					</div>
 				{:else if activeTab === 'widgets'}
 					<div
@@ -521,26 +500,6 @@
 						aria-labelledby="tab-permissions"
 					>
 						<CollectionPermissions roles={(data.roles as any) || []} />
-						<div
-							class="mt-8 flex flex-wrap justify-between gap-2 border-t border-surface-500/30 pt-6 dark:border-surface-500/40"
-						>
-							<Button variant="outline" onclick={goBack} class="flex items-center gap-1">
-								<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
-								Back
-							</Button>
-							{#if stepProgress.allRequiredDone}
-								<Button
-									variant="tertiary"
-									onclick={() => handleCollectionSave()}
-									disabled={isLoading}
-									data-testid="save-collection-footer"
-									class="flex items-center gap-1"
-								>
-									<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-									{button_save()}
-								</Button>
-							{/if}
-						</div>
 					</div>
 				{/if}
 			</div>

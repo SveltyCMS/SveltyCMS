@@ -251,7 +251,13 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
         const filter: Record<string, unknown> = { nodeType: "collection" };
         this.applyStructureTenantFilter(filter, tenantId);
 
-        const res = await this.crud.findMany("content_nodes", filter as any, options);
+        const res = await this.crud.findMany("content_nodes", filter as any, {
+          ...options,
+          tenantId:
+            options?.tenantId !== undefined
+              ? options.tenantId
+              : ((tenantId ?? null) as DatabaseId | null),
+        });
         if (res.success && Array.isArray(res.data)) {
           const schemas: Schema[] = [];
           for (const node of res.data) {

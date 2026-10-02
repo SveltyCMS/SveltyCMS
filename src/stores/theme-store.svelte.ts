@@ -112,16 +112,21 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
     return;
   }
 
-  // 1. Read theme preference from cookie
-  const cookieValue = document.cookie
-    .split("; ")
-    .find((c) => c.startsWith(`${THEME_COOKIE_KEY}=`))
-    ?.split("=")[1] as ThemePreference | undefined;
+  // 1. Read theme preference from cookie or fallback to localStorage
+  const cookieMatch = document.cookie.match(/(?:^|;\s*)theme=([^;]+)/);
+  const cookieValue = cookieMatch
+    ? (decodeURIComponent(cookieMatch[1].trim()) as ThemePreference)
+    : undefined;
 
-  // 2. Check current DOM state (already set by SSR script)
-  const currentlyDark = document.documentElement.classList.contains("dark");
+  let localValue: ThemePreference | undefined;
+  try {
+    const rawLocal = localStorage.getItem(THEME_COOKIE_KEY);
+    if (rawLocal === "dark" || rawLocal === "light" || rawLocal === "system") {
+      localValue = rawLocal;
+    }
+  } catch {}
 
-  // 3. Determine user's preference (default to 'system' if no cookie)
+  // 2. Determine user's preference (default to 'system' if not stored)
   let preference: ThemePreference = "system";
 
   if (
@@ -133,23 +138,32 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
     preference = initialPreference;
   } else if (cookieValue === "dark" || cookieValue === "light" || cookieValue === "system") {
     preference = cookieValue;
+  } else if (localValue === "dark" || localValue === "light" || localValue === "system") {
+    preference = localValue;
   } else if (cookieValue) {
     logger.warn("[Theme Init] Unknown cookie value, defaulting to system:", cookieValue);
     preference = "system";
   } else {
-    // No cookie: use system preference as default
     preference = "system";
   }
 
-  // 4. Update state WITHOUT touching the DOM (SSR script already set it correctly)
+  // 3. Resolve the actual dark mode state based on preference and enforce on DOM
   state.themePreference = preference;
-  state.resolvedDarkMode = currentlyDark; // Use current DOM state
+  state.resolvedDarkMode = resolveDarkMode(preference);
+  applyThemeToDom(state.resolvedDarkMode);
 
-  // 5. Save preference if not set
-  if (!cookieValue) {
+  // 4. Save preference if cookie was missing or out of sync
+  if (!cookieValue || cookieValue !== preference) {
     setCookie(preference);
-    logger.debug("[Theme Init] Set cookie to default dark mode:", preference);
+    logger.debug("[Theme Init] Synced cookie to preference:", preference);
   }
+
+  // 5. Ensure localStorage is in sync as resilient secondary store
+  try {
+    if (localStorage.getItem(THEME_COOKIE_KEY) !== preference) {
+      localStorage.setItem(THEME_COOKIE_KEY, preference);
+    }
+  } catch {}
 
   // 6. Clean up old 'darkMode' cookie if it exists
   if (document.cookie.includes("darkMode=")) {
@@ -186,7 +200,7 @@ function applyThemeToDom(isDark: boolean) {
 }
 
 /**
- * Set the theme cookie
+ * Set the theme cookie and localStorage
  */
 function setCookie(preference: ThemePreference) {
   if (!browser) {
@@ -194,9 +208,11 @@ function setCookie(preference: ThemePreference) {
   }
 
   // Overwrite cookie with explicit path and max-age
-  // Note: We don't need to explicitly delete it first; overwriting with the same name and path works.
   document.cookie = `${THEME_COOKIE_KEY}=${preference}; path=/; max-age=31536000; SameSite=Lax`;
-  logger.debug("[Theme] Updated cookie to:", preference);
+  try {
+    localStorage.setItem(THEME_COOKIE_KEY, preference);
+  } catch {}
+  logger.debug("[Theme] Updated cookie and localStorage to:", preference);
 }
 
 /**

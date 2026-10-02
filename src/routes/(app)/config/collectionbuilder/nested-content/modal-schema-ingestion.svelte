@@ -91,13 +91,19 @@ Features:
 </script>
 
 <div class="space-y-4" data-testid="modal-schema-ingestion">
+	<p class="text-sm text-surface-600 dark:text-surface-400 leading-relaxed">
+		Generate a typed SveltyCMS collection from an existing schema — paste SQL
+		<code class="font-mono text-tertiary-600 dark:text-primary-500">CREATE TABLE</code> DDL or a JSON
+		sample, or introspect a live database with SmartImporter.
+	</p>
+
 	<!-- Tab Bar -->
 	<div class="flex border-b border-surface-500/20 gap-2">
 		<button
 			type="button"
 			data-testid="ingest-tab-sql"
 			class="px-4 py-2 text-sm font-semibold border-b-2 transition-colors {activeTab === 'sql'
-				? 'border-primary-500 text-primary-500'
+				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			onclick={() => {
 				activeTab = 'sql';
@@ -112,7 +118,7 @@ Features:
 			type="button"
 			data-testid="ingest-tab-json"
 			class="px-4 py-2 text-sm font-semibold border-b-2 transition-colors {activeTab === 'json'
-				? 'border-primary-500 text-primary-500'
+				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			onclick={() => {
 				activeTab = 'json';
@@ -127,7 +133,7 @@ Features:
 			type="button"
 			data-testid="ingest-tab-database"
 			class="px-4 py-2 text-sm font-semibold border-b-2 transition-colors {activeTab === 'database'
-				? 'border-primary-500 text-primary-500'
+				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			onclick={() => {
 				activeTab = 'database';
@@ -145,8 +151,8 @@ Features:
 		<div class="space-y-3">
 			<div class="flex items-center justify-between">
 				<p class="text-xs text-surface-500">
-					Paste a PostgreSQL, MySQL, or SQLite <code class="font-mono text-primary-500"
-						>CREATE TABLE</code
+					Paste a PostgreSQL, MySQL, or SQLite <code
+						class="font-mono text-tertiary-600 dark:text-primary-500">CREATE TABLE</code
 					> statement to automatically generate collection fields.
 				</p>
 				<Button
@@ -165,7 +171,7 @@ Features:
 				bind:value={sqlInput}
 				rows="7"
 				placeholder="CREATE TABLE products ( id INT PRIMARY KEY, title VARCHAR(255), price DECIMAL(10,2) ... );"
-				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
+				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
 				data-testid="ingest-sql-textarea"></textarea>
 		</div>
 	{/if}
@@ -201,7 +207,7 @@ Features:
 					type="text"
 					bind:value={jsonCollectionName}
 					placeholder="e.g. Products, Articles, Users"
-					class="w-full rounded-lg border border-surface-500/30 bg-white px-3 py-1.5 text-sm text-surface-900 focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
+					class="w-full rounded-lg border border-surface-500/30 bg-white px-3 py-1.5 text-sm text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
 					data-testid="ingest-json-name-input"
 				/>
 			</div>
@@ -211,7 +217,7 @@ Features:
 				bind:value={jsonInput}
 				rows="6"
 				placeholder="&#123; &quot;title&quot;: &quot;...&quot;, &quot;price&quot;: 99.99, &quot;published&quot;: true &#125;"
-				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
+				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
 				data-testid="ingest-json-textarea"></textarea>
 		</div>
 	{/if}
@@ -222,7 +228,11 @@ Features:
 			class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/20 space-y-3"
 		>
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:database-search" width="24" class="text-primary-500"></iconify-icon>
+				<iconify-icon
+					icon="mdi:database-search"
+					width="24"
+					class="text-tertiary-500 dark:text-primary-500"
+				></iconify-icon>
 				<h4 class="font-semibold text-sm">Automated Legacy Database Migration & Introspection</h4>
 			</div>
 			<p class="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
@@ -232,7 +242,8 @@ Features:
 			</p>
 			<div class="pt-2">
 				<Button
-					variant="primary"
+					variant="tertiary"
+					class="dark:preset-filled-primary-500"
 					size="md"
 					href="/config/importer"
 					leadingIcon="mdi:rocket-launch"
@@ -261,7 +272,11 @@ Features:
 		>
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon={parsedResult.icon} width="18" class="text-primary-500"></iconify-icon>
+					<iconify-icon
+						icon={parsedResult.icon}
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
 					<span class="font-bold text-sm">{parsedResult.name}</span>
 					<span class="font-mono text-xs opacity-60">({parsedResult.slug})</span>
 				</div>
@@ -296,7 +311,8 @@ Features:
 		<Button variant="outline" type="button" onclick={() => close?.(null)}>Cancel</Button>
 		{#if activeTab !== 'database'}
 			<Button
-				variant="primary"
+				variant="tertiary"
+				class="dark:preset-filled-primary-500"
 				type="button"
 				disabled={!parsedResult || parsedResult.fields.length === 0}
 				onclick={handleSubmit}

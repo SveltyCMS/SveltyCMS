@@ -221,7 +221,9 @@
 		<!-- Header -->
 		<div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-white">
-				Edit Field: <span class="text-primary-500">{local.label || 'Unnamed'}</span>
+				Edit Field: <span class="text-tertiary-500 dark:text-primary-500"
+					>{local.label || 'Unnamed'}</span
+				>
 			</h2>
 			<p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
 				Widget type: {widgetKey || 'unknown'}
@@ -289,7 +291,7 @@
 							type="checkbox"
 							aria-label="Required field"
 							bind:checked={local.required}
-							class="h-5 w-5 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 						/>
 					</div>
 
@@ -307,7 +309,7 @@
 							aria-label="Translated field"
 							data-testid="widget-field-translated"
 							bind:checked={local.translated}
-							class="h-5 w-5 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 						/>
 					</div>
 
@@ -364,7 +366,7 @@
 						</h4>
 						<button
 							type="button"
-							class="flex w-full items-center justify-between rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 px-4 py-3 text-start hover:border-primary-500/50 transition-colors"
+							class="flex w-full items-center justify-between rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 px-4 py-3 text-start hover:border-tertiary-500/50 dark:hover:border-primary-500/50 transition-colors"
 							onclick={() =>
 								updatePerms({
 									visibility: localPerms.visibility === 'public' ? 'private' : 'public'
@@ -396,7 +398,7 @@
 							<input
 								type="checkbox"
 								aria-label="Require authentication"
-								class="h-4 w-4 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+								class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 								checked={localPerms.requiredAuth}
 								onchange={(e) =>
 									updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
@@ -454,7 +456,7 @@
 												aria-label={`View permission for ${role.name ?? role._id}`}
 												checked={localPerms.readRoles.includes(role._id)}
 												onchange={() => toggleRoleView(role._id)}
-												class="h-4 w-4 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+												class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 											/>
 										</div>
 										<div class="flex justify-center">
@@ -463,7 +465,7 @@
 												aria-label={`Edit permission for ${role.name ?? role._id}`}
 												checked={localPerms.writeRoles.includes(role._id)}
 												onchange={() => toggleRoleEdit(role._id)}
-												class="h-4 w-4 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+												class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 											/>
 										</div>
 									</div>
@@ -509,6 +511,7 @@
 				</Button>
 				<Button
 					variant="tertiary"
+					class="dark:preset-filled-primary-500"
 					type="button"
 					onclick={handleSave}
 					data-testid="widget-field-apply"

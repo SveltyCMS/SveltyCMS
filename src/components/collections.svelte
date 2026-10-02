@@ -114,7 +114,37 @@ Provides an organized interface for navigating hierarchical content structures.
 	let search = $state('');
 	let debouncedSearch = $state('');
 	let isSearching = $state(false);
+	let isCompactSearchOpen = $state(false);
+	let compactSearchRef = $state<HTMLElement | null>(null);
 	let expandedNodes = new SvelteSet<string>();
+
+	function toggleCompactSearch(): void {
+		isCompactSearchOpen = !isCompactSearchOpen;
+	}
+
+	$effect(() => {
+		if (!isCompactSearchOpen) return;
+		const handleClickOutside = (e: MouseEvent) => {
+			if (compactSearchRef && !compactSearchRef.contains(e.target as Node)) {
+				isCompactSearchOpen = false;
+			}
+		};
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				isCompactSearchOpen = false;
+			}
+		};
+		document.addEventListener('mousedown', handleClickOutside);
+		document.addEventListener('keydown', handleKeyDown);
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	});
+
+	function focusOnMount(el: HTMLElement) {
+		el.focus();
+	}
 
 	// Filter state
 	let showOnlyFavorites = $state(false);
@@ -672,7 +702,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	}
 </script>
 
-<div class="mt-2 space-y-2" role="navigation" aria-label={collections_nav_aria()}>
+<div class="mt-2 space-y-2 w-full" role="navigation" aria-label={collections_nav_aria()}>
 	<!-- Collections Section Header with Quick-Add -->
 	{#if isFullSidebar}
 		<div class="flex items-center justify-between px-1 pb-0.5">
@@ -765,18 +795,74 @@ Provides an organized interface for navigating hierarchical content structures.
 			/>
 		</div>
 	{:else}
-		<div class="flex flex-col items-center gap-2">
-			<SystemTooltip title={collections_search_title()} positioning={{ placement: 'right' }}>
+		<div class="relative flex flex-col items-center gap-2" bind:this={compactSearchRef}>
+			<SystemTooltip
+				title={isCompactSearchOpen
+					? 'Close search'
+					: search
+						? `Filter: "${search}"`
+						: collections_search_title()}
+				positioning={{ placement: 'right' }}
+			>
 				<Button
 					variant="ghost"
 					type="button"
-					onclick={() => ui.toggle('leftSidebar', 'full')}
+					onclick={toggleCompactSearch}
 					aria-label={collections_search_aria()}
-					class="flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800"
+					aria-expanded={isCompactSearchOpen}
+					class="relative flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 transition-colors {isCompactSearchOpen ||
+					search
+						? 'bg-tertiary-500/20 text-tertiary-600 dark:text-primary-400'
+						: 'hover:bg-surface-200 dark:hover:bg-surface-800'}"
 				>
 					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
+					{#if search}
+						<span
+							class="absolute top-1 end-1 h-2 w-2 rounded-full bg-tertiary-500 dark:bg-primary-500"
+							aria-hidden="true"
+						></span>
+					{/if}
 				</Button>
 			</SystemTooltip>
+
+			{#if isCompactSearchOpen}
+				<div
+					class="absolute start-11 top-0 z-50 flex w-64 items-center gap-1.5 rounded-xl border border-surface-500/30 bg-white p-2 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
+				>
+					<iconify-icon icon="ic:outline-search" width="18" class="text-surface-400 shrink-0"
+					></iconify-icon>
+					<input
+						type="search"
+						bind:value={search}
+						placeholder={collections_search()}
+						aria-label={collections_search()}
+						class="w-full bg-transparent text-xs text-surface-900 placeholder:text-surface-400 focus:outline-none dark:text-surface-100"
+						use:focusOnMount
+					/>
+					{#if search}
+						<Button
+							variant="ghost"
+							type="button"
+							size="sm"
+							onclick={() => (search = '')}
+							class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+							aria-label={collections_clear_search()}
+						>
+							<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
+						</Button>
+					{/if}
+					<Button
+						variant="ghost"
+						type="button"
+						size="sm"
+						onclick={() => (isCompactSearchOpen = false)}
+						class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+						aria-label="Close search"
+					>
+						<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+					</Button>
+				</div>
+			{/if}
 
 			<SystemTooltip title={collections_go_builder()} positioning={{ placement: 'right' }}>
 				<a
@@ -810,7 +896,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 	<!-- Tree: the TreeView component owns role="tree" (nesting trees is invalid ARIA).
 	     When empty/loading, children are not treeitems, so no tree role here either. -->
-	<div class="collections-list">
+	<div class="collections-list w-full">
 		{#if treeNodes.length === 0}
 			{#if !isFullSidebar}
 				{#if !widgets.isLoaded}

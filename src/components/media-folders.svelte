@@ -60,6 +60,36 @@ Uses the same shared TreeView as collections:
 	let isEditMode = $state(false);
 	let search = $state('');
 	let isMovingMedia = $state(false);
+	let isCompactSearchOpen = $state(false);
+	let compactSearchRef = $state<HTMLElement | null>(null);
+
+	function toggleCompactSearch(): void {
+		isCompactSearchOpen = !isCompactSearchOpen;
+	}
+
+	$effect(() => {
+		if (!isCompactSearchOpen) return;
+		const handleClickOutside = (e: MouseEvent) => {
+			if (compactSearchRef && !compactSearchRef.contains(e.target as Node)) {
+				isCompactSearchOpen = false;
+			}
+		};
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				isCompactSearchOpen = false;
+			}
+		};
+		document.addEventListener('mousedown', handleClickOutside);
+		document.addEventListener('keydown', handleKeyDown);
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	});
+
+	function focusOnMount(el: HTMLElement) {
+		el.focus();
+	}
 
 	const folders = $derived(mediaFolderTree.folders);
 	const isLoading = $derived(mediaFolderTree.isLoading);
@@ -472,18 +502,74 @@ Uses the same shared TreeView as collections:
 			</Button>
 		</div>
 	{:else}
-		<div class="flex flex-col items-center gap-2">
-			<SystemTooltip title="Search Folders" positioning={{ placement: 'right' }}>
+		<div class="relative flex flex-col items-center gap-2" bind:this={compactSearchRef}>
+			<SystemTooltip
+				title={isCompactSearchOpen
+					? 'Close search'
+					: search
+						? `Filter: "${search}"`
+						: 'Search Folders'}
+				positioning={{ placement: 'right' }}
+			>
 				<Button
 					variant="ghost"
 					type="button"
-					onclick={() => ui.toggle('leftSidebar', 'full')}
+					onclick={toggleCompactSearch}
 					aria-label="Search folders"
-					class="flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800"
+					aria-expanded={isCompactSearchOpen}
+					class="relative flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 transition-colors {isCompactSearchOpen ||
+					search
+						? 'bg-tertiary-500/20 text-tertiary-600 dark:text-primary-400'
+						: 'hover:bg-surface-200 dark:hover:bg-surface-800'}"
 				>
 					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
+					{#if search}
+						<span
+							class="absolute top-1 end-1 h-2 w-2 rounded-full bg-tertiary-500 dark:bg-primary-500"
+							aria-hidden="true"
+						></span>
+					{/if}
 				</Button>
 			</SystemTooltip>
+
+			{#if isCompactSearchOpen}
+				<div
+					class="absolute start-11 top-0 z-50 flex w-64 items-center gap-1.5 rounded-xl border border-surface-500/30 bg-white p-2 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
+				>
+					<iconify-icon icon="ic:outline-search" width="18" class="text-surface-400 shrink-0"
+					></iconify-icon>
+					<input
+						type="search"
+						bind:value={search}
+						placeholder="Search folders..."
+						aria-label="Search folders"
+						class="w-full bg-transparent text-xs text-surface-900 placeholder:text-surface-400 focus:outline-none dark:text-surface-100"
+						use:focusOnMount
+					/>
+					{#if search}
+						<Button
+							variant="ghost"
+							type="button"
+							size="sm"
+							onclick={() => (search = '')}
+							class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+							aria-label="Clear search"
+						>
+							<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
+						</Button>
+					{/if}
+					<Button
+						variant="ghost"
+						type="button"
+						size="sm"
+						onclick={() => (isCompactSearchOpen = false)}
+						class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+						aria-label="Close search"
+					>
+						<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+					</Button>
+				</div>
+			{/if}
 		</div>
 	{/if}
 

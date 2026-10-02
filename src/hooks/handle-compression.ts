@@ -641,12 +641,17 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   if (!algorithm) return response;
 
   try {
+    // Clone before reading so a failed compression can fall back to the
+    // original (undisturbed) body instead of cascading a "disturbed body"
+    // error into downstream middleware (e.g. handleTurboPipeline).
+    const source = response.clone();
+    const sourceBody = source.body as ReadableStream<Uint8Array>;
     let compressedBody: BodyInit;
     let compressedSize = 0;
 
     // Buffer small known payloads for sync compression fast path
     if (hasZlib && contentLength > 0 && contentLength <= SYNC_MAX_SIZE) {
-      const reader = response.body.getReader();
+      const reader = sourceBody.getReader();
       const chunks: Uint8Array[] = [];
       let totalBytes = 0;
 
@@ -682,18 +687,13 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
         });
       }
     } else if (hasZlib) {
-      compressedBody = compressWithZlib(
-        response.body,
-        algorithm,
-        contentLength,
-        event.request.signal,
-      );
+      compressedBody = compressWithZlib(sourceBody, algorithm, contentLength, event.request.signal);
     } else if (algorithm === "gzip" || algorithm === "deflate") {
-      compressedBody = compressWithWebStreams(response.body, algorithm);
+      compressedBody = compressWithWebStreams(sourceBody, algorithm);
     } else if (algorithm === "br") {
       // CompressionStream has no Brotli — degrade
       algorithm = acceptEncoding.includes("gzip") ? "gzip" : "deflate";
-      compressedBody = compressWithWebStreams(response.body, algorithm);
+      compressedBody = compressWithWebStreams(sourceBody, algorithm);
     } else {
       // zstd without native zlib: no web-stream equivalent
       return response;

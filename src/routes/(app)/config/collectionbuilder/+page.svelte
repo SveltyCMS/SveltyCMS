@@ -751,10 +751,10 @@ None (TreeView has its own keyboard navigation)
 			<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
 				<Button
 					onclick={() => modalQuickStart()}
-					variant="secondary"
+					variant="warning"
 					rounded={true}
 					size="lg"
-					class="group w-44 justify-center"
+					class="group whitespace-nowrap"
 					disabled={isLoading}
 				>
 					<iconify-icon
@@ -767,10 +767,10 @@ None (TreeView has its own keyboard navigation)
 
 				<Button
 					onclick={() => modalIntrospectSchema()}
-					variant="secondary"
+					variant="success"
 					rounded={true}
 					size="lg"
-					class="group w-52 justify-center"
+					class="group whitespace-nowrap"
 					disabled={isLoading}
 					data-testid="introspect-schema-button"
 				>
@@ -787,7 +787,7 @@ None (TreeView has its own keyboard navigation)
 					variant="tertiary"
 					rounded={true}
 					size="lg"
-					class="group w-44 justify-center"
+					class="group whitespace-nowrap"
 					disabled={isLoading}
 					data-testid="add-category-button"
 				>
@@ -806,7 +806,7 @@ None (TreeView has its own keyboard navigation)
 					variant="error"
 					rounded={true}
 					size="lg"
-					class="group w-44 justify-center"
+					class="group whitespace-nowrap"
 					disabled={isLoading}
 					data-testid="add-collection-button"
 					aria-keyshortcuts="Mod+N"
@@ -838,7 +838,8 @@ None (TreeView has its own keyboard navigation)
 				Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong
 					>category</strong
 				>
-				(middle of the row) to nest; use the top/bottom edge to reorder as siblings. Layout changes require
+				(middle of the row) to nest; use the top/bottom edge to reorder as siblings.<br />
+				Layout changes require
 				<strong>Save</strong> to persist.
 			</p>
 
@@ -853,7 +854,7 @@ None (TreeView has its own keyboard navigation)
 							You have unsaved organizational changes. Click <strong>Save</strong> to persist.
 						</div>
 					{/if}
-					<p class="mb-6 text-center text-surface-600 dark:text-primary-500">
+					<p class="mb-6 text-center text-tertiary-600 dark:text-primary-500">
 						{collection_description()}
 					</p>
 

@@ -28,6 +28,10 @@
 		label: string;
 		icon?: string;
 		shortLabel?: string;
+		/** Step number (1, 2, 3...) */
+		step?: number | string;
+		/** Show a success checkmark (e.g. completed wizard step). */
+		done?: boolean;
 	}
 
 	let {
@@ -74,7 +78,7 @@
 	<div
 		role="tablist"
 		aria-label={ariaLabel}
-		class="flex gap-1 {variant === 'pills'
+		class="flex gap-2 {variant === 'pills'
 			? 'p-1 bg-surface-500/10 dark:bg-surface-800 rounded-xl'
 			: ''} overflow-x-auto overflow-y-clip"
 	>
@@ -88,7 +92,7 @@
 				onclick={() => handleTabClick(tab.id)}
 				onkeydown={(e: KeyboardEvent) => handleKeyDown(e, i)}
 				data-testid="tab-{tab.id}"
-				class="flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 {variant ===
+				class="flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 {variant ===
 				'pills'
 					? 'rounded-lg! ' +
 						(activeTab === tab.id
@@ -97,19 +101,39 @@
 					: variant === 'underline'
 						? 'rounded-none! border-b-2 ' +
 							(activeTab === tab.id
-								? 'border-primary-500 text-primary-600 dark:text-primary-500'
+								? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 								: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30')
 						: 'rounded-lg! ' +
 							(activeTab === tab.id
-								? 'bg-primary-500/10 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+								? 'bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-400'
 								: 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400')}"
 			>
+				{#if tab.step !== undefined}
+					<span
+						class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all {activeTab ===
+						tab.id
+							? 'bg-tertiary-500 text-white dark:bg-primary-500 shadow-2xs'
+							: tab.done
+								? 'bg-success-500/20 text-success-600 dark:text-success-400'
+								: 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+					>
+						{tab.step}
+					</span>
+				{/if}
 				{#if tab.icon}
 					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
 				{/if}
 				<span class="hidden md:inline">{tab.label}</span>
 				{#if tab.shortLabel}
 					<span class="md:hidden">{tab.shortLabel}</span>
+				{/if}
+				{#if tab.done}
+					<iconify-icon
+						icon="mdi:check-circle"
+						width="16"
+						class="text-success-500"
+						aria-hidden="true"
+					></iconify-icon>
 				{/if}
 			</Button>
 		{/each}

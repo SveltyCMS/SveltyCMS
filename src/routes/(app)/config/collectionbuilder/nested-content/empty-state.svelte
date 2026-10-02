@@ -76,10 +76,10 @@
 			{#if onQuickStart}
 				<Button
 					onclick={onQuickStart}
-					variant="primary"
+					variant="tertiary"
 					rounded={true}
 					size="lg"
-					class="group w-full justify-center h-12"
+					class="group w-full justify-center h-12 dark:preset-filled-primary-500"
 					aria-label="Quick Start recommended for new projects"
 				>
 					<iconify-icon

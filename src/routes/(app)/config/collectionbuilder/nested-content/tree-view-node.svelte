@@ -63,11 +63,11 @@ Features:
 	// Visual hierarchy only. No transitions or transforms: the row must stay
 	// geometrically still so drag targeting is predictable.
 	const base =
-		'group w-full min-h-[48px] p-2 sm:p-3 rounded flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 overflow-hidden border-2';
+		'group w-full min-h-[48px] rounded flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 overflow-hidden border-2';
 
 	const containerClass = $derived(
 		isCategory && isSelectedCategory
-			? `${base} bg-primary-500/20 dark:bg-primary-600/25 border-primary-500`
+			? `${base} bg-tertiary-500/20 border-tertiary-500 dark:bg-primary-600/25 dark:border-primary-500`
 			: isCategory
 				? `${base} bg-tertiary-500/10 border-tertiary-500/30 hover:border-tertiary-500`
 				: `${base} bg-surface-500/10 dark:bg-surface-700 border-surface-500/40 hover:border-surface-500`
@@ -156,7 +156,7 @@ Features:
 	</SystemTooltip>
 
 	<!-- Icon -->
-	<div class="relative">
+	<div class="relative flex items-center">
 		<iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon>
 	</div>
 
@@ -218,7 +218,9 @@ Features:
 	{/if}
 
 	<!-- Action Buttons -->
-	<div class="ms-auto flex shrink-0 items-center gap-0.5">
+	<div
+		class="ms-auto flex shrink-0 items-center gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+	>
 		<!-- Tags -->
 		<SystemTooltip title="Manage Tags">
 			<Button
@@ -328,8 +330,11 @@ Features:
 
 <style>
 	div[role='button']:focus-visible {
-		outline: 3px solid var(--color-primary-500);
+		outline: 3px solid var(--color-tertiary-500);
 		outline-offset: 2px;
 		border-radius: 0.25rem;
+	}
+	:global(.dark) div[role='button']:focus-visible {
+		outline-color: var(--color-primary-500);
 	}
 </style>

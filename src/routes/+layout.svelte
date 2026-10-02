@@ -297,7 +297,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		applyDocumentLanguage(initialLocale);
 
 		// Initialize dark mode
-		initializeDarkMode();
+		initializeDarkMode(page.data?.themePreference);
 
 		// Load the theme once, then enable the 30-minute revalidation timer
 		// (see the Theme Auto-Refresh effect below). `startAutoRefresh` is a no-op

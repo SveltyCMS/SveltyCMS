@@ -100,18 +100,36 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
   const applyHtmlLangDir = (html: string): string =>
     html.replace(/\blang="[^"]*"/, `lang="${lang}"`).replace(/\bdir="[^"]*"/, `dir="${dir}"`);
 
-  // Always stamp html lang/dir (RTL included). Dark class still only when requested.
-  if (themePreference !== "dark") {
+  // Always stamp html lang/dir (RTL included).
+  // app.html hardcodes class="dark"; swap it for light so a light-mode user
+  // does not get a dark flash (and does not end up dark if theme-init.js fails).
+  if (themePreference === "light") {
     return resolve(event, {
-      transformPageChunk: ({ html }) => applyHtmlLangDir(html),
+      transformPageChunk: ({ html }) => {
+        const withLang = applyHtmlLangDir(html);
+        if (/\bclass="dark"/.test(withLang)) {
+          return withLang.replace(/\bclass="dark"/, 'class="light"');
+        }
+        if (/\bclass="light"/.test(withLang)) {
+          return withLang;
+        }
+        return withLang.replace(/<html\b([^>]*)>/, '<html$1 class="light">');
+      },
     });
   }
 
+  if (themePreference === "dark") {
+    return resolve(event, {
+      transformPageChunk: ({ html }) => {
+        const withLang = applyHtmlLangDir(html);
+        if (/\bclass="dark"/.test(withLang)) return withLang;
+        return withLang.replace(/<html\b([^>]*)>/, `<html$1 class="dark">`);
+      },
+    });
+  }
+
+  // system: keep the app.html default; theme-init.js resolves the OS preference.
   return resolve(event, {
-    transformPageChunk: ({ html }) => {
-      const withLang = applyHtmlLangDir(html);
-      if (/\bclass="dark"/.test(withLang)) return withLang;
-      return withLang.replace(/<html\b([^>]*)>/, `<html$1 class="dark">`);
-    },
+    transformPageChunk: ({ html }) => applyHtmlLangDir(html),
   });
 };

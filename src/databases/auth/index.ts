@@ -377,7 +377,7 @@ export class Auth {
     },
     options?: BaseQueryOptions,
   ): Promise<Session> {
-    const sr = (await this.db.auth.createSession(sessionData)) as unknown;
+    const sr = (await this.db.auth.createSession(sessionData, options)) as unknown;
     let session: Session | null = null;
     if (
       sr &&
@@ -399,6 +399,7 @@ export class Auth {
     }
 
     const ur = (await this.db.auth.getUserById(sessionData.user_id, {
+      ...options,
       tenantId: sessionData.tenantId,
     })) as unknown;
     let user: User | null = null;
@@ -426,7 +427,10 @@ export class Auth {
         permMask = ADMIN_PERM_MASK;
       } else {
         try {
-          const roles = await this.db.auth.getAllRoles({ tenantId: sessionData.tenantId });
+          const roles = await this.db.auth.getAllRoles({
+            ...options,
+            tenantId: sessionData.tenantId,
+          });
           permMask = computeUserPermMask(user, roles);
         } catch {
           permMask = computeUserPermMask(user, []);

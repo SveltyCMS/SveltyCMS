@@ -107,7 +107,7 @@
 				<a
 					href={`/collection/${item.name}/edit`}
 					aria-label="Edit {item.name}"
-					class="p-1 text-surface-900 hover:text-primary-500 dark:text-surface-100"
+					class="p-1 text-surface-900 hover:text-tertiary-500 dark:text-surface-100 dark:hover:text-primary-500"
 					data-sveltekit-preload-data="hover"
 				>
 					<iconify-icon icon="mdi:pen" width={24}></iconify-icon>

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:3ede9a8b-5bed-410e-bb0d-cb89889a86d0",
+  "serialNumber": "urn:uuid:83d287d6-46d4-4ddc-8923-0c1455c213a8",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-30T18:13:23.049Z",
+    "timestamp": "2026-10-02T13:19:53.032Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -48,13 +48,13 @@
     {
       "type": "library",
       "name": "@asamuzakjp/dom-selector",
-      "version": "9.2.2",
-      "purl": "pkg:npm/@asamuzakjp/dom-selector@9.2.2",
+      "version": "9.2.3",
+      "purl": "pkg:npm/@asamuzakjp/dom-selector@9.2.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-lSWTBMjAcmu2xn5yEDU7jh6QDV+C8GEKtdJ4pIQhXh26RkKQ7S3FuQlt+zZkUbTdJ4d3XyV1kPI/G0zWXxqaqw=="
+          "content": "sha512-MDKmPBa6CfNN1zAJroTl7Uc+nBbcNtfE/F24iROfZAtcLffEeY3IbHR8XeHH5dJBspMYTpAsjEYmnp3tAmoVxw=="
         }
       ]
     },
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1143.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1143.0",
+      "version": "3.1145.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1145.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-YVcwL17cUDru7OJFMoGB6aJCg7TmMiuAUjKfswtSm+t8NhO5BLLFTUhjnGWrhdw7ZgYyU2Y8u19t8a7yu0EhEg=="
+          "content": "sha512-MPKAQdx8qCZW1/ChDPILNehtAn/BMP4GNTnaH/xhGCWg3v50ADVq1K2WzxIrFfeANdWUyjwiY0CXDBhclsNWgQ=="
         }
       ]
     },
@@ -633,52 +633,52 @@
     {
       "type": "library",
       "name": "@csstools/css-calc",
-      "version": "3.4.1",
-      "purl": "pkg:npm/@csstools/css-calc@3.4.1",
+      "version": "3.4.2",
+      "purl": "pkg:npm/@csstools/css-calc@3.4.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EtC7SoN1j6J4E4DCwg5QgbO5TGxgxIA1RXqe+W+qUM+BUcezx9wT+/tiQ/WO2yCX4i5X+Cuf9ciJ22aP4UEwWw=="
+          "content": "sha512-tL6LRF844sHjAKO7jt2w+uHo8Tocqpb9+KPUvIQETpR4RU87IaUzDuOV0QyzuQ37jmzFgwPHLLtLu/PDuH5qgg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@csstools/css-color-parser",
-      "version": "4.2.4",
-      "purl": "pkg:npm/@csstools/css-color-parser@4.2.4",
+      "version": "4.2.5",
+      "purl": "pkg:npm/@csstools/css-color-parser@4.2.5",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-DyefytAZ735mX4Dq/WcDAXFtXhaEFvme0ZS9tVEBAc2whxUthXr0R0L2rmEPm59SrMBkGrFzQviBXMs/UtnABQ=="
+          "content": "sha512-Qqbp5pjbMwoaErP2t5qne5QDVDr3G5243oNW8ev5zfyyoqbzrQKbYDpKP/cuo3xBkzwqZqpP/rChrJhBdyTX7g=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@csstools/css-parser-algorithms",
-      "version": "4.0.1",
-      "purl": "pkg:npm/@csstools/css-parser-algorithms@4.0.1",
+      "version": "4.0.2",
+      "purl": "pkg:npm/@csstools/css-parser-algorithms@4.0.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ShL8BqPfbKJrJiKFH0xBbN0i7Nrh9HXYRuF+pzyj93R/BL2YAsUxJeqANErzqM+0JGl7vjHp+3OIgd/DL69YIA=="
+          "content": "sha512-40cSKyMvK+tq4qz6Awrlye2WGuOKt3FwPgtGg6KTfbHOWNw+Rk1rzbAtZnZ6IBhsY491HLRnDXwoyBAijmmILA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@csstools/css-syntax-patches-for-csstree",
-      "version": "1.1.14",
-      "purl": "pkg:npm/@csstools/css-syntax-patches-for-csstree@1.1.14",
+      "version": "1.1.15",
+      "purl": "pkg:npm/@csstools/css-syntax-patches-for-csstree@1.1.15",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-HpbVXyrofRXpHpgkNIjU/3EWR4WJvOkO3emNK/L6X/mTJU7bGUI3AkkpoTNXznQLp0KRjLHELTGeKI5dIkI9JQ=="
+          "content": "sha512-J0u7HkVl2nzSlhsiTOp4AmwcUQ3D+mGEEKfBy/7To5/y7F2OHwyLrXfrhR0SMgr4p5Lo+eaMVSeai24zUcBIxA=="
         }
       ]
     },
@@ -1192,39 +1192,39 @@
     {
       "type": "library",
       "name": "@graphql-tools/executor",
-      "version": "2.0.1",
-      "purl": "pkg:npm/@graphql-tools/executor@2.0.1",
+      "version": "2.0.3",
+      "purl": "pkg:npm/@graphql-tools/executor@2.0.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-rvlOaoTUXUUHlu7090e94566SeBnU9PV6xMztIt2s8StXy5HbP0p+tYSfg3N/gCdEzJ78ZQLjXJz4UFgWGZ/7A=="
+          "content": "sha512-0qUCtalTDdanDuvW4EiHnNMct8QHYKTuGjI2lXU388LrpoV+5tlqp/xPqdYbrDtl3OBpZHToOEBcQunWz1UDig=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@graphql-tools/merge",
-      "version": "9.2.4",
-      "purl": "pkg:npm/@graphql-tools/merge@9.2.4",
+      "version": "9.2.6",
+      "purl": "pkg:npm/@graphql-tools/merge@9.2.6",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vV+8uWNWn0+OsqT0r22lZuoT0cTe6fBqBtpLHre2rriLjI/ZTrsOHmabLPTUOyzgFnRrS2PzFSYGL3zKL1Wj4Q=="
+          "content": "sha512-M7iI/qoCnks6iITkimtdZgI2SrWOInr+QRWuhEsInaumzQGPd0pnWbRAVTRVcFN2Gu9hM2aS5kYzASC93d9epw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@graphql-tools/schema",
-      "version": "10.1.1",
-      "purl": "pkg:npm/@graphql-tools/schema@10.1.1",
+      "version": "10.1.3",
+      "purl": "pkg:npm/@graphql-tools/schema@10.1.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-24jJghRxEW+SG1lbJ45Zg9HEZ8ZKS923ihbFjOicspFLpryxJkWp6gZJ7D8tCVaSAhli4x1+1wDPAfhT8mLqxg=="
+          "content": "sha512-N1ZpzguxzqTy5fpurqWQ5BXyjirlrtvVLeSafsu+SCDNjDeRnVxf9n5PVbdgzwFPAmP/7NK9sq9UB/kyR8oFiw=="
         }
       ]
     },
@@ -2323,13 +2323,13 @@
     {
       "type": "library",
       "name": "@oxc-project/types",
-      "version": "0.151.0",
-      "purl": "pkg:npm/@oxc-project/types@0.151.0",
+      "version": "0.152.0",
+      "purl": "pkg:npm/@oxc-project/types@0.152.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-J1yXrIlNDZVzE3ada310xeAw7nH8yCAyLPuUIsjKatFPmfn5bS1oW+cM+QsGOtVWd5nhSpbwZWx/rue+r5Z+PA=="
+          "content": "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw=="
         }
       ]
     },
@@ -2947,195 +2947,195 @@
     {
       "type": "library",
       "name": "@rolldown/binding-android-arm-eabi",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-android-arm-eabi@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-android-arm-eabi@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-A5kXfGKvKWWZE0TtPrfsvT+q4Y5d1QG8gGUzpYjGydM+fARM9MuX90PrXYXe0XbsDVgyxxNzHo6giCj90bsFNw=="
+          "content": "sha512-dB/a1214qKfHMXCpgqR4OZT+jS4kTyEXbQGJPqzobt5EwH5rX080pxE37alt3RzvR1bf1Yz/yGqRfrYAxuPw0A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-android-arm64",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-android-arm64@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-android-arm64@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-z6cTycz+iJ4PVkuL4HHW4DfTfoeU/2nqYYuSOrTmH7yHK5Y0LCOnA03V4ZNxavyVaU1oOqUgIg2klN/s+USGOA=="
+          "content": "sha512-7KHFgQ5VJxIHcLlrwrc3Xbds7oTNQT7Pgi9gQCJKrd2VGab/UksIOYp6VD8MzCstGxOKMgNamPwUCfxPdP1OHg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-darwin-arm64",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-darwin-arm64@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-darwin-arm64@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-jShvqNtP6vDC6/A5JOAzbVV+DkgHqhl/ScVCJEbt+TUY6QYz7YnXcrg3sLtFBniro0f/Ld50ZwCWA6f7KYD1nQ=="
+          "content": "sha512-3YIhqHD96nA5SaYNRBR16HnGv4oavZvXfD/ayHM+oYZ0WD/8lBAtf6zQua4kEyAvpqrluKXl0lnOBoiNby7x9w=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-darwin-x64",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-darwin-x64@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-darwin-x64@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-f2i2xiNWq1Z1l2++q2fuhZRdLAT3aqxD6vRNm1RAxpUoBcdqNB3C0s1Bt+K+PbEx2F5F4gQp6hqKkphCY/xF9w=="
+          "content": "sha512-UuuJ35MFw4gmFOrE9pEqIV+K3syIKveph+Qc1/ljHZVdoDW4pz/JHR/eMVom+TZGl/5OOvGJOWaOCVt3ZfqhxA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-freebsd-x64",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-freebsd-x64@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-freebsd-x64@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-4Ir5FSOKIAMr4r0kExpt1s3bMgzJU3rA45AYOHtQpls0oNeqcYBKrWMlckrYH4KCfGLfkfn1tN1dmZPMVsdXow=="
+          "content": "sha512-uMvssit0a4W+/7D8CbHUvG719mH3R2jwXAlh/XcPvuHTE0g++LymF88DCGNX0HM2rBOn0xrzgXktIB6fLSJBTQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-arm-gnueabihf",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-arm-gnueabihf@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-arm-gnueabihf@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/gnRDM+39BROzAN/k1OZjDPnDMcZxB/0EUxKjONO5yVkNEvlsoMDrxGNKgZi/ttFriS2gwlDNzB65pvNbFOXIQ=="
+          "content": "sha512-XcFu0R0xWnwzSf4IQgFH1rJIckPN1pLy2R+4r9IDB7Yfu/ys9cVqfa4pBrMHj7a3gl8mIR4nRNPg0e5IvEVs6g=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-arm64-gnu",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-arm64-gnu@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-arm64-gnu@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-PFaK8HwvAHbaKbBcDNQihjMKYvFnA5hiENx/l5tphTDz1E0WFp32l0A7aq7lyUwGsRw/xSrNIy/gIK4thrSCrw=="
+          "content": "sha512-260UrKgn8tz39ak+SMDOirKzr7V04M9dWPw5llW00SwBivCZoWcRBKV1d8cXnRkUmSZA3BdiUmBHWk7734Ulpw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-arm64-musl",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-arm64-musl@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-arm64-musl@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-AskzJUIKRLPxkruR1wLKewGbOw+EYfU/9lOrBFj4AFrEA8hPpKFnODWNu2WLaNs0QNkEb9QIJufmVZZIL/bJlg=="
+          "content": "sha512-5YK1I9SqDkbPgc1IA8BgDl34suqUS2q0KWnBrirm0E51YjOs6eo6dV6jbQfNE/argHRSvd0QUGgtpIoYx+WWpw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-ppc64-gnu",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-ppc64-gnu@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-ppc64-gnu@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-qlUGAheh2yh8afH7QBgx0PrRHN85hKnNd78x8MeMhXivuevgd8vgf6/CstOzmNKY/lLTHvNTrPy98cLnAugzJw=="
+          "content": "sha512-Rkcrmp7eFRg74yL5fXEU91JEWbdEPLevWwGtXpmhbjlD1StScbWTmO94Bhly+Mo+ketKYkdmM1vNUKeWSlx8cQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-s390x-gnu",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-s390x-gnu@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-s390x-gnu@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-secpEad+0vCbSfn8upFySkDskv+bGPk3THSDS9Y89yc4rb4kzqHp8Dmyd9BkQW4SnhNXBZCl/6CrO//hZahNJQ=="
+          "content": "sha512-qvK4DuAsQc2BSjlx+Xr+IzOIvvxbGZqxFwdWfG6F518Erj0GGISyQbJ6pIappnOxlNPzNHvo/L0BwB30GZ+zVw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-x64-gnu",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-x64-gnu@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-x64-gnu@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-mOVBT3dPpkWm8XBWPmU4bf+U6dYDLeMo/9ojUmis4N0L5uu10qra5vOyngZ7/PSdoE4G9KvRt4bloRxNjLas7A=="
+          "content": "sha512-Q9uLBO53Xd4QIq1WOycVQyPP1O4HhraEV2qqb3uTrnVw6QZih9duY4vNXOivL1xoUS1/z+W8eF4NMfl2a8Sdjw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-linux-x64-musl",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-linux-x64-musl@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-linux-x64-musl@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Is78i9A8Ui4SqcxUwFJ9uMmjDn58IbVTjFWYdQestFEgeuEmHMLGNriXnVJKkwG2YiZjw8cP0zCTyDMdDGtOOg=="
+          "content": "sha512-3IBxWFMjbOZskDPKv8Lf9BCnahlKuHthWkYnyIxOH/QcJrFcS4EmcenthApkwr/5+nEqZlLzeYbxeMaX7A5u4g=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-openharmony-arm64",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-openharmony-arm64@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-openharmony-arm64@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dUCXneZ87INUMyQ0D+C0HrEBNUPNXHaPmU5GTjyKTJEiussw9Kaj5Ln8UztPe4epV/ffvgNBEadksdYhmW6xJA=="
+          "content": "sha512-xtX61xg4LKPkPWilZU1ynKClz5Gj4bf74LML4r3eVLWumKnGjoEr1OSHQhMdbBDoYTi+yjrujvpZe2pUnqCrrA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-win32-arm64-msvc",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-win32-arm64-msvc@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-win32-arm64-msvc@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-jByxb6qfd+bH1xUd0qnfFnb17i9sWBPY2tOavJ0l3tdr3OTu+Kvtm8cd/JV5nFt657b1VqGltxg9olOEfofXWw=="
+          "content": "sha512-At7fPB6PCaIjzgIhEZFxuT+BBFqiQibJDT4d3PhiR3f4E7bbMZF4aKblbFfEM3sETRDd1YiQx/+U/g/B/ou5Ew=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@rolldown/binding-win32-x64-msvc",
-      "version": "1.2.11",
-      "purl": "pkg:npm/@rolldown/binding-win32-x64-msvc@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/@rolldown/binding-win32-x64-msvc@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/PzKqzAJ03i19oy2ItPvyvaVjOjBCNnfaJs8yvUdGBKmiESgnrJSQ2awd81QzFbbnAmu7YO9ZnJrDCb9VSJPRA=="
+          "content": "sha512-WIw2haVKwjuYdXkHaoC0mF8Le71TuCBxjrdKqLbJGctbBABj+ClfmNvtbOnzpq3RokNo5+V1qhtSzJyXorsklQ=="
         }
       ]
     },
@@ -3168,91 +3168,91 @@
     {
       "type": "library",
       "name": "@shikijs/core",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/core@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/core@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-QCR4q2ZO/ILJEuwiBMel4wdcTDb1JGwfjKTxPDF6x8ixOaluPrVqIn06C99AcRPhmYlBR56d/Fb+GN58GzExpg=="
+          "content": "sha512-6CIgwq+bt2JZ3OSjb/nBkkwEf/CfpHcbam+Mg5Pllco7HAGRQ2/EFhZrrJtbyNTgKwknfVS+llsXGygiDGwJWw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/engine-javascript",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/engine-javascript@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/engine-javascript@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-FbOjFJp9VLdo1Wevs10BBtVxiTWwNLqZh5Gkhjgda/ioL15YOgeSl9n+6XMa3qRlPQzfhFNe641SrynFHYG0nQ=="
+          "content": "sha512-Ed6UdEj84LyYkwnxM5CvSMWAD+id9ExTYri0/+x41U9zrgNifPSS9lZm0JqBP0VfYI8yr8tY5nbNq9+p9R0kFA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/engine-oniguruma",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/engine-oniguruma@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/engine-oniguruma@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EcOQkxdxGQrc1Row/cC2c96/v1dbZqGnEVu1qTuT/MJmp6+cXCvQussowVmCv5Tqr3KuY3c7IbM6HTW3LJ1k9w=="
+          "content": "sha512-dKVmbJecVdB9recl8a/CU4jdpNXyjJQrIcesIkpS70s5HS02ohpnCSpMUbotPnEUzbAcLQ+S4hwZYbkBBiTcJw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/langs",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/langs@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/langs@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ePic0yfAJGOF83D5wBHK/00EjK65oahBYxFk5epgq33WRv7X9UuxLEV8PtR0szC0z8dl7INIpIodB99JRFlR+A=="
+          "content": "sha512-wwBTqwduXSz0X4v9Qa2EWeFaYJEw1clCncWjoRNQRbVDu3SPRTRWucnouYapKj3b8Q+sk/41Vbc4B5c8nuYzLA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/primitive",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/primitive@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/primitive@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-m0wBeLDQDeIxRdUmrCPdQqfuUamDwRL5isCfYbguKD6NiaKpVbsv+3J81DyIKgNW5h4WAIIr8T4EkgQrBBxvaQ=="
+          "content": "sha512-UM7ShlA8oz0OWxLLO8BmO9Ip6fVqdkt8yF0EH7nOCqHfrx1eEAzF0ZUVK7L+I8NEgeu1PEWSRlxaiPPeCb4iDg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/themes",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/themes@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/themes@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-w8UHjeUnIR965KMWJHUPXOc2mNJUnK3vpVLYLvw5IYU2mnTTJ89E24OrJDBNiJDQ0qzb0tc4l7mrIXx5cFeIyw=="
+          "content": "sha512-zGb87H3UBbpuI4yoh5UguB1XbU+2BDU3kflM7UfZ+Cy2hWo9lBtqjSVK20gmLY6ukYl040hAypGXMgud9vul8Q=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/types",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/types@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/types@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-UEJxmRR++MAGR6hugn0vgVS2W/6lWAts84FFSrnlH9sP0LNol7E5+NQ792pH8liWUhyMyjhTgSUH3k7iD7tc5g=="
+          "content": "sha512-drtPrtD8N0DENyD2cyt6Ajy+IWsiCLgMxODwLTpvH1UsN6a9jf90tNTPjqwHvA+0Lzu9e0txk8DjfqH1p9UJRw=="
         }
       ]
     },
@@ -3285,13 +3285,13 @@
     {
       "type": "library",
       "name": "@smithy/core",
-      "version": "3.35.0",
-      "purl": "pkg:npm/@smithy/core@3.35.0",
+      "version": "3.35.1",
+      "purl": "pkg:npm/@smithy/core@3.35.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A=="
+          "content": "sha512-i4YPS4B6ts7bjn7UwLnGjiZdprOvHvgGobFZsYK3GIY3E5hIqtj0rReU69BcTpGp+fvtraSNXeG1l+jtJvF55w=="
         }
       ]
     },
@@ -4403,13 +4403,13 @@
     {
       "type": "library",
       "name": "@types/node",
-      "version": "26.6.3",
-      "purl": "pkg:npm/@types/node@26.6.3",
+      "version": "26.6.4",
+      "purl": "pkg:npm/@types/node@26.6.4",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg=="
+          "content": "sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg=="
         }
       ]
     },
@@ -4676,13 +4676,13 @@
     {
       "type": "library",
       "name": "@whatwg-node/disposablestack",
-      "version": "0.0.6",
-      "purl": "pkg:npm/@whatwg-node/disposablestack@0.0.6",
+      "version": "0.1.0",
+      "purl": "pkg:npm/@whatwg-node/disposablestack@0.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-LOtTn+JgJvX8WfBVJtF08TGrdjuFzGJc4mkP8EdDI8ADbvO7kiexYep1o8dwnt0okb0jYclCDXF13xU7Ge4zSw=="
+          "content": "sha512-ok0A9+D+mdeb3w1GNCpVr+2gVVLRWKo9Ywm/whNsoWSNfNg3jNxS0/wUF6NSUYbfOtFGu2wZgJnLjasbaQEfvA=="
         }
       ]
     },
@@ -5118,13 +5118,13 @@
     {
       "type": "library",
       "name": "chai",
-      "version": "6.2.2",
-      "purl": "pkg:npm/chai@6.2.2",
+      "version": "6.3.0",
+      "purl": "pkg:npm/chai@6.3.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg=="
+          "content": "sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg=="
         }
       ]
     },
@@ -6054,13 +6054,13 @@
     {
       "type": "library",
       "name": "globals",
-      "version": "17.12.0",
-      "purl": "pkg:npm/globals@17.12.0",
+      "version": "17.13.0",
+      "purl": "pkg:npm/globals@17.13.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-cezEd/DTyyht9cvSSURyygXPfy04GtWO/5e6ZPvH7fCtjKz9PYOmuawphw1Ctd1f6C+5JypXfGD7ahNMXvevBA=="
+          "content": "sha512-RwMTC61u7hrG3ZJMkZQOK4JLJrKS8QtoTii63EmWvFXHqycY9FObBJQCbsLxSO8kjKhWE5kV1GC+Vb1g3RI0Zg=="
         }
       ]
     },
@@ -7978,13 +7978,13 @@
     {
       "type": "library",
       "name": "resend",
-      "version": "6.31.0",
-      "purl": "pkg:npm/resend@6.31.0",
+      "version": "6.32.0",
+      "purl": "pkg:npm/resend@6.32.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-E9Ekrm888UKKCIY61UmDkgRVd2Q9OwihimgStrWJ4olNsjFYM25F4X8QbzrLuZz6W9iS7eLMS7MLbRBNqnlI/Q=="
+          "content": "sha512-bZZUeKlpKINFT+zGG2iIzfDewkyEHRaE7Xk1haseVz3Gfw6ekkizN6KdKgZSMjt5ywE8vMwr3wTdenlF8P475Q=="
         }
       ]
     },
@@ -8017,13 +8017,13 @@
     {
       "type": "library",
       "name": "rolldown",
-      "version": "1.2.11",
-      "purl": "pkg:npm/rolldown@1.2.11",
+      "version": "1.2.12",
+      "purl": "pkg:npm/rolldown@1.2.12",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-qpSwIyz0jHQq5qXBTNxFmE6664rJ7O+4TvPFOiOaBSrz8IOHc1koKKSqTM2H6u1UG1+TveuC6vaDHKXFOvb1Kw=="
+          "content": "sha512-8wafseiaG80xmXSfqidUNqZcylTlhmPZZt+za2m+js2sFZ8dTNlhIOV2WcbIPx2hgwPBJpEUGFAMZ9bgBBLTSQ=="
         }
       ]
     },
@@ -8199,13 +8199,13 @@
     {
       "type": "library",
       "name": "shiki",
-      "version": "4.4.3",
-      "purl": "pkg:npm/shiki@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/shiki@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Mb/GvXPHBAXdgGIcnfU5L3ldpn1XcxrGkPHwqgRx17/I2XRfqlFKk2vGkHWINn1kdXvzJZeuO3is6I9KLPFm0g=="
+          "content": "sha512-OcRW72ngQvc+MSVWBRIovC/BTW589iUE/Vxav7VeM4RcY9MUjqB+IR6ILG1k9nuW6LiG/nct9uma4/MBtnZbmQ=="
         }
       ]
     },
@@ -8238,13 +8238,13 @@
     {
       "type": "library",
       "name": "source-map-js",
-      "version": "1.2.1",
-      "purl": "pkg:npm/source-map-js@1.2.1",
+      "version": "1.2.2",
+      "purl": "pkg:npm/source-map-js@1.2.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="
+          "content": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw=="
         }
       ]
     },
@@ -8940,13 +8940,13 @@
     {
       "type": "library",
       "name": "vite",
-      "version": "8.3.1",
-      "purl": "pkg:npm/vite@8.3.1",
+      "version": "8.3.2",
+      "purl": "pkg:npm/vite@8.3.2",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/bvH9E9tmCXRGp2uXY3WbOldqpTwFkbha/8ANaEQ6VkxhH60KyqLwgZq6lG2y+4uT55x9+9eUHMpQ7uGnOCKjA=="
+          "content": "sha512-SQr1x6W5vVSbROg7vsyXIaxK9b0G7zsT68acdWWRmnBUsgDieLCRG+Rep9WdZgcposvv/GSnr4GUUBqB3vXq6w=="
         }
       ]
     },
@@ -9382,39 +9382,52 @@
     {
       "type": "library",
       "name": "@graphql-tools/utils",
-      "version": "12.0.1",
-      "purl": "pkg:npm/@graphql-tools/utils@12.0.1",
+      "version": "12.0.3",
+      "purl": "pkg:npm/@graphql-tools/utils@12.0.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8YC6jn4xYDS6YTY6xDAgQAs/nGgvzRaIGHS8GeSfVItQzNK7Ms24CQtE3EJY+amvR+tBnhRSX0N83aGj+V/RIg=="
+          "content": "sha512-M+04bHvI1SKoug7W2EkwfKjig2mdtgIIlFY8p2jLHmxPNVs5bC/3R+58JrD+7ZXWgPILWTwuqJ9AqTjPlahroA=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@whatwg-node/promise-helpers",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@whatwg-node/promise-helpers@2.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-/i9CS0Z96o+cPwaYoAyVxAThDiUX1wV3tDmNWPJbn+vtdR+JftuCDg1NGCXBrzIYVDGkJ8uT6ctwmrBOUzOpKQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@graphql-tools/utils",
-      "version": "12.0.1",
-      "purl": "pkg:npm/@graphql-tools/utils@12.0.1",
+      "version": "12.0.3",
+      "purl": "pkg:npm/@graphql-tools/utils@12.0.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8YC6jn4xYDS6YTY6xDAgQAs/nGgvzRaIGHS8GeSfVItQzNK7Ms24CQtE3EJY+amvR+tBnhRSX0N83aGj+V/RIg=="
+          "content": "sha512-M+04bHvI1SKoug7W2EkwfKjig2mdtgIIlFY8p2jLHmxPNVs5bC/3R+58JrD+7ZXWgPILWTwuqJ9AqTjPlahroA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@graphql-tools/utils",
-      "version": "12.0.1",
-      "purl": "pkg:npm/@graphql-tools/utils@12.0.1",
+      "version": "12.0.3",
+      "purl": "pkg:npm/@graphql-tools/utils@12.0.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8YC6jn4xYDS6YTY6xDAgQAs/nGgvzRaIGHS8GeSfVItQzNK7Ms24CQtE3EJY+amvR+tBnhRSX0N83aGj+V/RIg=="
+          "content": "sha512-M+04bHvI1SKoug7W2EkwfKjig2mdtgIIlFY8p2jLHmxPNVs5bC/3R+58JrD+7ZXWgPILWTwuqJ9AqTjPlahroA=="
         }
       ]
     },
@@ -9545,6 +9558,45 @@
         {
           "alg": "SHA-512",
           "content": "sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@whatwg-node/promise-helpers",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@whatwg-node/promise-helpers@2.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-/i9CS0Z96o+cPwaYoAyVxAThDiUX1wV3tDmNWPJbn+vtdR+JftuCDg1NGCXBrzIYVDGkJ8uT6ctwmrBOUzOpKQ=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@whatwg-node/disposablestack",
+      "version": "0.0.6",
+      "purl": "pkg:npm/@whatwg-node/disposablestack@0.0.6",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-LOtTn+JgJvX8WfBVJtF08TGrdjuFzGJc4mkP8EdDI8ADbvO7kiexYep1o8dwnt0okb0jYclCDXF13xU7Ge4zSw=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@whatwg-node/disposablestack",
+      "version": "0.0.6",
+      "purl": "pkg:npm/@whatwg-node/disposablestack@0.0.6",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-LOtTn+JgJvX8WfBVJtF08TGrdjuFzGJc4mkP8EdDI8ADbvO7kiexYep1o8dwnt0okb0jYclCDXF13xU7Ge4zSw=="
         }
       ]
     },
@@ -9727,6 +9779,32 @@
         {
           "alg": "SHA-512",
           "content": "sha512-KAdnLvy1yu/XrRtP+LJnxbBGrhN+xXu+gt3EUvZhYGKCr3lFHq/7UFJHHFgmJKoqlh6B40bZLEv7w46B0mqn1g=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@whatwg-node/promise-helpers",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@whatwg-node/promise-helpers@2.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-/i9CS0Z96o+cPwaYoAyVxAThDiUX1wV3tDmNWPJbn+vtdR+JftuCDg1NGCXBrzIYVDGkJ8uT6ctwmrBOUzOpKQ=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@whatwg-node/promise-helpers",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@whatwg-node/promise-helpers@2.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-/i9CS0Z96o+cPwaYoAyVxAThDiUX1wV3tDmNWPJbn+vtdR+JftuCDg1NGCXBrzIYVDGkJ8uT6ctwmrBOUzOpKQ=="
         }
       ]
     },

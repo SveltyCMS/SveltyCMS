@@ -288,9 +288,15 @@
 					</div>
 
 					<div role="cell" class="flex justify-center">
-						<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
+						<iconify-icon
+							icon={field.icon}
+							width="24"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
 					</div>
-					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
+					<div class="font-bold text-surface-900 dark:text-primary-500" role="cell">
+						{field.label}
+					</div>
 					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" " role="cell">{field.widget?.key}</div>
 

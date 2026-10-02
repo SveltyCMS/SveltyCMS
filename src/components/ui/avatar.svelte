@@ -63,12 +63,20 @@ and configurable size/rounded shape.
 		}
 	});
 
+	const isDefaultAvatar = $derived(typeof src === 'string' && /default_user\.svg/i.test(src));
 	const classes = $derived(cn('relative flex shrink-0 overflow-hidden', size, rounded, className));
 </script>
 
 <div class={classes} role="img" aria-label={alt || initials || 'Avatar'} {...restProps}>
 	{#if status === 'loaded' && src}
-		<img {src} {alt} class="aspect-square h-full w-full object-cover" crossorigin="anonymous" />
+		<img
+			{src}
+			{alt}
+			class="aspect-square h-full w-full object-cover {isDefaultAvatar
+				? 'brightness-0 opacity-70 dark:brightness-100 dark:opacity-100'
+				: ''}"
+			crossorigin="anonymous"
+		/>
 	{:else if fallback}
 		<div
 			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium"
@@ -83,7 +91,8 @@ and configurable size/rounded shape.
 		</div>
 	{:else}
 		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800">
-			<iconify-icon icon="mdi:account" class="size-2/3 text-surface-400/50"></iconify-icon>
+			<iconify-icon icon="mdi:account" class="size-2/3 text-surface-600 dark:text-surface-400"
+			></iconify-icon>
 		</div>
 	{/if}
 </div>

@@ -461,3 +461,13 @@ html.dark [data-admin-theme] {
     opacity: 0;
   }
 }
+
+/* ========================================================================
+   🌐 LOGICAL INSETS COMPATIBILITY ALIASES (RTL/LTR)
+   ======================================================================== */
+@utility inset-s-* {
+  inset-inline-start: --value(--spacing, *);
+}
+@utility inset-e-* {
+  inset-inline-end: --value(--spacing, *);
+}

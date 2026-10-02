@@ -79,6 +79,7 @@
 		 * (e.g. `bg-teal-500`). System catalog routes ignore this (use fixed catalog colors).
 		 */
 		navColor?: NavFavoriteColor;
+		subtitle?: import('svelte').Snippet;
 	}
 
 	const {
@@ -95,6 +96,7 @@
 		compact = false,
 		borderless = false,
 		navColor = 'bg-warning-500',
+		subtitle,
 		children
 	}: Props = $props();
 
@@ -156,7 +158,7 @@
 <div
 	data-testid="admin-page-title"
 	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between ps-5 pe-2 pt-2 backdrop-blur-sm
-		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
+		{compact || description || subtitle ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
 	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless
 		? ''
 		: 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"
@@ -175,64 +177,75 @@
 			</Button>
 		{/if}
 		<div class="flex min-w-0 flex-col justify-center">
-			<div class="flex min-w-0 items-center gap-1">
-				<h1
-					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold"
-					style="font-size: {compact
-						? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)'
-						: 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
-					aria-live="polite"
-					data-cms-field="pageTitle"
-					data-cms-type="text"
-					data-testid="page-title"
-				>
-					{#if icon}
-						<iconify-icon
-							{icon}
-							width={compact ? '22' : iconSize}
-							class={`me-1 shrink-0 ${iconColor} sm:me-2`}
-							aria-hidden="true"
-						></iconify-icon>
-					{/if}
-
-					<span
-						class:block={truncate}
-						class:overflow-hidden={truncate}
-						class:text-ellipsis={truncate}
-						class:whitespace-nowrap={truncate}
+			<div class="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+				<div class="flex min-w-0 items-center gap-1">
+					<h1
+						class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold"
+						style="font-size: {compact
+							? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)'
+							: 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
+						aria-live="polite"
+						data-cms-field="pageTitle"
+						data-cms-type="text"
+						data-testid="page-title"
 					>
-						{#each titleParts as part, i (i)}
-							<span
-								class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}
-								>{part}</span
-							>
-						{/each}
-					</span>
-				</h1>
+						{#if icon}
+							<iconify-icon
+								{icon}
+								width={compact ? '22' : iconSize}
+								class={`me-1 shrink-0 ${iconColor} sm:me-2`}
+								aria-hidden="true"
+							></iconify-icon>
+						{/if}
 
-				<!-- Floating-nav pin lives outside h1 so heading accessible name stays clean for E2E/a11y -->
-				<SystemTooltip title={favoriteTooltip}>
-					<button
-						type="button"
-						onclick={toggleFavorite}
-						aria-label={favoriteTooltip}
-						aria-pressed={isFavorited}
-						disabled={isFixedNavItem}
-						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited
-							? 'text-warning-500 opacity-100'
-							: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
-							? 'cursor-default'
-							: ''}"
-						style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
+						<span
+							class:block={truncate}
+							class:overflow-hidden={truncate}
+							class:text-ellipsis={truncate}
+							class:whitespace-nowrap={truncate}
+						>
+							{#each titleParts as part, i (i)}
+								<span
+									class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}
+									>{part}</span
+								>
+							{/each}
+						</span>
+					</h1>
+
+					<!-- Floating-nav pin lives outside h1 so heading accessible name stays clean for E2E/a11y -->
+					<SystemTooltip title={favoriteTooltip}>
+						<button
+							type="button"
+							onclick={toggleFavorite}
+							aria-label={favoriteTooltip}
+							aria-pressed={isFavorited}
+							disabled={isFixedNavItem}
+							class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFavorited
+								? 'text-warning-500 opacity-100'
+								: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
+								? 'cursor-default'
+								: ''}"
+							style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
+						>
+							<iconify-icon
+								icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
+								width={compact ? '18' : '20'}
+								aria-hidden="true"
+							></iconify-icon>
+						</button>
+					</SystemTooltip>
+				</div>
+
+				{#if subtitle}
+					<div
+						class="flex items-center ps-2 sm:ps-3 border-s border-surface-500/30 dark:border-surface-500/40"
 					>
-						<iconify-icon
-							icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
-							width={compact ? '18' : '20'}
-							aria-hidden="true"
-						></iconify-icon>
-					</button>
-				</SystemTooltip>
+						{@render subtitle()}
+					</div>
+				{/if}
 			</div>
+
 			{#if description}
 				<span
 					class="mt-0.5 text-xs font-medium {compact ? '' : 'opacity-50'}"

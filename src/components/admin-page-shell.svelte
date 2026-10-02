@@ -51,6 +51,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		animate?: boolean;
 		/** Tailwind bg class for FloatingNav favorite spoke — NAV_FAVORITE_COLORS literal (default `bg-warning-500`). */
 		navColor?: NavFavoriteColor;
+		subtitle?: import('svelte').Snippet;
 		children?: import('svelte').Snippet;
 		actions?: import('svelte').Snippet;
 	}
@@ -65,9 +66,10 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		fullHeight = false,
 		spaceY = '6',
 		titleCompact = false,
-		titleBorderless = false,
+		titleBorderless = true,
 		animate = true,
 		navColor,
+		subtitle,
 		children,
 		actions
 	}: Props = $props();
@@ -92,6 +94,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		compact={titleCompact}
 		borderless={titleBorderless}
 		{navColor}
+		{subtitle}
 	>
 		{#if actions}
 			{@render actions()}

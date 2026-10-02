@@ -49,6 +49,8 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
       cspNonce: locals.cspNonce,
       tenantId: null,
       darkMode: locals.darkMode ?? false,
+      themePreference:
+        (cookies.get("theme") as "system" | "light" | "dark" | undefined) ?? "system",
       navigationStructure: [],
       contentNodes: [],
       contentVersion: 0,
@@ -76,6 +78,8 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
       cspNonce: locals.cspNonce,
       tenantId: null,
       darkMode: locals.darkMode ?? false,
+      themePreference:
+        (cookies.get("theme") as "system" | "light" | "dark" | undefined) ?? "system",
       navigationStructure: [],
       contentNodes: [],
       contentVersion: 0,
@@ -174,6 +178,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     cspNonce: locals.cspNonce,
     tenantId: locals.tenantId ?? null,
     darkMode: locals.darkMode ?? false,
+    themePreference: (cookies.get("theme") as "system" | "light" | "dark" | undefined) ?? "system",
     navigationStructure,
     // Pre-sanitized client nodes (cached in contentStore until next store mutation)
     contentNodes: contentStore.getClientNodes(locals.tenantId),
