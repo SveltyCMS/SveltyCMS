@@ -114,14 +114,14 @@ full ARIA validation linkage, and transparent background support for overlays.
 		switch (size) {
 			case 'sm':
 				return {
-					heightClass: 'h-8 text-xs pt-2.5 pb-0.5',
+					heightClass: label ? 'h-8 text-xs pt-2.5 pb-0.5' : 'h-8 text-xs py-1.5',
 					labelClass: 'top-1 text-xs peer-placeholder-shown:text-xs',
 					iconSize: 14,
 					clearSize: 14
 				};
 			case 'md':
 				return {
-					heightClass: 'h-10 text-sm pt-3 pb-0.5',
+					heightClass: label ? 'h-10 text-sm pt-3 pb-0.5' : 'h-10 text-sm py-2',
 					labelClass: 'top-1.5 text-sm peer-placeholder-shown:text-sm',
 					iconSize: 16,
 					clearSize: 16
@@ -129,7 +129,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 			case 'lg':
 			default:
 				return {
-					heightClass: 'h-12 text-base pt-4 pb-1',
+					heightClass: label ? 'h-12 text-base pt-4 pb-1' : 'h-12 text-base py-3',
 					labelClass: 'top-2.5 text-base peer-placeholder-shown:text-base',
 					iconSize: 18,
 					clearSize: 16
