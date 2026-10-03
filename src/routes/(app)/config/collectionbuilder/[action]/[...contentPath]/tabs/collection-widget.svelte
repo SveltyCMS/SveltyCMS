@@ -725,9 +725,7 @@
 								</div>
 
 								<!-- Name & Metadata -->
-								<div
-									class="flex min-w-0 flex-1 flex-col justify-center sm:flex-row sm:items-center sm:gap-3"
-								>
+								<div class="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
 									<div class="flex items-center gap-2 truncate">
 										<span
 											class="truncate text-sm font-semibold text-surface-900 dark:text-surface-100"
