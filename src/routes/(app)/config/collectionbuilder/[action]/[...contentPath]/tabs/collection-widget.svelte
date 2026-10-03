@@ -898,7 +898,7 @@
 					</h3>
 					<FloatingInput
 						bind:value={sidebarSearch}
-						label="Search widgets..."
+						placeholder="Search widgets..."
 						icon="mdi:magnify"
 						aria-label="Search widgets"
 						inputClass="h-9 text-sm rounded"

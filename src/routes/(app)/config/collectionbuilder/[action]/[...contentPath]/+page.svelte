@@ -418,14 +418,14 @@
 			<Button
 				variant="tertiary"
 				onclick={() => handleCollectionSave()}
-				disabled={isLoading || !stepProgress.defineOk}
+				disabled={isLoading || !stepProgress.allRequiredDone}
 				aria-label="Save collection"
 				data-testid="save-collection-button"
 				class="flex min-w-25 items-center gap-1 dark:preset-filled-primary-500"
 				title={!stepProgress.defineOk
 					? 'Set collection name and icon first'
 					: !stepProgress.widgetsOk
-						? 'Tip: add widgets before saving a complete schema'
+						? 'Add at least one widget to save collection'
 						: undefined}
 			>
 				{#if isLoading}
