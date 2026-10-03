@@ -219,7 +219,7 @@
 </script>
 
 {#if local}
-	<div class="flex flex-col w-full" style="min-width: 640px; max-width: 900px; min-height: 500px;">
+	<div class="flex flex-col w-full">
 		<!-- Header -->
 		<div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-white">
