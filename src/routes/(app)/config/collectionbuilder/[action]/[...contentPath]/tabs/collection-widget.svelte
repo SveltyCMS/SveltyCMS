@@ -526,7 +526,7 @@
 
 		<!-- Code Display Area -->
 		<div
-			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-200 selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
+			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-900 dark:text-surface-100 selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
 		>
 			<pre class="leading-relaxed whitespace-pre font-mono"><code>{generatedCode}</code></pre>
 		</div>
