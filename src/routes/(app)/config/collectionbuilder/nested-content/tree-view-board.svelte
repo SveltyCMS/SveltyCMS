@@ -115,12 +115,6 @@ offset within the row on the native `dragover` event — that event carries
 	const allTags = $derived(collectionMetadata.getAllUniqueTags());
 	const tagFilterOptions = $derived(allTags.map((t) => ({ value: t, label: t })));
 
-	function clearAllFilters() {
-		searchText = '';
-		showOnlyFavorites = false;
-		selectedTagFilter = '';
-	}
-
 	function handleEditTags(item: TreeViewItem) {
 		activeItemForTagging = item;
 		currentTagsInput = collectionMetadata.getTags(item.id).join(', ');
@@ -933,7 +927,7 @@ offset within the row on the native `dragover` event — that event carries
 			clearable
 			bind:value={searchText}
 			onClear={clearSearch}
-			label="Search collections..."
+			placeholder="Search collections..."
 			icon="mdi:magnify"
 			aria-label="Search collections"
 			inputClass="w-full rounded border border-surface-500/30 dark:border-surface-600"
@@ -965,12 +959,6 @@ offset within the row on the native `dragover` event — that event carries
 				/>
 			</SystemTooltip>
 		</div>
-	{/if}
-
-	{#if searchText || showOnlyFavorites || selectedTagFilter}
-		<Button variant="outline" type="button" onclick={clearAllFilters} class="">
-			Clear filters
-		</Button>
 	{/if}
 
 	<div class="flex gap-2 ms-auto">
