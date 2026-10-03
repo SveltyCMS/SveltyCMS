@@ -18,6 +18,7 @@
 	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
 	import Button from '@src/components/ui/button.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import Card from '@src/components/ui/card.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { generateCollectionTypeScript } from '../../../collection-code-generator';
@@ -703,106 +704,122 @@
 							data-drag-id={item._dragId}
 							role="listitem"
 						>
-							<Card
-								class="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:pe-4 transition-all hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md bg-white dark:bg-surface-800"
+							<!-- Clean, simple row layout matching config/collectionbuilder -->
+							<div
+								class="group flex w-full min-h-[48px] items-center gap-2 sm:gap-3 cursor-pointer overflow-hidden rounded border-2 border-surface-500/20 bg-white px-3 py-2 transition-colors hover:border-tertiary-500/30 dark:border-surface-500/30 dark:bg-surface-900 dark:hover:border-primary-500/30"
+								onclick={() => editField(item)}
+								onkeydown={(e) => e.key === 'Enter' && editField(item)}
+								role="button"
+								tabindex="0"
 							>
-								<div
-									class="field-drag-handle flex cursor-grab items-center justify-center self-start rounded p-1 text-surface-400 active:cursor-grabbing group-hover:text-tertiary-500 dark:group-hover:text-primary-500 sm:self-center"
-									aria-hidden="true"
-								>
-									<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
-								</div>
-
-								<div
-									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-surface-500/30 bg-tertiary-500/10 text-tertiary-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-primary-400"
-								>
+								<!-- Icon -->
+								<div class="relative flex items-center shrink-0">
 									<iconify-icon
 										icon={item.icon ||
 											(availableWidgets[(item.widget as any)?.key] as any)?.Icon ||
 											'mdi:widgets'}
-										width="22"
+										width="24"
+										class="text-tertiary-500 dark:text-primary-500"
+										aria-hidden="true"
 									></iconify-icon>
 								</div>
 
-								<button
-									type="button"
-									class="min-w-0 flex-1 border-0 bg-transparent p-0 text-start"
-									onclick={() => editField(item)}
-									data-testid="widget-field-open"
-									aria-label={`Edit field ${item.label || 'Unnamed Field'}`}
+								<!-- Name & Metadata -->
+								<div
+									class="flex min-w-0 flex-1 flex-col justify-center sm:flex-row sm:items-center sm:gap-3"
 								>
-									<div class="mb-0.5 flex flex-wrap items-center gap-2">
-										<span class="truncate text-sm font-bold sm:text-base"
+									<div class="flex items-center gap-2 truncate">
+										<span
+											class="truncate text-sm font-semibold text-surface-900 dark:text-surface-100"
 											>{item.label || 'Unnamed Field'}</span
 										>
 										<span
-											class="rounded bg-surface-200 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-surface-600 uppercase dark:bg-surface-700 dark:text-surface-400"
+											class="shrink-0 rounded bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-surface-500 uppercase dark:bg-surface-700 dark:text-surface-400"
 										>
 											{(item.widget as { key?: string })?.key ||
 												(item.widget as { Name?: string })?.Name ||
 												'Generic'}
 										</span>
 									</div>
-									<div class="flex flex-wrap items-center gap-3">
-										<code
-											class="truncate rounded bg-surface-500/10 px-1 text-[10px] text-surface-400 dark:bg-surface-900 dark:text-surface-50"
+									<div class="flex items-center gap-2">
+										<span
+											class="truncate text-[11px] font-mono text-surface-500 dark:text-surface-400"
 										>
 											{item.db_fieldName || 'unnamed_field'}
-										</code>
+										</span>
 										{#if item.required}
-											<span class="flex items-center gap-0.5 text-[9px] font-bold text-error-500">
-												<iconify-icon icon="mdi:asterisk" width="8"></iconify-icon> Required
+											<span class="flex items-center text-error-500" title="Required">
+												<iconify-icon icon="mdi:asterisk" width="10"></iconify-icon>
 											</span>
 										{/if}
 									</div>
-								</button>
-
-								<div class="flex shrink-0 items-center gap-1 sm:gap-1.5">
-									<Button
-										variant="ghost"
-										size="sm"
-										type="button"
-										onclick={(e: MouseEvent) => {
-											e.stopPropagation();
-											editField(item);
-										}}
-										title="Edit"
-										data-testid="widget-field-edit"
-										aria-label="Edit field"
-									>
-										<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										type="button"
-										onclick={(e: MouseEvent) => {
-											e.stopPropagation();
-											duplicateField(item);
-										}}
-										title="Duplicate"
-										data-testid="widget-field-clone"
-										aria-label="Duplicate field"
-									>
-										<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										type="button"
-										onclick={(e: MouseEvent) => {
-											e.stopPropagation();
-											deleteField(item._dragId);
-										}}
-										class="text-error-500 hover:bg-error-500/10"
-										title="Remove"
-										data-testid="widget-field-delete"
-										aria-label="Remove field"
-									>
-										<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
-									</Button>
 								</div>
-							</Card>
+
+								<!-- Actions -->
+								<div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
+									<SystemTooltip title="Edit">
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												editField(item);
+											}}
+											aria-label="Edit field"
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+										>
+											<iconify-icon
+												icon="mdi:pencil"
+												width="20"
+												class="text-tertiary-500 dark:text-primary-500"
+											></iconify-icon>
+										</Button>
+									</SystemTooltip>
+									<SystemTooltip title="Duplicate">
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												duplicateField(item);
+											}}
+											aria-label="Duplicate field"
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+										>
+											<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
+										</Button>
+									</SystemTooltip>
+									<SystemTooltip title="Delete">
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												deleteField(item._dragId);
+											}}
+											aria-label="Remove field"
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+										>
+											<iconify-icon icon="mdi:delete" width="20" class="text-error-500"
+											></iconify-icon>
+										</Button>
+									</SystemTooltip>
+								</div>
+
+								<!-- Drag Handle -->
+								<SystemTooltip title="Drag to reorder">
+									<span
+										class="field-drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing hover:opacity-100"
+										aria-hidden="true"
+										onclick={(e: MouseEvent) => e.stopPropagation()}
+									>
+										<iconify-icon icon="mdi:drag-vertical" width="22"></iconify-icon>
+									</span>
+								</SystemTooltip>
+							</div>
 						</div>
 					{/each}
 
