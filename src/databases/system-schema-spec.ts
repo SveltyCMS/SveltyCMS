@@ -67,6 +67,8 @@ export interface IndexSpec {
   method?: Partial<Record<Dialect, string>>;
   /** Partial-index predicate per dialect (e.g. the postgresql unconsumed-token index). */
   where?: Partial<Record<Dialect, string>>;
+  /** PostgreSQL 15+ `NULLS NOT DISTINCT` on unique indexes (e.g. auth_users email where a NULL tenantId must collide). */
+  nullsNotDistinct?: boolean | Partial<Record<Dialect, boolean>>;
   /**
    * Indexed columns rendered with a trailing `DESC`, per dialect (e.g. the media
    * gallery's `ORDER BY updatedAt DESC`). MariaDB entries intentionally omit it:
@@ -277,6 +279,16 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "tenantId", type: varchar(36) },
       ...timestamps(),
     ],
+    extensions: {
+      postgresql: [
+        // NULLS NOT DISTINCT rebuild (PG 15+): dedupe legacy single-tenant
+        // duplicate emails first (keep the oldest account, same rule as the
+        // SQLite block), then drop the legacy index so the CREATE UNIQUE
+        // INDEX below re-creates it with NULLS NOT DISTINCT.
+        `DELETE FROM auth_users a USING auth_users b WHERE a.email = b.email AND a."tenantId" IS NULL AND b."tenantId" IS NULL AND a._id > b._id`,
+        "DROP INDEX IF EXISTS auth_users_email_tenant_unique",
+      ],
+    },
     indexes: [
       {
         name: { postgresql: "auth_users_email_idx", mariadb: "email_idx" },
@@ -290,6 +302,12 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         name: { postgresql: "auth_users_email_tenant_unique", mariadb: "email_tenant_unique" },
         columns: { postgresql: ["email", "tenantId"], mariadb: ["email", "tenantId"] },
         unique: true,
+        // PostgreSQL 15+ NULLS NOT DISTINCT: a standard unique index treats two
+        // NULL tenantId rows as distinct, so single-tenant mode allowed
+        // duplicate emails. NULLS NOT DISTINCT closes that loophole — the
+        // extension below drops the legacy index and dedupes legacy rows first
+        // (mirrors the SQLite partial-unique block at the end of this file).
+        nullsNotDistinct: { postgresql: true },
       },
     ],
   },
@@ -530,6 +548,15 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         name: { postgresql: "content_nodes_tenant_idx", mariadb: "tenant_idx" },
         columns: { postgresql: ["tenantId"], mariadb: ["tenantId"] },
       },
+      {
+        // Hierarchy navigation: WHERE tenantId = ? AND parentId = ? ORDER BY
+        // position, _id rides this index in order (single index scan, no sort).
+        name: { postgresql: "content_nodes_children_idx", mariadb: "children_idx" },
+        columns: {
+          postgresql: ["tenantId", "parentId", "position", "_id"],
+          mariadb: ["tenantId", "parentId", "position", "_id"],
+        },
+      },
     ],
   },
 
@@ -565,6 +592,16 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         name: { postgresql: "content_drafts_tenant_idx", mariadb: "tenant_idx" },
         columns: { postgresql: ["tenantId"], mariadb: ["tenantId"] },
       },
+      {
+        // Latest-draft lookup: WHERE contentId = ? ORDER BY version DESC LIMIT 1
+        // is a single index probe; the sort order is baked into the index.
+        name: { postgresql: "content_drafts_latest_idx", mariadb: "latest_idx" },
+        columns: {
+          postgresql: ["contentId", "version"],
+          mariadb: ["contentId", "version"],
+        },
+        descColumns: { postgresql: ["version"] },
+      },
     ],
   },
 
@@ -583,14 +620,34 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "tenantId", type: varchar(36) },
       ...timestamps(),
     ],
+    extensions: {
+      postgresql: [
+        // Replaced by the unique (contentId, version) composite below — a
+        // single index answers both the per-document filter and the version
+        // ordering while guaranteeing no duplicate revision numbers.
+        "DROP INDEX IF EXISTS content_revisions_content_idx",
+        "DROP INDEX IF EXISTS content_revisions_version_idx",
+      ],
+    },
     indexes: [
       {
-        name: { postgresql: "content_revisions_content_idx", mariadb: "content_idx" },
-        columns: { postgresql: ["contentId"], mariadb: ["contentId"] },
+        name: { mariadb: "content_idx" },
+        columns: { mariadb: ["contentId"] },
       },
       {
-        name: { postgresql: "content_revisions_version_idx", mariadb: "version_idx" },
-        columns: { postgresql: ["version"], mariadb: ["version"] },
+        name: { mariadb: "version_idx" },
+        columns: { mariadb: ["version"] },
+      },
+      {
+        name: {
+          postgresql: "content_revisions_content_version_unique",
+          mariadb: "content_version_unique",
+        },
+        columns: {
+          postgresql: ["contentId", "version"],
+          mariadb: ["contentId", "version"],
+        },
+        unique: true,
       },
       {
         name: { postgresql: "content_revisions_author_idx", mariadb: "author_idx" },
@@ -1115,7 +1172,18 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         name: "usage",
         type: jsonCol(),
         notNull: pgMaria,
-        default: { sqlite: dStr("{}").sqlite, postgresql: dStr("{}").postgresql },
+        // 🐛 MODULE-LOAD FREEZE FIX: the previous spec stored `'{}'` while the
+        // Drizzle schemas baked a JS object default (with a boot-time `new Date()`)
+        // — now the DDL default builds the object with a per-row now() timestamp
+        // on every engine.
+        default: {
+          sqlite:
+            "json_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          postgresql:
+            "jsonb_build_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', now())",
+          mariadb:
+            "JSON_OBJECT('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', NOW())",
+        },
         mariadbQuoted: true,
       },
       {
@@ -1207,10 +1275,39 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "previousHash", type: varchar(64) },
       { name: "chainHash", type: varchar(64) },
     ],
+    extensions: {
+      postgresql: [
+        // The btree on timestamp is replaced by the BRIN index below: audit
+        // logs are append-only and physically ordered by insertion time, so
+        // block-range min/max pruning answers time-range scans at ~1/1000th of
+        // a btree's footprint. Tenant-scoped pagination uses the
+        // (tenantId, timestamp DESC) btree instead.
+        "DROP INDEX IF EXISTS audit_logs_timestamp_idx",
+      ],
+    },
     indexes: [
       {
-        name: { postgresql: "audit_logs_timestamp_idx", mariadb: "timestamp_idx" },
-        columns: { postgresql: ["timestamp"], mariadb: ["timestamp"] },
+        name: { mariadb: "timestamp_idx" },
+        columns: { mariadb: ["timestamp"] },
+      },
+      {
+        // BRIN on the append-only timestamp column (postgresql only).
+        name: { postgresql: "audit_logs_timestamp_brin" },
+        columns: { postgresql: ["timestamp"] },
+        method: { postgresql: "brin" },
+      },
+      {
+        // Tenant-scoped recent-log pagination: ORDER BY timestamp DESC rides
+        // the index backwards, no sort.
+        name: {
+          postgresql: "audit_logs_tenant_timestamp_idx",
+          mariadb: "tenant_timestamp_idx",
+        },
+        columns: {
+          postgresql: ["tenantId", "timestamp"],
+          mariadb: ["tenantId", "timestamp"],
+        },
+        descColumns: { postgresql: ["timestamp"] },
       },
       {
         name: { postgresql: "audit_logs_event_type_idx", mariadb: "event_type_idx" },
@@ -1259,6 +1356,23 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       {
         name: { postgresql: "svelty_jobs_tenant_idx", mariadb: "tenant_idx" },
         columns: { postgresql: ["tenantId"], mariadb: ["tenantId"] },
+      },
+      {
+        // Polling index: the scheduler fetches WHERE status='pending' AND
+        // nextRunAt <= now() ORDER BY nextRunAt ASC. PostgreSQL/SQLite use a
+        // partial index (only runnable rows live in it); MariaDB has no
+        // partial-index support, so it gets the composite (status, nextRunAt).
+        name: {
+          postgresql: "svelty_jobs_runnable_idx",
+          sqlite: "idx_svelty_jobs_runnable",
+          mariadb: "svelty_jobs_runnable_idx",
+        },
+        columns: {
+          postgresql: ["nextRunAt"],
+          sqlite: ["nextRunAt"],
+          mariadb: ["status", "nextRunAt"],
+        },
+        where: { postgresql: "status = 'pending'", sqlite: "status = 'pending'" },
       },
     ],
   },
@@ -1324,6 +1438,24 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
           sqlite: "idx_outbox_created_at",
         },
         columns: { postgresql: ["createdAt"], mariadb: ["createdAt"], sqlite: ["createdAt"] },
+        sqliteAfterTable: true,
+      },
+      {
+        // Polling index: the outbox poller fetches WHERE status='pending'
+        // ORDER BY createdAt ASC LIMIT n. PostgreSQL/SQLite use a partial
+        // index (only unhandled rows live in it; delivered events drop out);
+        // MariaDB gets the composite (status, createdAt) equivalent.
+        name: {
+          postgresql: "outbox_pending_idx",
+          sqlite: "idx_outbox_pending",
+          mariadb: "outbox_pending_idx",
+        },
+        columns: {
+          postgresql: ["createdAt"],
+          sqlite: ["createdAt"],
+          mariadb: ["status", "createdAt"],
+        },
+        where: { postgresql: "status = 'pending'", sqlite: "status = 'pending'" },
         sqliteAfterTable: true,
       },
     ],
@@ -1396,6 +1528,16 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       },
       ...timestamps(),
     ],
+    extensions: {
+      postgresql: [
+        // Unique partial rebuild: dedupe legacy conflicting ACTIVE redirects
+        // (keep the most recently updated row per tenant+source), then drop
+        // the legacy 3-column index so the CREATE UNIQUE INDEX below
+        // re-creates it as a partial unique index.
+        `DELETE FROM redirects_mv a USING redirects_mv b WHERE a."tenantId" = b."tenantId" AND a."source" = b."source" AND a."active" = TRUE AND b."active" = TRUE AND a."updatedAt" < b."updatedAt"`,
+        "DROP INDEX IF EXISTS idx_redirects_mv_lookup",
+      ],
+    },
     indexes: [
       {
         name: { mariadb: "tenant_source_idx" },
@@ -1408,11 +1550,16 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
           sqlite: "idx_redirects_mv_lookup",
         },
         columns: {
-          postgresql: ["tenantId", "source", "active"],
+          postgresql: ["tenantId", "source"],
           mariadb: ["tenantId", "source", "active"],
           sqlite: ["tenantId", "source", "active"],
         },
-        postgresqlQuotedColumns: ["source", "active"],
+        // 🛡️ PG unique partial: serves the request-route lookup
+        // (WHERE tenantId = ? AND source = ? AND active = true) exactly and
+        // rejects a second ACTIVE redirect for the same source per tenant.
+        unique: { postgresql: true },
+        where: { postgresql: '"active" = true' },
+        postgresqlQuotedColumns: ["source"],
         sqliteAfterTable: true,
         sqliteNoGapBefore: true,
       },

@@ -1840,21 +1840,25 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // rows whose field never entered the blob).
         const fieldIsColumn = !!this.getColumn(table, field);
 
-        // Bind amount + timestamp as parameters (stable SQL text → statement cache hits)
+        // Bind amount + timestamp as parameters (stable SQL text → statement cache hits).
+        // The JSON path is also bound (`?`) — SQLite accepts string parameters for
+        // json_set/json_extract paths, so one cached statement serves every field.
+        const jsonPath = `$.${safeField}`;
         const updateReturning = fieldIsColumn
           ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
           : dataCol
-            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
+            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), ?, coalesce(json_extract(coalesce("data", '{}'), ?), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
             : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
 
         // Prefer: return=minimal — one UPDATE, no row read-back. The ack is
         // the id. A zero change-count is a missing row, same as the SELECT path.
         if (options.skipReturning === true) {
           const updateOnly = updateReturning.replace(/ RETURNING \*$/, "");
-          return this.withWriteLock(async () => {
+          return this.withWriteLock(() => {
             const info = this.prepareAndExecute(
               updateOnly,
               "run",
+              ...(dataCol && !fieldIsColumn ? [jsonPath, jsonPath] : []),
               amountNum,
               nowMs,
               idStr,
@@ -1870,11 +1874,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // 🔒 SPAN LOCK: the UPDATE (+ its SELECT read-back) must be atomic —
         // another writer must not interleave between the increment and the
         // returned-row read.
-        return this.withWriteLock(async () => {
+        return this.withWriteLock(() => {
           try {
             const rows = this.prepareAndExecute(
               updateReturning,
               "all",
+              ...(dataCol && !fieldIsColumn ? [jsonPath, jsonPath] : []),
               amountNum,
               nowMs,
               idStr,
@@ -1892,10 +1897,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           const updateSql = fieldIsColumn
             ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
             : dataCol
-              ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+              ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), ?, coalesce(json_extract(coalesce("data", '{}'), ?), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
               : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`;
 
-          this.prepareAndExecute(updateSql, "run", amountNum, nowMs, idStr, ...tenantParams);
+          this.prepareAndExecute(
+            updateSql,
+            "run",
+            ...(dataCol && !fieldIsColumn ? [jsonPath, jsonPath] : []),
+            amountNum,
+            nowMs,
+            idStr,
+            ...tenantParams,
+          );
 
           const selectRows = this.prepareAndExecute(
             `SELECT * FROM "${tableName}" WHERE "${idCol.name}" = ?${tenantSql} LIMIT 1`,
