@@ -669,7 +669,7 @@ export const tenants = pgTable(
       .$type<TenantUsage>()
       .notNull()
       .default(
-        sql`jsonb_build_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', now())`,
+        sql`(jsonb_build_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', now()))`,
       ),
     settings: jsonb("settings").default({}),
     ...timestamps,

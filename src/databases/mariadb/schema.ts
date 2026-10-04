@@ -575,13 +575,10 @@ export const tenants = mysqlTable(
     }),
     // 🐛 MODULE-LOAD FREEZE FIX: JS object default with `lastUpdated: new Date()`
     // evaluates once at module import — every later tenant insert would get the
-    // boot timestamp. SQL default evaluates NOW() per row.
-    usage: json("usage")
-      .$type<TenantUsage>()
-      .notNull()
-      .default(
-        sql`JSON_OBJECT('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', NOW())`,
-      ),
+    // boot timestamp. MariaDB JSON columns cannot carry a function default at
+    // all (1064 even parenthesized), so this column keeps the proven pre-fix
+    // no-default state; callers always set `usage` explicitly.
+    usage: json("usage").$type<TenantUsage>().notNull(),
     settings: json("settings").default({}),
     ...timestamps,
   },

@@ -569,7 +569,7 @@ export const tenants = sqliteTable(
       .$type<TenantUsage>()
       .notNull()
       .default(
-        sql`json_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+        sql`(json_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))`,
       ),
     settings: text("settings", { mode: "json" }).default({} as any),
     ...timestamps,

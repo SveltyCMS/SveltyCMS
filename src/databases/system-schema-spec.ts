@@ -1175,14 +1175,15 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         // 🐛 MODULE-LOAD FREEZE FIX: the previous spec stored `'{}'` while the
         // Drizzle schemas baked a JS object default (with a boot-time `new Date()`)
         // — now the DDL default builds the object with a per-row now() timestamp
-        // on every engine.
+        // on every engine. Expression defaults MUST be parenthesized on SQLite
+        // (`DEFAULT json_object(...)` is a syntax error there). MariaDB has no
+        // entry: JSON columns cannot carry function defaults at all (1064 even
+        // parenthesized) — it keeps the pre-fix no-default state.
         default: {
           sqlite:
-            "json_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+            "(json_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))",
           postgresql:
-            "jsonb_build_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', now())",
-          mariadb:
-            "JSON_OBJECT('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', NOW())",
+            "(jsonb_build_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', now()))",
         },
         mariadbQuoted: true,
       },
