@@ -209,10 +209,16 @@ export async function startServer() {
     // not a lane request, the lane declining, or any throw — goes to the
     // generated handler.
     const isRead = req.method === "GET" || req.method === "HEAD";
+    // Write lane only for bodies the lane can carry. `content-length` above the
+    // cap skips the lane BEFORE any byte is read, so the full pipeline (100MB
+    // BODY_SIZE_LIMIT) answers it — the lane must never commit and then reject
+    // a body the pipeline could have read intact.
+    const contentLength = Number(req.headers["content-length"] || 0);
     const isWrite =
       WRITE_LANE_ENABLED &&
       (req.method === "POST" || req.method === "PATCH" || req.method === "PUT") &&
-      (req.url || "").startsWith("/api/collections/");
+      (req.url || "").startsWith("/api/collections/") &&
+      (contentLength === 0 || contentLength <= FAST_LANE_MAX_BODY);
 
     if ((isRead || isWrite) && req.headers[FAST_LANE_OPT_OUT_HEADER] !== "off") {
       const input = {
@@ -234,7 +240,29 @@ export async function startServer() {
           res.writeHead(out.status, out.headers);
           res.end(out.body);
         })
-        .catch(() => handler(req, res));
+        .catch((err) => {
+          // Over-limit body rejected mid-read: the lane already drained the
+          // stream, so the pipeline cannot re-read it — answer the documented
+          // 413 instead of handing a half-consumed request to the handler
+          // (which would 500 with an unhandled error). Only chunked/absent
+          // content-length requests can reach this path (declared over-limit
+          // bodies skip the lane above).
+          if (err && err.message === "FAST_LANE_PAYLOAD_TOO_LARGE") {
+            res.writeHead(413, { "content-type": "application/json" });
+            res.end(
+              JSON.stringify({
+                success: false,
+                message: "FAST_LANE_PAYLOAD_TOO_LARGE",
+                error: {
+                  code: "FAST_LANE_PAYLOAD_TOO_LARGE",
+                  message: "Request body exceeds the fast-lane limit",
+                },
+              }),
+            );
+            return;
+          }
+          handler(req, res);
+        });
       return;
     }
 
