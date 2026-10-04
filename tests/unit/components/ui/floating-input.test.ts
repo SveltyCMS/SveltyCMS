@@ -33,11 +33,11 @@ describe("FloatingInput (SSR)", () => {
     expect(body).toContain("text-xs");
   });
 
-  it("positions icon at start-3 with proper padding", () => {
+  it("positions icon at inset-s-3 with proper padding", () => {
     const { body } = render(FloatingInput, {
       props: { icon: "mdi:magnify", label: "Search", value: "" },
     });
-    expect(body).toContain("start-3");
+    expect(body).toContain("inset-s-3");
     expect(body).toContain("ps-9");
     expect(body).toContain("start-9");
     expect(body).toContain('icon="mdi:magnify"');
@@ -48,7 +48,7 @@ describe("FloatingInput (SSR)", () => {
       props: { clearable: true, value: "asd", label: "Search" },
     });
     expect(body).toContain('aria-label="Clear input"');
-    expect(body).toContain("end-2");
+    expect(body).toContain("inset-e-2");
     expect(body).toContain('icon="mdi:close"');
     expect(body).toContain("pe-10");
   });
@@ -60,11 +60,11 @@ describe("FloatingInput (SSR)", () => {
     expect(body).not.toContain('aria-label="Clear input"');
   });
 
-  it("positions security password toggle at end-3", () => {
+  it("positions security password toggle at inset-e-3", () => {
     const { body } = render(FloatingInput, {
       props: { type: "security", label: "Password", value: "secret" },
     });
-    expect(body).toContain("end-3");
+    expect(body).toContain("inset-e-3");
     expect(body).toContain('aria-label="Show password"');
   });
 });
