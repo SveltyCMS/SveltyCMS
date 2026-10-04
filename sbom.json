@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:83d287d6-46d4-4ddc-8923-0c1455c213a8",
+  "serialNumber": "urn:uuid:b311033d-d978-45c4-9154-94841f3e8cc5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-02T13:19:53.032Z",
+    "timestamp": "2026-10-04T18:29:11.595Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -35,26 +35,26 @@
     {
       "type": "library",
       "name": "@asamuzakjp/css-color",
-      "version": "7.1.2",
-      "purl": "pkg:npm/@asamuzakjp/css-color@7.1.2",
+      "version": "7.1.3",
+      "purl": "pkg:npm/@asamuzakjp/css-color@7.1.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-99DHAnXDB5z6EEK+9GMpVI7Mw4oxj97dY5bpOzMnjADQWxI8rN6TvTduuFLUhUMlS7/CfVZ06tcZsus6cltnNw=="
+          "content": "sha512-1t1U8Cm3RBl9vh3RAZhjkPaduzLSvQJRToRrxpGR/eDRW99mOREleuu+mWfiFa795bUzjwht7NgphCKTs2ianQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@asamuzakjp/dom-selector",
-      "version": "9.2.3",
-      "purl": "pkg:npm/@asamuzakjp/dom-selector@9.2.3",
+      "version": "9.2.4",
+      "purl": "pkg:npm/@asamuzakjp/dom-selector@9.2.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-MDKmPBa6CfNN1zAJroTl7Uc+nBbcNtfE/F24iROfZAtcLffEeY3IbHR8XeHH5dJBspMYTpAsjEYmnp3tAmoVxw=="
+          "content": "sha512-YnVzxDxLaqL0t7Q4wfcgHZjg55Wm6y5EaO7Bhu3q9J7wq/8iw3PhsnWiOQhYekx4VexnbkgWpTT6n+QIV7kczw=="
         }
       ]
     },
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1145.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1145.0",
+      "version": "3.1146.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1146.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-MPKAQdx8qCZW1/ChDPILNehtAn/BMP4GNTnaH/xhGCWg3v50ADVq1K2WzxIrFfeANdWUyjwiY0CXDBhclsNWgQ=="
+          "content": "sha512-WY0YCBzxc4muFfY6UbGpA+oib0nGT/Px2aEPGYX7pp1la2OmDLChnK81mu8H7LdYvwGU1pLAsLIa/qgad0Wd7g=="
         }
       ]
     },
@@ -633,26 +633,26 @@
     {
       "type": "library",
       "name": "@csstools/css-calc",
-      "version": "3.4.2",
-      "purl": "pkg:npm/@csstools/css-calc@3.4.2",
+      "version": "3.4.3",
+      "purl": "pkg:npm/@csstools/css-calc@3.4.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-tL6LRF844sHjAKO7jt2w+uHo8Tocqpb9+KPUvIQETpR4RU87IaUzDuOV0QyzuQ37jmzFgwPHLLtLu/PDuH5qgg=="
+          "content": "sha512-iex20d8CHVkyvg6B7UKV7uHnI2Bqo9g+EFfT9E0y+GvTvhZ/DwONJ+9aKb1dlqm0ZiGsL5RXjp0fCoJYnkeDjA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@csstools/css-color-parser",
-      "version": "4.2.5",
-      "purl": "pkg:npm/@csstools/css-color-parser@4.2.5",
+      "version": "4.2.6",
+      "purl": "pkg:npm/@csstools/css-color-parser@4.2.6",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Qqbp5pjbMwoaErP2t5qne5QDVDr3G5243oNW8ev5zfyyoqbzrQKbYDpKP/cuo3xBkzwqZqpP/rChrJhBdyTX7g=="
+          "content": "sha512-iiPQ3iRWwnJkeEn6RIu6SJPr7hYrLz6XZ9s/QZl+2/LI5KQVjpl2fdmDSZKuD4xP6GMmMPgHFFXg6k1Wkz0Trg=="
         }
       ]
     },
@@ -4351,13 +4351,13 @@
     {
       "type": "library",
       "name": "@types/google.maps",
-      "version": "3.66.4",
-      "purl": "pkg:npm/@types/google.maps@3.66.4",
+      "version": "3.66.5",
+      "purl": "pkg:npm/@types/google.maps@3.66.5",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-t01LM0VeIsUOZWno7ABUv4XL82RalnhRGaTzWykPUtQ+hHT39vsIekeU+roqEaibwebpYIjS7dslx51HwG95nw=="
+          "content": "sha512-z7wMLjozUDNC6SYoxvnsh4RvbFQoiqgjHmfcOWKCjKiLklAKV32jvywuBvJRfpThJZn4TonyoeJc/3t9RlVnWQ=="
         }
       ]
     },
@@ -5430,13 +5430,13 @@
     {
       "type": "library",
       "name": "data-urls",
-      "version": "7.0.0",
-      "purl": "pkg:npm/data-urls@7.0.0",
+      "version": "8.0.0",
+      "purl": "pkg:npm/data-urls@8.0.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-23XHcCF+coGYevirZceTVD7NdJOqVn+49IHyxgszm+JIiHLoB2TkmPtsYkNWT1pvRSGkc35L6NHs0yHkN2SumA=="
+          "content": "sha512-JQUCCK+/CAGbGGx618PlFZMXH81Jtj7t73CHv9dd/zVWvxgGT2zLFRjnKb+Ng46GIwcy+f7f88qd4duqllK+WQ=="
         }
       ]
     },
@@ -6379,13 +6379,13 @@
     {
       "type": "library",
       "name": "jsdom",
-      "version": "30.1.1",
-      "purl": "pkg:npm/jsdom@30.1.1",
+      "version": "30.1.2",
+      "purl": "pkg:npm/jsdom@30.1.2",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-FahmoPK5vbPc+jxV1iErMHmAZypCZ942NHF4+qqaWAuvaKKTBZxawnmAtrbGWLU7MtlxfqIP0qw6aSI+aWGtLg=="
+          "content": "sha512-0FFE/jE1rppmVfUrJUgxqXjcwolZYIGtAgj1pTussMhNZxIxi7W/PvfWaMNroGi2B36X1IKHbexpZ9DhkoOPiQ=="
         }
       ]
     },
@@ -6886,13 +6886,13 @@
     {
       "type": "library",
       "name": "maplibre-gl",
-      "version": "6.11.2",
-      "purl": "pkg:npm/maplibre-gl@6.11.2",
+      "version": "6.12.0",
+      "purl": "pkg:npm/maplibre-gl@6.12.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Xh06pxoipjX/Ad1sUPGhiNh9go9naCNGZZ1IJm3sIeqK1kYGuMaMDSTIGDQ2igOLfVyukJU7kvEOA089VO7Z7g=="
+          "content": "sha512-DwgganVi2BhNxOpD7ob3lJC0dQQz4HfJfuQQV3XxCY3XdOzFrMqp9ylMXhRzryRsOnIezdZcklWXIIs/Q8JPjA=="
         }
       ]
     },
@@ -7081,13 +7081,13 @@
     {
       "type": "library",
       "name": "mongoose",
-      "version": "9.10.3",
-      "purl": "pkg:npm/mongoose@9.10.3",
+      "version": "9.10.4",
+      "purl": "pkg:npm/mongoose@9.10.4",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-BQyjLRSJa5DzJ3PP0LHxATG4XX+6ys0J68lFmOlgoXJ+GVkuIsaZXZKxUPYd/t1Tv4qzLfaKkNWaipMIOuy5yw=="
+          "content": "sha512-p1hx2MSD4B+4shFTpRcd/uTwD6DtZeDJ+YxM9ja8/VBDH7vqqLynwGLA6rWa/tD7voOBoGqQR1wM3+/LcUoEfA=="
         }
       ]
     },
@@ -7263,13 +7263,13 @@
     {
       "type": "library",
       "name": "nodemailer",
-      "version": "10.0.13",
-      "purl": "pkg:npm/nodemailer@10.0.13",
+      "version": "10.0.14",
+      "purl": "pkg:npm/nodemailer@10.0.14",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-SzG86OlvcW/NNhUFC6uROMwRTL4n7MswfQqC/T8mhkmnY1YVa23zUEMYi4ijSeXSl9GLz9ZeTJDUatEDuY5FeQ=="
+          "content": "sha512-eJoLFKg55fesSlzUekmfOv/SBXh4KUYT8oiQc2RLP0tfG0rbNMJBK7wgHJwXTJwqyKlSJMz9UzDZ4v+aHEvo8g=="
         }
       ]
     },
@@ -8186,13 +8186,13 @@
     {
       "type": "library",
       "name": "shell-quote",
-      "version": "1.11.0",
-      "purl": "pkg:npm/shell-quote@1.11.0",
+      "version": "1.12.0",
+      "purl": "pkg:npm/shell-quote@1.12.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-JdxDPD0DBTyu08pq0kPC0xSNet/qsU07qT6IsX1AS8oO2ICNRY4ldNa8OAI6PuwAH8tG3lxEhbqmyp4Dw4036g=="
+          "content": "sha512-PcByqNyT/38F2kDNi006HAMRJaULuBzq/FOsw3qdZvX/GA9W/jamDaRskgHjubHiftXK5sIFxLNkvrXUwcof6Q=="
         }
       ]
     },
@@ -8381,13 +8381,13 @@
     {
       "type": "library",
       "name": "stripe",
-      "version": "22.6.2",
-      "purl": "pkg:npm/stripe@22.6.2",
+      "version": "23.0.0",
+      "purl": "pkg:npm/stripe@23.0.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-PwRE2scocvXqDKPiskMa5vRJEAEkq46W69XyUYmAwrNSLr675lQnfqLwnsndAWizwgihOWw/irLmoFRo3ez7ew=="
+          "content": "sha512-MDE2A5ZVVluYURORaZEVghSmnLJc3w6aHAlZSxDQMsOjOb3V0O6ro/CiaeFlJS4N7uIVmsg98ocRsPmUK6YfyA=="
         }
       ]
     },
@@ -8407,13 +8407,13 @@
     {
       "type": "library",
       "name": "svedit",
-      "version": "0.14.0",
-      "purl": "pkg:npm/svedit@0.14.0",
+      "version": "0.15.1",
+      "purl": "pkg:npm/svedit@0.15.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-pY/s8nkkaFRWToWG4l+7EqIYRGK+Fw3rJHsZR6vejRgXZeY8x4YsY4a4/6yvXt96YRJcC/Ga/WJTUvgU4P1DPA=="
+          "content": "sha512-bPEVDg6h9Yr9iG4Pr0L47HFyjDH3TwSZjS51YIeeQmM55JMdQIG9ILtXifurQv+dM/fDZ60odWNA02prChnjKQ=="
         }
       ]
     },
@@ -8654,13 +8654,13 @@
     {
       "type": "library",
       "name": "tr46",
-      "version": "6.0.0",
-      "purl": "pkg:npm/tr46@6.0.0",
+      "version": "7.0.0",
+      "purl": "pkg:npm/tr46@7.0.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw=="
+          "content": "sha512-BcDSDW+SIGWVOns1Zm6Yg91q9AEj7eaID0QDY9oIqJD1A8dscNwMcl9Sms2DeuWCNov1X0/oXanHGYQBSLwZsg=="
         }
       ]
     },
@@ -9070,13 +9070,13 @@
     {
       "type": "library",
       "name": "whatwg-url",
-      "version": "17.1.2",
-      "purl": "pkg:npm/whatwg-url@17.1.2",
+      "version": "17.2.0",
+      "purl": "pkg:npm/whatwg-url@17.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-TEZA+Zqxin7Jjsm2cjRohCmen5awh+hT6Zi3VZdqZlNRk7zvOI/9WpBFg/DWlA56bWnzwm6DuB8NS0EsxQH9uQ=="
+          "content": "sha512-IhLIHNcBrzIixC5XXsbr4DxdjajyA5vQ5RwGZMtrUp+GbtE5Nrsge9QKau7jXrC0aTXLYGV0xiW7Tb4YS2aomw=="
         }
       ]
     },
@@ -9597,19 +9597,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-LOtTn+JgJvX8WfBVJtF08TGrdjuFzGJc4mkP8EdDI8ADbvO7kiexYep1o8dwnt0okb0jYclCDXF13xU7Ge4zSw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "whatwg-url",
-      "version": "16.0.1",
-      "purl": "pkg:npm/whatwg-url@16.0.1",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-1to4zXBxmXHV3IiSSEInrreIlu02vUOvrhxJJH5vcxYTBDAx51cqZiKdyTxlecdKNSjj8EcxGBxNf6Vg+945gw=="
         }
       ]
     },
