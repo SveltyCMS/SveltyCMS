@@ -388,6 +388,25 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.preset}
 						</dd>
+						<dt class="font-medium text-surface-900 dark:text-surface-50">Country:</dt>
+						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
+							{systemSettings.homeCountry || 'Not set'}
+						</dd>
+						<dt class="font-medium text-surface-900 dark:text-surface-50">Currency:</dt>
+						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
+							{systemSettings.currency || 'EUR'}
+							{systemSettings.pricesIncludeTax ? '(prices include tax)' : '(tax added at checkout)'}
+						</dd>
+						<dt class="font-medium text-surface-900 dark:text-surface-50">Shop language:</dt>
+						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
+							{systemSettings.storeLanguage}
+							{#if systemSettings.taxRate}
+								· {systemSettings.taxRate}%
+								{#if systemSettings.reducedRate}
+									/ {systemSettings.reducedRate}%
+								{/if}
+							{/if}
+						</dd>
 						{#if presetCollections.length > 0}
 							<dt
 								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"

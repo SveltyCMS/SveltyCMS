@@ -24,7 +24,7 @@ export interface CommerceStore {
   findMany(
     collection: string,
     filter: Record<string, unknown>,
-    opts?: { limit?: number },
+    opts?: { limit?: number; publicationFilter?: "published" | "draft" | "all" },
   ): Promise<CommerceRow[]>;
   create(collection: string, data: Record<string, unknown>): Promise<CommerceRow>;
   update(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
@@ -69,6 +69,7 @@ export function createCommerceStore(cms: LocalCMS, tenantId: DatabaseId): Commer
     async findMany(collection, filter, opts) {
       const found = await cms.collections.find(collection, {
         ...ctx,
+        ...(opts?.publicationFilter ? { publicationFilter: opts.publicationFilter } : {}),
         filter: withTenant(tenantId, filter),
         limit: opts?.limit ?? 50,
       });

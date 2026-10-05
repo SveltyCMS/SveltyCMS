@@ -43,6 +43,12 @@ export interface SystemSettings {
   mediaFolder?: string;
   timezone?: string;
   passwordMinLength?: number;
+  homeCountry?: string;
+  currency?: string;
+  pricesIncludeTax?: boolean;
+  storeLanguage?: string;
+  taxRate?: string | number | null;
+  reducedRate?: string | number | null;
   cfApiToken?: string;
   cfZoneId?: string;
   cfPurgeMode?: string;
@@ -282,6 +288,8 @@ export async function completeSetup(
   }
 
   let effectiveTenantId: string | null = null;
+  const { legalPageBody, marketFromForm } = await import("./market");
+  const market = marketFromForm(system);
 
   // Seed preset collections once the user has chosen their blueprint (step 2).
   // Step 0 seedDatabase() always runs with preset "blank" — collections are applied here only.
@@ -338,8 +346,31 @@ export async function completeSetup(
 
     if (system.preset === "website") {
       const { seedWebsiteStarterPages } = await import("./seed");
-      await seedWebsiteStarterPages(dbAdapter, { siteName: system.siteName || "SveltyCMS" });
+      await seedWebsiteStarterPages(dbAdapter, {
+        siteName: system.siteName || "SveltyCMS",
+        legalTitle: market.legalTitle,
+        legalSlug: market.legalSlug,
+        legalBody: legalPageBody(system.siteName || "SveltyCMS", market.homeCountry),
+      });
     }
+
+    if (system.preset === "ecommerce") {
+      const { seedEcommerceDefaults } = await import("./seed");
+      await seedEcommerceDefaults(dbAdapter, {
+        tenantId: effectiveTenantId,
+        market: {
+          homeCountry: market.homeCountry,
+          taxRate: market.taxRate,
+          reducedRate: market.reducedRate,
+          label: market.storeLanguage === "de" ? "MwSt" : "VAT",
+        },
+      });
+    }
+  }
+
+  if (dbAdapter) {
+    const { persistInstallMarket } = await import("./seed");
+    await persistInstallMarket(dbAdapter, market, { tenantId: effectiveTenantId });
   }
 
   // Save custom configuration settings to database preferences

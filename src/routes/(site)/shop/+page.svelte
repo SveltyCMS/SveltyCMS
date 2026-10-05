@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import CommerceLegalBar from '@components/site/commerce-legal-bar.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
 	let { data } = $props();
@@ -42,19 +43,29 @@
 						<ul class="mt-2 flex flex-wrap gap-1">
 							{#each product.badges as badge (badge)}
 								<li
-									class="rounded-full bg-surface-500/10 px-2 py-0.5 text-[10px] font-medium dark:bg-surface-800"
+									class="rounded-full bg-surface-500/10 px-2 py-0.5 text-xs font-medium dark:bg-surface-900/20"
 								>
 									{badge}
 								</li>
 							{/each}
 						</ul>
 					{/if}
-					<p class="mt-2 tabular-nums">{product.price.toFixed(2)}</p>
+					<p class="mt-2">
+						<span class="tabular-nums">{product.price.toFixed(2)}</span>
+						{#if data.currency}<span class="text-sm">{data.currency}</span>{/if}
+					</p>
+					{#if data.vatLabel}<p class="text-xs text-surface-500">{data.vatLabel}</p>{/if}
+					{#if product.priorPriceLabel}
+						<p class="text-xs text-surface-500">{product.priorPriceLabel}</p>
+					{/if}
 					<Button class="mt-3" variant="primary" size="sm" onclick={() => addToCart(product.id)}
 						>Add to cart</Button
 					>
 				</li>
 			{/each}
 		</ul>
+	{/if}
+	{#if data.labels}
+		<CommerceLegalBar labels={data.labels} />
 	{/if}
 </section>

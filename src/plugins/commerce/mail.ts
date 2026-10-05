@@ -72,6 +72,22 @@ export async function sendOrderShipped(payload: OrderMailPayload): Promise<void>
   await safeSend("order-shipped", payload.email, `Order ${payload.orderNumber} shipped`, payload);
 }
 
+export async function sendWithdrawalReceived(
+  tenantId: string,
+  payload: OrderMailPayload & { withdrawalAt: string },
+): Promise<void> {
+  await safeSend(
+    "withdrawal-received",
+    payload.email,
+    `Withdrawal ${payload.orderNumber} received`,
+    payload,
+  );
+  const merchant = await merchantInbox(tenantId);
+  if (merchant) {
+    await safeSend("withdrawal-received", merchant, `Withdrawal ${payload.orderNumber}`, payload);
+  }
+}
+
 export async function sendOrderRefunded(payload: OrderMailPayload): Promise<void> {
   await safeSend(
     "order-refunded",

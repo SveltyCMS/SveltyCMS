@@ -25,12 +25,30 @@
 		<h1 class="text-xl font-bold">Receipt</h1>
 		<p>{order.orderNumber}</p>
 		<p class="capitalize">{order.status}</p>
+		{#if order.customerName}<p class="mt-2">{order.customerName}</p>{/if}
+		{#if order.shippingAddress}<p class="whitespace-pre-wrap text-sm">
+				{order.shippingAddress}
+			</p>{/if}
+		<p class="mt-2 text-sm">Invoice {order.invoiceNumber || '—'}</p>
 		<ul class="mt-4 text-sm">
-			{#each (order.items as Array<{ title: string; qty: number }>) || [] as line (line.title)}
+			{#each (order.items as Array<{ title: string; qty: number }>) || [] as line, index (line.title + index)}
 				<li>{line.qty} × {line.title}</li>
 			{/each}
 		</ul>
-		<p class="mt-4 font-semibold tabular-nums">Total {Number(order.total || 0).toFixed(2)}</p>
+		<p class="mt-4 tabular-nums">
+			Net {Number(order.netTotal ?? 0).toFixed(2)}
+			{order.currency || ''}
+		</p>
+		<p class="tabular-nums">
+			VAT {order.taxRate ? `${order.taxRate}%` : ''}
+			{Number(order.taxTotal || 0).toFixed(2)}
+			{order.currency || ''}
+		</p>
+		<p class="font-semibold tabular-nums">
+			Total {Number(order.total || 0).toFixed(2)}
+			{order.currency || ''}
+		</p>
+		{#if order.vatNote}<p class="mt-2 text-sm">{order.vatNote}</p>{/if}
 		<button type="button" class="mt-6 text-sm underline print:hidden" onclick={() => window.print()}
 			>Print / save as PDF</button
 		>

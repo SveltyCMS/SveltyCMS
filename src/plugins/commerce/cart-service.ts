@@ -14,6 +14,7 @@
 
 import { nowISODateString } from "@utils/date";
 import { raise } from "@utils/error-handling";
+import { isPublishedStatus } from "@utils/security/publication-policy";
 import { add, money } from "@src/services/commerce/price";
 import {
   recordWriteAccess,
@@ -21,6 +22,7 @@ import {
 } from "@src/services/intelligence/behavioral-learner";
 import type { CommerceRow, CommerceStore } from "./store";
 import { displayText, majorToPrice, priceToMajor } from "./money";
+import { normalizeTaxClass, type TaxClass } from "./vat";
 
 export const CART_MAX_ITEMS = 50;
 const CART_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -34,6 +36,7 @@ export interface CartLine {
   unitAmount: number;
   currency: string;
   downloadable?: boolean;
+  taxClass?: TaxClass;
 }
 
 export interface CartView {
@@ -65,6 +68,7 @@ function asLines(raw: unknown): CartLine[] {
       unitAmount,
       currency: typeof rec.currency === "string" ? rec.currency : "",
       downloadable: Boolean(rec.downloadable),
+      taxClass: normalizeTaxClass(rec.taxClass),
     });
   }
   return lines;
@@ -222,6 +226,12 @@ export async function addCartItem(
 
   const product = await store.findOne("products", { _id: input.productId });
   if (!product) raise(404, "Product not found.", "PRODUCT_NOT_FOUND");
+  // Missing status stays purchasable so catalogs created before the status column still sell.
+  // An explicit draft or unpublish must not reach the cart.
+  const status = product.status;
+  if (typeof status === "string" && status.trim() !== "" && !isPublishedStatus(product)) {
+    raise(404, "Product not found.", "PRODUCT_NOT_FOUND");
+  }
 
   const cart = await getOrCreateCart(store, input);
   const lines = asLines((await store.findOne("carts", { _id: cart.id }))?.items);
@@ -268,6 +278,7 @@ function explodeBundle(
       qty: qty * (Number(row.qty) || 1),
       unitAmount: unit.amount,
       currency,
+      taxClass: normalizeTaxClass(row.taxClass ?? product.taxClass),
     };
   });
 }
@@ -299,6 +310,7 @@ function resolveProductLine(
     unitAmount: unit.amount,
     currency,
     downloadable: Boolean(source.downloadable ?? product.downloadable),
+    taxClass: normalizeTaxClass(source.taxClass ?? product.taxClass),
   };
 }
 

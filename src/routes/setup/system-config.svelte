@@ -94,10 +94,11 @@ Features:
 	import { getLanguageName } from '@utils/language-utils';
 	import { getTextDirection } from '@utils/string';
 	import {
-		BUNDLED_SYSTEM_LOCALES,
 		isCompiledSystemLocale,
+		isIso6391LanguageCode,
 		languageBase
 	} from '@utils/system-locale';
+	import { countryOptions, suggestMarket } from './market';
 	import { logger } from '@utils/logger';
 	import { safeParse } from 'valibot';
 	// Components
@@ -182,9 +183,22 @@ Features:
 		showSystemPicker = false;
 		systemPickerSearch = '';
 	}
+	const countryChoices = countryOptions();
+
+	function applyCountry(code: string) {
+		const suggestion = suggestMarket(code, systemSettings.defaultContentLanguage);
+		systemSettings.homeCountry = code;
+		systemSettings.currency = suggestion.currency;
+		systemSettings.pricesIncludeTax = suggestion.pricesIncludeTax;
+		systemSettings.storeLanguage = suggestion.storeLanguage;
+		systemSettings.taxRate = suggestion.taxRate == null ? '' : String(suggestion.taxRate);
+		systemSettings.reducedRate =
+			suggestion.reducedRate == null ? '' : String(suggestion.reducedRate);
+	}
+
 	function addSystemLanguage(code: string) {
 		const c = languageBase(code);
-		if (!isCompiledSystemLocale(c)) {
+		if (!isIso6391LanguageCode(c)) {
 			return;
 		}
 		if (!systemSettings.systemLanguages.includes(c)) {
@@ -313,14 +327,19 @@ Features:
 	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
 	$effect(() => {
 		const systemSearch = systemPickerSearch.toLowerCase();
-		systemAvailable = iso6391.filter(
-			(lang) =>
-				isCompiledSystemLocale(lang.code) &&
-				!systemSettings.systemLanguages.includes(lang.code) &&
-				(lang.code.toLowerCase().includes(systemSearch) ||
-					lang.name.toLowerCase().includes(systemSearch) ||
-					lang.native.toLowerCase().includes(systemSearch))
-		);
+		systemAvailable = iso6391
+			.filter(
+				(lang) =>
+					!systemSettings.systemLanguages.includes(lang.code) &&
+					(lang.code.toLowerCase().includes(systemSearch) ||
+						lang.name.toLowerCase().includes(systemSearch) ||
+						lang.native.toLowerCase().includes(systemSearch))
+			)
+			.sort(
+				(a, b) =>
+					Number(isCompiledSystemLocale(b.code)) - Number(isCompiledSystemLocale(a.code)) ||
+					a.name.localeCompare(b.name)
+			);
 		const search = contentPickerSearch.toLowerCase();
 		contentAvailable = iso6391.filter(
 			(lang) =>
@@ -404,6 +423,63 @@ Features:
 		<!-- Project Blueprint -->
 		<section class="mb-2">
 			<PresetSelector {presets} bind:selected={systemSettings.preset} />
+		</section>
+
+		<section class="space-y-4" aria-labelledby="market-heading">
+			<div>
+				<h2 id="market-heading" class="text-sm font-medium text-surface-900 dark:text-surface-50">
+					Country and prices
+				</h2>
+				<p class="mt-1 text-xs leading-relaxed text-surface-500 dark:text-white/50">
+					Pick a country to fill currency, shop language, and a suggested tax rate. Edit every
+					value. Leave the country empty and no tax row is created. Suggested rates were checked on
+					5 October 2026. They are a starting point, not a tax ruling.
+				</p>
+			</div>
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+				<Select
+					id="home-country"
+					label="Country"
+					bind:value={systemSettings.homeCountry}
+					options={countryChoices}
+					onchange={applyCountry}
+				/>
+				<Input
+					id="market-currency"
+					label="Currency"
+					bind:value={systemSettings.currency}
+					maxlength={3}
+					autocomplete="off"
+				/>
+				<Select
+					id="store-language"
+					label="Shop language"
+					bind:value={systemSettings.storeLanguage}
+					options={[
+						{ value: 'en', label: 'English' },
+						{ value: 'de', label: 'German' }
+					]}
+				/>
+				<Checkbox
+					bind:checked={systemSettings.pricesIncludeTax}
+					label="Prices include tax"
+					description="Catalog prices are the amount the buyer pays. Tax is extracted, not added."
+				/>
+				<Input
+					id="tax-rate"
+					label="Standard tax %"
+					bind:value={systemSettings.taxRate}
+					inputmode="decimal"
+					autocomplete="off"
+				/>
+				<Input
+					id="reduced-rate"
+					label="Reduced tax %"
+					bind:value={systemSettings.reducedRate}
+					inputmode="decimal"
+					autocomplete="off"
+				/>
+			</div>
 		</section>
 
 		<!-- Basic Site Settings -->
@@ -677,7 +753,7 @@ Features:
 									{/if}
 								</Badge>
 							{/each}
-							{#if (BUNDLED_SYSTEM_LOCALES as readonly string[]).filter((c) => !systemSettings.systemLanguages.includes(c)).length > 0}
+							{#if iso6391.some((lang) => !systemSettings.systemLanguages.includes(lang.code))}
 								<Button
 									variant="surface"
 									type="button"

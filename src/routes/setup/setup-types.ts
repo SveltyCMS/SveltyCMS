@@ -32,6 +32,12 @@ export interface SystemSettings {
   mediaFolder?: string;
   timezone?: string;
   passwordMinLength?: number;
+  homeCountry?: string;
+  currency?: string;
+  pricesIncludeTax?: boolean;
+  storeLanguage?: "de" | "en" | string;
+  taxRate?: string | number | null;
+  reducedRate?: string | number | null;
   cfApiToken?: string;
   cfZoneId?: string;
   cfPurgeMode?: string;

@@ -352,6 +352,28 @@ export const systemSettingsSchema = object({
   systemLanguages: optional(array(languageCodeSchema), ["en"]),
   contentLanguages: optional(array(languageCodeSchema), ["en"]),
   timezone: optional(string(), "UTC"),
+  homeCountry: optional(
+    pipe(
+      string(),
+      trim(),
+      transform((value) => value.toUpperCase()),
+      regex(/^$|^[A-Z]{2}$/, "Country must be a two-letter code"),
+    ),
+    "",
+  ),
+  currency: optional(
+    pipe(
+      string(),
+      trim(),
+      transform((value) => value.toUpperCase()),
+      regex(/^$|^[A-Z]{3}$/, "Currency must be a three-letter code"),
+    ),
+    "",
+  ),
+  pricesIncludeTax: optional(boolean(), true),
+  storeLanguage: optional(picklist(["de", "en", ""]), "en"),
+  taxRate: optional(string(), ""),
+  reducedRate: optional(string(), ""),
   mediaStorageType: optional(picklist(["local", "s3", "r2", "cloudinary"]), "local"),
   mediaFolder: optional(string(), "./mediaFolder"),
   demoMode: optional(boolean(), false),

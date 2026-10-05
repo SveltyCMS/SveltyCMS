@@ -27,7 +27,7 @@ function help() {
     npx create-sveltycms <project-name> [options]
 
   Options:
-    --template <name>   Starter template: blog, agency, saas, corporate, ecommerce (default: blog)
+    --template <name>   Blueprint: website, blog, agency, saas, corporate, ecommerce, blank (default: website)
     --db <type>         Database: sqlite, postgresql, mariadb, mongodb (default: sqlite)
     --help              Show this help
 
@@ -44,7 +44,7 @@ if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
 
 const projectName = args[0];
 const templateIndex = args.indexOf("--template");
-const template = templateIndex !== -1 ? args[templateIndex + 1] : "blog";
+const template = templateIndex !== -1 ? args[templateIndex + 1] : "website";
 const dbIndex = args.indexOf("--db");
 const dbType = dbIndex !== -1 ? args[dbIndex + 1] : "sqlite";
 
@@ -85,18 +85,27 @@ async function main() {
     });
   }
 
-  // ── Step 3: Remove git history, start fresh ──
+  // ── Step 3: Remember the blueprint and database for the wizard ──
+  const hintsDir = path.join(projectPath, "config");
+  fs.mkdirSync(hintsDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(hintsDir, "setup-hints.json"),
+    `${JSON.stringify({ template, db: dbType }, null, 2)}\n`,
+    "utf8",
+  );
+
+  // ── Step 4: Remove git history, start fresh ──
   const gitDir = path.join(projectPath, ".git");
   if (fs.existsSync(gitDir)) {
     fs.rmSync(gitDir, { recursive: true, force: true });
   }
 
-  // ── Step 4: Install dependencies ──
+  // ── Step 5: Install dependencies ──
   console.log("\n📦 Installing dependencies...");
   const installer = process.platform === "win32" ? "npm install" : "bun install";
   execSync(installer, { cwd: projectPath, stdio: "inherit" });
 
-  // ── Step 5: Initialize git ──
+  // ── Step 6: Initialize git ──
   console.log("\n📝 Initializing git repository...");
   execSync("git init", { cwd: projectPath, stdio: "pipe" });
   execSync("git add -A", { cwd: projectPath, stdio: "pipe" });
@@ -105,7 +114,7 @@ async function main() {
     stdio: "pipe",
   });
 
-  // ── Step 6: Print next steps ──
+  // ── Step 7: Print next steps ──
   console.log(`
 ✅ SveltyCMS project created at: ${projectPath}
 
@@ -119,9 +128,9 @@ The setup wizard will guide you through:
   • Admin account creation
   • Collection template selection (${template})
   • Security hardening — auto-generates secure keys (JWT, encryption, rate limiting)
-  • Password policy — enforces PASSWORD_MIN_LENGTH: 12 by default
+  • Password — at least 8 characters, with upper case, lower case, a number, and a symbol
 
-Templates available: blog, agency, saas, corporate, ecommerce
+Templates available: website, blog, agency, saas, corporate, ecommerce, blank
 
 📚 Docs:    https://docs.sveltycms.com
 💬 Discord: https://discord.gg/qKQRB6mP

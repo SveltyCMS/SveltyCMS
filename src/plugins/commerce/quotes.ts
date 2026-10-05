@@ -17,6 +17,7 @@ import { cartSubtotalCents } from "./cart-service";
 import { majorToPrice, priceToMajor } from "./money";
 import type { CommerceStore } from "./store";
 import { quoteLiveShipping, quoteLiveTax } from "./fulfillment";
+import { normalizeTaxClass, taxableGroups, vatFromGross } from "./vat";
 
 export interface QuoteInput {
   country?: string;
@@ -33,7 +34,7 @@ export async function quoteCart(
   store: CommerceStore,
   cart: CartView,
   input: QuoteInput,
-  opts?: { allowGiftCards?: boolean },
+  opts?: { allowGiftCards?: boolean; pricesIncludeTax?: boolean; reverseCharge?: boolean },
 ): Promise<PriceBreakdown> {
   const currency = cart.currency;
   const subtotal = money(cartSubtotalCents(cart), currency);
@@ -58,10 +59,31 @@ export async function quoteCart(
       (await shippingAdjustment(store, cart, input.country, subtotal)));
   if (shipping) adjustments.push(shipping);
 
-  const tax =
-    (await quoteLiveTax(liveCtx, shipping)) ??
-    (await taxAdjustment(store, input.country, input.state, subtotal, shipping));
-  if (tax) adjustments.push(tax);
+  const pricesIncludeTax = opts?.pricesIncludeTax !== false;
+  const liveTax = await quoteLiveTax(liveCtx, shipping);
+  let taxKnown = false;
+  if (opts?.reverseCharge) {
+    adjustments.push({
+      type: "tax",
+      label: "Reverse charge",
+      weight: 30,
+      amount: money(0, currency),
+      included: true,
+      ratePercent: 0,
+    });
+    taxKnown = true;
+  } else if (liveTax) {
+    adjustments.push(liveTax);
+    taxKnown = true;
+  } else if (pricesIncludeTax) {
+    const extracted = await includedVatAdjustments(store, cart, input, shipping, adjustments);
+    adjustments.push(...extracted.adjustments);
+    taxKnown = extracted.taxKnown;
+  } else {
+    const tax = await taxAdjustment(store, input.country, input.state, subtotal, shipping);
+    if (tax) adjustments.push(tax);
+    taxKnown = Boolean(tax) || !input.country;
+  }
 
   if (input.giftCardCode) {
     if (!opts?.allowGiftCards) {
@@ -70,7 +92,59 @@ export async function quoteCart(
     adjustments.push(await giftCardAdjustment(store, input.giftCardCode, subtotal));
   }
 
-  return computeTotals(subtotal, adjustments);
+  return { ...computeTotals(subtotal, adjustments), taxKnown, pricesIncludeTax };
+}
+
+async function includedVatAdjustments(
+  store: CommerceStore,
+  cart: CartView,
+  input: QuoteInput,
+  shipping: Adjustment | null,
+  current: Adjustment[],
+): Promise<{ adjustments: Adjustment[]; taxKnown: boolean }> {
+  if (!input.country) return { adjustments: [], taxKnown: false };
+  const rates = await store.findMany(
+    "tax_rates",
+    { country: input.country.toUpperCase() },
+    { limit: 50 },
+  );
+  const rateRow =
+    rates.find(
+      (row) => String(row.state || "").toUpperCase() === String(input.state || "").toUpperCase(),
+    ) ||
+    rates.find((row) => !row.state) ||
+    null;
+  if (!rateRow) return { adjustments: [], taxKnown: false };
+
+  const standard = Number(rateRow.rate || 0);
+  const reducedRaw = Number(rateRow.reducedRate);
+  const reduced = Number.isFinite(reducedRaw) ? reducedRaw : null;
+  const discountCents = current
+    .filter((row) => row.type === "promotion" && row.amount.amount < 0)
+    .reduce((sum, row) => sum + -row.amount.amount, 0);
+  const groups = taxableGroups({
+    lines: cart.items.map((line) => ({
+      gross: line.unitAmount * line.qty,
+      taxClass: normalizeTaxClass(line.taxClass),
+    })),
+    discountCents,
+    shippingGross: shipping?.amount.amount ?? 0,
+    shippingTaxable: Boolean(rateRow.shippingTaxable),
+    standardRate: standard,
+    reducedRate: reduced,
+  });
+  const adjustments: Adjustment[] = groups.map((group) => {
+    const split = vatFromGross(group.gross, group.rate);
+    return {
+      type: "tax" as const,
+      label: group.rate > 0 ? `VAT ${group.rate}%` : "VAT 0%",
+      weight: 30,
+      amount: money(split.vat, cart.currency),
+      included: true,
+      ratePercent: group.rate,
+    };
+  });
+  return { adjustments, taxKnown: true };
 }
 
 async function couponAdjustment(
@@ -203,19 +277,34 @@ export function breakdownToMajors(breakdown: PriceBreakdown): {
   subtotal: number;
   shipping: number;
   tax: number;
+  net: number;
   discount: number;
   grandTotal: number;
   currency: string;
+  taxKnown: boolean;
+  pricesIncludeTax: boolean;
+  vatLines: Array<{ rate: number; vat: number }>;
 } {
   const currency = breakdown.grandTotal.currency;
   const sumType = (type: Adjustment["type"]) =>
     breakdown.adjustments.filter((a) => a.type === type).reduce((n, a) => n + a.amount.amount, 0);
+  const taxCents = sumType("tax");
+  const vatLines = breakdown.adjustments
+    .filter((row) => row.type === "tax")
+    .map((row) => ({
+      rate: row.ratePercent ?? 0,
+      vat: priceToMajor(row.amount),
+    }));
   return {
     subtotal: priceToMajor(breakdown.subtotal),
     shipping: priceToMajor(money(sumType("shipping"), currency)),
-    tax: priceToMajor(money(sumType("tax"), currency)),
+    tax: priceToMajor(money(taxCents, currency)),
+    net: priceToMajor(money(breakdown.grandTotal.amount - taxCents, currency)),
     discount: priceToMajor(money(sumType("promotion"), currency)),
     grandTotal: priceToMajor(breakdown.grandTotal),
     currency,
+    taxKnown: breakdown.taxKnown !== false,
+    pricesIncludeTax: breakdown.pricesIncludeTax !== false,
+    vatLines,
   };
 }

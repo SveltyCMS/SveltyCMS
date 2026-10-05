@@ -26,7 +26,9 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/core/settings-service";
 import { dateToISODateString } from "@utils/date";
+import { rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import type { InstallMarket } from "./market";
 import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
 import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
@@ -901,65 +903,114 @@ export async function seedCollectionsForSetup(
   }
 }
 
+function seedRowId(row: unknown): string {
+  if (!row || typeof row !== "object" || !("_id" in row)) return "";
+  const id = (row as { _id?: unknown })._id;
+  return id == null ? "" : String(id);
+}
+
 /**
- * Seeds a published homepage for the Website Starter preset (Svedit document in `content`).
+ * Seeds the Website Starter pages: homepage, a country legal page, and privacy.
+ * An existing homepage is refreshed. Legal pages are inserted once and then left alone.
  */
 export async function seedWebsiteStarterPages(
   dbAdapter: DatabaseAdapter,
-  options: { siteName?: string; tenantId?: string | null } = {},
+  options: {
+    siteName?: string;
+    tenantId?: string | null;
+    legalTitle?: string;
+    legalSlug?: string;
+    legalBody?: string;
+  } = {},
 ): Promise<void> {
   const { siteName = "SveltyCMS", tenantId = null } = options;
+  const legalTitle = options.legalTitle?.trim() || "Impressum";
+  const legalSlug = options.legalSlug?.trim() || "impressum";
+  const legalBody =
+    options.legalBody?.trim() ||
+    `<p>Replace this page with the name, address, and contact details of ${siteName}.</p><p>Ersetzen Sie diese Seite durch Name, Anschrift und Kontakt des Betreibers.</p>`;
 
   if (!dbAdapter?.crud) {
-    logger.warn("[Website Starter] CRUD unavailable — skipping homepage seed");
+    logger.warn("[Website Starter] CRUD unavailable — skipping page seed");
     return;
   }
 
   try {
-    const existing = await dbAdapter.crud.findMany(
-      "pages",
-      { slug: "home", ...(tenantId && { tenantId: tenantId as DatabaseId }) } as Record<
-        string,
-        unknown
-      >,
-      { tenantId: tenantId as DatabaseId, ...withSystemScope("seed"), limit: 1 },
-    );
-
+    const scope = {
+      tenantId: tenantId as DatabaseId,
+      ...withSystemScope("seed"),
+    };
+    const tenantFields = tenantId ? { tenantId: tenantId as DatabaseId } : {};
     const { createDefaultHomeDocument, serializeSveditContent } =
       await import("@src/services/site/svedit/default-home-document");
-    const document = createDefaultHomeDocument(siteName);
 
-    const homepage = {
-      title: "Home",
-      slug: "home",
-      pageType: "static",
-      template: "homepage",
-      heroHeading: `Welcome to ${siteName}`,
-      heroSubheading:
-        "Design your frontpage visually with SvelteKit and Svedit — edit blocks directly on the live site.",
-      ctaText: "Open CMS",
-      ctaHref: "/login",
-      content: serializeSveditContent(document),
-      status: "publish",
-      ...(tenantId && { tenantId: tenantId as DatabaseId }),
-    };
+    const pages: Array<Record<string, unknown>> = [
+      {
+        title: "Home",
+        slug: "home",
+        pageType: "static",
+        template: "homepage",
+        heroHeading: `Welcome to ${siteName}`,
+        heroSubheading:
+          "Design your frontpage visually with SvelteKit and Svedit — edit blocks directly on the live site.",
+        ctaText: "Open CMS",
+        ctaHref: "/login",
+        content: serializeSveditContent(createDefaultHomeDocument(siteName)),
+        status: "publish",
+        ...tenantFields,
+      },
+      {
+        title: legalTitle,
+        slug: legalSlug,
+        pageType: "static",
+        template: "default",
+        body: legalBody,
+        status: "publish",
+        ...tenantFields,
+      },
+      {
+        title: "Privacy",
+        slug: "privacy",
+        pageType: "static",
+        template: "default",
+        body: `<p>Describe which personal data ${siteName} processes, why, and how to reach the operator.</p><p>Beschreiben Sie, welche personenbezogenen Daten verarbeitet werden und zu welchem Zweck.</p>`,
+        status: "publish",
+        ...tenantFields,
+      },
+    ];
 
-    if (Array.isArray(existing) && existing.length > 0) {
-      const existingId = (existing[0] as any)._id;
-      if (existingId) {
-        await dbAdapter.crud.update("pages", existingId, homepage, {
-          tenantId: tenantId as DatabaseId,
-          ...withSystemScope("seed"),
-        });
-        logger.debug("✅ Updated Website Starter homepage (slug: home)");
+    const missing: Array<Record<string, unknown>> = [];
+    let changed = false;
+    for (const page of pages) {
+      const found = await dbAdapter.crud.findMany(
+        "pages",
+        { slug: page.slug, ...(tenantId && { tenantId: tenantId as DatabaseId }) } as Record<
+          string,
+          unknown
+        >,
+        { ...scope, limit: 1 },
+      );
+      const rows = listedSeedRows(found);
+      if (rows === null) continue;
+      if (rows.length > 0) {
+        if (page.slug === "home" && dbAdapter.crud.update) {
+          const id = seedRowId(rows[0]);
+          if (id) {
+            await dbAdapter.crud.update("pages", id, page, scope);
+            changed = true;
+          }
+        }
+        continue;
       }
-    } else {
-      await dbAdapter.crud.insertMany("pages", [homepage], {
-        tenantId: tenantId as DatabaseId,
-        ...withSystemScope("seed"),
-      });
-      logger.debug("✅ Seeded Website Starter homepage (slug: home)");
+      missing.push(page);
     }
+
+    if (missing.length > 0) {
+      await dbAdapter.crud.insertMany("pages", missing, scope);
+      changed = true;
+    }
+
+    if (!changed) return;
 
     try {
       const { evictRequestCache } =
@@ -975,9 +1026,185 @@ export async function seedWebsiteStarterPages(
         "collection_pages",
         (tenantId ?? undefined) as string | undefined,
       );
-    } catch {}
+    } catch (err) {
+      rethrow(err);
+      logger.debug("[Website Starter] Cache refresh after page seed failed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   } catch (error) {
-    logger.error("[Website Starter] Failed to seed homepage:", error);
+    rethrow(error);
+    logger.error("[Website Starter] Failed to seed pages:", error);
+  }
+}
+
+/** `findMany` is a `{ success, data }` envelope in adapters and a bare array in unit mocks. */
+function listedSeedRows(result: unknown): unknown[] | null {
+  if (Array.isArray(result)) return result;
+  if (result && typeof result === "object" && "success" in result) {
+    const envelope = result as { success?: boolean; data?: unknown };
+    if (envelope.success === false) return null;
+    return Array.isArray(envelope.data) ? envelope.data : [];
+  }
+  return [];
+}
+
+export interface EcommerceMarketSeed {
+  homeCountry?: string;
+  taxRate?: number | null;
+  reducedRate?: number | null;
+  label?: string;
+}
+
+function ecommerceTaxRow(
+  market: EcommerceMarketSeed | undefined,
+  tenantFields: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (!market) {
+    return {
+      country: "DE",
+      rate: 19,
+      reducedRate: 7,
+      label: "VAT",
+      shippingTaxable: true,
+      status: "publish",
+      ...tenantFields,
+    };
+  }
+  const country = String(market.homeCountry || "")
+    .trim()
+    .toUpperCase();
+  if (!/^[A-Z]{2}$/.test(country) || market.taxRate == null || !Number.isFinite(market.taxRate)) {
+    return null;
+  }
+  const row: Record<string, unknown> = {
+    country,
+    rate: market.taxRate,
+    label: market.label?.trim() || "VAT",
+    shippingTaxable: true,
+    status: "publish",
+    ...tenantFields,
+  };
+  if (market.reducedRate != null && Number.isFinite(market.reducedRate)) {
+    row.reducedRate = market.reducedRate;
+  }
+  return row;
+}
+
+/**
+ * Stores the wizard market on system preferences and on the commerce plugin row.
+ * The plugin stays disabled until the operator turns it on. A later enable keeps these settings.
+ */
+export async function persistInstallMarket(
+  dbAdapter: DatabaseAdapter,
+  market: InstallMarket,
+  options: { tenantId?: string | null } = {},
+): Promise<void> {
+  const tenantId = options.tenantId || "global";
+  const scope = {
+    tenantId: tenantId as DatabaseId,
+    ...withSystemScope("seed"),
+  };
+  try {
+    const prefs = dbAdapter.system?.preferences;
+    if (prefs?.set) {
+      const pref = { scope: "system" as const, category: "public" as const };
+      await prefs.set("HOME_COUNTRY", market.homeCountry, pref);
+      await prefs.set("CURRENCY", market.currency, pref);
+      await prefs.set("PRICES_INCLUDE_TAX", market.pricesIncludeTax, pref);
+      await prefs.set("STORE_LANGUAGE", market.storeLanguage, pref);
+    }
+    if (!dbAdapter.crud?.findMany || !dbAdapter.crud.insert) return;
+    const found = await dbAdapter.crud.findMany(
+      "pluginStates",
+      { pluginId: "commerce", tenantId } as Record<string, unknown>,
+      { ...scope, limit: 1 },
+    );
+    const rows = listedSeedRows(found);
+    if (rows === null) return;
+    const settings = {
+      currency: market.currency,
+      storeLanguage: market.storeLanguage,
+      pricesIncludeTax: market.pricesIncludeTax,
+      homeCountry: market.homeCountry,
+    };
+    const existingId = rows.length > 0 ? seedRowId(rows[0]) : "";
+    if (existingId && dbAdapter.crud.update) {
+      await dbAdapter.crud.update("pluginStates", existingId, { settings }, scope);
+      return;
+    }
+    if (rows.length === 0) {
+      await dbAdapter.crud.insert(
+        "pluginStates",
+        { pluginId: "commerce", tenantId, enabled: false, settings },
+        scope,
+      );
+    }
+  } catch (error) {
+    rethrow(error);
+    logger.warn("[Setup] Could not store the install market:", error);
+  }
+}
+
+/**
+ * Seeds one worldwide shipping zone and, when a standard rate is known, one tax row.
+ * With no market argument the tax row stays the Germany 19% / 7% seed.
+ * A market with a blank country or a blank standard rate seeds shipping only.
+ * Skips a collection that already has any row, and skips a collection the adapter cannot read.
+ * A failed seed is logged and does not abort setup.
+ */
+export async function seedEcommerceDefaults(
+  dbAdapter: DatabaseAdapter,
+  options: { tenantId?: string | null; market?: EcommerceMarketSeed } = {},
+): Promise<void> {
+  const { tenantId = null } = options;
+  if (!dbAdapter?.crud) {
+    logger.warn("[Ecommerce] CRUD unavailable — skipping tax and shipping seed");
+    return;
+  }
+
+  const scope = {
+    tenantId: tenantId as DatabaseId,
+    ...withSystemScope("seed"),
+  };
+  const tenantFields = tenantId ? { tenantId: tenantId as DatabaseId } : {};
+  const filter = tenantId ? { tenantId: tenantId as DatabaseId } : {};
+
+  const defaults: Array<{ collection: string; row: Record<string, unknown> }> = [
+    {
+      collection: "shipping_zones",
+      row: {
+        name: "Worldwide",
+        countries: "",
+        method: "flat_rate",
+        rate: 5,
+        status: "publish",
+        ...tenantFields,
+      },
+    },
+  ];
+  const taxRow = ecommerceTaxRow(options.market, tenantFields);
+  if (taxRow) defaults.push({ collection: "tax_rates", row: taxRow });
+
+  try {
+    for (const { collection, row } of defaults) {
+      const existing = await dbAdapter.crud.findMany(
+        collection,
+        filter as Record<string, unknown>,
+        { ...scope, limit: 1 },
+      );
+      const rows = listedSeedRows(existing);
+      if (rows === null) {
+        logger.warn(`[Ecommerce] Could not read ${collection}; skipping default row`);
+        continue;
+      }
+      if (rows.length > 0) continue;
+      await dbAdapter.crud.insertMany(collection, [row], scope);
+      logger.debug(`[Ecommerce] Seeded default ${collection} row`);
+    }
+  } catch (error) {
+    // Setup continues when the rate tables are missing; the operator can add them in the admin.
+    logger.error("[Ecommerce] Failed to seed tax and shipping defaults:", error);
   }
 }
 

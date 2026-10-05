@@ -73,6 +73,12 @@ export interface SystemSettings {
   siteName: string;
   systemLanguages: string[];
   timezone: string;
+  homeCountry: string;
+  currency: string;
+  pricesIncludeTax: boolean;
+  storeLanguage: "de" | "en";
+  taxRate: string;
+  reducedRate: string;
   useRedis: boolean;
   // Cloudflare CDN
   cfApiToken: string;
@@ -143,6 +149,12 @@ const initialSystemSettings: SystemSettings = {
   mediaStorageType: "local",
   mediaFolder: "./mediaFolder",
   preset: "website",
+  homeCountry: "DE",
+  currency: "EUR",
+  pricesIncludeTax: true,
+  storeLanguage: "de",
+  taxRate: "19",
+  reducedRate: "7",
   passwordMinLength: 8,
   timezone: "UTC",
   useRedis: false,

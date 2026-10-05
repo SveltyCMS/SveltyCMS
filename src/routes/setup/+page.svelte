@@ -66,6 +66,8 @@
 	import Stepper from '@components/ui/stepper.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
 	import { logger } from '@src/utils/logger.ts';
+	import { dbConfigForHint, isPresetId } from './market';
+	import { readSetupHints } from './setup.remote';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data: _data } = $props();
@@ -95,7 +97,7 @@
 	});
 
 	// --- 4. LIFECYCLE HOOKS ---
-	onMount(() => {
+	onMount(async () => {
 		// --- Fresh Start Logic ---
 		// We clear the store on first entry to the setup wizard in a new session
 		// to ensure a clean slate, but allow data persistence across refreshes.
@@ -104,6 +106,7 @@
 			logger.info('[Setup] Fresh start detected. Clearing previous data.');
 			clearStore();
 			sessionStorage.setItem('sveltycms_setup_active', 'true');
+			await applyScaffoldHints();
 		} else {
 			logger.info('[Setup] Existing session detected. Loading saved data.');
 			loadStore();
@@ -155,6 +158,24 @@
 			window.removeEventListener('beforeunload', handleBeforeUnload);
 		};
 	});
+
+	async function applyScaffoldHints() {
+		try {
+			const hints = await readSetupHints();
+			if (isPresetId(hints.template)) {
+				wizard.systemSettings.preset = hints.template;
+			}
+			const db = dbConfigForHint(hints.db);
+			if (db) {
+				wizard.dbConfig.type = db.type;
+				wizard.dbConfig.host = db.host;
+				wizard.dbConfig.port = db.port;
+				wizard.dbConfig.name = db.name;
+			}
+		} catch (err) {
+			logger.debug('[Setup] Scaffold hints were not applied', err);
+		}
+	}
 
 	function showWelcomeModal() {
 		modalState.trigger(WelcomeModal);

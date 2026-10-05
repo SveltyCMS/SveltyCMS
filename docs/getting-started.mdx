@@ -1,12 +1,12 @@
 ---
 path: "docs/getting-started.mdx"
 title: "Getting Started"
-description: "Install SveltyCMS, run the self-healing Setup Wizard, and create your first collection — all in under 10 minutes."
+description: "Install SveltyCMS and open the setup wizard. The walkthrough and the full wizard guide continue from here."
 order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-22"
+updated: "2026-10-05"
 tags:
   - "getting-started"
   - "quickstart"
@@ -14,32 +14,17 @@ tags:
   - "setup"
 ---
 
-# Getting Started with SveltyCMS
+# Getting started
 
-Get up and running in minutes — whether you're a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
+Install SveltyCMS, then finish first-run setup in the wizard. The next page is the [setup walkthrough](./onboarding/setup-wizard.mdx). Every blueprint and validation rule is the [setup wizard guide](./guides/configuration/setup-wizard.mdx).
 
-> 💡 **Default**: SQLite (zero-config, in-process, sub-millisecond). No external database needed — the official Docker image ships with the same SQLite default.
-> Upgrade to PostgreSQL/MongoDB/MariaDB when you need multi-instance scale.
+New to the product model? Read [Concepts](./concepts/index.mdx) first — one page, six ideas — then come back and install.
 
----
+SQLite is the default. It needs no separate database server. PostgreSQL, MariaDB, and MongoDB are available in the wizard when you want them.
 
-## Choose your path
+## Install
 
-New to the product? Read [Concepts](./concepts/index.mdx) first — one page, six ideas — then come back and install.
-
-- **[Installation](#1-installation-for-developers)** — developers and operators
-- **[First steps](#2-first-steps-for-admins-editors)** — administrators and editors
-- **[Workflow templates](#3-common-workflow-templates)** — website, blog, catalog, languages
-
----
-
-## 1. Installation (For Developers)
-
-SveltyCMS features a **Self-Healing Setup Wizard** that automates database configuration and environment setup.
-
-### Quick Install
-
-#### Option A: Scaffolding CLI (recommended)
+### Scaffold
 
 ```bash
 npx create-sveltycms@latest my-cms
@@ -47,9 +32,9 @@ cd my-cms
 bun run dev
 ```
 
-Templates: `website`, `blog`, `agency`, `saas`, `corporate`, `ecommerce` · Databases: `sqlite` (default), `postgresql`, `mariadb`, `mongodb`
+Templates match the wizard blueprints: `website`, `blog`, `agency`, `saas`, `corporate`, `ecommerce`. The default database is `sqlite`.
 
-#### Option B: Clone from GitHub
+### Clone
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
@@ -58,136 +43,45 @@ bun install
 bun run dev
 ```
 
-#### Option C: Docker (container — no Node/Bun required)
+### Docker
 
 ```bash
 docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
 ```
 
-Open `http://localhost:4173` — the image defaults to embedded **SQLite** (no external database), and the Setup Wizard runs on first start, writing the database and secrets to the mounted `svelty_data` volume. Published to the GitHub Container Registry on every release: `latest` (stable) plus a pinned version tag (e.g. `:0.0.10`), multi-arch (`amd64` + `arm64`).
+Open `http://localhost:4173`. The image uses SQLite and writes the database and secrets to the `svelty_data` volume.
 
-For the CLI and Git options, navigate to `http://localhost:5173`. The system detects the absence of `config/private.ts` and launches the self-healing Setup Wizard.
+For the scaffold and the clone, open `http://localhost:5173`. A missing `config/private.ts` opens the wizard at `/setup`. Let the wizard create that file.
 
-| Step                    | What Happens                                                                                                                |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 1. **Choose Database**  | **SQLite** (default, fastest for local dev), PostgreSQL, MariaDB, or MongoDB                                                |
-| 2. **Test Connection**  | Auto-installs required drivers, validates connectivity                                                                      |
-| 3. **Create Admin**     | Set master credentials with Argon2id password hashing                                                                       |
-| 4. **Configure System** | Site name, languages, media storage, optional Redis                                                                         |
-| 5. **Email & Complete** | Optionally configure SMTP (optional), review settings, complete setup. System transitions to READY with progressive warmup. |
+Production build and start commands are in [Production deployment](./guides/deployment/production-deployment.mdx).
 
-The system seeds the database and transitions to `READY` — no manual config file editing.
+## Open the wizard
 
-> 💡 After setup, all `/api/setup` endpoints are permanently blocked (403) as a security measure.
+The walkthrough is the [setup wizard walkthrough](./onboarding/setup-wizard.mdx). The five steps are:
 
-### Production Build & Dual-Runtime Deployment
+1. **Database.** SQLite, or host, port, name, and credentials for PostgreSQL, MariaDB, or MongoDB. Test the connection.
+2. **Admin account.** Username, email, and a password of at least 8 characters, using upper case, lower case, a number, and a symbol.
+3. **Site and blueprint.** Site name, production URL, languages, country, and one project blueprint. **Website Starter** is the recommended default. The country starts on Germany and fills currency, shop language, and a suggested tax rate you can edit.
+4. **Email.** Optional. You can set SMTP later.
+5. **Review and complete.** The wizard writes the admin user, the collections for that blueprint, and `config/private.ts`, then signs you in.
 
-SveltyCMS supports **dual runtime targets** out of the box:
+After that, `/setup` sends you to `/login`, and `/api/setup` answers `403`.
 
-| Deployment Target                          | Build Command                             | Start Command        | Best For                                                                          | Architecture                                                                                                      |
-| :----------------------------------------- | :---------------------------------------- | :------------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
-| **Node.js** _(Recommended for Production)_ | `bun run build:node` (or `bun run build`) | `node index.cjs`     | Maximum sustained throughput (4,000+ RPS), low tail latency, long-running servers | `@sveltejs/adapter-node` with V8 TurboFan deep JIT compilation and native connection pooling.                     |
-| **Bun 1.3 / 1.4**                          | `bun run build:bun`                       | `bun build/index.js` | Cold-start sensitive deployments, edge containers, and developer environments     | Native `svelte-adapter-bun` targeting **`Bun.serve`** with sub-10ms startup and zero `node:http` bridge overhead. |
+## What you have
 
-> [!TIP]
-> **Performance Guidance**:
->
-> - **Production Dedicated Servers**: Deploy on **Node.js 24+** for highest sustained throughput across full-stack JavaScript middleware, sessions, and GraphQL execution.
-> - **Edge / Serverless Containers**: Deploy on **Bun 1.4+** via `Bun.serve` for rapid container provisioning and ultra-low cold start times.
+With **Website Starter**:
 
----
+- `http://localhost:5173/` (or port `4173` in Docker) shows the seeded homepage.
+- **Pages** contains Home, a legal page, and Privacy. The legal page title follows the country you picked. Replace that text and the privacy text before a public launch.
+- Editing a page in the form is included. Inline editing on the live page is the Editable Website plugin (14-day trial). See [Site starter](./development/site-starter.mdx).
 
-## 2. First Steps (For Admins & Editors)
+The other blueprints are Blog, Agency, SaaS, Corporate, E-commerce, and Blank. What each card creates is the [setup wizard guide](./guides/configuration/setup-wizard.mdx#solution-presets-starter-kits). A card does not turn on the media library, the audit log, or multi-tenant mode — those exist on every install.
 
-### Access the CMS
+A store is the **E-commerce** blueprint, then the Commerce plugin in Extensions. Prices, the order button, and withdrawal are in [E-commerce](./guides/content/ecommerce.mdx).
 
-Once setup completes, you will be automatically redirected to the CMS dashboard. If you need to log in again, navigate to `http://localhost:5173/login` and use your admin credentials.
+## Next
 
-### Understanding the CMS Layout
-
-The CMS is designed for clarity and speed.
-
-```text
-┌─────────────────────────────────────────────┐
-│ 🏠 SveltyCMS            [Search] 👤 Admin ▼ │
-├──────────┬──────────────────────────────────┤
-│          │                                   │
-│ 🏠 Home  │   📊 Dashboard Overview           │
-│ 📚 Collections                              │
-│ 📁 Media │   • System Health                │
-│ 👥 Users │   • Recent Content               │
-│ ⚙️ Config    • Online Users                │
-│          │   • Storage Usage                │
-│          │                                   │
-└──────────┴──────────────────────────────────┘
-```
-
-### First Tasks
-
-1.  **Configure Settings**: Go to **⚙️ Config** to set your Site Name, Default Language, and Theme.
-2.  **View your homepage**: With the default **Website Starter** preset, visit `http://localhost:5173/` — guests see a published homepage designed with [Svedit](/docs/development/site-starter.mdx).
-3.  **Design the frontpage**: Edit **Pages → Home** in the form (free), or use **Live Preview** for inline Svedit editing ([Editable Website plugin](/src/plugins/editable-website/editable-website.mdx) — 14-day trial, auto-enabled on Website Starter).
-4.  **Add more content**: Create additional `pages` entries (`about`, `contact`, …) or add collections from templates (Blog, Agency, SaaS, Corporate, E-commerce).
-
----
-
-## 3. Common Workflow Templates
-
-### Website Starter (recommended — SvelteKit + Svedit)
-
-**Website Starter** is pre-selected in the Setup Wizard. After setup you get:
-
-1. In-repo **SvelteKit** public routes at `routes/(site)`
-2. A **Pages** collection with a published `home` entry (Svedit layout in `content`)
-3. **Svedit** inline block editing when Live Preview is enabled
-4. **Live Preview bridge** (trial included): [Editable Website](/src/plugins/editable-website/editable-website.mdx) (€14.99 after trial) — iframe sync and inline Svedit editing; CMS form editing stays free
-
-See the [Site Starter guide](/docs/development/site-starter.mdx). For Astro/Next.js/Vue, disable the site starter and consume the headless API instead.
-
-### Blog
-
-1. Create collections: `Posts`, `Categories`, `Tags`
-2. Link `Posts` → `Categories` (multi-select) and `Users` (author)
-3. Use the `Status` field for Draft → Published workflow
-4. Enable comments or SEO metadata via widget options
-
-### E-Commerce Catalog
-
-Use the **E-commerce** Setup Wizard preset (products + variants, carts, orders, coupons, tax, shipping) rather than inventing collections. Full map: [E-Commerce Overview](./guides/content/ecommerce.mdx).
-
-1. Select the **ecommerce** template (or add the ecommerce preset collections)
-2. Optional: import an existing catalog with [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx) — WooCommerce WXR/REST (`--format=woocommerce`) or Shopify JSON/CSV (`--format=shopify`) into `products`
-3. Upload images in 📁 Media Hub and link them on `products`
-4. Add the **Commerce Orders** and **Commerce Inventory** dashboard widgets (14-day trial) from the dashboard picker
-5. Query `/api/collections/products` for the storefront (publication policy applies)
-6. Enable the Commerce plugin (Extensions) and the [Stripe plugin](/src/plugins/stripe/stripe.mdx) for card payments — amount is server `grandTotal`. Map: [E-Commerce Overview](./guides/content/ecommerce.mdx)
-
-### Multi-Language
-
-1.  **Enable i18n**: Go to **⚙️ Config** → **Languages** and add your target languages.
-2.  **Translate**: Open any entry and use the language switcher to enter localized content. Paraglide JS handles the compile-time switching.
-
----
-
-## 🛡️ User Roles & Permissions
-
-Granular **RBAC** with field-level access control:
-
-- **Admin**: Full access.
-- **Editor**: Can manage all content and media.
-- **Contributor**: Can create content but cannot publish without approval.
-- **Custom Roles**: Create these in **⚙️ Config** → **Roles & Permissions** to define field-level access.
-
----
-
-## Next Steps
-
-- [Concepts](./concepts/index.mdx) — collection, entry, widget, tenant, API, adapter
-- [Site Starter](/docs/development/site-starter.mdx) — Optional SvelteKit public frontend + live preview
-- [API Reference](./reference/api/index.mdx) — REST, GraphQL, Local SDK
-- [Widget Development](./development/widgets/index.mdx) — Build custom field types
-- [Security Overview](./reference/security/index.mdx) — 4-layer defense-in-depth
-- [Performance Benchmarks](./project/benchmarks/index.mdx) — 48 tests across 4 databases
-- [E-Commerce Overview](./guides/content/ecommerce.mdx) — Opt-in store: plugins, widgets, gated API — core stays a CMS
-- [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx) — WooCommerce / Shopify catalog import
-- [Dashboard widgets](./development/dashboard/index.mdx) — Commerce Orders + Inventory (14-day trial)
+- [Setup wizard walkthrough](./onboarding/setup-wizard.mdx) — the five steps, short
+- [Setup wizard guide](./guides/configuration/setup-wizard.mdx) — fields, blueprints, and recovery
+- [Roles and permissions](./guides/configuration/access-management.mdx)
+- [E-commerce](./guides/content/ecommerce.mdx)

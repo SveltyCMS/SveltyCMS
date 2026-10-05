@@ -2063,6 +2063,10 @@ Quality gates (2026-10-04): `bun run check` 0 errors / 0 warnings · `bun run te
 
 Quality gates (2026-10-05): `bun run check` 0 errors / 0 warnings · `bun run test:unit` 577+ files / 5,150+ tests · `bun run test:matrix:local` 4/4 adapters passed · `bun run lint:docs` 263 files clean · `bun run risk:audit` 5/5 passed.
 
+### Storefront — European checkout (2026-10-05)
+
+Catalog prices on `/shop` are gross. Checkout shows the trader, the VAT breakdown, and an order button that states the payment obligation (`zahlungspflichtig bestellen` when the store language is German). Guests withdraw at `/widerruf`. The order stores an invoice number, net, and tax. A price reduction shows the lowest price of the previous 30 days when that history exists. OSS returns, packaging registration, and WEEE stay with the merchant. Guide: [E-Commerce Overview](../guides/content/ecommerce.mdx#european-checkout).
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)

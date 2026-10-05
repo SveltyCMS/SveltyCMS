@@ -164,6 +164,30 @@ function resolveWidgetName(field: FieldTemplate): string {
   return "Input";
 }
 
+/** Preset field → schema field, including repeater rows and relation targets. */
+function fieldToSchemaField(field: FieldTemplate): Record<string, unknown> {
+  const schemaField: Record<string, unknown> = {
+    db_fieldName: field.db_fieldName,
+    label: field.label,
+    widget: { Name: resolveWidgetName(field) },
+    type: TYPE_BY_FIELD[field.type] || "string",
+  };
+  if (field.required) schemaField.required = true;
+  if (field.translated) schemaField.translated = true;
+  if (field.helper) schemaField.helper = field.helper;
+  if (field.default !== undefined) schemaField.default = field.default;
+  if (field.min !== undefined) schemaField.min = field.min;
+  if (field.max !== undefined) schemaField.max = field.max;
+  if (field.type === "select" && field.options?.length) schemaField.options = field.options;
+  if (field.collection) schemaField.collection = field.collection;
+  if (field.displayField) schemaField.displayField = field.displayField;
+  if (field.multiple) schemaField.multiple = true;
+  if (field.type === "repeater" && field.fields?.length) {
+    schemaField.fields = field.fields.map((child) => fieldToSchemaField(child));
+  }
+  return schemaField;
+}
+
 /**
  * Converts a CollectionPreset template into a database Schema object.
  */
@@ -175,18 +199,7 @@ export function collectionPresetToSchema(collection: CollectionPreset, order?: n
     icon: collection.icon,
     description: collection.description,
     order: collection.order ?? order,
-    fields: collection.fields.map((field) => {
-      const schemaField: Record<string, unknown> = {
-        db_fieldName: field.db_fieldName,
-        label: field.label,
-        widget: { Name: resolveWidgetName(field) },
-        type: TYPE_BY_FIELD[field.type] || "string",
-      };
-      if (field.required) schemaField.required = true;
-      if (field.translated) schemaField.translated = true;
-      if (field.options?.length) schemaField.options = field.options;
-      return schemaField;
-    }),
+    fields: collection.fields.map((field) => fieldToSchemaField(field)),
   } as Schema;
 
   if (collection.livePreview !== undefined) {
@@ -199,6 +212,46 @@ export function collectionPresetToSchema(collection: CollectionPreset, order?: n
   return schema;
 }
 
+function quoteSource(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/** One preset field as TypeScript object source. `indent` is the brace column. */
+function emitFieldSource(field: FieldTemplate, indent: number): string {
+  const pad = " ".repeat(indent);
+  const inner = " ".repeat(indent + 2);
+  const lines = [
+    `${pad}{`,
+    `${inner}db_fieldName: ${quoteSource(field.db_fieldName)},`,
+    `${inner}label: ${quoteSource(field.label)},`,
+    `${inner}widget: { Name: ${quoteSource(resolveWidgetName(field))} },`,
+  ];
+  if (field.required) lines.push(`${inner}required: true,`);
+  if (field.translated) lines.push(`${inner}translated: true,`);
+  lines.push(`${inner}helper: ${quoteSource(field.helper)},`);
+  if (field.default !== undefined) {
+    const literal =
+      typeof field.default === "string" ? quoteSource(field.default) : String(field.default);
+    lines.push(`${inner}default: ${literal},`);
+  }
+  if (field.min !== undefined) lines.push(`${inner}min: ${field.min},`);
+  if (field.max !== undefined) lines.push(`${inner}max: ${field.max},`);
+  if (field.type === "select" && field.options?.length) {
+    lines.push(
+      `${inner}options: [${field.options.map((option) => quoteSource(option)).join(", ")}],`,
+    );
+  }
+  if (field.collection) lines.push(`${inner}collection: ${quoteSource(field.collection)},`);
+  if (field.displayField) lines.push(`${inner}displayField: ${quoteSource(field.displayField)},`);
+  if (field.multiple) lines.push(`${inner}multiple: true,`);
+  if (field.type === "repeater" && field.fields?.length) {
+    const children = field.fields.map((child) => emitFieldSource(child, indent + 4)).join("\n");
+    lines.push(`${inner}fields: [`, children, `${inner}],`);
+  }
+  lines.push(`${pad}},`);
+  return lines.join("\n");
+}
+
 /**
  * Generates a TypeScript collection definition file from a CollectionPreset template.
  */
@@ -206,29 +259,7 @@ export function generateCollectionFileContent(
   collection: CollectionPreset,
   order?: number,
 ): string {
-  const fieldEntries = collection.fields
-    .map((f) => {
-      const widgetName = resolveWidgetName(f);
-      const parts: string[] = [];
-      parts.push(`    {`);
-      parts.push(`      db_fieldName: "${f.db_fieldName}",`);
-      parts.push(`      label: "${f.label}",`);
-      parts.push(`      widget: { Name: "${widgetName}" },`);
-      if (f.required) parts.push(`      required: true,`);
-      if (f.translated) parts.push(`      translated: true,`);
-      parts.push(`      helper: "${f.helper}",`);
-      if (f.default !== undefined) {
-        parts.push(
-          `      default: ${typeof f.default === "string" ? `"${f.default}"` : f.default},`,
-        );
-      }
-      if (f.options?.length) {
-        parts.push(`      options: [${f.options.map((o) => `"${o}"`).join(", ")}],`);
-      }
-      parts.push(`    },`);
-      return parts.join("\n");
-    })
-    .join("\n");
+  const fieldEntries = collection.fields.map((field) => emitFieldSource(field, 4)).join("\n");
 
   return `/**
  * @file config/collections/${collection.name}.ts

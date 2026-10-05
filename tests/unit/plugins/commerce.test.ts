@@ -182,6 +182,65 @@ describe("cart tenant isolation + merge", () => {
     expect(merged.customer).toBe("user-1");
     expect(merged.items[0].qty).toBe(2);
   });
+
+  it("rejects a draft product and still sells a product with no status", async () => {
+    const store = memoryStore("tenant-a");
+    store.rows.get("products")!.push(
+      {
+        _id: "draft",
+        tenantId: "tenant-a",
+        title: "Hidden",
+        sku: "HID",
+        price: 10,
+        status: "draft",
+      },
+      {
+        _id: "open",
+        tenantId: "tenant-a",
+        title: "Open",
+        sku: "OPN",
+        price: 8,
+      },
+      {
+        _id: "live",
+        tenantId: "tenant-a",
+        title: "Live",
+        sku: "LIV",
+        price: 12,
+        status: "published",
+      },
+    );
+
+    try {
+      await addCartItem(store, {
+        sessionId: "shopper",
+        currency: "EUR",
+        productId: "draft",
+        qty: 1,
+      });
+      throw new Error("expected raise");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).status).toBe(404);
+      expect((err as AppError).code).toBe("PRODUCT_NOT_FOUND");
+    }
+
+    const open = await addCartItem(store, {
+      sessionId: "shopper",
+      currency: "EUR",
+      productId: "open",
+      qty: 1,
+    });
+    expect(open.items.map((line) => line.title)).toEqual(["Open"]);
+
+    const live = await addCartItem(store, {
+      sessionId: "shopper",
+      currency: "EUR",
+      productId: "live",
+      qty: 1,
+    });
+    expect(live.items.map((line) => line.sku)).toEqual(["OPN", "LIV"]);
+  });
 });
 
 describe("variant matrix and digital cart", () => {
