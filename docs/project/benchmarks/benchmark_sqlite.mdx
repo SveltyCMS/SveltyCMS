@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    19 | 🟢     | -52%    | 0      |
+| **Core**       |     4 | 🟢     | +34%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,27 +62,12 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                 | Latency | Trend                                    | Budget | Result |
-| ------------------------ | ------- | ---------------------------------------- | ------ | ------ |
-| **Database Performance** | 0.053ms | ⚪ stable at 0.063ms (±0.007ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.007ms | ⚪ stable at 0.005ms (7 runs)            | < 5ms  | 🟢     |
-| **Database Performance** | 0.082ms | ⚪ stable at 0.077ms (±0.004ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.162ms | ⚪ stable at 0.163ms (±0.004ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.827ms | ⚪ stable at 0.870ms (±0.100ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.086ms | ⚪ stable at 0.088ms (±0.011ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.071ms | ⚪ stable at 0.086ms (±0.012ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.047ms | ⚪ stable at 0.050ms (±0.005ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.118ms | ⚪ stable at 0.124ms (±0.021ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.027ms | ⚪ stable at 0.042ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.023ms | ⚪ stable at 0.034ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.058ms | ⚪ stable at 0.063ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.060ms | ⚪ stable at 0.064ms (±0.008ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.016ms | ⚪ stable at 0.018ms (±0.001ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.001ms | ⚪ stable at 0.001ms (7 runs)            | < 5ms  | 🟢     |
-| **Database Performance** | 0.037ms | ⚪ stable at 0.045ms (±0.014ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.666ms | ⚪ stable at 1.39ms (±3.47ms) (7 runs)   | < 5ms  | 🟢     |
-| **Database Performance** | 0.666ms | ⚪ stable at 0.883ms (±0.698ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.467ms | ⚪ stable at 0.632ms (±0.149ms) (7 runs) | < 5ms  | 🟢     |
+| Scenario      | Latency    | Trend                                        | Budget | Result |
+| ------------- | ---------- | -------------------------------------------- | ------ | ------ |
+| **Logic**     | ⏳ pending | ⚪ stable at 0ms (7 runs)                    | < 5ms  | 🟢     |
+| **SDK**       | 0.005ms    | ⚪ stable at 0.005ms (±0.002ms) (7 runs)     | < 5ms  | 🟢     |
+| **HTTP**      | 0.262ms    | ⚪ stable at 0.254ms (±0.032ms) (7 runs)     | < 5ms  | 🟢     |
+| **HTTP-Cold** | 0.432ms    | 🔴 slower: 0.323ms → 0.432ms (+34%) (7 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -119,14 +104,7 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Database Performance: [0.05, 0.30]
-    Database Performance: [0.05, 0.77]
-    Database Performance: [0.07, 0.33]
-    Database Performance: [0.05, 0.69]
-    Database Performance: [0.05, 0.62]
-    Database Performance: [0.05, 0.21]
-    Database Performance: [0.05, 0.34]
-    Database Performance: [0.67, 0.95]
+    HTTP-Cold: [0.43, 0.95]
 ```
 
 </details>
@@ -147,29 +125,14 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a10af3-e54d-733c-84f1-171f502f5e12` · **Tests invoked:** 1 · **Metrics:** 19 · **DB:** sqlite
+**Run ID:** `01a10afe-8774-7590-941c-000425b7c435` · **Tests invoked:** 1 · **Metrics:** 4 · **DB:** sqlite
 
-| Test                 | Metric                          | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                                       |
-| -------------------- | ------------------------------- | -------- | -------- | ------ | ----- | -------------------------------------------- |
-| Database Performance | FIND MANY (limit 50)            | 0.082    | 0.117    | 10748  | 🟢    | ⚪ stable at 0.079ms (±0.006ms) (5 runs)     |
-| Database Performance | FILTER (blob field, 1 match)    | 0.162    | 0.235    | 5758   | 🟢    | ⚪ stable at 0.161ms (±0.005ms) (5 runs)     |
-| Database Performance | QUERY BUILDER LIST (50)         | 0.827    | 0.944    | 1159   | 🟢    | ⚪ stable at 0.814ms (±0.057ms) (5 runs)     |
-| Database Performance | FIND PAGE (50 hasMore)          | 0.086    | 0.119    | 10211  | 🟢    | ⚪ stable at 0.088ms (±0.009ms) (5 runs)     |
-| Database Performance | FIND PAGE keyset                | 0.071    | 0.105    | 12295  | 🟢    | ⚪ stable at 0.087ms (±0.015ms) (5 runs)     |
-| Database Performance | LIST+COUNT (legacy)             | 0.118    | 0.147    | 7881   | 🟢    | ⚪ stable at 0.124ms (±0.010ms) (5 runs)     |
-| Database Performance | NATIVE UPSERT                   | 0.058    | 0.083    | 13584  | 🟢    | ⚪ stable at 0.065ms (±0.008ms) (5 runs)     |
-| Database Performance | COUNT                           | 0.060    | 0.080    | 15751  | 🟢    | ⚪ stable at 0.064ms (±0.005ms) (5 runs)     |
-| Database Performance | COUNT CACHED                    | 0.001    | 0.002    | 659587 | 🟢    | ⚪ stable at 0.001ms (5 runs)                |
-| Database Performance | DELETE (Active Rows)            | 0.037    | 0.062    | 16500  | 🟢    | ⚪ stable at 0.051ms (±0.014ms) (5 runs)     |
-| Database Performance | BULK INSERT (100)               | 0.666    | 0.876    | 1094   | 🟢    | ⚪ stable at 3.92ms (±3.38ms) (5 runs)       |
-| Database Performance | BULK UPDATE (100 heterogeneous) | 0.666    | 0.871    | 1340   | 🟢    | ⚪ stable at 1.47ms (±0.699ms) (5 runs)      |
-| Database Performance | INSERT                          | 0.053    | 0.091    | 10455  | ⚪    | ⚪ stable at 0.065ms (±0.005ms) (5 runs)     |
-| Database Performance | FIND ONE                        | 0.007    | 0.013    | 120646 | ⚪    | ⚪ stable at 0.005ms (5 runs)                |
-| Database Performance | FIND MANY offset 50             | 0.047    | 0.060    | 20513  | ⚪    | ⚪ stable at 0.050ms (5 runs)                |
-| Database Performance | UPDATE                          | 0.027    | 0.047    | 25545  | ⚪    | ⚪ stable at 0.041ms (±0.005ms) (5 runs)     |
-| Database Performance | UPDATE (no-returning)           | 0.023    | 0.031    | 30254  | ⚪    | ⚪ stable at 0.036ms (±0.006ms) (5 runs)     |
-| Database Performance | COUNT ESTIMATE                  | 0.016    | 0.026    | 55067  | ⚪    | ⚪ stable at 0.018ms (5 runs)                |
-| Database Performance | BULK UPDATE (100 homogeneous)   | 0.467    | 0.586    | 1895   | ⚪    | 🟢 faster: 0.742ms → 0.467ms (-37%) (5 runs) |
+| Test          | Metric                   | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                            |
+| ------------- | ------------------------ | -------- | -------- | ------ | ----- | --------------------------------- |
+| Truth Latency | Logic Baseline           | 0.000    | 0.000    | 641437 | 🟢    | ⚪ established at 0ms (1 run)     |
+| Truth Latency | Local SDK (Full)         | 0.005    | 0.009    | 177378 | 🟢    | ⚪ established at 0.005ms (1 run) |
+| Truth Latency | HTTP End-to-End          | 0.262    | 0.322    | 3785   | 🟢    | ⚪ established at 0.262ms (1 run) |
+| Truth Latency | HTTP Cold (Cache-Busted) | 0.432    | 0.587    | 2304   | 🟢    | ⚪ established at 0.432ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -358,7 +321,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:TRUTH_AUDIT:START -->
 <details id="section-truth_audit">
-<summary><strong>🏷️ SRE TRUTH AUDIT</strong> · ⚪ ⏳ pending · ↘️ — · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ SRE TRUTH AUDIT</strong> · 🟢 0.010ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -370,13 +333,13 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                      SVELTYCMS — SRE TRUTH AUDIT                                      ║
 ║                             File: tests/benchmarks/truth-latency.test.ts                              ║
-║                                       Ran: 2026-09-27 19:32:40                                        ║
+║                                       Ran: 2026-10-05 07:36:57                                        ║
 ║            Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack             ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline               │ Cold:     0.02 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 461,894 RPS ║
-║ Local SDK (Full)             │ Cold:    24.16 ms │ Warm:     0.010 ms │ p95:     0.029 ms │  73,076 RPS ║
-║ HTTP End-to-End              │ Cold:     3.69 ms │ Warm:     0.432 ms │ p95:     0.525 ms │   2,295 RPS ║
-║ HTTP Cold (Cache-Busted)     │ Cold:     2.27 ms │ Warm:     0.585 ms │ p95:     0.754 ms │   1,702 RPS ║
+║ Logic Baseline               │ Cold:     0.01 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 641,437 RPS ║
+║ Local SDK (Full)             │ Cold:     2.23 ms │ Warm:     0.005 ms │ p95:     0.009 ms │ 177,378 RPS ║
+║ HTTP End-to-End              │ Cold:     3.59 ms │ Warm:     0.262 ms │ p95:     0.322 ms │   3,785 RPS ║
+║ HTTP Cold (Cache-Busted)     │ Cold:     0.97 ms │ Warm:     0.432 ms │ p95:     0.587 ms │   2,304 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -591,19 +554,26 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:ACID:START -->
 <details id="section-acid">
-<summary><strong>🏷️ transaction acid</strong> · 🟢 0.068ms · ➡️ ⚪ established at 0.068ms (1 run) (2026-10-05 07:25:03) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
+<summary><strong>🏷️ transaction acid</strong> · 🟢 0.070ms · ↘️ ⚪ stable at 0.091ms (±0.046ms) (2 runs) (2026-10-05 07:36:29) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — ACID INTEGRITY AUDIT                                    ║
 ║                            File: tests/benchmarks/transaction-acid.test.ts                            ║
-║                                       Ran: 2026-10-05 07:25:03                                        ║
+║                                       Ran: 2026-10-05 07:36:29                                        ║
 ║         Measures transaction commit latencies and rollback overhead across database adapters          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                    │ Cold:     0.41 ms │ Warm:     0.007 ms │ p95:     0.025 ms │ 144,349 RPS ║
-║ TX Rollback Integrity        │ Cold:     1.49 ms │ Warm:     0.068 ms │ p95:     0.100 ms │  14,481 RPS ║
+║ TX Commit                    │ Cold:     0.45 ms │ Warm:     0.005 ms │ p95:     0.017 ms │ 218,055 RPS ║
+║ TX Rollback Integrity        │ Cold:     1.40 ms │ Warm:     0.070 ms │ p95:     0.107 ms │  13,999 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -779,7 +749,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 
 <!-- SECTION:HTTP:START -->
 <details id="section-http">
-<summary><strong>🏷️ HTTP</strong> · 🟢 2.680ms · ➡️ ⚪ stable at 2.56ms (±0.441ms) (3 runs) (2026-09-26 22:56:48) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ HTTP</strong> · 🟢 0.262ms · ➡️ ⚪ established at 0.262ms (1 run) (2026-10-05 07:37:08) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -789,7 +759,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 
 <!-- SECTION:LOGIC:START -->
 <details id="section-logic">
-<summary><strong>🏷️ Logic</strong> · 🟢 ⏳ pending · ➡️ ⚪ stable at 0ms (7 runs) (2026-09-18 18:12:39) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ Logic</strong> · 🟢 ⏳ pending · ➡️ ⚪ established at 0ms (1 run) (2026-10-05 07:37:08) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -799,22 +769,22 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 
 <!-- SECTION:SDK:START -->
 <details id="section-sdk">
-<summary><strong>🏷️ SDK</strong> · 🟢 0.670ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
+<summary><strong>🏷️ SDK</strong> · 🟢 0.005ms · ➡️ ⚪ established at 0.005ms (1 run) (2026-10-05 07:37:08) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                SVELTYCMS — LOCALCMS CRUD TAX (SQLITE)                                 ║
 ║                             File: tests/benchmarks/local-cms-crud.test.ts                             ║
-║                                       Ran: 2026-09-27 18:18:27                                        ║
+║                                       Ran: 2026-10-05 07:36:43                                        ║
 ║Measures full CollectionsNamespace tax vs direct adapter baseline with isolated garbage collection and deterministic ID generation.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Adapter FIND ONE             │ Cold:     0.67 ms │ Warm:     0.006 ms │ p95:     0.010 ms │ 137,349 RPS ║
-║ Direct-to-Wire Point Stream  │ Cold:     0.56 ms │ Warm:     0.004 ms │ p95:     0.006 ms │ 212,134 RPS ║
-║ LocalCMS findById (Warm)     │ Cold:     0.22 ms │ Warm:     0.002 ms │ p95:     0.003 ms │ 425,758 RPS ║
-║ LocalCMS findById (Cold)     │ Cold:     0.45 ms │ Warm:     0.007 ms │ p95:     0.014 ms │ 107,907 RPS ║
-║ LocalCMS create              │ Cold:     1.04 ms │ Warm:     0.088 ms │ p95:     0.155 ms │   5,925 RPS ║
-║ LocalCMS update              │ Cold:     2.34 ms │ Warm:     0.057 ms │ p95:     0.093 ms │  13,690 RPS ║
-║ LocalCMS mixed C/U/R         │ Cold:     2.91 ms │ Warm:     0.165 ms │ p95:     0.259 ms │   4,045 RPS ║
+║ Adapter FIND ONE             │ Cold:     0.39 ms │ Warm:     0.005 ms │ p95:     0.009 ms │ 168,350 RPS ║
+║ Direct-to-Wire Point Stream  │ Cold:     0.87 ms │ Warm:     0.004 ms │ p95:     0.006 ms │ 216,783 RPS ║
+║ LocalCMS findById (Warm)     │ Cold:     0.21 ms │ Warm:     0.001 ms │ p95:     0.002 ms │ 653,381 RPS ║
+║ LocalCMS findById (Cold)     │ Cold:     0.46 ms │ Warm:     0.005 ms │ p95:     0.009 ms │ 158,804 RPS ║
+║ LocalCMS create              │ Cold:     1.25 ms │ Warm:     0.093 ms │ p95:     0.196 ms │   6,542 RPS ║
+║ LocalCMS update              │ Cold:     1.57 ms │ Warm:     0.067 ms │ p95:     0.157 ms │   9,241 RPS ║
+║ LocalCMS mixed C/U/R         │ Cold:     0.87 ms │ Warm:     0.137 ms │ p95:     0.240 ms │   4,363 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -950,9 +920,16 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DB:START -->
 <details id="section-db">
-<summary><strong>🏷️ DB</strong> · 🟢 0.007ms · ➡️ ⚪ stable at 0.007ms (4 runs) (2026-09-26 23:58:12) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
+<summary><strong>🏷️ DB</strong> · ⚪ 0.005ms · ↘️ ⚪ stable at 0.007ms (5 runs) (2026-10-05 07:36:43) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 > ⏳ Pending
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -1830,7 +1807,7 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:HTTP_COLD:START -->
 <details id="section-http_cold">
-<summary><strong>🏷️ HTTP-Cold</strong> · 🟢 0.546ms · ➡️ ⚪ stable at 0.529ms (±0.028ms) (7 runs) (2026-09-18 18:12:39) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ HTTP-Cold</strong> · 🟢 0.432ms · ➡️ ⚪ established at 0.432ms (1 run) (2026-10-05 07:37:08) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -1974,7 +1951,7 @@ Throughput dropped 69% — check connection pool saturation or lock contention.
 
 <!-- SECTION:WIRE:START -->
 <details id="section-wire">
-<summary><strong>🏷️ WIRE</strong> · 🟢 0.005ms · ➡️ ⚪ established at 0.005ms (1 run) (2026-09-26 23:58:12) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
+<summary><strong>🏷️ WIRE</strong> · 🟢 0.004ms · ➡️ ⚪ established at 0.004ms (1 run) (2026-10-05 07:36:43) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
