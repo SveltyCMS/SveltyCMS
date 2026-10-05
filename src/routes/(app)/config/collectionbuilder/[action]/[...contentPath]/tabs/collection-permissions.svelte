@@ -147,25 +147,75 @@
 						class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900"
 					>
 						<th
-							class="text-start px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"
-							>Role</th
+							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"
 						>
+							<div class="flex items-center justify-start gap-1">
+								Role
+								<SystemTooltip
+									title="User role or group these permissions apply to."
+									positioning={{ placement: 'top-start' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Role" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20"
-							>View</th
+							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
+							<div class="flex items-center justify-center gap-1">
+								View
+								<SystemTooltip
+									title="Can see the collection and read its entries."
+									positioning={{ placement: 'top' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: View" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20"
-							>Edit</th
+							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
+							<div class="flex items-center justify-center gap-1">
+								Edit
+								<SystemTooltip
+									title="Can create new entries and update existing ones."
+									positioning={{ placement: 'top' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Edit" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20"
-							>Write</th
+							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
+							<div class="flex items-center justify-center gap-1">
+								Write
+								<SystemTooltip
+									title="Can delete entries and manage collection settings."
+									positioning={{ placement: 'top' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Write" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-end px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-28"
-							>Actions</th
+							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-32"
 						>
+							<div class="flex items-center justify-end gap-1">
+								Actions
+								<SystemTooltip
+									title="Quickly grant or revoke all permissions."
+									positioning={{ placement: 'top-end' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Actions" />
+								</SystemTooltip>
+							</div>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
