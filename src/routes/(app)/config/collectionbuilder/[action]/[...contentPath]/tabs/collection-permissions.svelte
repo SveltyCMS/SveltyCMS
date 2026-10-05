@@ -105,12 +105,12 @@
 		</div>
 		<div>
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
+				<h2 class="text-xl font-bold leading-none text-surface-900 dark:text-surface-100">
 					Collection Permissions
 				</h2>
-				<SystemTooltip positioning={{ placement: 'right' }}>
+				<SystemTooltip positioning={{ placement: 'bottom' }} triggerClass="flex items-center">
 					{#snippet content()}
-						<div class="text-sm min-w-64">
+						<div class="text-sm min-w-64 max-w-sm">
 							<p class="font-semibold mb-2">How permissions work</p>
 							<ul class="list-disc list-inside space-y-1 text-xs">
 								<li><strong>View</strong>: Can see the collection and its entries</li>
