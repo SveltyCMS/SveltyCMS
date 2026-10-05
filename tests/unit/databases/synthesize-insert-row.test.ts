@@ -31,6 +31,9 @@ class SynthProbe extends SqlAdapterCore {
   getJsonField(_field: string): SQL {
     return sql`1`;
   }
+  getJsonExtractSql(_field: string): string {
+    return "";
+  }
   createDynamicTableDefinition(_name: string): unknown {
     return {};
   }

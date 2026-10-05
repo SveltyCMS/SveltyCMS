@@ -402,6 +402,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${path}))`;
   }
 
+  public getJsonExtractSql(field: string): string {
+    assertSafeSqlIdentifier(field.replace(/\./g, "_"), "field");
+    const path = `$.${field}`;
+    return `JSON_UNQUOTE(JSON_EXTRACT(\`data\`, '${path}'))`;
+  }
+
   /**
    * `$min`/`$max` cannot be answered type-safely from the JSON blob here, so the
    * translator refuses the stage instead of returning a wrong number. MariaDB stores

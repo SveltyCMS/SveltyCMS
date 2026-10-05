@@ -170,6 +170,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Return dialect-specific JSON field extraction SQL (e.g., json_extract, JSON_EXTRACT, data->>). */
   public abstract getJsonField(field: string): SQL;
 
+  /** Return dialect-specific raw SQL text for JSON field extraction in dynamic SQL. */
+  public abstract getJsonExtractSql(field: string): string;
+
   /**
    * Called when a sort targets a dynamic `data` field with no physical column.
    * Adapters with an expression-index capability (PostgreSQL) schedule a lazy
@@ -891,31 +894,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   /**
    * Whether the SELECT can skip the JSON `data` blob column. True when the
-   * caller requested an explicit `fields` projection that contains no
-   * non-physical (blob-stored) keys — the row then only carries metadata
-   * columns and avoids JSON.parse + flattenDataColumn entirely.
+   * caller requested an explicit `fields` projection that does not contain
+   * the literal `"data"` blob key — the row then carries either metadata
+   * columns or synthesized native JSON extractions (`data->>'field'`),
+   * avoiding full blob transfer and JSON.parse + flattenDataColumn.
    */
-  protected shouldExcludeData(table: any, options: any): boolean {
+  protected shouldExcludeData(_table: any, options: any): boolean {
     const fields = options?.fields;
     if (!Array.isArray(fields) || fields.length === 0) return false;
-    // If ANY requested field is not a physical column it lives in the data blob.
-    for (const f of fields) {
-      // Explicitly requesting the blob means it must be selected — never exclude.
-      if (f === "data") return false;
-      if (f === "_id" || f === "id") continue;
-      if (
-        f === "tenantId" ||
-        f === "status" ||
-        f === "createdAt" ||
-        f === "updatedAt" ||
-        f === "createdBy" ||
-        f === "updatedBy" ||
-        f === "publishedAt" ||
-        f === "isDeleted"
-      )
-        continue;
-      if (!this.getColumn(table, f)) return false;
-    }
+    // Explicitly requesting the blob means it must be selected — never exclude.
+    if (fields.includes("data")) return false;
     return true;
   }
 
@@ -933,10 +921,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       requestedSet.add("_id");
       if (this.getColumn(table, "tenantId")) requestedSet.add("tenantId");
 
+      const hasDataCol = !!this.getColumn(table, "data");
+
       for (const fieldName of requestedSet) {
+        if (typeof fieldName !== "string" || !fieldName) continue;
         const col = this.getColumn(table, fieldName);
         if (col) {
           projected[fieldName] = col;
+        } else if (hasDataCol && /^[a-zA-Z0-9_.]+$/.test(fieldName)) {
+          projected[fieldName] = this.getJsonField(fieldName).as(fieldName);
         }
       }
       if (Object.keys(projected).length > 0) {
@@ -1535,7 +1528,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             const selection = this.getProjectedSelection(table, options);
             columns = Object.keys(selection);
             colList = columns
-              .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
+              .map((c) => {
+                const col = this.getColumn(table, c);
+                if (col) {
+                  return this.quoteIdentifier(assertSafeSqlIdentifier(c, "column"));
+                }
+                const expr = this.getJsonExtractSql(c);
+                return `${expr} AS ${this.quoteIdentifier(assertSafeSqlIdentifier(c, "column"))}`;
+              })
               .join(", ");
           }
 

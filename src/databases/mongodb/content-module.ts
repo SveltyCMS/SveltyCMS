@@ -431,7 +431,7 @@ export class MongoContentModule
           };
         });
 
-        await nodesRepo.model.collection.bulkWrite(operations as any);
+        await nodesRepo.model.collection.bulkWrite(operations as any, { ordered: false });
         await invalidateCategoryCache(CacheCategory.CONTENT);
 
         return {

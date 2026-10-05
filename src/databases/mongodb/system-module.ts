@@ -438,7 +438,7 @@ export class MongoSystemMethods {
             },
           };
         });
-        await this.SystemSettingModel.bulkWrite(operations);
+        await this.SystemSettingModel.bulkWrite(operations, { ordered: false });
       }
 
       if (userPrefs.length > 0) {
@@ -478,7 +478,7 @@ export class MongoSystemMethods {
             },
           };
         });
-        await this.SystemPreferencesModel.bulkWrite(operations);
+        await this.SystemPreferencesModel.bulkWrite(operations, { ordered: false });
       }
       return { success: true, data: undefined };
     } catch (error: any) {

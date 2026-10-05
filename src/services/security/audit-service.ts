@@ -97,7 +97,10 @@ export class AuditService {
   private lastHash: string = "0000000000000000000000000000000000000000000000000000000000000000";
   private buffer: any[] = [];
   private flushTimer: any = null;
-  private readonly MAX_BUFFER_SIZE = 50;
+  private microBatchTimer: NodeJS.Timeout | null = null;
+  private inFlightFlush: Promise<void> | null = null;
+  private readonly MAX_BUFFER_SIZE = 25; // 🚀 Micro-batch threshold lowered from 50 to 25
+  private readonly MICRO_BATCH_MS = 15; // 🚀 Trailing idle window to coalesce write bursts
   private readonly MAX_TOTAL_BUFFER = 200; // 🛡️ HARD CAP: Lowered from 500 to 200 for stability
   private readonly FLUSH_INTERVAL_MS = 5000;
   private initialized = false;
@@ -147,6 +150,10 @@ export class AuditService {
   }
 
   public async flush() {
+    if (this.microBatchTimer) {
+      clearTimeout(this.microBatchTimer);
+      this.microBatchTimer = null;
+    }
     if (this.buffer.length === 0) return;
     if (isAuditDisabledByEnv()) {
       this.buffer = [];
@@ -319,14 +326,43 @@ export class AuditService {
         this.buffer.push(fullEntry);
         // 🛡️ ENTERPRISE MODE: AUDIT_CHAIN_SYNC awaits persistence before returning,
         // guaranteeing the entry survives even if the process dies mid-request.
+        // Uses coalesced inFlightFlush to prevent single-row transaction thrashing.
         if (flags?.chainSync) {
-          await this.flush().catch((err) =>
-            logger.error("[AuditService] Failed to flush audit logs:", err),
-          );
+          if (!this.inFlightFlush) {
+            this.inFlightFlush = this.flush().finally(() => {
+              this.inFlightFlush = null;
+            });
+            await this.inFlightFlush.catch((err) =>
+              logger.error("[AuditService] Failed to flush audit logs:", err),
+            );
+          } else {
+            await this.inFlightFlush.catch(() => {});
+            if (this.buffer.length > 0) {
+              if (!this.inFlightFlush) {
+                this.inFlightFlush = this.flush().finally(() => {
+                  this.inFlightFlush = null;
+                });
+              }
+              await this.inFlightFlush.catch((err) =>
+                logger.error("[AuditService] Failed to flush coalesced audit logs:", err),
+              );
+            }
+          }
         } else if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+          if (this.microBatchTimer) {
+            clearTimeout(this.microBatchTimer);
+            this.microBatchTimer = null;
+          }
           void this.flush().catch((err) =>
             logger.error("[AuditService] Failed to flush audit logs in background:", err),
           );
+        } else if (!this.microBatchTimer) {
+          this.microBatchTimer = setTimeout(() => {
+            this.microBatchTimer = null;
+            void this.flush().catch((err) =>
+              logger.error("[AuditService] Failed to flush micro-batch audit logs:", err),
+            );
+          }, this.MICRO_BATCH_MS);
         }
       })
       .catch((err) => logger.warn("[AuditService] Chain lock error:", err));

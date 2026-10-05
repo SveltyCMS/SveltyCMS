@@ -20,6 +20,7 @@ import type {
 // Namespace import on purpose: the module is exposed wholesale as the public `utils` field below.
 import * as relationalUtils from "./relational-utils";
 import { buildCollectionCacheTags } from "./collection-name";
+import { nowISODateString } from "@utils/date";
 
 export type HookType = "before" | "after";
 export type HookAction = "insert" | "update" | "delete" | "find";
@@ -554,19 +555,46 @@ export class PerformanceModule extends DatabaseModule<import("../db-interface").
       cacheHits: 0,
       cacheMisses: 0,
     };
+
+    let poolUsage = 0;
+    try {
+      const poolStatsRes =
+        typeof (this.adapter as any).getConnectionPoolStats === "function"
+          ? await (this.adapter as any).getConnectionPoolStats().catch(() => null)
+          : null;
+      const poolStats = poolStatsRes?.success ? poolStatsRes.data : null;
+      if (poolStats && poolStats.total > 0) {
+        poolUsage = Math.round((poolStats.active / poolStats.total) * 100) / 100;
+      }
+    } catch {
+      // Fallback
+    }
+
+    const slowRes = await this.getSlowQueries(10).catch(() => null);
+    const slowQueries = slowRes?.success
+      ? slowRes.data.map((s) => ({
+          query: s.query,
+          duration: s.duration,
+          timestamp: new Date(s.timestamp),
+        }))
+      : [];
+
     return {
       success: true,
       data: {
         queryCount: stats.queryCount,
-        slowQueries: (this.adapter as any)._slowQueries || [],
+        slowQueries,
         averageQueryTime: stats.lastLatency,
         cacheHitRate: stats.cacheHits / (stats.cacheHits + stats.cacheMisses || 1),
-        connectionPoolUsage: 1,
+        connectionPoolUsage: poolUsage,
       },
     };
   }
 
   async clearMetrics(): Promise<DatabaseResult<void>> {
+    if ((this.adapter as any)._slowQueries) {
+      (this.adapter as any)._slowQueries = [];
+    }
     return { success: true, data: undefined };
   }
 
@@ -574,7 +602,7 @@ export class PerformanceModule extends DatabaseModule<import("../db-interface").
     return { success: true, data: undefined };
   }
 
-  async getSlowQueries(_limit?: number): Promise<
+  async getSlowQueries(limit = 10): Promise<
     DatabaseResult<
       Array<{
         query: string;
@@ -583,6 +611,75 @@ export class PerformanceModule extends DatabaseModule<import("../db-interface").
       }>
     >
   > {
-    return { success: true, data: [] };
+    const adapterType = (this.adapter as any)?.type;
+    const now = nowISODateString();
+
+    // 1. PostgreSQL: Try pg_stat_statements if available
+    if (adapterType === "postgresql") {
+      const sql = (this.adapter as any)?.sql;
+      if (sql) {
+        try {
+          const rows = await sql.unsafe(
+            `SELECT query, (total_exec_time / calls)::float as duration
+             FROM pg_stat_statements
+             ORDER BY total_exec_time DESC
+             LIMIT $1`,
+            [limit],
+          );
+          if (Array.isArray(rows) && rows.length > 0) {
+            return {
+              success: true,
+              data: rows.map((r: any) => ({
+                query: String(r.query || ""),
+                duration: Math.round(Number(r.duration) || 0),
+                timestamp: now,
+              })),
+            };
+          }
+        } catch {
+          // pg_stat_statements not installed or unprivileged; fallback below
+        }
+      }
+    }
+
+    // 2. MariaDB: Try performance_schema if available
+    if (adapterType === "mariadb") {
+      const pool = (this.adapter as any)?.pool;
+      if (pool) {
+        try {
+          const [rows] = await pool.query(
+            `SELECT DIGEST_TEXT as query, (AVG_TIMER_WAIT / 1000000000) as duration
+             FROM performance_schema.events_statements_summary_by_digest
+             WHERE SCHEMA_NAME = DATABASE()
+             ORDER BY AVG_TIMER_WAIT DESC
+             LIMIT ?`,
+            [limit],
+          );
+          if (Array.isArray(rows) && rows.length > 0) {
+            return {
+              success: true,
+              data: rows.map((r: any) => ({
+                query: String(r.query || ""),
+                duration: Math.round(Number(r.duration) || 0),
+                timestamp: now,
+              })),
+            };
+          }
+        } catch {
+          // performance_schema not enabled; fallback below
+        }
+      }
+    }
+
+    // 3. Fallback to in-memory slow queries (SQLite or when engine metrics unavailable)
+    const inMemory: any[] = (this.adapter as any)._slowQueries || [];
+    return {
+      success: true,
+      data: inMemory.slice(0, limit).map((item) => ({
+        query: item.query || "",
+        duration: item.duration || 0,
+        timestamp: item.timestamp || now,
+      })),
+    };
   }
 }

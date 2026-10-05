@@ -1266,6 +1266,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return drizzleSql`data->>${field}`;
   }
 
+  public getJsonExtractSql(field: string): string {
+    assertSafeSqlIdentifier(field.replace(/\./g, "_"), "field");
+    if (field.includes(".")) {
+      const path = "{" + field.split(".").join(",") + "}";
+      return `"data"#>>'${path}'`;
+    }
+    return `"data"->>'${field}'`;
+  }
+
   /**
    * Lazy expression-index for dynamic sort fields.
    *
@@ -1905,12 +1914,38 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     DatabaseResult<import("../db-interface").ConnectionPoolStats>
   > {
     if (!this.sql) return this.notConnectedError();
+    try {
+      const rows = await this.sql`
+        SELECT
+          count(*)::int as total,
+          count(*) filter (where state = 'active')::int as active,
+          count(*) filter (where state = 'idle')::int as idle,
+          count(*) filter (where wait_event is not null)::int as waiting
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+      `;
+      if (rows && rows[0]) {
+        return {
+          success: true,
+          data: {
+            total: Number(rows[0].total) || 0,
+            active: Number(rows[0].active) || 0,
+            idle: Number(rows[0].idle) || 0,
+            waiting: Number(rows[0].waiting) || 0,
+            avgConnectionTime: 0,
+          },
+        };
+      }
+    } catch {
+      // Fallback to local pool options if pg_stat_activity cannot be queried
+    }
+    const max = (this.sql as any)?.options?.max || 10;
     return {
       success: true,
       data: {
-        total: 0,
+        total: max,
         active: 0,
-        idle: 0,
+        idle: max,
         waiting: 0,
         avgConnectionTime: 0,
       },

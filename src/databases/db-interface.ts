@@ -170,6 +170,8 @@ export interface BaseQueryOptions {
   inPlace?: boolean;
   /** MariaDB: JSON columns arrive double-parsed (string) — parse again. */
   mariaDoubleParseJson?: boolean;
+  /** For bulk writes: whether operations should execute sequentially (default: false for unordered parallel execution). */
+  ordered?: boolean;
   filter?: any; // 🚀 FLEXIBILITY: Allow arbitrary filters for structure/bulk queries
   /**
    * Media only: when true under MULTI_TENANT, include documents with missing/null tenantId
@@ -289,6 +291,7 @@ export interface QueryOptimizationHints {
   maxExecutionTime?: number;
   /** Adapter-specific hints for the MongoDB adapter. Ignored by SQL adapters. */
   mongo?: {
+    ordered?: boolean;
     readPreference?: "primary" | "secondary" | "nearest";
     readConcern?: "local" | "majority" | "snapshot" | "linearizable" | "available";
     writeConcern?: "majority" | number | { w: "majority" | number; wtimeout?: number; j?: boolean };
