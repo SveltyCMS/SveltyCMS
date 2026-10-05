@@ -584,18 +584,28 @@ export async function handleCollectionUpdate(
         : await event.request.json()),
   );
   const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
+  // 🔭 FIELD PROJECTION: `?fields=_id,count,updatedAt` prunes the UPDATE's
+  // RETURNING read-back to the requested columns — a caller that only needs
+  // the changed fields skips re-reading (and de-TOASTing) the JSON `data`
+  // blob on every update. Minimal acks already skip RETURNING entirely, so
+  // the projection only applies to the full-representation path.
+  const projection = !isMinimal
+    ? parseCollectionQueryParams(event.url.searchParams).fields
+    : undefined;
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
         cms.collections.update(collectionId, entryId, rawData, {
           user: user!,
           tenantId,
           ...(isMinimal ? { skipReturning: true } : {}),
+          ...(projection ? { fields: projection } : {}),
         }),
       )
     : await cms.collections.update(collectionId, entryId, rawData, {
         user: user!,
         tenantId,
         ...(isMinimal ? { skipReturning: true } : {}),
+        ...(projection ? { fields: projection } : {}),
       });
 
   // RFC 7240: `Prefer: return=minimal` asks for a status-only ack. The default body is the

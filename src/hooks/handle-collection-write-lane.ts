@@ -34,6 +34,7 @@ import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 import { prefersMinimalReturn } from "@utils/http-preferences";
+import { parseCollectionQueryParams } from "@utils/api-params";
 import { getClientIp } from "@utils/hook-utils";
 import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { decideSessionRisk, evaluateSessionAnomaly } from "@src/databases/auth/session-user";
@@ -357,6 +358,10 @@ async function executeWarmCollectionWrite(
 
   let result: unknown;
   const minimal = prefersMinimalReturn(request.headers.get("prefer"), url);
+  // 🔭 FIELD PROJECTION parity with the full pipeline (handlers/collections.ts):
+  // `?fields=_id,count,updatedAt` prunes the UPDATE read-back to the requested
+  // columns. Minimal acks already skip RETURNING entirely.
+  const projection = !minimal ? parseCollectionQueryParams(url.searchParams).fields : undefined;
   if (request.method === "POST") {
     result = await cms.collections.create(collectionId, data, {
       user,
@@ -373,6 +378,7 @@ async function executeWarmCollectionWrite(
       tenantId,
       ...(marks ? { __phaseMarks: marks } : {}),
       ...(minimal ? { skipReturning: true } : {}),
+      ...(projection ? { fields: projection } : {}),
     });
   }
   marks?.set("persist", performance.now() - t0);

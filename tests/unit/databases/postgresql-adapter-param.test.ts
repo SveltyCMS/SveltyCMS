@@ -83,4 +83,40 @@ describe("PostgreSQL Adapter Parameter Binding Contract", () => {
     // Guarantee idempotency
     expect(pgSafeIndexName(longName)).toBe(safe);
   });
+
+  it("resolves update field projections to physical columns and drops blob-only names", async () => {
+    const { PostgresAdapterCore } = await import("@src/databases/postgresql/adapter-core");
+
+    // Minimal column catalog shape: getColumn resolves physical names only.
+    const catalog = new Map<string, string>([
+      ["_id", "_id"],
+      ["count", "count"],
+      ["status", "status"],
+      ["updatedAt", "updatedAt"],
+      ["data", "data"],
+    ]);
+    const getColumn = (_t: unknown, name: string) => {
+      const phys = catalog.get(name);
+      return phys !== undefined ? { name: phys } : undefined;
+    };
+
+    // Physical-only projection passes through (deduped, order preserved).
+    expect(
+      PostgresAdapterCore.resolveUpdateProjection(
+        {},
+        ["_id", "count", "updatedAt", "count"],
+        getColumn,
+      ),
+    ).toEqual(["_id", "count", "updatedAt"]);
+
+    // Dynamic blob fields (title lives inside `data`) are dropped.
+    expect(
+      PostgresAdapterCore.resolveUpdateProjection({}, ["_id", "title", "slug"], getColumn),
+    ).toEqual(["_id"]);
+
+    // A projection of only unresolvable names resolves empty → full `*` return.
+    expect(PostgresAdapterCore.resolveUpdateProjection({}, ["title", "body"], getColumn)).toEqual(
+      [],
+    );
+  });
 });

@@ -408,6 +408,30 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   >();
 
+  /**
+   * Resolve a caller's `?fields=` update projection to physical column names.
+   * Unresolvable names (dynamic blob fields that only exist inside `data`) are
+   * dropped so they can never render a non-existent column; an empty result
+   * means "no valid projection — return the full representation".
+   */
+  static resolveUpdateProjection(
+    table: any,
+    fields: string[],
+    getColumn: (t: any, name: string) => { name: string } | undefined,
+  ): string[] {
+    const resolved: string[] = [];
+    const seen = new Set<string>();
+    for (const f of fields) {
+      const phys = getColumn(table, f);
+      if (!phys) continue;
+      const name = phys.name ?? f;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      resolved.push(name);
+    }
+    return resolved;
+  }
+
   private _getUpdateTemplate(
     table: any,
     tableName: string,
@@ -452,12 +476,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
       let returningClause = "*";
       if (fields && fields.length > 0) {
-        returningClause = fields
-          .map((f) => {
-            const phys = this.getColumn(table, f);
-            return `"${assertSafeSqlIdentifier(phys?.name ?? f, "column")}"`;
-          })
-          .join(", ");
+        // Resolve each requested field to a PHYSICAL column; unresolvable
+        // names (dynamic blob fields that only exist inside `data`) are
+        // dropped so they can never render a non-existent "column". An empty
+        // projection after resolution falls back to `*` (full representation).
+        const resolved = PostgresAdapterCore.resolveUpdateProjection(table, fields, (t, f) =>
+          this.getColumn(t, f),
+        );
+        if (resolved.length > 0) {
+          returningClause = resolved
+            .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
+            .join(", ");
+        }
       } else if (skipJson) {
         const physCols = getTableColumns(table);
         const nonJsonCols = Object.keys(physCols).filter((c) => {
