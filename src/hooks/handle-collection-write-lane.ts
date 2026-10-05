@@ -453,6 +453,13 @@ export async function serveWarmCollectionWrite(
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
 ): Promise<Response> {
   try {
+    // 🚀 LANE-LEAN RATE LIMIT: consume the in-memory bucket synchronously and
+    // let the Redis ledger receive the spend after the response (measured
+    // ~0.6 ms per warm mutation with Redis up — the in-memory bucket already
+    // enforces the same limit, and a second process still sees the spend).
+    // Only this lane opts in; GraphQL writes and the full pipeline keep the
+    // awaited Redis enforcement.
+    (event.locals as { __rateLimitAsyncRemote?: boolean }).__rateLimitAsyncRemote = true;
     return await handleRateLimit({
       event,
       resolve: async () => {
