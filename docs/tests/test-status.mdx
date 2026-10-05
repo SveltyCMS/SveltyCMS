@@ -53,12 +53,12 @@ tags:
 
 ## 3. Testing tiers
 
-| Tier               | Command               | Time     | Coverage (approx., drifts — trust CI)                                       |
-| ------------------ | --------------------- | -------- | --------------------------------------------------------------------------- |
-| **Pre-commit**     | git commit / hooks    | ~30–45s  | Unit (4894, ~18–20 s) + `risk:audit` + format/lint + SBOM when lock changes |
-| **Pre-push**       | `bun run gate`        | ~5–8min  | Build 4 adapters + backdoor/bundle gates + tenant + SQLite integ (719)      |
-| **Pre-CI** (local) | `bun run test:matrix` | ~8–15min | All 4 DBs via Docker profiles                                               |
-| **CI**             | GitHub Actions        | ~30min   | Whitebox + build + db-tests matrix + E2E + benchmarks                       |
+| Tier               | Command                                             | Time     | Coverage (approx., drifts — trust CI)                                       |
+| ------------------ | --------------------------------------------------- | -------- | --------------------------------------------------------------------------- |
+| **Pre-commit**     | git commit / hooks                                  | ~30–45s  | Unit (4894, ~18–20 s) + `risk:audit` + format/lint + SBOM when lock changes |
+| **Pre-push**       | `bun run gate`                                      | ~5–8min  | Build 4 adapters + backdoor/bundle gates + tenant + SQLite integ (719)      |
+| **Pre-CI** (local) | `bun run test:matrix` · `bun run test:matrix:local` | ~2–15min | All 4 DBs via Docker profiles or smart auto-detected local engines          |
+| **CI**             | GitHub Actions                                      | ~30min   | Whitebox + build + db-tests matrix + E2E + benchmarks                       |
 
 **Gates (local → CI)** — source of truth: `.githooks/pre-commit`, `.githooks/pre-push`, `.github/workflows/ci.yml`
 
@@ -66,7 +66,7 @@ tags:
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Pre-commit | 1. DB safety 2. Format + lint (`check`) 3. Lint-staged 4. **`risk:audit`** 5. **Unit** 6. SBOM sync (if lock/package changed)                             |
 | Pre-push   | 1. Build (`COMPILE_ALL_ADAPTERS=true`) 2. Backdoor verify (bench) 3. Bundle size 4. `check` 5. Secret scan 6. **`test:tenant`** 7. **SQLite integration** |
-| Manual     | `bun run test:doctor` · `bun run test:security` · `bun run test:e2e`                                                                                      |
+| Manual     | `bun run test:doctor` · `bun run test:security` · `bun run test:matrix:local` · `bun run test:e2e`                                                        |
 | CI         | Whitebox (format/lint/check/unit/tenant/secrets/probe) → build → db-tests (4 DBs) → E2E prep + groups → benchmarks                                        |
 
 **CI smart reporting** (job Summary tab + annotations):

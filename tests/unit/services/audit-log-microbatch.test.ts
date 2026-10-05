@@ -59,4 +59,52 @@ describe("AuditService write coalescing & micro-batching", () => {
     // Hit the 25 threshold -> triggers immediate flush
     expect(flushSpy).toHaveBeenCalled();
   });
+
+  it("concurrency stress: 500 simultaneous writes across 10 workers maintain zero drop and unbroken hash chain", async () => {
+    const captured: Array<{ hash: string; previousHash?: string; id?: string }> = [];
+    let maxObservedBuffer = 0;
+
+    vi.spyOn(service, "flush").mockImplementation(async () => {
+      const buf = (service as any).buffer as Array<{ hash: string; previousHash?: string }>;
+      if (buf.length > maxObservedBuffer) {
+        maxObservedBuffer = buf.length;
+      }
+      const batch = [...buf];
+      (service as any).buffer = [];
+      captured.push(...batch);
+    });
+
+    const WORKERS = 10;
+    const LOGS_PER_WORKER = 50;
+    const TOTAL_LOGS = WORKERS * LOGS_PER_WORKER;
+
+    // Launch 10 concurrent workers
+    const workerPromises = Array.from({ length: WORKERS }, (_, workerIdx) => async () => {
+      for (let i = 0; i < LOGS_PER_WORKER; i++) {
+        await service.log(
+          `worker_${workerIdx}_action_${i}`,
+          { id: `user_${workerIdx}` as any, email: `w${workerIdx}@test.com` },
+          { type: "concurrent_test", id: `res_${workerIdx}_${i}` as any },
+          AuditEventType.USER_MUTATION,
+        );
+      }
+    });
+
+    await Promise.all(workerPromises.map((fn) => fn()));
+
+    // Trigger trailing timer if any entries remain in buffer
+    vi.advanceTimersByTime(50);
+    await service.flush();
+
+    // 1. Zero dropped entries
+    expect(captured.length).toBe(TOTAL_LOGS);
+
+    // 2. Buffer memory stayed bounded
+    expect(maxObservedBuffer).toBeLessThanOrEqual(200);
+
+    // 3. Unbroken cryptographic hash chain across all 500 entries
+    for (let i = 1; i < captured.length; i++) {
+      expect(captured[i].previousHash).toBe(captured[i - 1].hash);
+    }
+  });
 });

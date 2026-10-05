@@ -113,6 +113,7 @@
     "test:tenant": "bun run lint:tenant && bun test tests/unit/security/tenant-isolation-matrix.test.ts tests/unit/security/safe-query-manual.test.ts tests/unit/security/system-tenant-scope.test.ts tests/unit/multi-tenancy/crud-tenant-guard.test.ts",
     "test:tenant:integration": "bun run scripts/run-integration.ts --no-build tests/integration/databases/tenant-isolation.test.ts",
     "test:matrix": "bun run scripts/run-all-db-matrix.ts",
+    "test:matrix:local": "bun run scripts/run-local-db-matrix.ts",
     "test:all": "bun run test:unit && bun run scripts/run-integration.ts",
     "security": "bun run scripts/security-audit.ts",
     "security:auth": "bun run scripts/security-audit.ts --auth",

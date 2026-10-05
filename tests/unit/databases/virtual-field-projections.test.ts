@@ -80,4 +80,106 @@ describe("fields projection keeps JSON types", () => {
     expect(probe.excludes()).toBe(false);
     expect(probe.excludes(["data"])).toBe(false);
   });
+
+  describe("fuzz & property-based projection safety", () => {
+    const physicalColumns = [
+      "_id",
+      "tenantId",
+      "status",
+      "createdAt",
+      "updatedAt",
+      "createdBy",
+      "updatedBy",
+      "publishedAt",
+      "isDeleted",
+    ];
+
+    const virtualSamplePool = [
+      "title",
+      "slug",
+      "content",
+      "views",
+      "meta.author",
+      "deeply.nested.property.path.v1",
+      "profile.settings.notifications.email",
+      "título",
+      "über_uns",
+      "中文_标题",
+      "field_with_emoji_🚀",
+      "kebab-case-virtual",
+      "snake_case_key",
+      "123numeric",
+      "hyphenated-key-name",
+      "nested.array[0].name",
+    ];
+
+    it("property: any combination of strictly physical columns always excludes data blob", () => {
+      // Generate 50 pseudo-random subsets of physical columns
+      for (let i = 0; i < 50; i++) {
+        const size = 1 + Math.floor(Math.random() * physicalColumns.length);
+        const subset = Array.from(
+          new Set(
+            Array.from(
+              { length: size },
+              () => physicalColumns[Math.floor(Math.random() * physicalColumns.length)],
+            ),
+          ),
+        );
+        expect(probe.excludes(subset)).toBe(true);
+
+        const selection = probe.getProjectedSelection(probeTable, { fields: subset });
+        expect(selection.data).toBeUndefined();
+        expect(selection._id).toBeDefined();
+      }
+    });
+
+    it("property: inserting any virtual field into a physical projection forces blob retention", () => {
+      for (const virtualField of virtualSamplePool) {
+        // Physical list + 1 virtual field
+        const fields = ["_id", "status", virtualField];
+        expect(probe.excludes(fields)).toBe(false);
+
+        const selection = probe.getProjectedSelection(probeTable, { fields });
+        expect(selection.data).toBeDefined();
+        // Virtual fields are NOT aliased as text columns; they live in the blob
+        expect(selection[virtualField]).toBeUndefined();
+      }
+    });
+
+    it("property: presence of 'data' anywhere in fields unconditionally forces blob retention", () => {
+      for (let i = 0; i < 25; i++) {
+        const randomPhysical = physicalColumns[Math.floor(Math.random() * physicalColumns.length)];
+        const fields = ["data", randomPhysical];
+        expect(probe.excludes(fields)).toBe(false);
+
+        const selection = probe.getProjectedSelection(probeTable, { fields });
+        expect(selection.data).toBeDefined();
+      }
+    });
+
+    it("resilience: handles arbitrary malformed, empty, or duplicate inputs without throwing", () => {
+      const edgeCases: unknown[][] = [
+        [],
+        [""],
+        ["   "],
+        ["data", "data", "data"],
+        ["_id", "_id", "status"],
+        ["null", "undefined"],
+        ["__proto__", "constructor", "prototype"],
+        ["SELECT * FROM users; --"],
+        ["' OR '1'='1"],
+        ["nested.path..with..empty..segments"],
+      ];
+
+      for (const testFields of edgeCases) {
+        expect(() => {
+          const result = probe.excludes(testFields as string[]);
+          const selection = probe.getProjectedSelection(probeTable, { fields: testFields });
+          expect(typeof result).toBe("boolean");
+          expect(typeof selection).toBe("object");
+          expect(selection._id).toBeDefined();
+        }).not.toThrow();
+      }
+    });
+  });
 });

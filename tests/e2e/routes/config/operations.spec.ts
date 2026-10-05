@@ -21,7 +21,16 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test.describe("Operations Pages", () => {
   test.setTimeout(90_000);
 
-  test("monitor page loads with stats and service health", async ({ page }) => {
+  test("monitor page loads with stats, service health, and zero console errors", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
     await loginAndGo(page, "/config/monitor");
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("page-title")).toContainText(/monitor/i);
@@ -32,6 +41,13 @@ test.describe("Operations Pages", () => {
     await expect(page.getByTestId("monitor-service-health")).toBeVisible();
     await expect(page.getByTestId("monitor-overall-state")).toBeVisible();
     await expect(page.getByTestId("monitor-link-settings")).toBeVisible();
+
+    // Verify system metrics card displays memory / CPU load
+    const systemCard = page.getByTestId("monitor-card-system");
+    await expect(systemCard).toContainText(/memory|cpu|uptime/i);
+
+    // Verify zero client-side JavaScript execution errors occurred on the dashboard
+    expect(consoleErrors).toEqual([]);
   });
 
   test("queue page loads with stats and jobs table", async ({ page }) => {
