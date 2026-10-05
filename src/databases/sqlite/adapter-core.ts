@@ -1395,6 +1395,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   public async disconnect(): Promise<DatabaseResult<void>> {
     try {
       this.state = "closing";
+      this._versionCache = null;
       this._statementCache.clear();
       this._sqlite?.close();
 
@@ -1566,10 +1567,17 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     }, "CHECK_EMPTY_FAILED");
   }
 
+  private _versionCache: string | null = null;
+
   public async getVersion(): Promise<DatabaseResult<string>> {
+    if (this._versionCache) {
+      return { success: true, data: this._versionCache };
+    }
     return this.wrap(async () => {
       const row = this.prepareAndExecute("SELECT sqlite_version() as version", "get");
-      return row.version as string;
+      const ver = row.version as string;
+      this._versionCache = ver;
+      return ver;
     }, "GET_VERSION_FAILED");
   }
 

@@ -20,11 +20,13 @@ describe("PostgreSQLAdapter lifecycle & maintenance", () => {
 
     const v1 = await adapter.getVersion();
     expect(v1.success).toBe(true);
+    if (!v1.success) throw new Error("Expected v1 to succeed");
     expect(v1.data).toBe("PostgreSQL 18.1 on x86_64");
     expect(queryCount).toBe(1);
 
     const v2 = await adapter.getVersion();
     expect(v2.success).toBe(true);
+    if (!v2.success) throw new Error("Expected v2 to succeed");
     expect(v2.data).toBe("PostgreSQL 18.1 on x86_64");
     // Should NOT have run query a second time
     expect(queryCount).toBe(1);
@@ -57,6 +59,7 @@ describe("PostgreSQLAdapter lifecycle & maintenance", () => {
 
     const res = await adapter.cleanupExpiredData();
     expect(res.success).toBe(true);
+    if (!res.success) throw new Error("Expected cleanupExpiredData to succeed");
     expect(res.data?.sessions).toBe(5120);
     expect(res.data?.tokens).toBe(35);
 

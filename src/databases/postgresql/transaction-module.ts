@@ -63,14 +63,24 @@ function bindTransactionToNamespace<T extends object>(
       const original: unknown = Reflect.get(target, prop, receiver);
       if (typeof original === "function") {
         return (...args: unknown[]) => {
-          const lastArg = args[args.length - 1];
-          if (
-            lastArg &&
-            typeof lastArg === "object" &&
-            !Array.isArray(lastArg) &&
-            !(lastArg instanceof Date)
-          ) {
-            args[args.length - 1] = { ...(lastArg as object), transaction: txnOpts };
+          const fn = original as Function;
+          if (fn.length > 0 && args.length < fn.length) {
+            while (args.length < fn.length - 1) {
+              args.push(undefined);
+            }
+            args.push({ transaction: txnOpts });
+          } else if (args.length > 0) {
+            const lastArg = args[args.length - 1];
+            if (
+              lastArg &&
+              typeof lastArg === "object" &&
+              !Array.isArray(lastArg) &&
+              !(lastArg instanceof Date)
+            ) {
+              args[args.length - 1] = { ...(lastArg as object), transaction: txnOpts };
+            } else {
+              args.push({ transaction: txnOpts });
+            }
           } else {
             args.push({ transaction: txnOpts });
           }

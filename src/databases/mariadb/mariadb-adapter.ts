@@ -125,6 +125,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   }
 
   public async disconnect(): Promise<DatabaseResult<void>> {
+    this._versionCache = null;
     // Clear shared SQL adapter caches
     this.tableRegistry.clear();
     this.dynamicTables.clear();
@@ -211,11 +212,18 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     return new SqlQueryBuilder<T>(this, collection, MARIADB_DIALECT);
   };
 
+  private _versionCache: string | null = null;
+
   public async getVersion(): Promise<DatabaseResult<string>> {
+    if (this._versionCache) {
+      return { success: true, data: this._versionCache };
+    }
     return this.wrap(async () => {
       if (!this.pool) throw new Error("MariaDB pool not available");
       const [rows] = await this.pool.query("SELECT version() as version");
-      return (rows as any)[0].version as string;
+      const ver = (rows as any)[0].version as string;
+      this._versionCache = ver;
+      return ver;
     }, "GET_VERSION_FAILED");
   }
 }
