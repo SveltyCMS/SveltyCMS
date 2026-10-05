@@ -1,169 +1,83 @@
 /**
  * @file tests/unit/databases/virtual-field-projections.test.ts
- * @description Unit tests for Virtual Field SQL Projections (Omit JSON Blob Transfer).
+ * @description Regression guard: a `fields` projection may only drop the JSON `data`
+ * blob when every requested field is a physical column.
  *
  * Features:
- * - verifies shouldExcludeData correctly skips data column when virtual fields are requested
- * - verifies getProjectedSelection synthesizes native SQL JSON extraction expressions
- * - verifies getJsonExtractSql parity across SQLite, PostgreSQL, and MariaDB
- * - verifies convertDatesToISO preserves extracted virtual fields with skipJson: true
+ * - pins that a blob-stored field keeps the `data` column in the SELECT, so values
+ *   come back with their JSON types (numbers, booleans, arrays, nested objects)
+ * - records why: synthesizing `data->>'f'` (PostgreSQL) / `JSON_UNQUOTE(JSON_EXTRACT())`
+ *   (MariaDB) returns TEXT, so `views: 7` became `"7"` and arrays became JSON strings
+ *   (reverted 2026-10-05)
+ * - pins that a physical-only projection still skips the blob (the safe fast path)
  */
 
 import { describe, expect, it } from "vitest";
 import { sql, type SQL } from "drizzle-orm";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { SqlAdapterCore } from "@src/databases/core/sql-adapter-core";
-import { convertDatesToISO } from "@src/databases/core/relational-utils";
-import type { DatabaseResult } from "@src/databases/db-interface";
+import type { DatabaseResult, DatabaseTransaction } from "@src/databases/db-interface";
 
-class MockSqlAdapter extends SqlAdapterCore {
-  public readonly type = "mock-sql";
-  public readonly schema = {};
-  public db: unknown = {};
-  public raw = { execute: async () => [], client: null };
+const probeTable = sqliteTable("projection_probe", {
+  _id: text("_id").primaryKey(),
+  tenantId: text("tenantId"),
+  status: text("status"),
+  data: text("data"),
+});
 
-  public mockTable = sqliteTable("test_collection", {
-    _id: text("_id").primaryKey(),
-    tenantId: text("tenantId"),
-    status: text("status"),
-    data: text("data"),
-  });
-
-  public getTable(_collection: string): unknown {
-    return this.mockTable;
-  }
-
-  public getJsonField(field: string): SQL {
-    return sql`json_extract(data, ${`$."${field}"`})`;
-  }
-
-  public getJsonExtractSql(field: string): string {
-    return `json_extract("data", '$."${field}"')`;
-  }
-
-  public createDynamicTableDefinition(_tableName: string): unknown {
-    return this.mockTable;
-  }
-
-  protected isMissingTableError(): boolean {
-    return false;
-  }
-
-  public async transaction<T>(
-    fn: (
-      transaction: import("@src/databases/db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
+class ProjectionProbe extends SqlAdapterCore {
+  type = "test";
+  readonly schema = {};
+  db = {};
+  raw = { execute: async () => [], client: null };
+  async transaction<T>(
+    fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
   ): Promise<DatabaseResult<T>> {
     return fn({} as never);
   }
-
-  public testShouldExcludeData(table: unknown, options: unknown): boolean {
-    return this.shouldExcludeData(table, options);
+  getTable(): unknown {
+    return probeTable;
+  }
+  getJsonField(_field: string): SQL {
+    return sql`1`;
+  }
+  createDynamicTableDefinition(_name: string): unknown {
+    return probeTable;
+  }
+  protected isMissingTableError(): boolean {
+    return false;
+  }
+  excludes(fields?: string[]): boolean {
+    return this.shouldExcludeData(probeTable, fields ? { fields } : {});
   }
 }
 
-describe("Virtual Field SQL Projections", () => {
-  const adapter = new MockSqlAdapter();
-  const table = adapter.mockTable;
+describe("fields projection keeps JSON types", () => {
+  const probe = new ProjectionProbe();
 
-  describe("shouldExcludeData", () => {
-    it("returns false when no fields option is provided (full row read)", () => {
-      expect(adapter.testShouldExcludeData(table, {})).toBe(false);
-      expect(adapter.testShouldExcludeData(table, { fields: [] })).toBe(false);
-    });
-
-    it("returns false when 'data' column is explicitly requested", () => {
-      expect(adapter.testShouldExcludeData(table, { fields: ["_id", "data"] })).toBe(false);
-      expect(adapter.testShouldExcludeData(table, { fields: ["data", "title"] })).toBe(false);
-    });
-
-    it("returns true when specific virtual or physical fields are requested without 'data'", () => {
-      expect(adapter.testShouldExcludeData(table, { fields: ["_id", "title"] })).toBe(true);
-      expect(adapter.testShouldExcludeData(table, { fields: ["title", "slug", "views"] })).toBe(
-        true,
-      );
-      expect(adapter.testShouldExcludeData(table, { fields: ["status"] })).toBe(true);
-    });
+  it("keeps the blob when any requested field lives in it", () => {
+    expect(probe.excludes(["title"])).toBe(false);
+    expect(probe.excludes(["_id", "views", "tags"])).toBe(false);
+    expect(probe.excludes(["status", "meta.author"])).toBe(false);
   });
 
-  describe("getProjectedSelection", () => {
-    it("synthesizes native extraction for virtual fields and includes physical columns", () => {
-      const selection = adapter.getProjectedSelection(table, {
-        fields: ["title", "slug", "status"],
-      });
-
-      // Mandatory physical columns
-      expect(selection._id).toBeDefined();
-      expect(selection.tenantId).toBeDefined();
-      expect(selection.status).toBeDefined();
-
-      // Virtual fields synthesized as aliased SQL
-      expect(selection.title).toBeDefined();
-      expect(selection.slug).toBeDefined();
-      // Raw data column is omitted from projection!
-      expect(selection.data).toBeUndefined();
-    });
-
-    it("returns physical selection including data when fields includes 'data'", () => {
-      const selection = adapter.getProjectedSelection(table, {
-        fields: ["_id", "data"],
-      });
-
-      expect(selection._id).toBeDefined();
-      expect(selection.data).toBeDefined();
-    });
+  it("selects the data column for a blob-field projection", () => {
+    const selection = probe.getProjectedSelection(probeTable, { fields: ["title", "views"] });
+    expect(selection.data).toBeDefined();
+    // No synthesized text-extraction alias may stand in for the typed blob value.
+    expect(selection.title).toBeUndefined();
+    expect(selection.views).toBeUndefined();
   });
 
-  describe("getJsonExtractSql dialect parity", () => {
-    it("produces valid extraction SQL for SQLite", async () => {
-      const { SQLiteAdapterCore } = await import("@src/databases/sqlite/adapter-core");
-      const probe = Object.create(SQLiteAdapterCore.prototype);
-      expect(probe.getJsonExtractSql("title")).toBe('json_extract("data", \'$."title"\')');
-      expect(probe.getJsonExtractSql("meta.author")).toBe(
-        'json_extract("data", \'$."meta"."author"\')',
-      );
-    });
-
-    it("produces valid extraction SQL for PostgreSQL", async () => {
-      const { PostgresAdapterCore } = await import("@src/databases/postgresql/adapter-core");
-      const probe = Object.create(PostgresAdapterCore.prototype);
-      expect(probe.getJsonExtractSql("title")).toBe("\"data\"->>'title'");
-      expect(probe.getJsonExtractSql("meta.author")).toBe("\"data\"#>>'{meta,author}'");
-    });
-
-    it("produces valid extraction SQL for MariaDB", async () => {
-      const { AdapterCore: MariaDbAdapterCore } =
-        await import("@src/databases/mariadb/adapter-core");
-      const probe = Object.create(MariaDbAdapterCore.prototype);
-      expect(probe.getJsonExtractSql("title")).toBe(
-        "JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.title'))",
-      );
-      expect(probe.getJsonExtractSql("meta.author")).toBe(
-        "JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.meta.author'))",
-      );
-    });
+  it("skips the blob only for physical-only projections", () => {
+    expect(probe.excludes(["_id", "status"])).toBe(true);
+    const selection = probe.getProjectedSelection(probeTable, { fields: ["status"] });
+    expect(selection.data).toBeUndefined();
+    expect(selection.status).toBeDefined();
   });
 
-  describe("convertDatesToISO with projected virtual fields", () => {
-    it("preserves extracted virtual fields while skipping JSON parsing when skipJson is true", () => {
-      const rawRow = {
-        _id: "test-id-123",
-        tenantId: "tenant-abc",
-        title: "Optimized Document",
-        views: 42,
-        createdAt: "2026-10-05T08:00:00.000Z",
-      };
-
-      const result = convertDatesToISO(rawRow, {
-        table: "test_collection",
-        skipJson: true,
-      }) as Record<string, unknown>;
-
-      expect(result._id).toBe("test-id-123");
-      expect(result.tenantId).toBe("tenant-abc");
-      expect(result.title).toBe("Optimized Document");
-      expect(result.views).toBe(42);
-      expect("data" in result).toBe(false);
-    });
+  it("never excludes when no projection or `data` is requested", () => {
+    expect(probe.excludes()).toBe(false);
+    expect(probe.excludes(["data"])).toBe(false);
   });
 });

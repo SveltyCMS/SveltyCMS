@@ -1266,15 +1266,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return drizzleSql`data->>${field}`;
   }
 
-  public getJsonExtractSql(field: string): string {
-    assertSafeSqlIdentifier(field.replace(/\./g, "_"), "field");
-    if (field.includes(".")) {
-      const path = "{" + field.split(".").join(",") + "}";
-      return `"data"#>>'${path}'`;
-    }
-    return `"data"->>'${field}'`;
-  }
-
   /**
    * Lazy expression-index for dynamic sort fields.
    *

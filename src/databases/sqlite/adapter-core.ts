@@ -1015,15 +1015,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return sql`json_extract(data, ${path})`;
   }
 
-  public getJsonExtractSql(field: string): string {
-    assertSafeSqlIdentifier(field.replace(/\./g, "_"), "field");
-    let path = "$";
-    for (const segment of field.split(".")) {
-      path += `."${segment.replace(/"/g, '""')}"`;
-    }
-    return `json_extract("data", '${path}')`;
-  }
-
   // --------------------------------------------------------------------------
   // createDynamicTableDefinition
   // --------------------------------------------------------------------------
