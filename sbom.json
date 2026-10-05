@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:ce1df921-494f-48ef-affe-9e3acbddea0a",
+  "serialNumber": "urn:uuid:02fade84-654a-401c-8481-6efbc8930b51",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-05T16:15:26.771Z",
+    "timestamp": "2026-10-05T21:43:42.909Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -1907,13 +1907,13 @@
     {
       "type": "library",
       "name": "@maplibre/geojson-vt",
-      "version": "6.1.2",
-      "purl": "pkg:npm/@maplibre/geojson-vt@6.1.2",
+      "version": "6.1.1",
+      "purl": "pkg:npm/@maplibre/geojson-vt@6.1.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-2ZYhobdAY+y4/P/z1xe0698165LywD0yDdWugdu3NRUrajgVWut+tLkcz7i/RJguMTURwK7gxwmwYMFJbgbQFw=="
+          "content": "sha512-FVMOcmSP/yqol45t7StApEyTL5/vmqBCuFhH9n+fFuINenhaX+YgHHIt1yJ86S8kln3uJLcMvmEU2cfn6E2eCQ=="
         }
       ]
     },
@@ -2024,13 +2024,13 @@
     {
       "type": "library",
       "name": "@napi-rs/wasm-runtime",
-      "version": "1.2.5",
-      "purl": "pkg:npm/@napi-rs/wasm-runtime@1.2.5",
+      "version": "1.2.4",
+      "purl": "pkg:npm/@napi-rs/wasm-runtime@1.2.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-HshSvXzmBxNzqejd3k/KemgQ3hdREUYFRRrgxOZ+gPljDIsO2SDZrVZMd4Z/HsxudQbE62OVyVFE8z9BCurfjA=="
+          "content": "sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g=="
         }
       ]
     },
@@ -4780,13 +4780,13 @@
     {
       "type": "library",
       "name": "acorn",
-      "version": "8.19.0",
-      "purl": "pkg:npm/acorn@8.19.0",
+      "version": "8.18.0",
+      "purl": "pkg:npm/acorn@8.18.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw=="
+          "content": "sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ=="
         }
       ]
     },
@@ -6132,13 +6132,13 @@
     {
       "type": "library",
       "name": "graphql-yoga",
-      "version": "5.24.2",
-      "purl": "pkg:npm/graphql-yoga@5.24.2",
+      "version": "5.24.1",
+      "purl": "pkg:npm/graphql-yoga@5.24.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-pQoCb4BjDF3ZccHugxm84EQcG4d0qK+r11hFylB4AncvIp1r6PZ450mLRwCv+5c7884/ppPJQPWdnIAIXSCQUA=="
+          "content": "sha512-NA2aQ4sZvR/bniCCLOlMG6OSZf5hPg3mUf3Phm33ObqRMZEq6WtZrj2hTcHfT2ZEFVV5FRCbcMb4NB1w7BIKaA=="
         }
       ]
     },
@@ -6860,13 +6860,13 @@
     {
       "type": "library",
       "name": "magic-string",
-      "version": "1.4.3",
-      "purl": "pkg:npm/magic-string@1.4.3",
+      "version": "1.4.2",
+      "purl": "pkg:npm/magic-string@1.4.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ=="
+          "content": "sha512-vG+rjFRj1PqdIBozIxAGMjPlOhaVe+GXpbttY/iSK7rGcJRMlwNJO7dcUwmUqkymsFLJiNGI06t4D7Fr7yRC9g=="
         }
       ]
     },
@@ -7263,13 +7263,13 @@
     {
       "type": "library",
       "name": "nodemailer",
-      "version": "10.0.15",
-      "purl": "pkg:npm/nodemailer@10.0.15",
+      "version": "10.0.14",
+      "purl": "pkg:npm/nodemailer@10.0.14",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EUqp5PhtcsYXs9Fq/lS7s/8zlTrnBqmzZWzFFROrNikMiz+om/YRKMwqN907t+0A1KKyT8jd39CBUbFZmaZmcA=="
+          "content": "sha512-eJoLFKg55fesSlzUekmfOv/SBXh4KUYT8oiQc2RLP0tfG0rbNMJBK7wgHJwXTJwqyKlSJMz9UzDZ4v+aHEvo8g=="
         }
       ]
     },
@@ -7549,13 +7549,13 @@
     {
       "type": "library",
       "name": "postcss",
-      "version": "8.5.29",
-      "purl": "pkg:npm/postcss@8.5.29",
+      "version": "8.5.28",
+      "purl": "pkg:npm/postcss@8.5.28",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ=="
+          "content": "sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A=="
         }
       ]
     },
@@ -9135,13 +9135,13 @@
     {
       "type": "library",
       "name": "xml-crypto",
-      "version": "6.3.3",
-      "purl": "pkg:npm/xml-crypto@6.3.3",
+      "version": "6.3.2",
+      "purl": "pkg:npm/xml-crypto@6.3.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-qJnp4Dv5tH8CPzXKitFcLiCxPcy3SnPVQ9eY4qKKsHahf7/Ri7zDwjWaBACarMkT0T6FP+LWzdibO+19b136rg=="
+          "content": "sha512-XoUdpErePlpyFdNYVzG2Sfw5ghvqUCQMT3dQ0tAxs0JKzk9gLzwALFkvHZ/D0OyfD/OyxoXsCcYZzbDzgY18RA=="
         }
       ]
     },

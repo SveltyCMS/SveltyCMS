@@ -93,22 +93,45 @@
 		}
 	});
 
-	// Derived: auto db_name from collection name (lowercase + underscores)
-	const DB_NAME = $derived(
-		name
-			? name
-					.toLowerCase()
-					.replace(/\s+/g, '_')
-					.replace(/[^a-z0-9_]/g, '')
-			: ''
-	);
+	let isDbNameManuallyEdited = $state(!!(data?._id || collections.active?._id));
+	let dbNameValue = $state(data?._id || collections.active?._id || '');
+
+	$effect(() => {
+		if (!isDbNameManuallyEdited) {
+			dbNameValue = name
+				? name
+						.toLowerCase()
+						.replace(/\s+/g, '_')
+						.replace(/[^a-z0-9_]/g, '')
+				: '';
+		}
+	});
+
+	function handleDbNameInput(e: Event) {
+		const target = e.target as HTMLInputElement;
+		dbNameValue = target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+		isDbNameManuallyEdited = true;
+	}
+
+	function handleDbNameBlur() {
+		if (!dbNameValue.trim()) {
+			isDbNameManuallyEdited = false;
+			dbNameValue = name
+				? name
+						.toLowerCase()
+						.replace(/\s+/g, '_')
+						.replace(/[^a-z0-9_]/g, '')
+				: '';
+		}
+	}
 
 	// Sync all fields into the collection store (include slug for save action)
 	$effect(() => {
 		const currentName = name;
+		const currentDbName = dbNameValue;
 		const currentDescription = description;
 		const currentIcon = selectedIcon || 'bi:collection';
-		const currentSlug = DB_NAME
+		const currentSlug = currentDbName
 			? currentName
 					.toLowerCase()
 					.replace(/\s+/g, '-')
@@ -125,6 +148,7 @@
 			};
 			if (
 				base.name === currentName &&
+				base._id === currentDbName &&
 				base.description === currentDescription &&
 				base.icon === currentIcon &&
 				base.slug === currentSlug
@@ -133,6 +157,7 @@
 
 			setCollection({
 				...base,
+				_id: currentDbName,
 				name: currentName,
 				description: currentDescription,
 				icon: currentIcon,
@@ -212,13 +237,9 @@
 				</div>
 
 				{#if name}
-					<div
-						class="rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800 p-3"
-					>
-						<div class="flex items-center justify-between mb-1">
-							<span
-								class="text-[10px] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400"
-							>
+					<div class="space-y-1 mt-6">
+						<div class="flex items-center gap-2">
+							<span class="text-sm font-medium text-surface-600 dark:text-surface-400">
 								Database Name
 							</span>
 							<SystemTooltip
@@ -227,10 +248,15 @@
 								<HelpIcon ariaLabel="Help: Database Name" />
 							</SystemTooltip>
 						</div>
-						<code class="text-sm font-mono font-bold text-tertiary-600 dark:text-primary-500"
-							>{DB_NAME}</code
-						>
-						<p class="text-[11px] text-surface-500 dark:text-surface-400 mt-1">
+						<Input
+							type="text"
+							value={dbNameValue}
+							oninput={handleDbNameInput}
+							onblur={handleDbNameBlur}
+							class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-500"
+							aria-label="Database Name"
+						/>
+						<p class="text-[11px] text-surface-500 dark:text-surface-400">
 							Auto-generated from collection name — used as the database table name
 						</p>
 					</div>
