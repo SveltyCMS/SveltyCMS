@@ -479,9 +479,9 @@ This layout provides the administrative shell, including sidebars and header con
 	<meta property="twitter:domain" content={page.url.origin} />
 	<meta property="twitter:url" content={page.url.href} />
 	{#if theme.customCss}
-		<style>
+		<svelte:element this={"style"}>
 			{theme.customCss}
-		</style>
+		</svelte:element>
 	{/if}
 </svelte:head>
 

@@ -150,8 +150,18 @@ export const migrations: PluginMigration[] = [
               "updatedAt" BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
             );
           `);
+          // 🛡️ UNIQUE PARTIAL (matches system-schema-spec): the legacy
+          // 3-column index is rebuilt as a partial unique index on
+          // (tenantId, source) WHERE active — serving the request-route
+          // lookup exactly and rejecting two ACTIVE redirects for the same
+          // source per tenant. Legacy conflicting rows are deduped first
+          // (keep the most recently updated).
           statements.push(
-            `CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source", "active");`,
+            `DELETE FROM "redirects_mv" a USING "redirects_mv" b WHERE a."tenantId" = b."tenantId" AND a."source" = b."source" AND a."active" = TRUE AND b."active" = TRUE AND a."updatedAt" < b."updatedAt"`,
+          );
+          statements.push(`DROP INDEX IF EXISTS "idx_redirects_mv_lookup"`);
+          statements.push(
+            `CREATE UNIQUE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source") WHERE "active" = true`,
           );
         }
 

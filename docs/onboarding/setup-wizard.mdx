@@ -1,12 +1,12 @@
 ---
 path: "docs/onboarding/setup-wizard.mdx"
 title: "Setup Wizard Walkthrough"
-description: "Short first-run walkthrough: database, admin user, and the moment setup locks."
+description: "The five first-run steps: database, admin, blueprint, optional email, and completion."
 order: 3
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2026-08-20"
-updated: "2026-09-22"
+updated: "2026-10-05"
 tags:
   - "installer"
   - "database"
@@ -16,77 +16,55 @@ tags:
 
 # Setup wizard walkthrough
 
-Short first run: pick a database, create the admin, finish. Every option, preset, and validation rule is the [Setup wizard guide](../guides/configuration/setup-wizard.mdx). Install commands are [Getting started](../getting-started.mdx).
+You are on `/setup`. Install commands are [Getting started](../getting-started.mdx). Field rules, error text, and the seven blueprints are the [setup wizard guide](../guides/configuration/setup-wizard.mdx).
 
-The SveltyCMS **Setup Wizard** is a progressive, self-healing installation flow that provisions your database, seeds system permissions and roles, and locks down bootstrapping endpoints.
+## 1. Database
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Wizard as Setup Wizard (/setup)
-    participant State as System State Machine
-    participant DB as Target Database
-    participant Hook as Middleware Guard
+Pick an engine and test the connection before Next.
 
-    User->>Wizard: Fill DB & Admin Credentials
-    Wizard->>State: POST /api/setup/seed-db
-    State->>DB: Provision Tables, System Roles, Indexes
-    State->>Wizard: DB Ready
-    Wizard->>State: POST /api/setup/complete
-    State->>State: Transition state to READY (isSetupComplete = true)
-    Hook-->>User: Gating Active — /setup routes blocked (403)
-```
+| Engine          | When it fits                              | What you enter                                       |
+| :-------------- | :---------------------------------------- | :--------------------------------------------------- |
+| SQLite          | Local development and a single small site | Nothing. The wizard creates `./db/sveltycms.db`.     |
+| PostgreSQL      | More than one app instance                | Host, port `5432`, database, user, password          |
+| MariaDB / MySQL | A typical VPS                             | Host, port `3306`, database, user, password          |
+| MongoDB         | A document database or Atlas              | A `mongodb://` or `mongodb+srv://` connection string |
 
----
+If the database already has tables, the wizard asks before it replaces them.
 
-## Supported Database Engines
+## 2. Admin account
 
-SveltyCMS features a 100% database-agnostic architecture. Choose the database that fits your operational needs:
+- **Username** is 2–50 characters: letters, numbers, and `@ $ ! % * # . _ -`.
+- **Email** must be a valid address.
+- **Password** is at least 8 characters and includes lower case, upper case, a number, and a symbol. Confirm it on the same step.
+- Two-factor authentication can wait until the user profile.
 
-| Database Engine              | Recommended Environment                        | Connection Requirements                                                     |
-| :--------------------------- | :--------------------------------------------- | :-------------------------------------------------------------------------- |
-| **SQLite (In-Process)**      | Local Development, Edge, Small to Medium Sites | Zero external dependencies; automated file creation in `./db/sveltycms.db`. |
-| **PostgreSQL (v15+)**        | Enterprise, High Concurrency, Microservices    | Host, Port (5432), Database Name, Username, Password.                       |
-| **MariaDB / MySQL (v10.6+)** | Standard Cloud VPS, Shared Hosting             | Host, Port (3306), Database Name, Username, Password.                       |
-| **MongoDB (v6.0+)**          | Document-first, Schemaless, Atlas Cloud        | Mongo Connection String (`mongodb://` or `mongodb+srv://`).                 |
+## 3. Site and blueprint
 
----
+Set the site name, the production URL (`https://…`), and the admin and content languages. English and German ship compiled. Extra language codes are written when setup completes.
 
-## Step-by-Step Walkthrough
+The country field starts on Germany: euro, German shop text, 19% and 7%. Change the country and the currency, shop language, and tax fields update. Choose “Choose later”, or clear the standard rate, and no tax row is created. Germany, Austria, and Switzerland suggest German shop text. Every other country suggests English. The suggested rates were checked on 5 October 2026. They are a starting point, not a tax ruling.
 
-### 1. Database Configuration
+Then pick one blueprint. **Website Starter** is the recommended default. It creates `pages` and seeds Home, a legal page, and Privacy. The legal page is Impressum for Germany, Austria, and Switzerland, Mentions légales for France, Aviso legal for Spain, Note legali for Italy, Bedrijfsgegevens for the Netherlands, and Legal notice otherwise. Replace that text before a public launch. The other cards are Blog, Agency, SaaS, Corporate, E-commerce, and Blank. Each card lists the collections it creates. The list is in the [setup wizard guide](../guides/configuration/setup-wizard.mdx#solution-presets-starter-kits).
 
-Select your engine and input credentials. SveltyCMS tests connection resilience and retries automatically before applying schemas.
+Multi-tenant mode, Redis, and cloud media storage are on this step and can stay off.
 
-### 2. Administrator Account
+## 4. Email
 
-Set up the super-admin identity:
+Optional. Skip it and set SMTP later in settings. If you fill it in, send the test message before Next.
 
-- **Email**: Must be a valid email format.
-- **Password**: Minimum 8 characters with lowercase, uppercase, numeric, and symbol enforcement.
-- **2FA (Optional)**: Can be activated immediately or later in User Profile.
+## 5. Review and complete
 
-### 3. Localization & Multi-Tenancy
+Read the summary. Complete writes the admin user, the blueprint collections, and `config/private.ts`, then signs you in. You land on the first collection, or on `/login` when the blueprint created none (Blank).
 
-- **Base Locale**: Set default system language (e.g. `en`, `de`, `fr`, `es`).
-- **Multi-Tenant Mode**: Enable strict tenant isolation with automated `tenantId` row partitioning.
+## After setup
 
----
+- `/setup` redirects to `/login`.
+- `/api/setup` answers `403`.
+- With Website Starter, open `/` for the homepage, then replace the text on the legal page and on Privacy.
+- Connection settings stay in `config/private.ts`. Running the wizard again means pointing it at a database that has no administrator yet. See [recovery](../guides/configuration/setup-wizard.mdx#troubleshooting).
+- A shop is the E-commerce blueprint, then the Commerce plugin. Continue in [E-commerce](../guides/content/ecommerce.mdx).
 
-## Security & Bootstrap Gating
+## Next
 
-Once setup completes:
-
-1. `isSetupComplete()` returns `true`.
-2. The `handleSystemState` hook redirects any navigation to `/setup` directly to `/login`.
-3. All `/api/setup/*` API routes fail closed with `403 Forbidden`.
-
-> [!CAUTION]
-> Once finalized, database connection parameters live securely in `config/private.ts` (or environment variables). You cannot re-run the setup wizard without manually resetting configuration.
-
----
-
-## Next Steps
-
-- Review the **[Security Architecture](../reference/security/index.mdx)** for authentication and CSRF details.
-- Discover how to build content models with **[Collections Guide](../guides/content/index.mdx)**.
+- [Setup wizard guide](../guides/configuration/setup-wizard.mdx) — every field and the blueprint list
+- [Collections](../guides/content/index.mdx) — add a collection the blueprint did not include

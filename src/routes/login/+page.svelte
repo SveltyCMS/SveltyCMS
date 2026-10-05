@@ -291,9 +291,9 @@
 <svelte:head>
 	<meta name="robots" content="noindex, nofollow" />
 	{#if loginBranding?.brandedLogin && loginBranding.customCss}
-		<style>
+		<svelte:element this={"style"}>
 			{loginBranding.customCss}
-		</style>
+		</svelte:element>
 	{/if}
 </svelte:head>
 

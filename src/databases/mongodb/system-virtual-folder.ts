@@ -164,7 +164,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
             },
           }));
 
-          await this.bulkWrite(bulkOps as any);
+          await this.bulkWrite(bulkOps as any, { ordered: false });
           return { success: true, data: undefined };
         } catch (error) {
           const message = "Failed to update folder order";

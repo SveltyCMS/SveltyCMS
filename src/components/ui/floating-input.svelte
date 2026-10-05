@@ -268,7 +268,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 				{icon}
 				width={String(sizeConfig.iconSize)}
 				class={cn(
-					'absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none',
+					'absolute inset-s-3 top-1/2 -translate-y-1/2 pointer-events-none',
 					bgTransparent ? 'text-white' : iconColor ? '' : 'text-surface-500 dark:text-surface-50'
 				)}
 				style={iconColor ? `color: ${iconColor}` : undefined}
@@ -289,7 +289,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 					inputElement?.focus();
 				}}
 				aria-label="Clear input"
-				class="absolute end-2 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 hover:bg-surface-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 transition-colors"
+				class="absolute inset-e-2 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 hover:bg-surface-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 transition-colors"
 			>
 				<iconify-icon icon="mdi:close" width={String(sizeConfig.clearSize)} aria-hidden="true"
 				></iconify-icon>
@@ -304,7 +304,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
 				class={cn(
-					'absolute end-3 top-1/2 -translate-y-1/2 hover:opacity-75 focus:outline-none cursor-pointer',
+					'absolute inset-e-3 top-1/2 -translate-y-1/2 hover:opacity-75 focus:outline-none cursor-pointer',
 					bgTransparent
 						? 'text-white'
 						: passwordIconColor

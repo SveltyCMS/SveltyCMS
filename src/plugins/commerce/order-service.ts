@@ -28,13 +28,26 @@ export type PaymentMethod = "stripe" | (typeof OFFLINE_METHODS)[number];
 
 export interface CheckoutInput {
   email: string;
+  customerName?: string;
   country?: string;
   state?: string;
   shippingAddress?: string;
   billingAddress?: string;
+  shipLine1?: string;
+  shipPostal?: string;
+  shipCity?: string;
+  shipCountry?: string;
   notes?: string;
   paymentMethod?: PaymentMethod;
   trackingUrl?: string;
+  invoiceNumber?: string;
+  netTotal?: number;
+  taxRate?: number;
+  vatId?: string;
+  vatNote?: string;
+  termsAcceptedAt?: string;
+  withdrawalInfoProvided?: boolean;
+  digitalWaiverAt?: string;
 }
 
 const CANCEL_WINDOW_MS = 60 * 60 * 1000;
@@ -90,9 +103,22 @@ export async function placeOrder(
     currency: breakdown.grandTotal.currency,
     status: "pending",
     couponCode: cart.appliedCoupon,
+    customerName: input.customerName || "",
     shippingAddress: input.shippingAddress || "",
     billingAddress: input.billingAddress || "",
+    shipLine1: input.shipLine1 || "",
+    shipPostal: input.shipPostal || "",
+    shipCity: input.shipCity || "",
+    shipCountry: input.shipCountry || input.country || "",
     notes: input.notes || "",
+    invoiceNumber: input.invoiceNumber || "",
+    netTotal: input.netTotal ?? majors.total,
+    taxRate: input.taxRate ?? 0,
+    vatId: input.vatId || "",
+    vatNote: input.vatNote || "",
+    termsAcceptedAt: input.termsAcceptedAt || "",
+    withdrawalInfoProvided: input.withdrawalInfoProvided === true,
+    digitalWaiverAt: input.digitalWaiverAt || "",
     inventoryCommitted: false,
     cartId: cart.id,
     paymentMethod: input.paymentMethod || "stripe",
@@ -124,6 +150,18 @@ export function canCancelOrder(order: Record<string, unknown>, now = Date.now())
   return Number.isFinite(created) && now - created <= CANCEL_WINDOW_MS;
 }
 
+/** Give one coupon use back after a pending or processing order is cancelled. */
+export async function releaseCouponUse(store: CommerceStore, code: unknown): Promise<void> {
+  const couponCode = String(code || "").trim();
+  if (!couponCode) return;
+  const coupon = await store.findOne("coupons", { code: couponCode });
+  if (!coupon?._id) return;
+  const currentUsed = Number(coupon.usedCount ?? coupon.usageCount ?? 0);
+  if (currentUsed > 0) {
+    await store.update("coupons", String(coupon._id), { usedCount: currentUsed - 1 });
+  }
+}
+
 export async function cancelOrder(
   store: CommerceStore,
   orderId: string,
@@ -136,15 +174,7 @@ export async function cancelOrder(
   const updated = await transitionOrder(store, orderId, "cancelled");
   const items = Array.isArray(order.items) ? (order.items as CartView["items"]) : [];
   await restoreStock(store, items, orderId);
-  if (order.couponCode) {
-    const coupon = await store.findOne("coupons", { code: order.couponCode });
-    if (coupon && coupon._id) {
-      const currentUsed = Number(coupon.usedCount ?? coupon.usageCount ?? 0);
-      if (currentUsed > 0) {
-        await store.update("coupons", String(coupon._id), { usedCount: currentUsed - 1 });
-      }
-    }
-  }
+  await releaseCouponUse(store, order.couponCode);
   return updated;
 }
 
@@ -159,7 +189,12 @@ export async function transitionOrder(
   if (!ALLOWED[current]?.includes(next)) {
     raise(409, `Cannot move order from ${current} to ${next}.`, "INVALID_STATUS");
   }
-  await store.update("orders", orderId, { status: next, updatedAt: nowISODateString() });
+  const updatedAt = nowISODateString();
+  await store.update("orders", orderId, {
+    status: next,
+    updatedAt,
+    ...(next === "delivered" ? { deliveredAt: updatedAt } : {}),
+  });
   const saved = await store.findOne("orders", { _id: orderId });
   return saved || { ...order, status: next };
 }

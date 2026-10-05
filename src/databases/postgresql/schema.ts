@@ -7,7 +7,7 @@
  * Date fields are stored as TIMESTAMP and converted to ISODateString at boundaries.
  */
 
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -68,6 +68,11 @@ export const authUsers = pgTable(
   (table) => ({
     emailIdx: index("auth_users_email_idx").on(table.email),
     tenantIdx: index("auth_users_tenant_idx").on(table.tenantId),
+    // 🛡️ NULLS NOT DISTINCT: drizzle 0.45 cannot express the PostgreSQL 15+
+    // clause, so the boot renderer (system-schema-spec) emits
+    // `CREATE UNIQUE INDEX ... (email, tenantId) NULLS NOT DISTINCT` after
+    // deduping legacy single-tenant rows — duplicate emails are rejected at
+    // the DB level even when tenantId IS NULL.
     emailTenantUnique: unique("auth_users_email_tenant_unique").on(table.email, table.tenantId),
   }),
 );
@@ -120,6 +125,9 @@ export const authTokens = pgTable(
     userIdx: index("auth_tokens_user_idx").on(table.user_id),
     expiresIdx: index("auth_tokens_expires_idx").on(table.expires),
     tenantIdx: index("auth_tokens_tenant_idx").on(table.tenantId),
+    consumedUpdatedIdx: index("auth_tokens_consumed_updated_idx")
+      .on(table.updatedAt)
+      .where(sql`consumed = TRUE`),
   }),
 );
 
@@ -182,6 +190,14 @@ export const contentNodes = pgTable(
     nodeTypeIdx: index("content_nodes_nodeType_idx").on(table.nodeType),
     statusIdx: index("content_nodes_status_idx").on(table.status),
     tenantIdx: index("content_nodes_tenant_idx").on(table.tenantId),
+    // Hierarchy navigation: WHERE tenantId = ? AND parentId = ? ORDER BY
+    // position, _id rides this index in order (single index scan, no sort).
+    childrenIdx: index("content_nodes_children_idx").on(
+      table.tenantId,
+      table.parentId,
+      table.position,
+      table._id,
+    ),
     pathTenantUnique: unique("content_nodes_path_tenant_unique").on(table.path, table.tenantId),
   }),
 );
@@ -206,6 +222,9 @@ export const contentDrafts = pgTable(
     authorIdx: index("content_drafts_author_idx").on(table.authorId),
     statusIdx: index("content_drafts_status_idx").on(table.status),
     tenantIdx: index("content_drafts_tenant_idx").on(table.tenantId),
+    // Latest-draft lookup: WHERE contentId = ? ORDER BY version DESC LIMIT 1
+    // is a single index probe; the sort order is baked into the index.
+    latestIdx: index("content_drafts_latest_idx").on(table.contentId, desc(table.version)),
   }),
 );
 
@@ -225,8 +244,13 @@ export const contentRevisions = pgTable(
     ...timestamps,
   },
   (table) => ({
-    contentIdx: index("content_revisions_content_idx").on(table.contentId),
-    versionIdx: index("content_revisions_version_idx").on(table.version),
+    // One composite unique replaces the former per-column btree indexes:
+    // it answers per-document filtering AND version ordering while
+    // guaranteeing no duplicate revision numbers per document.
+    contentVersionUnique: unique("content_revisions_content_version_unique").on(
+      table.contentId,
+      table.version,
+    ),
     authorIdx: index("content_revisions_author_idx").on(table.authorId),
     tenantIdx: index("content_revisions_tenant_idx").on(table.tenantId),
   }),
@@ -406,6 +430,14 @@ export const sveltyOutbox = pgTable(
     tenantIdx: index("outbox_tenant_idx").on(table.tenantId),
     eventTypeIdx: index("outbox_event_type_idx").on(table.eventType),
     createdAtIdx: index("outbox_created_at_idx").on(table.createdAt),
+    // 🚀 POLLING PARTIAL INDEX: the outbox poller fetches
+    // WHERE status='pending' ORDER BY createdAt ASC LIMIT n. The partial index
+    // holds only unhandled rows (typically <100) — delivered events drop out of
+    // it, so index maintenance on completed rows is zero and the poller scans a
+    // single page instead of filtering thousands of historical rows.
+    pendingIdx: index("outbox_pending_idx")
+      .on(table.createdAt)
+      .where(sql`status = 'pending'`),
   }),
 );
 
@@ -432,6 +464,13 @@ export const sveltyJobs = pgTable(
     statusIdx: index("svelty_jobs_status_idx").on(table.status),
     nextRunIdx: index("svelty_jobs_next_run_idx").on(table.nextRunAt),
     tenantIdx: index("svelty_jobs_tenant_idx").on(table.tenantId),
+    // 🚀 POLLING PARTIAL INDEX: the scheduler polls
+    // WHERE status='pending' AND nextRunAt <= now() ORDER BY nextRunAt ASC.
+    // Only runnable rows live in the index (sort order baked in), completed
+    // rows never pay index maintenance.
+    runnableIdx: index("svelty_jobs_runnable_idx")
+      .on(table.nextRunAt)
+      .where(sql`status = 'pending'`),
   }),
 );
 
@@ -591,9 +630,17 @@ export const auditLogs = pgTable(
     ...timestamps,
   },
   (table) => ({
-    timestampIdx: index("audit_timestamp_idx").on(table.timestamp),
-    eventTypeIdx: index("audit_event_type_idx").on(table.eventType),
-    tenantIdx: index("audit_tenant_idx").on(table.tenantId),
+    // BRIN replaces the btree on timestamp: audit logs are append-only and
+    // physically ordered by insertion time, so block-range min/max pruning
+    // answers time-range scans at ~1/1000th of a btree's footprint.
+    // (Names match system-schema-spec; the old audit_* names drifted.)
+    timestampBrin: index("audit_logs_timestamp_brin").using("brin", table.timestamp),
+    tenantTimestampIdx: index("audit_logs_tenant_timestamp_idx").on(
+      table.tenantId,
+      desc(table.timestamp),
+    ),
+    eventTypeIdx: index("audit_logs_event_type_idx").on(table.eventType),
+    tenantIdx: index("audit_logs_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -614,13 +661,16 @@ export const tenants = pgTable(
       maxCollections: 20,
       maxApiRequestsPerMonth: 10_000,
     }),
-    usage: jsonb("usage").$type<TenantUsage>().notNull().default({
-      usersCount: 0,
-      storageBytes: 0,
-      collectionsCount: 0,
-      apiRequestsMonth: 0,
-      lastUpdated: new Date(),
-    }),
+    // 🐛 MODULE-LOAD FREEZE FIX: a JS object default with `lastUpdated: new Date()`
+    // is evaluated once when this module is imported — every tenant created after
+    // server boot would get the boot timestamp. The SQL default evaluates now()
+    // per row at insert time instead.
+    usage: jsonb("usage")
+      .$type<TenantUsage>()
+      .notNull()
+      .default(
+        sql`(jsonb_build_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', now()))`,
+      ),
     settings: jsonb("settings").default({}),
     ...timestamps,
   },
@@ -649,7 +699,12 @@ export const redirectsMV = pgTable(
   (table) => ({
     tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),
     sourceIdx: index("redirects_mv_source_idx").on(table.source),
-    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
+    // 🛡️ Unique partial: serves the request-route lookup
+    // (WHERE tenantId = ? AND source = ? AND active = true) exactly and
+    // rejects a second ACTIVE redirect for the same source per tenant.
+    lookupIdx: uniqueIndex("idx_redirects_mv_lookup")
+      .on(table.tenantId, table.source)
+      .where(sql`"active" = true`),
   }),
 );
 

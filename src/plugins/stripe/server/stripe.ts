@@ -22,8 +22,10 @@ export async function getStripe(tenantId = "default"): Promise<any> {
 
   // @ts-ignore — stripe package is optional, only needed when plugin is enabled
   const Stripe = (await import("stripe")).default;
+  // stripe-node v23 pins `2026-09-30.endive`; pinning here keeps the plugin's
+  // request/response shapes stable and matches the SDK's default API version.
   const stripe = new Stripe(secretKey, {
-    apiVersion: "2025-03-31.basil" as any,
+    apiVersion: "2026-09-30.endive" as any,
     typescript: true,
   });
 

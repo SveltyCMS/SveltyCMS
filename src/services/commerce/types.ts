@@ -24,12 +24,23 @@ export interface Adjustment {
   weight: number;
   amount: Price;
   itemId?: string;
+  /**
+   * VAT already inside a gross price. `computeTotals` lists it and does not
+   * add it to `grandTotal`.
+   */
+  included?: boolean;
+  /** VAT rate in percent, for the invoice (19 = 19%). */
+  ratePercent?: number;
 }
 
 export interface PriceBreakdown {
   subtotal: Price;
   adjustments: Adjustment[];
   grandTotal: Price;
+  /** False when a destination country was sent and no tax row matched. */
+  taxKnown?: boolean;
+  /** Gross catalog prices. VAT adjustments are informational. */
+  pricesIncludeTax?: boolean;
 }
 
 /** Preset `orders.status` options. Map paid → processing, fulfilled → shipped. */

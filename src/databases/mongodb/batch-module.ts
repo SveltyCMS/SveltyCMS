@@ -108,8 +108,9 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
           },
         };
       });
+      const isOrdered = options?.ordered ?? options?.hints?.mongo?.ordered ?? false;
       const result = await model.bulkWrite(bulkOps, {
-        ordered: true,
+        ordered: isOrdered,
         // 🐛 PARITY: bulkWrite casts through the schema by default, which would drop
         // undeclared $set paths (dynamic fields) exactly like the single-row path did.
         strict: false,

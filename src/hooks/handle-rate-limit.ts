@@ -403,6 +403,12 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   const lane = getRateLimitLane(pathname);
   const clientKey = getClientKey(event, lane);
   const now = Date.now();
+  // 🚀 LANE-LEAN RATE LIMIT: the warm collection write lane sets this flag —
+  // the in-memory bucket enforces synchronously and the Redis ledger gets the
+  // spend propagated after the response (see rateLimit({ asyncRemote })).
+  const asyncRemote = Boolean(
+    (event.locals as { __rateLimitAsyncRemote?: boolean }).__rateLimitAsyncRemote,
+  );
 
   // 🚀 ADAPTIVE THROTTLING: dynamic bucket capacity scaled by user profile/role
   const userTier = resolveAdaptiveUserTier(event);
@@ -459,6 +465,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     namespace: `ip:${clientKey}`,
     cost,
     record: true,
+    asyncRemote,
     base: {
       capacity: maxRequests,
       refillPerSecond,
@@ -509,6 +516,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
       namespace: `tenant:${tenantKey}`,
       cost,
       record: false,
+      asyncRemote,
       base: {
         capacity: tenantMaxRequests,
         refillPerSecond: tenantMaxRequests / (tenantWindowMs / 1000),

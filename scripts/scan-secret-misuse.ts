@@ -173,6 +173,7 @@ const BENCHMARK_SECRET_ALLOWLIST = [
   "scripts/test-doctor.ts",
   "scripts/run-e2e.ts",
   "scripts/run-all-db-matrix.ts",
+  "scripts/run-local-db-matrix.ts",
   "scripts/run-integration.ts",
   "tests/benchmarks/",
   "tests/e2e/",

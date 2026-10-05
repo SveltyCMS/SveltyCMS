@@ -388,30 +388,6 @@ const tags = await generateTags(
 
 ---
 
-## 6e. Anomaly Detection
-
-The **Anomaly Detector** (`src/services/intelligence/anomaly-detector.ts`) uses statistical z-score analysis to flag unusual editorial patterns — no ML training data needed:
-
-| Detection Type     | Method                               | Example                       |
-| :----------------- | :----------------------------------- | :---------------------------- |
-| Edit spikes        | z-score > 2.5 on hourly edit rate    | Bulk content attack detection |
-| Bulk changes       | z-score > 2.5 on average edit size   | Potential defacement          |
-| Deletion rate      | z-score > 2.5 on hourly deletions    | Mass deletion anomaly         |
-| Off-hours activity | >3 collections edited at 22:00–06:00 | Unauthorized access pattern   |
-
-```typescript
-import {
-  recordEdit,
-  recordDeletion,
-  detectContentAnomalies,
-} from "@src/services/intelligence/anomaly-detector";
-
-recordEdit("posts", 12500); // Called after each save
-const anomalies = detectContentAnomalies(); // Run periodically or on-demand
-```
-
----
-
 ## 6f. Adaptive UI & Smart Scheduling
 
 ### Adaptive UI Reordering

@@ -17,6 +17,7 @@ export function computeTotals(subtotal: Price, adjustments: Adjustment[]): Price
   const sorted = [...adjustments].sort((a, b) => a.weight - b.weight);
   let grand = subtotal;
   for (const adj of sorted) {
+    if (adj.included) continue;
     grand = add(grand, adj.amount);
   }
   if (grand.amount < 0) {

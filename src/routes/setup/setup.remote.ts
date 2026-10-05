@@ -9,6 +9,21 @@
 import { query, command, getRequestEvent } from "$app/server";
 import { logger } from "@utils/logger";
 
+export const readSetupHints = query("unchecked", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  try {
+    const raw = await readFile(join(process.cwd(), "config", "setup-hints.json"), "utf8");
+    const parsed = JSON.parse(raw) as { template?: unknown; db?: unknown };
+    return {
+      template: typeof parsed.template === "string" ? parsed.template : "",
+      db: typeof parsed.db === "string" ? parsed.db : "",
+    };
+  } catch {
+    return { template: "", db: "" };
+  }
+});
+
 export const testDatabaseConnection = query(
   "unchecked",
   async ({

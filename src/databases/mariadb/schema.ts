@@ -173,6 +173,13 @@ export const contentNodes = mysqlTable(
     nodeTypeIdx: index("nodeType_idx").on(table.nodeType),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // Hierarchy navigation twin of the PG children index (single scan, no sort).
+    childrenIdx: index("children_idx").on(
+      table.tenantId,
+      table.parentId,
+      table.position,
+      table._id,
+    ),
     pathTenantUnique: unique("path_tenant_unique").on(table.path, table.tenantId),
   }),
 );
@@ -195,6 +202,8 @@ export const contentDrafts = mysqlTable(
     authorIdx: index("author_idx").on(table.authorId),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // Latest-draft lookup twin of the PG composite (index-order scan).
+    latestIdx: index("latest_idx").on(table.contentId, table.version),
   }),
 );
 
@@ -216,6 +225,8 @@ export const contentRevisions = mysqlTable(
     versionIdx: index("version_idx").on(table.version),
     authorIdx: index("author_idx").on(table.authorId),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // Unique per-document revision number twin of the PG composite.
+    contentVersionUnique: unique("content_version_unique").on(table.contentId, table.version),
   }),
 );
 
@@ -373,6 +384,8 @@ export const auditLogs = mysqlTable(
     timestampIdx: index("timestamp_idx").on(table.timestamp),
     eventTypeIdx: index("event_type_idx").on(table.eventType),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // Tenant-scoped recent-log pagination twin of the PG composite.
+    tenantTimestampIdx: index("tenant_timestamp_idx").on(table.tenantId, table.timestamp),
   }),
 );
 
@@ -399,6 +412,10 @@ export const sveltyOutbox = mysqlTable(
     tenantIdx: index("outbox_tenant_idx").on(table.tenantId),
     eventTypeIdx: index("outbox_event_type_idx").on(table.eventType),
     createdAtIdx: index("outbox_created_at_idx").on(table.createdAt),
+    // 🚀 POLLING COMPOSITE: MariaDB has no partial indexes; (status, createdAt)
+    // serves the poller's WHERE status='pending' ORDER BY createdAt ASC LIMIT n
+    // in index order — the twin of the PG/SQLite partial indexes.
+    pendingIdx: index("outbox_pending_idx").on(table.status, table.createdAt),
   }),
 );
 
@@ -423,6 +440,9 @@ export const sveltyJobs = mysqlTable(
     statusIdx: index("job_status_idx").on(table.status),
     nextRunIdx: index("job_next_run_idx").on(table.nextRunAt),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // 🚀 POLLING COMPOSITE: the scheduler's WHERE status='pending' AND
+    // nextRunAt <= now() ORDER BY nextRunAt ASC rides this index in order.
+    runnableIdx: index("svelty_jobs_runnable_idx").on(table.status, table.nextRunAt),
   }),
 );
 
@@ -553,13 +573,12 @@ export const tenants = mysqlTable(
       maxCollections: 20,
       maxApiRequestsPerMonth: 10_000,
     }),
-    usage: json("usage").$type<TenantUsage>().notNull().default({
-      usersCount: 0,
-      storageBytes: 0,
-      collectionsCount: 0,
-      apiRequestsMonth: 0,
-      lastUpdated: new Date(),
-    }),
+    // 🐛 MODULE-LOAD FREEZE FIX: JS object default with `lastUpdated: new Date()`
+    // evaluates once at module import — every later tenant insert would get the
+    // boot timestamp. MariaDB JSON columns cannot carry a function default at
+    // all (1064 even parenthesized), so this column keeps the proven pre-fix
+    // no-default state; callers always set `usage` explicitly.
+    usage: json("usage").$type<TenantUsage>().notNull(),
     settings: json("settings").default({}),
     ...timestamps,
   },

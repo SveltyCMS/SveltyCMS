@@ -508,7 +508,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         return { insertOne: { document: doc } };
       });
 
-      const bulkOptions: any = { ordered: false };
+      const bulkOptions: any = {
+        ordered: options.ordered ?? options.hints?.mongo?.ordered ?? false,
+      };
       if (options.hints?.mongo?.writeConcern) {
         bulkOptions.w = options.hints.mongo.writeConcern;
       }
@@ -1365,7 +1367,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
           upsert: true,
         },
       }));
-      const bulkOptions: any = { ordered: false };
+      const bulkOptions: any = {
+        ordered: options.ordered ?? options.hints?.mongo?.ordered ?? false,
+      };
       if (options.hints?.mongo?.writeConcern) {
         bulkOptions.w = options.hints.mongo.writeConcern;
       }
@@ -1423,7 +1427,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         },
       }));
 
-      const bulkOptions: any = { ordered: false };
+      const bulkOptions: any = {
+        ordered: options.ordered ?? options.hints?.mongo?.ordered ?? false,
+      };
       if (options.hints?.mongo?.writeConcern) {
         bulkOptions.w = options.hints.mongo.writeConcern;
       }

@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:source-branch"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-09-26"
+updated: "2026-10-05"
 tags:
   - "version"
   - "update"
@@ -28,20 +28,23 @@ SveltyCMS uses a simple two-branch model with automated releases triggered when 
 ## Release Pipeline
 
 ```
-next:   bun run version:bump → commit package.json → merge to main
+next or main:  pre-push gate passes → push
                  │
                  ▼
 main:   CI runs (whitebox → build → DB matrix → bench → E2E)
                  │
                  ▼ (CI passes)
-        auto-release triggers:
+        auto-release:
         1. reads version from package.json
-        2. creates git tag (e.g. v0.0.10)
-        3. GitHub Release with auto-generated notes (independent of npm)
-        4. npm publish (best-effort — npm never blocks the release)
+        2. if that version's tag already exists and this commit is ahead of it,
+           scripts/version.ts patch writes the next version and the workflow
+           commits and pushes it
+        3. creates the git tag for the version now in package.json
+        4. GitHub Release with auto-generated notes (independent of npm)
+        5. npm publish (best-effort — npm never blocks the release)
 
-        the created tag is always the package.json version ✅
-        a version that already carries its tag is skipped ✅
+        the created tag is the package.json version ✅
+        a checkout that already is that tag is skipped ✅
 ```
 
 ### Deriving the next version
@@ -96,13 +99,13 @@ SemVer §7 defines MINOR as new backwards-compatible functionality, so a `feat` 
 
 Two rules keep the tag and the manifest in lockstep (as of September 2026): the release workflow tags whatever version it finds in `package.json`, and `scripts/version.ts` derives the next `package.json` version from the latest `v*` tag — it reads git, not the hand-edited manifest, so the two cannot drift apart. Because the script refuses to derive a version that already carries a tag, re-releasing an existing version fails fast locally instead of the runner quietly skipping tag creation.
 
-Two further safety rails (as of September 2026): the script refuses to run while `package.json` has uncommitted changes (`--dry-run` still previews the decision and prints a warning), and it never creates a commit or a tag on its own — committing the bumped manifest and merging to `main` stays a human decision. The one exception is the opt-in pre-push release step above, which does commit the bump — and only after an explicit `--release` request and a full green gate.
+Two further safety rails (as of September 2026): the script refuses to run while `package.json` has uncommitted changes (`--dry-run` still previews the decision and prints a warning), and the script itself never creates a commit or a tag. Auto Release commits the bump after CI passes on `main`. The local pre-push release step also commits one, and only after an explicit `--release` request and a full green gate.
 
 The same refusals cover an explicit target: a literal that is not `MAJOR.MINOR.PATCH`, a version that already carries a `v*` tag, or one lower than `package.json` (a downgrade). Because the derived proposal comes from the tag rather than the manifest, it can equal `package.json` — that means the pending version _is_ the next release above the newest tag, so a `patch` bump reports nothing to write and the script says so, pointing at the explicit form (`bun run version:bump 0.0.10`) for any other release.
 
-The version flows from `next` → `main` through the normal merge. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.10 && git push origin v0.0.10`) triggers the same pipeline from the tag name.
+The version is written when CI passes on `main`. If `package.json` still names a version that already has a tag, and the commit CI validated is ahead of that tag, Auto Release runs `scripts/version.ts patch`, commits `chore(release): bump version to vX.Y.Z`, pushes that commit to `main`, and tags it. Each automatic release is one patch, so `0.1.2` becomes `0.1.3`. A checkout that is already the tagged release logs `Release skipped` and exits green. `bun run version:bump` without an argument still follows the table above, where a `feat` is a minor. `bun run git push --release` prepares that local decision before CI.
 
-**The automatic path never writes to `main`.** Because CI triggers the release, a commit that lands on `main` _after_ a release (a docs fix, a merge) leaves `package.json` at the already-tagged version; that run releases nothing — it logs a `Release skipped` notice and exits green. Only a prepared version is tagged: `bun run version:bump` on `next`, commit, merge to `main`. Deriving a bump on the runner instead would have to push to the protected branch from a stale SHA, and would tag a commit CI never validated. The `bump` input on a manual dispatch is the one path that still writes the manifest and commits it back.
+A manual trigger remains at `Actions → Auto Release → Run workflow`, and pushing a `v*` tag directly (`git tag v0.0.10 && git push origin v0.0.10`) triggers the same publish steps from the tag name.
 
 > **npm token caveat**: the GitHub Release (tag + release notes) is created **before** npm publish and never blocked by it. If `NPM_TOKEN` is missing or invalid, the run logs a warning and skips publishing — the release still exists, so the in-app update check (`/api/system/version/check`) keeps working.
 

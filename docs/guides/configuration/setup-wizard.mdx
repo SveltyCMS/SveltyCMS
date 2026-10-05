@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2025-10-30"
-updated: "2026-09-22"
+updated: "2026-10-05"
 tags:
   - "setup"
   - "wizard"
@@ -20,7 +20,7 @@ tags:
 
 # Setup Wizard Guide
 
-This page is the operator's path through first-run setup: what to prepare, what each of the five steps asks for, how to confirm it worked, and what to do when a step fails. The 90-second version is the [setup walkthrough](../../onboarding/setup-wizard.mdx) and install commands are [Getting started](../../getting-started.mdx). How the installer itself works — its phases, the config it writes, and the boot that follows — is [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).
+This page is the operator's path through first-run setup: what to prepare, what each of the five steps asks for, how to confirm it worked, and what to do when a step fails. The short version is the [setup walkthrough](../../onboarding/setup-wizard.mdx) and install commands are [Getting started](../../getting-started.mdx). How the installer itself works — its phases, the config it writes, and the boot that follows — is [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).
 
 The SveltyCMS setup wizard provides a professional, multi-step configuration experience with real-time validation, intelligent error handling, and a modern user interface.
 
@@ -77,7 +77,6 @@ flowchart TD
 ### Quick Stats
 
 - **Total Steps**: 5 (4 required + 1 optional)
-- **Average Completion Time**: 2-3 minutes
 - **Real-time Validation**: All input fields
 - **Auto-save**: localStorage persistence
 - **No server restart required**: the system becomes operational immediately after setup completion
@@ -251,6 +250,13 @@ stateDiagram-v2
 
 - The preset carousel described in [Solution Presets](#solution-presets-starter-kits)
 
+**Country and prices**:
+
+- Country, or “Choose later”
+- Currency (ISO 4217) and shop language (English or German)
+- Whether catalog prices already include tax
+- Standard and reduced tax percents. The form fills a suggestion checked on 5 October 2026. Clear the standard rate, or leave the country empty, and the shop seeds no tax row
+
 **Advanced (optional)**:
 
 - Multi-tenant mode, demo mode, timezone, minimum password length
@@ -352,7 +358,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 
 ### Available Presets
 
-The preset cards advertise a scope; the collections actually created are the ones listed below (from `src/routes/setup/presets.ts`).
+Each card lists the collections that preset creates (`src/routes/setup/presets.ts`). A card does not add core features such as the media library, audit log, or multi-tenant mode — those are available on every install.
 
 #### 1. Blank Project
 
@@ -363,39 +369,39 @@ The preset cards advertise a scope; the collections actually created are the one
 
 - **Recommended default.**
 - **Best for**: A SvelteKit frontend in the same repo with inline page design.
-- **Includes**: Seeded homepage, `pages` collection with live preview, Svedit block editing, and the Editable Website plugin, which is enabled on completion.
+- **Includes**: `pages`, a seeded homepage, a legal page named for the country chosen on this step, and a privacy page for the operator to complete. Live preview and the Editable Website plugin turn on when setup finishes.
 
 #### 3. Blog / Editorial
 
 - **Best for**: Content-heavy sites, news portals.
 - **Collections**:
-  - `Posts`: Standard article schema with RichText, SEO, and Author relation.
-  - `Categories`: Hierarchical organization.
-  - `Authors`: Contributor profiles.
+  - `posts`: Rich text, SEO, a relation to `authors`, categories, and tags.
+  - `categories`: Name, slug, and an optional parent category.
+  - `authors`: Name, bio, avatar, and email.
 
 #### 4. Agency / Portfolio
 
 - **Best for**: Design agencies, freelancers, creative studios.
 - **Collections**:
-  - `Projects`: Portfolio items with gallery and client details.
-  - `Services`: List of offered services.
-  - `Team`: Team members and their profiles.
+  - `projects`: Description, client name, images, and a testimonial.
+  - `services`: Name, description, and a feature list.
+  - `team`: Role, bio, photo, and profile links.
 
 #### 5. SaaS Product
 
 - **Best for**: Software companies, product landing pages.
 - **Collections**:
-  - `Pricing`: Plans managed via the **Price Widget**.
-  - `Features`: Product capability highlights.
-  - `Documentation`: Product documentation articles, organized by category.
+  - `pricing`: Gross price, currency (default `EUR`), interval (`month`, `year`, or `once`), and a feature list. This is a published plan, not a checkout.
+  - `features`: Name, description, and a screenshot.
+  - `documentation`: Title, slug, body, category text, and sort order.
 
 #### 6. Corporate Site
 
 - **Best for**: Business websites, company profiles.
 - **Collections**:
-  - `Team`: Team members across departments.
-  - `Careers`: Job openings with requirements.
-  - `Press`: Press releases and media coverage.
+  - `team`: Name, position, bio, photo, and department.
+  - `careers`: Title, department, location, description, and requirements. The location is a field on the job.
+  - `press`: Title, date, source, URL, and excerpt.
 
 #### 7. E-commerce
 
@@ -685,7 +691,8 @@ The SveltyCMS setup wizard provides a professional, user-friendly onboarding exp
 ✅ Persistent state with auto-save
 ✅ Responsive design for all devices
 ✅ Accessibility features (WCAG 2.1 AA)
-✅ Solution presets that create your first collections
+✅ One blueprint, and the collections that card lists
+✅ Website Starter seeds Home, a country legal page, and Privacy
 ✅ No-restart initialization
 
 What happens underneath — the installer phases, the generated `config/private.ts`, and the boot that follows — is in [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).

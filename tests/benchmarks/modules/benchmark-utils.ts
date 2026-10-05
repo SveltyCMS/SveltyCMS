@@ -1690,6 +1690,11 @@ export async function setupBenchmarkServer() {
   const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
   printBenchmarkIsolationBanner(dbType);
 
+  if (dbType === "postgresql") {
+    process.env.PG_SYNCHRONOUS_COMMIT = process.env.PG_SYNCHRONOUS_COMMIT || "off";
+    process.env.DATABASE_SYNCHRONOUS_COMMIT = process.env.DATABASE_SYNCHRONOUS_COMMIT || "off";
+  }
+
   // 🚀 Seed BEFORE boot: roles + admin + benchmark collections/entries must
   // exist before the server initializes its content engine (production mode
   // has no /api/testing to seed through).
@@ -1723,6 +1728,12 @@ export async function setupBenchmarkServer() {
       DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
       RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "1000000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
+      // 🚀 POSTGRES DURABILITY & FAST LANE: for high-throughput benchmark runs,
+      // allow PostgreSQL to run with synchronous_commit=off (matching SQLite's
+      // PRAGMA synchronous=NORMAL) and enable the raw socket write lane.
+      PG_SYNCHRONOUS_COMMIT: process.env.PG_SYNCHRONOUS_COMMIT || "off",
+      DATABASE_SYNCHRONOUS_COMMIT: process.env.DATABASE_SYNCHRONOUS_COMMIT || "off",
+      SVELTY_FAST_LANE_WRITE: process.env.SVELTY_FAST_LANE_WRITE || "1",
       // Seconds — adapter-node build/index.js. index.cjs uses HTTP_*_TIMEOUT_MS.
       HEADERS_TIMEOUT: process.env.HEADERS_TIMEOUT || "600",
       KEEP_ALIVE_TIMEOUT: process.env.KEEP_ALIVE_TIMEOUT || "75",
@@ -2245,11 +2256,18 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb.raw?.execute || activeDb.execute).call(
         activeDb,
-        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
+        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "count", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}'::jsonb, 0, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "count" = 0, "updatedAt" = NOW()`,
       );
-    } catch (e: any) {
-      if (process.env.BENCHMARK_DEBUG === "true")
-        process.stderr.write(`[DEBUG] PostgreSQL upsert failed: ${e.message}\n`);
+    } catch {
+      try {
+        await (activeDb.raw?.execute || activeDb.execute).call(
+          activeDb,
+          `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
+        );
+      } catch (e: any) {
+        if (process.env.BENCHMARK_DEBUG === "true")
+          process.stderr.write(`[DEBUG] PostgreSQL upsert failed: ${e.message}\n`);
+      }
     }
   } else if (activeDb.type === "mariadb" || activeDb.type === "mysql") {
     try {

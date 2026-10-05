@@ -391,6 +391,11 @@ export const sveltyOutbox = sqliteTable(
     tenantIdx: index("outbox_tenant_idx").on(table.tenantId),
     eventTypeIdx: index("outbox_event_type_idx").on(table.eventType),
     createdAtIdx: index("outbox_created_at_idx").on(table.createdAt),
+    // 🚀 POLLING PARTIAL INDEX: the outbox poller fetches WHERE status='pending'
+    // ORDER BY createdAt ASC LIMIT n — only unhandled rows live in this index.
+    pendingIdx: index("idx_outbox_pending")
+      .on(table.createdAt)
+      .where(sql`status = 'pending'`),
   }),
 );
 
@@ -412,9 +417,15 @@ export const sveltyJobs = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    statusIdx: index("job_status_idx").on(table.status),
-    nextRunIdx: index("job_next_run_idx").on(table.nextRunAt),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    statusIdx: index("svelty_jobs_status_idx").on(table.status),
+    nextRunIdx: index("svelty_jobs_next_run_idx").on(table.nextRunAt),
+    tenantIdx: index("svelty_jobs_tenant_idx").on(table.tenantId),
+    // 🚀 POLLING PARTIAL INDEX: the scheduler fetches WHERE status='pending'
+    // AND nextRunAt <= now() ORDER BY nextRunAt ASC — only runnable rows live
+    // in this index.
+    runnableIdx: index("idx_svelty_jobs_runnable")
+      .on(table.nextRunAt)
+      .where(sql`status = 'pending'`),
   }),
 );
 
@@ -551,16 +562,15 @@ export const tenants = sqliteTable(
         maxCollections: 20,
         maxApiRequestsPerMonth: 10_000,
       } as any),
+    // 🐛 MODULE-LOAD FREEZE FIX: JS object default with `lastUpdated: new Date()`
+    // evaluates once at module import — every later tenant insert would get the
+    // boot timestamp. SQL default evaluates strftime('now') per row.
     usage: text("usage", { mode: "json" })
       .$type<TenantUsage>()
       .notNull()
-      .default({
-        usersCount: 0,
-        storageBytes: 0,
-        collectionsCount: 0,
-        apiRequestsMonth: 0,
-        lastUpdated: new Date(),
-      } as any),
+      .default(
+        sql`(json_object('usersCount', 0, 'storageBytes', 0, 'collectionsCount', 0, 'apiRequestsMonth', 0, 'lastUpdated', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))`,
+      ),
     settings: text("settings", { mode: "json" }).default({} as any),
     ...timestamps,
   },

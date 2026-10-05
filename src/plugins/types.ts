@@ -210,6 +210,12 @@ export interface PluginServerModule {
       params: Record<string, string>;
     }) => Promise<Record<string, unknown>>
   >;
+  /** Lifecycle hooks merged at boot/activation (e.g. redirect-manager `beforeSave`). */
+  hooks?: PluginLifecycleHooks;
+  /** Pending migrations resolved at boot/activation (e.g. redirect-manager `create_redirects_collection`). */
+  migrations?: PluginMigration[];
+  /** SSR hook resolved per enabled collection (e.g. pagespeed). */
+  ssrHook?: PluginSSRHook;
 }
 
 // Injection Zones for Slot System

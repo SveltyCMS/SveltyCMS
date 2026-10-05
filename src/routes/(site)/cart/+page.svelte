@@ -78,6 +78,7 @@
 			{/each}
 		</ul>
 		<p class="mt-4 text-end font-semibold tabular-nums">Subtotal {cart.subtotal?.toFixed(2)}</p>
+		<p class="text-end text-xs text-surface-500">inkl. MwSt. / incl. VAT</p>
 		<Button class="mt-4" variant="primary" href="/checkout">Checkout</Button>
 	{/if}
 </section>

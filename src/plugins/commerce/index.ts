@@ -33,6 +33,18 @@ export const commercePlugin = definePlugin({
     public: {
       currency: "EUR",
       cartMaxItems: 50,
+      storeLanguage: "de",
+      pricesIncludeTax: true,
+      homeCountry: "DE",
+      legalName: "",
+      legalAddress: "",
+      legalEmail: "",
+      phone: "",
+      vatId: "",
+      taxNumber: "",
+      registerCourt: "",
+      registerNumber: "",
+      representative: "",
     },
     private: {
       checkoutPanes: ["contact", "shipping", "payment", "review"],

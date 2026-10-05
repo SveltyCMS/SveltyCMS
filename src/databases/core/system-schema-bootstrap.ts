@@ -184,11 +184,17 @@ function pgIndexStatement(idx: IndexSpec, table: string): string {
     })
     .join(", ");
   const uniq = isUniqueFor(idx, "postgresql") ? "UNIQUE " : "";
+  // PostgreSQL syntax: the method clause comes BEFORE the columns
+  // (`ON t USING brin (cols)`), not after like the pre-2026 renderer emitted.
   const method = idx.method?.postgresql ? ` USING ${idx.method.postgresql}` : "";
+  const nulls =
+    typeof idx.nullsNotDistinct === "object" && idx.nullsNotDistinct?.postgresql
+      ? " NULLS NOT DISTINCT"
+      : "";
   const where = idx.where?.postgresql ? ` WHERE ${idx.where.postgresql}` : "";
   return `CREATE ${uniq}INDEX IF NOT EXISTS ${pgTableName(name)} ON ${pgTableName(
     table,
-  )} (${cols})${method}${where}`;
+  )}${method} (${cols})${nulls}${where}`;
 }
 
 function sqliteIndexStatement(idx: IndexSpec, table: string): string {
@@ -196,9 +202,10 @@ function sqliteIndexStatement(idx: IndexSpec, table: string): string {
     .map((c) => (idx.descColumns?.sqlite?.includes(c) ? `${sqliteIdent(c)} DESC` : sqliteIdent(c)))
     .join(", ");
   const uniq = isUniqueFor(idx, "sqlite") ? "UNIQUE " : "";
+  const where = idx.where?.sqlite ? ` WHERE ${idx.where.sqlite}` : "";
   return `CREATE ${uniq}INDEX IF NOT EXISTS ${sqliteIdent(idx.name.sqlite!)} ON ${sqliteIdent(
     table,
-  )} (${cols});`;
+  )} (${cols})${where};`;
 }
 
 function mariaInlineIndexes(t: TableSpec): string[] {

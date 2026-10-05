@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-21"
+updated: "2026-10-06"
 tags:
   - "database"
   - "architecture"
@@ -115,14 +115,28 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 
 > **SQL family**: ~5-8 fewer allocations per filtered query (self-assessed estimate — not instrumented). **MongoDB**: ~2-3 fewer (result pool + fused mapQuery). **All 4**: benefit from shared BaseAdapter optimizations plus the core widget/session/cache pipeline. The paths that promise _no_ allocation are pinned by reference-identity assertions (`tests/unit/core/relational-utils.test.ts`, `tests/unit/security/safe-query-manual.test.ts`). See [Performance Architecture](./performance-architecture.mdx#core--adapter-communication-all-4-engines).
 
+## ⚡ 2026-10 Write-Path Optimizations (self-measured, same WSL2/Docker host)
+
+| Optimization                                                        | Engine               | Measured gain                                                                             |
+| ------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| Durability knob (`PG_SYNCHRONOUS_COMMIT`, opt-in per connection)    | PostgreSQL           | update `dbwrite` p50 **9.76 → 2.3–2.9 ms**; lane ~1.5k → 2.0–3.1k RPS (warm 8c)           |
+| Durability parity (`innodb_flush_log_at_trx_commit=2`, harness DBs) | MariaDB              | update 1,269 → 1,918 RPS (+51 %); create +42 %; seed 5,686 → 7,676 docs/s                 |
+| `INSERT … UNNEST` / `UPDATE … FROM UNNEST` bulk writes              | PostgreSQL           | one array per column, plan-cache-stable statements                                        |
+| `UPDATE … JOIN JSON_TABLE` bulk update (10.6+)                      | MariaDB              | heterogeneous 100-row batch **68.4 → 3.6 ms (19×)**                                       |
+| `PATCH …?fields=_id,count,updatedAt` projection                     | PostgreSQL (all SQL) | prunes `RETURNING` — the `data` blob is never re-read/de-TOASTed                          |
+| Lane-lean rate limit (local bucket + async Redis ledger)            | all                  | warm create/update srv-dur **1.86/1.49 → 0.36/0.31 ms (−79–81 %)** with Redis up (SQLite) |
+
+Details, harness commands, and the measured-and-declined experiments: [Achievements §3.45](/docs/project/achievements-2026). The PostgreSQL commit (~2.4–2.8 ms) remains the documented write floor.
+
 ## 📈 Performance Benchmarks (SQLite, Latest)
 
-| Operation             | Latency      | RPS              |
-| --------------------- | ------------ | ---------------- |
-| FIND ONE              | **0.090 ms** | 10,386           |
-| DELETE                | **0.051 ms** | 14,447           |
-| Peak Throughput       | —            | **15,617 req/s** |
-| LocalCMS SDK Overhead | —            | **0.00%**        |
+| Operation             | Latency      | RPS               |
+| --------------------- | ------------ | ----------------- |
+| FIND ONE              | **0.004 ms** | 196,854           |
+| UPDATE (no-returning) | **0.024 ms** | 25,516            |
+| DELETE                | **0.038 ms** | 15,399            |
+| Peak Throughput       | —            | **572,738 ops/s** |
+| LocalCMS SDK Overhead | —            | **0.00%**         |
 
 Full cross-database benchmarks: [Performance Benchmarks](/docs/project/benchmarks/index).
 
@@ -139,5 +153,5 @@ MongoDB for unstructured/high-volume document stores. MariaDB for MySQL-compatib
 
 ---
 
-**Last Updated**: 2026-08-21 (targeted writes + `createdAt` immutability on all 4 engines, core widget/session/cache pipeline)
+**Last Updated**: 2026-10-06 (write-path optimizations: durability knobs, UNNEST/JSON_TABLE bulk writes, `?fields=` RETURNING projection, lane-lean rate limit — see the section above; benchmark table refreshed from the 2026-10-06 SQLite run)
 **Maintained by**: SveltyCMS Team

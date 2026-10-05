@@ -6,9 +6,9 @@ The public docs are organized by the question the reader has. Architecture essay
 
 ## Get started
 
-- [Getting started](https://docs.sveltycms.com/docs/getting-started): Install, run the setup wizard, create a collection.
+- [Getting started](https://docs.sveltycms.com/docs/getting-started): Install SveltyCMS and open the setup wizard.
 - [Onboarding](https://docs.sveltycms.com/docs/onboarding): Tutorials after install.
-- [Setup walkthrough](https://docs.sveltycms.com/docs/onboarding/setup-wizard): The short first run after install.
+- [Setup walkthrough](https://docs.sveltycms.com/docs/onboarding/setup-wizard): Database, admin, blueprint, optional email, and completion.
 - [Persona paths](https://docs.sveltycms.com/docs/onboarding/persona-paths): Next reading for editors, administrators, and developers.
 - [Troubleshooting](https://docs.sveltycms.com/docs/troubleshooting): Common failures.
 

@@ -40,7 +40,17 @@ import {
   sendOrderReceived,
   sendOrderRefunded,
   sendOrderShipped,
+  sendWithdrawalReceived,
 } from "@src/plugins/commerce/mail";
+import {
+  assertTraderIdentity,
+  readCommerceLegal,
+  traderIdentityReady,
+} from "@src/plugins/commerce/legal";
+import { declareWithdrawal } from "@src/plugins/commerce/withdrawal";
+import { verifyEuVatId } from "@src/plugins/commerce/vies";
+import { isEuCountry, viesCountryCode } from "@src/plugins/commerce/vat";
+import { nowISODateString } from "@utils/date";
 import { deleteAddress, listAddresses, saveAddress } from "@src/plugins/commerce/addresses";
 import {
   paidStatuses,
@@ -192,6 +202,8 @@ export async function handleCommerceRoutes(
         const body = await readJson(event);
         const cart = await getOrCreateCart(store, { sessionId, customerId, currency });
         const digitalOnly = cartIsDigitalOnly(cart);
+        const state = await pluginRegistry.getPluginState("commerce", String(scoped));
+        const legal = readCommerceLegal(state?.settings as Record<string, unknown> | undefined);
         const breakdown = await quoteCart(
           store,
           cart,
@@ -200,7 +212,7 @@ export async function handleCommerceRoutes(
             state: body.state ? String(body.state) : undefined,
             giftCardCode: body.giftCardCode ? String(body.giftCardCode) : undefined,
           },
-          { allowGiftCards: await isCommercePro() },
+          { allowGiftCards: await isCommercePro(), pricesIncludeTax: legal.pricesIncludeTax },
         );
         return successResponse(event, {
           cart,
@@ -231,39 +243,158 @@ export async function handleCommerceRoutes(
         return successResponse(event, cleared);
       }
 
+      case "legal": {
+        const state = await pluginRegistry.getPluginState("commerce", String(scoped));
+        const legal = readCommerceLegal(state?.settings as Record<string, unknown> | undefined);
+        return successResponse(event, { ...legal, identityReady: traderIdentityReady(legal) });
+      }
+
+      case "withdraw": {
+        if (event.request.method !== "POST")
+          raise(405, "Method not allowed.", "METHOD_NOT_ALLOWED");
+        const body = await readJson(event);
+        const order = await declareWithdrawal(store, {
+          orderNumber: String(body.orderNumber || ""),
+          name: String(body.name || ""),
+          email: String(body.email || ""),
+          confirm: body.confirm === true,
+        });
+        const state = await pluginRegistry.getPluginState("commerce", String(scoped));
+        const legal = readCommerceLegal(state?.settings as Record<string, unknown> | undefined);
+        await sendWithdrawalReceived(String(scoped), {
+          orderNumber: String(order.orderNumber || ""),
+          email: String(order.customerEmail || body.email || ""),
+          total: `${order.total ?? ""} ${order.currency ?? currency}`,
+          status: String(order.status || ""),
+          items: formatOrderItems((order.items as CartView["items"]) || []),
+          withdrawalAt: String(order.withdrawalAt || ""),
+          legalName: legal.legalName,
+        });
+        return successResponse(event, order);
+      }
+
       case "checkout": {
         const body = await readJson(event);
+        const state = await pluginRegistry.getPluginState("commerce", String(scoped));
+        const legal = readCommerceLegal({
+          ...(state?.settings as Record<string, unknown> | undefined),
+          currency,
+        });
+        assertTraderIdentity(legal);
         const cart = await getOrCreateCart(store, { sessionId, customerId, currency });
+        const digitalOnly = cartIsDigitalOnly(cart);
         const method = String(body.paymentMethod || "stripe") as PaymentMethod;
         if (method !== "stripe" && !(OFFLINE_METHODS as readonly string[]).includes(method)) {
           raise(400, "Unknown payment method.", "PAYMENT_METHOD");
         }
+        const customerName = String(body.customerName || "").trim();
+        const country = String(body.country || "")
+          .trim()
+          .toUpperCase();
+        const line1 = String(body.line1 || body.shippingAddress || "").trim();
+        const postal = String(body.postal || "").trim();
+        const city = String(body.city || "").trim();
+        if (!customerName) raise(400, "A customer name is required.", "NAME_REQUIRED");
+        if (!country) raise(400, "A destination country is required.", "COUNTRY_REQUIRED");
+        if (!digitalOnly && (!line1 || !postal || !city)) {
+          raise(400, "A shipping address is required.", "ADDRESS_REQUIRED");
+        }
+        if (body.termsAccepted !== true) {
+          raise(400, "Accept the terms and the withdrawal policy to order.", "TERMS_REQUIRED");
+        }
+        if (body.withdrawalAcknowledged !== true) {
+          raise(400, "Acknowledge the withdrawal policy to order.", "WITHDRAWAL_INFO_REQUIRED");
+        }
+        if (digitalOnly && body.digitalConsent !== true) {
+          raise(
+            400,
+            "Digital goods need express consent to start immediately.",
+            "DIGITAL_CONSENT_REQUIRED",
+          );
+        }
+
+        let vatId = "";
+        let vatNote = "";
+        let reverseCharge = false;
+        if (body.vatId != null && String(body.vatId).trim()) {
+          const check = await verifyEuVatId(String(body.vatId));
+          if (check.status === "invalid") raise(400, "The VAT ID is not valid.", "VAT_ID_INVALID");
+          if (check.status === "valid") {
+            vatId = check.id;
+            const home = viesCountryCode(legal.homeCountry);
+            if (isEuCountry(country) && viesCountryCode(country) !== home) {
+              reverseCharge = true;
+              vatNote = "Reverse charge. The recipient accounts for the VAT.";
+            }
+          } else if (check.status === "unavailable") {
+            vatId = String(body.vatId)
+              .replace(/[\s.-]/g, "")
+              .toUpperCase();
+            vatNote = "VAT ID could not be verified with VIES. VAT was charged.";
+          }
+        }
+
         const breakdown = await quoteCart(
           store,
           cart,
           {
-            country: body.country ? String(body.country) : undefined,
+            country,
             state: body.state ? String(body.state) : undefined,
             giftCardCode: body.giftCardCode ? String(body.giftCardCode) : undefined,
           },
-          { allowGiftCards: await isCommercePro() },
+          {
+            allowGiftCards: await isCommercePro(),
+            pricesIncludeTax: legal.pricesIncludeTax,
+            reverseCharge,
+          },
         );
+        const totals = breakdownToMajors(breakdown);
+        if (!totals.taxKnown) {
+          raise(400, "No VAT rate is configured for this country.", "TAX_RATE_MISSING");
+        }
+        const shippingBlock = [customerName, line1, `${postal} ${city}`.trim(), country]
+          .filter(Boolean)
+          .join("\n");
+        const billingBlock =
+          body.billingSame === false ? String(body.billingAddress || "").trim() : shippingBlock;
+        const primaryRate =
+          totals.vatLines.find((line) => line.rate > 0)?.rate ?? totals.vatLines[0]?.rate ?? 0;
+        const acceptedAt = nowISODateString();
         const order = await placeOrder(store, cart, breakdown, {
           email: String(body.email || user?.["email"] || ""),
-          country: body.country ? String(body.country) : undefined,
+          customerName,
+          country,
           state: body.state ? String(body.state) : undefined,
-          shippingAddress: body.shippingAddress ? String(body.shippingAddress) : undefined,
-          billingAddress: body.billingAddress ? String(body.billingAddress) : undefined,
+          shippingAddress: shippingBlock,
+          billingAddress: billingBlock,
+          shipLine1: line1,
+          shipPostal: postal,
+          shipCity: city,
+          shipCountry: country,
           notes: body.notes ? String(body.notes) : undefined,
           paymentMethod: method,
+          invoiceNumber: `RE-${new Date().getUTCFullYear()}-${Date.now().toString(36).toUpperCase()}`,
+          netTotal: totals.net,
+          taxRate: primaryRate,
+          vatId,
+          vatNote,
+          termsAcceptedAt: acceptedAt,
+          withdrawalInfoProvided: true,
+          digitalWaiverAt: digitalOnly ? acceptedAt : "",
         });
         const mailPayload = {
           orderNumber: String(order.orderNumber),
           email: String(order.customerEmail),
-          total: `${breakdownToMajors(breakdown).grandTotal} ${currency}`,
+          total: `${totals.grandTotal} ${currency}`,
+          net: `${totals.net} ${currency}`,
+          tax: `${totals.tax} ${currency}`,
           status: String(order.status),
           items: formatOrderItems((order.items as CartView["items"]) || cart.items),
           hostLink: "/account/orders",
+          legalName: legal.legalName,
+          legalAddress: legal.legalAddress,
+          vatId: legal.vatId,
+          withdrawalUrl: `${event.url.origin}/widerruf`,
         };
         await sendOrderReceived(String(scoped), mailPayload);
         for (const alert of (order.lowStock as Array<{
@@ -274,7 +405,6 @@ export async function handleCommerceRoutes(
         }>) || []) {
           await sendLowStock(String(scoped), alert);
         }
-        const state = await pluginRegistry.getPluginState("commerce", String(scoped));
         const bank = (state?.settings as { bankTransferInstructions?: string } | undefined)
           ?.bankTransferInstructions;
         return createdResponse(event, {

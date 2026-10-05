@@ -877,6 +877,86 @@ export abstract class AdapterCore extends SqlAdapterCore {
   private _returningSupported: boolean | null = null;
 
   /**
+   * Whether JSON path arguments (`$.field`) may be bound as `?` parameters in
+   * server-side prepared statements. Parameterized paths keep the statement
+   * text stable per table so mysql2's prepared-statement cache hits for every
+   * field instead of re-preparing per field name. Servers that reject a
+   * parameter in a JSON path (ER_PARSE_ERROR) permanently fall back to the
+   * interpolated (identifier-safe) path literal.
+   */
+  private _jsonPathParamsSupported: boolean | null = null;
+
+  /** JSON-path token + bound params for the `data` column increment. */
+  private mariaJsonPathTokens(safeField: string): { token: string; params: unknown[] } {
+    const path = `$.${safeField}`;
+    if (this._jsonPathParamsSupported === false) {
+      return { token: `'${path}'`, params: [] };
+    }
+    return { token: "?", params: [path, path] };
+  }
+
+  private static isMariaJsonPathError(err: unknown): boolean {
+    const errno = (err as { errno?: number } | null)?.errno;
+    const message = err instanceof Error ? err.message : "";
+    return errno === 1064 || /syntax|parse error/i.test(message);
+  }
+
+  /** SQL fragment: JSON_SET(...) increment expression for the `data` column. */
+  private mariaJsonSetExpr(token: string): string {
+    return `JSON_SET(COALESCE(\`data\`, '{}'), ${token}, COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), ${token}), 0) + ?)`;
+  }
+
+  /**
+   * Whether the server supports JSON_TABLE (MariaDB 10.6+) for the bulk-update
+   * fast path. The first 1064/1305 (unknown function/syntax) flips this
+   * permanently and the CASE-ladder path takes over.
+   */
+  private _jsonTableSupported: boolean | null = null;
+
+  private static isJsonTableUnsupportedError(err: unknown): boolean {
+    const errno = (err as { errno?: number } | null)?.errno;
+    const message = err instanceof Error ? err.message : "";
+    return errno === 1064 || errno === 1305 || /JSON_TABLE/i.test(message);
+  }
+
+  /** mysql2 Date serialization shape: 'YYYY-MM-DD HH:MM:SS.mmm' (UTC). */
+  private static mariaDateString(d: Date): string {
+    return d.toISOString().replace("T", " ").slice(0, 23);
+  }
+
+  /**
+   * Execute a data-column JSON increment with parameterized paths, retrying
+   * once with the interpolated path literal when the server rejects `?` in a
+   * JSON path (the first rejection flips the flag permanently).
+   */
+  private async mariaExecJsonIncrement(
+    buildSql: (token: string) => string,
+    buildParams: (pathParams: unknown[]) => unknown[],
+    safeField: string,
+  ): Promise<unknown> {
+    if (this._jsonPathParamsSupported === false) {
+      const { token, params } = this.mariaJsonPathTokens(safeField);
+      return this.raw.execute(buildSql(token), buildParams(params));
+    }
+    try {
+      const { token, params } = this.mariaJsonPathTokens(safeField);
+      const result = await this.raw.execute(buildSql(token), buildParams(params));
+      this._jsonPathParamsSupported = true;
+      return result;
+    } catch (err) {
+      if (this._jsonPathParamsSupported === null && AdapterCore.isMariaJsonPathError(err)) {
+        this._jsonPathParamsSupported = false;
+        logger.debug(
+          `[mariadb] JSON path parameter rejected by the server, using interpolated path for atomicIncrement`,
+        );
+        const { token, params } = this.mariaJsonPathTokens(safeField);
+        return this.raw.execute(buildSql(token), buildParams(params));
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Single-round-trip upsert when the conflict is on _id (or a unique column):
    * INSERT ... ON DUPLICATE KEY UPDATE ... RETURNING. Base upsert() would do
    * findOne + update/insert (2 RT). Falls back when RETURNING is unsupported.
@@ -1226,6 +1306,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * 62 RPS vs 190 for the no-read-back path), so rows are synthesized from
    * the prepared values exactly like the base no-returning path. Falls back
    * to the base path on any error or inside an outer transaction.
+   *
+   * Measured and deliberately NOT replaced by `INSERT … SELECT FROM
+   * JSON_TABLE` (A/B, 2026-10-04): direct binding beats JSON parse+extract
+   * for inserts — the JSON_TABLE variant measured BULK INSERT (100)
+   * 2.70 → 3.24 ms (+19 %) and seed burst 7,676 → 4,899 docs/s (−36 %),
+   * because multi-VALUES binds values natively while JSON_TABLE pays a
+   * full JSON document parse per batch. (The UPDATE twin DID win because it
+   * replaced N per-row statements, not direct binding.)
    */
   protected override async rawInsertManyReturning<T extends import("../db-interface").BaseEntity>(
     table: any,
@@ -1237,11 +1325,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
     const txnConn = this.getTxnConn(options);
     if (inOuterTxn && !txnConn) return null;
 
+    let tableName = "unknown";
     try {
       const len = batchValues.length;
       if (len === 0) return [];
       const rawExec = this.getRawExec(options);
-      const tableName = getTableName(table);
+      tableName = getTableName(table);
       const safeTableName = assertSafeSqlIdentifier(tableName, "table");
 
       const synthesizedRows: Record<string, any>[] = Array.from({ length: len });
@@ -1301,7 +1390,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
         mariaDoubleParseJson: true,
         table: collection,
       }) as T[];
-    } catch {
+    } catch (err) {
+      // Never swallow silently: an insertMany failure must be visible in logs,
+      // not vanish into the caller's fallback unannounced.
+      logger.debug(`[mariadb] rawInsertManyReturning failed for ${tableName}:`, err);
       return null;
     }
   }
@@ -1486,12 +1578,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
     now: Date,
     options: BaseQueryOptions,
   ): Promise<{ modifiedCount: number } | null> {
+    let tableName = "unknown";
     try {
       if (!this.pool) return null;
       const txnConn = this.getTxnConn(options);
       if (options?.transaction && !txnConn) return null;
       if (updates.length < 2) return null;
-      const tableName = getTableName(table);
+      tableName = getTableName(table);
       const safeTableName = assertSafeSqlIdentifier(tableName, "table");
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (!idCol) return null;
@@ -1531,121 +1624,320 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
       if (setCols.length === 0) return null;
 
-      // MariaDB max placeholders (65535) — same conservative chunking as the
-      // other adapters; CASE columns cost 2 params/row + 1 id in WHERE IN.
-      const maxParams = 65_000;
-      const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
-
-      const bind = (v: unknown) =>
-        v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
-      const sameValue = (a: unknown, b: unknown): boolean => {
-        if (a === b) return true;
-        if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
-        if (a && b && typeof a === "object" && typeof b === "object") {
-          return JSON.stringify(a) === JSON.stringify(b);
-        }
-        return false;
-      };
-
-      let modifiedCount = 0;
-      const runChunks = async (rawExec: (sql: string, params?: any[]) => Promise<any>) => {
-        for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
-          const chunk = prepared.slice(start, start + maxRowsPerChunk);
-          const chunkIds = updates.slice(start, start + maxRowsPerChunk).map((u) => String(u.id));
-
-          const setPairs: string[] = [];
-          const params: unknown[] = [];
-          for (const col of setCols) {
-            const phys = this.getColumn(table, col);
-            const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
-            const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
-            const jsonWrap =
-              isJson && chunk.some((v) => getJsonDataPatch(v) !== undefined)
-                ? this.jsonMergeWrapper(`\`${safeCol}\``)
-                : null;
-
-            let constant = true;
-            let firstVal: unknown;
-            let firstSet = false;
-            for (const values of chunk) {
-              if (!Object.hasOwn(values, col)) {
-                constant = false;
-                break;
-              }
-              const v = values[col];
-              if (!firstSet) {
-                firstVal = v;
-                firstSet = true;
-              } else if (!sameValue(v, firstVal)) {
-                constant = false;
-                break;
-              }
-            }
-
-            if (constant) {
-              setPairs.push(
-                jsonWrap
-                  ? `\`${safeCol}\` = ${jsonWrap.prefix}?${jsonWrap.suffix}`
-                  : `\`${safeCol}\` = ?`,
-              );
-              params.push(bind(firstVal));
-              continue;
-            }
-
-            const whens: string[] = [];
-            for (let i = 0; i < chunk.length; i++) {
-              const values = chunk[i];
-              if (!Object.hasOwn(values, col)) continue;
-              whens.push("WHEN ? THEN ?");
-              params.push(chunkIds[i], bind(values[col]));
-            }
-            const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
-            const caseSql = `CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`;
-            setPairs.push(
-              jsonWrap
-                ? `\`${safeCol}\` = ${jsonWrap.prefix}${caseSql}${jsonWrap.suffix}`
-                : `\`${safeCol}\` = ${caseSql}`,
-            );
-          }
-
-          const idPlaceholders = chunkIds.map(() => "?").join(", ");
-          const rawSql = `UPDATE \`${safeTableName}\` SET ${setPairs.join(", ")} WHERE \`${assertSafeSqlIdentifier(idColName, "column")}\` IN (${idPlaceholders})${tenantSql}`;
-          const res = await rawExec(rawSql, [...params, ...chunkIds, ...tenantParams]);
-          modifiedCount += Number((res as any)?.affectedRows ?? 0);
-        }
-      };
-
-      if (txnConn) {
-        await runChunks(async (sql: string, params: any[] = []) => {
-          const [rows] = await txnConn.execute(sql, params);
-          return rows;
-        });
-      } else {
-        // One pinned connection for the whole batch → atomic (mysql2 promise
-        // Pool has no beginTransaction; transactions live on a connection).
-        const conn = await this.pool.getConnection();
+      // 🚀 JSON_TABLE FAST PATH (MariaDB 10.6+): one bound JSON array parameter
+      // per chunk with CONSTANT SQL text per column set → mysql2's server-side
+      // prepared-statement cache hits for every batch shape, instead of a
+      // per-batch CASE ladder (2 params/cell, unique text per chunk). The first
+      // 1064/1305 (unknown function) flips `_jsonTableSupported` permanently and
+      // the proven CASE ladder below takes over; an oversized cell (>16 KB)
+      // returns null so the caller's per-row loop handles it.
+      if (this._jsonTableSupported !== false) {
         try {
-          await conn.beginTransaction();
-          await runChunks(async (sql: string, params: any[] = []) => {
-            const [rows] = await conn.execute(sql, params);
-            return rows;
-          });
-          await conn.commit();
+          return await this.rawBulkUpdateJsonTable(
+            table,
+            safeTableName,
+            idColName,
+            tenantSql,
+            tenantParams,
+            prepared,
+            setCols,
+            txnConn,
+          );
         } catch (err) {
-          try {
-            await conn.rollback();
-          } catch {
-            /* already aborted */
+          if (this._jsonTableSupported === null && AdapterCore.isJsonTableUnsupportedError(err)) {
+            this._jsonTableSupported = false;
+            logger.debug("[mariadb] JSON_TABLE unavailable, using CASE bulk update");
+          } else {
+            throw err;
           }
-          throw err;
-        } finally {
-          conn.release();
         }
       }
 
-      return { modifiedCount };
-    } catch {
+      return await this.rawBulkUpdateCaseLadder(
+        table,
+        safeTableName,
+        idColName,
+        tenantSql,
+        tenantParams,
+        prepared,
+        setCols,
+        txnConn,
+      );
+    } catch (err) {
+      // Never swallow silently: a JSON_TABLE runtime failure (e.g. the 1267
+      // collation mix on default-collation tables) must be visible in logs,
+      // not vanish into the per-row fallback unannounced.
+      logger.debug(`[mariadb] rawBulkUpdate failed for ${tableName}:`, err);
       return null;
+    }
+  }
+
+  /**
+   * Bulk UPDATE via `UPDATE … JOIN JSON_TABLE` — the MariaDB twin of the
+   * PostgreSQL UNNEST path. Verified against MariaDB 12.3 (2026-10-04):
+   * VARCHAR extraction unquotes JSON strings, JSON columns keep them quoted
+   * (hence JSON_UNQUOTE for the `data` blob), and implicit assignment casts
+   * handle INT/DATETIME/TINYINT. Booleans ride as 1/0 in the payload; Dates
+   * are pre-formatted to mysql2's 'YYYY-MM-DD HH:MM:SS.mmm'.
+   */
+  private async rawBulkUpdateJsonTable(
+    table: any,
+    safeTableName: string,
+    idColName: string,
+    tenantSql: string,
+    tenantParams: unknown[],
+    prepared: any[],
+    setCols: string[],
+    txnConn: any,
+  ): Promise<{ modifiedCount: number }> {
+    const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+    const colMeta = setCols.map((col) => {
+      const phys = this.getColumn(table, col);
+      const physName = phys?.name ?? col;
+      const isJson = physName === "data" || (phys as any)?.dataType === "json";
+      return { col, safeCol: assertSafeSqlIdentifier(physName, "column"), isJson };
+    });
+    const physCols = colMeta.filter((m) => !m.isJson);
+    const dataCol = colMeta.find((m) => m.isJson);
+
+    // Constant JSON_TABLE column shape per column set:
+    //   $[0] = id, then (val, pres) per physical column, then (data_val, data_mode).
+    // The JOIN compares in utf8mb4_bin (explicit collation beats the implicit
+    // column collation), so it works for BOTH table collations in the fleet —
+    // boot tables (utf8mb4_unicode_ci) and collection tables created under the
+    // MariaDB 12 server default (utf8mb4_uca1400_ai_ci). Pinning the derived
+    // columns to unicode_ci alone used to raise error 1267 (illegal mix of
+    // collations) on default-collation tables, silently bailing the whole batch
+    // into the per-row fallback loop. UUID ids are ASCII, so binary equality is
+    // exact. The derived-column pins stay for the literal comparisons (c0_pres
+    // = '1'), which have no collation conflict either way.
+    const defs: string[] = ["_unnest_id VARCHAR(36) COLLATE utf8mb4_unicode_ci PATH '$[0]'"];
+    const setPairs: string[] = [];
+    physCols.forEach((m, i) => {
+      const valIdx = 1 + i * 2;
+      const presIdx = 2 + i * 2;
+      defs.push(
+        `c${i}_val VARCHAR(16383) COLLATE utf8mb4_unicode_ci PATH '$[${valIdx}]'`,
+        `c${i}_pres VARCHAR(1) COLLATE utf8mb4_unicode_ci PATH '$[${presIdx}]'`,
+      );
+      setPairs.push(
+        `\`${m.safeCol}\` = CASE WHEN v.c${i}_pres = '1' THEN v.c${i}_val ELSE t.\`${m.safeCol}\` END`,
+      );
+    });
+    if (dataCol) {
+      const dataIdx = 1 + physCols.length * 2;
+      defs.push(
+        `data_val JSON PATH '$[${dataIdx}]'`,
+        `data_mode VARCHAR(5) COLLATE utf8mb4_unicode_ci PATH '$[${dataIdx + 1}]'`,
+      );
+      setPairs.push(
+        `\`${dataCol.safeCol}\` = CASE
+          WHEN v.data_mode = 'patch' THEN JSON_MERGE_PATCH(COALESCE(t.\`${dataCol.safeCol}\`, '{}'), JSON_UNQUOTE(v.data_val))
+          WHEN v.data_mode = 'set' THEN JSON_UNQUOTE(v.data_val)
+          ELSE t.\`${dataCol.safeCol}\`
+        END`,
+      );
+    }
+
+    const rawSql = `UPDATE \`${safeTableName}\` t JOIN JSON_TABLE(?, '$[*]' COLUMNS(${defs.join(
+      ", ",
+    )})) AS v ON t.\`${safeIdCol}\` = v._unnest_id COLLATE utf8mb4_bin${tenantSql} SET ${setPairs.join(", ")}`;
+
+    const encodeCell = (v: unknown): unknown => {
+      if (v === undefined) return null;
+      if (v instanceof Date) return AdapterCore.mariaDateString(v);
+      if (typeof v === "boolean") return v ? 1 : 0;
+      if (v !== null && typeof v === "object") return JSON.stringify(v);
+      if (typeof v === "string" && v.length > 16_000) {
+        throw new Error("BULK_JSON_CELL_TOO_LARGE");
+      }
+      return v;
+    };
+
+    // Pre-build ALL chunk documents before executing anything: a cell that is
+    // too large for a derived VARCHAR (or any encoding surprise) must bail to
+    // the CASE path BEFORE the first chunk commits (batch is all-or-nothing).
+    const maxRowsPerChunk = 500;
+    const chunkDocs: string[] = [];
+    for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+      const chunk = prepared.slice(start, start + maxRowsPerChunk);
+      const rows: unknown[][] = chunk.map((values) => {
+        const row: unknown[] = [String(values[idColName])];
+        for (const m of physCols) {
+          const has = Object.hasOwn(values, m.col);
+          row.push(has ? encodeCell(values[m.col]) : null, has ? "1" : "0");
+        }
+        if (dataCol) {
+          if (getJsonDataPatch(values) !== undefined) {
+            row.push(encodeCell(values.data), "patch");
+          } else if (Object.hasOwn(values, "data")) {
+            row.push(encodeCell(values.data), "set");
+          } else {
+            row.push(null, "keep");
+          }
+        }
+        return row;
+      });
+      chunkDocs.push(JSON.stringify(rows));
+    }
+
+    let modifiedCount = 0;
+    const runChunks = async (rawExec: (sql: string, params?: any[]) => Promise<any>) => {
+      for (const doc of chunkDocs) {
+        const res = await rawExec(rawSql, [doc, ...tenantParams]);
+        modifiedCount += Number((res as any)?.affectedRows ?? 0);
+      }
+    };
+
+    await this.runBulkUpdateChunks(txnConn, runChunks);
+
+    return { modifiedCount };
+  }
+
+  /**
+   * Legacy bulk UPDATE via per-column CASE ladders — the pre-JSON_TABLE path.
+   * Still used on MariaDB < 10.6 servers and whenever the JSON_TABLE fast path
+   * bails out (oversized cells). Kept verbatim so the two strategies are
+   * interchangeable with identical null-presence and patch semantics.
+   */
+  private async rawBulkUpdateCaseLadder(
+    table: any,
+    safeTableName: string,
+    idColName: string,
+    tenantSql: string,
+    tenantParams: unknown[],
+    prepared: any[],
+    setCols: string[],
+    txnConn: any,
+  ): Promise<{ modifiedCount: number }> {
+    // MariaDB max placeholders (65535) — same conservative chunking as the
+    // other adapters; CASE columns cost 2 params/row + 1 id in WHERE IN.
+    const maxParams = 65_000;
+    const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
+
+    const bind = (v: unknown) =>
+      v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+    const sameValue = (a: unknown, b: unknown): boolean => {
+      if (a === b) return true;
+      if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+      if (a && b && typeof a === "object" && typeof b === "object") {
+        return JSON.stringify(a) === JSON.stringify(b);
+      }
+      return false;
+    };
+
+    let modifiedCount = 0;
+    const runChunks = async (rawExec: (sql: string, params?: any[]) => Promise<any>) => {
+      for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+        const chunk = prepared.slice(start, start + maxRowsPerChunk);
+        const chunkIds = prepared
+          .slice(start, start + maxRowsPerChunk)
+          .map((v: any) => String(v[idColName]));
+
+        const setPairs: string[] = [];
+        const params: unknown[] = [];
+        for (const col of setCols) {
+          const phys = this.getColumn(table, col);
+          const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
+          const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+          const jsonWrap =
+            isJson && chunk.some((v) => getJsonDataPatch(v) !== undefined)
+              ? this.jsonMergeWrapper(`\`${safeCol}\``)
+              : null;
+
+          let constant = true;
+          let firstVal: unknown;
+          let firstSet = false;
+          for (const values of chunk) {
+            if (!Object.hasOwn(values, col)) {
+              constant = false;
+              break;
+            }
+            const v = values[col];
+            if (!firstSet) {
+              firstVal = v;
+              firstSet = true;
+            } else if (!sameValue(v, firstVal)) {
+              constant = false;
+              break;
+            }
+          }
+
+          if (constant) {
+            setPairs.push(
+              jsonWrap
+                ? `\`${safeCol}\` = ${jsonWrap.prefix}?${jsonWrap.suffix}`
+                : `\`${safeCol}\` = ?`,
+            );
+            params.push(bind(firstVal));
+            continue;
+          }
+
+          const whens: string[] = [];
+          for (let i = 0; i < chunk.length; i++) {
+            const values = chunk[i];
+            if (!Object.hasOwn(values, col)) continue;
+            whens.push("WHEN ? THEN ?");
+            params.push(chunkIds[i], bind(values[col]));
+          }
+          const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+          const caseSql = `CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`;
+          setPairs.push(
+            jsonWrap
+              ? `\`${safeCol}\` = ${jsonWrap.prefix}${caseSql}${jsonWrap.suffix}`
+              : `\`${safeCol}\` = ${caseSql}`,
+          );
+        }
+
+        const idPlaceholders = chunkIds.map(() => "?").join(", ");
+        const rawSql = `UPDATE \`${safeTableName}\` SET ${setPairs.join(", ")} WHERE \`${assertSafeSqlIdentifier(idColName, "column")}\` IN (${idPlaceholders})${tenantSql}`;
+        const res = await rawExec(rawSql, [...params, ...chunkIds, ...tenantParams]);
+        modifiedCount += Number((res as any)?.affectedRows ?? 0);
+      }
+    };
+
+    await this.runBulkUpdateChunks(txnConn, runChunks);
+
+    return { modifiedCount };
+  }
+
+  /**
+   * Execute a batch's chunks on the transaction connection when one is active,
+   * otherwise on one pinned pool connection wrapped in BEGIN/COMMIT so the
+   * whole batch is all-or-nothing.
+   */
+  private async runBulkUpdateChunks(
+    txnConn: any,
+    runChunks: (rawExec: (sql: string, params?: any[]) => Promise<any>) => Promise<void>,
+  ): Promise<void> {
+    if (txnConn) {
+      await runChunks(async (sql: string, params: any[] = []) => {
+        const [rows] = await txnConn.execute(sql, params);
+        return rows;
+      });
+      return;
+    }
+    const pool = this.pool;
+    if (!pool) throw new Error("Pool unavailable");
+    // One pinned connection for the whole batch → atomic (mysql2 promise
+    // Pool has no beginTransaction; transactions live on a connection).
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await runChunks(async (sql: string, params: any[] = []) => {
+        const [rows] = await conn.execute(sql, params);
+        return rows;
+      });
+      await conn.commit();
+    } catch (err) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* already aborted */
+      }
+      throw err;
+    } finally {
+      conn.release();
     }
   }
 
@@ -1677,13 +1969,20 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const idColName = idCol.name || "_id";
 
         if (options.skipReturning === true) {
-          const updateSql = fieldIsColumn
-            ? `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`
-            : dataCol
-              ? `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`
-              : `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`;
-          const updateParams = [amountNum, idStr, ...tenantParams];
-          const header = await this.raw.execute(updateSql, updateParams);
+          let header: unknown;
+          if (dataCol && !fieldIsColumn) {
+            header = await this.mariaExecJsonIncrement(
+              (token) =>
+                `UPDATE \`${tableName}\` SET \`data\` = ${this.mariaJsonSetExpr(token)}, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
+              (pathParams) => [...pathParams, amountNum, idStr, ...tenantParams],
+              safeField,
+            );
+          } else {
+            header = await this.raw.execute(
+              `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
+              [amountNum, idStr, ...tenantParams],
+            );
+          }
           const affected = Number((header as { affectedRows?: number })?.affectedRows ?? 0);
           if (affected === 0) throw new Error(`Entry not found after increment: ${idStr}`);
           return { _id: idStr };
@@ -1694,17 +1993,19 @@ export abstract class AdapterCore extends SqlAdapterCore {
             // Prefer single-round-trip upsert with bound params when RETURNING is available.
             const upsertSql = fieldIsColumn
               ? `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`
-              : dataCol
-                ? `INSERT INTO \`${tableName}\` (\`_id\`, \`data\`, \`updatedAt\`) VALUES (?, '{}', NOW()) ON DUPLICATE KEY UPDATE \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() RETURNING *`
-                : `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`;
+              : `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`;
 
-            const upsertParams = fieldIsColumn
-              ? [idStr, amountNum, amountNum]
-              : dataCol
-                ? [idStr, amountNum]
-                : [idStr, amountNum, amountNum];
+            const upsertParams = [idStr, amountNum, amountNum];
 
-            const rows = (await this.raw.execute(upsertSql, upsertParams)) as any[];
+            const rows =
+              dataCol && !fieldIsColumn
+                ? ((await this.mariaExecJsonIncrement(
+                    (token) =>
+                      `INSERT INTO \`${tableName}\` (\`_id\`, \`data\`, \`updatedAt\`) VALUES (?, '{}', NOW()) ON DUPLICATE KEY UPDATE \`data\` = ${this.mariaJsonSetExpr(token)}, \`updatedAt\` = NOW() RETURNING *`,
+                    (pathParams) => [idStr, ...pathParams, amountNum],
+                    safeField,
+                  )) as any[])
+                : ((await this.raw.execute(upsertSql, upsertParams)) as any[]);
             if (Array.isArray(rows) && rows.length > 0) {
               this._returningSupported = true;
               return convertDatesToISO(rows[0], {
@@ -1727,9 +2028,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
             [amountNum, idStr, ...tenantParams],
           );
         } else if (dataCol) {
-          await this.raw.execute(
-            `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
-            [amountNum, idStr, ...tenantParams],
+          await this.mariaExecJsonIncrement(
+            (token) =>
+              `UPDATE \`${tableName}\` SET \`data\` = ${this.mariaJsonSetExpr(token)}, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
+            (pathParams) => [...pathParams, amountNum, idStr, ...tenantParams],
+            safeField,
           );
         } else {
           await this.raw.execute(
@@ -2079,19 +2382,25 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
     const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
     let pool: mysql.Pool;
+    // Parity with the main pool (connect()): keepalive + prepared-statement
+    // budget so dedicated tenant pools do not silently lose the tuned options.
+    const poolTuning = {
+      connectionLimit: poolSize,
+      waitForConnections: true,
+      charset: "utf8mb4",
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
+      maxPreparedStatements: Number(process.env.MARIADB_MAX_PREPARED || 2000),
+    };
     if (typeof connectionUrlOrConfig === "string") {
       pool = mysql.createPool({
         uri: connectionUrlOrConfig,
-        connectionLimit: poolSize,
-        waitForConnections: true,
-        charset: "utf8mb4",
+        ...poolTuning,
       });
     } else {
       pool = mysql.createPool({
         ...connectionUrlOrConfig,
-        connectionLimit: poolSize,
-        waitForConnections: true,
-        charset: "utf8mb4",
+        ...poolTuning,
       });
     }
 

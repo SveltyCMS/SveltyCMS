@@ -8,7 +8,7 @@
  * - Lazy-loaded cache service (single async resolution)
  */
 
-import type { DatabaseResult, CacheOptions, ISqlAdapter } from "../db-interface";
+import type { BaseQueryOptions, CacheOptions, DatabaseResult, ISqlAdapter } from "../db-interface";
 import { buildCollectionCacheTags } from "./collection-name";
 
 let _cacheServiceCache: any = null;
@@ -62,8 +62,12 @@ export class CacheModule {
 
   async invalidateCollection(
     collection: string,
-    tenantId?: string | null,
+    optionsOrTenantId?: string | null | BaseQueryOptions,
   ): Promise<DatabaseResult<void>> {
+    const tenantId =
+      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
+        ? optionsOrTenantId.tenantId
+        : optionsOrTenantId;
     const cacheService = await getCacheService();
     // Schema id + normalised physical name — see buildCollectionCacheTags.
     await cacheService.clearByTags(buildCollectionCacheTags(collection), tenantId ?? undefined);
@@ -73,15 +77,25 @@ export class CacheModule {
 
   async invalidateCategory(
     category: string,
-    tenantId?: string | null,
+    optionsOrTenantId?: string | null | BaseQueryOptions,
   ): Promise<DatabaseResult<void>> {
+    const tenantId =
+      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
+        ? optionsOrTenantId.tenantId
+        : optionsOrTenantId;
     const cacheService = await getCacheService();
     await cacheService.clearByTags([`category:${category}`], tenantId ?? undefined);
     await this.incrementVersion(tenantId);
     return { success: true, data: undefined };
   }
 
-  async getVersion(tenantId?: string | null): Promise<DatabaseResult<number>> {
+  async getVersion(
+    optionsOrTenantId?: string | null | BaseQueryOptions,
+  ): Promise<DatabaseResult<number>> {
+    const tenantId =
+      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
+        ? optionsOrTenantId.tenantId
+        : optionsOrTenantId;
     const cacheService = await getCacheService();
     const version = await cacheService.get(`system:content_version`, tenantId ?? undefined);
     return { success: true, data: (version as number) ?? 0 };
@@ -91,7 +105,13 @@ export class CacheModule {
    * Thread-safe atomic version increment to prevent stale content delivery.
    * Uses native cacheService.increment if available, falls back to RMW.
    */
-  async incrementVersion(tenantId?: string | null): Promise<DatabaseResult<number>> {
+  async incrementVersion(
+    optionsOrTenantId?: string | null | BaseQueryOptions,
+  ): Promise<DatabaseResult<number>> {
+    const tenantId =
+      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
+        ? optionsOrTenantId.tenantId
+        : optionsOrTenantId;
     const cacheService = await getCacheService();
     const key = `system:content_version`;
     const tenant = tenantId ?? undefined;

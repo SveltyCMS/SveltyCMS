@@ -101,15 +101,27 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     super();
   }
 
+  private _versionCache: string | null = null;
+
   async getVersion(): Promise<DatabaseResult<string>> {
+    if (this._versionCache) {
+      return { success: true, data: this._versionCache };
+    }
     if (!this.isConnected()) return this.notConnectedError();
     try {
       const admin = this.connection!.db!.admin();
       const serverStatus = await admin.serverStatus();
-      return { success: true, data: serverStatus.version };
+      const ver = serverStatus.version as string;
+      this._versionCache = ver;
+      return { success: true, data: ver };
     } catch (err: any) {
       return this.handleError(err, "GET_VERSION_FAILED");
     }
+  }
+
+  override async disconnect(): Promise<DatabaseResult<void>> {
+    this._versionCache = null;
+    return super.disconnect();
   }
 
   async clearDatabase(): Promise<DatabaseResult<void>> {
