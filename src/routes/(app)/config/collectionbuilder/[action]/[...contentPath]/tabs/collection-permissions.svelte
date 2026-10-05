@@ -6,6 +6,8 @@
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
 	import Card from '@src/components/ui/card.svelte';
 	import Button from '@src/components/ui/button.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import type { Role } from '@src/databases/auth/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 
@@ -102,9 +104,33 @@
 			<iconify-icon icon="mdi:shield-lock-outline" width="24"></iconify-icon>
 		</div>
 		<div>
-			<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
-				Collection Permissions
-			</h2>
+			<div class="flex items-center gap-2">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
+					Collection Permissions
+				</h2>
+				<SystemTooltip positioning={{ placement: 'right' }}>
+					{#snippet content()}
+						<div class="text-sm min-w-64">
+							<p class="font-semibold mb-2">How permissions work</p>
+							<ul class="list-disc list-inside space-y-1 text-xs">
+								<li><strong>View</strong>: Can see the collection and its entries</li>
+								<li><strong>Edit</strong>: Can create and update entries</li>
+								<li><strong>Write</strong>: Can delete entries and manage collection settings</li>
+							</ul>
+							<p class="mt-3 text-xs leading-relaxed">
+								Collection-level permissions are inherited by all entries. For granular per-field
+								permissions, use the widget inspector. Full RBAC management is available in
+								<a
+									href="/config/access-management"
+									class="text-tertiary-500 dark:text-primary-500 underline hover:text-tertiary-600 dark:hover:text-primary-400 transition-colors"
+									>Access Management</a
+								>.
+							</p>
+						</div>
+					{/snippet}
+					<HelpIcon ariaLabel="Help: Collection Permissions" />
+				</SystemTooltip>
+			</div>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
 				Step 3: Define role-based access control (RBAC). Configure which roles can view, edit, and
 				write entries in this collection.
@@ -273,31 +299,4 @@
 			</div>
 		{/if}
 	</Card>
-
-	<!-- Info Footer -->
-	<div
-		class="flex items-start gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 p-4"
-	>
-		<iconify-icon
-			icon="mdi:information-outline"
-			width="20"
-			class="text-tertiary-500 dark:text-primary-500 shrink-0 mt-0.5"
-		></iconify-icon>
-		<div class="text-sm text-surface-500 dark:text-surface-400">
-			<p class="font-semibold text-surface-600 dark:text-surface-400 mb-1">How permissions work</p>
-			<ul class="list-disc list-inside space-y-0.5 text-xs">
-				<li><strong>View</strong>: Can see the collection and its entries</li>
-				<li><strong>Edit</strong>: Can create and update entries</li>
-				<li><strong>Write</strong>: Can delete entries and manage collection settings</li>
-			</ul>
-			<p class="mt-2 text-xs">
-				Collection-level permissions are inherited by all entries. For granular per-field
-				permissions, use the widget inspector. Full RBAC management is available in
-				<a
-					href="/config/access-management"
-					class="text-tertiary-500 dark:text-primary-500 underline">Access Management</a
-				>.
-			</p>
-		</div>
-	</div>
 </div>
