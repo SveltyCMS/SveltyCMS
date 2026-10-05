@@ -15,7 +15,7 @@
 	import { logger } from '@utils/logger';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
+
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
 	import Button from '@src/components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -33,9 +33,14 @@
 	/** Canvas reorder payload */
 	type FieldDrag = { kind: 'field'; dragId: string };
 
-	let { fields = [], roles = [] } = $props<{
+	let {
+		fields = [],
+		roles = [],
+		viewMode = $bindable('canvas')
+	} = $props<{
 		fields: FieldInstance[];
 		roles?: Role[];
+		viewMode?: 'canvas' | 'split' | 'code';
 	}>();
 
 	let dragIdsByIndex = $state<Record<number, string>>({});
@@ -129,21 +134,6 @@
 	}
 
 	// ── Widget Actions ──
-	function addField() {
-		modalState.trigger(
-			ModalSelectWidget as any,
-			{
-				title: 'Add New Field',
-				body: 'Select a widget type to add to your collection',
-				size: 'xl'
-			},
-			(r: { selectedWidget: string } | false | undefined) => {
-				if (!r || typeof r !== 'object' || !('selectedWidget' in r)) return;
-				void addSidebarWidget(r.selectedWidget, true);
-			}
-		);
-	}
-
 	function editField(field: WidgetListItem) {
 		const idx = items.findIndex((i) => i._dragId === field._dragId);
 		setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
@@ -372,7 +362,7 @@
 	);
 
 	// ── Smart Quick-Add & Code Split-View ──
-	let viewMode = $state<'canvas' | 'split' | 'code'>('canvas');
+
 	let quickAddInput = $state('');
 	let copied = $state(false);
 
@@ -472,46 +462,6 @@
 				</span>
 			</div>
 
-			<!-- View mode switcher if in fullWidth code view -->
-			{#if fullWidth}
-				<div
-					class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10 ms-2"
-					role="group"
-					aria-label="View Mode"
-				>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'canvas')}
-						data-testid="code-view-mode-canvas"
-					>
-						Canvas
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'split')}
-						data-testid="code-view-mode-split"
-					>
-						Split View
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'code')}
-						data-testid="code-view-mode-code"
-					>
-						TypeScript
-					</button>
-				</div>
-			{/if}
-
 			<div class="ms-auto flex items-center gap-2">
 				<Button
 					variant="secondary"
@@ -550,72 +500,7 @@
 		<div
 			class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-500/30 dark:border-surface-500/40 lg:border-e"
 		>
-			<div
-				class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
-			>
-				<div
-					class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400"
-				>
-					<iconify-icon
-						icon="mdi:widgets"
-						width="20"
-						class="text-tertiary-500 dark:text-primary-500"
-					></iconify-icon>
-					<span
-						>{items.length}
-						{items.length === 1 ? 'Widget' : 'Widgets'}</span
-					>
-				</div>
-
-				<!-- View Mode Switcher -->
-				<div
-					class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10 ms-2"
-					role="group"
-					aria-label="View Mode"
-				>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'canvas')}
-						data-testid="view-mode-canvas"
-					>
-						Canvas
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'split')}
-						data-testid="view-mode-split"
-					>
-						Split View
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400"
-						onclick={() => (viewMode = 'code')}
-						data-testid="view-mode-code"
-					>
-						TypeScript
-					</button>
-				</div>
-
-				<div class="ms-auto flex items-center gap-2">
-					<Button
-						variant="tertiary"
-						class="dark:preset-filled-primary-500"
-						size="sm"
-						onclick={addField}
-						leadingIcon="mdi:plus"
-						data-testid="add-field-button"
-					>
-						Add Widget
-					</Button>
-				</div>
-			</div>
+			<!-- Header Removed -->
 
 			<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 				<!-- Quick Add Bar -->

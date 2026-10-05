@@ -80,6 +80,7 @@
 
 	// ── Tab / wizard progress ──
 	let activeTab = $state('define');
+	let viewMode = $state<'canvas' | 'split' | 'code'>('canvas');
 
 	const TAB_ORDER = ['define', 'widgets', 'permissions'] as const;
 
@@ -450,15 +451,70 @@
 				onTabChange={(tabId: string) => goToTab(tabId)}
 				variant="underline"
 			/>
-			<p class="text-surface-500 dark:text-surface-400 hidden lg:block text-xs text-end shrink-0">
-				{#if activeTab === 'define'}
-					Set the unique name, database identifier, and icon
-				{:else if activeTab === 'widgets'}
-					Add, configure, and reorder fields from the palette
-				{:else if activeTab === 'permissions'}
-					Configure role-based access rules (View / Edit / Write)
+			<div class="flex items-center gap-3 shrink-0">
+				{#if activeTab === 'widgets'}
+					<div
+						class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-400 me-2 border-e border-surface-500/30 pe-3 dark:border-surface-500/40 hidden sm:flex"
+					>
+						<iconify-icon
+							icon="mdi:widgets"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
+						<span
+							>{collections.active?.fields?.length || 0}
+							{collections.active?.fields?.length === 1 ? 'Widget' : 'Widgets'}</span
+						>
+					</div>
+					<!-- View Mode Switcher -->
+					<div
+						class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10"
+						role="group"
+						aria-label="View Mode"
+					>
+						<button
+							type="button"
+							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode ===
+							'canvas'
+								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+							onclick={() => (viewMode = 'canvas')}
+							data-testid="view-mode-canvas"
+						>
+							Canvas
+						</button>
+						<button
+							type="button"
+							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
+								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+							onclick={() => (viewMode = 'split')}
+							data-testid="view-mode-split"
+						>
+							Split View
+						</button>
+						<button
+							type="button"
+							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
+								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+							onclick={() => (viewMode = 'code')}
+							data-testid="view-mode-code"
+						>
+							TypeScript
+						</button>
+					</div>
 				{/if}
-			</p>
+				<p class="text-surface-500 dark:text-surface-400 hidden lg:block text-xs text-end">
+					{#if activeTab === 'define'}
+						Set the unique name, database identifier, and icon
+					{:else if activeTab === 'widgets'}
+						Add, configure, and reorder fields from the palette
+					{:else if activeTab === 'permissions'}
+						Configure role-based access rules (View / Edit / Write)
+					{/if}
+				</p>
+			</div>
 		</div>
 	</div>
 
@@ -490,6 +546,7 @@
 						<CollectionWidget
 							fields={(collections.active?.fields as FieldInstance[]) || []}
 							roles={data.roles || []}
+							bind:viewMode
 						/>
 					</div>
 				{:else if activeTab === 'permissions'}
