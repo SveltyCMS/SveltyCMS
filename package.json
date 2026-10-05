@@ -58,7 +58,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "*.svelte"
+    "*.svelte",
+    "src/utils/v8-shim.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -227,8 +228,8 @@
     "jsdom": "^30.1.2",
     "lint-staged": "^17.6.0",
     "mysql2": "^3.24.4",
-    "oxfmt": "^0.71.0",
-    "oxlint": "^1.86.0",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
     "playwright": "^1.63.0",
     "postgres": "^3.4.9",
     "svelte": "^5.57.1",

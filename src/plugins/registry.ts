@@ -22,6 +22,7 @@ import type { PluginSettingsService } from "./settings";
 import { capabilityRegistry } from "@src/services/security/capability-registry";
 import { registerSugarType } from "@src/widgets/desugar-field";
 import { pluginRouteRegistry } from "./plugin-route-registry";
+import { pluginServerRegistry } from "./plugin-server-registry";
 import type { PluginCapability } from "./types";
 import type {
   IPluginService,
@@ -155,14 +156,14 @@ export class PluginRegistry implements IPluginService {
 
       const plugin = entry.plugin;
 
-      // 🚀 DYNAMIC RESOLUTION: If migrations aren't static, try to resolve via .server module
+      // 🚀 DYNAMIC RESOLUTION: If migrations aren't static, try to resolve via
+      // the bundled server-module glob (loaders registered by init.server.ts).
       let migrations = plugin.migrations;
       if (!migrations || migrations.length === 0) {
-        try {
-          const serverMod = await import(`./${pluginId}/index.server`);
+        const loader = pluginServerRegistry.getLoader(pluginId);
+        if (loader) {
+          const serverMod = await loader();
           migrations = serverMod.migrations || [];
-        } catch {
-          // No server module for this plugin, normal if plugin is UI-only
         }
       }
 
@@ -271,11 +272,10 @@ export class PluginRegistry implements IPluginService {
 
       let ssrHook = plugin.ssrHook;
       if (!ssrHook) {
-        try {
-          const serverMod = await import(`./${plugin.metadata.id}/index.server`);
+        const loader = pluginServerRegistry.getLoader(plugin.metadata.id);
+        if (loader) {
+          const serverMod = await loader();
           ssrHook = serverMod.ssrHook;
-        } catch {
-          // No server hook
         }
       }
 
@@ -491,16 +491,15 @@ export class PluginRegistry implements IPluginService {
 
     // Merge server module (hooks/migrations) if not already merged at boot.
     if (!plugin.hooks || !plugin.migrations || plugin.migrations.length === 0) {
-      try {
-        const serverMod = await import(`./${pluginId}/index.server`);
+      const loader = pluginServerRegistry.getLoader(pluginId);
+      if (loader) {
+        const serverMod = await loader();
         if (serverMod.hooks) {
           plugin.hooks = { ...plugin.hooks, ...serverMod.hooks };
         }
         if ((!plugin.migrations || plugin.migrations.length === 0) && serverMod.migrations) {
           plugin.migrations = serverMod.migrations;
         }
-      } catch {
-        /* UI-only plugin — no index.server.ts */
       }
     }
 

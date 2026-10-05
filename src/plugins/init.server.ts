@@ -10,9 +10,30 @@
  */
 
 import { logger } from "@utils/logger";
-import { availablePlugins, pluginRegistry } from "./index";
+import { availablePlugins, pluginRegistry, pluginServerRegistry } from "./index";
 import { PluginSettingsService } from "./settings";
 import type { IDBAdapter } from "@databases/db-interface";
+import type { PluginServerModule } from "./types";
+
+// 🚀 SERVER-MODULE GLOB: a LITERAL `import.meta.glob` so Vite/Rolldown bundles
+// every plugin's `index.server.ts` as a lazy chunk. The template-literal form
+// `import(`./${pluginId}/index.server`)` is not statically analyzable — the
+// bundler globs `./**/*/index.server`, matches nothing (warning), and the
+// module 404s in production builds (dev-only behavior). The loaders are also
+// registered into `pluginServerRegistry` so `registry.ts` (browser-reachable)
+// can resolve them without pulling server code into the client graph.
+const pluginServerModules: Record<string, () => Promise<unknown>> = (() => {
+  try {
+    return import.meta.glob("./*/index.server.ts") as Record<string, () => Promise<unknown>>;
+  } catch {
+    return {};
+  }
+})();
+
+for (const [path, loader] of Object.entries(pluginServerModules)) {
+  const id = path.replace(/^\.\/(.*)\/index\.server\.ts$/, "$1");
+  pluginServerRegistry.register(id, loader as () => Promise<PluginServerModule>);
+}
 
 // The registry is browser-reachable and must not import the service module itself
 // (node:crypto in the client bundle); it receives a factory instead. Registered at
@@ -62,12 +83,18 @@ export async function initializePlugins(dbAdapter: any, tenantId = "default"): P
 
           try {
             if (active) {
-              const serverMod = await import(`./${pluginId}/index.server`);
-              if (serverMod.hooks) {
-                plugin.hooks = { ...plugin.hooks, ...serverMod.hooks };
-              }
-              if ((!plugin.migrations || plugin.migrations.length === 0) && serverMod.migrations) {
-                plugin.migrations = serverMod.migrations;
+              const loader = pluginServerRegistry.getLoader(pluginId);
+              if (loader) {
+                const serverMod = await loader();
+                if (serverMod.hooks) {
+                  plugin.hooks = { ...plugin.hooks, ...serverMod.hooks };
+                }
+                if (
+                  (!plugin.migrations || plugin.migrations.length === 0) &&
+                  serverMod.migrations
+                ) {
+                  plugin.migrations = serverMod.migrations;
+                }
               }
             }
           } catch {
