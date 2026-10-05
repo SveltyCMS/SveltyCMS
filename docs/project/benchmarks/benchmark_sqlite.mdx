@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     5 | 🟢     | -14%    | 0      |
+| **Core**       |    19 | 🟢     | -52%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,13 +62,27 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario       | Latency | Trend                                    | Budget | Result |
-| -------------- | ------- | ---------------------------------------- | ------ | ------ |
-| **Middleware** | 0.574ms | ⚪ stable at 0.566ms (±0.045ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.297ms | ⚪ stable at 0.296ms (±0.026ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.239ms | ⚪ stable at 0.264ms (±0.102ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.204ms | ⚪ stable at 0.238ms (±0.102ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.771ms | ⚪ established at 0.771ms (1 run)        | < 5ms  | 🟢     |
+| Scenario                 | Latency | Trend                                    | Budget | Result |
+| ------------------------ | ------- | ---------------------------------------- | ------ | ------ |
+| **Database Performance** | 0.053ms | ⚪ stable at 0.063ms (±0.007ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.007ms | ⚪ stable at 0.005ms (7 runs)            | < 5ms  | 🟢     |
+| **Database Performance** | 0.082ms | ⚪ stable at 0.077ms (±0.004ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.162ms | ⚪ stable at 0.163ms (±0.004ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.827ms | ⚪ stable at 0.870ms (±0.100ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.086ms | ⚪ stable at 0.088ms (±0.011ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.071ms | ⚪ stable at 0.086ms (±0.012ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.047ms | ⚪ stable at 0.050ms (±0.005ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.118ms | ⚪ stable at 0.124ms (±0.021ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.027ms | ⚪ stable at 0.042ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.023ms | ⚪ stable at 0.034ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.058ms | ⚪ stable at 0.063ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.060ms | ⚪ stable at 0.064ms (±0.008ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.016ms | ⚪ stable at 0.018ms (±0.001ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.001ms | ⚪ stable at 0.001ms (7 runs)            | < 5ms  | 🟢     |
+| **Database Performance** | 0.037ms | ⚪ stable at 0.045ms (±0.014ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.666ms | ⚪ stable at 1.39ms (±3.47ms) (7 runs)   | < 5ms  | 🟢     |
+| **Database Performance** | 0.666ms | ⚪ stable at 0.883ms (±0.698ms) (7 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.467ms | ⚪ stable at 0.632ms (±0.149ms) (7 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -79,7 +93,7 @@ tags:
 | api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▇▆▇▆▇▇█▇▂▁▂▅` | 2.226ms    |
 | auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▂▂▂▅▇███▂█▆▁` | 0.267ms    |
 | cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `▁`            | 1694.351ms |
-| database performance (BULK INSERT (100)) (warm)           | 🟢    | `███▇█▁▁▁▂`    | 1.390ms    |
+| database performance (BULK INSERT (100)) (warm)           | 🟢    | `███▇█▁▁▁▂▁`   | 0.666ms    |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -105,8 +119,14 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Middleware: [0.24, 0.47]
-    Middleware: [0.20, 0.71]
+    Database Performance: [0.05, 0.30]
+    Database Performance: [0.05, 0.77]
+    Database Performance: [0.07, 0.33]
+    Database Performance: [0.05, 0.69]
+    Database Performance: [0.05, 0.62]
+    Database Performance: [0.05, 0.21]
+    Database Performance: [0.05, 0.34]
+    Database Performance: [0.67, 0.95]
 ```
 
 </details>
@@ -121,27 +141,41 @@ quadrantChart
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-09-30)
+### Current Run Summary (2026-10-05)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a0f2ea-db85-7065-8dde-d5eb558cba2d` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
+**Run ID:** `01a10af3-e54d-733c-84f1-171f502f5e12` · **Tests invoked:** 1 · **Metrics:** 19 · **DB:** sqlite
 
-| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                   |
-| ----------------- | ----------------------------- | -------- | -------- | ---- | ----- | ---------------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)  | 0.574    | 0.712    | 1707 | 🟢    | ⚪ stable at 0.548ms (±0.028ms) (7 runs) |
-| Hooks Performance | Turbo Pipeline (Light)        | 0.297    | 0.388    | 3249 | 🟢    | ⚪ stable at 0.293ms (±0.011ms) (7 runs) |
-| Hooks Performance | Full Security + Auth Pipeline | 0.239    | 0.338    | 4051 | 🟢    | ⚪ stable at 0.311ms (±0.107ms) (7 runs) |
-| Hooks Performance | REST with API Caching         | 0.204    | 0.301    | 4771 | 🟢    | ⚪ stable at 0.277ms (±0.108ms) (7 runs) |
-| Hooks Performance | Mutation + Audit Logging      | 0.771    | 0.920    | 1281 | 🟢    | ⚪ established at 0.771ms (1 run)        |
+| Test                 | Metric                          | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                                       |
+| -------------------- | ------------------------------- | -------- | -------- | ------ | ----- | -------------------------------------------- |
+| Database Performance | FIND MANY (limit 50)            | 0.082    | 0.117    | 10748  | 🟢    | ⚪ stable at 0.079ms (±0.006ms) (5 runs)     |
+| Database Performance | FILTER (blob field, 1 match)    | 0.162    | 0.235    | 5758   | 🟢    | ⚪ stable at 0.161ms (±0.005ms) (5 runs)     |
+| Database Performance | QUERY BUILDER LIST (50)         | 0.827    | 0.944    | 1159   | 🟢    | ⚪ stable at 0.814ms (±0.057ms) (5 runs)     |
+| Database Performance | FIND PAGE (50 hasMore)          | 0.086    | 0.119    | 10211  | 🟢    | ⚪ stable at 0.088ms (±0.009ms) (5 runs)     |
+| Database Performance | FIND PAGE keyset                | 0.071    | 0.105    | 12295  | 🟢    | ⚪ stable at 0.087ms (±0.015ms) (5 runs)     |
+| Database Performance | LIST+COUNT (legacy)             | 0.118    | 0.147    | 7881   | 🟢    | ⚪ stable at 0.124ms (±0.010ms) (5 runs)     |
+| Database Performance | NATIVE UPSERT                   | 0.058    | 0.083    | 13584  | 🟢    | ⚪ stable at 0.065ms (±0.008ms) (5 runs)     |
+| Database Performance | COUNT                           | 0.060    | 0.080    | 15751  | 🟢    | ⚪ stable at 0.064ms (±0.005ms) (5 runs)     |
+| Database Performance | COUNT CACHED                    | 0.001    | 0.002    | 659587 | 🟢    | ⚪ stable at 0.001ms (5 runs)                |
+| Database Performance | DELETE (Active Rows)            | 0.037    | 0.062    | 16500  | 🟢    | ⚪ stable at 0.051ms (±0.014ms) (5 runs)     |
+| Database Performance | BULK INSERT (100)               | 0.666    | 0.876    | 1094   | 🟢    | ⚪ stable at 3.92ms (±3.38ms) (5 runs)       |
+| Database Performance | BULK UPDATE (100 heterogeneous) | 0.666    | 0.871    | 1340   | 🟢    | ⚪ stable at 1.47ms (±0.699ms) (5 runs)      |
+| Database Performance | INSERT                          | 0.053    | 0.091    | 10455  | ⚪    | ⚪ stable at 0.065ms (±0.005ms) (5 runs)     |
+| Database Performance | FIND ONE                        | 0.007    | 0.013    | 120646 | ⚪    | ⚪ stable at 0.005ms (5 runs)                |
+| Database Performance | FIND MANY offset 50             | 0.047    | 0.060    | 20513  | ⚪    | ⚪ stable at 0.050ms (5 runs)                |
+| Database Performance | UPDATE                          | 0.027    | 0.047    | 25545  | ⚪    | ⚪ stable at 0.041ms (±0.005ms) (5 runs)     |
+| Database Performance | UPDATE (no-returning)           | 0.023    | 0.031    | 30254  | ⚪    | ⚪ stable at 0.036ms (±0.006ms) (5 runs)     |
+| Database Performance | COUNT ESTIMATE                  | 0.016    | 0.026    | 55067  | ⚪    | ⚪ stable at 0.018ms (5 runs)                |
+| Database Performance | BULK UPDATE (100 homogeneous)   | 0.467    | 0.586    | 1895   | ⚪    | 🟢 faster: 0.742ms → 0.467ms (-37%) (5 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-09-30)
+### Historical Trends (2026-10-05)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -513,7 +547,7 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · ⚪ 0.034ms · ↘️ — · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ database performance</strong> · ⚪ 0.467ms · ↘️ 🟢 faster: 0.742ms → 0.467ms (-37%) (5 runs) (2026-10-05 07:25:34) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -525,28 +559,28 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — DATABASE ADAPTER PERFORMANCE (SQLITE)                           ║
 ║                          File: tests/benchmarks/database-performance.test.ts                          ║
-║                                       Ran: 2026-09-27 10:54:42                                        ║
+║                                       Ran: 2026-10-05 07:25:34                                        ║
 ║          Measures raw CRUD performance, indexing efficiency, and connection pool resilience.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                       │ Cold:     0.47 ms │ Warm:     0.061 ms │ p95:     0.121 ms │   7,567 RPS ║
-║ FIND ONE                     │ Cold:     0.36 ms │ Warm:     0.005 ms │ p95:     0.007 ms │ 177,195 RPS ║
-║ FIND MANY (limit 50)         │ Cold:     0.91 ms │ Warm:     0.075 ms │ p95:     0.112 ms │  12,517 RPS ║
-║ FILTER (blob field, 1 match) │ Cold:     0.91 ms │ Warm:     0.163 ms │ p95:     0.206 ms │   5,852 RPS ║
-║ QUERY BUILDER LIST (50)      │ Cold:     2.46 ms │ Warm:     0.903 ms │ p95:     1.497 ms │   1,007 RPS ║
-║ FIND PAGE (50 hasMore)       │ Cold:     1.46 ms │ Warm:     0.082 ms │ p95:     0.121 ms │  10,733 RPS ║
-║ FIND PAGE keyset             │ Cold:     1.86 ms │ Warm:     0.088 ms │ p95:     0.144 ms │  10,092 RPS ║
-║ FIND MANY offset 50          │ Cold:     1.57 ms │ Warm:     0.062 ms │ p95:     0.113 ms │  13,258 RPS ║
-║ LIST+COUNT (legacy)          │ Cold:     1.11 ms │ Warm:     0.152 ms │ p95:     0.267 ms │   5,881 RPS ║
-║ UPDATE                       │ Cold:     0.92 ms │ Warm:     0.044 ms │ p95:     0.099 ms │  15,019 RPS ║
-║ UPDATE (no-returning)        │ Cold:     0.59 ms │ Warm:     0.034 ms │ p95:     0.065 ms │  18,640 RPS ║
-║ NATIVE UPSERT                │ Cold:     1.24 ms │ Warm:     0.064 ms │ p95:     0.117 ms │   9,331 RPS ║
-║ COUNT                        │ Cold:     0.83 ms │ Warm:     0.072 ms │ p95:     0.118 ms │  12,878 RPS ║
-║ COUNT ESTIMATE               │ Cold:     0.55 ms │ Warm:     0.018 ms │ p95:     0.034 ms │  47,916 RPS ║
-║ COUNT CACHED                 │ Cold:     0.92 ms │ Warm:     0.001 ms │ p95:     0.003 ms │ 435,256 RPS ║
-║ DELETE (Active Rows)         │ Cold:     4.53 ms │ Warm:     0.042 ms │ p95:     0.103 ms │  11,803 RPS ║
-║ BULK INSERT (100)            │ Cold:     2.38 ms │ Warm:     1.390 ms │ p95:     1.963 ms │     454 RPS ║
-║ BULK UPDATE (100 heterogeneous) │ Cold:     6.51 ms │ Warm:     0.850 ms │ p95:     1.151 ms │   1,027 RPS ║
-║ BULK UPDATE (100 homogeneous) │ Cold:     3.19 ms │ Warm:     0.632 ms │ p95:     0.862 ms │   1,377 RPS ║
+║ INSERT                       │ Cold:     0.55 ms │ Warm:     0.053 ms │ p95:     0.091 ms │  10,455 RPS ║
+║ FIND ONE                     │ Cold:     0.53 ms │ Warm:     0.007 ms │ p95:     0.013 ms │ 120,646 RPS ║
+║ FIND MANY (limit 50)         │ Cold:     1.33 ms │ Warm:     0.082 ms │ p95:     0.117 ms │  10,748 RPS ║
+║ FILTER (blob field, 1 match) │ Cold:     1.08 ms │ Warm:     0.162 ms │ p95:     0.235 ms │   5,758 RPS ║
+║ QUERY BUILDER LIST (50)      │ Cold:     2.53 ms │ Warm:     0.827 ms │ p95:     0.944 ms │   1,159 RPS ║
+║ FIND PAGE (50 hasMore)       │ Cold:     1.45 ms │ Warm:     0.086 ms │ p95:     0.119 ms │  10,211 RPS ║
+║ FIND PAGE keyset             │ Cold:     1.11 ms │ Warm:     0.071 ms │ p95:     0.105 ms │  12,295 RPS ║
+║ FIND MANY offset 50          │ Cold:     0.54 ms │ Warm:     0.047 ms │ p95:     0.060 ms │  20,513 RPS ║
+║ LIST+COUNT (legacy)          │ Cold:     0.72 ms │ Warm:     0.118 ms │ p95:     0.147 ms │   7,881 RPS ║
+║ UPDATE                       │ Cold:     0.59 ms │ Warm:     0.027 ms │ p95:     0.047 ms │  25,545 RPS ║
+║ UPDATE (no-returning)        │ Cold:     0.61 ms │ Warm:     0.023 ms │ p95:     0.031 ms │  30,254 RPS ║
+║ NATIVE UPSERT                │ Cold:     0.88 ms │ Warm:     0.058 ms │ p95:     0.083 ms │  13,584 RPS ║
+║ COUNT                        │ Cold:     0.54 ms │ Warm:     0.060 ms │ p95:     0.080 ms │  15,751 RPS ║
+║ COUNT ESTIMATE               │ Cold:     0.44 ms │ Warm:     0.016 ms │ p95:     0.026 ms │  55,067 RPS ║
+║ COUNT CACHED                 │ Cold:     0.80 ms │ Warm:     0.001 ms │ p95:     0.002 ms │ 659,587 RPS ║
+║ DELETE (Active Rows)         │ Cold:     2.95 ms │ Warm:     0.037 ms │ p95:     0.062 ms │  16,500 RPS ║
+║ BULK INSERT (100)            │ Cold:     1.48 ms │ Warm:     0.666 ms │ p95:     0.876 ms │   1,094 RPS ║
+║ BULK UPDATE (100 heterogeneous) │ Cold:     6.23 ms │ Warm:     0.666 ms │ p95:     0.871 ms │   1,340 RPS ║
+║ BULK UPDATE (100 homogeneous) │ Cold:     3.03 ms │ Warm:     0.467 ms │ p95:     0.586 ms │   1,895 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -557,28 +591,19 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:ACID:START -->
 <details id="section-acid">
-<summary><strong>🏷️ ACID Transaction Overhead</strong> · ⚪ 0.086ms · ↗️ — · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 91% — check connection pool saturation or lock contention.  
-**Severe degradation** (+1333%) — review recent commits immediately.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ transaction acid</strong> · 🟢 0.068ms · ➡️ ⚪ established at 0.068ms (1 run) (2026-10-05 07:25:03) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — ACID INTEGRITY AUDIT                                    ║
 ║                            File: tests/benchmarks/transaction-acid.test.ts                            ║
-║                                       Ran: 2026-09-27 10:54:44                                        ║
+║                                       Ran: 2026-10-05 07:25:03                                        ║
 ║         Measures transaction commit latencies and rollback overhead across database adapters          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                    │ Cold:     0.35 ms │ Warm:     0.004 ms │ p95:     0.024 ms │ 198,301 RPS ║
-║ TX Rollback Integrity        │ Cold:     1.58 ms │ Warm:     0.086 ms │ p95:     0.136 ms │  11,058 RPS ║
+║ TX Commit                    │ Cold:     0.41 ms │ Warm:     0.007 ms │ p95:     0.025 ms │ 144,349 RPS ║
+║ TX Rollback Integrity        │ Cold:     1.49 ms │ Warm:     0.068 ms │ p95:     0.100 ms │  14,481 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>
