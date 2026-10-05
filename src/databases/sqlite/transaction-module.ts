@@ -205,11 +205,17 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
 
         const dbTransaction: ScopedTransaction = {
           commit: async () => {
-            committed = true;
+            if (!committed && !rolledBack) {
+              sqlite.exec("COMMIT");
+              committed = true;
+            }
             return { success: true, data: undefined };
           },
           rollback: async () => {
-            rolledBack = true;
+            if (!rolledBack && !committed) {
+              sqlite.exec("ROLLBACK");
+              rolledBack = true;
+            }
             throw new RollbackSignal();
           },
           insert: async <T2 extends BaseEntity>(
@@ -311,15 +317,17 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
 
         const result = await fn(dbTransaction as DatabaseTransaction);
 
-        // Check if the result indicates failure and rollback if so
-        if (result && typeof result === "object" && "success" in result && !result.success) {
-          sqlite.exec("ROLLBACK");
-          rolledBack = true;
-          return result;
-        }
+        if (!committed && !rolledBack) {
+          // Check if the result indicates failure and rollback if so
+          if (result && typeof result === "object" && "success" in result && !result.success) {
+            sqlite.exec("ROLLBACK");
+            rolledBack = true;
+            return result;
+          }
 
-        sqlite.exec("COMMIT");
-        committed = true;
+          sqlite.exec("COMMIT");
+          committed = true;
+        }
 
         // If function doesn't return a formal DatabaseResult, assume success if no throw occurred
         if (!result || (typeof result === "object" && !("success" in result))) {
