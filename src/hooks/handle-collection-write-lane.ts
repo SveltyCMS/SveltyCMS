@@ -35,6 +35,10 @@ import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 import { prefersMinimalReturn } from "@utils/http-preferences";
 import { parseCollectionQueryParams } from "@utils/api-params";
+import {
+  hasPermissionBitmask,
+  isPermissionBitsetStale,
+} from "@src/databases/auth/permission-bitmask";
 import { getClientIp } from "@utils/hook-utils";
 import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { decideSessionRisk, evaluateSessionAnomaly } from "@src/databases/auth/session-user";
@@ -305,6 +309,26 @@ export function resolveWarmWriteSession(
   return sessionId ? getTurboAuthContext(sessionId) : null;
 }
 
+/**
+ * Admission rule for SIMPLE collection writes (create/update) on the warm
+ * lane — mirrors the read lane's rule: an admin or a fresh `collections:write`
+ * bit admits; anything else (or a stale bitset) must fall through to the full
+ * pipeline while the body is still unread, where the endpoint permission map
+ * authorizes and the field guard inside prepareWritePayload still enforces
+ * the per-field write rules. Exported for the policy unit test.
+ */
+export function isSimpleWriteLaneAuthorized(args: {
+  user: Parameters<typeof isAdmin>[0];
+  permMask?: bigint;
+  permRev?: number;
+}): boolean {
+  const admin = isAdmin(args.user) || args.user?.role === "admin";
+  if (!admin && !hasPermissionBitmask(args.permMask ?? 0n, "collections:write")) {
+    return false;
+  }
+  return !isPermissionBitsetStale(args.permRev);
+}
+
 async function executeWarmCollectionWrite(
   event: RequestEvent,
   turboContext?: NonNullable<ReturnType<typeof getTurboAuthContext>>,
@@ -498,13 +522,20 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   if (!isLaneServingAllowed()) return resolve(event);
   const turbo = resolveWarmWriteSession(event);
   if (!turbo) return resolve(event);
+  const kind = collectionWriteLaneKind(event.request.method, event.url.pathname);
   // Batch, bulk, increment, and status are valid for non-admins who hold
   // collections:write. Leave those on the full pipeline. The body is unread.
-  if (
-    collectionWriteLaneKind(event.request.method, event.url.pathname) === "extended" &&
-    !isAdmin(turbo.user) &&
-    turbo.user?.role !== "admin"
-  ) {
+  if (kind === "extended" && !isAdmin(turbo.user) && turbo.user?.role !== "admin") {
+    return resolve(event);
+  }
+  // 🚪 SIMPLE-WRITE ADMISSION (mirrors the read lane's rule): a warm session
+  // admits when the caller is an admin OR carries a fresh `collections:write`
+  // bit — an author with a warm session creates/updates at the same speed as
+  // an admin instead of hitting the hard 403 inside the lane. Everyone else
+  // (or a stale bitset) falls through to the full pipeline while the body is
+  // still unread: the endpoint permission map authorizes there and the field
+  // guard inside prepareWritePayload still enforces per-field write rules.
+  if (kind === "simple" && !isSimpleWriteLaneAuthorized(turbo)) {
     return resolve(event);
   }
   return serveWarmCollectionWrite(event, turbo);

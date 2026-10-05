@@ -1885,15 +1885,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
         if (results.length === 0) return null;
         const excludeData = this.shouldExcludeData(table, options);
+        // 🚀 IN-PLACE CONVERSION: the Drizzle row is a fresh per-call object
+        // (nothing else holds a reference — the point-read lane never stores
+        // the converted object in the document cache), so the date walk and
+        // the JSON flatten mutate it instead of cloning every key first.
         return excludeData
           ? (convertDatesToISO(results[0], {
               ...this.convertDatesOptions,
               table: collection,
+              inPlace: true,
               skipJson: true,
             }) as T)
           : (convertDatesToISO(results[0], {
               ...this.convertDatesOptions,
               table: collection,
+              inPlace: true,
             }) as T);
       },
       "FIND_BY_ID_FAILED",

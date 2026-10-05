@@ -15,8 +15,10 @@ import {
   isCollectionWriteLanePath,
   isGraphqlWriteLanePath,
   isSimpleCollectionWrite,
+  isSimpleWriteLaneAuthorized,
   serveWarmCollectionWrite,
 } from "@src/hooks/handle-collection-write-lane";
+import { PERMISSION_BITS, getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
 import { isSimpleCollectionRead } from "@src/hooks/handle-collection-read-lane";
 import {
   clearTurboAuthCache,
@@ -96,6 +98,46 @@ describe("isSimpleCollectionRead", () => {
     expect(isSimpleCollectionRead(evt("GET", "/api/collections/Articles?export=csv"))).toBe(false);
     expect(isSimpleCollectionRead(evt("GET", "/api/collections/Articles?stream=true"))).toBe(false);
     expect(isSimpleCollectionRead(evt("POST", "/api/collections/Articles"))).toBe(false);
+  });
+});
+
+describe("isSimpleWriteLaneAuthorized", () => {
+  const editor = { _id: "u-editor", email: "e@test.local", role: "editor" };
+  const admin = { _id: "u-admin", email: "a@test.local", role: "admin" };
+
+  it("admits an admin even without a permission bit", () => {
+    expect(isSimpleWriteLaneAuthorized({ user: admin })).toBe(true);
+  });
+
+  it("admits an editor carrying a fresh collections:write bit", () => {
+    expect(
+      isSimpleWriteLaneAuthorized({
+        user: editor,
+        permMask: PERMISSION_BITS["collections:write"],
+        permRev: getRoleBitsetVersion(),
+      }),
+    ).toBe(true);
+  });
+
+  it("declines an editor without the write bit (falls through to the pipeline)", () => {
+    expect(
+      isSimpleWriteLaneAuthorized({
+        user: editor,
+        permMask: 0n,
+        permRev: getRoleBitsetVersion(),
+      }),
+    ).toBe(false);
+    expect(isSimpleWriteLaneAuthorized({ user: editor })).toBe(false);
+  });
+
+  it("declines a stale bitset even with the right bit", () => {
+    expect(
+      isSimpleWriteLaneAuthorized({
+        user: editor,
+        permMask: PERMISSION_BITS["collections:write"],
+        permRev: getRoleBitsetVersion() + 1,
+      }),
+    ).toBe(false);
   });
 });
 
