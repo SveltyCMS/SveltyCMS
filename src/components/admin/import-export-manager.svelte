@@ -345,7 +345,6 @@
 				onclick={() => (showImportModal = true)}
 				disabled={loading}
 				aria-label="Import data"
-				class="dark:"
 			>
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
 				Import Data
@@ -521,7 +520,6 @@
 					aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
 					disabled={loading || exportOptions.collections.length === 0}
-					class="dark:"
 				>
 					Export Selected
 				</Button>
@@ -602,8 +600,7 @@
 					variant="tertiary"
 					onclick={handleImport}
 					disabled={loading || !importFiles}
-					aria-label="Import data from file"
-					class="dark:">Import Data</Button
+					aria-label="Import data from file">Import Data</Button
 				>
 			</div>
 		</div>
@@ -639,7 +636,7 @@
 								<div class="text-sm text-gray-600">Imported</div>
 							</div>
 							<div>
-								<div class="text-waring-500 text-2xl font-bold">{importResult.totalSkipped}</div>
+								<div class="text-warning-500 text-2xl font-bold">{importResult.totalSkipped}</div>
 								<div class="text-sm text-gray-600">Skipped</div>
 							</div>
 							<div>
@@ -659,7 +656,7 @@
 										<div class="flex gap-4 text-sm">
 											<span class="text-tertiary-500 dark:text-primary-500">+{result.imported}</span
 											>
-											<span class="text-waring-500">~{result.skipped}</span>
+											<span class="text-warning-500">~{result.skipped}</span>
 											<span class="text-error-500">!{result.errors.length}</span>
 										</div>
 									</div>

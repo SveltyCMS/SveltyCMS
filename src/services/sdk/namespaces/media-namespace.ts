@@ -7,7 +7,7 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { MediaService } from "@utils/media/media-service.server";
 import { AppError } from "@utils/error-handling";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
 
@@ -73,7 +73,7 @@ export class MediaNamespace {
   private mediaService: MediaService;
 
   // Mirror the pattern used in CollectionsNamespace: static LRU for request-level dedup
-  private static _requestCache = new LRUCache<string, any>({
+  private static _requestCache = new FastLRU<string, any>({
     max: 500,
     ttl: 60_000,
   });

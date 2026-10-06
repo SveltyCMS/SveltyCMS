@@ -24,6 +24,12 @@ import { logger } from "@utils/logger";
 import { marketplace, type MarketplacePlugin } from "./marketplace-client";
 import { assertPackageCompatibleWithCms } from "@src/widgets/widget-compatibility";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 const ALLOWED_INSTALL_PREFIXES = [
   "src/plugins/",
   "src/widgets/",
@@ -93,7 +99,7 @@ export function verifyPackageChecksum(
 async function downloadPackage(pluginSlug: string): Promise<MarketplacePlugin> {
   const pkg = await marketplace.getPackage(pluginSlug);
   const downloadUrl = marketplace.downloadUrlFor(pkg);
-  const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+  const { validateEgressUrl, safeFetch } = await loadEgressGuardModule();
   await validateEgressUrl(downloadUrl, { timeoutMs: 30_000, maxSizeBytes: 20 * 1024 * 1024 });
   const result = await safeFetch(downloadUrl, {
     headers: marketplace.authHeaders(),

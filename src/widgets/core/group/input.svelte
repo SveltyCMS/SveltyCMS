@@ -84,12 +84,18 @@ Renders a group of fields, allowing for nested data structures.
 <div class="mb-4 w-full {variant.container}">
 	<!-- Header -->
 	{#if (field as any).groupTitle || (field as any).collapsible}
-		<Button variant="outline">
-			type="button" onclick={toggleCollapse}
+		<Button
+			variant="outline"
+			type="button"
+			onclick={toggleCollapse}
 			disabled={!(field as any).collapsible}
 			aria-expanded={!isCollapsed}
-			aria-controls="{fieldName}-content" class="flex w-full items-center justify-between p-3 {variant.header}
-			{(field as any).collapsible ? 'hover:bg-black/5 dark:hover:bg-white/5' : ''}" >
+			aria-controls="{fieldName}-content"
+			class="flex w-full items-center justify-between p-3 {variant.header} {(field as any)
+				.collapsible
+				? 'hover:bg-black/5 dark:hover:bg-white/5'
+				: ''}"
+		>
 			<h4 class="text-base font-semibold">{(field as any).groupTitle || field.label}</h4>
 			{#if (field as any).collapsible}
 				<iconify-icon

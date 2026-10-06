@@ -14,8 +14,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { generateUUID } from "@utils/native-utils";
-import { LRUCache } from "lru-cache";
+import { FastLRU, generateUUID } from "@utils/native-utils";
 import { CacheCategory, type CacheStats } from "./types";
 import { buildCollectionCacheTags } from "../core/collection-name";
 import { cacheMetrics } from "./cache-metrics";
@@ -62,7 +61,7 @@ function collectionEpochCacheKey(collection: string): string {
 }
 
 export class CacheService {
-  private l1: LRUCache<string, any>;
+  private l1: FastLRU<string, any>;
   private l2: any = null;
   private subscriber: any = null;
   private nodeId: string;
@@ -118,7 +117,7 @@ export class CacheService {
     // operator can trade memory for hit-rate without a rebuild. `sizeCalculation`
     // is a deliberately cheap O(1) estimate — no deep object walk on the hot set
     // path; it approximates the retained bytes closely enough to bound RAM.
-    this.l1 = new LRUCache<string, any>({
+    this.l1 = new FastLRU<string, any>({
       max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 200000,
       maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 128 * 1024 * 1024,
       // A single value larger than this is not cached (a safe no-op in
@@ -515,12 +514,16 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
 
     // 1. Fast Path: L1 Cache Hit (Sync)
-    // For single random docs (ENTRY) that are accessed at uniform random over 100k rows,
-    // skip the LRU age update so random point reads don't evict hot collection lists.
-    // Query/list results (CONTENT) are high-traffic pages and must update LRU age to stay warm.
+    // For single random docs (ENTRY) accessed uniformly at random over 100k rows,
+    // "peek" without promoting recency or refreshing the TTL so random point reads
+    // can't evict hot collection lists. Query/list results (CONTENT) are high-traffic
+    // pages and must be promoted + kept warm on every hit.
     const l1Start = performance.now();
     const coldCategory = _category === CacheCategory.ENTRY;
-    const l1Value = this.l1.get(fullKey, { updateAgeOnGet: !coldCategory });
+    const l1Value = this.l1.get(fullKey, {
+      updateAgeOnGet: !coldCategory,
+      updateRecencyOnGet: !coldCategory,
+    });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;

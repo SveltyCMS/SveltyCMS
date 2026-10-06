@@ -473,8 +473,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 		</div>
 
 		<!-- Save -->
-		<Button variant="tertiary" type="submit" form="change_user_form" class="dark:"
-			>{button_save()}</Button
-		>
+		<Button variant="tertiary" type="submit" form="change_user_form">{button_save()}</Button>
 	</footer>
 </div>

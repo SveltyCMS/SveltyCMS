@@ -224,7 +224,6 @@ It provides the following functionality:
 				<Button
 					variant="tertiary"
 					onclick={() => openModal(null, '')}
-					class="dark:"
 					leadingIcon="mdi:plus-circle-outline"
 					data-testid="access-create-role"
 				>

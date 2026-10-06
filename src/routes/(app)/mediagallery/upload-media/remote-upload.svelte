@@ -87,8 +87,9 @@
 		onclick={uploadRemoteUrls}
 		disabled={isUploading}
 		data-testid="remote-upload-submit"
-		class="mt-2 dark:"
+		class="mt-2"
 	>
+		>
 		{isUploading ? 'Uploading…' : 'Upload URLs'}
 	</Button>
 </div>

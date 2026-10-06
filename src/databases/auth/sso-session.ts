@@ -31,6 +31,16 @@ import { getUntypedSetting } from "@src/services/core/settings-service";
 import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
 import type { DatabaseId } from "@src/content/types";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -226,7 +236,7 @@ export async function saveSsoProviders(
       scope: "system",
       tenantId: (tenantId || "global") as any,
     });
-    const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+    const { invalidateSettingsCache } = await loadSettingsServiceModule();
     invalidateSettingsCache(tenantId || "global");
   }
   ssoProviders.clear();

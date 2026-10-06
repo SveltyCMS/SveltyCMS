@@ -16,7 +16,7 @@
  * - collection-model WeakMap (models must NEVER attach to schema objects)
  */
 
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import type { NumberFieldPlan } from "@src/content/content-utils";
@@ -72,7 +72,7 @@ export type SchemaHotFlags = {
   _hasGuardedFields?: boolean;
 };
 
-const _schemaCache = new LRUCache<string, Schema>({ max: 500 });
+const _schemaCache = new FastLRU<string, Schema>({ max: 500 });
 
 /** Canonical schema cache key — MUST be lowercase (case-sensitive Linux CI). */
 export function schemaCacheKey(

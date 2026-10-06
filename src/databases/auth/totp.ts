@@ -25,6 +25,16 @@ import {
   type ResolvedStaticAesKey,
 } from "@utils/security/crypto";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 // Server-side only: Dynamic import to prevent bundling in client code
 let crypto: typeof import("node:crypto");
 
@@ -459,7 +469,7 @@ export async function verifyBackupCode(code: string, hashedCode: string): Promis
 let cachedBackupCodeHmacSecret: string | null = null;
 async function getBackupCodeHmacSecret(): Promise<string> {
   if (cachedBackupCodeHmacSecret) return cachedBackupCodeHmacSecret;
-  const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
+  const { getPrivateSettingSync } = await loadSettingsServiceModule();
   const jwtSecret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
   if (!jwtSecret) throw new Error("HMAC secret unavailable — JWT_SECRET_KEY not configured");
   cachedBackupCodeHmacSecret = `backupcode-hmac:${jwtSecret}`;

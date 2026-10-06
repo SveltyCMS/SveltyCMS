@@ -45,6 +45,12 @@ import { eventBus, SystemEvents } from "@utils/event-bus";
 import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
 
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
 /* -------------------------------------------------------------------------- */
 /* Security helpers for SVG attribute injection defense                       */
 /* -------------------------------------------------------------------------- */
@@ -1711,7 +1717,7 @@ export class MediaService {
    * Rebuilds the in-memory reference index by scanning all collection entries.
    */
   private async rebuildReferenceIndex(tenantId?: DatabaseId | null): Promise<void> {
-    const { scanCompiledCollections } = await import("@src/content/engine.server");
+    const { scanCompiledCollections } = await loadEngineServerModule();
     const schemas = await scanCompiledCollections();
     const allEntries: Array<{
       collectionId: string;

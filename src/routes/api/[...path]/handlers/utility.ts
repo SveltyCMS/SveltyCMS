@@ -20,6 +20,14 @@ import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { collectionTableName } from "@src/databases/core/collection-name";
 
+/** Cached lazy handle to the config service — one module-registry lookup instead of one per call. */
+let configServiceModulePromise:
+  | Promise<typeof import("@src/services/core/config-service")>
+  | undefined;
+function loadConfigServiceModule(): Promise<typeof import("@src/services/core/config-service")> {
+  return (configServiceModulePromise ??= import("@src/services/core/config-service"));
+}
+
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
   | Promise<typeof import("@src/databases/cache/cache-service")>
@@ -65,7 +73,7 @@ async function getMarketplaceService() {
 
 async function getConfigService() {
   if (!configService) {
-    configService = (await import("@src/services/core/config-service")).configService;
+    configService = (await loadConfigServiceModule()).configService;
   }
   return configService;
 }

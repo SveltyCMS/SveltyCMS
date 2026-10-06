@@ -19,6 +19,12 @@ import { logger } from "@utils/logger";
 import { eventBus } from "@utils/event-bus";
 import { browser } from "$app/env";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -366,7 +372,7 @@ class SecurityMonitoringService {
     // Non-blocking delivery — 🛡️ SSRF-guarded: admin-configured webhook URLs
     // are external input, so delivery goes through safeFetch (blocks private
     // IPs/localhost/metadata, caps redirects and response size).
-    const { safeFetch } = await import("@src/utils/egress-guard");
+    const { safeFetch } = await loadEgressGuardModule();
     safeFetch(webhook.url, {
       method: "POST",
       headers,

@@ -28,6 +28,12 @@ import {
   type InferInput as ValibotInput,
 } from "valibot";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 // Import components needed for the GuiSchema
 // import Input from '@components/ui/input.svelte';
 // import Toggle from '@components/ui/toggle.svelte';
@@ -172,7 +178,7 @@ const SeoWidget = createWidget({
     // SECURITY: Enforce Premium Licensing via Cloud API on Save
     if (type === "POST" || type === "PATCH") {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("widget", "seo");
 
         try {

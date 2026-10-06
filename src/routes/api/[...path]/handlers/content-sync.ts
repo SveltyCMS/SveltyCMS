@@ -24,6 +24,16 @@ import { successResponse, errorResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
 
+/** Cached lazy handle to the content sync service — one module-registry lookup instead of one per call. */
+let contentSyncServiceModulePromise:
+  | Promise<typeof import("@src/services/core/content-sync-service")>
+  | undefined;
+function loadContentSyncServiceModule(): Promise<
+  typeof import("@src/services/core/content-sync-service")
+> {
+  return (contentSyncServiceModulePromise ??= import("@src/services/core/content-sync-service"));
+}
+
 /**
  * Handle content sync routes under `/api/content-sync/*`.
  */
@@ -45,7 +55,7 @@ export async function handleContentSyncRoutes(
   // ── GET /api/content-sync/channels ─────────────────────────────────────
   if (action === "channels" && request.method === "GET") {
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const channels = await contentSyncService.listChannels(tenantId as string);
       return successResponse(event, { channels });
     } catch (err) {
@@ -72,7 +82,7 @@ export async function handleContentSyncRoutes(
     }
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const channel = await contentSyncService.createChannel({
         label: body.label,
         source: body.source,
@@ -105,7 +115,7 @@ export async function handleContentSyncRoutes(
     const body = await request.json().catch(() => ({}));
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const channel = await contentSyncService.updateChannel(channelId, body);
       return successResponse(event, channel);
     } catch (err) {
@@ -128,7 +138,7 @@ export async function handleContentSyncRoutes(
     }
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       await contentSyncService.deleteChannel(channelId);
       return successResponse(event, { message: "Channel deleted." });
     } catch (err) {
@@ -151,7 +161,7 @@ export async function handleContentSyncRoutes(
     }
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const plan = await contentSyncService.createSyncPlan(body.channelId, {
         locale: body.locale,
         relationDepth: body.relationDepth,
@@ -180,7 +190,7 @@ export async function handleContentSyncRoutes(
     }
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const result = await contentSyncService.pushContent(body.channelId, {
         adminConfirmation: body.adminConfirmation ?? body.confirmed,
         userId,
@@ -212,7 +222,7 @@ export async function handleContentSyncRoutes(
     }
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const result = await contentSyncService.pullContent(body.channelId, {
         anonymize: body.anonymize,
         userId,
@@ -243,7 +253,7 @@ export async function handleContentSyncRoutes(
     }
 
     try {
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const status = await contentSyncService.getJobStatus(jobId);
 
       if (!status) {

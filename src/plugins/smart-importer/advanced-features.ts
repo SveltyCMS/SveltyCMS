@@ -8,6 +8,12 @@ import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 import { generateUUID } from "@utils/native-utils";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 /** Normalizes adapter findOne/insert responses ({ success, data } or raw doc). */
 export function unwrapCrudDoc<T extends Record<string, unknown> = Record<string, unknown>>(
   result: unknown,
@@ -239,7 +245,7 @@ export async function harvestInBodyMedia(
     const remoteUrl = match[1];
     try {
       // 🛡️ SSRF: never raw-fetch user/HTML-derived URLs — egress guard blocks private nets
-      const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+      const { validateEgressUrl, safeFetch } = await loadEgressGuardModule();
       await validateEgressUrl(remoteUrl, {
         allowHttp: process.env.NODE_ENV === "development",
       });

@@ -7,6 +7,12 @@ import { createWidget } from "@src/widgets/widget-factory";
 import { optional, record, string, type BaseIssue, type BaseSchema } from "valibot";
 import type { AIEnrichmentProps } from "./types";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 // Validation Schema
 export const createValidationSchema = (
   field: any,
@@ -64,7 +70,7 @@ const AIEnrichmentWidget = createWidget<AIEnrichmentProps>({
   modifyRequest: async ({ data, type }: any) => {
     if (type === "POST" || type === "PATCH") {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("widget", "AIEnrichment");
         if (!status.active && !status.hasLicense) {
           throw new Error("403 Forbidden: Premium License Required for AI Enrichment Widget");

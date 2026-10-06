@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-30"
+updated: "2026-10-06"
 tags:
   - "achievements"
   - "log"
@@ -683,6 +683,25 @@ Two rows closed from the competitive feature-gap list, both self-described with 
 2. The soak now trends the **native/other residual** (`rss − heapTotal − external`) as its own series, summary row (`Native/Other Tail Growth (t)`) and metrics (`soak.resid_slope_mb_min`, `soak.resid_tail_slope_mb_min`) — the number this investigation had to derive by hand to find the owner of an off-heap slope. Contract: [benchmark-matrix](../tests/benchmark-matrix.mdx#long-running-soak-contract-longevity-soaktestts). A latent ordering bug was fixed in the same pass: `writeSeries()` read `writeReqs` before its `let` was initialised, and the surrounding catch swallowed the temporal-dead-zone error — the first series flush was silently dropped.
 
 > **Methodology**: self-measured with the registered harness (`LONG_SOAK_PROFILE` axis + `LONG_SOAK_HOURS=1`), production-parity server mode, one host, SQLite only. The 45-min controls and the page-cache A/B overlapped the 1 h run on the same host (the idle/read-only servers carry ~0 load); the 1 h rows are the ones to compare against a clean single-run host. Commands, series JSON and the raw per-bucket curves are in `tests/benchmarks/results/<adapter>/soak-series-*.json`.
+
+### 3.27 October 2026 — L1 cache moved to the native dependency-free FastLRU
+
+The hybrid cache's L1 in-memory tier (`cacheService.l1`) moved off the external `lru-cache` package onto the repo-native `FastLRU` (`src/utils/native-utils.ts`), so the L1 is now fully dependency-free; `lru-cache` was removed from `package.json` (direct dependencies 88 → 87, SBOM components 683 → 682). `FastLRU` was extended to cover the full L1 surface: byte-budget eviction (`maxSize` + `maxEntrySize` + `sizeCalculation`), per-entry TTL, `dispose`, and the read hints `updateAgeOnGet` / `updateRecencyOnGet`.
+
+Self-measured microbenchmark (throwaway script, 2026-10-06, Bun 1.4.2, N = 100,000 ops after ≥1,000 warm-up iterations; `sizeCalculation` with a 128 MB `maxSize` and 16 MB `maxEntrySize`, 20k keys, 120-byte string values):
+
+- **`get()` with recency promotion**: 31.3 M ops/s (`lru-cache`) vs 13.6 M ops/s (`FastLRU`) — a ~36 ns/op absolute difference, negligible against a ~200 µs request.
+- **`get()` peek** (`updateAgeOnGet: false, updateRecencyOnGet: false`): 28.7 M vs 19.4 M ops/s.
+- **`set()`**: 3.67 M vs 4.51 M ops/s (`FastLRU` ~1.23× faster).
+- **2,000-entry count-only cache `get()`**: 12.4 M vs 6.87 M ops/s.
+
+This supersedes the earlier "5.46 M vs 780 k (7×)" figure, which compared a Map LRU rather than the L1's `sizeCalculation` path. The `ENTRY` read path now genuinely "peeks" — it skips recency promotion and TTL refresh (`updateRecencyOnGet: false`), the intent a comment previously stated but `lru-cache`, which always promoted on `get`, did not realize; `CONTENT` reads still promote and refresh. Docs: [Cache System](../reference/architecture/cache-system.mdx), [Production Deployment](../guides/deployment/production-deployment.mdx).
+
+### 3.28 October 2026 — Dead-code sweep & slop-scanner signal/noise split
+
+The slop scanner's unused-export report was split into two clearly-labelled buckets so the actionable set is never drowned by the public/test API inventory: **dead-code candidates** (`unused-export` — a symbol referenced nowhere in `src`/`scripts`/root entries/`tests`/`docs`) and **export-surface** (referenced by tests/docs only — test-only reset helpers and documented public API). The `scanUnusedExports` reference set now also reads the repo-root entries (`*.{js,mjs,cjs,ts}`, e.g. `index.server.mjs`, `index.cjs`) and `scripts/**` matches `.mjs`/`.cjs`, so bundled-startup exports are no longer misreported as dead. All 20 live dead-code candidates were removed across 15 files (verified definition-only repo-wide), and the export-surface inventory is collapsed by default — list it with `--surface` / `--verbose`.
+
+Result: `bun run slop` is **0 errors / 0 warnings / 0 dead-code candidates**, with the 137 documented/test-only exports tracked as annotated inventory. Docs: [Git Workflow](../tests/git-workflow.mdx), [Testing Scripts Catalog](../tests/testing-scripts.mdx).
 
 ## 4. Final Sprint Achievements (March 2026)
 

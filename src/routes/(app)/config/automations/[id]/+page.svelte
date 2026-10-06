@@ -1053,7 +1053,6 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									onclick={testFlow}
 									disabled={isTesting || isNew}
 									aria-label="Run test"
-									class="dark:"
 								>
 									{#if isTesting}
 										<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>

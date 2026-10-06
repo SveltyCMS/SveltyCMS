@@ -319,7 +319,7 @@ sudo systemctl reload nginx
 ### Redis Setup (Optional Distributed L2 Cache)
 
 > [!NOTE]
-> **Redis is 100% Optional**: SveltyCMS runs out of the box with zero external cache dependencies. Its built-in in-memory L1 cache (`lru-cache`) provides sub-microsecond hits (<0.001ms) on single-node deployments (especially with SQLite).
+> **Redis is 100% Optional**: SveltyCMS runs out of the box with zero external cache dependencies. Its built-in in-memory L1 cache (the dependency-free native `FastLRU`) provides sub-microsecond hits (<0.001ms) on single-node deployments (especially with SQLite).
 >
 > **When to Enable Redis**:
 >

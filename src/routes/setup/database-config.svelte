@@ -695,7 +695,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				aria-label={isLoading
 					? 'Testing database connection, please wait'
 					: 'Test database connection'}
-				class="w-full dark:"
+				class="w-full"
 			>
 				{#if isLoading}
 					<div

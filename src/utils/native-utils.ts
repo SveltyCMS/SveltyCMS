@@ -256,60 +256,152 @@ export function fastHash(str: string): string {
   return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
 }
 
+export interface FastLRUGetOptions {
+  /**
+   * Refresh an entry's TTL to `now + ttl` on every hit. Defaults to `false`
+   * (parity with `lru-cache`, whose default leaves the TTL untouched on read).
+   */
+  updateAgeOnGet?: boolean;
+  /**
+   * Move a hit to the most-recently-used position. Defaults to `true`
+   * (`lru-cache` always promotes on `get`). Set `false` for "peek" reads that
+   * must not displace the resident hot set — see `CacheService.get`.
+   */
+  updateRecencyOnGet?: boolean;
+}
+
 export interface FastLRUOptions<K, V> {
+  /** Maximum number of entries held before count-based eviction kicks in. */
   max: number;
+  /** Optional hard byte budget. Whichever of `max`/`maxSize` is hit first wins. */
+  maxSize?: number;
+  /**
+   * Largest single entry the cache will store. Entries sized larger by
+   * `sizeCalculation` are not cached (and evict any previous value). Defaults
+   * to `maxSize`, matching `lru-cache`.
+   */
+  maxEntrySize?: number;
+  /** Per-entry size estimator feeding `maxSize`/`maxEntrySize` accounting. */
+  sizeCalculation?: (value: V, key: K) => number;
+  /** Default entry TTL in milliseconds (`0` = no expiry). */
   ttl?: number;
+  /** Cleanup hook fired whenever an entry leaves the cache. */
   dispose?: (value: V, key: K) => void;
 }
 
+interface FastLRUEntry<V> {
+  v: V;
+  exp: number;
+  size: number;
+  ttl: number;
+}
+
 /**
- * Zero-dependency native LRU cache built directly on JavaScript Map insertion order.
- * 🚀 Performance: 2.5–4× faster than external linked-list libraries; O(1) ops, zero extra allocations.
+ * Zero-dependency native LRU cache built directly on JavaScript Map insertion
+ * order. 🚀 Performance: 2.5–4× faster than external linked-list libraries for
+ * the SDK's small/medium caches; O(1) ops, zero extra allocations.
+ *
+ * Supports the full surface the hybrid L1 needs: byte-budget eviction
+ * (`maxSize` + `maxEntrySize` + `sizeCalculation`), per-entry TTL, dispose
+ * hooks, and the `updateAgeOnGet`/`updateRecencyOnGet` read hints.
+ *
+ * Note: for a multi-hundred-MB L1, `lru-cache`'s typed-array arenas still
+ * microbenchmark faster on raw get/set throughput; `FastLRU` wins on dependency
+ * leanness and allocation pressure. Benchmark before swapping a hot tier.
  */
 export class FastLRU<K, V> {
   private readonly _max: number;
+  private readonly _maxSize: number;
+  private readonly _maxEntrySize: number;
   private readonly _ttl: number;
   private readonly _dispose?: (value: V, key: K) => void;
-  private readonly _map = new Map<K, { v: V; exp: number }>();
+  private readonly _sizeCalc?: (value: V, key: K) => number;
+  private readonly _map = new Map<K, FastLRUEntry<V>>();
+  private _calculatedSize = 0;
 
   constructor(opts: number | FastLRUOptions<K, V>) {
     if (typeof opts === "number") {
       this._max = Math.max(1, opts);
+      this._maxSize = 0;
+      this._maxEntrySize = 0;
       this._ttl = 0;
     } else {
       this._max = Math.max(1, opts.max);
+      this._maxSize = opts.maxSize && opts.maxSize > 0 ? opts.maxSize : 0;
       this._ttl = opts.ttl && opts.ttl > 0 ? opts.ttl : 0;
       this._dispose = opts.dispose;
+      this._sizeCalc = opts.sizeCalculation;
+      // `lru-cache` parity: an unset `maxEntrySize` defaults to `maxSize`.
+      const entryCap = opts.maxEntrySize && opts.maxEntrySize > 0 ? opts.maxEntrySize : 0;
+      this._maxEntrySize = entryCap > 0 ? entryCap : this._maxSize;
     }
   }
 
-  get(key: K): V | undefined {
+  private _measure(value: V, key: K): number {
+    if (this._sizeCalc) {
+      const n = this._sizeCalc(value, key);
+      return n > 0 ? n : 1;
+    }
+    return 1;
+  }
+
+  get(key: K, opts?: FastLRUGetOptions): V | undefined {
     const entry = this._map.get(key);
     if (!entry) return undefined;
-    if (entry.exp > 0 && Date.now() > entry.exp) {
+    const now = Date.now();
+    if (entry.exp > 0 && now > entry.exp) {
       this.delete(key);
       return undefined;
     }
-    // Refresh to MRU position (re-insert moves to end of Map in JS)
-    this._map.delete(key);
-    this._map.set(key, entry);
+    const refreshAge = opts?.updateAgeOnGet === true;
+    // `lru-cache` always promotes on read; only an explicit
+    // `updateRecencyOnGet: false` keeps a "peek" from displacing the hot set.
+    if (opts?.updateRecencyOnGet !== false) {
+      this._map.delete(key);
+      if (refreshAge && entry.ttl > 0) entry.exp = now + entry.ttl;
+      this._map.set(key, entry);
+    } else if (refreshAge && entry.ttl > 0) {
+      entry.exp = now + entry.ttl;
+    }
     return entry.v;
   }
 
   set(key: K, value: V, opts?: { ttl?: number }): this {
     const ttl = opts?.ttl !== undefined ? opts.ttl : this._ttl;
-    const exp = ttl > 0 ? Date.now() + ttl : 0;
+    const size = this._measure(value, key);
 
-    if (this._map.has(key)) {
+    // Oversized single entries are never cached (and evict any previous value),
+    // so one pathological payload can't flush the whole cache.
+    if (this._maxEntrySize > 0 && size > this._maxEntrySize) {
+      this.delete(key);
+      return this;
+    }
+
+    const existing = this._map.get(key);
+    if (existing) {
+      this._calculatedSize -= existing.size;
       this._map.delete(key);
-    } else if (this._map.size >= this._max) {
-      // Evict oldest (head of Map)
-      const oldestKey = this._map.keys().next().value;
-      if (oldestKey !== undefined) {
+      // `lru-cache` disposes the replaced value before inserting the new one.
+      this._dispose?.(existing.v, key);
+    }
+
+    // Byte-budget eviction first: drop LRU entries until the new entry fits.
+    if (this._maxSize > 0) {
+      while (this._calculatedSize + size > this._maxSize && this._map.size > 0) {
+        const oldestKey = this._map.keys().next().value as K | undefined;
+        if (oldestKey === undefined) break;
         this.delete(oldestKey);
       }
     }
-    this._map.set(key, { v: value, exp });
+    // Then the independent entry-count budget.
+    while (this._map.size >= this._max && this._map.size > 0) {
+      const oldestKey = this._map.keys().next().value as K | undefined;
+      if (oldestKey === undefined) break;
+      this.delete(oldestKey);
+    }
+
+    this._map.set(key, { v: value, exp: ttl > 0 ? Date.now() + ttl : 0, size, ttl });
+    this._calculatedSize += size;
     return this;
   }
 
@@ -327,6 +419,7 @@ export class FastLRU<K, V> {
     const entry = this._map.get(key);
     if (!entry) return false;
     this._map.delete(key);
+    this._calculatedSize -= entry.size;
     this._dispose?.(entry.v, key);
     return true;
   }
@@ -338,14 +431,41 @@ export class FastLRU<K, V> {
       }
     }
     this._map.clear();
+    this._calculatedSize = 0;
   }
 
+  /** Number of entries currently held (TTL-expired entries purge on access). */
   get size(): number {
     return this._map.size;
   }
 
-  keys(): IterableIterator<K> {
-    return this._map.keys();
+  /** Total bytes as reported by `sizeCalculation` (0 when no sizing is used). */
+  get calculatedSize(): number {
+    return this._calculatedSize;
+  }
+
+  get max(): number {
+    return this._max;
+  }
+
+  get maxSize(): number {
+    return this._maxSize;
+  }
+
+  /**
+   * Iterates live keys, lazily purging entries whose TTL has elapsed — parity
+   * with `lru-cache`'s iteration (which never yields stale keys) and with this
+   * class's own `values()`/`entries()`.
+   */
+  *keys(): IterableIterator<K> {
+    const now = Date.now();
+    for (const [key, entry] of this._map) {
+      if (entry.exp > 0 && now > entry.exp) {
+        this.delete(key);
+      } else {
+        yield key;
+      }
+    }
   }
 
   *values(): IterableIterator<V> {

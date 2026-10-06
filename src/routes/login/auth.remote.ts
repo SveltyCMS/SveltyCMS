@@ -6,6 +6,16 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -257,7 +267,7 @@ export const verify2FA = command(
       });
     } catch {}
     try {
-      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(session._id, user, event.locals.tenantId ?? user.tenantId ?? null, [
         "pwd",
         "mfa",
@@ -566,7 +576,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       }
       // Prime in-memory session cache so getUserFromSession bypasses sqlite-proxy
       try {
-        const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+        const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
         primeSessionMemoryCache(
           ar.sessionId!,
           user,
@@ -597,7 +607,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       });
     } catch {}
     try {
-      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(s._id, user, event.locals.tenantId ?? user.tenantId ?? null);
     } catch {}
   }

@@ -467,7 +467,6 @@ This component provides a user interface for managing 2FA settings:
 				variant="tertiary"
 				onclick={verify2FA}
 				disabled={isLoading || !verificationCode || verificationCode.length !== 6}
-				class="dark:"
 			>
 				{#if isLoading}
 					<div

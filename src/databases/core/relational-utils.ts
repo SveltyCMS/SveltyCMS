@@ -919,20 +919,6 @@ const COMMON_SQL_IDENTIFIERS = new Set([
   "folderId",
 ]);
 
-/**
- * Pre-registers a batch of known safe SQL identifiers (e.g. from compiled collection definitions)
- * into the fast-path set, bypassing regex validation on future queries.
- */
-export function registerSafeSqlIdentifiers(names: Iterable<string>): void {
-  for (const name of names) {
-    if (typeof name === "string" && name.length <= 63 && SAFE_SQL_IDENTIFIER_REGEX.test(name)) {
-      if (_safeSqlIdentifierSet.size < 4096) {
-        _safeSqlIdentifierSet.add(name);
-      }
-    }
-  }
-}
-
 export function assertSafeSqlIdentifier(name: string, label = "field"): string {
   if (typeof name !== "string") {
     throw new Error(`Invalid SQL identifier for ${label}: ${String(name)}`);

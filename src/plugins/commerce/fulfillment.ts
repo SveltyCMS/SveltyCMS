@@ -13,6 +13,12 @@ import { logger } from "@utils/logger";
 import { rethrow } from "@utils/error-handling";
 import type { Adjustment, Price } from "@src/services/commerce/types";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 export interface FulfillmentQuoteContext {
   tenantId: string;
   country?: string;
@@ -93,7 +99,7 @@ export async function isFulfillmentPluginReady(
   tenantId: string,
 ): Promise<{ ready: boolean; settings: Record<string, unknown> }> {
   const { pluginRegistry } = await import("@src/plugins/registry");
-  const { checkExtensionLicense } = await import("@src/utils/license-manager");
+  const { checkExtensionLicense } = await loadLicenseManagerModule();
   const plugin = pluginRegistry.get(pluginId);
   if (!plugin) return { ready: false, settings: {} };
   const state = await pluginRegistry.getPluginState(pluginId, String(tenantId));

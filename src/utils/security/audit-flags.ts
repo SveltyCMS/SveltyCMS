@@ -18,6 +18,16 @@
 
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 const AUDIT_FLAGS_TTL_MS = 5_000;
 
 interface AuditFlags {
@@ -41,7 +51,7 @@ function envFlags(): AuditFlags | null {
 
 async function loadDbFlags(): Promise<AuditFlags> {
   try {
-    const { getUntypedSetting } = await import("@src/services/core/settings-service");
+    const { getUntypedSetting } = await loadSettingsServiceModule();
     const [disableLogs, chainSync] = await Promise.all([
       getUntypedSetting("DISABLE_AUDIT_LOGS", undefined, "global").catch(() => null),
       getUntypedSetting("AUDIT_CHAIN_SYNC", undefined, "global").catch(() => null),

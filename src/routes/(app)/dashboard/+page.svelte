@@ -724,7 +724,6 @@
 							aria-expanded={dropdownOpen}
 							aria-label="Add Widget"
 							data-testid="dashboard-add-widget"
-							class="dark:"
 						>
 							<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 							Add Widget

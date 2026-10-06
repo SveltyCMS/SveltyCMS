@@ -17,6 +17,23 @@ import type {
   PaginationOptions,
   IAuthAdapter,
 } from "@src/databases/db-interface";
+
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
+/** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
+let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
+function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
+  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
+}
+
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -322,7 +339,7 @@ export class Auth {
     // Turbo auth contexts cache per-session user/roles/bitsets. Clear the user's
     // sessions so privilege changes apply immediately instead of after the 60s TTL.
     try {
-      const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
+      const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
       invalidateTurboAuthForUser(userId as string);
     } catch {
       // Non-critical — turbo contexts expire naturally after TTL
@@ -350,7 +367,7 @@ export class Auth {
     // Turbo auth contexts cache per-session user/roles/bitsets and skip session
     // re-validation — a deleted user's warm context must not survive.
     try {
-      const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
+      const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
       invalidateTurboAuthForUser(userId as string);
     } catch {
       // Non-critical — turbo contexts expire naturally after TTL
@@ -363,7 +380,7 @@ export class Auth {
       const res = await this.db.auth.getActiveSessions(userId, options);
       const active = res?.success && Array.isArray(res.data) ? res.data : [];
       if (active.length > 0) {
-        const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+        const { invalidateSessionCache } = await loadHandleAuthenticationModule();
         for (const s of active) {
           invalidateSessionCache(String(s._id), options?.tenantId ?? null);
         }
@@ -561,7 +578,7 @@ export class Auth {
           await this.sessionStore.updateSessionAmr(sessionId, amr, mfaVerifiedAt);
         }
       }
-      const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+      const { invalidateSessionCache } = await loadHandleAuthenticationModule();
       invalidateSessionCache(String(sessionId), options?.tenantId ?? sessionData.tenantId ?? null);
     }
   }
@@ -583,7 +600,7 @@ export class Auth {
     const sessions = Array.isArray(result.data) ? result.data : [];
     if (sessions.length === 0) return;
 
-    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    const { invalidateSessionCache } = await loadHandleAuthenticationModule();
     let evicted = 0;
     for (const old of sessions) {
       if (old.rotated) continue;
@@ -623,7 +640,7 @@ export class Auth {
     const sessions = Array.isArray(result.data) ? result.data : [];
     if (sessions.length <= maxSessions) return;
 
-    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    const { invalidateSessionCache } = await loadHandleAuthenticationModule();
     const tenantId =
       (options?.tenantId as DatabaseId | null | undefined) ?? newSession.tenantId ?? null;
 
@@ -1110,7 +1127,7 @@ export class Auth {
       // sessions so profile edits (username/email/avatar) show immediately after
       // reload instead of after the 60s TTL (same as Auth.updateUser).
       try {
-        const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
+        const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
         invalidateTurboAuthForUser(String(userId));
       } catch {
         // Non-critical — turbo contexts expire naturally after TTL

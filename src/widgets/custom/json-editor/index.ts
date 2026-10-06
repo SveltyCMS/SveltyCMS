@@ -6,6 +6,12 @@
 import { createWidget } from "@src/widgets/widget-factory";
 import { any, nullable } from "valibot";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 export interface JsonEditorProps {
   label: string;
   db_fieldName?: string;
@@ -52,7 +58,7 @@ const JsonEditorWidget = createWidget<JsonEditorProps>({
   modifyRequest: async ({ data, type }: any) => {
     if (type === "POST" || type === "PATCH") {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("widget", "json-editor");
         if (!status.active && !status.hasLicense) {
           throw new Error("403 Forbidden: Premium License Required for JSON Editor Widget");

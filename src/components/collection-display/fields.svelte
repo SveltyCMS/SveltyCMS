@@ -856,7 +856,6 @@
 							onclick={handleRevert}
 							disabled={!selectedRevision?.data}
 							aria-label="Revert revision"
-							class="dark:"
 						>
 							<iconify-icon icon="mdi:restore" class="me-1"></iconify-icon>
 							{applayout_version()}

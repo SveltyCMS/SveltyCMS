@@ -4,6 +4,34 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
+/** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
+let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
+function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
+  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
+}
+
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
   | Promise<typeof import("@src/databases/cache/cache-service")>
@@ -73,8 +101,7 @@ async function setTestingSessionCookie(
   event: RequestEvent,
   sessionId: string,
 ): Promise<{ cookieName: string; isSecure: boolean; setCookieHeader: string }> {
-  const { getSessionCookieName, isSecureCookieContext } =
-    await import("@src/databases/auth/constants");
+  const { getSessionCookieName, isSecureCookieContext } = await loadAuthConstantsModule();
   const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
   const cookieName = getSessionCookieName(isSecure);
   const sameSite = isSecure ? "strict" : "lax";
@@ -119,7 +146,7 @@ async function invalidateAllCaches(tenantId: DatabaseId) {
     // The settings-service cache is a separate in-memory map — resets wipe the
     // DB rows but not this cache, so post-reset requests would keep serving
     // stale public settings (e.g. SITE_STARTER_ENABLED) until the next boot.
-    const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+    const { invalidateSettingsCache } = await loadSettingsServiceModule();
     invalidateSettingsCache(tenantId);
 
     const { apiSpecService } = await import("@services/system/api-spec-service");
@@ -139,7 +166,7 @@ async function invalidateAllCaches(tenantId: DatabaseId) {
  * Wipe the media folder and recreate it empty.
  */
 async function wipeMediaFolder() {
-  const { getPublicSettingSync } = await import("@src/services/core/settings-service");
+  const { getPublicSettingSync } = await loadSettingsServiceModule();
   const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
   const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
   if (fs.existsSync(fullMediaRoot)) {
@@ -346,7 +373,7 @@ export async function handleTestingRoutes(
         }
 
         // Sync content store + SDK schema cache
-        const { refreshContent } = await import("@src/content/engine.server");
+        const { refreshContent } = await loadEngineServerModule();
         await refreshContent(tenantId, {
           mode: "schemas",
           adapter: initializedAdapter,
@@ -751,7 +778,7 @@ export async function handleTestingRoutes(
         await new Promise((r) => setTimeout(r, 100));
       }
       // 🚀 BATCH SYNC: Refresh once for all collections
-      const { refreshContent } = await import("@src/content/engine.server");
+      const { refreshContent } = await loadEngineServerModule();
       await refreshContent(tenantId, {
         mode: "schemas",
         adapter: initializedAdapter,
@@ -905,7 +932,7 @@ export async function handleTestingRoutes(
       if (collectionId === "roles") {
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
-        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        const { clearTurboAuthCache } = await loadHandleTurboGetModule();
         clearTurboAuthCache();
       }
 
@@ -944,7 +971,7 @@ export async function handleTestingRoutes(
       if (collectionId === "roles") {
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
-        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        const { clearTurboAuthCache } = await loadHandleTurboGetModule();
         clearTurboAuthCache();
       }
 
@@ -1077,7 +1104,7 @@ export async function handleTestingRoutes(
       if (!key || typeof key !== "string") {
         throw new AppError("key is required", 400);
       }
-      const { setPrivateSetting } = await import("@src/services/core/settings-service");
+      const { setPrivateSetting } = await loadSettingsServiceModule();
       await setPrivateSetting(key as any, value as any, (tenantId || undefined) as any);
       return rawResponse({ success: true, key, value });
     }
@@ -1572,7 +1599,7 @@ export async function handleTestingRoutes(
       ]);
 
       // Sync content store + SDK schema cache so PATCH/GET see API-seeded entries immediately
-      const { refreshContent } = await import("@src/content/engine.server");
+      const { refreshContent } = await loadEngineServerModule();
       await refreshContent(tenantId, {
         mode: "schemas",
         adapter: initializedAdapter,
@@ -1795,7 +1822,7 @@ export async function handleTestingRoutes(
         } as any);
       }
 
-      const { refreshContent } = await import("@src/content/engine.server");
+      const { refreshContent } = await loadEngineServerModule();
       await refreshContent(tenantId, {
         mode: "schemas",
         adapter: initializedAdapter,

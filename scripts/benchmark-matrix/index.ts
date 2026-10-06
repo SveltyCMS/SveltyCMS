@@ -1042,6 +1042,15 @@ async function run() {
                       );
                     }
                   } else {
+                    // Fail-fast skips the Phase 4 `finalizeReport()` below, so the
+                    // metrics this run already exported to history.jsonl never reach
+                    // `history.sqlite` / the MDX ledgers. That is why a failed matrix
+                    // run can be absent from the trend store — say so explicitly
+                    // instead of leaving an unexplained gap for the next investigation.
+                    console.error(
+                      `  ⚠️  Aborting on failure without finalizing — trend rows for this run are NOT recorded. ` +
+                        `Re-run with --continue-on-error to measure the rest and persist what completed.`,
+                    );
                     server.kill("SIGKILL");
                     process.exit(1);
                   }

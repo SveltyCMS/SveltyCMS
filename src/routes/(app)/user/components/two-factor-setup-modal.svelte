@@ -333,7 +333,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				type="button"
 				onclick={completeSetup}
 				class={parent?.buttonPositive ?? ''}
-				>">
+			>
 				<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 				{button_complete()}
 			</Button>

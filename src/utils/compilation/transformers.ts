@@ -68,10 +68,6 @@ const COMPILE_ALIAS_ENTRIES: Array<{ alias: string; resolvedTarget: string }> = 
 // 🚀 Performance: Process-level directory stat cache avoids repeated sync disk syscalls in AST traversal
 const dirStatCache = new Map<string, boolean>();
 
-export function clearDirStatCache(): void {
-  dirStatCache.clear();
-}
-
 // ─── Schema property markers for _id/tenantId injection ─────────────────
 // Only injected on EXPORTED object literals (ExportAssignment parent).
 const SCHEMA_MARKERS = new Set([

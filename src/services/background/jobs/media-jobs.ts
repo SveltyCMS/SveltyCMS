@@ -34,9 +34,7 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
     throw new Error(`Media item ${fileId} not found`);
   }
 
-  // We need the full object, not just metadata.
-  // The getMetadata helper only returns the metadata field.
-  // Let's use crud.findOne instead.
+  // Need the full media document, not just metadata — read via crud.findOne.
   const mediaResult = await db.crud.findOne("media", { _id: dbId } as any);
   if (!mediaResult.success || !mediaResult.data) {
     throw new Error(`Media item ${fileId} not found via CRUD`);

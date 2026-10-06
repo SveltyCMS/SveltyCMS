@@ -151,7 +151,7 @@
 			>+ Add Transition</Button
 		>
 		<StickyActions>
-			<Button variant="tertiary" onclick={saveWorkflow} class="dark:" data-testid="workflow-save"
+			<Button variant="tertiary" onclick={saveWorkflow} data-testid="workflow-save"
 				>Save Workflow</Button
 			>
 		</StickyActions>

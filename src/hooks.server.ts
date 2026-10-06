@@ -14,6 +14,16 @@
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
 import "@utils/v8-shim";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -1114,6 +1124,6 @@ import { TokenRegistry } from "@src/services/token/engine";
 
 // 🚀 Register server-side token resolver for site settings without polluting client bundle
 TokenRegistry.setSiteResolver(async () => {
-  const { getAllSettings } = await import("@src/services/core/settings-service");
+  const { getAllSettings } = await loadSettingsServiceModule();
   return await getAllSettings();
 });

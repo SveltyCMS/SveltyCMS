@@ -13,6 +13,22 @@
 import type { DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
   | Promise<typeof import("@src/databases/cache/cache-service")>
@@ -49,7 +65,7 @@ export async function seedWebsiteStarterBlueprint(
   });
 
   try {
-    const { refreshContent } = await import("@src/content/engine.server");
+    const { refreshContent } = await loadEngineServerModule();
     await refreshContent(tenantId, { mode: "schemas", adapter });
   } catch (err) {
     logger.warn("[WebsiteStarterSeed] Content refresh failed:", err);
@@ -57,8 +73,7 @@ export async function seedWebsiteStarterBlueprint(
 
   await seedWebsiteStarterPages(adapter, { siteName, tenantId });
   try {
-    const { setPublicSetting, invalidateSettingsCache } =
-      await import("@src/services/core/settings-service");
+    const { setPublicSetting, invalidateSettingsCache } = await loadSettingsServiceModule();
     await setPublicSetting("SITE_STARTER_ENABLED", true, tenantId ?? undefined);
     invalidateSettingsCache(tenantId ?? undefined);
     const { cacheService } = await loadCacheServiceModule();

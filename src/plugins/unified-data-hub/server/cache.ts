@@ -9,10 +9,10 @@
  * - LRU eviction with max entries
  */
 
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 import type { VirtualReadResult } from "../types";
 
-const cache = new LRUCache<string, { result: VirtualReadResult; expiresAt: number }>({
+const cache = new FastLRU<string, { result: VirtualReadResult; expiresAt: number }>({
   max: 2000,
 });
 

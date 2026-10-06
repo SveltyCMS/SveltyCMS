@@ -11,6 +11,12 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
   | Promise<typeof import("@src/databases/cache/cache-service")>
@@ -222,7 +228,7 @@ export class ApiSpecService {
     }
 
     try {
-      const { contentService } = await import("@src/content/engine.server");
+      const { contentService } = await loadEngineServerModule();
       const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);
       const schemaMap = new Map<string, Schema>();
 

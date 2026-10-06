@@ -17,6 +17,12 @@ import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchm
 import { getSchemaPath } from "@src/content/first-collection";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
+let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
+function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
+  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
+}
+
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
 function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
@@ -405,7 +411,7 @@ export class ConfigService {
         invalidatePermissionCache();
         // Turbo auth contexts cache per-session roles/bitsets — a role import can
         // affect any user, so drop all sessions to force fresh permission resolution.
-        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        const { clearTurboAuthCache } = await loadHandleTurboGetModule();
         clearTurboAuthCache();
       } catch (err) {
         logger.warn(

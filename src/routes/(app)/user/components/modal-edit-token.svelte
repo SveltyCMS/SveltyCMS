@@ -412,7 +412,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				</div>
 
 				<!-- Save -->
-				<Button variant="tertiary" type="submit" form="token-form" class="dark: px-10">
+				<Button variant="tertiary" type="submit" form="token-form" class="px-10">
 					{tokenForm.submitting ? '...' : button_save()}
 				</Button>
 			</footer>

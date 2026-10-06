@@ -849,7 +849,7 @@ Handles all field types and validation automatically
 												aria-haspopup="dialog"
 												aria-expanded={showLanguagePicker[availableLangsField.key]}
 												aria-controls="{availableLangsField.key}-lang-picker"
-												class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium"
+												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
@@ -1059,7 +1059,7 @@ Handles all field types and validation automatically
 												aria-expanded={showLanguagePicker[localesField.key]}
 												aria-controls="{localesField.key}-lang-picker"
 												data-testid="settings-add-system-language"
-												class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium"
+												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												{button_add()}
@@ -1390,7 +1390,7 @@ Handles all field types and validation automatically
 												aria-haspopup="dialog"
 												aria-expanded={showLanguagePicker[field.key]}
 												aria-controls="{field.key}-lang-picker"
-												class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium"
+												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
@@ -1496,7 +1496,7 @@ Handles all field types and validation automatically
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
 												aria-controls="{field.key}-loglevel-picker"
-												class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium"
+												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
@@ -1662,7 +1662,7 @@ Handles all field types and validation automatically
 							form="settings-group-form"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
 							data-testid="settings-group-save"
-							class="dark: items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold w-full sm:w-auto"
+							class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold w-full sm:w-auto"
 						>
 							{#if saving}
 								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>

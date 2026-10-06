@@ -185,7 +185,7 @@ export function compareSchemas(oldSchema: Schema | null, newSchema: Schema): Bre
       // ⚠️ Unique + encrypt conflict: AES-256-GCM uses a random IV so the same
       // plaintext always produces different ciphertext. A unique index on an
       // encrypted field is therefore meaningless — it will only prevent storing
-      // the *exact same ciphertext envelope* (vanishingly unlikely), not duplicate
+      // the *exact same ciphertext envelope* (vanishingly rare), not duplicate
       // *plaintext* values.
       if (newField.unique && newField.encrypt === true) {
         changes.push({

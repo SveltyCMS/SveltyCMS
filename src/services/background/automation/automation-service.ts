@@ -31,6 +31,12 @@ import type {
   WebhookOperationConfig,
 } from "./types";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -438,7 +444,7 @@ export class AutomationService {
     // safeFetch validates the host (blocks private IPs/localhost/metadata),
     // caps redirects and enforces a timeout. Never raw fetch() on configured
     // URLs.
-    const { safeFetch } = await import("@src/utils/egress-guard");
+    const { safeFetch } = await loadEgressGuardModule();
     const delivered = await safeFetch(config.url, {
       method: config.method || "POST",
       headers,

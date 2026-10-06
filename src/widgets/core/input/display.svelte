@@ -27,10 +27,13 @@ Renders current language text with truncation for long content
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
+	import { unwrapLocaleLayers } from '@utils/locale-map';
 	import type { FieldType } from './';
 
-	const { field, value }: { field: FieldType; value: Record<string, any> | null | undefined } =
-		$props();
+	const {
+		field,
+		value
+	}: { field: FieldType; value: string | Record<string, unknown> | null | undefined } = $props();
 	// Determine the current language (uses store API from contentLanguage)
 	const lang = $derived(
 		field?.translated
@@ -38,9 +41,26 @@ Renders current language text with truncation for long content
 			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
 	);
 
-	// ✨ IMPROVED: Separate truncation logic from display logic for better performance
-	const fullText = $derived(value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–');
-	const shouldTruncate = $derived(typeof fullText === 'string' && fullText.length > 50);
+	const isTitleField = $derived(
+		/^(title|name)$/i.test(String(field?.db_fieldName || field?.label || ''))
+	);
+	const emptyFallback = $derived(isTitleField ? 'Untitled' : '–');
+
+	const fullText = $derived.by(() => {
+		if (value === null || value === undefined) return emptyFallback;
+		const unwrapped = unwrapLocaleLayers(value, lang);
+		if (typeof unwrapped === 'string') {
+			return unwrapped.trim() === '' ? emptyFallback : unwrapped;
+		}
+		if (typeof unwrapped === 'number' || typeof unwrapped === 'boolean') {
+			return String(unwrapped);
+		}
+		return emptyFallback;
+	});
+	const isPlaceholder = $derived(isTitleField && fullText === 'Untitled');
+	const shouldTruncate = $derived(
+		typeof fullText === 'string' && fullText.length > 50 && !isPlaceholder
+	);
 	const displayText = $derived(shouldTruncate ? `${fullText.substring(0, 50)}...` : fullText);
 </script>
 
@@ -48,8 +68,14 @@ Renders current language text with truncation for long content
 <span
 	class="truncate"
 	class:cursor-help={shouldTruncate}
+	class:italic={isPlaceholder}
+	style={isPlaceholder ? 'color: var(--admin-text-muted)' : undefined}
 	title={shouldTruncate ? fullText : undefined}
-	aria-label={shouldTruncate ? `${displayText} (truncated, full text: ${fullText})` : undefined}
+	aria-label={isPlaceholder
+		? 'Untitled'
+		: shouldTruncate
+			? `${displayText} (truncated, full text: ${fullText})`
+			: undefined}
 >
 	{displayText}
 </span>

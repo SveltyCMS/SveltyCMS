@@ -22,6 +22,16 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -367,7 +377,7 @@ export class TelemetryService {
           logger.warn(
             "📡 Telemetry: Received 403 Forbidden. Secret may be out of sync. Clearing client secret...",
           );
-          const { setPrivateSetting } = await import("@src/services/core/settings-service");
+          const { setPrivateSetting } = await loadSettingsServiceModule();
           await setPrivateSetting("TELEMETRY_CLIENT_SECRET", "");
           if (!isRetry) {
             logger.info("📡 Telemetry: Retrying check after clearing secret...");
@@ -436,7 +446,7 @@ export class TelemetryService {
       if (response.ok) {
         const { secret } = await response.json();
         if (secret) {
-          const { setPrivateSetting } = await import("@src/services/core/settings-service");
+          const { setPrivateSetting } = await loadSettingsServiceModule();
           await setPrivateSetting("TELEMETRY_CLIENT_SECRET", secret);
           return secret;
         }

@@ -292,10 +292,13 @@ Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxli
 Use `slop:suppress` in a comment to skip a file.
 
 ```bash
-bun run slop                           # Check all files
-bun run slop --strict                  # CI mode (fail on findings)
-bun run scripts/slop-scanner.ts --fix  # Check + autofix
+bun run slop                              # Check all files
+bun run slop --strict                     # CI mode (fail on findings)
+bun run scripts/slop-scanner.ts --fix     # Check + autofix
+bun run scripts/slop-scanner.ts --surface # List the export-surface inventory (info)
 ```
+
+Unused exports are classified into **dead-code candidates** (`unused-export` — referenced nowhere in `src`/`scripts`/root/`tests`/`docs`; actionable) and two advisory inventories: **export-surface** (referenced by tests/docs only — test-only reset helpers and documented public API) and **duplicate-export-name** (the same distinctive name exported by several modules — usually a legitimate re-export bridge or remote/server contract symmetry). Advisory items are collapsed to counts by default and shown under `--surface` / `--verbose` (or `SLOP_PRINT_CAP`).
 
 ---
 

@@ -49,11 +49,6 @@ export function schemaCacheTags(schema: Schema): string[] {
   return ["schema", `schema:${id}`];
 }
 
-export function navigationCacheTags(tenantId?: string | null): string[] {
-  const tid = tenantId || "global";
-  return ["navigation", "navigation:tree", `navigation:tree:${tid}`];
-}
-
 export async function setSchemaCacheEntry(
   cacheKey: string,
   value: Record<string, unknown>,

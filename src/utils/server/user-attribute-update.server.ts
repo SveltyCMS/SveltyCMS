@@ -19,6 +19,12 @@ import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/hand
 import { readSessionCookie } from "@src/databases/auth/constants";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
+let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
+function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
+  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
+}
+
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
   | Promise<typeof import("@src/databases/cache/cache-service")>
@@ -121,7 +127,7 @@ export async function applyUserAttributeUpdate(
   }
 
   try {
-    const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
+    const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
     invalidateTurboAuthForUser(resolvedId);
   } catch {
     /* turbo auth cache helper unavailable */

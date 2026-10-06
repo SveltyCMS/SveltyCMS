@@ -7,6 +7,13 @@
 import { contentSystem } from "@src/content/index.server";
 import { generateUUID } from "@utils/native-utils";
 import type { DatabaseId, ISODateString } from "@src/content/types";
+
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 // System Logger
 import {
   generateGithubAuthUrl,
@@ -99,7 +106,7 @@ async function fetchAndSaveGoogleAvatar(
     // 🛡️ SSRF defense-in-depth: avatarUrl originates from the IdP userinfo
     // response — still routed through the awaited egress guard + safeFetch
     // (blocks private IPs, redirect re-validation, size cap).
-    const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+    const { validateEgressUrl, safeFetch } = await loadEgressGuardModule();
     await validateEgressUrl(avatarUrl, {
       allowHttp: process.env.NODE_ENV === "development",
     });

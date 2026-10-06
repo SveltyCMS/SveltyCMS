@@ -33,6 +33,18 @@ import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
 import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
 
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
   | Promise<typeof import("@src/databases/cache/cache-service")>
@@ -800,7 +812,7 @@ export async function seedCollectionsForSetup(
 
   try {
     // Import the collection scanner directly to avoid content-manager dependency issues during setup phase
-    const contentMod = await import("@src/content/engine.server");
+    const contentMod = await loadEngineServerModule();
     const scanFn =
       contentMod.scanCompiledCollections || (contentMod as any).default?.scanCompiledCollections;
 
@@ -1312,75 +1324,6 @@ export async function seedDemoRecords(
   } catch (error) {
     logger.error("Failed to seed demo records:", error);
     // Don't block setup
-  }
-}
-
-// Initialize system from setup using database-agnostic interface
-export async function initSystemFromSetup(
-  adapter: DatabaseAdapter,
-  tenantId?: string | null,
-  isDemoSeed = false,
-): Promise<{ firstCollection: { name: string; path: string } | null }> {
-  logger.debug(
-    `🚀 Starting system initialization from setup${tenantId ? ` for tenant ${tenantId}` : ""}...`,
-  );
-
-  if (!adapter) {
-    throw new Error("Database adapter not available. Database must be initialized first.");
-  }
-
-  // Use a single transaction for the entire seeding process to prevent SQLite locking
-  const result = await adapter.transaction<{
-    firstCollection: { name: string; path: string } | null;
-  }>(async (tx) => {
-    const options = { transaction: tx, tenantId: tenantId as DatabaseId };
-
-    // Run seeding steps in parallel for maximum performance
-    const [seedResults] = await Promise.all([
-      (async () => {
-        // NEW: Use contentSystem for unified seeding
-        const { contentSystem } = await loadContentModule();
-        await contentSystem.initialize(tenantId, { force: false, transaction: tx }, adapter);
-
-        if (isDemoSeed) {
-          const contentMod = await import("@src/content/engine.server");
-          const scanFn =
-            contentMod.scanCompiledCollections ||
-            (contentMod as any).default?.scanCompiledCollections;
-          const collections = typeof scanFn === "function" ? await scanFn() : [];
-          await seedDemoRecords(adapter, collections, tenantId, options);
-        }
-
-        const first = contentSystem.collections.getSmartFirst(tenantId);
-        return {
-          firstCollection: first
-            ? { name: first.name as string, path: first.path as string }
-            : null,
-        };
-      })(),
-      seedSettings(adapter, tenantId, isDemoSeed, options),
-      seedDefaultTheme(adapter, tenantId, options),
-      seedRoles(adapter, tenantId, options),
-    ]);
-
-    // Invalidate the settings cache and reload from database
-    invalidateSettingsCache();
-    const dbInitMod = await import("@src/databases/db-init");
-    const loadFn = dbInitMod.loadSettingsFromDB || (dbInitMod as any).default?.loadSettingsFromDB;
-    if (typeof loadFn === "function") {
-      await loadFn(adapter, true);
-    }
-
-    logger.debug(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`);
-
-    return { success: true, data: seedResults };
-  });
-
-  if (result.success) {
-    return result.data;
-  } else {
-    logger.error("❌ System initialization failed:", result.message);
-    return { firstCollection: null };
   }
 }
 
@@ -2165,7 +2108,7 @@ export async function seedDemoTenant(
     const adminRole = result.success ? result.data : null;
     if (adminRole) {
       const email = `demo-${tenantId.substring(0, 8)}@sveltycms.com`;
-      const { generateRandomToken } = await import("@src/databases/auth/constants");
+      const { generateRandomToken } = await loadAuthConstantsModule();
       const password = generateRandomToken(16);
       try {
         await dbAdapter.auth.createUser(

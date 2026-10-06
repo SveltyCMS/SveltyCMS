@@ -44,7 +44,6 @@
 				variant="tertiary"
 				type="submit"
 				disabled={isSubmitting || selectedPreset === 'blank'}
-				class="dark:"
 			>
 				Load Preset
 			</Button>

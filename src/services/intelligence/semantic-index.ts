@@ -20,7 +20,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { embed, embedSingle, cosineSimilarity, getEmbeddingBackendInfo } from "./embedding-service";
+import { embed, embedSingle, cosineSimilarity } from "./embedding-service";
 import { getHotCollections } from "./behavioral-learner";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
@@ -55,14 +55,6 @@ export interface IndexedItem {
 export interface SearchResult extends IndexedItem {
   score: number; // 0–1 cosine similarity
   matchType: "semantic" | "keyword" | "both";
-}
-
-export interface IndexStats {
-  totalItems: number;
-  backend: string;
-  npuAvailable: boolean;
-  lastFullIndex: number | null;
-  itemsByType: Record<string, number>;
 }
 
 // ─── State ─────────────────────────────────────────────────────────────────
@@ -223,26 +215,6 @@ export async function persistSemanticIndex(): Promise<void> {
   const data = Array.from(_index.entries());
   await cacheService.set(CACHE_KEY, data, CACHE_TTL);
   _lastFullIndex = Date.now();
-}
-
-/**
- * Get index statistics for dashboard display.
- */
-export function getSemanticIndexStats(): IndexStats {
-  const backendInfo = getEmbeddingBackendInfo();
-  const itemsByType: Record<string, number> = {};
-
-  for (const item of _index.values()) {
-    itemsByType[item.type] = (itemsByType[item.type] || 0) + 1;
-  }
-
-  return {
-    totalItems: _index.size,
-    backend: backendInfo.backend,
-    npuAvailable: backendInfo.available, // Ollama available = NPU/GPU accessible
-    lastFullIndex: _lastFullIndex,
-    itemsByType,
-  };
 }
 
 /**

@@ -546,7 +546,7 @@ Displays real-time system state and individual service health with comprehensive
 						onclick={copyEndpoint}
 						title="Copy to clipboard"
 						aria-label="Copy endpoint URL to clipboard"
-						class="p-0! min-w-0 dark:"
+						class="p-0! min-w-0"
 					>
 						{#if copiedEndpoint}
 							✓

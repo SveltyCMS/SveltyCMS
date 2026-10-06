@@ -127,7 +127,6 @@
 					variant="tertiary"
 					onclick={() => triggerTransition(workflow?.states.find((s) => s.isInitial)?.id || '')}
 					size="sm"
-					class="dark:"
 				>
 					Start Workflow
 				</Button>

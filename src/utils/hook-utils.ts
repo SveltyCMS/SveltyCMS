@@ -267,10 +267,6 @@ function isProxyTrusted(ip: string): boolean {
   return cachedTrustedProxies.has(ip);
 }
 
-export function invalidateTrustedProxiesCache(): void {
-  cachedTrustedProxies = null;
-}
-
 /**
  * High-performance client IP detection.
  * 🛡️ If getClientAddress fails, returns "0.0.0.0" to prevent IP spoofing.

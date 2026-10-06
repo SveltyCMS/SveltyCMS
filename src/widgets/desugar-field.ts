@@ -136,11 +136,6 @@ export function registerSugarType(builder: SugarTypeBuilder): void {
   sugarTypeRegistry.set(builder.type, builder);
 }
 
-/** Get a registered sugar type builder. */
-export function getSugarType(type: string): SugarTypeBuilder | undefined {
-  return sugarTypeRegistry.get(type);
-}
-
 /** Check if a type is a registered sugar type. */
 export function isSugarType(type: string): boolean {
   return sugarTypeRegistry.has(type);

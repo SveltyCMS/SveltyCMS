@@ -143,14 +143,6 @@ export async function detectEmbeddingBackend(): Promise<EmbeddingBackend> {
 }
 
 /**
- * Force a specific backend (for testing or explicit configuration).
- */
-export function setEmbeddingBackend(backend: EmbeddingBackend): void {
-  _backend = backend;
-  if (backend === "tfidf") _ollamaAvailable = false;
-}
-
-/**
  * Generate embeddings for one or more text strings.
  *
  * On Intel Core Ultra with NPU:

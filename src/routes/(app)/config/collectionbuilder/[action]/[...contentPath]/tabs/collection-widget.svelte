@@ -1017,7 +1017,7 @@
 						<iconify-icon icon="mdi:open-in-new" width="16"></iconify-icon>
 					</a>
 					<a
-						href="/config/extension"
+						href="/config/extensions"
 						class="flex items-center justify-center gap-2 rounded-lg border border-surface-500/30 p-2 text-xs font-medium text-surface-600 hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-surface-300 dark:hover:bg-surface-800"
 					>
 						<iconify-icon icon="mdi:puzzle-outline" width="16"></iconify-icon>

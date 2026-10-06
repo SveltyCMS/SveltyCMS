@@ -22,6 +22,16 @@ import type { DatabaseId } from "@src/content/types";
 import type { MigrationPlan } from "@src/services/core/migration-engine";
 import type { LocalCMS } from "@src/services/sdk";
 
+/** Cached lazy handle to the migration engine — one module-registry lookup instead of one per call. */
+let migrationEngineModulePromise:
+  | Promise<typeof import("@src/services/core/migration-engine")>
+  | undefined;
+function loadMigrationEngineModule(): Promise<
+  typeof import("@src/services/core/migration-engine")
+> {
+  return (migrationEngineModulePromise ??= import("@src/services/core/migration-engine"));
+}
+
 /**
  * Ephemeral in-memory store for migration plans keyed by planId.
  * Plans are auto-cleaned after 30 minutes to prevent memory leaks.
@@ -65,7 +75,7 @@ export async function handleMigrationRoutes(
 
   // ── GET /api/migrations/status?collectionId=xyz ──────────────────────────
   if (action === "status" && request.method === "GET") {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const { MigrationEngine } = await loadMigrationEngineModule();
     const collectionId = url.searchParams.get("collectionId") || undefined;
     const status = await MigrationEngine.getStatus(collectionId);
     return successResponse(event, status);
@@ -73,7 +83,7 @@ export async function handleMigrationRoutes(
 
   // ── GET /api/migrations/history?collectionId=xyz ─────────────────────────
   if (action === "history" && request.method === "GET") {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const { MigrationEngine } = await loadMigrationEngineModule();
     const collectionId = url.searchParams.get("collectionId") || undefined;
     const history = await MigrationEngine.getHistory(collectionId);
     return successResponse(event, history);
@@ -82,7 +92,7 @@ export async function handleMigrationRoutes(
   // ── POST /api/migrations/plan ────────────────────────────────────────────
   if (action === "plan" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const { MigrationEngine } = await loadMigrationEngineModule();
 
     const codeSchema = await resolveCodeSchema(body);
     const plan = await MigrationEngine.createPlan(codeSchema);
@@ -97,7 +107,7 @@ export async function handleMigrationRoutes(
   // ── POST /api/migrations/apply ───────────────────────────────────────────
   if (action === "apply" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const { MigrationEngine } = await loadMigrationEngineModule();
 
     // Resolve plan: from body.plan directly, or from planStore by planId
     let plan: MigrationPlan | undefined = body.plan as MigrationPlan | undefined;
@@ -157,7 +167,7 @@ export async function handleMigrationRoutes(
       throw new AppError("planId is required for verification", 400);
     }
 
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const { MigrationEngine } = await loadMigrationEngineModule();
 
     // Resolve code schema — required for re-running the schema comparison
     const codeSchema = await resolveCodeSchema(body);

@@ -41,6 +41,107 @@ const ALLOWED_HEALING_STATES = new Set([
   "operational",
 ]);
 
+const HEALTH_READY_STATES = new Set(["ready", "operational", "warmed", "healthy"]);
+
+/** Poll the health probe until it reports a converged state (bounded). */
+async function waitForReady(
+  healthUrl: string,
+  requestHeaders: Record<string, string>,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
+    try {
+      const res = await fetch(healthUrl, {
+        method: "GET",
+        headers: requestHeaders,
+        signal: AbortSignal.timeout(3000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        const status = String(data.overallStatus ?? data.status ?? data.state ?? "").toLowerCase();
+        if (HEALTH_READY_STATES.has(status)) return true;
+      }
+    } catch {
+      /* keep polling until the deadline */
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return false;
+}
+
+/**
+ * Clean-state guard: force the self-healing state machine back to a known READY
+ * state before measuring.
+ *
+ * The audit is flaky when the shared benchmark DB/filesystem is polluted by
+ * earlier stress tests: a full `reinitialize` then takes longer than the
+ * per-cycle budget and the run is reported as a phantom "FLAKY (State
+ * Violations)" reliability verdict. One forced reinitialize both reconciles
+ * whatever is on disk and warms that path, so the measured cycles start from
+ * READY. If it cannot converge, the guard fails explicitly with the
+ * remediation instead of letting the environment masquerade as a regression.
+ *
+ * `/api/testing` reset is deliberately NOT used: it is TEST_MODE-only (403 on
+ * the production-parity matrix server), and wiping DB/caches mid-run makes the
+ * first measured reinitialize colder — the opposite of the goal.
+ */
+async function ensureCleanBenchmarkState(
+  baseUrl: string,
+  healthUrl: string,
+  requestHeaders: Record<string, string>,
+): Promise<"reinitialize"> {
+  // Purge benchmark compiled workspaces first: earlier filesystem stress tests
+  // leave large `.compiledCollections/test/**` trees that the forced
+  // reinitialize would otherwise re-scan on every cycle. Under the matrix the
+  // orchestrator owns workspace lifecycle (BENCHMARK_MATRIX=1 defers cleanup),
+  // so only do this for standalone runs.
+  if (process.env.BENCHMARK_MATRIX !== "1") {
+    try {
+      const { cleanupAllBenchmarkWorkspaces } = await import("@utils/benchmark-paths");
+      const removed = await cleanupAllBenchmarkWorkspaces();
+      if (removed > 0)
+        console.log(`   → 0a. Purged ${removed} benchmark workspace(s) before reinitialize`);
+    } catch {
+      /* best-effort cleanup; the reinitialize convergence check below still guards */
+    }
+  }
+
+  let reinitStatus = 0;
+  let reinitDetail = "";
+  try {
+    const res = await fetch(`${baseUrl}/api/system/reinitialize`, {
+      method: "POST",
+      headers: requestHeaders,
+      body: JSON.stringify({ force: true }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    reinitStatus = res.status;
+    if (!res.ok) reinitDetail = (await res.text().catch(() => "")).slice(0, 300);
+  } catch (err) {
+    reinitDetail = err instanceof Error ? err.message : String(err);
+  }
+  if (reinitStatus === 0) {
+    throw new Error(
+      `[state-machine-transition] clean-DB guard failed: a forced reinitialize threw (${reinitDetail}). ` +
+        `The benchmark server/database is unreachable — reset the benchmark DB and retry.`,
+    );
+  }
+  if (reinitStatus !== 200) {
+    throw new Error(
+      `[state-machine-transition] clean-DB guard failed: POST /api/system/reinitialize returned HTTP ${reinitStatus} (${reinitDetail}). ` +
+        `The shared benchmark database is polluted/unrecoverable — drop it and re-run the pre-seed before retrying.`,
+    );
+  }
+  if (!(await waitForReady(healthUrl, requestHeaders, 20_000))) {
+    throw new Error(
+      `[state-machine-transition] clean-DB guard failed: the state machine did not converge to READY within 20s of a forced reinitialize. ` +
+        `The shared benchmark database is polluted — drop it and re-run the pre-seed before retrying.`,
+    );
+  }
+  return "reinitialize";
+}
+
 async function runStateMachineAudit() {
   const dbType = getDbType().toUpperCase();
   console.log(`🚀 Starting Enterprise State Machine Integrity Audit (${dbType})...\n`);
@@ -60,6 +161,13 @@ async function runStateMachineAudit() {
       "content-type": "application/json",
       connection: "keep-alive",
     };
+
+    // ── 0. CLEAN-DB GUARD ───────────────────────────────────────────────────
+    // Never measure the self-healing path from an unknown/ polluted state: a
+    // dirty shared benchmark DB otherwise shows up as a phantom "reliability"
+    // failure instead of an environment fault.
+    const cleanRoute = await ensureCleanBenchmarkState(baseUrl, healthUrl, requestHeaders);
+    console.log(`   → 0. Clean-state guard: ${cleanRoute}`);
 
     const results = [];
 

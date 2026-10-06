@@ -22,6 +22,12 @@ import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 import { generateUUID } from "@utils/native-utils";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 // ============================================================================
 // 1. PII Scrubbing Engine (GDPR/CCPA)
 // ============================================================================
@@ -426,7 +432,7 @@ export async function fireWebhook(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // 🛡️ Egress-guarded delivery (admin-configured URL = external input).
-      const { safeFetch } = await import("@src/utils/egress-guard");
+      const { safeFetch } = await loadEgressGuardModule();
       const delivered = await safeFetch(webhook.url, {
         method: "POST",
         headers,

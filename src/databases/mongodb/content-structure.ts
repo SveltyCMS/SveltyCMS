@@ -17,7 +17,7 @@ import { StatusTypes } from "@src/content/types";
 import type { DatabaseError, DatabaseResult } from "@src/databases/db-interface";
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
 import { logger } from "@utils/logger";
-import type { Model, Document as MongooseDocument } from "mongoose";
+import type { Document as MongooseDocument } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 
 // --- Type Definitions for Mongoose Documents content structure---
@@ -427,14 +427,3 @@ export function registerContentStructureDiscriminators(conn: any) {
     throw error;
   }
 }
-
-// --- Model Export ---
-
-// Create the model using the standard utility
-import { getOrCreateModel } from "./mongodb-utils";
-
-export const ContentStructureModel = getOrCreateModel<ContentStructureDocument>(
-  mongoose,
-  "system_content_structure",
-  contentStructureSchema,
-) as Model<ContentStructureDocument> & typeof contentStructureSchema.statics;

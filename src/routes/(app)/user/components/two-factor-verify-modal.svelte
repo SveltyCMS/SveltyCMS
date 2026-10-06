@@ -200,7 +200,7 @@ This modal			class="input text-center font-mono tracking-wider"
 				isVerifying ||
 				(!useBackupCode && code.length !== 6) ||
 				(useBackupCode && code.length < 8)}
-			class="dark: flex-1"
+			class="flex-1"
 		>
 			{#if isVerifying}
 				<iconify-icon icon="mdi:loading" width="20" class="me-2 animate-spin"></iconify-icon>

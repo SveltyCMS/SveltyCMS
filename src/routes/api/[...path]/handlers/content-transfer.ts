@@ -26,6 +26,17 @@ import type { LocalCMS } from "@src/services/sdk";
 import { generateUUID } from "@utils/native-utils";
 import { isAdmin } from "@src/databases/auth/constants";
 
+/** Cached lazy handle to the content package service — one module-registry lookup instead of one per call. */
+let contentPackageServiceModulePromise:
+  | Promise<typeof import("@src/services/core/content-package-service")>
+  | undefined;
+function loadContentPackageServiceModule(): Promise<
+  typeof import("@src/services/core/content-package-service")
+> {
+  return (contentPackageServiceModulePromise ??=
+    import("@src/services/core/content-package-service"));
+}
+
 // ---------------------------------------------------------------------------
 // In-memory export store for large packages
 // ---------------------------------------------------------------------------
@@ -92,7 +103,7 @@ export async function handleContentExportRoutes(
   if (action === "validate" && request.method === "POST") {
     try {
       const body = await request.json().catch(() => ({}));
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
 
       const result = await contentPackageService.validateExport({
         collections: body.collections,
@@ -114,7 +125,7 @@ export async function handleContentExportRoutes(
   if (action === "plan" && request.method === "POST") {
     try {
       const body = await request.json().catch(() => ({}));
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
 
       const result = await contentPackageService.planExport({
         collections: body.collections,
@@ -136,7 +147,7 @@ export async function handleContentExportRoutes(
   if (action === "run" && request.method === "POST") {
     try {
       const body = await request.json().catch(() => ({}));
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
 
       const pkg = await contentPackageService.runExport({
         collections: body.collections,
@@ -179,7 +190,7 @@ export async function handleContentExportRoutes(
   // ── GET /api/content-export/jobs/:jobId ────────────────────────────────
   if (action === "jobs" && request.method === "GET" && subId) {
     try {
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
       const status = await contentPackageService.getJobStatus(subId);
 
       if (!status) {
@@ -259,7 +270,7 @@ export async function handleContentImportRoutes(
   if (action === "validate" && request.method === "POST") {
     try {
       const body = await request.json().catch(() => ({}));
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
 
       // The body IS the ContentPackage. Client tenantId is ignored unless super-admin.
       const { tenantId: bodyTenantId, ...pkg } = body as ContentPackage & { tenantId?: string };
@@ -283,7 +294,7 @@ export async function handleContentImportRoutes(
   if (action === "plan" && request.method === "POST") {
     try {
       const body = await request.json().catch(() => ({}));
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
 
       // body: ContentPackage JSON + { duplicateStrategy?, tenantId? }
       const {
@@ -321,7 +332,7 @@ export async function handleContentImportRoutes(
         throw new AppError("planId is required to apply an import plan", 400);
       }
 
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
 
       const result = await contentPackageService.applyImport(body.planId, {
         tenantId: tenantId as string,
@@ -341,7 +352,7 @@ export async function handleContentImportRoutes(
   // ── GET /api/content-import/jobs/:jobId ────────────────────────────────
   if (action === "jobs" && request.method === "GET" && subId) {
     try {
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
       const status = await contentPackageService.getJobStatus(subId);
 
       if (!status) {

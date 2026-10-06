@@ -228,7 +228,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		</Button>
 
 		<div class="flex items-center gap-3">
-			<Button variant="tertiary" type="button" onclick={handleSave} class="dark:">
+			<Button variant="tertiary" type="button" onclick={handleSave}>
 				<iconify-icon icon="mdi:check" class="me-1"></iconify-icon>
 				{button_save()}
 			</Button>

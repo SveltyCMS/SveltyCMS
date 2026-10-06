@@ -18,7 +18,7 @@
  * - generation counter for O(1) per-id eviction on write
  */
 
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 import type { DatabaseId } from "@src/databases/db-interface";
 
 interface CacheEntry {
@@ -28,7 +28,7 @@ interface CacheEntry {
   epoch: number;
 }
 
-const _requestCache = new LRUCache<string, CacheEntry>({
+const _requestCache = new FastLRU<string, CacheEntry>({
   max: 2000,
   ttl: 60_000,
 });

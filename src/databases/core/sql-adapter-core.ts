@@ -911,8 +911,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected modelRegistry = new Map<string, any>();
   protected _resolving = new Set<string>();
   protected _selectionCache = new Map<string, any>();
-  protected _lastTable: any = null;
-  protected _lastCols: Record<string, Column> | null = null;
   /**
    * 🚀 FAST-PATH: normalized collection names that have already been
    * provisioned (CREATE TABLE + ALTER + INDEX) in this process. Populated by
@@ -1126,6 +1124,70 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       (t, n) => getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
       (f) => this.getJsonField(f),
     );
+  }
+
+  /**
+   * Raw-SQL ORDER BY clauses for the dynamic-table path. Shared by `findMany`
+   * and `findOne` so both honor the same `options.sort` semantics (object and
+   * tuple-array forms, Mongo-style numeric directions) and the Drizzle fallback
+   * cannot silently diverge from the compiled plan. Physical columns resolve
+   * through `getColumn`; unknown fields fall back to the JSON `data` extraction
+   * and schedule the adapter's lazy sort index via `onDynamicSort`.
+   */
+  protected buildDynamicOrderBy(
+    collection: string,
+    table: any,
+    tableName: string,
+    options: any,
+  ): SQL[] {
+    if (!options?.sort) return [];
+
+    const normalizedSorts: { field: string; direction: "asc" | "desc" }[] = [];
+    if (Array.isArray(options.sort)) {
+      for (const item of options.sort) {
+        if (Array.isArray(item) && item.length >= 2) {
+          normalizedSorts.push({
+            field: item[0],
+            direction: normalizeSortDirection(item[1]),
+          });
+        } else if (typeof item === "object" && item !== null) {
+          const keys = Object.keys(item);
+          if (keys.length > 0) {
+            normalizedSorts.push({
+              field: keys[0],
+              direction: normalizeSortDirection((item as Record<string, unknown>)[keys[0]]),
+            });
+          }
+        }
+      }
+    } else if (typeof options.sort === "object") {
+      for (const field of Object.keys(options.sort)) {
+        normalizedSorts.push({
+          field,
+          direction: normalizeSortDirection((options.sort as Record<string, unknown>)[field]),
+        });
+      }
+    }
+
+    const sortConditions: SQL[] = [];
+    for (const s of normalizedSorts) {
+      let sortCol = this.getColumn(table, s.field, false);
+      if (!sortCol) {
+        const dataCol = this.getColumn(table, "data", false);
+        if (dataCol) {
+          sortCol = this.getJsonField(s.field);
+          // Lazy sort-index hook: adapters with an expression-index capability
+          // (PostgreSQL) schedule a one-time index build so the NEXT identical
+          // sort is index-served. Default no-op.
+          this.onDynamicSort(collection, tableName, s.field);
+        }
+      }
+      if (sortCol) {
+        sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
+      }
+    }
+
+    return sortConditions;
   }
 
   // --------------------------------------------------------------------------
@@ -1482,22 +1544,37 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           !isSystemTable(collection));
 
       let results;
+      let selectedColumns: string[] | null = null;
       if (isDynamic) {
-        let cachedEntry = this._dynamicColListCache.get(table);
-        if (!cachedEntry) {
-          cachedEntry = {};
-          this._dynamicColListCache.set(table, cachedEntry);
-        }
-        let cached = cachedEntry["withData"];
-        if (!cached) {
-          const selection = this.getPhysicalSelection(table);
-          const columns = Object.keys(selection);
-          const colList = columns
+        const hasCustomFields = Array.isArray(options.fields) && options.fields.length > 0;
+        let columns: string[];
+        let colList: string;
+        if (!hasCustomFields) {
+          let cachedEntry = this._dynamicColListCache.get(table);
+          if (!cachedEntry) {
+            cachedEntry = {};
+            this._dynamicColListCache.set(table, cachedEntry);
+          }
+          let cached = cachedEntry["withData"];
+          if (!cached) {
+            const selection = this.getProjectedSelection(table, options);
+            columns = Object.keys(selection);
+            colList = columns
+              .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
+              .join(", ");
+            cached = { colList, columns };
+            cachedEntry["withData"] = cached;
+          }
+          columns = cached.columns;
+          colList = cached.colList;
+        } else {
+          const selection = this.getProjectedSelection(table, options);
+          columns = Object.keys(selection);
+          colList = columns
             .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
             .join(", ");
-          cached = { colList, columns };
-          cachedEntry["withData"] = cached;
         }
+        selectedColumns = columns;
 
         let escapedTable = this._escapedTableNameCache.get(table);
         if (!escapedTable) {
@@ -1507,24 +1584,39 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           this._escapedTableNameCache.set(table, escapedTable);
         }
 
-        const sqlQuery = sql`SELECT ${sql.raw(cached.colList)} FROM ${sql.raw(
+        let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
           escapedTable,
-        )} WHERE ${where || sql`1=1`} LIMIT 1`;
+        )} WHERE ${where || sql`1=1`}`;
+
+        // Parity with the compiled plan: without an explicit ORDER BY the two
+        // fallback engines (raw SQL / Drizzle) returned an arbitrary row for the
+        // same query the compile path answered with the sort-first row.
+        const sortConditions = this.buildDynamicOrderBy(
+          collection,
+          table,
+          getTableName(table),
+          options,
+        );
+        if (sortConditions.length > 0) {
+          sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
+        }
+        sqlQuery = sql`${sqlQuery} LIMIT 1`;
 
         const db = this.getDrizzleInstance(options);
         results = await this.executeDynamicSql(db, sqlQuery, options);
       } else {
-        results = await this.getDrizzleInstance(options)
-          .select(this.getPhysicalSelection(table))
+        let builder: any = this.getDrizzleInstance(options)
+          .select(this.getProjectedSelection(table, options))
           .from(table)
-          .where(where)
-          .limit(1);
+          .where(where);
+        builder = this.applyOrderBy(builder, table, options);
+        results = await builder.limit(1);
       }
 
       let firstRow = results.length ? results[0] : null;
       if (firstRow && Array.isArray(firstRow)) {
+        const cols = selectedColumns ?? Object.keys(this.getProjectedSelection(table, options));
         const obj: any = {};
-        const cols = Object.keys(this.getPhysicalSelection(table));
         for (let c = 0; c < cols.length; c++) {
           const val = firstRow[c];
           if (val !== undefined) obj[cols[c]] = val;
@@ -1715,81 +1807,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {
-            const sortConditions: any[] = [];
-            const normalizedSorts: {
-              field: string;
-              direction: "asc" | "desc";
-            }[] = [];
-            if (Array.isArray(options.sort)) {
-              for (const item of options.sort) {
-                if (Array.isArray(item) && item.length >= 2) {
-                  normalizedSorts.push({
-                    field: item[0],
-                    direction: normalizeSortDirection(item[1]),
-                  });
-                } else if (typeof item === "object" && item !== null) {
-                  const keys = Object.keys(item);
-                  if (keys.length > 0) {
-                    normalizedSorts.push({
-                      field: keys[0],
-                      direction: normalizeSortDirection((item as any)[keys[0]]),
-                    });
-                  }
-                }
-              }
-            } else if (typeof options.sort === "object") {
-              for (const field of Object.keys(options.sort)) {
-                normalizedSorts.push({
-                  field,
-                  direction: normalizeSortDirection((options.sort as any)[field]),
-                });
-              }
-            }
-
-            const self = this as any;
-            const lastRef = {
-              get table() {
-                return self._lastTable;
-              },
-              set table(v: any) {
-                self._lastTable = v;
-              },
-              get cols() {
-                return self._lastCols;
-              },
-              set cols(v: any) {
-                self._lastCols = v;
-              },
-            };
-            for (const s of normalizedSorts) {
-              let sortCol: any = getColumnHelper(
-                table,
-                s.field,
-                this._tableColumnsCache,
-                lastRef,
-                false,
-              );
-              if (!sortCol) {
-                const dataCol = getColumnHelper(
-                  table,
-                  "data",
-                  this._tableColumnsCache,
-                  lastRef,
-                  false,
-                );
-                if (dataCol) {
-                  sortCol = this.getJsonField(s.field);
-                  // Lazy sort-index hook: adapters with an expression-index
-                  // capability (PostgreSQL) schedule a one-time index build so
-                  // the NEXT identical sort is index-served. Default no-op.
-                  this.onDynamicSort(collection, tableName, s.field);
-                }
-              }
-              if (sortCol) {
-                sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
-              }
-            }
-
+            const sortConditions = this.buildDynamicOrderBy(collection, table, tableName, options);
             if (sortConditions.length > 0) {
               sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
             }

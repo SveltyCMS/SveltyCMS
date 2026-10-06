@@ -136,7 +136,7 @@ The **`routeResourceStateMachine`** connects directly with the **Behavioral Lear
 
 ### Key: L1 is In-Memory, L2 is Redis (Optional)
 
-The L1 cache is a local `LRUCache` instance (not Redis). Redis is the **strictly optional L2 layer** for distributed deployments. Even without Redis (`USE_REDIS=false` or absent), the entire cache system is fully operational with sub-µs L1 hits across all 4 database adapters. When enabled, Redis synchronizes cluster nodes and provides distributed caching.
+The L1 cache is a local `FastLRU` instance (not Redis). Redis is the **strictly optional L2 layer** for distributed deployments. Even without Redis (`USE_REDIS=false` or absent), the entire cache system is fully operational with sub-µs L1 hits across all 4 database adapters. When enabled, Redis synchronizes cluster nodes and provides distributed caching.
 
 #### Redis L2 Performance Architecture (October 2026 Enhancements)
 
@@ -149,10 +149,13 @@ The L1 cache is a local `LRUCache` instance (not Redis). Redis is the **strictly
 
 #### L1 Memory Containment & Bounded Footprint
 
+The L1 tier (`cacheService.l1`) is backed by the repo-native, dependency-free `FastLRU` (`src/utils/native-utils.ts`) rather than an external LRU library. `FastLRU` covers the full L1 surface: byte-budget eviction (`maxSize` + `maxEntrySize` + `sizeCalculation`), per-entry TTL, a `dispose` hook, and the read hints `updateAgeOnGet` / `updateRecencyOnGet`.
+
 - **Byte Budget (`maxSize`)**: Defaults to **128 MB** (configurable via `CACHE_L1_MAX_BYTES`). Prevents unbounded heap growth regardless of total entry count.
 - **Entry Cap (`max`)**: Defaults to **200,000** (configurable via `CACHE_L1_MAX_ENTRIES`).
 - **Single-Entry Ceiling (`maxEntrySize`)**: Defaults to **16 MB** (configurable via `CACHE_L1_MAX_ENTRY_BYTES`), preventing oversized individual payloads from evicting hot cache entries.
 - **$O(1)$ Size Estimator**: Accurately sizes pre-stringified response bodies and employs a flat overhead estimate for structured objects without recursive traversal overhead.
+- **ENTRY read "peek" (`updateRecencyOnGet: false`)**: `CacheService.get(..., CacheCategory.ENTRY)` reads without moving the hit to the most-recently-used position and without refreshing its TTL (`updateAgeOnGet: false`), so uniformly-random point reads cannot displace the resident hot list/GraphQL working set. `CONTENT` reads still promote and refresh on every hit; `getSync` also takes the no-refresh path.
 
 #### Response-cache L1 tiers: exact byte accounting (2026-09-22)
 

@@ -16,6 +16,16 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -51,7 +61,7 @@ export async function cleanupExpiredDemoTenants() {
   }
 
   // Dynamic TTL from settings
-  const { getPublicSettingSync } = await import("@src/services/core/settings-service");
+  const { getPublicSettingSync } = await loadSettingsServiceModule();
   const demoTTL = Number(getPublicSettingSync("DEMO_TTL")) || 60;
   const EXPIRATION_MS = demoTTL * 60 * 1000;
   const cutoffDate = new Date(Date.now() - EXPIRATION_MS);

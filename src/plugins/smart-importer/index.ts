@@ -48,6 +48,12 @@ import { logger } from "@utils/logger";
 import { definePlugin } from "../define-plugin";
 import { migrations } from "./migrations/001_ledger_and_dlq";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 export const smartImporterPlugin = definePlugin({
   metadata: {
     id: "smart-importer",
@@ -154,7 +160,7 @@ export const smartImporterPlugin = definePlugin({
       if (import.meta.env.SSR) {
         // Pro-tier platforms require a license
         if (data._importerUseProPlatform || data._importerUseProFeatures) {
-          const { checkExtensionLicense } = await import("@src/utils/license-manager");
+          const { checkExtensionLicense } = await loadLicenseManagerModule();
           const status = await checkExtensionLicense("plugin", "smart-importer");
           if (!status.active && !status.hasLicense) {
             // Strip pro fields but allow free import to continue
