@@ -576,6 +576,11 @@ export async function reconcileOrganizationalManifest(
   return { ...report, reconciled: true };
 }
 
+function isPathInside(root: string, candidate: string): boolean {
+  const rel = path.relative(path.resolve(root), path.resolve(candidate));
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
 async function applyGuiStructureSave(
   operations: ContentNodeOperation[],
   tenantId?: string | null,
@@ -595,12 +600,13 @@ async function applyGuiStructureSave(
   );
   const collectionFilesToDelete: string[] = [];
   const compiledFilesToDelete: string[] = [];
+  const current = (await contentService.getContentStructureFromDatabase(
+    "flat",
+    tenantId,
+    _adapter,
+  )) as ContentNode[];
+
   if (deletedPaths.size > 0) {
-    const current = (await contentService.getContentStructureFromDatabase(
-      "flat",
-      tenantId,
-      _adapter,
-    )) as ContentNode[];
     const compiledBase = getCompiledCollectionsPath(tenantId);
     for (const node of current) {
       if (node.nodeType === "collection" && deletedPaths.has(node.path ?? "")) {
@@ -608,6 +614,51 @@ async function applyGuiStructureSave(
         if (node.name) {
           const safeName = path.basename(node.name, ".ts");
           compiledFilesToDelete.push(path.join(compiledBase, `${safeName}.js`));
+        }
+      }
+    }
+  }
+
+  // Manage physical folders for categories
+  const collectionsRoot = getCollectionsPath(tenantId);
+  for (const op of normalized) {
+    if (op.node.nodeType === "category") {
+      const isDelete = op.type === "delete";
+      const isCreate = op.type === "create";
+      const isUpdate = op.type === "update";
+
+      if (isDelete) {
+        if (op.node.path) {
+          const folderPath = path.join(collectionsRoot, op.node.path);
+          if (isPathInside(collectionsRoot, folderPath)) {
+            await fs.rm(folderPath, { recursive: true, force: true }).catch(() => {});
+          }
+        }
+      } else if (isCreate) {
+        if (op.node.path) {
+          const folderPath = path.join(collectionsRoot, op.node.path);
+          if (isPathInside(collectionsRoot, folderPath)) {
+            await fs.mkdir(folderPath, { recursive: true }).catch(() => {});
+          }
+        }
+      } else if (isUpdate) {
+        const existingNode = current.find((n) => String(n._id) === String(op.node._id));
+        if (existingNode && existingNode.path && existingNode.path !== op.node.path) {
+          const oldFolderPath = path.join(collectionsRoot, existingNode.path);
+          const newFolderPath = path.join(collectionsRoot, op.node.path ?? op.node.name);
+          if (
+            isPathInside(collectionsRoot, oldFolderPath) &&
+            isPathInside(collectionsRoot, newFolderPath)
+          ) {
+            await fs.rename(oldFolderPath, newFolderPath).catch(async () => {
+              await fs.mkdir(newFolderPath, { recursive: true }).catch(() => {});
+            });
+          }
+        } else if (op.node.path) {
+          const folderPath = path.join(collectionsRoot, op.node.path);
+          if (isPathInside(collectionsRoot, folderPath)) {
+            await fs.mkdir(folderPath, { recursive: true }).catch(() => {});
+          }
         }
       }
     }
