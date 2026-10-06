@@ -4,6 +4,20 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { contentSystem } from "@src/content/index.server";
@@ -91,7 +105,7 @@ async function invalidateAllCaches(tenantId: DatabaseId) {
   invalidateSetupCache(false, null);
 
   try {
-    const { cacheService } = await import("@src/databases/cache/cache-service");
+    const { cacheService } = await loadCacheServiceModule();
     await cacheService.invalidateAll();
 
     const { securityResponseService } = await import("@src/services/security/response-service");
@@ -208,7 +222,7 @@ export async function handleTestingRoutes(
     }
 
     // 🚀 HARDENING: Wait for database to be ready
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
+    const { isDbConnected, getDbInitPromise, getDb } = await loadDbModule();
     if (!isDbConnected()) {
       logger.debug("[testing] DB not connected, waiting for initialization...");
       await getDbInitPromise().catch((err) => {
@@ -603,7 +617,7 @@ export async function handleTestingRoutes(
 
     if (action === "health-deep") {
       try {
-        const { getDb } = await import("@src/databases/db");
+        const { getDb } = await loadDbModule();
         const db = getDb();
         if (!db) throw new Error("DB adapter null");
 
@@ -667,7 +681,7 @@ export async function handleTestingRoutes(
     if (action === "cache-invalidate") {
       const pattern = params.pattern || "*";
       try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const { cacheService } = await loadCacheServiceModule();
         if (pattern === "*") {
           await cacheService.invalidateAll();
         } else {
@@ -1305,7 +1319,7 @@ export async function handleTestingRoutes(
           adminUserId: params.userId as string | undefined,
         });
         try {
-          const { cacheService } = await import("@src/databases/cache/cache-service");
+          const { cacheService } = await loadCacheServiceModule();
           await cacheService.invalidateCollection(
             "pages",
             (tenantId ?? undefined) as string | undefined,
@@ -1700,7 +1714,7 @@ export async function handleTestingRoutes(
         // migrations for default-disabled plugins.
         let dbAdapter: unknown;
         try {
-          const { getDb } = await import("@src/databases/db");
+          const { getDb } = await loadDbModule();
           dbAdapter = getDb();
         } catch {
           dbAdapter = undefined;
@@ -1881,7 +1895,7 @@ export async function handleTestingRoutes(
       const email = String(params.email || "admin@example.com")
         .toLowerCase()
         .trim();
-      const { auth: authFacade } = await import("@src/databases/db");
+      const { auth: authFacade } = await loadDbModule();
       if (!authFacade) {
         throw new AppError("Auth facade unavailable for seed-expired-password-reset", 503);
       }

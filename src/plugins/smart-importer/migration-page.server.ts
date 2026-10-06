@@ -31,6 +31,12 @@ import {
   resolveTargetCollection,
 } from "@plugins/smart-importer/infer-collection";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // Lazy-loaded plugin modules
 let _ucpEngine: typeof import("@plugins/smart-importer/index.server") | null = null;
 let _aiTransforms: typeof import("@plugins/smart-importer/ai-transforms") | null = null;
@@ -295,7 +301,7 @@ export const actions = {
 
       const { computeSchemaDiffReport } = await import("@plugins/smart-importer/schema-preview");
       const { normalizeCollectionId } = await import("@plugins/smart-importer/collection-scaffold");
-      const { contentSystem } = await import("@src/content/index.server");
+      const { contentSystem } = await loadContentModule();
       const tenantId = locals.tenantId ?? null;
       const collectionId = normalizeCollectionId(targetCollection);
       const existingSchema = contentSystem.getCollection(collectionId, tenantId);
@@ -361,7 +367,7 @@ export const actions = {
       const { provisionCollectionFromMappings, normalizeCollectionId } =
         await import("@plugins/smart-importer/collection-scaffold");
       const { computeSchemaDiffReport } = await import("@plugins/smart-importer/schema-preview");
-      const { contentSystem } = await import("@src/content/index.server");
+      const { contentSystem } = await loadContentModule();
 
       const tenantId = locals.tenantId ?? null;
       const result = await provisionCollectionFromMappings(
@@ -419,7 +425,7 @@ export const actions = {
       if (mappingsRaw) {
         const { normalizeCollectionId } =
           await import("@plugins/smart-importer/collection-scaffold");
-        const { contentSystem } = await import("@src/content/index.server");
+        const { contentSystem } = await loadContentModule();
         const collectionId = normalizeCollectionId(targetCollection);
         const tenantId = locals.tenantId ?? null;
         if (!contentSystem.getCollection(collectionId, tenantId)) {

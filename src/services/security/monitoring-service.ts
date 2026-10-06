@@ -19,6 +19,12 @@ import { logger } from "@utils/logger";
 import { eventBus } from "@utils/event-bus";
 import { browser } from "$app/env";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ── Types ──────────────────────────────────────────────
 
 type Severity = "info" | "warning" | "critical";
@@ -278,7 +284,7 @@ class SecurityMonitoringService {
     logger.info("[SecurityMonitoring] Generating %s compliance report", standard);
 
     // Aggregate from audit logs (via db adapter)
-    await import("@src/databases/db");
+    await loadDbModule();
     const summary = {
       totalEvents: 0,
       criticalAlerts: this.alerts.filter((a) => a.severity === "critical").length,

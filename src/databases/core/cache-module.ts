@@ -11,11 +11,19 @@
 import type { BaseQueryOptions, CacheOptions, DatabaseResult, ISqlAdapter } from "../db-interface";
 import { buildCollectionCacheTags } from "./collection-name";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 let _cacheServiceCache: any = null;
 
 async function getCacheService(): Promise<any> {
   if (!_cacheServiceCache) {
-    const module = await import("@src/databases/cache/cache-service");
+    const module = await loadCacheServiceModule();
     _cacheServiceCache = module.cacheService;
   }
   return _cacheServiceCache;

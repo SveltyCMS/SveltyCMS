@@ -16,6 +16,12 @@ import {
 import type { User, Role } from "@src/databases/auth/types";
 import { hasPermissionByAction as legacyHasPermissionByAction } from "@src/databases/auth/permissions";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export type { ThreatLevel };
 
 export class AuthGuardService {
@@ -27,7 +33,7 @@ export class AuthGuardService {
    * Validates an active session ID and returns the associated User.
    */
   static async validateSession(sessionId: string): Promise<User | null> {
-    const { getAuth } = await import("@src/databases/db");
+    const { getAuth } = await loadDbModule();
     const authService = getAuth();
     if (!authService) {
       logger.warn(`[AuthGuardService] Auth service NOT available for sessionId: ${sessionId}`);

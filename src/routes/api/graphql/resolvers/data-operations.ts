@@ -19,6 +19,12 @@ import { GraphQLScalarType, Kind } from "graphql";
 import type { IDBAdapter } from "@databases/db-interface";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ---------------------------------------------------------------------------
 // JSON Scalar
 // ---------------------------------------------------------------------------
@@ -601,7 +607,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { MigrationEngine } = await import("@src/services/core/migration-engine");
       const { contentStore } = await import("@stores/content-registry.svelte");
-      const { dbAdapter } = await import("@src/databases/db");
+      const { dbAdapter } = await loadDbModule();
 
       // Look up the migration record and collection from the planId
       let collectionId = "";

@@ -73,9 +73,15 @@ function rawExecOf(db: unknown): (sqlText: string) => Promise<unknown> {
 function countIndexes(db: unknown, tableName: string): Promise<number> {
   const dbType = (db as { type?: string }).type;
   const isMaria = dbType === "mariadb" || dbType === "mysql";
-  const sqlText = isMaria
-    ? `SELECT COUNT(DISTINCT index_name) AS n FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '${tableName}'`
-    : `SELECT COUNT(*) AS n FROM pg_indexes WHERE schemaname = current_schema() AND tablename = '${tableName}'`;
+  // Engine-specific catalog: each adapter exposes a different system view for
+  // "indexes on this table". SQLite has no `pg_indexes` — the previous code ran
+  // the PostgreSQL query unconditionally and threw "no such table: pg_indexes".
+  const sqlText =
+    dbType === "sqlite"
+      ? `SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index' AND tbl_name = '${tableName}'`
+      : isMaria
+        ? `SELECT COUNT(DISTINCT index_name) AS n FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '${tableName}'`
+        : `SELECT COUNT(*) AS n FROM pg_indexes WHERE schemaname = current_schema() AND tablename = '${tableName}'`;
   return rawExecOf(db)(sqlText).then((rawRows) => {
     const rows = rawRows as Array<{ n?: number; count?: number }>;
     const first = Array.isArray(rows) ? rows[0] : (rawRows as { n?: number; count?: number });
@@ -184,6 +190,11 @@ test("Index write-amplification A/B (fresh policy vs legacy index)", async () =>
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
 
+    if (db.type === "mongodb") {
+      console.log("   ⏭️ Skipping index-write-amplification-ab on MongoDB (SQL raw.execute only)");
+      return;
+    }
+
     const freshId = "ab_index_fresh";
     const legacyId = "ab_index_legacy";
     await prepareVariant(db, freshId);
@@ -216,12 +227,19 @@ test("Index write-amplification A/B (fresh policy vs legacy index)", async () =>
     // its stats post-seed while the fresh table's stats are from an empty
     // table — a stats skew would make INSERT/UPDATE lane deltas unreadable.
     const dbType = (db as { type?: string }).type;
-    const q = dbType === "mariadb" || dbType === "mysql" ? "`" : '"';
-    const analyzeSql =
-      dbType === "mariadb" || dbType === "mysql"
+    const isMaria = dbType === "mariadb" || dbType === "mysql";
+    const q = isMaria ? "`" : '"';
+    // SQLite's ANALYZE takes a single table (or none) — a comma-separated list
+    // is PostgreSQL/MariaDB syntax and fails with `near ",": syntax error`.
+    if (dbType === "sqlite") {
+      await rawExecOf(db)(`ANALYZE ${q}collection_${freshId}${q}`);
+      await rawExecOf(db)(`ANALYZE ${q}collection_${legacyId}${q}`);
+    } else {
+      const analyzeSql = isMaria
         ? `ANALYZE TABLE ${q}collection_${freshId}${q}, ${q}collection_${legacyId}${q}`
         : `ANALYZE ${q}collection_${freshId}${q}, ${q}collection_${legacyId}${q}`;
-    await rawExecOf(db)(analyzeSql);
+      await rawExecOf(db)(analyzeSql);
+    }
     const freshLanes = makeLanes(db, freshId, freshIds);
     const legacyLanes = makeLanes(db, legacyId, legacyIds);
 

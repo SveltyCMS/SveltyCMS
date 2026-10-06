@@ -1265,10 +1265,16 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             );
           } else {
             metricsService.incrementAuthValidations();
-            const res = await dbAdapter.auth.getApiKey(hash, {
-              tenantId: locals.tenantId,
-            });
-            if (res.success && res.data) {
+            let res: any = null;
+            try {
+              res = await dbAdapter.auth.getApiKey(hash, {
+                tenantId: locals.tenantId,
+              });
+            } catch (err: any) {
+              logger.warn(`[Auth] Error looking up API key: ${err?.message || err}`);
+              res = { success: false, data: null };
+            }
+            if (res && res.success && res.data) {
               const apiKey = res.data;
 
               // 1. Expiry Check

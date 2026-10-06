@@ -11,6 +11,12 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { AppError, rethrow, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -691,7 +697,7 @@ export async function handleOidcLoginCallback(
   const userRes = await cms.auth.getUserByEmail(email, { tenantId });
   let user = userRes?.success ? userRes.data : null;
 
-  const auth = (await import("@src/databases/db")).getDb()?.auth;
+  const auth = (await loadDbModule()).getDb()?.auth;
   if (!auth?.createSession) {
     throw new AppError("Auth adapter createSession unavailable", 500);
   }

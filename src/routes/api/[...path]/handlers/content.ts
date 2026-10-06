@@ -18,6 +18,18 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleContentRoutes(
@@ -99,7 +111,7 @@ export async function handleContentRoutes(
 
 /** Returns the current content system version. */
 async function handleContentVersion(event: RequestEvent) {
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   return successResponse(event, { version: contentSystem.getContentVersion() });
 }
 
@@ -124,7 +136,7 @@ async function handleContentRefresh(event: RequestEvent, cms: LocalCMS, tenantId
  */
 async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const { refreshContent } = await import("@src/content/engine.server");
-  const { getDb } = await import("@src/databases/db");
+  const { getDb } = await loadDbModule();
 
   await refreshContent(tenantId, {
     mode: "schemas",

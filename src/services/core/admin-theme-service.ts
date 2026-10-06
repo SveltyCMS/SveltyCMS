@@ -23,6 +23,12 @@ import type { DatabaseId } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
 import { stripHtml } from "@utils/sanitize-html";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 /** Admin-controlled locks — when true, users cannot override that preference */
 export interface AdminLockedSettings {
   density?: boolean;
@@ -152,7 +158,7 @@ export class AdminThemeService {
 
   /** List all themes with their admin config summaries */
   async listThemes(tenantId?: string | null): Promise<ThemeSummary[]> {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
@@ -195,7 +201,7 @@ export class AdminThemeService {
     themeId?: string,
   ): Promise<StoredAdminTheme> {
     const tm = ThemeManager.getInstance();
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
@@ -251,7 +257,7 @@ export class AdminThemeService {
     tenantId?: string | null,
   ): Promise<ThemeSummary> {
     const tm = ThemeManager.getInstance();
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
@@ -296,7 +302,7 @@ export class AdminThemeService {
   /** Delete a theme (cannot delete the active/default theme) */
   async deleteTheme(themeId: string, tenantId?: string | null): Promise<void> {
     const tm = ThemeManager.getInstance();
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
@@ -317,7 +323,7 @@ export class AdminThemeService {
   /** Activate a theme (deactivates others) */
   async activateTheme(themeId: string, tenantId?: string | null): Promise<StoredAdminTheme> {
     const tm = ThemeManager.getInstance();
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
@@ -342,7 +348,7 @@ export class AdminThemeService {
     newName: string,
     tenantId?: string | null,
   ): Promise<ThemeSummary> {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 

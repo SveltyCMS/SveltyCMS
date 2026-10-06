@@ -257,6 +257,155 @@ describe("syncContentState", () => {
       expect(sseSpy).toHaveBeenCalledWith("global", { invalidateSchema: true });
       expect(result.metrics).toBeDefined();
       expect(result.changedIds).toContain("cat-1");
+
+      const { getCollectionsPath, getCompiledCollectionsPath } =
+        await import("@utils/tenant.server");
+      const sourceDir = path.join(getCollectionsPath("global"), "blog");
+      const compiledDir = path.join(getCompiledCollectionsPath("global"), "blog");
+      expect((await fs.stat(sourceDir)).isDirectory()).toBe(true);
+      expect((await fs.stat(compiledDir)).isDirectory()).toBe(true);
+    });
+  });
+
+  it("gui-save removes an empty category directory on delete", async () => {
+    await withTempProject(async () => {
+      const { getCollectionsPath, getCompiledCollectionsPath } =
+        await import("@utils/tenant.server");
+      const sourceDir = path.join(getCollectionsPath("global"), "blog");
+      const compiledDir = path.join(getCompiledCollectionsPath("global"), "blog");
+      await fs.mkdir(sourceDir, { recursive: true });
+      await fs.mkdir(compiledDir, { recursive: true });
+
+      const category = {
+        _id: "cat-1",
+        name: "Blog",
+        path: "/blog",
+        nodeType: "category" as const,
+        source: "builder" as const,
+        order: 0,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      };
+
+      const { contentService } = await import("@src/content/engine.server");
+      vi.spyOn(contentService, "upsertContentNodes").mockResolvedValue(undefined);
+      vi.spyOn(contentService, "getContentStructureFromDatabase")
+        .mockResolvedValueOnce([category])
+        .mockResolvedValueOnce([]);
+
+      const orderMod = await import("@utils/collection-order.server");
+      vi.spyOn(orderMod, "setOrganizationalManifest").mockResolvedValue();
+
+      const engine = await import("@src/content/engine.server");
+      vi.spyOn(engine, "notifyContentUpdate").mockResolvedValue(undefined);
+
+      const compileMod = await import("@utils/compilation/compile");
+      vi.spyOn(compileMod, "compile").mockResolvedValue({
+        processed: 0,
+        skipped: 1,
+        errors: [],
+        duration: 1,
+        orphanedFiles: [],
+        schemaWarnings: [],
+        changedJsPaths: [],
+        changedSourceFiles: [],
+        noOp: true,
+      });
+
+      const { syncContentState } = await import("@src/content/sync-content-state.server");
+      await syncContentState({
+        reason: "gui-save",
+        tenantId: "global",
+        operations: [{ type: "delete", node: { path: "/blog" } }],
+      });
+
+      await expect(fs.access(sourceDir)).rejects.toThrow();
+      await expect(fs.access(compiledDir)).rejects.toThrow();
+    });
+  });
+
+  it("gui-save moves a category folder under its new parent", async () => {
+    await withTempProject(async () => {
+      const { getCollectionsPath, getCompiledCollectionsPath } =
+        await import("@utils/tenant.server");
+      const collections = getCollectionsPath("global");
+      const compiled = getCompiledCollectionsPath("global");
+      await fs.mkdir(path.join(collections, "blog"), { recursive: true });
+      await fs.writeFile(path.join(collections, "blog", "notes.txt"), "keep");
+      await fs.mkdir(path.join(compiled, "blog"), { recursive: true });
+
+      const stamp = "2026-01-01T00:00:00.000Z";
+      const news = {
+        _id: "cat-news",
+        name: "News",
+        path: "/news",
+        nodeType: "category" as const,
+        source: "builder" as const,
+        order: 0,
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+      const blog = {
+        _id: "cat-blog",
+        name: "Blog",
+        path: "/blog",
+        parentId: "cat-news",
+        nodeType: "category" as const,
+        source: "builder" as const,
+        order: 1,
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+
+      const { contentService } = await import("@src/content/engine.server");
+      vi.spyOn(contentService, "upsertContentNodes").mockResolvedValue(undefined);
+      vi.spyOn(contentService, "getContentStructureFromDatabase").mockResolvedValue([
+        news,
+        blog,
+      ] as never);
+      const replaceSpy = vi
+        .spyOn(contentService, "replaceContentNodePaths")
+        .mockResolvedValue(undefined);
+
+      const orderMod = await import("@utils/collection-order.server");
+      vi.spyOn(orderMod, "setOrganizationalManifest").mockResolvedValue();
+      const engine = await import("@src/content/engine.server");
+      vi.spyOn(engine, "notifyContentUpdate").mockResolvedValue(undefined);
+      const compileMod = await import("@utils/compilation/compile");
+      vi.spyOn(compileMod, "compile").mockResolvedValue({
+        processed: 0,
+        skipped: 1,
+        errors: [],
+        duration: 1,
+        orphanedFiles: [],
+        schemaWarnings: [],
+        changedJsPaths: [],
+        changedSourceFiles: [],
+        noOp: true,
+      });
+
+      const { syncContentState } = await import("@src/content/sync-content-state.server");
+      await syncContentState({
+        reason: "gui-save",
+        tenantId: "global",
+        operations: [{ type: "move", node: blog }],
+      });
+
+      expect(await fs.readFile(path.join(collections, "news", "blog", "notes.txt"), "utf-8")).toBe(
+        "keep",
+      );
+      await expect(fs.access(path.join(collections, "blog"))).rejects.toThrow();
+      expect((await fs.stat(path.join(compiled, "news", "blog"))).isDirectory()).toBe(true);
+      expect(replaceSpy).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            oldPath: "/blog",
+            node: expect.objectContaining({ path: "/news/blog" }),
+          }),
+        ],
+        "global",
+        undefined,
+      );
     });
   });
 

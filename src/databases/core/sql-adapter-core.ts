@@ -19,6 +19,8 @@
  * - shared domain module lazy-loading (auth, content, media, system, batch, collection)
  * - shared cache/registry state management
  * - materialized-column registry shared by createModel and schema prewarm
+ * - prepared queryBuilder list/count via executeCompiled
+ * - lazy list index for a physical sort other than updatedAt
  */
 import { BaseAdapter } from "./base-adapter";
 import type {
@@ -33,6 +35,7 @@ import type {
   EntityCreate,
   EntityUpdate,
   QueryFilter,
+  QueryBuilder,
   ICrudAdapter,
   ISqlAdapter,
 } from "../db-interface";
@@ -98,6 +101,7 @@ import {
   setJsonDataPatch,
 } from "./json-data-patch";
 import { translateAggregation } from "./aggregation-translator";
+import { SqlQueryBuilder, type SqlDialect, readCount, SQLITE_DIALECT } from "./sql-query-builder";
 
 // ============================================================================
 // System table schema pre-registration (module scope — evaluated once)
@@ -142,6 +146,45 @@ registerTableSchema("authSessions", [
 // Abstract SqlAdapterCore — shared base for all SQL adapters
 // ============================================================================
 
+/** Covering list index the query builder may schedule for one physical sort. */
+export interface ListIndexRequest {
+  column: string;
+  direction: "asc" | "desc";
+  /** Leading `tenantId` equality, so the index is `(tenantId, column, _id)`. */
+  withTenant: boolean;
+}
+
+const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Index plan for a paginated list order. Only a same-direction `(column, _id)`
+ * pair is worth a B-tree. `updatedAt` and `status` already have list indexes.
+ */
+export function listIndexRequest(
+  order: readonly { name: string; direction: "asc" | "desc" }[],
+  equalityColumns: readonly string[],
+): ListIndexRequest | null {
+  if (order.length !== 2 || order[1].name !== "_id") return null;
+  if (order[0].direction !== order[1].direction) return null;
+  const column = order[0].name;
+  if (column === "_id" || column === "updatedAt" || column === "status") return null;
+  if (!LIST_INDEX_FIELD.test(column)) return null;
+  return {
+    column,
+    direction: order[0].direction,
+    withTenant: equalityColumns.includes("tenantId"),
+  };
+}
+
+/** Index names must fit PostgreSQL NAMEDATALEN (63) and MariaDB's 64-char limit. */
+export function boundedSqlIndexName(name: string): string {
+  if (name.length <= 63) return name;
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  const suffix = `_${hash.toString(16).padStart(8, "0")}`;
+  return `${name.slice(0, 63 - suffix.length)}${suffix}`;
+}
+
 export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter {
   // --------------------------------------------------------------------------
   // Adapter identity (set by each concrete adapter)
@@ -177,6 +220,74 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * scan+sort (see `postgresql/adapter-core.ts`). Default: no-op.
    */
   protected onDynamicSort(_collection: string, _tableName: string, _field: string): void {}
+
+  /**
+   * One attempt per (table, column, direction, tenant prefix). A failed build
+   * stays marked so a hot list does not retry DDL on every request.
+   */
+  private _listSortIndexKeys = new Set<string>();
+
+  /**
+   * Query-builder hook: a paginated physical sort that is not the stock
+   * `(updatedAt, _id)` order. Schedules one covering index and returns.
+   * `updatedAt` already has `(tenantId, updatedAt, _id)`.
+   */
+  public noteListSort(
+    collection: string,
+    order: readonly { name: string; direction: "asc" | "desc" }[],
+    equalityColumns: readonly string[],
+  ): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    const plan = listIndexRequest(order, equalityColumns);
+    if (!plan) return;
+    let tableName: string;
+    try {
+      const table = this.getTable(collection);
+      if (!table || !this.getColumn(table, plan.column)) return;
+      const resolved = getTableName(table);
+      if (typeof resolved !== "string" || resolved.length === 0) return;
+      tableName = resolved;
+    } catch {
+      return;
+    }
+    const key = `${tableName}\0${plan.column}\0${plan.direction}\0${plan.withTenant ? "1" : "0"}`;
+    if (this._listSortIndexKeys.has(key) || this._listSortIndexKeys.size >= 64) return;
+    this._listSortIndexKeys.add(key);
+    try {
+      this.scheduleListSortIndex(tableName, plan);
+    } catch {
+      /* The read still runs. The key stays so DDL is not retried per request. */
+    }
+  }
+
+  /** Dialect DDL for {@link noteListSort}. Default: no index. */
+  protected scheduleListSortIndex(_tableName: string, _plan: ListIndexRequest): void {}
+
+  /** Engine-specific SQL dialect instance (SQLite, MariaDB, PostgreSQL). Default: SQLite dialect. */
+  public get sqlDialect(): SqlDialect {
+    return SQLITE_DIALECT;
+  }
+
+  /**
+   * Unified QueryBuilder factory shared across all SQL adapters.
+   */
+  public queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T> {
+    return new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
+  }
+
+  /**
+   * Driver statement cache for a compiled queryBuilder list or count.
+   * PostgreSQL overrides this to pass `prepare: true` (the measured findMany win).
+   * SQLite and MariaDB `raw.execute` already prepares.
+   */
+  public async executeCompiled(
+    sqlText: string,
+    params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): Promise<unknown[]> {
+    const rows = await this.raw.execute(sqlText, [...params]);
+    return Array.isArray(rows) ? rows : [];
+  }
 
   /**
    * Fired after materialized columns are registered for a collection.
@@ -1333,6 +1444,35 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this.ensureTableSchemaRegistered(table, collection);
         this._registeredSchemas.add(collection);
       }
+
+      // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters compiled once with limit=1
+      if (this.executeCompiled && !options.transaction) {
+        try {
+          const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
+          builder.applyFilterAndOptions(q, { ...options, limit: 1 }, false);
+          const compiled = builder.compile("list");
+          if (compiled) {
+            const rawRows = await this.executeCompiled(compiled.sql, compiled.params, options);
+            const firstRow =
+              rawRows && rawRows.length > 0 ? (rawRows[0] as Record<string, unknown>) : null;
+            const excludeData = this.shouldExcludeData(table, options);
+            const data = firstRow
+              ? (convertDatesToISO(firstRow, {
+                  inPlace: true,
+                  table: collection,
+                  ...(excludeData ? { skipJson: true } : {}),
+                }) as T)
+              : null;
+            return this.hooks.length > 0
+              ? await this.runHooks("after", "find", collection, data, options)
+              : data;
+          }
+        } catch (err: unknown) {
+          if (this.isMissingTableError(err)) return null;
+          // Fall through to Drizzle dynamic path on compilation fallback
+        }
+      }
+
       const where = this.mapQuery(table, q as any, options);
 
       const isDynamic =
@@ -1495,6 +1635,31 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this.ensureTableSchemaRegistered(table, collection);
         this._registeredSchemas.add(collection);
       }
+
+      // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters + sort + limit/offset compiled once
+      if (this.executeCompiled && !options.transaction) {
+        try {
+          const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
+          builder.applyFilterAndOptions(q, options, false);
+          const compiled = builder.compile("list");
+          if (compiled) {
+            const rawRows = await this.executeCompiled(compiled.sql, compiled.params, options);
+            const excludeData = this.shouldExcludeData(table, options);
+            const data = convertArrayDatesToISO(rawRows as Record<string, unknown>[], {
+              inPlace: true,
+              table: collection,
+              ...(excludeData ? { skipJson: true } : {}),
+            });
+            return this.hooks.length > 0
+              ? await this.runHooks("after", "find", collection, data, options)
+              : (data as T[]);
+          }
+        } catch (err: unknown) {
+          if (this.isMissingTableError(err)) return [];
+          // Fall through to Drizzle dynamic path on compilation fallback
+        }
+      }
+
       const where = this.mapQuery(table, q as any, options);
 
       const tableName = getTableName(table);
@@ -1957,6 +2122,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const estimated = await this.estimateTableRows(table, collection);
           if (estimated !== null && estimated >= 0) return estimated;
           // Fall through to exact COUNT(*) if stats unavailable
+        }
+
+        // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters count compiled once
+        if (this.executeCompiled && !options.transaction) {
+          try {
+            const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
+            builder.applyFilterAndOptions(query, options, false);
+            const compiled = builder.compile("count");
+            if (compiled) {
+              const rows = await this.executeCompiled(compiled.sql, compiled.params, options);
+              return readCount(rows[0]);
+            }
+          } catch (err: unknown) {
+            if (this.isMissingTableError(err)) return 0;
+            // Fall through to Drizzle dynamic path
+          }
         }
 
         const where = this.mapQuery(table, query || {}, options);

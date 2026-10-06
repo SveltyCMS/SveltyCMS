@@ -15,6 +15,12 @@
 import type { DatabaseId } from "@src/databases/db-interface";
 import { getHotCollections } from "./behavioral-learner";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export interface ContentSuggestion {
@@ -61,7 +67,7 @@ export async function findSimilarEntries(
     const { semanticSearch } = await import("./semantic-index");
 
     // Get current entry text for query
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const entry = await dbAdapter?.crud?.findOne(
       collectionId,
       { _id: entryId as DatabaseId },
@@ -111,7 +117,7 @@ export async function suggestFieldDefaults(
   limit = 20,
 ): Promise<FieldDefault | null> {
   try {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const result = await dbAdapter?.crud?.findMany(
       collectionId,
       {},
@@ -390,7 +396,7 @@ export async function getContentInsights(tenantId: string): Promise<{
     const hotCollections = getHotCollections(tenantId, 3);
     if (hotCollections.length === 0) return stats;
 
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     let totalQuality = 0;
 
     for (const { id } of hotCollections) {

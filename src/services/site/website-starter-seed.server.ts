@@ -13,6 +13,14 @@
 import type { DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 export interface SeedWebsiteStarterBlueprintOptions {
   siteName?: string;
   tenantId?: string | null;
@@ -53,7 +61,7 @@ export async function seedWebsiteStarterBlueprint(
       await import("@src/services/core/settings-service");
     await setPublicSetting("SITE_STARTER_ENABLED", true, tenantId ?? undefined);
     invalidateSettingsCache(tenantId ?? undefined);
-    const { cacheService } = await import("@src/databases/cache/cache-service");
+    const { cacheService } = await loadCacheServiceModule();
     await cacheService.invalidateCollection("pages", (tenantId ?? undefined) as string | undefined);
     await cacheService.invalidateCollection(
       "collection_pages",

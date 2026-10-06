@@ -13,13 +13,16 @@
  *
  * ## Policy (deliberately simple, and testable)
  * - **idle** (no in-flight requests, `minIntervalMs` since the last run) → checkpoint now.
+ * - **size** (the WAL exceeded `maxWalBytes`) → checkpoint PASSIVE even while busy; a
+ *   never-idle server cannot grow the log without bound.
  * - **force** (the server has been busy for `forceAfterMs` without an idle window) →
  *   checkpoint anyway: one bounded stall beats an unbounded WAL on a never-idle server.
  * - otherwise do nothing — `PASSIVE` never blocks readers or writers, and a no-op call is
  *   microseconds.
  *
- * Ships behind `SVELTY_WAL_CHECKPOINT=1` together with `SQLITE_WAL_AUTOCHECKPOINT=0`; the
- * auto-checkpoint stays the default until a deployment opts in.
+ * Since 2026-10-06 this runs by default for SQLite, paired with `wal_autocheckpoint=0`;
+ * opt out with `SVELTY_WAL_CHECKPOINT=0` (and restore auto-checkpointing with
+ * `SQLITE_WAL_AUTOCHECKPOINT=<pages>`).
  */
 
 import { logger } from "@utils/logger";
@@ -33,13 +36,19 @@ export interface WalCheckpointResult {
 
 export interface WalCheckpointDecision {
   run: boolean;
-  reason: "idle" | "force" | "interval" | "busy";
+  reason: "idle" | "size" | "force" | "interval" | "busy";
 }
+
+/**
+ * Default WAL-size cap (64 MB ≈ 8192 × 8 KB frames). Above it the scheduler
+ * checkpoints PASSIVE even while the server never goes idle.
+ */
+export const DEFAULT_MAX_WAL_BYTES = 64 * 1024 * 1024;
 
 /**
  * Whether to checkpoint on this tick. Pure so the policy is unit-tested without timers:
  * `interval` suppresses churn after a recent run, `idle` is the preferred moment,
- * `force` bounds the WAL when the server never goes idle.
+ * `size` bounds the WAL on a busy server, `force` bounds it by time.
  */
 export function decideWalCheckpoint(input: {
   idle: boolean;
@@ -47,9 +56,21 @@ export function decideWalCheckpoint(input: {
   msBusySinceIdle: number;
   minIntervalMs: number;
   forceAfterMs: number;
+  /** Current WAL size in bytes — omit to disable the size cap. */
+  walBytes?: number;
+  /** Hard WAL-size cap in bytes; `0`/omitted disables the size cap. */
+  maxWalBytes?: number;
 }): WalCheckpointDecision {
   if (input.msSinceLastRun < input.minIntervalMs) return { run: false, reason: "interval" };
   if (input.idle) return { run: true, reason: "idle" };
+  if (
+    input.walBytes !== undefined &&
+    input.maxWalBytes !== undefined &&
+    input.maxWalBytes > 0 &&
+    input.walBytes > input.maxWalBytes
+  ) {
+    return { run: true, reason: "size" };
+  }
   if (input.msBusySinceIdle >= input.forceAfterMs) return { run: true, reason: "force" };
   return { run: false, reason: "busy" };
 }
@@ -65,6 +86,10 @@ export interface WalCheckpointSchedulerOptions {
   minIntervalMs?: number;
   /** Run even under load after this long without an idle window (default 60 s). */
   forceAfterMs?: number;
+  /** Current WAL size in bytes — enables the size cap when provided. */
+  walSizeBytes?: () => number;
+  /** Hard WAL-size cap in bytes (default `DEFAULT_MAX_WAL_BYTES`). */
+  maxWalBytes?: number;
   onRun?: (result: WalCheckpointResult, reason: WalCheckpointDecision["reason"]) => void;
   /** Injectable clock (tests). */
   now?: () => number;
@@ -78,6 +103,7 @@ export function startWalCheckpointScheduler(options: WalCheckpointSchedulerOptio
   const intervalMs = options.intervalMs ?? 5_000;
   const minIntervalMs = options.minIntervalMs ?? intervalMs;
   const forceAfterMs = options.forceAfterMs ?? 60_000;
+  const maxWalBytes = options.maxWalBytes ?? DEFAULT_MAX_WAL_BYTES;
   const now = options.now ?? Date.now;
 
   let lastRunAt = now();
@@ -96,6 +122,8 @@ export function startWalCheckpointScheduler(options: WalCheckpointSchedulerOptio
       msBusySinceIdle: at - idleSince,
       minIntervalMs,
       forceAfterMs,
+      walBytes: options.walSizeBytes?.(),
+      maxWalBytes,
     });
     if (!decision.run) return;
 
@@ -106,7 +134,7 @@ export function startWalCheckpointScheduler(options: WalCheckpointSchedulerOptio
     const result = options.checkpoint("PASSIVE");
     if (!result.success) {
       logger.debug(`[WAL] checkpoint (${decision.reason}) did not complete`);
-    } else if (decision.reason === "force" || result.frames > 0) {
+    } else if (decision.reason === "force" || decision.reason === "size" || result.frames > 0) {
       logger.debug(`[WAL] checkpoint (${decision.reason}): ${result.frames} frame(s) remaining`);
     }
     options.onRun?.(result, decision.reason);

@@ -26,6 +26,7 @@
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { modalState } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -34,7 +35,7 @@
 	let currentTab = $state('0'); // Initial tab set to string '0' for Tabs component
 
 	// Use $state for page data that needs to be mutable
-	let rolesData = $state(page.data.roles); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
+	let rolesData = $state(untrack(() => page.data.roles)); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
 
 	// Track the number of modified permissions/roles for the "Save" button
 	let modifiedCount = $state(0);

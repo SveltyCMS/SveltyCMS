@@ -22,6 +22,16 @@ import { streamingArrayResponse } from "./streaming";
 import { buildLogExport, type LogExportFormat, type LogExportType } from "@src/utils/log-export";
 import { any, array, boolean, minLength, object, optional, pipe, record, string } from "valibot";
 
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
 const SaveWebhookSchema = object({
   id: optional(string()),
   name: optional(string()),
@@ -614,7 +624,7 @@ export async function handleAiRoutes(
   const action = segments[1];
   const body = await request.json();
   const { aiService } = await import("@src/services/core/ai-service");
-  const { eventBus } = await import("@src/services/background/automation/event-bus");
+  const { eventBus } = await loadEventBusModule();
 
   if (action === "chat") {
     const { userMessage, history = [], content, room, tab } = body;

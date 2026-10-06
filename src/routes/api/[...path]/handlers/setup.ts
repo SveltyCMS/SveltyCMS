@@ -11,6 +11,12 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { logger } from "@utils/logger";
 import { AppError, isAppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -285,7 +291,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
   });
 
   // Finalize system configuration
-  const { initializeWithConfig } = await import("@src/databases/db");
+  const { initializeWithConfig } = await loadDbModule();
   await initializeWithConfig({
     DB_TYPE: database.type,
     DB_HOST: database.host,

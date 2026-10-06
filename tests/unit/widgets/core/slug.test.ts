@@ -6,7 +6,21 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@src/paraglide/messages", async () => (await import("../test-utils")).WIDGET_MESSAGES);
 import SlugWidget from "@widgets/core/slug";
+import { slugify, slugifyTyping } from "@widgets/core/slug/slugify";
 import { safeParse } from "valibot";
+
+describe("slugify", () => {
+  it("builds a url slug from a title", () => {
+    expect(slugify("Hello World")).toBe("hello-world");
+    expect(slugify("Größe & Über uns")).toBe("grosse-uber-uns");
+    expect(slugify("  --Already_ok-- ")).toBe("already_ok");
+  });
+
+  it("keeps a trailing hyphen while typing", () => {
+    expect(slugifyTyping("my-")).toBe("my-");
+    expect(slugify("my-")).toBe("my");
+  });
+});
 
 describe("Slug Widget", () => {
   it("should validate URL-safe slug strings", () => {

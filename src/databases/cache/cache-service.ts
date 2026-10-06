@@ -23,6 +23,12 @@ import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
 import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export const API_CACHE_TTL_S = 300;
 export const SESSION_CACHE_TTL_MS = 86400000;
 export const USER_PERM_CACHE_TTL_MS = 3600000;
@@ -312,7 +318,7 @@ export class CacheService {
 
   async initialize(config?: any) {
     if (config === true || !config) {
-      const { loadPrivateConfig } = await import("@src/databases/db");
+      const { loadPrivateConfig } = await loadDbModule();
       config = await loadPrivateConfig();
     }
     this.getMetrics().catch(() => {});
@@ -338,11 +344,13 @@ export class CacheService {
     try {
       const { createClient } = await import("redis");
       const redisUrl = `redis://${config.REDIS_HOST}:${config.REDIS_PORT}`;
-      const redisOptions = {
+      const redisOptions: any = {
         url: redisUrl,
         password: config.REDIS_PASSWORD,
         socket: {
           connectTimeout: 5000,
+          noDelay: true,
+          keepAlive: 5000,
           reconnectStrategy: (retries: number) =>
             retries > 3 ? new Error("Redis connection failed") : 1000,
         },
@@ -1024,8 +1032,12 @@ export class CacheService {
               const found: string[] = reply.keys ?? [];
               for (const tagKey of found) {
                 const members = await this.l2.sMembers(tagKey);
-                if (members?.length > 0) await this.l2.del(members);
-                await this.l2.del(tagKey);
+                if (members?.length > 0) {
+                  if (typeof this.l2.unlink === "function") await this.l2.unlink(members);
+                  else await this.l2.del(members);
+                }
+                if (typeof this.l2.unlink === "function") await this.l2.unlink(tagKey);
+                else await this.l2.del(tagKey);
               }
             } while (cursor !== "0");
           }
@@ -1039,8 +1051,12 @@ export class CacheService {
             const multi = this.l2.multi();
             for (let i = 0; i < tagKeys.length; i++) {
               const keys = membersList[i];
-              if (keys && keys.length > 0) multi.del(keys);
-              multi.del(tagKeys[i]);
+              if (keys && keys.length > 0) {
+                if (typeof multi.unlink === "function") multi.unlink(keys);
+                else multi.del(keys);
+              }
+              if (typeof multi.unlink === "function") multi.unlink(tagKeys[i]);
+              else multi.del(tagKeys[i]);
             }
             await multi.exec();
           } else {
@@ -1049,7 +1065,10 @@ export class CacheService {
               const m = membersList[i];
               if (m && m.length > 0) allToDel.push(...m);
             }
-            if (allToDel.length > 0) await this.l2.del(allToDel);
+            if (allToDel.length > 0) {
+              if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+              else await this.l2.del(allToDel);
+            }
           }
         }
         await this.publishInvalidation(null, tenantId, tags);
@@ -1157,10 +1176,16 @@ export class CacheService {
         do {
           const reply = await this.l2.scan(cursor, {
             MATCH: fullPattern,
-            COUNT: 500,
+            COUNT: 1000,
           });
           cursor = reply.cursor;
-          if (reply.keys.length > 0) await this.l2.del(reply.keys);
+          if (reply.keys.length > 0) {
+            if (typeof this.l2.unlink === "function") {
+              await this.l2.unlink(reply.keys);
+            } else {
+              await this.l2.del(reply.keys);
+            }
+          }
         } while (cursor !== "0");
 
         await this.publishInvalidation(pattern, tenantId);

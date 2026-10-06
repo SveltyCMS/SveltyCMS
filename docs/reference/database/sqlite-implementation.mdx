@@ -71,7 +71,8 @@ Key SQLite highlights:
   - `temp_store = MEMORY` — temp tables in RAM
   - `mmap_size` — RAM-tiered memory-mapped I/O (`SQLITE_MMAP_SIZE`, 64MB–512MB)
   - `cache_size` — RAM-tiered page cache (`SQLITE_CACHE_SIZE`, 16MB–256MB)
-  - `wal_autocheckpoint = 4000` — checkpoint every 4000 pages
+  - `wal_autocheckpoint = 0` — SQLite's synchronous auto-checkpoint is **disabled by default**; an idle-gated background scheduler runs `wal_checkpoint(PASSIVE)` off the request path instead (see the **Scheduled WAL checkpoints** bullet below). Set `SQLITE_WAL_AUTOCHECKPOINT=<pages>` to restore classic auto-checkpointing.
+- **Scheduled WAL checkpoints**: `wal_autocheckpoint=0` plus `startWalCheckpointScheduler` (`src/services/background/wal-checkpoint.server.ts`) keeps the checkpoint cost off waiting requests. The policy checkpoints when the server is idle, when the WAL exceeds a size cap (`SVELTY_WAL_MAX_BYTES`, default 64 MB) even under sustained load, and forces one after 60 s without an idle window. On by default; opt out with `SVELTY_WAL_CHECKPOINT=0`. Durability is unchanged — `synchronous=NORMAL` stays the default.
 - **Prepared-Statement Cache**: Drizzle's `SQLiteBunSession.prepareQuery` re-compiles SQL on every query; the adapter wraps `client.prepare` with a per-connection SQL-text cache (2,000 statements) invalidated on DDL (`createModel` / `clearDatabase`). Measured: ~4µs/query re-prepare tax eliminated, 2× on write ops.
 - **Projection (`options.fields`)**: when all requested fields are physical columns, the raw `findById` and shared `findMany` skip the JSON `data` blob entirely — no `JSON.parse` + `flattenDataColumn` on list/detail reads.
 - **Atomic increments bind timestamps**: `atomicIncrement` binds `updatedAt` as a parameter instead of interpolating `now.getTime()` into SQL text — keeps the statement cache warm.

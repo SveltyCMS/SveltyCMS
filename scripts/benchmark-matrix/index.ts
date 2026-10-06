@@ -59,6 +59,8 @@ const DIAGNOSTIC_KEYS = [
   "SQLITE_BUSY_TIMEOUT",
   "SQLITE_WAL_AUTOCHECKPOINT",
   "SVELTY_WAL_CHECKPOINT",
+  "SVELTY_WAL_MAX_BYTES",
+  "SVELTY_SQLITE_GROUP_COMMIT",
   "SVELTY_SRV_SPLIT",
   "SVELTY_SRV_DUR",
   // Test-side knob (api-latency zstd transfer row) — forwarded so matrix runs can
@@ -108,6 +110,10 @@ const filter = filterRaw ? filterRaw.toLowerCase().split(",").filter(Boolean) : 
 const databases = filter && filter.length > 0 ? DBS.filter((d) => filter.includes(d)) : DBS;
 const CONTINUE_ON_ERROR =
   process.argv.includes("--continue-on-error") || process.argv.includes("--continue");
+const USE_REDIS = process.argv.includes("--redis") || process.env.USE_REDIS === "true";
+if (USE_REDIS) {
+  process.env.USE_REDIS = "true";
+}
 
 // 🏗️ `--no-build` (documented): trust the existing production build and never
 // rebuild mid-run. Matrix runs rebuild automatically when artifacts are missing

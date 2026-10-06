@@ -221,9 +221,45 @@ describe("compile() manifest integrity", () => {
     first.structureNodes = guiCategories;
     await fs.writeFile(manifestPath, JSON.stringify(first, null, 2), "utf-8");
 
+    await fs.mkdir(path.join(compiledCollections, "obsolete"), { recursive: true });
+
     await compile({ userCollections, compiledCollections, concurrency: 1, logger: quietLogger });
 
     const second = JSON.parse(await fs.readFile(manifestPath, "utf-8")) as Record<string, unknown>;
     expect(second.structureNodes).toEqual(guiCategories);
+    expect((await fs.stat(path.join(userCollections, "blog"))).isDirectory()).toBe(true);
+    expect((await fs.stat(path.join(compiledCollections, "blog"))).isDirectory()).toBe(true);
+    await expect(fs.access(path.join(compiledCollections, "obsolete"))).rejects.toThrow();
+  });
+
+  it("records a folder created under the collection root", async () => {
+    const { userCollections, compiledCollections } = await createTempCompileFixture();
+    await fs.mkdir(path.join(userCollections, "recipes"));
+
+    const result = await compile({
+      userCollections,
+      compiledCollections,
+      concurrency: 1,
+      logger: quietLogger,
+    });
+
+    expect(result.structureChanged).toBe(true);
+    const manifest = JSON.parse(
+      await fs.readFile(path.join(compiledCollections, ".compilation-manifest.json"), "utf-8"),
+    ) as { structureNodes?: { path?: string; source?: string }[] };
+    expect(manifest.structureNodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "/recipes", source: "filesystem", name: "Recipes" }),
+      ]),
+    );
+    expect((await fs.stat(path.join(compiledCollections, "recipes"))).isDirectory()).toBe(true);
+
+    const second = await compile({
+      userCollections,
+      compiledCollections,
+      concurrency: 1,
+      logger: quietLogger,
+    });
+    expect(second.structureChanged).toBe(false);
   });
 });

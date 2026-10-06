@@ -22,6 +22,18 @@ import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // Env source for the telemetry endpoint override. SvelteKit 3's dynamic private env
 // (`$app/env/private`) only exposes variables declared via `defineEnvVars`; this
 // project declares none, so the deprecated `$env/dynamic/private` import was an
@@ -196,7 +208,7 @@ export class TelemetryService {
         let roleCount = 0;
 
         try {
-          const { dbAdapter } = await import("@src/databases/db");
+          const { dbAdapter } = await loadDbModule();
 
           if (!dbAdapter) {
             logger.debug("[Telemetry] Skipped: Database adapter not available");
@@ -244,7 +256,7 @@ export class TelemetryService {
             ).length;
           }
 
-          const { contentSystem } = await import("@src/content/index.server");
+          const { contentSystem } = await loadContentModule();
 
           if (dbAdapter.ensureContent) {
             try {

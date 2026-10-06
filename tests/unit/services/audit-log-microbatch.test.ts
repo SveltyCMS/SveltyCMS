@@ -85,7 +85,7 @@ describe("AuditService write coalescing & micro-batching", () => {
           `worker_${workerIdx}_action_${i}`,
           { id: `user_${workerIdx}` as any, email: `w${workerIdx}@test.com` },
           { type: "concurrent_test", id: `res_${workerIdx}_${i}` as any },
-          AuditEventType.USER_MUTATION,
+          AuditEventType.USER_UPDATED,
         );
       }
     });

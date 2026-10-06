@@ -7,6 +7,12 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { generateUUID } from "@utils/native-utils";
@@ -262,7 +268,7 @@ export async function completeSetup(
     };
   }
 
-  const { initializeWithConfig, dbAdapter: ga } = await import("@src/databases/db");
+  const { initializeWithConfig, dbAdapter: ga } = await loadDbModule();
   let dbAdapter: any;
   try {
     dbAdapter =

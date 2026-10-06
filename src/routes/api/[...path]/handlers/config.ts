@@ -15,6 +15,17 @@
  */
 
 // In-memory plan store for plan-first apply validation
+
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
 const planStore = new Map<string, { plan: any; createdAt: number }>();
 const PLAN_STORE_TTL = 30 * 60 * 1000; // 30 minutes
 
@@ -183,7 +194,7 @@ export async function handleConfigRoutes(
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("config.plan.created", {
         tenantId: tenantId as string,
         data: {

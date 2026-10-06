@@ -42,7 +42,7 @@ export async function declareWithdrawal(
     raise(404, "Order not found.", "ORDER_NOT_FOUND");
   }
 
-  const decision = withdrawalDecision(order);
+  const decision = withdrawalDecision(order as Parameters<typeof withdrawalDecision>[0]);
   if (!decision.open) {
     const message =
       decision.reason === "waived"

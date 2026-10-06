@@ -16,6 +16,12 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 interface Tenanted {
   tenantId?: string | null;
 }
@@ -25,7 +31,7 @@ interface Tenanted {
  * Runs only if DEMO mode is enabled (via env var or private config).
  */
 export async function cleanupExpiredDemoTenants() {
-  const { getDb } = await import("@src/databases/db");
+  const { getDb } = await loadDbModule();
   const env = getPrivateEnv();
   // Check ONLY private config (static) or env var - enforced security
   const isDemoEnv =

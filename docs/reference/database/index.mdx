@@ -27,6 +27,7 @@ Welcome to the SveltyCMS Database Engine documentation. Our architecture is buil
 - **[Database Methods Interface](./database-methods.mdx)** — `IDBAdapter` namespaces: `auth`, `crud`, `content`, `media`, `system`, `batch`, `collection`
 - **[Database Resilience](./database-resilience.mdx)** — Error handling, retry logic, circuit breaker, connection health monitoring
 - **[Performance Architecture](./performance-architecture.mdx)** — `findPage` / count modes / count cache (equal on all engines), allocation-floor, schema-aware conversion, ring-buffer pools
+- **[SQL Query Builder](./sql-query-builder.mdx)** — the single dialect-parameterized builder shared by SQLite, MariaDB and PostgreSQL: compiled prepared-statement list/count plans, Drizzle fallback, hybrid-schema JSON, keyset pagination
 
 ### 2. Engine Implementations
 
@@ -128,6 +129,12 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 
 Details, harness commands, and the measured-and-declined experiments: [Achievements §3.45](/docs/project/achievements-2026). The PostgreSQL commit (~2.4–2.8 ms) remains the documented write floor.
 
+### 3. Distributed Cache Layer (Optional)
+
+- **[Cache System Architecture](../architecture/cache-system.mdx)** — Dual-layer L1/L2 engine with stampede locking, atomic `INCRBY` versioning, and zero-tax `mGet` batching.
+
+---
+
 ## 📈 Performance Benchmarks (SQLite, Latest)
 
 | Operation             | Latency      | RPS               |
@@ -140,16 +147,17 @@ Details, harness commands, and the measured-and-declined experiments: [Achieveme
 
 Full cross-database benchmarks: [Performance Benchmarks](/docs/project/benchmarks/index).
 
-## Adapter Selection Guide
+## Adapter & Cache Selection Guide
 
-| Scale                  | Recommended DB                     | Why                                       |
-| ---------------------- | ---------------------------------- | ----------------------------------------- |
-| Dev, edge, small teams | **SQLite** (default)               | In-process, zero network, sub-ms CRUD     |
-| Production single node | **PostgreSQL**                     | JSONB, FTS, replication ready             |
-| Enterprise / K8s       | **PostgreSQL** + PgBouncer + Redis | Horizontal scale, cross-node invalidation |
-| Global / multi-region  | **PostgreSQL** + replicas + CDN    | Read replicas, geo-distribution           |
+| Scale                             | Recommended DB                             | Redis L2?         | Why                                                                                                                                            |
+| :-------------------------------- | :----------------------------------------- | :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dev, edge, small teams**        | **SQLite** (default)                       | **No** (Optional) | In-process, zero network overhead, sub-ms CRUD. RAM L1 cache handles hot reads.                                                                |
+| **Production single node**        | **PostgreSQL** or **MariaDB**              | **Optional**      | Native JSONB/JSON, relational ACID, robust pooling. Enable Redis for high-traffic spikes.                                                      |
+| **High-volume NoSQL**             | **MongoDB**                                | **Recommended**   | Cuts BSON serialization overhead by ~20% and lowers p95 read latencies.                                                                        |
+| **Enterprise Multi-Node Cluster** | **PostgreSQL** / **MariaDB** / **MongoDB** | **Recommended**   | Synchronizes cluster nodes via Redis Pub/Sub (`svelty:cache:invalidation`), prevents cache stampedes, and lowers p95 tail latencies by 30–35%. |
 
-MongoDB for unstructured/high-volume document stores. MariaDB for MySQL-compatible production setups. All four engines are production-ready.
+> [!NOTE]
+> **Redis is Strictly Optional Across All 4 Adapters**: Without Redis, SveltyCMS automatically operates using its built-in in-memory LRU cache (`<0.001ms` hit time) with zero degraded features.
 
 ---
 

@@ -29,6 +29,30 @@ import { corePermissions } from "./core-permissions";
 import { isAdmin } from "./constants";
 import { computeUserPermMask, ADMIN_PERM_MASK } from "./permission-bitmask";
 import type { Permission, Role, Session, SessionStore, Token, User, ApiKey } from "./types";
+import { hasTenantBypass } from "@src/databases/system-tenant-scope";
+
+/**
+ * The namespace guard reads `options.tenantId` (the last argument).
+ * Demo and invite sign-up store the tenant on the session and the user.
+ * Copy that scope onto options. A branded system scope is left unchanged.
+ * A missing scope stays missing so multi-tenant mode still fails closed.
+ */
+function withAuthWriteScope(
+  userData: { tenantId?: DatabaseId | null },
+  sessionData: { tenantId?: DatabaseId | null },
+  options: BaseQueryOptions,
+): BaseQueryOptions {
+  if (hasTenantBypass(options)) return options;
+  if (options.tenantId !== undefined && options.tenantId !== "") return options;
+  const tenantId =
+    sessionData.tenantId !== undefined && sessionData.tenantId !== ""
+      ? sessionData.tenantId
+      : userData.tenantId !== undefined && userData.tenantId !== ""
+        ? userData.tenantId
+        : undefined;
+  if (tenantId === undefined) return options;
+  return { ...options, tenantId };
+}
 
 export {
   checkPermissions,
@@ -114,7 +138,11 @@ export class Auth {
       // Delegate to adapter — each adapter has its own manual rollback.
       // MongoDB: auth-module.ts createUserAndSession (deleteUser on session failure).
       // SQL: relational-auth.ts createUserAndSession (same pattern).
-      return await this.db.auth.createUserAndSession(userData, sessionData, options);
+      return await this.db.auth.createUserAndSession(
+        userData,
+        sessionData,
+        withAuthWriteScope(userData, sessionData, options),
+      );
     } catch (err: any) {
       throw new Error(err.message || "Failed to create user and session");
     }

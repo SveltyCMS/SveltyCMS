@@ -20,6 +20,15 @@
  */
 
 import type { DatabaseId } from "@root/src/content/types";
+
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 // Utils
 import type { MediaItem, SystemVirtualFolder } from "@root/src/databases/db-interface";
 import type { MediaAccess } from "@root/src/utils/media/media-models";
@@ -429,7 +438,7 @@ export const actions: Actions = {
         logger.debug("Media item deleted successfully");
         // Invalidate media gallery cache after deletion
         try {
-          const { cacheService } = await import("@src/databases/cache/cache-service");
+          const { cacheService } = await loadCacheServiceModule();
           await cacheService.invalidateByCategory("media" as any, locals.tenantId);
         } catch {
           // Non-critical: cache invalidation best-effort

@@ -11,7 +11,7 @@
  */
 
 import { existsSync, watch, type FSWatcher } from "node:fs";
-import { mkdir, readdir, stat, unlink, utimes } from "node:fs/promises";
+import fs, { mkdir, readdir, stat, unlink, utimes } from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import { CacheCategory } from "@src/databases/cache/types";
@@ -32,6 +32,12 @@ import {
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { generateSchemaHash, isSafeCollectionPath, loadSchema } from "./loader.server";
 import { getCollectionsPath } from "@utils/tenant.server";
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 
 // ─── Cache helpers ───────────────────────────────────────────────────────────
 
@@ -429,7 +435,14 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 
   if (db?.collection?.listSchemas) {
     try {
-      const res = await db.collection.listSchemas(tenantId as DatabaseId);
+      // System scope: `content_nodes` is a core table, and under MULTI_TENANT the
+      // CRUD guard failures closed for an unscoped read, so the boot/sync path
+      // silently fell through to `listSchemas`'s physical-table fallback (widget
+      // `Input`, no relation metadata) — wiping Relation fields from GraphQL.
+      const res = await db.collection.listSchemas(
+        tenantId as DatabaseId,
+        withSystemScope("bootstrap"),
+      );
       if (res.success && res.data) {
         dbSchemas = res.data;
       }
@@ -512,8 +525,6 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     return;
   }
 
-  const path = await import("node:path");
-  const fs = await import("node:fs/promises");
   const baseDir = path.resolve(process.cwd(), "config", "collections");
   await fs.mkdir(baseDir, { recursive: true });
   const testDir = path.resolve(process.cwd(), "config", "test-collections");
@@ -604,7 +615,7 @@ export const contentService = {
       );
     }
 
-    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    const dbAdapter = adapter || (await (await loadDbModule()).getDb());
     if (!dbAdapter) return;
 
     const isIncremental = !!(changedFile && changedFile.endsWith(".js"));
@@ -1050,7 +1061,7 @@ export const contentService = {
     options?: { requireFullReload?: boolean },
   ): Promise<void> {
     const changedFiles = flushChangedFiles();
-    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    const dbAdapter = adapter || (await (await loadDbModule()).getDb());
     if (!dbAdapter) return;
 
     if (options?.requireFullReload || changedFiles.length === 0) {
@@ -1085,7 +1096,7 @@ export const contentService = {
     tenantId?: string | null,
     adapter?: IDBAdapter,
   ): Promise<void> {
-    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    const dbAdapter = adapter || (await (await loadDbModule()).getDb());
     if (!dbAdapter || filePaths.length === 0) return;
 
     const updates = await Promise.all(
@@ -1112,7 +1123,7 @@ export const contentService = {
     tenantId?: string | null,
     adapter?: IDBAdapter,
   ): Promise<any[]> {
-    const db = adapter || (await (await import("@src/databases/db")).getDb());
+    const db = adapter || (await (await loadDbModule()).getDb());
     if (!db) return [];
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
@@ -1126,7 +1137,7 @@ export const contentService = {
   },
 
   async reorderNodes(items: any[], tenantId?: string | null): Promise<void> {
-    const db = await (await import("@src/databases/db")).getDb();
+    const db = await (await loadDbModule()).getDb();
     const result = await db!.content.nodes.reorderStructure(items);
     // Never swallow a failed reorder: callers read the structure straight back and
     // return it to the client, so a silent failure ships a stale order as "saved".
@@ -1137,7 +1148,7 @@ export const contentService = {
   },
 
   async upsertContentNodes(operations: any[], tenantId?: string | null, adapter?: IDBAdapter) {
-    const dbAdapter = adapter || (await import("@src/databases/db")).dbAdapter;
+    const dbAdapter = adapter || (await loadDbModule()).dbAdapter;
     if (!dbAdapter || operations.length === 0) return;
 
     const upsertOps = operations.filter((op) => op.type !== "delete");
@@ -1188,29 +1199,63 @@ export const contentService = {
     contentStore.updateVersion();
   },
 
+  /**
+   * Point a category at a new path after its folder moved.
+   * Deletes the old path first so SQL and Mongo both end on one row.
+   */
+  async replaceContentNodePaths(
+    changes: { oldPath: string; node: ContentNode }[],
+    tenantId?: string | null,
+    adapter?: IDBAdapter,
+  ): Promise<void> {
+    const dbAdapter = adapter || (await loadDbModule()).dbAdapter;
+    if (!dbAdapter || changes.length === 0) return;
+
+    const oldPaths = changes.map((change) => change.oldPath).filter(Boolean);
+    const removed = await dbAdapter.content.nodes.deleteMany(oldPaths, {
+      tenantId: tenantId as any,
+    });
+    if (!removed.success) {
+      throw new Error(removed.message || "Failed to move a category path");
+    }
+
+    const saved = await dbAdapter.content.nodes.bulkUpdate(
+      changes.map((change) => ({
+        path: change.node.path!,
+        id: change.node._id?.toString(),
+        changes: change.node,
+      })),
+      { tenantId: tenantId as any },
+    );
+    if (!saved.success) {
+      throw new Error(saved.message || "Failed to store a moved category path");
+    }
+    contentStore.updateVersion();
+  },
+
   async find(collection: string, query: any, options?: any) {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
     return db.crud.findMany(collection, query, options);
   },
 
   async findOne(collection: string, query: any, options?: any) {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
     return db.crud.findOne(collection, query, options);
   },
 
   async insert(collection: string, data: any, options?: any) {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
     return db.crud.insert(collection, data, options);
   },
 
   async update(collection: string, id: string, data: any, options?: any) {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
     // Adapter contract: crud.update(collection, id, data, options) — id-first.
@@ -1218,7 +1263,7 @@ export const contentService = {
   },
 
   async delete(collection: string, id: string, options?: any) {
-    const { getDb } = await import("@src/databases/db");
+    const { getDb } = await loadDbModule();
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
     // Adapter contract: crud.delete(collection, id, options) — id-first.
@@ -1265,7 +1310,7 @@ export async function refreshContent(
 
   if (mode === "incremental") {
     if (options.changedFile) {
-      const dbAdapter = options.adapter || (await (await import("@src/databases/db")).getDb());
+      const dbAdapter = options.adapter || (await (await loadDbModule()).getDb());
       if (!dbAdapter) return;
       await contentService.handleIncrementalReload(options.changedFile, tenantId, dbAdapter);
       return;
@@ -1275,7 +1320,7 @@ export async function refreshContent(
     });
   }
 
-  const dbAdapter = options.adapter || (await (await import("@src/databases/db")).getDb());
+  const dbAdapter = options.adapter || (await (await loadDbModule()).getDb());
   if (!dbAdapter) return;
   await contentService.fullReload(
     tenantId,

@@ -18,6 +18,12 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import type { DatabaseId } from "@src/content/types";
 import type { MediaService } from "@src/utils/media/media-service.server";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 /**
  * Max concurrent `saveMedia` calls for one multi-file field value. Bounded so a
  * 20-file widget upload can neither blow memory (concurrent sharp pipelines +
@@ -159,7 +165,7 @@ export async function processMediaUpload(
 
   try {
     const { MediaService } = await import("@src/utils/media/media-service.server");
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
 
     if (!dbAdapter) {
       logger.error("[MediaUpload] Database adapter not available for upload");

@@ -11,6 +11,8 @@
  * - Filesystem write + compile pipeline for setup completion
  */
 
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Schema } from "@src/content/types";
 import type { CollectionPreset, FieldTemplate } from "./presets";
 import { PRESETS } from "./presets";
@@ -51,8 +53,6 @@ export function isMockScanCollection(id: string, displayName?: string): boolean 
 export async function purgeBenchmarkCollectionArtifacts(options?: {
   wipeAllSource?: boolean;
 }): Promise<number> {
-  const pathMod = await import("node:path");
-  const fs = await import("node:fs/promises");
   const { USER_COLLECTIONS_DIR, USER_COMPILED_DIR, cleanupAllBenchmarkWorkspaces } =
     await import("@utils/benchmark-paths");
 
@@ -71,7 +71,7 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
         // Only recurse into test-collections/ (handled by cleanupAllBenchmarkWorkspaces) or full wipe
         if (entry.name === "test-collections") continue;
         if (wipeAll) {
-          await fs.rm(pathMod.join(dir, entry.name), {
+          await fs.rm(path.join(dir, entry.name), {
             recursive: true,
             force: true,
           });
@@ -81,7 +81,7 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
       }
       if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js")) continue;
       if (wipeAll || isBenchmarkArtifact(entry.name)) {
-        await fs.unlink(pathMod.join(dir, entry.name)).catch(() => {});
+        await fs.unlink(path.join(dir, entry.name)).catch(() => {});
         removed++;
       }
     }
@@ -314,8 +314,6 @@ export async function writePresetCollectionFiles(
   collections: CollectionPreset[],
   options: WritePresetFilesOptions = {},
 ): Promise<void> {
-  const path = await import("node:path");
-  const fs = await import("node:fs/promises");
   const { getCollectionsPath, getCompiledCollectionsPath } = await import("@utils/tenant.server");
 
   const dir = getCollectionsPath(options.tenantId);

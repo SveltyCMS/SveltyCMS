@@ -4,7 +4,11 @@
  */
 
 import { logger } from "@utils/logger";
-import { SqlAdapterCore } from "../core/sql-adapter-core";
+import {
+  SqlAdapterCore,
+  boundedSqlIndexName,
+  type ListIndexRequest,
+} from "../core/sql-adapter-core";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
 import type {
   BaseEntity,
@@ -31,6 +35,8 @@ import {
 import { generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
+import fs, { statSync } from "node:fs";
+import nodePath from "node:path";
 // Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
 import * as schema from "./schema";
 import { sql, type SQL } from "drizzle-orm";
@@ -47,8 +53,9 @@ import {
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
-import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
+import { SqlQueryBuilder, SQLITE_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
+import { WriteBatcher, type PendingWrite } from "./write-batcher";
 import { withMigrationLock } from "../migration-lock";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
@@ -59,6 +66,22 @@ import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
  * lookup sits on the hot write path.
  */
 const PROFILE_DB_ENABLED = typeof process !== "undefined" && process.env.PROFILE_DB === "1";
+
+/**
+ * `SVELTY_SQLITE_GROUP_COMMIT=1` (default OFF) routes single-statement writes
+ * through `WriteBatcher`: writes queued during one drain share a single
+ * `BEGIN IMMEDIATE … COMMIT` instead of one commit each. Read once at boot —
+ * a per-statement env lookup would sit on the hot write path.
+ */
+const SQLITE_GROUP_COMMIT_ENABLED =
+  typeof process !== "undefined" && process.env.SVELTY_SQLITE_GROUP_COMMIT === "1";
+
+/**
+ * Only DML/DDL statements may join a group transaction. Transaction-control and
+ * PRAGMA statements stay on the direct mutex path — nesting a raw `BEGIN` inside
+ * the batch's `BEGIN IMMEDIATE` (or running `wal_checkpoint` inside a txn) is invalid.
+ */
+const BATCHABLE_WRITE_RE = /^\s*(?:insert|update|delete|replace|create|drop|alter)\b/i;
 
 // --- Types ---
 export type SQLiteConfig = { connectionString?: string; readonly?: boolean };
@@ -78,6 +101,11 @@ class Mutex {
   private _locked = false;
   private _waiting: Array<() => void> = [];
   private storage = new AsyncLocalStorage<boolean>();
+
+  /** True when the caller's async context already holds the lock (re-entrant span). */
+  isHeld(): boolean {
+    return this.storage.getStore() === true;
+  }
 
   async runExclusive<T>(fn: () => T | Promise<T>): Promise<T> {
     if (this.storage.getStore()) {
@@ -155,6 +183,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
+
+  /**
+   * Opt-in (`SVELTY_SQLITE_GROUP_COMMIT=1`) group-commit batcher. Lazily built per
+   * adapter instance because its runner needs this instance's connection.
+   */
+  private _writeBatcher: WriteBatcher | null = null;
 
   /**
    * Clear all cached prepared statements (call after any DDL that changes
@@ -1263,6 +1297,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   protected _sqlite: SQLiteClient | null = null;
   protected _db: SQLiteDB | null = null;
+  /** Absolute path of the main database file (used to size the `-wal` sidecar). */
+  protected _resolvedDbPath: string | null = null;
   protected connections = new Map<
     string,
     { sqlite: SQLiteClient; db: SQLiteDB; statementCache: Map<string, any> }
@@ -1373,6 +1409,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
       this._sqlite = sqlite;
       this._db = db;
+      this._resolvedDbPath = dbPath;
       this.applyPragmas(sqlite);
       this._statementCache.clear();
 
@@ -1396,6 +1433,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     try {
       this.state = "closing";
       this._versionCache = null;
+      this._resolvedDbPath = null;
       this._statementCache.clear();
       this._sqlite?.close();
 
@@ -1430,6 +1468,49 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }
       }, 50);
     });
+  }
+
+  /**
+   * Covering index for a query-builder list sorted by a physical column other
+   * than `updatedAt`. Deferred one tick so the read that discovered the sort
+   * does not wait on the build.
+   */
+  protected override scheduleListSortIndex(tableName: string, plan: ListIndexRequest): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const safeCol = assertSafeSqlIdentifier(plan.column, "column");
+    const indexName = assertSafeSqlIdentifier(
+      boundedSqlIndexName(`${tableName}_${plan.column}_${plan.withTenant ? "t" : "o"}_list_id`),
+      "index",
+    );
+    const cols = plan.withTenant ? `("tenantId", "${safeCol}", "_id")` : `("${safeCol}", "_id")`;
+    const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols}`;
+    setTimeout(() => {
+      try {
+        this.prepareAndExecuteWrite(ddl, "run");
+      } catch (err) {
+        logger.debug(
+          `[SQLite] list index failed for ${tableName}.${plan.column}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }, 0);
+  }
+
+  public override get sqlDialect(): SqlDialect {
+    return SQLITE_DIALECT;
+  }
+
+  /**
+   * Run a compiled list/count statement on the prepared statement cache.
+   * Direct invocation bypasses regex branching and wrapper allocation in `raw.execute`.
+   */
+  public override async executeCompiled(
+    sqlText: string,
+    params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): Promise<unknown[]> {
+    const rows = this.executePreparedStatement(sqlText, "all", params);
+    return Array.isArray(rows) ? rows : [];
   }
 
   public queryBuilder<_T extends BaseEntity>(collection: string): any {
@@ -1534,9 +1615,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   public async initWorkerConnection(index: string): Promise<void> {
     if (this.connections.has(index)) return;
-    const path = await import("node:path");
     const base = await this.resolvePath(this.config);
-    const ext = path.extname(base);
+    const ext = nodePath.extname(base);
     // The base may resolve WITHOUT an extension (config-fallback path builds
     // `<folder>/<dbName>`). extname would be "" and replace() would then
     // PREPEND the suffix to the absolute path → an invalid worker file
@@ -1590,6 +1670,14 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     method: "all" | "get" | "run" | "values" = "all",
     ...params: any[]
   ): any {
+    return this.executePreparedStatement(sqlText, method, params);
+  }
+
+  public executePreparedStatement(
+    sqlText: string,
+    method: "all" | "get" | "run" | "values" = "all",
+    params: readonly unknown[] = [],
+  ): any {
     const client = this.sqlite;
     let stmt = this._statementCache.get(sqlText);
     if (!stmt) {
@@ -1613,7 +1701,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       //   into {"type":"Buffer",...} text)
       // - plain objects → JSON text
       const len = params.length;
-      let bound = params;
+      let bound: readonly unknown[] = params;
       if (len > 0) {
         let needsCoerce = false;
         for (let i = 0; i < len; i++) {
@@ -1624,16 +1712,17 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
         }
         if (needsCoerce) {
-          bound = [];
-          bound.length = len;
+          const coerced: unknown[] = [];
+          coerced.length = len;
           for (let i = 0; i < len; i++) {
             const p = params[i];
-            if (typeof p === "boolean") bound[i] = p ? 1 : 0;
-            else if (p instanceof Date) bound[i] = p.getTime();
-            else if (p instanceof Uint8Array) bound[i] = p;
-            else if (p !== null && typeof p === "object") bound[i] = JSON.stringify(p);
-            else bound[i] = p;
+            if (typeof p === "boolean") coerced[i] = p ? 1 : 0;
+            else if (p instanceof Date) coerced[i] = p.getTime();
+            else if (p instanceof Uint8Array) coerced[i] = p;
+            else if (p !== null && typeof p === "object") coerced[i] = JSON.stringify(p);
+            else coerced[i] = p;
           }
+          bound = coerced;
         }
       }
       let out: any;
@@ -1665,15 +1754,130 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
    * are not serialized behind it. Reentrant: inside an active withWriteLock
    * span / transaction (AsyncLocalStorage) the lock is already held and
    * execution is direct.
+   *
+   * With `SVELTY_SQLITE_GROUP_COMMIT=1` a batchable statement is submitted to the
+   * group-commit batcher instead, so writes queued in the same drain share one
+   * commit. Unless opted in this is byte-for-byte the previous direct path.
    */
   public prepareAndExecuteWrite(
     sqlText: string,
     method: "all" | "get" | "run" | "values" = "all",
     ...params: any[]
   ): any {
+    const batcher = this.getWriteBatcher();
+    if (
+      batcher &&
+      !SQLiteAdapterCore.writeMutex.isHeld() &&
+      !testWorkerContext.getStore() &&
+      BATCHABLE_WRITE_RE.test(sqlText)
+    ) {
+      return batcher.submit(() => this.prepareAndExecute(sqlText, method, ...params));
+    }
     return SQLiteAdapterCore.writeMutex.runExclusive(() =>
       this.prepareAndExecute(sqlText, method, ...params),
     );
+  }
+
+  /** Lazily build the group-commit batcher; `null` unless the env flag opted in. */
+  private getWriteBatcher(): WriteBatcher | null {
+    if (!SQLITE_GROUP_COMMIT_ENABLED) return null;
+    if (!this._writeBatcher) {
+      this._writeBatcher = new WriteBatcher({
+        runSingle: (job) =>
+          SQLiteAdapterCore.writeMutex.runExclusive(() => {
+            try {
+              job.resolve(job.run());
+            } catch (error) {
+              job.reject(error);
+            }
+          }),
+        runBatch: (jobs) =>
+          SQLiteAdapterCore.writeMutex.runExclusive(() => this.runGroupCommit(jobs)),
+      });
+    }
+    return this._writeBatcher;
+  }
+
+  /**
+   * Run a drained batch of writes inside one `BEGIN IMMEDIATE … COMMIT`.
+   *
+   * Each op gets its own `SAVEPOINT`, so a failing statement rolls back only its
+   * own changes (`ROLLBACK TO`) and the rest of the batch still commits — one
+   * op's failure never corrupts a sibling's result. Results are buffered and
+   * settled only after `COMMIT` succeeds, so a commit failure rejects every op
+   * rather than resolving writes that were rolled back.
+   *
+   * Synchronous on purpose: nothing can interleave on the single connection while
+   * the batch transaction is open.
+   */
+  private runGroupCommit(jobs: PendingWrite[]): void {
+    const client = this.sqlite;
+    const outcomes: Array<{
+      job: PendingWrite;
+      value?: unknown;
+      error?: unknown;
+      failed: boolean;
+    }> = [];
+    let committed = false;
+    try {
+      client.exec("BEGIN IMMEDIATE");
+      let index = 0;
+      for (const job of jobs) {
+        const savepoint = `svelty_gc_${index++}`;
+        client.exec(`SAVEPOINT ${savepoint}`);
+        try {
+          outcomes.push({ job, value: job.run(), failed: false });
+        } catch (error) {
+          outcomes.push({ job, error, failed: true });
+          try {
+            client.exec(`ROLLBACK TO ${savepoint}`);
+          } catch {
+            /* the statement's own failure already rolled the savepoint back */
+          }
+          try {
+            client.exec(`RELEASE ${savepoint}`);
+          } catch {
+            /* already released/rolled back */
+          }
+          continue;
+        }
+        client.exec(`RELEASE ${savepoint}`);
+      }
+      client.exec("COMMIT");
+      committed = true;
+    } catch (error) {
+      if (!committed) {
+        try {
+          client.exec("ROLLBACK");
+        } catch {
+          /* no active transaction (already aborted) */
+        }
+      }
+      // Anything buffered so far is undurable; ops not yet reached stay unsettled
+      // and the batcher's safety net rejects them.
+      for (const outcome of outcomes) outcome.job.reject(outcome.failed ? outcome.error : error);
+      return;
+    }
+    for (const outcome of outcomes) {
+      if (outcome.failed) outcome.job.reject(outcome.error);
+      else outcome.job.resolve(outcome.value);
+    }
+  }
+
+  /**
+   * Size of the `-wal` sidecar in bytes (0 for `:memory:`, or when it does not
+   * exist). Feeds the scheduled checkpoint's WAL-size cap so a never-idle server
+   * cannot grow the log without bound.
+   */
+  public getWalSizeBytes(): number {
+    const dbPath = this._resolvedDbPath;
+    if (!dbPath || dbPath === ":memory:") return 0;
+    try {
+      const base = dbPath.startsWith("file:") ? dbPath.replace(/^file:\/\//, "") : dbPath;
+      return statSync(`${base}-wal`).size;
+    } catch {
+      return 0;
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -2397,8 +2601,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const rawTimeout = process.env.SQLITE_BUSY_TIMEOUT?.trim();
     const busyTimeout = rawTimeout && /^\d+$/.test(rawTimeout) ? rawTimeout : "30000";
 
+    // Off-request-path checkpointing is the default: disable SQLite's synchronous
+    // auto-checkpoint and let `startWalHousekeeping()` run PASSIVE checkpoints when
+    // the server is idle (plus a WAL-size cap). The 2026-09-27 A/B (achievements
+    // §3.35) put every >10 ms write stall in the auto-checkpoint's synchronous fsync
+    // path. An explicit SQLITE_WAL_AUTOCHECKPOINT still wins (classic behavior).
     const rawCheckpoint = process.env.SQLITE_WAL_AUTOCHECKPOINT?.trim();
-    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "4000";
+    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "0";
 
     const hw = getHardwareProfile();
     const cacheSizeKb = hw.sqliteCacheSizeKb;
@@ -2457,9 +2666,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   private async resolvePath(config: string | SQLiteConfig): Promise<string> {
-    const path = await import("node:path");
-    const fs = await import("node:fs");
-
     let dbPath = typeof config === "string" ? config : config.connectionString;
 
     // Host may be a direct SQLite file path (test bridge passes host=auditFile
@@ -2539,11 +2745,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       );
     }
 
-    if (dbPath !== ":memory:" && !path.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
-      dbPath = path.resolve(process.cwd(), dbPath);
+    if (dbPath !== ":memory:" && !nodePath.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
+      dbPath = nodePath.resolve(process.cwd(), dbPath);
     }
 
-    const dir = path.dirname(dbPath.replace("file:///", ""));
+    const dir = nodePath.dirname(dbPath.replace("file:///", ""));
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }

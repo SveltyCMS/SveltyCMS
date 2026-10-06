@@ -10,6 +10,12 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import type { Tenant, TenantQuota } from "@src/databases/db-interface";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
@@ -30,7 +36,7 @@ export class TenantService {
   constructor() {}
 
   private async getDbAdapter() {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     return dbAdapter;
   }
 

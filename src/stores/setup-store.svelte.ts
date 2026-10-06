@@ -21,6 +21,15 @@ import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/s
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { safeParse } from "valibot";
+// Static import: +page.svelte already pulls setup.remote into the setup chunk,
+// so the previous dynamic imports could never move it into a separate chunk.
+import {
+  completeSetup as completeSetupRemote,
+  probeRedis as probeRemote,
+  seedDatabase as seedDbRemote,
+  testDatabaseConnection as testDbRemote,
+  testRedisConnection as testRedisRemote,
+} from "../routes/setup/setup.remote";
 
 // --- Types ---
 export type SupportedDbType =
@@ -434,7 +443,6 @@ function createSetupStore() {
     wizard.lastDbTestResult = null;
 
     try {
-      const { testDatabaseConnection: testDbRemote } = await import("../routes/setup/setup.remote");
       const data = await testDbRemote({
         configData: wizard.dbConfig,
         createIfMissing,
@@ -501,7 +509,6 @@ function createSetupStore() {
     wizard.isLoading = true;
 
     try {
-      const { seedDatabase: seedDbRemote } = await import("../routes/setup/setup.remote");
       const data = await seedDbRemote({
         configData: wizard.dbConfig,
         systemData: wizard.systemSettings,
@@ -570,7 +577,6 @@ function createSetupStore() {
 
     try {
       logger.debug("[SetupStore] Calling completeSetup remote function...");
-      const { completeSetup: completeSetupRemote } = await import("../routes/setup/setup.remote");
       const data = await completeSetupRemote({
         database: wizard.dbConfig,
         admin: wizard.adminUser,
@@ -685,7 +691,6 @@ function createSetupStore() {
     wizard.lastRedisTestResult = null;
 
     try {
-      const { testRedisConnection: testRedisRemote } = await import("../routes/setup/setup.remote");
       const data = await testRedisRemote({
         host: wizard.systemSettings.redisHost,
         port: Number(wizard.systemSettings.redisPort),
@@ -719,7 +724,6 @@ function createSetupStore() {
 
   async function probeRedis(): Promise<boolean> {
     try {
-      const { probeRedis: probeRemote } = await import("../routes/setup/setup.remote");
       const res = await probeRemote({});
       wizard.redisAvailable = res;
       return res;

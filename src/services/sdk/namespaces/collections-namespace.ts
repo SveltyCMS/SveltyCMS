@@ -113,6 +113,12 @@ import {
 } from "./collections/post-write";
 import { scheduleDefaultListWarm } from "./collections/list-warm";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 type ContentSystem = typeof serverContentSystem;
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
@@ -301,7 +307,7 @@ let resolvedContentSystem: ContentSystem | null = null;
 
 async function getContentSystem(): Promise<ContentSystem> {
   if (!resolvedContentSystem) {
-    const mod = await import("@src/content/index.server");
+    const mod = await loadContentModule();
     resolvedContentSystem = mod.contentSystem;
   }
   return resolvedContentSystem;

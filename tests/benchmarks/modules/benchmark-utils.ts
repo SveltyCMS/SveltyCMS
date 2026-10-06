@@ -223,7 +223,7 @@ afterAll(async () => {
     const { cleanupAllBenchmarkWorkspaces } = await import("@utils/benchmark-paths");
     await cleanupAllBenchmarkWorkspaces().catch(() => {});
   }
-});
+}, 30_000);
 
 // 🚀 UNIFIED LOGGING: High-frequency benchmarks use 'error' by default, 'debug' only if requested.
 

@@ -31,7 +31,13 @@ import type {
   WebhookOperationConfig,
 } from "./types";
 
-const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter;
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+const getDbAdapter = async () => (await loadDbModule()).dbAdapter;
 
 /**
  * Singleton automation service.

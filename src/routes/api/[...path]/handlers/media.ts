@@ -44,6 +44,14 @@ import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
 import type { MediaItem } from "@utils/media/media-models";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function hasMediaPermission(event: RequestEvent, user: unknown, permission: string): boolean {
@@ -268,7 +276,7 @@ export async function handleMediaList(
   tenantId: DatabaseId,
   url: URL,
 ) {
-  const { cacheService } = await import("@src/databases/cache/cache-service");
+  const { cacheService } = await loadCacheServiceModule();
   const cacheKey = `media:list:${tenantId || "global"}:${url.search}`;
   const cached = cacheService.getSync<any>(cacheKey, tenantId as string);
   if (cached) return rawResponse(event, cached);

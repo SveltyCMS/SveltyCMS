@@ -33,6 +33,20 @@ import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
 import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 type SeedNodeSource = "filesystem" | "database";
 
 function normalizeSeedCollectionSchema(schema: Schema, order: number): Schema {
@@ -903,10 +917,10 @@ export async function seedCollectionsForSetup(
   }
 }
 
-function seedRowId(row: unknown): string {
+function seedRowId(row: unknown): DatabaseId | "" {
   if (!row || typeof row !== "object" || !("_id" in row)) return "";
   const id = (row as { _id?: unknown })._id;
-  return id == null ? "" : String(id);
+  return id == null ? "" : (String(id) as DatabaseId);
 }
 
 /**
@@ -1016,7 +1030,7 @@ export async function seedWebsiteStarterPages(
       const { evictRequestCache } =
         await import("@src/services/sdk/namespaces/collections/request-cache");
       evictRequestCache("pages", (tenantId ?? undefined) as string | undefined);
-      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       cacheService.bumpCollectionEpoch("pages", tenantId);
       await cacheService.invalidateCollection(
         "pages",
@@ -1130,13 +1144,18 @@ export async function persistInstallMarket(
     };
     const existingId = rows.length > 0 ? seedRowId(rows[0]) : "";
     if (existingId && dbAdapter.crud.update) {
-      await dbAdapter.crud.update("pluginStates", existingId, { settings }, scope);
+      await dbAdapter.crud.update("pluginStates", existingId, { settings } as never, scope);
       return;
     }
     if (rows.length === 0) {
       await dbAdapter.crud.insert(
         "pluginStates",
-        { pluginId: "commerce", tenantId, enabled: false, settings },
+        {
+          pluginId: "commerce",
+          tenantId: (tenantId || undefined) as DatabaseId | undefined,
+          enabled: false,
+          settings,
+        } as never,
         scope,
       );
     }
@@ -1320,7 +1339,7 @@ export async function initSystemFromSetup(
     const [seedResults] = await Promise.all([
       (async () => {
         // NEW: Use contentSystem for unified seeding
-        const { contentSystem } = await import("@src/content/index.server");
+        const { contentSystem } = await loadContentModule();
         await contentSystem.initialize(tenantId, { force: false, transaction: tx }, adapter);
 
         if (isDemoSeed) {
@@ -1431,7 +1450,7 @@ export async function initSystemFast(
     // This creates the database tables/collections pre-emptively
     try {
       logger.debug("📦 Pre-registering collection models...");
-      const mod = await import("@src/content/index.server");
+      const mod = await loadContentModule();
       const cs = mod.contentSystem || mod.default || mod;
 
       if (cs && typeof cs.initialize === "function") {
@@ -1459,7 +1478,7 @@ export async function initSystemFast(
       return;
     }
     try {
-      const mod = await import("@src/content/index.server");
+      const mod = await loadContentModule();
       const cs = mod.contentSystem || mod.default || mod;
       if (cs && typeof cs.initialize === "function") {
         await cs.initialize(tenantId, { force: true, skipApiSpec: true }, adapter);
@@ -2121,7 +2140,7 @@ export async function seedDemoTenant(
 
   // 5. Initialize Content Structure in contentSystem
   try {
-    const { contentSystem } = await import("@src/content/index.server");
+    const { contentSystem } = await loadContentModule();
     await contentSystem.initialize(
       tenantId,
       { force: true, ...(options?.transaction && { transaction: options.transaction }) },

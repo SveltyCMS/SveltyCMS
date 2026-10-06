@@ -583,7 +583,7 @@ export class MediaService {
         "media_items",
         record._id,
         patch as unknown as EntityUpdate<DbMediaItem>,
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (!updateResult.success) {
         logger.warn(
@@ -626,7 +626,7 @@ export class MediaService {
       "media_items",
       record._id,
       patch as unknown as EntityUpdate<DbMediaItem>,
-      { tenantId: tenantId ?? undefined },
+      { tenantId: tenantId },
     );
     if (!updateResult.success) {
       logger.warn(
@@ -712,7 +712,7 @@ export class MediaService {
         const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
 
         const existing = await this.files.getByHash(hash, {
-          tenantId: tenantId ?? undefined,
+          tenantId: tenantId,
         });
         if (existing.success && existing.data) {
           // SVG has no derivative pipeline, so a plain reuse is already zero-work.
@@ -733,9 +733,9 @@ export class MediaService {
             thumbnails: {},
             access: _access,
             folderId,
-            tenantId: tenantId ?? undefined,
+            tenantId: tenantId,
           } as unknown as EntityCreate<DbMediaItem>,
-          { tenantId: tenantId ?? undefined },
+          { tenantId: tenantId },
         )) as unknown as DatabaseResult<MediaItem>;
       }
 
@@ -774,7 +774,7 @@ export class MediaService {
         // 1. Content-hash dedupe BEFORE any derivative work (media pipeline plan §3 #2):
         //    re-uploading identical bytes must cost zero encodes and zero derivative writes.
         const existing = await this.files.getByHash(hash, {
-          tenantId: tenantId ?? undefined,
+          tenantId: tenantId,
         });
         const staleRecord = existing.success && existing.data ? existing.data : undefined;
         const missing = staleRecord ? await this.findMissingStoredFile(staleRecord) : null;
@@ -838,9 +838,9 @@ export class MediaService {
             thumbnails: imageThumbnails,
             access: _access,
             folderId,
-            tenantId: tenantId ?? undefined,
+            tenantId: tenantId,
           } as unknown as EntityCreate<DbMediaItem>,
-          { tenantId: tenantId ?? undefined },
+          { tenantId: tenantId },
         )) as unknown as DatabaseResult<MediaItem>;
 
         // 🚀 DEFER responsive variant generation off the request path — the
@@ -920,7 +920,7 @@ export class MediaService {
         // plan §3 #2: identical bytes must not re-encode, and the variant job must not be
         // scheduled at all.
         const existing = await this.files.getByHash(hash, {
-          tenantId: tenantId ?? undefined,
+          tenantId: tenantId,
         });
         const staleRecord = existing.success && existing.data ? existing.data : undefined;
         const missing = staleRecord ? await this.findMissingStoredFile(staleRecord) : null;
@@ -969,9 +969,9 @@ export class MediaService {
             thumbnails: {},
             access: _access,
             folderId,
-            tenantId: tenantId ?? undefined,
+            tenantId: tenantId,
           } as unknown as EntityCreate<DbMediaItem>,
-          { tenantId: tenantId ?? undefined },
+          { tenantId: tenantId },
         );
 
         // For large streamed files, try variant generation by re-reading from storage.
@@ -1135,7 +1135,7 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<void> {
     const res = await this.db.crud.update("media", mediaId as DatabaseId, data, {
-      tenantId: tenantId ?? undefined,
+      tenantId: tenantId,
     });
     if (!res.success) throw new Error(res.message);
   }
@@ -1146,7 +1146,7 @@ export class MediaService {
       const existing = await this.db.crud.findOne<DbMediaItem>(
         "media",
         { _id: fileId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (existing.success && existing.data?.hash) {
         // Clean up responsive image variants asynchronously
@@ -1162,7 +1162,7 @@ export class MediaService {
     }
 
     const res = await this.files.delete(fileId as DatabaseId, {
-      tenantId: tenantId ?? undefined,
+      tenantId: tenantId,
     });
     if (!res.success) throw new Error(res.message);
   }
@@ -1180,7 +1180,7 @@ export class MediaService {
     const res = await this.db.crud.findOne<DbMediaItem>(
       "media",
       { _id: id as DatabaseId },
-      { tenantId: tenantId ?? undefined },
+      { tenantId: tenantId },
     );
     if (!res.success || !res.data) throw new Error("Media not found");
     const existing = res.data;
@@ -1486,9 +1486,9 @@ export class MediaService {
           access: existing.access || "public",
           folderId: existing.folderId ?? undefined,
           originalId: id,
-          tenantId: tenantId ?? undefined,
+          tenantId: tenantId,
         } as unknown as EntityCreate<DbMediaItem>,
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (!uploadResult.success || !uploadResult.data)
         throw new Error("Failed to create new media record");
@@ -1539,7 +1539,7 @@ export class MediaService {
     const finalRes = await this.db.crud.findOne<DbMediaItem>(
       "media",
       { _id: id as DatabaseId },
-      { tenantId: tenantId ?? undefined },
+      { tenantId: tenantId },
     );
     if (!finalRes.success || !finalRes.data) throw new Error("Failed to retrieve updated media");
     return this.enrichMediaWithUrl(
@@ -1727,11 +1727,7 @@ export class MediaService {
       const collectionName = collectionTableName(schema._id as string);
       const collectionLabel = schema.name || schema._id || "";
       try {
-        const res = await this.db.crud.findMany(
-          collectionName,
-          {},
-          { tenantId: tenantId ?? undefined },
-        );
+        const res = await this.db.crud.findMany(collectionName, {}, { tenantId: tenantId });
         if (res.success && Array.isArray(res.data)) {
           for (const entry of res.data) {
             const entryAny = entry as unknown as Record<string, unknown>;
@@ -1800,7 +1796,7 @@ export class MediaService {
       const res = await this.db.crud.findOne<DbMediaItem>(
         "media",
         { _id: mediaId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (!res.success || !res.data) {
         throw new Error("Original media item not found");
@@ -1878,12 +1874,12 @@ export class MediaService {
           metadata: versionMetadata,
           thumbnails: {},
           access: existing.access || "public",
-          tenantId: tenantId ?? undefined,
+          tenantId: tenantId,
           stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
           arrayBuffer:
             typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
         } as unknown as EntityCreate<DbMediaItem>,
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
 
       if (!uploadRes.success || !uploadRes.data) {
@@ -1940,7 +1936,7 @@ export class MediaService {
       const finalRes = await this.db.crud.findOne<DbMediaItem>(
         "media",
         { _id: mediaId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (finalRes.success && finalRes.data) {
         return {
@@ -1977,7 +1973,7 @@ export class MediaService {
       const res = await this.db.crud.findOne<DbMediaItem>(
         "media",
         { _id: mediaId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (!res.success || !res.data) {
         throw new Error("Media item not found");
@@ -2029,7 +2025,7 @@ export class MediaService {
       const finalRes = await this.db.crud.findOne<DbMediaItem>(
         "media",
         { _id: mediaId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
+        { tenantId: tenantId },
       );
       if (finalRes.success && finalRes.data) {
         return {

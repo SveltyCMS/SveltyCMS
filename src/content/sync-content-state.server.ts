@@ -10,6 +10,7 @@
  * - Watcher path: **compile → surgical refresh → model provision → metrics**
  * - Structured HMR payload fields (`changedIds`, `changedNodes`, `contentVersion`, `noOp`)
  * - Path roots always via `tenant.server` (`getCollectionsPath` / `getCompiledCollectionsPath`)
+ * - Builder categories create a real directory under both collection roots
  *
  * ### Reasons:
  * `boot` | `compile` | `gui-save` | `watcher` | `sidebar-reorder` | `collection-save`
@@ -21,6 +22,12 @@ import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNode, ContentNodeOperation, Schema } from "./types";
 import { getSchemaPath } from "./first-collection";
 import { compile } from "@utils/compilation/compile";
+import {
+  ensureCategoryDirectories,
+  moveCategoryDirectories,
+  planCategoryDirectoryMoves,
+  removeEmptyCategoryDirectories,
+} from "@utils/compilation/category-directories";
 import type { CompilationResult } from "@utils/compilation/types";
 import { logger } from "@utils/logger";
 import {
@@ -595,6 +602,7 @@ async function applyGuiStructureSave(
   );
   const collectionFilesToDelete: string[] = [];
   const compiledFilesToDelete: string[] = [];
+  const categoriesToRemove: ContentNode[] = [];
   if (deletedPaths.size > 0) {
     const current = (await contentService.getContentStructureFromDatabase(
       "flat",
@@ -603,12 +611,15 @@ async function applyGuiStructureSave(
     )) as ContentNode[];
     const compiledBase = getCompiledCollectionsPath(tenantId);
     for (const node of current) {
-      if (node.nodeType === "collection" && deletedPaths.has(node.path ?? "")) {
+      if (!deletedPaths.has(node.path ?? "")) continue;
+      if (node.nodeType === "collection") {
         collectionFilesToDelete.push(getCollectionFilePath(node.name, tenantId));
         if (node.name) {
           const safeName = path.basename(node.name, ".ts");
           compiledFilesToDelete.push(path.join(compiledBase, `${safeName}.js`));
         }
+      } else if (node.nodeType === "category" || node.nodeType === "folder") {
+        categoriesToRemove.push(node);
       }
     }
   }
@@ -624,6 +635,13 @@ async function applyGuiStructureSave(
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     });
   }
+  const { userCollections, compiledCollections } = resolvePathRoots(tenantId);
+  if (categoriesToRemove.length > 0) {
+    await removeEmptyCategoryDirectories(categoriesToRemove, [
+      userCollections,
+      compiledCollections,
+    ]);
+  }
   const updated = (await contentService.getContentStructureFromDatabase(
     "flat",
     tenantId,
@@ -631,6 +649,31 @@ async function applyGuiStructureSave(
   )) as ContentNode[];
 
   contentStore.batchUpsert(updated);
+
+  // Dragging a category under another parent renames the directory.
+  // Sibling reorder keeps the same folder and only updates `order`.
+  const directoryMoves = planCategoryDirectoryMoves(updated);
+  if (directoryMoves.length > 0) {
+    const movedIds = await moveCategoryDirectories(directoryMoves, [
+      userCollections,
+      compiledCollections,
+    ]);
+    const pathChanges: { oldPath: string; node: ContentNode }[] = [];
+    for (const move of directoryMoves) {
+      if (!movedIds.has(move.id)) continue;
+      const node = updated.find((candidate) => String(candidate._id) === move.id);
+      if (!node?.path || node.path === move.path) continue;
+      const oldPath = node.path;
+      node.path = move.path;
+      pathChanges.push({ oldPath, node: { ...node, path: move.path } });
+    }
+    if (pathChanges.length > 0) {
+      await contentService.replaceContentNodePaths(pathChanges, tenantId, _adapter);
+    }
+  }
+
+  // A new category has no .ts file. The directory is the folder the builder shows.
+  await ensureCategoryDirectories(updated, [userCollections, compiledCollections]);
 
   const { order, structureNodes } = buildOrganizationalManifestFromNodes(updated);
   await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
@@ -750,7 +793,13 @@ async function compileAndRefresh(
   const singleJs =
     result.compiled.changedJsPaths.length === 1 ? result.compiled.changedJsPaths[0] : null;
 
-  if (singleJs && result.compiled.orphanedFiles.length === 0) {
+  if (result.compiled.structureChanged) {
+    await refreshContent(options.tenantId, {
+      mode: "full",
+      adapter: options.adapter,
+      skipReconciliation: options.skipReconciliation,
+    });
+  } else if (singleJs && result.compiled.orphanedFiles.length === 0) {
     await refreshContent(options.tenantId, {
       mode: "incremental",
       adapter: options.adapter,

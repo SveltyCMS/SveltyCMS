@@ -45,6 +45,12 @@ import {
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getTurboAuthContext } from "./handle-turbo-get";
 import { logger } from "@src/utils/logger";
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 // Hook is initialized lazily
 let cachedDbAdapter: any = null;
 let healthHeaders: Record<string, string> | null = null;
@@ -66,7 +72,7 @@ async function ensureCachedDbAdapter(): Promise<any> {
   }
   if (!dbAdapterInitPromise) {
     dbAdapterInitPromise = (async () => {
-      const { getDbInitPromise, getDb } = await import("@src/databases/db");
+      const { getDbInitPromise, getDb } = await loadDbModule();
       await getDbInitPromise(false, "CORE");
       cachedDbAdapter = getDb();
       return cachedDbAdapter;
@@ -564,7 +570,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // ── 6. SYSTEM STATE GATE ────────────────────────────────────────────────
     if (systemState.overallState === "INITIALIZING" && !pathname.includes("/health")) {
       logger.info(`[Turbo] System initializing, waiting for CORE boot... [ID:${requestId}]`);
-      const { getDbInitPromise } = await import("@src/databases/db");
+      const { getDbInitPromise } = await loadDbModule();
       await getDbInitPromise(false, "CORE");
 
       // Verify if it failed during wait

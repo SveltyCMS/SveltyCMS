@@ -17,6 +17,9 @@
  * - Install path allowlist plus directory-traversal guard
  */
 
+import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
+import nodePath from "node:path";
 import { logger } from "@utils/logger";
 import { marketplace, type MarketplacePlugin } from "./marketplace-client";
 import { assertPackageCompatibleWithCms } from "@src/widgets/widget-compatibility";
@@ -62,7 +65,6 @@ function assertSafeInstallPath(
 
 /** Canonical SHA-256 of package files (sorted filenames, utf-8). */
 export async function hashPackageFiles(files: Record<string, string>): Promise<string> {
-  const { createHash } = await import("node:crypto");
   const hash = createHash("sha256");
   for (const name of Object.keys(files).sort()) {
     hash.update(name);
@@ -123,8 +125,6 @@ export async function installPlugin(
   pluginId: string,
   options: { licenseKey?: string; expectedChecksum?: string } = {},
 ): Promise<MarketplacePlugin> {
-  const fs = await import("node:fs/promises");
-  const path = await import("node:path");
   const cwd = process.cwd();
 
   if (options.licenseKey) {
@@ -148,11 +148,11 @@ export async function installPlugin(
     throw new Error(`License required for ${plugin.name} (${plugin.license})`);
   }
 
-  await fs.mkdir(path.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
+  await fs.mkdir(nodePath.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
 
   for (const [filename, content] of Object.entries(plugin.files)) {
-    const filePath = assertSafeInstallPath(path, plugin.installPath, filename, cwd);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    const filePath = assertSafeInstallPath(nodePath, plugin.installPath, filename, cwd);
+    await fs.mkdir(nodePath.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, "utf-8");
   }
 

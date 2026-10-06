@@ -9,7 +9,7 @@
 import { query, command, getRequestEvent } from "$app/server";
 import { logger } from "@utils/logger";
 
-export const readSetupHints = query("unchecked", async () => {
+export const readSetupHints = query("unchecked", async (_payload?: {}) => {
   const { readFile } = await import("node:fs/promises");
   const { join } = await import("node:path");
   try {

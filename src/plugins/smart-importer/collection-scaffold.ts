@@ -13,6 +13,13 @@ import { getSchemaPath } from "@src/content/first-collection";
 import type { MappingFieldInput } from "./schema-preview";
 import { buildProposedFieldsFromMappings } from "./schema-preview";
 import { normalizeCollectionId } from "./infer-collection";
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 export { normalizeCollectionId };
 
 /** Map importer field types to SveltyCMS widget definitions */
@@ -129,7 +136,7 @@ export async function provisionCollectionFromMappings(
   sourcePlatform: string,
 ): Promise<ProvisionCollectionResult> {
   const collectionId = normalizeCollectionId(collectionName);
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   const existing = contentSystem.getCollection(collectionId, tenantId ?? null);
 
   if (existing?.fields?.length) {
@@ -195,7 +202,7 @@ export async function ensureTargetCollectionProvisioned(
   sourcePlatform: string,
 ): Promise<ProvisionCollectionResult> {
   const collectionId = normalizeCollectionId(targetCollection);
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   if (contentSystem.getCollection(collectionId, tenantId ?? null)) {
     return { created: false, collectionId, fieldCount: 0 };
   }

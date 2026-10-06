@@ -66,6 +66,8 @@ export interface CompilationResult {
   changedSourceFiles: string[];
   /** True when nothing was written and there were no errors/orphans */
   noOp: boolean;
+  /** True when a category directory was added to the manifest this run */
+  structureChanged?: boolean;
 }
 
 export class CompilationError extends Error {

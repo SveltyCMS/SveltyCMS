@@ -35,6 +35,12 @@ import { fieldDeclaresGuard } from "@utils/field-guard";
 import type { FieldInstance } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 /** Shape of the FIELD_PERMISSIONS setting. */
 export type FieldPermissionConfig = Record<string, Record<string, string[]>>;
 
@@ -285,7 +291,7 @@ export async function getCollectionFields(
       /* content store may not be initialized yet — fall through to adapter */
     }
 
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const res = await dbAdapter.collection.listSchemas(tenantId as any);
     let fields: FieldInstance[] | null = null;
     if (res?.success && res.data) {

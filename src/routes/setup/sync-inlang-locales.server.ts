@@ -9,6 +9,8 @@
  * - Skips filesystem/CLI work in the automated test harness (does not dirty git)
  */
 
+import { access, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { isIso6391LanguageCode, languageBase, mergeSystemLanguages } from "@utils/system-locale";
 import { logger } from "@utils/logger";
@@ -34,12 +36,10 @@ interface InlangSettings {
 }
 
 async function readJsonFile<T>(pathName: string): Promise<T> {
-  const { readFile } = await import("node:fs/promises");
   return JSON.parse(await readFile(pathName, "utf8")) as T;
 }
 
 async function writeJsonFile(pathName: string, value: unknown): Promise<void> {
-  const { writeFile } = await import("node:fs/promises");
   await writeFile(pathName, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
@@ -61,8 +61,6 @@ export async function syncInlangSystemLocales(
     return { skipped: true, added: [], locales: merged, translated: false, compiled: false };
   }
 
-  const { join } = await import("node:path");
-  const { access } = await import("node:fs/promises");
   const settingsPath = join(cwd, SETTINGS_REL);
   const messagesDir = join(cwd, MESSAGES_REL);
 

@@ -17,6 +17,22 @@ import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchm
 import { getSchemaPath } from "@src/content/first-collection";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
 // ---------------------------------------------------------------------------
 // Resource Type Registry
 // ---------------------------------------------------------------------------
@@ -203,7 +219,7 @@ export class ConfigService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("config.exported", {
         tenantId: tenantId || "global",
         data: { resourceCounts, dirPath: exportDir },
@@ -402,7 +418,7 @@ export class ConfigService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       const resourceCounts = changes
         ? {
             new: changes.new.length,
@@ -647,7 +663,7 @@ export class ConfigService {
 
   private async getSourceState(tenantId?: string): Promise<Map<string, ConfigEntity>> {
     const state = new Map<string, ConfigEntity>();
-    const { contentSystem } = await import("@src/content/index.server");
+    const { contentSystem } = await loadContentModule();
     await contentSystem.initialize(tenantId);
 
     // 1. Collections
@@ -680,7 +696,7 @@ export class ConfigService {
   // --- Per-type scanners (source) ----------------------------------------
 
   private async scanCollections(state: Map<string, ConfigEntity>, tenantId?: string) {
-    const { contentSystem } = await import("@src/content/index.server");
+    const { contentSystem } = await loadContentModule();
     const collections = await contentSystem.getCollections(tenantId);
 
     const tasks = collections.map(async (collection) => {

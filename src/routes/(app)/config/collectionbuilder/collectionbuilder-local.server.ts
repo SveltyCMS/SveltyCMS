@@ -12,13 +12,19 @@ import type {
   DatabaseId,
 } from "@src/content/types";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 let _cmsCache: { adapter: NonNullable<ReturnType<typeof getDb>>; cms: LocalCMS } | null = null;
 
 export async function getCollectionBuilderCms(_tenantId: string | null): Promise<LocalCMS> {
   const adapter = await getDb();
   if (!adapter) throw new Error("[CollectionBuilder] Database adapter not initialized");
   if (_cmsCache && _cmsCache.adapter === adapter) return _cmsCache.cms;
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   const cms = new LocalCMS(adapter, contentSystem);
   _cmsCache = { adapter, cms };
   return cms;

@@ -21,10 +21,16 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { getRequestFlags } from "@utils/hook-utils";
 import { locales } from "@src/paraglide/runtime";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 let cachedContentSystem: typeof import("@src/content/index.server").contentSystem | null = null;
 async function getContentSystem() {
   if (!cachedContentSystem) {
-    const mod = await import("@src/content/index.server");
+    const mod = await loadContentModule();
     cachedContentSystem = mod.contentSystem;
   }
   return cachedContentSystem;

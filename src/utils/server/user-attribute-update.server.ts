@@ -19,6 +19,14 @@ import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/hand
 import { readSessionCookie } from "@src/databases/auth/constants";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 export async function applyUserAttributeUpdate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -125,7 +133,7 @@ export async function applyUserAttributeUpdate(
   if (String(targetId) === String(event.locals.user?._id) && currentSessionId && result.data) {
     primeSessionMemoryCache(currentSessionId, result.data as User);
     try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       const cacheKey = tenantId
         ? `session:${tenantId}:${currentSessionId}`
         : `session:${currentSessionId}`;

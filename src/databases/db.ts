@@ -241,7 +241,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
           cfg = { DB_TYPE: testEngine, host: auditFile } as any;
           mutableCfg = cfg as any;
         } else {
-          if (!mutableCfg.DB_TYPE) mutableCfg.DB_TYPE = testEngine;
+          mutableCfg.DB_TYPE = testEngine;
           if (
             mutableCfg.DB_TYPE === "sqlite" &&
             (!mutableCfg.host || mutableCfg.host === ":memory:")
