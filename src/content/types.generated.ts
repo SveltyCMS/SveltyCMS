@@ -7,32 +7,45 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "documentation" | "pricing" | "projects" | (string & {});
+export type ContentTypes = "authors" | "categories" | "pages" | "posts" | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
-  documentation: CollectionEntry & {
+  authors: CollectionEntry & {
+    name: string;
+    bio: string;
+    avatar: string;
+    email: string;
+  };
+  categories: CollectionEntry & {
+    name: string;
+    slug: string;
+    parent: string;
+    description: string;
+  };
+  pages: CollectionEntry & {
+    title: string;
+    slug: string;
+    pageType: string;
+    template: string;
+    heroHeading: string;
+    heroSubheading: string;
+    body: string;
+    ctaText: string;
+    ctaHref: string;
+    content: string;
+    seo: string;
+  };
+  posts: CollectionEntry & {
     title: string;
     slug: string;
     content: string;
-    category: string;
-    order: string;
-  };
-  pricing: CollectionEntry & {
-    name: string;
-    price: string;
-    currency: string;
-    interval: string;
-    features: string;
-    highlighted: string;
-  };
-  projects: CollectionEntry & {
-    title: string;
-    slug: string;
-    description: string;
-    client: string;
-    images: string;
-    testimonial: string;
+    excerpt: string;
+    featuredImage: string;
+    author: string;
+    categories: string;
+    tags: string;
+    seo: string;
   };
 }
 /* AUTOGEN_END: ContentTypes */
