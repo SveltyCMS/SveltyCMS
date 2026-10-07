@@ -7,53 +7,16 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes =
-  | "authors"
-  | "categories"
-  | "documentation"
-  | "features"
-  | "posts"
-  | "pricing"
-  | "projects"
-  | (string & {});
+export type ContentTypes = "documentation" | "pricing" | "projects" | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
-  authors: CollectionEntry & {
-    name: string;
-    bio: string;
-    avatar: string;
-    email: string;
-  };
-  categories: CollectionEntry & {
-    name: string;
-    slug: string;
-    parent: string;
-    description: string;
-  };
   documentation: CollectionEntry & {
     title: string;
     slug: string;
     content: string;
     category: string;
     order: string;
-  };
-  features: CollectionEntry & {
-    name: string;
-    icon: string;
-    description: string;
-    screenshot: string;
-  };
-  posts: CollectionEntry & {
-    title: string;
-    slug: string;
-    content: string;
-    excerpt: string;
-    featuredImage: string;
-    author: string;
-    categories: string;
-    tags: string;
-    seo: string;
   };
   pricing: CollectionEntry & {
     name: string;
