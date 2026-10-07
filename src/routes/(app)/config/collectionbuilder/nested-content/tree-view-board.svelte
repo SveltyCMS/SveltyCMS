@@ -743,6 +743,13 @@ offset within the row on the native `dragover` event — that event carries
 		announce('Search cleared');
 	}
 
+	function clearAllFilters() {
+		searchText = '';
+		showOnlyFavorites = false;
+		selectedTagFilter = undefined;
+		announce(collections_clear_filters());
+	}
+
 	function toggleNode(id: string) {
 		if (expandedNodes.has(id)) {
 			expandedNodes.delete(id);

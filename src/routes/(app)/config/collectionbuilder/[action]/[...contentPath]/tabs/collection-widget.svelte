@@ -20,7 +20,6 @@
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
 	import Button from '@src/components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import Card from '@src/components/ui/card.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { generateCollectionTypeScript } from '../../../collection-code-generator';
 	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
