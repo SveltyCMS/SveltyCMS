@@ -124,7 +124,7 @@ describe("loadSchemaNative (boot path)", () => {
   });
 
   it("rejects out-of-confinement paths with null (not a throw)", async () => {
-    const outside = path.join(CWD, "config", "collections", "posts.ts");
+    const outside = path.join(CWD, "config", "private.ts");
     await expect(loadSchemaNative(outside)).resolves.toBeNull();
   });
 
