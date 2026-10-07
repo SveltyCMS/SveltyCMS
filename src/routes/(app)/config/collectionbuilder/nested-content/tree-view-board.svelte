@@ -746,7 +746,7 @@ offset within the row on the native `dragover` event — that event carries
 	function clearAllFilters() {
 		searchText = '';
 		showOnlyFavorites = false;
-		selectedTagFilter = undefined;
+		selectedTagFilter = '';
 		announce(collections_clear_filters());
 	}
 
