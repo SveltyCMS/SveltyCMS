@@ -33,7 +33,13 @@ export function getCollectionsPath(tenantId?: string | null): string {
   const activeTenant = tenantId ?? sveltyContext.getStore()?.tenantId;
   if (activeTenant) {
     const sanitizedTenant = path.basename(activeTenant);
-    return path.join(getConfigRoot(), sanitizedTenant, "collections");
+    // Mirror path-resolver's tenant branch: a test harness must write under
+    // `<tenant>/test-collections`, never `<tenant>/collections` (live).
+    return path.join(
+      getConfigRoot(),
+      sanitizedTenant,
+      isTestHarness ? "test-collections" : "collections",
+    );
   }
   if (customDir) return path.resolve(process.cwd(), customDir);
   return path.join(getConfigRoot(), isTestHarness ? "test-collections" : "collections");

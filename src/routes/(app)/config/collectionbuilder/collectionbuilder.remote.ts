@@ -6,7 +6,8 @@
  * post a body. Server logic lives in collectionbuilder.server.ts.
  */
 
-import { command, getRequestEvent } from "$app/server";
+import { command, getRequestEvent, query } from "$app/server";
+import type { SchemaIngestionInput } from "./schema-ingestion";
 
 export const saveContentStructure = command(
   "unchecked",
@@ -21,12 +22,17 @@ export const deleteContentNodes = command("unchecked", async (ids: string[]) => 
   return fn(getRequestEvent(), ids);
 });
 
-export const installPreset = command("unchecked", async (presetId: string) => {
-  const { installPreset: fn } = await import("./collectionbuilder.server");
-  return fn(getRequestEvent(), presetId);
-});
-
 export const installTemplateCollections = command("unchecked", async (presetId: string) => {
   const { installTemplateCollections: fn } = await import("./collectionbuilder.server");
   return fn(getRequestEvent(), presetId);
+});
+
+/**
+ * Read-only server function: reverse-engineer SQL DDL / JSON into a collection
+ * schema. Parsing runs server-side so relations resolve against the live
+ * collection list.
+ */
+export const ingestSchema = query("unchecked", async (input: SchemaIngestionInput) => {
+  const { parseSchemaIngestion: fn } = await import("./collectionbuilder.server");
+  return fn(getRequestEvent(), input);
 });

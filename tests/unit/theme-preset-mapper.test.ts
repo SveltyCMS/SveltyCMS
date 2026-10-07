@@ -88,18 +88,19 @@ describe("theme-preset-mapper", () => {
     expect(normalized?.presetSource).toBe("imported");
   });
 
-  it("expands shorthand palette properties to full shade scales", () => {
+  it("expands shorthand palette properties to full oklch shade scales", () => {
     const expanded = expandShorthandPaletteProperties({
       primary: "#0f766e",
       surface: "#f8fafc",
     });
-    expect(expanded["--color-primary-500"]).toBe("#0f766e");
-    expect(expanded["--color-primary-50"]).toMatch(/^#[0-9a-f]{6}$/);
-    expect(expanded["--color-primary-950"]).toMatch(/^#[0-9a-f]{6}$/);
-    expect(expanded["--color-surface-50"]).toBe("#f8fafc");
-    expect(expanded["--color-surface-500"]).toMatch(/^#[0-9a-f]{6}$/);
-    expect(expanded["--color-surface-800"]).toMatch(/^#[0-9a-f]{6}$/);
-    expect(expanded["--color-surface-950"]).toMatch(/^#[0-9a-f]{6}$/);
+    const OKLCH = /^oklch\([\d.]+% [\d.]+ [\d.]+deg\)$/;
+    expect(expanded["--color-primary-500"]).toMatch(OKLCH);
+    expect(expanded["--color-primary-50"]).toMatch(OKLCH);
+    expect(expanded["--color-primary-950"]).toMatch(OKLCH);
+    expect(expanded["--color-surface-50"]).toMatch(OKLCH);
+    expect(expanded["--color-surface-500"]).toMatch(OKLCH);
+    expect(expanded["--color-surface-800"]).toMatch(OKLCH);
+    expect(expanded["--color-surface-950"]).toMatch(OKLCH);
     // Full 11-step ladder now emitted for accent roles too (was 3 steps).
     expect(Object.keys(expanded).filter((k) => k.startsWith("--color-primary-"))).toHaveLength(11);
   });
@@ -143,18 +144,15 @@ describe("theme-preset-mapper", () => {
       buildPaletteCssFromSeeds({ primary: "#112233", surface: "#f8fafc" }),
     );
     expect(updated).toContain("--my-flag: 1");
-    expect(updated).toContain("#112233");
+    expect(updated).toContain("--color-primary-500: oklch(");
     expect(updated.match(/sveltycms-palette-start/g)?.length).toBe(1);
   });
 
-  it("maps default.json shorthand properties to customCss", () => {
+  it("leaves the builtin default to app.css (no palette override)", () => {
     const preset = JSON.parse(
       readFileSync(join(process.cwd(), "src", "themes", "default.json"), "utf-8"),
     );
     const mapped = mapPresetToAdminTheme(preset);
-    expect(mapped.customCss).toContain("--color-primary-500: #0f766e");
-    expect(mapped.customCss).toContain("--color-tertiary-500: #1d4ed8");
-    expect(mapped.customCss).toContain(":root, .admin-theme-container, [data-admin-theme]");
-    expect(mapped.customCss).toContain("--admin-bg-card");
+    expect(mapped.customCss).toBeUndefined();
   });
 });

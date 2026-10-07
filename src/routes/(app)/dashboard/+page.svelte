@@ -20,7 +20,6 @@
 - Picker metadata from server widget.json (no eager glob of every widget)
 -->
 <script lang="ts">
-	import WelcomeThemePicker from '@src/components/admin/welcome-theme-picker.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Slot from '@src/components/system/slot.svelte';
@@ -686,7 +685,6 @@
 		showBackButton={true}
 		backUrl="/config"
 	>
-		<WelcomeThemePicker />
 		{#snippet actions()}
 			<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
 				<Button

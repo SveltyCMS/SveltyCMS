@@ -13,6 +13,7 @@
 	import { modalState } from '@utils/modal.svelte';
 	import { getGuiFields } from '@utils/schema/field-utils';
 	import { logger } from '@utils/logger';
+	import { builder_duplicate, builder_remove, button_edit } from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
@@ -766,7 +767,7 @@
 											e.stopPropagation();
 											editField(item);
 										}}
-										title="Edit"
+										title={button_edit()}
 										data-testid="widget-field-edit"
 										aria-label="Edit field"
 									>
@@ -780,7 +781,7 @@
 											e.stopPropagation();
 											duplicateField(item);
 										}}
-										title="Duplicate"
+										title={builder_duplicate()}
 										data-testid="widget-field-clone"
 										aria-label="Duplicate field"
 									>
@@ -795,7 +796,7 @@
 											deleteField(item._dragId);
 										}}
 										class="text-error-500 hover:bg-error-500/10"
-										title="Remove"
+										title={builder_remove()}
 										data-testid="widget-field-delete"
 										aria-label="Remove field"
 									>

@@ -23,7 +23,12 @@ Uses the same shared TreeView as collections:
 	import TreeView from '@components/ui/tree-view.svelte';
 	import type { TreeExternalDrop, TreeItem } from '@components/ui/tree-view.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { media_root_title } from '@src/paraglide/messages';
+	import {
+		clear_search,
+		media_root_title,
+		mediafolders_search,
+		mediafolders_search_aria
+	} from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { mediaFolderTree } from '@src/stores/media-folder-tree.svelte.ts';
@@ -470,7 +475,7 @@ Uses the same shared TreeView as collections:
 							type="button"
 							onclick={() => (search = '')}
 							class="p-0.5 min-w-0 rounded-full hover:bg-surface-700"
-							aria-label="Clear search"
+							aria-label={clear_search()}
 						>
 							<iconify-icon icon="ic:round-close" width="18"></iconify-icon>
 						</Button>
@@ -481,11 +486,11 @@ Uses the same shared TreeView as collections:
 					id="media-folders-search"
 					type="search"
 					bind:value={search}
-					placeholder="Search folders..."
+					placeholder={mediafolders_search()}
 					pre={searchIcon as Snippet}
 					post={clearIcon as Snippet}
 					inputClass="w-full text-xs"
-					aria-label="Search folders"
+					aria-label={mediafolders_search_aria()}
 				/>
 			</div>
 
@@ -515,7 +520,7 @@ Uses the same shared TreeView as collections:
 					variant="ghost"
 					type="button"
 					onclick={toggleCompactSearch}
-					aria-label="Search folders"
+					aria-label={mediafolders_search_aria()}
 					aria-expanded={isCompactSearchOpen}
 					class="relative flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 transition-colors {isCompactSearchOpen ||
 					search
@@ -525,7 +530,7 @@ Uses the same shared TreeView as collections:
 					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 					{#if search}
 						<span
-							class="absolute top-1 end-1 h-2 w-2 rounded-full bg-tertiary-500 dark:bg-primary-500"
+							class="absolute top-1 inset-e-1 h-2 w-2 rounded-full bg-tertiary-500 dark:bg-primary-500"
 							aria-hidden="true"
 						></span>
 					{/if}
@@ -534,15 +539,15 @@ Uses the same shared TreeView as collections:
 
 			{#if isCompactSearchOpen}
 				<div
-					class="absolute start-11 top-0 z-50 flex w-64 items-center gap-1.5 rounded-xl border border-surface-500/30 bg-white p-2 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
+					class="absolute inset-s-11 top-0 z-50 flex w-64 items-center gap-1.5 rounded-xl border border-surface-500/30 bg-white p-2 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
 				>
 					<iconify-icon icon="ic:outline-search" width="18" class="text-surface-400 shrink-0"
 					></iconify-icon>
 					<input
 						type="search"
 						bind:value={search}
-						placeholder="Search folders..."
-						aria-label="Search folders"
+						placeholder={mediafolders_search()}
+						aria-label={mediafolders_search_aria()}
 						class="w-full bg-transparent text-xs text-surface-900 placeholder:text-surface-400 focus:outline-none dark:text-surface-100"
 						use:focusOnMount
 					/>
@@ -553,7 +558,7 @@ Uses the same shared TreeView as collections:
 							size="sm"
 							onclick={() => (search = '')}
 							class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
-							aria-label="Clear search"
+							aria-label={clear_search()}
 						>
 							<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
 						</Button>

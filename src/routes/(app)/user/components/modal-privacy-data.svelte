@@ -11,6 +11,25 @@
 	import { showConfirm } from '@utils/modal.svelte';
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import {
+		userprivacy_anonymize_confirm_body,
+		userprivacy_anonymize_confirm_title,
+		userprivacy_anonymize_error,
+		userprivacy_anonymize_failed,
+		userprivacy_anonymize_success,
+		userprivacy_close,
+		userprivacy_delete_button,
+		userprivacy_delete_description,
+		userprivacy_delete_title,
+		userprivacy_description,
+		userprivacy_export_button,
+		userprivacy_export_description,
+		userprivacy_export_error,
+		userprivacy_export_failed,
+		userprivacy_export_started,
+		userprivacy_export_title,
+		userprivacy_title
+	} from '@src/paraglide/messages';
 
 	// Props
 	interface Props {
@@ -43,20 +62,20 @@
 				a.download = `sveltycms-data-export-${user.username}-${new Date().toISOString().split('T')[0]}.json`;
 				a.click();
 				URL.revokeObjectURL(url);
-				toast.success('Data export started');
+				toast.success(userprivacy_export_started());
 			} else {
-				toast.error(result.error || 'Export failed');
+				toast.error(result.error || userprivacy_export_failed());
 			}
 		} catch (_err) {
-			toast.error('Failed to export data');
+			toast.error(userprivacy_export_error());
 		}
 	}
 
 	// GDPR: Right to Erasure
 	function handleAnonymize() {
 		showConfirm({
-			title: 'Delete & Anonymize Account',
-			body: 'This will permanently anonymize your account. This action cannot be undone. Are you sure?',
+			title: userprivacy_anonymize_confirm_title(),
+			body: userprivacy_anonymize_confirm_body(),
 			onConfirm: async () => {
 				try {
 					const res = await fetch('/api/gdpr', {
@@ -70,7 +89,7 @@
 					});
 					const result = await res.json();
 					if (result.success) {
-						toast.success('Account anonymized successfully');
+						toast.success(userprivacy_anonymize_success());
 						// Force logout by calling API with POST
 						await fetch('/api/user/logout', {
 							method: 'POST',
@@ -78,10 +97,10 @@
 						});
 						window.location.href = '/login';
 					} else {
-						toast.error(result.error || 'Anonymization failed');
+						toast.error(result.error || userprivacy_anonymize_failed());
 					}
 				} catch (_err) {
-					toast.error('Failed to anonymize account');
+					toast.error(userprivacy_anonymize_error());
 				}
 			}
 		});
@@ -93,8 +112,8 @@
 		<iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500" width="32"
 		></iconify-icon>
 		<div>
-			<h2 class="text-xl font-bold">Privacy & Data Management</h2>
-			<p class="text-sm opacity-70">Manage your personal data and account privacy (GDPR)</p>
+			<h2 class="text-xl font-bold">{userprivacy_title()}</h2>
+			<p class="text-sm opacity-70">{userprivacy_description()}</p>
 		</div>
 	</header>
 
@@ -108,14 +127,13 @@
 					<iconify-icon icon="mdi:database-export" width="24"></iconify-icon>
 				</div>
 				<div class="flex-1">
-					<h3 class="font-bold text-lg">Download My Data</h3>
+					<h3 class="font-bold text-lg">{userprivacy_export_title()}</h3>
 					<p class="mt-1 text-sm text-surface-600 dark:text-surface-400">
-						Receive a copy of all your personal data stored in the SveltyCMS system. The data will
-						be provided in a structured JSON format for portability.
+						{userprivacy_export_description()}
 					</p>
 					<Button variant="secondary" onclick={handleExportData} class="mt-4 w-full sm:w-auto">
 						<iconify-icon icon="mdi:download" class="me-2"></iconify-icon>
-						Request Data Export
+						{userprivacy_export_button()}
 					</Button>
 				</div>
 			</div>
@@ -131,14 +149,13 @@
 						<iconify-icon icon="mdi:account-remove" width="24"></iconify-icon>
 					</div>
 					<div class="flex-1">
-						<h3 class="font-bold text-lg text-error-500">Delete & Anonymize My Account</h3>
+						<h3 class="font-bold text-lg text-error-500">{userprivacy_delete_title()}</h3>
 						<p class="mt-1 text-sm text-surface-600 dark:text-surface-400">
-							Exercise your "Right to Erasure". This will permanently anonymize your personal data
-							and delete your account. This action is irreversible.
+							{userprivacy_delete_description()}
 						</p>
 						<Button variant="error" onclick={handleAnonymize} class="mt-4 w-full sm:w-auto">
 							<iconify-icon icon="mdi:alert-circle" class="me-2"></iconify-icon>
-							Permanently Anonymize Account
+							{userprivacy_delete_button()}
 						</Button>
 					</div>
 				</div>
@@ -147,6 +164,6 @@
 	</div>
 
 	<footer class="flex justify-end pt-4 border-t border-surface-500/20">
-		<Button variant="surface" onclick={() => modalState.close()}>Close</Button>
+		<Button variant="surface" onclick={() => modalState.close()}>{userprivacy_close()}</Button>
 	</footer>
 </div>

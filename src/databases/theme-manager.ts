@@ -24,7 +24,7 @@ import type { IDBAdapter, Theme } from "./db-interface";
 export const DEFAULT_THEME: Theme = {
   _id: "670e8b8c4d123456789abcde" as DatabaseId, // Matches the seeded theme ID
   path: "", // Default path
-  name: "SveltyCMSTheme",
+  name: "Default",
 
   isActive: false,
   isDefault: true,

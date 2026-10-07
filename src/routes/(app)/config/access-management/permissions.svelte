@@ -21,6 +21,9 @@ It provides the following functionality:
 	// Auth
 	import type { Permission, Role } from '@src/databases/auth/types';
 	import { PermissionType } from '@src/databases/auth/permission-constants';
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	// Stores
 	import { page } from '$app/state';
 
@@ -336,70 +339,79 @@ It provides the following functionality:
 				>
 					<tr>
 						<th
-							class="px-5 py-4 font-semibold text-surface-600 dark:text-surface-400 w-2/5"
+							class="px-3 py-3 font-semibold text-surface-600 dark:text-surface-400 w-2/5"
 							aria-sort={sortBy === 'name'
 								? sortOrder === 1
 									? 'ascending'
 									: 'descending'
 								: 'none'}
 						>
-							<button
-								class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
-								onclick={() => handleSort('name')}
-								title="Click to sort by permission name"
-								aria-label="Sort by permission name"
-							>
-								Permission Name
-								{#if sortBy === 'name' && sortOrder !== 0}
-									<iconify-icon
-										icon={sortOrder === 1
-											? 'material-symbols:arrow-upward-rounded'
-											: 'material-symbols:arrow-downward-rounded'}
-										width="14"
-										class="text-tertiary-500 dark:text-primary-500"
-										aria-hidden="true"
-									></iconify-icon>
-								{/if}
-							</button>
+							<SystemTooltip title="Sort permissions by name" positioning={{ placement: 'top' }}>
+								<button
+									class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+									onclick={() => handleSort('name')}
+									aria-label="Sort by permission name"
+								>
+									Permission Name
+									{#if sortBy === 'name' && sortOrder !== 0}
+										<iconify-icon
+											icon={sortOrder === 1
+												? 'material-symbols:arrow-upward-rounded'
+												: 'material-symbols:arrow-downward-rounded'}
+											width="14"
+											class="text-tertiary-500 dark:text-primary-500"
+											aria-hidden="true"
+										></iconify-icon>
+									{/if}
+								</button>
+							</SystemTooltip>
 						</th>
 						<th
-							class="px-5 py-4 font-semibold text-center w-1/5"
+							class="px-3 py-3 font-semibold text-center w-1/5"
 							aria-sort={sortBy === 'action'
 								? sortOrder === 1
 									? 'ascending'
 									: 'descending'
 								: 'none'}
 						>
-							<button
-								class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
-								onclick={() => handleSort('action')}
-								title="Click to sort by action"
-								aria-label="Sort by action"
-							>
-								Action
-								{#if sortBy === 'action' && sortOrder !== 0}
-									<iconify-icon
-										icon={sortOrder === 1
-											? 'material-symbols:arrow-upward-rounded'
-											: 'material-symbols:arrow-downward-rounded'}
-										width="14"
-										class="text-tertiary-500 dark:text-primary-500"
-										aria-hidden="true"
-									></iconify-icon>
-								{/if}
-							</button>
+							<SystemTooltip title="Sort permissions by action" positioning={{ placement: 'top' }}>
+								<button
+									class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
+									onclick={() => handleSort('action')}
+									aria-label="Sort by action"
+								>
+									Action
+									{#if sortBy === 'action' && sortOrder !== 0}
+										<iconify-icon
+											icon={sortOrder === 1
+												? 'material-symbols:arrow-upward-rounded'
+												: 'material-symbols:arrow-downward-rounded'}
+											width="14"
+											class="text-tertiary-500 dark:text-primary-500"
+											aria-hidden="true"
+										></iconify-icon>
+									{/if}
+								</button>
+							</SystemTooltip>
 						</th>
 
 						<!-- List only non-admin roles -->
 						{#each roles as role (role._id)}
 							{#if !role.isAdmin}
 								{@const headerState = getHeaderCheckboxState(role)}
-								<th class="px-5 py-4 dark:text-surface-50 text-center" scope="col">
+								<th class="px-3 py-3 dark:text-surface-50 text-center" scope="col">
 									<div class="flex flex-col items-center gap-1.5">
-										<span
-											class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400"
-											>{role.name}</span
+										<SystemTooltip
+											title={`Permissions for the ${role.name} role`}
+											positioning={{ placement: 'top' }}
+											role={null}
+											tabindex={null}
 										>
+											<span
+												class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400"
+												>{role.name}</span
+											>
+										</SystemTooltip>
 										<div class="flex items-center gap-1.5 mt-0.5">
 											<input
 												type="checkbox"
@@ -433,7 +445,7 @@ It provides the following functionality:
 							<tr class="bg-surface-500/70 dark:bg-surface-900/20">
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="px-5 py-2.5 font-bold text-xs tracking-wider uppercase text-surface-500 dark:text-surface-400 border-y border-surface-500/30 dark:border-surface-500/40"
+									class="px-3 py-2 font-bold text-xs tracking-wider uppercase text-black dark:text-white border-y border-surface-500/30 dark:border-surface-500/40"
 								>
 									{group}
 								</td>
@@ -442,11 +454,18 @@ It provides the following functionality:
 							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
 								<tr class="hover:bg-surface-500/40 dark:hover:bg-surface-850/40 transition-colors">
 									<!-- Type -->
-									<td class="px-5 py-3 text-sm text-surface-600 dark:text-surface-400 font-medium"
-										>{permission.name}</td
-									>
+									<td class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400 font-medium">
+										<span class="inline-flex items-center gap-1.5">
+											{permission.name}
+											{#if permission.description}
+												<SystemTooltip title={permission.description}>
+													<HelpIcon ariaLabel={`Help: ${permission.name}`} />
+												</SystemTooltip>
+											{/if}
+										</span>
+									</td>
 									<!-- Action -->
-									<td class="px-5 py-3 text-center">
+									<td class="px-3 py-2 text-center">
 										<span
 											class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {getActionBadgeClass(
 												permission.action
@@ -458,7 +477,7 @@ It provides the following functionality:
 									<!-- Roles -->
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
-											<td class="px-5 py-3 text-center">
+											<td class="px-3 py-2 text-center">
 												<input
 													type="checkbox"
 													aria-label={`Toggle ${role.name} for ${permission.name || permission._id}`}

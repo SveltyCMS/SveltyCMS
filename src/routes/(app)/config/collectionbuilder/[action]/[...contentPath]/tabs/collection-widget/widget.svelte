@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { ui } from '@src/stores/ui-store.svelte';
 	import {
+		builder_tip_drag_reorder,
 		button_edit,
 		button_previous,
 		button_save,
@@ -276,7 +277,7 @@
 							type="button"
 							class="field-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none"
 							aria-label="Drag {field.label}"
-							title="Drag to reorder"
+							title={builder_tip_drag_reorder()}
 						>
 							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
 						</button>

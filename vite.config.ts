@@ -1458,10 +1458,14 @@ export default defineConfig(() => {
           "**/logs/**",
           "**/mediaFolder/**",
           "**/src/content/types.ts",
-          // Generated Paraglide output — watching it loops with paraglideVitePlugin.
-          // Source catalogs (`src/messages/*.json`) and `project.inlang/settings.json`
-          // stay watched so adding a system locale recompiles. Ignore the plugin cache.
-          "**/src/paraglide/**",
+          // NOTE: `src/paraglide/**` (generated output) must NOT be ignored.
+          // paraglideVitePlugin recompiles it when a catalog changes but never
+          // invalidates the bundler's module graph itself, so Vite must watch the
+          // output — otherwise SSR/client keep a stale messages module and any file
+          // importing a newly added key crashes on edit with
+          // `(0, __vite_ssr_import__.some_key) is not a function`. This cannot loop:
+          // the plugin treats its own outdir as an ignored watch path, so writes to
+          // the output never trigger a recompile. Only the plugin cache stays ignored.
           "**/project.inlang/cache/**",
         ],
       },

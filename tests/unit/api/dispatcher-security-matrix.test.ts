@@ -11,7 +11,7 @@
 import { describe, it, vi, beforeEach } from "vitest";
 import { expectApi } from "../utils/mock-event";
 import { runRbacMatrix } from "../utils/rbac-matrix";
-import { createMockUser } from "../utils/mock-factories";
+import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
@@ -61,10 +61,14 @@ vi.mock("@utils/tenant", () => ({
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock("@utils/tenant-isolation.server", () => ({
-  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
-  resetMultiTenantCache: vi.fn(),
-}));
+vi.mock("@utils/tenant-isolation.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/tenant-isolation.server")>();
+  return {
+    ...actual,
+    isMultiTenantEnabled: vi.fn().mockReturnValue(true),
+    resetMultiTenantCache: vi.fn(),
+  };
+});
 
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true),
@@ -188,6 +192,33 @@ describe("Dispatcher security matrix (real +server)", () => {
         { path: "collections", user: admin, tenantId: null, bypass: true },
         [200, 404],
       );
+    });
+
+    it("adopts the authenticated user's own tenant when the request tenant is unresolved", async () => {
+      // The warm turbo-auth fast-path (and demo mode) can leave locals.tenantId null
+      // for a legitimately authenticated request. The dispatcher must fall back to
+      // user.tenantId so fail-closed namespaces are not rejected as TENANT_REQUIRED.
+      const base = createDbAdapterStub();
+      const adapter = {
+        ...base,
+        auth: {
+          ...base.auth,
+          getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        },
+      };
+      const owner = createMockUser({
+        _id: "owner-admin",
+        role: "admin",
+        isAdmin: true,
+        tenantId: "t-owner",
+      } as any);
+
+      await expectApi(
+        "GET",
+        { path: "token", user: owner, tenantId: null, bypass: true, dbAdapter: adapter },
+        200,
+      );
+      expect(adapter.auth.getAllTokens).toHaveBeenCalledWith({ tenantId: "t-owner" });
     });
   });
 

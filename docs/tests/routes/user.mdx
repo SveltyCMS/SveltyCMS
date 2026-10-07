@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:account"
 author: "SveltyCMS Team"
 created: "2026-06-13"
-updated: "2026-07-18"
+updated: "2026-10-07"
 tags:
   - "testing"
   - "e2e"
@@ -94,6 +94,13 @@ Legend: ✅ covered
 | 2FA setup complete                      | unit auth-2fa + E2E TOTP enroll                             |
 | `buildUpdateProfileBody` / CSRF headers | unit user-remote-helpers                                    |
 | `+page.server` load                     | unit user-page-server                                       |
+
+---
+
+## Product notes
+
+- Every user preference entry carries a `?` help tooltip (`helpTitle()` → `userpage_help_*` Paraglide messages): identity badges (role, user id, tenant), identity fields (username, email, password), security (2FA, passkeys, sessions, magic link, OAuth, permissions), and preferences (appearance, density, card style, reduced motion, high contrast, collaboration, RTC, privacy).
+- Settings → appearance: the density and card-style `Select`s render a custom label row plus a help icon and pass `ariaLabel` (E2E still targets `select[aria-label="Density"]`).
 
 ---
 

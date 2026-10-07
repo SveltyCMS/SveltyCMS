@@ -238,7 +238,15 @@ export class AdminThemeService {
       [ADMIN_THEME_KEY]: merged,
     };
 
-    await db.system.themes.update(theme._id, { config: updatedConfig } as any);
+    await db.system.themes.update(theme._id, {
+      config: updatedConfig,
+      // Keep the `customCss` COLUMN in sync with `config.adminTheme.customCss`.
+      // They feed different consumers — the column drives branded-login CSS via
+      // `handle-user-preferences`, while the config value is what the admin layout
+      // injects — and once they drift a stale palette can override `src/app.css`
+      // forever (a file-sync that clears the config never touched the column).
+      customCss: merged.customCss ?? null,
+    } as any);
     await tm.refresh();
 
     if (settings.name && settings.name !== theme.name) {

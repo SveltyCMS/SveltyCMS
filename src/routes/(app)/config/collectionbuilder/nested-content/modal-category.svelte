@@ -15,6 +15,14 @@ Features:
 	import { SvelteSet } from 'svelte/reactivity';
 	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 	import {
+		builder_help_category,
+		builder_help_category_desc,
+		builder_help_category_name,
+		builder_help_path,
+		builder_tip_cat_desc,
+		builder_tip_cat_details,
+		builder_tip_cat_name,
+		builder_tip_cat_path,
 		button_cancel,
 		button_delete,
 		button_save,
@@ -213,10 +221,8 @@ Features:
 						>
 							Category Details
 						</h3>
-						<SystemTooltip
-							title="Configure a folder node to group related collections in a hierarchical tree structure."
-						>
-							<HelpIcon ariaLabel="Help: Category Details" />
+						<SystemTooltip title={builder_tip_cat_details()}>
+							<HelpIcon ariaLabel={builder_help_category()} />
 						</SystemTooltip>
 					</div>
 
@@ -229,10 +235,8 @@ Features:
 								{modalcategory_categoryname()}
 							</label>
 							<span class="text-error-500" aria-hidden="true">*</span>
-							<SystemTooltip
-								title="Display label of this folder category shown in the tree view and sidebar."
-							>
-								<HelpIcon ariaLabel="Help: Category Name" />
+							<SystemTooltip title={builder_tip_cat_name()}>
+								<HelpIcon ariaLabel={builder_help_category_name()} />
 							</SystemTooltip>
 						</div>
 						<Input
@@ -255,10 +259,8 @@ Features:
 							>
 								Description
 							</label>
-							<SystemTooltip
-								title="Optional note describing what collections belong inside this category."
-							>
-								<HelpIcon ariaLabel="Help: Category Description" />
+							<SystemTooltip title={builder_tip_cat_desc()}>
+								<HelpIcon ariaLabel={builder_help_category_desc()} />
 							</SystemTooltip>
 						</div>
 						<Input
@@ -280,10 +282,8 @@ Features:
 							>
 								Path (auto-generated)
 							</label>
-							<SystemTooltip
-								title="Hierarchical URL and filesystem folder path automatically derived from the category name."
-							>
-								<HelpIcon ariaLabel="Help: Path" />
+							<SystemTooltip title={builder_tip_cat_path()}>
+								<HelpIcon ariaLabel={builder_help_path()} />
 							</SystemTooltip>
 						</div>
 						<Input

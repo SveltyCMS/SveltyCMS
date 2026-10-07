@@ -179,26 +179,35 @@ It provides the following functionality:
 		const dragged = state.draggedItem;
 		if (!dragged) return;
 
-		const fromIndex = roles.indexOf(dragged);
+		const draggedId = dragged._id || dragged.id;
+		const fromIndex = roles.findIndex((r) => r === dragged || (r._id || r.id) === draggedId);
 		if (fromIndex < 0) return;
+
 		const targetEl = state.targetElement?.closest('[data-role-id]') as HTMLElement | null;
 		const targetRoleId = targetEl?.dataset?.roleId;
+		if (targetRoleId && targetRoleId === draggedId) return;
 
 		let targetIndex: number;
 		if (targetRoleId) {
 			targetIndex = roles.findIndex((r) => (r._id || r.id) === targetRoleId);
+			if (targetIndex < 0) return;
 			if (state.dropPosition === 'after') targetIndex++;
 		} else {
 			targetIndex = roles.length;
 		}
 		targetIndex = Math.max(0, Math.min(targetIndex, roles.length));
 
-		if (fromIndex === targetIndex) return;
+		// `targetIndex` is in pre-removal coordinates; once the dragged item is
+		// spliced out, everything after it shifts left by one — mirror that here so
+		// the drop lands where the user released (downward drags were off by one).
+		const insertAt = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		if (insertAt === fromIndex) return;
+
 		let movedRole: (Role & { id: string }) | undefined;
 		roles = untrack(() => {
 			const newRoles = [...roles];
 			movedRole = newRoles.splice(fromIndex, 1)[0];
-			newRoles.splice(targetIndex, 0, movedRole!);
+			newRoles.splice(insertAt, 0, movedRole!);
 			return newRoles;
 		});
 		if (movedRole) modifiedRoles.add(movedRole._id);

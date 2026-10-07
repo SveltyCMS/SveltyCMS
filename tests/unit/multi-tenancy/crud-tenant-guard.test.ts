@@ -116,6 +116,38 @@ describe("crud-tenant-guard", () => {
     });
   });
 
+  describe("createTenantGuardedNamespace (collection.createModel reconcile)", () => {
+    // The guard inspects the LAST argument as the options bag. `createModel(schema)`
+    // therefore handed the schema to the guard and failed closed — physical-model
+    // reconcile logged "Security Violation on collection.createModel" on every boot.
+    const makeNamespace = async () => {
+      const { createTenantGuardedNamespace } = await import("@src/databases/crud-tenant-guard");
+      const inner = { createModel: vi.fn().mockResolvedValue(undefined) };
+      return { inner, ns: createTenantGuardedNamespace(inner, "reject", "collection") };
+    };
+
+    it("accepts a system scope as the trailing options arg", async () => {
+      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+      const { inner, ns } = await makeNamespace();
+
+      await expect(
+        ns.createModel({ _id: "products", fields: [] }, undefined, withSystemScope("bootstrap")),
+      ).resolves.toBeUndefined();
+      expect(inner.createModel).toHaveBeenCalledTimes(1);
+    });
+
+    it("still fails closed when no options bag is supplied", async () => {
+      const { inner, ns } = await makeNamespace();
+
+      // The guard throws synchronously from the proxy; invoke the thunk so the
+      // result is a Promise (Bun's runner rejects a bare function, unlike Vitest).
+      await expect((async () => ns.createModel({ _id: "products", fields: [] }))()).rejects.toThrow(
+        /Security Violation|tenant/i,
+      );
+      expect(inner.createModel).not.toHaveBeenCalled();
+    });
+  });
+
   describe("multi-tenant disabled", () => {
     it("passes through without requiring tenantId", async () => {
       (globalThis as any).__privateEnv = { MULTI_TENANT: false };

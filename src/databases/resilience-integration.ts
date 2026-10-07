@@ -194,9 +194,47 @@ export function bindAdapterResilienceHooks(adapter: IDBAdapter): void {
   // SQLite: file-based — no persistent disconnect events; proxy + boot retry cover recovery
 }
 
-/** Callback ref for PostgreSQL postgres.js onclose (registered at connect time). */
+/**
+ * Callback ref for PostgreSQL postgres.js `onclose`.
+ *
+ * `onclose` fires for **every** closed connection — including the driver's
+ * ordinary idle-timeout reclaim (`idle_timeout`), which leaves the pool fully
+ * usable. Escalating each reclaim to `scheduleAdapterReconnection()` marked the
+ * critical `database` service unhealthy and flipped the whole system to `FAILED`
+ * (503 "System error or maintenance") on a healthy pool — non-deterministic
+ * failures in every long-running server (integration / benchmark / E2E).
+ *
+ * A close only matters when the pool can no longer serve, so the event is
+ * corroborated with a cheap `SELECT 1` before escalating. Probes are coalesced
+ * (`idle_timeout` can reclaim several sockets at once).
+ */
 export function createPostgresOnCloseHandler(adapter: IDBAdapter): () => void {
-  return () => scheduleAdapterReconnection(adapter, "postgresql:connection-closed");
+  let probing = false;
+  return () => {
+    if (probing) return;
+    probing = true;
+    void verifyPostgresStillServing(adapter).finally(() => {
+      probing = false;
+    });
+  };
+}
+
+async function verifyPostgresStillServing(adapter: IDBAdapter): Promise<void> {
+  // Intentional shutdown/disconnect: the caller owns reconnection.
+  if ((globalThis as any).__SYSTEM_SHUTTING_DOWN__ || (adapter as any).__intentionalDisconnect__) {
+    return;
+  }
+
+  try {
+    if (!adapter.isConnected() || !(adapter as any).sql) {
+      throw new Error("adapter not connected");
+    }
+    await pingAdapter(adapter);
+    logger.debug("[Resilience] postgres.js closed a connection but the pool is responsive");
+  } catch {
+    // The pool could not answer `SELECT 1` — a genuine disconnect.
+    scheduleAdapterReconnection(adapter, "postgresql:connection-closed");
+  }
 }
 
 /**

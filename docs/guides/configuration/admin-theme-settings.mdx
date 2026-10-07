@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:compass-outline"
 author: "SveltyCMS Team"
 created: "2026-06-04"
-updated: "2026-07-30"
+updated: "2026-10-07"
 tags:
   - "theme"
   - "appearance"
@@ -18,17 +18,20 @@ tags:
 
 # Design System & Admin Theme Settings
 
-SveltyCMS's admin theme system lets you create, switch, and customize **multiple named themes**, each with its own density, visual style, features, and custom CSS. Changes preview instantly before saving.
+SveltyCMS's admin theme system has **two layers that are easy to confuse**:
 
-**Sole route:** **`/config/design-system`** (Config → Design System). There is no separate Appearance page.
+- **Themes** — named, **workspace-wide** designs (density, visual style, features, custom CSS) that an admin creates and activates. They apply to **everyone** and are stored in the database.
+- **My Overrides** — a **per-user** layer that sits _on top of_ the active theme. It changes how the admin looks **for you only**; it never edits the theme and never affects other users.
+
+This page (**Config → Design System**, `/config/design-system`) is the **sole route** — there is no separate Appearance page. Changes preview instantly before saving.
 
 **Deep links (query `?tab=`):**
 
-| Tab                                                         | URL                                   | Audience                                 |
-| :---------------------------------------------------------- | :------------------------------------ | :--------------------------------------- |
-| **My Overrides**                                            | `/config/design-system?tab=overrides` | All users (linked from `/user` Settings) |
-| **Live Preview**                                            | `/config/design-system?tab=preview`   | Component catalog + token readout        |
-| **Themes / Presets / Layout / Style / Features / Advanced** | `?tab=themes` etc.                    | Workspace admins                         |
+| Tab                                                         | URL                                   | Audience                                 | Scope                                       |
+| :---------------------------------------------------------- | :------------------------------------ | :--------------------------------------- | :------------------------------------------ |
+| **My Overrides**                                            | `/config/design-system?tab=overrides` | All users (linked from `/user` Settings) | **Just you** — layered on the active theme  |
+| **Live Preview**                                            | `/config/design-system?tab=preview`   | All users                                | Read-only component catalog + token readout |
+| **Themes / Presets / Layout / Style / Features / Advanced** | `?tab=themes` etc.                    | Workspace admins                         | **Whole workspace** (applies to every user) |
 
 ---
 
@@ -47,6 +50,8 @@ Navigate to **Config → Design System → Themes**.
 | **Delete**   | Remove an unused theme. Cannot delete the active or default theme. |
 
 The active theme shows a green **Active** badge. The system default theme (created during setup) shows a **Default** badge and cannot be deleted.
+
+The built-in theme is a single row named **Default**. On boot (and on every `/src/themes/*.json` change) the file sync reconciles it: a legacy `SveltyCMSTheme` row is renamed to **Default**, any duplicate built-in row is pruned, and a stale `customCss` palette is cleared so brand colors always come from the `src/app.css` `@theme` tokens unless you explicitly set one.
 
 ### Creating a Theme
 
@@ -182,13 +187,13 @@ Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`u
 
 A lightweight brand editor (Skeleton-inspired) lives on the **Palette & Import** tab:
 
-| Control                          | Purpose                                                                  |
-| :------------------------------- | :----------------------------------------------------------------------- |
-| **Primary / Tertiary / Surface** | Core seeds (color picker + hex)                                          |
-| **More colors**                  | Secondary, success, warning, error                                       |
-| **Live apply**                   | Pushes expanded shades into theme CSS immediately                        |
-| **Expanded shades**              | Shows 50 / 500 / 950 previews                                            |
-| **Apply / Reset / Clear**        | Commit, restore Corporate defaults, or remove only the palette CSS block |
+| Control                          | Purpose                                                                 |
+| :------------------------------- | :---------------------------------------------------------------------- |
+| **Primary / Tertiary / Surface** | Core seeds (color picker + hex)                                         |
+| **More colors**                  | Secondary, success, warning, error                                      |
+| **Live apply**                   | Pushes expanded shades into theme CSS immediately                       |
+| **Expanded shades**              | Shows 50 / 500 / 950 previews                                           |
+| **Apply / Reset / Clear**        | Commit, restore the default seeds, or remove only the palette CSS block |
 
 Seeds expand via a hue-preserving OKLCH ramp into full 50–950 scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Advanced → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
 
@@ -197,13 +202,13 @@ Seeds expand via a hue-preserving OKLCH ramp into full 50–950 scales and rebin
 - **Export Theme JSON**: Downloads the current theme (density, variant, features, custom CSS) as a portable JSON file.
 - **Import**: Paste SveltyCMS theme JSON or a shorthand palette block in the **Palette & Import** tab.
 
-#### Default install (Corporate workspace)
+#### Default install
 
 Fresh installs seed the active theme from `/src/themes/default.json`:
 
 - **Layout:** cozy density, bordered cards, sticky action bar, collapsible sidebar
 - **Branding:** `brandedLogin: true` — login shows tenant site name + accent colors immediately
-- **Palette:** teal primary (`#0f766e`), blue tertiary (`#1d4ed8`), warm professional tones
+- **Palette:** none — the builtin default carries **no** `properties` map, so brand colors come straight from the `src/app.css` `@theme` tokens (green primary). A stale palette here would silently override those tokens at `:root`.
 
 Users land on a polished default — no need to discover Design System first. Customize from **Config → Design System** when ready.
 
@@ -213,13 +218,13 @@ Theme JSON exports carry a `properties` map (`--color-primary-500`, `--color-sur
 
 ```
 "properties": {
-  "primary": "#0f766e",
+  "primary": "#5fd317",
   "tertiary": "#1d4ed8",
   "surface": "#f8fafc"
 }
 ```
 
-Shorthand keys expand to full 50–950 shade scales via a hue-preserving OKLCH ramp — light `surface` values anchor at `--color-surface-50`; other palettes anchor at `-500`.
+Shorthand keys expand to full 50–950 shade scales via a hue-preserving OKLCH ramp — light `surface` values anchor at `--color-surface-50`, other palettes anchor at `-500` — and every step is emitted as a CSS `oklch(...)` value.
 
 On import or boot sync, SveltyCMS maps those tokens to **runtime admin CSS** scoped to `:root` (plus `.admin-theme-container` / `[data-admin-theme]`) — so every utility (`bg-primary-500`, `text-tertiary-500`), every `--admin-*` semantic role, and even portalled overlays update immediately, across the whole admin panel. Dark-mode overrides are emitted under `html.dark` so they keep the specificity edge over the light `:root` block.
 
@@ -240,9 +245,40 @@ CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` or `code`
 
 **Contrast warnings:** On import, SveltyCMS runs an advisory WCAG AA audit (body text, button labels, accent on surface). Failures appear as toast warnings — imports are not blocked.
 
-### My Overrides (per-user preferences)
+### My Overrides (per-user preferences) {#my-overrides}
 
-All users can override density, card style, reduced motion, high contrast, and **layout regions** (sidebars, page header/footer) on **Design System → My Overrides** (`/config/design-system?tab=overrides`). **User → Settings** offers a compact density/card/a11y strip and links to the same deep link for full layout prefs. Use **My Layout** to set each region to visible, hidden, or theme default; click **Use current layout** to snapshot the panels as they are now. Sidebar toggles also auto-save to your profile after 2 seconds (non-admins store only differences from the tenant theme). Preferences apply **immediately** across the admin shell without a page reload (optimistic client overlay + `app:user-prefs` invalidation).
+**`/config/design-system?tab=overrides` — available to every signed-in user, no admin rights required.**
+
+This tab is **not a theme editor.** It is a thin **per-user layer** on top of the active workspace theme: it only changes how the admin looks **for you**, never the theme definition, and never other users. Everything applies **immediately** — no page reload.
+
+| Control                   | Values                                     | What it changes (for your session only)                                                     |
+| :------------------------ | :----------------------------------------- | :------------------------------------------------------------------------------------------ |
+| **Density**               | theme default · compact · cozy · spacious  | Panel spacing, sidebar width, text size                                                     |
+| **Card Style**            | theme default · flat · bordered · elevated | Card / panel variant                                                                        |
+| **Reduced Motion**        | on · off                                   | Disables animations and transitions                                                         |
+| **High Contrast**         | on · off                                   | Boosts text / background contrast                                                           |
+| **My Layout** (6 selects) | theme default · visible · hidden           | Visibility of `leftSidebar`, `rightSidebar`, `pageheader`, `pagefooter`, `header`, `footer` |
+
+**Use current layout** snapshots the panels exactly as they are right now into the layout selects. You can also toggle sidebars directly in the shell — those **auto-save after 2 seconds** (non-admins store only the difference from the tenant theme).
+
+#### Overrides vs. theme — the difference
+
+|                         | **Theme** (Themes / Layout / Style / Features / Advanced tabs) | **My Overrides** (this tab)       |
+| :---------------------- | :------------------------------------------------------------- | :-------------------------------- |
+| **Scope**               | Workspace-wide (every user)                                    | Just you                          |
+| **Who can edit**        | Workspace admins only                                          | Every signed-in user              |
+| **What it writes**      | The theme definition stored in the database                    | Your `user.preferences.theme` row |
+| **Route**               | `?tab=themes`, `?tab=layout`, …                                | `?tab=overrides`                  |
+| **Affects other users** | Yes                                                            | No                                |
+
+An override is always **relative to the theme**: leaving a select on _Use theme default_ means "inherit whatever the active theme says". **Clear Overrides** removes the whole personal layer and falls back to the theme.
+
+**Locking.** If a workspace admin locks a setting in the theme (`theme.lockedSettings`), the matching control here is **disabled**. When `layoutState` is locked you see _"Layout is locked by your workspace admin — tenant defaults apply."_ Personal accessibility overrides (contrast, motion) still work unless the admin locked those specifically.
+
+**How it is saved.** **Save My Preferences** calls `PUT /api/user/update-user-attributes` with `{ user_id: "self", newUserData: { preferences: { theme: … } } }` — the server-side source of truth is `user.preferences.theme`. On success the UI caches the value in `localStorage` (`sveltycms:theme-prefs`), applies it through the `userThemePrefs` store (optimistic), re-renders the layout, and invalidates `app:user-prefs` to re-sync server data. **Clear Overrides** sends an empty payload for the same path.
+
+> [!NOTE]
+> **User → Settings** offers a compact density/card/accessibility strip that edits the same per-user preferences and links to this deep link for the full layout controls. It is the same data, not a second system.
 
 ### Theme Files (`/src/themes/*.json`)
 
@@ -255,8 +291,8 @@ Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it t
 
 ```
 {
-  "name": "Corporate",
-  "description": "Enterprise default theme preset — cozy density, bordered cards.",
+  "name": "Default",
+  "description": "SveltyCMS default theme — cozy density, bordered cards.",
   "density": "cozy",
   "variant": "bordered",
   "features": {
@@ -266,7 +302,7 @@ Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it t
     "layoutRegions": { "collections": "left", "mediaGalleries": "left" }
   },
   "properties": {
-    "primary": "#0f766e",
+    "primary": "#5fd317",
     "secondary": "#334155",
     "tertiary": "#1d4ed8",
     "success": "#16a34a",
@@ -561,19 +597,23 @@ App Start → hooks.server.ts → ThemeManager.getTheme()
 
 ## 🔌 API Endpoints
 
-All theme operations go through the REST API at `/api/theme/`. Admin authentication is required for write operations.
+All theme operations go through the REST API at `/api/theme/`. Read methods require `system:read`, write methods require `system:settings` (fail-closed via `ENDPOINT_PERMISSIONS`); `GET /api/theme/public` is standalone and unauthenticated. Full payloads, response shapes and the public-branding contract live in the [Theme & Design System API reference](../../reference/api/theme.mdx).
 
-| Endpoint                   | Method | Description                        |
-| :------------------------- | :----- | :--------------------------------- |
-| `/api/theme/list`          | GET    | List all themes with summaries     |
-| `/api/theme/admin-theme`   | GET    | Get active theme config            |
-| `/api/theme/admin-theme`   | POST   | Save theme config                  |
-| `/api/theme/admin-theme`   | DELETE | Reset to defaults                  |
-| `/api/theme/create`        | POST   | Create new theme (`{ name }`)      |
-| `/api/theme/activate`      | POST   | Activate theme (`{ themeId }`)     |
-| `/api/theme/clone`         | POST   | Clone theme (`{ sourceId, name }`) |
-| `/api/theme/delete`        | POST   | Delete theme (`{ themeId }`)       |
-| `/api/theme/import-preset` | POST   | Import Skeleton.dev/SveltyCMS JSON |
+| Endpoint                       | Method | Description                        |
+| :----------------------------- | :----- | :--------------------------------- |
+| `/api/theme/list`              | GET    | List all themes with summaries     |
+| `/api/theme/admin-theme`       | GET    | Get active theme config            |
+| `/api/theme/admin-theme`       | POST   | Save theme config                  |
+| `/api/theme/admin-theme`       | DELETE | Reset to defaults                  |
+| `/api/theme/create`            | POST   | Create new theme (`{ name }`)      |
+| `/api/theme/activate`          | POST   | Activate theme (`{ themeId }`)     |
+| `/api/theme/clone`             | POST   | Clone theme (`{ sourceId, name }`) |
+| `/api/theme/delete`            | POST   | Delete theme (`{ themeId }`)       |
+| `/api/theme/set-default`       | POST   | Set system default (`{ themeId }`) |
+| `/api/theme/import-preset`     | POST   | Import SveltyCMS/shorthand JSON    |
+| `/api/theme/get-current-theme` | GET    | Active theme record (404 if none)  |
+| `/api/theme/update-theme`      | POST   | Low-level `customCss`-only update  |
+| `/api/theme/public`            | GET    | **Public** tenant branding         |
 
 ---
 
@@ -597,12 +637,13 @@ flowchart LR
 
 Navigate to **Config → System Settings**:
 
-| Setting Key    | Value / Format                     | Effect                                                                 |
-| :------------- | :--------------------------------- | :--------------------------------------------------------------------- |
-| `SITE_NAME`    | Client Organization / Project Name | Replaces "SveltyCMS" in browser title, header breadcrumbs, and sidebar |
-| `LOGO_URL`     | `/media/client-logo.svg` or CDN    | Client brand logo rendered on login screen and admin sidebar           |
-| `FAVICON_URL`  | `/favicon.ico` or PNG              | Custom browser tab icon                                                |
-| `ACCENT_COLOR` | Brand hex (e.g., `#0f766e`)        | Meta theme-color for mobile browser chrome                             |
+| Setting Key    | Value / Format                     | Effect                                                                                                                                                                  |
+| :------------- | :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_NAME`    | Client Organization / Project Name | Replaces "SveltyCMS" in browser title, header breadcrumbs, and sidebar. Capped at 40 characters so the sidebar lockup can never overflow (longer names are ellipsised). |
+| `SITE_SLOGAN`  | Optional tagline (max 60 chars)    | Tagline rendered under the logo on the login screen. Leave blank to keep the translated default (`with Sveltekit Power`).                                               |
+| `LOGO_URL`     | `/media/client-logo.svg` or CDN    | Client brand logo rendered on login screen and admin sidebar                                                                                                            |
+| `FAVICON_URL`  | `/favicon.ico` or PNG              | Custom browser tab icon                                                                                                                                                 |
+| `ACCENT_COLOR` | Brand hex (e.g., `#5fd317`)        | Meta theme-color for mobile browser chrome                                                                                                                              |
 
 #### Step 2: Configure Client Brand Palette
 

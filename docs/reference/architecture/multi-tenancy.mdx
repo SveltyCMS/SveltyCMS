@@ -111,6 +111,8 @@ Tenants are identified via:
 
 4.  **Registration**: New users can register without a token (if `MULTI_TENANT` and `DEMO` mode are enabled) to create a brand new isolated tenant. In **Demo Mode**, the registration UI is further simplified by hiding the token field entirely.
 
+**Resolver backstop**: when the request-scoped tenant was not resolved (for example a warm turbo-auth fast-path hit, or Demo Mode's per-visitor cookie not being present on an authenticated request), the API dispatcher falls back to the authenticated user's own `tenantId` before invoking a namespace. This keeps fail-closed namespaces (the `withTenant` guard used by `tokens`, etc.) from rejecting a legitimately authenticated request as `TENANT_REQUIRED`, without weakening isolation — a user is only ever scoped to their own tenant, and requests with neither a tenant nor an owner stay rejected.
+
 **Global Administrator Access**:
 The system maintains a concept of a **Global Administrator** (the first user created during setup). This user:
 

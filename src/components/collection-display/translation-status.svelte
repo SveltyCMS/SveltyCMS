@@ -443,7 +443,7 @@ FIXES:
 			<Button
 				variant="ghost"
 				aria-label="Toggle language menu"
-				class="rounded-full flex w-full items-center gap-1 p-1.5 transition-all hover:scale-105"
+				class="flex h-10 w-full items-center justify-center gap-1 rounded-xl border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
 			>
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>

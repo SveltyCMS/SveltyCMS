@@ -7,7 +7,12 @@
 	import { StatusTypes, type FieldInstance, type Schema } from '@src/content/types';
 	import type { User } from '@src/databases/auth/types';
 	import type { Role } from '@src/databases/auth/types';
-	import { button_delete, button_save } from '@src/paraglide/messages';
+	import {
+		builder_tip_save_need_name,
+		builder_tip_save_need_widgets,
+		button_delete,
+		button_save
+	} from '@src/paraglide/messages';
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { useContent } from '@src/content';
@@ -423,9 +428,9 @@
 				data-testid="save-collection-button"
 				class="flex min-w-25 items-center gap-1 dark:preset-filled-primary-500"
 				title={!stepProgress.defineOk
-					? 'Set collection name and icon first'
+					? builder_tip_save_need_name()
 					: !stepProgress.widgetsOk
-						? 'Tip: add widgets before saving a complete schema'
+						? builder_tip_save_need_widgets()
 						: undefined}
 			>
 				{#if isLoading}

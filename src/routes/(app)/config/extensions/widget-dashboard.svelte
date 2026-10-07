@@ -222,7 +222,7 @@ Features:
 	}
 </script>
 
-<div class="wrapper h-full max-h-screen space-y-6 overflow-y-auto p-4 pb-16">
+<div class="space-y-6 pb-6">
 	{#if isLoading}
 		<div class="flex items-center justify-center p-8">
 			<div

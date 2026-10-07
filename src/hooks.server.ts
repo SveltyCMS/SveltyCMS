@@ -374,13 +374,15 @@ if (!building) {
             clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
           }
 
-          setTimeout(() => {
+          const initialTelemetryCheck = setTimeout(() => {
             telemetryService
               .checkUpdateStatus()
               .catch((err) => logger.error("Initial telemetry check failed", err));
           }, 10_000);
+          // Housekeeping timers must never keep the event loop alive (clean Ctrl+C exit).
+          void initialTelemetryCheck.unref?.();
 
-          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+          const telemetryInterval = setInterval(
             () => {
               telemetryService
                 .checkUpdateStatus()
@@ -388,6 +390,8 @@ if (!building) {
             },
             1000 * 60 * 60 * 12, // 12 hours
           );
+          void telemetryInterval.unref?.();
+          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = telemetryInterval;
         }
 
         // 🚀 PRE-WARM LAZY WRITE-PATH MODULES (cold-start): the first collection
@@ -523,9 +527,22 @@ if (!building) {
   if (!g.__SVELTY_SIGNAL_HANDLERS_INSTALLED__) {
     g.__SVELTY_SIGNAL_HANDLERS_INSTALLED__ = true;
 
+    let shutdownStartedAt = 0;
+
     const handleSignal = async (signal: string) => {
-      // Re-entrancy: double Ctrl+C / stacked HMR listeners must not re-enter
-      if (g.__SVELTY_SHUTTING_DOWN__) return;
+      // Re-entrancy: double Ctrl+C / stacked HMR listeners must not re-enter.
+      // A genuine SECOND signal is the user asking to force-quit — honour it
+      // instead of silently swallowing it (that made Ctrl+C look like a no-op
+      // whenever the first graceful pass stalled). Same-tick duplicates from
+      // stacked listeners are ignored via the time guard.
+      if (g.__SVELTY_SHUTTING_DOWN__) {
+        if (Date.now() - shutdownStartedAt > 500) {
+          logger.warn(`Received ${signal} again — forcing immediate exit.`);
+          process.exit(1);
+        }
+        return;
+      }
+      shutdownStartedAt = Date.now();
       g.__SVELTY_SHUTTING_DOWN__ = true;
 
       logger.info(`Received ${signal}. Starting graceful shutdown...`);
@@ -1081,18 +1098,41 @@ export const handle: Handle = async ({ event, resolve }) => {
 // --- Global Error Handler (SvelteKit v3 compatible) ---
 /**
  * Catches ALL unhandled errors from page loads, API routes, and server functions.
- * Extracts structured codes from raise() calls via `__sveltyCode` in the error body.
  * Single source of truth for production error logging.
  *
- * 🚀 SK3: handleError receives a `CaughtError & { event }` input — the HTTP
- * status lives on the caught error object (app errors always carry status).
+ * 🚀 SK3: the input is a discriminated `CaughtError & { event }`. `input.error` is NOT
+ * the thrown `HttpError` — for `kind: "app"` it is the **body** passed to
+ * `error(status, body)`, for `"framework"`/`"validation"` a `{ status, message }`, and
+ * for `"unknown"` the raw thrown value (an `AppError` from `raise()` carries its own
+ * `status`/`code`). Reading the old `error.body`/`error.status` shape produced
+ * `"[object Object]"` and forced every status to 500 — do not reintroduce it.
  */
-export const handleError: HandleServerError = async (input) => {
-  const { error, event } = input;
-  const status = (error as { status?: number } | null)?.status ?? 500;
-  const body = (error as { body?: { __sveltyCode?: string; message?: string } } | null)?.body;
-  const code = body?.__sveltyCode || `HTTP_${status}`;
-  const message = body?.message || (error instanceof Error ? error.message : String(error ?? ""));
+// NOTE: This hook is intentionally SYNCHRONOUS. SvelteKit cannot apply an async
+// `handleError` to errors thrown while *rendering* unless the Svelte compiler's
+// `experimental.async` is enabled — with an async hook those errors are replaced
+// by a generic object ("handle_error_async_without_async_svelte"). Keeping it
+// sync means render errors (e.g. a stale module import) are logged with their
+// real message instead of being masked. There is no async work in this hook.
+export const handleError: HandleServerError = (input) => {
+  const { kind, error, event } = input;
+
+  let status = 500;
+  let code = "HTTP_500";
+  let message = "Internal Error";
+
+  if (kind === "app") {
+    // `error` is the body given to `error(status, body)` — status is not carried here.
+    const body = (error ?? {}) as { message?: string; code?: string; __sveltyCode?: string };
+    message = body.message || "Internal Error";
+    code = body.__sveltyCode || body.code || "HTTP_500";
+  } else {
+    // "framework" / "validation" carry `{ status, message }`; "unknown" is anything
+    // thrown by our code (AppError from raise() exposes `status` + `code`).
+    const structured = error as { status?: number; message?: string; code?: string } | null;
+    message = error instanceof Error ? error.message : (structured?.message ?? String(error ?? ""));
+    if (typeof structured?.status === "number") status = structured.status;
+    code = structured?.code || `HTTP_${status}`;
+  }
 
   logger.error(`[GlobalError] ${code} — ${message}`, {
     path: event?.url?.pathname,
@@ -1109,6 +1149,7 @@ export const handleError: HandleServerError = async (input) => {
     process.env.NODE_ENV !== "production";
 
   return {
+    status,
     message: isDevOrTest ? message || "Internal Error" : "Internal Error",
     code,
   };

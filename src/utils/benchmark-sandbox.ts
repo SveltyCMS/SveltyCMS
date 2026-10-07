@@ -18,6 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { paths } from "./path-resolver.ts";
+import { isAutomatedTestHarness } from "./private-config-policy.ts";
 
 export type BenchmarkProfile = "local" | "ci-fresh";
 
@@ -123,6 +124,32 @@ function liveCompiledCollectionsPath(tenantId?: string | null): string {
   return path.join(base, tenantId);
 }
 
+/** True under the Playwright/E2E harness, which deliberately uses the live `config/collections`. */
+export function isPlaywrightTest(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.PLAYWRIGHT_TEST === "true" || env.PLAYWRIGHT_TEST === "1";
+}
+
+/**
+ * Whether the live-data write guard is active.
+ *
+ * Local benchmarks AND non-E2E automated harnesses (vitest / `bun test` /
+ * integration) must never materialize builder categories in the developer's live
+ * `config/collections`: an integration run stranded `unit-reorder-*` category
+ * folders there, the scanner then adopted them as `source: "filesystem"`
+ * categories, and every reconcile re-created them. E2E is exempt because
+ * `ci.yml` `e2e-prep` deliberately prepares and archives a `config/collections`
+ * tree for the Playwright server.
+ */
+function guardIsActive(): boolean {
+  if (isLocalBenchmarkSandbox()) return true;
+  return isAutomatedTestHarness() && !isPlaywrightTest();
+}
+
+function isSameOrInside(target: string, root: string): boolean {
+  const normalizedRoot = path.normalize(root);
+  return target === normalizedRoot || target.startsWith(normalizedRoot + path.sep);
+}
+
 /**
  * Compiled collections output directory — redirects to sandbox when local benchmark active.
  */
@@ -134,10 +161,12 @@ export function resolveCompiledCollectionsPath(tenantId?: string | null): string
 }
 
 /**
- * Fail-closed guard: throws before writing to live developer trees during local benchmarks.
+ * Fail-closed guard: throws before writing to live developer trees during local
+ * benchmarks, and to the live source collection tree during non-E2E automated
+ * harnesses. Sandboxes and the test collection trees stay writable.
  */
 export function assertLiveDataWriteAllowed(targetPath: string): void {
-  if (!isLocalBenchmarkSandbox()) return;
+  if (!guardIsActive()) return;
 
   const normalizedTarget = path.normalize(path.resolve(targetPath));
 
@@ -147,33 +176,45 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
   const sandboxConfigSync = getLocalSandboxConfigSyncRoot();
 
   if (
-    normalizedTarget === sandboxCompiled ||
-    normalizedTarget.startsWith(sandboxCompiled + path.sep) ||
-    normalizedTarget === sandboxMedia ||
-    normalizedTarget.startsWith(sandboxMedia + path.sep) ||
-    normalizedTarget === sandboxConfigSync ||
-    normalizedTarget.startsWith(sandboxConfigSync + path.sep)
+    isSameOrInside(normalizedTarget, sandboxCompiled) ||
+    isSameOrInside(normalizedTarget, sandboxMedia) ||
+    isSameOrInside(normalizedTarget, sandboxConfigSync)
   ) {
     return;
   }
 
-  // 2. Allow test collections
-  const testCollections = path.join(process.cwd(), "config", "collections", "test");
+  // 2. Allow the sanctioned test collection trees
+  const testCollections = path.join(process.cwd(), "config", "test-collections");
+  const legacyTestDir = path.join(process.cwd(), "config", "collections", "test");
   if (
-    normalizedTarget === testCollections ||
-    normalizedTarget.startsWith(testCollections + path.sep)
+    isSameOrInside(normalizedTarget, testCollections) ||
+    isSameOrInside(normalizedTarget, legacyTestDir)
   ) {
     return;
   }
 
-  // 3. Block all other live roots
-  for (const root of getLiveRoots()) {
-    if (normalizedTarget === root || normalizedTarget.startsWith(root + path.sep)) {
-      throw new Error(
-        `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
-          `Use sandbox paths under ${SANDBOX_COMPILED_ROOT} or ${SANDBOX_MEDIA_REL}.`,
-      );
+  // 3. Local benchmark — block every live root (unchanged behaviour)
+  if (isLocalBenchmarkSandbox()) {
+    for (const root of getLiveRoots()) {
+      if (isSameOrInside(normalizedTarget, root)) {
+        throw new Error(
+          `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
+            `Use sandbox paths under ${SANDBOX_COMPILED_ROOT} or ${SANDBOX_MEDIA_REL}.`,
+        );
+      }
     }
+    return;
+  }
+
+  // 4. Non-E2E automated harness — protect the live SOURCE collection tree.
+  //    Compiled output legitimately lands in `.compiledCollections` during tests,
+  //    so only the source root is guarded here.
+  const liveSource = path.normalize(paths.collections);
+  if (isSameOrInside(normalizedTarget, liveSource)) {
+    throw new Error(
+      `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live collections at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
+        "Tests must write under config/test-collections (or config/collections/test).",
+    );
   }
 }
 

@@ -467,6 +467,8 @@ export class DatabaseResilience {
     this.monitoringInterval = setInterval(() => {
       this.updateConnectionUptime();
     }, 30_000);
+    // Never let the health poll keep the event loop alive (clean Ctrl+C exit).
+    if (typeof this.monitoringInterval.unref === "function") this.monitoringInterval.unref();
   }
 
   // Stop health monitoring (cleanup)
@@ -660,6 +662,14 @@ export async function notifyAdminsOfDatabaseFailure(
 
 // Global resilience instance (singleton)
 let resilienceInstance: DatabaseResilience | null = null;
+
+/**
+ * Stop the singleton resilience health monitor (idempotent; safe when the
+ * instance was never created). Called from `shutdownSystem()` during teardown.
+ */
+export function stopDatabaseResilienceMonitor(): void {
+  resilienceInstance?.stop();
+}
 
 export function getDatabaseResilience(
   config?: Partial<RetryConfig & CircuitBreakerConfig>,

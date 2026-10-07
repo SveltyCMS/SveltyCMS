@@ -173,23 +173,4 @@ export const actions: Actions = {
       return fail(500, { message: "Failed to save configuration" });
     }
   },
-
-  loadPreset: async ({ request, locals }) => {
-    requireCollectionBuilderPermission(locals);
-
-    const formData = await request.formData();
-    const presetId = String(formData.get("presetId") ?? "").trim();
-
-    try {
-      const { installPresetCollections } = await import("./collectionbuilder.server");
-      const result = await installPresetCollections(locals.tenantId ?? null, presetId);
-      const { invalidateFirstCollectionPathCache } =
-        await import("@utils/server/collection-utils.server");
-      invalidateFirstCollectionPathCache();
-      return result;
-    } catch (err) {
-      logger.error("Failed to install preset:", err);
-      return fail(500, { message: "Failed to install preset" });
-    }
-  },
 };

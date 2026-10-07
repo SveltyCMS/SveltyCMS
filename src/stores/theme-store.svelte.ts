@@ -9,7 +9,6 @@ import type { ISODateString } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
 import type { UserThemePreferences } from "@utils/theme-merge";
 import { nowISODateString } from "@src/utils/date";
-import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
 import { browser } from "$app/env";
 
@@ -309,7 +308,18 @@ export async function initializeThemeStore() {
   state.isLoading = true;
   state.error = null;
   try {
-    const response = await fetch("/api/theme/default");
+    // `get-current-theme` returns the active theme record (`Theme`) — the shape the
+    // themes manager lists. The former `/api/theme/default` was a dead action name,
+    // so it never resolved to a handler and only produced an unauthorized error.
+    const response = await fetch("/api/theme/get-current-theme");
+    if (response.status === 401 || response.status === 403 || response.status === 404) {
+      // Pre-auth surface (/login, /setup) or a fresh install with no active theme
+      // yet — neither is an error. The SSR payload already paints the active theme;
+      // the client store simply stays empty until a session can read it.
+      state.currentTheme = null;
+      state.lastUpdateAttempt = nowISODateString();
+      return null;
+    }
     if (!response.ok) {
       throw new Error(`Failed to fetch theme: ${response.statusText}`);
     }
@@ -320,32 +330,6 @@ export async function initializeThemeStore() {
   } catch (err) {
     state.error = err instanceof Error ? err.message : "Failed to initialize theme";
     throw err;
-  } finally {
-    state.isLoading = false;
-  }
-}
-
-export async function updateTheme(newThemeName: string) {
-  state.isLoading = true;
-  state.error = null;
-  try {
-    const response = await fetch("/api/theme/update-theme", {
-      method: "POST",
-      headers: clientJsonHeaders(),
-      body: JSON.stringify({ themeName: newThemeName }),
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to update theme: ${response.statusText}`);
-    }
-
-    const updatedTheme: Theme = await response.json();
-    state.currentTheme = updatedTheme;
-    state.lastUpdateAttempt = nowISODateString();
-    return updatedTheme;
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to update theme";
-    state.error = errorMessage;
-    throw new Error(errorMessage);
   } finally {
     state.isLoading = false;
   }

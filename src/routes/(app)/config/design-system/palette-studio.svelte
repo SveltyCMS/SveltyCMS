@@ -174,7 +174,7 @@ into theme customCss (marked block), and preview on native components.
 					id={`palette-hex-${row.key}`}
 					bind:value={seeds[row.key]}
 					label={`${row.label} hex`}
-					placeholder="#0f766e"
+					placeholder="#5fd317"
 					class="font-mono text-xs"
 				/>
 				<p class="text-[11px]" style="color: var(--admin-text-muted)">{row.hint}</p>
@@ -255,7 +255,7 @@ into theme customCss (marked block), and preview on native components.
 			Apply palette
 		</Button>
 		<Button variant="outline" size="sm" onclick={resetSeeds} data-testid="palette-studio-reset">
-			Reset to Corporate defaults
+			Reset to default seeds
 		</Button>
 		<Button
 			variant="ghost"

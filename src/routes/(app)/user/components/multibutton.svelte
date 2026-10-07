@@ -20,7 +20,41 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		multibuttontoken_modalbody,
 		multibuttontoken_modaltitle,
 		usermodaluser_editbody,
-		usermodaluser_edittitle
+		usermodaluser_edittitle,
+		usermultibutton_action_restricted,
+		usermultibutton_block,
+		usermultibutton_block_body_multi,
+		usermultibutton_block_body_single,
+		usermultibutton_confirm_token_block,
+		usermultibutton_confirm_token_deletion,
+		usermultibutton_confirm_token_unblock,
+		usermultibutton_confirm_user_block,
+		usermultibutton_confirm_user_deletion,
+		usermultibutton_confirm_user_unblock,
+		usermultibutton_delete,
+		usermultibutton_delete_body_multi,
+		usermultibutton_delete_body_single,
+		usermultibutton_edit,
+		usermultibutton_execute_action,
+		usermultibutton_generic_error,
+		usermultibutton_operation_failed,
+		usermultibutton_select_action,
+		usermultibutton_select_action_aria,
+		usermultibutton_select_one,
+		usermultibutton_toggle_menu,
+		usermultibutton_token,
+		usermultibutton_token_updated,
+		usermultibutton_tokens_blocked,
+		usermultibutton_tokens_deleted,
+		usermultibutton_tokens_unblocked,
+		usermultibutton_unblock,
+		usermultibutton_unblock_body_multi,
+		usermultibutton_unblock_body_single,
+		usermultibutton_user,
+		usermultibutton_user_updated,
+		usermultibutton_users_blocked,
+		usermultibutton_users_deleted,
+		usermultibutton_users_unblocked
 	} from '@src/paraglide/messages';
 	// Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -71,8 +105,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		ui.listboxValueState = listboxValue;
 	});
 
-	// Helper to get identifier for display
-	const getDisplayIdentifier = (row: any) => (isUser(row) ? row.username : (row as Token).email);
+	// Helper to get identifier for display. Always returns a string so the
+	// Paraglide message params (typed as NonNullable) never receive `undefined`.
+	const getDisplayIdentifier = (row: any): string =>
+		isUser(row)
+			? String(row.username ?? row._id ?? '')
+			: String((row as Token).email ?? (row as Token)._id ?? '');
 
 	// Handle click outside to close dropdown
 	function handleClickOutside(event: MouseEvent) {
@@ -215,7 +253,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		edit: {
 			buttonClass: 'gradient-primary',
 			iconValue: 'bi:pencil-fill',
-			label: 'Edit',
+			label: usermultibutton_edit(),
 			modalTitle: () =>
 				type === 'user' ? usermodaluser_edittitle() : multibuttontoken_modaltitle(),
 			modalBody: () => (type === 'user' ? usermodaluser_editbody() : multibuttontoken_modalbody()),
@@ -224,59 +262,84 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					? '/api/user/update-user-attributes'
 					: `/api/token/${(safeSelectedRows[0] as Token).token}`,
 			method: () => 'PUT',
-			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
+			toastMessage: () =>
+				type === 'user' ? usermultibutton_user_updated() : usermultibutton_token_updated(),
 			toastBackground: 'gradient-primary'
 		},
 		delete: {
 			buttonClass: 'gradient-error',
 			iconValue: 'bi:trash3-fill',
-			label: 'Delete',
-			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Deletion`,
+			label: usermultibutton_delete(),
+			modalTitle: () =>
+				type === 'user'
+					? usermultibutton_confirm_user_deletion()
+					: usermultibutton_confirm_token_deletion(),
 			modalBody: () => {
+				const entity = type === 'user' ? usermultibutton_user() : usermultibutton_token();
 				if (safeSelectedRows.length === 1) {
 					const row = safeSelectedRows[0];
 					const identifier = getDisplayIdentifier(row);
-					return `Are you sure you want to delete ${type} <strong>${identifier}</strong>? This action is permanent.`;
+					return usermultibutton_delete_body_single({ type: entity, identifier });
 				}
-				return `Are you sure you want to delete <strong>${safeSelectedRows.length} ${type}s</strong>? This action is permanent.`;
+				return usermultibutton_delete_body_multi({
+					count: safeSelectedRows.length,
+					type: entity
+				});
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
-			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Deleted`,
+			toastMessage: () =>
+				type === 'user' ? usermultibutton_users_deleted() : usermultibutton_tokens_deleted(),
 			toastBackground: 'preset-filled-success-500'
 		},
 		block: {
 			buttonClass: 'gradient-pink',
 			iconValue: 'material-symbols:lock',
-			label: 'Block',
-			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Block`,
+			label: usermultibutton_block(),
+			modalTitle: () =>
+				type === 'user'
+					? usermultibutton_confirm_user_block()
+					: usermultibutton_confirm_token_block(),
 			modalBody: () => {
+				const entity = type === 'user' ? usermultibutton_user() : usermultibutton_token();
 				if (safeSelectedRows.length === 1) {
 					const identifier = getDisplayIdentifier(safeSelectedRows[0]);
-					return `Are you sure you want to block the ${type} <span class="text-error-500 font-bold">${identifier}</span>? They will lose access immediately.`;
+					return usermultibutton_block_body_single({ type: entity, identifier });
 				}
-				return `Are you sure you want to block <span class="text-error-500 font-bold">${safeSelectedRows.length}</span> selected ${type}(s)? They will lose access immediately.`;
+				return usermultibutton_block_body_multi({
+					count: safeSelectedRows.length,
+					type: entity
+				});
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
-			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Blocked`,
+			toastMessage: () =>
+				type === 'user' ? usermultibutton_users_blocked() : usermultibutton_tokens_blocked(),
 			toastBackground: 'preset-filled-success-500'
 		},
 		unblock: {
 			buttonClass: 'gradient-yellow',
 			iconValue: 'material-symbols:lock-open',
-			label: 'Unblock',
-			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Unblock`,
+			label: usermultibutton_unblock(),
+			modalTitle: () =>
+				type === 'user'
+					? usermultibutton_confirm_user_unblock()
+					: usermultibutton_confirm_token_unblock(),
 			modalBody: () => {
+				const entity = type === 'user' ? usermultibutton_user() : usermultibutton_token();
 				if (safeSelectedRows.length === 1) {
 					const identifier = getDisplayIdentifier(safeSelectedRows[0]);
-					return `Are you sure you want to unblock the ${type} <span class="text-success-500 font-bold">${identifier}</span>? This will restore their access.`;
+					return usermultibutton_unblock_body_single({ type: entity, identifier });
 				}
-				return `Are you sure you want to unblock <span class="text-success-500 font-bold">${safeSelectedRows.length}</span> selected ${type}(s)? This will restore their access.`;
+				return usermultibutton_unblock_body_multi({
+					count: safeSelectedRows.length,
+					type: entity
+				});
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
-			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Unblocked`,
+			toastMessage: () =>
+				type === 'user' ? usermultibutton_users_unblocked() : usermultibutton_tokens_unblocked(),
 			toastBackground: 'preset-filled-success-500'
 		}
 	});
@@ -296,7 +359,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			});
 
 			const data = await res.json();
-			if (!res.ok || data.success === false) throw new Error(data.message || 'Operation failed');
+			if (!res.ok || data.success === false)
+				throw new Error(data.message || usermultibutton_operation_failed());
 
 			toast.success({ description: data.message || config.toastMessage() });
 			onUpdate({
@@ -306,7 +370,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			});
 			await refreshAll();
 		} catch (error) {
-			toast.error({ description: error instanceof Error ? error.message : 'An error occurred' });
+			toast.error({
+				description: error instanceof Error ? error.message : usermultibutton_generic_error()
+			});
 		}
 	}
 
@@ -315,8 +381,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (disabledMap[action]) {
 			const reason =
 				action === 'edit'
-					? `Please select only one ${type}`
-					: `Action restricted for this selection`;
+					? usermultibutton_select_one({
+							type: type === 'user' ? usermultibutton_user() : usermultibutton_token()
+						})
+					: usermultibutton_action_restricted();
 			toast.warning(reason);
 			return;
 		}
@@ -408,8 +476,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			type="button"
 			onclick={() => handleAction(listboxValue)}
 			disabled={isDisabled || disabledMap[listboxValue]}
-			aria-label="Execute {actionConfig[listboxValue].label} action"
-			title="Execute {actionConfig[listboxValue].label} action"
+			aria-label={usermultibutton_execute_action({ action: actionConfig[listboxValue].label })}
+			title={usermultibutton_execute_action({ action: actionConfig[listboxValue].label })}
 			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled &&
 			!disabledMap[listboxValue]
 				? 'active:scale-95'
@@ -431,8 +499,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			disabled={isDisabled}
 			aria-haspopup="menu"
 			aria-expanded={isDropdownOpen}
-			aria-label="Toggle bulk actions menu"
-			title="Select action"
+			aria-label={usermultibutton_toggle_menu()}
+			title={usermultibutton_select_action()}
 			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-e-md {!isDisabled
 				? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer'
 				: 'opacity-50 pointer-events-none'}"
@@ -462,7 +530,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 									handleOptionClick(action);
 								}}
 								{disabled}
-								aria-label="Select {action} action"
+								aria-label={usermultibutton_select_action_aria({ action: config.label })}
 								role="menuitem"
 								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-start text-white transition-all duration-200 hover:bg-white/5 {disabled
 									? 'opacity-20 cursor-not-allowed grayscale'
@@ -485,7 +553,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								</div>
 
 								<!-- Label -->
-								<div class="relative z-10 flex-1 font-semibold capitalize">{action}</div>
+								<div class="relative z-10 flex-1 font-semibold capitalize">{config.label}</div>
 
 								<!-- Current Selection Indicator -->
 								{#if listboxValue === action}

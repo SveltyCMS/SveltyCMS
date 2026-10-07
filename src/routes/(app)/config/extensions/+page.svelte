@@ -1,9 +1,9 @@
 <!--
 @file src/routes/(app)/config/extensions/+page.svelte
-@component Extension Management page (Plugins, Widgets, Themes)
+@component Extension Management page (Plugins, Widgets, Marketplace)
 
 ### Features:
-- Tabbed plugins / widgets / themes
+- Tabbed plugins / widgets / marketplace
 - Stable data-testids for E2E
 -->
 
@@ -12,7 +12,6 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import PluginsView from './plugins-view.svelte';
-	import ThemesView from './themes-view.svelte';
 	import WidgetDashboard from './widget-dashboard.svelte';
 	import MarketplaceView from './marketplace-view.svelte';
 
@@ -23,7 +22,6 @@
 	const tabs = [
 		{ id: 'plugins', label: 'Plugins', icon: 'mdi:puzzle' },
 		{ id: 'widgets', label: 'Widgets', icon: 'mdi:widgets' },
-		{ id: 'themes', label: 'Themes', icon: 'ph:layout' },
 		{ id: 'marketplace', label: 'Marketplace', icon: 'mdi:store' }
 	] as const;
 </script>
@@ -31,16 +29,17 @@
 <AdminPageShell
 	title="Extension Management"
 	icon="mdi:puzzle-outline"
-	description="Install and manage plugins, widgets, and themes"
+	description="Install and manage plugins, widgets, and marketplace extensions"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight
 >
 	<div data-testid="extensions-page" class="contents">
 		<AdminCard
-			class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+			class="flex min-h-0 flex-1 flex-col border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs p-6"
 		>
 			<div
-				class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40"
+				class="mb-4 flex shrink-0 items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40"
 			>
 				<div
 					class="flex gap-1"
@@ -82,15 +81,17 @@
 				</button>
 			</div>
 
-			<div class="min-h-125" data-testid={`extensions-panel-${activeTab}`} role="tabpanel">
+			<div
+				class="min-h-0 flex-1 overflow-y-auto"
+				data-testid={`extensions-panel-${activeTab}`}
+				role="tabpanel"
+			>
 				{#if activeTab === 'plugins'}
 					<PluginsView {data} />
 				{:else if activeTab === 'widgets'}
 					<WidgetDashboard {data} />
 				{:else if activeTab === 'marketplace'}
 					<MarketplaceView />
-				{:else if activeTab === 'themes'}
-					<ThemesView />
 				{/if}
 			</div>
 		</AdminCard>

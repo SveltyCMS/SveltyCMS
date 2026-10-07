@@ -299,7 +299,7 @@ function setSessionInCache(sessionId: string, entry: SessionCacheEntry): void {
 // Periodic cleanup — guarded against duplicate timers on HMR reload
 const SESSION_CLEANUP_KEY = "__svelty_session_cleanup__";
 if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_KEY]) {
-  (globalThis as any)[SESSION_CLEANUP_KEY] = setInterval(
+  const sessionCleanupTimer = setInterval(
     () => {
       const now = Date.now();
       for (const [sessionId, data] of sessionCache.entries()) {
@@ -321,6 +321,9 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_K
     },
     10 * 60 * 1000,
   );
+  // Never keep the process alive purely for cache housekeeping (clean Ctrl+C exit).
+  void (sessionCleanupTimer as { unref?: () => void }).unref?.();
+  (globalThis as any)[SESSION_CLEANUP_KEY] = sessionCleanupTimer;
 }
 
 // --- UTILITY FUNCTIONS ---
@@ -889,9 +892,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
+      // Fall back to the cached user's own tenant when neither the cached context
+      // nor locals carry one (e.g. Demo Mode's per-visitor cookie was never set on
+      // an authenticated request). Mirrors the post-session bind below — without it
+      // a warm cache hit serves the whole request with a null tenant.
       (locals as any).tenantId = resolveRequestTenant(
         event.request,
-        turboCtx.tenantId ?? locals.tenantId,
+        turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
@@ -928,7 +935,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       (locals as any).roles = turboCtx.roles;
       (locals as any).tenantId = resolveRequestTenant(
         event.request,
-        turboCtx.tenantId ?? locals.tenantId,
+        turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
@@ -1153,7 +1160,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               sessionId as string,
               user,
               (locals as any).roles || [],
-              locals.tenantId || null,
+              // Never cache a null tenant while the user owns one — a warm turbo
+              // hit would otherwise serve the whole session tenantless (see the
+              // TurboAuthContext tenant fallback above).
+              locals.tenantId || user.tenantId || null,
             );
           }
           if (sessionId && resolution.status === "ok") {

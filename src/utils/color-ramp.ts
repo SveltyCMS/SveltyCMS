@@ -10,7 +10,7 @@
  * back by reducing chroma — never by clipping RGB, which would shift the hue.
  *
  * ### Features:
- * - Hex → OKLCH → hex round-trip (no dependencies, client + server safe)
+ * - Hex seed → OKLCH ramp emitted as CSS `oklch(...)` (no dependencies, client + server safe)
  * - Full 11-step ramp anchored on the seed (500 for accents, 50 for surfaces)
  * - Perceptually even lightness ladder + chroma taper near the extremes
  * - Gamut-mapped via chroma reduction (hue-preserving, never RGB-clipped)
@@ -156,20 +156,46 @@ export function oklchToHex(color: OklchColor): string {
 }
 
 /**
+ * Convert an OKLCH color to a CSS `oklch(L% C Hdeg)` string (gamut-mapped the
+ * same way as {@link oklchToHex} — chroma reduction, never RGB clipping). The
+ * generated theme ramp is emitted in this notation so a token resolves to the
+ * same color space as the `@theme` design tokens instead of an opaque hex.
+ */
+export function oklchToCss(color: OklchColor): string {
+  const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+  const lPercent = Number((clamp01(color.l) * 100).toFixed(2));
+  const l = lPercent / 100;
+  const h = Number((Number.isFinite(color.h) ? color.h : 0).toFixed(2));
+
+  // Reduce chroma until the ROUNDED `oklch()` value itself is inside sRGB. The
+  // check runs on the numbers that are actually emitted, so a token that rounds
+  // a channel past the gamut boundary is nudged back instead of rendering out of
+  // gamut (the values above are already gamut-clamped; this only absorbs the
+  // rounding step).
+  let c = clampChromaToGamut({ l, c: color.c, h }).c;
+  const roundedChroma = () => Number(c.toFixed(4));
+  for (let i = 0; i < 64 && !inSrgbGamut({ l, c: roundedChroma(), h }); i++) {
+    c = Math.max(0, c - 1e-4);
+  }
+
+  return `oklch(${lPercent.toFixed(2)}% ${roundedChroma().toFixed(4)} ${h.toFixed(2)}deg)`;
+}
+
+/**
  * Generate a full 50–950 ramp from a single hex seed.
  *
  * The seed lands verbatim on `anchor`; every other step keeps the seed's hue,
  * spaces lightness perceptually evenly around it, and tapers chroma toward the
- * extremes. Returns `null` for anything that is not a valid hex color, so the
- * caller can keep its existing behavior for `oklch()`/named-color input.
+ * extremes. Every step is emitted as a CSS `oklch(...)` string. Returns `null`
+ * for anything that is not a valid hex color, so the caller can keep its
+ * existing behavior for `oklch()`/named-color input.
  */
 export function generateColorRamp(
   baseHex: string,
   options: ColorRampOptions = {},
 ): Record<RampStep, string> | null {
-  const normalized = normalizeHex(baseHex);
   const base = parseHexToOklch(baseHex);
-  if (!normalized || !base) return null;
+  if (!base) return null;
 
   const anchor = options.anchor ?? 500;
   const chromaTaper = Math.min(1, Math.max(0, options.chromaTaper ?? 0.6));
@@ -178,14 +204,14 @@ export function generateColorRamp(
   const ramp = {} as Record<RampStep, string>;
   for (const step of RAMP_STEPS) {
     if (step === anchor) {
-      ramp[step] = normalized;
+      ramp[step] = oklchToCss(base);
       continue;
     }
     const lightness = Math.min(0.995, Math.max(0.04, NOMINAL_LIGHTNESS[step] + delta));
     // d = 0 mid-ramp, → 1 at the extremes; mutes neon tints/shades.
     const extremity = Math.min(1, Math.abs(lightness - 0.5) / 0.5);
     const chroma = base.c * (1 - chromaTaper * extremity);
-    ramp[step] = oklchToHex({ l: lightness, c: chroma, h: base.h });
+    ramp[step] = oklchToCss({ l: lightness, c: chroma, h: base.h });
   }
   return ramp;
 }

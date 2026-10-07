@@ -3,11 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { writePresetCollectionFiles } from "@src/routes/setup/preset-collections.server";
 import { PRESETS } from "@src/routes/setup/presets";
+import { getCollectionsPath, getCompiledCollectionsPath } from "@utils/tenant.server";
 
 describe("Setup Presets Integration", () => {
   const tenantId = "test-setup-presets";
-  const configDir = path.resolve("config", tenantId, "collections");
-  const compiledDir = path.resolve(".compiledCollections", tenantId);
+  // Under the integration harness the tenant collection tree is routed to
+  // `<tenant>/test-collections` (never the live `<tenant>/collections`) — mirror
+  // the resolver instead of hardcoding the live path (see path-resolver.ts).
+  const configDir = getCollectionsPath(tenantId);
+  const compiledDir = getCompiledCollectionsPath(tenantId);
   const liveCollectionsDir = path.resolve("config", "collections");
 
   afterAll(() => {

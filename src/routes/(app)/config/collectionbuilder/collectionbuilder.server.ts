@@ -10,7 +10,7 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { error, fail } from "@sveltejs/kit";
-import type { ContentNodeOperation } from "@src/content/types";
+import type { ContentNodeOperation, DatabaseId } from "@src/content/types";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
@@ -19,6 +19,7 @@ import {
   getCollectionBuilderCms,
   serializeStructureNodes,
 } from "./collectionbuilder-local.server";
+import { parseSchemaInput, type SchemaIngestionInput } from "./schema-ingestion";
 import {
   parseIdList,
   parseOperations,
@@ -109,22 +110,67 @@ export async function installPresetCollections(
   const cms = await getCollectionBuilderCms(tenantId);
   await cms.content.refresh(tenantId);
 
+  // A preset install can change which collection is "first" — drop the memoized
+  // first-collection redirect so /login → collection navigation never goes stale.
+  const { invalidateFirstCollectionPathCache } =
+    await import("@utils/server/collection-utils.server");
+  invalidateFirstCollectionPathCache();
+
+  // Return the materialized structure so callers can adopt it directly. The
+  // builder's page load does not depend on 'app:content', so invalidating alone
+  // never refreshes `data.contentStructure` — the empty state would stay visible.
+  const nodes =
+    (await cms.contentStructure.getFlatStructure({ tenantId: tenantId as DatabaseId | null })) ??
+    [];
   const created = preset.collections.map((c) => c.name);
   return {
     success: true,
     message: `Created ${created.length} collections: ${created.join(", ")}`,
     collections: created,
+    contentStructure: serializeStructureNodes(nodes),
   };
-}
-
-export async function installPreset(event: RequestEvent, presetId: string) {
-  requirePermission(event);
-  const tenantId = (event.locals as App.Locals).tenantId ?? null;
-  return installPresetCollections(tenantId, presetId);
 }
 
 export async function installTemplateCollections(event: RequestEvent, presetId: string) {
   requirePermission(event);
   const tenantId = (event.locals as App.Locals).tenantId ?? null;
   return installPresetCollections(tenantId, presetId, { rejectDemo: true });
+}
+
+/**
+ * Server-side schema ingestion (SQL DDL / JSON sample → collection schema).
+ *
+ * Runs on the server so relation targets can be resolved against the live
+ * collection list — a client-side parse cannot see it. Read-only: no writes.
+ */
+export async function parseSchemaIngestion(
+  event: RequestEvent,
+  input: SchemaIngestionInput,
+): Promise<{ schema: ReturnType<typeof parseSchemaInput> | null; error: string | null }> {
+  requirePermission(event);
+  const tenantId = (event.locals as App.Locals).tenantId ?? null;
+
+  let existingCollections: string[] = [];
+  try {
+    const cms = await getCollectionBuilderCms(tenantId);
+    const nodes =
+      (await cms.contentStructure.getFlatStructure({
+        tenantId: tenantId as DatabaseId | null,
+      })) ?? [];
+    existingCollections = nodes
+      .filter((node) => (node as { nodeType?: string }).nodeType !== "category")
+      .map((node) => node.name)
+      .filter((name): name is string => Boolean(name));
+  } catch (err) {
+    // Relation resolution is best-effort — never fail ingestion over it.
+    logger.warn("[SchemaIngestion] Could not load collections for relation resolution:", err);
+  }
+
+  try {
+    return { schema: parseSchemaInput({ ...input, existingCollections }), error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.debug("[SchemaIngestion] Parse rejected:", message);
+    return { schema: null, error: message };
+  }
 }

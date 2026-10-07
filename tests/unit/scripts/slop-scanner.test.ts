@@ -341,7 +341,7 @@ describe("slop-scanner — exclusion predicate matches path segments, not substr
     expect(
       isExcludedPath("src/routes/(app)/config/collectionbuilder/nested-content/x.svelte"),
     ).toBe(false);
-    expect(isExcludedPath("src/routes/(app)/config/workflows/workflow-builder.svelte")).toBe(false);
+    expect(isExcludedPath("src/components/system/builder/widget-builder.svelte")).toBe(false);
     expect(isExcludedPath("src/components/system/builder/logic-builder.svelte")).toBe(false);
     expect(isExcludedPath("src/databases/core/sql-query-builder.ts")).toBe(false);
   });

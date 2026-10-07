@@ -436,6 +436,11 @@ export async function shutdownSystem(): Promise<void> {
   // Stop demo cleanup scheduler
   stopDemoCleanupScheduler();
 
+  // Stop the DatabaseResilience health monitor so its 30s poll can neither keep
+  // the event loop alive on Ctrl+C nor hit a disconnected adapter during teardown.
+  const { stopDatabaseResilienceMonitor } = await import("./database-resilience");
+  stopDatabaseResilienceMonitor();
+
   // 🚀 HARDENING: Clear registries and promises
   const { dbPluginRegistry } = await import("./core/plugin-registry");
   dbPluginRegistry.reset();

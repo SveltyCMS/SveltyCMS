@@ -30,16 +30,213 @@
 	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
 	import { isAdmin } from '@src/databases/auth/constants';
 	import {
+		adminarea_activesession,
+		button_cancel,
+		button_confirm,
 		button_delete,
+		button_refresh,
+		common_loading,
+		config_tile_design,
 		email,
+		form_password,
+		system_permission,
+		twofa_status_disabled,
+		twofa_status_enabled,
+		twofa_title,
 		usermodalconfirmbody,
 		usermodalconfirmtitle,
 		usermodaluser_edittitle,
 		usermodaluser_settingbody,
 		username,
+		userpage_2fa_manage_aria,
+		userpage_2fa_off,
+		userpage_2fa_on,
+		userpage_2fa_setup_aria,
+		userpage_account_deleted,
+		userpage_account_removed,
+		userpage_action_manage,
+		userpage_action_setup,
+		userpage_apply_appearance,
+		userpage_appearance_applied,
+		userpage_authenticators_registered,
+		userpage_auth_error,
+		userpage_avatar_saved,
+		userpage_avatar_updated,
+		userpage_card_style,
+		userpage_change_password,
+		userpage_collaboration,
+		userpage_could_not_reach_server,
+		userpage_current_password,
+		userpage_current_session,
+		userpage_current_this_tab,
+		userpage_delete_failed,
+		userpage_density,
+		userpage_density_compact,
+		userpage_density_cozy,
+		userpage_density_spacious,
+		userpage_device_android_phone,
+		userpage_device_android_tablet,
+		userpage_device_browser,
+		userpage_device_chrome,
+		userpage_device_chromebook,
+		userpage_device_edge,
+		userpage_device_firefox,
+		userpage_device_ipad,
+		userpage_device_iphone,
+		userpage_device_linux_pc,
+		userpage_device_mac,
+		userpage_device_opera,
+		userpage_device_pc,
+		userpage_device_phone,
+		userpage_device_safari,
+		userpage_device_tablet,
+		userpage_device_unknown,
+		userpage_device_windows_pc,
+		userpage_edit_profile,
+		userpage_edit_user_body,
 		userpage_edit_usersetting,
 		userpage_editavatar,
-		userpage_title
+		userpage_end_session_aria,
+		userpage_end_session_body,
+		userpage_end_session_confirm,
+		userpage_end_session_title,
+		userpage_enable_magic_link,
+		userpage_enable_oauth,
+		userpage_enable_passkey,
+		userpage_enable_rtc,
+		userpage_enable_sound,
+		userpage_failed_load_sessions,
+		userpage_help_2fa,
+		userpage_help_2fa_aria,
+		userpage_help_appearance,
+		userpage_help_appearance_aria,
+		userpage_help_avatar,
+		userpage_help_card_style,
+		userpage_help_card_style_aria,
+		userpage_help_collaboration,
+		userpage_help_collaboration_aria,
+		userpage_help_density,
+		userpage_help_density_aria,
+		userpage_help_email,
+		userpage_help_email_aria,
+		userpage_help_high_contrast,
+		userpage_help_high_contrast_aria,
+		userpage_help_id,
+		userpage_help_id_aria,
+		userpage_help_magic,
+		userpage_help_magic_aria,
+		userpage_help_oauth,
+		userpage_help_oauth_aria,
+		userpage_help_passkeys,
+		userpage_help_passkeys_aria,
+		userpage_help_passkeys_biometrics_aria,
+		userpage_help_password,
+		userpage_help_password_aria,
+		userpage_help_permissions,
+		userpage_help_permissions_aria,
+		userpage_help_privacy,
+		userpage_help_privacy_aria,
+		userpage_help_reduced_motion,
+		userpage_help_reduced_motion_aria,
+		userpage_help_role,
+		userpage_help_role_aria,
+		userpage_help_rtc_aria,
+		userpage_help_rtc_enabled,
+		userpage_help_rtc_sound,
+		userpage_help_rtc_sound_aria,
+		userpage_help_sessions,
+		userpage_help_sessions_aria,
+		userpage_help_tenant,
+		userpage_help_tenant_aria,
+		userpage_help_username,
+		userpage_help_username_aria,
+		userpage_high_contrast,
+		userpage_last_active,
+		userpage_login_prefs_title,
+		userpage_magic_hint,
+		userpage_magic_link,
+		userpage_manage_roles_permissions,
+		userpage_management_intro,
+		userpage_missing_user_id,
+		userpage_network_error,
+		userpage_no_sessions,
+		userpage_not_configured,
+		userpage_nothing_to_revoke,
+		userpage_oauth_hint,
+		userpage_oauth_login,
+		userpage_only_this_tab,
+		userpage_open_design_system_aria,
+		userpage_other_sign_in,
+		userpage_passkey_hint,
+		userpage_passkeys,
+		userpage_passkeys_biometrics_title,
+		userpage_password_stored_prefix,
+		userpage_password_stored_suffix,
+		userpage_preference_disabled,
+		userpage_preference_enabled,
+		userpage_privacy_action_desc,
+		userpage_privacy_action_title,
+		userpage_privacy_data_title,
+		userpage_privacy_extensions_title,
+		userpage_privacy_open_aria,
+		userpage_reauth_body,
+		userpage_reauth_title,
+		userpage_reduced_motion,
+		userpage_refresh_sessions_aria,
+		userpage_reload_try_again,
+		userpage_revoke_all,
+		userpage_revoke_all_others_body_plural,
+		userpage_revoke_all_others_body_singular,
+		userpage_revoke_all_others_title,
+		userpage_revoke_confirm,
+		userpage_revoke_device_all_aria,
+		userpage_revoke_device_body_plural,
+		userpage_revoke_device_body_singular,
+		userpage_revoke_failed,
+		userpage_revoke_group_other_title,
+		userpage_revoke_group_title,
+		userpage_revoke_other_body_plural,
+		userpage_revoke_other_body_singular,
+		userpage_revoke_session_body,
+		userpage_revoke_session_error,
+		userpage_revoke_session_title,
+		userpage_save_failed,
+		userpage_role_administrator,
+		userpage_role_developer,
+		userpage_role_editor,
+		userpage_role_guest,
+		userpage_rtc_editing,
+		userpage_security,
+		userpage_session_ended,
+		userpage_session_signed_in_device,
+		userpage_session_this_device,
+		userpage_sessions_2fa_title,
+		userpage_sessions_by_device_aria,
+		userpage_sessions_count,
+		userpage_sessions_on_device_aria,
+		userpage_sessions_revoked,
+		userpage_sessions_revoked_desc,
+		userpage_sign_out_all_others_aria,
+		userpage_sign_out_device_others_aria,
+		userpage_sign_out_others,
+		userpage_signed_out,
+		userpage_sound_notifications,
+		userpage_tab_identity,
+		userpage_tab_management,
+		userpage_tab_settings,
+		userpage_tabs_aria,
+		userpage_tenant,
+		userpage_theme_default,
+		userpage_title,
+		userpage_update_failed,
+		userpage_variant_bordered,
+		userpage_variant_elevated,
+		userpage_variant_flat,
+		userpage_verification_failed,
+		userpage_verifying,
+		userpage_workspace_appearance,
+		userpage_workspace_collab_title,
+		userpage_you_are_here
 	} from '@src/paraglide/messages';
 	import { normalizeAvatarUrl } from '@utils/avatar';
 	import { onMount, untrack } from 'svelte';
@@ -95,9 +292,9 @@
 			if (myDensity) prefs.density = myDensity;
 			if (myVariant) prefs.variant = myVariant;
 			const res = await updateUserThemePrefs(prefs);
-			if (!res.success) throw new Error(res.message || 'Save failed');
+			if (!res.success) throw new Error(res.message || userpage_save_failed());
 			userThemePrefs.apply(prefs as any);
-			toast.success('Appearance preferences applied.');
+			toast.success(userpage_appearance_applied());
 		} catch (e: unknown) {
 			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
@@ -147,18 +344,28 @@
 	const accountTabs = $derived([
 		{
 			id: 'identity',
-			label: 'Identity',
-			shortLabel: 'Identity',
+			label: userpage_tab_identity(),
+			shortLabel: userpage_tab_identity(),
 			icon: 'mdi:account-circle-outline'
 		},
-		{ id: 'security', label: 'Security', shortLabel: 'Security', icon: 'mdi:shield-lock-outline' },
-		{ id: 'settings', label: 'Settings', shortLabel: 'Settings', icon: 'mdi:cog-outline' },
+		{
+			id: 'security',
+			label: userpage_security(),
+			shortLabel: userpage_security(),
+			icon: 'mdi:shield-lock-outline'
+		},
+		{
+			id: 'settings',
+			label: userpage_tab_settings(),
+			shortLabel: userpage_tab_settings(),
+			icon: 'mdi:cog-outline'
+		},
 		...(canManageUsers
 			? [
 					{
 						id: 'management',
-						label: 'User Management',
-						shortLabel: 'Manage',
+						label: userpage_tab_management(),
+						shortLabel: userpage_action_manage(),
 						icon: 'mdi:account-group-outline'
 					}
 				]
@@ -217,7 +424,7 @@
 				sessions = normalizeSessions((result.sessions ?? []) as SessionRow[]);
 			}
 		} catch (err) {
-			sessionsError = err instanceof Error ? err.message : 'Failed to load sessions';
+			sessionsError = err instanceof Error ? err.message : userpage_failed_load_sessions();
 			sessions = [];
 		} finally {
 			sessionsLoading = false;
@@ -244,73 +451,73 @@
 		if (!ua) {
 			return {
 				key: 'unknown',
-				deviceLabel: 'Unknown device',
+				deviceLabel: userpage_device_unknown(),
 				kind: 'unknown',
-				browser: 'Browser',
+				browser: userpage_device_browser(),
 				icon: 'mdi:monitor',
-				title: 'Unknown device'
+				title: userpage_device_unknown()
 			};
 		}
 
-		let browser = 'Browser';
-		if (/Edg\//i.test(ua)) browser = 'Edge';
-		else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) browser = 'Opera';
-		else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = 'Chrome';
-		else if (/Firefox\//i.test(ua)) browser = 'Firefox';
-		else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+		let browser = userpage_device_browser();
+		if (/Edg\//i.test(ua)) browser = userpage_device_edge();
+		else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) browser = userpage_device_opera();
+		else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = userpage_device_chrome();
+		else if (/Firefox\//i.test(ua)) browser = userpage_device_firefox();
+		else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = userpage_device_safari();
 
 		let kind: DeviceKind = 'pc';
-		let deviceLabel = 'PC';
+		let deviceLabel = userpage_device_pc();
 		let icon = 'mdi:monitor';
 
 		if (/iPhone/i.test(ua)) {
 			kind = 'phone';
-			deviceLabel = 'iPhone';
+			deviceLabel = userpage_device_iphone();
 			icon = 'mdi:cellphone';
 		} else if (/iPad/i.test(ua)) {
 			kind = 'tablet';
-			deviceLabel = 'iPad';
+			deviceLabel = userpage_device_ipad();
 			icon = 'mdi:tablet';
 		} else if (/Android/i.test(ua)) {
 			if (/Mobile/i.test(ua) && !/Tablet/i.test(ua)) {
 				kind = 'phone';
-				deviceLabel = 'Android phone';
+				deviceLabel = userpage_device_android_phone();
 				icon = 'mdi:cellphone';
 			} else {
 				kind = 'tablet';
-				deviceLabel = 'Android tablet';
+				deviceLabel = userpage_device_android_tablet();
 				icon = 'mdi:tablet';
 			}
 		} else if (/Macintosh|Mac OS X/i.test(ua)) {
 			// iPadOS 13+ can spoof Mac — MobileSafari without mobile token is still Mac-like
 			if (/Mobile\//i.test(ua) && /Safari/i.test(ua)) {
 				kind = 'tablet';
-				deviceLabel = 'iPad';
+				deviceLabel = userpage_device_ipad();
 				icon = 'mdi:tablet';
 			} else {
 				kind = 'mac';
-				deviceLabel = 'Mac';
+				deviceLabel = userpage_device_mac();
 				icon = 'mdi:apple';
 			}
 		} else if (/Windows NT/i.test(ua)) {
 			kind = 'pc';
-			deviceLabel = 'Windows PC';
+			deviceLabel = userpage_device_windows_pc();
 			icon = 'mdi:microsoft-windows';
 		} else if (/CrOS/i.test(ua)) {
 			kind = 'pc';
-			deviceLabel = 'Chromebook';
+			deviceLabel = userpage_device_chromebook();
 			icon = 'mdi:laptop';
 		} else if (/Linux/i.test(ua)) {
 			kind = 'pc';
-			deviceLabel = 'Linux PC';
+			deviceLabel = userpage_device_linux_pc();
 			icon = 'mdi:linux';
 		} else if (/Mobile|webOS|BlackBerry/i.test(ua)) {
 			kind = 'phone';
-			deviceLabel = 'Phone';
+			deviceLabel = userpage_device_phone();
 			icon = 'mdi:cellphone';
 		} else if (/Tablet/i.test(ua)) {
 			kind = 'tablet';
-			deviceLabel = 'Tablet';
+			deviceLabel = userpage_device_tablet();
 			icon = 'mdi:tablet';
 		}
 
@@ -386,8 +593,8 @@
 			const title =
 				info.key === 'unknown'
 					? isCurrent
-						? 'This device (browser)'
-						: 'Signed-in device'
+						? userpage_session_this_device()
+						: userpage_session_signed_in_device()
 					: info.title;
 
 			groups.push({
@@ -425,15 +632,15 @@
 				const result = await revokeSession({ sessionId: id, reauthToken });
 				if (!result.success) {
 					toast.error({
-						title: 'Revoke failed',
-						description: result.error || 'Could not revoke session'
+						title: userpage_revoke_failed(),
+						description: result.error || userpage_revoke_session_error()
 					});
 					return false;
 				}
 			} catch (err) {
 				toast.error({
-					title: 'Revoke failed',
-					description: err instanceof Error ? err.message : 'Could not revoke session'
+					title: userpage_revoke_failed(),
+					description: err instanceof Error ? err.message : userpage_revoke_session_error()
 				});
 				return false;
 			}
@@ -448,14 +655,14 @@
 
 		if (member.isCurrent) {
 			showConfirm({
-				title: 'End this session?',
-				body: 'You will be signed out of this browser tab and redirected to the login page. Other devices stay signed in unless you revoke them separately.',
+				title: userpage_end_session_title(),
+				body: userpage_end_session_body(),
 				theme: { variant: 'filled', color: 'warning' },
-				confirmText: 'End session',
+				confirmText: userpage_end_session_confirm(),
 				onConfirm: async () => {
 					const ok = await revokeSessionIds([mid]);
 					if (!ok) return;
-					toast.success({ title: 'Signed out', description: 'Session ended.' });
+					toast.success({ title: userpage_signed_out(), description: userpage_session_ended() });
 					window.location.href = '/login';
 				}
 			});
@@ -463,10 +670,10 @@
 		}
 
 		showConfirm({
-			title: 'Revoke this session?',
-			body: 'That device or browser will be signed out immediately. You can keep using this tab.',
+			title: userpage_revoke_session_title(),
+			body: userpage_revoke_session_body(),
 			theme: { variant: 'filled', color: 'error' },
-			confirmText: 'Revoke',
+			confirmText: userpage_revoke_confirm(),
 			onConfirm: () => requestReauthAndRevoke([mid])
 		});
 	}
@@ -482,16 +689,24 @@
 		}
 
 		const body = group.isCurrent
-			? `Sign out ${ids.length} other session${ids.length === 1 ? '' : 's'} on this device? This tab stays signed in.`
-			: `Sign out all ${group.sessionCount} session${group.sessionCount === 1 ? '' : 's'} on ${group.deviceLabel}?`;
+			? ids.length === 1
+				? userpage_revoke_other_body_singular({ count: ids.length })
+				: userpage_revoke_other_body_plural({ count: ids.length })
+			: group.sessionCount === 1
+				? userpage_revoke_device_body_singular({
+						count: group.sessionCount,
+						device: group.deviceLabel
+					})
+				: userpage_revoke_device_body_plural({
+						count: group.sessionCount,
+						device: group.deviceLabel
+					});
 
 		showConfirm({
-			title: group.isCurrent
-				? 'Sign out other sessions on this device?'
-				: 'Revoke device sessions?',
+			title: group.isCurrent ? userpage_revoke_group_other_title() : userpage_revoke_group_title(),
 			body,
 			theme: { variant: 'filled', color: 'error' },
-			confirmText: group.isCurrent ? 'Sign out others' : 'Revoke all',
+			confirmText: group.isCurrent ? userpage_sign_out_others() : userpage_revoke_all(),
 			onConfirm: () => requestReauthAndRevoke(ids)
 		});
 	}
@@ -504,16 +719,19 @@
 			.filter(Boolean);
 		if (others.length === 0) {
 			toast.warning({
-				title: 'Nothing to revoke',
-				description: 'Only this tab is signed in.'
+				title: userpage_nothing_to_revoke(),
+				description: userpage_only_this_tab()
 			});
 			return;
 		}
 		showConfirm({
-			title: 'Sign out all other sessions?',
-			body: `This ends ${others.length} other active session${others.length === 1 ? '' : 's'} on every device. This tab stays signed in.`,
+			title: userpage_revoke_all_others_title(),
+			body:
+				others.length === 1
+					? userpage_revoke_all_others_body_singular({ count: others.length })
+					: userpage_revoke_all_others_body_plural({ count: others.length }),
 			theme: { variant: 'filled', color: 'error' },
-			confirmText: 'Sign out others',
+			confirmText: userpage_sign_out_others(),
 			onConfirm: () => requestReauthAndRevoke(others)
 		});
 	}
@@ -540,15 +758,15 @@
 		try {
 			const res = await reauthForSessionManagement(reauthPassword);
 			if (!res.token) {
-				reauthError = res.error || 'Verification failed';
+				reauthError = res.error || userpage_verification_failed();
 				return;
 			}
 			reauthOpen = false;
 			const ok = await revokeSessionIds(pendingRevokeIds, res.token);
 			if (ok) {
 				toast.success({
-					title: 'Sessions revoked',
-					description: 'The selected sessions have been signed out.'
+					title: userpage_sessions_revoked(),
+					description: userpage_sessions_revoked_desc()
 				});
 				await loadSessions();
 			}
@@ -562,30 +780,28 @@
 	/** Setup-style help icon next to a field label */
 	function helpTitle(key: string): string {
 		const help: Record<string, string> = {
-			'2fa':
-				'Two-factor authentication (2FA) adds a one-time code from an authenticator app when you sign in. Setup opens a guided modal with QR code and backup codes.',
-			sessions:
-				'Each sign-in creates a session. The row marked Current session is this browser tab. You can revoke any other session (signs that device out) or end this session (logs you out here). Use “Sign out others” to keep only this tab.',
-			passkeys:
-				'Prefer passwordless sign-in with a device passkey (Windows Hello, Touch ID, security key) when the site has passkeys enabled.',
-			magic:
-				'Prefer a one-time login link sent to your email when magic-link login is enabled for this site.',
-			oauth:
-				'Prefer sign-in with an external provider (e.g. Google or GitHub) when OAuth is configured by an administrator.',
-			permissions:
-				'Capabilities granted by your role. Admins can change roles and permissions under Access Management.',
-			appearance:
-				'Set personal density, card style, and accessibility toggles here, or open Design System → My Overrides for full layout preferences. Workspace admins manage shared themes on the same Design System page.',
-			collaboration:
-				'Realtime collaboration preferences for concurrent editing and presence. These settings affect your session only — not other users.',
-			'rtc-enabled':
-				'When enabled, you join realtime editing sessions (presence, live cursors, collaborative updates) on collection entries that support it.',
-			'rtc-sound':
-				'Play a short sound when collaborators join, leave, or send realtime activity. Turn off for silent work.',
-			privacy:
-				'GDPR tools: export a machine-readable copy of your personal data, or permanently anonymize your account. Destructive actions require confirmation in a dedicated dialog for safety.',
-			avatar:
-				'Change your profile photo. Upload a new image (JPEG, PNG, WebP, AVIF, SVG, or GIF — max 5 MB) or remove the current one. Click the avatar or the pencil to open the editor.'
+			'2fa': userpage_help_2fa(),
+			sessions: userpage_help_sessions(),
+			passkeys: userpage_help_passkeys(),
+			magic: userpage_help_magic(),
+			oauth: userpage_help_oauth(),
+			permissions: userpage_help_permissions(),
+			appearance: userpage_help_appearance(),
+			collaboration: userpage_help_collaboration(),
+			'rtc-enabled': userpage_help_rtc_enabled(),
+			'rtc-sound': userpage_help_rtc_sound(),
+			privacy: userpage_help_privacy(),
+			avatar: userpage_help_avatar(),
+			role: userpage_help_role(),
+			id: userpage_help_id(),
+			tenant: userpage_help_tenant(),
+			username: userpage_help_username(),
+			email: userpage_help_email(),
+			password: userpage_help_password(),
+			density: userpage_help_density(),
+			'card-style': userpage_help_card_style(),
+			'reduced-motion': userpage_help_reduced_motion(),
+			'high-contrast': userpage_help_high_contrast()
 		};
 		return help[key] ?? '';
 	}
@@ -598,13 +814,13 @@
 		const r = String(user.role).toLowerCase();
 		switch (r) {
 			case 'admin':
-				return { icon: 'material-symbols:verified-outline', name: 'Administrator' };
+				return { icon: 'material-symbols:verified-outline', name: userpage_role_administrator() };
 			case 'developer':
-				return { icon: 'material-symbols:code', name: 'Developer' };
+				return { icon: 'material-symbols:code', name: userpage_role_developer() };
 			case 'editor':
-				return { icon: 'material-symbols:edit', name: 'Editor' };
+				return { icon: 'material-symbols:edit', name: userpage_role_editor() };
 			case 'guest':
-				return { icon: 'material-symbols:person', name: 'Guest' };
+				return { icon: 'material-symbols:person', name: userpage_role_guest() };
 			default:
 				return { icon: 'material-symbols:person', name: user.role };
 		}
@@ -649,24 +865,30 @@
 
 			if (res.ok) {
 				if (value) {
-					toast.success({ title: 'Enabled', description: `Preference "${key}" enabled` });
+					toast.success({
+						title: twofa_status_enabled(),
+						description: userpage_preference_enabled({ key })
+					});
 				} else {
-					toast.warning({ title: 'Disabled', description: `Preference "${key}" disabled` });
+					toast.warning({
+						title: twofa_status_disabled(),
+						description: userpage_preference_disabled({ key })
+					});
 				}
 				await refreshAll();
 			} else if (res.status === 401 || res.status === 403) {
-				toast.error({ title: 'Auth error', description: 'Please reload the page and try again.' });
+				toast.error({ title: userpage_auth_error(), description: userpage_reload_try_again() });
 			} else {
 				const body = await res.json().catch(() => ({}));
 				toast.error({
-					title: 'Update failed',
+					title: userpage_update_failed(),
 					description: (body as any).message || `HTTP ${res.status}`
 				});
 			}
 		} catch (err) {
 			toast.error({
-				title: 'Network error',
-				description: err instanceof Error ? err.message : 'Could not reach server'
+				title: userpage_network_error(),
+				description: err instanceof Error ? err.message : userpage_could_not_reach_server()
 			});
 		}
 	}
@@ -690,7 +912,7 @@
 	function modalUserForm(): void {
 		modalState.trigger(ModalEditForm, {
 			title: usermodaluser_edittitle(),
-			body: usermodaluser_settingbody() || 'Update your user details below.'
+			body: usermodaluser_settingbody() || userpage_edit_user_body()
 		});
 	}
 
@@ -698,14 +920,14 @@
 		modalState.trigger(
 			ModalEditAvatar,
 			{
-				title: userpage_editavatar() || 'Edit Avatar',
+				title: userpage_editavatar(),
 				size: 'lg'
 			},
 			async (r: any) => {
 				if (r) {
 					toast.success({
-						title: 'Avatar updated',
-						description: 'Your profile photo was saved.'
+						title: userpage_avatar_updated(),
+						description: userpage_avatar_saved()
 					});
 					await refreshAll();
 				}
@@ -724,7 +946,7 @@
 			theme: { variant: 'filled', color: 'error' },
 			onConfirm: async () => {
 				if (!user._id) {
-					toast.error({ title: 'Delete failed', description: 'Missing user id' });
+					toast.error({ title: userpage_delete_failed(), description: userpage_missing_user_id() });
 					return;
 				}
 				try {
@@ -738,8 +960,8 @@
 					});
 					if (res.ok) {
 						toast.success({
-							title: 'Account deleted',
-							description: 'Your account has been removed.'
+							title: userpage_account_deleted(),
+							description: userpage_account_removed()
 						});
 						await refreshAll();
 						window.location.href = '/login';
@@ -747,13 +969,13 @@
 					}
 					const body = await res.json().catch(() => ({}));
 					toast.error({
-						title: 'Delete failed',
+						title: userpage_delete_failed(),
 						description: (body as { message?: string }).message || `HTTP ${res.status}`
 					});
 				} catch (err) {
 					toast.error({
-						title: 'Network error',
-						description: err instanceof Error ? err.message : 'Could not reach server'
+						title: userpage_network_error(),
+						description: err instanceof Error ? err.message : userpage_could_not_reach_server()
 					});
 				}
 			}
@@ -775,13 +997,13 @@
 	showBackButton={true}
 	backUrl="/config"
 >
-	<div in:fade={{ duration: 250 }} class="flex flex-col gap-6" data-testid="user-account-page">
+	<div in:fade={{ duration: 250 }} class="flex flex-col gap-2" data-testid="user-account-page">
 		<!-- Tabs directly under PageTitle -->
 		<Tabs
 			tabs={accountTabs}
 			bind:activeTab
 			variant="underline"
-			ariaLabel="Account sections"
+			ariaLabel={userpage_tabs_aria()}
 			testId="user-account-tabs"
 			onTabChange={(id) => {
 				activeTab = id as AccountTab;
@@ -793,7 +1015,7 @@
 				<!-- ═══ TAB 1: Identity — left: avatar + equal badges · right: fields ═══ -->
 				<AdminCard class={cardClass} data-testid="user-identity-panel">
 					<div
-						class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(10rem,12rem)_1fr] md:items-start md:gap-8 lg:gap-10"
+						class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(10rem,12rem)_1fr] md:items-start md:gap-8 lg:gap-10"
 					>
 						<!-- Left: centered avatar + badges; edit pen is its own control (hit area outside circle) -->
 						<div class="flex flex-col items-center gap-3">
@@ -842,19 +1064,41 @@
 								<!-- Shared height/width: white label text on filled chips -->
 								<span data-testid="user-role-badge" class="block w-full">
 									<span
-										class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-primary-500 px-3 text-xs font-bold uppercase tracking-wide text-white"
+										class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded bg-primary-500 px-3 text-xs font-bold uppercase tracking-wide text-white"
 									>
 										<iconify-icon icon={roleDisplay.icon} width={16} aria-hidden="true"
 										></iconify-icon>
 										{roleDisplay.name}
+										<SystemTooltip title={helpTitle('role')}>
+											<button
+												type="button"
+												tabindex="-1"
+												aria-label={userpage_help_role_aria()}
+												class="text-white/80 hover:text-white"
+											>
+												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+												></iconify-icon>
+											</button>
+										</SystemTooltip>
 									</span>
 								</span>
 								<span data-testid="user-id-badge" class="block w-full">
 									<span
-										class="inline-flex h-9 w-full items-center justify-center gap-1 rounded-full bg-tertiary-600 px-3 font-mono text-[11px] font-bold tracking-wide text-white dark:bg-tertiary-500"
+										class="inline-flex h-9 w-full items-center justify-center gap-1 rounded bg-tertiary-600 px-3 font-mono text-[11px] font-bold tracking-wide text-white dark:bg-tertiary-500"
 										title={String(user._id)}
 									>
 										ID: {String(user._id).slice(0, 12)}…
+										<SystemTooltip title={helpTitle('id')}>
+											<button
+												type="button"
+												tabindex="-1"
+												aria-label={userpage_help_id_aria()}
+												class="text-white/80 hover:text-white"
+											>
+												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+												></iconify-icon>
+											</button>
+										</SystemTooltip>
 									</span>
 								</span>
 								{#if isMultiTenant && user.tenantId}
@@ -862,7 +1106,19 @@
 										<span
 											class="inline-flex h-9 w-full items-center justify-center gap-1 rounded-full bg-secondary-600 px-3 font-mono text-[11px] font-bold tracking-wide text-white"
 										>
-											Tenant: {String(user.tenantId).slice(0, 12)}…
+											{userpage_tenant()}
+											{String(user.tenantId).slice(0, 12)}…
+											<SystemTooltip title={helpTitle('tenant')}>
+												<button
+													type="button"
+													tabindex="-1"
+													aria-label={userpage_help_tenant_aria()}
+													class="text-white/80 hover:text-white"
+												>
+													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+													></iconify-icon>
+												</button>
+											</SystemTooltip>
 										</span>
 									</span>
 								{/if}
@@ -872,8 +1128,8 @@
 										onclick={open2FAModal}
 										data-testid="identity-2fa-badge-btn"
 										aria-label={user.is2FAEnabled
-											? 'Two-factor authentication enabled. Manage 2FA'
-											: 'Two-factor authentication not configured. Setup 2FA'}
+											? userpage_2fa_manage_aria()
+											: userpage_2fa_setup_aria()}
 										class="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {user.is2FAEnabled
 											? 'bg-primary-600 dark:bg-primary-500'
 											: 'bg-warning-600 dark:bg-warning-500'}"
@@ -883,7 +1139,7 @@
 											width={16}
 											aria-hidden="true"
 										></iconify-icon>
-										{user.is2FAEnabled ? '2FA on' : '2FA off'}
+										{user.is2FAEnabled ? userpage_2fa_on() : userpage_2fa_off()}
 									</button>
 								{/if}
 							</div>
@@ -904,6 +1160,17 @@
 										aria-hidden="true"
 									></iconify-icon>
 									{username()}
+									<SystemTooltip title={helpTitle('username')}>
+										<button
+											type="button"
+											tabindex="-1"
+											aria-label={userpage_help_username_aria()}
+											class={helpBtnClass}
+										>
+											<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+											></iconify-icon>
+										</button>
+									</SystemTooltip>
 								</p>
 								<p
 									class="w-full text-base font-medium text-surface-900 dark:text-surface-100"
@@ -926,6 +1193,17 @@
 										aria-hidden="true"
 									></iconify-icon>
 									{email()}
+									<SystemTooltip title={helpTitle('email')}>
+										<button
+											type="button"
+											tabindex="-1"
+											aria-label={userpage_help_email_aria()}
+											class={helpBtnClass}
+										>
+											<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+											></iconify-icon>
+										</button>
+									</SystemTooltip>
 								</p>
 								<p
 									class="w-full break-all text-base font-medium text-surface-900 dark:text-surface-100"
@@ -949,16 +1227,28 @@
 										class="text-tertiary-500 dark:text-primary-500"
 										aria-hidden="true"
 									></iconify-icon>
-									Password
+									{form_password()}
+									<SystemTooltip title={helpTitle('password')}>
+										<button
+											type="button"
+											tabindex="-1"
+											aria-label={userpage_help_password_aria()}
+											class={helpBtnClass}
+										>
+											<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+											></iconify-icon>
+										</button>
+									</SystemTooltip>
 								</p>
 								<p class="font-mono text-base tracking-widest text-surface-500" aria-hidden="true">
 									••••••••••••
 								</p>
 								<p class="mt-1 text-xs text-surface-500">
-									Passwords are stored hashed and cannot be displayed. Use
+									{userpage_password_stored_prefix()}
 									<strong class="font-medium text-surface-600 dark:text-surface-400"
-										>Change password</strong
-									> to set a new one.
+										>{userpage_change_password()}</strong
+									>
+									{userpage_password_stored_suffix()}
 								</p>
 							</div>
 
@@ -970,16 +1260,16 @@
 									aria-label={userpage_edit_usersetting()}
 									data-testid="edit-user-settings-btn"
 								>
-									Edit Profile
+									{userpage_edit_profile()}
 								</Button>
 								<Button
 									variant="surface"
 									leadingIcon="mdi:key-variant"
 									onclick={modalUserForm}
 									data-testid="security-change-password"
-									aria-label="Change password"
+									aria-label={userpage_change_password()}
 								>
-									Change password
+									{userpage_change_password()}
 								</Button>
 							</div>
 
@@ -1008,8 +1298,8 @@
 				<!-- ═══ TAB 2: Security — help icons match /setup pattern ═══ -->
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-security-panel">
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">
-							Sessions &amp; 2FA
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
+							{userpage_sessions_2fa_title()}
 						</h3>
 						<div class="space-y-1">
 							{#if is2FAEnabledGlobal}
@@ -1025,12 +1315,12 @@
 											<p
 												class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 											>
-												Two-Factor Authentication
+												{twofa_title()}
 												<SystemTooltip title={helpTitle('2fa')}>
 													<button
 														type="button"
 														tabindex="-1"
-														aria-label="Help: Two-Factor Authentication"
+														aria-label={userpage_help_2fa_aria()}
 														class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 													>
 														<iconify-icon
@@ -1046,7 +1336,7 @@
 													? 'text-primary-600 dark:text-primary-500'
 													: 'text-surface-500'}"
 											>
-												{user.is2FAEnabled ? 'Enabled' : 'Not configured'}
+												{user.is2FAEnabled ? twofa_status_enabled() : userpage_not_configured()}
 											</p>
 										</div>
 									</div>
@@ -1059,7 +1349,7 @@
 											: ''}"
 										data-testid="security-2fa-btn"
 									>
-										{user.is2FAEnabled ? 'Manage' : 'Setup'}
+										{user.is2FAEnabled ? userpage_action_manage() : userpage_action_setup()}
 									</Button>
 								</div>
 							{/if}
@@ -1076,12 +1366,12 @@
 										<p
 											class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 										>
-											Passkeys &amp; Biometrics
+											{userpage_passkeys_biometrics_title()}
 											<SystemTooltip title={helpTitle('passkeys')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Passkeys & Biometrics"
+													aria-label={userpage_help_passkeys_biometrics_aria()}
 													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1095,8 +1385,8 @@
 												: 'text-surface-500'}"
 										>
 											{(user.authenticators?.length ?? 0) > 0
-												? `${user.authenticators.length} registered`
-												: 'Not configured'}
+												? userpage_authenticators_registered({ count: user.authenticators.length })
+												: userpage_not_configured()}
 										</p>
 									</div>
 								</div>
@@ -1109,7 +1399,9 @@
 										: ''}"
 									data-testid="security-passkey-btn"
 								>
-									{(user.authenticators?.length ?? 0) > 0 ? 'Manage' : 'Setup'}
+									{(user.authenticators?.length ?? 0) > 0
+										? userpage_action_manage()
+										: userpage_action_setup()}
 								</Button>
 							</div>
 
@@ -1125,12 +1417,12 @@
 										<p
 											class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 										>
-											Active Sessions
+											{adminarea_activesession()}
 											<SystemTooltip title={helpTitle('sessions')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Active Sessions"
+													aria-label={userpage_help_sessions_aria()}
 													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1145,11 +1437,11 @@
 												variant="outline"
 												size="sm"
 												onclick={handleRevokeAllOthers}
-												aria-label="Sign out all other sessions"
+												aria-label={userpage_sign_out_all_others_aria()}
 												class="text-xs"
 												data-testid="security-sessions-revoke-others-btn"
 											>
-												Sign out others ({otherSessionCount})
+												{userpage_sign_out_others()} ({otherSessionCount})
 											</Button>
 										{/if}
 										<Button
@@ -1157,11 +1449,11 @@
 											size="sm"
 											onclick={loadSessions}
 											disabled={sessionsLoading}
-											aria-label="Refresh active sessions"
+											aria-label={userpage_refresh_sessions_aria()}
 											class={securityActionBtn}
 											data-testid="security-sessions-refresh-btn"
 										>
-											{sessionsLoading ? 'Loading…' : 'Refresh'}
+											{sessionsLoading ? common_loading() : button_refresh()}
 										</Button>
 									</div>
 								</div>
@@ -1169,12 +1461,12 @@
 									<p class="text-xs text-error-500" role="alert">{sessionsError}</p>
 								{:else if sessions.length === 0 && !sessionsLoading}
 									<p class="text-xs text-surface-500">
-										No sessions listed yet. Refresh to load devices.
+										{userpage_no_sessions()}
 									</p>
 								{:else}
 									<ul
 										class="max-h-[min(70vh,40rem)] space-y-2 overflow-y-auto sm:max-h-[min(75vh,48rem)]"
-										aria-label="Active sessions by device"
+										aria-label={userpage_sessions_by_device_aria()}
 									>
 										{#each sessionGroups as group (group.key)}
 											<li
@@ -1206,30 +1498,30 @@
 																		size="sm"
 																		class="ms-1 align-middle font-bold uppercase tracking-wide text-white dark:bg-primary-500 dark:text-surface-950"
 																	>
-																		Current session
+																		{userpage_current_session()}
 																	</Badge>
 																{/if}
 																{#if group.sessionCount > 1}
 																	<span class="ms-1 text-[11px] font-normal text-surface-500">
-																		({group.sessionCount} sessions)
+																		({userpage_sessions_count({ count: group.sessionCount })})
 																	</span>
 																{/if}
 															</p>
 															<p class="mt-0.5 text-[11px] text-surface-500">
 																{#if group.isCurrent}
 																	<span class="font-medium text-primary-600 dark:text-primary-500"
-																		>You are here ·
+																		>{userpage_you_are_here()}
 																	</span>
 																{/if}
 																{group.deviceLabel}
-																{#if group.browser && group.deviceLabel !== 'Unknown device'}
+																{#if group.browser && group.deviceLabel !== userpage_device_unknown()}
 																	· {group.browser}
 																{/if}
 																{#if group.ip}
 																	· {group.ip}
 																{/if}
 																{#if group.lastActiveLabel}
-																	· Last active {group.lastActiveLabel}
+																	· {userpage_last_active()} {group.lastActiveLabel}
 																{/if}
 															</p>
 														</div>
@@ -1241,18 +1533,18 @@
 															class="shrink-0 self-end text-xs sm:self-center"
 															onclick={() => handleRevokeGroup(group)}
 															aria-label={group.isCurrent && group.revokableIds.length > 0
-																? 'Sign out other sessions on this device'
+																? userpage_sign_out_device_others_aria()
 																: group.isCurrent
-																	? 'End current session'
-																	: 'Revoke all sessions on this device'}
+																	? userpage_end_session_aria()
+																	: userpage_revoke_device_all_aria()}
 															data-testid="session-group-revoke-btn"
 														>
 															{#if group.isCurrent && group.revokableIds.length > 0}
-																Sign out others
+																{userpage_sign_out_others()}
 															{:else if group.isCurrent}
-																End session
+																{userpage_end_session_confirm()}
 															{:else}
-																Revoke all
+																{userpage_revoke_all()}
 															{/if}
 														</Button>
 													{/if}
@@ -1262,7 +1554,7 @@
 													class="space-y-1.5 border-t px-3 py-2 {group.isCurrent
 														? 'border-primary-500/25 dark:border-primary-500/30'
 														: 'border-surface-100 dark:border-surface-500/40'}"
-													aria-label="Sessions on this device"
+													aria-label={userpage_sessions_on_device_aria()}
 													data-testid="session-group-members"
 												>
 													{#each group.members as member, mi (String(member._id ?? member.id ?? mi))}
@@ -1284,11 +1576,11 @@
 																			width={14}
 																			aria-hidden="true"
 																		></iconify-icon>
-																		Current · this tab
+																		{userpage_current_this_tab()}
 																	</span>
 																{:else}
 																	<span class="font-medium text-surface-600 dark:text-surface-400"
-																		>Other sign-in</span
+																		>{userpage_other_sign_in()}</span
 																	>
 																{/if}
 																{#if sessionWhen(member)}
@@ -1312,8 +1604,8 @@
 					</AdminCard>
 
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">
-							Login preferences &amp; access
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
+							{userpage_login_prefs_title()}
 						</h3>
 						<div class="space-y-1">
 							<div class={rowClass} data-testid="pref-passkey">
@@ -1328,12 +1620,12 @@
 										<p
 											class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 										>
-											Passkeys
+											{userpage_passkeys()}
 											<SystemTooltip title={helpTitle('passkeys')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Passkeys"
+													aria-label={userpage_help_passkeys_aria()}
 													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1341,14 +1633,14 @@
 												</button>
 											</SystemTooltip>
 										</p>
-										<p class="text-xs text-surface-500">Prefer passwordless biometric login</p>
+										<p class="text-xs text-surface-500">{userpage_passkey_hint()}</p>
 									</div>
 								</div>
 								<Checkbox
 									checked={(serverUser?.preferences as any)?.auth?.passkeyEnabled ?? false}
 									onchange={async (enabled) => updateRtcPreference('passkeyEnabled', enabled)}
 									size="sm"
-									label="Enable passkey preference"
+									label={userpage_enable_passkey()}
 									hideLabel={true}
 								/>
 							</div>
@@ -1365,12 +1657,12 @@
 										<p
 											class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 										>
-											Magic Link
+											{userpage_magic_link()}
 											<SystemTooltip title={helpTitle('magic')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Magic Link"
+													aria-label={userpage_help_magic_aria()}
 													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1378,14 +1670,14 @@
 												</button>
 											</SystemTooltip>
 										</p>
-										<p class="text-xs text-surface-500">Prefer passwordless email login</p>
+										<p class="text-xs text-surface-500">{userpage_magic_hint()}</p>
 									</div>
 								</div>
 								<Checkbox
 									checked={(serverUser?.preferences as any)?.auth?.magicLinkEnabled ?? false}
 									onchange={async (enabled) => updateRtcPreference('magicLinkEnabled', enabled)}
 									size="sm"
-									label="Enable magic link preference"
+									label={userpage_enable_magic_link()}
 									hideLabel={true}
 								/>
 							</div>
@@ -1402,12 +1694,12 @@
 										<p
 											class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 										>
-											OAuth Login
+											{userpage_oauth_login()}
 											<SystemTooltip title={helpTitle('oauth')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: OAuth Login"
+													aria-label={userpage_help_oauth_aria()}
 													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1416,7 +1708,7 @@
 											</SystemTooltip>
 										</p>
 										<p class="text-xs text-surface-500">
-											Sign in with Google, GitHub when configured
+											{userpage_oauth_hint()}
 										</p>
 									</div>
 								</div>
@@ -1424,7 +1716,7 @@
 									checked={(serverUser?.preferences as any)?.auth?.oauthEnabled ?? false}
 									onchange={async (enabled) => updateRtcPreference('oauthEnabled', enabled)}
 									size="sm"
-									label="Enable OAuth login preference"
+									label={userpage_enable_oauth()}
 									hideLabel={true}
 								/>
 							</div>
@@ -1441,12 +1733,12 @@
 										<p
 											class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 										>
-											Permissions
+											{system_permission()}
 											<SystemTooltip title={helpTitle('permissions')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Permissions"
+													aria-label={userpage_help_permissions_aria()}
 													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1473,7 +1765,7 @@
 										>
 											<iconify-icon icon="mdi:open-in-new" width={12} aria-hidden="true"
 											></iconify-icon>
-											Manage roles &amp; permissions
+											{userpage_manage_roles_permissions()}
 										</a>
 									{/if}
 								</div>
@@ -1489,8 +1781,8 @@
 				<!-- ═══ TAB 3: User Settings — two columns (Appearance/Collab | Privacy) ═══ -->
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-settings-panel">
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">
-							Workspace &amp; collaboration
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
+							{userpage_workspace_collab_title()}
 						</h3>
 						<div class="space-y-1">
 							<div
@@ -1507,12 +1799,12 @@
 									<p
 										class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 									>
-										Workspace Appearance
+										{userpage_workspace_appearance()}
 										<SystemTooltip title={helpTitle('appearance')}>
 											<button
 												type="button"
 												tabindex="-1"
-												aria-label="Help: Workspace Appearance"
+												aria-label={userpage_help_appearance_aria()}
 												class={helpBtnClass}
 											>
 												<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1525,31 +1817,99 @@
 									class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
 									data-testid="user-quick-appearance"
 								>
-									<Select
-										bind:value={myDensity}
-										label="Density"
-										options={[
-											{ value: '', label: 'Theme default' },
-											{ value: 'compact', label: 'Compact' },
-											{ value: 'cozy', label: 'Cozy' },
-											{ value: 'spacious', label: 'Spacious' }
-										]}
-									/>
-									<Select
-										bind:value={myVariant}
-										label="Card style"
-										options={[
-											{ value: '', label: 'Theme default' },
-											{ value: 'flat', label: 'Flat' },
-											{ value: 'bordered', label: 'Bordered' },
-											{ value: 'elevated', label: 'Elevated' }
-										]}
-									/>
-									<div class="flex flex-col justify-end">
-										<Toggle bind:value={myReducedMotion} label="Reduced motion" />
+									<div class="flex flex-col gap-1.5">
+										<div class="flex items-center gap-1.5">
+											<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+												>{userpage_density()}</span
+											>
+											<SystemTooltip title={helpTitle('density')}>
+												<button
+													type="button"
+													tabindex="-1"
+													aria-label={userpage_help_density_aria()}
+													class={helpBtnClass}
+												>
+													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+													></iconify-icon>
+												</button>
+											</SystemTooltip>
+										</div>
+										<Select
+											bind:value={myDensity}
+											ariaLabel={userpage_density()}
+											options={[
+												{ value: '', label: userpage_theme_default() },
+												{ value: 'compact', label: userpage_density_compact() },
+												{ value: 'cozy', label: userpage_density_cozy() },
+												{ value: 'spacious', label: userpage_density_spacious() }
+											]}
+										/>
 									</div>
-									<div class="flex flex-col justify-end">
-										<Toggle bind:value={myHighContrast} label="High contrast" />
+									<div class="flex flex-col gap-1.5">
+										<div class="flex items-center gap-1.5">
+											<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+												>{userpage_card_style()}</span
+											>
+											<SystemTooltip title={helpTitle('card-style')}>
+												<button
+													type="button"
+													tabindex="-1"
+													aria-label={userpage_help_card_style_aria()}
+													class={helpBtnClass}
+												>
+													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+													></iconify-icon>
+												</button>
+											</SystemTooltip>
+										</div>
+										<Select
+											bind:value={myVariant}
+											ariaLabel={userpage_card_style()}
+											options={[
+												{ value: '', label: userpage_theme_default() },
+												{ value: 'flat', label: userpage_variant_flat() },
+												{ value: 'bordered', label: userpage_variant_bordered() },
+												{ value: 'elevated', label: userpage_variant_elevated() }
+											]}
+										/>
+									</div>
+									<div class="flex items-center justify-between gap-3 py-1">
+										<span
+											class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-400"
+										>
+											{userpage_reduced_motion()}
+											<SystemTooltip title={helpTitle('reduced-motion')}>
+												<button
+													type="button"
+													tabindex="-1"
+													aria-label={userpage_help_reduced_motion_aria()}
+													class={helpBtnClass}
+												>
+													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+													></iconify-icon>
+												</button>
+											</SystemTooltip>
+										</span>
+										<Toggle bind:value={myReducedMotion} ariaLabel={userpage_reduced_motion()} />
+									</div>
+									<div class="flex items-center justify-between gap-3 py-1">
+										<span
+											class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-400"
+										>
+											{userpage_high_contrast()}
+											<SystemTooltip title={helpTitle('high-contrast')}>
+												<button
+													type="button"
+													tabindex="-1"
+													aria-label={userpage_help_high_contrast_aria()}
+													class={helpBtnClass}
+												>
+													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
+													></iconify-icon>
+												</button>
+											</SystemTooltip>
+										</span>
+										<Toggle bind:value={myHighContrast} ariaLabel={userpage_high_contrast()} />
 									</div>
 								</div>
 								<div class="flex flex-col gap-2 sm:flex-row">
@@ -1561,12 +1921,12 @@
 										data-testid="user-save-appearance-btn"
 										class="flex-1"
 									>
-										Apply appearance
+										{userpage_apply_appearance()}
 									</Button>
 									<a
 										href="/config/design-system?tab=overrides"
 										data-testid="open-appearance-settings-btn"
-										aria-label="Open Design System My Overrides"
+										aria-label={userpage_open_design_system_aria()}
 										data-sveltekit-preload-data="hover"
 										data-preload="hover"
 										class="btn preset-outlined-surface-500 relative inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem) px-3 text-xs font-bold tracking-tight transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500"
@@ -1577,7 +1937,7 @@
 											class="me-1"
 											aria-hidden="true"
 										></iconify-icon>
-										Design System
+										{config_tile_design()}
 									</a>
 								</div>
 							</div>
@@ -1590,15 +1950,13 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p
-										class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
-									>
-										Collaboration
+									<p class="flex items-center gap-1 uppercase">
+										{userpage_collaboration()}
 										<SystemTooltip title={helpTitle('collaboration')}>
 											<button
 												type="button"
 												tabindex="-1"
-												aria-label="Help: Collaboration"
+												aria-label={userpage_help_collaboration_aria()}
 												class={helpBtnClass}
 											>
 												<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1612,15 +1970,13 @@
 										class="flex items-center justify-between gap-3"
 										data-testid="pref-rtc-enabled"
 									>
-										<span
-											class="flex min-w-0 items-center gap-1 text-sm text-surface-600 dark:text-surface-400"
-										>
-											Real-time editing
+										<span class="flex min-w-0 items-center gap-1 0">
+											{userpage_rtc_editing()}
 											<SystemTooltip title={helpTitle('rtc-enabled')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Real-time editing"
+													aria-label={userpage_help_rtc_aria()}
 													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1632,20 +1988,18 @@
 											checked={serverUser?.preferences?.rtc?.enabled ?? true}
 											onchange={async (enabled) => updateRtcPreference('enabled', enabled)}
 											size="sm"
-											label="Enable real-time editing"
+											label={userpage_enable_rtc()}
 											hideLabel={true}
 										/>
 									</div>
 									<div class="flex items-center justify-between gap-3" data-testid="pref-rtc-sound">
-										<span
-											class="flex min-w-0 items-center gap-1 text-sm text-surface-600 dark:text-surface-400"
-										>
-											Sound notifications
+										<span class="flex min-w-0 items-center gap-1">
+											{userpage_sound_notifications()}
 											<SystemTooltip title={helpTitle('rtc-sound')}>
 												<button
 													type="button"
 													tabindex="-1"
-													aria-label="Help: Sound notifications"
+													aria-label={userpage_help_rtc_sound_aria()}
 													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1657,7 +2011,7 @@
 											checked={serverUser?.preferences?.rtc?.sound ?? true}
 											onchange={async (sound) => updateRtcPreference('sound', sound)}
 											size="sm"
-											label="Enable sound notifications"
+											label={userpage_enable_sound()}
 											hideLabel={true}
 										/>
 									</div>
@@ -1667,8 +2021,8 @@
 					</AdminCard>
 
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">
-							Privacy &amp; extensions
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
+							{userpage_privacy_extensions_title()}
 						</h3>
 						<div class="space-y-1">
 							<div class="py-1" data-testid="privacy-data-section">
@@ -1682,12 +2036,12 @@
 									<p
 										class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100"
 									>
-										Privacy &amp; Data (GDPR)
+										{userpage_privacy_data_title()}
 										<SystemTooltip title={helpTitle('privacy')}>
 											<button
 												type="button"
 												tabindex="-1"
-												aria-label="Help: Privacy and Data GDPR"
+												aria-label={userpage_help_privacy_aria()}
 												class={helpBtnClass}
 											>
 												<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"
@@ -1700,15 +2054,15 @@
 									type="button"
 									onclick={modalPrivacyData}
 									data-testid="privacy-data-btn"
-									aria-label="Privacy and Data GDPR — open export and erase options"
+									aria-label={userpage_privacy_open_aria()}
 									class="flex w-full items-center gap-3 rounded-lg border border-surface-500/30 p-3 text-start transition-colors hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-800/50"
 								>
 									<div class="min-w-0 flex-1">
 										<p class="text-sm font-medium text-surface-900 dark:text-surface-100">
-											View, export, or erase your data
+											{userpage_privacy_action_title()}
 										</p>
 										<p class="text-xs text-surface-500">
-											Opens a secure dialog for download and anonymize actions
+											{userpage_privacy_action_desc()}
 										</p>
 									</div>
 									<iconify-icon
@@ -1736,8 +2090,7 @@
 						class="mb-3 text-center text-sm font-medium text-tertiary-600 dark:text-primary-500"
 						data-testid="user-management-intro"
 					>
-						Manage organization accounts and invitation tokens. Use search and column tools in the
-						toolbar below.
+						{userpage_management_intro()}
 					</p>
 					<AdminArea
 						currentUser={user as any}
@@ -1763,10 +2116,10 @@
 			aria-labelledby="reauth-title"
 		>
 			<h3 id="reauth-title" class="text-lg font-semibold text-surface-900 dark:text-surface-100">
-				Confirm your password
+				{userpage_reauth_title()}
 			</h3>
 			<p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
-				Required to sign out other sessions or devices.
+				{userpage_reauth_body()}
 			</p>
 			<form
 				class="mt-4 space-y-4"
@@ -1779,7 +2132,7 @@
 					type="security"
 					name="reauth-password"
 					id="reauth-password"
-					label="Current password"
+					label={userpage_current_password()}
 					bind:value={reauthPassword}
 					bind:showPassword={reauthShowPassword}
 					autocomplete="current-password"
@@ -1795,10 +2148,10 @@
 						onclick={() => (reauthOpen = false)}
 						disabled={reauthBusy}
 					>
-						Cancel
+						{button_cancel()}
 					</Button>
 					<Button type="submit" variant="primary" disabled={reauthBusy || !reauthPassword}>
-						{reauthBusy ? 'Verifying…' : 'Confirm'}
+						{reauthBusy ? userpage_verifying() : button_confirm()}
 					</Button>
 				</div>
 			</form>

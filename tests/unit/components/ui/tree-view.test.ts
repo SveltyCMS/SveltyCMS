@@ -27,8 +27,23 @@ describe("TreeView component (SSR)", () => {
     const { body } = render(TreeView, {
       props: { items: mockItems, compact: true },
     });
-    // compact density returns py-1 gap-1.5
-    expect(body).toContain("py-1 gap-1.5");
+    // Compact rail stacks the icon (row 1) over the label (row 2) as a tile.
+    expect(body).toContain("flex-col items-center justify-center");
+    expect(body).toContain("px-1 py-2");
+  });
+
+  it("tints category icons blue and collection icons via iconColorClass", () => {
+    const { body } = render(TreeView, {
+      props: {
+        iconColorClass: "text-error-500",
+        items: [
+          { id: "cat-1", label: "Category", icon: "mdi:folder", type: "category" },
+          { id: "col-1", label: "Collection", icon: "mdi:file", type: "collection" },
+        ],
+      },
+    });
+    expect(body).toContain("text-tertiary-500 dark:text-tertiary-400");
+    expect(body).toContain("text-error-500");
   });
 
   it("handles density comfortable mode correctly", () => {

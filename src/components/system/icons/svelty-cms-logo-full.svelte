@@ -9,9 +9,7 @@
 
 	import SiteName from '@src/components/site-name.svelte';
 	import { logo_slogan } from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { browser } from '$app/env';
 	import Logo from './svelty-cms-logo.svelte';
 
 	interface Props {
@@ -20,20 +18,13 @@
 
 	const { siteName: propSiteName }: Props = $props();
 
-	// Safely get the slogan - paraglide may not be ready during initial render in production
-	function getSlogan(): string {
-		try {
-			// Only call message if we're in browser and locale is available
-			if (browser && getLocale()) {
-				return logo_slogan();
-			}
-			return 'Content made simple';
-		} catch {
-			return 'Content made simple';
-		}
-	}
-
-	const slogan = $derived(getSlogan());
+	// Slogan resolution: an admin-set `SITE_SLOGAN` public setting wins; a blank value
+	// (the seeded default) falls back to the translated `logo_slogan` catalog message.
+	// Both branches resolve identically during SSR and hydration — `publicEnv` is empty on
+	// the server, so SSR uses the translation and a custom value only appears in the
+	// post-mount update, never as a hydration swap. No hardcoded literal fallback: the old
+	// `'Content made simple'` string matched neither the EN nor any translated value.
+	const slogan = $derived(publicEnv.SITE_SLOGAN || logo_slogan());
 	const siteName = $derived(propSiteName || publicEnv.SITE_NAME || 'SveltyCMS');
 </script>
 

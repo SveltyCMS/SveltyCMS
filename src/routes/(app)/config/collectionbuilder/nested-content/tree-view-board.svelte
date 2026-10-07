@@ -57,6 +57,40 @@ offset within the row on the native `dragover` event — that event carries
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
+	import {
+		builder_close_tag_modal,
+		builder_collapse_all,
+		builder_collapse_all_aria,
+		builder_contents_of,
+		builder_empty,
+		builder_expand_all,
+		builder_expand_all_aria,
+		builder_filter_fav_aria,
+		builder_filter_fav_tip,
+		builder_filter_tags_tip,
+		builder_help_tags,
+		builder_no_results,
+		builder_stat_categories_plural,
+		builder_stat_categories_singular,
+		builder_stat_collections_plural,
+		builder_stat_collections_singular,
+		builder_tag_help,
+		builder_tag_help_tip,
+		builder_tag_input_label,
+		builder_tag_placeholder,
+		builder_remove_tag,
+		builder_tags_for,
+		builder_tree_aria,
+		builder_tree_group_aria,
+		button_cancel,
+		button_save,
+		collections_all_tags,
+		collections_clear_filters,
+		collections_favorites,
+		collections_manage_tags,
+		collections_search,
+		collections_search_aria
+	} from '@src/paraglide/messages';
 
 	export interface TreeViewItem extends Record<string, any> {
 		_id?: any;
@@ -933,33 +967,34 @@ offset within the row on the native `dragover` event — that event carries
 			clearable
 			bind:value={searchText}
 			onClear={clearSearch}
-			label="Search collections..."
+			label={collections_search()}
 			icon="mdi:magnify"
-			aria-label="Search collections"
-			inputClass="w-full rounded border border-surface-500/30 dark:border-surface-600"
+			aria-label={collections_search_aria()}
+			labelClass="w-full text-center start-0! origin-center!"
+			inputClass="w-full rounded border! border-surface-500/30 dark:border-surface-600"
 		/>
 	</div>
 	<!-- Favorites Filter Chip -->
-	<SystemTooltip title="Filter board to display only favorited collections">
+	<SystemTooltip title={builder_filter_fav_tip()}>
 		<Button
 			variant="surface"
 			type="button"
 			onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
-			aria-label="Filter by favorites"
+			aria-label={builder_filter_fav_aria()}
 		>
 			<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
-			<span>Favorites</span>
+			<span>{collections_favorites()}</span>
 		</Button>
 	</SystemTooltip>
 
 	<!-- Tag Filter Dropdown -->
 	{#if allTags.length > 0}
 		<div class="relative min-w-36">
-			<SystemTooltip title="Filter collections by assigned taxonomy tag">
+			<SystemTooltip title={builder_filter_tags_tip()}>
 				<Select
 					bind:value={selectedTagFilter}
 					options={tagFilterOptions}
-					placeholder="All Tags"
+					placeholder={collections_all_tags()}
 					allowEmptySelection
 					size="sm"
 				/>
@@ -969,35 +1004,35 @@ offset within the row on the native `dragover` event — that event carries
 
 	{#if searchText || showOnlyFavorites || selectedTagFilter}
 		<Button variant="outline" type="button" onclick={clearAllFilters} class="">
-			Clear filters
+			{collections_clear_filters()}
 		</Button>
 	{/if}
 
 	<div class="flex gap-2 ms-auto">
-		<SystemTooltip title="Expand all categories">
+		<SystemTooltip title={builder_expand_all_aria()}>
 			<Button
 				variant="surface"
 				type="button"
 				onclick={expandAll}
-				aria-label="Expand all categories"
+				aria-label={builder_expand_all_aria()}
 				class="shadow-sm"
 			>
 				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"
 				></iconify-icon>
-				<span class="ms-1 uppercase text-xs font-bold">Expand All</span>
+				<span class="ms-1 uppercase text-xs font-bold">{builder_expand_all()}</span>
 			</Button>
 		</SystemTooltip>
-		<SystemTooltip title="Collapse all categories">
+		<SystemTooltip title={builder_collapse_all_aria()}>
 			<Button
 				variant="surface"
 				type="button"
 				onclick={collapseAll}
-				aria-label="Collapse all categories"
+				aria-label={builder_collapse_all_aria()}
 				class="shadow-sm"
 			>
 				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"
 				></iconify-icon>
-				<span class="ms-1 uppercase text-xs font-bold">Collapse All</span>
+				<span class="ms-1 uppercase text-xs font-bold">{builder_collapse_all()}</span>
 			</Button>
 		</SystemTooltip>
 		{#if treeStats.collections > 0 || treeStats.categories > 0}
@@ -1005,13 +1040,16 @@ offset within the row on the native `dragover` event — that event carries
 				class="hidden sm:flex items-center px-2 py-1 rounded bg-surface-500/10 text-xs font-medium text-surface-600 dark:text-surface-400"
 			>
 				<span
-					>{treeStats.collections}
-					{treeStats.collections === 1 ? 'collection' : 'collections'}</span
+					>{treeStats.collections === 1
+						? builder_stat_collections_singular({ count: treeStats.collections })
+						: builder_stat_collections_plural({ count: treeStats.collections })}</span
 				>
 				{#if treeStats.categories > 0}
 					<span class="mx-1.5 opacity-40">·</span>
 					<span
-						>{treeStats.categories} {treeStats.categories === 1 ? 'category' : 'categories'}</span
+						>{treeStats.categories === 1
+							? builder_stat_categories_singular({ count: treeStats.categories })
+							: builder_stat_categories_plural({ count: treeStats.categories })}</span
 					>
 				{/if}
 			</div>
@@ -1028,7 +1066,7 @@ offset within the row on the native `dragover` event — that event carries
 	onkeydown={handleTreeKeyDown}
 	role={treeRoots.length > 0 ? 'tree' : undefined}
 	tabindex={treeRoots.length > 0 ? 0 : undefined}
-	aria-label="Collection hierarchy. Arrow keys navigate, Alt+arrows reorder, letters jump to items."
+	aria-label={builder_tree_aria()}
 >
 	{#if treeRoots.length === 0}
 		<div class="text-center p-8 text-surface-500">
@@ -1039,11 +1077,11 @@ offset within the row on the native `dragover` event — that event carries
 				aria-hidden="true"
 			></iconify-icon>
 			<p>
-				{searchText ? `No results found for "${searchText}"` : 'No categories or collections yet'}
+				{searchText ? builder_no_results({ term: searchText }) : builder_empty()}
 			</p>
 		</div>
 	{:else}
-		<div role="group" aria-label="Content Organization Tree">
+		<div role="group" aria-label={builder_tree_group_aria()}>
 			<TreeDragPreview
 				nestTargetName={nestTargetId ? findNode(treeRoots, nestTargetId)?.name : null}
 			/>
@@ -1114,7 +1152,7 @@ offset within the row on the native `dragover` event — that event carries
 				class="tree-children"
 				style="margin-inline-start: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem"
 				role="group"
-				aria-label={`Contents of ${item.name}`}
+				aria-label={builder_contents_of({ name: item.name })}
 			>
 				{#each item.children as child (child.id)}
 					{@render treeNode(child, level + 1)}
@@ -1144,7 +1182,7 @@ offset within the row on the native `dragover` event — that event carries
 				type="button"
 				onclick={() => (showTagModal = false)}
 				class="absolute top-4 inset-e-4 p-0! min-w-0 rounded-full text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800"
-				aria-label="Close tag modal"
+				aria-label={builder_close_tag_modal()}
 			>
 				<iconify-icon icon="bi:x" width="20"></iconify-icon>
 			</Button>
@@ -1153,10 +1191,11 @@ offset within the row on the native `dragover` event — that event carries
 				id="board-tag-modal-title"
 				class="text-lg font-bold text-surface-900 dark:text-white mb-2"
 			>
-				Manage Tags
+				{collections_manage_tags()}
 			</h3>
 			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
-				Tags for <span class="font-semibold text-tertiary-500 dark:text-primary-500"
+				{builder_tags_for()}
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500"
 					>{activeItemForTagging.name}</span
 				>
 			</p>
@@ -1167,23 +1206,21 @@ offset within the row on the native `dragover` event — that event carries
 						for="board-tags-input"
 						class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
 					>
-						Tags
+						{builder_tag_input_label()}
 					</label>
-					<SystemTooltip
-						title="Assign comma-separated tags to organize, group, and filter this collection across the CMS."
-					>
-						<HelpIcon ariaLabel="Help: Tags" />
+					<SystemTooltip title={builder_tag_help_tip()}>
+						<HelpIcon ariaLabel={builder_help_tags()} />
 					</SystemTooltip>
 				</div>
 				<Input
 					id="board-tags-input"
 					bind:value={currentTagsInput}
-					placeholder="e.g. news, blog, featured"
+					placeholder={builder_tag_placeholder()}
 					aria-describedby="board-tags-help"
 					data-testid="board-tags-input"
 				/>
 				<span id="board-tags-help" class="text-[11px] text-surface-400 mt-1 block"
-					>Separate multiple tags with a comma.</span
+					>{builder_tag_help()}</span
 				>
 
 				{#if collectionMetadata.getTags(activeItemForTagging.id).length}
@@ -1205,7 +1242,7 @@ offset within the row on the native `dragover` event — that event carries
 											.join(', ');
 									}}
 									class="rounded-full p-0.5 hover:text-error-500"
-									aria-label="Remove tag {tag}">&times;</Button
+									aria-label={builder_remove_tag({ tag })}>&times;</Button
 								>
 							</span>
 						{/each}
@@ -1214,7 +1251,7 @@ offset within the row on the native `dragover` event — that event carries
 
 				<div class="flex justify-end gap-2 mt-6">
 					<Button variant="outline" type="button" onclick={() => (showTagModal = false)}
-						>Cancel</Button
+						>{button_cancel()}</Button
 					>
 					<Button
 						variant="tertiary"
@@ -1227,7 +1264,7 @@ offset within the row on the native `dragover` event — that event carries
 								.filter(Boolean);
 							collectionMetadata.setTags(activeItemForTagging!.id, parsed);
 							showTagModal = false;
-						}}>Save</Button
+						}}>{button_save()}</Button
 					>
 				</div>
 			</div>

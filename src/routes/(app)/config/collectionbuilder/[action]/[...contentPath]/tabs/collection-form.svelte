@@ -5,6 +5,28 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import {
+		builder_help_collection_tags,
+		builder_help_dbname,
+		builder_help_definition,
+		builder_help_description,
+		builder_help_favorite,
+		builder_help_icon,
+		builder_help_identity,
+		builder_help_name,
+		builder_help_org_tags,
+		builder_help_suggested_tags,
+		builder_help_visual,
+		builder_tip_def_dbname,
+		builder_tip_def_description,
+		builder_tip_def_favorite,
+		builder_tip_def_icon,
+		builder_tip_def_identity,
+		builder_tip_def_name,
+		builder_tip_def_step,
+		builder_tip_def_suggested_tags,
+		builder_tip_def_tags,
+		builder_tip_def_tags_input,
+		builder_tip_def_visual,
 		collection_description_placeholder,
 		collection_name,
 		collection_name_placeholder,
@@ -155,10 +177,8 @@
 				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
 					Collection Definition
 				</h2>
-				<SystemTooltip
-					title="Step 1 of the collection builder: Define the core identity, database identifier, icon, description, and organizational tags."
-				>
-					<HelpIcon ariaLabel="Help: Collection Definition" />
+				<SystemTooltip title={builder_tip_def_step()}>
+					<HelpIcon ariaLabel={builder_help_definition()} />
 				</SystemTooltip>
 			</div>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
@@ -178,10 +198,8 @@
 					<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>
 					Identity
 				</h3>
-				<SystemTooltip
-					title="Core collection identity. Sets the display name shown to editors and the system database table used for physical storage."
-				>
-					<HelpIcon ariaLabel="Help: Identity" />
+				<SystemTooltip title={builder_tip_def_identity()}>
+					<HelpIcon ariaLabel={builder_help_identity()} />
 				</SystemTooltip>
 			</div>
 
@@ -195,10 +213,8 @@
 							{collection_name()}
 						</label>
 						<span class="text-error-500" aria-hidden="true">*</span>
-						<SystemTooltip
-							title="The human-readable name of the collection (e.g. 'Articles', 'Products'). Displayed in the sidebar and navigation menus."
-						>
-							<HelpIcon ariaLabel="Help: Collection Name" />
+						<SystemTooltip title={builder_tip_def_name()}>
+							<HelpIcon ariaLabel={builder_help_name()} />
 						</SystemTooltip>
 					</div>
 					<Input
@@ -221,10 +237,8 @@
 							>
 								Database Name
 							</span>
-							<SystemTooltip
-								title="Physical database table or collection name used for queries and schema generation. Auto-slugified from the collection name."
-							>
-								<HelpIcon ariaLabel="Help: Database Name" />
+							<SystemTooltip title={builder_tip_def_dbname()}>
+								<HelpIcon ariaLabel={builder_help_dbname()} />
 							</SystemTooltip>
 						</div>
 						<code class="text-sm font-mono font-bold text-tertiary-600 dark:text-primary-500"
@@ -248,10 +262,8 @@
 					></iconify-icon>
 					Visual Identity
 				</h3>
-				<SystemTooltip
-					title="Visual branding and descriptive documentation to help editors easily identify this collection."
-				>
-					<HelpIcon ariaLabel="Help: Visual Identity" />
+				<SystemTooltip title={builder_tip_def_visual()}>
+					<HelpIcon ariaLabel={builder_help_visual()} />
 				</SystemTooltip>
 			</div>
 
@@ -261,10 +273,8 @@
 						<span class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
 							>{collectionname_labelicon()}</span
 						>
-						<SystemTooltip
-							title="Icon rendered across the CMS — in the left sidebar, tree-view board, breadcrumb trail, and tabs."
-						>
-							<HelpIcon ariaLabel="Help: Collection Icon" />
+						<SystemTooltip title={builder_tip_def_icon()}>
+							<HelpIcon ariaLabel={builder_help_icon()} />
 						</SystemTooltip>
 					</div>
 					<IconifyIconsPicker
@@ -281,10 +291,8 @@
 							class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
 							>{collectionname_description()}</label
 						>
-						<SystemTooltip
-							title="Optional summary describing the purpose and contents of this collection for other editors and API documentation."
-						>
-							<HelpIcon ariaLabel="Help: Collection Description" />
+						<SystemTooltip title={builder_tip_def_description()}>
+							<HelpIcon ariaLabel={builder_help_description()} />
 						</SystemTooltip>
 					</div>
 					<textarea
@@ -309,10 +317,8 @@
 					></iconify-icon>
 					Organization & Tags
 				</h3>
-				<SystemTooltip
-					title="Organize your content structure with tags and quick-access favorites for flexible categorization, discovery, and filtering."
-				>
-					<HelpIcon ariaLabel="Help: Organization & Tags" />
+				<SystemTooltip title={builder_tip_def_tags()}>
+					<HelpIcon ariaLabel={builder_help_org_tags()} />
 				</SystemTooltip>
 			</div>
 
@@ -327,10 +333,8 @@
 							>
 								Collection Tags
 							</label>
-							<SystemTooltip
-								title="Add one or more comma-separated tags (e.g. 'marketing, blog, api') to group and filter collections in the builder board and left sidebar."
-							>
-								<HelpIcon ariaLabel="Help: Collection Tags" />
+							<SystemTooltip title={builder_tip_def_tags_input()}>
+								<HelpIcon ariaLabel={builder_help_collection_tags()} />
 							</SystemTooltip>
 						</div>
 						<span class="text-[11px] text-surface-400"
@@ -379,10 +383,8 @@
 								<span class="text-[11px] font-bold uppercase tracking-wider text-surface-400 block">
 									Suggested Tags
 								</span>
-								<SystemTooltip
-									title="Tags already used by other collections in your project. Click any tag to add it instantly without typing."
-								>
-									<HelpIcon ariaLabel="Help: Suggested Tags" />
+								<SystemTooltip title={builder_tip_def_suggested_tags()}>
+									<HelpIcon ariaLabel={builder_help_suggested_tags()} />
 								</SystemTooltip>
 							</div>
 							<div class="flex flex-wrap gap-1">
@@ -419,10 +421,8 @@
 									<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-100">
 										Favorite Collection
 									</h4>
-									<SystemTooltip
-										title="Pin this collection to the top of your sidebar navigation and builder board for instant one-click access."
-									>
-										<HelpIcon ariaLabel="Help: Favorite Collection" />
+									<SystemTooltip title={builder_tip_def_favorite()}>
+										<HelpIcon ariaLabel={builder_help_favorite()} />
 									</SystemTooltip>
 								</div>
 								<p class="text-xs text-surface-500 dark:text-surface-400">

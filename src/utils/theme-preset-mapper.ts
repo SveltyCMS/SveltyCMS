@@ -114,8 +114,9 @@ export function mapThemePropertiesToCss(properties: Record<string, string>): str
  *
  * Hex seeds expand through a hue-preserving OKLCH ramp (`generateColorRamp`):
  * `surface` is anchored on its lightest step (50), every other role on 500 so
- * the brand color is emitted verbatim. Non-hex values (`oklch()`, named colors)
- * keep the previous `color-mix` behavior so imported presets stay valid.
+ * the brand color is emitted verbatim on its anchor, and every step is emitted
+ * as a CSS `oklch(...)` value. Non-hex values (`oklch()`, named colors) keep the
+ * previous `color-mix` behavior so imported presets stay valid.
  */
 export function expandShorthandPaletteProperties(
   palette: Record<string, string>,
@@ -265,14 +266,17 @@ export function mergePaletteCssIntoCustomCss(
   return `${base}\n\n${block}`;
 }
 
-/** Default Corporate workspace seeds (matches src/themes/default.json). */
+/** Palette-studio starter seeds (brand green primary). The builtin default admin
+ * theme (`src/themes/default.json`) intentionally carries NO palette — its brand
+ * colors come from the `src/app.css` `@theme` tokens; these seeds only prefill
+ * the palette studio when an operator creates a new custom theme. */
 export const DEFAULT_PALETTE_SEEDS: Required<
   Pick<
     PaletteSeeds,
     "primary" | "secondary" | "tertiary" | "success" | "warning" | "error" | "surface"
   >
 > = {
-  primary: "#0f766e",
+  primary: "#5fd317",
   secondary: "#334155",
   tertiary: "#1d4ed8",
   success: "#16a34a",

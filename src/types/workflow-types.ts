@@ -11,6 +11,9 @@ export interface WorkflowState {
   isFinal?: boolean;
   /** When true, entries in this state must be assigned to a reviewer before they can leave it. */
   requiresAssignee?: boolean;
+  /** Canvas position (px) in the visual builder — persisted so layouts survive reloads. */
+  x?: number;
+  y?: number;
 }
 
 export interface WorkflowTransition {

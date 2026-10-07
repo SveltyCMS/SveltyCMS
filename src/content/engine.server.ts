@@ -178,14 +178,20 @@ function enrichSchemaWithMetadata(
  * 🚀 Ensures all physical database models (tables/collections) exist.
  */
 async function ensurePhysicalModels(schemas: Schema[], dbAdapter: IDBAdapter) {
+  // Physical-model DDL is a system operation (the tables are global, not
+  // tenant-scoped) and reconcile runs outside any request — there is no bound
+  // tenant to inject. Carry a branded system scope so MULTI_TENANT does not
+  // fail closed on every createModel ("Security Violation … without tenant");
+  // application paths must still pass a real tenantId.
+  const systemScope = withSystemScope("bootstrap");
   // Check if bulk exists
   const collAdapter = dbAdapter.collection as any;
   if (collAdapter.createModelsBulk) {
-    await collAdapter.createModelsBulk(schemas);
+    await collAdapter.createModelsBulk(schemas, systemScope);
   } else {
     for (const schema of schemas) {
       try {
-        await dbAdapter.collection.createModel(schema);
+        await dbAdapter.collection.createModel(schema, undefined, systemScope);
       } catch (err) {
         logger.error(`[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`);
       }

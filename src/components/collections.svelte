@@ -48,23 +48,19 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
-		button_Collections,
 		collections_add,
 		collections_all_tags,
 		collections_clear_filters,
 		collections_clear_search,
-		collections_custom_order,
 		collections_favorites,
 		collections_go_builder,
 		collections_loading,
-		collections_manage,
 		collections_nav_aria,
 		collections_none_found,
 		collections_none_match,
-		collections_reset_order,
+		collections_reorder,
 		collections_search,
-		collections_search_aria,
-		collections_search_title
+		collections_search_aria
 	} from '@src/paraglide/messages';
 
 	interface ExtendedContentNode extends ContentNode {
@@ -114,41 +110,13 @@ Provides an organized interface for navigating hierarchical content structures.
 	let search = $state('');
 	let debouncedSearch = $state('');
 	let isSearching = $state(false);
-	let isCompactSearchOpen = $state(false);
-	let compactSearchRef = $state<HTMLElement | null>(null);
 	let expandedNodes = new SvelteSet<string>();
-
-	function toggleCompactSearch(): void {
-		isCompactSearchOpen = !isCompactSearchOpen;
-	}
-
-	$effect(() => {
-		if (!isCompactSearchOpen) return;
-		const handleClickOutside = (e: MouseEvent) => {
-			if (compactSearchRef && !compactSearchRef.contains(e.target as Node)) {
-				isCompactSearchOpen = false;
-			}
-		};
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') {
-				isCompactSearchOpen = false;
-			}
-		};
-		document.addEventListener('mousedown', handleClickOutside);
-		document.addEventListener('keydown', handleKeyDown);
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-			document.removeEventListener('keydown', handleKeyDown);
-		};
-	});
-
-	function focusOnMount(el: HTMLElement) {
-		el.focus();
-	}
 
 	// Filter state
 	let showOnlyFavorites = $state(false);
 	let selectedTagFilter = $state('');
+	/** Reorder mode — the pencil next to Favorites gates drag & drop. */
+	let isReorderMode = $state(false);
 
 	// Tag modal state
 	let showTagModal = $state(false);
@@ -329,7 +297,12 @@ Provides an organized interface for navigating hierarchical content structures.
 			const translation = node.translations?.find((t) => t.languageTag === currentLanguage);
 			const label = translation?.translationName || node.name;
 			const isCategory = node.nodeType === 'category';
-			const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
+			// Selection is deliberately NOT baked into the tree: `treeNodes` is the keyed
+			// list TreeView diffs, so reading `selectedId` here rebuilt every node object
+			// on each navigation and forced the whole sidebar to re-render instead of
+			// just repainting the newly selected row. TreeView applies selection per node
+			// from its own `selectedId` prop.
+			const isExpanded = expandedNodes.has(node._id);
 
 			let hasInactiveWidgets = false;
 			if (!isCategory && node.collectionDef?.fields) {
@@ -365,47 +338,50 @@ Provides an organized interface for navigating hierarchical content structures.
 			const isPinned = pinnedStore.isPinned(node._id);
 			const isFav = collectionMetadata.isFavorite(node._id);
 
-			const actions = [
-				...(isCategory
-					? []
-					: [
-							{
-								icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
-								label: isPinned ? 'Unpin' : 'Pin Collection',
-								colorClass: isPinned
-									? 'text-tertiary-500 dark:text-primary-500'
-									: 'text-surface-500',
-								onClick: (_: any, e: MouseEvent) => {
-									e.stopPropagation();
-									pinnedStore.togglePin({
-										id: node._id,
-										name: label,
-										type: 'collection',
-										path: `/${currentLanguage}${node.path || `/${node._id}`}`,
-										icon: node.icon || 'bi:collection'
-									});
-								}
+			// Hover actions (pin / favorite / tags) are only available in reorder mode.
+			const actions = !isReorderMode
+				? []
+				: [
+						...(isCategory
+							? []
+							: [
+									{
+										icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+										label: isPinned ? 'Unpin' : 'Pin Collection',
+										colorClass: isPinned
+											? 'text-tertiary-500 dark:text-primary-500'
+											: 'text-surface-500',
+										onClick: (_: any, e: MouseEvent) => {
+											e.stopPropagation();
+											pinnedStore.togglePin({
+												id: node._id,
+												name: label,
+												type: 'collection',
+												path: `/${currentLanguage}${node.path || `/${node._id}`}`,
+												icon: node.icon || 'bi:collection'
+											});
+										}
+									}
+								]),
+						{
+							icon: isFav ? 'bi:star-fill' : 'bi:star',
+							label: isFav ? 'Remove Favorite' : 'Add Favorite',
+							colorClass: isFav ? 'text-warning-500' : 'text-surface-500',
+							onClick: (_: any, e: MouseEvent) => {
+								e.stopPropagation();
+								collectionMetadata.toggleFavorite(node._id);
 							}
-						]),
-				{
-					icon: isFav ? 'bi:star-fill' : 'bi:star',
-					label: isFav ? 'Remove Favorite' : 'Add Favorite',
-					colorClass: isFav ? 'text-warning-500' : 'text-surface-500',
-					onClick: (_: any, e: MouseEvent) => {
-						e.stopPropagation();
-						collectionMetadata.toggleFavorite(node._id);
-					}
-				},
-				{
-					icon: 'bi:tag',
-					label: 'Manage Tags',
-					colorClass: 'text-surface-500 hover:text-tertiary-500 dark:text-primary-500',
-					onClick: (_: any, e: MouseEvent) => {
-						e.stopPropagation();
-						openTagEditor(node._id, label);
-					}
-				}
-			];
+						},
+						{
+							icon: 'bi:tag',
+							label: 'Manage Tags',
+							colorClass: 'text-surface-500 hover:text-tertiary-500 dark:text-primary-500',
+							onClick: (_: any, e: MouseEvent) => {
+								e.stopPropagation();
+								openTagEditor(node._id, label);
+							}
+						}
+					];
 
 			const nodePath = isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`;
 			const normalizedNodePath = nodePath
@@ -663,16 +639,6 @@ Provides an organized interface for navigating hierarchical content structures.
 		selectedTagFilter = '';
 	}
 
-	function resetCustomOrder() {
-		orderOverrides.clear();
-		// Persist empty order to clear manifest
-		fetch('/api/collections/reorder', {
-			method: 'POST',
-			headers: clientJsonHeaders(),
-			body: JSON.stringify({ order: {} })
-		}).catch(() => {});
-	}
-
 	async function navigate(path: string, force = false): Promise<void> {
 		if (page.url.pathname === path && !force) return;
 		if (page.url.pathname === path) {
@@ -703,60 +669,59 @@ Provides an organized interface for navigating hierarchical content structures.
 </script>
 
 <div class="mt-2 space-y-2 w-full" role="navigation" aria-label={collections_nav_aria()}>
-	<!-- Collections Section Header with Quick-Add -->
+	<!-- Filters Row (no section header — Favorites left, edit/reorder right) -->
 	{#if isFullSidebar}
-		<div class="flex items-center justify-between px-1 pb-0.5">
-			<span class="text-[11px] font-bold uppercase tracking-wider text-surface-500"
-				>{button_Collections()}</span
-			>
-			<SystemTooltip title={collections_manage()} positioning={{ placement: 'right' }}>
-				<a
-					href="/config/collectionbuilder"
-					data-sveltekit-preload-data="hover"
-					data-testid="sidebar-collection-builder-link"
-					class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-primary-500 transition-colors no-underline!"
-					aria-label={collections_manage()}
+		<div class="flex items-center justify-between gap-2 px-1">
+			<div class="flex min-w-0 items-center gap-2">
+				{#if allTags.length > 0}
+					<div class="relative min-w-35">
+						<Select
+							bind:value={selectedTagFilter}
+							options={tagFilterOptions}
+							placeholder={collections_all_tags()}
+							allowEmptySelection
+							size="sm"
+						/>
+					</div>
+				{/if}
+
+				{#if search || showOnlyFavorites || selectedTagFilter}
+					<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
+						{collections_clear_filters()}
+					</Button>
+				{/if}
+
+				<Button
+					variant="outline"
+					type="button"
+					size="sm"
+					onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
+					class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
+						? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
+						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
 				>
-					<iconify-icon icon="ic:round-add" width="16"></iconify-icon>
-				</a>
-			</SystemTooltip>
-		</div>
-	{/if}
-
-	<!-- Filters Row -->
-	{#if isFullSidebar}
-		<div class="flex flex-wrap items-center gap-2 px-1">
-			<Button
-				variant="outline"
-				type="button"
-				size="sm"
-				onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
-				class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
-					? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
-					: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
-			>
-				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"
-				></iconify-icon>
-				<span>{collections_favorites()}</span>
-			</Button>
-
-			{#if allTags.length > 0}
-				<div class="relative flex-1 min-w-35">
-					<Select
-						bind:value={selectedTagFilter}
-						options={tagFilterOptions}
-						placeholder={collections_all_tags()}
-						allowEmptySelection
-						size="sm"
-					/>
-				</div>
-			{/if}
-
-			{#if search || showOnlyFavorites || selectedTagFilter}
-				<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
-					{collections_clear_filters()}
+					<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"
+					></iconify-icon>
+					<span>{collections_favorites()}</span>
 				</Button>
-			{/if}
+			</div>
+
+			<SystemTooltip title={collections_reorder()} positioning={{ placement: 'right' }}>
+				<Button
+					variant="outline"
+					type="button"
+					size="sm"
+					onclick={() => (isReorderMode = !isReorderMode)}
+					aria-pressed={isReorderMode}
+					aria-label={collections_reorder()}
+					data-testid="collections-reorder-toggle"
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0! transition-all {isReorderMode
+						? 'bg-tertiary-500/20 border-tertiary-500 text-tertiary-600 dark:bg-primary-500/20 dark:border-primary-500 dark:text-primary-400'
+						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+				>
+					<iconify-icon icon="mdi:pencil-outline" width="14"></iconify-icon>
+				</Button>
+			</SystemTooltip>
 		</div>
 	{/if}
 
@@ -781,89 +746,27 @@ Provides an organized interface for navigating hierarchical content structures.
 		{/if}
 	{/snippet}
 
-	{#if isFullSidebar}
-		<div class="relative w-full">
-			<Input
-				id="collections-search"
-				type="search"
-				bind:value={search}
-				placeholder={collections_search()}
-				pre={searchIcon as Snippet}
-				post={clearIcon as Snippet}
-				inputClass="w-full text-xs"
-				aria-label={collections_search_aria()}
-			/>
-		</div>
-	{:else}
-		<div class="relative flex flex-col items-center gap-2" bind:this={compactSearchRef}>
-			<SystemTooltip
-				title={isCompactSearchOpen
-					? 'Close search'
-					: search
-						? `Filter: "${search}"`
-						: collections_search_title()}
-				positioning={{ placement: 'right' }}
-			>
-				<Button
-					variant="ghost"
-					type="button"
-					onclick={toggleCompactSearch}
-					aria-label={collections_search_aria()}
-					aria-expanded={isCompactSearchOpen}
-					class="relative flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 transition-colors {isCompactSearchOpen ||
-					search
-						? 'bg-tertiary-500/20 text-tertiary-600 dark:text-primary-400'
-						: 'hover:bg-surface-200 dark:hover:bg-surface-800'}"
-				>
-					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
-					{#if search}
-						<span
-							class="absolute top-1 end-1 h-2 w-2 rounded-full bg-tertiary-500 dark:bg-primary-500"
-							aria-hidden="true"
-						></span>
-					{/if}
-				</Button>
-			</SystemTooltip>
+	<!-- Search: a real, usable field in BOTH modes. The compact rail previously
+	     exposed only an icon whose popover was clipped by the rail's
+	     `overflow-y-auto` container (which also forces `overflow-x: auto`), so the
+	     field was unreachable. The rail is narrow, so its field omits the 36px
+	     pre/post slots to keep the text area usable; the full sidebar keeps the
+	     search icon + clear affordances. -->
+	<div class="relative w-full">
+		<Input
+			id="collections-search"
+			type="search"
+			bind:value={search}
+			placeholder={collections_search()}
+			pre={isFullSidebar ? (searchIcon as Snippet) : undefined}
+			post={isFullSidebar ? (clearIcon as Snippet) : undefined}
+			inputClass="w-full text-xs"
+			aria-label={collections_search_aria()}
+		/>
+	</div>
 
-			{#if isCompactSearchOpen}
-				<div
-					class="absolute start-11 top-0 z-50 flex w-64 items-center gap-1.5 rounded-xl border border-surface-500/30 bg-white p-2 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
-				>
-					<iconify-icon icon="ic:outline-search" width="18" class="text-surface-400 shrink-0"
-					></iconify-icon>
-					<input
-						type="search"
-						bind:value={search}
-						placeholder={collections_search()}
-						aria-label={collections_search()}
-						class="w-full bg-transparent text-xs text-surface-900 placeholder:text-surface-400 focus:outline-none dark:text-surface-100"
-						use:focusOnMount
-					/>
-					{#if search}
-						<Button
-							variant="ghost"
-							type="button"
-							size="sm"
-							onclick={() => (search = '')}
-							class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
-							aria-label={collections_clear_search()}
-						>
-							<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
-						</Button>
-					{/if}
-					<Button
-						variant="ghost"
-						type="button"
-						size="sm"
-						onclick={() => (isCompactSearchOpen = false)}
-						class="p-0.5! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
-						aria-label="Close search"
-					>
-						<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-					</Button>
-				</div>
-			{/if}
-
+	{#if !isFullSidebar}
+		<div class="flex flex-col items-center gap-2">
 			<SystemTooltip title={collections_go_builder()} positioning={{ placement: 'right' }}>
 				<a
 					href="/config/collectionbuilder"
@@ -873,24 +776,6 @@ Provides an organized interface for navigating hierarchical content structures.
 					<iconify-icon icon="ic:round-add" width="18"></iconify-icon>
 				</a>
 			</SystemTooltip>
-		</div>
-	{/if}
-
-	<!-- Custom Order Banner -->
-	{#if orderOverrides.size > 0}
-		<div
-			class="flex items-center justify-between rounded bg-tertiary-500/10 px-3 py-1.5 text-xs text-tertiary-600 dark:text-tertiary-400"
-		>
-			<span>{collections_custom_order()}</span>
-			<Button
-				variant="ghost"
-				type="button"
-				size="sm"
-				onclick={resetCustomOrder}
-				class="text-xs px-2"
-			>
-				{collections_reset_order()}
-			</Button>
 		</div>
 	{/if}
 
@@ -954,7 +839,8 @@ Provides an organized interface for navigating hierarchical content structures.
 				search={debouncedSearch}
 				iconColorClass="text-error-500"
 				showBadges={true}
-				allowDragDrop={true}
+				allowDragDrop={isReorderMode}
+				showActionsAlways={isReorderMode}
 				onreorder={handleTreeReorder}
 			/>
 		{/if}

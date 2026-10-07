@@ -11,7 +11,7 @@
 - Drag and drop support for reassigning collections
 -->
 <script lang="ts">
-	import { Unassigned_Collections } from '@src/paraglide/messages';
+	import { builder_tip_drag_reorder, Unassigned_Collections } from '@src/paraglide/messages';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';
@@ -94,7 +94,7 @@
 					type="button"
 					class="unassigned-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
 					aria-label="Drag {item.name}"
-					title="Drag to reorder"
+					title={builder_tip_drag_reorder()}
 				>
 					<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
 				</button>

@@ -150,7 +150,7 @@ corner-shape angled corners.
 	<div class="relative flex items-center" style={wrapperStyles}>
 		{#if pre}
 			<div
-				class="absolute start-0 inset-y-0 flex items-center justify-center w-9 z-10 text-surface-500 dark:text-surface-400 pointer-events-none"
+				class="absolute inset-s-0 inset-y-0 flex items-center justify-center w-9 z-10 text-surface-500 dark:text-surface-400 pointer-events-none"
 			>
 				{@render pre()}
 			</div>
@@ -179,7 +179,7 @@ corner-shape angled corners.
 
 		{#if post}
 			<div
-				class="absolute end-0 inset-y-0 flex items-center justify-center w-9 z-10 text-surface-500 dark:text-surface-400"
+				class="absolute inset-e-0 inset-y-0 flex items-center justify-center w-9 z-10 text-surface-500 dark:text-surface-400"
 			>
 				{@render post()}
 			</div>

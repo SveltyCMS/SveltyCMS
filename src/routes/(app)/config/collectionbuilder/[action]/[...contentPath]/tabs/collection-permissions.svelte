@@ -6,6 +6,7 @@
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
 	import Card from '@src/components/ui/card.svelte';
 	import Button from '@src/components/ui/button.svelte';
+	import { builder_tip_grant_all, builder_tip_revoke_all } from '@src/paraglide/messages';
 	import type { Role } from '@src/databases/auth/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 
@@ -230,7 +231,7 @@
 											variant="ghost"
 											size="sm"
 											onclick={() => setAllForRole(roleName, true)}
-											title="Grant all"
+											title={builder_tip_grant_all()}
 											class="p-1!"
 										>
 											<iconify-icon icon="mdi:check-all" width="16" class="text-success-500"
@@ -240,7 +241,7 @@
 											variant="ghost"
 											size="sm"
 											onclick={() => setAllForRole(roleName, false)}
-											title="Revoke all"
+											title={builder_tip_revoke_all()}
 											class="p-1!"
 										>
 											<iconify-icon

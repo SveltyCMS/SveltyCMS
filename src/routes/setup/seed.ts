@@ -202,11 +202,14 @@ export const DEFAULT_CONTENT_LANGUAGE = DEFAULT_BASE_LOCALE;
 
 // ============================================================================
 
-// Default theme that matches the ThemeManager's DEFAULT_THEME
+// Default theme that matches the ThemeManager's DEFAULT_THEME.
+// Named `Default` to match `src/themes/default.json` so the boot-time file sync
+// updates THIS row instead of creating a duplicate. `SveltyCMSTheme` is recognised
+// as a legacy alias and converged onto this name by `theme-file-sync`.
 const defaultTheme: Theme = {
   _id: "670e8b8c4d123456789abcde" as DatabaseId,
   path: "",
-  name: "SveltyCMSTheme",
+  name: "Default",
   isActive: true,
   isDefault: true,
   config: {
@@ -1487,6 +1490,11 @@ export const defaultPublicSettings: Array<{
     description: "The public name of the website",
   },
   {
+    key: "SITE_SLOGAN",
+    value: "",
+    description: "Optional tagline under the logo (blank uses the translated default)",
+  },
+  {
     key: "SITE_STARTER_ENABLED",
     value: true,
     description: "Enable optional in-repo SvelteKit site starter at / (disable for pure headless)",
@@ -1590,7 +1598,7 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "DEFAULT_THEME_NAME",
-    value: "SveltyCMSTheme",
+    value: "Default",
     description: "Name of the default theme",
   },
   {

@@ -182,7 +182,10 @@ Local benchmarks use a sandboxed environment that protects live developer data i
 ### Sandbox Isolation (`src/utils/benchmark-sandbox.ts`)
 
 Every row is a path a benchmark was once caught writing to; `assertLiveDataWriteAllowed()` fails closed on the
-live column during the **local** profile.
+live column during the **local** profile. Since 2026-10-07 it also fires for non-E2E automated harnesses
+(vitest / `bun test` / integration), which must not materialize builder categories in the developer's live
+`config/collections` — see the row below. E2E is exempt (`PLAYWRIGHT_TEST`), because `ci.yml` `e2e-prep`
+deliberately prepares a `config/collections` tree for the Playwright server.
 
 | Live Path                                              | Sandbox Equivalent                                                                                                                          |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -193,9 +196,17 @@ live column during the **local** profile.
 | `mediaFolder/`                                         | `test-media/benchmark-sandbox/` (`MEDIA_FOLDER` in `getBenchmarkTestEnv`)                                                                   |
 | `config/sync/`                                         | `test-config-sync/` — `ConfigService.performExport` writes one `export_<tenant>_<ts>/` folder per call (`SVELTY_CONFIG_SYNC_DIR` overrides) |
 | `config/collections/*.ts` (non-test)                   | Bootstrap regen skipped; writes blocked (fail-closed)                                                                                       |
+| `config/collections/<builder-category>/`               | `config/test-collections/<category>/` — harness runs blocked (fail-closed); `config/collections/test/` stays writable                       |
 
 Guard for the sweep row: `tests/unit/scripts/integration-harness-cleanup.test.ts` pins that harness shells are
 removed while live-named files (`sveltycms.db`, `sveltycms.db.sqlite`, scratch `probe_plainA.sqlite`) survive.
+
+**Why `config/collections/` category folders are on this list (2026-10-07):** `syncContentState` mirrors every
+builder category to a real directory under the collections root. An integration run wrote `unit-reorder-*`
+folders into the developer's live `config/collections`; the scanner then adopted them as
+`source: "filesystem"` categories in `content_nodes` + `.compilation-manifest.json`, so every reconcile
+re-created them. The guard now fails closed for non-E2E harnesses, and the integration tests delete through
+`syncContentState` so their folders are removed too.
 
 **Why `config/sync/` is on this list (2026-09-28):** `tests/benchmarks/config-promotion.test.ts` exports once per
 iteration, so three benchmark runs had minted **148** `config/sync/export_global_*` folders in the developer's

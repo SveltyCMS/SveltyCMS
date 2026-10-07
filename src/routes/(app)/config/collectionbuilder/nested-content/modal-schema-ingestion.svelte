@@ -11,7 +11,9 @@ Features:
 - Adheres to WCAG 2.2 AA and status-shade design tokens
 -->
 <script lang="ts">
-	import { parseJsonSample, parseSqlDDL, type ParsedSchemaResult } from './ddl-schema-parser';
+	import type { ParsedSchemaResult, SchemaIngestionMode } from '../schema-ingestion';
+	import { ingestSchema } from '@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote';
+	import { builder_required } from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 
@@ -53,35 +55,52 @@ Features:
 		jsonCollectionName = 'Articles';
 	}
 
-	const parseOutcome = $derived.by<{ schema: ParsedSchemaResult | null; error: string | null }>(
-		() => {
-			if (activeTab === 'sql') {
-				if (!sqlInput.trim()) return { schema: null, error: null };
-				try {
-					return { schema: parseSqlDDL(sqlInput), error: null };
-				} catch (err) {
-					return {
-						schema: null,
-						error: err instanceof Error ? err.message : 'Failed to parse SQL DDL'
-					};
-				}
-			} else if (activeTab === 'json') {
-				if (!jsonInput.trim()) return { schema: null, error: null };
-				try {
-					return { schema: parseJsonSample(jsonInput, jsonCollectionName), error: null };
-				} catch (err) {
-					return {
-						schema: null,
-						error: err instanceof Error ? err.message : 'Failed to parse JSON'
-					};
-				}
-			}
-			return { schema: null, error: null };
-		}
-	);
+	let parsedResult = $state<ParsedSchemaResult | null>(null);
+	let parseError = $state<string | null>(null);
+	let isParsing = $state(false);
 
-	const parsedResult = $derived(parseOutcome.schema);
-	const parseError = $derived(parseOutcome.error);
+	// Server-side inference, debounced. Parsing runs in the `ingestSchema` remote
+	// function (a SvelteKit server function) so relation targets resolve against
+	// the live collection list — something a purely client-side parse cannot do.
+	$effect(() => {
+		const tab = activeTab;
+		const payload = tab === 'sql' ? sqlInput : jsonInput;
+		const collectionName = jsonCollectionName;
+
+		if (tab === 'database' || !payload.trim()) {
+			parsedResult = null;
+			parseError = null;
+			isParsing = false;
+			return;
+		}
+
+		let cancelled = false;
+		isParsing = true;
+
+		const handle = setTimeout(async () => {
+			try {
+				const result = await ingestSchema({
+					mode: tab as SchemaIngestionMode,
+					payload,
+					collectionName
+				});
+				if (cancelled) return;
+				parsedResult = result.schema;
+				parseError = result.error;
+			} catch (err) {
+				if (cancelled) return;
+				parsedResult = null;
+				parseError = err instanceof Error ? err.message : 'Failed to parse schema';
+			} finally {
+				if (!cancelled) isParsing = false;
+			}
+		}, 300);
+
+		return () => {
+			cancelled = true;
+			clearTimeout(handle);
+		};
+	});
 
 	function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -297,7 +316,7 @@ Features:
 								{field.widgetKey}
 							</Badge>
 							{#if field.required}
-								<span class="text-error-500 font-bold" title="Required">*</span>
+								<span class="text-error-500 font-bold" title={builder_required()}>*</span>
 							{/if}
 						</div>
 					</div>
@@ -314,9 +333,9 @@ Features:
 				variant="tertiary"
 				class="dark:preset-filled-primary-500"
 				type="button"
-				disabled={!parsedResult || parsedResult.fields.length === 0}
+				disabled={isParsing || !parsedResult || parsedResult.fields.length === 0}
 				onclick={handleSubmit}
-				leadingIcon="mdi:check"
+				leadingIcon={isParsing ? 'mdi:loading' : 'mdi:check'}
 				data-testid="ingest-submit-button"
 			>
 				Create Collection from Schema

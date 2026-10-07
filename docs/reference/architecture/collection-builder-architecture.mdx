@@ -148,14 +148,17 @@ Generates production-grade `defineCollection({ ... })` TypeScript source code in
 - **Live Split-View**: Embedded in `collection-widget.svelte`, updating reactively as users reorder or edit fields.
 - **Zero Disk Overhead**: Operates entirely in-memory using Svelte 5 derived state runes.
 
-#### Database DDL & Schema Ingestion Engine (`ddl-schema-parser.ts`)
+#### Database DDL & Schema Ingestion Engine (`schema-ingestion.ts` → `ingestSchema` remote)
 
-Reverse-engineers existing database schemas and API payloads directly into collections.
+Reverse-engineers existing database schemas and API payloads directly into collections. The engine (`schema-ingestion.ts`) is a pure, dependency-free module, but it is **executed on the server** through the `ingestSchema` remote function in `collectionbuilder.remote.ts` — the client only imports its types, so the parser never ships to the browser.
 
 - **Multi-Dialect DDL Parsing**: Supports PostgreSQL, MySQL, MariaDB, and SQLite `CREATE TABLE` syntaxes.
-- **Relational Introspection**: Resolves `FOREIGN KEY ... REFERENCES table(id)` into target collection references.
-- **Enum & Check Constraints**: Translates `ENUM(...)` and `CHECK` values into populated `Select` dropdown options.
-- **JSON Payload Reverse-Engineering**: Synthesizes schema definitions and widget bindings from sample JSON objects/arrays.
+- **Context-Aware Relations**: Resolves `FOREIGN KEY ... REFERENCES table(id)` and `*_id` columns into `Relation` widgets, matching the target against the **live collection list** (singular/plural aware) so suggestions point at real collections.
+- **Enum & Check Constraints**: Translates `ENUM(...)` and `CHECK (col IN (...))` into populated `Select` options.
+- **Canonical Widget Resolution**: Normalizes every inferred key to a registered widget factory `Name` (`Checkbox`, `DateTime`, `MediaUpload`, `JsonEditor`, …), guaranteeing the field binds to a real widget.
+- **Type Coverage**: Boolean, integer, numeric (price-aware), date/time, text/long-text, string, UUID, JSON/JSONB, binary, and array (`tags TEXT[]` → `Tags`, structured arrays → `Repeater`).
+- **Defaults & Nullability**: `NOT NULL` → required; `DEFAULT true` → the widget's default value.
+- **JSON Payload Reverse-Engineering**: Synthesizes schemas from sample JSON objects/arrays (ISO strings → `DateTime`, URL strings → url `Input`, string arrays → `Tags`, object arrays → `Repeater`, nested objects → `Relation`).
 
 #### Unified Metadata & Tagging Store (`collection-metadata-store.svelte.ts`)
 

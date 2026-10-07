@@ -22,7 +22,6 @@
 	import { system_permission, system_roles } from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
@@ -121,34 +120,38 @@
 	backUrl="/config"
 >
 	{#snippet actions()}
-		<div data-testid="access-mgmt-actions">
-			<StickyActions>
-				<Button
-					variant="tertiary"
-					onclick={saveAllChanges}
-					aria-label="Save all changes"
-					data-testid="access-mgmt-save"
-					disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-					class="font-semibold shadow-xs"
-				>
-					{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
-						Saving...
-					{:else}
-						Save ({modifiedCount})
-					{/if}
-				</Button>
+		<!-- Rendered in the PageTitle header (top-right). Deliberately NOT wrapped in
+		     StickyActions: with the theme sticky action bar enabled the layout moves
+		     these into the bottom-right bar, where the fixed toast region (z-9999) can
+		     overlay them and swallow the click (the golden-journey spec also scraps the
+		     sticky save in favour of a direct API POST for this reason). The header row
+		     is never covered. -->
+		<div data-testid="access-mgmt-actions" class="flex flex-wrap items-center gap-2">
+			<Button
+				variant="tertiary"
+				onclick={saveAllChanges}
+				aria-label="Save all changes"
+				data-testid="access-mgmt-save"
+				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
+				class="font-semibold shadow-xs"
+			>
+				{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
+					Saving...
+				{:else}
+					Save ({modifiedCount})
+				{/if}
+			</Button>
 
-				<Button
-					variant="ghost"
-					onclick={resetChanges}
-					aria-label="Reset changes"
-					data-testid="access-mgmt-reset"
-					disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-					class="font-semibold shadow-xs"
-				>
-					Reset
-				</Button>
-			</StickyActions>
+			<Button
+				variant="ghost"
+				onclick={resetChanges}
+				aria-label="Reset changes"
+				data-testid="access-mgmt-reset"
+				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
+				class="font-semibold shadow-xs"
+			>
+				Reset
+			</Button>
 		</div>
 	{/snippet}
 

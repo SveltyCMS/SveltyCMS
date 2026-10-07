@@ -139,6 +139,7 @@ search filtering, and RTL support.
 	import { onMount } from 'svelte';
 	import { droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	interface Props {
 		items?: TreeItem[];
@@ -147,9 +148,13 @@ search filtering, and RTL support.
 		search?: string;
 		expandedIds?: Set<string>;
 		allowDragDrop?: boolean;
+		/** Keep per-node action buttons visible without hover (used in edit/reorder mode). */
+		showActionsAlways?: boolean;
 		compact?: boolean;
 		density?: 'compact' | 'comfortable' | 'spacious';
 		iconColorClass?: string;
+		/** Icon tint for `type: 'category'` nodes (collections keep `iconColorClass`). */
+		categoryIconColorClass?: string;
 		showBadges?: boolean;
 		ariaLabel?: string;
 		dir?: 'ltr' | 'rtl' | 'auto';
@@ -183,9 +188,11 @@ search filtering, and RTL support.
 		search = '',
 		expandedIds = $bindable(new SvelteSet()),
 		allowDragDrop = false,
+		showActionsAlways = false,
 		compact = false,
 		density = 'comfortable',
 		iconColorClass = 'text-surface-400',
+		categoryIconColorClass = 'text-tertiary-500 dark:text-tertiary-400',
 		showBadges = false,
 		ariaLabel = 'Navigation tree',
 		dir = 'ltr',
@@ -574,6 +581,8 @@ search filtering, and RTL support.
 	{@const showBadge = shouldShowBadge(node)}
 	{@const isMedia = variant === 'media'}
 	{@const isRoot = depth === 0 && node.id === 'root'}
+	{@const isCompactRail = computedDensity === 'compact' && !isMedia}
+	{@const isCategory = !isMedia && (node.type === 'category' || node.nodeType === 'category')}
 	{@const showChevron = hasChildren || canNestInto(node)}
 	{@const mediaIconTone = 'text-surface-300 dark:text-surface-400'}
 	{@const mediaRootText = 'text-surface-200 dark:text-surface-400'}
@@ -634,30 +643,45 @@ search filtering, and RTL support.
 				data-preload={node.preload}
 				data-sveltekit-preload-data={node.href || node.path ? 'hover' : undefined}
 				class={cn(
-					'flex w-full group focus:outline-none justify-start text-start cursor-pointer select-none no-underline text-inherit',
+					'flex w-full group focus:outline-none cursor-pointer select-none no-underline text-inherit',
 					isMedia
 						? cn(
-								'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
+								'justify-start rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
 								isRoot
 									? cn(
-											'items-center gap-2 py-2.5 text-[15px] font-medium leading-none',
+											'items-center gap-2 py-2.5 text-start text-[15px] font-medium leading-none',
 											isSelected && mediaSelectedText
 										)
 									: cn(
-											'items-center gap-2 py-1.5 text-sm leading-none',
+											'items-center gap-2 py-1.5 text-start text-sm leading-none',
 											'min-h-7.5',
 											isSelected ? cn('font-medium', mediaSelectedText) : 'font-normal'
 										),
 								isFocused && 'ring-1 ring-inset ring-primary-500/40'
 							)
 						: cn(
-								'items-center rounded-lg transition-all border border-transparent px-2',
-								densityTokens.padding,
-								densityTokens.touch,
-								isSelected
-									? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400 shadow-xs'
-									: 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
-								isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm'
+								'transition-all border border-transparent',
+								isCompactRail
+									? cn(
+											'flex-col items-center justify-center gap-1 overflow-hidden rounded-lg px-1 py-2 text-center',
+											isSelected
+												? 'border-primary-500/40 bg-primary-500/10 text-primary-600 dark:text-primary-400 shadow-xs'
+												: isCategory
+													? 'bg-tertiary-500/10 text-surface-900 hover:bg-tertiary-500/20 dark:bg-tertiary-900/20 dark:text-surface-100'
+													: 'bg-surface-500/10 text-surface-900 hover:bg-surface-500/20 dark:bg-surface-800/60 dark:text-surface-100 dark:hover:bg-surface-700',
+											isFocused && 'ring-2 ring-inset ring-primary-500/50'
+										)
+									: cn(
+											'items-center justify-start rounded-lg px-2 text-start',
+											densityTokens.padding,
+											densityTokens.touch,
+											isSelected
+												? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400 shadow-xs'
+												: isCategory
+													? 'bg-tertiary-500/10 text-surface-900 hover:bg-tertiary-500/20 dark:bg-tertiary-900/20 dark:text-surface-100'
+													: 'bg-surface-500/10 text-surface-900 hover:bg-surface-500/20 dark:bg-surface-800/60 dark:text-surface-100 dark:hover:bg-surface-700',
+											isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm'
+										)
 							),
 					draggedNode?.id === node.id && 'opacity-40 grayscale',
 					dragOverNode?.id === node.id &&
@@ -666,7 +690,9 @@ search filtering, and RTL support.
 					node.disabled && 'opacity-50 cursor-not-allowed'
 				)}
 				style={!isMedia
-					? `padding-inline-start: ${indentLeft(depth)}rem`
+					? isCompactRail
+						? undefined
+						: `padding-inline-start: ${indentLeft(depth)}rem`
 					: !isRoot
 						? `padding-inline-start: ${1.75 + Math.max(0, depth - 1) * 1.25}rem`
 						: undefined}
@@ -681,11 +707,12 @@ search filtering, and RTL support.
 							></div>
 						</div>
 					{:else}
-						<iconify-icon
+						><iconify-icon
 							icon="mdi:chevron-right"
 							width={isMedia ? '16' : densityTokens.chevron}
 							class={cn(
 								'shrink-0 opacity-60 transition-transform',
+								isCompactRail && 'absolute top-0.5 inset-e-0.5 z-10',
 								prefersReducedMotion ? 'duration-0' : 'duration-200',
 								expanded && 'rotate-90',
 								dir === 'rtl' && 'rotate-180'
@@ -693,7 +720,7 @@ search filtering, and RTL support.
 							aria-hidden="true"
 						></iconify-icon>
 					{/if}
-				{:else if !isMedia}
+				{:else if !isMedia && !isCompactRail}
 					<!-- Spacer when no children, matching chevron width -->
 					<div class={densityTokens.dummy} aria-hidden="true"></div>
 				{/if}
@@ -703,7 +730,7 @@ search filtering, and RTL support.
 					<div class="relative flex shrink-0 items-center">
 						<iconify-icon
 							icon={node.icon}
-							width={isMedia ? (isRoot ? '18' : '16') : densityTokens.icon}
+							width={isMedia ? (isRoot ? '18' : '16') : isCompactRail ? '22' : densityTokens.icon}
 							class={cn(
 								isMedia
 									? isSelected
@@ -713,7 +740,9 @@ search filtering, and RTL support.
 											: mediaFolderText
 									: isSelected
 										? 'text-primary-600 dark:text-primary-500'
-										: iconColorClass
+										: isCategory
+											? categoryIconColorClass
+											: iconColorClass
 							)}
 							aria-hidden="true"
 						></iconify-icon>
@@ -733,6 +762,7 @@ search filtering, and RTL support.
 								)
 							: cn(
 									densityTokens.font,
+									isCompactRail && 'max-w-full text-center leading-tight',
 									isSelected
 										? 'font-bold text-primary-600 dark:text-primary-500'
 										: 'font-medium text-surface-900 dark:text-surface-100'
@@ -742,56 +772,85 @@ search filtering, and RTL support.
 					{nodeLabel}
 				</span>
 
-				<!-- Count Badge -->
+				<!-- Count Badge (hint via SystemTooltip when present — no native `title` hover) -->
 				{#if showBadge}
-					<Badge
-						variant="surface"
-						size="sm"
-						class="ms-auto shrink-0 group-hover/item:hidden"
-						title={node.badge?.title}
-					>
-						{#if node.badge?.icon}
-							<iconify-icon
-								icon={node.badge.icon}
-								width="20"
-								class="inline-block me-0.5"
-								aria-hidden="true"
-							></iconify-icon>
-						{/if}
-						{node.badge?.count ?? ''}
-					</Badge>
+					{#if node.badge?.title}
+						<SystemTooltip
+							title={node.badge.title}
+							positioning={{ placement: 'top' }}
+							role={null}
+							tabindex={null}
+							triggerClass={cn('shrink-0 group-hover/item:hidden', !isCompactRail && 'ms-auto')}
+						>
+							<Badge variant="surface" size="sm">
+								{#if node.badge?.icon}
+									<iconify-icon
+										icon={node.badge.icon}
+										width="20"
+										class="inline-block me-0.5"
+										aria-hidden="true"
+									></iconify-icon>
+								{/if}
+								{node.badge?.count ?? ''}
+							</Badge>
+						</SystemTooltip>
+					{:else}
+						<Badge
+							variant="surface"
+							size="sm"
+							class={cn('shrink-0 group-hover/item:hidden', !isCompactRail && 'ms-auto')}
+						>
+							{#if node.badge?.icon}
+								<iconify-icon
+									icon={node.badge.icon}
+									width="20"
+									class="inline-block me-0.5"
+									aria-hidden="true"
+								></iconify-icon>
+							{/if}
+							{node.badge?.count ?? ''}
+						</Badge>
+					{/if}
 				{/if}
 			</svelte:element>
 
 			<!-- Per-node Action Buttons -->
 			{#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
 				<div
-					class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100"
+					class={cn(
+						'absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 transition-opacity duration-150',
+						showActionsAlways
+							? 'opacity-100'
+							: 'opacity-0 group-hover/item:opacity-100 focus-within:opacity-100'
+					)}
 					role="toolbar"
 					aria-label="Item actions"
 				>
 					{#each node.actions as act (act.label)}
 						<!-- size="sm" + explicit box: the default md button is 40px tall and
-                         overhangs a 32px tree row on both edges. -->
-						<Button
-							variant="ghost"
-							size="sm"
-							type="button"
-							onclick={(e: MouseEvent) => {
-								e.stopPropagation();
-								act.onClick(node, e);
-							}}
-							aria-label={act.label}
-							title={act.label}
-							class="h-6! w-6! p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
-						>
-							<iconify-icon
-								icon={act.icon}
-								width="16"
-								class={act.colorClass || ''}
-								aria-hidden="true"
-							></iconify-icon>
-						</Button>
+	                         overhangs a 32px tree row on both edges. Tooltip via
+	                         SystemTooltip (self-positioning, themed) — not a native
+	                         `title` browser hover. -->
+						<SystemTooltip title={act.label} positioning={{ placement: 'top' }}>
+							<Button
+								variant="ghost"
+								size="sm"
+								type="button"
+								onclick={(e: MouseEvent) => {
+									e.stopPropagation();
+									act.onClick(node, e);
+								}}
+								aria-label={act.label}
+								class="h-6! w-6! p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+							>
+								<iconify-icon
+									icon={act.icon}
+									width="16"
+									class={act.colorClass || ''}
+									aria-hidden="true"
+								></iconify-icon>
+							</Button>
+						</SystemTooltip>
 					{/each}
 				</div>
 			{/if}
@@ -820,7 +879,13 @@ search filtering, and RTL support.
 				data-media-drop-line-guard={externalDrop?.enabled ? '' : undefined}
 				class={cn(
 					'relative',
-					isMedia && isRoot ? 'ms-0' : computedDensity === 'compact' ? 'ms-1' : 'ms-4'
+					isMedia && isRoot
+						? 'ms-0'
+						: isCompactRail
+							? 'ms-0'
+							: computedDensity === 'compact'
+								? 'ms-1'
+								: 'ms-4'
 				)}
 				role="group"
 				aria-labelledby={`treenode-${node.id}`}
@@ -834,7 +899,7 @@ search filtering, and RTL support.
 						)}
 						aria-hidden="true"
 					></div>
-				{:else if !isMedia}
+				{:else if !isMedia && !isCompactRail}
 					<div
 						class="absolute inset-s-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
 						style="margin-inline-start: {guidelineLeft(depth)}rem; height: 100%"

@@ -7,7 +7,7 @@
  * - Plugin registry state for tenant
  */
 
-import { pluginRegistry } from "@src/plugins";
+import { availablePlugins, pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { error, isHttpError } from "@sveltejs/kit";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
@@ -25,10 +25,14 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     const tenantId = locals.tenantId || "default";
-    const allPlugins = pluginRegistry.getAll();
+    // The runtime registry is only populated once `initializePlugins` has run.
+    // Fall back to the statically discovered catalog so code-shipped plugins are
+    // never misreported as "No plugins installed" on a fresh/non-booted process.
+    const registered = pluginRegistry.getAll();
+    const catalog = registered.length > 0 ? registered : availablePlugins;
     const enabledById = await getLayoutPluginStates(tenantId);
 
-    const plugins = allPlugins.map((p) => {
+    const plugins = catalog.map((p) => {
       const missingConfig =
         p.metadata.id === "pagespeed" &&
         !getPrivateSettingSync("GOOGLE_PAGESPEED_API_KEY" as never);

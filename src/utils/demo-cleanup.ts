@@ -134,6 +134,7 @@ export async function cleanupExpiredDemoTenants() {
           const mediaResult = await db.media.files.getByFolder(undefined, {
             page,
             pageSize: PAGE_SIZE,
+            ...withSystemScope("scheduler"),
           });
           if (mediaResult.success && mediaResult.data) {
             const items = mediaResult.data.items || [];
@@ -253,13 +254,13 @@ export async function cleanupExpiredDemoTenants() {
         }
 
         // Virtual Folders - list all, filter by tenantId, delete each
-        const foldersResult = await db.system.virtualFolder.getAll();
+        const foldersResult = await db.system.virtualFolder.getAll(withSystemScope("scheduler"));
         if (foldersResult.success && foldersResult.data) {
           const tenantFolders = foldersResult.data.filter(
             (f) => (f as unknown as Tenanted).tenantId === tenantId,
           );
           for (const folder of tenantFolders) {
-            await db.system.virtualFolder.delete(folder._id);
+            await db.system.virtualFolder.delete(folder._id, withSystemScope("scheduler"));
           }
         }
 

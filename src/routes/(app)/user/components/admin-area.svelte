@@ -90,6 +90,59 @@
 		multibuttontoken_modalbody,
 		multibuttontoken_modaltitle,
 		role,
+		useradmin_action_block,
+		useradmin_action_blocked,
+		useradmin_action_unblock,
+		useradmin_action_unblocked,
+		useradmin_active,
+		useradmin_admin_block_warning,
+		useradmin_admins,
+		useradmin_all,
+		useradmin_block,
+		useradmin_blocked,
+		useradmin_click_block_token,
+		useradmin_click_block_user,
+		useradmin_click_unblock_token,
+		useradmin_click_unblock_user,
+		useradmin_confirm_block_token_body,
+		useradmin_confirm_block_user_body,
+		useradmin_confirm_token_block_title,
+		useradmin_confirm_unblock_token_body,
+		useradmin_confirm_unblock_user_body,
+		useradmin_confirm_user_block_title,
+		useradmin_copy_failed,
+		useradmin_copy_token,
+		useradmin_copy_token_tooltip,
+		useradmin_copy_user_id,
+		useradmin_copy_user_id_tooltip,
+		useradmin_empty_description,
+		useradmin_expired,
+		useradmin_failed_token,
+		useradmin_failed_token_reason,
+		useradmin_failed_token_status,
+		useradmin_failed_user,
+		useradmin_failed_user_reason,
+		useradmin_failed_user_status,
+		useradmin_fetch_error,
+		useradmin_fetch_failed,
+		useradmin_fetching_data,
+		useradmin_input,
+		useradmin_invitations,
+		useradmin_invite_user,
+		useradmin_manage_sessions,
+		useradmin_manage_sessions_tooltip,
+		useradmin_never,
+		useradmin_self_block_warning,
+		useradmin_tenant_id,
+		useradmin_token_action_success,
+		useradmin_token_copied,
+		useradmin_unblock,
+		useradmin_unknown_error,
+		useradmin_update_token_failed,
+		useradmin_user_action_success,
+		useradmin_user_id_copied,
+		useradmin_users,
+		useradmin_views_aria,
 		username
 	} from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
@@ -223,7 +276,7 @@
 					const response = await fetch(`${endpoint}?${params.toString()}`);
 					if (!response.ok) {
 						const errorData = await response.json();
-						throw new Error(errorData.message || 'Failed to fetch data');
+						throw new Error(errorData.message || useradmin_fetch_failed());
 					}
 					const result = await response.json();
 					if (result.success) {
@@ -238,15 +291,15 @@
 						});
 					}
 				} catch (err) {
-					const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+					const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
 					logger.error('AdminArea fetch error:', errorMessage);
-					toast.error(`Error fetching data: ${errorMessage}`);
+					toast.error(useradmin_fetch_error({ error: errorMessage }));
 					smartTable.setRows([]);
 					smartTable.setPaginationMeta({ totalItems: 0, pagesCount: 1 });
 					throw err;
 				}
 			},
-			'Fetching admin data'
+			useradmin_fetching_data()
 		);
 	}
 
@@ -320,7 +373,7 @@
 		{ label: email(), key: 'email' },
 		{ label: username(), key: 'username' },
 		{ label: role(), key: 'role' },
-		{ label: 'Tenant ID', key: 'tenantId' },
+		{ label: useradmin_tenant_id(), key: 'tenantId' },
 		{ label: adminarea_user_id(), key: '_id' },
 		{ label: adminarea_activesession(), key: 'activeSessions' },
 		{ label: adminarea_lastaccess(), key: 'lastAccess' },
@@ -332,7 +385,7 @@
 		{ label: adminarea_blocked(), key: 'blocked' },
 		{ label: email(), key: 'email' },
 		{ label: role(), key: 'role' },
-		{ label: 'Tenant ID', key: 'tenantId' },
+		{ label: useradmin_tenant_id(), key: 'tenantId' },
 		{ label: adminarea_token(), key: 'token' },
 		{ label: adminarea_expiresin(), key: 'expires' },
 		{ label: adminarea_createat(), key: 'createdAt' },
@@ -447,7 +500,7 @@
 					fetchData().catch(() => {});
 				} else if (result?.success === false) {
 					toast.error({
-						description: result.error || 'Failed to update token'
+						description: result.error || useradmin_update_token_failed()
 					});
 				}
 			}
@@ -492,16 +545,16 @@
 	// Helper function to calculate remaining time until expiration for display in table
 	function getRemainingTime(expiresDate: Date | string | null): string {
 		if (!expiresDate) {
-			return 'Never';
+			return useradmin_never();
 		}
 
 		const now = new Date();
 		const expires = new Date(expiresDate);
 		const diffMs = expires.getTime() - now.getTime();
 
-		// If expired, return 'Expired'
+		// If expired, return the localized state
 		if (diffMs <= 0) {
-			return 'Expired';
+			return useradmin_expired();
 		}
 
 		const diffMinutes = Math.floor(diffMs / (1000 * 60));
@@ -535,28 +588,30 @@
 
 		// System protection: admins cannot be blocked
 		if (isAdmin(user)) {
-			toast.warning('System admins cannot be blocked.');
+			toast.warning(useradmin_admin_block_warning());
 			return;
 		}
 
 		// Prevent admins from blocking themselves
 		if (currentUser && user._id === currentUser._id) {
-			toast.warning('You cannot block your own account');
+			toast.warning(useradmin_self_block_warning());
 			return;
 		}
 
 		const action = user.blocked ? 'unblock' : 'block';
-		const actionPastTense = user.blocked ? 'unblocked' : 'blocked';
+		const actionPastTense = user.blocked
+			? useradmin_action_unblocked()
+			: useradmin_action_blocked();
 
 		// Always show confirmation modal (same logic as Multibutton) with enhanced styling using theme colors
 		const actionColor = user.blocked ? 'text-success-500' : 'text-error-500';
-		const actionWord = user.blocked ? 'Unblock' : 'Block';
+		const actionWord = user.blocked ? useradmin_unblock() : useradmin_block();
 		const identifier = user.username || user.email || user._id;
 
-		const modalTitle = `Please Confirm User <span class="${actionColor} font-bold">${actionWord}</span>`;
+		const modalTitle = useradmin_confirm_user_block_title({ actionClass: actionColor, actionWord });
 		const modalBody = user.blocked
-			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${identifier}</span>? This will allow them to access the system again.`
-			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${identifier}</span>? This will prevent them from accessing the system.`;
+			? useradmin_confirm_unblock_user_body({ identifier })
+			: useradmin_confirm_block_user_body({ identifier });
 
 		showConfirm({
 			title: modalTitle,
@@ -569,6 +624,8 @@
 
 	async function performBlockAction(user: User, action: string, actionPastTense: string) {
 		if (!user._id) return;
+
+		const actionVerb = action === 'block' ? useradmin_action_block() : useradmin_action_unblock();
 
 		try {
 			const response = await fetch('/api/user/batch', {
@@ -585,7 +642,9 @@
 
 			if (!response.ok) {
 				const errText = await response.text();
-				throw new Error(errText || `Failed to ${action} user (Status: ${response.status})`);
+				throw new Error(
+					errText || useradmin_failed_user_status({ action: actionVerb, status: response.status })
+				);
 			}
 
 			const result = await response.json();
@@ -599,13 +658,13 @@
 							: item
 					) as TableDataType[]
 				);
-				toast.success(`User ${actionPastTense} successfully`);
+				toast.success(useradmin_user_action_success({ action: actionPastTense }));
 			} else {
-				throw new Error(result.message || `Failed to ${action} user`);
+				throw new Error(result.message || useradmin_failed_user({ action: actionVerb }));
 			}
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			toast.error(`Failed to ${action} user: ${errorMessage}`);
+			const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
+			toast.error(useradmin_failed_user_reason({ action: actionVerb, reason: errorMessage }));
 		}
 	}
 
@@ -616,17 +675,22 @@
 		}
 
 		const action = token.blocked ? 'unblock' : 'block';
-		const actionPastTense = token.blocked ? 'unblocked' : 'blocked';
+		const actionPastTense = token.blocked
+			? useradmin_action_unblocked()
+			: useradmin_action_blocked();
 
 		// Show confirmation modal with enhanced styling using theme colors
 		const actionColor = token.blocked ? 'text-success-500' : 'text-error-500';
-		const actionWord = token.blocked ? 'Unblock' : 'Block';
+		const actionWord = token.blocked ? useradmin_unblock() : useradmin_block();
 		const identifier = token.email || token._id;
 
-		const modalTitle = `Please Confirm Token <span class="${actionColor} font-bold">${actionWord}</span>`;
+		const modalTitle = useradmin_confirm_token_block_title({
+			actionClass: actionColor,
+			actionWord
+		});
 		const modalBody = token.blocked
-			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${identifier}</span>? This will allow the token to be used again.`
-			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${identifier}</span>? This will prevent the token from being used.`;
+			? useradmin_confirm_unblock_token_body({ identifier })
+			: useradmin_confirm_block_token_body({ identifier });
 
 		showConfirm({
 			title: modalTitle,
@@ -641,6 +705,8 @@
 		// Use the row _id — the list exposes the hashed token value, which batch's
 		// findToken cannot resolve (getTokenByValue re-hashes the input).
 		if (!token._id) return;
+
+		const actionVerb = action === 'block' ? useradmin_action_block() : useradmin_action_unblock();
 
 		try {
 			const response = await fetch('/api/token/batch', {
@@ -657,7 +723,9 @@
 
 			if (!response.ok) {
 				const errText = await response.text();
-				throw new Error(errText || `Failed to ${action} token (Status: ${response.status})`);
+				throw new Error(
+					errText || useradmin_failed_token_status({ action: actionVerb, status: response.status })
+				);
 			}
 
 			const result = await response.json();
@@ -670,13 +738,13 @@
 							: item
 					) as TableDataType[]
 				);
-				toast.success(`Token ${actionPastTense} successfully`);
+				toast.success(useradmin_token_action_success({ action: actionPastTense }));
 			} else {
-				throw new Error(result.message || `Failed to ${action} token`);
+				throw new Error(result.message || useradmin_failed_token({ action: actionVerb }));
 			}
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			toast.error(`Failed to ${action} token: ${errorMessage}`);
+			const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
+			toast.error(useradmin_failed_token_reason({ action: actionVerb, reason: errorMessage }));
 		}
 	}
 
@@ -733,7 +801,7 @@
 		<div
 			class="flex border-b border-surface-500/30 dark:border-surface-500/40 grow"
 			role="tablist"
-			aria-label="User management views"
+			aria-label={useradmin_views_aria()}
 		>
 			<button
 				type="button"
@@ -746,7 +814,7 @@
 					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			>
 				<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
-				Users
+				{useradmin_users()}
 				<Badge preset="tonal" color="secondary" size="sm" class="ms-1">{systemUserCount}</Badge>
 			</button>
 			<button
@@ -760,7 +828,7 @@
 					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			>
 				<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
-				Invitations
+				{useradmin_invitations()}
 			</button>
 		</div>
 		<Button
@@ -771,7 +839,7 @@
 			data-testid="email-registration-token-btn"
 			leadingIcon="material-symbols:mail"
 		>
-			Invite User
+			{useradmin_invite_user()}
 		</Button>
 	</div>
 
@@ -815,7 +883,7 @@
 					? 'bg-primary-500 text-white'
 					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
 			>
-				<span>All</span>
+				<span>{useradmin_all()}</span>
 				<span class="opacity-70">({systemUserCount})</span>
 			</button>
 			<button
@@ -831,7 +899,7 @@
 					width="14"
 					class="text-tertiary-500 dark:text-primary-400"
 				></iconify-icon>
-				<span>Admins</span>
+				<span>{useradmin_admins()}</span>
 			</button>
 			<button
 				type="button"
@@ -842,7 +910,7 @@
 					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
 			>
 				<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
-				<span>Users</span>
+				<span>{useradmin_users()}</span>
 			</button>
 			<button
 				type="button"
@@ -853,7 +921,7 @@
 					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
 			>
 				<span class="size-1.5 rounded-full bg-success-500"></span>
-				<span>Active</span>
+				<span>{useradmin_active()}</span>
 			</button>
 			<button
 				type="button"
@@ -864,7 +932,7 @@
 					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
 			>
 				<span class="size-1.5 rounded-full bg-error-500"></span>
-				<span>Blocked</span>
+				<span>{useradmin_blocked()}</span>
 			</button>
 		</div>
 	{/if}
@@ -877,7 +945,7 @@
 						type="checkbox"
 						bind:checked={selectAllColumns}
 						onclick={handleCheckboxChange}
-						aria-label="Input"
+						aria-label={useradmin_input()}
 					/>
 					{entrylist_all()}
 				</label>
@@ -908,7 +976,7 @@
 	<SmartTableShell
 		empty={!tableData || tableData.length === 0}
 		emptyTitle={showUserList ? adminarea_nouser() : adminarea_notoken()}
-		emptyDescription="Adjust search or create a new record."
+		emptyDescription={useradmin_empty_description()}
 		emptyIcon={showUserList ? 'mdi:account-off-outline' : 'mdi:key-off-outline'}
 		showPagination={!!(tableData && tableData.length > 0)}
 		{currentPage}
@@ -1005,11 +1073,13 @@
 										<button
 											type="button"
 											onclick={() => isUser(row) && toggleUserBlocked(row)}
-											aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
+											aria-label={row.blocked
+												? useradmin_click_unblock_user()
+												: useradmin_click_block_user()}
 											class="cursor-pointer"
 										>
 											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
-												{row.blocked ? 'Blocked' : 'Active'}
+												{row.blocked ? useradmin_blocked() : useradmin_active()}
 											</Badge>
 										</button>
 									{:else}
@@ -1019,11 +1089,13 @@
 												event.stopPropagation();
 												if (isToken(row)) toggleTokenBlocked(row);
 											}}
-											aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
+											aria-label={row.blocked
+												? useradmin_click_unblock_token()
+												: useradmin_click_block_token()}
 											class="cursor-pointer"
 										>
 											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
-												{row.blocked ? 'Blocked' : 'Active'}
+												{row.blocked ? useradmin_blocked() : useradmin_active()}
 											</Badge>
 										</button>
 									{/if}
@@ -1053,21 +1125,21 @@
 										<span class="font-mono text-sm"
 											>{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span
 										>
-										<SystemTooltip title="Copy User ID to clipboard">
+										<SystemTooltip title={useradmin_copy_user_id_tooltip()}>
 											<Button
 												variant="ghost"
 												type="button"
-												aria-label="Copy User ID"
+												aria-label={useradmin_copy_user_id()}
 												onclick={(event: MouseEvent) => {
 													event.stopPropagation();
 													const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
 													navigator.clipboard
 														.writeText(val)
 														.then(() => {
-															toast.success('User ID copied to clipboard');
+															toast.success(useradmin_user_id_copied());
 														})
 														.catch(() => {
-															toast.error('Failed to copy');
+															toast.error(useradmin_copy_failed());
 														});
 												}}
 												class="p-0! min-w-0 preset-ghost"
@@ -1076,11 +1148,11 @@
 											</Button>
 										</SystemTooltip>
 										{#if showUserList && isUser(row)}
-											<SystemTooltip title="Manage Active Sessions">
+											<SystemTooltip title={useradmin_manage_sessions_tooltip()}>
 												<Button
 													variant="ghost"
 													type="button"
-													aria-label="Manage active sessions"
+													aria-label={useradmin_manage_sessions()}
 													onclick={(event: MouseEvent) => {
 														event.stopPropagation();
 														openUserSessions(row);
@@ -1098,21 +1170,21 @@
 										<span class="max-w-50 truncate font-mono text-sm"
 											>{isToken(row) && header.key === 'token' ? row.token : '-'}</span
 										>
-										<SystemTooltip title="Copy Token to clipboard">
+										<SystemTooltip title={useradmin_copy_token_tooltip()}>
 											<Button
 												variant="ghost"
 												type="button"
-												aria-label="Copy Token"
+												aria-label={useradmin_copy_token()}
 												onclick={(event: MouseEvent) => {
 													event.stopPropagation();
 													const val = isToken(row) && header.key === 'token' ? row.token : '';
 													navigator.clipboard
 														.writeText(val)
 														.then(() => {
-															toast.success('Token copied to clipboard');
+															toast.success(useradmin_token_copied());
 														})
 														.catch(() => {
-															toast.error('Failed to copy');
+															toast.error(useradmin_copy_failed());
 														});
 												}}
 												class="p-0! min-w-0 preset-ghost"

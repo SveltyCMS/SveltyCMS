@@ -9,6 +9,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 ### Props
 - `value` (boolean): Bindable toggle state.
 - `label` (string): Label text next to the toggle.
+- `ariaLabel` (string): Accessible name for the switch when no visible `label` is rendered.
 - `description` (string): Helper text below the label.
 - `size` ('sm' | 'md' | 'lg'): Size variant.
 - `iconOn` / `iconOff` (string): Iconify icons for each state.
@@ -31,6 +32,8 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	type Props = {
 		value?: boolean;
 		label?: string;
+		/** Accessible name for the switch when no visible `label` is rendered. */
+		ariaLabel?: string;
 		labelColor?: string;
 		description?: string;
 		disabled?: boolean;
@@ -44,6 +47,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	let {
 		value = $bindable(false),
 		label,
+		ariaLabel,
 		labelColor = 'text-tertiary-500 dark:text-primary-500',
 		description,
 		disabled = false,
@@ -59,17 +63,23 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	const sizes = {
 		sm: {
 			track: 'h-6 w-10 min-w-[40px]',
-			thumb: 'h-4 w-4 translate-x-1 peer-checked:translate-x-5',
+			thumb: 'h-4 w-4',
+			translateOn: 'translate-x-5',
+			translateOff: 'translate-x-1',
 			icon: '16'
 		},
 		md: {
 			track: 'h-8 w-14 min-w-[48px]',
-			thumb: 'h-6 w-6 translate-x-1 peer-checked:translate-x-7',
+			thumb: 'h-6 w-6',
+			translateOn: 'translate-x-7',
+			translateOff: 'translate-x-1',
 			icon: '24'
 		},
 		lg: {
 			track: 'h-10 w-20 min-w-[56px]',
-			thumb: 'h-8 w-8 translate-x-1 peer-checked:translate-x-11',
+			thumb: 'h-8 w-8',
+			translateOn: 'translate-x-11',
+			translateOff: 'translate-x-1',
 			icon: '32'
 		}
 	};
@@ -86,7 +96,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 <div class={cn('flex gap-3 items-start md:items-center', className)} {...rest}>
 	<div class="relative flex h-full items-center">
 		<input
-			aria-label="Input"
+			aria-label={ariaLabel || label || 'Toggle switch'}
 			type="checkbox"
 			class="peer sr-only"
 			bind:checked={value}
@@ -104,13 +114,17 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 			onclick={toggle}
 			{disabled}
 			aria-checked={value}
-			aria-label={label || 'Toggle switch'}
+			aria-label={ariaLabel || label || 'Toggle switch'}
 			role="switch"
 		>
 			<span
 				class={cn(
-					'pointer-events-none flex items-center justify-center rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 dark:bg-surface-500/10',
-					sizes[size].thumb
+					'pointer-events-none flex items-center justify-center rounded-full bg-white shadow-lg ring-0 transition-transform duration-200',
+					sizes[size].thumb,
+					// Drive the slide from the reactive value: `peer-checked:` compiles to a
+					// general-sibling selector, but the thumb lives inside the track <button>
+					// (not a sibling of the `peer` input), so it never matched.
+					value ? sizes[size].translateOn : sizes[size].translateOff
 				)}
 			>
 				{#if iconOn && iconOff}

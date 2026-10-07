@@ -1,0 +1,180 @@
+---
+path: "docs/reference/api/theme.mdx"
+title: "Theme & Design System (theme.ts)"
+description: "REST reference for the admin theme / design system: active theme config, multi-theme CRUD, preset import, per-user overrides, and the public branding endpoint."
+order: 21
+icon: "mdi:palette"
+author: "SveltyCMS Team"
+created: "2026-10-07"
+updated: "2026-10-07"
+tags:
+  - "api"
+  - "theme"
+  - "design-system"
+  - "appearance"
+  - "branding"
+  - "reference"
+---
+
+# Theme & Design System Reference (`theme.ts`)
+
+The theme namespace powers the **Design System** workspace (`/config/design-system`): it reads and writes the active admin theme, manages multiple named themes, imports presets, and serves public tenant branding for the login screen.
+
+The write surface (`/api/theme/*`) is dispatched by the catch-all gatekeeper (`src/routes/api/[...path]`) through `handleThemeRoutes` in `src/routes/api/[...path]/handlers/system.ts`. One route — `GET /api/theme/public` — is a **standalone, unauthenticated** endpoint (`src/routes/api/theme/public/+server.ts`).
+
+> [!IMPORTANT]
+> Namespace permissions are authorized **fail-closed** by the dispatcher against `ENDPOINT_PERMISSIONS`:
+> `theme` maps to **`system:read`** for read methods and **`system:settings`** for write methods (`POST`/`DELETE`). The public branding route is intentionally unauthenticated.
+
+---
+
+## ⚡ Quick Reference
+
+| Endpoint                       | Method   | Permission (dispatcher) | Purpose                              |
+| :----------------------------- | :------- | :---------------------- | :----------------------------------- |
+| `/api/theme/admin-theme`       | `GET`    | `system:read`           | Read the active theme config         |
+| `/api/theme/admin-theme`       | `POST`   | `system:settings`       | Save the active theme config         |
+| `/api/theme/admin-theme`       | `DELETE` | `system:settings`       | Reset the active theme to defaults   |
+| `/api/theme/list`              | `GET`    | `system:read`           | List themes (`ThemeSummary[]`)       |
+| `/api/theme/create`            | `POST`   | `system:settings`       | Create a named theme                 |
+| `/api/theme/activate`          | `POST`   | `system:settings`       | Activate a theme                     |
+| `/api/theme/clone`             | `POST`   | `system:settings`       | Clone a theme                        |
+| `/api/theme/delete`            | `POST`   | `system:settings`       | Delete a theme                       |
+| `/api/theme/set-default`       | `POST`   | `system:settings`       | Mark a theme as the system default   |
+| `/api/theme/import-preset`     | `POST`   | `system:settings`       | Import SveltyCMS / shorthand JSON    |
+| `/api/theme/get-current-theme` | `GET`    | `system:read`           | Active theme record (404 if none)    |
+| `/api/theme/update-theme`      | `POST`   | `system:settings`       | Low-level `customCss`-only update    |
+| `/api/theme/public`            | `GET`    | **Public (no auth)**    | Tenant branding for the login screen |
+
+---
+
+## 1. Active Theme Config
+
+The active theme's admin settings live in `Theme.config.adminTheme`. The service stores the fields below (`StoredAdminTheme`):
+
+| Field            | Type     | Description                                                                               |
+| :--------------- | :------- | :---------------------------------------------------------------------------------------- |
+| `density`        | `string` | `compact` \| `cozy` \| `spacious`                                                         |
+| `variant`        | `string` | `flat` \| `bordered` \| `elevated`                                                        |
+| `features`       | `object` | `stickyActionBar`, `collapsibleSidebar`, `brandedLogin`, `layoutRegions`                  |
+| `customCss`      | `string` | Runtime admin CSS. **Sanitized server-side** on save (see below)                          |
+| `layoutState`    | `object` | Per-theme sidebar/shell region visibility                                                 |
+| `lockedSettings` | `object` | Per-key lock flags (`density`, `variant`, `reducedMotion`, `highContrast`, `layoutState`) |
+| `presetSource`   | `string` | Set when the theme was created from an imported preset                                    |
+| `updatedAt`      | `string` | ISO timestamp                                                                             |
+
+### Get config
+
+`GET /api/theme/admin-theme` — returns the active theme config, or `{}` when none exists.
+
+### Save config
+
+`POST /api/theme/admin-theme` — body is the partial `StoredAdminTheme` above. **`customCss` is sanitized before storage** (`url()`, `@import`, `javascript:`, `behavior:`, `expression()`, `<script>` and other HTML are stripped), so brand colors must come from `src/app.css` `@theme` tokens unless you intentionally set a palette.
+
+### Reset
+
+`DELETE /api/theme/admin-theme` — resets the active theme to defaults.
+
+---
+
+## 2. Multi-Theme Management
+
+### List
+
+`GET /api/theme/list` — returns `ThemeSummary[]`:
+
+```json
+[
+  {
+    "id": "<uuid>",
+    "name": "Default",
+    "isActive": true,
+    "isDefault": true,
+    "density": "cozy",
+    "variant": "bordered",
+    "updatedAt": "…"
+  }
+]
+```
+
+### Create
+
+`POST /api/theme/create` — payload `{ "name": "My Theme", "settings": { … } }` (`settings` optional). Returns `201` with the created theme.
+
+### Activate
+
+`POST /api/theme/activate` — payload `{ "themeId": "<uuid>" }`. Applies the theme across the admin immediately.
+
+### Clone
+
+`POST /api/theme/clone` — payload `{ "sourceId": "<uuid>", "name": "Variant" }`. Returns `201`.
+
+### Delete
+
+`POST /api/theme/delete` — payload `{ "themeId": "<uuid>" }`. The active and default themes cannot be deleted.
+
+### Set default
+
+`POST /api/theme/set-default` — payload `{ "themeId": "<uuid>" }`. Marks the theme as the system default (used by setup / fresh installs).
+
+---
+
+## 3. Preset Import
+
+`POST /api/theme/import-preset` — imports a SveltyCMS theme JSON or a shorthand palette block.
+
+```json
+{ "presetJson": "{\"primary\":\"#5fd317\", …}" }
+```
+
+Response:
+
+```json
+{ "success": true, "data": { … }, "warnings": [ … ] }
+```
+
+**Contrast warnings:** on import SveltyCMS runs an advisory WCAG AA audit (body text, button labels, accent-on-surface). Failures are returned in `warnings` — the import is **not** blocked. `theme-preset-mapper.ts` expands shorthand seeds (e.g. `surface`) into the full 50–950 shade ladder and rebinds `--admin-bg-*`.
+
+---
+
+## 4. Active Theme / Low-Level Update
+
+- `GET /api/theme/get-current-theme` — the active theme record (raw `Theme`). Returns `404` when no theme is active; the client `themeStore` treats `401/403/404` as "no theme yet" (pre-auth surface / fresh install).
+- `POST /api/theme/update-theme` — payload `{ "themeId": "<uuid>", "customCss": "…" }`. Updates only `customCss` and refreshes the theme manager. Prefer `POST /api/theme/admin-theme` for full config edits.
+
+---
+
+## 5. Public Branding
+
+`GET /api/theme/public` — **unauthenticated**, standalone route (outside the auth pipeline), used to paint the login screen before a session exists.
+
+| Query      | Description                                  |
+| :--------- | :------------------------------------------- |
+| `hostname` | Resolve the tenant from the request hostname |
+| `tenantId` | Explicit tenant id (overrides `hostname`)    |
+
+Response (always HTTP 200):
+
+```json
+{ "siteName": "Acme", "logoUrl": "/media/acme.svg", "accentColor": "#5fd317" }
+```
+
+- Returns **all-null** fields when no tenant resolves, when the tenant is `"default"`, or on any error (graceful fallback).
+- Cached under `theme:public:<tenantId>` with a **10-minute TTL** (L1/R2) to absorb login storms.
+- Reads `SITE_NAME` (public setting), `LOGO_URL`, and `ACCENT_COLOR` (public, untyped settings) for the resolved tenant.
+
+---
+
+## 6. Per-User Overrides
+
+Per-user preferences (density, card style, reduced motion, high contrast, layout regions) are **not** stored on the theme — they are written to the user's own record via `PUT /api/user/update-user-attributes` (`preferences.theme`). See the [Design System guide](../../guides/configuration/admin-theme-settings.mdx#my-overrides) for the override-vs-theme model, locking, and the client-side apply flow (`userThemePrefs` + `app:user-prefs`).
+
+---
+
+## Related Documents
+
+- [Design System & Admin Theme Settings guide](../../guides/configuration/admin-theme-settings.mdx) — the UI workflow, palette studio, custom CSS, locking, whitelabeling.
+- [Marketplace architecture](../architecture/marketplace.mdx) — theme packages and one-click install.
+- [GUI styling & UX guide](../../contributing/style-guide-gui.mdx) — status-shade contract and `--admin-*` semantic roles.
+- [System Reference (system.ts)](./system.mdx) — the handler module that hosts the theme routes.
+- [API Coverage Report](./api-coverage-report.mdx)

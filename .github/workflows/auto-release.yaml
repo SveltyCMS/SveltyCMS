@@ -12,8 +12,11 @@
 #
 # The bump is one commit on the SHA CI just validated. The tag points at that
 # bump commit. The next CI run of the bump commit finds the tag and skips, so
-# a release cannot bump itself again. This path always asks scripts/version.ts
-# for a patch, so 0.1.2 becomes 0.1.3. A minor or major stays an explicit bump.
+# a release cannot bump itself again. The automatic path derives the next
+# version from Conventional Commits since the last release (scripts/version.ts
+# auto): feat → minor, breaking → major (minor on 0.x), otherwise patch. It runs
+# only after the whole CI workflow — unit, integration, E2E and benchmarks —
+# succeeded on `main`; a failed or partial run never touches the version.
 #
 # The GitHub Release is created independently of npm publish — a missing/invalid
 # NPM_TOKEN or registry failure must never swallow the release (that previously
@@ -86,6 +89,29 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # The release only proceeds on a fully green CI run on `main`. The
+      # `workflow_run` trigger already requires `conclusion == success`; this
+      # makes the unit / integration / E2E contract explicit and fails closed if
+      # any job did not succeed (guards against a future `continue-on-error`).
+      - name: Verify CI run fully passed (unit + integration + E2E)
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -uo pipefail
+          if ! not_ok=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs" --paginate \
+              --jq '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | "\(.name): \(.conclusion)"'); then
+            echo "::warning::Could not inspect CI jobs — relying on workflow conclusion=success."
+            exit 0
+          fi
+          if [ -n "$not_ok" ]; then
+            echo "::error::CI job(s) did not succeed — refusing to release:"
+            printf '%s\n' "$not_ok"
+            exit 1
+          fi
+          echo "✅ All CI jobs succeeded — releasing."
+
       - name: Determine version
         id: version
         run: |
@@ -112,11 +138,12 @@ jobs:
               echo "source=package.json" >> $GITHUB_OUTPUT
             fi
           else
-            # Automatic path (CI passed on main). A manifest version with no tag
-            # is the release: tag it. A manifest version that already has a tag
-            # is released only when HEAD is that tag. Any later commit derives
-            # the next version onto this SHA and the steps below commit, push,
-            # and tag it. This path always requests a patch (0.1.2 → 0.1.3).
+            # Automatic path (a green CI run on main). A manifest version with
+            # no tag is the release: tag it. A manifest version that already has
+            # a tag is released only when HEAD is that tag. Any later commit
+            # derives the next version onto this SHA from Conventional Commits
+            # (feat → minor, breaking → major, else patch) and the steps below
+            # commit, push, and tag it.
             PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
             if git rev-parse "v$PKG_VERSION" >/dev/null 2>&1; then
               TAG_SHA=$(git rev-parse "v$PKG_VERSION^{}")
@@ -126,15 +153,15 @@ jobs:
                 echo "source=already released" >> $GITHUB_OUTPUT
                 echo "skip=true" >> $GITHUB_OUTPUT
               else
-                echo "ℹ️ v$PKG_VERSION already has a tag and HEAD is ahead. Deriving the next patch..."
-                bun run scripts/version.ts patch
+                echo "ℹ️ v$PKG_VERSION already has a tag and HEAD is ahead. Deriving the next version from Conventional Commits..."
+                bun run scripts/version.ts auto
                 NEXT_VERSION=$(node -e "console.log(require('./package.json').version)")
                 if [ "$NEXT_VERSION" = "$PKG_VERSION" ]; then
                   echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
                   echo "source=package.json" >> $GITHUB_OUTPUT
                 else
                   echo "value=$NEXT_VERSION" >> $GITHUB_OUTPUT
-                  echo "source=scripts/version.ts (patch)" >> $GITHUB_OUTPUT
+                  echo "source=scripts/version.ts (auto)" >> $GITHUB_OUTPUT
                   echo "bumped=true" >> $GITHUB_OUTPUT
                 fi
               fi

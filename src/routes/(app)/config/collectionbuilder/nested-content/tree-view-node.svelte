@@ -19,6 +19,24 @@ Features:
 	import type { TreeViewItem } from './tree-view-board.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import {
+		builder_badge_category,
+		builder_badge_collection,
+		builder_count_items_plural,
+		builder_count_items_singular,
+		builder_drag_hint,
+		builder_duplicate,
+		builder_fav_add_aria,
+		builder_fav_add_tip,
+		builder_fav_remove_aria,
+		builder_fav_remove_tip,
+		builder_manage_tags_aria,
+		builder_node_collapse,
+		builder_node_expand,
+		button_delete,
+		button_edit,
+		collections_manage_tags
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		isOpen?: boolean;
@@ -120,7 +138,7 @@ Features:
 				e.stopPropagation();
 				toggle?.();
 			}}
-			aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
+			aria-label={isOpen ? builder_node_collapse({ name }) : builder_node_expand({ name })}
 			class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 		>
 			<iconify-icon
@@ -132,28 +150,6 @@ Features:
 	{:else}
 		<div class="w-5" role="none"></div>
 	{/if}
-
-	<!-- Favorite Star Toggle -->
-	<SystemTooltip title={isFav ? 'Remove favorite' : 'Mark as favorite'}>
-		<Button
-			variant="transparent"
-			type="button"
-			onclick={(e: MouseEvent) => {
-				e.stopPropagation();
-				collectionMetadata.toggleFavorite(item.id);
-			}}
-			aria-label={isFav ? `Remove ${name} from favorites` : `Add ${name} to favorites`}
-			class="flex min-h-7 min-w-7 items-center justify-center p-0! transition-transform hover:scale-110"
-		>
-			<iconify-icon
-				icon={isFav ? 'bi:star-fill' : 'bi:star'}
-				width="18"
-				class={isFav
-					? 'text-warning-500'
-					: 'text-surface-400 dark:text-surface-500 opacity-40 hover:opacity-100'}
-			></iconify-icon>
-		</Button>
-	</SystemTooltip>
 
 	<!-- Icon -->
 	<div class="relative flex items-center">
@@ -168,13 +164,14 @@ Features:
 				title={name}>{name}</span
 			>
 			{#if isCategory}
-				<Badge variant="tertiary" size="sm" rounded={false}>Category</Badge>
+				<Badge variant="tertiary" size="sm" rounded={false}>{builder_badge_category()}</Badge>
 				<span class="text-xs text-surface-500 dark:text-surface-400 font-medium">
-					{childCount}
-					{childCount === 1 ? 'item' : 'items'}
+					{childCount === 1
+						? builder_count_items_singular({ count: childCount })
+						: builder_count_items_plural({ count: childCount })}
 				</span>
 			{:else}
-				<Badge variant="error" size="sm" rounded={false}>Collection</Badge>
+				<Badge variant="error" size="sm" rounded={false}>{builder_badge_collection()}</Badge>
 			{/if}
 
 			{#if tags.length > 0}
@@ -221,8 +218,30 @@ Features:
 	<div
 		class="ms-auto flex shrink-0 items-center gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
 	>
+		<!-- Favorite Toggle (logical ms-auto group keeps it on the inner edge in LTR + RTL) -->
+		<SystemTooltip title={isFav ? builder_fav_remove_tip() : builder_fav_add_tip()}>
+			<Button
+				variant="transparent"
+				type="button"
+				onclick={(e: MouseEvent) => {
+					e.stopPropagation();
+					collectionMetadata.toggleFavorite(item.id);
+				}}
+				aria-label={isFav ? builder_fav_remove_aria({ name }) : builder_fav_add_aria({ name })}
+				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-transform hover:scale-110"
+			>
+				<iconify-icon
+					icon={isFav ? 'bi:star-fill' : 'bi:star'}
+					width="18"
+					class={isFav
+						? 'text-warning-500'
+						: 'text-surface-400 dark:text-surface-500 opacity-40 hover:opacity-100'}
+				></iconify-icon>
+			</Button>
+		</SystemTooltip>
+
 		<!-- Tags -->
-		<SystemTooltip title="Manage Tags">
+		<SystemTooltip title={collections_manage_tags()}>
 			<Button
 				variant="transparent"
 				type="button"
@@ -230,7 +249,7 @@ Features:
 					e.stopPropagation();
 					onEditTags?.(item);
 				}}
-				aria-label="Manage tags for {name}"
+				aria-label={builder_manage_tags_aria({ name })}
 				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
 				<iconify-icon
@@ -241,7 +260,7 @@ Features:
 			</Button>
 		</SystemTooltip>
 
-		<SystemTooltip title="Edit">
+		<SystemTooltip title={button_edit()}>
 			{#if isCategory}
 				<Button
 					variant="transparent"
@@ -250,7 +269,7 @@ Features:
 						e.stopPropagation();
 						onEditCategory(item);
 					}}
-					aria-label="Edit {name}"
+					aria-label={`${button_edit()} ${name}`}
 					class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 				>
 					<iconify-icon
@@ -268,7 +287,7 @@ Features:
 					data-sveltekit-preload-data="hover"
 					class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 					onclick={(e: MouseEvent) => e.stopPropagation()}
-					aria-label="Edit {name}"
+					aria-label={`${button_edit()} ${name}`}
 				>
 					<iconify-icon
 						icon="mdi:pencil"
@@ -281,7 +300,7 @@ Features:
 		</SystemTooltip>
 
 		<!-- Duplicate -->
-		<SystemTooltip title="Duplicate">
+		<SystemTooltip title={builder_duplicate()}>
 			<Button
 				variant="transparent"
 				type="button"
@@ -289,7 +308,7 @@ Features:
 					e.stopPropagation();
 					onDuplicate?.(item);
 				}}
-				aria-label="Duplicate {name}"
+				aria-label={`${builder_duplicate()} ${name}`}
 				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
 				<iconify-icon icon="mdi:content-copy" width={22} aria-hidden="true"></iconify-icon>
@@ -297,7 +316,7 @@ Features:
 		</SystemTooltip>
 
 		<!-- Delete -->
-		<SystemTooltip title="Delete">
+		<SystemTooltip title={button_delete()}>
 			<Button
 				variant="transparent"
 				type="button"
@@ -305,7 +324,7 @@ Features:
 					e.stopPropagation();
 					onDelete?.(item);
 				}}
-				aria-label="Delete {name}"
+				aria-label={`${button_delete()} ${name}`}
 				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
 				<iconify-icon icon="mdi:delete" width={22} aria-hidden="true" class="text-error-500"
@@ -317,7 +336,7 @@ Features:
 		     so a click here can never toggle a mode or move the row. Dragging is
 		     handled by the draggable action on the row wrapper. Keyboard users
 		     reorder with Alt+Arrow keys on the tree. -->
-		<SystemTooltip title="Drag to reorder, or Alt+Arrow keys">
+		<SystemTooltip title={builder_drag_hint()}>
 			<span
 				class="drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing"
 				aria-hidden="true"
