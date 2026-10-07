@@ -28,7 +28,42 @@ It handles token creation, updates, and deletion with proper validation and erro
 		email as m_email,
 		modal_token_deleted_successfully,
 		modaltokenuser_tokenvalidity,
-		role as m_role
+		role as m_role,
+		usertoken_close,
+		usertoken_copied_description,
+		usertoken_copied_title,
+		usertoken_copy_hint,
+		usertoken_copy_invitation_link,
+		usertoken_copy_raw_token,
+		usertoken_created,
+		usertoken_delete_failed,
+		usertoken_dev_mode_skipped,
+		usertoken_email_delayed_hint,
+		usertoken_error_title,
+		usertoken_expires_12_hours,
+		usertoken_expires_1_month,
+		usertoken_expires_1_week,
+		usertoken_expires_2_days,
+		usertoken_expires_2_hours,
+		usertoken_expires_2_weeks,
+		usertoken_info_title,
+		usertoken_input_aria,
+		usertoken_invitation_created,
+		usertoken_invitation_link,
+		usertoken_link_label,
+		usertoken_no_roles,
+		usertoken_operation_failed,
+		usertoken_raw_token,
+		usertoken_smtp_not_configured,
+		usertoken_success_title,
+		usertoken_token_created_title,
+		usertoken_token_label,
+		usertoken_token_name_aria,
+		usertoken_token_value_aria,
+		usertoken_unknown_error,
+		usertoken_updated,
+		usertoken_user_token_created,
+		usertoken_warning_title
 	} from '@src/paraglide/messages';
 
 	// Native UI Components & Stores
@@ -156,7 +191,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			const responseData = await response.json();
 
 			if (!response.ok) {
-				throw new Error(responseData.message || 'Operation failed');
+				throw new Error(responseData.message || usertoken_operation_failed());
 			}
 
 			// Store the created token if it's a new one
@@ -167,20 +202,24 @@ It handles token creation, updates, and deletion with proper validation and erro
 			// Check if SMTP is not configured
 			if (responseData.smtp_not_configured) {
 				toast.warning({
-					title: 'Warning',
-					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured. Token is listed in Admin Area.`
+					title: usertoken_warning_title(),
+					description: usertoken_smtp_not_configured({
+						status: isEditMode ? usertoken_updated() : usertoken_created()
+					})
 				});
 			} else if (responseData.dev_mode && !responseData.email_sent) {
 				// Email was skipped due to dev mode or dummy config
 				toast.info({
-					title: 'Info',
-					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`
+					title: usertoken_info_title(),
+					description: usertoken_dev_mode_skipped({
+						status: isEditMode ? usertoken_updated() : usertoken_created()
+					})
 				});
 			} else {
 				// Success - email sent
 				toast.success({
-					title: 'Success',
-					description: isEditMode ? 'Token updated' : 'User token created'
+					title: usertoken_success_title(),
+					description: isEditMode ? usertoken_updated() : usertoken_user_token_created()
 				});
 			}
 
@@ -190,15 +229,15 @@ It handles token creation, updates, and deletion with proper validation and erro
 			// If it's a new token and we have the value, don't close yet so user can copy it
 			if (!isEditMode && createdToken) {
 				toast.info({
-					title: 'Token Created',
-					description: 'Please copy the invitation link below or the token itself.'
+					title: usertoken_token_created_title(),
+					description: usertoken_copy_hint()
 				});
 			} else if (close) {
 				close({ success: true });
 			}
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'An unknown error occurred';
-			toast.error({ title: 'Error', description: message });
+			const message = err instanceof Error ? err.message : usertoken_unknown_error();
+			toast.error({ title: usertoken_error_title(), description: message });
 		} finally {
 			tokenForm.submitting = false;
 		}
@@ -219,11 +258,11 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			const data = await response.json();
 			if (!response.ok) {
-				throw new Error(data.message || 'Failed to delete token');
+				throw new Error(data.message || usertoken_delete_failed());
 			}
 
 			toast.success({
-				title: 'Success',
+				title: usertoken_success_title(),
 				description: modal_token_deleted_successfully()
 			});
 			await refreshAll();
@@ -232,8 +271,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 				close({ success: true });
 			}
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to delete token';
-			toast.error({ title: 'Error', description: message });
+			const message = err instanceof Error ? err.message : usertoken_delete_failed();
+			toast.error({ title: usertoken_error_title(), description: message });
 		}
 	}
 
@@ -258,7 +297,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 	function copyToClipboard(text: string, label: string) {
 		navigator.clipboard.writeText(text).then(() => {
-			toast.success({ title: 'Copied', description: `${label} copied to clipboard` });
+			toast.success({
+				title: usertoken_copied_title(),
+				description: usertoken_copied_description({ label })
+			});
 		});
 	}
 </script>
@@ -267,19 +309,18 @@ It handles token creation, updates, and deletion with proper validation and erro
 	{#if createdToken}
 		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
 			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">
-				Invitation Token Created
+				{usertoken_invitation_created()}
 			</h3>
 			<p class="text-sm opacity-80">
-				Since email delivery might be disabled or delayed, you can provide this link to the user
-				directly:
+				{usertoken_email_delayed_hint()}
 			</p>
 
 			<div class="flex flex-col gap-4">
 				<label class="label">
-					<span class="text-xs uppercase font-bold opacity-60">Invitation Link</span>
+					<span class="text-xs uppercase font-bold opacity-60">{usertoken_invitation_link()}</span>
 					<div class="flex gap-2 mt-1">
 						<input
-							aria-label="Token name"
+							aria-label={usertoken_token_name_aria()}
 							type="text"
 							readonly
 							value={invitationLink}
@@ -288,8 +329,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 						<Button
 							variant="primary"
 							type="button"
-							onclick={() => copyToClipboard(invitationLink, 'Link')}
-							aria-label="Copy invitation link"
+							onclick={() => copyToClipboard(invitationLink, usertoken_link_label())}
+							aria-label={usertoken_copy_invitation_link()}
 							class="shrink-0"
 						>
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
@@ -298,10 +339,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 				</label>
 
 				<label class="label">
-					<span class="text-xs uppercase font-bold opacity-60">Raw Token</span>
+					<span class="text-xs uppercase font-bold opacity-60">{usertoken_raw_token()}</span>
 					<div class="flex gap-2 mt-1">
 						<input
-							aria-label="Token value"
+							aria-label={usertoken_token_value_aria()}
 							type="text"
 							readonly
 							value={createdToken}
@@ -310,8 +351,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 						<Button
 							variant="outline"
 							type="button"
-							onclick={() => copyToClipboard(createdToken, 'Token')}
-							aria-label="Copy raw token"
+							onclick={() => copyToClipboard(createdToken, usertoken_token_label())}
+							aria-label={usertoken_copy_raw_token()}
 							class="shrink-0"
 						>
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
@@ -325,7 +366,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					variant="outline"
 					type="button"
 					onclick={() => close?.({ success: true })}
-					class="px-8">Close</Button
+					class="px-8">{usertoken_close()}</Button
 				>
 			</div>
 		</div>
@@ -346,7 +387,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 				errorMessage={tokenForm.errors.email?.[0]}
 			/>
 			<!-- Token field (hidden but still submitted with form) -->
-			<input bind:value={tokenForm.data.token} type="hidden" name="token" aria-label="Input" />
+			<input
+				bind:value={tokenForm.data.token}
+				type="hidden"
+				name="token"
+				aria-label={usertoken_input_aria()}
+			/>
 
 			<!-- User Role -->
 			<div class="flex flex-col gap-2 sm:flex-row items-center">
@@ -370,7 +416,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								</Button>
 							{/each}
 						{:else}
-							<div class="text-sm text-gray-500 italic">No roles available.</div>
+							<div class="text-sm text-gray-500 italic">{usertoken_no_roles()}</div>
 						{/if}
 					</div>
 				</div>
@@ -383,12 +429,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 					label={modaltokenuser_tokenvalidity()}
 					bind:value={tokenForm.data.expiresIn}
 					options={[
-						{ value: '2 hrs', label: '2 Hours' },
-						{ value: '12 hrs', label: '12 Hours' },
-						{ value: '2 days', label: '2 Days (default)' },
-						{ value: '1 week', label: '1 Week' },
-						{ value: '2 weeks', label: '2 Weeks' },
-						{ value: '1 month', label: '1 Month' }
+						{ value: '2 hrs', label: usertoken_expires_2_hours() },
+						{ value: '12 hrs', label: usertoken_expires_12_hours() },
+						{ value: '2 days', label: usertoken_expires_2_days() },
+						{ value: '1 week', label: usertoken_expires_1_week() },
+						{ value: '2 weeks', label: usertoken_expires_2_weeks() },
+						{ value: '1 month', label: usertoken_expires_1_month() }
 					]}
 				/>
 			</div>
@@ -412,7 +458,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				</div>
 
 				<!-- Save -->
-				<Button variant="tertiary" type="submit" form="token-form" class="dark: px-10">
+				<Button variant="tertiary" type="submit" form="token-form" class="px-10">
 					{tokenForm.submitting ? '...' : button_save()}
 				</Button>
 			</footer>

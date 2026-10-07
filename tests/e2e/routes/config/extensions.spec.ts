@@ -26,12 +26,12 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test.describe("Extension Management", () => {
   test.setTimeout(90_000);
 
-  test("loads with three tabs and plugins panel", async ({ page }) => {
+  test("loads with tabs and plugins panel", async ({ page }) => {
     await goExtensions(page);
     await expect(page.getByTestId("extensions-tabs")).toBeVisible();
     await expect(page.getByTestId("extensions-tab-plugins")).toBeVisible();
     await expect(page.getByTestId("extensions-tab-widgets")).toBeVisible();
-    await expect(page.getByTestId("extensions-tab-themes")).toBeVisible();
+    await expect(page.getByTestId("extensions-tab-marketplace")).toBeVisible();
     await expect(page.getByTestId("extensions-panel-plugins")).toBeVisible();
     await expect(page.getByTestId("plugins-view")).toBeVisible();
   });
@@ -40,10 +40,6 @@ test.describe("Extension Management", () => {
     await goExtensions(page);
     await page.getByTestId("extensions-tab-widgets").click();
     await expect(page.getByTestId("extensions-panel-widgets")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
-    await page.getByTestId("extensions-tab-themes").click();
-    await expect(page.getByTestId("extensions-panel-themes")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
     await page.getByTestId("extensions-tab-plugins").click();

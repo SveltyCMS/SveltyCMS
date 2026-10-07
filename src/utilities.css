@@ -462,12 +462,6 @@ html.dark [data-admin-theme] {
   }
 }
 
-/* ========================================================================
-   🌐 LOGICAL INSETS COMPATIBILITY ALIASES (RTL/LTR)
-   ======================================================================== */
-@utility inset-s-* {
-  inset-inline-start: --value(--spacing, *);
-}
-@utility inset-e-* {
-  inset-inline-end: --value(--spacing, *);
-}
+/* Logical inset aliases (`inset-s-*` / `inset-e-*`) are provided natively by
+   Tailwind v4 core — including fractions and arbitrary values — so no custom
+   `@utility` is needed here. */

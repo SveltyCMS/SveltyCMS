@@ -11,6 +11,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import SiteName from '@src/components/site-name.svelte';
 	import { collection_add, collection_addcategory } from '@src/paraglide/messages';
 	import { fade, scale } from 'svelte/transition';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
@@ -19,12 +20,10 @@
 		onAddCollection: () => void;
 		newCollectionHref: string;
 		onAddCategory: () => void;
-		onLoadPreset?: () => void;
 		onQuickStart?: () => void;
 	}
 
-	let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickStart }: Props =
-		$props();
+	let { onAddCollection, newCollectionHref, onAddCategory, onQuickStart }: Props = $props();
 </script>
 
 <div
@@ -58,7 +57,7 @@
 	<!-- Text Content -->
 	<div class="max-w-lg space-y-2" in:fade={{ duration: 400, delay: 400 }}>
 		<h2 class="text-2xl font-bold tracking-tight text-black dark:text-white sm:text-3xl">
-			Your {publicEnv.SITE_NAME} Blueprint is Empty
+			Your <SiteName highlight="CMS" /> Blueprint is Empty
 		</h2>
 		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-50">
 			Start with a Quick Start template for ready-made collections, or add a collection manually.
@@ -66,21 +65,16 @@
 		</p>
 	</div>
 
-	<!-- Call to Action -->
-	<div
-		class="mt-6 flex w-full max-w-xl flex-col items-center"
-		in:fade={{ duration: 400, delay: 600 }}
-	>
-		<!-- Primary Action Row -->
-		<div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+	<!-- Call to Action — three actions in a single row -->
+	<div class="mt-6 w-full max-w-2xl" in:fade={{ duration: 400, delay: 600 }}>
+		<div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
 			{#if onQuickStart}
 				<Button
 					onclick={onQuickStart}
-					variant="tertiary"
-					rounded={true}
-					size="lg"
-					class="group w-full justify-center h-12 dark:preset-filled-primary-500"
-					aria-label="Quick Start recommended for new projects"
+					variant="warning"
+					size="md"
+					class="group w-full min-w-0 justify-center"
+					aria-label="Quick Start — recommended for new projects"
 				>
 					<iconify-icon
 						icon="mdi:magic-staff"
@@ -91,76 +85,50 @@
 				</Button>
 			{/if}
 
-			{#if onLoadPreset}
-				<Button
-					onclick={onLoadPreset}
-					variant="warning"
-					rounded={true}
-					size="lg"
-					class="group w-full justify-center h-12"
-				>
-					<iconify-icon
-						icon="mdi:package-variant"
-						width="22"
-						class="text-white transition-transform group-hover:scale-110"
-					></iconify-icon>
-					<span class="text-white">Load Preset</span>
-				</Button>
-			{/if}
+			<Button
+				onclick={onAddCategory}
+				variant="tertiary"
+				size="md"
+				class="group w-full min-w-0 justify-center"
+				data-testid="add-category-button"
+			>
+				<iconify-icon
+					icon="mdi:folder-plus"
+					width="22"
+					class="transition-transform group-hover:scale-110"
+				></iconify-icon>
+				<span>{collection_addcategory()}</span>
+			</Button>
 
-			{#if onQuickStart}
-				<div class="col-span-1 sm:col-span-2 flex justify-center -mt-2">
-					<p class="text-[11px] font-medium text-tertiary-600 dark:text-primary-500">
-						Recommended for new projects
-					</p>
-				</div>
-			{/if}
+			<Button
+				href={newCollectionHref}
+				data-preload="hover"
+				onclick={onAddCollection}
+				variant="error"
+				size="md"
+				class="group w-full min-w-0 justify-center"
+				data-testid="add-collection-button"
+				aria-keyshortcuts="Mod+N"
+			>
+				<iconify-icon
+					icon="ic:round-plus"
+					width="22"
+					class="transition-transform group-hover:rotate-90"
+				></iconify-icon>
+				<span>{collection_add()}</span>
+			</Button>
 		</div>
 
-		<!-- Optional Actions Section -->
-		<div
-			class="mt-4 flex w-full flex-col items-center gap-3 border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
-		>
-			<p class="text-[10px] font-semibold uppercase tracking-wide">Optional</p>
-			<div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
-				<Button
-					onclick={onAddCategory}
-					variant="tertiary"
-					rounded={true}
-					size="lg"
-					class="group w-full justify-center h-12"
-					data-testid="add-category-button"
-				>
-					<iconify-icon
-						icon="mdi:folder-plus"
-						width="22"
-						class="transition-transform group-hover:scale-110"
-					></iconify-icon>
-					<span>{collection_addcategory()}</span>
-				</Button>
+		{#if onQuickStart}
+			<p
+				class="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-medium text-tertiary-600 dark:text-primary-500"
+			>
+				<iconify-icon icon="mdi:star-four-points" width="12" aria-hidden="true"></iconify-icon>
+				Quick Start is recommended for new projects
+			</p>
+		{/if}
 
-				<Button
-					href={newCollectionHref}
-					data-preload="hover"
-					onclick={onAddCollection}
-					variant="error"
-					rounded={true}
-					size="lg"
-					class="group w-full justify-center h-12"
-					data-testid="add-collection-button"
-					aria-keyshortcuts="Mod+N"
-				>
-					<iconify-icon
-						icon="ic:round-plus"
-						width="22"
-						class="transition-transform group-hover:rotate-90"
-					></iconify-icon>
-					<span>{collection_add()}</span>
-				</Button>
-			</div>
-		</div>
-
-		<p class="mt-4 max-w-md text-xs text-surface-600 dark:text-surface-400" role="note">
+		<p class="mx-auto mt-4 max-w-md text-xs text-surface-600 dark:text-surface-400" role="note">
 			Templates apply immediately. Categories and layout changes require <strong>Save</strong>.
 		</p>
 

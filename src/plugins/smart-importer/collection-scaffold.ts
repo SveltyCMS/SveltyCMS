@@ -13,6 +13,19 @@ import { getSchemaPath } from "@src/content/first-collection";
 import type { MappingFieldInput } from "./schema-preview";
 import { buildProposedFieldsFromMappings } from "./schema-preview";
 import { normalizeCollectionId } from "./infer-collection";
+
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 export { normalizeCollectionId };
 
 /** Map importer field types to SveltyCMS widget definitions */
@@ -129,7 +142,7 @@ export async function provisionCollectionFromMappings(
   sourcePlatform: string,
 ): Promise<ProvisionCollectionResult> {
   const collectionId = normalizeCollectionId(collectionName);
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   const existing = contentSystem.getCollection(collectionId, tenantId ?? null);
 
   if (existing?.fields?.length) {
@@ -150,7 +163,7 @@ export async function provisionCollectionFromMappings(
     fs.writeFileSync(filePath, generateCollectionSourceFile(schema, displayPath), "utf-8");
   }
 
-  const { markFileDirty } = await import("@src/content/engine.server");
+  const { markFileDirty } = await loadEngineServerModule();
   const { compile } = await import("@src/utils/compilation/compile");
   markFileDirty(filePath);
   await compile({ logger, tenantId: tenantId ?? null });
@@ -195,7 +208,7 @@ export async function ensureTargetCollectionProvisioned(
   sourcePlatform: string,
 ): Promise<ProvisionCollectionResult> {
   const collectionId = normalizeCollectionId(targetCollection);
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   if (contentSystem.getCollection(collectionId, tenantId ?? null)) {
     return { created: false, collectionId, fieldCount: 0 };
   }

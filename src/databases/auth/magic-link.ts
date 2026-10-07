@@ -9,6 +9,12 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import type { RequestEvent } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import { auth, dbInitPromise } from "@src/databases/db";
@@ -40,7 +46,7 @@ export async function sendMagicLinkForEmail(
 ): Promise<MagicLinkSendResult> {
   let smtpConfigured = false;
   try {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const smtpHost = await dbAdapter.system.preferences.get<string>("SMTP_HOST", {
       scope: "system",
     });

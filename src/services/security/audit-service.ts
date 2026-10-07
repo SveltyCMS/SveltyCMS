@@ -26,7 +26,7 @@ export type AuditSeverity = "low" | "medium" | "high" | "critical";
 
 const SENSITIVE_KEY_RE = /password|secret|token|authorization|credential|api[_-]?key/i;
 
-function redactSensitiveDetails(details: Record<string, unknown>): Record<string, unknown> {
+export function redactSensitiveDetails(details: Record<string, unknown>): Record<string, unknown> {
   if (!details || typeof details !== "object") return details;
   const clean: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(details)) {

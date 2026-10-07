@@ -39,6 +39,8 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		button_complete,
 		button_copy,
 		button_copy_all,
+		common_error,
+		toast_success,
 		twofa_backup_codes_save_description,
 		twofa_backup_codes_title,
 		twofa_backup_codes_warning,
@@ -49,7 +51,12 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		twofa_setup_complete_title,
 		twofa_verify_button,
 		twofa_verify_setup_description,
-		twofa_verifying
+		twofa_verifying,
+		user2fasetup_body_missing,
+		user2fasetup_copy_failed,
+		user2fasetup_copy_success,
+		user2fasetup_title_missing,
+		user2fasetup_verification_code
 	} from '@src/paraglide/messages';
 
 	// Props
@@ -88,12 +95,12 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		try {
 			await navigator.clipboard.writeText(text);
 			toast.success({
-				title: 'Success',
-				description: `${button_copy()} successful`
+				title: toast_success(),
+				description: user2fasetup_copy_success({ action: button_copy() })
 			});
 		} catch (err) {
 			logger.error('Failed to copy:', err);
-			toast.error({ title: 'Error', description: 'Failed to copy' });
+			toast.error({ title: common_error(), description: user2fasetup_copy_failed() });
 		}
 	}
 
@@ -124,12 +131,12 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 			currentStep = 'complete';
 			toast.success({
-				title: 'Success',
+				title: toast_success(),
 				description: twofa_setup_complete_title()
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : twofa_error_invalid_code();
-			toast.error({ title: 'Error', description: error });
+			toast.error({ title: common_error(), description: error });
 		} finally {
 			isVerifying = false;
 		}
@@ -172,11 +179,11 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 <div class="modal-example-form {cBase}">
 	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
-		{title ?? '(title missing)'}
+		{title ?? user2fasetup_title_missing()}
 	</header>
 
 	<article class="text-center text-sm text-black dark:text-white">
-		{body ?? '(body missing)'}
+		{body ?? user2fasetup_body_missing()}
 	</article>
 
 	{#if currentStep === 'setup'}
@@ -226,7 +233,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					</label>
 					<div class="relative">
 						<input
-							aria-label="Verification code"
+							aria-label={user2fasetup_verification_code()}
 							id="verification-code"
 							type="text"
 							bind:value={verificationCode}
@@ -333,7 +340,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				type="button"
 				onclick={completeSetup}
 				class={parent?.buttonPositive ?? ''}
-				>">
+			>
 				<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 				{button_complete()}
 			</Button>

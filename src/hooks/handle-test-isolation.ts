@@ -21,6 +21,12 @@ import { getRequestFlags } from "@utils/hook-utils";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // Resolved once per process: env first, then the shared E2E secret file
 // (tests/e2e/.auth/test-secret.txt) written by scripts/run-e2e.ts. Env changes
 // between tests are not a supported scenario, so the result is cached.
@@ -98,7 +104,7 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
     // Wrap DB orchestration inside AsyncLocalStorage to prevent cross-worker state mutations
     return testWorkerContext.run(workerIndex, async () => {
       try {
-        const { dbAdapter } = await import("@src/databases/db");
+        const { dbAdapter } = await loadDbModule();
         if (dbAdapter && (dbAdapter as any).initWorkerConnection) {
           let initPromise = inflightWorkerInits.get(workerIndex);
           if (!initPromise) {

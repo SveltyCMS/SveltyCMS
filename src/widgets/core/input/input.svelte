@@ -47,10 +47,6 @@
 		field: FieldType;
 		validateOnBlur?: boolean;
 		validateOnChange?: boolean;
-		// ... (omitting lines for brevity in prompt, but in tool call I must be precise or use separate chunks if valid)
-		// Wait, I cannot use comments "..." in replacement content if I'm replacing a block.
-		// I should use multi_replace for safety or just target the script and input separately.
-		// Separate chunks is better.
 		validateOnMount?: boolean;
 		value?: string | Record<string, string> | null | undefined;
 	}

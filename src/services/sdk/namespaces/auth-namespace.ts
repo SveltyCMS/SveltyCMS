@@ -4,6 +4,28 @@
  */
 import { hasTenantBypass, withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
+/** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
+let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
+function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
+  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
+}
+
+/** Cached lazy handle to the SSO session store — one module-registry lookup instead of one per call. */
+let ssoSessionModulePromise: Promise<typeof import("@src/databases/auth/sso-session")> | undefined;
+function loadSsoSessionModule(): Promise<typeof import("@src/databases/auth/sso-session")> {
+  return (ssoSessionModulePromise ??= import("@src/databases/auth/sso-session"));
+}
+
 import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
@@ -362,7 +384,7 @@ export class AuthNamespace {
       // the user's entries so profile edits (username/email/avatar) show
       // immediately after reload instead of after the session/TTL windows.
       try {
-        const { invalidateUserSessionCaches } = await import("@src/hooks/handle-authentication");
+        const { invalidateUserSessionCaches } = await loadHandleAuthenticationModule();
         invalidateUserSessionCaches(String(userId));
       } catch {
         // Non-critical — caches expire naturally after TTL
@@ -565,7 +587,7 @@ export class AuthNamespace {
 
     // Clean up SSO metadata if this was an SSO session
     try {
-      const { deleteSsoSessionMetadata } = await import("@src/databases/auth/sso-session");
+      const { deleteSsoSessionMetadata } = await loadSsoSessionModule();
       deleteSsoSessionMetadata(sessionId);
     } catch {
       // SSO module may not be loaded — non-critical
@@ -721,7 +743,7 @@ export class AuthNamespace {
       // user's cached roles/bitset, not just the acting admin's. Turbo contexts expire
       // after 60s (TURBO_AUTH_TTL_MS), but permission changes must apply immediately.
       try {
-        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        const { clearTurboAuthCache } = await loadHandleTurboGetModule();
         clearTurboAuthCache();
       } catch {}
 
@@ -800,7 +822,7 @@ export class AuthNamespace {
       // Invalidate turbo-auth caches for affected users on block/delete/unblock
       if (action === "block" || action === "delete" || action === "unblock") {
         try {
-          const { invalidateTurboAuthForUser } = await import("@src/hooks/handle-turbo-get");
+          const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
           for (const userId of userIds) {
             invalidateTurboAuthForUser(userId);
           }
@@ -809,7 +831,7 @@ export class AuthNamespace {
         // affected users — blocked/deleted users must lose access immediately,
         // not after the 24h session-cache TTL.
         try {
-          const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+          const { invalidateSessionCache } = await loadHandleAuthenticationModule();
           for (const userId of userIds) {
             const activeRes = await auth.getActiveSessions(userId as DatabaseId, {
               tenantId: tenantId as DatabaseId,

@@ -185,6 +185,8 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 - **Purpose**: Detects unsafe `{@html}`, legacy Svelte 4 patterns, missing ARIA, RTL violations, dead exports.
 - **Command**: `bun run slop`
 
+Unused-export findings are split into two info buckets: **dead-code candidates** (referenced nowhere in `src`/`scripts`/root/`tests`/`docs` — actionable) and **export-surface** (test-only helpers + documented public API — a tracked inventory, not dead code). A third advisory bucket, **`duplicate-export-name`**, flags the same distinctive export name in several modules — usually a legitimate re-export bridge or SvelteKit remote/server contract symmetry, occasionally a real collision. All advisory buckets are summarised as counts by default and listed with `bun run scripts/slop-scanner.ts --surface`.
+
 ---
 
 ## Tiered Local Testing Strategy

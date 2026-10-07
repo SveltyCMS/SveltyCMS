@@ -22,6 +22,13 @@ tags: ["testing", "e2e", "appearance"]
 | `appearance-api.ts`            | Theme CRUD + prefs via `fetchApi` (CSRF)                    |
 | `/user` Settings               | Quick density/variant strip + link to `?tab=overrides`      |
 
+Theme activation/creation/deletion lives **only** here. The dashboard no longer
+hosts a workspace/theme picker (`WelcomeThemePicker` removed), and
+`/config/extensions` no longer has a Themes tab (its `ThemesView` was a broken
+duplicate that POSTed `{ themeName }` to `/api/theme/update-theme`, which expects
+`{ themeId, customCss }`). `/config/system-settings?group=appearance` is retitled
+**Seasonal Effects** — it only controls seasonal login decorations, not themes.
+
 ## Control → test matrix
 
 | Control                       | Unit                | E2E                   |

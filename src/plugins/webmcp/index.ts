@@ -15,6 +15,12 @@
 
 import { definePlugin } from "@src/plugins/define-plugin";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 export { initWebMCP } from "./init";
 
 export const webmcpPlugin = definePlugin({
@@ -42,7 +48,7 @@ export const webmcpPlugin = definePlugin({
   hooks: {
     beforeSave: async (_context, _collection, data) => {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("plugin", "webmcp");
         if (!status.active) {
           throw new Error(

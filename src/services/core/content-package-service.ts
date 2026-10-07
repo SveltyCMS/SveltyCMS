@@ -41,6 +41,22 @@ import { generateUUID } from "@utils/native-utils";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -519,7 +535,7 @@ export class ContentPackageService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       const totalEntries = Object.values(resourceCounts).reduce((a, b) => a + b, 0);
       eventBus.emit("content.exported", {
         tenantId,
@@ -796,7 +812,7 @@ export class ContentPackageService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("content.import.started", {
         tenantId: options.tenantId ?? "global",
         data: {
@@ -912,7 +928,7 @@ export class ContentPackageService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("content.import.completed", {
         tenantId: options.tenantId ?? "global",
         data: {
@@ -942,7 +958,7 @@ export class ContentPackageService {
    * Returns the current status of a running import job.
    */
   public async getJobStatus(jobId: string): Promise<ImportJobStatus | null> {
-    const db = (await import("@src/databases/db")).getDb();
+    const db = (await loadDbModule()).getDb();
     if (!db || !db.system?.jobs) {
       return null;
     }

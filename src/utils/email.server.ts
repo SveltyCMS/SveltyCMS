@@ -24,6 +24,12 @@ import type { TransportOptions, Transporter } from "nodemailer";
 import type { ComponentType } from "svelte";
 import type { IDBAdapter } from "@src/databases/db-interface";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ─── O(1) Template Registry ────────────────────────────────────────────
 
 const svelteEmailModules = (import.meta as any).glob
@@ -109,7 +115,7 @@ export const renderEmailToStrings = async (
 let cachedDbAdapter: IDBAdapter | null = null;
 async function getDbAdapter(): Promise<IDBAdapter> {
   if (!cachedDbAdapter) {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     cachedDbAdapter = dbAdapter;
   }
   return cachedDbAdapter;

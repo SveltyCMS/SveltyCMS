@@ -22,17 +22,62 @@ import type { PluginServerModule } from "./types";
 // module 404s in production builds (dev-only behavior). The loaders are also
 // registered into `pluginServerRegistry` so `registry.ts` (browser-reachable)
 // can resolve them without pulling server code into the client graph.
+//
+// `import.meta.glob` is a Vite-only transform: it is `undefined` under the Bun
+// test runner and plain `bun run`, where the glob yields no loaders. That leaves
+// `pluginServerRegistry` empty and breaks *lazy* plugin activation there —
+// `registry.activatePlugin()` would find no server module and skip the plugin's
+// migrations, so plugin-owned collections are never provisioned in-process. The
+// `registerRuntimeServerModules()` fallback below restores that path.
 const pluginServerModules: Record<string, () => Promise<unknown>> = (() => {
   try {
-    return import.meta.glob("./*/index.server.ts") as Record<string, () => Promise<unknown>>;
+    const glob = (import.meta as { glob?: unknown }).glob;
+    if (typeof glob === "function") {
+      return (glob as (p: string) => Record<string, () => Promise<unknown>>)("./*/index.server.ts");
+    }
   } catch {
-    return {};
+    /* not a Vite runtime — handled by the runtime fallback */
   }
+  return {};
 })();
 
 for (const [path, loader] of Object.entries(pluginServerModules)) {
   const id = path.replace(/^\.\/(.*)\/index\.server\.ts$/, "$1");
   pluginServerRegistry.register(id, loader as () => Promise<PluginServerModule>);
+}
+
+/**
+ * Registers `index.server` loaders when the Vite glob is unavailable (Bun test /
+ * Node CLI). Enumerates every `<dir>/index.server.ts` under `src/plugins` on disk
+ * and registers a lazy `import()` per plugin. The computed specifier carries
+ * `@vite-ignore` so the production bundler leaves it alone — there the glob above
+ * is the path. Best-effort and idempotent: already-registered ids are skipped.
+ */
+async function registerRuntimeServerModules(): Promise<void> {
+  if (Object.keys(pluginServerModules).length > 0) return;
+  // Server-only module: a Node/Bun runtime is the precondition, not the browser
+  // `window` probe — test setups (jsdom) define `window` in-process.
+  if (typeof process === "undefined" || !process.versions?.node) return;
+  try {
+    const { readdirSync, existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const pluginsDir = join(process.cwd(), "src/plugins");
+    if (!existsSync(pluginsDir)) return;
+
+    for (const entry of readdirSync(pluginsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || pluginServerRegistry.has(entry.name)) continue;
+      if (!existsSync(join(pluginsDir, entry.name, "index.server.ts"))) continue;
+      const id = entry.name;
+      pluginServerRegistry.register(id, () =>
+        import(/* @vite-ignore */ `./${id}/index.server`).then((mod) => mod as PluginServerModule),
+      );
+    }
+    logger.debug("[PluginServerRegistry] Registered runtime server-module loaders");
+  } catch (err) {
+    logger.debug(
+      `[PluginServerRegistry] Runtime loader fallback unavailable: ${(err as Error).message}`,
+    );
+  }
 }
 
 // The registry is browser-reachable and must not import the service module itself
@@ -51,6 +96,10 @@ pluginRegistry.setSettingsServiceFactory(
 export async function initializePlugins(dbAdapter: any, tenantId = "default"): Promise<void> {
   try {
     logger.info("🔌 Initializing plugin system...");
+
+    // 0. Ensure server-module loaders exist when the Vite glob was unavailable
+    //    (bun test / Node CLI) — otherwise enabled plugins get no migrations.
+    await registerRuntimeServerModules();
 
     // 1. Initialize settings service
     await pluginRegistry.initializeSettings(dbAdapter);

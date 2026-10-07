@@ -6,6 +6,12 @@
 import { command, getRequestEvent } from "$app/server";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
 export const repairContentCache = command(
   "unchecked",
   async (_payload?: {}): Promise<{
@@ -14,7 +20,7 @@ export const repairContentCache = command(
     error?: string;
   }> => {
     const event = getRequestEvent();
-    const { contentService } = await import("@src/content/engine.server");
+    const { contentService } = await loadEngineServerModule();
 
     if (!event.locals.isAdmin) {
       return {

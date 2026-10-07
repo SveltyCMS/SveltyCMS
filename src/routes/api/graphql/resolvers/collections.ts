@@ -30,6 +30,13 @@ import {
   parseOrderBy,
 } from "@src/content/schema-model";
 import type { FieldInstance, Schema } from "@src/content/types";
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // Types
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
@@ -119,7 +126,7 @@ export async function resolveAllCollections(
     return cached.data;
   }
 
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   const all: Schema[] = await contentSystem.getCollections(tenantId);
   const { isMockScanCollection, isBenchmarkRuntime } =
     await import("@src/routes/setup/preset-collections.server");

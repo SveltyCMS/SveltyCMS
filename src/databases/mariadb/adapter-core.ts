@@ -16,7 +16,12 @@
 
 import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
-import { SqlAdapterCore } from "../core/sql-adapter-core";
+import {
+  SqlAdapterCore,
+  boundedSqlIndexName,
+  type ListIndexRequest,
+} from "../core/sql-adapter-core";
+import { MARIADB_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import {
   getJsonDataPatch,
@@ -805,6 +810,49 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
   // Raw Access
   // --------------------------------------------------------------------------
+
+  /**
+   * Covering index for a query-builder list sorted by a physical column other
+   * than `updatedAt`. Fire-and-forget so the discovering read does not wait.
+   */
+  protected override scheduleListSortIndex(tableName: string, plan: ListIndexRequest): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const safeCol = assertSafeSqlIdentifier(plan.column, "column");
+    const indexName = assertSafeSqlIdentifier(
+      boundedSqlIndexName(`${tableName}_${plan.column}_${plan.withTenant ? "t" : "o"}_list_id`),
+      "index",
+    );
+    const cols = plan.withTenant
+      ? `(\`tenantId\`, \`${safeCol}\`, \`_id\`)`
+      : `(\`${safeCol}\`, \`_id\`)`;
+    const ddl = `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${safeTable}\` ${cols}`;
+    void this.raw.execute(ddl).catch((err: unknown) => {
+      logger.debug(
+        `[MariaDB] list index failed for ${tableName}.${plan.column}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  }
+
+  public override get sqlDialect(): SqlDialect {
+    return MARIADB_DIALECT;
+  }
+
+  /**
+   * Run a compiled list/count statement on the MariaDB connection pool.
+   * Direct invocation bypasses wrapper allocation in `raw.execute`.
+   */
+  public override async executeCompiled(
+    sqlText: string,
+    params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): Promise<unknown[]> {
+    const pool =
+      (this._currentTenantId && this._tenantPools.get(this._currentTenantId)) || this.pool;
+    if (!pool) throw new Error("Database not connected");
+    const [rows] = await pool.execute(sqlText, params as any);
+    return Array.isArray(rows) ? (rows as unknown[]) : [];
+  }
 
   public get raw(): {
     execute: (sql: string, params?: any[]) => Promise<any>;

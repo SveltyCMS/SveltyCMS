@@ -7,7 +7,7 @@
  * - Deep cloning and timing-safe equality
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   generateUUID,
   generateUUIDv7,
@@ -175,5 +175,145 @@ describe("native-utils — FastLRU", () => {
       ["y", 20],
       ["z", 30],
     ]);
+  });
+
+  it("applies the default TTL and honours per-entry TTL overrides", async () => {
+    const cache = new FastLRU<string, number>({ max: 10, ttl: 25 });
+    cache.set("short", 1);
+    cache.set("long", 2, { ttl: 1000 });
+
+    await new Promise((r) => setTimeout(r, 40));
+
+    expect(cache.get("short")).toBeUndefined(); // default TTL elapsed
+    expect(cache.get("long")).toBe(2); // per-entry override still live
+  });
+
+  it("purges expired entries from keys()/values()/entries() iteration", async () => {
+    const cache = new FastLRU<string, number>({ max: 10, ttl: 20 });
+    cache.set("a", 1);
+    cache.set("b", 2);
+
+    await new Promise((r) => setTimeout(r, 35));
+
+    expect([...cache.keys()]).toEqual([]);
+    expect([...cache.values()]).toEqual([]);
+    expect([...cache.entries()]).toEqual([]);
+    expect(cache.size).toBe(0); // iteration reclaimed the stale nodes
+  });
+
+  it("calls dispose when an entry expires via TTL", async () => {
+    const disposed: Array<[string, number]> = [];
+    const cache = new FastLRU<string, number>({
+      max: 10,
+      ttl: 20,
+      dispose: (val, key) => disposed.push([key, val]),
+    });
+    cache.set("ttl-key", 7);
+
+    await new Promise((r) => setTimeout(r, 35));
+    expect(cache.get("ttl-key")).toBeUndefined(); // lazy expiry
+
+    expect(disposed).toEqual([["ttl-key", 7]]);
+  });
+
+  it("updating an existing key refreshes recency without evicting another entry", () => {
+    const cache = new FastLRU<string, number>(2);
+    cache.set("a", 1);
+    cache.set("b", 2);
+
+    // Re-setting the oldest key must move it to MRU, not trigger an eviction.
+    cache.set("a", 10);
+    cache.set("c", 3); // now evicts 'b' (the true LRU)
+
+    expect(cache.get("a")).toBe(10);
+    expect(cache.has("b")).toBe(false);
+    expect(cache.get("c")).toBe(3);
+  });
+
+  // ── Byte-budget eviction (the hybrid L1 surface) ──────────────────────────
+
+  it("evicts LRU entries when the byte budget (maxSize) is exceeded", () => {
+    const cache = new FastLRU<string, string>({
+      max: 1000,
+      maxSize: 100,
+      sizeCalculation: (value) => value.length,
+    });
+    cache.set("a", "x".repeat(60));
+    cache.set("b", "y".repeat(30));
+    expect(cache.calculatedSize).toBe(90);
+
+    cache.set("c", "z".repeat(30)); // 90 + 30 > 100 → evict 'a'
+
+    expect(cache.has("a")).toBe(false);
+    expect(cache.has("b")).toBe(true);
+    expect(cache.has("c")).toBe(true);
+    expect(cache.calculatedSize).toBe(60);
+  });
+
+  it("never caches a single entry larger than maxEntrySize", () => {
+    const cache = new FastLRU<string, string>({
+      max: 100,
+      maxSize: 1000,
+      maxEntrySize: 50,
+      sizeCalculation: (value) => value.length,
+    });
+    cache.set("ok", "x".repeat(40));
+    expect(cache.has("ok")).toBe(true);
+    expect(cache.calculatedSize).toBe(40);
+
+    cache.set("big", "y".repeat(60)); // exceeds maxEntrySize → no-op
+    expect(cache.has("big")).toBe(false);
+    expect(cache.calculatedSize).toBe(40);
+
+    // Replacing an existing key with an oversized value evicts the old one.
+    cache.set("ok", "z".repeat(60));
+    expect(cache.has("ok")).toBe(false);
+    expect(cache.calculatedSize).toBe(0);
+  });
+
+  it("disposes the replaced value on overwrite (lru-cache parity)", () => {
+    const disposed: Array<[string, number]> = [];
+    const cache = new FastLRU<string, number>({
+      max: 5,
+      dispose: (val, key) => disposed.push([key, val]),
+    });
+    cache.set("a", 1);
+    cache.set("a", 2);
+    expect(disposed).toEqual([["a", 1]]);
+    expect(cache.get("a")).toBe(2);
+  });
+
+  // ── Read hints ────────────────────────────────────────────────────────────
+
+  it("updateAgeOnGet refreshes the TTL; the default read does not", () => {
+    vi.useFakeTimers();
+    try {
+      const cache = new FastLRU<string, number>({ max: 10, ttl: 1000 });
+      cache.set("hot", 1);
+      cache.set("plain", 2);
+
+      vi.advanceTimersByTime(800);
+      expect(cache.get("hot", { updateAgeOnGet: true })).toBe(1); // reset to now + 1000
+
+      vi.advanceTimersByTime(800); // 1600ms since set, 800ms since refresh
+      expect(cache.get("hot")).toBe(1); // survived — the read refreshed it
+      expect(cache.get("plain")).toBeUndefined(); // no refresh → expired at 1000ms
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("updateRecencyOnGet:false peeks without displacing the hot set", () => {
+    const cache = new FastLRU<string, number>(2);
+    cache.set("a", 1);
+    cache.set("b", 2);
+
+    // A peek must NOT promote 'a', so 'a' stays the true LRU.
+    expect(cache.get("a", { updateRecencyOnGet: false })).toBe(1);
+    cache.set("c", 3);
+
+    expect(cache.has("a")).toBe(false); // evicted — peek did not promote it
+    expect(cache.has("b")).toBe(true);
+    expect(cache.has("c")).toBe(true);
   });
 });

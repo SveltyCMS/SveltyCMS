@@ -20,6 +20,20 @@ import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { parsePaginationQueryParams } from "@src/utils/api-params";
 import { recordListQuery } from "@utils/list-query-metrics";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export async function handleTokenRoutes(
   event: RequestEvent,
   cms: LocalCMS,
@@ -173,7 +187,7 @@ export async function handleTokenRoutes(
       if (body.type === "reset") {
         const clientIp = getClientIp(event);
         const resetKey = `rate:reset:${clientIp}`;
-        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const { cacheService } = await loadCacheServiceModule();
         const recent = await cacheService.get(resetKey);
         if (recent) {
           raise(429, "Password reset already requested. Please wait 60 seconds.", "RATE_LIMITED");
@@ -336,7 +350,7 @@ export async function handleApiKeyRoutes(
   const { request, locals, url } = event;
   const keyId = segments[1];
 
-  const { auth, getDbInitPromise } = await import("@src/databases/db");
+  const { auth, getDbInitPromise } = await loadDbModule();
   const { generateApiKey } = await import("@src/databases/auth/api-keys");
   const { nowISODateString } = await import("@utils/date");
   const { validateRequestBody } = await import("./base");

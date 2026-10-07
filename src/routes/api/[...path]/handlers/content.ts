@@ -18,6 +18,24 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleContentRoutes(
@@ -99,7 +117,7 @@ export async function handleContentRoutes(
 
 /** Returns the current content system version. */
 async function handleContentVersion(event: RequestEvent) {
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   return successResponse(event, { version: contentSystem.getContentVersion() });
 }
 
@@ -123,8 +141,8 @@ async function handleContentRefresh(event: RequestEvent, cms: LocalCMS, tenantId
  * clearing all tenant buckets (which would destroy dynamic/benchmark schemas).
  */
 async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
-  const { refreshContent } = await import("@src/content/engine.server");
-  const { getDb } = await import("@src/databases/db");
+  const { refreshContent } = await loadEngineServerModule();
+  const { getDb } = await loadDbModule();
 
   await refreshContent(tenantId, {
     mode: "schemas",
@@ -164,7 +182,7 @@ async function handleGetContentStructure(
   // be re-derived by a background reconcile — serving it here handed the client a
   // pre-save order that then overwrote the freshly saved one in the UI.
   // This is the same read the Collection Builder page load performs.
-  const { contentService } = await import("@src/content/engine.server");
+  const { contentService } = await loadEngineServerModule();
   const persisted = await contentService.getContentStructureFromDatabase("flat", tenantId);
   const nodes =
     Array.isArray(persisted) && persisted.length > 0

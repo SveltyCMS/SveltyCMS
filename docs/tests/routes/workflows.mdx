@@ -14,15 +14,14 @@ tags: ["testing", "e2e", "workflows"]
 
 ## Product surface
 
-| Piece                     | Role                                             |
-| ------------------------- | ------------------------------------------------ |
-| `+page.server.ts`         | Admin gate                                       |
-| `+page.svelte`            | Shell wrapper (`data-testid=workflows-page`)     |
-| `workflow-builder.svelte` | Visual FSM editor                                |
-| `workflows-api.ts`        | list collections/roles, load/save via `fetchApi` |
-| API                       | `GET/POST/DELETE/PATCH /api/workflows`           |
-| Service                   | `workflowService` (definitions + transitions)    |
-| Testing                   | `seed-workflow` / `delete-workflow`              |
+| Piece              | Role                                                             |
+| ------------------ | ---------------------------------------------------------------- |
+| `+page.server.ts`  | Admin gate                                                       |
+| `+page.svelte`     | Shell wrapper (`data-testid=workflows-page`) + visual FSM editor |
+| `workflows-api.ts` | list collections/roles, load/save via `fetchApi`                 |
+| API                | `GET/POST/DELETE/PATCH /api/workflows`                           |
+| Service            | `workflowService` (definitions + transitions)                    |
+| Testing            | `seed-workflow` / `delete-workflow`                              |
 
 ## Control → test matrix
 

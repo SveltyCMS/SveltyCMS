@@ -4,7 +4,7 @@
 Gross total, VAT, and the trader are on the form before submit.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -16,7 +16,7 @@ Gross total, VAT, and the trader are on the form before submit.
 
 	let email = $state('');
 	let customerName = $state('');
-	let country = $state(data.legal?.homeCountry || 'DE');
+	let country = $state(untrack(() => data.legal?.homeCountry || 'DE'));
 	let line1 = $state('');
 	let postal = $state('');
 	let city = $state('');
@@ -29,7 +29,7 @@ Gross total, VAT, and the trader are on the form before submit.
 	let orderId = $state('');
 	let orderSummary = $state<Record<string, unknown> | null>(null);
 	let totalCents = $state<number | undefined>(undefined);
-	let currency = $state(data.legal?.currency || 'EUR');
+	let currency = $state(untrack(() => data.legal?.currency || 'EUR'));
 	let instructions = $state('');
 	let skipShipping = $state(false);
 	let totals = $state<{

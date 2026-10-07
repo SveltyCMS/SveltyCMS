@@ -57,7 +57,13 @@ export const loadSettingsGroup = query(
           scope: "system",
           tenantId: tenantId as never,
         });
-        settings = pref.success ? pref.data : {};
+        // `preferences.get` can resolve to `undefined` while the adapter is
+        // momentarily not connected (see the same guard in
+        // databases/auth/magic-link.ts). Reading `.success` unguarded threw
+        // "Cannot read properties of undefined (reading 'success')" and blanked
+        // the whole group, so fall back to an empty snapshot and let the form
+        // render its defaults.
+        settings = pref?.success ? pref.data : {};
       } else {
         settings = await cms.system.settings.get(groupId || "all", {
           tenantId: tenantId as never,

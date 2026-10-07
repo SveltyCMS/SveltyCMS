@@ -17,6 +17,12 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { pluginRegistry } from "@src/plugins/registry";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // Browser-reachable services (e.g. PluginSettingsService via src/plugins/index.ts)
 // must not import this server-only module (SvelteKit guard) — they reach the
 // invalidators through this globalThis bridge instead. Registered at module load.
@@ -75,7 +81,7 @@ export async function getFreshLayoutUser(
   if (cached) return cached;
 
   try {
-    const { auth } = await import("@src/databases/db");
+    const { auth } = await loadDbModule();
     // Branded system scope (cache-warming domain) — the session user snapshot
     // is re-read across the session's tenant context; the deprecated boolean
     // form is rejected by the tenant isolation gate (lint:tenant).

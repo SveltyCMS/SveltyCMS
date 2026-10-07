@@ -22,8 +22,6 @@
  * @module
  */
 
-let prewarmed = false;
-
 export interface PrewarmOptions {
   tenantId: string | null;
 }
@@ -77,15 +75,4 @@ export async function prewarmWritePath(
     // Warmup is strictly best-effort — a failure here must never block boot.
     return 0;
   }
-}
-
-/**
- * Idempotent guard so that on forced re-init we do not repeat the work.
- */
-export function markPrewarmed(): void {
-  prewarmed = true;
-}
-
-export function wasPrewarmed(): boolean {
-  return prewarmed;
 }

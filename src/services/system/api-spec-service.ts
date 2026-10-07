@@ -11,6 +11,26 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export class ApiSpecService {
   private static instance: ApiSpecService;
   private baseSpec: any;
@@ -115,7 +135,7 @@ export class ApiSpecService {
     const cacheKey = `openapi:spec:${tenantId || "global"}`;
     this.l1Cache.clear(); // Clear all keys to guarantee freshness across all tenant contexts
     try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       await cacheService.delete(cacheKey, tenantId);
     } catch (err) {
       logger.debug("Non-fatal API spec cache delete error:", err);
@@ -138,7 +158,7 @@ export class ApiSpecService {
 
     // 2. Check L2 Global Cache (Redis/Memory)
     try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       const l2Cached = await cacheService.get<any>(cacheKey, tenantId);
       if (l2Cached) {
         this.l1Cache.set(l1Key, {
@@ -183,7 +203,7 @@ export class ApiSpecService {
     this.l1Cache.set(l1Key, { spec, specString, timestamp: now });
 
     try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       await cacheService.set(cacheKey, spec, 300, tenantId, CacheCategory.API);
     } catch (err) {
       const { logger } = await import("@utils/logger");
@@ -208,7 +228,7 @@ export class ApiSpecService {
     }
 
     try {
-      const { contentService } = await import("@src/content/engine.server");
+      const { contentService } = await loadEngineServerModule();
       const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);
       const schemaMap = new Map<string, Schema>();
 
@@ -233,7 +253,7 @@ export class ApiSpecService {
 
       // Some adapters can materialize schemas before content nodes are fully persisted.
       // Fall back to the DB schema registry so /api/openapi.json remains adapter-agnostic.
-      const { getDb } = await import("@src/databases/db");
+      const { getDb } = await loadDbModule();
       const db = await getDb();
       const listSchemasResult = db?.collection?.listSchemas
         ? await db.collection.listSchemas(tenantId as DatabaseId | null | undefined)

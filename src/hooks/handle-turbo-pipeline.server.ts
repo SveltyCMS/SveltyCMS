@@ -45,6 +45,22 @@ import {
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getTurboAuthContext } from "./handle-turbo-get";
 import { logger } from "@src/utils/logger";
+
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 // Hook is initialized lazily
 let cachedDbAdapter: any = null;
 let healthHeaders: Record<string, string> | null = null;
@@ -66,7 +82,7 @@ async function ensureCachedDbAdapter(): Promise<any> {
   }
   if (!dbAdapterInitPromise) {
     dbAdapterInitPromise = (async () => {
-      const { getDbInitPromise, getDb } = await import("@src/databases/db");
+      const { getDbInitPromise, getDb } = await loadDbModule();
       await getDbInitPromise(false, "CORE");
       cachedDbAdapter = getDb();
       return cachedDbAdapter;
@@ -82,7 +98,7 @@ async function ensureCachedDbAdapter(): Promise<any> {
 let settingsServiceModule: typeof import("@src/services/core/settings-service") | null = null;
 async function getSettingsService() {
   if (!settingsServiceModule) {
-    settingsServiceModule = await import("@src/services/core/settings-service");
+    settingsServiceModule = await loadSettingsServiceModule();
   }
   return settingsServiceModule;
 }
@@ -482,7 +498,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           if (dev) logRequest(event, performance.now() - requestStart, 302);
           return response;
         }
-        // Deep check only if config is missing (unlikely here) or we need to know if admin is missing
+        // Deep check only when config is missing (rare in this path) or to learn whether admin is missing
         setupState = await getSetupState();
       } else if (isTestMode) {
         // Test resets intentionally keep config/private.ts but wipe auth/content state.
@@ -564,7 +580,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // ── 6. SYSTEM STATE GATE ────────────────────────────────────────────────
     if (systemState.overallState === "INITIALIZING" && !pathname.includes("/health")) {
       logger.info(`[Turbo] System initializing, waiting for CORE boot... [ID:${requestId}]`);
-      const { getDbInitPromise } = await import("@src/databases/db");
+      const { getDbInitPromise } = await loadDbModule();
       await getDbInitPromise(false, "CORE");
 
       // Verify if it failed during wait

@@ -59,6 +59,8 @@ const DIAGNOSTIC_KEYS = [
   "SQLITE_BUSY_TIMEOUT",
   "SQLITE_WAL_AUTOCHECKPOINT",
   "SVELTY_WAL_CHECKPOINT",
+  "SVELTY_WAL_MAX_BYTES",
+  "SVELTY_SQLITE_GROUP_COMMIT",
   "SVELTY_SRV_SPLIT",
   "SVELTY_SRV_DUR",
   // Test-side knob (api-latency zstd transfer row) — forwarded so matrix runs can
@@ -108,6 +110,10 @@ const filter = filterRaw ? filterRaw.toLowerCase().split(",").filter(Boolean) : 
 const databases = filter && filter.length > 0 ? DBS.filter((d) => filter.includes(d)) : DBS;
 const CONTINUE_ON_ERROR =
   process.argv.includes("--continue-on-error") || process.argv.includes("--continue");
+const USE_REDIS = process.argv.includes("--redis") || process.env.USE_REDIS === "true";
+if (USE_REDIS) {
+  process.env.USE_REDIS = "true";
+}
 
 // 🏗️ `--no-build` (documented): trust the existing production build and never
 // rebuild mid-run. Matrix runs rebuild automatically when artifacts are missing
@@ -1036,6 +1042,15 @@ async function run() {
                       );
                     }
                   } else {
+                    // Fail-fast skips the Phase 4 `finalizeReport()` below, so the
+                    // metrics this run already exported to history.jsonl never reach
+                    // `history.sqlite` / the MDX ledgers. That is why a failed matrix
+                    // run can be absent from the trend store — say so explicitly
+                    // instead of leaving an unexplained gap for the next investigation.
+                    console.error(
+                      `  ⚠️  Aborting on failure without finalizing — trend rows for this run are NOT recorded. ` +
+                        `Re-run with --continue-on-error to measure the rest and persist what completed.`,
+                    );
                     server.kill("SIGKILL");
                     process.exit(1);
                   }

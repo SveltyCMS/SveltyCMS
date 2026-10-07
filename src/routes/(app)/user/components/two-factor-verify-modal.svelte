@@ -41,7 +41,10 @@ This modal			class="input text-center font-mono tracking-wider"
 		twofa_verify_button,
 		twofa_verify_description,
 		twofa_verify_title,
-		twofa_verifying
+		twofa_verifying,
+		user2faverify_input,
+		user2faverify_verification_failed,
+		user2faverify_verify_code
 	} from '@src/paraglide/messages';
 	import { modalState } from '@utils/modal.svelte';
 
@@ -103,7 +106,7 @@ This modal			class="input text-center font-mono tracking-wider"
 			}
 			modalState.close();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Verification failed';
+			error = err instanceof Error ? err.message : user2faverify_verification_failed();
 		} finally {
 			isVerifying = false;
 		}
@@ -154,7 +157,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	<div class="mb-6">
 		<div class="relative">
 			<input
-				aria-label="Input"
+				aria-label={user2faverify_input()}
 				type="text"
 				bind:value={code}
 				oninput={handleInput}
@@ -181,7 +184,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	<!-- Toggle Code Type -->
 	<div class="mb-6 text-center">
 		<button
-			aria-label="Verify code"
+			aria-label={user2faverify_verify_code()}
 			onclick={toggleCodeType}
 			class="text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600"
 		>
@@ -200,7 +203,7 @@ This modal			class="input text-center font-mono tracking-wider"
 				isVerifying ||
 				(!useBackupCode && code.length !== 6) ||
 				(useBackupCode && code.length < 8)}
-			class="dark: flex-1"
+			class="flex-1"
 		>
 			{#if isVerifying}
 				<iconify-icon icon="mdi:loading" width="20" class="me-2 animate-spin"></iconify-icon>

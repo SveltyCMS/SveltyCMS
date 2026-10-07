@@ -16,6 +16,12 @@ import type { PluginContext, PluginLifecycleHooks, PluginMigration } from "../ty
 import { logger } from "@utils/logger";
 import { getPrivateEnv } from "@src/databases/config-state";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export const migrations: PluginMigration[] = [
   {
     id: "create_redirects_collection",
@@ -280,7 +286,7 @@ async function syncToEdgeKV(tenantId: string, context?: PluginContext): Promise<
     return;
   }
 
-  const { dbAdapter } = await import("@src/databases/db");
+  const { dbAdapter } = await loadDbModule();
   if (!dbAdapter) return;
 
   const syncPromise = (async () => {

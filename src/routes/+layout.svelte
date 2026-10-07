@@ -301,10 +301,14 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 
 		// Load the theme once, then enable the 30-minute revalidation timer
 		// (see the Theme Auto-Refresh effect below). `startAutoRefresh` is a no-op
-		// on the server; it only flips the flag that the effect reacts to.
-		initializeThemeStore()
-			.then(() => startAutoRefresh())
-			.catch((err) => logger.error('[Theme] init failed:', err));
+		// on the server; it only flips the flag that the effect reacts to. The theme
+		// endpoint is authenticated by design, so pre-auth surfaces (/login, /setup)
+		// skip it rather than fire a request that can only answer 401.
+		if (page.data?.user) {
+			initializeThemeStore()
+				.then(() => startAutoRefresh())
+				.catch((err) => logger.error('[Theme] init failed:', err));
+		}
 
 		// Initialize toast navigation handlers (must be called from onMount)
 		toast.init();

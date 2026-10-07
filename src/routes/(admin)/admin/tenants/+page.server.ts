@@ -10,6 +10,12 @@ import { error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import type { PageServerLoad } from "./$types";
 
 // Only System Admins can access this
@@ -22,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Resolve the CURRENT adapter + await boot: a mid-flight testing-API reset
     // replaces the adapter, so a stale `locals.dbAdapter` reference can be
     // mid-reconnect here ("Database connection not established" 500s).
-    const { dbAdapter, getDbInitPromise } = await import("@src/databases/db");
+    const { dbAdapter, getDbInitPromise } = await loadDbModule();
     await getDbInitPromise(false, "CORE");
     if (!dbAdapter) {
       logger.error("Database adapter not available");

@@ -11,6 +11,12 @@
 import type { ServicePerformanceMetrics, SystemStateStore } from "@src/stores/system/types";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export class PerformanceService {
   private static instance: PerformanceService;
   private readonly SNAPSHOT_KEY = "SYSTEM_METRICS_SNAPSHOT";
@@ -30,7 +36,7 @@ export class PerformanceService {
     if (isBrowser) return null;
     if (this.cachedDbAdapter) return this.cachedDbAdapter;
     try {
-      const { dbAdapter } = await import("@src/databases/db");
+      const { dbAdapter } = await loadDbModule();
       this.cachedDbAdapter = dbAdapter;
       return dbAdapter;
     } catch {

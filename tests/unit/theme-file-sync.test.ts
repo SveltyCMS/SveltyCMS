@@ -11,12 +11,14 @@ import { writeFileSync, mkdirSync, rmSync, existsSync, readFileSync } from "node
 const mockListThemes = vi.fn();
 const mockSaveAdminTheme = vi.fn();
 const mockCreateTheme = vi.fn();
+const mockDeleteTheme = vi.fn();
 
 vi.mock("../../src/services/core/admin-theme-service", () => ({
   adminThemeService: {
     listThemes: (...args: unknown[]) => mockListThemes(...args),
     saveAdminTheme: (...args: unknown[]) => mockSaveAdminTheme(...args),
     createTheme: (...args: unknown[]) => mockCreateTheme(...args),
+    deleteTheme: (...args: unknown[]) => mockDeleteTheme(...args),
   },
 }));
 
@@ -54,12 +56,51 @@ describe("theme-file-sync", () => {
     expect(payload.presetSource).toBe("imported");
   });
 
-  it("parseThemeFileContent maps shorthand default palette to customCss", async () => {
+  it("converges a legacy built-in row onto the canonical name and clears the stale palette", async () => {
+    mockListThemes.mockResolvedValue([
+      { id: "legacy", name: "SveltyCMSTheme", isActive: true, isDefault: true },
+      { id: "dup", name: "Default", isActive: false, isDefault: false },
+    ]);
+    const { importThemeFromJson } = await import("../../src/services/core/theme-file-sync");
+    const action = await importThemeFromJson({
+      name: "Default",
+      presetSource: "sveltycms-builtin",
+      // Explicit undefined = the built-in file carries no palette override, so the
+      // sync must CLEAR whatever stale customCss the DB row still holds.
+      customCss: undefined,
+    });
+    expect(action).toBe("updated");
+    // The ACTIVE row wins (it is what the layout renders) and is renamed to canonical.
+    expect(mockSaveAdminTheme).toHaveBeenCalledWith(
+      { name: "Default", presetSource: "sveltycms-builtin", customCss: undefined },
+      undefined,
+      "legacy",
+    );
+    // The leftover inactive duplicate is pruned.
+    expect(mockDeleteTheme).toHaveBeenCalledWith("dup", undefined);
+  });
+
+  it("does not prune a built-in row that is active or default", async () => {
+    mockListThemes.mockResolvedValue([
+      { id: "a", name: "Default", isActive: true, isDefault: false },
+      { id: "b", name: "SveltyCMSTheme", isActive: false, isDefault: true },
+    ]);
+    const { importThemeFromJson } = await import("../../src/services/core/theme-file-sync");
+    await importThemeFromJson({ name: "Default", presetSource: "sveltycms-builtin" });
+    expect(mockSaveAdminTheme).toHaveBeenCalledWith(
+      { name: "Default", presetSource: "sveltycms-builtin" },
+      undefined,
+      "a",
+    );
+    expect(mockDeleteTheme).not.toHaveBeenCalled();
+  });
+
+  it("parseThemeFileContent leaves the builtin default without a palette override", async () => {
     const { parseThemeFileContent } = await import("../../src/services/core/theme-file-sync");
     const raw = readFileSync(join(process.cwd(), "src", "themes", "default.json"), "utf-8");
     const payload = parseThemeFileContent(raw, "default.json");
     expect(payload.name).toBe("Default");
-    expect(payload.customCss).toContain("--color-primary-500: #0f766e");
+    expect(payload.customCss).toBeUndefined();
     expect(payload.features?.brandedLogin).toBe(true);
   });
 

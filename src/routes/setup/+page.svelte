@@ -97,34 +97,9 @@
 	});
 
 	// --- 4. LIFECYCLE HOOKS ---
-	onMount(async () => {
-		// --- Fresh Start Logic ---
-		// We clear the store on first entry to the setup wizard in a new session
-		// to ensure a clean slate, but allow data persistence across refreshes.
-		const isSetupActive = sessionStorage.getItem('sveltycms_setup_active');
-		if (!isSetupActive) {
-			logger.info('[Setup] Fresh start detected. Clearing previous data.');
-			clearStore();
-			sessionStorage.setItem('sveltycms_setup_active', 'true');
-			await applyScaffoldHints();
-		} else {
-			logger.info('[Setup] Existing session detected. Loading saved data.');
-			loadStore();
-		}
-
-		initialDataSnapshot = JSON.stringify(wizard);
-		setupPersistenceFn();
-
-		const welcomeShown = sessionStorage.getItem('sveltycms_welcome_modal_shown');
-		if (!welcomeShown) {
-			requestAnimationFrame(() => {
-				setTimeout(() => {
-					showWelcomeModal();
-					sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
-				}, 100);
-			});
-		}
-
+	// Svelte 5 requires onMount cleanup to be returned synchronously, so the async
+	// setup work runs in an IIFE and the listener detach is registered up front.
+	onMount(() => {
 		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 			if (hasUnsavedChanges() && !wizard.isSubmitting) {
 				e.preventDefault();
@@ -132,27 +107,56 @@
 		};
 		window.addEventListener('beforeunload', handleBeforeUnload);
 
-		// Clean up the URL if it has the "from" parameter
-		if (window.location.search.includes('from=')) {
-			const url = new URL(window.location.href);
-			url.searchParams.delete('from');
-			window.history.replaceState({}, '', url.pathname);
-		}
+		void (async () => {
+			// --- Fresh Start Logic ---
+			// We clear the store on first entry to the setup wizard in a new session
+			// to ensure a clean slate, but allow data persistence across refreshes.
+			const isSetupActive = sessionStorage.getItem('sveltycms_setup_active');
+			if (!isSetupActive) {
+				logger.info('[Setup] Fresh start detected. Clearing previous data.');
+				clearStore();
+				sessionStorage.setItem('sveltycms_setup_active', 'true');
+				await applyScaffoldHints();
+			} else {
+				logger.info('[Setup] Existing session detected. Loading saved data.');
+				loadStore();
+			}
 
-		// ✨ SMART SETUP TRANSITION
-		// Listen for the custom HMR event from Vite when setup is complete
-		if (import.meta.hot) {
-			import.meta.hot.on('svelty:setup-complete', (data) => {
-				logger.info('[Setup] HMR Signal: Setup Complete!', data);
-				wizard.isSubmitting = true; // Show loading state
-				wizard.successMessage = 'System Initialized! Transitioning to CMS...';
+			initialDataSnapshot = JSON.stringify(wizard);
+			setupPersistenceFn();
 
-				// Force a smooth transition after a short delay to let the server stabilize
-				setTimeout(() => {
-					window.location.href = '/';
-				}, 1500);
-			});
-		}
+			const welcomeShown = sessionStorage.getItem('sveltycms_welcome_modal_shown');
+			if (!welcomeShown) {
+				requestAnimationFrame(() => {
+					setTimeout(() => {
+						showWelcomeModal();
+						sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
+					}, 100);
+				});
+			}
+
+			// Clean up the URL if it has the "from" parameter
+			if (window.location.search.includes('from=')) {
+				const url = new URL(window.location.href);
+				url.searchParams.delete('from');
+				window.history.replaceState({}, '', url.pathname);
+			}
+
+			// ✨ SMART SETUP TRANSITION
+			// Listen for the custom HMR event from Vite when setup is complete
+			if (import.meta.hot) {
+				import.meta.hot.on('svelty:setup-complete', (data) => {
+					logger.info('[Setup] HMR Signal: Setup Complete!', data);
+					wizard.isSubmitting = true; // Show loading state
+					wizard.successMessage = 'System Initialized! Transitioning to CMS...';
+
+					// Force a smooth transition after a short delay to let the server stabilize
+					setTimeout(() => {
+						window.location.href = '/';
+					}, 1500);
+				});
+			}
+		})();
 
 		return () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -161,7 +165,7 @@
 
 	async function applyScaffoldHints() {
 		try {
-			const hints = await readSetupHints();
+			const hints = await readSetupHints({});
 			if (isPresetId(hints.template)) {
 				wizard.systemSettings.preset = hints.template;
 			}

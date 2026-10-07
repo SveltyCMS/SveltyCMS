@@ -16,7 +16,7 @@
  * - plugin afterSave/afterDelete + beforeSave hooks with tenant settings cache
  */
 
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { nowISODateString } from "@src/utils/date";
@@ -264,7 +264,7 @@ export function schedulePostWrite(
 }
 
 /** Tenant settings cache shared by plugin lifecycle hooks. */
-const _tenantSettingsCache = new LRUCache<string, { settings: any }>({
+const _tenantSettingsCache = new FastLRU<string, { settings: any }>({
   max: 200,
   ttl: 10_000,
 });

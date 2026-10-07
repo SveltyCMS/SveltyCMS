@@ -396,10 +396,6 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     const treeBoard = page.getByTestId("collection-builder-board");
     await expect(treeBoard).toBeVisible({ timeout: 20_000 });
 
-    // Verify the sidebar quick-add link exists
-    const sidebarLink = page.getByTestId("sidebar-collection-builder-link");
-    await expect(sidebarLink).toBeVisible({ timeout: 10_000 });
-
     // Look for any tree item
     const firstItem = page.locator(".tree-item").first();
     await expect(firstItem).toBeVisible({ timeout: 15_000 });

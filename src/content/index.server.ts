@@ -6,6 +6,11 @@
 
 /// <reference types="vite/client" />
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 const isTest = !!(
   (typeof process !== "undefined" &&
     (process.env.NODE_ENV === "test" || !!process.env.VITEST || !!process.env.BUN_TEST)) ||
@@ -117,7 +122,7 @@ export async function ensureContentInitialized(
   if (!initPromise || isForced) {
     initPromise = (async () => {
       try {
-        const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+        const { getDb, ensureFullInitialization } = await loadDbModule();
 
         let db = adapter || getDb();
         if (!db) {

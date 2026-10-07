@@ -40,13 +40,17 @@ Route-driven sidebar content (no dual collapsible section headers):
 	import { getFirstCollectionRedirectPathFromNodes } from '@src/content/first-collection';
 	// Paraglide Messages
 	import {
+		applayout_close_sidebar,
+		applayout_discord,
+		applayout_search_language,
+		applayout_select_language,
 		applayout_signout,
 		applayout_systemconfiguration,
 		applayout_systemlanguage,
-		applayout_userprofile,
-		applayout_search_language,
-		applayout_select_language,
-		applayout_close_sidebar
+		applayout_theme_dark,
+		applayout_theme_light,
+		applayout_theme_system,
+		applayout_userprofile
 	} from '@src/paraglide/messages';
 	import { locales as bundledLocales, getLocale } from '@src/paraglide/runtime';
 	import { applySystemLanguage, mergeSystemLanguages } from '@utils/system-locale';
@@ -59,11 +63,13 @@ Route-driven sidebar content (no dual collapsible section headers):
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
+	import { getTextDirection } from '@utils/string';
 	import { logger } from '@utils/logger';
 	import Avatar from '@components/ui/avatar.svelte';
 	import { browser } from '$app/env';
 	import { page } from '$app/state';
 	import { scale } from 'svelte/transition';
+	import { adminFade } from '@utils/admin-transitions';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
 
 	// Constants
@@ -99,6 +105,10 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
+
+	// RTL-aware: the sidebar `<aside>` is the first flex child, so it flips to the
+	// inline-end in RTL — the collapse control and its tooltip must mirror with it.
+	const isRTL = $derived(getTextDirection(systemLanguage.value || getLocale()) === 'rtl');
 
 	// Theme-aware: should collections render in this sidebar?
 	const themeCtx = getThemeContext();
@@ -174,12 +184,12 @@ Route-driven sidebar content (no dual collapsible section headers):
 	const themeTooltipText = $derived.by(() => {
 		const current = themeStore.themePreference;
 		if (current === 'system') {
-			return 'System theme (click for Light)';
+			return applayout_theme_system();
 		}
 		if (current === 'light') {
-			return 'Light theme (click for Dark)';
+			return applayout_theme_light();
 		}
-		return 'Dark theme (click for System)';
+		return applayout_theme_dark();
 	});
 
 	// Helper functions
@@ -265,42 +275,65 @@ Route-driven sidebar content (no dual collapsible section headers):
 </script>
 
 <div class="sidebar-root px-1 flex h-full w-full flex-col justify-between bg-transparent">
-	<!-- Corporate Identity -->
-	{#if isSidebarFull}
+	<!-- Brand identity — kept as ONE tree so the logo node survives the
+	     full↔compact toggle (swapping the whole row out made the logo flicker). -->
+	<div
+		class="flex min-h-12 shrink-0 items-center pt-2 transition-all duration-300 motion-reduce:transition-none {isSidebarFull
+			? 'gap-1 ps-1 pe-2'
+			: 'gap-0.5 ps-1 pe-5'}"
+	>
+		{#if !isSidebarFull}
+			<span
+				class="flex shrink-0"
+				in:adminFade={{ duration: 150 }}
+				out:adminFade={{ duration: 100 }}
+			>
+				<Button
+					variant="ghost"
+					type="button"
+					onclick={() => ui.toggle('leftSidebar', 'hidden')}
+					aria-label={applayout_close_sidebar()}
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
+				>
+					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
+				</Button>
+			</span>
+		{/if}
+
+		<!-- Compact: the hamburger uses the same start padding (ps-1) as the full
+		     sidebar's logo box so it lines up with it; pe-5 reserves room for the
+		     absolutely-positioned expand button. The href mirrors the "Back to
+		     Collections" button below: the client-derived first-collection path from
+		     the live store, not `/`. Routing through `/` depended on the server
+		     content store resolving a first collection and fell back to
+		     /config/collectionbuilder (a visible no-op when already there). -->
 		<a
-			href="/"
+			href={collections.length === 0 ? '/config/collectionbuilder' : firstCollectionPath}
 			aria-label="SveltyCMS Logo"
-			class="flex min-h-12 shrink-0 items-center px-2 pt-2 no-underline!"
+			class="flex min-w-0 flex-1 items-center overflow-hidden no-underline! {isSidebarFull
+				? 'gap-1'
+				: 'justify-center'}"
 			data-sveltekit-preload-data="hover"
 		>
-			<SveltyCMSLogo fill="red" className="h-9" />
-			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"
-				><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span
-			>
+			<SveltyCMSLogo fill="red" className="h-9 w-auto shrink-0" />
+			{#if isSidebarFull}
+				<span
+					class="base-font-color relative min-w-0 flex-1 truncate text-2xl font-bold leading-none"
+					title={publicEnv.SITE_NAME}
+					in:adminFade={{ duration: 200, delay: 60 }}
+					out:adminFade={{ duration: 120 }}
+				>
+					<SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" />
+				</span>
+			{/if}
 		</a>
-	{:else}
-		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 px-2 pt-2">
-			<Button
-				variant="ghost"
-				type="button"
-				onclick={() => ui.toggle('leftSidebar', 'hidden')}
-				aria-label={applayout_close_sidebar()}
-				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
-			>
-				<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
-			</Button>
-
-			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!">
-				<SveltyCMSLogo fill="red" className="h-9" />
-			</a>
-		</div>
-	{/if}
+	</div>
 
 	<!-- Expand/Collapse Button -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: 'right-end' }}
-		triggerClass="absolute top-3 z-20 ltr:-end-4 rtl:-start-4"
+		positioning={{ placement: isRTL ? 'left-end' : 'right-end' }}
+		triggerClass="absolute top-3 z-20 -inset-e-4"
 	>
 		<Button
 			variant="ghost"
@@ -389,17 +422,18 @@ Route-driven sidebar content (no dual collapsible section headers):
 										{/if}
 									</a>
 									{#if isSidebarFull}
-										<Button
-											variant="ghost"
-											type="button"
-											onclick={() => pinnedStore.unpin(item.id)}
-											title="Unpin"
-											aria-label="Unpin"
-											class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-(--admin-border-subtle)]"
-										>
-											<iconify-icon icon="bi:x" width="16" style="color: var(--admin-text-muted)"
-											></iconify-icon>
-										</Button>
+										<SystemTooltip title="Unpin" positioning={{ placement: 'top' }}>
+											<Button
+												variant="ghost"
+												type="button"
+												onclick={() => pinnedStore.unpin(item.id)}
+												aria-label="Unpin"
+												class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-(--admin-border-subtle)]"
+											>
+												<iconify-icon icon="bi:x" width="16" style="color: var(--admin-text-muted)"
+												></iconify-icon>
+											</Button>
+										</SystemTooltip>
 									{/if}
 								</div>
 							{/each}
@@ -441,7 +475,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 								<iconify-icon
 									icon="bi:arrow-left"
 									width={isSidebarFull ? 18 : 16}
-									class="shrink-0 text-tertiary-500 dark:text-primary-500"
+									class="shrink-0 text-tertiary-500 dark:text-primary-500 rtl:scale-x-[-1]"
 								></iconify-icon>
 								<span
 									class="truncate text-center {isSidebarFull
@@ -484,7 +518,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 								onclick={handleGoToMediaGallery}
 								aria-label="Go to Media Gallery"
 								class="flex w-full items-center gap-1 rounded-lg h-auto! min-h-11 py-1.5 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
-									? 'justify-start px-3'
+									? 'justify-start ps-4 pe-3'
 									: 'flex-col justify-center px-1'}"
 							>
 								<iconify-icon
@@ -737,12 +771,12 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<!-- Community Links (only when expanded) -->
 			{#if isSidebarFull}
 				<div class="order-8 flex items-center justify-center gap-1">
-					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+					<SystemTooltip title={applayout_discord()} positioning={{ placement: 'right' }}>
 						<a
 							href="https://discord.gg/VrvZF6e2sC"
 							target="_blank"
 							rel="noopener noreferrer"
-							aria-label="Discord Community"
+							aria-label={applayout_discord()}
 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
 						>
 							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>

@@ -14,6 +14,7 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { FastLRU } from "@utils/native-utils";
 import { expect } from "vitest";
 
 // Pre-frozen immutable payload to eliminate object instantiation overhead inside the loop
@@ -41,8 +42,7 @@ test("L1 Cache Eviction and Memory Pressure Leak Audit", async () => {
 
   // ── 1. CONFIGURE BOUNDED LRU CACHE INSTANCE ───────────────────────────────
   if ((cacheService as any).l1) {
-    const { LRUCache } = await import("lru-cache");
-    (cacheService as any).l1 = new LRUCache({
+    (cacheService as any).l1 = new FastLRU({
       max: CACHE_SIZE_LIMIT,
       ttl: 1000 * 60 * 5,
     });

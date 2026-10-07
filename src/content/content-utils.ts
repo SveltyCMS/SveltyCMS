@@ -15,6 +15,14 @@ import type { ContentNode, NavigationNode, Schema } from "./types";
 import { logger } from "@utils/logger";
 import { sanitizeHtml, stripHtml } from "@src/utils/sanitize-html";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 // --- PURE UTILITIES ---
 
 /**
@@ -147,7 +155,7 @@ export const contentNavigation = {
 
     if (typeof window === "undefined" && import.meta.env.SSR) {
       try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const { cacheService } = await loadCacheServiceModule();
         const cached = await cacheService.get<NavigationNode[]>(cacheKey, tenantId);
         if (cached) return cached;
       } catch {
@@ -175,7 +183,7 @@ export const contentNavigation = {
 
     if (typeof window === "undefined" && import.meta.env.SSR) {
       try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const { cacheService } = await loadCacheServiceModule();
         const { CacheCategory } = await import("@src/databases/cache/types");
         const tid = tenantId || "global";
         await cacheService.set(cacheKey, result, 300, tenantId, CacheCategory.CONTENT, [

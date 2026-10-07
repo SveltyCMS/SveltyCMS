@@ -105,6 +105,26 @@ export async function resolvePopulatedRelations(
           missingIds.push(id);
         }
 
+        // 🚀 L2 Probe (Redis batch mGet): If Redis is available, check missing keys in bulk
+        if (missingIds.length > 0 && typeof cacheService.getMany === "function") {
+          const l2Keys = missingIds.map((id) => `${tenantKey}:collection:${collectionId}:${id}`);
+          const l2Results = await cacheService.getMany<any>(l2Keys, tenantId).catch(() => []);
+          const stillMissing: string[] = [];
+          for (let i = 0; i < missingIds.length; i++) {
+            const cached = l2Results[i];
+            if (cached && typeof cached === "object") {
+              const row = "data" in cached ? cached.data : cached;
+              if (row) {
+                relatedMap.set(missingIds[i], row);
+                continue;
+              }
+            }
+            stillMissing.push(missingIds[i]);
+          }
+          missingIds.length = 0;
+          missingIds.push(...stillMissing);
+        }
+
         // Fetch remaining un-cached IDs in chunked batches (protects SQL variable limits)
         if (missingIds.length > 0) {
           const CHUNK_SIZE = 500;

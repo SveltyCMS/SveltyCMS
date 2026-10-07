@@ -19,6 +19,7 @@
  * - O(1) queue via index cursor, not O(n) shift()
  * - Adaptive concurrency: 75% of cores, min 4
  * - Orphan file + empty directory cleanup on full builds only
+ * - Builder category directories from `structureNodes` are created and kept
  * - 3a: Atomic `.js` writes (crash-safe)
  * - 3b: `changedJsPaths` / `noOp` for surgical HMR + model provisioning
  */
@@ -49,6 +50,14 @@ import { isBenchmarkArtifact, isBenchmarkRuntime } from "../benchmark-runtime.ts
 import { isBenchmarkRelativePath } from "../benchmark-paths.ts";
 import { assertLiveDataWriteAllowed } from "../benchmark-sandbox.ts";
 import { atomicWriteFile, atomicWriteJson } from "../atomic-write.ts";
+import {
+  categoryKeepDirs,
+  categoryNodesFromUnknown,
+  categoryPathsEqual,
+  ensureCategoryDirectories,
+  listCategoryRelativeDirs,
+  mergeDiscoveredCategories,
+} from "./category-directories.ts";
 import { createCompositeTransformer } from "./transformers.ts";
 import { pathAliases } from "../../../path-aliases.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
@@ -309,6 +318,17 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
       manifest.clear();
     }
 
+    // A folder created under config/collections becomes a category even when
+    // it has no .ts file yet. The Vite watcher calls this compile on addDir.
+    const discoveredDirs = (await listCategoryRelativeDirs(userCollections)).filter(
+      (relative) => isBenchmarkRuntime() || !isBenchmarkRelativePath(relative),
+    );
+    let manifestStructure = mergeDiscoveredCategories(structureNodes, discoveredDirs);
+    const structureChanged = !categoryPathsEqual(structureNodes, manifestStructure);
+    const categoryNodes = categoryNodesFromUnknown(manifestStructure);
+    const categoryKeep = categoryKeepDirs(categoryNodes);
+    await ensureCategoryDirectories(categoryNodes, [userCollections, compiledCollections]);
+
     // 3. Discover source files (recursive walk)
     let sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
@@ -336,17 +356,18 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
       // 1a: Only clean orphaned on full builds (no targetFile)
       if (!options.targetFile) {
         await removeOrphanedFiles(manifest, new Set(), result);
-        await removeEmptyDirs(compiledCollections);
+        await removeEmptyDirs(compiledCollections, categoryKeep);
       }
       await saveManifest(
         compiledCollections,
         manifest,
         collectionOrder,
-        structureNodes,
+        manifestStructure,
         fingerprint,
       );
       result.duration = Date.now() - startTime;
-      result.noOp = true;
+      result.noOp = !structureChanged;
+      result.structureChanged = structureChanged;
       logger.info("Compilation completed: 0 files found");
       return result;
     }
@@ -522,15 +543,25 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
       await removeOrphanedFiles(manifest, processedJsPaths, result);
     }
 
-    // 6. Empty directory cleanup
-    await removeEmptyDirs(compiledCollections);
+    // 6. Empty directory cleanup (builder category directories stay)
+    await removeEmptyDirs(compiledCollections, categoryKeep);
 
     // 7. Persist manifest (with fingerprint)
-    await saveManifest(compiledCollections, manifest, collectionOrder, structureNodes, fingerprint);
+    await saveManifest(
+      compiledCollections,
+      manifest,
+      collectionOrder,
+      manifestStructure,
+      fingerprint,
+    );
 
     result.duration = Date.now() - startTime;
+    result.structureChanged = structureChanged;
     result.noOp =
-      result.processed === 0 && result.errors.length === 0 && result.orphanedFiles.length === 0;
+      result.processed === 0 &&
+      result.errors.length === 0 &&
+      result.orphanedFiles.length === 0 &&
+      !structureChanged;
     logger.success?.(
       `Compilation completed: ${result.processed} processed, ${result.skipped} skipped, ${result.orphanedFiles.length} orphaned (${result.duration}ms)`,
     );
@@ -730,13 +761,19 @@ async function removeOrphanedFiles(
 }
 
 // ─── Empty directory cleanup (post-orphan sweep) ────────────────────────
-async function removeEmptyDirs(baseDir: string): Promise<void> {
+async function removeEmptyDirs(
+  baseDir: string,
+  keep: Set<string> = new Set(),
+  root = baseDir,
+): Promise<void> {
   try {
     const entries = await fs.readdir(baseDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const fullPath = path.join(baseDir, entry.name);
-      await removeEmptyDirs(fullPath);
+      await removeEmptyDirs(fullPath, keep, root);
+      const relative = path.relative(root, fullPath).replace(/\\/g, "/");
+      if (keep.has(relative)) continue;
       try {
         if ((await fs.readdir(fullPath)).length === 0) {
           await fs.rmdir(fullPath);

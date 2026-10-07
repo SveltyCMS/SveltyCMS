@@ -37,6 +37,12 @@ import {
   type InferInput as ValibotInput,
 } from "valibot";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 // Helper type for aggregation field parameter
 interface AggregationField {
   db_fieldName: string;
@@ -156,7 +162,7 @@ const RemoteVideoWidget = createWidget({
   modifyRequest: async ({ data, type }: any) => {
     if (type === "POST" || type === "PATCH") {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("widget", "remote-video");
         const value = data.get();
 

@@ -15,6 +15,12 @@
 import type { User } from "@src/databases/auth/types";
 import { error } from "@sveltejs/kit";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // System Logger
 import { logger } from "@utils/logger";
 import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
@@ -91,7 +97,7 @@ const rawActions = {
       };
 
       try {
-        const { dbAdapter } = await import("@src/databases/db");
+        const { dbAdapter } = await loadDbModule();
         if (!dbAdapter) throw new Error("Database adapter not available");
 
         const cms = new LocalCMS(dbAdapter);

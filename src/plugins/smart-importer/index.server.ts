@@ -30,6 +30,12 @@ import type {
   MigrationProgress,
 } from "./types";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 // ============================================================================
 // Migrations
 // ============================================================================
@@ -795,7 +801,7 @@ async function mirrorAssetsLocally(
   _optimize = true,
 ): Promise<string[]> {
   const localIds: string[] = [];
-  const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+  const { validateEgressUrl, safeFetch } = await loadEgressGuardModule();
   const { persistMigratedAsset } = await import("./utils/migrated-media.server");
   const { resolveRemoteAssetMime } = await import("@src/utils/media/slim-sniffer.server");
 

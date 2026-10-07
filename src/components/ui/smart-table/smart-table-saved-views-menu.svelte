@@ -89,7 +89,7 @@
 			open = !open;
 			if (open) refresh();
 		}}
-		class="rounded-full gap-1.5"
+		class="h-10 gap-1.5 rounded-xl border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
 	>
 		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
 		<span class="hidden sm:inline">Views</span>

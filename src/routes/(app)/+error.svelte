@@ -24,6 +24,7 @@ None (reads `page` rune from `$app/state`).
 	import {
 		db_error_description,
 		db_error_title,
+		error_goback,
 		error_page_moved,
 		error_pagenotfound,
 		error_wrong
@@ -132,7 +133,7 @@ None (reads `page` rune from `$app/state`).
 						if (typeof window !== 'undefined') window.history.back();
 					}}
 				>
-					Go Back
+					{error_goback()}
 				</Button>
 			</div>
 		</div>

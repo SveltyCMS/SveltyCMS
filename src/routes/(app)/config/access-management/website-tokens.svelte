@@ -537,7 +537,7 @@
 			</div>
 
 			<div class="mt-4 flex justify-end">
-				<Button variant="tertiary" onclick={generateToken} class="dark:" leadingIcon="mdi:key-plus">
+				<Button variant="tertiary" onclick={generateToken} leadingIcon="mdi:key-plus">
 					Generate Token
 				</Button>
 			</div>

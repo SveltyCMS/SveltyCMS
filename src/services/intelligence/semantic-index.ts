@@ -20,8 +20,22 @@
  */
 
 import { logger } from "@utils/logger";
-import { embed, embedSingle, cosineSimilarity, getEmbeddingBackendInfo } from "./embedding-service";
+import { embed, embedSingle, cosineSimilarity } from "./embedding-service";
 import { getHotCollections } from "./behavioral-learner";
+
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -43,14 +57,6 @@ export interface SearchResult extends IndexedItem {
   matchType: "semantic" | "keyword" | "both";
 }
 
-export interface IndexStats {
-  totalItems: number;
-  backend: string;
-  npuAvailable: boolean;
-  lastFullIndex: number | null;
-  itemsByType: Record<string, number>;
-}
-
 // ─── State ─────────────────────────────────────────────────────────────────
 
 const _index = new Map<string, IndexedItem>();
@@ -70,7 +76,7 @@ export async function initializeSemanticIndex(tenantId: string): Promise<void> {
 
   // Restore from cache
   try {
-    const { cacheService } = await import("@src/databases/cache/cache-service");
+    const { cacheService } = await loadCacheServiceModule();
     const cached = await cacheService.get<Array<[string, IndexedItem]>>(CACHE_KEY);
     if (cached) {
       for (const [key, item] of cached) {
@@ -205,30 +211,10 @@ export async function semanticSearch(
  * Persist the index to cache layer for fast restoration on restart.
  */
 export async function persistSemanticIndex(): Promise<void> {
-  const { cacheService } = await import("@src/databases/cache/cache-service");
+  const { cacheService } = await loadCacheServiceModule();
   const data = Array.from(_index.entries());
   await cacheService.set(CACHE_KEY, data, CACHE_TTL);
   _lastFullIndex = Date.now();
-}
-
-/**
- * Get index statistics for dashboard display.
- */
-export function getSemanticIndexStats(): IndexStats {
-  const backendInfo = getEmbeddingBackendInfo();
-  const itemsByType: Record<string, number> = {};
-
-  for (const item of _index.values()) {
-    itemsByType[item.type] = (itemsByType[item.type] || 0) + 1;
-  }
-
-  return {
-    totalItems: _index.size,
-    backend: backendInfo.backend,
-    npuAvailable: backendInfo.available, // Ollama available = NPU/GPU accessible
-    lastFullIndex: _lastFullIndex,
-    itemsByType,
-  };
 }
 
 /**
@@ -375,7 +361,7 @@ async function indexHotContent(tenantId: string): Promise<void> {
     const hotCollections = getHotCollections(tenantId, 5);
     if (hotCollections.length === 0) return;
 
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     if (!dbAdapter?.crud) return;
 
     const items: Array<Omit<IndexedItem, "vector" | "indexedAt" | "score">> = [];

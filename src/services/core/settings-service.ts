@@ -16,6 +16,20 @@ import { logger } from "@utils/logger";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { InferOutput } from "valibot";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export type PrivateEnv = InferOutput<typeof privateConfigSchema>;
 export type PublicEnv = InferOutput<typeof publicConfigSchema> & {
   PKG_VERSION?: string;
@@ -87,7 +101,7 @@ export class SettingsService {
     const currentConfigStamp = getConfigStamp();
     if (!overrides && typeof window === "undefined" && import.meta.env.SSR) {
       try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const { cacheService } = await loadCacheServiceModule();
         const cached = cacheService.getSync<SettingsCache>(cacheKey, tenantId);
         if (
           cached &&
@@ -135,7 +149,7 @@ export class SettingsService {
       let getPrivateEnv: any = () => ({}) as any;
 
       if (typeof window === "undefined" && import.meta.env.SSR) {
-        const dbModule = overrides || (await import("@src/databases/db"));
+        const dbModule = overrides || (await loadDbModule());
         dbAdapter = dbModule.dbAdapter;
         getPrivateEnv = dbModule.getPrivateEnv;
 
@@ -144,7 +158,7 @@ export class SettingsService {
         // mounted preferences yet, causing "getMany is not a function".
         if (!overrides) {
           try {
-            const { ensureFullInitialization } = await import("@src/databases/db");
+            const { ensureFullInitialization } = await loadDbModule();
             await ensureFullInitialization();
           } catch {
             // Boot hasn't started yet — use empty cache
@@ -159,7 +173,7 @@ export class SettingsService {
       const freshAdapter = overrides
         ? dbAdapter
         : typeof window === "undefined" && import.meta.env.SSR
-          ? (await import("@src/databases/db")).dbAdapter
+          ? (await loadDbModule()).dbAdapter
           : null;
 
       if (
@@ -252,7 +266,7 @@ export class SettingsService {
 
       if (!overrides && typeof window === "undefined" && import.meta.env.SSR) {
         try {
-          const { cacheService } = await import("@src/databases/cache/cache-service");
+          const { cacheService } = await loadCacheServiceModule();
           await cacheService.set(cacheKey, cache, 300, tenantId);
         } catch {
           // Ignored
@@ -358,7 +372,7 @@ export class SettingsService {
     if (typeof window !== "undefined" || !import.meta.env.SSR) {
       throw new Error("setPrivateSetting is server-only");
     }
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     if (!dbAdapter?.system.preferences) {
       throw new Error("Database adapter not available");
     }
@@ -385,7 +399,7 @@ export class SettingsService {
     if (typeof window !== "undefined" || !import.meta.env.SSR) {
       throw new Error("setPublicSetting is server-only");
     }
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     if (!dbAdapter?.system.preferences) {
       throw new Error("Database adapter not available");
     }
@@ -419,7 +433,7 @@ export class SettingsService {
     if (typeof window !== "undefined" || !import.meta.env.SSR) {
       throw new Error("updateSettingsFromSnapshot is server-only");
     }
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     if (!dbAdapter?.system.preferences) {
       throw new Error("Database adapter not available");
     }

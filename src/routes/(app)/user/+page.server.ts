@@ -19,6 +19,12 @@
 import type { PermissionConfig } from "@src/databases/auth/permissions";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 // System Logger
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
@@ -150,7 +156,7 @@ export const load: PageServerLoad = async (event) => {
 /** Total user count across tenants (single-tenant: all users). */
 async function getTotalUserCount(event: Parameters<PageServerLoad>[0]): Promise<number> {
   try {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     if (!dbAdapter?.auth) return 0;
     const res = await dbAdapter.auth.getUserCount(
       {},

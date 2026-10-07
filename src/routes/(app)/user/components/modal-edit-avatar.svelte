@@ -24,7 +24,21 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		modaledit_avatar_alt,
 		modaledit_avatar_click_upload,
 		modaledit_avatarfilesallowed,
-		modaledit_avatarfilesize
+		modaledit_avatarfilesize,
+		useravatar_delete,
+		useravatar_delete_body,
+		useravatar_delete_failed,
+		useravatar_deleted,
+		useravatar_failed_to_delete,
+		useravatar_http_error,
+		useravatar_invalid_file,
+		useravatar_invalid_file_type,
+		useravatar_replace_body,
+		useravatar_replace_title,
+		useravatar_update_failed,
+		useravatar_updated,
+		useravatar_upload_failed,
+		useravatar_uploading
 	} from '@src/paraglide/messages';
 	// Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -105,7 +119,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				throw new Error(modaledit_avatarfilesize());
 			}
 			if (!imageTypes.includes(input.type)) {
-				throw new Error('Invalid file type');
+				throw new Error(useravatar_invalid_file_type());
 			}
 			return true;
 		})
@@ -187,8 +201,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			// Show confirmation if replacing existing avatar
 			if (page.data.user?.avatar && page.data.user.avatar !== '/Default_User.svg') {
 				showConfirm({
-					title: 'Replace Avatar',
-					body: 'Are you sure you want to replace your current avatar?',
+					title: useravatar_replace_title(),
+					body: useravatar_replace_body(),
 					onConfirm: async () => {
 						await uploadAvatar(file);
 					}
@@ -202,12 +216,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				const valiError = error as ValiError<typeof avatarSchema>;
 				logger.error(valiError.issues[0]?.message);
 				toast.error({
-					description: valiError.issues[0]?.message || 'Invalid file'
+					description: valiError.issues[0]?.message || useravatar_invalid_file()
 				});
 				return;
 			}
 			logger.error((error as Error).message);
-			toast.error({ description: (error as Error).message || 'Upload failed' });
+			toast.error({ description: (error as Error).message || useravatar_upload_failed() });
 			return;
 		}
 	}
@@ -276,7 +290,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			});
 
 			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
+				throw new Error(useravatar_http_error({ status: String(response.status) }));
 			}
 
 			await response.json();
@@ -287,13 +301,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			await refreshAll();
 
 			// Show success toast
-			toast.success('Avatar updated successfully!');
+			toast.success(useravatar_updated());
 			modalState.close();
 		} catch (error: unknown) {
 			logger.error('Avatar upload failed:', error);
 			imageLoadError = true;
 			toast.error(
-				error instanceof Error ? error.message : String(error) || 'Failed to update avatar'
+				error instanceof Error ? error.message : String(error) || useravatar_update_failed()
 			);
 			// Revert preview on error
 			previewUrl = null;
@@ -313,8 +327,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		logger.info('deleteAvatar function called');
 
 		showConfirm({
-			title: 'Delete Avatar',
-			body: 'Are you sure you want to delete your avatar? This action cannot be undone.',
+			title: useravatar_delete(),
+			body: useravatar_delete_body(),
 			onConfirm: async () => {
 				// User confirmed - proceed with deletion
 				try {
@@ -337,7 +351,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						previewUrl = null;
 
 						// Show success message
-						toast.success('Avatar Deleted');
+						toast.success(useravatar_deleted());
 
 						// Close dialog
 						modalState.close();
@@ -345,12 +359,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						// Reload page data
 						await refreshAll();
 					} else {
-						throw new Error(result.error || 'Delete failed');
+						throw new Error(result.error || useravatar_delete_failed());
 					}
 				} catch (error: unknown) {
 					logger.error('Error deleting avatar:', error);
 
-					const msg = error instanceof Error ? error.message : 'Failed to delete avatar';
+					const msg = error instanceof Error ? error.message : useravatar_failed_to_delete();
 
 					toast.error(msg);
 				}
@@ -445,7 +459,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				variant="error"
 				type="button"
 				onclick={deleteAvatar}
-				aria-label="Delete Avatar"
+				aria-label={useravatar_delete()}
 				data-testid="delete-avatar-btn"
 			>
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
@@ -470,7 +484,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			>
 				{#if isUploading}
 					<div class="me-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-					Uploading...
+					{useravatar_uploading()}
 				{:else}
 					{button_save()}
 				{/if}

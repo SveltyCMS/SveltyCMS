@@ -247,8 +247,7 @@
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<Button variant="tertiary" aria-label="Save" onclick={handleSave} class="dark:">Save</Button
-				>
+				<Button variant="tertiary" aria-label="Save" onclick={handleSave}>Save</Button>
 				<!-- Cancel Button -->
 				<Button
 					variant="outline"

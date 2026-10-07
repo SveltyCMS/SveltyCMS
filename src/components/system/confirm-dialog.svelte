@@ -54,7 +54,7 @@
 				{buttonTextCancel}
 			</Button>
 		{/if}
-		<Button variant="tertiary" onclick={onConfirm} class="dark:" data-testid="modal-confirm">
+		<Button variant="tertiary" onclick={onConfirm} data-testid="modal-confirm">
 			{buttonTextConfirm}
 		</Button>
 	</div>

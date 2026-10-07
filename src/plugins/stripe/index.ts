@@ -24,6 +24,12 @@
 import { logger } from "@utils/logger";
 import { definePlugin } from "../define-plugin";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 export const stripePlugin = definePlugin({
   metadata: {
     id: "stripe",
@@ -120,7 +126,7 @@ export const stripePlugin = definePlugin({
   hooks: {
     beforeSave: async (context, _collection, data) => {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("plugin", "stripe");
 
         // Premium features require a license

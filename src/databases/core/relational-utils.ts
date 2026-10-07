@@ -250,6 +250,7 @@ export function registerTableSchema(
   } else {
     registerKey(collectionTableName(table));
   }
+  _dateMetaCache.clear();
 }
 
 export function getTableDateColumns(table: string): string[] {
@@ -374,13 +375,66 @@ function flattenDataColumn(
 
 /** Coerce 0/1 column values to booleans for registered boolean columns (raw
  * paths return INTEGER/TINYINT — the API contract expects true/false). */
-function coerceBooleanCols(row: Record<string, unknown>, table: string | undefined): void {
-  const bools = table ? getTableBooleanColumns(table) : undefined;
+function coerceBooleanCols(
+  row: Record<string, unknown>,
+  table: string | undefined,
+  cachedBools?: Set<string>,
+): void {
+  const bools = cachedBools ?? (table ? getTableBooleanColumns(table) : undefined);
   if (!bools || bools.size === 0) return;
   for (const k of bools) {
     const v = row[k];
     if (v === 0 || v === 1) row[k] = v === 1;
   }
+}
+
+/** Pre-resolved schema metadata for zero-overhead batch date conversion. */
+export interface DateConversionMeta {
+  table: string | undefined;
+  hasSchema: boolean;
+  dateCols: string[] | null;
+  jsonCols: string[] | null;
+  skipMerge: Set<string> | null;
+  bools: Set<string> | undefined;
+}
+
+const _dateMetaCache = new Map<string, DateConversionMeta>();
+
+export function resolveDateConversionMeta(
+  rawTable: string | undefined,
+  skipJson?: boolean,
+): DateConversionMeta {
+  if (!rawTable) {
+    return {
+      table: undefined,
+      hasSchema: false,
+      dateCols: null,
+      jsonCols: null,
+      skipMerge: null,
+      bools: undefined,
+    };
+  }
+  const cacheKey = skipJson ? `${rawTable}:1` : rawTable;
+  const hit = _dateMetaCache.get(cacheKey);
+  if (hit !== undefined) return hit;
+
+  const table = _tableDateCols.has(rawTable)
+    ? rawTable
+    : _tableDateCols.has(collectionTableName(rawTable))
+      ? collectionTableName(rawTable)
+      : rawTable.startsWith("collection_") && _tableDateCols.has(rawTable.slice(11))
+        ? rawTable.slice(11)
+        : rawTable;
+  const hasSchema = _tableDateCols.has(table);
+  const dateCols = hasSchema ? getTableDateColumns(table) : null;
+  const jsonCols = hasSchema && !skipJson ? getTableJsonColumns(table) : null;
+  const skipMerge = getTableMergeSkipKeys(table) ?? null;
+  const bools = getTableBooleanColumns(table);
+  const meta: DateConversionMeta = { table, hasSchema, dateCols, jsonCols, skipMerge, bools };
+  if (_dateMetaCache.size < 512) {
+    _dateMetaCache.set(cacheKey, meta);
+  }
+  return meta;
 }
 
 /**
@@ -424,31 +478,15 @@ export function convertDatesToISO(
     inPlace?: boolean;
     skipJson?: boolean;
   },
+  cachedMeta?: DateConversionMeta,
 ): any {
   if (!row) return row;
   if (Array.isArray(row)) {
-    if (options?.inPlace) {
-      for (let i = 0; i < row.length; i++) {
-        row[i] = convertDatesToISO(row[i], options);
-      }
-      return row;
-    }
-    return row.map((r) => convertDatesToISO(r, options));
+    return convertArrayDatesToISO(row, options);
   }
 
-  const rawTable = options?.table;
-  const table =
-    rawTable &&
-    (_tableDateCols.has(rawTable)
-      ? rawTable
-      : _tableDateCols.has(collectionTableName(rawTable))
-        ? collectionTableName(rawTable)
-        : rawTable.startsWith("collection_") && _tableDateCols.has(rawTable.slice(11))
-          ? rawTable.slice(11)
-          : rawTable);
-  const hasSchema = table ? _tableDateCols.has(table) : false;
-  const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
-  const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
+  const meta = cachedMeta ?? resolveDateConversionMeta(options?.table, options?.skipJson === true);
+  const { table, hasSchema, dateCols, jsonCols, skipMerge, bools } = meta;
   const skipJson = options?.skipJson === true;
 
   if (options?.inPlace && hasSchema && dateCols) {
@@ -512,14 +550,13 @@ export function convertDatesToISO(
       }
     }
     if (!skipJson && jsonCols && jsonCols.length > 0) {
-      const skipMerge = table ? getTableMergeSkipKeys(table) : null;
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
         const v = normalizeJsonFieldValue(row[k], options);
         if (!flattenDataColumn(row, k, v, skipMerge)) row[k] = v;
       }
     }
-    coerceBooleanCols(row, table);
+    coerceBooleanCols(row, table, bools);
     return row;
   }
 
@@ -545,7 +582,6 @@ export function convertDatesToISO(
   }
 
   if (!skipJson && jsonCols && jsonCols.length > 0) {
-    const skipMerge = table ? getTableMergeSkipKeys(table) : null;
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
       const v = normalizeJsonFieldValue(row[k], options);
@@ -589,7 +625,7 @@ export function convertDatesToISO(
     }
   }
 
-  coerceBooleanCols(result, table);
+  coerceBooleanCols(result, table, bools);
 
   return result;
 }
@@ -604,24 +640,15 @@ export const convertArrayDatesToISO = (
   },
 ) => {
   if (!rows || rows.length === 0) return [];
-  const rawTable = options?.table;
-  const table =
-    rawTable &&
-    (_tableDateCols.has(rawTable)
-      ? rawTable
-      : _tableDateCols.has(collectionTableName(rawTable))
-        ? collectionTableName(rawTable)
-        : rawTable.startsWith("collection_") && _tableDateCols.has(rawTable.slice(11))
-          ? rawTable.slice(11)
-          : rawTable);
-  const resolvedOpts = table !== rawTable ? { ...options, table } : options;
+  const meta = resolveDateConversionMeta(options?.table, options?.skipJson === true);
+  const resolvedOpts = meta.table !== options?.table ? { ...options, table: meta.table } : options;
   if (resolvedOpts?.inPlace) {
     for (let i = 0; i < rows.length; i++) {
-      rows[i] = convertDatesToISO(rows[i], resolvedOpts);
+      rows[i] = convertDatesToISO(rows[i], resolvedOpts, meta);
     }
     return rows;
   }
-  return rows.map((r) => convertDatesToISO(r, resolvedOpts));
+  return rows.map((r) => convertDatesToISO(r, resolvedOpts, meta));
 };
 
 export function convertISOToDates(
@@ -891,20 +918,6 @@ const COMMON_SQL_IDENTIFIERS = new Set([
   "folder",
   "folderId",
 ]);
-
-/**
- * Pre-registers a batch of known safe SQL identifiers (e.g. from compiled collection definitions)
- * into the fast-path set, bypassing regex validation on future queries.
- */
-export function registerSafeSqlIdentifiers(names: Iterable<string>): void {
-  for (const name of names) {
-    if (typeof name === "string" && name.length <= 63 && SAFE_SQL_IDENTIFIER_REGEX.test(name)) {
-      if (_safeSqlIdentifierSet.size < 4096) {
-        _safeSqlIdentifierSet.add(name);
-      }
-    }
-  }
-}
 
 export function assertSafeSqlIdentifier(name: string, label = "field"): string {
   if (typeof name !== "string") {

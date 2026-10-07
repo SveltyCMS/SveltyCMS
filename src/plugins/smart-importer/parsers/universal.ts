@@ -18,6 +18,12 @@
 import { nowISODateString } from "@utils/date";
 import type { SNCEnvelope, SNCEntry } from "../types";
 
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
+
 // ============================================================================
 // 1. CSV / TSV / Spreadsheet Parser
 // ============================================================================
@@ -669,7 +675,7 @@ export async function fetchFromAPI(
 ): Promise<SNCEnvelope | null> {
   try {
     // 🛡️ SSRF: configured API URLs are still user/admin input — egress-guard only
-    const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+    const { validateEgressUrl, safeFetch } = await loadEgressGuardModule();
     const allowHttp = process.env.NODE_ENV === "development";
     const allItems: any[] = [];
     const headers: Record<string, string> = {

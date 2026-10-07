@@ -120,40 +120,15 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
     }
 
     // ── Measure one scenario ──────────────────────────────────────────────
-    async function measureScenario(scenario: "baseline" | "ale"): Promise<ScenarioResult> {
-      const times: number[] = [];
-      // warmup
-      for (let i = 0; i < WARMUP; i++) {
-        const doc: any = await makeDoc(i);
-        if (scenario === "ale") {
-          await encryptDocumentFields(doc, ENCRYPTED_FIELDS, {
-            collectionId: COLLECTION_ID,
-            tenantId: TEST_TENANT,
-          });
-        }
-        await adapter.crud.insert(COLLECTION_ID, doc, opts);
-      }
-      const cpuBefore = process.cpuUsage();
-      const clockStart = performance.now();
-      for (let i = 0; i < WRITES; i++) {
-        const doc: any = await makeDoc(i);
-        const t0 = performance.now();
-        if (scenario === "ale") {
-          await encryptDocumentFields(doc, ENCRYPTED_FIELDS, {
-            collectionId: COLLECTION_ID,
-            tenantId: TEST_TENANT,
-          });
-        }
-        await adapter.crud.insert(COLLECTION_ID, doc, opts);
-        times.push(performance.now() - t0);
-      }
-      const clockEnd = performance.now();
-      const cpuAfter = process.cpuUsage();
-      const totalMs = clockEnd - clockStart;
-      const cpuMs = (cpuAfter.user - cpuBefore.user + cpuAfter.system - cpuBefore.system) / 1000;
+    // ── Scenario statistics (per arm) ──────────────────────────────────────
+    function buildScenarioResult(
+      scenario: "baseline" | "ale",
+      times: number[],
+      totalMs: number,
+      cpuMs: number,
+    ): ScenarioResult {
       const sorted = [...times].sort((a, b) => a - b);
       const avg = times.reduce((a, b) => a + b, 0) / times.length;
-      const writesPerSec = (WRITES / totalMs) * 1000;
       return {
         scenarios: scenario,
         avgMs: avg,
@@ -161,10 +136,58 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
         p95Ms: percentile(sorted, 95),
         minMs: sorted[0],
         maxMs: sorted[sorted.length - 1],
-        writesPerSec,
+        writesPerSec: (WRITES / totalMs) * 1000,
         cpuMs,
         cpuPercent: Math.max(0, Math.min(100, (cpuMs / Math.max(totalMs, 1)) * 100)),
         totalMs,
+      };
+    }
+
+    // ── Measure one run — PAIRED, interleaved arms ─────────────────────────
+    // The plaintext and encrypted writes alternate within the SAME loop so host
+    // drift (GC pauses, scheduler/thermal, page cache) lands on both arms
+    // equally instead of on whichever block happened to run second. Per-run
+    // deltas are then combined with a median, which residual noise cannot flip
+    // to the wrong sign — the old block-sequential mean did, and read −1.8 %.
+    async function measurePair(): Promise<{ baseline: ScenarioResult; ale: ScenarioResult }> {
+      // Warm up BOTH arms before any timed work (JIT + prepared statements).
+      for (let i = 0; i < WARMUP; i++) {
+        const plain: any = await makeDoc(i);
+        await adapter.crud.insert(COLLECTION_ID, plain, opts);
+        const encrypted: any = await makeDoc(i);
+        await encryptDocumentFields(encrypted, ENCRYPTED_FIELDS, {
+          collectionId: COLLECTION_ID,
+          tenantId: TEST_TENANT,
+        });
+        await adapter.crud.insert(COLLECTION_ID, encrypted, opts);
+      }
+
+      const baselineTimes: number[] = [];
+      const aleTimes: number[] = [];
+      const cpuBefore = process.cpuUsage();
+      const clockStart = performance.now();
+      for (let i = 0; i < WRITES; i++) {
+        const plain: any = await makeDoc(i);
+        const plainStart = performance.now();
+        await adapter.crud.insert(COLLECTION_ID, plain, opts);
+        baselineTimes.push(performance.now() - plainStart);
+
+        const encrypted: any = await makeDoc(i);
+        const aleStart = performance.now();
+        await encryptDocumentFields(encrypted, ENCRYPTED_FIELDS, {
+          collectionId: COLLECTION_ID,
+          tenantId: TEST_TENANT,
+        });
+        await adapter.crud.insert(COLLECTION_ID, encrypted, opts);
+        aleTimes.push(performance.now() - aleStart);
+      }
+      const clockEnd = performance.now();
+      const cpuAfter = process.cpuUsage();
+      const totalMs = clockEnd - clockStart;
+      const cpuMs = (cpuAfter.user - cpuBefore.user + cpuAfter.system - cpuBefore.system) / 1000;
+      return {
+        baseline: buildScenarioResult("baseline", baselineTimes, totalMs, cpuMs),
+        ale: buildScenarioResult("ale", aleTimes, totalMs, cpuMs),
       };
     }
 
@@ -172,8 +195,7 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
 
     for (let run = 1; run <= RUNS; run++) {
       console.log(`\n=== Run ${run}/${RUNS} ===`);
-      const baseline = await measureScenario("baseline");
-      const ale = await measureScenario("ale");
+      const { baseline, ale } = await measurePair();
       runResults.push({ run, baseline, ale });
       console.log(
         `  baseline avg ${fmtDuration(baseline.avgMs)} · ${Math.round(baseline.writesPerSec)} w/s · cpu ${baseline.cpuPercent.toFixed(1)}%`,
@@ -184,39 +206,56 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
     }
 
     // ── Aggregate and persist ──────────────────────────────────────────────
-    const avgOf = (key: keyof ScenarioResult, arr: ScenarioResult[]) =>
-      arr.reduce((a, r) => a + (r[key] as number), 0) / arr.length;
+    // Median across runs for every per-run statistic; the overhead is derived
+    // from PAIRED per-run deltas so it reflects the effect, not block drift.
+    const medianOf = (values: number[]) => {
+      const s = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(s.length / 2);
+      return s.length % 2 === 0 ? (s[mid - 1]! + s[mid]!) / 2 : s[mid]!;
+    };
+    const medianOfKey = (key: keyof ScenarioResult, arr: ScenarioResult[]) =>
+      medianOf(arr.map((r) => r[key] as number));
 
     const baselines = runResults.map((r) => r.baseline);
     const ales = runResults.map((r) => r.ale);
 
     const baselineAgg = {
-      avgMs: avgOf("avgMs", baselines),
-      p50Ms: avgOf("p50Ms", baselines),
-      p95Ms: avgOf("p95Ms", baselines),
-      minMs: avgOf("minMs", baselines),
-      maxMs: avgOf("maxMs", baselines),
-      writesPerSec: avgOf("writesPerSec", baselines),
-      cpuPercent: avgOf("cpuPercent", baselines),
+      avgMs: medianOfKey("avgMs", baselines),
+      p50Ms: medianOfKey("p50Ms", baselines),
+      p95Ms: medianOfKey("p95Ms", baselines),
+      minMs: medianOfKey("minMs", baselines),
+      maxMs: medianOfKey("maxMs", baselines),
+      writesPerSec: medianOfKey("writesPerSec", baselines),
+      cpuPercent: medianOfKey("cpuPercent", baselines),
     };
     const aleAgg = {
-      avgMs: avgOf("avgMs", ales),
-      p50Ms: avgOf("p50Ms", ales),
-      p95Ms: avgOf("p95Ms", ales),
-      minMs: avgOf("minMs", ales),
-      maxMs: avgOf("maxMs", ales),
-      writesPerSec: avgOf("writesPerSec", ales),
-      cpuPercent: avgOf("cpuPercent", ales),
+      avgMs: medianOfKey("avgMs", ales),
+      p50Ms: medianOfKey("p50Ms", ales),
+      p95Ms: medianOfKey("p95Ms", ales),
+      minMs: medianOfKey("minMs", ales),
+      maxMs: medianOfKey("maxMs", ales),
+      writesPerSec: medianOfKey("writesPerSec", ales),
+      cpuPercent: medianOfKey("cpuPercent", ales),
     };
-    const overheadAgg = {
-      avgLatencyDeltaMs: aleAgg.avgMs - baselineAgg.avgMs,
-      avgLatencyPercent:
-        ((aleAgg.avgMs - baselineAgg.avgMs) / Math.max(baselineAgg.avgMs, 0.0001)) * 100,
-      throughputDropWritesSec: aleAgg.writesPerSec - baselineAgg.writesPerSec,
-      throughputDropPercent:
-        ((aleAgg.writesPerSec - baselineAgg.writesPerSec) /
-          Math.max(baselineAgg.writesPerSec, 0.0001)) *
+
+    const perRunLatencyDeltaMs = runResults.map((r) => r.ale.avgMs - r.baseline.avgMs);
+    const perRunLatencyPercent = runResults.map(
+      (r) => ((r.ale.avgMs - r.baseline.avgMs) / Math.max(r.baseline.avgMs, 0.0001)) * 100,
+    );
+    const perRunThroughputDelta = runResults.map(
+      (r) => r.ale.writesPerSec - r.baseline.writesPerSec,
+    );
+    const perRunThroughputPercent = runResults.map(
+      (r) =>
+        ((r.ale.writesPerSec - r.baseline.writesPerSec) /
+          Math.max(r.baseline.writesPerSec, 0.0001)) *
         100,
+    );
+    const overheadAgg = {
+      avgLatencyDeltaMs: medianOf(perRunLatencyDeltaMs),
+      avgLatencyPercent: medianOf(perRunLatencyPercent),
+      throughputDropWritesSec: medianOf(perRunThroughputDelta),
+      throughputDropPercent: medianOf(perRunThroughputPercent),
       cpuDeltaPercent: aleAgg.cpuPercent - baselineAgg.cpuPercent,
     };
 

@@ -172,10 +172,10 @@
 				{/if}
 			</div>
 
-			<p class="mt-2 text-center text-xs text-surface-500">
+			<p class="mt-2 text-center text-xs text-surface-600 dark:text-surface-400">
 				<a
 					href="/privacy-policy"
-					class="hover:underline hover:text-tertiary-500 dark:text-primary-500"
+					class="text-surface-600 underline underline-offset-2 hover:text-tertiary-500 dark:text-primary-500"
 					>{cookie_privacy_policy()}</a
 				>
 			</p>

@@ -319,13 +319,3 @@ export function isWidgetDefinition(value: unknown): value is WidgetDefinition {
     "validationSchema" in value
   );
 }
-
-export function isFieldInstance(value: unknown): value is FieldInstance {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "widget" in value &&
-    "label" in value &&
-    "db_fieldName" in value
-  );
-}

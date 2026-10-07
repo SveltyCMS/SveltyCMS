@@ -33,6 +33,12 @@ import { type LocalApiOptions, type TokenOptions } from "./types";
 import { bulkImportCollectionDocuments } from "@src/services/background/jobs/import-jobs";
 import { lazyModule } from "@src/utils/lazy-module";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 export abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}
 }
@@ -670,7 +676,7 @@ export class SystemNamespace {
   }
   async refresh(options: LocalApiOptions & { skipReconciliation?: boolean } = {}) {
     const { tenantId, skipReconciliation = false } = options;
-    const { contentSystem } = await import("@src/content/index.server");
+    const { contentSystem } = await loadContentModule();
     return contentSystem.refresh(tenantId as string, skipReconciliation);
   }
   async getPreferences(

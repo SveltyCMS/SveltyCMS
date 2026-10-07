@@ -8,7 +8,12 @@ import { describe, expect, it, vi } from "vitest";
 import { asc, desc, sql, type SQL } from "drizzle-orm";
 import { SQLiteSyncDialect, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { BaseEntity } from "@src/databases/db-interface";
-import { SqlQueryBuilder, SQLITE_DIALECT } from "@src/databases/core/sql-query-builder";
+import {
+  POSTGRES_DIALECT,
+  SqlQueryBuilder,
+  SQLITE_DIALECT,
+} from "@src/databases/core/sql-query-builder";
+import { listIndexRequest } from "@src/databases/core/sql-adapter-core";
 import { registerTableSchema } from "@src/databases/core/relational-utils";
 import {
   buildFindPageResult,
@@ -365,5 +370,186 @@ describe("SqlQueryBuilder paginated ORDER BY tie-breaker", () => {
   it("keyset round-trip preserves the emitted page order (desc ties are _id-descending)", async () => {
     const visited = await walkKeyset(TIE_ROWS, 3, { createdAt: -1 });
     expect(visited).toEqual(["c", "b", "a", "f", "e", "d", "h", "g"]);
+  });
+});
+
+describe("SqlQueryBuilder prepared list plan", () => {
+  const posts = sqliteTable("posts", {
+    _id: text("_id").primaryKey(),
+    status: text("status"),
+    createdAt: text("createdAt"),
+    tenantId: text("tenantId"),
+  });
+
+  function compiledCore(dialectSql: (sqlText: string, params: readonly unknown[]) => unknown[]) {
+    const calls: Array<{ sql: string; params: readonly unknown[] }> = [];
+    const noted: Array<{ order: unknown; equality: readonly string[] }> = [];
+    const select = vi.fn();
+    const core = {
+      db: { select },
+      getTable: () => posts,
+      getJsonField: () => sql`data`,
+      handleError: () => ({
+        success: false as const,
+        message: "err",
+        error: { code: "TEST_ERR", message: "err" },
+      }),
+      notImplemented: () => ({
+        success: false as const,
+        message: "ni",
+        error: { code: "TEST_NI", message: "ni" },
+      }),
+      registerReadSchema: vi.fn(),
+      executeCompiled: async (sqlText: string, params: readonly unknown[]) => {
+        calls.push({ sql: sqlText, params });
+        return dialectSql(sqlText, params);
+      },
+      noteListSort: (
+        _collection: string,
+        order: readonly { name: string; direction: "asc" | "desc" }[],
+        equality: readonly string[],
+      ) => {
+        noted.push({ order, equality });
+      },
+    };
+    return { core, calls, noted, select };
+  }
+
+  it("binds the admin list shape and skips Drizzle", async () => {
+    const { core, calls, noted, select } = compiledCore(() => [
+      { _id: "1", status: "publish", createdAt: "2026-01-01", tenantId: "global" },
+    ]);
+    const qb = new SqlQueryBuilder(core, "posts", SQLITE_DIALECT);
+    const res = await qb
+      .where({ tenantId: "global" } as never)
+      .sort("createdAt", "desc")
+      .paginate({ page: 1, pageSize: 50 })
+      .execute();
+    if (!res.success) throw new Error("expected success");
+    expect(select).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toBe(
+      'SELECT "_id", "status", "createdAt", "tenantId" FROM "posts" WHERE "tenantId" = ? ORDER BY "createdAt" DESC, "_id" DESC LIMIT ? OFFSET ?',
+    );
+    expect(calls[0].params).toEqual(["global", 50, 0]);
+    expect(noted[0]?.order).toEqual([
+      { name: "createdAt", direction: "desc" },
+      { name: "_id", direction: "desc" },
+    ]);
+    expect(noted[0]?.equality).toEqual(["tenantId"]);
+    expect(calls[0].sql.includes("global")).toBe(false);
+  });
+
+  it("reuses the SQL text when only the bound value changes", async () => {
+    const { core, calls } = compiledCore(() => []);
+    const first = new SqlQueryBuilder(core, "posts", POSTGRES_DIALECT);
+    await first
+      .where({ tenantId: "a" } as never)
+      .sort("createdAt", "desc")
+      .paginate({ page: 1, pageSize: 50 })
+      .execute();
+    const second = new SqlQueryBuilder(core, "posts", POSTGRES_DIALECT);
+    await second
+      .where({ tenantId: "b" } as never)
+      .sort("createdAt", "desc")
+      .paginate({ page: 2, pageSize: 50 })
+      .execute();
+    expect(calls[0].sql).toBe(calls[1].sql);
+    expect(calls[0].sql).toContain('WHERE "tenantId" = $1');
+    expect(calls[0].sql).toContain("LIMIT $2 OFFSET $3");
+    expect(calls[0].params).toEqual(["a", 50, 0]);
+    expect(calls[1].params).toEqual(["b", 50, 50]);
+  });
+
+  it("keeps JSON filters on Drizzle", async () => {
+    const { core, calls, select } = compiledCore(() => []);
+    const chain = chainFrom([]);
+    select.mockImplementation(() => ({ from: () => chain }));
+    const qb = new SqlQueryBuilder(core, "posts", SQLITE_DIALECT);
+    await qb.where({ title: "Hello" } as never).execute();
+    expect(calls).toHaveLength(0);
+    expect(select).toHaveBeenCalled();
+  });
+
+  it("compiles count for the same equality", async () => {
+    const { core, calls, select } = compiledCore(() => [{ count: 12 }]);
+    const qb = new SqlQueryBuilder(core, "posts", SQLITE_DIALECT);
+    const res = await qb.where({ status: "publish" } as never).count();
+    if (!res.success) throw new Error("expected success");
+    expect(res.data).toBe(12);
+    expect(select).not.toHaveBeenCalled();
+    expect(calls[0].sql).toBe('SELECT count(*) AS count FROM "posts" WHERE "status" = ?');
+    expect(calls[0].params).toEqual(["publish"]);
+  });
+
+  it("compiles findOne with LIMIT 1 on physical equality", async () => {
+    const { core, calls, select } = compiledCore(() => [
+      { _id: "42", status: "draft", createdAt: "2026-01-01", tenantId: "global" },
+    ]);
+    const qb = new SqlQueryBuilder(core, "posts", SQLITE_DIALECT);
+    const res = await qb.where({ _id: "42" } as never).findOne();
+    if (!res.success) throw new Error("expected success");
+    expect(res.data).toEqual({
+      _id: "42",
+      status: "draft",
+      createdAt: "2026-01-01",
+      tenantId: "global",
+    });
+    expect(select).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toContain('WHERE "_id" = ?');
+    expect(calls[0].sql).toContain("LIMIT ?");
+    expect(calls[0].params).toEqual(["42", 1]);
+  });
+
+  it("compiles exists with LIMIT 1 on physical equality", async () => {
+    const { core, calls, select } = compiledCore(() => [{ _id: "42" }]);
+    const qb = new SqlQueryBuilder(core, "posts", SQLITE_DIALECT);
+    const res = await qb.where({ _id: "42" } as never).exists();
+    if (!res.success) throw new Error("expected success");
+    expect(res.data).toBe(true);
+    expect(select).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toContain('WHERE "_id" = ?');
+    expect(calls[0].sql).toContain("LIMIT ?");
+    expect(calls[0].params).toEqual(["42", 1]);
+  });
+});
+
+describe("listIndexRequest", () => {
+  it("asks for a tenant-leading createdAt index", () => {
+    expect(
+      listIndexRequest(
+        [
+          { name: "createdAt", direction: "desc" },
+          { name: "_id", direction: "desc" },
+        ],
+        ["tenantId"],
+      ),
+    ).toEqual({ column: "createdAt", direction: "desc", withTenant: true });
+  });
+
+  it("leaves the stock updatedAt order alone", () => {
+    expect(
+      listIndexRequest(
+        [
+          { name: "updatedAt", direction: "desc" },
+          { name: "_id", direction: "desc" },
+        ],
+        ["tenantId"],
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects a mixed-direction tie-break", () => {
+    expect(
+      listIndexRequest(
+        [
+          { name: "createdAt", direction: "desc" },
+          { name: "_id", direction: "asc" },
+        ],
+        ["tenantId"],
+      ),
+    ).toBeNull();
   });
 });

@@ -4,7 +4,7 @@
  *              optional DX plugins (inspector, quiet build, LiteRT WASM) gated.
  */
 import { exec } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, promises as fsPromises } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, promises as fsPromises } from "node:fs";
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
@@ -453,8 +453,29 @@ function sveltyCmsPlugin(): Plugin {
 
   const handleHmr = async (server: ViteDevServer, event: string, file: string) => {
     const absoluteFile = path.resolve(file);
-    const isCollectionFile =
-      absoluteFile.startsWith(paths.userCollections) && /\.(ts|js)$/.test(file);
+    const underCollections =
+      absoluteFile === paths.userCollections ||
+      absoluteFile.startsWith(paths.userCollections + path.sep);
+    const isCollectionFile = underCollections && /\.(ts|js)$/.test(absoluteFile);
+    // Creating or removing a folder under config/collections must compile even
+    // when the folder has no .ts file. Compilation records it as a category.
+    let isCollectionDir = false;
+    if (
+      underCollections &&
+      absoluteFile !== paths.userCollections &&
+      (event === "addDir" || event === "unlinkDir" || event === "add" || event === "unlink") &&
+      !isCollectionFile
+    ) {
+      if (event === "addDir" || event === "unlinkDir" || event === "unlink") {
+        isCollectionDir = true;
+      } else {
+        try {
+          isCollectionDir = statSync(absoluteFile).isDirectory();
+        } catch {
+          isCollectionDir = false;
+        }
+      }
+    }
     const isWidgetFile =
       absoluteFile.startsWith(paths.widgets) &&
       (file.endsWith("index.ts") || file.endsWith(".svelte"));
@@ -473,9 +494,10 @@ function sveltyCmsPlugin(): Plugin {
       return;
     }
 
-    if (isCollectionFile) {
-      pendingCollectionFiles.add(absoluteFile);
-      if (event === "unlink" || event === "unlinkDir") pendingCollectionDelete = true;
+    if (isCollectionFile || isCollectionDir) {
+      if (isCollectionFile) pendingCollectionFiles.add(absoluteFile);
+      if (event === "unlink" || event === "unlinkDir" || isCollectionDir)
+        pendingCollectionDelete = true;
 
       clearTimeout(compileTimeout);
       compileTimeout = setTimeout(async () => {
@@ -1436,10 +1458,14 @@ export default defineConfig(() => {
           "**/logs/**",
           "**/mediaFolder/**",
           "**/src/content/types.ts",
-          // Generated Paraglide output — watching it loops with paraglideVitePlugin.
-          // Source catalogs (`src/messages/*.json`) and `project.inlang/settings.json`
-          // stay watched so adding a system locale recompiles. Ignore the plugin cache.
-          "**/src/paraglide/**",
+          // NOTE: `src/paraglide/**` (generated output) must NOT be ignored.
+          // paraglideVitePlugin recompiles it when a catalog changes but never
+          // invalidates the bundler's module graph itself, so Vite must watch the
+          // output — otherwise SSR/client keep a stale messages module and any file
+          // importing a newly added key crashes on edit with
+          // `(0, __vite_ssr_import__.some_key) is not a function`. This cannot loop:
+          // the plugin treats its own outdir as an ignored watch path, so writes to
+          // the output never trigger a recompile. Only the plugin cache stays ignored.
           "**/project.inlang/cache/**",
         ],
       },

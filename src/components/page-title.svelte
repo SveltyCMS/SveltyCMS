@@ -52,6 +52,12 @@
 		type NavFavoriteColor
 	} from '@src/stores/floating-nav-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import {
+		error_goback,
+		page_title_fav_fixed,
+		page_title_fav_pin,
+		page_title_fav_remove
+	} from '@src/paraglide/messages';
 	import { page } from '$app/state';
 
 	type DefaultBehaviorFn = () => void;
@@ -148,10 +154,10 @@
 
 	const favoriteTooltip = $derived(
 		isFixedNavItem
-			? 'Always available in floating navigation'
+			? page_title_fav_fixed()
 			: isFavorited
-				? 'Remove from floating navigation'
-				: 'Pin to floating navigation'
+				? page_title_fav_remove()
+				: page_title_fav_pin()
 	);
 </script>
 
@@ -170,10 +176,9 @@
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="h-9 w-9 shrink-0 p-0! min-w-0 hover:bg-(--admin-border-subtle)"
-				style="color: var(--admin-text-body)"
+				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
 			>
-				<iconify-icon icon="mingcute:menu-fill" width="22" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mingcute:menu-fill" width="20" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/if}
 		<div class="flex min-w-0 flex-col justify-center">
@@ -262,10 +267,10 @@
 
 		{#if showBackButton}
 			{#if backUrl}
-				<SystemTooltip title="Go back" role={null} tabindex={null}>
+				<SystemTooltip title={error_goback()} role={null} tabindex={null}>
 					<a
 						href={backUrl}
-						aria-label="Go back"
+						aria-label={error_goback()}
 						class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle)
 							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
 						style="border-color: var(--admin-border-default); color: var(--admin-text-body)"
@@ -273,7 +278,11 @@
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}
 					>
-						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"
+						<iconify-icon
+							icon="ri:arrow-left-line"
+							width={compact ? '20' : '24'}
+							class="rtl:rotate-180"
+							aria-hidden="true"
 						></iconify-icon>
 					</a>
 				</SystemTooltip>
@@ -281,7 +290,7 @@
 				<Button
 					variant="outline"
 					onclick={(e: MouseEvent) => handleBackClick(e)}
-					aria-label="Go back"
+					aria-label={error_goback()}
 					tabindex="0"
 					rounded={true}
 					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact
@@ -289,7 +298,11 @@
 						: 'h-10 w-10'}"
 					data-cms-action="back"
 				>
-					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"
+					<iconify-icon
+						icon="ri:arrow-left-line"
+						width={compact ? '20' : '24'}
+						class="rtl:rotate-180"
+						aria-hidden="true"
 					></iconify-icon>
 				</Button>
 			{/if}

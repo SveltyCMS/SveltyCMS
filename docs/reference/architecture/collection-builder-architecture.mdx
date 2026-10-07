@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2026-01-31"
-updated: "2026-07-31"
+updated: "2026-10-06"
 tags:
   - "architecture"
   - "collection-builder"
@@ -72,9 +72,9 @@ The `config/collections` directory is the primary source of truth for **Collecti
 > **Categories** come from two sources:
 >
 > 1. **Path-derived** (`source: "filesystem"`) — auto-created when collections live in subfolders, e.g. `config/collections/test/posts.ts` → category `test`.
-> 2. **Builder-created** (`source: "builder"`) — virtual folders created in the GUI. Persisted in `content_nodes` and backed up in `.compilation-manifest.json` under `structureNodes`.
+> 2. **Builder-created** (`source: "builder"`) — a real directory created from the category path. `/blog` becomes `config/collections/blog/` and `.compiledCollections/blog/`. The same node is stored in `content_nodes` and backed up in `.compilation-manifest.json` under `structureNodes`. The compiler keeps that directory while the category exists, including when it is still empty.
 >
-> GUI drag-and-drop updates **organization** (parentId, order) in DB + manifest. It does **not** move `.ts` files on disk unless you save a new collection path or move files manually.
+> GUI drag-and-drop updates **organization** (parentId, order) in the database and the manifest. Dropping a category inside another category moves its directory (`blog/` becomes `news/blog/` under `config/collections/` and `.compiledCollections/`). Reordering siblings updates `order` and leaves the directory name in place. A folder created directly under `config/collections/` is picked up by the Vite dev watcher, which runs compilation and records that folder as a category.
 
 ### 2. ContentSystem (The Reconciliation Engine)
 
@@ -93,12 +93,14 @@ Located at `src/content/index.ts`, this singleton is responsible for bridging th
 
 ### 3. Organizational vs Filesystem Boundaries
 
-| Operation                     | DB + manifest                              | Filesystem (`config/collections/`)    |
-| :---------------------------- | :----------------------------------------- | :------------------------------------ |
-| Drag collection into category | `parentId`, `order` updated                | **Unchanged** — org-only              |
-| Create virtual category       | New `content_nodes` row + `structureNodes` | No folder created                     |
-| Delete builder category       | Removed from DB + manifest                 | N/A                                   |
-| Save new collection schema    | `collection-save` reconcile + models       | `.ts` written; compile under GUI lock |
+| Operation                      | DB + manifest                              | Filesystem (`config/collections/` and `.compiledCollections/`) |
+| :----------------------------- | :----------------------------------------- | :------------------------------------------------------------- |
+| Drag category into a category  | `parentId`, `order` updated                | Category directory moves under the parent folder               |
+| Reorder within the same parent | `order` updated                            | Directory stays in place                                       |
+| Create a folder on disk        | Category recorded on the next compile      | `config/collections/<name>/` is the source                     |
+| Create category                | New `content_nodes` row + `structureNodes` | Directory from the path (`/blog` → `blog/`)                    |
+| Delete builder category        | Removed from DB + manifest                 | Empty category directory removed                               |
+| Save new collection schema     | `collection-save` reconcile + models       | `.ts` written; compile under GUI lock                          |
 
 > [!NOTE]
 > GUI drag-and-drop is **organizational only**. To change where a collection lives on disk, edit or move the `.ts` file under `config/collections/` (or use the collection editor save path). The compile pipeline and boot drift detection (`detectCompilationDrift`) handle filesystem ↔ compiled output separately from organizational manifest drift (`detectOrganizationalDrift`).
@@ -146,14 +148,17 @@ Generates production-grade `defineCollection({ ... })` TypeScript source code in
 - **Live Split-View**: Embedded in `collection-widget.svelte`, updating reactively as users reorder or edit fields.
 - **Zero Disk Overhead**: Operates entirely in-memory using Svelte 5 derived state runes.
 
-#### Database DDL & Schema Ingestion Engine (`ddl-schema-parser.ts`)
+#### Database DDL & Schema Ingestion Engine (`schema-ingestion.ts` → `ingestSchema` remote)
 
-Reverse-engineers existing database schemas and API payloads directly into collections.
+Reverse-engineers existing database schemas and API payloads directly into collections. The engine (`schema-ingestion.ts`) is a pure, dependency-free module, but it is **executed on the server** through the `ingestSchema` remote function in `collectionbuilder.remote.ts` — the client only imports its types, so the parser never ships to the browser.
 
 - **Multi-Dialect DDL Parsing**: Supports PostgreSQL, MySQL, MariaDB, and SQLite `CREATE TABLE` syntaxes.
-- **Relational Introspection**: Resolves `FOREIGN KEY ... REFERENCES table(id)` into target collection references.
-- **Enum & Check Constraints**: Translates `ENUM(...)` and `CHECK` values into populated `Select` dropdown options.
-- **JSON Payload Reverse-Engineering**: Synthesizes schema definitions and widget bindings from sample JSON objects/arrays.
+- **Context-Aware Relations**: Resolves `FOREIGN KEY ... REFERENCES table(id)` and `*_id` columns into `Relation` widgets, matching the target against the **live collection list** (singular/plural aware) so suggestions point at real collections.
+- **Enum & Check Constraints**: Translates `ENUM(...)` and `CHECK (col IN (...))` into populated `Select` options.
+- **Canonical Widget Resolution**: Normalizes every inferred key to a registered widget factory `Name` (`Checkbox`, `DateTime`, `MediaUpload`, `JsonEditor`, …), guaranteeing the field binds to a real widget.
+- **Type Coverage**: Boolean, integer, numeric (price-aware), date/time, text/long-text, string, UUID, JSON/JSONB, binary, and array (`tags TEXT[]` → `Tags`, structured arrays → `Repeater`).
+- **Defaults & Nullability**: `NOT NULL` → required; `DEFAULT true` → the widget's default value.
+- **JSON Payload Reverse-Engineering**: Synthesizes schemas from sample JSON objects/arrays (ISO strings → `DateTime`, URL strings → url `Input`, string arrays → `Tags`, object arrays → `Repeater`, nested objects → `Relation`).
 
 #### Unified Metadata & Tagging Store (`collection-metadata-store.svelte.ts`)
 

@@ -14,6 +14,28 @@
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
 import "@utils/v8-shim";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 import { metricsService } from "@src/services/observability/metrics-service";
 import { sequence, type Handle, type HandleServerError } from "@sveltejs/kit/hooks";
 import { isRedirect } from "@sveltejs/kit";
@@ -38,6 +60,7 @@ import { startScheduler } from "@src/services/scheduler";
 import { startBehavioralEngine } from "@src/services/intelligence/behavioral-learner";
 import {
   startWalCheckpointScheduler,
+  DEFAULT_MAX_WAL_BYTES,
   type WalCheckpointResult,
 } from "@src/services/background/wal-checkpoint.server";
 import { outboxService } from "@src/services/outbox";
@@ -238,7 +261,11 @@ async function ensureFullMiddleware() {
   cachedPipelineSetup = null;
 }
 
-if (setupComplete) {
+// Skip the eager warm-up during build analysis: SvelteKit runs the app while
+// building, but no request is served then, and prewarm would emit runtime-only
+// warnings (e.g. missing JWT secret). Requests still lazy-load the middleware
+// through getPipeline/handle(), which covers prerendering too.
+if (setupComplete && !building) {
   ensureFullMiddleware().catch((err) => logger.error("Failed to lazy-load full middleware:", err));
 }
 
@@ -301,7 +328,7 @@ if (!building) {
         // initial build off the request path.
         import("@src/routes/api/graphql/+server")
           .then(async ({ _getYogaApp }) => {
-            const { getDb } = await import("@src/databases/db");
+            const { getDb } = await loadDbModule();
             const adapter = getDb();
             if (adapter && typeof adapter.isConnected === "function" && adapter.isConnected()) {
               await _getYogaApp(adapter, "global");
@@ -347,13 +374,15 @@ if (!building) {
             clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
           }
 
-          setTimeout(() => {
+          const initialTelemetryCheck = setTimeout(() => {
             telemetryService
               .checkUpdateStatus()
               .catch((err) => logger.error("Initial telemetry check failed", err));
           }, 10_000);
+          // Housekeeping timers must never keep the event loop alive (clean Ctrl+C exit).
+          void initialTelemetryCheck.unref?.();
 
-          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+          const telemetryInterval = setInterval(
             () => {
               telemetryService
                 .checkUpdateStatus()
@@ -361,6 +390,8 @@ if (!building) {
             },
             1000 * 60 * 60 * 12, // 12 hours
           );
+          void telemetryInterval.unref?.();
+          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = telemetryInterval;
         }
 
         // 🚀 PRE-WARM LAZY WRITE-PATH MODULES (cold-start): the first collection
@@ -423,29 +454,40 @@ if (!building) {
 let inFlightRequests = 0;
 
 /**
- * Schedule SQLite WAL checkpoints when the deployment opted in
- * (`SVELTY_WAL_CHECKPOINT=1`, paired with `SQLITE_WAL_AUTOCHECKPOINT=0`).
+ * Schedule SQLite WAL checkpoints. Runs by default (opt out with
+ * `SVELTY_WAL_CHECKPOINT=0`), paired with the default `wal_autocheckpoint=0`.
  *
  * The measured 2026-09-27 A/B (achievements §3.35) put every >10 ms write statement in
  * the auto-checkpoint's synchronous fsync path. With the auto-checkpoint disabled, this
  * runs the checkpoint when `inFlightRequests` is 0 — the cost lands in a quiet moment
- * instead of on a waiting request — and forces one after 60 s without an idle window so
- * a never-idle server cannot grow the WAL without bound.
+ * instead of on a waiting request — forces one after 60 s without an idle window, and
+ * checkpoints early once the WAL exceeds the size cap (`SVELTY_WAL_MAX_BYTES`, default
+ * 64 MB) so a never-idle server cannot grow the WAL without bound.
  *
  * Adapter-agnostic: only SQLite exposes `runWalCheckpoint`, so other engines no-op.
  */
 async function startWalHousekeeping(): Promise<void> {
-  if (process.env.SVELTY_WAL_CHECKPOINT !== "1") return;
+  if (process.env.SVELTY_WAL_CHECKPOINT === "0") return;
   // Dynamic import keeps the DB layer out of the hook's boot graph (the same
   // pattern as the GraphQL pre-warm above); the module is already loaded at READY.
-  const { getDb } = await import("@src/databases/db");
+  const { getDb } = await loadDbModule();
   // Structural narrowing: only the SQLite adapter exposes `runWalCheckpoint`.
   const adapter = getDb() as unknown as
-    | { runWalCheckpoint?: (mode: "PASSIVE") => WalCheckpointResult }
+    | {
+        runWalCheckpoint?: (mode: "PASSIVE") => WalCheckpointResult;
+        getWalSizeBytes?: () => number;
+      }
     | null
     | undefined;
   if (typeof adapter?.runWalCheckpoint !== "function") return;
   const checkpoint = adapter.runWalCheckpoint.bind(adapter);
+  const walSizeBytes =
+    typeof adapter.getWalSizeBytes === "function"
+      ? adapter.getWalSizeBytes.bind(adapter)
+      : undefined;
+
+  const rawMax = process.env.SVELTY_WAL_MAX_BYTES?.trim();
+  const maxWalBytes = rawMax && /^\d+$/.test(rawMax) ? Number(rawMax) : DEFAULT_MAX_WAL_BYTES;
 
   const globalWithWal = globalThis as { __SVELTY_WAL_CHECKPOINT_STOP__?: () => void };
   // HMR re-evaluates this module — never stack schedulers.
@@ -454,6 +496,8 @@ async function startWalHousekeeping(): Promise<void> {
   globalWithWal.__SVELTY_WAL_CHECKPOINT_STOP__ = startWalCheckpointScheduler({
     checkpoint,
     isIdle: () => inFlightRequests === 0,
+    walSizeBytes,
+    maxWalBytes,
   });
 }
 /** Cheap per-request id sequence for the non-trace path (see handle()). */
@@ -483,9 +527,22 @@ if (!building) {
   if (!g.__SVELTY_SIGNAL_HANDLERS_INSTALLED__) {
     g.__SVELTY_SIGNAL_HANDLERS_INSTALLED__ = true;
 
+    let shutdownStartedAt = 0;
+
     const handleSignal = async (signal: string) => {
-      // Re-entrancy: double Ctrl+C / stacked HMR listeners must not re-enter
-      if (g.__SVELTY_SHUTTING_DOWN__) return;
+      // Re-entrancy: double Ctrl+C / stacked HMR listeners must not re-enter.
+      // A genuine SECOND signal is the user asking to force-quit — honour it
+      // instead of silently swallowing it (that made Ctrl+C look like a no-op
+      // whenever the first graceful pass stalled). Same-tick duplicates from
+      // stacked listeners are ignored via the time guard.
+      if (g.__SVELTY_SHUTTING_DOWN__) {
+        if (Date.now() - shutdownStartedAt > 500) {
+          logger.warn(`Received ${signal} again — forcing immediate exit.`);
+          process.exit(1);
+        }
+        return;
+      }
+      shutdownStartedAt = Date.now();
       g.__SVELTY_SHUTTING_DOWN__ = true;
 
       logger.info(`Received ${signal}. Starting graceful shutdown...`);
@@ -523,7 +580,7 @@ if (!building) {
         // dynamic import runs → "Vite module runner has been closed". Swallow that;
         // OS process exit still tears down sockets/DB handles.
         try {
-          const { shutdownSystem } = await import("@src/databases/db");
+          const { shutdownSystem } = await loadDbModule();
           await shutdownSystem();
         } catch (err) {
           if (isViteRunnerClosedError(err)) {
@@ -933,7 +990,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         // latency to cold start; schemaHits≈0 with schemaMisses climbing is the
         // per-request schema-rebuild signature (identity-flip class).
         try {
-          const { contentSystem } = await import("@src/content/index.server");
+          const { contentSystem } = await loadContentModule();
           health.content = contentSystem.getHealthStatus();
         } catch {}
         try {
@@ -1041,18 +1098,41 @@ export const handle: Handle = async ({ event, resolve }) => {
 // --- Global Error Handler (SvelteKit v3 compatible) ---
 /**
  * Catches ALL unhandled errors from page loads, API routes, and server functions.
- * Extracts structured codes from raise() calls via `__sveltyCode` in the error body.
  * Single source of truth for production error logging.
  *
- * 🚀 SK3: handleError receives a `CaughtError & { event }` input — the HTTP
- * status lives on the caught error object (app errors always carry status).
+ * 🚀 SK3: the input is a discriminated `CaughtError & { event }`. `input.error` is NOT
+ * the thrown `HttpError` — for `kind: "app"` it is the **body** passed to
+ * `error(status, body)`, for `"framework"`/`"validation"` a `{ status, message }`, and
+ * for `"unknown"` the raw thrown value (an `AppError` from `raise()` carries its own
+ * `status`/`code`). Reading the old `error.body`/`error.status` shape produced
+ * `"[object Object]"` and forced every status to 500 — do not reintroduce it.
  */
-export const handleError: HandleServerError = async (input) => {
-  const { error, event } = input;
-  const status = (error as { status?: number } | null)?.status ?? 500;
-  const body = (error as { body?: { __sveltyCode?: string; message?: string } } | null)?.body;
-  const code = body?.__sveltyCode || `HTTP_${status}`;
-  const message = body?.message || (error instanceof Error ? error.message : String(error ?? ""));
+// NOTE: This hook is intentionally SYNCHRONOUS. SvelteKit cannot apply an async
+// `handleError` to errors thrown while *rendering* unless the Svelte compiler's
+// `experimental.async` is enabled — with an async hook those errors are replaced
+// by a generic object ("handle_error_async_without_async_svelte"). Keeping it
+// sync means render errors (e.g. a stale module import) are logged with their
+// real message instead of being masked. There is no async work in this hook.
+export const handleError: HandleServerError = (input) => {
+  const { kind, error, event } = input;
+
+  let status = 500;
+  let code = "HTTP_500";
+  let message = "Internal Error";
+
+  if (kind === "app") {
+    // `error` is the body given to `error(status, body)` — status is not carried here.
+    const body = (error ?? {}) as { message?: string; code?: string; __sveltyCode?: string };
+    message = body.message || "Internal Error";
+    code = body.__sveltyCode || body.code || "HTTP_500";
+  } else {
+    // "framework" / "validation" carry `{ status, message }`; "unknown" is anything
+    // thrown by our code (AppError from raise() exposes `status` + `code`).
+    const structured = error as { status?: number; message?: string; code?: string } | null;
+    message = error instanceof Error ? error.message : (structured?.message ?? String(error ?? ""));
+    if (typeof structured?.status === "number") status = structured.status;
+    code = structured?.code || `HTTP_${status}`;
+  }
 
   logger.error(`[GlobalError] ${code} — ${message}`, {
     path: event?.url?.pathname,
@@ -1069,6 +1149,7 @@ export const handleError: HandleServerError = async (input) => {
     process.env.NODE_ENV !== "production";
 
   return {
+    status,
     message: isDevOrTest ? message || "Internal Error" : "Internal Error",
     code,
   };
@@ -1084,6 +1165,6 @@ import { TokenRegistry } from "@src/services/token/engine";
 
 // 🚀 Register server-side token resolver for site settings without polluting client bundle
 TokenRegistry.setSiteResolver(async () => {
-  const { getAllSettings } = await import("@src/services/core/settings-service");
+  const { getAllSettings } = await loadSettingsServiceModule();
   return await getAllSettings();
 });

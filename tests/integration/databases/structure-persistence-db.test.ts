@@ -36,21 +36,23 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  const createdPaths = [...new Set([categoryPath, ...cleanupPaths])];
   try {
+    // Delete through the unified sync path so builder category DIRECTORIES under
+    // the collections root are removed too. A raw node delete leaves the folder on
+    // disk, and the scanner then re-adopts it as a `source: "filesystem"` category
+    // (which is how the stray `unit-reorder-*` folders became permanent).
     await syncContentState({
       reason: "gui-save",
       tenantId: TENANT,
       adapter: db,
-      operations: [{ type: "delete", node: { path: categoryPath } }],
+      operations: createdPaths.map((path) => ({ type: "delete" as const, node: { path } })),
     });
   } catch {
     /* cleanup */
   }
   try {
-    const paths = [...new Set(cleanupPaths)];
-    if (paths.length > 0) {
-      await db.content.nodes.deleteMany(paths, { tenantId: TENANT });
-    }
+    await db.content.nodes.deleteMany(createdPaths, { tenantId: TENANT });
   } catch {
     /* cleanup */
   }

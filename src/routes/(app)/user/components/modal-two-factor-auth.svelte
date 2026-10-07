@@ -61,7 +61,16 @@ This component provides a user interface for managing 2FA settings:
 		twofa_verify_button,
 		twofa_verify_setup_description,
 		twofa_verify_setup_title,
-		twofa_verifying
+		twofa_verifying,
+		user2fa_backup_codes_failed,
+		user2fa_disable_failed,
+		user2fa_qr_placeholder,
+		user2fa_retry_setup,
+		user2fa_setup_failed,
+		user2fa_setup_failed_title,
+		user2fa_toast_error_title,
+		user2fa_toast_success_title,
+		user2fa_verify_failed
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -108,10 +117,10 @@ This component provides a user interface for managing 2FA settings:
 
 	// Show success toast
 	function showSuccessToast(message: string) {
-		toast.success({ title: 'Success', description: message });
+		toast.success({ title: user2fa_toast_success_title(), description: message });
 	}
 	function showErrorToast(message: string) {
-		toast.error({ title: 'Error', description: message });
+		toast.error({ title: user2fa_toast_error_title(), description: message });
 	}
 
 	// Load setup data (QR code, secret, backup codes)
@@ -135,7 +144,7 @@ This component provides a user interface for managing 2FA settings:
 			const result = await response.json();
 
 			if (!response.ok) {
-				throw new Error(result.message || 'Failed to setup 2FA');
+				throw new Error(result.message || user2fa_setup_failed());
 			}
 
 			// The data is nested inside result.data
@@ -191,7 +200,7 @@ This component provides a user interface for managing 2FA settings:
 			const result = await response.json();
 
 			if (!response.ok) {
-				throw new Error(result.message || 'Failed to verify 2FA code');
+				throw new Error(result.message || user2fa_verify_failed());
 			}
 
 			showSuccessToast(twofa_success_enabled());
@@ -240,14 +249,14 @@ This component provides a user interface for managing 2FA settings:
 					const result = await response.json();
 
 					if (!response.ok) {
-						throw new Error(result.message || 'Failed to disable 2FA');
+						throw new Error(result.message || user2fa_disable_failed());
 					}
 
 					showSuccessToast(twofa_success_disabled());
 					await refreshAll();
 				} catch (error) {
 					logger.error('2FA disable error:', error);
-					showErrorToast(error instanceof Error ? error.message : 'Failed to disable 2FA');
+					showErrorToast(error instanceof Error ? error.message : user2fa_disable_failed());
 				} finally {
 					isLoading = false;
 				}
@@ -275,14 +284,14 @@ This component provides a user interface for managing 2FA settings:
 			const result = await response.json();
 
 			if (!response.ok) {
-				throw new Error(result.message || 'Failed to generate backup codes');
+				throw new Error(result.message || user2fa_backup_codes_failed());
 			}
 
 			backupCodes = result.backupCodes;
 			showSuccessToast(twofa_backup_codes_generated());
 		} catch (error) {
 			logger.error('Backup codes error:', error);
-			showErrorToast(error instanceof Error ? error.message : 'Failed to generate backup codes');
+			showErrorToast(error instanceof Error ? error.message : user2fa_backup_codes_failed());
 		} finally {
 			isLoading = false;
 		}
@@ -338,12 +347,12 @@ This component provides a user interface for managing 2FA settings:
 					<div class="alert preset-ghost-error-500 w-full">
 						<iconify-icon icon="mdi:alert-circle" width={20}></iconify-icon>
 						<div class="alert-message">
-							<p class="text-sm font-medium">Setup failed</p>
+							<p class="text-sm font-medium">{user2fa_setup_failed_title()}</p>
 							<p class="text-xs text-surface-500" data-testid="2fa-setup-error">{loadError}</p>
 						</div>
 					</div>
 					<Button variant="surface" size="sm" onclick={() => loadSetupData()} disabled={isLoading}>
-						Retry setup
+						{user2fa_retry_setup()}
 					</Button>
 				</div>
 			{:else if setupData}
@@ -368,7 +377,7 @@ This component provides a user interface for managing 2FA settings:
 								/>
 							{:else}
 								<div class="flex h-32 w-32 items-center justify-center bg-surface-200">
-									<p class="text-xs text-surface-600">QR Code</p>
+									<p class="text-xs text-surface-600">{user2fa_qr_placeholder()}</p>
 								</div>
 							{/if}
 						</div>
@@ -467,7 +476,6 @@ This component provides a user interface for managing 2FA settings:
 				variant="tertiary"
 				onclick={verify2FA}
 				disabled={isLoading || !verificationCode || verificationCode.length !== 6}
-				class="dark:"
 			>
 				{#if isLoading}
 					<div

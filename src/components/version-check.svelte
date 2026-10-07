@@ -242,10 +242,10 @@ refreshed by one mechanism: the hourly interval below.
 	}
 
 	async function checkVersion(): Promise<void> {
-		// /setup has no session, so the authenticated check can only answer 401 and the badge
-		// there is presentational (success colour, no status dot). Don't poll an endpoint that
-		// cannot succeed — it only produced 401 noise in the console.
-		if (isSetupRoute) return;
+		// /setup and /login have no session, so the authenticated check can only answer
+		// 401 and the badge is presentational there (the transparent pill never repaints).
+		// Don't poll an endpoint that cannot succeed — it only produced 401 noise.
+		if (isSetupRoute || isLoginRoute) return;
 
 		try {
 			const response = await fetch(CHECK_ENDPOINT, {

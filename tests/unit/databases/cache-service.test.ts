@@ -4,6 +4,7 @@
  *              invalidation, TTL, pattern clearing, concurrent safety.
  */
 import { vi } from "vitest";
+import { FastLRU } from "@utils/native-utils";
 import { expectedCollectionCacheTags } from "../helpers/collection-cache-tags";
 
 // Full settings mock — incomplete factories leak into later suite files (e.g. magic-link).
@@ -303,6 +304,19 @@ describe("CacheService (Whitebox)", () => {
       const longKey = "x".repeat(500);
       await service.set(longKey, "ok");
       expect(await service.get(longKey)).toBe("ok");
+    });
+  });
+
+  describe("L1 wiring (byte-budgeted FastLRU)", () => {
+    it("uses a FastLRU with a byte budget and per-entry cap", () => {
+      expect(service.l1).toBeInstanceOf(FastLRU);
+      expect(service.l1.maxSize).toBeGreaterThan(0);
+      expect(service.l1.calculatedSize).toBe(0);
+    });
+
+    it("tracks L1 byte usage through calculatedSize", async () => {
+      await service.set("sized-key", { body: "x".repeat(100) });
+      expect(service.l1.calculatedSize).toBeGreaterThan(0);
     });
   });
 

@@ -14,14 +14,19 @@
  */
 
 import { logger } from "@utils/logger";
-import { generateUUID } from "@utils/native-utils";
-import { LRUCache } from "lru-cache";
+import { FastLRU, generateUUID } from "@utils/native-utils";
 import { CacheCategory, type CacheStats } from "./types";
 import { buildCollectionCacheTags } from "../core/collection-name";
 import { cacheMetrics } from "./cache-metrics";
 import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
 import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
 
 export const API_CACHE_TTL_S = 300;
 export const SESSION_CACHE_TTL_MS = 86400000;
@@ -56,7 +61,7 @@ function collectionEpochCacheKey(collection: string): string {
 }
 
 export class CacheService {
-  private l1: LRUCache<string, any>;
+  private l1: FastLRU<string, any>;
   private l2: any = null;
   private subscriber: any = null;
   private nodeId: string;
@@ -112,7 +117,7 @@ export class CacheService {
     // operator can trade memory for hit-rate without a rebuild. `sizeCalculation`
     // is a deliberately cheap O(1) estimate — no deep object walk on the hot set
     // path; it approximates the retained bytes closely enough to bound RAM.
-    this.l1 = new LRUCache<string, any>({
+    this.l1 = new FastLRU<string, any>({
       max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 200000,
       maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 128 * 1024 * 1024,
       // A single value larger than this is not cached (a safe no-op in
@@ -312,7 +317,7 @@ export class CacheService {
 
   async initialize(config?: any) {
     if (config === true || !config) {
-      const { loadPrivateConfig } = await import("@src/databases/db");
+      const { loadPrivateConfig } = await loadDbModule();
       config = await loadPrivateConfig();
     }
     this.getMetrics().catch(() => {});
@@ -338,11 +343,13 @@ export class CacheService {
     try {
       const { createClient } = await import("redis");
       const redisUrl = `redis://${config.REDIS_HOST}:${config.REDIS_PORT}`;
-      const redisOptions = {
+      const redisOptions: any = {
         url: redisUrl,
         password: config.REDIS_PASSWORD,
         socket: {
           connectTimeout: 5000,
+          noDelay: true,
+          keepAlive: 5000,
           reconnectStrategy: (retries: number) =>
             retries > 3 ? new Error("Redis connection failed") : 1000,
         },
@@ -507,12 +514,16 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
 
     // 1. Fast Path: L1 Cache Hit (Sync)
-    // For single random docs (ENTRY) that are accessed at uniform random over 100k rows,
-    // skip the LRU age update so random point reads don't evict hot collection lists.
-    // Query/list results (CONTENT) are high-traffic pages and must update LRU age to stay warm.
+    // For single random docs (ENTRY) accessed uniformly at random over 100k rows,
+    // "peek" without promoting recency or refreshing the TTL so random point reads
+    // can't evict hot collection lists. Query/list results (CONTENT) are high-traffic
+    // pages and must be promoted + kept warm on every hit.
     const l1Start = performance.now();
     const coldCategory = _category === CacheCategory.ENTRY;
-    const l1Value = this.l1.get(fullKey, { updateAgeOnGet: !coldCategory });
+    const l1Value = this.l1.get(fullKey, {
+      updateAgeOnGet: !coldCategory,
+      updateRecencyOnGet: !coldCategory,
+    });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
@@ -1024,8 +1035,12 @@ export class CacheService {
               const found: string[] = reply.keys ?? [];
               for (const tagKey of found) {
                 const members = await this.l2.sMembers(tagKey);
-                if (members?.length > 0) await this.l2.del(members);
-                await this.l2.del(tagKey);
+                if (members?.length > 0) {
+                  if (typeof this.l2.unlink === "function") await this.l2.unlink(members);
+                  else await this.l2.del(members);
+                }
+                if (typeof this.l2.unlink === "function") await this.l2.unlink(tagKey);
+                else await this.l2.del(tagKey);
               }
             } while (cursor !== "0");
           }
@@ -1039,8 +1054,12 @@ export class CacheService {
             const multi = this.l2.multi();
             for (let i = 0; i < tagKeys.length; i++) {
               const keys = membersList[i];
-              if (keys && keys.length > 0) multi.del(keys);
-              multi.del(tagKeys[i]);
+              if (keys && keys.length > 0) {
+                if (typeof multi.unlink === "function") multi.unlink(keys);
+                else multi.del(keys);
+              }
+              if (typeof multi.unlink === "function") multi.unlink(tagKeys[i]);
+              else multi.del(tagKeys[i]);
             }
             await multi.exec();
           } else {
@@ -1049,7 +1068,10 @@ export class CacheService {
               const m = membersList[i];
               if (m && m.length > 0) allToDel.push(...m);
             }
-            if (allToDel.length > 0) await this.l2.del(allToDel);
+            if (allToDel.length > 0) {
+              if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+              else await this.l2.del(allToDel);
+            }
           }
         }
         await this.publishInvalidation(null, tenantId, tags);
@@ -1157,10 +1179,16 @@ export class CacheService {
         do {
           const reply = await this.l2.scan(cursor, {
             MATCH: fullPattern,
-            COUNT: 500,
+            COUNT: 1000,
           });
           cursor = reply.cursor;
-          if (reply.keys.length > 0) await this.l2.del(reply.keys);
+          if (reply.keys.length > 0) {
+            if (typeof this.l2.unlink === "function") {
+              await this.l2.unlink(reply.keys);
+            } else {
+              await this.l2.del(reply.keys);
+            }
+          }
         } while (cursor !== "0");
 
         await this.publishInvalidation(pattern, tenantId);

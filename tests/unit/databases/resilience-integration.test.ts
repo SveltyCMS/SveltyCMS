@@ -52,7 +52,9 @@ import {
   connectDatabaseWithResilience,
   bindAdapterResilienceHooks,
   getSystemStatus,
+  createPostgresOnCloseHandler,
 } from "@src/databases/resilience-integration";
+import { updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 
 describe("resilience-integration", () => {
   beforeEach(() => {
@@ -100,5 +102,35 @@ describe("resilience-integration", () => {
     expect(status.database.connected).toBe(true);
     expect(status.metrics.circuitState).toBe("CLOSED");
     expect(status.pool?.totalConnections).toBe(10);
+  });
+
+  it("postgres onclose ignores an idle reclaim while the pool still answers", async () => {
+    // postgres.js fires `onclose` for idle-timeout reclaims too. A responsive
+    // pool must not be reported unhealthy (which flips the system to FAILED).
+    const sql = vi.fn().mockResolvedValue([{ ok: 1 }]);
+    const adapter = { type: "postgresql", isConnected: () => true, sql } as any;
+
+    createPostgresOnCloseHandler(adapter)();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sql).toHaveBeenCalled();
+    expect(vi.mocked(updateServiceHealth)).not.toHaveBeenCalledWith(
+      "database",
+      "unhealthy",
+      expect.anything(),
+    );
+  });
+
+  it("postgres onclose escalates when the pool can no longer serve", () => {
+    const adapter = { type: "postgresql", isConnected: () => false, sql: vi.fn() } as any;
+
+    createPostgresOnCloseHandler(adapter)();
+
+    expect(vi.mocked(updateServiceHealth)).toHaveBeenCalledWith(
+      "database",
+      "unhealthy",
+      "postgresql:connection-closed",
+    );
+    expect(adapter.connected).toBe(false);
   });
 });

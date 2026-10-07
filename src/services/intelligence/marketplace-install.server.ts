@@ -17,9 +17,18 @@
  * - Install path allowlist plus directory-traversal guard
  */
 
+import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
+import nodePath from "node:path";
 import { logger } from "@utils/logger";
 import { marketplace, type MarketplacePlugin } from "./marketplace-client";
 import { assertPackageCompatibleWithCms } from "@src/widgets/widget-compatibility";
+
+/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
+let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
+function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
+  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
+}
 
 const ALLOWED_INSTALL_PREFIXES = [
   "src/plugins/",
@@ -62,7 +71,6 @@ function assertSafeInstallPath(
 
 /** Canonical SHA-256 of package files (sorted filenames, utf-8). */
 export async function hashPackageFiles(files: Record<string, string>): Promise<string> {
-  const { createHash } = await import("node:crypto");
   const hash = createHash("sha256");
   for (const name of Object.keys(files).sort()) {
     hash.update(name);
@@ -91,7 +99,7 @@ export function verifyPackageChecksum(
 async function downloadPackage(pluginSlug: string): Promise<MarketplacePlugin> {
   const pkg = await marketplace.getPackage(pluginSlug);
   const downloadUrl = marketplace.downloadUrlFor(pkg);
-  const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+  const { validateEgressUrl, safeFetch } = await loadEgressGuardModule();
   await validateEgressUrl(downloadUrl, { timeoutMs: 30_000, maxSizeBytes: 20 * 1024 * 1024 });
   const result = await safeFetch(downloadUrl, {
     headers: marketplace.authHeaders(),
@@ -123,8 +131,6 @@ export async function installPlugin(
   pluginId: string,
   options: { licenseKey?: string; expectedChecksum?: string } = {},
 ): Promise<MarketplacePlugin> {
-  const fs = await import("node:fs/promises");
-  const path = await import("node:path");
   const cwd = process.cwd();
 
   if (options.licenseKey) {
@@ -148,11 +154,11 @@ export async function installPlugin(
     throw new Error(`License required for ${plugin.name} (${plugin.license})`);
   }
 
-  await fs.mkdir(path.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
+  await fs.mkdir(nodePath.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
 
   for (const [filename, content] of Object.entries(plugin.files)) {
-    const filePath = assertSafeInstallPath(path, plugin.installPath, filename, cwd);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    const filePath = assertSafeInstallPath(nodePath, plugin.installPath, filename, cwd);
+    await fs.mkdir(nodePath.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, "utf-8");
   }
 

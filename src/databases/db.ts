@@ -29,6 +29,16 @@ import { AppError } from "@src/utils/error-handling";
 import { createSelfHealingProxy } from "./core/proxy-utils";
 import { setSystemState } from "@src/stores/system/state.svelte.ts";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
 const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
 const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
 const AUTH_KEY = "__AUTH_INSTANCE__";
@@ -241,7 +251,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
           cfg = { DB_TYPE: testEngine, host: auditFile } as any;
           mutableCfg = cfg as any;
         } else {
-          if (!mutableCfg.DB_TYPE) mutableCfg.DB_TYPE = testEngine;
+          mutableCfg.DB_TYPE = testEngine;
           if (
             mutableCfg.DB_TYPE === "sqlite" &&
             (!mutableCfg.host || mutableCfg.host === ":memory:")
@@ -364,7 +374,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       // (deadlock protection) resolves immediately instead of awaiting this
       // in-flight promise. Dynamic import avoids a static db ↔ settings-service
       // cycle. Non-fatal on failure — the next settings load retries.
-      await import("@src/services/core/settings-service")
+      await loadSettingsServiceModule()
         .then(({ loadSettingsCache }) => loadSettingsCache())
         .catch((err) => {
           logger.warn(`[Boot] Settings cache warm failed (non-fatal): ${(err as Error).message}`);
@@ -426,6 +436,11 @@ export async function shutdownSystem(): Promise<void> {
   // Stop demo cleanup scheduler
   stopDemoCleanupScheduler();
 
+  // Stop the DatabaseResilience health monitor so its 30s poll can neither keep
+  // the event loop alive on Ctrl+C nor hit a disconnected adapter during teardown.
+  const { stopDatabaseResilienceMonitor } = await import("./database-resilience");
+  stopDatabaseResilienceMonitor();
+
   // 🚀 HARDENING: Clear registries and promises
   const { dbPluginRegistry } = await import("./core/plugin-registry");
   dbPluginRegistry.reset();
@@ -468,7 +483,7 @@ export async function initializeWithConfig(config: any): Promise<any> {
   // config file before env overrides were applied). Drop it so the next read
   // rebuilds from the freshly reloaded config — otherwise sync getters such as
   // getPrivateSettingSync("PREVIEW_SECRET") keep serving stale empties.
-  await import("@src/services/core/settings-service")
+  await loadSettingsServiceModule()
     .then(({ invalidateSettingsCache }) => invalidateSettingsCache())
     .catch(() => {});
 
@@ -480,7 +495,7 @@ export async function initializeWithConfig(config: any): Promise<any> {
   // (e.g. PREVIEW_SECRET) immediately — without waiting for the next page load
   // to detect the config-stamp mismatch. Setup completion is the last moment
   // where the private config is replaced, so warm it before returning.
-  await import("@src/services/core/settings-service")
+  await loadSettingsServiceModule()
     .then(({ loadSettingsCache }) => loadSettingsCache())
     .catch((err) => {
       logger.debug("Settings cache warm failed after reinit", { error: (err as Error).message });

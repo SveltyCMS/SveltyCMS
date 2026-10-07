@@ -22,6 +22,35 @@ Features:
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { formatDateTime } from '@utils/format-date';
+	import {
+		usersessions_browser_on_device,
+		usersessions_browser_unknown,
+		usersessions_cancel,
+		usersessions_close,
+		usersessions_close_modal,
+		usersessions_current_device,
+		usersessions_device_desktop,
+		usersessions_device_mobile,
+		usersessions_device_tablet,
+		usersessions_empty_description,
+		usersessions_empty_title,
+		usersessions_last_active,
+		usersessions_load_error,
+		usersessions_load_failed,
+		usersessions_loading,
+		usersessions_recently,
+		usersessions_revoke,
+		usersessions_revoke_all,
+		usersessions_revoke_all_confirm_body,
+		usersessions_revoke_all_confirm_button,
+		usersessions_revoke_all_confirm_title,
+		usersessions_revoke_all_error,
+		usersessions_revoke_all_success,
+		usersessions_revoke_aria,
+		usersessions_revoke_failed,
+		usersessions_revoke_success,
+		usersessions_revoking_all
+	} from '@src/paraglide/messages';
 
 	interface SessionItem {
 		_id: string;
@@ -51,17 +80,19 @@ Features:
 	function parseDevice(ua = ''): { device: string; browser: string; icon: string } {
 		const lower = ua.toLowerCase();
 		let icon = 'mdi:laptop';
-		let device = 'Desktop / Laptop';
+		let device = usersessions_device_desktop();
 
 		if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone')) {
 			icon = 'mdi:cellphone';
-			device = 'Mobile Device';
+			device = usersessions_device_mobile();
 		} else if (lower.includes('ipad') || lower.includes('tablet')) {
 			icon = 'mdi:tablet';
-			device = 'Tablet';
+			device = usersessions_device_tablet();
 		}
 
-		let browser = 'Unknown Browser';
+		// Typed as `string` (not the inferred branded LocalizedString) so the
+		// user-agent branch below can assign plain literals like 'Firefox'.
+		let browser: string = usersessions_browser_unknown();
 		if (lower.includes('firefox')) browser = 'Firefox';
 		else if (lower.includes('edg/')) browser = 'Edge';
 		else if (lower.includes('chrome')) browser = 'Chrome';
@@ -84,7 +115,7 @@ Features:
 	}
 
 	function formatTime(val?: string | Date): string {
-		if (!val) return 'Recently';
+		if (!val) return usersessions_recently();
 		return formatDateTime(
 			val,
 			{
@@ -105,7 +136,7 @@ Features:
 			const res = await fetch(`/api/user/sessions?admin=1&userId=${encodeURIComponent(uid)}`);
 			if (!res.ok) {
 				const errData = await res.json().catch(() => ({}));
-				throw new Error(errData.message || 'Failed to retrieve active sessions');
+				throw new Error(errData.message || usersessions_load_failed());
 			}
 			const json = await res.json();
 			if (json.success && Array.isArray(json.data)) {
@@ -114,7 +145,7 @@ Features:
 				sessions = [];
 			}
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Error loading sessions';
+			const msg = err instanceof Error ? err.message : usersessions_load_error();
 			toast.error(msg);
 			sessions = [];
 		} finally {
@@ -131,12 +162,12 @@ Features:
 			});
 			if (!res.ok) {
 				const errData = await res.json().catch(() => ({}));
-				throw new Error(errData.message || 'Failed to revoke session');
+				throw new Error(errData.message || usersessions_revoke_failed());
 			}
 			sessions = sessions.filter((s) => (s._id || s.id) !== sessionId);
-			toast.success('Session revoked successfully');
+			toast.success(usersessions_revoke_success());
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Failed to revoke session';
+			const msg = err instanceof Error ? err.message : usersessions_revoke_failed();
 			toast.error(msg);
 		} finally {
 			revokingId = null;
@@ -145,10 +176,12 @@ Features:
 
 	async function handleRevokeAll() {
 		const confirmed = await showConfirm({
-			title: 'Revoke All Sessions',
-			body: `Are you sure you want to revoke all active sessions for ${user.username || user.email}? The user will be logged out everywhere.`,
-			confirmText: 'Revoke All',
-			cancelText: 'Cancel'
+			title: usersessions_revoke_all_confirm_title(),
+			body: usersessions_revoke_all_confirm_body({
+				user: user.username || user.email
+			}),
+			confirmText: usersessions_revoke_all_confirm_button(),
+			cancelText: usersessions_cancel()
 		});
 		if (!confirmed) return;
 
@@ -163,9 +196,9 @@ Features:
 				}).catch(() => {});
 			}
 			sessions = [];
-			toast.success('All sessions have been revoked');
+			toast.success(usersessions_revoke_all_success());
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Error revoking all sessions';
+			const msg = err instanceof Error ? err.message : usersessions_revoke_all_error();
 			toast.error(msg);
 		} finally {
 			revokingAll = false;
@@ -209,7 +242,7 @@ Features:
 			size="sm"
 			type="button"
 			onclick={() => close()}
-			aria-label="Close modal"
+			aria-label={usersessions_close_modal()}
 			class="h-8 w-8 min-w-0 p-0"
 		>
 			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
@@ -222,7 +255,7 @@ Features:
 			<div class="flex flex-1 items-center justify-center py-8 text-surface-500">
 				<iconify-icon icon="mdi:loading" width="28" class="animate-spin text-primary-500"
 				></iconify-icon>
-				<span class="ms-2 text-sm">Loading active sessions...</span>
+				<span class="ms-2 text-sm">{usersessions_loading()}</span>
 			</div>
 		{:else if sessions.length === 0}
 			<div
@@ -230,8 +263,8 @@ Features:
 			>
 				<iconify-icon icon="mdi:shield-check-outline" width="36" class="mb-2 text-success-500"
 				></iconify-icon>
-				<p class="text-sm font-medium">No active sessions found.</p>
-				<p class="text-xs opacity-75">This user has no logged-in devices currently active.</p>
+				<p class="text-sm font-medium">{usersessions_empty_title()}</p>
+				<p class="text-xs opacity-75">{usersessions_empty_description()}</p>
 			</div>
 		{:else}
 			{#each sessions as s (s._id || s.id)}
@@ -248,10 +281,15 @@ Features:
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">
 								<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100">
-									{info.browser} on {info.device}
+									{usersessions_browser_on_device({
+										browser: info.browser,
+										device: info.device
+									})}
 								</span>
 								{#if s.isCurrent}
-									<Badge preset="tonal" color="success" size="sm">Current Device</Badge>
+									<Badge preset="tonal" color="success" size="sm"
+										>{usersessions_current_device()}</Badge
+									>
 								{/if}
 							</div>
 							<div
@@ -263,7 +301,11 @@ Features:
 									></span
 								>
 								<span>•</span>
-								<span>Last active: {formatTime(s.lastAccess || s.lastActiveAt)}</span>
+								<span
+									>{usersessions_last_active({
+										time: formatTime(s.lastAccess || s.lastActiveAt)
+									})}</span
+								>
 							</div>
 						</div>
 					</div>
@@ -274,14 +316,14 @@ Features:
 						type="button"
 						disabled={revokingId === (s._id || s.id)}
 						onclick={() => handleRevoke(s._id || s.id || '')}
-						aria-label="Revoke this session"
+						aria-label={usersessions_revoke_aria()}
 						class="shrink-0 text-error-500 hover:bg-error-500/10 hover:text-error-600 dark:hover:bg-error-500/20"
 					>
 						{#if revokingId === (s._id || s.id)}
 							<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
 						{:else}
 							<iconify-icon icon="mdi:trash-can-outline" width="16" class="me-1"></iconify-icon>
-							<span>Revoke</span>
+							<span>{usersessions_revoke()}</span>
 						{/if}
 					</Button>
 				</div>
@@ -303,14 +345,16 @@ Features:
 				>
 					{#if revokingAll}
 						<iconify-icon icon="mdi:loading" width="16" class="animate-spin me-1"></iconify-icon>
-						<span>Revoking all...</span>
+						<span>{usersessions_revoking_all()}</span>
 					{:else}
 						<iconify-icon icon="mdi:account-off-outline" width="16" class="me-1"></iconify-icon>
-						<span>Revoke All Sessions</span>
+						<span>{usersessions_revoke_all()}</span>
 					{/if}
 				</Button>
 			{/if}
 		</div>
-		<Button variant="secondary" size="md" type="button" onclick={() => close()}>Close</Button>
+		<Button variant="secondary" size="md" type="button" onclick={() => close()}
+			>{usersessions_close()}</Button
+		>
 	</div>
 </div>

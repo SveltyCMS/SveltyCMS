@@ -134,16 +134,28 @@ The **`routeResourceStateMachine`** connects directly with the **Behavioral Lear
 - For API and GraphQL responses $>1\text{ KB}$, `responseCache` asynchronously computes and caches pre-compressed **Brotli** and **Gzip** binary chunks (`Uint8Array`).
 - On `TURBO-HIT` and GraphQL cache hits, matching `Accept-Encoding` requests receive pre-compressed byte arrays directly, bypassing on-the-fly CPU compression during traffic spikes.
 
-### Key: L1 is In-Memory, L2 is Redis
+### Key: L1 is In-Memory, L2 is Redis (Optional)
 
-The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L2 layer for distributed deployments. This means even without Redis, the cache system is fully operational with sub-µs L1 hits. In enterprise multi-node deployments with PostgreSQL, MariaDB, or MongoDB, Redis acts as the cluster synchronizer and persistent L2 layer.
+The L1 cache is a local `FastLRU` instance (not Redis). Redis is the **strictly optional L2 layer** for distributed deployments. Even without Redis (`USE_REDIS=false` or absent), the entire cache system is fully operational with sub-µs L1 hits across all 4 database adapters. When enabled, Redis synchronizes cluster nodes and provides distributed caching.
+
+#### Redis L2 Performance Architecture (October 2026 Enhancements)
+
+- **Strict Optionality**: Redis is never a boot or runtime prerequisite. If Redis is disabled, down, or does not connect, the system automatically falls back to in-memory L1 operation without degraded functionality.
+- **TCP Socket Optimization (`TCP_NODELAY` + Keep-Alive)**: Sockets are configured with `noDelay: true` and `keepAlive: 5000`. This disables Nagle's algorithm packet coalescing, eliminating artificial 5–40ms tail latency jitter on small JSON payload reads (<1.5KB).
+- **Non-Blocking Invalidation (`UNLINK`)**: Cache evictions and tag clears pipeline Redis `UNLINK` commands in `multi.exec()` batches rather than blocking `DEL`. This frees memory asynchronously on background threads without freezing Redis event loops under bulk tag sweeps.
+- **Tag-Based $O(1)$ Invalidation**: Invalidation operates on tag sets (`tag:{tenant}:{tag}`) rather than slow wildcard `SCAN` sweeps.
+- **Atomic Epoch Versioning (`INCRBY`)**: Collection and global version bumps use atomic Redis `INCRBY` commands instead of race-prone read-modify-write patterns, preventing stale content delivery during concurrent updates across cluster nodes.
+- **Batch Read Probing (`mGet`)**: High-traffic relational pipelines (such as `populate-resolver.ts`) probe missing IDs in Redis via `cacheService.getMany()` using a single pipelined `mGet(keys)` command before falling back to database `findMany` queries.
 
 #### L1 Memory Containment & Bounded Footprint
+
+The L1 tier (`cacheService.l1`) is backed by the repo-native, dependency-free `FastLRU` (`src/utils/native-utils.ts`) rather than an external LRU library. `FastLRU` covers the full L1 surface: byte-budget eviction (`maxSize` + `maxEntrySize` + `sizeCalculation`), per-entry TTL, a `dispose` hook, and the read hints `updateAgeOnGet` / `updateRecencyOnGet`.
 
 - **Byte Budget (`maxSize`)**: Defaults to **128 MB** (configurable via `CACHE_L1_MAX_BYTES`). Prevents unbounded heap growth regardless of total entry count.
 - **Entry Cap (`max`)**: Defaults to **200,000** (configurable via `CACHE_L1_MAX_ENTRIES`).
 - **Single-Entry Ceiling (`maxEntrySize`)**: Defaults to **16 MB** (configurable via `CACHE_L1_MAX_ENTRY_BYTES`), preventing oversized individual payloads from evicting hot cache entries.
 - **$O(1)$ Size Estimator**: Accurately sizes pre-stringified response bodies and employs a flat overhead estimate for structured objects without recursive traversal overhead.
+- **ENTRY read "peek" (`updateRecencyOnGet: false`)**: `CacheService.get(..., CacheCategory.ENTRY)` reads without moving the hit to the most-recently-used position and without refreshing its TTL (`updateAgeOnGet: false`), so uniformly-random point reads cannot displace the resident hot list/GraphQL working set. `CONTENT` reads still promote and refresh on every hit; `getSync` also takes the no-refresh path.
 
 #### Response-cache L1 tiers: exact byte accounting (2026-09-22)
 

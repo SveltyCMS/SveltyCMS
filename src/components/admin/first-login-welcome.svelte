@@ -60,7 +60,7 @@
 				'Build your content structure by creating collections. These define the types of content you can manage.',
 			icon: 'mdi:folder-plus',
 			action: 'Create Collection',
-			actionUrl: '/config/collectionbuilder/create',
+			actionUrl: '/config/collectionbuilder/new',
 			completed: false
 		},
 		{
@@ -80,7 +80,7 @@
 				'Configure your site settings, themes, and system preferences to match your needs.',
 			icon: 'mdi:cog',
 			action: 'Open Settings',
-			actionUrl: '/config/systemsetting',
+			actionUrl: '/config/system-settings',
 			completed: false
 		}
 	]);

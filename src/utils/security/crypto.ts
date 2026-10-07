@@ -60,21 +60,37 @@ export const ENCRYPTION_CONFIG = {
 // nodeRequire("argon2") directly to bypass Vite's SSR module runner.
 
 // Use createRequire for argon2 to bypass Vite's ESM loader entirely.
-// Dynamically imported to avoid Vite browser externalization errors.
-async function _loadArgon2() {
-  const { createRequire } = await import("node:module");
+//
+// `process.getBuiltinModule` (Node ≥ 22.3) resolves `node:module` WITHOUT touching
+// Vite's SSR module runner. The previous `await import("node:module")` ran through
+// that runner, which Vite closes during a dev HMR cycle — so the first login after a
+// hot reload threw "Vite module runner has been closed", `verifyPassword` returned
+// false, and the user saw a bogus "Invalid credentials". The resolved binding is
+// cached for the process lifetime (also cheaper: no per-request module lookup).
+let _argon2Module: typeof import("argon2") | undefined;
+
+function _loadArgon2(): typeof import("argon2") {
+  if (_argon2Module) return _argon2Module;
+  const getBuiltinModule = (
+    process as NodeJS.Process & { getBuiltinModule?: (id: string) => unknown }
+  ).getBuiltinModule;
+  if (typeof getBuiltinModule !== "function") {
+    throw new Error("process.getBuiltinModule() is unavailable — Node.js 22.3+ or Bun is required");
+  }
+  const { createRequire } = getBuiltinModule("node:module") as typeof import("node:module");
   const nodeRequire = createRequire(import.meta.url);
-  return nodeRequire("argon2");
+  _argon2Module = nodeRequire("argon2") as typeof import("argon2");
+  return _argon2Module;
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const argon2 = await _loadArgon2();
+  const argon2 = _loadArgon2();
   return argon2.hash(Buffer.from(password, "utf8"), ARGON2_CONFIG);
 }
 
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   try {
-    const argon2 = await _loadArgon2();
+    const argon2 = _loadArgon2();
     return await argon2.verify(hash, Buffer.from(password, "utf8"));
   } catch (err) {
     // Never swallow silently: a broken argon2 binding / malformed hash must be
@@ -100,7 +116,7 @@ export const DUMMY_ARGON2_HASH =
  */
 export async function verifyDummyPassword(password: string): Promise<boolean> {
   try {
-    const argon2 = await _loadArgon2();
+    const argon2 = _loadArgon2();
     await argon2.verify(DUMMY_ARGON2_HASH, Buffer.from(password || "dummy-password", "utf8"));
   } catch {
     // Expected mismatch against dummy hash

@@ -20,6 +20,14 @@ import { successResponse, errorResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
 
+/** Cached lazy handle to the backup service — one module-registry lookup instead of one per call. */
+let backupServiceModulePromise:
+  | Promise<typeof import("@src/services/core/backup-service")>
+  | undefined;
+function loadBackupServiceModule(): Promise<typeof import("@src/services/core/backup-service")> {
+  return (backupServiceModulePromise ??= import("@src/services/core/backup-service"));
+}
+
 /**
  * Handle backup routes under `/api/backups/*`.
  */
@@ -36,7 +44,7 @@ export async function handleBackupRoutes(
 
   // ── GET /api/backups ────────────────────────────────────────────────────
   if (!action && request.method === "GET") {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const { backupService } = await loadBackupServiceModule();
     const result = await backupService.listBackups(tenantId as string);
     if (!result.success) {
       return errorResponse(event, result.message, 500);
@@ -46,7 +54,7 @@ export async function handleBackupRoutes(
 
   // ── POST /api/backups/create ────────────────────────────────────────────
   if (action === "create" && request.method === "POST") {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const { backupService } = await loadBackupServiceModule();
     const body = await request.json().catch(() => ({}));
 
     const result = await backupService.createBackup({
@@ -72,7 +80,7 @@ export async function handleBackupRoutes(
 
   // ── POST /api/backups/validate ──────────────────────────────────────────
   if (action === "validate" && request.method === "POST") {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const { backupService } = await loadBackupServiceModule();
     const body = await request.json().catch(() => ({}));
 
     if (!body.backupPath) {
@@ -86,7 +94,7 @@ export async function handleBackupRoutes(
 
   // ── POST /api/backups/restore-plan ──────────────────────────────────────
   if (action === "restore-plan" && request.method === "POST") {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const { backupService } = await loadBackupServiceModule();
     const body = await request.json().catch(() => ({}));
 
     if (!body.backupPath) {
@@ -108,7 +116,7 @@ export async function handleBackupRoutes(
 
   // ── POST /api/backups/restore ───────────────────────────────────────────
   if (action === "restore" && request.method === "POST") {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const { backupService } = await loadBackupServiceModule();
     const body = await request.json().catch(() => ({}));
 
     if (!body.backupPath) {
@@ -146,7 +154,7 @@ export async function handleBackupRoutes(
 
   // ── GET /api/backups/jobs/:jobId ────────────────────────────────────────
   if (action === "jobs" && request.method === "GET") {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const { backupService } = await loadBackupServiceModule();
     const jobId = segments[2];
 
     if (!jobId) {

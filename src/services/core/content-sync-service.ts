@@ -30,6 +30,22 @@ import { createChecksum } from "@utils/security/crypto";
 import { generateUUID } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -469,7 +485,7 @@ export class ContentSyncService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("content.sync.started", {
         tenantId: channel.source.tenantId,
         data: {
@@ -559,7 +575,7 @@ export class ContentSyncService {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("content.sync.started", {
         tenantId: channel.target.tenantId,
         data: {
@@ -593,7 +609,7 @@ export class ContentSyncService {
    * Returns the current status of a sync job.
    */
   public async getJobStatus(jobId: string): Promise<SyncJobStatus | null> {
-    const db = (await import("@src/databases/db")).getDb();
+    const db = (await loadDbModule()).getDb();
     if (!db || !db.system?.jobs) return null;
 
     try {
@@ -677,7 +693,7 @@ export class ContentSyncService {
 
       // Emit webhook event (best-effort, non-blocking)
       try {
-        const { eventBus } = await import("@src/services/background/automation/event-bus");
+        const { eventBus } = await loadEventBusModule();
         const finalEntryCount = pkg?.manifest?.resources
           ? Object.values(pkg.manifest.resources).reduce<number>((a, b) => a + (Number(b) || 0), 0)
           : 0;

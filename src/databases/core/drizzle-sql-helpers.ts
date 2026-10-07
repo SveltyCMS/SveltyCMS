@@ -893,7 +893,7 @@ export function getColumnHelper(
  */
 const _isDateColCache = new WeakMap<object, boolean>();
 
-function coerceDateColumnValue(col: any, val: unknown): unknown {
+export function coerceDateColumnValue(col: any, val: unknown): unknown {
   if (!col) return val;
   let isDateCol = typeof col === "object" ? _isDateColCache.get(col) : undefined;
   if (isDateCol === undefined) {

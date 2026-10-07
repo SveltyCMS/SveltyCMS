@@ -11,6 +11,18 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { logger } from "@utils/logger";
 import { AppError, isAppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -272,7 +284,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
 
   // Set secure session cookie
   const session = authResult.data.session;
-  const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+  const { isSecureCookieContext } = await loadAuthConstantsModule();
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
@@ -285,7 +297,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
   });
 
   // Finalize system configuration
-  const { initializeWithConfig } = await import("@src/databases/db");
+  const { initializeWithConfig } = await loadDbModule();
   await initializeWithConfig({
     DB_TYPE: database.type,
     DB_HOST: database.host,

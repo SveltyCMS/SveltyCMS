@@ -380,7 +380,6 @@ Advanced permission management interface with bulk actions and presets.
 					onclick={() => (showBulkActions = !showBulkActions)}
 					aria-expanded={showBulkActions}
 					size="sm"
-					class="dark:"
 				>
 					<iconify-icon icon="mdi:cog-box" width="18"></iconify-icon>
 					Bulk Actions
@@ -393,7 +392,6 @@ Advanced permission management interface with bulk actions and presets.
 					title="Export permissions"
 					aria-label="Export permissions as JSON"
 					size="sm"
-					class="dark:"
 				>
 					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
 				</Button>
@@ -536,7 +534,6 @@ Advanced permission management interface with bulk actions and presets.
 										title="Enable all"
 										aria-label={`Enable all permissions for ${role.name}`}
 										size="sm"
-										class="dark:"
 									>
 										✓ All
 									</Button>

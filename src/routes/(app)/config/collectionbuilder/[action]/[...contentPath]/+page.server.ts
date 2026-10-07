@@ -25,7 +25,7 @@ import { validatePhysicalTableName } from "@src/databases/core/collection-name";
 import { MigrationEngine } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { type Actions, error, fail } from "@sveltejs/kit";
+import { type Actions, error, fail, isHttpError, isRedirect } from "@sveltejs/kit";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 // System Logger
 import { logger } from "@utils/logger";
@@ -143,12 +143,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     await contentSystem.initialize(locals.tenantId);
     const collectionIdentifier = params.contentPath;
 
-    // Try resolving exactly as passed (UUID or relative path)
-    let currentCollection = await contentSystem.getCollection(collectionIdentifier);
+    // Try resolving exactly as passed (UUID or relative path). The tenantId MUST
+    // be forwarded: in multi-tenant mode the schema lives only in the tenant's
+    // registry, so a tenant-less lookup falls back to the global scope and 404s
+    // (the collection is visible on the board but unreachable by id for edit).
+    let currentCollection = await contentSystem.getCollection(
+      collectionIdentifier,
+      locals.tenantId,
+    );
 
     // Fallback: Try identifying as an absolute path if not found
     if (!(currentCollection || collectionIdentifier.startsWith("/"))) {
-      currentCollection = await contentSystem.getCollection(`/${collectionIdentifier}`);
+      currentCollection = await contentSystem.getCollection(
+        `/${collectionIdentifier}`,
+        locals.tenantId,
+      );
     }
 
     if (!currentCollection) {
@@ -195,8 +204,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       collection: serializableCollection,
     };
   } catch (err) {
-    if (err instanceof Error && "status" in err) {
-      // This is likely a redirect or an error we've already handled
+    // SvelteKit's `error()` / `redirect()` throw plain HttpError/Redirect objects
+    // (not Error instances), so the old `err instanceof Error` guard let a real
+    // 404 fall through and be re-wrapped as "HTTP 500 — [object Object]".
+    if (isRedirect(err) || isHttpError(err)) {
       throw err;
     }
     const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;

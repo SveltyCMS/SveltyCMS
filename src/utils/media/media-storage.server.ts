@@ -14,7 +14,6 @@ import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
 import { writeFile, readFile, unlink } from "node:fs/promises";
-import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
@@ -25,7 +24,7 @@ import {
   type ResizedImage,
 } from "./media-models";
 import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
-import { generateUUID } from "@utils/native-utils";
+import { FastLRU, generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@src/utils/date";
 
 /**
@@ -124,7 +123,7 @@ export const saveResizedImages = saveResized;
  */
 const FILE_EXISTS_CACHE_TTL_MS = Number(process.env.SVELTY_FILE_EXISTS_CACHE_TTL_MS) || 10_000; // 10 s — stale negatives clear quickly
 const FILE_EXISTS_CACHE_MAX = Number(process.env.SVELTY_FILE_EXISTS_CACHE_MAX) || 5_000;
-const _fileExistsCache = new LRUCache<string, boolean>({
+const _fileExistsCache = new FastLRU<string, boolean>({
   max: FILE_EXISTS_CACHE_MAX,
   ttl: FILE_EXISTS_CACHE_TTL_MS,
 });

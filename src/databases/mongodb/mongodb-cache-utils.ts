@@ -7,6 +7,7 @@
 import { CacheCategory } from "@src/databases/cache/types";
 import { cacheMetrics } from "@src/databases/cache/cache-metrics";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { buildCollectionCacheTags } from "@src/databases/core/collection-name";
 import { logger } from "@src/utils/logger";
 
 // Re-export for convenience
@@ -155,7 +156,7 @@ function hashString(str: string): string {
 }
 
 /**
- * Invalidates cache for a specific collection
+ * Invalidates cache for a specific collection using tag-based O(1) invalidation
  */
 export async function invalidateCollectionCache(
   collection: string,
@@ -166,11 +167,13 @@ export async function invalidateCollectionCache(
   }
 
   try {
-    const pattern = `collection:${collection}:*`;
-    await cacheService.clearByPattern(pattern, tenantId);
-    cacheMetrics.recordClear(pattern, CacheCategory.CONTENT, tenantId);
-    logger.debug(`Cache invalidated for collection: ${collection}`, {
-      tenantId,
+    const tid = tenantId || "default";
+    const tags = buildCollectionCacheTags(collection);
+    await cacheService.clearByTags(tags, tid);
+    cacheMetrics.recordClear(tags.join(","), CacheCategory.CONTENT, tid);
+    logger.debug(`Cache invalidated for collection: ${collection} via tags`, {
+      tenantId: tid,
+      tags,
     });
   } catch (error) {
     logger.warn(`Failed to invalidate cache for collection ${collection}:`, error);

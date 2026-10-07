@@ -51,6 +51,22 @@ import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -455,7 +471,7 @@ export class BackupService {
 
       // Emit webhook event (best-effort, non-blocking)
       try {
-        const { eventBus } = await import("@src/services/background/automation/event-bus");
+        const { eventBus } = await loadEventBusModule();
         eventBus.emit("backup.created", {
           tenantId,
           data: {
@@ -1115,7 +1131,7 @@ export class BackupService {
     try {
       // Emit webhook event (best-effort, non-blocking)
       try {
-        const { eventBus } = await import("@src/services/background/automation/event-bus");
+        const { eventBus } = await loadEventBusModule();
         eventBus.emit("backup.restore.started", {
           tenantId: targetTenant,
           data: {
@@ -1142,7 +1158,7 @@ export class BackupService {
 
       // Emit webhook event (best-effort, non-blocking)
       try {
-        const { eventBus } = await import("@src/services/background/automation/event-bus");
+        const { eventBus } = await loadEventBusModule();
         eventBus.emit("backup.restore.completed", {
           tenantId: targetTenant,
           data: {
@@ -1417,7 +1433,7 @@ export class BackupService {
    * Returns the current status of a running backup or restore job.
    */
   public async getJobStatus(jobId: string): Promise<BackupJobStatus | null> {
-    const db = (await import("@src/databases/db")).getDb();
+    const db = (await loadDbModule()).getDb();
     if (!db || !db.system?.jobs) {
       return null;
     }

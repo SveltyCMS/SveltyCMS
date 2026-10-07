@@ -16,13 +16,20 @@ Selecting a template auto-creates the collections using the installTemplateColle
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import type { ContentNode } from '@src/databases/db-interface';
 	import { PRESETS } from '@src/routes/setup/presets';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { scale } from 'svelte/transition';
 
 	interface Props {
-		close?: (result?: { installed: boolean; collections?: string[] } | null) => void;
+		close?: (
+			result?: {
+				installed: boolean;
+				collections?: string[];
+				contentStructure?: ContentNode[];
+			} | null
+		) => void;
 	}
 
 	const { close }: Props = $props();
@@ -49,7 +56,11 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 			if ('success' in result && result.success) {
 				toast.success(result.message ?? 'Collections created successfully');
-				close?.({ installed: true, collections: (result as any).collections ?? [] });
+				close?.({
+					installed: true,
+					collections: (result as any).collections ?? [],
+					contentStructure: (result as any).contentStructure ?? []
+				});
 			} else {
 				const message = (result as any).message ?? 'Failed to install template';
 				toast.error(message);

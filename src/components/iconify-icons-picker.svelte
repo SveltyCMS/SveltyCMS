@@ -162,12 +162,7 @@ Advanced icon picker with search, pagination, and favorites.
 		}
 		// If searching (API pagination), fetch more
 		else if (hasSearchQuery || selectedLibrary === '') {
-			// Logic to fetch next page from API and append (requires searchIcons to append)
-			// For simplicity, we can ignore this for now if searchTokens returns 50 at a time
-			// But since we removed Page Next/Prev buttons, we SHOULD implement API pagination here.
-			// Let's assume searchIcons handles appending if we pass a flag?
-			// Actually, let's keep it simple: Browse is infinite scroll local, Search is infinite scroll remote?
-			// Refactoring searchIcons to append:
+			// Infinite scroll: request the next API page and append.
 			if (!isLoading) {
 				currentPage++;
 				searchIcons(searchQuery, selectedLibrary, true); // true = append

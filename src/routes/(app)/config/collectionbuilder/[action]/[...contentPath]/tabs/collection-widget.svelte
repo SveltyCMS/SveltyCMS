@@ -13,6 +13,7 @@
 	import { modalState } from '@utils/modal.svelte';
 	import { getGuiFields } from '@utils/schema/field-utils';
 	import { logger } from '@utils/logger';
+	import { builder_duplicate, builder_remove, button_edit } from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 
@@ -640,7 +641,7 @@
 
 								<!-- Actions -->
 								<div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
-									<SystemTooltip title="Edit">
+									<SystemTooltip title={button_edit()}>
 										<Button
 											variant="transparent"
 											size="sm"
@@ -659,7 +660,7 @@
 											></iconify-icon>
 										</Button>
 									</SystemTooltip>
-									<SystemTooltip title="Duplicate">
+									<SystemTooltip title={builder_duplicate()}>
 										<Button
 											variant="transparent"
 											size="sm"
@@ -674,7 +675,7 @@
 											<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 										</Button>
 									</SystemTooltip>
-									<SystemTooltip title="Delete">
+									<SystemTooltip title={builder_remove()}>
 										<Button
 											variant="transparent"
 											size="sm"
@@ -917,7 +918,7 @@
 						<iconify-icon icon="mdi:open-in-new" width="16"></iconify-icon>
 					</a>
 					<a
-						href="/config/extension"
+						href="/config/extensions"
 						class="flex items-center justify-center gap-2 rounded-lg border border-surface-500/30 p-2 text-xs font-medium text-surface-600 hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-surface-300 dark:hover:bg-surface-800"
 					>
 						<iconify-icon icon="mdi:puzzle-outline" width="16"></iconify-icon>

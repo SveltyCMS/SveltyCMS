@@ -438,6 +438,7 @@ export interface BatchOperation<T> {
   id?: DatabaseId;
   operation: "insert" | "update" | "delete" | "upsert";
   query?: QueryFilter<T>;
+  tenantId?: DatabaseId;
 }
 
 export interface BatchResult<T> {

@@ -15,6 +15,12 @@
 import type { DatabaseId } from "@src/databases/db-interface";
 import { getHotCollections } from "./behavioral-learner";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export interface ContentSuggestion {
@@ -61,7 +67,7 @@ export async function findSimilarEntries(
     const { semanticSearch } = await import("./semantic-index");
 
     // Get current entry text for query
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const entry = await dbAdapter?.crud?.findOne(
       collectionId,
       { _id: entryId as DatabaseId },
@@ -111,7 +117,7 @@ export async function suggestFieldDefaults(
   limit = 20,
 ): Promise<FieldDefault | null> {
   try {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const result = await dbAdapter?.crud?.findMany(
       collectionId,
       {},
@@ -390,7 +396,7 @@ export async function getContentInsights(tenantId: string): Promise<{
     const hotCollections = getHotCollections(tenantId, 3);
     if (hotCollections.length === 0) return stats;
 
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     let totalQuality = 0;
 
     for (const { id } of hotCollections) {
@@ -496,69 +502,4 @@ export function suggestPublishTimes(tenantId: string): {
   } catch {
     return [];
   }
-}
-
-// ─── Cross-Tenant Insights (Opt-in, Aggregate Only) ───────────────────────
-
-interface CrossTenantPattern {
-  pattern: string;
-  frequency: number;
-  tenantCount: number;
-  recommendation: string;
-}
-
-const _crossTenantPatterns = new Map<string, { tenants: Set<string>; count: number }>();
-let _crossTenantOptIn = false;
-
-/**
- * Enable cross-tenant insights (opt-in, aggregate only, no PII).
- * Must be explicitly called — disabled by default.
- */
-export function enableCrossTenantInsights(): void {
-  _crossTenantOptIn = true;
-}
-
-/**
- * Record a cross-tenant pattern (only if opt-in is enabled).
- * Pattern examples: "uses richtext widget", "has > 100 entries", "publishes daily"
- */
-export function recordCrossTenantPattern(tenantId: string, pattern: string): void {
-  if (!_crossTenantOptIn) return;
-  let entry = _crossTenantPatterns.get(pattern);
-  if (!entry) {
-    entry = { tenants: new Set(), count: 0 };
-    _crossTenantPatterns.set(pattern, entry);
-  }
-  entry.tenants.add(tenantId);
-  entry.count++;
-}
-
-/**
- * Get anonymized cross-tenant insights for dashboard display.
- * Only returns patterns seen across multiple tenants.
- */
-export function getCrossTenantInsights(): CrossTenantPattern[] {
-  if (!_crossTenantOptIn) return [];
-
-  const insights: CrossTenantPattern[] = [];
-  for (const [pattern, entry] of _crossTenantPatterns) {
-    if (entry.tenants.size >= 2) {
-      insights.push({
-        pattern,
-        frequency: entry.count,
-        tenantCount: entry.tenants.size,
-        recommendation: suggestRecommendation(pattern),
-      });
-    }
-  }
-  return insights.sort((a, b) => b.tenantCount - a.tenantCount).slice(0, 10);
-}
-
-function suggestRecommendation(pattern: string): string {
-  if (pattern.includes("richtext"))
-    return "Rich text is the most popular content format across tenants";
-  if (pattern.includes("media")) return "Media-heavy content correlates with higher engagement";
-  if (pattern.includes("> 100"))
-    return "Content velocity above 100 entries indicates active editorial teams";
-  return `Pattern "${pattern}" observed across multiple tenants`;
 }

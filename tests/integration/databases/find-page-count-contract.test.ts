@@ -225,6 +225,54 @@ describe("findPage contract", () => {
     expect(sequences.get("1")).toEqual(sequences.get("asc"));
     expect(sequences.get("-1")).toEqual(sequences.get("desc"));
   });
+
+  it("keyset walk with a nested-OR base filter ($and wrapper) visits every row exactly once", async () => {
+    // `mergeKeysetFilter` wraps a non-empty base plus the compound (sort, _id)
+    // cursor in `$and`, while the cursor predicate is itself an `$or`. A nested
+    // `$or` in the base therefore produces `{ $and: [{ $and: […, $or] }, { $or }] }`
+    // — the recursive-flatten case the compiled plan must keep on the SQL path
+    // (a bail-out would silently fall back to the dynamic AST / different order).
+    const base = {
+      $and: [{ tenantId: TEST_TENANT }, { $or: [{ status: "active" }, { status: "draft" }] }],
+    };
+
+    const reference = await adapter.crud.findPage(TEST_COLLECTION, base, {
+      ...tenantOpts,
+      limit: 100,
+      sort: { status: -1 },
+      total: "none",
+      skipMeta: true,
+    });
+    validateDatabaseResult(reference, { operation: "findPage nested-OR reference" });
+    expect(reference.success).toBe(true);
+    const expected = new Set(reference.data.items.map((r: any) => String(r._id)));
+    expect(expected.size).toBe(12);
+    expect(reference.data.hasMore).toBe(false);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    for (; pages < 10; pages++) {
+      const res = await adapter.crud.findPage(TEST_COLLECTION, base, {
+        ...tenantOpts,
+        limit: 4,
+        sort: { status: -1 },
+        total: "none",
+        skipMeta: true,
+        cursor,
+      });
+      validateDatabaseResult(res, { operation: `findPage nested-OR keyset page ${pages}` });
+      expect(res.success).toBe(true);
+      seen.push(...res.data.items.map((r: any) => String(r._id)));
+      if (!res.data.hasMore) break;
+      expect(res.data.nextCursor).toBeTruthy();
+      cursor = res.data.nextCursor;
+    }
+
+    expect(pages).toBeGreaterThanOrEqual(2);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(new Set(seen)).toEqual(expected);
+  });
 });
 
 describe("count mode contract", () => {

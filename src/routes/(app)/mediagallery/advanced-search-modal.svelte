@@ -443,7 +443,7 @@ Structure optimized for LLM integration and AI-powered search.
 				<div class="ms-auto flex gap-3">
 					<Button variant="outline" type="button" onclick={resetForm}>Reset</Button>
 					<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
-					<Button variant="tertiary" type="submit" form="advanced-search-form" class="dark:">
+					<Button variant="tertiary" type="submit" form="advanced-search-form">
 						<iconify-icon icon="mdi:magnify" width={20}></iconify-icon>
 						Search
 					</Button>

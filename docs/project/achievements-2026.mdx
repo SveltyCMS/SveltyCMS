@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-09-30"
+updated: "2026-10-06"
 tags:
   - "achievements"
   - "log"
@@ -102,6 +102,11 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   Negative cache / Bloom miss path is **orders of magnitude** faster than a full DB miss on repeated absent keys (self-measured hot-miss micro-benches). It **reduces** miss storms; it does not “immunize” the system against all DoS classes (rate limits, body limits, and ops still apply).
 
 - **Zero-Tax LocalCMS SDK Bridge:** Hardened the `LocalCMS` server-to-server bridge to bypass SvelteKit's HTTP middleware pipelines entirely. Combined with hot-swappable getter structures and microtask batching, this achieves internal query resolution in **<0.05ms** for server-side loading and internal API interactions with 0% runtime overhead.
+- **Enterprise Redis L2 Cache Optimization (October 2026, self-measured):**
+  - **TCP Socket Performance (`TCP_NODELAY` + Keep-Alive)**: Eliminated Nagle packet coalescing delays on small JSON payloads (<1.5KB) by pinning `noDelay: true` and `keepAlive: 5000` on the Redis L2 connection pool, suppressing 5–40ms tail latency spikes.
+  - **Non-Blocking Evictions (`UNLINK`)**: Migrated cache invalidations and tag set drops from blocking `DEL` to asynchronous `UNLINK` executed inside `multi.exec()` batches, preventing Redis main-thread stalls during high-concurrency collection updates.
+  - **Batch `mGet` Relation Probing**: Wired bulk Redis `mGet` lookups into `populate-resolver.ts` to resolve missing relational entity IDs in a single round-trip before issuing SQL/NoSQL `findMany` queries.
+  - **Zero-Dependency Optionality**: Maintained strict architectural optionality — Redis remains 100% optional, seamlessly falling back to in-memory L1 cache with sub-µs hits when disabled.
 - **Active Driver Validation (Anti-False Positive):** Implemented mandatory `SELECT 1` verification in the MariaDB and PostgreSQL adapters. This ensures that the Setup Wizard provides immediate, clear feedback for missing or incorrect credentials, eliminating "lazy connection" false positives found in legacy ORM implementations.
 - **Micro-Telemetry:** Native per-operation timing (`performance.now()`) is bubbled up from the DB adapter to the API `meta` field, providing high-resolution observability without external dependencies.
 
@@ -679,6 +684,25 @@ Two rows closed from the competitive feature-gap list, both self-described with 
 
 > **Methodology**: self-measured with the registered harness (`LONG_SOAK_PROFILE` axis + `LONG_SOAK_HOURS=1`), production-parity server mode, one host, SQLite only. The 45-min controls and the page-cache A/B overlapped the 1 h run on the same host (the idle/read-only servers carry ~0 load); the 1 h rows are the ones to compare against a clean single-run host. Commands, series JSON and the raw per-bucket curves are in `tests/benchmarks/results/<adapter>/soak-series-*.json`.
 
+### 3.27 October 2026 — L1 cache moved to the native dependency-free FastLRU
+
+The hybrid cache's L1 in-memory tier (`cacheService.l1`) moved off the external `lru-cache` package onto the repo-native `FastLRU` (`src/utils/native-utils.ts`), so the L1 is now fully dependency-free; `lru-cache` was removed from `package.json` (direct dependencies 88 → 87, SBOM components 683 → 682). `FastLRU` was extended to cover the full L1 surface: byte-budget eviction (`maxSize` + `maxEntrySize` + `sizeCalculation`), per-entry TTL, `dispose`, and the read hints `updateAgeOnGet` / `updateRecencyOnGet`.
+
+Self-measured microbenchmark (throwaway script, 2026-10-06, Bun 1.4.2, N = 100,000 ops after ≥1,000 warm-up iterations; `sizeCalculation` with a 128 MB `maxSize` and 16 MB `maxEntrySize`, 20k keys, 120-byte string values):
+
+- **`get()` with recency promotion**: 31.3 M ops/s (`lru-cache`) vs 13.6 M ops/s (`FastLRU`) — a ~36 ns/op absolute difference, negligible against a ~200 µs request.
+- **`get()` peek** (`updateAgeOnGet: false, updateRecencyOnGet: false`): 28.7 M vs 19.4 M ops/s.
+- **`set()`**: 3.67 M vs 4.51 M ops/s (`FastLRU` ~1.23× faster).
+- **2,000-entry count-only cache `get()`**: 12.4 M vs 6.87 M ops/s.
+
+This supersedes the earlier "5.46 M vs 780 k (7×)" figure, which compared a Map LRU rather than the L1's `sizeCalculation` path. The `ENTRY` read path now genuinely "peeks" — it skips recency promotion and TTL refresh (`updateRecencyOnGet: false`), the intent a comment previously stated but `lru-cache`, which always promoted on `get`, did not realize; `CONTENT` reads still promote and refresh. Docs: [Cache System](../reference/architecture/cache-system.mdx), [Production Deployment](../guides/deployment/production-deployment.mdx).
+
+### 3.28 October 2026 — Dead-code sweep & slop-scanner signal/noise split
+
+The slop scanner's unused-export report was split into two clearly-labelled buckets so the actionable set is never drowned by the public/test API inventory: **dead-code candidates** (`unused-export` — a symbol referenced nowhere in `src`/`scripts`/root entries/`tests`/`docs`) and **export-surface** (referenced by tests/docs only — test-only reset helpers and documented public API). The `scanUnusedExports` reference set now also reads the repo-root entries (`*.{js,mjs,cjs,ts}`, e.g. `index.server.mjs`, `index.cjs`) and `scripts/**` matches `.mjs`/`.cjs`, so bundled-startup exports are no longer misreported as dead. All 20 live dead-code candidates were removed across 15 files (verified definition-only repo-wide), and the export-surface inventory is collapsed by default — list it with `--surface` / `--verbose`.
+
+Result: `bun run slop` is **0 errors / 0 warnings / 0 dead-code candidates**, with the 137 documented/test-only exports tracked as annotated inventory. Docs: [Git Workflow](../tests/git-workflow.mdx), [Testing Scripts Catalog](../tests/testing-scripts.mdx).
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with **dated, self-measured** performance and security ledgers rather than absolute performance claims, SveltyCMS has now closed the **Editorial Depth** gap.
@@ -967,7 +991,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **Enterprise Collection Builder, Split-View & Database Schema Ingestion (September 2026)**:
   - **Smart Type Inference & Natural-Language Quick-Add**: Built a zero-dependency client-side heuristic engine (`src/routes/(app)/config/collectionbuilder/smart-inference.ts`) enabling instant natural-language field creation (e.g. `email`, `price`, `cover_image`, `tags`, `is_published`, `author_id`, `rating`, `birth_date`). Automatically resolves widget types, icons, database field names, and pre-configured validation constraints on `Enter ↵`, eliminating tedious modal clicks.
   - **Dual-Pane Live "Visual Canvas ↔ TypeScript Code" Split-View**: Implemented real-time bi-directional code ↔ GUI awareness in `collection-widget.svelte` with a 3-way view toggle (`Canvas` | `Split View` | `TypeScript`). In Split View, visual canvas edits reactively reflect in the generated production-ready `defineCollection({ ... })` TypeScript schema (`collection-code-generator.ts`) with zero disk overhead, 100% parity with SveltyCMS AST compilation, and 1-click clipboard export.
-  - **Database DDL & Schema Ingestion Engine**: Engineered `ddl-schema-parser.ts` and `modal-schema-ingestion.svelte`, enabling instant reverse-engineering of SQL `CREATE TABLE` definitions across PostgreSQL, MySQL, MariaDB, and SQLite directly into SveltyCMS collections. Automatically resolves `FOREIGN KEY ... REFERENCES other_table(id)` to `Relation` widgets, `ENUM(...)` to populated `Select` widgets, and parses arbitrary REST API JSON payloads into structured collections.
+  - **Database DDL & Schema Ingestion Engine**: Engineered a server-side schema-ingestion engine (`schema-ingestion.ts`, executed through the `ingestSchema` SvelteKit server function) and `modal-schema-ingestion.svelte`, enabling instant reverse-engineering of SQL `CREATE TABLE` definitions across PostgreSQL, MySQL, MariaDB, and SQLite directly into SveltyCMS collections. Automatically resolves `FOREIGN KEY ... REFERENCES other_table(id)` and `*_id` columns to `Relation` widgets (matched against the live collection list), `ENUM(...)`/`CHECK` constraints to populated `Select` widgets, `JSON`/`JSONB` to `JsonEditor`, arrays to `Tags`/`Repeater`, and parses arbitrary REST API JSON payloads into structured collections.
   - **Tree-View Hierarchy & Drag-and-Drop Hardening**: Corrected RTL off-screen coordinate mapping in `tree-drag-preview.svelte` with floating nesting targets (`↳ Inside {category}`), added live collection/category statistics, and implemented full keyboard reordering (`Alt+Up/Down`) with roving tabindex.
   - **Unified Favorites & Tagging System with LeftSidebar Integration**: Introduced `collectionMetadataStore` with Svelte 5 runes (`$state`), deterministic WCAG 2.2 AA token-based tag color palettes, and cross-component/cross-tab synchronization. Enables 1-click starring (★) of collections and categories in both the builder board and the left sidebar, color-coded tag taxonomy, dual-toolbar filtering chips (`Favorites` and `All Tags`), in-form tag configuration, and instant navigation from the sidebar header.
 - **Per-Role Multi-Factor Authentication Enforcement (MFA-RBAC) (September 2026)**:
@@ -2066,6 +2090,60 @@ Quality gates (2026-10-05): `bun run check` 0 errors / 0 warnings · `bun run te
 ### Storefront — European checkout (2026-10-05)
 
 Catalog prices on `/shop` are gross. Checkout shows the trader, the VAT breakdown, and an order button that states the payment obligation (`zahlungspflichtig bestellen` when the store language is German). Guests withdraw at `/widerruf`. The order stores an invoice number, net, and tax. A price reduction shows the lowest price of the previous 30 days when that history exists. OSS returns, packaging registration, and WEEE stay with the merchant. Guide: [E-Commerce Overview](../guides/content/ecommerce.mdx#european-checkout).
+
+### 3.47 October 2026 — Pre-compiled Query Builder Templates & Sub-Millisecond SQL CRUD Acceleration
+
+- **Shared SQL query builder unification** (`src/databases/core/sql-query-builder.ts`): Unified the duplicated builder logic across SQLite, PostgreSQL, and MariaDB into a single `SqlQueryBuilder<T>` parameterized by `SqlDialect`. All engine-specific quoting, placeholder binding (`$1` vs `?`), JSON extraction, and ILIKE/LIKE operators are driven by dialect constants.
+- **Compiled plan expansion**: Extended the compiled prepared-statement cache beyond scalar equality to support `whereIn`, `whereNotIn`, `whereBetween`, `whereNull`, `whereNotNull`, `orWhere`, and parameterized pattern searches (`search_or`). Any dynamic JSON field filters, unmapped expressions, or non-bindable objects safely degrade to Drizzle dynamic AST with zero runtime errors.
+- **Dialect-safe LIKE ESCAPE binding**: MariaDB treats backslashes inside string literals as escape characters; binding the escape backslash as a query parameter (`ESCAPE ?` / `ESCAPE $N`) ensures cross-dialect compatibility without double-escaping bugs or syntax failures.
+- **Standard CRUD read path acceleration** (`src/databases/core/sql-adapter-core.ts`): Added pre-compiled template fast paths to `findMany`, `findPage`, and `count`. Pre-compiled query shapes execute directly via `executeCompiled()`, bypass Drizzle runtime AST building and SQL string assembly, and hoist schema date-conversion metadata so read lists stop re-resolving table column schemas per row.
+- **Self-measured benchmark gains (2026-10-06)**:
+  - **PostgreSQL**: `QUERY BUILDER LIST (50)` **4.88 ms → 0.75 ms** (~6.5× faster, 202 → 1,204 RPS); `FIND MANY (limit 50)` **1.27 ms → 0.79 ms** (−37 % latency, +40 % RPS); `FIND PAGE (50 hasMore)` **1.26 ms → 0.77 ms** (−39 % latency, +61 % RPS); `FIND MANY offset 50` **1.09 ms → 0.55 ms** (−49 % latency, 1,728 RPS).
+  - **MariaDB**: `FIND MANY (limit 50)` dropped to **0.558 ms** (1,694 RPS); `QUERY BUILDER LIST (50)` dropped to **0.545 ms** (1,753 RPS); `FIND PAGE (50 hasMore)` dropped to **0.587 ms** (1,684 RPS); `COUNT` dropped to **0.487 ms** (2,020 RPS).
+  - **SQLite**: Reads stay sub-100µs: `FIND MANY (limit 50)` **0.059–0.065 ms** (14,000–15,600 RPS); `COUNT` **0.058 ms** (16,231 RPS).
+- **Documentation & test coverage**: Reference documentation published at [SQL Query Builder](../reference/database/sql-query-builder.mdx). Verified via 19 operator unit tests (`tests/unit/databases/sql-query-builder-operators.test.ts`), compile tests (`sql-query-builder-compile.test.ts`), and read-path tests (`sql-query-builder-read.test.ts`).
+- **Keyset pagination onto the compiled plan (2026-10-06)**: `mergeKeysetFilter` (`core/page-utils.ts`) wraps a base query plus the `(sortField, _id)` cursor in `$and` / `$or`; the builder previously bailed on every top-level `$` key except `$or`, so deep pages fell back to the dynamic AST. `applyFilterAndOptions` now flattens `$and` recursively and `orWhere` compiles OR-of-AND groups of physical leaves, and `orWhere` self-heals to Drizzle for nested `$or`, JSON fields and non-bindable operands — it never partially compiles an OR. The compiled path also coerces ISO strings / epoch numbers to `Date` for timestamp columns (shared `coerceDateColumnValue`, parity with `mapQuery`), so a compiled comparison can never bind TEXT against an `INTEGER` `timestamp_ms` column. Verified end-to-end by both keyset integrations (`tests/integration/api/collections-keyset-cursor.test.ts`, `tests/integration/databases/find-page-count-contract.test.ts`) and the operator/compile unit suites.
+
+### 3.48 October 2026 — SQLite write tail: checkpointing moved off the request path by default, and group commit (opt-in) takes the 8c queue tail from 🔴 to 🟡
+
+**Two levers, measured separately on the same build** (`competitive-workload-replica`, sqlite, warm 8c,
+production server, 300 samples; each verdict is the repo's own 3-run ensemble median via
+`bun run verify:benchmark-local`).
+
+**Baseline (recorded pre-change run, both 🔴):** create p50 4.41 / p99 24.14 ms (+19.7 ms excess), update
+p50 4.23 / p99 30.8 ms (+26.6 ms); the tail was entirely SQLite's synchronous auto-checkpoint (§3.35).
+
+**Shipped default — off-request-path checkpointing.** `applyPragmas` now defaults to
+`PRAGMA wal_autocheckpoint=0` unless `SQLITE_WAL_AUTOCHECKPOINT` is set explicitly, and
+`startWalHousekeeping` runs `startWalCheckpointScheduler` by default (opt out `SVELTY_WAL_CHECKPOINT=0`)
+with a new **WAL-size cap** (`SVELTY_WAL_MAX_BYTES`, default 64 MB) beside the existing idle and
+60 s-force rules. `synchronous=NORMAL` is unchanged — durability is not weakened. Result (3-run ensemble):
+create avg 4.17 / p50 4.0 / p95 5.41 / p99 10.48 / **+6.477 ms** 🔴, update avg 3.63 / p50 3.47 / p95 5.67 /
+p99 7.68 / **+4.214 ms** 🔴 — **`slowCount` 0 on every write row** (no sample above 10 ms; the discrete ~25 ms
+checkpoint spikes are gone), matching the earlier single-run A/B (`AUTOCHECKPOINT=0` → `slowCount` 0, residual
+excess ≈ 6.5 ms). The absolute tail excess is still above the 4 ms `WATCH` bound: the checkpoint spikes were
+removed, the write-mutex queue is not.
+
+**Opt-in (`SVELTY_SQLITE_GROUP_COMMIT=1`) — write coalescing.** New `src/databases/sqlite/write-batcher.ts`
+queues batchable single-statement writes and drains them on a bounded event-loop tick
+(`setImmediate`/`queueMicrotask`, never a delay timer) into one `BEGIN IMMEDIATE … COMMIT`; each op keeps a
+`SAVEPOINT` so one failure rolls back only itself, results are buffered and settled after `COMMIT`, and a lone
+write takes the `runSingle` (no group transaction) path. The adapter only constructs the batcher behind the
+flag; transaction-control/`PRAGMA` statements and active write spans (re-entrant/worker contexts) bypass it.
+Result (3-run ensemble): create avg 2.86 / p50 2.6 / p95 4.38 / p99 5.54 / **+2.943 ms** 🟡, update avg 2.81 /
+p50 2.72 / p95 4.07 / p99 4.95 / **+2.225 ms** 🟡, `slowCount` 0 — both rows out of 🔴, and p50 fell ~1.3 ms
+(4.0 → 2.6 create, 3.5 → 2.7 update), so the drain is genuinely coalescing writes rather than just adding a hop.
+
+**Residual floor, stated plainly:** ≈ **2.2–2.9 ms** `p99 − p50`, **not** ≤ 1 ms. Group commit only folds
+writes that reach the queue within the same tick; at 8c the requests are staggered by the HTTP/auth pipeline,
+so many drains still carry a single op, and the synchronous driver blocks the event loop for each batch's
+execute phase — the queue is shortened, not flattened. §3.36's commit-collapse falsification still holds for the
+per-statement commit itself; the win here is queue coalescing, not a cheaper commit. Kept opt-in as specified.
+
+**Verification**: `tests/unit/databases/write-batcher.test.ts` (10 cases: batching, lone-write path,
+`maxBatchSize` split, per-op isolation, throw/unsettled safety net, default-scheduler deferral) and
+`tests/unit/databases/wal-scheduling.test.ts` (9 cases: size-cap band, interval gate, idle precedence,
+scheduler wiring). `node ./node_modules/vitest/vitest.mjs run tests/unit/databases` → 53 files / 461 passed.
 
 ## Related
 

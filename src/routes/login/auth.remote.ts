@@ -6,6 +6,22 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { auth, dbInitPromise } from "@src/databases/db";
 import { generateUUID } from "@utils/native-utils";
 import { safeParse, flatten } from "valibot";
@@ -251,7 +267,7 @@ export const verify2FA = command(
       });
     } catch {}
     try {
-      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(session._id, user, event.locals.tenantId ?? user.tenantId ?? null, [
         "pwd",
         "mfa",
@@ -295,7 +311,7 @@ export const verify2FA = command(
 
 export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
-  const { shutdownSystem } = await import("@src/databases/db");
+  const { shutdownSystem } = await loadDbModule();
   const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   const event = getRequestEvent();
 
@@ -560,7 +576,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       }
       // Prime in-memory session cache so getUserFromSession bypasses sqlite-proxy
       try {
-        const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+        const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
         primeSessionMemoryCache(
           ar.sessionId!,
           user,
@@ -591,7 +607,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       });
     } catch {}
     try {
-      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(s._id, user, event.locals.tenantId ?? user.tenantId ?? null);
     } catch {}
   }
@@ -772,7 +788,7 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
   // Check if SMTP is configured (independent of user existence to prevent timing attacks)
   let smtpConfigured = false;
   try {
-    const { dbAdapter } = await import("@src/databases/db");
+    const { dbAdapter } = await loadDbModule();
     const smtpHost = await dbAdapter.system.preferences.get<string>("SMTP_HOST", {
       scope: "system",
     });

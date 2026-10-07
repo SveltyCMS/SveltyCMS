@@ -28,6 +28,9 @@
 
 	let { collections }: Props = $props();
 
+	/** Shared card chrome — mirrors the `/user` account panels. */
+	const cardClass = 'p-5 sm:p-6';
+
 	// Active configuration state
 	let customCollection = $state<string | null>(null);
 	const selectedCollection = $derived(customCollection ?? (collections[0]?.id || 'posts'));
@@ -143,7 +146,7 @@
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 	<!-- Left: Visual Query Builder Panel -->
 	<div class="lg:col-span-7 space-y-6">
-		<AdminCard>
+		<AdminCard class={cardClass}>
 			<div class="space-y-6">
 				<div>
 					<h3 class="text-base font-bold text-surface-900 dark:text-surface-100">
@@ -298,7 +301,7 @@
 	<!-- Right: Live Output & Code Generation Panel -->
 	<div class="lg:col-span-5 space-y-6">
 		<!-- Generated Query Preview -->
-		<AdminCard>
+		<AdminCard class={cardClass}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
@@ -333,7 +336,7 @@
 		</AdminCard>
 
 		<!-- Live Result Inspector -->
-		<AdminCard>
+		<AdminCard class={cardClass}>
 			<div class="space-y-3">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">

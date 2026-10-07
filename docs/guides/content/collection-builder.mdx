@@ -447,15 +447,17 @@ SveltyCMS delivers bidirectional awareness between visual GUI configuration and 
 
 You can reverse-engineer existing database structures and APIs directly into SveltyCMS collections:
 
+> Ingestion runs **server-side** (the `ingestSchema` SvelteKit server function), debounced as you type, so relation targets are matched against your existing collections — the parser never ships to the browser.
+
 - **SQL DDL Reverse-Engineering**:
   - Paste standard `CREATE TABLE` statements from PostgreSQL, MySQL, MariaDB, or SQLite.
-  - Automatically parses column names, data types, nullability, and primary keys.
-  - Maps relational foreign keys (`REFERENCES other_table(id)`) to **Relation** widgets with target collection presets.
-  - Maps `ENUM(...)` constraints to pre-populated **Select** dropdown options.
-  - Maps text, timestamp, boolean, JSON, and numeric types into their canonical SveltyCMS widgets.
+  - Automatically parses column names, data types, nullability, defaults, and primary keys.
+  - Maps relational foreign keys (`REFERENCES other_table(id)`) and `*_id` columns to **Relation** widgets, matched against your existing collections.
+  - Maps `ENUM(...)` and `CHECK (col IN (...))` constraints to pre-populated **Select** dropdown options.
+  - Maps text, date/time, boolean, JSON/JSONB, binary, array, and numeric types into their canonical SveltyCMS widgets.
 - **JSON Sample Ingestion**:
   - Paste any JSON object or array of documents from existing REST/GraphQL endpoints.
-  - Analyzes value types, date patterns, image URLs, and array structures to synthesize full collection schemas.
+  - Analyzes value types, ISO date/URL patterns, and array structures (string arrays → Tags, object arrays → Repeater) to synthesize full collection schemas.
 - **Instant Collection Bootstrapping**: Ingested schemas populate the collection builder form and widget canvas in one click.
 
 ### Saving Collections

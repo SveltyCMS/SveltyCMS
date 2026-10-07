@@ -28,6 +28,16 @@ import { generateUUID } from "@utils/native-utils";
 import { compareSchemas, type SchemaChange } from "@utils/schema/comparison";
 import { withMigrationLock } from "@src/databases/migration-lock";
 
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
 // ── Types ──
 
 /** Risk classification for a migration plan. */
@@ -527,7 +537,7 @@ export class MigrationEngine {
 
         // Emit webhook event (best-effort, non-blocking)
         try {
-          const { eventBus } = await import("@src/services/background/automation/event-bus");
+          const { eventBus } = await loadEventBusModule();
           eventBus.emit("migration.applied", {
             tenantId: plan.collectionId,
             data: {
@@ -551,7 +561,7 @@ export class MigrationEngine {
 
         // Emit webhook event (best-effort, non-blocking)
         try {
-          const { eventBus } = await import("@src/services/background/automation/event-bus");
+          const { eventBus } = await loadEventBusModule();
           eventBus.emit("migration.failed", {
             tenantId: plan.collectionId,
             data: {
@@ -790,7 +800,7 @@ export class MigrationEngine {
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("migration.verified", {
         tenantId: plan.collectionId,
         data: {

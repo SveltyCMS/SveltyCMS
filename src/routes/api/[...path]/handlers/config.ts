@@ -14,7 +14,26 @@
  * - Deprecation-aware (handles legacy /api/config_sync alias)
  */
 
+/** Cached lazy handle to the config service — one module-registry lookup instead of one per call. */
+let configServiceModulePromise:
+  | Promise<typeof import("@src/services/core/config-service")>
+  | undefined;
+function loadConfigServiceModule(): Promise<typeof import("@src/services/core/config-service")> {
+  return (configServiceModulePromise ??= import("@src/services/core/config-service"));
+}
+
 // In-memory plan store for plan-first apply validation
+
+/** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
+let eventBusModulePromise:
+  | Promise<typeof import("@src/services/background/automation/event-bus")>
+  | undefined;
+function loadEventBusModule(): Promise<
+  typeof import("@src/services/background/automation/event-bus")
+> {
+  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
+}
+
 const planStore = new Map<string, { plan: any; createdAt: number }>();
 const PLAN_STORE_TTL = 30 * 60 * 1000; // 30 minutes
 
@@ -40,7 +59,7 @@ export async function handleConfigRoutes(
 
   // ── Legacy /api/config_sync compatibility (no sub-action) ───────────────
   if (!action && request.method === "GET") {
-    const { configService } = await import("@src/services/core/config-service");
+    const { configService } = await loadConfigServiceModule();
     const status = await configService.getStatus(tenantId as string);
     return new Response(JSON.stringify(status), {
       status: 200,
@@ -58,7 +77,7 @@ export async function handleConfigRoutes(
       );
     }
 
-    const { configService } = await import("@src/services/core/config-service");
+    const { configService } = await loadConfigServiceModule();
     await configService.performImport({ tenantId: tenantId as string });
 
     return new Response(
@@ -106,7 +125,7 @@ export async function handleConfigRoutes(
 
   // ── GET /api/config/status ─────────────────────────────────────────────
   if (action === "status" && request.method === "GET") {
-    const { configService } = await import("@src/services/core/config-service");
+    const { configService } = await loadConfigServiceModule();
     const status = await configService.getStatus(tenantId as string);
     return new Response(JSON.stringify(status), {
       status: 200,
@@ -117,7 +136,7 @@ export async function handleConfigRoutes(
   // ── POST /api/config/export ────────────────────────────────────────────
   if (action === "export" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
-    const { configService } = await import("@src/services/core/config-service");
+    const { configService } = await loadConfigServiceModule();
     const result = await configService.performExport({
       uuids: body.uuids,
       tenantId: tenantId as string,
@@ -132,7 +151,7 @@ export async function handleConfigRoutes(
   // ── POST /api/config/plan ──────────────────────────────────────────────
   if (action === "plan" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
-    const { configService } = await import("@src/services/core/config-service");
+    const { configService } = await loadConfigServiceModule();
     const status = await configService.getStatus(tenantId as string);
 
     // Build a plan from detected changes
@@ -183,7 +202,7 @@ export async function handleConfigRoutes(
 
     // Emit webhook event (best-effort, non-blocking)
     try {
-      const { eventBus } = await import("@src/services/background/automation/event-bus");
+      const { eventBus } = await loadEventBusModule();
       eventBus.emit("config.plan.created", {
         tenantId: tenantId as string,
         data: {
@@ -227,7 +246,7 @@ export async function handleConfigRoutes(
       );
     }
 
-    const { configService } = await import("@src/services/core/config-service");
+    const { configService } = await loadConfigServiceModule();
 
     // Re-check status before applying (target may have changed)
     const currentStatus = await configService.getStatus(tenantId as string);

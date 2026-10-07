@@ -9,7 +9,13 @@
 import { query, command, getRequestEvent } from "$app/server";
 import { logger } from "@utils/logger";
 
-export const readSetupHints = query("unchecked", async () => {
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
+export const readSetupHints = query("unchecked", async (_payload?: {}) => {
   const { readFile } = await import("node:fs/promises");
   const { join } = await import("node:path");
   try {
@@ -82,8 +88,7 @@ export const completeSetup = command(
     if (result.success && result.sessionCookie) {
       try {
         const event = getRequestEvent();
-        const { getSessionCookieName, isSecureCookieContext } =
-          await import("@src/databases/auth/constants");
+        const { getSessionCookieName, isSecureCookieContext } = await loadAuthConstantsModule();
         const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
         const cookieName = getSessionCookieName(isSecure);
         event.cookies.set(cookieName, result.sessionCookie.value, {

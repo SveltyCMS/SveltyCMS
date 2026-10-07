@@ -7,6 +7,12 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 import { metricsService } from "@src/services/observability/metrics-service";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 export class MaintenanceService {
   private static instance: MaintenanceService;
   private lastRun = 0;
@@ -42,7 +48,7 @@ export class MaintenanceService {
    */
   private async cleanupExpiredData() {
     try {
-      const { getDb } = await import("@src/databases/db");
+      const { getDb } = await loadDbModule();
       const db = getDb();
 
       if (db && typeof db.cleanupExpiredData === "function") {

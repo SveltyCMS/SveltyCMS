@@ -17,6 +17,15 @@ import type {
   ICrudAdapter,
   IBatchAdapter,
 } from "../db-interface";
+
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 // Namespace import on purpose: the module is exposed wholesale as the public `utils` field below.
 import * as relationalUtils from "./relational-utils";
 import { buildCollectionCacheTags } from "./collection-name";
@@ -391,7 +400,7 @@ export abstract class BaseAdapter {
     options?: { ids?: any[]; tags?: string[] },
   ): Promise<void> {
     try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       // Normalize the tenant: a nullish OR empty tenantId falls through to the
       // clearByTags "*" wildcard branch, which scans the ENTIRE L1 (the O(#cached)
       // cliff) AND clears across ALL tenants. `||` (not `??`) also maps "" →

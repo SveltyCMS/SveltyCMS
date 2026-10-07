@@ -15,6 +15,12 @@ import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/
 import { isAdmin } from "@src/databases/auth/constants";
 import { eventBus } from "./automation/event-bus";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // Register workflow permission
 registerPermission({
   _id: "workflow:transition" as DatabaseId,
@@ -24,7 +30,7 @@ registerPermission({
   description: "Can execute content workflow transitions",
 });
 
-const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;
+const getDbAdapter = async () => (await loadDbModule()).dbAdapter as IDBAdapter;
 
 /** Admins/super-admins keep an explicit override over gates and assignee locks. */
 function isAdminActor(user: User): boolean {

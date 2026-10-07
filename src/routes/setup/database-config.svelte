@@ -47,6 +47,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { showConfirm } from '@utils/modal.svelte';
 	import { parseConnectionString } from '@utils/connection-parser';
 	import { safeParse } from 'valibot';
+	// Static import: +page.svelte already pulls setup.remote into this chunk, so
+	// a dynamic import here would be ineffective (Rolldown cannot split it out).
+	import { installDatabaseDriver as installDbDriver } from './setup.remote';
 
 	// Popup settings (click to toggle)
 
@@ -162,7 +165,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		installSuccess = '';
 
 		try {
-			const { installDatabaseDriver: installDbDriver } = await import('./setup.remote');
 			const result = await installDbDriver(dbType);
 
 			if (result.success) {
@@ -693,7 +695,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				aria-label={isLoading
 					? 'Testing database connection, please wait'
 					: 'Test database connection'}
-				class="w-full dark:"
+				class="w-full"
 			>
 				{#if isLoading}
 					<div

@@ -9,6 +9,7 @@
  * - Import throughput at 100 entries
  */
 
+import { generateUUIDv7 } from "../../src/utils/native-utils";
 import {
   test,
   runBenchmark,
@@ -48,11 +49,8 @@ async function runAudit() {
   // Seed 100 entries via bulk API (collection exists from ensureStableTestData)
   const count = 100;
   const ids: string[] = [];
-  const runMark = Date.now();
-  console.log("   → Seeding " + count + " entries...");
-
   const entries = Array.from({ length: count }, (_, i) => {
-    const id = "pkg-" + runMark + "-" + i;
+    const id = generateUUIDv7();
     ids.push(id);
     return {
       _id: id,

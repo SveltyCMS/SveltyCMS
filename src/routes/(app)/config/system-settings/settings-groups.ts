@@ -4,6 +4,8 @@
  * Smart organization of all dynamic CMS settings with fine-grained permission control
  */
 
+import { SITE_NAME_MAX_LENGTH, SITE_SLOGAN_MAX_LENGTH } from "@src/databases/public-config-schema";
+
 export interface SettingField {
   category: "private" | "public";
   description: string;
@@ -816,11 +818,27 @@ export const settingsGroups: SettingGroup[] = [
       {
         key: "SITE_NAME",
         label: "Site Name",
-        description: "The public name of your website",
+        description: `The public name of your website (max ${SITE_NAME_MAX_LENGTH} characters)`,
         type: "text",
         category: "public",
         required: true,
         placeholder: "SveltyCMS",
+        validation: (value) =>
+          typeof value === "string" && value.length > SITE_NAME_MAX_LENGTH
+            ? `Max ${SITE_NAME_MAX_LENGTH} characters`
+            : null,
+      },
+      {
+        key: "SITE_SLOGAN",
+        label: "Site Slogan",
+        description: `Tagline shown under the logo (max ${SITE_SLOGAN_MAX_LENGTH} characters). Leave blank for the translated default.`,
+        type: "text",
+        category: "public",
+        placeholder: "with Sveltekit Power",
+        validation: (value) =>
+          typeof value === "string" && value.length > SITE_SLOGAN_MAX_LENGTH
+            ? `Max ${SITE_SLOGAN_MAX_LENGTH} characters`
+            : null,
       },
       {
         key: "TIMEZONE",
@@ -864,9 +882,9 @@ export const settingsGroups: SettingGroup[] = [
   },
   {
     id: "appearance",
-    name: "Appearance & Themes",
+    name: "Seasonal Effects",
     icon: "🎨",
-    description: "Visual appearance and seasonal themes",
+    description: "Seasonal login decorations. Admin themes live in Design System.",
     enabled: true,
     requiresRestart: false,
     adminOnly: false,

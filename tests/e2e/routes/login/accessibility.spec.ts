@@ -7,22 +7,47 @@
  *   - Programmatically verifies keyboard focus management.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 
 /**
+ * Reveal the Sign In form on `/login`. New visitors land on the Sign In / Sign
+ * Up chooser; when no admin exists yet the chooser opens the Sign Up first-user
+ * form. The GDPR cookie banner (z-9999) overlays the chooser until answered and
+ * would intercept a normal click, so the chooser clicks are forced — matching
+ * `tests/e2e/helpers/auth.ts` (no fixed sleeps; the email field is the gate).
+ */
+async function revealSignInForm(page: Page): Promise<void> {
+  await expect(async () => {
+    const email = page.getByTestId("signin-email");
+    if (await email.isVisible().catch(() => false)) return;
+    const icon = page.getByTestId("signin-icon");
+    if (await icon.isVisible().catch(() => false)) {
+      await icon.click({ force: true });
+    } else {
+      const fallback = page
+        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+        .first();
+      if (await fallback.isVisible().catch(() => false)) {
+        await fallback.click({ force: true });
+      }
+    }
+    await expect(email).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000, intervals: [500, 1_000, 2_000] });
+}
+
+/**
  * Owner-decision brand exception: `src/app.css` keeps the bright brand ramp
- * (`--color-primary-500: oklch(76.87% …)`, tertiary + surface also brightened),
- * which renders white text on `bg-primary-500` at ~1.94:1 and small
- * `text-surface-500` labels at ~3.9:1 — below the 4.5:1 AA threshold axe's
- * `color-contrast` rule enforces. Per the owner decision the ramp stays bright,
- * so `color-contrast` violations whose nodes are EXCLUSIVELY brand-colored
- * (fills: `bg-primary-500` / `preset-filled-primary-500`; small muted text:
- * `text-surface-500`) are exempted from the blocking gate. Every other element
- * on the audited pages is still fully checked — the exemption is scoped to
- * these classes, not the page.
+ * (`--color-primary-500: oklch(76.87% …)`), which renders white text on
+ * `bg-primary-500` at ~1.94:1 and small `text-surface-500` labels at ~3.9:1 —
+ * below the 4.5:1 AA threshold axe's `color-contrast` rule enforces. Per the
+ * owner decision the ramp stays bright, so `color-contrast` violations whose
+ * nodes are EXCLUSIVELY brand-colored (fills: `bg-primary-500` /
+ * `preset-filled-primary-500`; small muted text: `text-surface-500`) are
+ * exempted from the blocking gate. Every other element on the audited pages is
+ * still fully checked — the exemption is scoped to these classes, not the page.
  *
  * NOTE: the `text-surface-500` exemption is broader than ideal — it silences
  * genuine small-gray-text contrast findings. Reverting `--color-surface-500`
@@ -63,23 +88,7 @@ test.describe("Universal Accessibility Audits", () => {
   test("Login Page - Automated Axe Audit", async ({ page }) => {
     await page.context().clearCookies();
     await page.goto("/login");
-    // Click Sign In to reveal the signin form (hidden behind chooser by default)
-    await expect(async () => {
-      const email = page.getByTestId("signin-email");
-      if (await email.isVisible().catch(() => false)) return;
-      const icon = page.getByTestId("signin-icon");
-      if (await icon.isVisible().catch(() => false)) {
-        await icon.click();
-      } else {
-        const fallback = page
-          .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-          .first();
-        if (await fallback.isVisible().catch(() => false)) {
-          await fallback.click();
-        }
-      }
-      await expect(email).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 20_000, intervals: [500, 1_000, 2_000] });
+    await revealSignInForm(page);
 
     // The sign-in form is wrapped in transition:fade — auditing mid-animation
     // reports phantom color-contrast violations (opacity < 1 blends the text
@@ -188,23 +197,7 @@ test.describe("Universal Accessibility Audits", () => {
   test("Keyboard Traversal - Focus Trap & Focus Ring Visibility", async ({ page }) => {
     await page.context().clearCookies();
     await page.goto("/login");
-    // Click Sign In to reveal the signin form (hidden behind chooser by default)
-    await expect(async () => {
-      const email = page.getByTestId("signin-email");
-      if (await email.isVisible().catch(() => false)) return;
-      const icon = page.getByTestId("signin-icon");
-      if (await icon.isVisible().catch(() => false)) {
-        await icon.click();
-      } else {
-        const fallback = page
-          .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-          .first();
-        if (await fallback.isVisible().catch(() => false)) {
-          await fallback.click();
-        }
-      }
-      await expect(email).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 20_000, intervals: [500, 1_000, 2_000] });
+    await revealSignInForm(page);
 
     // Check that we can move focus using Tab key
     const emailField = page.getByTestId("signin-email");

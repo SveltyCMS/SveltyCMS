@@ -7,6 +7,7 @@ import {
   array,
   boolean,
   literal,
+  maxLength,
   maxValue,
   minLength,
   minValue,
@@ -19,6 +20,11 @@ import {
 } from "valibot";
 import type { InferOutput } from "valibot";
 
+/** Max characters for `SITE_NAME` — keeps the sidebar brand lockup from overflowing. */
+export const SITE_NAME_MAX_LENGTH = 40;
+/** Max characters for the optional custom `SITE_SLOGAN` (blank = translated default). */
+export const SITE_SLOGAN_MAX_LENGTH = 60;
+
 // The PUBLIC configuration for the application.
 export const publicConfigSchema = object({
   // --- Host configuration ---
@@ -26,7 +32,10 @@ export const publicConfigSchema = object({
   HOST_PROD: pipe(string(), minLength(1)),
 
   // --- Site configuration ---
-  SITE_NAME: pipe(string(), minLength(1)),
+  SITE_NAME: pipe(string(), minLength(1), maxLength(SITE_NAME_MAX_LENGTH)),
+  // Optional custom tagline under the logo. Blank (the seeded default) means
+  // "use the translated `logo_slogan` catalog value".
+  SITE_SLOGAN: optional(pipe(string(), maxLength(SITE_SLOGAN_MAX_LENGTH))),
   TIMEZONE: optional(string()),
   PASSWORD_MIN_LENGTH: optional(pipe(number(), minValue(1)), 8),
 

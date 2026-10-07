@@ -17,6 +17,7 @@
  * bun run scripts/slop-scanner.ts                 # Check all files
  * bun run scripts/slop-scanner.ts --fix           # Check + safe autofix
  * bun run scripts/slop-scanner.ts --strict        # Fail-closed (exits 1 on error/warning)
+ * bun run scripts/slop-scanner.ts --surface       # Also list the export-surface inventory
  * bun run scripts/slop-scanner.ts --files file.svelte # Check target file(s)
  */
 
@@ -33,6 +34,15 @@ const MAX_TODOS_PER_FILE = 6;
 const SUPPRESS_FILE = join(ROOT, ".slop-suppress.json");
 /** Print cap per section (raise via SLOP_PRINT_CAP for full inventories). */
 const PRINT_CAP = Math.max(0, Number(process.env.SLOP_PRINT_CAP ?? 25) || 25);
+
+/**
+ * Info categories that are advisory inventories, never action items: the
+ * documented/test-only export surface, and the same-name-across-modules
+ * advisory (usually a legitimate re-export bridge or contract symmetry). Both
+ * are summarised as counts and listed only under `--surface` / `--verbose`, so
+ * a clean run is not buried under hundreds of lines of ecosystem inventory.
+ */
+const ADVISORY_INFO_CATEGORIES = new Set(["export-surface", "duplicate-export-name"]);
 
 // Suppressed files/categories to suppress known legacy exceptions
 const SUPPRESS: { file: string; category: string }[] = [];
@@ -1138,20 +1148,29 @@ async function readGlob(glob: string): Promise<string> {
   return out;
 }
 async function scanUnusedExports(tsFiles: string[], svelteFiles: string[]) {
-  // Reference set = src + scripts (the config-cli and other scripts are
-  // production callers of src exports). Candidates are registered from src
-  // only — scripts are callers, never dead-code sources here.
+  // Reference set = src + scripts + root entry/config files. Scripts (config-cli
+  // and friends) and the root entries (index.server.mjs, index.cjs, vite.config.ts,
+  // …) are production callers of src exports. Candidates are registered from src
+  // only — those callers are reference-only, never dead-code sources here.
   const contents = new Map<string, string>();
   const srcRel = new Set<string>();
   for (const file of tsFiles) srcRel.add(relative(ROOT, file).replace(/\\/g, "/"));
   for (const file of svelteFiles) srcRel.add(relative(ROOT, file).replace(/\\/g, "/"));
 
-  const scriptFiles = globSync("scripts/**/*.{ts,js}", {
+  const scriptFiles = globSync("scripts/**/*.{ts,js,mjs,cjs}", {
     cwd: ROOT,
     exclude: (p) => String(p).includes("node_modules"),
   }).map((f) => (isAbsolute(f) ? f : join(ROOT, f)));
 
-  for (const file of [...tsFiles, ...svelteFiles, ...scriptFiles]) {
+  // Root entry points and build/config files sit outside src/scripts. Without
+  // them, exports invoked only from a bundled entry (e.g. startYjsSyncServer,
+  // imported by index.server.mjs via importBuildBundle) are misreported as dead.
+  const entryFiles = globSync("*.{js,mjs,cjs,ts}", {
+    cwd: ROOT,
+    exclude: (p) => String(p).includes("node_modules"),
+  }).map((f) => (isAbsolute(f) ? f : join(ROOT, f)));
+
+  for (const file of [...tsFiles, ...svelteFiles, ...scriptFiles, ...entryFiles]) {
     if (file.endsWith(".d.ts")) continue;
     try {
       contents.set(relative(ROOT, file).replace(/\\/g, "/"), await fs.readFile(file, "utf8"));
@@ -1248,7 +1267,7 @@ async function scanUnusedExports(tsFiles: string[], svelteFiles: string[]) {
         file,
         line,
         "unused-export",
-        `"${name}" is exported but referenced nowhere in src/scripts/tests/docs — dead-code candidate`,
+        `"${name}" is exported but referenced nowhere in src/scripts/root/tests/docs — dead-code candidate (verify dynamic/bundled callers)`,
         "info",
       );
     }
@@ -1378,9 +1397,15 @@ function scanDuplicateExportNames(entries: { rel: string; content: string }[]) {
       const content = entries.find((e) => e.rel === rel)?.content ?? "";
       // NOTE: `\b` belongs to the bare-name alternative only — after `}` it can
       // never match (`}` and whitespace are both non-word characters).
-      return new RegExp(`import\\s+(?:type\\s+)?(?:\\{[^}]*\\b${name}\\b[^}]*\\}|${name}\\b)`).test(
+      const importsIt = new RegExp(
+        `import\\s+(?:type\\s+)?(?:\\{[^}]*\\b${name}\\b[^}]*\\}|${name}\\b)`,
+      ).test(content);
+      // Barrel files re-export with `export { name } from "…"` (no `import`
+      // statement at all) — that is a bridge too, not a duplicate definition.
+      const reExportsIt = new RegExp(`export\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from`).test(
         content,
       );
+      return importsIt || reExportsIt;
     });
     const kind =
       bridge.length > 0
@@ -1466,6 +1491,10 @@ async function main() {
   const argv = process.argv.slice(2);
   const shouldFix = argv.includes("--fix");
   const isStrict = argv.includes("--strict");
+  // The export-surface bucket is a tracked inventory (test-only helpers,
+  // documented public API) — never actionable, and ~90 lines every run. It is
+  // summarised by default and fully listed only when asked for.
+  const shouldShowSurface = argv.includes("--surface") || argv.includes("--verbose");
   // `--files` consumes positional args up to the next flag — `--strict` after
   // a file list is a flag, never a filename.
   const filesIdx = argv.indexOf("--files");
@@ -1580,15 +1609,34 @@ async function main() {
   }
 
   if (infos.length) {
-    const surfaces = infos.filter((v) => v.category === "export-surface").length;
-    const dead = infos.filter((v) => v.category === "unused-export").length;
+    const inventory = infos.filter((v) => ADVISORY_INFO_CATEGORIES.has(v.category));
+    const actionable = infos.filter((v) => !ADVISORY_INFO_CATEGORIES.has(v.category));
+    const dead = actionable.filter((v) => v.category === "unused-export").length;
+    const surfaces = inventory.filter((v) => v.category === "export-surface").length;
+    const dupes = inventory.filter((v) => v.category === "duplicate-export-name").length;
+    const others = actionable.length - dead;
+    const labels = [
+      dead ? `${dead} dead-code candidate(s)` : null,
+      surfaces ? `${surfaces} documented/test-only export(s)` : null,
+      dupes ? `${dupes} duplicate-export advisory(ies)` : null,
+      others ? `${others} other info` : null,
+    ].filter(Boolean);
     console.log(
-      `\nℹ️  INFOS:${dead ? ` ${dead} dead-code candidate(s)` : ""}${surfaces ? `${dead ? "," : ""} ${surfaces} test/doc-only export(s)` : ""}`,
+      `\nℹ️  INFOS:${labels.length ? ` ${labels.join(", ")} — advisory, never a gate failure` : " none"}`,
     );
-    infos
+
+    // Actionable items (dead-code candidates + other findings) always print; the
+    // two advisory inventories are noise every run and list only on demand.
+    const shown = shouldShowSurface ? infos : actionable;
+    shown
       .slice(0, PRINT_CAP)
       .forEach((v) => console.log(`  ${v.file}:${v.line} [${v.category}] ${v.message}`));
-    if (infos.length > PRINT_CAP) console.log(`  ... +${infos.length - PRINT_CAP} more`);
+    if (shown.length > PRINT_CAP) console.log(`  ... +${shown.length - PRINT_CAP} more`);
+    if (!shouldShowSurface && inventory.length) {
+      console.log(
+        `  ↳ ${inventory.length} advisory item(s) hidden (documented/test-only exports + duplicate-export names) — run with --surface to list`,
+      );
+    }
   }
 
   if (isStrict && (errors.length > 0 || warnings.length > 0)) {
@@ -1600,9 +1648,9 @@ async function main() {
 
   if (errors.length === 0 && warnings.length === 0) {
     const dead = infos.filter((v) => v.category === "unused-export").length;
-    const surfaces = infos.filter((v) => v.category === "export-surface").length;
+    const inventory = infos.filter((v) => ADVISORY_INFO_CATEGORIES.has(v.category)).length;
     console.log(
-      `\n✅ Clean! No issues found.${dead || surfaces ? ` (${dead} dead-code candidate(s), ${surfaces} test/doc-only export(s) — info only)` : ""}`,
+      `\n✅ Clean! No issues found.${dead || inventory ? ` (${dead} dead-code candidate(s); ${inventory} advisory item(s) tracked as inventory)` : ""}`,
     );
   } else if (errors.length === 0) {
     console.log("\n⚠️  Only warnings — review recommended.");

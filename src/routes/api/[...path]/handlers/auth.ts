@@ -11,6 +11,34 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
+/** Cached lazy handle to the SSO session store — one module-registry lookup instead of one per call. */
+let ssoSessionModulePromise: Promise<typeof import("@src/databases/auth/sso-session")> | undefined;
+function loadSsoSessionModule(): Promise<typeof import("@src/databases/auth/sso-session")> {
+  return (ssoSessionModulePromise ??= import("@src/databases/auth/sso-session"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { AppError, rethrow, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -375,7 +403,7 @@ export async function handleLogin(
   // a short-lived signed token that the /api/user/2fa/verify path requires.
   if (result.user && (result.user as any).is2FAEnabled && !(event.locals as any).__testBypass) {
     const { signPending2faToken } = await import("@src/utils/server/pending-2fa-token.server");
-    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    const { invalidateSessionCache } = await loadHandleAuthenticationModule();
     // AuthNamespace.login returns session: null for 2FA accounts (no session is
     // minted from the password step), so the cleanup below is defensive only.
     if (result.session?._id) {
@@ -513,7 +541,7 @@ export async function handleOidcLogout(
   // Always terminate the local session first
   if (sessionId) {
     try {
-      const { performRpInitiatedLogout } = await import("@src/databases/auth/sso-session");
+      const { performRpInitiatedLogout } = await loadSsoSessionModule();
       const result = await performRpInitiatedLogout({
         sessionId,
         idTokenHint,
@@ -575,7 +603,7 @@ export async function handleOidcLoginStart(event: RequestEvent, tenantId?: Datab
   if (!providerId) throw new AppError("provider query param is required", 400);
 
   const { buildOidcAuthorizationUrl, getSsoProvider, loadSsoProvidersFromSettings, generatePkce } =
-    await import("@src/databases/auth/sso-session");
+    await loadSsoSessionModule();
   await loadSsoProvidersFromSettings(tenantId as string);
   if (!getSsoProvider(providerId)) {
     throw new AppError(`Unknown OIDC provider: ${providerId}`, 404);
@@ -654,7 +682,7 @@ export async function handleOidcLoginCallback(
     getSsoProvider,
     resolveJitRole,
     loadSsoProvidersFromSettings,
-  } = await import("@src/databases/auth/sso-session");
+  } = await loadSsoSessionModule();
   await loadSsoProvidersFromSettings(tenantId as string);
 
   const exchanged = await exchangeOidcCode(stored.providerId, {
@@ -691,7 +719,7 @@ export async function handleOidcLoginCallback(
   const userRes = await cms.auth.getUserByEmail(email, { tenantId });
   let user = userRes?.success ? userRes.data : null;
 
-  const auth = (await import("@src/databases/db")).getDb()?.auth;
+  const auth = (await loadDbModule()).getDb()?.auth;
   if (!auth?.createSession) {
     throw new AppError("Auth adapter createSession unavailable", 500);
   }
@@ -803,8 +831,7 @@ export async function handleOidcLoginCallback(
   }
 
   {
-    const { getSessionCookieName, SESSION_COOKIE_NAME } =
-      await import("@src/databases/auth/constants");
+    const { getSessionCookieName, SESSION_COOKIE_NAME } = await loadAuthConstantsModule();
     const isSecure = event.url.protocol === "https:";
     const name = getSessionCookieName(isSecure) || SESSION_COOKIE_NAME;
     cookies.set(name, sessionId, {
@@ -840,7 +867,7 @@ export async function handleSsoProvidersRoute(
     getPublicSsoProviders,
     loadSsoProvidersFromSettings,
     saveSsoProviders,
-  } = await import("@src/databases/auth/sso-session");
+  } = await loadSsoSessionModule();
 
   await loadSsoProvidersFromSettings(tenantId as string);
 
@@ -923,7 +950,7 @@ export async function handleFrontChannelLogoutRoute(event: RequestEvent) {
     return new Response("Missing iss or sid", { status: 400 });
   }
 
-  const { handleFrontChannelLogout } = await import("@src/databases/auth/sso-session");
+  const { handleFrontChannelLogout } = await loadSsoSessionModule();
   return handleFrontChannelLogout(issuer, sid);
 }
 
@@ -947,7 +974,7 @@ export async function handleBackChannelLogoutRoute(event: RequestEvent) {
     return new Response("Missing logout_token", { status: 400 });
   }
 
-  const { handleBackChannelLogout } = await import("@src/databases/auth/sso-session");
+  const { handleBackChannelLogout } = await loadSsoSessionModule();
   const result = await handleBackChannelLogout(logoutToken);
 
   if (!result.success) {

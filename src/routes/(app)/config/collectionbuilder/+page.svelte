@@ -41,8 +41,15 @@ None (TreeView has its own keyboard navigation)
 	import { hasDuplicateSiblingName } from '@src/content';
 	import { getDescendantIds } from './collectionbuilder-utils';
 	import { rethrow } from '@utils/error-handling';
+	import { sanitizeHtml } from '@utils/sanitize-html';
 	import {
 		button_save,
+		builder_introspect_ingest,
+		builder_note_instant,
+		builder_note_layout,
+		builder_quick_start,
+		builder_tip_save_changes,
+		builder_tip_save_no_changes,
 		collection_add,
 		collection_addcategory,
 		collection_description,
@@ -105,7 +112,6 @@ None (TreeView has its own keyboard navigation)
 	});
 
 	import ModalCategory from './nested-content/modal-category.svelte';
-	import ModalPreset from './nested-content/modal-preset.svelte';
 	import ModalQuickStart from './nested-content/modal-quick-start.svelte';
 	import ModalSchemaIngestion from './nested-content/modal-schema-ingestion.svelte';
 	import EmptyState from './nested-content/empty-state.svelte';
@@ -613,43 +619,6 @@ None (TreeView has its own keyboard navigation)
 		);
 	}
 
-	function modalLoadPreset(): void {
-		modalState.trigger(
-			ModalPreset as any,
-			{
-				title: 'Load Starter Preset',
-				body: 'Select a preset to load into your project. This will copy preset collections and build the project.',
-				size: 'xl'
-			},
-			async (response: { presetId: string } | null) => {
-				if (!response || !response.presetId) return;
-
-				try {
-					isLoading = true;
-
-					const { installPreset } = await import('./collectionbuilder.remote');
-					const result = await installPreset(response.presetId);
-
-					if ('success' in result && result.success) {
-						toast.success(`Preset ${response.presetId} loaded successfully`);
-						// Soft refresh — preserves session, consent, and builder context
-						await invalidate('app:content');
-					} else {
-						const message = (result as any).message || 'Failed to load preset';
-						toast.error(message);
-					}
-				} catch (err) {
-					logger.error('Error loading preset:', err);
-					toast.error(
-						err instanceof Error ? err.message : 'An error occurred while loading preset'
-					);
-				} finally {
-					isLoading = false;
-				}
-			}
-		);
-	}
-
 	function modalQuickStart(): void {
 		modalState.trigger(
 			ModalQuickStart as any,
@@ -657,9 +626,26 @@ None (TreeView has its own keyboard navigation)
 				title: 'Quick-Start Templates',
 				size: 'xl'
 			},
-			async (response: { installed: boolean; collections?: string[] } | null) => {
+			async (
+				response: {
+					installed: boolean;
+					collections?: string[];
+					contentStructure?: ContentNode[];
+				} | null
+			) => {
 				if (!response || !response.installed) return;
-				// Soft refresh — no full reload (keeps consent + session state)
+
+				// Adopt the freshly installed structure. This page's load does NOT depend
+				// on 'app:content', so invalidating alone never refreshes
+				// `data.contentStructure` — the empty state would stay on screen.
+				const installed = response.contentStructure as unknown as ContentNode[] | undefined;
+				if (installed?.length) {
+					currentConfig = installed;
+					setContentStructure(installed);
+					treeVersion++;
+				}
+
+				// Soft refresh — refreshes the layout/sidebar, keeps consent + session state
 				await invalidate('app:content');
 			}
 		);
@@ -672,9 +658,7 @@ None (TreeView has its own keyboard navigation)
 				title: 'Schema Ingestion & Database Introspection',
 				size: 'xl'
 			},
-			async (
-				response: { schema: import('./nested-content/ddl-schema-parser').ParsedSchemaResult } | null
-			) => {
+			async (response: { schema: import('./schema-ingestion').ParsedSchemaResult } | null) => {
 				if (!response || !response.schema) return;
 				const { schema } = response;
 				// Pre-populate collection in collection store
@@ -729,7 +713,9 @@ None (TreeView has its own keyboard navigation)
 				data-testid="save-structure-button"
 				onclick={handleSave}
 				disabled={isLoading || Object.keys(nodesToSave).length === 0}
-				title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
+				title={Object.keys(nodesToSave).length === 0
+					? builder_tip_save_no_changes()
+					: builder_tip_save_changes()}
 				aria-keyshortcuts="mod+s"
 				size="md"
 				class="flex items-center gap-1.5 px-4"
@@ -752,7 +738,6 @@ None (TreeView has its own keyboard navigation)
 				<Button
 					onclick={() => modalQuickStart()}
 					variant="warning"
-					rounded={true}
 					size="lg"
 					class="group whitespace-nowrap"
 					disabled={isLoading}
@@ -762,13 +747,12 @@ None (TreeView has its own keyboard navigation)
 						width="24"
 						class="transition-transform group-hover:rotate-12"
 					></iconify-icon>
-					<span>Quick Start</span>
+					<span>{builder_quick_start()}</span>
 				</Button>
 
 				<Button
 					onclick={() => modalIntrospectSchema()}
 					variant="success"
-					rounded={true}
 					size="lg"
 					class="group whitespace-nowrap"
 					disabled={isLoading}
@@ -779,13 +763,12 @@ None (TreeView has its own keyboard navigation)
 						width="24"
 						class="transition-transform group-hover:scale-110"
 					></iconify-icon>
-					<span>Introspect / Ingest</span>
+					<span>{builder_introspect_ingest()}</span>
 				</Button>
 
 				<Button
 					onclick={() => modalAddCategory()}
 					variant="tertiary"
-					rounded={true}
 					size="lg"
 					class="group whitespace-nowrap"
 					disabled={isLoading}
@@ -804,7 +787,6 @@ None (TreeView has its own keyboard navigation)
 					data-preload="hover"
 					onclick={setupNewCollection}
 					variant="error"
-					rounded={true}
 					size="lg"
 					class="group whitespace-nowrap"
 					disabled={isLoading}
@@ -835,12 +817,10 @@ None (TreeView has its own keyboard navigation)
 			</div>
 
 			<p class="text-center" role="note">
-				Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong
-					>category</strong
-				>
-				(middle of the row) to nest; use the top/bottom edge to reorder as siblings.<br />
-				Layout changes require
-				<strong>Save</strong> to persist.
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html sanitizeHtml(builder_note_instant())}<br />
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html sanitizeHtml(builder_note_layout())}
 			</p>
 
 			<div class="max-h-[calc(100vh-120px)] overflow-auto" data-testid="collection-builder-board">
@@ -876,7 +856,6 @@ None (TreeView has its own keyboard navigation)
 			onAddCollection={setupNewCollection}
 			{newCollectionHref}
 			onAddCategory={() => modalAddCategory()}
-			onLoadPreset={modalLoadPreset}
 			onQuickStart={modalQuickStart}
 		/>
 	{/if}

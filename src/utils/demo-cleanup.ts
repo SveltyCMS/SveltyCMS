@@ -16,6 +16,22 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 interface Tenanted {
   tenantId?: string | null;
 }
@@ -25,7 +41,7 @@ interface Tenanted {
  * Runs only if DEMO mode is enabled (via env var or private config).
  */
 export async function cleanupExpiredDemoTenants() {
-  const { getDb } = await import("@src/databases/db");
+  const { getDb } = await loadDbModule();
   const env = getPrivateEnv();
   // Check ONLY private config (static) or env var - enforced security
   const isDemoEnv =
@@ -45,7 +61,7 @@ export async function cleanupExpiredDemoTenants() {
   }
 
   // Dynamic TTL from settings
-  const { getPublicSettingSync } = await import("@src/services/core/settings-service");
+  const { getPublicSettingSync } = await loadSettingsServiceModule();
   const demoTTL = Number(getPublicSettingSync("DEMO_TTL")) || 60;
   const EXPIRATION_MS = demoTTL * 60 * 1000;
   const cutoffDate = new Date(Date.now() - EXPIRATION_MS);
@@ -118,6 +134,7 @@ export async function cleanupExpiredDemoTenants() {
           const mediaResult = await db.media.files.getByFolder(undefined, {
             page,
             pageSize: PAGE_SIZE,
+            ...withSystemScope("scheduler"),
           });
           if (mediaResult.success && mediaResult.data) {
             const items = mediaResult.data.items || [];
@@ -237,13 +254,13 @@ export async function cleanupExpiredDemoTenants() {
         }
 
         // Virtual Folders - list all, filter by tenantId, delete each
-        const foldersResult = await db.system.virtualFolder.getAll();
+        const foldersResult = await db.system.virtualFolder.getAll(withSystemScope("scheduler"));
         if (foldersResult.success && foldersResult.data) {
           const tenantFolders = foldersResult.data.filter(
             (f) => (f as unknown as Tenanted).tenantId === tenantId,
           );
           for (const folder of tenantFolders) {
-            await db.system.virtualFolder.delete(folder._id);
+            await db.system.virtualFolder.delete(folder._id, withSystemScope("scheduler"));
           }
         }
 

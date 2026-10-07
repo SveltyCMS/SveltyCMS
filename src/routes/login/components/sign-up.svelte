@@ -506,7 +506,7 @@
 								type="submit"
 								form="signup-form"
 								variant="secondary"
-								class="w-full sm:w-auto dark:"
+								class="w-full sm:w-auto"
 								aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
 								loading={isSubmitting || isRedirecting}
 							>
@@ -521,7 +521,7 @@
 									type="submit"
 									form="signup-form"
 									variant="secondary"
-									class="w-full sm:w-auto dark:"
+									class="w-full sm:w-auto"
 									aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
 									loading={isSubmitting || isRedirecting}
 								>

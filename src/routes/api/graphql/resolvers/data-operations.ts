@@ -19,6 +19,59 @@ import { GraphQLScalarType, Kind } from "graphql";
 import type { IDBAdapter } from "@databases/db-interface";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
+/** Cached lazy handle to the content sync service — one module-registry lookup instead of one per call. */
+let contentSyncServiceModulePromise:
+  | Promise<typeof import("@src/services/core/content-sync-service")>
+  | undefined;
+function loadContentSyncServiceModule(): Promise<
+  typeof import("@src/services/core/content-sync-service")
+> {
+  return (contentSyncServiceModulePromise ??= import("@src/services/core/content-sync-service"));
+}
+
+/** Cached lazy handle to the content package service — one module-registry lookup instead of one per call. */
+let contentPackageServiceModulePromise:
+  | Promise<typeof import("@src/services/core/content-package-service")>
+  | undefined;
+function loadContentPackageServiceModule(): Promise<
+  typeof import("@src/services/core/content-package-service")
+> {
+  return (contentPackageServiceModulePromise ??=
+    import("@src/services/core/content-package-service"));
+}
+
+/** Cached lazy handle to the config service — one module-registry lookup instead of one per call. */
+let configServiceModulePromise:
+  | Promise<typeof import("@src/services/core/config-service")>
+  | undefined;
+function loadConfigServiceModule(): Promise<typeof import("@src/services/core/config-service")> {
+  return (configServiceModulePromise ??= import("@src/services/core/config-service"));
+}
+
+/** Cached lazy handle to the backup service — one module-registry lookup instead of one per call. */
+let backupServiceModulePromise:
+  | Promise<typeof import("@src/services/core/backup-service")>
+  | undefined;
+function loadBackupServiceModule(): Promise<typeof import("@src/services/core/backup-service")> {
+  return (backupServiceModulePromise ??= import("@src/services/core/backup-service"));
+}
+
+/** Cached lazy handle to the migration engine — one module-registry lookup instead of one per call. */
+let migrationEngineModulePromise:
+  | Promise<typeof import("@src/services/core/migration-engine")>
+  | undefined;
+function loadMigrationEngineModule(): Promise<
+  typeof import("@src/services/core/migration-engine")
+> {
+  return (migrationEngineModulePromise ??= import("@src/services/core/migration-engine"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 // ---------------------------------------------------------------------------
 // JSON Scalar
 // ---------------------------------------------------------------------------
@@ -286,7 +339,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
   return {
     configStatus: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user) throw new Error("Authentication required");
-      const { configService } = await import("@src/services/core/config-service");
+      const { configService } = await loadConfigServiceModule();
       const status = await configService.getStatus(args.tenantId ?? tid);
       return {
         status: status.status,
@@ -304,7 +357,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
 
     backupList: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { backupService } = await import("@src/services/core/backup-service");
+      const { backupService } = await loadBackupServiceModule();
       const result = await backupService.listBackups(args.tenantId ?? tid);
       return result.backups.map((b) => ({
         path: b.path,
@@ -323,7 +376,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
 
     channelList: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const channels = await contentSyncService.listChannels(args.tenantId ?? tid);
       return channels.map((c) => ({
         channelId: c.channelId,
@@ -343,7 +396,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
 
     migrationStatus: async (_: unknown, args: { collectionName?: string }, ctx: GraphQLContext) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { MigrationEngine } = await import("@src/services/core/migration-engine");
+      const { MigrationEngine } = await loadMigrationEngineModule();
       const results = await MigrationEngine.getStatus(args.collectionName);
       return results.map((r) => ({
         collectionId: r.collectionId,
@@ -368,7 +421,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
 
     configExport: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { configService } = await import("@src/services/core/config-service");
+      const { configService } = await loadConfigServiceModule();
       const result = await configService.performExport({
         tenantId: args.tenantId ?? tid,
       });
@@ -384,7 +437,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { configService } = await import("@src/services/core/config-service");
+      const { configService } = await loadConfigServiceModule();
       const status = await configService.getStatus(args.tenantId ?? tid);
 
       const allChanges = [
@@ -429,7 +482,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { configService } = await import("@src/services/core/config-service");
+      const { configService } = await loadConfigServiceModule();
 
       const status = await configService.getStatus(args.tenantId ?? tid);
       const hasDestructive = status.changes.deleted.length > 0;
@@ -463,7 +516,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user) throw new Error("Authentication required");
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
       const result = await contentPackageService.validateExport({
         collections: args.collections,
         tenantId: args.tenantId ?? tid,
@@ -482,7 +535,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user) throw new Error("Authentication required");
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
       try {
         const pkg = await contentPackageService.runExport({
           collections: args.collections,
@@ -508,7 +561,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user) throw new Error("Authentication required");
-      const { contentPackageService } = await import("@src/services/core/content-package-service");
+      const { contentPackageService } = await loadContentPackageServiceModule();
       const result = await contentPackageService.validateImport(args.package as any, {
         tenantId: args.tenantId ?? tid,
       });
@@ -527,7 +580,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { backupService } = await import("@src/services/core/backup-service");
+      const { backupService } = await loadBackupServiceModule();
       const result = await backupService.createBackup({
         tenantId: args.tenantId ?? tid,
         userId: (ctx.user as any)?._id ?? ctx.user,
@@ -547,7 +600,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { backupService } = await import("@src/services/core/backup-service");
+      const { backupService } = await loadBackupServiceModule();
       const result = await backupService.restoreBackup(args.backupPath, {
         confirmed: args.confirmed,
         tenantId: args.tenantId ?? tid,
@@ -569,7 +622,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { MigrationEngine } = await import("@src/services/core/migration-engine");
+      const { MigrationEngine } = await loadMigrationEngineModule();
       const { contentStore } = await import("@stores/content-registry.svelte");
 
       const schema = contentStore.getCollection(args.collectionName, args.tenantId ?? tid ?? null);
@@ -599,9 +652,9 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { MigrationEngine } = await import("@src/services/core/migration-engine");
+      const { MigrationEngine } = await loadMigrationEngineModule();
       const { contentStore } = await import("@stores/content-registry.svelte");
-      const { dbAdapter } = await import("@src/databases/db");
+      const { dbAdapter } = await loadDbModule();
 
       // Look up the migration record and collection from the planId
       let collectionId = "";
@@ -665,7 +718,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const result = await contentSyncService.pushContent(args.channelId, {
         adminConfirmation: args.confirmed,
         userId: (ctx.user as any)?._id ?? ctx.user,
@@ -685,7 +738,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       ctx: GraphQLContext,
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
-      const { contentSyncService } = await import("@src/services/core/content-sync-service");
+      const { contentSyncService } = await loadContentSyncServiceModule();
       const result = await contentSyncService.pullContent(args.channelId, {
         anonymize: args.anonymize,
         userId: (ctx.user as any)?._id ?? ctx.user,

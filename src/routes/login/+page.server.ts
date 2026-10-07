@@ -7,6 +7,18 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
+/** Cached lazy handle to the SSO session store — one module-registry lookup instead of one per call. */
+let ssoSessionModulePromise: Promise<typeof import("@src/databases/auth/sso-session")> | undefined;
+function loadSsoSessionModule(): Promise<typeof import("@src/databases/auth/sso-session")> {
+  return (ssoSessionModulePromise ??= import("@src/databases/auth/sso-session"));
+}
+
 import {
   generateGithubAuthUrl,
   generateGoogleAuthUrl,
@@ -382,7 +394,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
             user_id: existingUser._id as DatabaseId,
             expires: new Date(Date.now() + SESSION_DURATION_MS).toISOString() as ISODateString,
           });
-          const isSecure = (await import("@src/databases/auth/constants")).isSecureCookieContext(
+          const isSecure = (await loadAuthConstantsModule()).isSecureCookieContext(
             url.protocol,
             url.hostname,
           );
@@ -433,8 +445,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     const pkgVersion = pkg.version;
     const loginBranding = await loadLoginBranding(locals.tenantId);
 
-    const { loadSsoProvidersFromSettings, getPublicSsoProviders } =
-      await import("@src/databases/auth/sso-session");
+    const { loadSsoProvidersFromSettings, getPublicSsoProviders } = await loadSsoSessionModule();
     await loadSsoProvidersFromSettings(locals.tenantId as string);
     const ssoProviders = getPublicSsoProviders();
 
@@ -461,10 +472,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
         locals.returningUser ??
         readSessionCookie(
           cookies,
-          (await import("@src/databases/auth/constants")).isSecureCookieContext(
-            url.protocol,
-            url.hostname,
-          ),
+          (await loadAuthConstantsModule()).isSecureCookieContext(url.protocol, url.hostname),
         ),
       ),
     };

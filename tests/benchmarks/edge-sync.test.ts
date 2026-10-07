@@ -18,7 +18,7 @@ import "../unit/bun-preload.ts";
 import { CacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 
 const TEST_TAGS = Object.freeze(["edge-sync-live-test"]);
 const TENANT = "global";
@@ -37,7 +37,7 @@ function forceGarbageCollection() {
 async function createLiveNode(id: string): Promise<CacheService> {
   const node = new CacheService();
 
-  (node as any).l1 = new LRUCache({
+  (node as any).l1 = new FastLRU({
     max: 10000,
     ttl: 1000 * 60 * 5,
     dispose: (_value: any, key: string) => {

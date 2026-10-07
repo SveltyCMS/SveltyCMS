@@ -9,6 +9,12 @@ import type { IDBAdapter } from "./db-interface";
 import { withSystemScope } from "./system-tenant-scope";
 import { dbPluginRegistry } from "./core/plugin-registry";
 
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
 // so MongoDB adapter works under Bun without requiring Node.js/vitest.
 import "@utils/v8-shim";
@@ -198,7 +204,7 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     critical: true,
     initialize: async (adapter) => {
       startServiceInitialization("contentSystem");
-      const { contentSystem } = await import("@src/content/index.server");
+      const { contentSystem } = await loadContentModule();
       await contentSystem.initialize(null, { skipReconciliation: true }, adapter);
       updateServiceHealth("contentSystem", "healthy", "Content system online");
 

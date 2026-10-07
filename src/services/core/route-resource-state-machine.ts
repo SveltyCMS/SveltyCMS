@@ -25,6 +25,12 @@ import {
   generateContentEtag,
 } from "@src/services/cache/response-cache";
 
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 /** User identity for user-scoped turbo keys (never share bodies across users — FLAC). */
 export interface PrewarmUser {
   _id?: unknown;
@@ -305,7 +311,7 @@ export class RouteResourceStateMachine {
     if (!parsed) return false;
 
     try {
-      const { getDb } = await import("@src/databases/db");
+      const { getDb } = await loadDbModule();
       const adapter = getDb();
       if (!adapter) return false;
 

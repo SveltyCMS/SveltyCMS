@@ -5,6 +5,12 @@
 
 import { createWidget } from "@src/widgets/widget-factory";
 
+/** Cached lazy handle to the license manager — one module-registry lookup instead of one per call. */
+let licenseManagerModulePromise: Promise<typeof import("@src/utils/license-manager")> | undefined;
+function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-manager")> {
+  return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
+}
+
 import { literal, nullable, number, object, tuple, type InferInput as ValibotInput } from "valibot";
 import type { GeolocationProps } from "./types";
 import type { FieldInstance } from "@src/content/types";
@@ -85,7 +91,7 @@ const GeolocationWidget = createWidget<GeolocationProps>({
   modifyRequest: async ({ data, type }: any) => {
     if (type === "POST" || type === "PATCH") {
       if (import.meta.env.SSR) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const { checkExtensionLicense } = await loadLicenseManagerModule();
         const status = await checkExtensionLicense("widget", "geolocation");
         if (!status.active && !status.hasLicense) {
           throw new Error("403 Forbidden: Premium License Required for Geolocation Widget");

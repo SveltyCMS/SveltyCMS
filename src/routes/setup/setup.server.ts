@@ -7,6 +7,44 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+/** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
+let settingsServiceModulePromise:
+  | Promise<typeof import("@src/services/core/settings-service")>
+  | undefined;
+function loadSettingsServiceModule(): Promise<
+  typeof import("@src/services/core/settings-service")
+> {
+  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
+}
+
+/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
+let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
+function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
+  return (engineServerModulePromise ??= import("@src/content/engine.server"));
+}
+
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
+/** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
+let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
+function loadDbModule(): Promise<typeof import("@src/databases/db")> {
+  return (dbModulePromise ??= import("@src/databases/db"));
+}
+
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { generateUUID } from "@utils/native-utils";
@@ -262,7 +300,7 @@ export async function completeSetup(
     };
   }
 
-  const { initializeWithConfig, dbAdapter: ga } = await import("@src/databases/db");
+  const { initializeWithConfig, dbAdapter: ga } = await loadDbModule();
   let dbAdapter: any;
   try {
     dbAdapter =
@@ -338,7 +376,7 @@ export async function completeSetup(
       replaceAll: true,
     });
     try {
-      const { refreshContent } = await import("@src/content/engine.server");
+      const { refreshContent } = await loadEngineServerModule();
       await refreshContent(null, { mode: "schemas", adapter: dbAdapter });
     } catch (e) {
       logger.warn("[Setup] Content refresh after preset seeding failed:", e);
@@ -511,7 +549,7 @@ export async function completeSetup(
       }
 
       // Invalidate settings cache + reload private config to pick up MULTI_TENANT/DEMO changes
-      const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+      const { invalidateSettingsCache } = await loadSettingsServiceModule();
       invalidateSettingsCache();
       const { clearPrivateConfigCache, loadPrivateConfig } =
         await import("@src/databases/config-state");
@@ -619,7 +657,7 @@ export async function completeSetup(
   try {
     const user = await auth.getUserById((session as any).user_id);
     if (user) {
-      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(session._id, user);
       logger.info(`[Setup] Primed session cache for ${(user as any).email}`);
     }
@@ -627,7 +665,7 @@ export async function completeSetup(
     logger.warn("[Setup] Failed to prime session cache:", e);
   }
 
-  const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
+  const { SESSION_COOKIE_NAME } = await loadAuthConstantsModule();
   const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   invalidateSetupCache(true);
 

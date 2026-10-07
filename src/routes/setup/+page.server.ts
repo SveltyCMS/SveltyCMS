@@ -15,6 +15,12 @@ import { isSetupComplete } from "@utils/setup-check-fast";
 import type { Actions, PageServerLoad } from "./$types";
 import inlangSettings from "../../../project.inlang/settings.json";
 
+/** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
+let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
+function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/constants")> {
+  return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
+}
+
 // Delegate core setup logic to setup.remote.ts
 import {
   testDatabaseConnection,
@@ -47,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   }
 
   // Clear ALL existing auth session cookie variants to ensure fresh start
-  const { clearAllSessionCookies } = await import("@src/databases/auth/constants");
+  const { clearAllSessionCookies } = await loadAuthConstantsModule();
   clearAllSessionCookies(cookies, "/");
 
   const availableLanguages: string[] = inlangSettings.locales || ["en", "de"];
@@ -87,8 +93,7 @@ export const actions: Actions = {
       payload.emailSettings || {},
     );
     if (result.sessionCookie) {
-      const { getSessionCookieName, isSecureCookieContext } =
-        await import("@src/databases/auth/constants");
+      const { getSessionCookieName, isSecureCookieContext } = await loadAuthConstantsModule();
       const isSecure = isSecureCookieContext(url.protocol, url.hostname);
       const cookieName = getSessionCookieName(isSecure);
       cookies.set(cookieName, result.sessionCookie.value, {

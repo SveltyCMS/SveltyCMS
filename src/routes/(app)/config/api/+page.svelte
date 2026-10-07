@@ -12,6 +12,7 @@
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Tabs from '@components/ui/tabs.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
@@ -31,6 +32,26 @@
 
 	type Tab = 'builder' | 'rest' | 'graphql' | 'codegen';
 	let activeTab = $state<Tab>('builder');
+
+	/** Shared card chrome — mirrors the `/user` account panels. */
+	const cardClass = 'p-5 sm:p-6';
+
+	const apiTabs = [
+		{
+			id: 'builder',
+			label: 'Visual Query Builder',
+			shortLabel: 'Builder',
+			icon: 'mdi:database-search-outline'
+		},
+		{ id: 'rest', label: 'REST / OpenAPI', shortLabel: 'REST', icon: 'mdi:swap-horizontal-bold' },
+		{
+			id: 'graphql',
+			label: 'GraphQL Console',
+			shortLabel: 'GraphQL',
+			icon: 'teenyicons:graphql-solid'
+		},
+		{ id: 'codegen', label: 'SDK & Code Snippets', shortLabel: 'SDK', icon: 'mdi:code-tags' }
+	];
 
 	// ── REST State ──
 	let restMethod = $state<'GET' | 'POST'>('GET');
@@ -236,52 +257,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 		</div>
 	{/snippet}
 
-	<!-- Tab Switcher -->
-	<div class="mb-6 flex border-b border-surface-500/20 overflow-x-auto">
-		<button
-			type="button"
-			onclick={() => (activeTab = 'builder')}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
-			'builder'
-				? 'border-primary-500 text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
-		>
-			<iconify-icon icon="mdi:database-search-outline" width="18"></iconify-icon>
-			Visual Query Builder
-		</button>
-		<button
-			type="button"
-			onclick={() => (activeTab = 'rest')}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
-			'rest'
-				? 'border-primary-500 text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
-		>
-			<iconify-icon icon="mdi:swap-horizontal-bold" width="18"></iconify-icon>
-			REST / OpenAPI
-		</button>
-		<button
-			type="button"
-			onclick={() => (activeTab = 'graphql')}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
-			'graphql'
-				? 'border-primary-500 text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
-		>
-			<iconify-icon icon="teenyicons:graphql-solid" width="16"></iconify-icon>
-			GraphQL Console
-		</button>
-		<button
-			type="button"
-			onclick={() => (activeTab = 'codegen')}
-			class="flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 {activeTab ===
-			'codegen'
-				? 'border-primary-500 text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
-		>
-			<iconify-icon icon="mdi:code-tags" width="18"></iconify-icon>
-			SDK & Code Snippets
-		</button>
+	<!-- Tab Switcher — shared Tabs component (same design as /user) -->
+	<div class="mb-6">
+		<Tabs
+			tabs={apiTabs}
+			bind:activeTab
+			variant="underline"
+			ariaLabel="API playground sections"
+			testId="api-tabs"
+			onTabChange={(id) => {
+				activeTab = id as Tab;
+			}}
+		/>
 	</div>
 
 	<!-- TAB 0: Visual Query Builder -->
@@ -293,7 +280,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	{#if activeTab === 'rest'}
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Request Form -->
-			<AdminCard>
+			<AdminCard class={cardClass}>
 				<h3 class="mb-4 text-base font-semibold text-surface-900 dark:text-surface-50">
 					Send API Request
 				</h3>
@@ -391,7 +378,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			</AdminCard>
 
 			<!-- Response Viewer -->
-			<AdminCard>
+			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">Response</h3>
 					<div class="flex items-center gap-2">
@@ -444,7 +431,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	{#if activeTab === 'graphql'}
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Query Editor -->
-			<AdminCard>
+			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
 						GraphQL Query
@@ -508,7 +495,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			</AdminCard>
 
 			<!-- Response Viewer -->
-			<AdminCard>
+			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
 						GraphQL Result
@@ -558,7 +545,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	<!-- TAB 3: Code Generator -->
 	{#if activeTab === 'codegen'}
-		<AdminCard>
+		<AdminCard class={cardClass}>
 			<div
 				class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-500/15 pb-4"
 			>

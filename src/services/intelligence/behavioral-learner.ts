@@ -14,6 +14,14 @@
 
 import { logger } from "@utils/logger";
 
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────
 
 interface AccessRecord {
@@ -396,7 +404,7 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
 // ─── Persistence ──────────────────────────────────────────────────────────
 
 export async function persistBehavioralData(): Promise<void> {
-  const { cacheService } = await import("@src/databases/cache/cache-service");
+  const { cacheService } = await loadCacheServiceModule();
   const now = Date.now();
   // 🔴 FIX 8: prune all tenants to their caps BEFORE serializing, so a cold/overlong
   // snapshot is never written to Redis. Without this the whole unbounded state was
@@ -420,7 +428,7 @@ export async function persistBehavioralData(): Promise<void> {
 }
 
 export async function restoreBehavioralData(): Promise<void> {
-  const { cacheService } = await import("@src/databases/cache/cache-service");
+  const { cacheService } = await loadCacheServiceModule();
   try {
     const data = await cacheService.get<any>("behavioral:global");
     if (!data) return;

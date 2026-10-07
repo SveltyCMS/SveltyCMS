@@ -26,20 +26,27 @@ function hueDistance(a: number, b: number): number {
 function rampAsOklch(ramp: Record<RampStep, string>): Record<RampStep, OklchColor> {
   const out = {} as Record<RampStep, OklchColor>;
   for (const step of RAMP_STEPS) {
-    const parsed = parseHexToOklch(ramp[step]);
-    if (!parsed) throw new Error(`step ${step} is not a valid hex: ${ramp[step]}`);
-    out[step] = parsed;
+    out[step] = parseOklchCss(ramp[step]);
   }
   return out;
 }
 
+const OKLCH_CSS = /^oklch\(([\d.]+)% ([\d.]+) ([\d.]+)deg\)$/;
+
+function parseOklchCss(value: string): OklchColor {
+  const match = OKLCH_CSS.exec(value);
+  if (!match) throw new Error(`step is not an oklch() string: ${value}`);
+  return { l: Number(match[1]) / 100, c: Number(match[2]), h: Number(match[3]) };
+}
+
 describe("color-ramp", () => {
-  it("emits the full 11-step ladder with the seed verbatim on its anchor", () => {
+  it("emits the full 11-step oklch ladder with the seed on its anchor", () => {
     const ramp = generateColorRamp(TEAL);
     expect(ramp).not.toBeNull();
     expect(Object.keys(ramp!)).toHaveLength(RAMP_STEPS.length);
-    expect(ramp![500]).toBe(TEAL);
-    for (const step of RAMP_STEPS) expect(ramp![step]).toMatch(/^#[0-9a-f]{6}$/);
+    for (const step of RAMP_STEPS) expect(ramp![step]).toMatch(/^oklch\(/);
+    // Brand fidelity: the anchor step round-trips to the seed verbatim.
+    expect(oklchToHex(parseOklchCss(ramp![500]))).toBe(TEAL);
   });
 
   it("spaces lightness monotonically and preserves hue", () => {
@@ -56,7 +63,7 @@ describe("color-ramp", () => {
 
   it("anchors surfaces on step 50 and derives a dark tail", () => {
     const ramp = generateColorRamp("#f8fafc", { anchor: 50 })!;
-    expect(ramp[50]).toBe("#f8fafc");
+    expect(oklchToHex(parseOklchCss(ramp[50]))).toBe("#f8fafc");
     const oklch = rampAsOklch(ramp);
     expect(oklch[950].l).toBeLessThan(0.3);
     expect(oklch[50].l).toBeGreaterThan(oklch[950].l);
@@ -73,14 +80,11 @@ describe("color-ramp", () => {
   it("gamut-maps out-of-gamut extremes without clipping RGB", () => {
     const ramp = generateColorRamp("#00ff00")!;
     for (const step of RAMP_STEPS) {
-      const parsed = parseHexToOklch(ramp[step])!;
+      const parsed = parseOklchCss(ramp[step]);
       expect(inSrgbGamut(parsed)).toBe(true);
-    }
-    // Hue of the neon green stays in the green band across the ladder.
-    for (const step of RAMP_STEPS) {
-      const hue = parseHexToOklch(ramp[step])!.h;
-      expect(hue).toBeGreaterThan(90);
-      expect(hue).toBeLessThan(180);
+      // Hue of the neon green stays in the green band across the ladder.
+      expect(parsed.h).toBeGreaterThan(90);
+      expect(parsed.h).toBeLessThan(180);
     }
   });
 
@@ -95,6 +99,6 @@ describe("color-ramp", () => {
   it("normalizes shorthand hex", () => {
     expect(normalizeHex("#fff")).toBe("#ffffff");
     expect(normalizeHex("0F766E")).toBe("#0f766e");
-    expect(generateColorRamp("#fff")![500]).toBe("#ffffff");
+    expect(oklchToHex(parseOklchCss(generateColorRamp("#fff")![500]))).toBe("#ffffff");
   });
 });

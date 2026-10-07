@@ -22,7 +22,8 @@
 import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
-import { SqlAdapterCore } from "../core/sql-adapter-core";
+import { SqlAdapterCore, type ListIndexRequest } from "../core/sql-adapter-core";
+import { POSTGRES_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
 import type {
   BaseQueryOptions,
@@ -1247,6 +1248,71 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return super.insertMany(collection, data, options);
   }
 
+  public override get sqlDialect(): SqlDialect {
+    return POSTGRES_DIALECT;
+  }
+
+  /** Same prepared postgres.js path findMany uses (`prepare: true`). */
+  public override async executeCompiled(
+    sqlText: string,
+    params: readonly unknown[],
+    options?: BaseQueryOptions,
+  ): Promise<unknown[]> {
+    const txnSql = this.getTxnSql(options ?? {});
+    const exec = txnSql ?? this.sql;
+    if (!exec) throw new Error("Database not connected");
+    const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  /**
+   * Covering index for a query-builder list sorted by a physical column other
+   * than `updatedAt`. Built off the pool (`CREATE INDEX CONCURRENTLY`) so the
+   * list that discovered the sort does not wait on the scan.
+   */
+  protected override scheduleListSortIndex(tableName: string, plan: ListIndexRequest): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    if (!PostgresAdapterCore.SORT_EXPR_FIELD_RE.test(plan.column)) return;
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const safeCol = assertSafeSqlIdentifier(plan.column, "column");
+    const dir = plan.direction === "desc" ? "DESC" : "ASC";
+    const indexName = assertSafeSqlIdentifier(
+      pgSafeIndexName(`${tableName}_${plan.column}_${plan.withTenant ? "t" : "o"}_list_id`),
+      "index",
+    );
+    const cols = plan.withTenant
+      ? `("tenantId", "${safeCol}" ${dir}, "_id" ${dir})`
+      : `("${safeCol}" ${dir}, "_id" ${dir})`;
+    const ddl = `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols}`;
+    void (async () => {
+      let client: ReturnType<typeof postgres> | null = null;
+      try {
+        if (this._rawConnectionConfig) {
+          // Drop the pool's onclose. Ending this one-shot client must not
+          // schedule a reconnect of the serving adapter.
+          const { onclose: _poolClose, ...indexOptions } = this._rawConnectionConfig.options ?? {};
+          void _poolClose;
+          client = postgres(this._rawConnectionConfig.finalConnection, {
+            ...indexOptions,
+            max: 1,
+            idle_timeout: 10,
+          });
+        }
+        const exec = client ?? this.sql;
+        if (!exec) return;
+        await exec.unsafe("SET statement_timeout = 0").catch(() => {});
+        await exec.unsafe(ddl);
+        await exec.unsafe(`ANALYZE "${safeTable}"`).catch(() => {});
+      } catch (err) {
+        logger.debug(
+          `[Postgres] list index failed for ${tableName}.${plan.column}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      } finally {
+        if (client) await client.end().catch(() => {});
+      }
+    })();
+  }
+
   /**
    * Prepared dynamic-SQL execution for findMany. `db.execute()` re-parses the
    * statement on every call (no prepared-statement reuse — measured as the PG
@@ -1347,8 +1413,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // Use a dedicated 1-connection client with statement_timeout = 0 so concurrent index creation
         // doesn't hog a pooled worker connection during the full table scan and isn't aborted by query timeout.
         if (this._rawConnectionConfig) {
+          // Drop the pool's onclose. Ending this one-shot client must not
+          // schedule a reconnect of the serving adapter.
+          const { onclose: _poolClose, ...indexOptions } = this._rawConnectionConfig.options ?? {};
+          void _poolClose;
           client = postgres(this._rawConnectionConfig.finalConnection, {
-            ...this._rawConnectionConfig.options,
+            ...indexOptions,
             max: 1,
             idle_timeout: 10,
           });

@@ -16,14 +16,14 @@ import { registerForJsonRender } from "@src/services/json-render/catalog";
 import type { WidgetDefinition, WidgetFactory } from "@widgets/types";
 import { validateWidgetImport } from "@widgets/widget-compatibility";
 import type { BaseIssue, BaseSchema } from "valibot";
-import { LRUCache } from "lru-cache";
+import { FastLRU } from "@utils/native-utils";
 
 /**
  * Module-level LRU cache of compiled Valibot schemas.
  * Keyed by a hash of the widget definition to avoid re-compilation
  * of identical schemas across widget loads.
  */
-const schemaCache = new LRUCache<string, any>({ max: 200 });
+const schemaCache = new FastLRU<string, any>({ max: 200 });
 
 /**
  * Retrieves a cached compiled schema for the given widget definition.

@@ -24,7 +24,28 @@ Efficiently manages user data updates with validation, role selection, and delet
 		button_delete,
 		button_save,
 		form_confirmpassword,
-		modaleditform_newpassword
+		modaleditform_newpassword,
+		usereditform_admin_reset_body,
+		usereditform_admin_reset_title,
+		usereditform_cannot_change_role,
+		usereditform_current_password,
+		usereditform_current_role,
+		usereditform_email,
+		usereditform_error_verifying_password,
+		usereditform_failed_to_delete,
+		usereditform_failed_to_update,
+		usereditform_incorrect_password,
+		usereditform_password_verified,
+		usereditform_role,
+		usereditform_select_role,
+		usereditform_set_new_password,
+		usereditform_unknown_error,
+		usereditform_unlock_hint,
+		usereditform_update_failed,
+		usereditform_updated_description,
+		usereditform_updated_title,
+		usereditform_user_deleted,
+		usereditform_username
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { editUserSchema } from '@utils/schemas';
@@ -157,21 +178,21 @@ Efficiently manages user data updates with validation, role selection, and delet
 			});
 
 			if (!result.success) {
-				throw new Error(result.error || result.message || 'Failed to update user.');
+				throw new Error(result.error || result.message || usereditform_failed_to_update());
 			}
 
 			// Plain text title/description — E2E asserts role=alert / data-testid=app-toast
 			// without depending on HTML icon markup or CSS classes.
 			toast.success({
-				title: 'User Data Updated',
-				description: 'Your profile changes were saved.'
+				title: usereditform_updated_title(),
+				description: usereditform_updated_description()
 			});
 			await refreshAll();
 			modalState.close();
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			const message = err instanceof Error ? err.message : usereditform_unknown_error();
 			// Plain text — matches expectToast / role=alert (no HTML icon markup)
-			toast.error({ title: 'Update failed', description: message });
+			toast.error({ title: usereditform_update_failed(), description: message });
 		} finally {
 			editForm.submitting = false;
 		}
@@ -203,14 +224,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 			if (pwResult.valid) {
 				isCurrentPasswordValidated = true;
 				editForm.errors.currentPassword = [];
-				toast.success({ description: 'Password verified', duration: 5000 });
+				toast.success({ description: usereditform_password_verified(), duration: 5000 });
 			} else {
 				isCurrentPasswordValidated = false;
-				editForm.errors.currentPassword = ['Incorrect password'];
+				editForm.errors.currentPassword = [usereditform_incorrect_password()];
 			}
 		} catch (e) {
 			logger.error(e instanceof Error ? e.message : String(e));
-			editForm.errors.currentPassword = ['Error verifying password'];
+			editForm.errors.currentPassword = [usereditform_error_verifying_password()];
 		}
 	}
 
@@ -222,11 +243,11 @@ Efficiently manages user data updates with validation, role selection, and delet
 			const delResult = await deleteUserRemote([editForm.data.user_id]);
 
 			if (!delResult.success) {
-				throw new Error(delResult.message || delResult.error || 'Failed to delete user.');
+				throw new Error(delResult.message || delResult.error || usereditform_failed_to_delete());
 			}
 
 			// Use the success message from the API response
-			const successMessage = delResult.message || delResult.error || 'User deleted successfully.';
+			const successMessage = delResult.message || delResult.error || usereditform_user_deleted();
 			toast.success({
 				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
 			});
@@ -235,7 +256,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			// modalStore.close();
 			modalState.close();
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			const message = err instanceof Error ? err.message : usereditform_unknown_error();
 			toast.error(`<CircleAlert size={24}/> ${message}`);
 		}
 	}
@@ -254,7 +275,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		<FloatingInput
 			type="text"
 			name="username"
-			label="Username"
+			label={usereditform_username()}
 			bind:value={editForm.data.username}
 			onkeydown={() => (editForm.errors.username = [])}
 			required
@@ -270,7 +291,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		<FloatingInput
 			type="email"
 			name="email"
-			label="Email"
+			label={usereditform_email()}
 			bind:value={editForm.data.email}
 			onkeydown={() => (editForm.errors.email = [])}
 			required
@@ -292,8 +313,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 						<iconify-icon icon="mdi:information" width={16} class="me-2 mt-0.5 shrink-0"
 						></iconify-icon>
 						<div>
-							<strong>Admin Password Reset:</strong>
-							You are setting a new password for this user. Leave empty to keep current password unchanged.
+							<strong>{usereditform_admin_reset_title()}</strong>
+							{usereditform_admin_reset_body()}
 						</div>
 					</div>
 				</div>
@@ -305,7 +326,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					type="security"
 					name="current_password"
 					id="current_password"
-					label="Current Password"
+					label={usereditform_current_password()}
 					bind:value={editForm.data.currentPassword}
 					bind:showPassword
 					onkeydown={() => (editForm.errors.currentPassword = [])}
@@ -334,7 +355,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					type="security"
 					name="security"
 					id="security"
-					label={isOwnProfile ? modaleditform_newpassword() : 'Set New Password'}
+					label={isOwnProfile ? modaleditform_newpassword() : usereditform_set_new_password()}
 					bind:value={editForm.data.password}
 					bind:showPassword
 					onkeydown={() => (editForm.errors.password = [])}
@@ -374,19 +395,21 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if isOwnProfile && !isCurrentPasswordValidated}
 				<div class="text-xs text-center text-surface-500 dark:text-surface-50 ps-1">
 					<iconify-icon icon="mdi:lock" class="inline-block align-text-bottom me-1"></iconify-icon>
-					Enter your current password correctly to unlock new password fields.
+					{usereditform_unlock_hint()}
 				</div>
 			{/if}
 		{/if}
 		<!-- Role Select -->
 		{#if !isOwnProfile}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">
+					{usereditform_role()}
+				</div>
 				<div class="flex-auto">
 					<div
 						class="flex flex-wrap justify-center gap-2 sm:justify-start"
 						role="radiogroup"
-						aria-label="Select Role"
+						aria-label={usereditform_select_role()}
 					>
 						{#if roles && roles.length > 0}
 							{#each roles as r (r._id)}
@@ -434,7 +457,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 			</div>
 		{:else}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">
+					{usereditform_role()}
+				</div>
 				<div class="flex-auto">
 					<div
 						class="rounded bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400"
@@ -442,10 +467,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 						<div class="flex items-center">
 							<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
 							<div>
-								<strong>Current Role:</strong>
+								<strong>{usereditform_current_role()}</strong>
 								{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}
 								<br />
-								<em>You cannot change your own role for security reasons.</em>
+								<em>{usereditform_cannot_change_role()}</em>
 							</div>
 						</div>
 					</div>
@@ -473,8 +498,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 		</div>
 
 		<!-- Save -->
-		<Button variant="tertiary" type="submit" form="change_user_form" class="dark:"
-			>{button_save()}</Button
-		>
+		<Button variant="tertiary" type="submit" form="change_user_form">{button_save()}</Button>
 	</footer>
 </div>

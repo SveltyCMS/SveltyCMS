@@ -143,6 +143,14 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				return 'material-symbols:align-space-around-rounded';
 		}
 	}
+
+	// Toolbar control chrome — matches the entry-list action buttons (subtle surface
+	// fill + border) so the ghost icons stay legible on light backgrounds instead of
+	// melting into the page.
+	const btnChrome =
+		'h-10 w-10 p-0 flex items-center justify-center rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors';
+	const btnChromeActive =
+		'h-10 w-10 p-0 flex items-center justify-center rounded-xl border border-primary-500/60 bg-primary-500/10 text-primary-500 dark:border-primary-500/50 dark:bg-primary-500/20 dark:text-primary-400 transition-colors';
 </script>
 
 <!-- Expanding Search -->
@@ -187,7 +195,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				if (searchShow) closeOpenStates('search');
 			}}
 			aria-label={table_search_toggle()}
-			class="rounded-full"
+			class={btnChrome}
 		>
 			<iconify-icon icon="material-symbols:search-rounded" width={24}></iconify-icon>
 		</Button>
@@ -196,16 +204,14 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	<!-- Filter -->
 	<SystemTooltip title={table_filter_toggle()}>
 		<Button
-			variant={filterShow ? 'secondary' : 'ghost'}
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				filterShow = !filterShow;
 				if (filterShow) closeOpenStates('filter');
 			}}
 			aria-label={table_filter_toggle()}
-			class="rounded-full {filterShow
-				? 'bg-primary-500/20 text-primary-500 dark:bg-primary-500/30'
-				: ''}"
+			class={filterShow ? btnChromeActive : btnChrome}
 		>
 			<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
 		</Button>
@@ -214,16 +220,14 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	<!-- Column Order & Visibility -->
 	<SystemTooltip title={table_column_toggle()}>
 		<Button
-			variant={columnShow ? 'secondary' : 'ghost'}
+			variant="ghost"
 			type="button"
 			onclick={() => {
 				columnShow = !columnShow;
 				if (columnShow) closeOpenStates('column');
 			}}
 			aria-label={table_column_toggle()}
-			class="rounded-full {columnShow
-				? 'bg-primary-500/20 text-primary-500 dark:bg-primary-500/30'
-				: ''}"
+			class={columnShow ? btnChromeActive : btnChrome}
 		>
 			<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
 		</Button>
@@ -239,7 +243,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				closeOpenStates('density');
 			}}
 			aria-label={table_density_toggle()}
-			class="rounded-full"
+			class={btnChrome}
 		>
 			<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
 		</Button>
@@ -256,7 +260,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 					onViewModeChange?.(viewMode);
 				}}
 				aria-label={viewMode === 'table' ? 'Switch to Card View' : 'Switch to Table View'}
-				class="rounded-full"
+				class={btnChrome}
 			>
 				<iconify-icon
 					icon={viewMode === 'table'

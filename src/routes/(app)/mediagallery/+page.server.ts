@@ -20,6 +20,15 @@
  */
 
 import type { DatabaseId } from "@root/src/content/types";
+
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
 // Utils
 import type { MediaItem, SystemVirtualFolder } from "@root/src/databases/db-interface";
 import type { MediaAccess } from "@root/src/utils/media/media-models";
@@ -96,6 +105,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
     // Soft-fail: empty tree is preferable to a 500 on the whole gallery.
+    // 🔐 Explicit tenant scope: this load uses the raw module adapter (no request
+    // binding), so an omitted tenantId fails closed under MULTI_TENANT. `null` is
+    // the documented global scope for the global administrator.
+    const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
     const vfCacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
     let virtualFoldersData: any[] = [];
     try {
@@ -103,7 +116,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         (await cacheService.getOrSetSWR<any[]>(
           vfCacheKey,
           async () => {
-            const result = await dbAdapter.system.virtualFolder.getAll();
+            const result = await dbAdapter.system.virtualFolder.getAll({ tenantId });
             if (!result.success) {
               logger.warn("Virtual folder fetch failed — returning empty list");
               return [];
@@ -144,6 +157,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
           sortDirection: "desc",
           recursive,
           user, // Pass user for ownership filtering
+          tenantId, // Explicit scope (raw adapter — see note above)
           // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
           ...(jsonPath ? { jsonPath } : {}),
         });
@@ -429,7 +443,7 @@ export const actions: Actions = {
         logger.debug("Media item deleted successfully");
         // Invalidate media gallery cache after deletion
         try {
-          const { cacheService } = await import("@src/databases/cache/cache-service");
+          const { cacheService } = await loadCacheServiceModule();
           await cacheService.invalidateByCategory("media" as any, locals.tenantId);
         } catch {
           // Non-critical: cache invalidation best-effort

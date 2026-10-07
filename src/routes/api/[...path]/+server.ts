@@ -442,6 +442,20 @@ export const _handler = async (event: RequestEvent) => {
   let user = locals.user;
   let tenantId = (locals.tenantId as string) || null;
 
+  // 🔒 TENANT BACKSTOP: adopt the authenticated user's own tenant when the request-
+  // scoped tenant was not resolved. This mirrors the post-session bind in the auth
+  // hook (handle-authentication.ts) and covers the warm turbo-auth fast-path, which
+  // returns with the cached tenant (possibly null) before that bind runs. Without it,
+  // fail-closed namespaces (e.g. /api/token) reject a legitimately authenticated
+  // request as TENANT_REQUIRED. A user is only ever scoped to their own tenant, so
+  // this does not weaken isolation; requests with neither a tenant nor an owner stay
+  // rejected.
+  const ownerTenantId = user?.tenantId;
+  if (!tenantId && ownerTenantId) {
+    tenantId = ownerTenantId;
+    locals.tenantId = ownerTenantId;
+  }
+
   // Support tenantId override for super-admins
   if (url.searchParams.has("tenantId")) {
     if (user?.role === "super-admin") {

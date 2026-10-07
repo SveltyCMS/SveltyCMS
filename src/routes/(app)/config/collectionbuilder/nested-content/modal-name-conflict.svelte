@@ -105,7 +105,6 @@ Features:
 			type="button"
 			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
-			class="dark:"
 		>
 			Use Selected Name
 		</Button>

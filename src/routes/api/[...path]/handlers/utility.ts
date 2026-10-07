@@ -20,6 +20,28 @@ import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { collectionTableName } from "@src/databases/core/collection-name";
 
+/** Cached lazy handle to the config service — one module-registry lookup instead of one per call. */
+let configServiceModulePromise:
+  | Promise<typeof import("@src/services/core/config-service")>
+  | undefined;
+function loadConfigServiceModule(): Promise<typeof import("@src/services/core/config-service")> {
+  return (configServiceModulePromise ??= import("@src/services/core/config-service"));
+}
+
+/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
+let cacheServiceModulePromise:
+  | Promise<typeof import("@src/databases/cache/cache-service")>
+  | undefined;
+function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+}
+
+/** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
+let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
+function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
+  return (contentModulePromise ??= import("@src/content/index.server"));
+}
+
 // ─── Lazy-loaded service singletons ──────────────────────────────────────────
 
 let apiSpecService: any;
@@ -36,7 +58,7 @@ async function getApiSpecService() {
 
 async function getCacheService() {
   if (!cacheService) {
-    cacheService = (await import("@src/databases/cache/cache-service")).cacheService;
+    cacheService = (await loadCacheServiceModule()).cacheService;
   }
   return cacheService;
 }
@@ -51,7 +73,7 @@ async function getMarketplaceService() {
 
 async function getConfigService() {
   if (!configService) {
-    configService = (await import("@src/services/core/config-service")).configService;
+    configService = (await loadConfigServiceModule()).configService;
   }
   return configService;
 }
@@ -347,7 +369,7 @@ async function handleTrashRoutes(
 
   // List deleted items across all collections
   if (request.method === "GET") {
-    const { contentSystem } = await import("@src/content/index.server");
+    const { contentSystem } = await loadContentModule();
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
     const schemas = await contentSystem.getCollections(tenantId);
 
@@ -490,7 +512,7 @@ async function handleLinkSuggestions(event: RequestEvent, cms: LocalCMS, tenantI
     return rawResponse(event, { success: true, suggestions: [] });
   }
 
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem } = await loadContentModule();
   const allCollections = await contentSystem.getCollections(tenantId as string);
   const targetCollectionIds = new Set(["posts", "pages", "articles", "news", "blog", collectionId]);
 

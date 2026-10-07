@@ -22,6 +22,7 @@
 	import {
 		db_error_description,
 		db_error_title,
+		error_goback,
 		error_gofrontpage,
 		error_page_moved,
 		error_pagenotfound,
@@ -196,7 +197,7 @@
 							d="M10 19l-7-7m0 0l7-7m-7 7h18"
 						/>
 					</svg>
-					Go Back
+					{error_goback()}
 				</button>
 			</div>
 		</div>
