@@ -20,6 +20,7 @@ import {
   SqlAdapterCore,
   boundedSqlIndexName,
   type ListIndexRequest,
+  type RawPointWireStreamResult,
 } from "../core/sql-adapter-core";
 import { MARIADB_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
@@ -320,14 +321,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
     _collection: string,
     id: DatabaseId,
     options: BaseQueryOptions,
-  ): Promise<{ wireBody: string; etag: string } | null> {
+  ): Promise<RawPointWireStreamResult> {
     try {
       const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return null; // Non-collection tables without a JSON blob use findOne fallback
+      if (!hasDataCol) return { kind: "declined" }; // Non-collection tables without a JSON blob use findOne fallback
 
       const tableName = getTableName(table);
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) return null;
+      if (!idCol) return { kind: "declined" };
       const idColName = idCol.name || "_id";
       const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? "`updatedAt`" : "NULL";
@@ -350,7 +351,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       for (const rawName of getMaterializedFieldColumns(table)) {
         // The JSON path is a string literal — a name that cannot be embedded
         // verbatim means no faithful wire body, so decline (findOne fallback).
-        if (!/^[A-Za-z0-9_]+$/.test(rawName)) return null;
+        if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
         const name = assertSafeSqlIdentifier(rawName, "column");
         const col = `\`${name}\``;
         overrides.push(`'$."${name}"', ${boolCols?.has(rawName) ? `(${col} = 1)` : col}`);
@@ -366,20 +367,21 @@ export abstract class AdapterCore extends SqlAdapterCore {
             ? " AND `status` = 'publish'"
             : null
           : "";
-      if (publishedSql === null) return null;
+      if (publishedSql === null) return { kind: "declined" };
       const rawSql = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE \`${idColName}\` = ?${publishedSql}${tenantSql} LIMIT 1`;
 
       const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+      if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
       return {
+        kind: "found",
         wireBody:
           typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
         etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
       };
     } catch (err: any) {
       logger.debug("[MariaDB rawFindPointWireStream] falling back:", err?.message);
-      return null;
+      return { kind: "declined" };
     }
   }
 

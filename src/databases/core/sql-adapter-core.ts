@@ -154,6 +154,24 @@ export interface ListIndexRequest {
   withTenant: boolean;
 }
 
+/**
+ * Outcome of a native direct-to-wire point read (`rawFindPointWireStream`).
+ *
+ * - `found`    — the engine produced a pre-serialized wire body.
+ * - `missing`  — the SELECT ran and returned no row (id absent or
+ *                publication-clamped away). Definitively not servable by the
+ *                wire plane.
+ * - `declined` — the engine/table cannot produce a native wire body (no `data`
+ *                column, no `status` column under `requirePublished`, an
+ *                unembeddable column name, a transaction without a client, or a
+ *                thrown error). The caller should fall back to `findOne` / the
+ *                Domain Plane.
+ */
+export type RawPointWireStreamResult =
+  | { kind: "found"; wireBody: string; etag: string }
+  | { kind: "missing" }
+  | { kind: "declined" };
+
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
@@ -763,14 +781,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
-  /** Adapter-specific direct-to-wire point stream optimization — returns null when not handled natively. */
+  /**
+   * Adapter-specific direct-to-wire point stream optimization.
+   *
+   * Returns a discriminated result so the caller can tell a definitive
+   * "row does not exist" (`missing`) from "this engine/table cannot produce a
+   * native wire body" (`declined`). Before this split both cases returned
+   * `null`, and the `findOne` fallback re-queried a missing row — a second
+   * SELECT for the same 404 the Domain Plane then queried a third time.
+   */
   protected async rawFindPointWireStream(
     _table: any,
     _collection: string,
     _id: DatabaseId,
     _options: BaseQueryOptions,
-  ): Promise<{ wireBody: string; etag: string } | null> {
-    return null;
+  ): Promise<RawPointWireStreamResult> {
+    return { kind: "declined" };
   }
 
   /**
@@ -1652,15 +1678,38 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         error: { code: "INVALID_QUERY", message: "Invalid collection or id" },
       };
     }
+    const table = this.getTable(collection);
+    if (!table) {
+      return {
+        success: false,
+        message: `Collection table not found: ${collection}`,
+        error: {
+          code: "COLLECTION_NOT_FOUND",
+          message: `Collection table not found: ${collection}`,
+        },
+      };
+    }
+
+    // The raw stream self-catches and reports found / missing / declined.
+    const rawWire = await this.rawFindPointWireStream(table, collection, id, options);
+    if (rawWire.kind === "missing") {
+      // Definitive: the compiled SELECT ran and returned no row (id absent or
+      // publication-clamped away). A distinct failure code lets the read lane
+      // skip its Domain-Plane re-query (handle-collection-read-lane.ts) and
+      // answer directly — the single-query missing-read behaviour the lane had
+      // before the wire plane existed. Do NOT `findOne`-fallback here: that is
+      // the redundant second SELECT this contract exists to eliminate.
+      return {
+        success: false,
+        message: "Entry not found",
+        error: { code: "RECORD_NOT_FOUND", message: "Entry not found" },
+      };
+    }
+
     return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      if (rawWire.kind === "found") return { wireBody: rawWire.wireBody, etag: rawWire.etag };
 
-      // 1. Try engine-specific raw wire stream (direct C-engine JSON generation)
-      const rawWire = await this.rawFindPointWireStream(table, collection, id, options);
-      if (rawWire) return rawWire;
-
-      // 2. Engine fallback: execute findOne and format wire payload
+      // Engine declined (no native JSON support, etc.) → findOne fallback
       const findRes = await this.findOne(collection, { _id: id } as any, options as any);
       const record =
         findRes && typeof findRes === "object" && "success" in findRes

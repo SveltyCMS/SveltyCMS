@@ -99,7 +99,7 @@ export class AuditService {
   private flushTimer: any = null;
   private microBatchTimer: NodeJS.Timeout | null = null;
   private inFlightFlush: Promise<void> | null = null;
-  private readonly MAX_BUFFER_SIZE = 25; // 🚀 Micro-batch threshold lowered from 50 to 25
+  private readonly MAX_BUFFER_SIZE = 50; // Sustained-stream flush threshold (burst tails use the debounced timer)
   private readonly MICRO_BATCH_MS = 15; // 🚀 Trailing idle window to coalesce write bursts
   private readonly MAX_TOTAL_BUFFER = 200; // 🛡️ HARD CAP: Lowered from 500 to 200 for stability
   private readonly FLUSH_INTERVAL_MS = 5000;
@@ -356,7 +356,18 @@ export class AuditService {
           void this.flush().catch((err) =>
             logger.error("[AuditService] Failed to flush audit logs in background:", err),
           );
-        } else if (!this.microBatchTimer) {
+        } else {
+          // 🚀 TRUE TRAILING DEBOUNCE: re-arm the timer on EVERY entry. The
+          // previous arm-once shape flushed on a fixed 15ms cadence under
+          // sustained writes (~every 3-4 creates at benchmark rates), and each
+          // flush is a DB commit fsync that serializes with the next write's
+          // commit — the measured +1.8ms-per-create regression. A resetting
+          // timer only fires MICRO_BATCH_MS after the stream goes quiet (the
+          // documented "trailing idle window" intent), so sustained streams
+          // flush at MAX_BUFFER_SIZE instead of on the timer.
+          if (this.microBatchTimer) {
+            clearTimeout(this.microBatchTimer);
+          }
           this.microBatchTimer = setTimeout(() => {
             this.microBatchTimer = null;
             void this.flush().catch((err) =>

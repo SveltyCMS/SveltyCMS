@@ -22,7 +22,11 @@
 import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
-import { SqlAdapterCore, type ListIndexRequest } from "../core/sql-adapter-core";
+import {
+  SqlAdapterCore,
+  type ListIndexRequest,
+  type RawPointWireStreamResult,
+} from "../core/sql-adapter-core";
 import { POSTGRES_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
 import type {
@@ -765,15 +769,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     _collection: string,
     id: DatabaseId,
     options: import("../db-interface").BaseQueryOptions,
-  ): Promise<{ wireBody: string; etag: string } | null> {
+  ): Promise<RawPointWireStreamResult> {
     const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return null;
+    if (options?.transaction && !txnSql) return { kind: "declined" };
     const exec = txnSql ?? this.sql!;
-    if (!exec) return null;
+    if (!exec) return { kind: "declined" };
 
     try {
       const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return null; // Non-collection tables without a JSON blob use findOne fallback
+      if (!hasDataCol) return { kind: "declined" }; // Non-collection tables without a JSON blob use findOne fallback
 
       const tableName = getTableName(table);
       const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
@@ -795,7 +799,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         if (hasStatusCol) pairs.push(`'status', "status"`);
         if (hasSlugCol) pairs.push(`'slug', "slug"`);
         for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return null;
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
           const name = assertSafeSqlIdentifier(rawName, "column");
           pairs.push(`'${name}', "${name}"`);
         }
@@ -825,7 +829,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const wantPublished = options?.requirePublished === true;
       // Fail closed: no `status` column means the engine cannot prove the row is
       // published, so the caller's Domain-Plane clamp decides instead.
-      if (wantPublished && !cachedWireSql.basePub) return null;
+      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
       const sqlText = wantPublished
         ? hasTenant
           ? cachedWireSql.tenantPub!
@@ -835,15 +839,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           : cachedWireSql.base;
       const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+      if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
       return {
+        kind: "found",
         wireBody:
           typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
         etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
       };
     } catch {
-      return null;
+      return { kind: "declined" };
     }
   }
 

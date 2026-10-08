@@ -526,10 +526,12 @@ async function executeWarmCollectionRead(
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
     stampSrvDur(res.headers, srvT0);
-    if (!cached.compressed) {
-      // Lazy variant warm-up: the first re-hit is the proof that this key is
-      // actually re-read — point-read misses deliberately skip the CPU because
-      // random per-id keys are evicted before a second read (see
+    if (!entryId && !cached.compressed) {
+      // Lazy variant warm-up for LISTS only: the first re-hit is the proof that
+      // a list key is actually re-read, so compressing it off the request path
+      // pays for itself on later hits. Point reads are high-cardinality — a
+      // variant is almost never re-served before the FIFO evicts the key — so
+      // they skip the stash (and the `Buffer.byteLength` walk) entirely (see
       // response-compression-stash.ts). The stash runs after the response.
       const bodyBytes = cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
       void scheduleTurboVariantStash({
@@ -539,9 +541,10 @@ async function executeWarmCollectionRead(
         byteLength: bodyBytes,
         ttlMs: cached.expiresAt ? Math.max(1_000, cached.expiresAt - Date.now()) : 300_000,
         tenantId: cacheTenant,
-        setOptions: entryId
-          ? { skipSharedL1: true }
-          : { tags: collectionResponseCacheTags(collectionId, null).tags, skipSharedL1: false },
+        setOptions: {
+          tags: collectionResponseCacheTags(collectionId, null).tags,
+          skipSharedL1: false,
+        },
       });
     }
     return res;
@@ -656,6 +659,25 @@ async function rebuildWarmCollectionRead(
       if (wireRes?.success && wireRes.data) {
         const apiBody = wireRes.data.wireBody;
         const etag = wireRes.data.etag || generateContentEtag(apiBody);
+        (locals as { apiBody?: string }).apiBody = apiBody;
+        marks?.set("db", performance.now() - dbT0);
+        marks?.set("build", 0);
+        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+          skipSharedL1: true,
+        });
+        marks?.set("cachewrite", performance.now() - dbT0);
+        return { body: apiBody, etag, miss: true };
+      }
+      if (wireRes && wireRes.success === false && wireRes.error?.code === "RECORD_NOT_FOUND") {
+        // The wire SELECT ran and definitively found no servable row (id absent
+        // or publication-clamped away). Build the SAME `200 {success:true,data:null}`
+        // envelope the Domain-Plane fallback below would produce — skipping its
+        // redundant re-query. Byte-identity with the findById path: that path
+        // stringifies `{ success: true, data: envelope.data }` where `data` is
+        // null, and hashes the same etag. Only the admitted wire-plane case can
+        // reach here (see isWirePlaneAdmissible), so the verdict is authoritative.
+        const apiBody = JSON.stringify({ success: true, data: null });
+        const etag = generateContentEtag(apiBody);
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);

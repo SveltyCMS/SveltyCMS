@@ -44,10 +44,10 @@ describe("AuditService write coalescing & micro-batching", () => {
     expect(flushSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("automatically flushes when buffer reaches MAX_BUFFER_SIZE threshold (25)", async () => {
+  it("automatically flushes when buffer reaches MAX_BUFFER_SIZE threshold (50)", async () => {
     const flushSpy = vi.spyOn(service, "flush").mockResolvedValue();
 
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 50; i++) {
       await service.log(
         `action_${i}`,
         { id: `usr_${i}` as any, email: `usr${i}@test.com` },
@@ -56,8 +56,30 @@ describe("AuditService write coalescing & micro-batching", () => {
       );
     }
 
-    // Hit the 25 threshold -> triggers immediate flush
+    // Hit the 50 threshold -> triggers immediate flush
     expect(flushSpy).toHaveBeenCalled();
+  });
+
+  it("resets the trailing timer per entry instead of flushing on a fixed cadence", async () => {
+    const flushSpy = vi.spyOn(service, "flush").mockResolvedValue();
+
+    // Sustained stream: one entry every 10ms (< MICRO_BATCH_MS). The arm-once
+    // shape flushed on a fixed ~15ms cadence here; the debounce must not.
+    for (let i = 0; i < 3; i++) {
+      await service.log(
+        `action_${i}`,
+        { id: `usr_${i}` as any, email: `usr${i}@test.com` },
+        { type: "test", id: `res_${i}` as any },
+        AuditEventType.DATA_EXPORT,
+      );
+      vi.advanceTimersByTime(10);
+    }
+    expect(flushSpy).not.toHaveBeenCalled();
+
+    // Stream goes quiet: the debounced timer fires once, MICRO_BATCH_MS after
+    // the last entry.
+    vi.advanceTimersByTime(15);
+    expect(flushSpy).toHaveBeenCalledTimes(1);
   });
 
   it("concurrency stress: 500 simultaneous writes across 10 workers maintain zero drop and unbroken hash chain", async () => {

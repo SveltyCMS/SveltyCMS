@@ -210,7 +210,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const rawDoc = await this.model.collection.findOne(filter, {
         projection: { _collection: 0, tenantId: 0, createdAt: 0, isDeleted: 0 },
       });
-      if (!rawDoc) return { success: true, data: null };
+      if (!rawDoc) {
+        // Definitive not-found — same signal as the SQL adapters' wire stream so
+        // the read lane can skip its Domain-Plane re-query (see
+        // handle-collection-read-lane.ts).
+        return {
+          success: false,
+          message: "Entry not found",
+          error: { code: "RECORD_NOT_FOUND", message: "Entry not found" },
+        };
+      }
 
       const doc = plainNativeDoc<Record<string, unknown>>(rawDoc);
       const updatedAt = doc.updatedAt ? toISOString(doc.updatedAt) : "";

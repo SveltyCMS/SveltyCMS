@@ -8,6 +8,7 @@ import {
   SqlAdapterCore,
   boundedSqlIndexName,
   type ListIndexRequest,
+  type RawPointWireStreamResult,
 } from "../core/sql-adapter-core";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
 import type {
@@ -401,11 +402,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     _collection: string,
     id: DatabaseId,
     options: BaseQueryOptions,
-  ): Promise<{ wireBody: string; etag: string } | null> {
+  ): Promise<RawPointWireStreamResult> {
     try {
       const tableName = getTableName(table);
       const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return null; // Non-collection tables without a JSON blob use findOne fallback
+      if (!hasDataCol) return { kind: "declined" }; // Non-collection tables without a JSON blob use findOne fallback
 
       const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
@@ -429,7 +430,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         for (const rawName of getMaterializedFieldColumns(table)) {
           // The JSON path is a string literal — a name that cannot be embedded
           // verbatim means no faithful wire body, so decline (findOne fallback).
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return null;
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
           const name = assertSafeSqlIdentifier(rawName, "column");
           const col = `"${name}"`;
           // INTEGER 0/1 booleans must become JSON true/false (parity with the
@@ -463,7 +464,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const wantPublished = options?.requirePublished === true;
       // Fail closed: no `status` column means the engine cannot prove the row is
       // published, so the caller's Domain-Plane clamp decides instead.
-      if (wantPublished && !cachedWireSql.basePub) return null;
+      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
       let sqlText: string;
       let params: unknown[];
       if (useTenantCache) {
@@ -482,8 +483,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         | { wire_body: string; updated_at: number | string }
         | undefined;
 
-      if (!rawRow || !rawRow.wire_body) return null;
+      if (!rawRow || !rawRow.wire_body) return { kind: "missing" };
       return {
+        kind: "found",
         wireBody:
           typeof rawRow.wire_body === "string"
             ? rawRow.wire_body
@@ -492,7 +494,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       };
     } catch (err: any) {
       logger.debug("[SQLite rawFindPointWireStream] falling back:", err?.message);
-      return null;
+      return { kind: "declined" };
     }
   }
 
