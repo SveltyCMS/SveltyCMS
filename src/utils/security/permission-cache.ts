@@ -1,6 +1,13 @@
 /**
  * @file src/utils/security/permission-cache.ts
  * @description Permission evaluation caching for performance optimization
+ *
+ * ### Performance
+ * - The sorted-role key segment is memoized per `roleIds` array identity in a
+ *   WeakMap, mirroring `getRoleIdsArray` in `src/databases/auth/permissions.ts`
+ *   (which reuses one array per source `Role[]`). Repeated calls with the same
+ *   array instance skip the per-call spread/sort/join entirely. Both caches
+ *   share the same contract: the roleIds array is treated as immutable.
  */
 
 const PERMISSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -14,9 +21,24 @@ interface CacheEntry {
 class PermissionCache {
   private cache = new Map<string, CacheEntry>();
 
+  /** Sorted-role segment memoized per roleIds array identity (see header). */
+  private sortedRoleIdsCache = new WeakMap<readonly string[], string>();
+
+  private getSortedRoleIds(roleIds: string[]): string {
+    const cached = this.sortedRoleIdsCache.get(roleIds);
+    if (cached !== undefined) return cached;
+    // Single-element / empty arrays are trivially sorted: no spread/sort/join
+    // and no WeakMap entry (fresh instances recompute in O(1) anyway).
+    const length = roleIds.length;
+    if (length === 0) return "";
+    if (length === 1) return roleIds[0] ?? "";
+    const sorted = [...roleIds].sort().join(",");
+    this.sortedRoleIdsCache.set(roleIds, sorted);
+    return sorted;
+  }
+
   private getKey(userId: string, permissionId: string, roleIds: string[]): string {
-    const sortedRoleIds = [...roleIds].sort().join(",");
-    return `${userId}:${permissionId}:${sortedRoleIds}`;
+    return `${userId}:${permissionId}:${this.getSortedRoleIds(roleIds)}`;
   }
 
   get(userId: string, permissionId: string, roleIds: string[]): boolean | null {

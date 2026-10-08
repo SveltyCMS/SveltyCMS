@@ -9,6 +9,9 @@
 
 import { logger } from "@utils/logger";
 
+// Precompiled URI-scheme detector (module scope = compiled once).
+const URI_SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
 /**
  * Validates a redirect URL candidate and returns it only if it is a safe, internal relative path.
  * Otherwise returns the provided fallback URL.
@@ -21,7 +24,7 @@ export function safeRedirect(raw: string | null | undefined, fallback: string): 
     trimmed.startsWith("/") &&
     !trimmed.startsWith("//") &&
     !trimmed.startsWith("/\\") &&
-    !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)
+    !URI_SCHEME_RE.test(trimmed)
   ) {
     return trimmed;
   }

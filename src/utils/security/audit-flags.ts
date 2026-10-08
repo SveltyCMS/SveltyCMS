@@ -39,14 +39,31 @@ let cached: AuditFlags | null = null;
 let cachedAt = 0;
 let inflight: Promise<AuditFlags> | null = null;
 
+// Safe default when no env vars and no fresh DB flags are available — shared
+// because every consumer only reads the returned flags.
+const DEFAULT_AUDIT_FLAGS: AuditFlags = { disabled: false, chainSync: false };
+
+// Single-slot memo for the env fast path: recompute (and allocate) only when
+// the env values actually change. Scalar state — bounded, no growth.
+let _envDisable: string | undefined;
+let _envSync: string | undefined;
+let _envFlagsResult: AuditFlags | null = null;
+
 function envFlags(): AuditFlags | null {
   const envDisable = process.env.DISABLE_AUDIT_LOGS;
   const envSync = process.env.AUDIT_CHAIN_SYNC;
   if (envDisable === undefined && envSync === undefined) return null;
-  return {
+  if (envDisable === _envDisable && envSync === _envSync && _envFlagsResult) {
+    return _envFlagsResult;
+  }
+  const flags: AuditFlags = {
     disabled: envDisable === "true",
     chainSync: envSync === "true",
   };
+  _envDisable = envDisable;
+  _envSync = envSync;
+  _envFlagsResult = flags;
+  return flags;
 }
 
 async function loadDbFlags(): Promise<AuditFlags> {
@@ -102,7 +119,7 @@ export function getAuditFlagsSync(): AuditFlags {
   if (cached && now - cachedAt < AUDIT_FLAGS_TTL_MS) return cached;
   // Trigger background refresh without awaiting
   getAuditFlags().catch(() => {});
-  return cached ?? { disabled: false, chainSync: false };
+  return cached ?? DEFAULT_AUDIT_FLAGS;
 }
 
 /** Synchronous fast check — true only when env flags are present and disabling. */

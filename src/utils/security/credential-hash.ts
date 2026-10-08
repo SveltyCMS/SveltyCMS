@@ -25,6 +25,10 @@ const _require = createRequire(import.meta.url);
 const { createHash: _createHash } = _require("node:crypto");
 const HEX_TABLE = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 
+// Shared encoder — TextEncoder is stateless (encode() returns a fresh
+// Uint8Array per call), so hoisting removes a per-call object allocation.
+const _encoder = new TextEncoder();
+
 function bytesToSha256Hex(bytes: Uint8Array): string {
   let hex = "";
   for (let i = 0; i < bytes.length; i++) {
@@ -40,8 +44,7 @@ function bytesToSha256Hex(bytes: Uint8Array): string {
  * Uses Web Crypto API — portable across Node, Bun, and edge runtimes.
  */
 export async function hashCredentialSha256Hex(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
+  const data = _encoder.encode(value);
   const hash = await crypto.subtle.digest("SHA-256", data);
   return bytesToSha256Hex(new Uint8Array(hash));
 }

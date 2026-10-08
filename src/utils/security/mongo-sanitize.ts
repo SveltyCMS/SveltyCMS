@@ -10,6 +10,12 @@
  *
  * This utility recursively sanitizes all levels of nested MongoDB queries,
  * including arrays, $or/$and/$nor conditions, and deeply nested objects.
+ *
+ * ### Performance
+ * - Dotted key paths are built lazily: only when descending into an object
+ *   (or reporting a violation). Primitive leaves and primitive array items
+ *   never pay for a template-string allocation, and primitives skip the
+ *   recursive call entirely (they are returned unchanged by contract).
  */
 
 import { AppError } from "@utils/error-handling";
@@ -40,15 +46,20 @@ export function sanitizeMongoQuery(obj: any, path: string = "$"): any {
 
   if (Array.isArray(obj)) {
     for (let i = 0; i < obj.length; i++) {
-      obj[i] = sanitizeMongoQuery(obj[i], `${path}[${i}]`);
+      // Primitives (and null/undefined) are returned unchanged, so only
+      // object/array items need the recursive walk — or its path string.
+      const item = obj[i];
+      if (item !== null && typeof item === "object") {
+        obj[i] = sanitizeMongoQuery(item, `${path}[${i}]`);
+      }
     }
     return obj;
   }
 
   for (const key of Object.keys(obj)) {
-    const currentPath = `${path}.${key}`;
-
     if (BLOCKED_OPERATORS.has(key)) {
+      // Cold path: the dotted path is only materialized for the violation.
+      const currentPath = `${path}.${key}`;
       logger.error(`[MongoSanitize] Blocked dangerous operator: ${key} at ${currentPath}`);
       throw new AppError(
         `Query contains forbidden operator: ${key}`,
@@ -68,9 +79,11 @@ export function sanitizeMongoQuery(obj: any, path: string = "$"): any {
       }
     }
 
-    // Recursively sanitize nested objects
-    if (obj[key] !== null && typeof obj[key] === "object") {
-      obj[key] = sanitizeMongoQuery(obj[key], currentPath);
+    // Recursively sanitize nested objects — the child path string is only
+    // built when a descent actually happens, so clean leaf values stay free.
+    const nested = obj[key];
+    if (nested !== null && typeof nested === "object") {
+      obj[key] = sanitizeMongoQuery(nested, `${path}.${key}`);
     }
   }
 

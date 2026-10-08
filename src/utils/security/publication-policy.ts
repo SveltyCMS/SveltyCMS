@@ -89,6 +89,13 @@ export function applyPublicationToQuery<T extends Record<string, unknown>>(
   return query;
 }
 
+/** Precomputed suffixes so the hot path never allocates a template string. */
+const PUBLICATION_CACHE_SUFFIXES: Partial<Record<PublicationFilter, string>> = {
+  all: "",
+  published: ":published",
+  draft: ":draft",
+};
+
 /**
  * Cache-key suffix for a publication filter.
  * `"all"` is unconstrained (same query as pre-policy keys) so it MUST stay
@@ -97,5 +104,7 @@ export function applyPublicationToQuery<T extends Record<string, unknown>>(
  * a cached "all" document can never be served to a clamped caller.
  */
 export function publicationCacheSuffix(filter: PublicationFilter): string {
-  return filter === "all" ? "" : `:${filter}`;
+  // Precomputed lookup avoids a per-call template-string allocation on the
+  // published/draft hot path; the fallback keeps out-of-type inputs identical.
+  return PUBLICATION_CACHE_SUFFIXES[filter] ?? `:${filter}`;
 }

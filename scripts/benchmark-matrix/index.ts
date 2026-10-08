@@ -205,6 +205,7 @@ const GROUPS = [
       "entry-edit-hydration",
       "widget-performance",
       "etag-hash",
+      "security-utils",
       "ai-performance",
       "telemetry-performance",
     ],
@@ -349,6 +350,7 @@ const TEST_WEIGHTS: Record<string, number> = {
   "entry-edit-hydration": 8,
   "widget-performance": 10,
   "etag-hash": 15,
+  "security-utils": 5,
   "ai-performance": 5,
   "telemetry-performance": 5,
   // HTTP Write/Mutation: ~20s avg

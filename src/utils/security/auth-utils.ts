@@ -18,6 +18,9 @@ const SESSION_UNIT_MS: Record<string, number> = {
 
 const DEFAULT_SESSION_MS = 86_400_000; // 1 day
 
+// Precompiled duration parser (module scope = compiled once).
+const SESSION_DURATION_RE = /^(\d+)(ms|s|m|h|d|w)$/;
+
 /**
  * Parses a session duration string into milliseconds.
  *
@@ -35,7 +38,7 @@ const DEFAULT_SESSION_MS = 86_400_000; // 1 day
  */
 export function parseSessionDuration(duration: string): number {
   if (!duration) return DEFAULT_SESSION_MS;
-  const match = duration.trim().match(/^(\d+)(ms|s|m|h|d|w)$/);
+  const match = duration.trim().match(SESSION_DURATION_RE);
   if (!match) return DEFAULT_SESSION_MS;
   const [, amount, unit] = match;
   return parseInt(amount, 10) * (SESSION_UNIT_MS[unit] ?? SESSION_UNIT_MS.d);

@@ -23,23 +23,48 @@ const PRODUCTION_ALLOWED_ORIGINS = [
     .filter(Boolean) || []),
 ];
 
+/**
+ * Restrictive CORS response for disallowed origins — precomputed once.
+ * Every consumer only reads the returned object (see handle-security-headers),
+ * so sharing one instance across calls is safe.
+ */
+const RESTRICTIVE_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "null",
+  "Access-Control-Allow-Methods": "",
+  "Access-Control-Allow-Headers": "",
+};
+
+// Single-slot memo for the last allowed origin: repeated requests from the
+// same browser origin (the common case) skip both the origin check and the
+// per-call headers-object allocation. Scalar state — bounded, no growth.
+let _cachedAllowedOrigin: string | null = null;
+let _cachedAllowedHeaders: Record<string, string> | null = null;
+let _lastCheckedOrigin: string | null = null;
+let _lastCheckedAllowed = false;
+
 function isAllowedOrigin(origin: string): boolean {
   if (!origin || origin === "null") return false;
 
+  if (origin === _lastCheckedOrigin) return _lastCheckedAllowed;
+
+  let allowed: boolean;
   // In development, allow all localhost origins
   if (dev) {
     try {
       const { hostname } = new URL(origin);
-      return (
-        hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")
-      );
+      allowed =
+        hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.");
     } catch {
-      return false;
+      allowed = false;
     }
+  } else {
+    // In production, validate against allowlist
+    allowed = PRODUCTION_ALLOWED_ORIGINS.includes(origin);
   }
 
-  // In production, validate against allowlist
-  return PRODUCTION_ALLOWED_ORIGINS.includes(origin);
+  _lastCheckedOrigin = origin;
+  _lastCheckedAllowed = allowed;
+  return allowed;
 }
 
 export function getCorsHeaders(
@@ -48,16 +73,16 @@ export function getCorsHeaders(
 ): Record<string, string> | null {
   if (!origin) return null;
 
-  if (!isAllowedOrigin(origin)) {
-    // Return restrictive CORS — blocks cross-origin requests from unknown origins
-    return {
-      "Access-Control-Allow-Origin": "null",
-      "Access-Control-Allow-Methods": "",
-      "Access-Control-Allow-Headers": "",
-    };
+  if (origin === _cachedAllowedOrigin && _cachedAllowedHeaders !== null) {
+    return _cachedAllowedHeaders;
   }
 
-  return {
+  if (!isAllowedOrigin(origin)) {
+    // Return restrictive CORS — blocks cross-origin requests from unknown origins
+    return RESTRICTIVE_CORS_HEADERS;
+  }
+
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers":
@@ -65,4 +90,7 @@ export function getCorsHeaders(
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400", // 24 hours
   };
+  _cachedAllowedOrigin = origin;
+  _cachedAllowedHeaders = headers;
+  return headers;
 }

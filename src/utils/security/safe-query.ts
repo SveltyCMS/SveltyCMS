@@ -69,9 +69,11 @@ export function isMultiTenantMode(): boolean {
 }
 
 /**
- * Whether the options carry an explicit tenant scope decision.
+ * Fail-closed tenant gate for SQL + Mongo parity.
+ * Zero work when single-tenant, bypassed, or tenantId already present.
  *
- * `null` IS such a decision: it selects the **global layer** (rows with
+ * Whether the options carry an explicit tenant scope decision:
+ * `null` IS such a decision — it selects the **global layer** (rows with
  * `tenantId IS NULL` — global roles, global collections, system settings, the
  * global administrator). The string `"global"` maps to "no filter" in
  * `getEffectiveTenantId`; only a *missing* value (undefined / `""`) means
@@ -83,14 +85,6 @@ export function isMultiTenantMode(): boolean {
  * The API layer keeps its own TENANT_REQUIRED guards, so tenantless *requests*
  * are still rejected at the boundary.
  */
-function hasExplicitTenantScope(tenantId: unknown): boolean {
-  return tenantId !== undefined && tenantId !== "";
-}
-
-/**
- * Fail-closed tenant gate for SQL + Mongo parity.
- * Zero work when single-tenant, bypassed, or tenantId already present.
- */
 export function assertTenantContext(
   options?: TenantScopedOptions | null,
   operation = "query",
@@ -99,7 +93,8 @@ export function assertTenantContext(
   if (!isMultiTenantMode()) return;
   // System scope (branded) or ultra-fast path
   if (hasTenantBypass(options)) return;
-  if (hasExplicitTenantScope(options?.tenantId)) {
+  const tenantId = options?.tenantId;
+  if (tenantId !== undefined && tenantId !== "") {
     // A present tenantId — including the explicit global `null` — is a scope decision.
     return;
   }
@@ -124,8 +119,12 @@ export function safeQuery<T extends Record<string, any>>(
   if (options.bypassSafeQuery) return query;
 
   const isMultiTenant = isMultiTenantMode();
+  // Both checks are pure; hoist them so the multi-tenant gate and the
+  // tenant-merge condition share one evaluation instead of two.
+  const tenantScope = tenantId !== undefined && tenantId !== "";
+  const tenantBypass = hasTenantBypass(options);
 
-  if (isMultiTenant && !hasExplicitTenantScope(tenantId) && !hasTenantBypass(options)) {
+  if (isMultiTenant && !tenantScope && !tenantBypass) {
     const redactedQuery = Object.fromEntries(
       Object.entries(query).map(([k, v]) => [PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v]),
     );
@@ -144,11 +143,13 @@ export function safeQuery<T extends Record<string, any>>(
 
   const queryTenant = (query as { tenantId?: unknown }).tenantId;
   if (
-    hasExplicitTenantScope(tenantId) &&
-    !hasTenantBypass(options) &&
+    // Cheapest identity check first: an already-scoped query exits before
+    // any further inspection.
     queryTenant !== tenantId &&
+    tenantScope &&
+    !tenantBypass &&
     // The global scope must not widen a narrower explicit filter on the query.
-    !(tenantId === null && hasExplicitTenantScope(queryTenant))
+    !(tenantId === null && queryTenant !== undefined && queryTenant !== "")
   ) {
     secureQuery = { ...query };
     secureQuery.tenantId = tenantId;

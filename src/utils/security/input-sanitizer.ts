@@ -26,6 +26,20 @@ const DATA_JS_URL_RE =
 const DANGEROUS_TAGS_RE =
   /<\/?(?:script|iframe|object|embed|meta|link|style|base|form|input|button|textarea|select|option|optgroup|datalist|keygen|output|progress|meter)\b[^>]*>/gi;
 
+// ── Fast-path matchers (module scope = compiled once, zero per-call cost) ──
+// Triage gate: none of the dangerous classes above can match a string that
+// contains none of these three characters — '<' (every tag pattern), ':'
+// (every scriptable URL scheme) or '=' (every event handler / attribute URL).
+// A failed gate therefore proves every sanitizer regex would fail, so the
+// string can be returned untouched without any scan or lowercase copy.
+const XSS_VECTOR_GATE_RE = /[<:=]/;
+// All scriptable URL schemes, tolerant of whitespace injection (`java\tscript:`).
+const XSS_URL_SCHEME_RE =
+  /j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:|v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:|d\s*a\s*t\s*a\s*:/;
+// Any `on…=` handler — separator is whitespace, quote (post-quote injection
+// `"onerror=…`), `/` (self-closing), `>` or string start. Case-insensitive.
+const XSS_EVENT_HANDLER_RE = /(?:^|[\s"'>/])on\w+\s*=/i;
+
 // Allowlisted safe HTML tags to preserve (reference for future allowlist-based sanitizer)
 export const SAFE_TAGS = new Set([
   "a",
@@ -99,6 +113,11 @@ export const SAFE_TAGS = new Set([
 export function sanitizeString(input: string): string {
   if (!input || typeof input !== "string") return input;
   if (input.length > 100_000) return input; // Skip very large payloads
+
+  // Fast triage: without '<', ':' or '=' none of the seven strip patterns
+  // below can match, so the input is returned as-is — the clean-text hot path
+  // avoids all sequential full-string scans.
+  if (!XSS_VECTOR_GATE_RE.test(input)) return input;
 
   let cleaned = input;
 
@@ -202,16 +221,30 @@ function objectNeedsSanitize(obj: object): boolean {
  */
 export function containsXssVector(input: string): boolean {
   if (!input || typeof input !== "string") return false;
+  // Fast triage: without '<', ':' or '=' no vector class can match — this
+  // keeps the clean-text hot path allocation-free (previously every call
+  // paid for a full lowercase copy).
+  if (!XSS_VECTOR_GATE_RE.test(input)) return false;
+  // ASCII-exact short-circuits on the ORIGINAL string: `<script`/`<iframe`
+  // are the most common vectors and lowercase in practice; uppercase forms
+  // fall through to the lowercase check below, which stays the source of
+  // truth. Same for `on…=` handlers — the match region is pure ASCII and
+  // ASCII case folding is total under /i, so a hit here is guaranteed to
+  // hit on the lowercase copy too.
+  if (input.includes("<script") || input.includes("<iframe")) return true;
+  if (XSS_EVENT_HANDLER_RE.test(input)) return true;
+  // ASCII-exact URL-scheme short-circuit: the common lowercase
+  // `javascript:`/`data:` forms skip the lowercase copy entirely. Uppercase
+  // and whitespace-injected variants fall through to the folded check below,
+  // which stays the source of truth.
+  if (input.includes("javascript:") || input.includes("data:")) return true;
+  // The lowercase copy is now only paid by the case/whitespace-folded URL
+  // scheme class (`j\u00e1vascript:`-style injections need the fold to match).
   const lower = input.toLowerCase();
   return (
     lower.includes("<script") ||
     lower.includes("<iframe") ||
-    // All scriptable URL schemes, tolerant of whitespace injection (`java\tscript:`).
-    /j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:|v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:|d\s*a\s*t\s*a\s*:/.test(
-      lower,
-    ) ||
-    // Any `on…=` handler — separator is whitespace, quote (post-quote injection
-    // `"onerror=…`), `/` (self-closing), `>` or string start.
-    /(?:^|[\s"'>/])on\w+\s*=/i.test(lower)
+    XSS_URL_SCHEME_RE.test(lower) ||
+    XSS_EVENT_HANDLER_RE.test(lower)
   );
 }

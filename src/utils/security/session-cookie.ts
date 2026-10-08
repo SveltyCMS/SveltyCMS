@@ -14,6 +14,50 @@ import {
   SESSION_COOKIE_NAME,
 } from "@src/databases/auth/constants";
 
+// NOTE: constants.ts re-exports this module (circular import). The cookie-name
+// constants must therefore be read at CALL time, never at module-eval time —
+// under a constants-first evaluation order the imported names are still
+// `undefined` while this module initializes. Lazy init keeps the steady-state
+// per-call cost at zero while staying immune to import order.
+// Needle order mirrors readSessionCookie precedence:
+// secure: __Host- → plain → __Secure-; insecure: plain → __Host- → __Secure-.
+let _secureNeedles: readonly string[] | undefined;
+let _insecureNeedles: readonly string[] | undefined;
+
+function secureNeedles(): readonly string[] {
+  return (_secureNeedles ??= [
+    `${HOST_SESSION_COOKIE_NAME}=`,
+    `${SESSION_COOKIE_NAME}=`,
+    `${SECURE_SESSION_COOKIE_NAME}=`,
+  ]);
+}
+
+function insecureNeedles(): readonly string[] {
+  return (_insecureNeedles ??= [
+    `${SESSION_COOKIE_NAME}=`,
+    `${HOST_SESSION_COOKIE_NAME}=`,
+    `${SECURE_SESSION_COOKIE_NAME}=`,
+  ]);
+}
+
+// Lazy per-variant facts for cookie cleanup (same circular-import rationale;
+// also avoids per-call startsWith checks and the per-call names array).
+let _sessionCookieVariants:
+  | ReadonlyArray<{ name: string; isHost: boolean; isSecurePrefixed: boolean }>
+  | undefined;
+
+function sessionCookieVariants(): ReadonlyArray<{
+  name: string;
+  isHost: boolean;
+  isSecurePrefixed: boolean;
+}> {
+  return (_sessionCookieVariants ??= [
+    { name: HOST_SESSION_COOKIE_NAME, isHost: true, isSecurePrefixed: false },
+    { name: SECURE_SESSION_COOKIE_NAME, isHost: false, isSecurePrefixed: true },
+    { name: SESSION_COOKIE_NAME, isHost: false, isSecurePrefixed: false },
+  ]);
+}
+
 export interface CookieReader {
   get(name: string, opts?: any): string | undefined;
 }
@@ -98,19 +142,15 @@ export function readSessionIdFromCookieHeader(
   isSecure: boolean,
 ): string | undefined {
   if (!cookieHeader) return undefined;
-  const names =
-    isSecure === true
-      ? [HOST_SESSION_COOKIE_NAME, SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME]
-      : [SESSION_COOKIE_NAME, HOST_SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME];
-  for (let i = 0; i < names.length; i++) {
-    const value = cookieValueAtBoundary(cookieHeader, names[i]!);
+  const needles = isSecure === true ? secureNeedles() : insecureNeedles();
+  for (let i = 0; i < needles.length; i++) {
+    const value = cookieValueAtBoundary(cookieHeader, needles[i]!);
     if (value) return value;
   }
   return undefined;
 }
 
-function cookieValueAtBoundary(header: string, name: string): string | undefined {
-  const needle = `${name}=`;
+function cookieValueAtBoundary(header: string, needle: string): string | undefined {
   let from = 0;
   while (from < header.length) {
     const idx = header.indexOf(needle, from);
@@ -159,17 +199,14 @@ export function clearAllSessionCookies(
   const httpOnlyOpt =
     !isString && cookiePathOrOptions?.httpOnly !== undefined ? cookiePathOrOptions.httpOnly : true;
 
-  const names = [HOST_SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME, SESSION_COOKIE_NAME];
-  for (const name of names) {
-    const isHostCookie = name.startsWith("__Host-");
-    const isSecureCookie = name.startsWith("__Secure-");
-    const mustBeSecure = isHostCookie || isSecureCookie || isSecureOpt === true;
+  for (const variant of sessionCookieVariants()) {
+    const mustBeSecure = variant.isHost || variant.isSecurePrefixed || isSecureOpt === true;
 
     const effectiveSameSite =
       sameSiteOpt !== undefined ? sameSiteOpt : mustBeSecure ? "strict" : "lax";
 
-    cookies.delete(name, {
-      path: isHostCookie ? "/" : cookiePath,
+    cookies.delete(variant.name, {
+      path: variant.isHost ? "/" : cookiePath,
       secure: mustBeSecure,
       httpOnly: httpOnlyOpt,
       sameSite: effectiveSameSite,
