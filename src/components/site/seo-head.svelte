@@ -16,6 +16,19 @@ robots, hreflang alternates, Open Graph, Twitter Card, JSON-LD) for site-starter
 	}
 
 	let { meta }: Props = $props();
+
+	/**
+	 * JSON-LD reaches the document head as raw markup. A closing script tag (or a
+	 * NUL byte) inside the payload would terminate the script element and let the
+	 * rest of the string be parsed as markup, so both are neutralised here. The
+	 * escaped form stays valid JSON.
+	 */
+	function sanitizeJsonLdScript(script: string): string {
+		return script
+			.replace(/<\/script/gi, '<\\/script')
+			.split(String.fromCharCode(0))
+			.join('');
+	}
 </script>
 
 <svelte:head>
@@ -58,11 +71,11 @@ robots, hreflang alternates, Open Graph, Twitter Card, JSON-LD) for site-starter
 		{/if}
 		{#if meta.jsonLdScript}
 			<!-- Generated server-side from sanitized widget data; safe to render raw. -->
-			{@html meta.jsonLdScript}
+			{@html sanitizeJsonLdScript(meta.jsonLdScript)}
 		{/if}
 		{#each meta.autoJsonLd as autoScript (autoScript)}
 			<!-- Site-level JSON-LD auto-generated from the CMS structure; safe to render raw. -->
-			{@html autoScript}
+			{@html sanitizeJsonLdScript(autoScript)}
 		{/each}
 	{/if}
 </svelte:head>
