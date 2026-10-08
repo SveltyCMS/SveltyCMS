@@ -152,6 +152,35 @@ Full catalog workflow (Fink / GitHub PRs): [System Languages](./system-languages
 
 ---
 
+## Search Indexing & AI Crawlers {#search-indexing-ai-crawlers}
+
+### IndexNow (`INDEXNOW_KEY`)
+
+IndexNow ([indexnow.org](https://www.indexnow.org/)) is the instant URL
+submission protocol of the Bing/Yandex/Seznam/Naver ecosystem (Google does
+not participate — its sitemap ping endpoint was deprecated in June 2023).
+
+- The key is **generated automatically** (CSPRNG) the first time an entry is
+  published under an active SEO widget license, stored as `INDEXNOW_KEY`, and
+  served at `/indexnow.txt` for ownership verification.
+- Published URLs are submitted **fire-and-forget** — the write is never
+  blocked, and benchmark/test runs skip the ping (`skipSideEffects`).
+- Without a premium SEO license no submission is made; the key file then 404s.
+
+### AI crawler policy (`AI_CRAWLER_POLICY`)
+
+Controls which AI crawlers are disallowed in `/robots.txt`:
+
+| Value             | Effect                                                                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allow` (default) | No AI-crawler directives — all crawlers welcome                                                                                                           |
+| `block-training`  | Disallows GPTBot, Google-Extended, ClaudeBot, CCBot (training-data crawlers); OAI-SearchBot stays allowed, so the site can still appear in ChatGPT Search |
+| `block-all`       | Additionally disallows OAI-SearchBot, PerplexityBot, Applebot-Extended, Bytespider and more                                                               |
+
+Search crawlers (Googlebot, Bingbot) are never affected by these directives.
+
+---
+
 ## Cache & Performance Settings
 
 ### Overview {#overview-2}

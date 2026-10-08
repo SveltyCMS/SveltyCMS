@@ -117,6 +117,19 @@ Public setting (default: `true`). Set to `false` to redirect anonymous `/` visit
 
 Admin paths always require authentication: `/api`, `/login`, `/setup`, `/config`, `/admin`, language-prefixed CMS routes (`/en`, `/de`, …).
 
+### SEO head rendering
+
+Pages carry an `seo` field from the [SEO widget](/src/widgets/custom/seo/seo.mdx). The site starter renders it into the public document head automatically — no second SEO layer is needed:
+
+- `<title>` (SEO meta title wins over the page title; falls back to the site name)
+- meta description / keywords, canonical (`<link rel="canonical">`), robots
+- Open Graph + Twitter Card tags with `ogImage`/`twitterImage` media IDs resolved to absolute public URLs
+- JSON-LD (`schemaMarkup`) — sanitized at save and break-out-proof at render
+- hreflang alternates derived from the translated locales (URLs use `?lang=`)
+- draft/preview renders always emit `noindex, nofollow`
+
+The assembly lives in `src/services/content/seo/seo-head.server.ts` (pure helpers in `seo-head.ts`, component in `src/components/site/seo-head.svelte`). `/sitemap.xml` and `/robots.txt` respect the same data — `noindex` entries and duplicate-canonical entries are excluded from the sitemap (see `src/services/content/seo/sitemap-builder.ts`).
+
 ---
 
 ## Headless alternatives
@@ -163,12 +176,18 @@ src/services/site/
 ├── page-resolver.server.ts
 ├── site-config.server.ts
 └── website-starter-seed.server.ts  # Shared seed blueprint (setup + testing API)
+
+src/services/content/seo/
+├── seo-head.ts             # Pure head metadata builder (locale fallback, escaping)
+├── seo-head.server.ts      # Server assembly incl. media ID → URL resolution
+└── sitemap-builder.ts      # sitemap.xml + robots.txt serializers
 ```
 
 ---
 
 ## Related
 
+- [SEO Widget](/src/widgets/custom/seo/seo.mdx) — SEO data model, validation and head rendering
 - [Editable Website Plugin](/src/plugins/editable-website/editable-website.mdx) — Premium live preview (€14.99)
 - [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx)
 - [Svedit](https://github.com/michael/svedit) — Inline Svelte editing library
