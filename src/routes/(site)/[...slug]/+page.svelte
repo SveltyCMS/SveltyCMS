@@ -1,11 +1,13 @@
 <!--
 @file src/routes/(site)/[...slug]/+page.svelte
-@component Catch-all page renderer for the site starter.
+@component Catch-all public page renderer for the site starter.
 -->
 
 <script lang="ts">
 	import PageRenderer from '@components/site/page-renderer.svelte';
+	import SeoHead from '@components/site/seo-head.svelte';
 	import SitePreviewBridge from '@components/site/site-preview-bridge.svelte';
+	import { pickSeoPageTitle } from '@src/services/content/seo/seo-head';
 	import type { SitePage } from '@src/services/site/types';
 
 	let { data } = $props();
@@ -15,11 +17,20 @@
 	$effect(() => {
 		page = data.localized;
 	});
+
+	// SEO meta title wins over the page title; both stay live-preview reactive.
+	let title = $derived.by(() => {
+		const seoTitle = pickSeoPageTitle(page?.seo, data.contentLanguage ?? 'en');
+		const pageTitle = typeof page?.title === 'string' ? page.title : '';
+		return seoTitle || pageTitle || data.seoHead?.title || data.slug;
+	});
 </script>
 
 <svelte:head>
-	<title>{page?.title || data.slug}</title>
+	<title>{title}</title>
 </svelte:head>
+
+<SeoHead meta={data.seoHead} />
 
 <SitePreviewBridge bind:entry={page} enabled={editable} />
 <PageRenderer {page} {editable} />

@@ -1,19 +1,36 @@
 /**
  * @file src/routes/sitemap.xml/+server.ts
- * @description Dynamic XML Sitemap generator.
+ * @description Dynamic XML sitemap for all public collections.
+ *
+ * ### Features
+ * - Publishes published entries of every non-system collection, paginated so
+ *   the SDK's page-size clamp never truncates the sitemap
+ * - Respects per-entry indexing controls (SEO widget `noindex`, external
+ *   canonical URLs) via the shared sitemap builder
+ * - Maps `pages` entries to the real site-starter routes with hreflang
+ *   alternates when the site starter is enabled
+ * - 5-minute in-memory cache per tenant
  */
 
 import type { RequestHandler } from "@sveltejs/kit";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { isSiteStarterEnabled } from "@src/services/site/site-config.server";
+import { buildSitemapXml, type SitemapEntryInput } from "@src/services/content/seo/sitemap-builder";
 import { getCachedSitemap, setCachedSitemap } from "@src/services/content/seo/sitemap-cache";
 
-export const GET: RequestHandler = async ({ locals, url }: { locals: any; url: URL }) => {
-  const { tenantId } = locals;
+const PAGE_SIZE = 200;
+const MAX_ENTRIES_PER_COLLECTION = 100_000;
+
+export const GET: RequestHandler = async ({ locals, url }) => {
+  const tenantId = (locals.tenantId as string | null | undefined) ?? undefined;
   if (!dbAdapter) return new Response("Database not initialized", { status: 500 });
 
+  const cacheKey = `${tenantId ?? "global"}`;
+
   // Try cache first
-  const cached = getCachedSitemap(tenantId as string);
+  const cached = getCachedSitemap(cacheKey);
   if (cached) {
     return new Response(cached, {
       headers: {
@@ -27,25 +44,32 @@ export const GET: RequestHandler = async ({ locals, url }: { locals: any; url: U
 
   // 1. Fetch all collections
   const collections = await cms.collections.list();
-  const entries: any[] = [];
+  const entries: SitemapEntryInput[] = [];
 
   for (const col of collections) {
     // Only include public collections (not system ones)
     if (col.name.startsWith("system_") || col.name === "redirects") continue;
 
     try {
-      const result = await cms.collections.find(col.name, {
-        publicationFilter: "published",
-        tenantId,
-      });
+      // Paginate: the SDK clamps the list size, so a single find() call would
+      // silently truncate large collections out of the sitemap.
+      let offset = 0;
+      for (;;) {
+        const result = await cms.collections.find(col.name, {
+          publicationFilter: "published",
+          tenantId,
+          limit: PAGE_SIZE,
+          offset,
+        });
 
-      if (result.success) {
-        entries.push(
-          ...result.data.map((e: any) => ({
-            ...e,
-            _collection: col.name,
-          })),
-        );
+        const rows = Array.isArray(result?.data) ? result.data : [];
+        for (const entry of rows) {
+          entries.push({ ...(entry as Record<string, unknown>), collection: col.name });
+        }
+
+        if (rows.length < PAGE_SIZE) break;
+        offset += PAGE_SIZE;
+        if (offset >= MAX_ENTRIES_PER_COLLECTION) break;
       }
     } catch {
       // Gracefully skip collections that fail to resolve (e.g., schema cache mismatch)
@@ -53,38 +77,15 @@ export const GET: RequestHandler = async ({ locals, url }: { locals: any; url: U
   }
 
   // 2. Generate XML
-  const baseUrl = `${url.protocol}//${url.host}`;
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  ${entries
-    .map((entry) => {
-      const loc = `${baseUrl}/${entry._collection}/${entry.slug}`;
-      const lastmod = entry.updatedAt || entry.createdAt;
-
-      // Add hreflang alternate links if translations exist
-      const alternates = entry.translations
-        ? Object.keys(entry.translations)
-            .map(
-              (lang) =>
-                `<xhtml:link rel="alternate" hreflang="${lang}" href="${baseUrl}/${lang}/${entry._collection}/${entry.slug}" />`,
-            )
-            .join("\n    ")
-        : "";
-
-      return `
-  <url>
-    <loc>${loc}</loc>
-    <lastmod>${new Date(lastmod).toISOString()}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-    ${alternates}
-  </url>`;
-    })
-    .join("")}
-    </urlset>`;
+  const xml = buildSitemapXml({
+    origin: url.origin,
+    entries,
+    defaultLang: getPublicSettingSync("DEFAULT_CONTENT_LANGUAGE") || "en",
+    siteStarterEnabled: isSiteStarterEnabled(),
+  });
 
   // Update cache
-  setCachedSitemap(tenantId as string, xml);
+  setCachedSitemap(cacheKey, xml);
 
   return new Response(xml, {
     headers: {

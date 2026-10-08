@@ -1,5 +1,5 @@
 /**
- * @file src/services/seo/sitemap-cache.ts
+ * @file src/services/content/seo/sitemap-cache.ts
  * @description In-memory cache for dynamic sitemaps.
  */
 

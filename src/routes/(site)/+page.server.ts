@@ -4,13 +4,19 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
+import { dbAdapter } from "@src/databases/db";
+import { LocalCMS } from "@src/services/sdk";
 import { localizeSitePage, resolveSitePage } from "@src/services/site/page-resolver.server";
 import { isSiteStarterEnabled } from "@src/services/site/site-config.server";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { loadSeoHeadForPage } from "@src/services/content/seo/seo-head.server";
+import type { SeoHeadResult } from "@src/services/content/seo/seo-head";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { isAdmin } from "@utils/hook-utils";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { rethrow } from "@utils/error-handling";
 import type { PageServerLoad } from "./$types";
 
 async function redirectAuthenticatedUserToCms(locals: App.Locals, url: URL): Promise<never> {
@@ -41,7 +47,16 @@ async function redirectAuthenticatedUserToCms(locals: App.Locals, url: URL): Pro
   throw redirect(302, "/user/profile");
 }
 
-export const load: PageServerLoad = async ({ locals, parent, url }) => {
+export const load: PageServerLoad = async ({
+  locals,
+  parent,
+  url,
+}): Promise<{
+  page: ReturnType<typeof localizeSitePage>;
+  localized: ReturnType<typeof localizeSitePage>;
+  editable: boolean | undefined;
+  seoHead?: SeoHeadResult;
+}> => {
   const user = locals.user;
 
   if (!isSiteStarterEnabled()) {
@@ -80,9 +95,32 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
     throw error(404, "Page not found");
   }
 
+  // SEO head metadata from the SEO widget's stored data (media IDs resolved).
+  let seoHead: Awaited<ReturnType<typeof loadSeoHeadForPage>> | undefined;
+  try {
+    if (dbAdapter) {
+      const cms = new LocalCMS(dbAdapter, { tenantId: tenantId ?? undefined });
+      const defaultLang = getPublicSettingSync("DEFAULT_CONTENT_LANGUAGE") || "en";
+      seoHead = await loadSeoHeadForPage({
+        page,
+        cms,
+        url,
+        lang,
+        defaultLang,
+        tenantId,
+        siteName: parentData.siteName,
+        noindex: parentData.isPreview || parentData.isDraft,
+      });
+    }
+  } catch (err) {
+    rethrow(err);
+    logger.warn("[Site] SEO head assembly failed — rendering title-only head", { error: err });
+  }
+
   return {
     page,
     localized: localizeSitePage(page, lang),
     editable: parentData.isPreview,
+    seoHead,
   };
 };
