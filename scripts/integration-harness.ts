@@ -717,7 +717,8 @@ export function detectDockerAdapterHints(): {
  * Remove test artifacts left behind by the integration harness:
  * - config/private.test.ts (auto-generated test config)
  * - config/test-database/ (SQLite DB files for tests)
- * - config/test-collections/ (collection files for tests)
+ * - config/test-collections/ + config/<tenant>/test-collections/
+ *   (collection files and builder category directories for tests)
  * - .compiledCollections/test-collections/ (compiled collection output)
  * - config/database/<harness-named>.sqlite / .db + WAL sidecars — never
  *   live-named files (shared test-name classifier, see `sweepHarnessSqliteFiles`)
@@ -740,6 +741,27 @@ export function cleanupTestArtifacts(root: string): void {
       /* ok */
     }
   }
+
+  // Tenant-scoped test collection folders (e.g. config/global/test-collections):
+  // builder category sync creates real directories under the tenant's collection
+  // root, and the content-nodes contract suite exercises the `global` tenant.
+  // Only the `test-collections` subfolder is ever swept — `<tenant>/collections`
+  // is live data and must never be touched.
+  const configRoot = join(root, "config");
+  try {
+    for (const entry of readdirSync(configRoot)) {
+      const candidate = join(configRoot, entry, "test-collections");
+      if (!existsSync(candidate)) continue;
+      try {
+        rmSync(candidate, { recursive: true, force: true });
+      } catch {
+        /* locked — leave it for the next run */
+      }
+    }
+  } catch {
+    /* no config dir — nothing to sweep */
+  }
+
   const swept = sweepHarnessSqliteFiles(root);
   if (swept.length > 0) {
     console.log(`🧹 Swept harness DB leftovers from the live folder: ${swept.join(", ")}`);

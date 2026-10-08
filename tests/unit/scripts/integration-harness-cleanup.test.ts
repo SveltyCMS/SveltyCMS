@@ -2,7 +2,10 @@
  * @file tests/unit/scripts/integration-harness-cleanup.test.ts
  * @description Guard: `cleanupTestArtifacts` sweeps harness-classified SQLite
  * leftovers out of the live `config/database/` folder while never touching
- * live-named files — the invariant that harness DBs stay in `test-database/`.
+ * live-named files, and sweeps tenant-scoped `test-collections` directories
+ * (e.g. `config/global/test-collections`) while never touching the sibling
+ * live `collections` directories — the invariant that harness artifacts stay
+ * in `test-*` roots.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -50,5 +53,37 @@ describe("integration harness cleanup — live folder protection", () => {
     // Existing cleanup contract: generated config + test folders are removed.
     expect(existsSync(join(root, "config", "private.test.ts"))).toBe(false);
     expect(existsSync(join(root, "config", "test-database"))).toBe(false);
+  });
+
+  it("sweeps tenant-scoped test-collections dirs and keeps sibling live collections", () => {
+    // Tenant-scoped test leftovers: builder category dirs created by the
+    // content-nodes contract suite under the `global` tenant.
+    mkdirSync(join(root, "config", "global", "test-collections", "contract-gui-x"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(root, "config", "global", "test-collections", "contract-gui-x", "schema.ts"),
+      "x",
+    );
+    // The sibling live dir of the same tenant must never be touched.
+    mkdirSync(join(root, "config", "global", "collections", "live-category"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(root, "config", "global", "collections", "live-category", "posts.ts"),
+      "live",
+    );
+    // A second tenant exercises the sweep across all config/* entries.
+    mkdirSync(join(root, "config", "tenant-42", "test-collections", "bench-x"), {
+      recursive: true,
+    });
+
+    cleanupTestArtifacts(root);
+
+    expect(existsSync(join(root, "config", "global", "test-collections"))).toBe(false);
+    expect(existsSync(join(root, "config", "tenant-42", "test-collections"))).toBe(false);
+    expect(
+      existsSync(join(root, "config", "global", "collections", "live-category", "posts.ts")),
+    ).toBe(true);
   });
 });

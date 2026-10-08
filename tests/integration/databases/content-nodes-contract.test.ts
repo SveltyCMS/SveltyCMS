@@ -12,6 +12,8 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
+import path from "node:path";
+import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
 import type { ContentNode } from "@src/content/types";
@@ -20,6 +22,8 @@ import { contentService } from "@src/content/engine.server";
 import { syncContentState } from "@src/content/index.server";
 import { assertRealAdapter } from "@tests/helpers/assert-real-adapter";
 import { generateUUID } from "@utils/native-utils";
+import { categoryRelativeDir } from "@utils/compilation/category-directories";
+import { getCollectionsPath, getCompiledCollectionsPath } from "@utils/tenant.server";
 
 const TENANT: DatabaseId = "global" as DatabaseId;
 const CATEGORY_NODE_TYPE = "category" as const;
@@ -50,9 +54,9 @@ async function readPaths(db: DatabaseAdapter, paths: string[]) {
   return (data ?? []).filter((n) => n.path && set.has(n.path));
 }
 
-async function deletePaths(db: DatabaseAdapter, paths: string[]) {
-  if (paths.length === 0) return;
-  await db.content.nodes.deleteMany(paths, { tenantId: TENANT });
+async function deletePaths(db: DatabaseAdapter, paths: ReadonlySet<string>) {
+  if (paths.size === 0) return;
+  await db.content.nodes.deleteMany(Array.from(paths), { tenantId: TENANT });
 }
 
 let db: DatabaseAdapter;
@@ -65,7 +69,25 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await deletePaths(db, [...new Set(cleanupPaths)]);
+  await deletePaths(db, new Set(cleanupPaths));
+
+  // The gui-save contract creates real category directories under the tenant's
+  // collection root (`config/global/test-collections/` in a test harness). The
+  // rows are deleted above; remove the empty directories as well — but only
+  // when they resolve inside a `test-collections` or `.compiledCollections`
+  // root, never a live `collections` directory.
+  for (const nodePath of new Set(cleanupPaths)) {
+    const relative = categoryRelativeDir(nodePath);
+    if (!relative) continue;
+    for (const root of [getCollectionsPath(TENANT), getCompiledCollectionsPath(TENANT)]) {
+      const resolvedRoot = path.resolve(root);
+      const safeRoot =
+        path.basename(resolvedRoot) === "test-collections" ||
+        path.basename(path.dirname(resolvedRoot)) === ".compiledCollections";
+      if (!safeRoot) continue;
+      await fs.rm(path.join(resolvedRoot, relative), { recursive: true, force: true });
+    }
+  }
 });
 
 describe("content.nodes bulkUpdate contract", () => {
