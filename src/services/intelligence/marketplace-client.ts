@@ -125,7 +125,7 @@ class MarketplaceClient {
 
       // Update cache
       if (!params.query && !params.type && !params.license) {
-        _listingsCache = data.plugins || data;
+        _listingsCache = data.packages || data.plugins || (Array.isArray(data) ? data : []);
         _cacheTime = Date.now();
       }
 
@@ -232,7 +232,13 @@ class MarketplaceClient {
     if (Array.isArray(data)) {
       return { plugins: data, total: data.length, page: 1, totalPages: 1 };
     }
-    return data as MarketplaceListResponse;
+    const list = data.packages || data.plugins || [];
+    return {
+      plugins: list,
+      total: typeof data.total === "number" ? data.total : list.length,
+      page: data.page || 1,
+      totalPages: data.totalPages || 1,
+    };
   }
 
   private fallbackResponse(params: MarketplaceSearchParams): MarketplaceListResponse {

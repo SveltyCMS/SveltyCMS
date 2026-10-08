@@ -173,7 +173,7 @@ Features:
 
 		try {
 			const { deleteContentNodes } = await import('../collectionbuilder.remote');
-			const result = await deleteContentNodes([categoryId]);
+			const result = await deleteContentNodes(idsToDelete);
 
 			if ('success' in result && result.success) {
 				const newStructure = flat.filter(

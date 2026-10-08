@@ -191,7 +191,8 @@ async function findFirstRow(probe: FindOneProbe): Promise<ProjectedRow> {
     { status: "active" } as never,
     { sort: { createdAt: "desc" }, fields: ["_id", "title"] } as never,
   );
-  expect(result.success, result.message).toBe(true);
+  expect(result.success).toBe(true);
+  if (!result.success) throw new Error(result.message);
   expect(result.data).toBeTruthy();
   return result.data as ProjectedRow;
 }
@@ -230,6 +231,7 @@ describe("findOne compiled vs fallback parity", () => {
       fields: ["_id"] as never,
     });
     expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.message);
     expect((result.data as ProjectedRow)._id).toBe(NEWEST_ID);
   });
 });
@@ -238,7 +240,8 @@ describe("findOne fallback unchanged when no sort/fields are supplied", () => {
   it("compiled and fallback both return a full physical row", async () => {
     for (const probe of [compiledProbe, dynamicFallbackProbe, drizzleFallbackProbe]) {
       const result = await probe.findOne(COLLECTION, { status: "active" } as never, {});
-      expect(result.success, result.message).toBe(true);
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error(result.message);
       const row = result.data as ProjectedRow;
       expect(row.status).toBe("active");
       expect(ROWS.map((r) => r._id)).toContain(row._id);

@@ -110,7 +110,7 @@ logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
 // default: one env read when unset.
 if (!building) void startCpuProfilerIfEnabled();
 
-// 🧪 FAST LANES: publish the lane registry for the server entry (`index.server.mjs`).
+// 🧪 FAST LANES: publish the lane registry for the server entry (`build/index.js`).
 // The collection READ lane is **on by default** (`SVELTY_FAST_LANE=0` opts out); the
 // collection WRITE lane is opt-in (`SVELTY_FAST_LANE_WRITE=1`) because it carries
 // mutation bodies. See `hooks/fast-lane.server.ts` for the bypass policy
@@ -1121,10 +1121,20 @@ export const handleError: HandleServerError = (input) => {
   let message = "Internal Error";
 
   if (kind === "app") {
-    // `error` is the body given to `error(status, body)` — status is not carried here.
-    const body = (error ?? {}) as { message?: string; code?: string; __sveltyCode?: string };
+    // In SvelteKit, `error` for an app error carries `{ status, message, ... }`
+    const body = (error ?? {}) as {
+      message?: string;
+      code?: string;
+      __sveltyCode?: string;
+      status?: number;
+    };
+    if (typeof body.status === "number") {
+      status = body.status;
+    } else if (typeof (input as any).status === "number") {
+      status = (input as any).status;
+    }
     message = body.message || "Internal Error";
-    code = body.__sveltyCode || body.code || "HTTP_500";
+    code = body.__sveltyCode || body.code || `HTTP_${status}`;
   } else {
     // "framework" / "validation" carry `{ status, message }`; "unknown" is anything
     // thrown by our code (AppError from raise() exposes `status` + `code`).
@@ -1148,9 +1158,15 @@ export const handleError: HandleServerError = (input) => {
     process.env.PLAYWRIGHT_TEST === "true" ||
     process.env.NODE_ENV !== "production";
 
+  // App and framework errors are already safe to expose to users per SvelteKit docs
+  const safeMessage =
+    kind === "app" || kind === "framework" || kind === "validation" || isDevOrTest
+      ? message || "Internal Error"
+      : "Internal Error";
+
   return {
     status,
-    message: isDevOrTest ? message || "Internal Error" : "Internal Error",
+    message: safeMessage,
     code,
   };
 };

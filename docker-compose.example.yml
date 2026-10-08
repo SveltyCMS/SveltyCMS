@@ -1,4 +1,4 @@
-﻿# SveltyCMS — Example Production docker-compose
+# SveltyCMS — Example Production docker-compose
 #
 # Copy this file to docker-compose.yml and set the required environment variables.
 # All sensitive values should be injected via a .env file or secrets manager —
@@ -8,8 +8,9 @@
 
 services:
   sveltycms:
-    build: .
-    image: sveltycms:latest
+    # If building locally with your own Dockerfile:
+    # build: .
+    image: ${SVELTYCMS_IMAGE:-sveltycms:latest}
     restart: unless-stopped
     ports:
       - "${PORT:-4173}:4173"

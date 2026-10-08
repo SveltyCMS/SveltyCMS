@@ -1149,7 +1149,7 @@ async function readGlob(glob: string): Promise<string> {
 }
 async function scanUnusedExports(tsFiles: string[], svelteFiles: string[]) {
   // Reference set = src + scripts + root entry/config files. Scripts (config-cli
-  // and friends) and the root entries (index.server.mjs, index.cjs, vite.config.ts,
+  // and friends) and the root entries (index.cjs, vite.config.ts,
   // …) are production callers of src exports. Candidates are registered from src
   // only — those callers are reference-only, never dead-code sources here.
   const contents = new Map<string, string>();
@@ -1164,7 +1164,7 @@ async function scanUnusedExports(tsFiles: string[], svelteFiles: string[]) {
 
   // Root entry points and build/config files sit outside src/scripts. Without
   // them, exports invoked only from a bundled entry (e.g. startYjsSyncServer,
-  // imported by index.server.mjs via importBuildBundle) are misreported as dead.
+  // imported via build entries) are misreported as dead.
   const entryFiles = globSync("*.{js,mjs,cjs,ts}", {
     cwd: ROOT,
     exclude: (p) => String(p).includes("node_modules"),

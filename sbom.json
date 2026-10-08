@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:3c4dc3af-c2e2-459a-98a8-e25c4a167e51",
+  "serialNumber": "urn:uuid:4a079b98-0be6-4263-a190-03fa90f15984",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-07T17:03:15.308Z",
+    "timestamp": "2026-10-08T10:25:55.845Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -2778,13 +2778,13 @@
     {
       "type": "library",
       "name": "@playwright/test",
-      "version": "1.63.0",
-      "purl": "pkg:npm/@playwright/test@1.63.0",
+      "version": "1.64.0",
+      "purl": "pkg:npm/@playwright/test@1.64.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ=="
+          "content": "sha512-oTN9FNYuN6bqQMwiho6jJKLCG2/QOYCixGXuCjRmzOq23eODeukuY2XiAVoVpAECbuezMt1MHQjAiQxK8F+Y+g=="
         }
       ]
     },
@@ -3103,91 +3103,91 @@
     {
       "type": "library",
       "name": "@shikijs/core",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/core@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/core@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-QCR4q2ZO/ILJEuwiBMel4wdcTDb1JGwfjKTxPDF6x8ixOaluPrVqIn06C99AcRPhmYlBR56d/Fb+GN58GzExpg=="
+          "content": "sha512-6CIgwq+bt2JZ3OSjb/nBkkwEf/CfpHcbam+Mg5Pllco7HAGRQ2/EFhZrrJtbyNTgKwknfVS+llsXGygiDGwJWw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/engine-javascript",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/engine-javascript@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/engine-javascript@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-FbOjFJp9VLdo1Wevs10BBtVxiTWwNLqZh5Gkhjgda/ioL15YOgeSl9n+6XMa3qRlPQzfhFNe641SrynFHYG0nQ=="
+          "content": "sha512-Ed6UdEj84LyYkwnxM5CvSMWAD+id9ExTYri0/+x41U9zrgNifPSS9lZm0JqBP0VfYI8yr8tY5nbNq9+p9R0kFA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/engine-oniguruma",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/engine-oniguruma@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/engine-oniguruma@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EcOQkxdxGQrc1Row/cC2c96/v1dbZqGnEVu1qTuT/MJmp6+cXCvQussowVmCv5Tqr3KuY3c7IbM6HTW3LJ1k9w=="
+          "content": "sha512-dKVmbJecVdB9recl8a/CU4jdpNXyjJQrIcesIkpS70s5HS02ohpnCSpMUbotPnEUzbAcLQ+S4hwZYbkBBiTcJw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/langs",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/langs@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/langs@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ePic0yfAJGOF83D5wBHK/00EjK65oahBYxFk5epgq33WRv7X9UuxLEV8PtR0szC0z8dl7INIpIodB99JRFlR+A=="
+          "content": "sha512-wwBTqwduXSz0X4v9Qa2EWeFaYJEw1clCncWjoRNQRbVDu3SPRTRWucnouYapKj3b8Q+sk/41Vbc4B5c8nuYzLA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/primitive",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/primitive@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/primitive@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-m0wBeLDQDeIxRdUmrCPdQqfuUamDwRL5isCfYbguKD6NiaKpVbsv+3J81DyIKgNW5h4WAIIr8T4EkgQrBBxvaQ=="
+          "content": "sha512-UM7ShlA8oz0OWxLLO8BmO9Ip6fVqdkt8yF0EH7nOCqHfrx1eEAzF0ZUVK7L+I8NEgeu1PEWSRlxaiPPeCb4iDg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/themes",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/themes@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/themes@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-w8UHjeUnIR965KMWJHUPXOc2mNJUnK3vpVLYLvw5IYU2mnTTJ89E24OrJDBNiJDQ0qzb0tc4l7mrIXx5cFeIyw=="
+          "content": "sha512-zGb87H3UBbpuI4yoh5UguB1XbU+2BDU3kflM7UfZ+Cy2hWo9lBtqjSVK20gmLY6ukYl040hAypGXMgud9vul8Q=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/types",
-      "version": "4.4.3",
-      "purl": "pkg:npm/@shikijs/types@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/@shikijs/types@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-UEJxmRR++MAGR6hugn0vgVS2W/6lWAts84FFSrnlH9sP0LNol7E5+NQ792pH8liWUhyMyjhTgSUH3k7iD7tc5g=="
+          "content": "sha512-drtPrtD8N0DENyD2cyt6Ajy+IWsiCLgMxODwLTpvH1UsN6a9jf90tNTPjqwHvA+0Lzu9e0txk8DjfqH1p9UJRw=="
         }
       ]
     },
@@ -3337,13 +3337,13 @@
     {
       "type": "library",
       "name": "@sveltejs/adapter-node",
-      "version": "6.0.0-next.12",
-      "purl": "pkg:npm/@sveltejs/adapter-node@6.0.0-next.12",
+      "version": "6.0.0",
+      "purl": "pkg:npm/@sveltejs/adapter-node@6.0.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-wheNAOlAqLoXvGeSxJChM4jMEAKoMIcBCE18jGbTUdDDENPLefTmX55ACeUOkFqaVeZbAwKVHKifKZeyVNR9Yg=="
+          "content": "sha512-s7muM4JmJ75OZ8o0G4VRhrEKdi8twuEm3t2o/qQsdlm12hKaX7S/CuUBuw3n983wB/IFBSpzG2ugX0xdGzbKwg=="
         }
       ]
     },
@@ -5781,13 +5781,13 @@
     {
       "type": "library",
       "name": "gcp-metadata",
-      "version": "9.0.4",
-      "purl": "pkg:npm/gcp-metadata@9.0.4",
+      "version": "9.1.0",
+      "purl": "pkg:npm/gcp-metadata@9.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-p6WvbXOhfwnVtv/MyPq5kBiVhfV/qglMIxwwTVNEI1Ha1HmOgz5uHYHtYO6SfGckFaXe8blA11IJJ3wqXmvmBA=="
+          "content": "sha512-hV4Abmis9XY9ch/HK8t4oGy/Ho4WNzd6QAj/7PHKF5Ae25LUDviZET0s7DD3i+mG1QpGCqnDji/R/jBiuux4jw=="
         }
       ]
     },
@@ -5820,13 +5820,13 @@
     {
       "type": "library",
       "name": "google-auth-library",
-      "version": "11.1.0",
-      "purl": "pkg:npm/google-auth-library@11.1.0",
+      "version": "11.2.0",
+      "purl": "pkg:npm/google-auth-library@11.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-YIBq5KNoHQrZ9PM4PeodDBqqBGlSTIxh1zibN8u3zNIO9UJg8gvKuCpdKV7fWXhsZ2zRkU6FhGrgKNgLJ2IRgw=="
+          "content": "sha512-R9/Dwc3swSur04RnizQ6EBUmmcno2cC5cAKtrG/C+pY+W7c5l6rSnFWgMkR7NSYj1n6XWmb/KhcjxGslWm4yIA=="
         }
       ]
     },
@@ -6821,13 +6821,13 @@
     {
       "type": "library",
       "name": "mongoose",
-      "version": "9.11.0",
-      "purl": "pkg:npm/mongoose@9.11.0",
+      "version": "9.11.1",
+      "purl": "pkg:npm/mongoose@9.11.1",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dclC0gx/AfasCMX0VChpv4FQ69ylEf3Crve0zKhmYM3VVBK8b0FU8VODx50Th7evM60JxVal8V/1XZQiwLHjwA=="
+          "content": "sha512-fVtjTVACOtAb0PjDDF+O5NebcEJy5JpAH+AXk16/5i36w38YkW6MZ+KWV54bdIOJFymDz1VjjA5Xg6L2QfjQjQ=="
         }
       ]
     },
@@ -7237,26 +7237,26 @@
     {
       "type": "library",
       "name": "playwright",
-      "version": "1.63.0",
-      "purl": "pkg:npm/playwright@1.63.0",
+      "version": "1.64.0",
+      "purl": "pkg:npm/playwright@1.64.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg=="
+          "content": "sha512-kVzTnYFYEyQ9RGzBjNCd2+yEqWmVbxl3AHPynv3qQ6JTjv4a+kwRcnqQwIpuP3NnrnIrE/Q6wWAIAvMfIE2/Yg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "playwright-core",
-      "version": "1.63.0",
-      "purl": "pkg:npm/playwright-core@1.63.0",
+      "version": "1.64.0",
+      "purl": "pkg:npm/playwright-core@1.64.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg=="
+          "content": "sha512-T9r+MZkTECl2+oUcZ26YgZzTrYidTsIhYYkJix+6iDOymOb1FB2RLLSOxRGnZGv5DStt+aduIVbt+E8WygXYpg=="
         }
       ]
     },
@@ -7900,13 +7900,13 @@
     {
       "type": "library",
       "name": "shiki",
-      "version": "4.4.3",
-      "purl": "pkg:npm/shiki@4.4.3",
+      "version": "4.5.0",
+      "purl": "pkg:npm/shiki@4.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Mb/GvXPHBAXdgGIcnfU5L3ldpn1XcxrGkPHwqgRx17/I2XRfqlFKk2vGkHWINn1kdXvzJZeuO3is6I9KLPFm0g=="
+          "content": "sha512-OcRW72ngQvc+MSVWBRIovC/BTW589iUE/Vxav7VeM4RcY9MUjqB+IR6ILG1k9nuW6LiG/nct9uma4/MBtnZbmQ=="
         }
       ]
     },
@@ -8264,26 +8264,26 @@
     {
       "type": "library",
       "name": "tldts",
-      "version": "7.4.16",
-      "purl": "pkg:npm/tldts@7.4.16",
+      "version": "7.4.18",
+      "purl": "pkg:npm/tldts@7.4.18",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-QwBER5KMR86IIjpIiO7H/Z3IMJPsZ1A6RKPAqzTTgOyUQUSt9FdnKcqhTaJmkY6HVrgouZHZR0ncK5QxvmnQeg=="
+          "content": "sha512-somxA8xKAUzlAxl0TX/jMSYIbRNFIVGnI96pVGJPeMc5BsHmfVXn6mOJT6U++ELnl04eGfzpfcEuZe8WiASkXg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "tldts-core",
-      "version": "7.4.16",
-      "purl": "pkg:npm/tldts-core@7.4.16",
+      "version": "7.4.18",
+      "purl": "pkg:npm/tldts-core@7.4.18",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-MDolfaSJtlSK5Y0A1xl3277ekubZwobpBjugknDizI9O5Rm60a1m8k4ICK+MRsCDzPygT81mp3BBf5RKDlFRfA=="
+          "content": "sha512-KI2PKvCmvQI/xD6ypPqkU0i7oxNXR/O58RLRaHR4svsgVUQ2JE/XC8BtMbG6PSehD27I8sZJRcC1ASnCy6lp3g=="
         }
       ]
     },

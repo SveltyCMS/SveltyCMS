@@ -31,6 +31,8 @@
 	} from '@src/paraglide/messages';
 	import { page } from '$app/state';
 	import { locale } from '@src/stores/locale-store.svelte';
+	import { getLocale } from '@src/paraglide/runtime';
+	import { getTextDirection } from '@utils/string';
 
 	const size = 140;
 	const font = 0.9;
@@ -47,40 +49,54 @@
 		return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
 	}
 
-	// Dynamic Error Handling logic
-	const msg = (page.error?.message || '').toLowerCase();
-	const isDatabaseError =
-		page.status === 503 &&
-		(msg.includes('database') ||
-			msg.includes('connection') ||
-			msg.includes('failed to initialize'));
-	const isSetupMode = page.status === 503 && msg.includes('setup');
-	const isRateLimited = page.status === 429;
+	// Dynamic Error Handling logic (Svelte 5 runes)
+	const status = $derived(page.status || 500);
+	const msg = $derived((page.error?.message || '').toLowerCase());
+	const isDatabaseError = $derived(
+		status === 503 &&
+			(msg.includes('database') ||
+				msg.includes('connection') ||
+				msg.includes('failed to initialize'))
+	);
+	const isSetupMode = $derived(status === 503 && msg.includes('setup'));
+	const isRateLimited = $derived(status === 429);
 
-	const errorTitle = isDatabaseError
-		? db_error_title()
-		: page.status === 404
-			? error_pagenotfound()
-			: isRateLimited
-				? 'Too Many Requests'
-				: 'Error';
-
-	const errorSummary = isDatabaseError
-		? db_error_description()
-		: isSetupMode
-			? 'System in Setup Mode'
-			: page.status === 404
+	const errorTitle = $derived(
+		isDatabaseError
+			? db_error_title()
+			: status === 404
 				? error_pagenotfound()
 				: isRateLimited
-					? "Slow down — you're sending requests too quickly. Please wait and try again."
-					: error_wrong();
+					? 'Too Many Requests'
+					: 'Error'
+	);
+
+	const errorSummary = $derived(
+		isDatabaseError
+			? db_error_description()
+			: isSetupMode
+				? 'System in Setup Mode'
+				: status === 404
+					? error_pagenotfound()
+					: isRateLimited
+						? "Slow down — you're sending requests too quickly. Please wait and try again."
+						: page.error?.message || error_wrong()
+	);
+
+	const uiLang = $derived(
+		(page.data as { systemLanguage?: string } | null)?.systemLanguage ||
+			getLocale() ||
+			locale.systemLanguage
+	);
+	const dir = $derived(getTextDirection(uiLang));
 </script>
 
 <svelte:head><title>{page.status} - {errorTitle} | {siteName}</title></svelte:head>
 
 {#if page}
 	<main
-		lang={locale.contentLanguage}
+		lang={uiLang}
+		{dir}
 		class="flex min-h-screen w-full flex-col items-center justify-center bg-linear-to-t from-surface-900 via-surface-700 to-surface-900 px-4 text-white"
 		aria-labelledby="error-heading"
 	>
@@ -105,9 +121,11 @@
 			>
 				{#each array as char, index (index)}
 					<div
-						class="absolute inset-s-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
-						style="transform: translateX(-50%) rotate({(360 / array.length) *
-							index}deg); transform-origin: center {size / 2}px;"
+						class="absolute inset-s-1/2 top-0 h-full w-4 text-center font-bold uppercase leading-none"
+						style="transform: translateX({dir === 'rtl' ? '50%' : '-50%'}) rotate({(360 /
+							array.length) *
+							index *
+							(dir === 'rtl' ? -1 : 1)}deg); transform-origin: center {size / 2}px;"
 					>
 						<SiteName {char} textClass={isCMSChar(index) ? 'text-primary-500' : 'text-white'} />
 					</div>
@@ -133,7 +151,7 @@
 
 				<!-- Error URL Banner -->
 				<div
-					class="mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:inset-s-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
+					class="error-banner mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg"
 					aria-label="Error type"
 				>
 					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
@@ -159,7 +177,12 @@
 					href="/login"
 					class="inline-flex items-center gap-2 rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl transition-all hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-error-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
 				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg
+						class="h-5 w-5 rtl:scale-x-[-1]"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -189,7 +212,12 @@
 					onclick={() => window.history.back()}
 					class="inline-flex items-center gap-2 rounded-full border-2 border-surface-500 bg-transparent px-8 py-4 font-bold uppercase text-white transition-all hover:border-white hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-surface-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
 				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg
+						class="h-5 w-5 rtl:scale-x-[-1]"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -205,6 +233,20 @@
 {/if}
 
 <style>
+	/* Tilted URL banner: absolute + rotated on ≥sm, mirrored for RTL */
+	@media (min-width: 640px) {
+		.error-banner {
+			position: absolute;
+			inset-inline-start: 50%;
+			top: 50%;
+			margin-top: 0;
+			transform: translateX(-50%) translateY(-50%) rotate(12deg);
+		}
+		:global([dir='rtl']) .error-banner {
+			transform: translateX(50%) translateY(-50%) rotate(-12deg);
+		}
+	}
+
 	/* Respect user preferences */
 	@media (prefers-reduced-motion: reduce) {
 		.animate-\[spin_20s_linear_infinite\] {

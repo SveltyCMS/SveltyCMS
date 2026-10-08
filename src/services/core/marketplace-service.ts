@@ -166,32 +166,127 @@ export class MarketplaceService {
       const remote = await marketplace.list({
         query: search,
         type: type as "plugin" | "widget" | "theme" | "preset" | "dashboard" | undefined,
-        limit: 50,
+        limit: 100,
       });
       const remoteList = remote.plugins || [];
       if (remoteList.length > 0) {
         remoteAvailable = true;
         source = "remote";
-        const seen = new Set(items.map((i) => i.id));
+
+        // Collect locally installed identifiers
+        const localInstalledKeys = new Set<string>();
+        for (const item of items) {
+          if (item.installed) {
+            localInstalledKeys.add(item.id.toLowerCase());
+            localInstalledKeys.add(
+              item.id.toLowerCase().replace(/^(dashboard-widget-|widget-|plugin-|theme-)/, ""),
+            );
+          }
+        }
+
+        // Also check installed plugins from registry
+        try {
+          const { availablePlugins } = await import("@src/plugins");
+          for (const p of availablePlugins) {
+            const pid = p.metadata.id.toLowerCase();
+            localInstalledKeys.add(pid);
+            localInstalledKeys.add(`plugin-${pid}`);
+          }
+        } catch {}
+
+        // Also check installed custom widgets
+        const customWidgets = [
+          "ai-enrichment",
+          "audio-player",
+          "code-editor",
+          "color-picker",
+          "country-select",
+          "currency",
+          "custom-dropdown",
+          "date-range-picker",
+          "file-upload",
+          "geolocation",
+          "icon-picker",
+          "json-editor",
+          "markdown-editor",
+          "phone-number",
+          "rating",
+          "remote-video",
+          "seo",
+        ];
+        for (const cw of customWidgets) {
+          localInstalledKeys.add(cw);
+          localInstalledKeys.add(`widget-${cw}`);
+        }
+
+        // Replace local stubs with rich remote items
+        const remoteItems: MarketplaceItem[] = [];
+        const remoteIds = new Set<string>();
+
         for (const p of remoteList as any[]) {
           const id = String(p.id || p.slug || p.name);
-          if (seen.has(id)) continue;
-          seen.add(id);
-          items.push({
+          const slug = String(p.slug || "").toLowerCase();
+          const cleanId = id
+            .toLowerCase()
+            .replace(/^(dashboard-widget-|widget-|plugin-|theme-)/, "");
+          const cleanSlug = slug.replace(/^(dashboard-widget-|widget-|plugin-|theme-)/, "");
+
+          if (remoteIds.has(id)) continue;
+          remoteIds.add(id);
+
+          const isInstalled =
+            !!p.installed ||
+            localInstalledKeys.has(id.toLowerCase()) ||
+            localInstalledKeys.has(cleanId) ||
+            (slug ? localInstalledKeys.has(slug) || localInstalledKeys.has(cleanSlug) : false);
+
+          const name =
+            typeof p.displayName === "object"
+              ? p.displayName?.en || Object.values(p.displayName)[0] || p.name || id
+              : p.displayName || p.name || id;
+
+          const description =
+            typeof p.description === "object"
+              ? p.description?.en || Object.values(p.description)[0] || ""
+              : p.description || "";
+
+          const normalizedType = p.type === "dashboard-widget" ? "dashboard" : p.type || "plugin";
+
+          remoteItems.push({
             id,
-            name: p.name || id,
-            description: p.description || "",
+            name: String(name),
+            description: String(description),
             version: p.version || "0.0.0",
-            author: p.author || p.publisher || "Community",
-            installed: !!p.installed,
-            installable: p.installable !== false,
+            author: p.author || p.publisher || "SveltyCMS",
+            installed: isInstalled,
+            installable: !isInstalled && p.installable !== false,
             homepageUrl: p.homepageUrl || p.homepage,
-            type: (p.type || "plugin") as MarketplaceItem["type"],
+            type: normalizedType as MarketplaceItem["type"],
             source: "remote",
-            rating: p.rating,
-            downloads: p.downloads,
+            rating: typeof p.avgRating === "string" ? parseFloat(p.avgRating) : p.rating,
+            downloads: p.downloadCount ?? p.downloads,
+            price: p.pricingType === "free" ? 0 : p.priceCents ? p.priceCents / 100 : p.price,
+            license: p.licenseLabel || p.pricingType || p.license,
           });
         }
+
+        // Keep local-only items that were not present in remote catalog
+        const remoteCleanIds = new Set(
+          remoteItems.map((r) =>
+            r.id.toLowerCase().replace(/^(dashboard-widget-|widget-|plugin-|theme-)/, ""),
+          ),
+        );
+        for (const localItem of items) {
+          const localCleanId = localItem.id
+            .toLowerCase()
+            .replace(/^(dashboard-widget-|widget-|plugin-|theme-)/, "");
+          if (!remoteCleanIds.has(localCleanId) && !remoteIds.has(localItem.id)) {
+            remoteItems.push(localItem);
+          }
+        }
+
+        items.length = 0;
+        items.push(...remoteItems);
         if (items.some((i) => i.source === "local")) {
           source = "mixed";
         }

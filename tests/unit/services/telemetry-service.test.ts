@@ -57,4 +57,61 @@ describe("TelemetryService Environment Checks", () => {
     expect(result).toBeDefined();
     fetchSpy.mockRestore();
   });
+
+  it("should encrypt telemetry payload using AES-256-GCM with themes included", async () => {
+    vi.stubEnv("TEST_MODE", undefined);
+    vi.stubEnv("CI", undefined);
+    vi.stubEnv("VITEST", undefined);
+    vi.stubEnv("NODE_ENV", "production");
+
+    const settingsServiceMod = await import("@src/services/core/settings-service");
+    vi.spyOn(settingsServiceMod, "getPrivateSetting").mockResolvedValue("test-client-secret-123");
+    vi.spyOn(telemetryService, "register").mockResolvedValue("test-client-secret-123");
+    let capturedBody: any = null;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.body) {
+        try {
+          const parsed = JSON.parse(init.body as string);
+          if (parsed.encrypted) {
+            capturedBody = parsed;
+          }
+        } catch {}
+      }
+      return new Response(JSON.stringify({ status: "ok" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await telemetryService.checkUpdateStatus();
+    expect(capturedBody).toBeDefined();
+    expect(capturedBody.encrypted).toBe(true);
+    expect(typeof capturedBody.ciphertext).toBe("string");
+    expect(typeof capturedBody.iv).toBe("string");
+    expect(typeof capturedBody.tag).toBe("string");
+    expect(typeof capturedBody.signature).toBe("string");
+
+    // Decrypt using the test client secret to verify the decrypted payload
+    const crypto = await import("node:crypto");
+    const key = crypto.createHash("sha256").update("test-client-secret-123").digest();
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      key,
+      Buffer.from(capturedBody.iv, "base64"),
+    );
+    decipher.setAuthTag(Buffer.from(capturedBody.tag, "base64"));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(capturedBody.ciphertext, "base64")),
+      decipher.final(),
+    ]);
+    const payload = JSON.parse(decrypted.toString("utf8"));
+
+    expect(Array.isArray(payload.themes)).toBe(true);
+    expect(payload.themes).toContain("default");
+    expect(Array.isArray(payload.widgets)).toBe(true);
+    expect(Array.isArray(payload.dashboard_widgets)).toBe(true);
+    expect(Array.isArray(payload.plugins)).toBe(true);
+
+    fetchSpy.mockRestore();
+  });
 });

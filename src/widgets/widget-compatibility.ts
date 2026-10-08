@@ -11,6 +11,8 @@
  * - shared by createWidget, widget-store register, marketplace install
  */
 
+import pkg from "../../package.json";
+
 export type WidgetImportTier = "core" | "custom" | "marketplace" | "dashboard" | "plugin";
 
 export interface WidgetImportManifest {
@@ -19,6 +21,7 @@ export interface WidgetImportManifest {
   version?: unknown;
   sveltycms?: unknown;
   requiresSveltyCMS?: unknown;
+  cmsVersionRange?: unknown;
   validationSchema?: unknown;
 }
 
@@ -48,7 +51,11 @@ export function getCmsVersion(): string {
   } catch {
     /* ignore */
   }
-  cachedCmsVersion = "0.0.8";
+  if (pkg?.version && SEMVER_FULL.test(pkg.version)) {
+    cachedCmsVersion = pkg.version;
+    return cachedCmsVersion;
+  }
+  cachedCmsVersion = "0.1.3";
   return cachedCmsVersion;
 }
 
@@ -176,7 +183,13 @@ export function validateWidgetImport(
 
 /** Marketplace/plugin listing: version + CMS range. Display names need not be PascalCase. */
 export function validatePackageCompatibility(
-  pkg: { name?: string; version?: string; requiresSveltyCMS?: string; sveltycms?: string },
+  pkg: {
+    name?: string;
+    version?: string;
+    requiresSveltyCMS?: string;
+    sveltycms?: string;
+    cmsVersionRange?: string;
+  },
   cmsVersion = getCmsVersion(),
 ): WidgetImportResult {
   const errors: string[] = [];
@@ -188,6 +201,7 @@ export function validatePackageCompatibility(
     errors.push(`version "${version}" is not semver (expected x.y.z).`);
   }
   const cmsRange =
+    (typeof pkg.cmsVersionRange === "string" && pkg.cmsVersionRange.trim()) ||
     (typeof pkg.sveltycms === "string" && pkg.sveltycms.trim()) ||
     (typeof pkg.requiresSveltyCMS === "string" && pkg.requiresSveltyCMS.trim()) ||
     "";

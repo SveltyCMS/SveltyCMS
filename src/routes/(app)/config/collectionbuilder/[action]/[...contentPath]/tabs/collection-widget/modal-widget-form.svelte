@@ -8,6 +8,8 @@
 	import Input from '@components/ui/input.svelte';
 	import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { button_cancel, button_delete, button_save } from '@src/paraglide/messages';
 	import { setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
@@ -217,7 +219,7 @@
 </script>
 
 {#if local}
-	<div class="flex flex-col w-full" style="min-width: 640px; max-width: 900px; min-height: 500px;">
+	<div class="flex flex-col w-full">
 		<!-- Header -->
 		<div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-white">
@@ -240,43 +242,99 @@
 			{#if activeTab === 'default'}
 				<!-- Tab 1: Default -->
 				<div class="space-y-4">
-					<Input
-						label="Field Label"
-						bind:value={local.label}
-						placeholder="e.g. Profile Picture"
-						data-testid="widget-field-label"
-						oninput={() => {
-							if (!local.db_fieldName) {
-								local.db_fieldName = labelToDbName(local.label);
-							}
-						}}
-					/>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="field-label"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								>Field Label</label
+							>
+							<span class="text-error-500" aria-hidden="true">*</span>
+							<SystemTooltip title="The human-readable label shown to editors for this field."
+								><HelpIcon ariaLabel="Help: Field Label" /></SystemTooltip
+							>
+						</div>
+						<Input
+							id="field-label"
+							bind:value={local.label}
+							placeholder="e.g. Profile Picture"
+							data-testid="widget-field-label"
+							oninput={() => {
+								if (!local.db_fieldName) {
+									local.db_fieldName = labelToDbName(local.label);
+								}
+							}}
+						/>
+					</div>
 
-					<div>
-						<span class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1.5">
-							Icon
-						</span>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<span class="block text-sm font-medium text-surface-600 dark:text-surface-400"
+								>Icon</span
+							>
+							<SystemTooltip title="Visual icon to represent this field in the UI."
+								><HelpIcon ariaLabel="Help: Field Icon" /></SystemTooltip
+							>
+						</div>
 						<IconifyIconsPicker bind:iconselected={local.icon} bind:icon={local.icon} />
 					</div>
 
-					<Input
-						label="Database Field Name"
-						bind:value={local.db_fieldName}
-						placeholder="e.g. profile_pic"
-						data-testid="widget-field-name"
-					/>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="field-dbname"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								>Database Field Name</label
+							>
+							<span class="text-error-500" aria-hidden="true">*</span>
+							<SystemTooltip
+								title="The physical column or key name in the database. Auto-generated from the label if left empty. Must be unique."
+								><HelpIcon ariaLabel="Help: Database Field Name" /></SystemTooltip
+							>
+						</div>
+						<Input
+							id="field-dbname"
+							bind:value={local.db_fieldName}
+							placeholder="e.g. profile_pic"
+							data-testid="widget-field-name"
+						/>
+					</div>
 
-					<Input
-						label="Placeholder"
-						bind:value={local.placeholder}
-						placeholder="Placeholder text shown when field is empty"
-					/>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="field-placeholder"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								>Placeholder</label
+							>
+							<SystemTooltip title="Ghost text displayed when the field is empty to guide the user."
+								><HelpIcon ariaLabel="Help: Placeholder" /></SystemTooltip
+							>
+						</div>
+						<Input
+							id="field-placeholder"
+							bind:value={local.placeholder}
+							placeholder="Placeholder text shown when field is empty"
+						/>
+					</div>
 
-					<Input
-						label="Default Value"
-						bind:value={local.default}
-						placeholder="Default value for this field"
-					/>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="field-default"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								>Default Value</label
+							>
+							<SystemTooltip title="The initial value automatically populated for new entries."
+								><HelpIcon ariaLabel="Help: Default Value" /></SystemTooltip
+							>
+						</div>
+						<Input
+							id="field-default"
+							bind:value={local.default}
+							placeholder="Default value for this field"
+						/>
+					</div>
 
 					<div
 						class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50"
@@ -313,13 +371,37 @@
 						/>
 					</div>
 
-					<Input
-						label="Help Text / Description"
-						bind:value={local.helper}
-						placeholder="Help text shown below the field"
-					/>
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="field-helper"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								>Help Text / Description</label
+							>
+							<SystemTooltip title="Helpful description shown below the field to assist editors."
+								><HelpIcon ariaLabel="Help: Help Text" /></SystemTooltip
+							>
+						</div>
+						<Input
+							id="field-helper"
+							bind:value={local.helper}
+							placeholder="Help text shown below the field"
+						/>
+					</div>
 
-					<Input label="Width" bind:value={local.width} placeholder="e.g. 1/2, 1/3, full" />
+					<div class="space-y-1.5">
+						<div class="flex items-center gap-1.5">
+							<label
+								for="field-width"
+								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								>Width</label
+							>
+							<SystemTooltip title="Controls how wide the field is in the editor layout."
+								><HelpIcon ariaLabel="Help: Width" /></SystemTooltip
+							>
+						</div>
+						<Input id="field-width" bind:value={local.width} placeholder="e.g. 1/2, 1/3, full" />
+					</div>
 				</div>
 			{:else if activeTab === 'settings'}
 				<!-- Tab 2: Settings (widget-specific GuiFields) -->
@@ -514,6 +596,7 @@
 					class="dark:preset-filled-primary-500"
 					type="button"
 					onclick={handleSave}
+					disabled={!local?.label || !local?.db_fieldName}
 					data-testid="widget-field-apply"
 					aria-label="Apply field changes"
 				>

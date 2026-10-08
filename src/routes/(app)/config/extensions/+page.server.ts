@@ -9,9 +9,10 @@
 
 import { availablePlugins, pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import { error, isHttpError } from "@sveltejs/kit";
+import { isAppError, raise, rethrow } from "@utils/error-handling";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { getLayoutPluginStates } from "@utils/server/layout-caches.server";
+import { getInstalledDashboardWidgets } from "@src/routes/(app)/dashboard/widgets/manifest-registry";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     if (!locals.isAdmin) {
       logger.warn(`User ${user._id} denied access to extensions (admin only)`);
-      throw error(403, "Admin privileges required");
+      raise(403, "Admin privileges required");
     }
 
     const tenantId = locals.tenantId || "default";
@@ -50,13 +51,18 @@ export const load: PageServerLoad = async ({ locals }) => {
       };
     });
 
+    const dashboardWidgets = getInstalledDashboardWidgets();
+
     return {
       plugins,
+      dashboardWidgets,
       tenantId,
       isAdmin: true,
     };
   } catch (err) {
-    if (isHttpError(err)) throw err;
-    throw error(500, err instanceof Error ? err.message : String(err));
+    rethrow(err);
+    if (isAppError(err)) throw err;
+    logger.error("Failed to load extensions page:", err);
+    raise(500, err instanceof Error ? err.message : String(err));
   }
 };

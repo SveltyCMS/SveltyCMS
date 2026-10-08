@@ -15,12 +15,9 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   // Tailwind v4 at-rules (@source, @theme, @utility, @apply, @custom-variant)
-  // are registered as valid via Custom Data (./css-custom-data.json), so the
-  // CSS language server validates everything else instead of flagging Tailwind
-  // syntax as unknown.
-  "css.customData": ["./css-custom-data.json"],
-  "scss.customData": ["./css-custom-data.json"],
-  "less.customData": ["./css-custom-data.json"],
+  // are unknown to the stock CSS language server — suppress the noise.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.validate.enable": true,

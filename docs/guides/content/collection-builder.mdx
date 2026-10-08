@@ -241,12 +241,72 @@ The collection editor has **three tabs** for efficient workflow:
 
 This tab manages the fields (widgets) that make up your collection's content structure.
 
-**Features**:
+**Key Capabilities**:
 
-- Visual list of all fields
-- Drag-and-drop field reordering
-- **Visual Logic Builder**: Configure complex `showIf` and `requiredIf` dependencies
-- Add/edit/delete fields with live preview
+- **Four Synchronized View Modes**: Switch seamlessly between `Canvas`, `Split View`, `TypeScript`, and `Preview`.
+- **Live Entry Form Preview ("Test Drive" Mode)**: Interactive simulated authoring form with responsive viewports (Desktop, Tablet, Mobile) and sample data generation.
+- **Smart Quick-Add**: Type natural field names (`email`, `price`, `cover_image`, `tags`, `bio`) and press Enter to instantly infer and append widgets.
+- **Duplicate Database Column Guard**: Real-time detection of duplicate `db_fieldName` collisions with top-level alert banners, row badges, and save blocking.
+- **Accessible Field Reordering (WCAG 2.2 AA)**: Reorder fields via drag handles, dedicated Move Up/Down buttons, or `Alt + ArrowUp`/`Alt + ArrowDown` keyboard navigation.
+- **Widget Palette Category Filters**: Filter available widgets with fast category chips: `[All]`, `[Inputs]`, `[Media]`, `[Structure]`, and `[Advanced]`.
+- **Global Keyboard Shortcuts**: Power-user navigation for rapid editing (`Ctrl+S`, `Ctrl+1/2/3`, `Ctrl+K`).
+
+### Editor View Modes
+
+The header toolbar provides four distinct view modes for working with collection fields:
+
+| Mode           | Test ID             | Description                                                                                                                                           |
+| :------------- | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Canvas**     | `view-mode-canvas`  | Primary visual drag-and-drop canvas with Quick-Add bar and field list alongside the widget palette.                                                   |
+| **Split View** | `view-mode-split`   | Side-by-side authoring: visual field builder on the left with live real-time TypeScript schema parity on the right.                                   |
+| **TypeScript** | `view-mode-code`    | Full-width syntax-highlighted TypeScript schema showing the exact AST output compiled to `config/collections/<name>.ts`, with 1-click clipboard copy. |
+| **Preview**    | `view-mode-preview` | **Interactive Entry Form Simulation ("Test Drive" Mode)**: Test how content editors will experience your field schema prior to database deployment.   |
+
+### Interactive Live Entry Form Preview ("Test Drive" Mode)
+
+The Live Preview mode simulates the real authoring form with active controls, helping schema authors catch UX flaws before publishing:
+
+- **Responsive Viewport Toggles**:
+  - 💻 **Desktop**: 100% full-width view (max 896px centered container).
+  - 📱 **Tablet**: Pinned 768px viewport to verify multi-column wrapping (`1/2`, `1/3`, `2/3`).
+  - 📱 **Mobile**: Pinned 390px mobile viewport to ensure touch friendliness and vertical collapsing.
+- **Realistic Field Width Spanning**: Renders field grid widths (`1/2`, `1/3`, `2/3`, `full`) exactly as SveltyCMS renders them in production.
+- **Sample Data Population**:
+  - Click **"Fill Sample Data"** to automatically populate mock text, rich markdown, numbers, currency, dates, and boolean flags matching each field type.
+  - Click **"Clear"** to reset the simulated form.
+
+### Duplicate Database Column Collision Guard
+
+When multiple fields accidentally share the same `db_fieldName` (or auto-generated database column identifier), database migrations or Drizzle schema generation will collide. The Collection Builder protects your schema with multiple defensive barriers:
+
+1. **Top Alert Banner**: Displays an amber warning banner at the top of the canvas identifying the offending column names (`"{field_name}"`).
+2. **Row Highlighting & Warning Badge**: Conflicting rows receive an amber outline and an inline `Duplicate` warning badge next to the database name.
+3. **Save Blocker**: Both client-side save (`+page.svelte`) and server action verification (`validateMinimumCollectionFields` in `+page.server.ts`) fail-closed and block saving until every field has a unique database identifier.
+
+### Global Power-User Keyboard Shortcuts
+
+Navigate and operate the Collection Builder with native desktop-grade speed:
+
+| Shortcut                                                       | Scope     | Action                                                                                               |
+| :------------------------------------------------------------- | :-------- | :--------------------------------------------------------------------------------------------------- |
+| <kbd>Ctrl</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>S</kbd> | Global    | **Save Collection** (active even while focused inside input fields; intercepts browser save dialog). |
+| <kbd>Ctrl</kbd> + <kbd>1</kbd> / <kbd>Cmd</kbd> + <kbd>1</kbd> | Global    | Switch to **Tab 1: Define** (Name, Icon, Slug, Tags, Favorites).                                     |
+| <kbd>Ctrl</kbd> + <kbd>2</kbd> / <kbd>Cmd</kbd> + <kbd>2</kbd> | Global    | Switch to **Tab 2: Widgets & Fields**.                                                               |
+| <kbd>Ctrl</kbd> + <kbd>3</kbd> / <kbd>Cmd</kbd> + <kbd>3</kbd> | Global    | Switch to **Tab 3: Permissions & Settings**.                                                         |
+| <kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>Cmd</kbd> + <kbd>K</kbd> | Global    | Focus the **Quick-Add** field input on the Widgets tab.                                              |
+| <kbd>Alt</kbd> + <kbd>↑</kbd>                                  | Field row | Move the selected field row up one position.                                                         |
+| <kbd>Alt</kbd> + <kbd>↓</kbd>                                  | Field row | Move the selected field row down one position.                                                       |
+| <kbd>Escape</kbd>                                              | Global    | Exit builder safely to the category tree view.                                                       |
+
+### Widget Palette Category Filter Chips
+
+The right-hand palette includes quick-filter category chips to rapidly locate widgets in extensive catalogs:
+
+- `[All]`: Displays all core, custom, and marketplace widgets.
+- `[Inputs]`: Text inputs, email, numbers, currency, dates, rating, select, radio, and checkboxes.
+- `[Media]`: Media uploads, images, remote video, audio, and documents.
+- `[Structure]`: Field groups, relations, block builders, repeaters, mega menus, and arrays.
+- `[Advanced]`: AI enrichment, geolocation, addresses, JSON editors, and SEO metadata.
 
 #### Tab 3: Settings & Permissions
 

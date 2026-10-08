@@ -16,10 +16,11 @@
 	import { builder_duplicate, builder_remove, button_edit } from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
+
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
+	import FormPreview from './collection-widget/form-preview.svelte';
 	import Button from '@src/components/ui/button.svelte';
-	import Card from '@src/components/ui/card.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { generateCollectionTypeScript } from '../../../collection-code-generator';
 	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
@@ -33,9 +34,14 @@
 	/** Canvas reorder payload */
 	type FieldDrag = { kind: 'field'; dragId: string };
 
-	let { fields = [], roles = [] } = $props<{
+	let {
+		fields = [],
+		roles = [],
+		viewMode = $bindable('canvas')
+	} = $props<{
 		fields: FieldInstance[];
 		roles?: Role[];
+		viewMode?: 'canvas' | 'split' | 'code' | 'preview';
 	}>();
 
 	let dragIdsByIndex = $state<Record<number, string>>({});
@@ -129,21 +135,6 @@
 	}
 
 	// ── Widget Actions ──
-	function addField() {
-		modalState.trigger(
-			ModalSelectWidget as any,
-			{
-				title: 'Add New Field',
-				body: 'Select a widget type to add to your collection',
-				size: 'xl'
-			},
-			(r: { selectedWidget: string } | false | undefined) => {
-				if (!r || typeof r !== 'object' || !('selectedWidget' in r)) return;
-				void addSidebarWidget(r.selectedWidget, true);
-			}
-		);
-	}
-
 	function editField(field: WidgetListItem) {
 		const idx = items.findIndex((i) => i._dragId === field._dragId);
 		setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
@@ -345,11 +336,119 @@
 		}
 	}
 
+	function moveFieldUp(index: number) {
+		if (index <= 0 || index >= items.length) return;
+		const label = items[index]?.label || 'field';
+		items = untrack(() => {
+			const next = [...items];
+			const temp = next[index - 1];
+			next[index - 1] = next[index];
+			next[index] = temp;
+			return next.map((it, i) => ({ ...it, id: i + 1 }));
+		});
+		reindexDragIds();
+		updateStore();
+		toast.info(`Moved ${label} up`);
+	}
+
+	function moveFieldDown(index: number) {
+		if (index < 0 || index >= items.length - 1) return;
+		const label = items[index]?.label || 'field';
+		items = untrack(() => {
+			const next = [...items];
+			const temp = next[index + 1];
+			next[index + 1] = next[index];
+			next[index] = temp;
+			return next.map((it, i) => ({ ...it, id: i + 1 }));
+		});
+		reindexDragIds();
+		updateStore();
+		toast.info(`Moved ${label} down`);
+	}
+
+	const duplicateFieldNames = $derived.by(() => {
+		const counts = new Map<string, number>();
+		for (const item of items) {
+			const name = (item.db_fieldName || '').trim().toLowerCase();
+			if (name) {
+				counts.set(name, (counts.get(name) || 0) + 1);
+			}
+		}
+		const duplicates = new SvelteSet<string>();
+		for (const [name, count] of counts.entries()) {
+			if (count > 1) duplicates.add(name);
+		}
+		return duplicates;
+	});
+
 	const availableWidgets = $derived(widgets.widgetFunctions || {});
+
+	type WidgetCategory = 'all' | 'inputs' | 'media' | 'structure' | 'advanced';
+	let selectedCategory = $state<WidgetCategory>('all');
+
+	function matchesCategory(key: string, category: WidgetCategory): boolean {
+		if (category === 'all') return true;
+		const k = key.toLowerCase();
+		switch (category) {
+			case 'inputs':
+				return (
+					k.includes('input') ||
+					k.includes('email') ||
+					k.includes('number') ||
+					k.includes('phone') ||
+					k.includes('currency') ||
+					k.includes('price') ||
+					k.includes('date') ||
+					k.includes('rating') ||
+					k.includes('color') ||
+					k.includes('slug') ||
+					k.includes('check') ||
+					k.includes('radio') ||
+					k.includes('select') ||
+					k.includes('switch')
+				);
+			case 'media':
+				return (
+					k.includes('media') ||
+					k.includes('video') ||
+					k.includes('image') ||
+					k.includes('upload') ||
+					k.includes('audio') ||
+					k.includes('file')
+				);
+			case 'structure':
+				return (
+					k.includes('group') ||
+					k.includes('relation') ||
+					k.includes('block') ||
+					k.includes('repeat') ||
+					k.includes('menu') ||
+					k.includes('array')
+				);
+			case 'advanced':
+				return (
+					k.includes('ai') ||
+					k.includes('geo') ||
+					k.includes('address') ||
+					k.includes('json') ||
+					k.includes('seo') ||
+					k.includes('rich') ||
+					k.includes('markdown') ||
+					k.includes('tag')
+				);
+			default:
+				return true;
+		}
+	}
 
 	function mapKeys(keys: string[]) {
 		return keys
-			.filter((key) => !sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase()))
+			.filter((key) => {
+				const matchesSearch =
+					!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase());
+				const matchesCat = matchesCategory(key, selectedCategory);
+				return matchesSearch && matchesCat;
+			})
 			.map((key) => ({
 				key,
 				label: key,
@@ -363,16 +462,18 @@
 	const installedMarketplace = $derived(mapKeys(widgets.marketplaceWidgets || []));
 
 	const remoteFiltered = $derived(
-		remoteMarketplace.filter(
-			(w) =>
+		remoteMarketplace.filter((w) => {
+			const matchesSearch =
 				!sidebarSearch ||
 				w.name.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
-				(w.description || '').toLowerCase().includes(sidebarSearch.toLowerCase())
-		)
+				(w.description || '').toLowerCase().includes(sidebarSearch.toLowerCase());
+			const matchesCat = matchesCategory(w.name, selectedCategory);
+			return matchesSearch && matchesCat;
+		})
 	);
 
 	// ── Smart Quick-Add & Code Split-View ──
-	let viewMode = $state<'canvas' | 'split' | 'code'>('canvas');
+
 	let quickAddInput = $state('');
 	let copied = $state(false);
 
@@ -472,46 +573,6 @@
 				</span>
 			</div>
 
-			<!-- View mode switcher if in fullWidth code view -->
-			{#if fullWidth}
-				<div
-					class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10 ms-2"
-					role="group"
-					aria-label="View Mode"
-				>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'canvas')}
-						data-testid="code-view-mode-canvas"
-					>
-						Canvas
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'split')}
-						data-testid="code-view-mode-split"
-					>
-						Split View
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'code')}
-						data-testid="code-view-mode-code"
-					>
-						TypeScript
-					</button>
-				</div>
-			{/if}
-
 			<div class="ms-auto flex items-center gap-2">
 				<Button
 					variant="secondary"
@@ -527,7 +588,7 @@
 
 		<!-- Code Display Area -->
 		<div
-			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-200 selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
+			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-900 dark:text-surface-100 selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
 		>
 			<pre class="leading-relaxed whitespace-pre font-mono"><code>{generatedCode}</code></pre>
 		</div>
@@ -545,79 +606,50 @@
 <div class="flex h-full min-h-112 w-full flex-col lg:flex-row" data-testid="collection-widgets-tab">
 	{#if viewMode === 'code'}
 		{@render codePane(true)}
+	{:else if viewMode === 'preview'}
+		<div class="flex min-h-0 min-w-0 flex-1 flex-col w-full h-full">
+			<FormPreview
+				{items}
+				collectionName={collections.active?.name}
+				collectionIcon={collections.active?.icon}
+				collectionDescription={collections.active?.description}
+			/>
+		</div>
 	{:else}
 		<!-- ═══ LEFT: Field canvas (visible in canvas & split modes) ═══ -->
 		<div
 			class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-500/30 dark:border-surface-500/40 lg:border-e"
 		>
-			<div
-				class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
-			>
-				<div
-					class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400"
-				>
-					<iconify-icon
-						icon="mdi:widgets"
-						width="20"
-						class="text-tertiary-500 dark:text-primary-500"
-					></iconify-icon>
-					<span
-						>{items.length}
-						{items.length === 1 ? 'Widget' : 'Widgets'}</span
-					>
-				</div>
-
-				<!-- View Mode Switcher -->
-				<div
-					class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10 ms-2"
-					role="group"
-					aria-label="View Mode"
-				>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'canvas')}
-						data-testid="view-mode-canvas"
-					>
-						Canvas
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-							? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
-						onclick={() => (viewMode = 'split')}
-						data-testid="view-mode-split"
-					>
-						Split View
-					</button>
-					<button
-						type="button"
-						class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400"
-						onclick={() => (viewMode = 'code')}
-						data-testid="view-mode-code"
-					>
-						TypeScript
-					</button>
-				</div>
-
-				<div class="ms-auto flex items-center gap-2">
-					<Button
-						variant="tertiary"
-						class="dark:preset-filled-primary-500"
-						size="sm"
-						onclick={addField}
-						leadingIcon="mdi:plus"
-						data-testid="add-field-button"
-					>
-						Add Widget
-					</Button>
-				</div>
-			</div>
+			<!-- Header Removed -->
 
 			<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+				<!-- Duplicate Field Names Collision Warning Banner -->
+				{#if duplicateFieldNames.size > 0}
+					<div
+						class="mx-auto mb-4 flex items-center justify-between gap-3 rounded-xl border border-warning-500/40 bg-warning-500/10 p-3.5 text-warning-600 dark:border-warning-500/40 dark:bg-warning-500/10 dark:text-warning-400 shadow-2xs"
+						role="alert"
+						data-testid="duplicate-fields-warning"
+					>
+						<div class="flex items-center gap-2.5">
+							<iconify-icon
+								icon="mdi:alert-circle-outline"
+								width="22"
+								class="text-warning-500 shrink-0"
+							></iconify-icon>
+							<div class="text-xs">
+								<p class="font-bold">Duplicate Database Column Detected</p>
+								<p class="mt-0.5 opacity-90">
+									Fields sharing database identifier <code
+										class="font-mono font-bold text-warning-600 dark:text-warning-400"
+										>"{Array.from(duplicateFieldNames).join(', ')}"</code
+									> will collide in database tables and TypeScript schemas. Please rename them before
+									saving.
+								</p>
+							</div>
+						</div>
+					</div>
+				{/if}
+
 				<!-- Quick Add Bar -->
 				<div
 					class="mx-auto mb-4 max-w-4xl rounded-xl border border-surface-500/30 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900/20 shadow-2xs"
@@ -681,7 +713,10 @@
 					role="list"
 					aria-label="Widget fields list"
 				>
-					{#each items as item (item._dragId)}
+					{#each items as item, index (item._dragId)}
+						{@const isDuplicate = duplicateFieldNames.has(
+							(item.db_fieldName || '').trim().toLowerCase()
+						)}
 						<div
 							use:draggable={{
 								container: 'widget-fields',
@@ -703,107 +738,176 @@
 							data-field-name={item.db_fieldName || ''}
 							data-drag-id={item._dragId}
 							role="listitem"
+							onkeydown={(e) => {
+								if (e.altKey && e.key === 'ArrowUp') {
+									e.preventDefault();
+									e.stopPropagation();
+									moveFieldUp(index);
+								} else if (e.altKey && e.key === 'ArrowDown') {
+									e.preventDefault();
+									e.stopPropagation();
+									moveFieldDown(index);
+								}
+							}}
 						>
-							<Card
-								class="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:pe-4 transition-all hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md bg-white dark:bg-surface-800"
+							<!-- Clean, simple row layout matching config/collectionbuilder -->
+							<div
+								class="group flex w-full min-h-12 items-center gap-2 sm:gap-3 cursor-pointer overflow-hidden rounded border-2 {isDuplicate
+									? 'border-warning-500/60 ring-1 ring-warning-500/40 bg-warning-500/10 dark:border-warning-500/60 dark:bg-warning-500/10'
+									: 'border-surface-500/20 bg-white dark:border-surface-500/30 dark:bg-surface-900'} px-3 py-2 transition-colors hover:border-tertiary-500/30 dark:hover:border-primary-500/30"
+								onclick={() => editField(item)}
+								onkeydown={(e) => e.key === 'Enter' && editField(item)}
+								role="button"
+								tabindex="0"
 							>
-								<div
-									class="field-drag-handle flex cursor-grab items-center justify-center self-start rounded p-1 text-surface-400 active:cursor-grabbing group-hover:text-tertiary-500 dark:group-hover:text-primary-500 sm:self-center"
-									aria-hidden="true"
-								>
-									<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
-								</div>
-
-								<div
-									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-surface-500/30 bg-tertiary-500/10 text-tertiary-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-primary-400"
-								>
+								<!-- Icon -->
+								<div class="relative flex items-center shrink-0">
 									<iconify-icon
 										icon={item.icon ||
 											(availableWidgets[(item.widget as any)?.key] as any)?.Icon ||
 											'mdi:widgets'}
-										width="22"
+										width="24"
+										class="text-tertiary-500 dark:text-primary-500"
+										aria-hidden="true"
 									></iconify-icon>
 								</div>
 
-								<button
-									type="button"
-									class="min-w-0 flex-1 border-0 bg-transparent p-0 text-start"
-									onclick={() => editField(item)}
-									data-testid="widget-field-open"
-									aria-label={`Edit field ${item.label || 'Unnamed Field'}`}
-								>
-									<div class="mb-0.5 flex flex-wrap items-center gap-2">
-										<span class="truncate text-sm font-bold sm:text-base"
+								<!-- Name & Metadata -->
+								<div class="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
+									<div class="flex items-center gap-2 truncate">
+										<span
+											class="truncate text-sm font-semibold text-surface-900 dark:text-surface-100"
 											>{item.label || 'Unnamed Field'}</span
 										>
 										<span
-											class="rounded bg-surface-200 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-surface-600 uppercase dark:bg-surface-700 dark:text-surface-400"
+											class="shrink-0 rounded bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-surface-500 uppercase dark:bg-surface-700 dark:text-surface-400"
 										>
 											{(item.widget as { key?: string })?.key ||
 												(item.widget as { Name?: string })?.Name ||
 												'Generic'}
 										</span>
 									</div>
-									<div class="flex flex-wrap items-center gap-3">
-										<code
-											class="truncate rounded bg-surface-500/10 px-1 text-[10px] text-surface-400 dark:bg-surface-900 dark:text-surface-50"
+									<div class="flex items-center gap-2">
+										<span
+											class="truncate text-[11px] font-mono text-surface-500 dark:text-surface-400"
 										>
 											{item.db_fieldName || 'unnamed_field'}
-										</code>
+										</span>
+										{#if isDuplicate}
+											<span
+												class="flex items-center gap-1 rounded bg-warning-500/10 px-1.5 py-0.5 text-[10px] font-bold text-warning-500 border border-warning-500/30"
+												title="Duplicate database field name will cause schema collisions"
+												data-testid="duplicate-field-badge"
+											>
+												<iconify-icon icon="mdi:alert" width="12"></iconify-icon>
+												Duplicate
+											</span>
+										{/if}
 										{#if item.required}
-											<span class="flex items-center gap-0.5 text-[9px] font-bold text-error-500">
-												<iconify-icon icon="mdi:asterisk" width="8"></iconify-icon> Required
+											<span class="flex items-center text-error-500" title="Required">
+												<iconify-icon icon="mdi:asterisk" width="10"></iconify-icon>
 											</span>
 										{/if}
 									</div>
-								</button>
-
-								<div class="flex shrink-0 items-center gap-1 sm:gap-1.5">
-									<Button
-										variant="ghost"
-										size="sm"
-										type="button"
-										onclick={(e: MouseEvent) => {
-											e.stopPropagation();
-											editField(item);
-										}}
-										title={button_edit()}
-										data-testid="widget-field-edit"
-										aria-label="Edit field"
-									>
-										<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										type="button"
-										onclick={(e: MouseEvent) => {
-											e.stopPropagation();
-											duplicateField(item);
-										}}
-										title={builder_duplicate()}
-										data-testid="widget-field-clone"
-										aria-label="Duplicate field"
-									>
-										<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										type="button"
-										onclick={(e: MouseEvent) => {
-											e.stopPropagation();
-											deleteField(item._dragId);
-										}}
-										class="text-error-500 hover:bg-error-500/10"
-										title={builder_remove()}
-										data-testid="widget-field-delete"
-										aria-label="Remove field"
-									>
-										<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
-									</Button>
 								</div>
-							</Card>
+
+								<!-- Actions -->
+								<div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
+									<SystemTooltip title="Move up (Alt+Up)">
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											disabled={index === 0}
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												moveFieldUp(index);
+											}}
+											aria-label={`Move ${item.label || 'field'} up`}
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity disabled:opacity-30 hover:opacity-80"
+										>
+											<iconify-icon icon="mdi:arrow-up" width="18"></iconify-icon>
+										</Button>
+									</SystemTooltip>
+									<SystemTooltip title="Move down (Alt+Down)">
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											disabled={index === items.length - 1}
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												moveFieldDown(index);
+											}}
+											aria-label={`Move ${item.label || 'field'} down`}
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity disabled:opacity-30 hover:opacity-80"
+										>
+											<iconify-icon icon="mdi:arrow-down" width="18"></iconify-icon>
+										</Button>
+									</SystemTooltip>
+									<SystemTooltip title={button_edit()}>
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												editField(item);
+											}}
+											aria-label="Edit field"
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+										>
+											<iconify-icon
+												icon="mdi:pencil"
+												width="20"
+												class="text-tertiary-500 dark:text-primary-500"
+											></iconify-icon>
+										</Button>
+									</SystemTooltip>
+									<SystemTooltip title={builder_duplicate()}>
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												duplicateField(item);
+											}}
+											aria-label="Duplicate field"
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+										>
+											<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
+										</Button>
+									</SystemTooltip>
+									<SystemTooltip title={builder_remove()}>
+										<Button
+											variant="transparent"
+											size="sm"
+											type="button"
+											onclick={(e: MouseEvent) => {
+												e.stopPropagation();
+												deleteField(item._dragId);
+											}}
+											aria-label="Remove field"
+											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+										>
+											<iconify-icon icon="mdi:delete" width="20" class="text-error-500"
+											></iconify-icon>
+										</Button>
+									</SystemTooltip>
+								</div>
+
+								<!-- Drag Handle -->
+								<SystemTooltip title="Drag to reorder">
+									<span
+										class="field-drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing hover:opacity-100"
+										aria-hidden="true"
+										onclick={(e: MouseEvent) => e.stopPropagation()}
+									>
+										<iconify-icon icon="mdi:drag-vertical" width="22"></iconify-icon>
+									</span>
+								</SystemTooltip>
+							</div>
 						</div>
 					{/each}
 
@@ -884,11 +988,33 @@
 					</h3>
 					<FloatingInput
 						bind:value={sidebarSearch}
-						label="Search widgets..."
+						placeholder="Search widgets..."
 						icon="mdi:magnify"
 						aria-label="Search widgets"
 						inputClass="h-9 text-sm rounded"
 					/>
+					<!-- Category Filter Chips -->
+					<div
+						class="flex flex-wrap items-center gap-1.5 pt-0.5"
+						role="group"
+						aria-label="Widget category filter"
+						data-testid="widget-category-chips"
+					>
+						{#each [{ id: 'all', label: 'All' }, { id: 'inputs', label: 'Inputs' }, { id: 'media', label: 'Media' }, { id: 'structure', label: 'Structure' }, { id: 'advanced', label: 'Advanced' }] as cat (cat.id)}
+							<button
+								type="button"
+								class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors {selectedCategory ===
+								cat.id
+									? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-surface-900 shadow-2xs'
+									: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-300 dark:hover:bg-surface-700'}"
+								onclick={() => (selectedCategory = cat.id as WidgetCategory)}
+								aria-pressed={selectedCategory === cat.id}
+								data-testid={`category-chip-${cat.id}`}
+							>
+								{cat.label}
+							</button>
+						{/each}
+					</div>
 					<p class="text-[11px] text-surface-500 dark:text-surface-400">
 						Click to add, or drag onto the field list.
 					</p>

@@ -514,6 +514,7 @@
 				}
 				files = files.filter((f) => !selectedFiles.has(f._id as string));
 				selectedFiles.clear();
+				await refreshAll();
 				toast.success('Batch delete complete');
 			}
 		});
@@ -710,6 +711,7 @@
 				const response = await fetch('?/deleteMedia', { method: 'POST', body: formData });
 				if (response.ok) {
 					files = files.filter((f) => f._id !== file._id);
+					await refreshAll();
 					toast.success('File deleted');
 				} else {
 					toast.error('Delete failed');

@@ -83,6 +83,20 @@ sequenceDiagram
 1. **Inert upon install:** A freshly installed marketplace plugin ships disabled by default. It contributes **no active routes, capabilities, or migrations** until explicitly enabled by an administrator.
 2. **Lazy activation:** Toggling a plugin on does not require a server reboot; routes and schema hooks are merged dynamically at runtime.
 
+### Packaging & Extracting for Marketplace
+
+To export an existing plugin into a self-contained, portable marketplace package:
+
+```bash
+bun run extension:extract plugin <plugin-id> [outputDir]
+```
+
+To verify that all local plugins and extensions match the marketplace catalog specification:
+
+```bash
+bun run lint:marketplace
+```
+
 ---
 
 ## 💰 Monetization & 14-Day Free Trial Architecture

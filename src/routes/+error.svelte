@@ -50,33 +50,39 @@
 		return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
 	}
 
-	// Dynamic Error Handling logic
-	const msg = (page.error?.message || '').toLowerCase();
-	const isDatabaseError =
-		page.status === 503 &&
-		(msg.includes('database') ||
-			msg.includes('connection') ||
-			msg.includes('failed to initialize'));
-	const isSetupMode = page.status === 503 && msg.includes('setup');
-	const isRateLimited = page.status === 429;
+	// Dynamic Error Handling logic (Svelte 5 runes)
+	const status = $derived(page.status || 500);
+	const msg = $derived((page.error?.message || '').toLowerCase());
+	const isDatabaseError = $derived(
+		status === 503 &&
+			(msg.includes('database') ||
+				msg.includes('connection') ||
+				msg.includes('failed to initialize'))
+	);
+	const isSetupMode = $derived(status === 503 && msg.includes('setup'));
+	const isRateLimited = $derived(status === 429);
 
-	const errorTitle = isDatabaseError
-		? db_error_title()
-		: page.status === 404
-			? error_pagenotfound()
-			: isRateLimited
-				? 'Too Many Requests'
-				: 'Error';
-
-	const errorSummary = isDatabaseError
-		? db_error_description()
-		: isSetupMode
-			? 'System in Setup Mode'
-			: page.status === 404
+	const errorTitle = $derived(
+		isDatabaseError
+			? db_error_title()
+			: status === 404
 				? error_pagenotfound()
 				: isRateLimited
-					? "Slow down — you're sending requests too quickly. Please wait and try again."
-					: error_wrong();
+					? 'Too Many Requests'
+					: 'Error'
+	);
+
+	const errorSummary = $derived(
+		isDatabaseError
+			? db_error_description()
+			: isSetupMode
+				? 'System in Setup Mode'
+				: status === 404
+					? error_pagenotfound()
+					: isRateLimited
+						? "Slow down — you're sending requests too quickly. Please wait and try again."
+						: page.error?.message || error_wrong()
+	);
 
 	// The error UI text is rendered in the system (UI) language; mirror the whole
 	// page from that language so it is correct even when the app layout — and its

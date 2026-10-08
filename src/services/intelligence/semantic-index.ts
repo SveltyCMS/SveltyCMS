@@ -65,6 +65,10 @@ let _initialized = false;
 const CACHE_KEY = "semantic-index:data";
 const CACHE_TTL = 24 * 60 * 60; // 24 hours
 
+export function getLastFullIndexTime(): number | null {
+  return _lastFullIndex;
+}
+
 // ─── Core API ──────────────────────────────────────────────────────────────
 
 /**

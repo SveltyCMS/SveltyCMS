@@ -114,7 +114,10 @@ async function runWorker(): Promise<void> {
     );
     settled.forEach((result, i) => {
       if (i === 7) return;
-      assert(result.status === "fulfilled", `sibling ${i} rejected: ${String(result.reason)}`);
+      assert(
+        result.status === "fulfilled",
+        `sibling ${i} rejected: ${String((result as PromiseRejectedResult).reason)}`,
+      );
       assert(
         (result.value as Array<{ payload: string }>)?.[0]?.payload === `q-${i}`,
         `sibling ${i} returned the wrong payload`,

@@ -20,8 +20,13 @@ const PRODUCT_PRICE = "49.00";
 // `x-test-worker-index` gives the request DB-worker isolation, but the E2E
 // harness runs MULTI_TENANT=false, so `requireCommerceTenantId` resolves the
 // guest (and the testing API) tenant to `global`. Seed plugin state + product
-// rows under that same tenant or the /shop and /cart reads find nothing.
 const COMMERCE_TENANT = "global";
+
+test.use({
+  extraHTTPHeaders: {
+    "x-test-tenant-id": COMMERCE_TENANT,
+  },
+});
 
 /** Post an /api/testing action; fail hard on non-OK or unsuccessful bodies. */
 async function postTesting(

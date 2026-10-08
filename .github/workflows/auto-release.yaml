@@ -234,51 +234,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # ── Container image (ghcr.io) ───────────────────────────────────────────
-      # Multi-arch (amd64 + arm64) production image. ghcr.io has no anonymous
-      # pull rate-limits (unlike Docker Hub), and `packages: write` is already
-      # granted at the workflow level. The GitHub Release was created earlier, so
-      # a registry failure here never swallows it.
-      - name: Set up QEMU (multi-arch)
-        if: steps.version.outputs.skip != 'true'
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        if: steps.version.outputs.skip != 'true'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Docker metadata (SemVer + latest)
-        id: docker-meta
-        if: steps.version.outputs.skip != 'true'
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/sveltycms/sveltycms
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ steps.version.outputs.value }}
-            type=raw,value=v${{ steps.version.outputs.value }}
-
-      - name: Log in to GitHub Container Registry
-        if: steps.version.outputs.skip != 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        if: steps.version.outputs.skip != 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.docker-meta.outputs.tags }}
-          labels: ${{ steps.docker-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
       - name: Verify npm authentication
         id: npm-auth
         if: steps.version.outputs.skip != 'true'

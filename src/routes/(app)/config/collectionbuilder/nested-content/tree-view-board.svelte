@@ -149,12 +149,6 @@ offset within the row on the native `dragover` event — that event carries
 	const allTags = $derived(collectionMetadata.getAllUniqueTags());
 	const tagFilterOptions = $derived(allTags.map((t) => ({ value: t, label: t })));
 
-	function clearAllFilters() {
-		searchText = '';
-		showOnlyFavorites = false;
-		selectedTagFilter = '';
-	}
-
 	function handleEditTags(item: TreeViewItem) {
 		activeItemForTagging = item;
 		currentTagsInput = collectionMetadata.getTags(item.id).join(', ');
@@ -749,6 +743,13 @@ offset within the row on the native `dragover` event — that event carries
 		announce('Search cleared');
 	}
 
+	function clearAllFilters() {
+		searchText = '';
+		showOnlyFavorites = false;
+		selectedTagFilter = '';
+		announce(collections_clear_filters());
+	}
+
 	function toggleNode(id: string) {
 		if (expandedNodes.has(id)) {
 			expandedNodes.delete(id);
@@ -1007,7 +1008,6 @@ offset within the row on the native `dragover` event — that event carries
 			{collections_clear_filters()}
 		</Button>
 	{/if}
-
 	<div class="flex gap-2 ms-auto">
 		<SystemTooltip title={builder_expand_all_aria()}>
 			<Button
@@ -1081,7 +1081,24 @@ offset within the row on the native `dragover` event — that event carries
 			</p>
 		</div>
 	{:else}
-		<div role="group" aria-label={builder_tree_group_aria()}>
+		<div role="group" aria-label={builder_tree_group_aria()} class="pt-2">
+			<!-- Invisible drop target at the very top to catch overshoots -->
+			<div
+				class="tree-top-dropzone"
+				class:active={dndState.isDragging && dndState.targetContainer === 'node:tree-top'}
+				aria-hidden="true"
+				use:droppable={{
+					container: 'node:tree-top',
+					direction: 'vertical',
+					callbacks: {
+						onDrop: () => {
+							const draggedId = draggedIdOf(dndState);
+							endDrag();
+							if (draggedId) moveNode(draggedId, null, 0);
+						}
+					}
+				}}
+			></div>
 			<TreeDragPreview
 				nestTargetName={nestTargetId ? findNode(treeRoots, nestTargetId)?.name : null}
 			/>
@@ -1291,6 +1308,26 @@ offset within the row on the native `dragover` event — that event carries
 
 	.tree-item {
 		position: relative;
+	}
+
+	.tree-top-dropzone {
+		height: 32px;
+		margin-top: -16px;
+		margin-bottom: 0px;
+		position: relative;
+		z-index: 10;
+	}
+	.tree-top-dropzone.active::before {
+		content: '';
+		position: absolute;
+		inset-inline: 0;
+		bottom: 6px;
+		height: 2px;
+		background: var(--color-tertiary-500);
+		pointer-events: none;
+	}
+	:global(.dark) .tree-top-dropzone.active::before {
+		background: var(--color-primary-500);
 	}
 
 	.tree-row {

@@ -1,7 +1,7 @@
 /**
  * @file scripts/benchmark-matrix/probe-cluster-scaling.ts
  * @description Multi-core cluster scaling curve for the collection lanes.
- * @summary Boots the built server (`index.server.mjs`) K times via node:cluster
+ * @summary Boots the built server (`build/index.js`) K times via node:cluster
  * (one shared listening socket, round-robin) and measures RPS per worker
  * count for the point-read, list and create lanes — the empirical curve
  * behind the cluster design in docs/reference/architecture/cluster-multi-core.mdx.
@@ -62,9 +62,9 @@ cluster.on("exit", (worker) => {
 
 // ── Worker branch: boot the built server on the shared cluster socket ──────
 if (!cluster.isPrimary) {
-  const entry = path.resolve(process.cwd(), "index.server.mjs");
+  const entry = path.resolve(process.cwd(), "build/index.js");
   if (!existsSync(entry)) {
-    console.error("[cluster-probe] index.server.mjs missing — run `bun run build` first");
+    console.error("[cluster-probe] build/index.js missing — run `bun run build` first");
     process.exit(1);
   }
   import(pathToFileURL(entry).href)
@@ -174,9 +174,9 @@ function runClient(env: Record<string, string>): Promise<string[]> {
 }
 
 async function main(): Promise<void> {
-  const entry = path.resolve(process.cwd(), "index.server.mjs");
+  const entry = path.resolve(process.cwd(), "build/index.js");
   if (!existsSync(entry)) {
-    throw new Error("index.server.mjs missing — run `bun run build` first");
+    throw new Error("build/index.js missing — run `bun run build` first");
   }
   console.log(
     `\n=== CLUSTER SCALING PROBE (${process.env.DB_TYPE || "postgresql"} @ ${process.env.DB_HOST}:${process.env.DB_PORT}, port ${PORT}, ${process.env.CLUSTER_CLIENTS || 16} clients, ${process.env.CLUSTER_SECONDS || 10}s/op) ===`,

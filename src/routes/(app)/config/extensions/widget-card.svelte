@@ -55,7 +55,7 @@ canManage: boolean;
 </script>
 
 <div
-	class="card border border-surface-500/30 dark:text-surface-50 transition-shadow hover:shadow-lg"
+	class="rounded-xl border border-surface-500/30 bg-white dark:bg-surface-800/80 dark:text-surface-50 shadow-xs transition-shadow hover:shadow-md"
 >
 	<!-- Widget Header -->
 	<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
@@ -120,9 +120,7 @@ canManage: boolean;
 			<!-- Toggle Active Status -->
 			{#if widget.isCore}
 				<!-- Core widgets are always active and cannot be deactivated -->
-				<Badge preset="tonal" color="primary" title="Core widgets are always active"
-					>Always Active</Badge
-				>
+				<Badge variant="primary" title="Core widgets are always active">Always Active</Badge>
 			{:else if canManage && widget.canDisable}
 				<Button
 					variant="error"
@@ -134,7 +132,7 @@ canManage: boolean;
 					{widget.isActive ? 'Deactivate' : 'Activate'}
 				</Button>
 			{:else if !widget.canDisable}
-				<Badge preset="tonal" color="warning" title="Required by other widgets">Required</Badge>
+				<Badge variant="warning" title="Required by other widgets">Required</Badge>
 			{/if}
 
 			<!-- Uninstall (only for inactive custom widgets) -->

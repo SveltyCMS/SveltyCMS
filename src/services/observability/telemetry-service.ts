@@ -168,6 +168,19 @@ export class TelemetryService {
           logger.debug("[Telemetry] Failed to collect plugin info:", err);
         }
 
+        // Installed themes (admin themes from DB/presets)
+        let themes: string[] = [];
+        try {
+          const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+          const themeList = await adminThemeService.listThemes();
+          themes = themeList.map((t) => t.name).filter(Boolean);
+        } catch (err) {
+          logger.debug("[Telemetry] Failed to collect theme info:", err);
+        }
+        if (themes.length === 0) {
+          themes = ["default"];
+        }
+
         // Use direct env access for infrastructure config
         const privateEnv = getPrivateEnv();
         const dbType = privateEnv?.DB_TYPE || (await getPrivateSetting("DB_TYPE")) || "unknown";
@@ -324,7 +337,8 @@ export class TelemetryService {
 
         const TELEMETRY_SALT = clientSecret || "sveltycms-telemetry";
 
-        const cryptoSignature = (await import("node:crypto"))
+        const cryptoMod = await import("node:crypto");
+        const cryptoSignature = cryptoMod
           .createHmac("sha256", TELEMETRY_SALT)
           .update(`${installationId}:${pkg.version}:${timestamp}`)
           .digest("hex");
@@ -350,13 +364,29 @@ export class TelemetryService {
           widgets,
           dashboard_widgets: dashboardWidgets,
           plugins,
+          themes,
         };
 
-        // Server contract: auth fields live at the TOP level —
-        // { payload, signature, timestamp } (telemetry-ecology.mdx §4). The
-        // receiver rejects with 403 "Missing authentication fields" when they
-        // are embedded inside the payload object.
-        const body = { payload, signature: cryptoSignature, timestamp };
+        // Application-level AES-256-GCM payload encryption
+        const cipherKey = cryptoMod.createHash("sha256").update(TELEMETRY_SALT).digest();
+        const iv = cryptoMod.randomBytes(12);
+        const cipher = cryptoMod.createCipheriv("aes-256-gcm", cipherKey, iv);
+        const encrypted = Buffer.concat([
+          cipher.update(JSON.stringify(payload), "utf8"),
+          cipher.final(),
+        ]);
+        const tag = cipher.getAuthTag();
+
+        // Wire contract: encrypted envelope with HMAC signature and replay timestamp
+        const body = {
+          installation_id: installationId,
+          encrypted: true,
+          ciphertext: encrypted.toString("base64"),
+          iv: iv.toString("base64"),
+          tag: tag.toString("base64"),
+          signature: cryptoSignature,
+          timestamp,
+        };
 
         const telemetryEndpoint =
           env.TELEMETRY_ENDPOINT ||

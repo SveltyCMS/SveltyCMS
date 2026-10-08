@@ -95,9 +95,9 @@ test.describe("Public media share links", () => {
       waitUntil: "domcontentloaded",
     });
     await dismissCookieBannerIfPresent(page);
-    // The load throws error(404) client-side; +error.svelte renders the
-    // generic 404 page (status + "Page not found").
-    await expect(page.getByText(/404|page not found/i).first()).toBeVisible({
+    // The load throws error(404); +error.svelte renders the
+    // generic 404 page (status + "Page not found" / "This share link does not exist").
+    await expect(page.getByText(/404|page not found|does not exist/i).first()).toBeVisible({
       timeout: 20_000,
     });
   });

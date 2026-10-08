@@ -871,10 +871,8 @@ function copyWorkerFilePlugin(): Plugin {
 
 /**
  * Bundles the optional Yjs WebSocket collaboration server into `build/` after
- * the main build. `index.server.mjs` loads `build/yjs-sync-server.js` at
- * runtime (mounted on `/ws` by the production `index.cjs` entry), so plain
- * `vite build` must emit it — previously this lived in a separate build
- * orchestrator script; it now runs as a standard post-build plugin.
+ * the main build. Plain `vite build` must emit it — previously this lived
+ * in a separate build orchestrator script; it now runs as a standard post-build plugin.
  *
  * esbuild is imported dynamically so `ESBUILD_WORKER_THREADS=0` (set above for
  * Vite's own esbuild) is in effect before the API loads.
@@ -1000,21 +998,18 @@ function bundleBackgroundWorkerPlugin(): Plugin {
  *    Fix: restore the adapter-node v5 runtime contract — read `ORIGIN` from
  *    the environment at server start. When unset, behaviour is unchanged.
  *
- * 3. `build/index.js` (adapter-node entry) gets the SAME fast-lane dispatch
- *    that `index.server.mjs` performs for the `index.cjs` entry: GET/HEAD
+ * 3. `build/index.js` (adapter-node entry) gets fast-lane dispatch: GET/HEAD
  *    requests consult `globalThis.__SVELTY_FAST_LANES__` (published by
- *    `installFastLanes()` at boot) before the full SvelteKit pipeline. Both
- *    entries call the identical lane functions, so auth, tenancy, publication
- *    clamping and security headers stay in one place — only the transport is
- *    shared, and `BENCH_VERIFY_RAW=1` proves both transports byte-identical
- *    inside a single server run. Also adds the per-socket `noDelay` that
- *    `index.server.mjs` sets, so small JSON responses are not held by Nagle.
+ *    `installFastLanes()` at boot) before the full SvelteKit pipeline. It
+ *    calls the lane functions so auth, tenancy, publication clamping and
+ *    security headers stay in one place, and `BENCH_VERIFY_RAW=1` proves both
+ *    transports byte-identical inside a single server run. Also adds the
+ *    per-socket `noDelay` so small JSON responses are not held by Nagle.
  *    Both edits are pattern-guarded: a changed adapter-node template leaves
  *    the entry untouched (with a warning) instead of corrupting it.
  *
  * 4. The handler chunk's kit-level `BODY_SIZE_LIMIT` default (512K) is
- *    raised to 100M — the same value `index.server.mjs` configures for the
- *    `index.cjs` entry (the kit parser accepts K/M/G suffixes only, so
+ *    raised to 100M (the kit parser accepts K/M/G suffixes only, so
  *    "100MB" would throw at boot). The app's own 15MB
  *    `API_MAX_BODY_SIZE_BYTES` guard (`@utils/api-body-limits`) is the real
  *    ceiling for API bodies, so the kit default must never reject a body the
@@ -1111,7 +1106,7 @@ function adapterNodeBuildPatchPlugin(): Plugin {
             code = code.replace(
               serverPattern,
               "const httpServer = http.createServer();\n" +
-                "//#region svelty-fast-lanes (patched): same socket policy as index.server.mjs\n" +
+                "//#region svelty-fast-lanes (patched): low-latency socket policy\n" +
                 'httpServer.on("connection", (socket) => socket.setNoDelay(true));\n' +
                 "//#endregion",
             );

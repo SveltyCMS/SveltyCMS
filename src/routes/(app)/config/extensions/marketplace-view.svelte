@@ -192,6 +192,7 @@
 				id="mp-type"
 				bind:value={typeFilter}
 				options={typeOptions}
+				onchange={() => loadCatalog()}
 				data_testid="marketplace-type-filter"
 			/>
 		</div>

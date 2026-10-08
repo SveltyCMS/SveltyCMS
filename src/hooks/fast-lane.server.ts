@@ -1,7 +1,7 @@
 /**
  * @file src/hooks/fast-lane.server.ts
  * @description Opt-in fast lanes: handlers that answer a request with prebuilt
- * `{ status, headers, body }` so `index.server.mjs` can write the bytes straight
+ * `{ status, headers, body }` so the server entry can write the bytes straight
  * to the socket instead of going through adapter-node's `IncomingMessage →
  * Request` and `Response → stream` bridging.
  *
@@ -48,7 +48,7 @@ export interface FastLaneInput {
   /** Node `IncomingMessage.headers` (lowercased keys). */
   headers: Record<string, string | string[] | undefined>;
   /**
-   * Client address resolved exactly as adapter-node would (see `index.server.mjs`),
+   * Client address resolved exactly as adapter-node would,
    * so rate-limit bucketing stays identical between the lane and the pipeline.
    * `undefined` reproduces adapter-node's "address header absent" throw.
    */
@@ -64,7 +64,7 @@ export interface FastLaneInput {
 /** A lane returns `null` when the request is not its business. */
 export type FastLane = (input: FastLaneInput) => Promise<FastLaneResult | null>;
 
-/** `globalThis` key the app publishes the dispatcher on; read by `index.server.mjs`. */
+/** `globalThis` key the app publishes the dispatcher on; read by the server entry. */
 export const FAST_LANE_REGISTRY = "__SVELTY_FAST_LANES__";
 
 /**

@@ -246,6 +246,8 @@ export const actions: Actions = {
         return fail(400, { error: "Collection name contains invalid characters" });
       }
       const collectionIcon = formData.get("icon") as string;
+      const collectionId =
+        String(formData.get("_id") ?? "").trim() || contentName.toLowerCase().replace(/\s+/g, "_");
       const collectionSlug = formData.get("slug") as string;
       const collectionDescription = formData.get("description");
       const collectionStatus = formData.get("status") as string;
@@ -320,6 +322,7 @@ export const actions: Actions = {
 
       // Generate collection file using AST transformation
       const content = await generateCollectionFileWithAST({
+        collectionId,
         contentName,
         collectionIcon,
         collectionStatus,
@@ -541,6 +544,7 @@ function removeFalseValues(obj: unknown): unknown {
 
 // AST-based collection file generation
 interface CollectionData {
+  collectionId: string;
   collectionDescription: string | FormDataEntryValue | null;
   collectionIcon: string;
   collectionSlug: string;
@@ -660,12 +664,11 @@ function createCollectionTransformer(data: CollectionData): TransformerFactory<S
 function createSchemaObjectLiteral(data: CollectionData): ObjectLiteralExpression {
   const properties: ObjectLiteralElementLike[] = [];
 
-  // _id — derived from content name for consistent collection identification
-  const collectionId = data.contentName.toLowerCase().replace(/\s+/g, "_");
+  // _id — unique system identifier for the collection and database table
   properties.push(
     factory.createPropertyAssignment(
       factory.createIdentifier("_id"),
-      factory.createStringLiteral(collectionId),
+      factory.createStringLiteral(data.collectionId),
     ),
   );
 

@@ -6,6 +6,8 @@
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
 	import Card from '@src/components/ui/card.svelte';
 	import Button from '@src/components/ui/button.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { builder_tip_grant_all, builder_tip_revoke_all } from '@src/paraglide/messages';
 	import type { Role } from '@src/databases/auth/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -103,9 +105,33 @@
 			<iconify-icon icon="mdi:shield-lock-outline" width="24"></iconify-icon>
 		</div>
 		<div>
-			<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
-				Collection Permissions
-			</h2>
+			<div class="flex items-center gap-2">
+				<h2 class="text-xl font-bold leading-none text-surface-900 dark:text-surface-100">
+					Collection Permissions
+				</h2>
+				<SystemTooltip positioning={{ placement: 'bottom' }} triggerClass="flex items-center">
+					{#snippet content()}
+						<div class="text-sm min-w-64 max-w-sm">
+							<p class="font-semibold mb-2">How permissions work</p>
+							<ul class="list-disc list-inside space-y-1 text-xs">
+								<li><strong>View</strong>: Can see the collection and its entries</li>
+								<li><strong>Edit</strong>: Can create and update entries</li>
+								<li><strong>Write</strong>: Can delete entries and manage collection settings</li>
+							</ul>
+							<p class="mt-3 text-xs leading-relaxed">
+								Collection-level permissions are inherited by all entries. For granular per-field
+								permissions, use the widget inspector. Full RBAC management is available in
+								<a
+									href="/config/access-management"
+									class="text-tertiary-500 dark:text-primary-500 underline hover:text-tertiary-600 dark:hover:text-primary-400 transition-colors"
+									>Access Management</a
+								>.
+							</p>
+						</div>
+					{/snippet}
+					<HelpIcon ariaLabel="Help: Collection Permissions" />
+				</SystemTooltip>
+			</div>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
 				Step 3: Define role-based access control (RBAC). Configure which roles can view, edit, and
 				write entries in this collection.
@@ -122,25 +148,75 @@
 						class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900"
 					>
 						<th
-							class="text-start px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"
-							>Role</th
+							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"
 						>
+							<div class="flex items-center justify-start gap-1">
+								Role
+								<SystemTooltip
+									title="User role or group these permissions apply to."
+									positioning={{ placement: 'top-start' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Role" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20"
-							>View</th
+							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
+							<div class="flex items-center justify-center gap-1">
+								View
+								<SystemTooltip
+									title="Can see the collection and read its entries."
+									positioning={{ placement: 'top' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: View" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20"
-							>Edit</th
+							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
+							<div class="flex items-center justify-center gap-1">
+								Edit
+								<SystemTooltip
+									title="Can create new entries and update existing ones."
+									positioning={{ placement: 'top' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Edit" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20"
-							>Write</th
+							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
+							<div class="flex items-center justify-center gap-1">
+								Write
+								<SystemTooltip
+									title="Can delete entries and manage collection settings."
+									positioning={{ placement: 'top' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Write" />
+								</SystemTooltip>
+							</div>
+						</th>
 						<th
-							class="text-end px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-28"
-							>Actions</th
+							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-32"
 						>
+							<div class="flex items-center justify-end gap-1">
+								Actions
+								<SystemTooltip
+									title="Quickly grant or revoke all permissions."
+									positioning={{ placement: 'top-end' }}
+									triggerClass="flex items-center"
+								>
+									<HelpIcon ariaLabel="Help: Actions" />
+								</SystemTooltip>
+							</div>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -274,31 +350,4 @@
 			</div>
 		{/if}
 	</Card>
-
-	<!-- Info Footer -->
-	<div
-		class="flex items-start gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 p-4"
-	>
-		<iconify-icon
-			icon="mdi:information-outline"
-			width="20"
-			class="text-tertiary-500 dark:text-primary-500 shrink-0 mt-0.5"
-		></iconify-icon>
-		<div class="text-sm text-surface-500 dark:text-surface-400">
-			<p class="font-semibold text-surface-600 dark:text-surface-400 mb-1">How permissions work</p>
-			<ul class="list-disc list-inside space-y-0.5 text-xs">
-				<li><strong>View</strong>: Can see the collection and its entries</li>
-				<li><strong>Edit</strong>: Can create and update entries</li>
-				<li><strong>Write</strong>: Can delete entries and manage collection settings</li>
-			</ul>
-			<p class="mt-2 text-xs">
-				Collection-level permissions are inherited by all entries. For granular per-field
-				permissions, use the widget inspector. Full RBAC management is available in
-				<a
-					href="/config/access-management"
-					class="text-tertiary-500 dark:text-primary-500 underline">Access Management</a
-				>.
-			</p>
-		</div>
-	</div>
 </div>

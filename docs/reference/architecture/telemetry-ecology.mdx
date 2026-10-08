@@ -190,17 +190,18 @@ sequenceDiagram
     Note over CMS: Save secret as TELEMETRY_CLIENT_SECRET
 
     Note over CMS, Server: Subsequent Telemetry Checks
-    CMS->>CMS: Sign payload using client_secret & timestamp
-    CMS->>Server: POST /api/check-update { payload, signature, timestamp }
-    alt Signature Valid
+    CMS->>CMS: Encrypt payload with AES-256-GCM using client_secret
+    CMS->>CMS: Sign envelope with HMAC-SHA256 (client_secret & timestamp)
+    CMS->>Server: POST /api/check-update { installation_id, encrypted, ciphertext, iv, tag, signature, timestamp }
+    alt Signature & Decryption Valid
         Server-->>CMS: 200 OK { latest_version, ... }
     else Signature Invalid (403 / DB Reset)
         Server-->>CMS: 403 Forbidden
         Note over CMS: Clear locally saved client_secret
         CMS->>Server: POST /api/register { installation_id } (Re-register)
         Server-->>CMS: 200 OK { secret: "new_client_secret" }
-        CMS->>CMS: Sign payload using new secret
-        CMS->>Server: POST /api/check-update { payload, signature, timestamp } (Retry)
+        CMS->>CMS: Encrypt & sign with new secret
+        CMS->>Server: POST /api/check-update (Retry)
         Server-->>CMS: 200 OK { latest_version, ... }
     end
 ```
@@ -208,8 +209,8 @@ sequenceDiagram
 1.  **First Boot**: On the very first telemetry check, the CMS calls `/api/register` on the telemetry server.
 2.  **Secret Issuance**: The server generates a **Unique, Cryptographically Secure Secret** (64-character hex) and returns it to the CMS.
 3.  **Local Storage**: The CMS saves this secret securely in its own database (`TELEMETRY_CLIENT_SECRET`).
-4.  **Signing**: Every subsequent payload is signed using this unique secret.
-5.  **Validation**: The telemetry server fetches the secret associated with the `installation_id` and verifies the HMAC signature.
+4.  **Encryption & Signing**: Every subsequent payload is encrypted at the application level using **AES-256-GCM** (with a unique 12-byte IV and 16-byte authentication tag) and signed with **HMAC-SHA256**.
+5.  **Validation & Decryption**: The telemetry server fetches the secret associated with the `installation_id`, decrypts and verifies the ciphertext with AES-256-GCM, and checks the HMAC signature.
 
 ### Benefits and Resilience of this Architecture
 

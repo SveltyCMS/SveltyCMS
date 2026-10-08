@@ -7,11 +7,13 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  findDuplicateDatabaseFieldNames,
   getDescendantIds,
   parseIdList,
   parseJsonArray,
   parseOperations,
   uniquePathForCategory,
+  validateMinimumCollectionFields,
 } from "@src/routes/(app)/config/collectionbuilder/collectionbuilder-utils";
 
 describe("Collection Builder Utilities", () => {
@@ -116,6 +118,69 @@ describe("Collection Builder Utilities", () => {
       expect(parseOperations([{ type: "explode", node: { path: "/x" } }])).toBeNull();
       expect(parseOperations([{ type: "create", node: { name: "X" } }])).toBeNull();
       expect(parseOperations("nope")).toBeNull();
+    });
+  });
+
+  describe("findDuplicateDatabaseFieldNames", () => {
+    it("returns empty array when all field names are unique", () => {
+      const fields = [
+        { db_fieldName: "title", widget: "input" },
+        { db_fieldName: "description", widget: "textarea" },
+        { db_fieldName: "price", widget: "number" },
+      ];
+      expect(findDuplicateDatabaseFieldNames(fields)).toEqual([]);
+    });
+
+    it("detects case-insensitive duplicate db_fieldName values", () => {
+      const fields = [
+        { db_fieldName: "title", widget: "input" },
+        { db_fieldName: "Title", widget: "input" },
+        { db_fieldName: "slug", widget: "slug" },
+      ];
+      expect(findDuplicateDatabaseFieldNames(fields)).toEqual(["title"]);
+    });
+
+    it("handles fallback to name property", () => {
+      const fields = [
+        { name: "author", widget: "input" },
+        { db_fieldName: "author", widget: "relation" },
+      ];
+      expect(findDuplicateDatabaseFieldNames(fields)).toEqual(["author"]);
+    });
+
+    it("returns multiple duplicate keys when several fields collide", () => {
+      const fields = [
+        { db_fieldName: "tag", widget: "input" },
+        { db_fieldName: "tag", widget: "input" },
+        { db_fieldName: "category", widget: "select" },
+        { db_fieldName: "category", widget: "select" },
+      ];
+      const duplicates = findDuplicateDatabaseFieldNames(fields);
+      expect(duplicates).toContain("tag");
+      expect(duplicates).toContain("category");
+    });
+  });
+
+  describe("validateMinimumCollectionFields duplicate collision guard", () => {
+    it("fails validation when fields share database identifiers", () => {
+      const fields = [
+        { db_fieldName: "email", widget: "input" },
+        { db_fieldName: "email", widget: "email" },
+      ];
+      const result = validateMinimumCollectionFields(fields);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toContain('Duplicate database field name: "email"');
+      }
+    });
+
+    it("passes validation when all fields are properly formed and distinct", () => {
+      const fields = [
+        { db_fieldName: "first_name", widget: "input" },
+        { db_fieldName: "last_name", widget: "input" },
+      ];
+      const result = validateMinimumCollectionFields(fields);
+      expect(result.ok).toBe(true);
     });
   });
 });

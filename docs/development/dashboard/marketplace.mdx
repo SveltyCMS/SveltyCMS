@@ -58,15 +58,43 @@ Marketplace installs target `src/routes/(app)/dashboard/widgets/<folder>/` (the 
 
 ### Client-side install
 
+From the browser or admin UI, installations call the marketplace install endpoint:
+
 ```typescript
-import { installDashboardWidget } from "@src/services/intelligence/marketplace-client";
+import { fetchApi } from "@utils/api";
+
+const res = await fetchApi("/api/marketplace/install", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ itemId: "request-rate", type: "dashboard" }),
+});
+```
+
+### Server-side install
+
+In server scripts or migrations, use the server-only install service:
+
+```typescript
+import { installDashboardWidget } from "@src/services/intelligence/marketplace-install.server";
 
 const widget = await installDashboardWidget("request-rate");
 // → writes src/routes/(app)/dashboard/widgets/request-rate/…
 //   (component + widget.json + docs)
 ```
 
-`installDashboardWidget` delegates to the shared installer, so it honors the same license verification and offline fallbacks as `installPlugin`.
+### Packaging & Extracting for Marketplace
+
+To export a dashboard widget into an isolated, marketplace-ready package folder:
+
+```bash
+bun run extension:extract dashboard request-rate [outputDir]
+```
+
+To verify that all local extensions match the marketplace catalog spec:
+
+```bash
+bun run lint:marketplace
+```
 
 ### Uninstall
 

@@ -159,9 +159,8 @@ Features:
 	<!-- Name & Badge: flexible width for responsiveness -->
 	<div class="flex flex-1 flex-col gap-1 min-w-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
-			<span
-				class="font-bold text-xs sm:text-base leading-none truncate max-w-37.5 sm:max-w-95"
-				title={name}>{name}</span
+			<span class="font-bold text-xs sm:text-base truncate max-w-37.5 sm:max-w-95" title={name}
+				>{name}</span
 			>
 			{#if isCategory}
 				<Badge variant="tertiary" size="sm" rounded={false}>{builder_badge_category()}</Badge>

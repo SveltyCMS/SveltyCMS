@@ -12,7 +12,6 @@
 	// Native UI Components Stores
 	import { modalState } from '@utils/modal.svelte';
 	import { onMount } from 'svelte';
-	import Button from '@components/ui/button.svelte';
 
 	// Props
 	interface Props {
@@ -38,38 +37,24 @@
 	function onFormSubmit(selected: any): void {
 		if (selected !== null) {
 			// close the modal and pass response
-			modalState.close({ selectedWidget: selected });
+			if (close) {
+				close({ selectedWidget: selected });
+			} else {
+				modalState.close({ selectedWidget: selected });
+			}
 		} else {
 			logger.error('No widget selected');
 		}
 	}
 
 	// Base Classes
-	const cBase =
-		'card p-6 w-[95vw] max-w-7xl h-[90vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800';
-	const cHeader = 'text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white';
-
-	// Tooltip not needed with new card design showing description
+	const cBase = 'flex flex-col w-full h-full';
 </script>
 
 {#if modalState.active}
 	<div class={cBase}>
-		<header
-			class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:text-surface-50"
-		>
-			<h2 class={cHeader}>{modalState.active?.props?.title || 'Select Widget'}</h2>
-			<Button
-				variant="outline"
-				onclick={() => (close ? close() : modalState.close())}
-				aria-label="Close modal"
-				class="p-0! min-w-0"
-			>
-				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-			</Button>
-		</header>
-
 		<!-- Search -->
-		<div class="relative my-4">
+		<div class="relative mb-6 mt-2">
 			<iconify-icon
 				icon="mdi:magnify"
 				width="24"
@@ -86,7 +71,7 @@
 		</div>
 
 		<!-- Grid -->
-		<div class="flex-1 overflow-y-auto p-6" data-testid="select-widget-grid">
+		<div data-testid="select-widget-grid">
 			{#each ['Core', 'Custom', 'Marketplace'] as category (category)}
 				{const categoryKeys =
 					category === 'Core'

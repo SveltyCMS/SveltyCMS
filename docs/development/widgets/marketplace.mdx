@@ -89,6 +89,20 @@ Marketplace widgets do not require compile-time registration or hardcoded static
 3. **Naming gate**: Folder must be kebab-case; factory `Name` must satisfy the invariant above or the package is skipped with an error log.
 4. Drag-and-drop install/delete works with zero config **only if** naming is correct.
 
+### Packaging & Extracting for Marketplace
+
+To export a custom widget into an isolated, marketplace-ready package folder:
+
+```bash
+bun run extension:extract widget phone-number [outputDir]
+```
+
+To verify that all local widgets and extensions match the marketplace catalog specification:
+
+```bash
+bun run lint:marketplace
+```
+
 ---
 
 ## 💰 Monetization & Licensing Models

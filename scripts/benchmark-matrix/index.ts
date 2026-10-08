@@ -689,8 +689,8 @@ async function run() {
     }
     /** True when the shared server child has exited (crash / kill). */
     let serverExited = false;
-    // One entry for both runtimes: `index.cjs` loads the shared
-    // `index.server.mjs`, so a RUNTIME=bun matrix row needs no separate entry file.
+    // One entry for both runtimes: `index.cjs` loads the build,
+    // so a RUNTIME=bun matrix row needs no separate entry file.
     const isBunRuntime = process.env.RUNTIME === "bun";
     const serverEntry = fs.existsSync(path.join(process.cwd(), "index.cjs"))
       ? "index.cjs"

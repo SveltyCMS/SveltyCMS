@@ -11,8 +11,10 @@
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import PluginsView from './plugins-view.svelte';
 	import WidgetDashboard from './widget-dashboard.svelte';
+	import DashboardWidgetsView from './dashboard-widgets-view.svelte';
 	import MarketplaceView from './marketplace-view.svelte';
 
 	let { data }: { data: any } = $props();
@@ -21,7 +23,8 @@
 
 	const tabs = [
 		{ id: 'plugins', label: 'Plugins', icon: 'mdi:puzzle' },
-		{ id: 'widgets', label: 'Widgets', icon: 'mdi:widgets' },
+		{ id: 'widgets', label: 'Content Widgets', icon: 'mdi:widgets' },
+		{ id: 'dashboard', label: 'Dashboard Widgets', icon: 'mdi:view-dashboard-outline' },
 		{ id: 'marketplace', label: 'Marketplace', icon: 'mdi:store' }
 	] as const;
 </script>
@@ -61,6 +64,19 @@
 							<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"
 							></iconify-icon>
 							<span>{tab.label}</span>
+							{#if tab.id === 'plugins' && data?.plugins?.length}
+								<Badge variant="surface" size="sm" class="ms-1.5 font-normal">
+									{data.plugins.length}
+								</Badge>
+							{:else if tab.id === 'widgets'}
+								<Badge variant="surface" size="sm" class="ms-1.5 font-normal">17</Badge>
+							{:else if tab.id === 'dashboard' && data?.dashboardWidgets?.length}
+								<Badge variant="surface" size="sm" class="ms-1.5 font-normal">
+									{data.dashboardWidgets.length}
+								</Badge>
+							{:else if tab.id === 'marketplace'}
+								<Badge variant="tertiary" size="sm" class="ms-1.5 font-normal">52</Badge>
+							{/if}
 						</Button>
 					{/each}
 				</div>
@@ -90,6 +106,8 @@
 					<PluginsView {data} />
 				{:else if activeTab === 'widgets'}
 					<WidgetDashboard {data} />
+				{:else if activeTab === 'dashboard'}
+					<DashboardWidgetsView {data} />
 				{:else if activeTab === 'marketplace'}
 					<MarketplaceView />
 				{/if}

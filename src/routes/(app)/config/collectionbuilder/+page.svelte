@@ -641,7 +641,7 @@ None (TreeView has its own keyboard navigation)
 				const installed = response.contentStructure as unknown as ContentNode[] | undefined;
 				if (installed?.length) {
 					currentConfig = installed;
-					setContentStructure(installed);
+					setDraftContentStructure(installed);
 					treeVersion++;
 				}
 

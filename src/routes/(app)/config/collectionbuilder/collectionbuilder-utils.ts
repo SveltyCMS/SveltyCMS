@@ -70,6 +70,39 @@ export function parseOperations(ops: unknown): ContentNodeOperation[] | null {
  *
  * Accepts the client array shape or the server field-map (`FieldsData`).
  */
+/**
+ * Detect duplicate database column names (db_fieldName / name).
+ * Prevents SQL column collisions and ambiguous schema properties.
+ */
+export function findDuplicateDatabaseFieldNames(fields: unknown): string[] {
+  const list = Array.isArray(fields)
+    ? fields
+    : fields && typeof fields === "object"
+      ? Object.values(fields as Record<string, unknown>)
+      : [];
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+
+  for (const raw of list) {
+    if (!raw || typeof raw !== "object") continue;
+    const f = raw as { db_fieldName?: unknown; name?: unknown };
+    const name =
+      typeof f.db_fieldName === "string" && f.db_fieldName.trim()
+        ? f.db_fieldName.trim().toLowerCase()
+        : typeof f.name === "string" && f.name.trim()
+          ? f.name.trim().toLowerCase()
+          : "";
+    if (!name) continue;
+    if (seen.has(name)) {
+      duplicates.add(name);
+    } else {
+      seen.add(name);
+    }
+  }
+
+  return Array.from(duplicates);
+}
+
 export function validateMinimumCollectionFields(
   fields: unknown,
 ): { ok: true } | { ok: false; message: string } {
@@ -128,6 +161,14 @@ export function validateMinimumCollectionFields(
     if (!hasWidget) {
       return { ok: false, message: `Field “${identity}” needs a widget (type) before saving.` };
     }
+  }
+
+  const duplicates = findDuplicateDatabaseFieldNames(list);
+  if (duplicates.length > 0) {
+    return {
+      ok: false,
+      message: `Duplicate database field name: "${duplicates.join(", ")}". Each field must have a unique identifier.`,
+    };
   }
 
   return { ok: true };
