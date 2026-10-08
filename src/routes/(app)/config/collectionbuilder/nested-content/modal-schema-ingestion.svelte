@@ -81,9 +81,8 @@ Features:
 				// Lazy import keeps collectionbuilder.remote a split chunk — the other
 				// consumers (+page, modal-category, modal-quick-start) import it
 				// dynamically too (vite INEFFECTIVE_DYNAMIC_IMPORT parity).
-				const { ingestSchema } = await import(
-					'@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote'
-				);
+				const { ingestSchema } =
+					await import('@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote');
 				const result = await ingestSchema({
 					mode: tab as SchemaIngestionMode,
 					payload,
