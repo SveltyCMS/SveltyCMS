@@ -1,6 +1,6 @@
 {
   "name": "create-sveltycms",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Scaffold a new SveltyCMS headless CMS project — SvelteKit 3 + Svelte 5 + 4 databases",
   "keywords": [
     "AI-Powered CMS",
