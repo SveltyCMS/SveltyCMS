@@ -6,7 +6,7 @@ order: 306
 icon: "tabler:seo"
 author: "admin"
 created: "2025-01-15"
-updated: "2026-06-20"
+updated: "2026-10-08"
 tags:
   - widget
   - custom
@@ -50,8 +50,230 @@ _Premium features are available to test during a **14-day trial**, after which a
 - 👑 **Structured Data**: Schema.org JSON-LD support with semantic labeling
 - 👑 **Advanced Controls**: Robots meta and Canonical URLs
 - 👑 **AI Suggestions**: Optional AI-powered optimization hints
+- 👑 **IndexNow Pings**: Instant URL submission to the Bing/Yandex/Seznam/Naver ecosystem on publish
 - 👑 **Enterprise Redirects**: Multi-tenant redirect manager with token support
 - 👑 **Dynamic Sitemaps**: Automated sitemap.xml with i18n/hreflang support
+
+---
+
+## What Google Documents & Enforces (2026 → 2027)
+
+Google does not publish an annual "requirements" list — there is no document
+literally titled "what Google wants in 2027". What exists is a continuously
+updated set of **publicly documented rules**: the Search Essentials (spam
+policies + quality guidance), the page-experience signals, and the structured
+data program. Everything below is based on Google's public documentation,
+reviewed as of **2026-10-08**, and cited per point so it can be verified — it
+is the best available basis for planning a 2027 search strategy.
+
+### 1. Search Essentials — the baseline rules
+
+Google's entry criterion for appearing in Search at all is the
+[Search Essentials](https://developers.google.com/search/docs/essentials):
+
+- **Spam policies** — violations can remove a site or page from Google Search:
+  keyword stuffing, cloaking, hidden text/links, doorway pages, sneaky
+  redirects, machine-generated traffic, and — since the March 2024 policy
+  update — **scaled content abuse** (mass-produced content, automated or
+  human, created primarily to manipulate rankings), **site reputation abuse**
+  (third-party content piggybacking on a host's ranking signals), and
+  **expired domain abuse**.
+  ([Google spam policies](https://developers.google.com/search/docs/essentials/spam-policies))
+- **Quality guidance** — content should be **helpful, reliable and
+  people-first**: created for people, demonstrating first-hand experience,
+  depth and a clear purpose; not thin, aggregated, or built purely for search
+  engines.
+  ([Creating helpful, reliable, people-first content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content))
+
+**What this means for the widget**: no metadata can make thin content rank.
+The widget covers the other side of the contract — it keeps the technical
+metadata honest (accurate titles, descriptions, canonical URLs, robots
+directives) so pages do not trip the documented technical spam patterns. The
+quality decision always stays with the editor.
+
+### 2. E-E-A-T and trust signals
+
+Google's Search Quality Rater Guidelines define **E-E-A-T** — Experience,
+Expertise, Authoritativeness, Trust — as the qualities raters evaluate when
+assessing pages. Google states that rater scores do **not** directly change
+rankings; the guidelines describe what Google's ranking systems are designed
+to seek. The practical checklist that follows from the published guidance:
+demonstrable authorship, first-hand experience, and transparent sourcing.
+
+| E-E-A-T signal        | Widget support                                                          |
+| --------------------- | ----------------------------------------------------------------------- |
+| Clear authorship      | `author` in `schemaMarkup` (Article/Person JSON-LD) — cite real authors |
+| Publisher identity    | `Organization` JSON-LD with logo; site name in titles                   |
+| Content recency       | `datePublished` / `dateModified` in `schemaMarkup`; sitemap `lastmod`   |
+| First-hand experience | ❌ Not a metadata problem — a content-level editorial decision          |
+
+### 3. Page experience — Core Web Vitals
+
+Google's page-experience signals are measured on **field data** (real-user
+sessions, 75th percentile). The documented "good" thresholds
+([Web Vitals](https://web.dev/vitals/)):
+
+| Metric                                                       | Good threshold |
+| ------------------------------------------------------------ | -------------- |
+| LCP (largest contentful paint)                               | ≤ 2.5 s        |
+| INP (interaction to next paint — replaced FID in March 2024) | ≤ 200 ms       |
+| CLS (cumulative layout shift)                                | ≤ 0.1          |
+
+**What this means for the widget**: the SEO widget does not render the page
+body, so it cannot move LCP/INP/CLS — that is hosting, rendering and layout
+work. What it contributes: head output stays minimal (a few dozen meta tags
+plus one JSON-LD block), all crawl-critical tags render server-side, no SEO
+JavaScript ships to the client — and the Advanced tab's Core Web Vitals
+readout lets editors **measure** a page's current numbers on demand (field +
+lab data via the PageSpeed Insights API) without leaving the entry form.
+
+Google also **crawls and indexes the mobile version first**
+([Mobile-first indexing](https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing)) —
+meta tags must be identical on mobile and desktop.
+
+### 4. Technical crawlability requirements
+
+| Documented rule                                                                                   | Widget / SveltyCMS behavior                                                                                       |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Sitemaps: ≤ 50,000 URLs and ≤ 50 MB uncompressed per file                                         | `/sitemap.xml` is generated per tenant and paginated over all published entries — collections are never truncated |
+| `lastmod` should reflect meaningful content changes                                               | Emitted from the entry's `updatedAt`/`createdAt` (W3C-validated; omitted when invalid)                            |
+| `noindex` pages can still be crawled; `noindex, follow` links are treated as `nofollow` over time | `robotsMeta` passes through verbatim; draft/preview renders force `noindex, nofollow`                             |
+| Canonical URLs must be absolute; Google treats them as a strong hint, not a directive             | Absolute `https?://` validated on save; self-referencing canonical rendered when unset                            |
+| hreflang must be **bidirectional** and use `x-default` for fallback                               | Head alternates + sitemap alternates derived from the translated locales, `x-default` included                    |
+| HTTPS                                                                                             | Site-level deployment concern — supported by SveltyCMS, not a widget field                                        |
+
+Sources: [Sitemap guidelines](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap),
+[robots meta specification](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag),
+[canonicalization](https://developers.google.com/search/docs/crawling-indexing/canonicalization),
+[localized versions (hreflang)](https://developers.google.com/search/docs/specialty/international/localized-versions).
+
+### 5. Titles and snippets
+
+- **Title links**: Google uses the `<title>` element as the primary source for
+  the title link and **may rewrite it** when it does not describe the page.
+  Write titles that are descriptive, unique and match the page.
+  ([Control your title links in search results](https://developers.google.com/search/docs/appearance/title-link))
+- **Snippets**: the meta description is a **candidate** Google may use for the
+  snippet; for many queries Google composes its own. Still write unique,
+  accurate descriptions — they appear often and feed social previews.
+  ([Create good titles and snippets](https://developers.google.com/search/docs/appearance/snippet))
+- **Keywords meta tag**: Google has documented since 2009 that it **does not
+  use** the `keywords` meta tag for ranking. The widget's `focusKeyword` still
+  matters — it drives the analyzer's title/description/content checks — but do
+  not expect the emitted `<meta name="keywords">` to affect rankings.
+
+### 6. Structured data (JSON-LD)
+
+Google's documented eligibility rules
+([Structured data general guidelines](https://developers.google.com/search/docs/appearance/structured-data/search-gallery)):
+
+- Markup **must match visible content** on the page — never mark up content
+  the user cannot see.
+- JSON-LD is the recommended format.
+- Rich results are **per type and not guaranteed**: valid markup makes a page
+  _eligible_; Google decides whether a rich result is shown.
+- Markup must be reachable by Googlebot (not blocked by robots.txt) and
+  validate in the
+  [Rich Results Test](https://search.google.com/test/rich-results).
+
+**Widget behavior**: `schemaMarkup` must parse as a JSON object, is sanitized
+against script injection on save, and renders as a
+`<script type="application/ld+json">` block whose strings cannot break out of
+the element. The widget cannot verify that the markup _matches_ the visible
+page — that remains an editorial check.
+
+Beyond the per-entry markup, the site starter **auto-generates site-level
+JSON-LD from the CMS structure**, so no authoring is needed for the two most
+common types:
+
+- **WebSite** on the homepage (`name`, `url`, `@id`) — per Google's WebSite
+  structured data documentation.
+- **BreadcrumbList** on nested paths, derived from the URL hierarchy
+  (e.g. `/guides/getting-started` → Home › Guides › Getting Started).
+
+Both are rendered alongside the widget's own `schemaMarkup` and use the same
+break-out-proof serialization.
+
+### 7. AI-generated and scaled content
+
+Google's published position
+([Google Search's guidance about AI-generated content](https://developers.google.com/search/docs/fundamentals/ai-content)):
+content is evaluated on **quality, not production method** — AI-assisted
+content can rank when it is helpful and reliable. What violates policy is
+**scaled content abuse**: producing large volumes of content (however made)
+primarily to manipulate rankings. The practical 2027 reading: AI drafts are
+an acceptable starting point; publishing them unreviewed at scale is the
+documented spam pattern.
+
+### 8. AI crawlers & llms.txt (the 2027 frontier)
+
+Search is no longer the only discovery surface: LLM crawlers (GPTBot,
+ClaudeBot, Gemini, PerplexityBot, …) and coding agents read sites directly.
+The emerging machine-readable guide for them is
+[llmstxt.org](https://llmstxt.org/) — a `/llms.txt` file with the site name,
+a description, and curated per-section links.
+
+SveltyCMS generates `/llms.txt` dynamically: site name and slogan from the
+public settings, then one section per public collection linking its published
+entries (site pages first, capped, cached per tenant). Section headings and
+link titles are sanitized so authored content can never inject structure.
+Because it is generated from the same CMS data as the sitemap, it stays in
+sync without any per-entry work.
+
+The `AI_CRAWLER_POLICY` public setting controls the corresponding robots.txt
+directives (per-crawler groups for GPTBot / ClaudeBot / Google-Extended /
+CCBot, opt-in — the default allows everything).
+
+Note: this targets _AI crawler visibility_, not Google ranking — Google
+documents no ranking use for llms.txt. It complements, never replaces, the
+Search-facing features above.
+
+### Coverage summary
+
+| Requirement area                                    | Covered by SveltyCMS | Where it lives                                                            |
+| --------------------------------------------------- | -------------------- | ------------------------------------------------------------------------- |
+| Title / description / canonical / robots            | ✅                   | Basic + Advanced tabs → head rendering                                    |
+| Open Graph / Twitter cards                          | ✅ (premium)         | Social tab → head rendering                                               |
+| JSON-LD structured data                             | ✅ (premium)         | Schema tab → head rendering                                               |
+| Sitemap with `noindex`/canonical respect + hreflang | ✅                   | `/sitemap.xml` (site layer)                                               |
+| robots.txt with admin-route disallows               | ✅                   | `/robots.txt` (site layer)                                                |
+| Per-locale hreflang alternates                      | ✅                   | Head rendering + sitemap                                                  |
+| WebSite + BreadcrumbList JSON-LD (auto-generated)   | ✅                   | Site-starter head rendering                                               |
+| llms.txt for AI crawlers                            | ✅                   | `/llms.txt` (site layer)                                                  |
+| IndexNow ping on publish                            | ✅ (premium)         | `src/services/content/seo/indexnow.server.ts`                             |
+| AI-crawler robots directives                        | ✅                   | `AI_CRAWLER_POLICY` setting → `/robots.txt`                               |
+| Content quality / E-E-A-T                           | ❌ editorial         | The editor's work                                                         |
+| Links and authority                                 | ❌ off-page          | Not a CMS concern                                                         |
+| Core Web Vitals (LCP/INP/CLS)                       | 📊 display           | Advanced tab readout (measurement only — improving them stays site-level) |
+| Rich result display                                 | ❌ Google decides    | Eligibility only, via valid markup                                        |
+
+### 2026/2027 compliance checklist
+
+Use as a release checklist; each item names the Google source it satisfies:
+
+- [ ] Every public page has a unique, descriptive `<title>` ≤ ~60 characters (title-link guidance)
+- [ ] Every page has a unique meta description ≤ ~160 characters (snippet guidance)
+- [ ] Canonical URL set (or self-referencing canonical rendered) on every page (canonicalization)
+- [ ] No public page renders `noindex` by accident — draft/preview force it on purpose (robots spec)
+- [ ] Sitemap submitted in Search Console; no `noindex` or duplicate-canonical entries listed (sitemap guidelines)
+- [ ] hreflang bidirectional for every locale pair, plus `x-default` (localized-versions guide)
+- [ ] One `Organization`/`WebSite` JSON-LD on the homepage; `Article`/`Product` markup only where the visible content matches (structured data guidelines)
+- [ ] `dateModified` kept current on updated articles (freshness signals)
+- [ ] `ogImage` set on every shareable page at the documented 1200×630 ratio (Open Graph protocol)
+- [ ] Page experience checked via the Advanced tab's Core Web Vitals readout or the CWV report: LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1 (Web Vitals)
+- [ ] AI-assisted drafts reviewed and edited before publishing; no bulk auto-publishing (spam policies: scaled content abuse)
+- [ ] Mobile rendering identical to desktop for all meta tags (mobile-first indexing)
+- [ ] Homepage serves WebSite JSON-LD; nested pages serve BreadcrumbList JSON-LD (structured data guidelines)
+- [ ] `/llms.txt` reachable and reviewed for AI crawlers (llmstxt.org)
+- [ ] IndexNow ping verified after publish (premium) — key file served at `/indexnow.txt` (indexnow.org)
+- [ ] `AI_CRAWLER_POLICY` set intentionally (default `allow`; `block-training` excludes AI training crawlers only)
+
+> [!NOTE]
+> **Verification** — the statements above are based on Google's public
+> documentation as of **2026-10-08** (links inline). Google updates these
+> documents continuously; re-check the linked pages when you plan a 2027
+> quarter. Nothing here should be read as a guarantee of rankings — the
+> documentation defines eligibility and risk, not outcomes.
 
 ---
 
@@ -297,6 +519,81 @@ interface SeoData {
 
 ---
 
+## Head Rendering (Site Starter)
+
+The site starter renders the stored SEO data into the public document head
+automatically — the widget data is the single source of truth, so no second
+SEO layer is needed:
+
+| Stored field                                                           | Rendered head tag                                                          |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `title`                                                                | `<title>` (falls back to the page title, then the site name)               |
+| `description`                                                          | `<meta name="description">`                                                |
+| `focusKeyword`                                                         | `<meta name="keywords">`                                                   |
+| `robotsMeta`                                                           | `<meta name="robots">` (omitted when absent)                               |
+| `canonicalUrl`                                                         | `<link rel="canonical">` (self-referencing URL with `?lang=` when omitted) |
+| `ogTitle` / `ogDescription` / `ogImage`                                | `<meta property="og:title">` etc. (fall back to title/description)         |
+| `twitterCard` / `twitterTitle` / `twitterDescription` / `twitterImage` | `<meta name="twitter:card">` etc.                                          |
+| `schemaMarkup`                                                         | `<script type="application/ld+json">`                                      |
+
+Behavior details:
+
+- **Locales**: the active locale's data is used, falling back to the default
+  content language, then `en`. hreflang alternates are derived from the
+  translated locale keys of the stored record (site-starter URLs carry the
+  locale as `?lang=`).
+- **Media images**: `ogImage`/`twitterImage` store media IDs — the server
+  resolves them to absolute public URLs (cloud/CDN URLs pass through). A
+  missing media file only omits the image tag.
+- **Preview safety**: draft/preview renders always emit
+  `<meta name="robots" content="noindex, nofollow">`.
+- **Licensing**: without an active license the premium fields are stripped on
+  save; the renderer simply omits the missing tags.
+- **Escaping**: fields the widget HTML-escapes on save are decoded once before
+  rendering, so values are never double-escaped; JSON-LD is re-serialized with
+  `<` escaped as `\u003c` so stored strings can never break out of the script
+  element.
+
+### Sitemap & robots.txt
+
+- `/sitemap.xml` respects the stored indexing controls: entries with
+  `noindex`/`none` robots directives are omitted, and entries whose canonical
+  URL points to another origin are skipped as duplicates. `pages` entries map
+  to the real site-starter routes with hreflang alternates; the homepage maps
+  to `/` with top priority.
+- `/robots.txt` disallows the admin/auth/system routes (`/api/`, `/login`,
+  `/setup`, `/share`, `/email-previews`) and advertises the sitemap. The
+  `AI_CRAWLER_POLICY` public setting adds per-crawler directives for AI bots
+  (`block-training`: GPTBot / Google-Extended / ClaudeBot / CCBot;
+  `block-all` additionally covers OAI-SearchBot / PerplexityBot / Bytespider
+  and more) — search crawlers are never affected.
+- `/llms.txt` ([llmstxt.org](https://llmstxt.org/)) is generated from the
+  same published data for AI crawlers and agents.
+
+### IndexNow (premium)
+
+When an entry is published and the SEO license is active, the CMS submits the
+entry's public URL to the [IndexNow](https://www.indexnow.org/) endpoint — the
+instant-indexing protocol of the Bing/Yandex/Seznam/Naver ecosystem. Details:
+
+- The IndexNow key is generated with a CSPRNG on first use, stored as the
+  `INDEXNOW_KEY` public setting, and served at `/indexnow.txt` for ownership
+  verification.
+- The ping is fire-and-forget — it never blocks or delays the write, and
+  benchmark/test runs skip it (`skipSideEffects`).
+- Without a license nothing is sent (same tier as the dynamic sitemap).
+  Google does not participate in IndexNow; its own ping endpoint was
+  deprecated in June 2023.
+
+### Auto-generated site JSON-LD
+
+Beyond the widget's per-entry `schemaMarkup`, the head renderer emits
+site-level JSON-LD that needs no authoring: **WebSite** on the homepage and
+**BreadcrumbList** on nested paths (derived from the URL hierarchy). Both use
+break-out-proof serialization and render alongside the widget's own markup.
+
+---
+
 ## SEO Features
 
 ### Basic SEO Tab
@@ -403,6 +700,28 @@ canonicalUrl: "https://example.com/original-post";
 - HTTP vs HTTPS versions
 - WWW vs non-WWW versions
 
+#### Core Web Vitals readout (Page Experience)
+
+The Advanced tab includes an on-demand **Core Web Vitals readout**: enter the
+canonical URL and click **Measure page experience** — the panel calls the
+Google PageSpeed Insights API (no API key required) and displays:
+
+- **Field data** (CrUX): real Chrome users, origin-level, 28-day rolling
+  average, 75th percentile
+- **Lab data** (Lighthouse): a fresh simulation of exactly this URL
+
+LCP, INP and CLS are color-coded against the documented Web Vitals thresholds
+(good / needs improvement / poor). Two honest caveats, stated plainly:
+
+- The readout **displays** measurements — it does not improve them. Fixing
+  CWV is site-level work (hosting, rendering, layout), not metadata.
+- New origins often have **no field data yet**; the panel says so instead of
+  inventing numbers. Lab data is always available for a publicly reachable
+  URL.
+
+The classification logic lives in `src/widgets/custom/seo/cwv.ts` (pure,
+unit-tested beside the widget).
+
 ### Schema Tab
 
 Add structured data for rich search results:
@@ -433,7 +752,7 @@ schemaMarkup: `{
 - **Enterprise SEO**: Global redirects and sitemaps
 - **Multilingual**: SEO per language and `hreflang` sitemaps
 - **Multi-Tenant**: Isolated SEO data and routes per tenant
-- **Indexing**: Automated pings to Google and Bing
+- **Indexing**: IndexNow ping on publish (premium — Bing/Yandex/Seznam/Naver; Google does not participate and its sitemap ping endpoint is deprecated)
 - **Redirects**: Automatic 301 generation on slug changes
 - **GUI**: Integrated dashboard for global redirect management
 - **Performance**: Sub-millisecond middleware interceptors
@@ -593,6 +912,11 @@ const productSchema = {
 ---
 
 ## Rendering SEO Meta Tags
+
+> [!NOTE]
+> The site starter renders all of this automatically from the stored widget
+> data — see [Head Rendering (Site Starter)](#head-rendering-site-starter).
+> The example below shows the manual pattern for custom frontends.
 
 ### Server-Side Rendering
 
@@ -785,11 +1109,25 @@ interface SeoData {
 
 ## Resources
 
+**Google documentation (current requirements, see the section above):**
+
+- [Google Search Essentials](https://developers.google.com/search/docs/essentials)
+- [Google spam policies](https://developers.google.com/search/docs/essentials/spam-policies)
+- [Creating helpful, reliable, people-first content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)
+- [Control your title links in search results](https://developers.google.com/search/docs/appearance/title-link)
+- [Create good titles and snippets](https://developers.google.com/search/docs/appearance/snippet)
+- [Structured data general guidelines](https://developers.google.com/search/docs/appearance/structured-data/search-gallery)
+- [Sitemap guidelines](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
+- [Localized versions (hreflang)](https://developers.google.com/search/docs/specialty/international/localized-versions)
+- [Web Vitals](https://web.dev/vitals/)
+
+**Protocols & tools:**
+
 - [Google Search Central](https://developers.google.com/search)
 - [Open Graph Protocol](https://ogp.me/)
 - [Twitter Cards Documentation](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/abouts-cards)
 - [Schema.org](https://schema.org/)
-- [Structured Data Testing Tool](https://search.google.com/test/rich-results)
+- [Rich Results Test](https://search.google.com/test/rich-results)
 
 ---
 
@@ -805,12 +1143,44 @@ interface SeoData {
 - ✅ AI-powered suggestions (optional)
 - ✅ **Enterprise SEO Suite (v1.6)**:
   - High-performance Redirect Manager with sub-millisecond middleware.
-  - Dynamic Sitemap.xml with `hreflang` and automated indexing pings.
+  - Dynamic Sitemap.xml with `hreflang`.
   - Multi-tenant isolation for all SEO routes and persistent data.
   - Automated 301 redirect generation on entry slug changes.
   - Global Redirect Management GUI in Config.
   - Plugin-based UI injection into Content Sidebar and Header.
   - Token-aware SEO fields for dynamic title/description resolution.
+
+### Documentation (2026-10-08)
+
+- 📚 Added "What Google Documents & Enforces (2026 → 2027)": date-stamped
+  reference of Search Essentials, spam policies (incl. the March 2024 scaled
+  content abuse update), E-E-A-T, Core Web Vitals (INP), structured data
+  eligibility, hreflang/canonical/robots rules, and the AI-content position —
+  with a widget coverage matrix and a compliance checklist.
+
+### Advanced tab (2026-10-08)
+
+- 📊 **Core Web Vitals readout**: the Advanced tab now measures the canonical
+  URL on demand via the Google PageSpeed Insights API (no key required) and
+  displays LCP / INP / CLS — CrUX field data (real users, origin, p75) and
+  Lighthouse lab data — color-coded against the Web Vitals thresholds.
+  Classification logic is pure and unit-tested (`cwv.ts`, `tests/cwv.test.ts`).
+
+### Site layer (2026-10-08)
+
+- 🧩 **Auto-generated site JSON-LD**: WebSite on the homepage and
+  BreadcrumbList on nested paths, derived from the CMS structure (no
+  authoring), rendered with break-out-proof serialization.
+- 🤖 **llms.txt**: `/llms.txt` generated from the published collections for AI
+  crawlers (site name/slogan + per-collection sections, sanitized, cached).
+- 📡 **IndexNow on publish (premium)**: fire-and-forget URL submission to the
+  Bing/Yandex/Seznam/Naver ecosystem when an entry is published; CSPRNG key
+  served at `/indexnow.txt`; no-op without the SEO license.
+- 🚧 **AI-crawler robots directives**: `AI_CRAWLER_POLICY` setting emits
+  per-crawler disallows in robots.txt (training-only or all AI crawlers).
+- 📝 Corrected the legacy "automated pings to Google and Bing" claim — Google
+  deprecated its sitemap ping endpoint in June 2023, so no Google call is
+  made.
 
 ---
 

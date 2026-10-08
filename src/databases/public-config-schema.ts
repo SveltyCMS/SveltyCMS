@@ -118,6 +118,18 @@ export const publicConfigSchema = object({
   // --- Site Starter (optional in-repo SvelteKit frontend) ---
   SITE_STARTER_ENABLED: optional(boolean()),
 
+  // --- Search indexing & AI crawlers ---
+  // IndexNow key: auto-generated with a CSPRNG on first publish ping, served
+  // at /indexnow.txt for ownership verification (premium SEO feature).
+  INDEXNOW_KEY: optional(pipe(string(), minLength(1))),
+  // AI crawler directives in robots.txt: "allow" (default) sends no
+  // directives; "block-training" disallows training crawlers (GPTBot,
+  // Google-Extended, ClaudeBot, CCBot) while keeping search surfaces
+  // (OAI-SearchBot) reachable; "block-all" disallows all listed AI crawlers.
+  AI_CRAWLER_POLICY: optional(
+    union([literal("allow"), literal("block-training"), literal("block-all")]),
+  ),
+
   // --- Demo Mode ---
   USE_GOOGLE_OAUTH: optional(boolean()),
   DEMO_TTL: optional(pipe(number(), minValue(1))),

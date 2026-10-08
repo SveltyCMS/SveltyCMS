@@ -344,6 +344,30 @@ function scheduleAfterOperation(
   });
 }
 
+/**
+ * Best-effort IndexNow ping for freshly published entries (premium SEO,
+ * fire-and-forget). The dynamic import keeps the IndexNow service — settings,
+ * license check, egress fetch — out of the namespace's eager module graph.
+ */
+function scheduleIndexNowPing(
+  collectionId: string,
+  document: unknown,
+  tenantId: DatabaseId | null | undefined,
+): void {
+  if (!document || typeof document !== "object") return;
+  void import("@src/services/content/seo/indexnow.server")
+    .then(({ notifyIndexNowOnPublish }) =>
+      notifyIndexNowOnPublish({
+        collectionId,
+        document: document as Record<string, unknown>,
+        tenantId: tenantId ?? undefined,
+      }),
+    )
+    .catch((err) => {
+      logger.debug("[IndexNow] Publish ping scheduling failed (non-fatal)", { error: err });
+    });
+}
+
 export class CollectionsNamespace {
   private _proxy: CollectionProxy;
 
@@ -1756,6 +1780,7 @@ export class CollectionsNamespace {
         tenantId,
       );
       if (!shouldSkipWriteSideEffects(options)) {
+        scheduleIndexNowPing(collectionId, decryptedCreate?.data ?? result.data, tenantId);
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
         );
@@ -1991,6 +2016,7 @@ export class CollectionsNamespace {
         tenantId,
       );
       if (!shouldSkipWriteSideEffects(options)) {
+        scheduleIndexNowPing(collectionId, decryptedUpdate?.data ?? result.data, tenantId);
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
         );

@@ -21,6 +21,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	// Components
 	import SeoPreview from './components/seo-preview.svelte';
 	import SocialPreview from './components/social-preview.svelte';
+	import CwvPanel from './components/cwv-panel.svelte';
 	// Logic
 	import { analyzeSeo } from './seo-analyzer';
 	import { collections } from '@src/stores/collection-store.svelte';
@@ -430,6 +431,9 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 								<iconify-icon icon="mdi:link-variant" width="24"></iconify-icon>
 							{/snippet}
 						</SeoField>
+
+						<!-- Page experience readout (display-only; measured via the PageSpeed Insights API) -->
+						<CwvPanel url={langData.canonicalUrl || ''} />
 
 						<!-- Schema Markup (Textarea) -->
 						<div class="space-y-2">
