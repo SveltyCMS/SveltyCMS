@@ -75,10 +75,14 @@ let costEntries: Array<[string, number]> = [...BUILT_IN_COSTS].sort(
  */
 export function getEndpointCost(pathname: string): number {
   for (const [prefix, cost] of costEntries) {
+    if (!pathname.startsWith(prefix)) continue;
+    // Begrenzungs-Check ohne String-Konkatenation (keine Allokation im Hot-Path):
+    // Treffer nur bei exakt dem Prefix oder wenn das naechste Zeichen eine
+    // Pfad-Grenze ("/") bzw. Query-Grenze ("?") ist.
     if (
-      pathname === prefix ||
-      pathname.startsWith(prefix + "/") ||
-      pathname.startsWith(prefix + "?")
+      pathname.length === prefix.length ||
+      pathname.charCodeAt(prefix.length) === 47 /* "/" */ ||
+      pathname.charCodeAt(prefix.length) === 63 /* "?" */
     ) {
       return cost;
     }

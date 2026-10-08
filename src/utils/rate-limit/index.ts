@@ -120,20 +120,31 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
   const base = options.base ?? loadBaseRateLimitConfig();
   const context = options.context ?? {};
   const namespace = options.namespace ?? "api";
+  // Ein Timestamp pro Request (statt mehrerer Date.now()-Aufrufe) und der Tier
+  // wird einmal aufgeloest und fuer Velocity-Gate UND Bucket-Berechnung genutzt.
+  const now = Date.now();
+  const tier = resolveUserTier(context);
 
   // C. Cost-Aware: explicit cost wins, else pathname map. Observation-zone
   // extra applies only when cost was derived (never overwrite a caller override).
   const derived = options.pathname ? getEndpointCost(options.pathname) : 1;
   let cost = options.cost ?? derived;
-  if (options.cost === undefined && resolveUserTier(context) !== "admin") {
-    cost *= velocityCostMultiplier(namespace, Date.now());
+  if (options.cost === undefined && tier !== "admin") {
+    cost *= velocityCostMultiplier(namespace, now);
   }
+
+  // Slot der Request-Clock (nur wenn recordRequest gelaufen ist) — wird an
+  // computeAdaptiveBucket durchgereicht, damit der vorhergesagte Druck O(1)
+  // ohne zweite Slot-Berechnung entsteht.
+  let slot: number | undefined;
 
   if (options.record !== false) {
-    recordRequest(Date.now());
+    // recordRequest liefert den Slot mit — getPredictedPressure muss ihn
+    // nicht ein zweites Mal berechnen (s. computeAdaptiveBucket unten).
+    slot = recordRequest(now);
   }
 
-  const bucket = computeAdaptiveBucket(base, context);
+  const bucket = computeAdaptiveBucket(base, context, tier, now, slot);
   const key = buildBucketKey(namespace, context, String(cost));
 
   // ── Primary: Redis (cluster-weit) ──────────────────────────────────────
@@ -143,7 +154,7 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
       // propagate the identical spend to Redis without awaiting it. The local
       // bucket stays current even if Redis later fails (failover consistency
       // win over the awaited path, which never touches the local store).
-      const local = memoryStore.checkAndConsume(key, bucket, cost);
+      const local = memoryStore.checkAndConsume(key, bucket, cost, false, now);
       void redisStore.checkAndConsume(key, bucket, cost).catch((err) => {
         logger.debug("[RateLimit] async Redis propagate failed:", err?.message ?? err);
       });
@@ -171,7 +182,7 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
   }
 
   // ── Fallback: lokal (In-Memory) ────────────────────────────────────────
-  const res = memoryStore.checkAndConsume(key, bucket, cost);
+  const res = memoryStore.checkAndConsume(key, bucket, cost, false, now);
   return {
     allowed: res.allowed,
     scope: "memory",

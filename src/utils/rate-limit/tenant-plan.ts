@@ -41,10 +41,13 @@ export function seedTenantPlan(
 }
 
 /** Hot-path scale. Miss / stale → 1.0 (never queries). */
-export function getTenantPlanScale(tenantId: string | null | undefined): number {
+export function getTenantPlanScale(
+  tenantId: string | null | undefined,
+  nowMs = Date.now(),
+): number {
   if (!tenantId || tenantId === "global") return 1;
   const hit = plans.get(tenantId);
-  if (!hit || hit.exp <= Date.now()) return 1;
+  if (!hit || hit.exp <= nowMs) return 1;
   return hit.scale;
 }
 

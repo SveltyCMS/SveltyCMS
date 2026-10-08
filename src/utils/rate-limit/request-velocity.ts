@@ -14,6 +14,13 @@
 
 const MAX_KEYS = 10_000;
 const EMA_ALPHA = 0.3;
+/**
+ * Vorberechnetes EMA-Komplement. MUSS als `1 - EMA_ALPHA` ausgedrueckt
+ * werden (nicht als Literal `0.7`): nur so ist das Ergebnis bit-identisch
+ * zur bisherigen Inline-Rechnung; ein Literal wuerde den EMA-Pfad numerisch
+ * minimal verschieben.
+ */
+const ONE_MINUS_ALPHA = 1 - EMA_ALPHA;
 /** Sustained req/s at which cost doubles (mutations only in the caller). */
 const WARN_RPS = 20;
 /** Sustained req/s at which cost quadruples. */
@@ -50,7 +57,7 @@ export function velocityCostMultiplier(key: string, nowMs: number): number {
 
   const dt = Math.max(1, nowMs - prev.lastMs);
   const inst = 1000 / dt;
-  prev.ema = EMA_ALPHA * inst + (1 - EMA_ALPHA) * prev.ema;
+  prev.ema = EMA_ALPHA * inst + ONE_MINUS_ALPHA * prev.ema;
   prev.lastMs = nowMs;
   prev.samples += 1;
 

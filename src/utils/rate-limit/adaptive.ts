@@ -73,9 +73,13 @@ export function resolveUserTier(ctx: AdaptiveContext): UserTier {
  * Wenn der Vorhersage-Druck > 0.75 ist, wird er wie ein mittlerer Last-Zustand
  * behandelt (auch ohne aktuelle CPU-Last).
  *
+ * `nowMs`/`slot` werden vom Aufrufer durchgereicht (ein Timestamp pro
+ * Request, keine zweite Slot-Berechnung); weggelassen wird wie bisher
+ * intern aufgeloest — das Ergebnis ist identisch.
+ *
  * Admin-Tier ist immer ausgenommen (Faktor = 1.0).
  */
-function computePressureFactor(tier: UserTier): number {
+function computePressureFactor(tier: UserTier, nowMs: number, slot?: number): number {
   if (tier === "admin") return 1.0;
 
   // Echter System-Druck (EWMA ueber CPU/RAM)
@@ -85,7 +89,7 @@ function computePressureFactor(tier: UserTier): number {
   if (hardPressure < 1.0) return hardPressure;
 
   // Predictive Throttling: Vorhersage-Druck als Proxy fuer kommende Last.
-  const predicted = getPredictedPressure();
+  const predicted = getPredictedPressure(nowMs, slot);
   if (predicted > 0.75) {
     // Prophylaktisch: leichte Drosselung wie im "mittleren Last-Bereich".
     if (tier === "staff") return 0.85;
@@ -105,20 +109,36 @@ function computePressureFactor(tier: UserTier): number {
  * Die Refill-Rate skaliert proportional zur Kapazitaet, damit die "Zeit bis
  * zum vollen Bucket" konstant bleibt (kein Admin-Lemming-Spam, aber auch kein
  * Gast-Nachteil bei der Erholung).
+ *
+ * `tier`: optional voraufgeloester Tier (der Aufrufer hat ihn im Hot-Path
+ * bereits fuer den Velocity-Gate bestimmt); weggelassen wird er hier intern
+ * aufgeloest — das Ergebnis ist identisch.
+ *
+ * `nowMs`/`slot`: optionaler durchgereichter Timestamp bzw. bereits berechneter
+ * Request-Clock-Slot (ein `Date.now()` pro Request); weggelassen wird intern
+ * aufgeloest — das Ergebnis ist identisch.
  */
 export function computeAdaptiveBucket(
   base: BaseRateLimitConfig,
   ctx: AdaptiveContext,
+  tier?: UserTier,
+  nowMs = Date.now(),
+  slot?: number,
 ): TokenBucketConfig {
-  const tier = resolveUserTier(ctx);
-  const pressureFactor = computePressureFactor(tier);
-  const baseCapacity = Math.max(1, Number(base.capacity) || 1);
-  const baseRefill = Math.max(0, Number(base.refillPerSecond) || 0);
+  const resolvedTier = tier ?? resolveUserTier(ctx);
+  const pressureFactor = computePressureFactor(resolvedTier, nowMs, slot);
+  // `capacity`/`refillPerSecond` sind bereits `number` (TokenBucketConfig) —
+  // das `Number()`-Rewrap im Hot-Path ist entfallen.
+  const baseCapacity = Math.max(1, base.capacity || 1);
+  const baseRefill = Math.max(0, base.refillPerSecond || 0);
 
   const capacity = Math.max(
     1,
     Math.round(
-      baseCapacity * TIER_MULTIPLIER[tier] * getTenantPlanScale(ctx.tenantId) * pressureFactor,
+      baseCapacity *
+        TIER_MULTIPLIER[resolvedTier] *
+        getTenantPlanScale(ctx.tenantId, nowMs) *
+        pressureFactor,
     ),
   );
   const refillPerSecond = Math.max(0.001, (capacity / baseCapacity) * baseRefill);

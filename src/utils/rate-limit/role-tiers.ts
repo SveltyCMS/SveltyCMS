@@ -43,12 +43,50 @@ export function seedRoleTiers(
   }
 }
 
+/**
+ * Code Units, die `String.prototype.trim()` am Anfang/Ende entfernt
+ * (ECMA-262 WhiteSpace + LineTerminator, inkl. NBSP/ZWNBSP).
+ */
+function isTrimCodeUnit(code: number): boolean {
+  return (
+    (code >= 0x09 && code <= 0x0d) ||
+    code === 0x20 ||
+    code === 0xa0 ||
+    code === 0x1680 ||
+    (code >= 0x2000 && code <= 0x200a) ||
+    code === 0x2028 ||
+    code === 0x2029 ||
+    code === 0x202f ||
+    code === 0x205f ||
+    code === 0x3000 ||
+    code === 0xfeff
+  );
+}
+
+/**
+ * Normalisiert eine Rolle exakt wie `trim().toLowerCase()`, aber ohne
+ * Allokation im Hot-Path: eine bereits normalisierte Rolle (lowercase,
+ * kein Rand-Whitespace) wird unveraendert zurueckgegeben.
+ */
+function normalizeRole(role: string | null | undefined): string | null {
+  if (!role) return null;
+  // Fast Path nur, wenn das Ergebnis identisch zum Rohwert ist.
+  if (
+    role === role.toLowerCase() &&
+    (role.length === 0 ||
+      (!isTrimCodeUnit(role.charCodeAt(0)) && !isTrimCodeUnit(role.charCodeAt(role.length - 1))))
+  ) {
+    return role;
+  }
+  return role.trim().toLowerCase();
+}
+
 export function resolveRoleTier(
   role: string | null | undefined,
   isAdmin?: boolean | null,
 ): UserTier | null {
   if (isAdmin === true) return "admin";
-  const n = role?.trim().toLowerCase();
+  const n = normalizeRole(role);
   if (!n) return null;
   if (adminRoles.has(n)) return "admin";
   if (staffRoles.has(n)) return "staff";

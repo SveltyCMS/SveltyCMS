@@ -8,7 +8,10 @@
  * - Jeder Request inkrementiert den aktuellen Slot.
  * - `getPredictedPressure()`: Vergleicht den aktuellen Slot-Count mit dem
  *   gleitenden Durchschnitt der letzten N Tage (gleicher Slot) und gibt
- *   einen Faktor [0, 1] zurueck.
+ *   einen Faktor [0, 1] zurueck. O(1) im Hot-Path: statt der Tages-Schleife
+ *   werden pro Slot laufende Summen/Nonzero-Tageszaehler gefuehrt (Update
+ *   in `recordRequest`, dem einzigen Schreiber des Histogramms — Ergebnis
+ *   ist exakt identisch zur Schleifen-Berechnung).
  * - Warmup-Schutz: Erste 24h nach Start → kein Predictive-Throttling (Factor = 0).
  * - Kein PII — nur aggregierte Slot-Counts.
  * - Konfiguration: RATE_CLOCK_SLOT_MINUTES (default 15), RATE_CLOCK_HISTORY_DAYS (default 7).
@@ -37,11 +40,35 @@ let histogram: number[][] = [];
 let startMs = 0;
 let initialized = false;
 
+/**
+ * Laufende Aggregat-Spalten pro Slot (fuer getPredictedPressure in O(1)):
+ * - `slotTotals[slot]`      = Summe ueber ALLE Tage (Σ_d histogram[d][slot])
+ * - `slotActiveDays[slot]`  = Anzahl Tage mit Count > 0 in diesem Slot
+ *
+ * Werden ausschliesslich in `recordRequest` (dem einzigen Schreiber des
+ * Histogramms) gepflegt und sind damit per Konstruktion exakt gleich zu
+ * einer Schleifen-Summe ueber das Histogramm — inklusive des bestehenden
+ * Rollover-Verhaltens (Tag-Zeile wird beim Umlauf NICHT genullt).
+ */
+let slotTotals: number[] = [];
+let slotActiveDays: number[] = [];
+
+/**
+ * Wiederverwendetes Date-Objekt fuer die Slot-Berechnung im Hot-Path:
+ * `new Date(nowMs)` zweimal pro Request (2 Heap-Allokationen) wird durch
+ * `setTime` + Lesen der lokalen Stunden/Minuten ersetzt. Die LOKALZEIT-
+ * Semantik inkl. DST-Verhalten bleibt exakt identisch — bewusst keine
+ * UTC-Arithmetik, die die Slot-Grenzen verschieben wuerde.
+ */
+const slotScratch = new Date(0);
+
 function ensureInit(nowMs: number): void {
   if (initialized) return;
   histogram = Array.from({ length: HISTORY_DAYS }, () =>
     Array.from({ length: SLOTS_PER_DAY }, () => 0),
   );
+  slotTotals = Array.from({ length: SLOTS_PER_DAY }, () => 0);
+  slotActiveDays = Array.from({ length: SLOTS_PER_DAY }, () => 0);
   startMs = nowMs;
   initialized = true;
   logger.debug("[RequestClock] Initialisiert: %d Tage x %d Slots", HISTORY_DAYS, SLOTS_PER_DAY);
@@ -50,7 +77,8 @@ function ensureInit(nowMs: number): void {
 // ─── Slot-Berechnung ──────────────────────────────────────────────────────────
 
 function getSlotIndex(nowMs: number): number {
-  const minuteOfDay = new Date(nowMs).getHours() * 60 + new Date(nowMs).getMinutes();
+  slotScratch.setTime(nowMs);
+  const minuteOfDay = slotScratch.getHours() * 60 + slotScratch.getMinutes();
   return Math.floor(minuteOfDay / SLOT_MINUTES) % SLOTS_PER_DAY;
 }
 
@@ -71,12 +99,21 @@ function isWarmedUp(nowMs: number): boolean {
 /**
  * Erfasst einen eingehenden Request im Histogramm.
  * Sollte im Rate-Limit-Hot-Path aufgerufen werden.
+ *
+ * Gibt den Slot-Index zurueck, damit der Aufrufer ihn an
+ * `getPredictedPressure()` weiterreichen kann (spart die zweite
+ * Slot-Berechnung im selben Request).
  */
-export function recordRequest(nowMs = Date.now()): void {
+export function recordRequest(nowMs = Date.now()): number {
   ensureInit(nowMs);
   const day = getDayIndex(nowMs);
   const slot = getSlotIndex(nowMs);
+  if (histogram[day]![slot]! === 0) {
+    slotActiveDays[slot]! += 1;
+  }
+  slotTotals[slot]! += 1;
   histogram[day]![slot]! += 1;
+  return slot;
 }
 
 /**
@@ -91,28 +128,21 @@ export function recordRequest(nowMs = Date.now()): void {
  * - Vor Warmup: 0 (kein Predictive-Throttling).
  * - Wenn kein historischer Schnitt vorhanden: 0.
  */
-export function getPredictedPressure(nowMs = Date.now()): number {
+export function getPredictedPressure(nowMs = Date.now(), slotIndex?: number): number {
   if (!isWarmedUp(nowMs)) return 0;
 
   const currentDay = getDayIndex(nowMs);
-  const slot = getSlotIndex(nowMs);
+  const slot = slotIndex === undefined ? getSlotIndex(nowMs) : slotIndex;
+  const current = histogram[currentDay]![slot]!;
 
-  // Historischer Schnitt (alle Tage ausser dem aktuellen)
-  let historicalSum = 0;
-  let historicalCount = 0;
-  for (let d = 0; d < HISTORY_DAYS; d++) {
-    if (d === currentDay) continue;
-    const v = histogram[d]![slot]!;
-    if (v > 0) {
-      historicalSum += v;
-      historicalCount++;
-    }
-  }
+  // Historischer Schnitt (alle Tage ausser dem aktuellen) — O(1) via
+  // Aggregat-Spalten statt Tages-Schleife; mathematisch identisch.
+  const historicalSum = slotTotals[slot]! - current;
+  const historicalCount = slotActiveDays[slot]! - (current > 0 ? 1 : 0);
 
   if (historicalCount === 0) return 0;
 
   const avg = historicalSum / historicalCount;
-  const current = histogram[currentDay]![slot]!;
 
   if (avg <= 0) return 0;
 
@@ -148,6 +178,8 @@ export function describeRequestClock(nowMs = Date.now()): {
  */
 export function _resetRequestClock(): void {
   histogram = [];
+  slotTotals = [];
+  slotActiveDays = [];
   startMs = 0;
   initialized = false;
 }

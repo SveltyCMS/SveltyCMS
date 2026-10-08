@@ -3,9 +3,13 @@
  * @description In-Memory-Fallback fuer Token-Bucket (lokal, ohne Redis).
  *
  * Wird genutzt, wenn Redis nicht erreichbar ist. Bounded (MAX_BUCKETS) mit
- * LRU-artigem Evict: aktive Keys werden ans Ende verschoben (delete-then-set),
- * damit viel benutzte Buckets nicht zuerst verdrängt werden (Bypass-Schutz).
- * Abgelaufene Keys (kein Refill-Intervall aktiv) werden periodisch bereinigt.
+ * LRU-artigem Evict: aktive Keys werden ans Ende der Insertion-Reihenfolge
+ * verschoben, damit viel benutzte Buckets nicht zuerst verdrängt werden
+ * (Bypass-Schutz). Der Re-Insert ist gedrosselt (nur jeder LRU_REFRESH_EVERY-te
+ * Touch) — spart die 2 Map-Operationen (delete+set) pro Request; der
+ * Eviction-Kandidat ist dadurch um hoechstens LRU_REFRESH_EVERY-1 Touches
+ * veraltet, was fuer die Heuristik unkritisch ist (prune() raeumt exakt per
+ * lastActiveMs auf). Abgelaufene Keys werden periodisch bereinigt.
  */
 
 import { logger } from "@utils/logger";
@@ -22,9 +26,19 @@ const CLEANUP_INTERVAL_MS = 60_000;
 /** Leerer Bucket = verwaist; wird nach dieser Zeit ohne Nutzung entfernt. */
 const IDLE_EVICT_MS = 10 * 60_000;
 
+/**
+ * LRU-Refresh-Drossel: die Iterationsposition wird nur alle N Touches per
+ * delete+set aufgefrischt statt bei jedem Request (2 Map-Operationen → 2/N
+ * amortisiert). Der aelteste Insertion-Key ist damit um hoechstens N-1
+ * Touches veraltet — fuer die MAX_BUCKETS-Eviction-Heuristik unkritisch.
+ */
+const LRU_REFRESH_EVERY = 16;
+
 interface BucketEntry {
   state: TokenBucketState;
   lastActiveMs: number;
+  /** Touches seit dem letzten LRU-Re-Insert (s. LRU_REFRESH_EVERY). */
+  touchesSinceRefresh: number;
 }
 
 export interface MemoryConsumeResult {
@@ -51,19 +65,26 @@ export class MemoryRateLimitStore {
     }
   }
 
-  /** Fuehrt checkAndConsume auf dem lokalen Bucket aus. */
+  /**
+   * Fuehrt checkAndConsume auf dem lokalen Bucket aus.
+   *
+   * `nowMs`: optionaler durchgereichter Timestamp (ein `Date.now()` pro
+   * Request im Engine-Pfad); weggelassen wird er hier bestimmt — die
+   * Bucket-Mathematik bleibt identisch.
+   */
   checkAndConsume(
     key: string,
     bucket: TokenBucketConfig,
     cost = 1,
     overdraft = false,
+    nowMs = Date.now(),
   ): MemoryConsumeResult {
-    const now = Date.now();
+    const now = nowMs;
     let entry = this.buckets.get(key);
 
     // Neuer Bucket → voll starten und konsumieren (kein Gratis-Token).
     if (!entry) {
-      entry = { state: createBucket(bucket, now), lastActiveMs: now };
+      entry = { state: createBucket(bucket, now), lastActiveMs: now, touchesSinceRefresh: 0 };
       this.evictIfFull();
       this.buckets.set(key, entry);
     }
@@ -72,9 +93,14 @@ export class MemoryRateLimitStore {
     entry.state = result.state;
     entry.lastActiveMs = now;
 
-    // Refresh Iterationsposition (LRU): aktive Keys ans Ende.
-    this.buckets.delete(key);
-    this.buckets.set(key, entry);
+    // LRU-Refresh gedrosselt (s. LRU_REFRESH_EVERY): statt delete+set pro
+    // Request nur alle N Touches. Frische Eintraege stehen bereits am Ende.
+    entry.touchesSinceRefresh += 1;
+    if (entry.touchesSinceRefresh >= LRU_REFRESH_EVERY) {
+      entry.touchesSinceRefresh = 0;
+      this.buckets.delete(key);
+      this.buckets.set(key, entry);
+    }
 
     return {
       allowed: result.allowed,
@@ -116,7 +142,7 @@ export class MemoryRateLimitStore {
     const now = Date.now();
     for (const [key, state] of Object.entries(data)) {
       if (typeof state?.tokens === "number" && typeof state?.lastRefillMs === "number") {
-        this.buckets.set(key, { state, lastActiveMs: now });
+        this.buckets.set(key, { state, lastActiveMs: now, touchesSinceRefresh: 0 });
       }
     }
   }
