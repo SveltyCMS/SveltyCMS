@@ -985,36 +985,38 @@ function bundleBackgroundWorkerPlugin(): Plugin {
  * adapter-node v6 (SvelteKit 3) post-build patches for the emitted server
  * handler chunk:
  *
- * 1. `origin` is inlined at BUILD time (`const origin = ORIGIN`, i.e.
- *    `const origin = void 0` when unset). It never reads `process.env.ORIGIN`
- *    at runtime and falls back to deriving the origin from request headers
- *    with a hardcoded `https` protocol default. On plain-HTTP previews
- *    (CI e2e-prep, local `node build/index.js`, the `index.cjs` Plesk entry)
- *    SvelteKit's remote same-origin gate then computes a self-origin of
+ * 1. `origin` is emitted as an adapt-time module value (`export const origin
+ *    = undefined;` in `build/adapter-node.js`) — adapter-node 6.0.0 removed the
+ *    `ORIGIN` environment variable. The handler never reads `process.env.ORIGIN`
+ *    at runtime and falls back to deriving the origin from request headers with
+ *    a hardcoded `https` protocol default. On plain-HTTP previews (CI e2e-prep,
+ *    local `node build/index.js`, the `index.cjs` Plesk entry) SvelteKit's
+ *    remote same-origin gate then computes a self-origin of
  *    `https://127.0.0.1:4173` while the browser sends
- *    `Origin: http://127.0.0.1:4173`, so every non-GET remote function
- *    (e.g. `completeSetup` in the setup wizard) is rejected with 403
- *    "Cross-site remote requests are forbidden".
- *    Fix: restore the adapter-node v5 runtime contract — read `ORIGIN` from
- *    the environment at server start. When unset, behaviour is unchanged.
+ *    `Origin: http://127.0.0.1:4173`, so every non-GET remote function (e.g.
+ *    `completeSetup` in the setup wizard) is rejected with 403 "Cross-site
+ *    remote requests are forbidden". Fix: restore the v5 runtime contract —
+ *    read `ORIGIN` from the environment at server start. When unset, behaviour
+ *    is unchanged.
  *
- * 3. `build/index.js` (adapter-node entry) gets fast-lane dispatch: GET/HEAD
- *    requests consult `globalThis.__SVELTY_FAST_LANES__` (published by
- *    `installFastLanes()` at boot) before the full SvelteKit pipeline. It
- *    calls the lane functions so auth, tenancy, publication clamping and
- *    security headers stay in one place, and `BENCH_VERIFY_RAW=1` proves both
- *    transports byte-identical inside a single server run. Also adds the
- *    per-socket `noDelay` so small JSON responses are not held by Nagle.
- *    Both edits are pattern-guarded: a changed adapter-node template leaves
- *    the entry untouched (with a warning) instead of corrupting it.
+ * 3. `build/server/adapter-index.js` (adapter-node entry; `build/index.js` is
+ *    now a re-export shim) gets fast-lane dispatch: GET/HEAD requests consult
+ *    `globalThis.__SVELTY_FAST_LANES__` (published by `installFastLanes()` at
+ *    boot) before the full SvelteKit pipeline. It calls the lane functions so
+ *    auth, tenancy, publication clamping and security headers stay in one
+ *    place, and `BENCH_VERIFY_RAW=1` proves both transports byte-identical
+ *    inside a single server run. Also adds the per-socket `noDelay` so small
+ *    JSON responses are not held by Nagle. Both edits are pattern-guarded: a
+ *    changed adapter-node template leaves the entry untouched (with a warning)
+ *    instead of corrupting it.
  *
- * 4. The handler chunk's kit-level `BODY_SIZE_LIMIT` default (512K) is
- *    raised to 100M (the kit parser accepts K/M/G suffixes only, so
- *    "100MB" would throw at boot). The app's own 15MB
- *    `API_MAX_BODY_SIZE_BYTES` guard (`@utils/api-body-limits`) is the real
- *    ceiling for API bodies, so the kit default must never reject a body the
- *    app would accept (a 500-doc bulk seed chunk is ~530KB — at 512K it
- *    failed with a kit-level 413 and the seeder fell back to per-item
+ * 4. The minified handler (`build/server/adapter-node-handler.js`) has a
+ *    kit-level `BODY_SIZE_LIMIT` default (512K) that is raised to 100M (the kit
+ *    parser accepts K/M/G suffixes only, so "100MB" would throw at boot). The
+ *    app's own 15MB `API_MAX_BODY_SIZE_BYTES` guard (`@utils/api-body-limits`)
+ *    is the real ceiling for API bodies, so the kit default must never reject
+ *    a body the app would accept (a 500-doc bulk seed chunk is ~530KB — at
+ *    512K it failed with a kit-level 413 and the seeder fell back to per-item
  *    creates). Pattern-guarded like the other patches.
  */
 function adapterNodeBuildPatchPlugin(): Plugin {
@@ -1027,53 +1029,35 @@ function adapterNodeBuildPatchPlugin(): Plugin {
     buildApp: {
       order: "post",
       async handler() {
-        const chunkDirs = [
-          path.resolve(CWD, "build/server/chunks"),
-          path.resolve(CWD, ".svelte-kit/output/server/chunks"),
-        ];
-        const originPattern = /const origin\s*=\s*(?:void 0|undefined);/;
-        const inlineDirRegion =
-          /\/\/#region \.svelte-kit\/adapter-node\/entries\/dir\.js\nconst dir = dirname\(fileURLToPath\(import\.meta\.url\)\);\n\/\/#endregion/;
-        for (const dir of chunkDirs) {
-          if (!existsSync(dir)) continue;
-          for (const file of readdirSync(dir)) {
-            if (!/^handler-.*\.js$/.test(file)) continue;
-            const filePath = path.join(dir, file);
-            let code = readFileSync(filePath, "utf8");
-            let changed = false;
-            if (originPattern.test(code)) {
-              code = code.replace(originPattern, "const origin = process.env.ORIGIN;");
-              changed = true;
-            }
-            if (inlineDirRegion.test(code)) {
-              // Resolve the build root explicitly: chunks dir -> ../.. (works on
-              // Windows and Linux regardless of the chunk's hashed filename).
-              code = code.replace(
-                inlineDirRegion,
-                '//#region .svelte-kit/adapter-node/entries/dir.js (patched: resolve build root)\nconst dir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");\n//#endregion',
-              );
-              changed = true;
-            }
-            if (changed) {
-              await fsPromises.writeFile(filePath, code);
-              log.info(`patched adapter handler (${path.relative(CWD, filePath)})`);
-            }
+        // ── 1. origin ────────────────────────────────────────────────────────────
+        // adapter-node 6.0.0 removed the `ORIGIN` env var and hands adapt-time
+        // values to the server as `build/adapter-node.js`. Restore the v5 runtime
+        // contract: read `ORIGIN` from the environment at server start. When
+        // unset, the handler falls back to header-derived origin (unchanged).
+        const adapterModulePath = path.resolve(CWD, "build/adapter-node.js");
+        if (existsSync(adapterModulePath)) {
+          let code = readFileSync(adapterModulePath, "utf8");
+          const originPattern = /export const origin = undefined;/;
+          if (originPattern.test(code)) {
+            code = code.replace(originPattern, "export const origin = process.env.ORIGIN;");
+            await fsPromises.writeFile(adapterModulePath, code);
+            log.info(`patched adapter-node origin (${path.relative(CWD, adapterModulePath)})`);
+          }
+        }
 
-            // Kit-level body ceiling: the app enforces its own 15MB
-            // API_MAX_BODY_SIZE_BYTES in the dispatcher, so the kit default
-            // must never reject first (see the plugin doc comment). Applied
-            // BEFORE the write above — all three patches land in one write.
-            const bodyLimitPattern = /parse_as_bytes\(env\("BODY_SIZE_LIMIT", "512K"\)\)/;
-            if (bodyLimitPattern.test(code)) {
-              code = code.replace(
-                bodyLimitPattern,
-                'parse_as_bytes(env("BODY_SIZE_LIMIT", "100M"))',
-              );
-              changed = true;
-            }
-            if (changed) {
-              await fsPromises.writeFile(filePath, code);
-            }
+        // ── 2. kit-level body ceiling ────────────────────────────────────────────
+        // The handler is now minified at `build/server/adapter-node-handler.js` and
+        // the default is `u("BODY_SIZE_LIMIT","512K")` (`u` = env, `U` =
+        // parse_as_bytes). Raise to 100M; the app's own 15MB
+        // API_MAX_BODY_SIZE_BYTES guard is the real ceiling (see plugin doc).
+        const handlerPath = path.resolve(CWD, "build/server/adapter-node-handler.js");
+        if (existsSync(handlerPath)) {
+          let code = readFileSync(handlerPath, "utf8");
+          const bodyLimitPattern = /u\("BODY_SIZE_LIMIT","512K"\)/;
+          if (bodyLimitPattern.test(code)) {
+            code = code.replace(bodyLimitPattern, 'u("BODY_SIZE_LIMIT","100M")');
+            await fsPromises.writeFile(handlerPath, code);
+            log.info(`patched adapter-node body limit (${path.relative(CWD, handlerPath)})`);
           }
         }
 
@@ -1092,23 +1076,20 @@ function adapterNodeBuildPatchPlugin(): Plugin {
           }
         }
 
-        // Patch the adapter-node ENTRY (build/index.js) with the fast-lane
-        // dispatch + per-socket noDelay — see the plugin doc comment above.
-        // The entry imports `handler` from the (possibly hashed) chunk, so the
-        // patch only touches the listener body and never the import graph.
-        const nodeEntryPath = path.resolve(CWD, "build/index.js");
+        // ── 3. fast-lane dispatch + per-socket noDelay on the minified entry ────
+        // `build/index.js` is now a re-export shim; the listener lives in
+        // `build/server/adapter-index.js` (minified: `e` = httpServer, `h` =
+        // handler, `a` = req, `s` = res). Pattern-guarded like the other patches.
+        const nodeEntryPath = path.resolve(CWD, "build/server/adapter-index.js");
         if (existsSync(nodeEntryPath)) {
           let code = readFileSync(nodeEntryPath, "utf8");
           let changed = false;
 
-          const serverPattern = /const httpServer = http\.createServer\(\);/;
+          const serverPattern = /e\.on\("request"/;
           if (serverPattern.test(code)) {
             code = code.replace(
               serverPattern,
-              "const httpServer = http.createServer();\n" +
-                "//#region svelty-fast-lanes (patched): low-latency socket policy\n" +
-                'httpServer.on("connection", (socket) => socket.setNoDelay(true));\n' +
-                "//#endregion",
+              'e.on("connection",__svelty_socket=>__svelty_socket.setNoDelay(!0));e.on("request"',
             );
             changed = true;
           } else {
@@ -1117,37 +1098,11 @@ function adapterNodeBuildPatchPlugin(): Plugin {
             );
           }
 
-          const listenerPattern =
-            /return handler\(req, res, \(\) => \{\n\t\tres\.statusCode = 404;\n\t\tres\.end\(\);\n\t\}\);/;
+          const listenerPattern = /h\(a,s,\(\)=>\{s\.statusCode=404,s\.end\(\)\}\)/;
           if (listenerPattern.test(code)) {
             code = code.replace(
               listenerPattern,
-              "const __svelty_next = () => {\n" +
-                "\t\tres.statusCode = 404;\n" +
-                "\t\tres.end();\n" +
-                "\t};\n" +
-                "\t//#region svelty-fast-lanes (patched): consult the lane registry before the full pipeline\n" +
-                '\tconst __svelty_lanes = globalThis["__SVELTY_FAST_LANES__"];\n' +
-                '\tif (__svelty_lanes && (req.method === "GET" || req.method === "HEAD") && req.headers["x-fast-lane"] !== "off") {\n' +
-                "\t\t__svelty_lanes({\n" +
-                "\t\t\tmethod: req.method,\n" +
-                '\t\t\turl: req.url || "/",\n' +
-                '\t\t\torigin: process.env.ORIGIN || `http://${req.headers.host || "localhost"}`,\n' +
-                "\t\t\theaders: req.headers,\n" +
-                "\t\t})\n" +
-                "\t\t\t.then((out) => {\n" +
-                "\t\t\t\tif (!out) {\n" +
-                "\t\t\t\t\thandler(req, res, __svelty_next);\n" +
-                "\t\t\t\t\treturn;\n" +
-                "\t\t\t\t}\n" +
-                "\t\t\t\tres.writeHead(out.status, out.headers);\n" +
-                "\t\t\t\tres.end(out.body);\n" +
-                "\t\t\t})\n" +
-                "\t\t\t.catch(() => handler(req, res, __svelty_next));\n" +
-                "\t\treturn;\n" +
-                "\t}\n" +
-                "\t//#endregion\n" +
-                "\treturn handler(req, res, __svelty_next);",
+              '(()=>{const __svelty_next=()=>{s.statusCode=404;s.end()};const __svelty_lanes=globalThis["__SVELTY_FAST_LANES__"];if(__svelty_lanes&&(a.method==="GET"||a.method==="HEAD")&&a.headers["x-fast-lane"]!=="off"){__svelty_lanes({method:a.method,url:a.url||"/",origin:process.env.ORIGIN||("http://"+(a.headers.host||"localhost")),headers:a.headers}).then(__svelty_out=>{if(!__svelty_out){h(a,s,__svelty_next);return}s.writeHead(__svelty_out.status,__svelty_out.headers);s.end(__svelty_out.body)}).catch(()=>h(a,s,__svelty_next));return}h(a,s,__svelty_next)})()',
             );
             changed = true;
           } else {
