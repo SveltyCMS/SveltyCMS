@@ -1,7 +1,22 @@
+/**
+ * @file src/utils/server/collection-utils.server.ts
+ * @description First-collection redirect resolution with a language- and
+ * tenant-aware 5-minute memo cache (server-only).
+ *
+ * ### Features:
+ * - `fetchAndRedirectToFirstCollection` resolves the redirect URL uncached.
+ * - `getCachedFirstCollectionPath` memoizes per locale (global) or per
+ *   `tenantId:locale`; null results and errors are never cached.
+ * - `invalidateFirstCollectionPathCache` drops all entries when the
+ *   collection set changes (setup reset, collectionbuilder mutations).
+ * - The per-tenant map is bounded (oldest-entry eviction at capacity, same
+ *   policy as permission-cache.ts); the global map is naturally bounded by
+ *   the locale set.
+ */
+
 import { contentSystem } from "@src/content/index.server";
 import type { Locale } from "@src/paraglide/runtime";
 import { logger } from "@utils/logger";
-import { SvelteMap } from "svelte/reactivity";
 
 /**
  * Constructs a redirect URL to the first available collection, prefixed with the given language.
@@ -33,12 +48,21 @@ export async function fetchAndRedirectToFirstCollection(
   }
 }
 
-const cachedFirstCollectionPaths = new SvelteMap<Locale, { path: string; expiry: number }>();
-const cachedFirstCollectionPathsByTenant = new SvelteMap<
-  string,
-  { path: string; expiry: number }
->();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+/** Capacity of the per-tenant map (one entry per tenant:locale pair). */
+const MAX_TENANT_CACHE_ENTRIES = 100;
+
+interface CachedPath {
+  path: string;
+  expiry: number;
+}
+
+// Plain `Map`s on purpose: server-only caches — the reactivity bookkeeping of
+// `SvelteMap` would be pure overhead here. Map preserves insertion order,
+// which the bounded tenant map uses to evict the oldest entry.
+const cachedFirstCollectionPaths = new Map<Locale, CachedPath>();
+const cachedFirstCollectionPathsByTenant = new Map<string, CachedPath>();
 
 /**
  * Clears the memoized first-collection redirect paths.
@@ -51,6 +75,15 @@ export function invalidateFirstCollectionPathCache(): void {
   cachedFirstCollectionPathsByTenant.clear();
 }
 
+/** Stores a tenant-scoped entry, evicting the oldest entry when at capacity. */
+function cacheTenantPath(cacheKey: string, entry: CachedPath): void {
+  if (cachedFirstCollectionPathsByTenant.size >= MAX_TENANT_CACHE_ENTRIES) {
+    const oldestKey = cachedFirstCollectionPathsByTenant.keys().next().value;
+    if (oldestKey) cachedFirstCollectionPathsByTenant.delete(oldestKey);
+  }
+  cachedFirstCollectionPathsByTenant.set(cacheKey, entry);
+}
+
 /**
  * A cached function to get the redirect path for the first available collection.
  * The cache is language-aware and helps avoid redundant database lookups.
@@ -61,6 +94,8 @@ export async function getCachedFirstCollectionPath(
   tenantId?: string | null,
 ): Promise<string | null> {
   const now = Date.now();
+  // The composite key is only built on the tenant path — the global map is
+  // keyed by the locale directly, so the common no-tenant path allocates nothing.
   const cacheKey = tenantId ? `${tenantId}:${language}` : language;
   const cachedEntry = tenantId
     ? cachedFirstCollectionPathsByTenant.get(cacheKey)
@@ -74,13 +109,10 @@ export async function getCachedFirstCollectionPath(
   // Fetch fresh data by calling the utility function
   const result = await fetchAndRedirectToFirstCollection(language, tenantId);
 
-  // Cache the result if it's a valid path
+  // Cache the result if it's a valid path (null results are never cached)
   if (result) {
-    const entry = {
-      path: result,
-      expiry: now + CACHE_DURATION,
-    };
-    if (tenantId) cachedFirstCollectionPathsByTenant.set(cacheKey, entry);
+    const entry: CachedPath = { path: result, expiry: now + CACHE_DURATION };
+    if (tenantId) cacheTenantPath(cacheKey, entry);
     else cachedFirstCollectionPaths.set(language, entry);
   }
 

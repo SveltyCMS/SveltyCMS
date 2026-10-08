@@ -23,8 +23,9 @@ export async function getRequestLocalCMS(): Promise<{
   if (!cached || cached.adapter !== adapter) {
     cached = { adapter, cms: new LocalCMS(adapter) };
   }
-  const tenantId = (event.locals.tenantId ?? null) as DatabaseId | null;
-  return { cms: cached.cms, locals: event.locals, tenantId };
+  const { locals } = event;
+  // `App.Locals.tenantId` is already `DatabaseId | null` (optional) — no cast needed.
+  return { cms: cached.cms, locals, tenantId: locals.tenantId ?? null };
 }
 
 export function remoteErrorMessage(err: unknown, fallback: string): string {

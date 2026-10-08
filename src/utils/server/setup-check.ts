@@ -18,6 +18,7 @@
 import { logger } from "@utils/logger";
 import fs from "node:fs";
 import path from "node:path";
+import { generateSecureToken } from "../native-utils";
 import type { DatabaseResult, Role } from "../../databases/db-interface";
 
 /**
@@ -41,6 +42,11 @@ let setupStatusCheckedAt = 0;
  * cached indefinitely; only invalidateSetupCache() clears it.
  */
 const SETUP_DB_STATUS_RECHECK_TTL_MS = 60_000;
+
+/** Typed handle for setup-process globals (replaces `globalThis as any`). */
+const setupGlobal = globalThis as typeof globalThis & {
+  __SVELTY_SETUP_FORCED_COMPLETE__?: boolean | null;
+};
 
 export enum SetupState {
   MISSING_CONFIG = "MISSING_CONFIG", // config/private.ts not found
@@ -77,7 +83,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
   // 2. Cache hit: TRUE is stable; FALSE is re-checked after the TTL so the
   //    system self-heals once the DB is seeded (a frozen false previously
   //    wedged setup mode for the whole process lifetime).
-  if ((globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true) return true;
+  if (setupGlobal.__SVELTY_SETUP_FORCED_COMPLETE__ === true) return true;
   const cacheFresh = Date.now() - setupStatusCheckedAt < SETUP_DB_STATUS_RECHECK_TTL_MS;
   if (setupStatusCheckedDb && (setupDbStatus === true || cacheFresh)) {
     return setupDbStatus === true;
@@ -197,7 +203,6 @@ export function getTestSecret(): string {
   // ⚠️ SECURITY: No hardcoded fallback secret. A known credential in source code
   // could be used against production if test mode is accidentally enabled.
   // Generate a random secret for the test run instead of using a predictable one.
-  const { generateSecureToken } = require("../native-utils");
   cachedTestSecret = generateSecureToken(32);
   logger.warn(
     "[setupCheck] No TEST_API_SECRET env or test-secret.txt found. " +
@@ -218,7 +223,7 @@ export function invalidateSetupCache(
   setupStatusCheckedDb = forceStatus !== null;
   setupStatusCheckedAt = forceStatus !== null ? Date.now() : 0;
   if (typeof globalThis !== "undefined") {
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
+    setupGlobal.__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
   }
 
   // The first-collection redirect memo survives resets and would otherwise

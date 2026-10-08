@@ -13,26 +13,46 @@
  * - Constant-time lookup overhead
  * - Automatic microtask-based batching
  * - Generic type safety for keys and values
+ * - Intra-batch key dedupe (DataLoader semantics: one batchFn slot per unique key)
+ * - Packed, reused batch queue (no per-load entry objects, no re-allocation per batch)
+ * - Allocation-lean TTL=0 hot path: the promise itself is the cache value (no
+ *   per-load wrapper object) and the dispatch callback is pre-bound once
  */
 
 export type BatchFunction<K, V> = (keys: readonly K[]) => Promise<ReadonlyArray<V | Error>>;
 
-interface CacheEntry<V> {
+/** Timed cache wrapper — only used when `cacheTtlMs > 0`. */
+interface TimedCacheEntry<V> {
   promise: Promise<V>;
   timestamp: number;
 }
 
+/**
+ * Cache value: the bare promise when TTL is disabled (the request-scoped hot
+ * path — no wrapper allocation per load), a timed wrapper when `cacheTtlMs > 0`.
+ * Discriminated by the loader's `_cacheTtlMs` flag, never by value shape.
+ */
+type CacheValue<V> = Promise<V> | TimedCacheEntry<V>;
+
+type ResolveFn<V> = (value: V) => void;
+type RejectFn = (reason: unknown) => void;
+
+/** Packed batch queue: each load occupies 3 slots — [key, resolve, reject]. */
+type BatchQueue<K, V> = Array<K | ResolveFn<V> | RejectFn>;
+
+const STRIDE = 3;
+
 export class BatchLoader<K, V> {
   private _batchFn: BatchFunction<K, V>;
-  private _queue: Array<{
-    key: K;
-    resolve: (value: V) => void;
-    reject: (reason: any) => void;
-  }> = [];
-  private _cache: Map<K, CacheEntry<V>> = new Map();
+  private _queue: BatchQueue<K, V> = [];
+  /** Previously drained queue, reused by the next batch instead of re-allocating. */
+  private _pool: BatchQueue<K, V> = [];
+  private _cache: Map<K, CacheValue<V>> = new Map();
   private _scheduled = false;
   private _maxBatchSize: number;
   private _cacheTtlMs: number;
+  /** Pre-bound dispatch callback — one closure per loader instead of one per scheduled load. */
+  private _dispatchMicrotask = () => this._dispatch();
 
   constructor(
     batchFn: BatchFunction<K, V>,
@@ -50,29 +70,33 @@ export class BatchLoader<K, V> {
   public load(key: K): Promise<V> {
     // Check cache with TTL eviction
     const cached = this._cache.get(key);
-    if (cached) {
-      if (this._cacheTtlMs === 0 || Date.now() - cached.timestamp < this._cacheTtlMs) {
-        return cached.promise;
-      }
+    if (cached !== undefined) {
+      if (this._cacheTtlMs === 0) return cached as Promise<V>;
+      const entry = cached as TimedCacheEntry<V>;
+      if (Date.now() - entry.timestamp < this._cacheTtlMs) return entry.promise;
       // Expired — evict
       this._cache.delete(key);
     }
 
     const promise = new Promise<V>((resolve, reject) => {
-      this._queue.push({ key, resolve, reject });
+      this._queue.push(key, resolve, reject);
       if (!this._scheduled) {
         this._scheduled = true;
         // Immediate flush if queue exceeds max batch size
-        if (this._queue.length >= this._maxBatchSize) {
+        if (this._queue.length >= this._maxBatchSize * STRIDE) {
           this._dispatch();
         } else {
           // Schedule dispatch on the next microtask
-          queueMicrotask(() => this._dispatch());
+          queueMicrotask(this._dispatchMicrotask);
         }
       }
     });
 
-    this._cache.set(key, { promise, timestamp: Date.now() });
+    if (this._cacheTtlMs === 0) {
+      this._cache.set(key, promise);
+    } else {
+      this._cache.set(key, { promise, timestamp: Date.now() });
+    }
     return promise;
   }
 
@@ -81,31 +105,50 @@ export class BatchLoader<K, V> {
    */
   private async _dispatch() {
     this._scheduled = false;
-    const currentQueue = this._queue;
-    this._queue = [];
 
-    const keys = currentQueue.map((q) => q.key);
+    // Swap the drained (reused) queue in for the next batch instead of re-allocating.
+    const batch = this._queue;
+    this._queue = this._pool;
+    this._pool = batch;
+    this._queue.length = 0;
+
+    const entryCount = batch.length / STRIDE;
+
+    // Intra-batch dedupe (DataLoader semantics): send each key to the batchFn once
+    // and settle every duplicate caller from the same result slot.
+    const uniqueKeys: K[] = [];
+    const firstSlotByKey = new Map<K, number>();
+    for (let i = 0; i < entryCount; i++) {
+      const key = batch[i * STRIDE] as K;
+      if (!firstSlotByKey.has(key)) {
+        firstSlotByKey.set(key, i);
+        uniqueKeys.push(key);
+      }
+    }
 
     try {
-      const results = await this._batchFn(keys);
+      const results = await this._batchFn(uniqueKeys);
 
-      if (results.length !== keys.length) {
+      if (results.length !== uniqueKeys.length) {
         throw new Error(
           `BatchLoader: batchFn must return an array of the same length as the keys array. ` +
-            `Expected ${keys.length}, got ${results.length}.`,
+            `Expected ${uniqueKeys.length}, got ${results.length}.`,
         );
       }
 
-      currentQueue.forEach((q, i) => {
-        const result = results[i];
+      for (let i = 0; i < entryCount; i++) {
+        const key = batch[i * STRIDE] as K;
+        const result = results[firstSlotByKey.get(key)!];
         if (result instanceof Error) {
-          q.reject(result);
+          (batch[i * STRIDE + 2] as RejectFn)(result);
         } else {
-          q.resolve(result as V);
+          (batch[i * STRIDE + 1] as ResolveFn<V>)(result);
         }
-      });
+      }
     } catch (err) {
-      currentQueue.forEach((q) => q.reject(err));
+      for (let i = 0; i < entryCount; i++) {
+        (batch[i * STRIDE + 2] as RejectFn)(err);
+      }
     }
   }
 
@@ -130,10 +173,11 @@ export class BatchLoader<K, V> {
    */
   public prime(key: K, value: V): this {
     if (!this._cache.has(key)) {
-      this._cache.set(key, {
-        promise: Promise.resolve(value),
-        timestamp: Date.now(),
-      });
+      if (this._cacheTtlMs === 0) {
+        this._cache.set(key, Promise.resolve(value));
+      } else {
+        this._cache.set(key, { promise: Promise.resolve(value), timestamp: Date.now() });
+      }
     }
     return this;
   }
