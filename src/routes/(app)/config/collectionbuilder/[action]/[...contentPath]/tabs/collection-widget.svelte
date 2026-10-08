@@ -738,17 +738,6 @@
 							data-field-name={item.db_fieldName || ''}
 							data-drag-id={item._dragId}
 							role="listitem"
-							onkeydown={(e) => {
-								if (e.altKey && e.key === 'ArrowUp') {
-									e.preventDefault();
-									e.stopPropagation();
-									moveFieldUp(index);
-								} else if (e.altKey && e.key === 'ArrowDown') {
-									e.preventDefault();
-									e.stopPropagation();
-									moveFieldDown(index);
-								}
-							}}
 						>
 							<!-- Clean, simple row layout matching config/collectionbuilder -->
 							<div
@@ -756,7 +745,22 @@
 									? 'border-warning-500/60 ring-1 ring-warning-500/40 bg-warning-500/10 dark:border-warning-500/60 dark:bg-warning-500/10'
 									: 'border-surface-500/20 bg-white dark:border-surface-500/30 dark:bg-surface-900'} px-3 py-2 transition-colors hover:border-tertiary-500/30 dark:hover:border-primary-500/30"
 								onclick={() => editField(item)}
-								onkeydown={(e) => e.key === 'Enter' && editField(item)}
+								// Alt+Arrow reorder lives on the focusable button (not the outer
+								// listitem div) — a11y: interactive events belong on interactive
+								// elements; keyboard users reach it via the row's tab stop.
+								onkeydown={(e) => {
+									if (e.altKey && e.key === 'ArrowUp') {
+										e.preventDefault();
+										e.stopPropagation();
+										moveFieldUp(index);
+									} else if (e.altKey && e.key === 'ArrowDown') {
+										e.preventDefault();
+										e.stopPropagation();
+										moveFieldDown(index);
+									} else if (e.key === 'Enter') {
+										editField(item);
+									}
+								}}
 								role="button"
 								tabindex="0"
 							>

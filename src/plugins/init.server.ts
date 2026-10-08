@@ -51,7 +51,12 @@ for (const [path, loader] of Object.entries(pluginServerModules)) {
  * Node CLI). Enumerates every `<dir>/index.server.ts` under `src/plugins` on disk
  * and registers a lazy `import()` per plugin. The computed specifier carries
  * `@vite-ignore` so the production bundler leaves it alone — there the glob above
- * is the path. Best-effort and idempotent: already-registered ids are skipped.
+ * is the path. Built by CONCATENATION, not a template literal: esbuild glob-
+ * analyzes `import(\`./${id}/index.server\`)` during the worker-bundling hook,
+ * matches nothing (`empty-glob` warning — the real files carry the `.ts`
+ * extension) and the warning pollutes every build. A non-literal specifier is
+ * skipped by that analysis; the runtime import resolves identically.
+ * Best-effort and idempotent: already-registered ids are skipped.
  */
 async function registerRuntimeServerModules(): Promise<void> {
   if (Object.keys(pluginServerModules).length > 0) return;
@@ -67,10 +72,11 @@ async function registerRuntimeServerModules(): Promise<void> {
     for (const entry of readdirSync(pluginsDir, { withFileTypes: true })) {
       if (!entry.isDirectory() || pluginServerRegistry.has(entry.name)) continue;
       if (!existsSync(join(pluginsDir, entry.name, "index.server.ts"))) continue;
-      const id = entry.name;
-      pluginServerRegistry.register(id, () =>
-        import(/* @vite-ignore */ `./${id}/index.server`).then((mod) => mod as PluginServerModule),
-      );
+  	    const id = entry.name;
+  	    const specifier = "./" + id + "/index.server";
+  	    pluginServerRegistry.register(id, () =>
+  	      import(/* @vite-ignore */ specifier).then((mod) => mod as PluginServerModule),
+  	    );
     }
     logger.debug("[PluginServerRegistry] Registered runtime server-module loaders");
   } catch (err) {

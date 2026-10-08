@@ -46,11 +46,10 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
 
 	// WebMCP Support (Polyfill + Plugin)
-	// 5.x ESM entry is side-effect-free (`sideEffects: ["./dist/index.iife.js"]`)
-	// and no longer auto-installs on import (4.x did). Install explicitly, in the
-	// browser only — module scope so document.modelContext exists before onMount
-	// runs initWebMCP().
-	import { initializeWebMCPPolyfill } from '@mcp-b/webmcp-polyfill';
+	// The 6.x ESM entry is side-effect-free and does not auto-install on import.
+	// Install explicitly, in the browser only — module scope so
+	// document.modelContext exists before onMount runs initWebMCP().
+	import { installWebMCP } from '@mcp-b/webmcp-polyfill';
 
 	// Components
 	import DialogManager from '@src/components/system/dialog-manager.svelte';
@@ -220,7 +219,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// Initialize public environment settings from server data
 	// Note: Only access page.data after mount to avoid hydration issues
 	if (browser) {
-		initializeWebMCPPolyfill();
+		installWebMCP();
 		globalLoadingStore.startLoading(loadingOperations.initialization);
 	}
 

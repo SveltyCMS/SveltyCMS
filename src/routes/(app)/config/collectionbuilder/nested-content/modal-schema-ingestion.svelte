@@ -12,7 +12,6 @@ Features:
 -->
 <script lang="ts">
 	import type { ParsedSchemaResult, SchemaIngestionMode } from '../schema-ingestion';
-	import { ingestSchema } from '@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote';
 	import { builder_required } from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -79,6 +78,12 @@ Features:
 
 		const handle = setTimeout(async () => {
 			try {
+				// Lazy import keeps collectionbuilder.remote a split chunk — the other
+				// consumers (+page, modal-category, modal-quick-start) import it
+				// dynamically too (vite INEFFECTIVE_DYNAMIC_IMPORT parity).
+				const { ingestSchema } = await import(
+					'@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote'
+				);
 				const result = await ingestSchema({
 					mode: tab as SchemaIngestionMode,
 					payload,
