@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "sveltycms",
+      "name": "create-sveltycms",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1147.0",
         "@better-svelte-email/components": "^2.3.0",
