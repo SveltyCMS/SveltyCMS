@@ -1,0 +1,98 @@
+---
+path: "docs/guides/agent-dev-loop.mdx"
+title: "Agent Dev Loop (local, opt-in)"
+description: "Run a local coding agent against this repository from inside the Vite dev server: gated registration, fenced read tools, and hard output caps."
+order: 40
+icon: "mdi:robot-happy-outline"
+author: "SveltyCMS Team"
+created: "2026-10-08"
+updated: "2026-10-08"
+tags:
+  - "guides"
+  - "development"
+  - "agents"
+---
+
+# Agent Dev Loop (local, opt-in)
+
+The agent dev loop exposes a small, fenced tool surface from inside the Vite dev
+server, so a local coding model can read the repository while you work on it. It is
+**off by default**, runs only during `vite dev`, and never becomes part of a build.
+
+## What ships in this increment
+
+- A dev-only Vite plugin registered only when `SVELTY_AGENT=1` is exported.
+- `GET /agent/health` — tool catalog plus the active caps.
+- `POST /agent/tools/<name>` — token-protected execution of one read tool.
+- Four read-only tools; no write, edit, or delete tool exists in this increment.
+
+## Enabling it
+
+```bash
+export SVELTY_AGENT=1
+export SVELTY_AGENT_TOKEN="$(openssl rand -hex 16)"   # optional, otherwise generated per session
+bun run dev
+```
+
+The dev server logs the route summary and the session token. Without the flag the
+plugin is not registered at all: no `[agent]` line appears in the dev log, and the
+request falls through to the application (in this tree SvelteKit answers `302`
+because the dev server redirects `/agent/health` like any unknown app route).
+
+## Tools and caps
+
+| Tool          | Purpose                                   | Cap                                          |
+| :------------ | :---------------------------------------- | :------------------------------------------- |
+| `read_file`   | Line window from one UTF-8 file           | 500 lines, 256 KB file ceiling               |
+| `list_tree`   | Directory tree, deny list skipped         | depth 3, 400 entries                         |
+| `grep`        | Regular-expression search over text files | 20 files, 5 matches/file, 2000 files scanned |
+| `file_exists` | Existence and type of a path              | one path                                     |
+
+Every result carries `truncated` when it was cut, so the caller can narrow its target
+instead of pulling a whole tree into the model context. The numbers live in
+`src/utils/vite-plugin-agent/caps.ts` — one source of truth for middleware, tools, and
+tests.
+
+## Access fence
+
+- **Path fence:** `src/utils/vite-plugin-agent/path-policy.ts` resolves each path
+  against the repository root and rejects dot-segments, the deny list
+  (`node_modules`, `build`, `dist`, `logs`, `mediaFolder`, `.git`, `.svelte-kit`,
+  `.vitest`) and `config/private*` / `.env*` / `*.pem`. A second check realpaths the
+  deepest existing ancestor, which closes symlink escapes.
+- **Token:** tool calls require the `x-svelty-agent-token` header. The plugin never
+  ships a default token; it uses `SVELTY_AGENT_TOKEN` when set and otherwise generates
+  one per dev session.
+- **Loopback only:** the dev server binds the loopback interface; this surface is not
+  meant to be exposed on a network interface.
+- **No undo:** these tools are read-only, so nothing can be rolled back — but nothing
+  is changed either. Every later write tool must document its own rollback path before
+  it is merged.
+
+## Reasons the caps are that small
+
+A local coding model on this hardware has a bounded prefill budget. Feeding it a
+whole file tree costs minutes per call and produces worse edits than a narrow,
+explicitly truncated window; that is why `read_file` refuses files above 256 KB and
+why `list_tree` and `grep` stop instead of streaming.
+
+## Verifying the gate
+
+```bash
+# flag on → catalog answers
+SVELTY_AGENT=1 bun run dev &
+curl -s localhost:5173/agent/health | head -c 200
+
+# flag off → route absent (falls through to the app; no [agent] line in the log)
+kill %1 && bun run dev &
+curl -s -o /dev/null -w "%{http_code}\n" localhost:5173/agent/health   # 302 in this tree
+
+# unit coverage for the fence and the caps
+node ./node_modules/vitest/vitest.mjs run tests/unit/agent
+```
+
+## Limits of this increment
+
+Write tools, the browser element picker, screenshot verification, and session
+persistence are **not** part of this change; they are separate, reviewable steps. Until
+they land, the loop is a read-only assistant for repository work.

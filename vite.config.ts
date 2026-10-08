@@ -52,6 +52,8 @@ import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
 import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
+import { isAgentEnabled } from "./src/utils/vite-plugin-agent/caps.ts";
+import { vitePluginAgent } from "./src/utils/vite-plugin-agent/index.ts";
 import { pathAliases } from "./path-aliases.ts";
 
 process.env.ESBUILD_WORKER_THREADS = "0";
@@ -1340,10 +1342,11 @@ export default defineConfig(() => {
   const enableInspector = shouldEnableInspector();
   const enableQuietBuild = shouldEnableBuildWarningManager();
   const enableLiteRt = shouldEnableLiteRtWasm();
+  const enableAgent = isAgentEnabled();
 
   if (process.env.SVELTY_VITE_DEBUG === "1") {
     log.info(
-      `feature gates → inspector=${enableInspector} quietBuild=${enableQuietBuild} liteRtWasm=${enableLiteRt}`,
+      `feature gates → inspector=${enableInspector} quietBuild=${enableQuietBuild} liteRtWasm=${enableLiteRt} agent=${enableAgent}`,
     );
   }
 
@@ -1383,6 +1386,8 @@ export default defineConfig(() => {
         : []),
       // ── Optional: client AI WASM only when assets / flag present ────────
       ...(enableLiteRt ? [liteRtWasmPlugin()] : []),
+      // ── Optional: local agent dev loop (dev-only, SVELTY_AGENT=1) ────
+      ...(enableAgent ? [vitePluginAgent()] : []),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
       clientNodeBuiltinGuardPlugin(),
