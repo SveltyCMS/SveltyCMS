@@ -44,6 +44,8 @@ export interface DatabaseHook {
 
 export abstract class BaseAdapter {
   public readonly utils: any = relationalUtils;
+  /** Optional in-app bounded concurrency queue gate for network database connection pools (PostgreSQL / MariaDB). */
+  public queueGate?: import("./network-db-queue-gate").NetworkDbQueueGate;
   protected hooks: DatabaseHook[] = [];
   private hookCache = new Map<string, DatabaseHook[]>();
   private compiledHooks = new Map<
@@ -287,6 +289,24 @@ export abstract class BaseAdapter {
    * raw-db-ceiling INSERT itself. Other ops keep spans + 500ms slow logs.
    */
   public wrap<T>(
+    fn: () => Promise<T>,
+    code: string,
+    message?: string,
+    options?: {
+      isWrite?: boolean;
+      transaction?: any;
+      skipMeta?: boolean;
+      suppressErrorLog?: boolean;
+      bypassSafeQuery?: boolean;
+    },
+  ): Promise<DatabaseResult<T>> {
+    if (this.queueGate && !options?.transaction) {
+      return this.queueGate.acquire(() => this.wrapInternal(fn, code, message, options));
+    }
+    return this.wrapInternal(fn, code, message, options);
+  }
+
+  private wrapInternal<T>(
     fn: () => Promise<T>,
     code: string,
     message?: string,

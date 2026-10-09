@@ -28,7 +28,7 @@ import {
   type RawPointWireStreamResult,
 } from "../core/sql-adapter-core";
 import { POSTGRES_DIALECT, type SqlDialect } from "../core/sql-query-builder";
-import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
+import { getJsonDataPatch, parseJsonDataBlob } from "../core/query-primitives";
 import type {
   BaseQueryOptions,
   DatabaseCapabilities,
@@ -45,7 +45,7 @@ import {
   applyDeclaredFieldRenames,
   hasDeclaredFieldRename,
   materializedSqlType,
-} from "@src/databases/core/column-renames";
+} from "@src/databases/core/collection-module";
 import { getTableColumns, getTableName } from "drizzle-orm";
 // Namespace import on purpose: the whole module is exposed as `adapter.schema` (public surface).
 // Not dead — removing it breaks adapter construction (verified 2026-09-27).
@@ -65,6 +65,7 @@ import {
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
+import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
 
 /**
  * Keep date/timestamp as ISO text. postgres.js default-parses timestamptz to
@@ -1266,8 +1267,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const txnSql = this.getTxnSql(options ?? {});
     const exec = txnSql ?? this.sql;
     if (!exec) throw new Error("Database not connected");
-    const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
-    return Array.isArray(rows) ? rows : [];
+    if (txnSql || !this.queueGate) {
+      const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
+      return Array.isArray(rows) ? rows : [];
+    }
+    return this.queueGate.acquire(async () => {
+      const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
+      return Array.isArray(rows) ? rows : [];
+    });
   }
 
   /**
@@ -1895,6 +1902,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         this._db = drizzle(this.sql, { schema });
         await this.sql`SELECT 1`;
         this.connected = true;
+        const poolMax = options.max || 20;
+        this.queueGate = new NetworkDbQueueGate({
+          maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+          maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+          timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+          name: "PostgreSQL",
+        });
         logger.info("Connected to PostgreSQL");
         return { success: true, data: undefined };
       } catch (err: any) {
@@ -1917,6 +1931,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               this._db = drizzle(this.sql, { schema });
               await this.sql`SELECT 1`;
               this.connected = true;
+              const poolMax = options.max || 20;
+              this.queueGate = new NetworkDbQueueGate({
+                maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+                maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+                timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+                name: "PostgreSQL",
+              });
               logger.info("Connected to PostgreSQL");
               return { success: true, data: undefined };
             } catch (createErr) {
@@ -1939,6 +1960,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     // Clean up any per-tenant dedicated pools
     await this.closeAllTenantPools();
 
+    if (this.queueGate) {
+      this.queueGate.clear("PostgreSQL disconnected");
+      this.queueGate = undefined;
+    }
     if (this.sql) {
       await this.sql.end();
       this.sql = null;
@@ -2036,13 +2061,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // Fallback to local pool options if pg_stat_activity cannot be queried
     }
     const max = (this.sql as any)?.options?.max || 10;
+    const gateStats = this.queueGate?.getMetrics();
     return {
       success: true,
       data: {
-        total: max,
-        active: 0,
-        idle: max,
-        waiting: 0,
+        total: gateStats?.maxConcurrency ?? max,
+        active: gateStats?.active ?? 0,
+        idle: Math.max(0, (gateStats?.maxConcurrency ?? max) - (gateStats?.active ?? 0)),
+        waiting: gateStats?.waiting ?? 0,
         avgConnectionTime: 0,
       },
     };
@@ -2112,6 +2138,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return {
       execute: async (sqlText: string, params: any[] = []) => {
         if (!this.sql) throw new Error("Database not connected");
+        if (this.queueGate) {
+          return this.queueGate.acquire(() => this.sql!.unsafe(sqlText, params));
+        }
         return this.sql.unsafe(sqlText, params);
       },
       client: this.sql,
@@ -2132,6 +2161,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!this._transactionModule) {
       const { TransactionModule } = await import("./transaction-module");
       this._transactionModule = new TransactionModule(this);
+    }
+    if (this.queueGate) {
+      return this.queueGate.acquire(() => this._transactionModule!.execute(fn, options as any));
     }
     return this._transactionModule.execute(fn, options as any);
   };

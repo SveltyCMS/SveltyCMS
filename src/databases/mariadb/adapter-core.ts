@@ -28,7 +28,7 @@ import {
   getJsonDataPatch,
   jsonPatchNeedsJsMerge,
   parseJsonDataBlob,
-} from "../core/json-data-patch";
+} from "../core/query-primitives";
 import type {
   BaseEntity,
   BaseQueryOptions,
@@ -50,7 +50,7 @@ import {
   applyDeclaredFieldRenames,
   hasDeclaredFieldRename,
   materializedSqlType,
-} from "@src/databases/core/column-renames";
+} from "@src/databases/core/collection-module";
 import { getTableName } from "drizzle-orm";
 // Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
 import * as schema from "./schema";
@@ -70,7 +70,8 @@ import {
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
-import { extractPkConflictId } from "../core/lookup-query";
+import { extractPkConflictId } from "../core/query-primitives";
+import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
 
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
@@ -642,6 +643,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
       this.connected = true;
+      const poolMax = poolConfig.connectionLimit || 20;
+      this.queueGate = new NetworkDbQueueGate({
+        maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+        maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+        timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+        name: "MariaDB",
+      });
       logger.info("Connected to MariaDB");
       return { success: true, data: undefined };
     } catch (error) {
@@ -662,6 +670,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   async disconnect(): Promise<DatabaseResult<void>> {
     await this.closeAllTenantPools();
+    if (this.queueGate) {
+      this.queueGate.clear("MariaDB disconnected");
+      this.queueGate = undefined;
+    }
     if (this.pool) {
       (this as any).__intentionalDisconnect__ = true;
       await this.pool.end();
@@ -745,12 +757,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const all = internalPool._allConnections?.length || 0;
       const free = internalPool._freeConnections?.length || 0;
       const queue = internalPool._connectionQueue?.length || 0;
+      const gateStats = this.queueGate?.getMetrics();
 
       return {
-        total,
-        active: Math.max(0, all - free),
+        total: gateStats?.maxConcurrency ?? total,
+        active: gateStats?.active ?? Math.max(0, all - free),
         idle: free,
-        waiting: queue,
+        waiting: (gateStats?.waiting ?? 0) + queue,
         avgConnectionTime: 0,
       };
     }, "POOL_STATS_FAILED");
@@ -847,13 +860,19 @@ export abstract class AdapterCore extends SqlAdapterCore {
   public override async executeCompiled(
     sqlText: string,
     params: readonly unknown[],
-    _options?: BaseQueryOptions,
+    options?: BaseQueryOptions,
   ): Promise<unknown[]> {
     const pool =
       (this._currentTenantId && this._tenantPools.get(this._currentTenantId)) || this.pool;
     if (!pool) throw new Error("Database not connected");
-    const [rows] = await pool.execute(sqlText, params as any);
-    return Array.isArray(rows) ? (rows as unknown[]) : [];
+    if (options?.transaction || !this.queueGate) {
+      const [rows] = await pool.execute(sqlText, params as any);
+      return Array.isArray(rows) ? (rows as unknown[]) : [];
+    }
+    return this.queueGate.acquire(async () => {
+      const [rows] = await pool.execute(sqlText, params as any);
+      return Array.isArray(rows) ? (rows as unknown[]) : [];
+    });
   }
 
   public get raw(): {
@@ -865,6 +884,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return {
       execute: async (sqlText: string, params: any[] = []) => {
         if (!pool) throw new Error("Database not connected");
+        if (this.queueGate) {
+          return this.queueGate.acquire(async () => {
+            const [rows] = await pool.execute(sqlText, params);
+            return rows;
+          });
+        }
         const [rows] = await pool.execute(sqlText, params);
         return rows;
       },
@@ -886,6 +911,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
     if (!this._transactionModule) {
       const { TransactionModule } = await import("./transaction-module");
       this._transactionModule = new TransactionModule(this);
+    }
+    if (this.queueGate) {
+      return this.queueGate.acquire(() => this._transactionModule!.execute(fn, options as any));
     }
     return this._transactionModule.execute(fn, options as any);
   };
