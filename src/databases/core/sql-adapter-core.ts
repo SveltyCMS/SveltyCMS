@@ -1384,7 +1384,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
     }
 
-    if (options?.tenantId && (schemaCols?.["tenantId"] || getCol(table, "tenantId"))) {
+    // Tenant stamp is INSERT-ONLY: the row's tenantId is immutable and the WHERE
+    // clause already carries tenant isolation (applyTenantFilter). Re-writing it
+    // on UPDATE dirties every tenant-prefixed index on the SQL engines and
+    // disables HOT updates — measured write amplification on the competitive
+    // update lane. A caller that legitimately passes tenantId in `data` still
+    // reaches SET through the physical-column loop above.
+    if (!isUpdate && options?.tenantId && (schemaCols?.["tenantId"] || getCol(table, "tenantId"))) {
       values.tenantId = options.tenantId;
     }
 
