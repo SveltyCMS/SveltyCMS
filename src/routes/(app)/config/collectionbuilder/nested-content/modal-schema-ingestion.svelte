@@ -12,7 +12,34 @@ Features:
 -->
 <script lang="ts">
 	import type { ParsedSchemaResult, SchemaIngestionMode } from '../schema-ingestion';
-	import { builder_required } from '@src/paraglide/messages';
+	import {
+		builder_ingest_create_collection,
+		builder_ingest_create_table,
+		builder_ingest_ddl_aria,
+		builder_ingest_ddl_hint_part1,
+		builder_ingest_ddl_hint_part2,
+		builder_ingest_ddl_placeholder,
+		builder_ingest_ddl_tab,
+		builder_ingest_error_label,
+		builder_ingest_fields_inferred,
+		builder_ingest_field_inferred,
+		builder_ingest_intro_part1,
+		builder_ingest_intro_part2,
+		builder_ingest_json_hint,
+		builder_ingest_json_name_aria,
+		builder_ingest_json_name_label,
+		builder_ingest_json_name_placeholder,
+		builder_ingest_json_placeholder,
+		builder_ingest_json_aria,
+		builder_ingest_json_tab,
+		builder_ingest_launch_suite,
+		builder_ingest_live_tab,
+		builder_ingest_load_example,
+		builder_ingest_smart_heading,
+		builder_ingest_smart_intro,
+		builder_required,
+		button_cancel
+	} from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 
@@ -81,9 +108,8 @@ Features:
 				// Lazy import keeps collectionbuilder.remote a split chunk — the other
 				// consumers (+page, modal-category, modal-quick-start) import it
 				// dynamically too (vite INEFFECTIVE_DYNAMIC_IMPORT parity).
-				const { ingestSchema } = await import(
-					'@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote'
-				);
+				const { ingestSchema } =
+					await import('@src/routes/(app)/config/collectionbuilder/collectionbuilder.remote');
 				const result = await ingestSchema({
 					mode: tab as SchemaIngestionMode,
 					payload,
@@ -116,9 +142,11 @@ Features:
 
 <div class="space-y-4" data-testid="modal-schema-ingestion">
 	<p class="text-sm text-surface-600 dark:text-surface-400 leading-relaxed">
-		Generate a typed SveltyCMS collection from an existing schema — paste SQL
-		<code class="font-mono text-tertiary-600 dark:text-primary-500">CREATE TABLE</code> DDL or a JSON
-		sample, or introspect a live database with SmartImporter.
+		{builder_ingest_intro_part1()}{' '}
+		<code class="font-mono text-tertiary-600 dark:text-primary-500"
+			>{builder_ingest_create_table()}</code
+		>{' '}
+		{builder_ingest_intro_part2()}
 	</p>
 
 	<!-- Tab Bar -->
@@ -135,7 +163,7 @@ Features:
 		>
 			<div class="flex items-center gap-1.5">
 				<iconify-icon icon="mdi:database-arrow-right" width="18"></iconify-icon>
-				<span>SQL DDL / Schema</span>
+				<span>{builder_ingest_ddl_tab()}</span>
 			</div>
 		</button>
 		<button
@@ -150,7 +178,7 @@ Features:
 		>
 			<div class="flex items-center gap-1.5">
 				<iconify-icon icon="mdi:code-json" width="18"></iconify-icon>
-				<span>JSON Sample</span>
+				<span>{builder_ingest_json_tab()}</span>
 			</div>
 		</button>
 		<button
@@ -165,7 +193,7 @@ Features:
 		>
 			<div class="flex items-center gap-1.5">
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
-				<span>Live Database (SmartImporter)</span>
+				<span>{builder_ingest_live_tab()}</span>
 			</div>
 		</button>
 	</div>
@@ -175,9 +203,10 @@ Features:
 		<div class="space-y-3">
 			<div class="flex items-center justify-between">
 				<p class="text-xs text-surface-500">
-					Paste a PostgreSQL, MySQL, or SQLite <code
-						class="font-mono text-tertiary-600 dark:text-primary-500">CREATE TABLE</code
-					> statement to automatically generate collection fields.
+					{builder_ingest_ddl_hint_part1()}{' '}<code
+						class="font-mono text-tertiary-600 dark:text-primary-500"
+						>{builder_ingest_create_table()}</code
+					>{' '}{builder_ingest_ddl_hint_part2()}
 				</p>
 				<Button
 					variant="ghost"
@@ -186,15 +215,15 @@ Features:
 					onclick={loadSqlExample}
 					data-testid="ingest-load-sql-example"
 				>
-					Load Example
+					{builder_ingest_load_example()}
 				</Button>
 			</div>
 
 			<textarea
-				aria-label="SQL DDL Input"
+				aria-label={builder_ingest_ddl_aria()}
 				bind:value={sqlInput}
 				rows="7"
-				placeholder="CREATE TABLE products ( id INT PRIMARY KEY, title VARCHAR(255), price DECIMAL(10,2) ... );"
+				placeholder={builder_ingest_ddl_placeholder()}
 				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
 				data-testid="ingest-sql-textarea"></textarea>
 		</div>
@@ -205,7 +234,7 @@ Features:
 		<div class="space-y-3">
 			<div class="flex items-center justify-between">
 				<p class="text-xs text-surface-500">
-					Paste a sample JSON payload from a REST API or database export to infer types and fields.
+					{builder_ingest_json_hint()}
 				</p>
 				<Button
 					variant="ghost"
@@ -214,7 +243,7 @@ Features:
 					onclick={loadJsonExample}
 					data-testid="ingest-load-json-example"
 				>
-					Load Example
+					{builder_ingest_load_example()}
 				</Button>
 			</div>
 
@@ -223,24 +252,24 @@ Features:
 					class="block mb-1 text-xs font-medium text-surface-600 dark:text-surface-400"
 					for="json-col-name"
 				>
-					Target Collection Name:
+					{builder_ingest_json_name_label()}
 				</label>
 				<input
-					aria-label="Target Collection Name"
+					aria-label={builder_ingest_json_name_aria()}
 					id="json-col-name"
 					type="text"
 					bind:value={jsonCollectionName}
-					placeholder="e.g. Products, Articles, Users"
+					placeholder={builder_ingest_json_name_placeholder()}
 					class="w-full rounded-lg border border-surface-500/30 bg-white px-3 py-1.5 text-sm text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
 					data-testid="ingest-json-name-input"
 				/>
 			</div>
 
 			<textarea
-				aria-label="JSON Sample Input"
+				aria-label={builder_ingest_json_aria()}
 				bind:value={jsonInput}
 				rows="6"
-				placeholder="&#123; &quot;title&quot;: &quot;...&quot;, &quot;price&quot;: 99.99, &quot;published&quot;: true &#125;"
+				placeholder={builder_ingest_json_placeholder()}
 				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
 				data-testid="ingest-json-textarea"></textarea>
 		</div>
@@ -257,12 +286,10 @@ Features:
 					width="24"
 					class="text-tertiary-500 dark:text-primary-500"
 				></iconify-icon>
-				<h4 class="font-semibold text-sm">Automated Legacy Database Migration & Introspection</h4>
+				<h4 class="font-semibold text-sm">{builder_ingest_smart_heading()}</h4>
 			</div>
 			<p class="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
-				SveltyCMS includes an enterprise-grade <strong>SmartImporter</strong> engine capable of connecting
-				directly to existing MySQL, PostgreSQL, SQLite, WordPress, Drupal, or Directus databases. It analyzes
-				foreign key topologies, column types, and data distributions to generate type-safe collections.
+				{builder_ingest_smart_intro()}
 			</p>
 			<div class="pt-2">
 				<Button
@@ -273,7 +300,7 @@ Features:
 					leadingIcon="mdi:rocket-launch"
 					onclick={() => close?.(null)}
 				>
-					Launch SmartImporter Migration Suite
+					{builder_ingest_launch_suite()}
 				</Button>
 			</div>
 		</div>
@@ -284,7 +311,7 @@ Features:
 		<div
 			class="rounded-lg border border-error-500/30 bg-error-500/10 p-3 text-xs text-error-600 dark:text-error-400"
 		>
-			<strong>Error:</strong>
+			<strong>{builder_ingest_error_label()}</strong>
 			{parseError}
 		</div>
 	{/if}
@@ -306,7 +333,9 @@ Features:
 				</div>
 				<Badge variant="tertiary" size="sm">
 					{parsedResult.fields.length}
-					{parsedResult.fields.length === 1 ? 'Field' : 'Fields'} Inferred
+					{parsedResult.fields.length === 1
+						? builder_ingest_field_inferred()
+						: builder_ingest_fields_inferred()}
 				</Badge>
 			</div>
 
@@ -332,7 +361,7 @@ Features:
 
 	<!-- Modal Actions Footer -->
 	<footer class="flex justify-end pt-4 border-t border-surface-500/20 gap-2">
-		<Button variant="outline" type="button" onclick={() => close?.(null)}>Cancel</Button>
+		<Button variant="outline" type="button" onclick={() => close?.(null)}>{button_cancel()}</Button>
 		{#if activeTab !== 'database'}
 			<Button
 				variant="tertiary"
@@ -343,7 +372,7 @@ Features:
 				leadingIcon={isParsing ? 'mdi:loading' : 'mdi:check'}
 				data-testid="ingest-submit-button"
 			>
-				Create Collection from Schema
+				{builder_ingest_create_collection()}
 			</Button>
 		{/if}
 	</footer>

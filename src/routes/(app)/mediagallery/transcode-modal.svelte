@@ -9,6 +9,17 @@
 	import { slide } from 'svelte/transition';
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
+	import {
+		button_cancel,
+		button_close,
+		common_processing,
+		mediagallery_hls_adaptive,
+		mediagallery_mp4_fixed,
+		mediagallery_output_format,
+		mediagallery_resolutions,
+		mediagallery_start_pipeline,
+		mediagallery_transcode_hub
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		video: { _id: string; filename: string; url: string };
@@ -73,11 +84,11 @@
 		<div>
 			<h2 class="text-xl font-bold text-tertiary-500 dark:text-primary-500 flex items-center gap-2">
 				<iconify-icon icon="mdi:video-processing" width="24"></iconify-icon>
-				Video Transcoding Hub
+				{mediagallery_transcode_hub()}
 			</h2>
 			<p class="text-xs opacity-50 font-mono mt-1">{video.filename}</p>
 		</div>
-		<Button variant="surface" onclick={onClose} aria-label="Close" class="p-0! min-w-0">
+		<Button variant="surface" onclick={onClose} aria-label={button_close()} class="p-0! min-w-0">
 			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 		</Button>
 	</div>
@@ -85,7 +96,8 @@
 	<div class="grid grid-cols-2 gap-6">
 		<!-- Output Format -->
 		<div class="space-y-2">
-			<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Output Format</span
+			<span class="block text-sm font-bold uppercase tracking-widest opacity-60"
+				>{mediagallery_output_format()}</span
 			>
 			<div class="flex gap-2">
 				<Button
@@ -93,14 +105,14 @@
 					onclick={() => (format = 'hls')}
 					class="flex-1 {format === 'hls' ? ' dark: ' : ' '}"
 				>
-					HLS (Adaptive)
+					{mediagallery_hls_adaptive()}
 				</Button>
 				<Button
 					variant="tertiary"
 					onclick={() => (format = 'mp4')}
 					class="flex-1 {format === 'mp4' ? ' dark: ' : ' '}"
 				>
-					MP4 (Fixed)
+					{mediagallery_mp4_fixed()}
 				</Button>
 			</div>
 		</div>
@@ -124,7 +136,7 @@
 	<!-- Resolutions -->
 	<div class="space-y-3">
 		<span class="block text-sm font-bold uppercase tracking-widest opacity-60"
-			>Resolutions to Generate</span
+			>{mediagallery_resolutions()}</span
 		>
 		<div class="flex flex-wrap gap-2">
 			{#each availableResolutions as res (res)}
@@ -144,7 +156,7 @@
 	{#if isProcessing}
 		<div class="space-y-2 py-4" transition:slide>
 			<div class="flex justify-between text-xs font-mono">
-				<span>Processing...</span>
+				<span>{common_processing()}</span>
 				<span>{progress}%</span>
 			</div>
 			<div class="h-2 w-full bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
@@ -157,7 +169,7 @@
 	{/if}
 
 	<div class="flex gap-3 pt-4">
-		<Button variant="surface" onclick={onClose} class="flex-1">Cancel</Button>
+		<Button variant="surface" onclick={onClose} class="flex-1">{button_cancel()}</Button>
 		<Button
 			variant="tertiary"
 			onclick={startTranscoding}
@@ -169,7 +181,7 @@
 			{:else}
 				<iconify-icon icon="mdi:play" width="20"></iconify-icon>
 			{/if}
-			Start Pipeline
+			{mediagallery_start_pipeline()}
 		</Button>
 	</div>
 </div>

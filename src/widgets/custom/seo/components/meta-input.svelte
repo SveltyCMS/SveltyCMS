@@ -24,6 +24,7 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 <script lang="ts">
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import { widget_form_input_aria } from '@src/paraglide/messages';
 	import {
 		widget_seo_suggestioncharacter,
 		widget_seo_suggestionwidthdesktop,
@@ -131,7 +132,7 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 	/>
 {:else}
 	<Input
-		aria-label="form input"
+		aria-label={widget_form_input_aria()}
 		{id}
 		type="text"
 		{placeholder}

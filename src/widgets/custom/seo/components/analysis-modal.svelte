@@ -8,6 +8,19 @@ Displays detailed SEO analysis results in a modal overlay.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import {
+		button_close,
+		common_readability,
+		common_technical,
+		seo_analysis_all_clear,
+		seo_analysis_fix,
+		seo_analysis_keywords,
+		seo_analysis_overall_score,
+		seo_analysis_report_title,
+		seo_analysis_room_improvement,
+		seo_analysis_running,
+		trash_th_content
+	} from '@src/paraglide/messages';
 	import { fade, scale } from 'svelte/transition';
 	import type { SeoAnalysisResult } from '../seo-types';
 
@@ -62,13 +75,13 @@ Displays detailed SEO analysis results in a modal overlay.
 						width="24"
 						class="text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
-					SEO Analysis Report
+					{seo_analysis_report_title()}
 				</h3>
 				<Button
 					variant="outline"
 					type="button"
 					onclick={close}
-					aria-label="Close"
+					aria-label={button_close()}
 					class="p-0! min-w-0"
 				>
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
@@ -93,11 +106,13 @@ Displays detailed SEO analysis results in a modal overlay.
 							>
 								{analysisResult.score.overall}%
 							</div>
-							<p class="mt-2 font-bold text-surface-600 dark:text-surface-400">Overall Score</p>
+							<p class="mt-2 font-bold text-surface-600 dark:text-surface-400">
+								{seo_analysis_overall_score()}
+							</p>
 						</div>
 						<div class="ms-8 grid grid-cols-2 gap-4 text-sm">
 							<div class="flex flex-col">
-								<span class="opacity-70">Keywords</span>
+								<span class="opacity-70">{seo_analysis_keywords()}</span>
 								<span
 									class="font-bold {analysisResult.score.keywords >= 80
 										? 'text-success-500'
@@ -105,7 +120,7 @@ Displays detailed SEO analysis results in a modal overlay.
 								>
 							</div>
 							<div class="flex flex-col">
-								<span class="opacity-70">Content</span>
+								<span class="opacity-70">{trash_th_content()}</span>
 								<span
 									class="font-bold {analysisResult.score.content >= 80
 										? 'text-success-500'
@@ -113,7 +128,7 @@ Displays detailed SEO analysis results in a modal overlay.
 								>
 							</div>
 							<div class="flex flex-col">
-								<span class="opacity-70">Technical</span>
+								<span class="opacity-70">{common_technical()}</span>
 								<span
 									class="font-bold {analysisResult.score.technical >= 80
 										? 'text-success-500'
@@ -121,7 +136,7 @@ Displays detailed SEO analysis results in a modal overlay.
 								>
 							</div>
 							<div class="flex flex-col">
-								<span class="opacity-70">Readability</span>
+								<span class="opacity-70">{common_readability()}</span>
 								<span
 									class="font-bold {analysisResult.score.readability >= 80
 										? 'text-success-500'
@@ -135,7 +150,7 @@ Displays detailed SEO analysis results in a modal overlay.
 					{#if analysisResult.suggestions.length > 0}
 						<div class="space-y-3">
 							<!-- Group by priority/type implicitly by sorting -->
-							<h4 class="h4">Room for Improvement</h4>
+							<h4 class="h4">{seo_analysis_room_improvement()}</h4>
 							{#each analysisResult.suggestions as suggestion (suggestion.title)}
 								{const suggestionIcon =
 									suggestion.type === 'error'
@@ -161,7 +176,7 @@ Displays detailed SEO analysis results in a modal overlay.
 												<div
 													class="mt-2 text-xs font-mono bg-surface-500/10 dark:bg-surface-600/50 p-2 rounded"
 												>
-													<strong>Fix:</strong>
+													<strong>{seo_analysis_fix()}</strong>
 													{suggestion.fix}
 												</div>
 											{/if}
@@ -185,20 +200,20 @@ Displays detailed SEO analysis results in a modal overlay.
 							<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"
 							></iconify-icon>
 							<span class="text-success-600 dark:text-success-400 font-medium"
-								>Great job! No specific issues found.</span
+								>{seo_analysis_all_clear()}</span
 							>
 						</div>
 					{/if}
 				{:else}
 					<div class="p-8 text-center">
 						<div class="placeholder-circle animate-pulse w-16 h-16 mx-auto mb-4"></div>
-						<p>Running Analysis...</p>
+						<p>{seo_analysis_running()}</p>
 					</div>
 				{/if}
 			</div>
 			<!-- Footer -->
 			<footer class="card-footer p-4 border-t border-surface-500/20 flex justify-end">
-				<Button variant="surface" onclick={close}>Close</Button>
+				<Button variant="surface" onclick={close}>{button_close()}</Button>
 			</footer>
 		</div>
 	</div>

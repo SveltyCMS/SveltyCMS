@@ -34,11 +34,20 @@ functionality for image editing and basic file information display.
 	import type { ISODateString } from '@src/content/types';
 	// Paraglide Messages
 	import {
+		button_delete,
 		widget_ImageUpload_LastModified,
 		widget_ImageUpload_Name,
 		widget_ImageUpload_Size,
 		widget_ImageUpload_Type,
-		widget_ImageUpload_Uploaded
+		widget_ImageUpload_Uploaded,
+		widget_ai_tags,
+		widget_aspect_ratio_preview,
+		widget_delete_image,
+		widget_edit_image,
+		widget_flip_details,
+		widget_flip_hint,
+		widget_media_path,
+		widget_set_focal_point
 	} from '@src/paraglide/messages';
 	import { collections } from '@src/stores/collection-store.svelte.ts';
 	// Stores
@@ -357,7 +366,7 @@ functionality for image editing and basic file information display.
 									onmousedown={() => (isDraggingFocalPoint = true)}
 									role="button"
 									tabindex="0"
-									aria-label="Set focal point"
+									aria-label={widget_set_focal_point()}
 								>
 									<iconify-icon icon="mdi:plus-circle-outline" width={24}></iconify-icon>
 								</div>
@@ -367,7 +376,7 @@ functionality for image editing and basic file information display.
 						<div class="col-span-11 ms-2 grid grid-cols-2 gap-1 text-start">
 							<p class="">{widget_ImageUpload_Type()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).type}</p>
-							<p class="">Path:</p>
+							<p class="">{widget_media_path()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).path}</p>
 							<p class="">{widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
@@ -391,7 +400,7 @@ functionality for image editing and basic file information display.
 							</p>
 
 							{#if !(value instanceof File) && value.metadata?.aiTags?.length}
-								<p class="">AI Tags:</p>
+								<p class="">{widget_ai_tags()}</p>
 								<div class="flex flex-wrap gap-1">
 									{#each value.metadata.aiTags as tag, i (tag + i)}
 										<Badge variant="primary" size="sm" class="text-[10px]">{tag}</Badge>
@@ -409,8 +418,8 @@ functionality for image editing and basic file information display.
 								onclick={() => {
 									showAspectPreview = true;
 								}}
-								aria-label="Aspect ratio preview"
-								title="Aspect ratio preview"
+								aria-label={widget_aspect_ratio_preview()}
+								title={widget_aspect_ratio_preview()}
 								class="p-0! min-w-0"
 							>
 								<iconify-icon icon="mdi:aspect-ratio" width={20}></iconify-icon>
@@ -421,8 +430,8 @@ functionality for image editing and basic file information display.
 						<Button
 							variant="outline"
 							onclick={openImageEditor}
-							aria-label="Edit image"
-							title="Edit image"
+							aria-label={widget_edit_image()}
+							title={widget_edit_image()}
 							class="p-0! min-w-0"
 						>
 							<iconify-icon icon="material-symbols:edit" width={24}></iconify-icon>
@@ -432,8 +441,8 @@ functionality for image editing and basic file information display.
 						<Button
 							variant="outline"
 							onclick={() => (isFlipped = !isFlipped)}
-							aria-label="Flip"
-							title="Flip details"
+							aria-label={widget_flip_hint()}
+							title={widget_flip_details()}
 							class="p-0! min-w-0"
 						>
 							<iconify-icon icon="uiw:reload" width={24}></iconify-icon>
@@ -443,8 +452,8 @@ functionality for image editing and basic file information display.
 						<Button
 							variant="outline"
 							onclick={() => (value = undefined)}
-							aria-label="Delete"
-							title="Delete image"
+							aria-label={button_delete()}
+							title={widget_delete_image()}
 							class="p-0! min-w-0"
 						>
 							<iconify-icon icon="material-symbols:delete-outline" width={30}></iconify-icon>

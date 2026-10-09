@@ -10,10 +10,63 @@ import { logger } from "@src/utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import type { DatabaseError, PaginatedResult, PaginationOptions } from "../db-interface";
-import type { Model, Schema, Connection } from "mongoose";
+import type { Model, Schema, Connection, Types } from "mongoose";
 import mongoose from "mongoose";
 
 export { validateId } from "../core/query-primitives";
+
+/**
+ * Type guard for Mongoose ObjectId.
+ */
+function isObjectId(value: unknown): value is Types.ObjectId {
+  if (!value || typeof value !== "object") return false;
+  if ((value as any)._bsontype === "ObjectId" && typeof (value as any).toHexString === "function") {
+    const hexString = (value as Types.ObjectId).toHexString();
+    return hexString.length === 24 && /^[0-9a-fA-F]{24}$/.test(hexString);
+  }
+  return false;
+}
+
+/**
+ * Safely normalizes various ID formats into strings.
+ */
+export function normalizeId(id: unknown, depth = 0): string | null {
+  if (depth > 2 || id === null || id === undefined) return null;
+  if (typeof id === "string") {
+    const trimmed = id.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (isObjectId(id)) return (id as Types.ObjectId).toHexString();
+  if (typeof id === "number" || typeof id === "bigint") return String(id);
+  if (typeof id === "object" && id !== null) {
+    const candidate = id as Record<string, unknown> & {
+      valueOf?: () => unknown;
+      toString?: () => string;
+    };
+    if (candidate._id !== undefined && candidate._id !== id) {
+      const nested = normalizeId(candidate._id, depth + 1);
+      if (nested) return nested;
+    }
+    if (candidate.id !== undefined && candidate.id !== id) {
+      const nested = normalizeId(candidate.id, depth + 1);
+      if (nested) return nested;
+    }
+    if (typeof candidate.valueOf === "function") {
+      const val = candidate.valueOf();
+      if (val !== null && val !== undefined && val !== id) {
+        const nested = normalizeId(val, depth + 1);
+        if (nested) return nested;
+      }
+    }
+    if (typeof candidate.toString === "function") {
+      const asString = candidate.toString();
+      if (asString && asString !== "[object Object]" && asString.trim().length > 0) {
+        return asString;
+      }
+    }
+  }
+  return null;
+}
 
 // ===================================================================================
 // Error Handling

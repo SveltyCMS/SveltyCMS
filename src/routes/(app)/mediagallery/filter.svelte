@@ -16,6 +16,12 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import {
+		clear_search,
+		MediaGallery_Search,
+		mediagallery_sort,
+		mediagallery_type_placeholder
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		globalSearchValue: string;
@@ -47,11 +53,11 @@
 			id="globalSearch"
 			bind:value={globalSearchValue}
 			label="Search"
-			placeholder="Search"
+			placeholder={MediaGallery_Search()}
 			class="flex-1"
 		/>
 		{#if globalSearchValue}
-			<Button variant="surface" onclick={clearSearch} aria-label="Clear search" class="w-12">
+			<Button variant="surface" onclick={clearSearch} aria-label={clear_search()} class="w-12">
 				<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
 			</Button>
 		{/if}
@@ -62,13 +68,13 @@
 			bind:value={selectedMediaType}
 			label="Type"
 			options={mediaTypeOptions}
-			placeholder="Type"
+			placeholder={mediagallery_type_placeholder()}
 			class="flex-1"
 		/>
 
 		<div class="flex flex-col justify-end text-center">
-			<span class="mb-2 text-sm font-medium">Sort</span>
-			<Button variant="outline" id="sortButton" aria-label="Sort">
+			<span class="mb-2 text-sm font-medium">{mediagallery_sort()}</span>
+			<Button variant="outline" id="sortButton" aria-label={mediagallery_sort()}>
 				<iconify-icon icon="flowbite:sort-outline" width={24}></iconify-icon>
 			</Button>
 		</div>

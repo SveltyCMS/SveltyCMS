@@ -23,7 +23,7 @@ Welcome to the SveltyCMS Database Engine documentation. Our architecture is buil
 
 ### 1. Database-Agnostic Architecture
 
-- **[Core Infrastructure](./core-infrastructure.mdx)** — `db.ts` lifecycle, self-healing proxy, plugin-registry topological boot, LocalCMS SDK
+- **[Core Infrastructure](./core-infrastructure.mdx)** — `db.ts` lifecycle, self-healing proxy, topological service boot (`db-init.ts`), LocalCMS SDK
 - **[Database Methods Interface](./database-methods.mdx)** — `IDBAdapter` namespaces: `auth`, `crud`, `content`, `media`, `system`, `batch`, `collection`
 - **[Database Resilience](./database-resilience.mdx)** — Error handling, retry logic, circuit breaker, connection health monitoring
 - **[Performance Architecture](./performance-architecture.mdx)** — `findPage` / count modes / count cache (equal on all engines), allocation-floor, schema-aware conversion, ring-buffer pools

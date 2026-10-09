@@ -61,7 +61,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
-	import { pinnedStore } from '@src/stores/pinned-store.svelte';
+	import { pinnedStore } from '@src/stores/collection-metadata-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { getTextDirection } from '@utils/string';
 	import { logger } from '@utils/logger';

@@ -33,6 +33,7 @@ Features:
 		builder_manage_tags_aria,
 		builder_node_collapse,
 		builder_node_expand,
+		builder_tree_url_slug_aria,
 		button_delete,
 		button_edit,
 		collections_manage_tags
@@ -193,7 +194,7 @@ Features:
 					size="sm"
 					rounded={false}
 					class="hidden sm:inline-flex font-mono ms-auto opacity-80 shadow-sm"
-					aria-label="URL slug"
+					aria-label={builder_tree_url_slug_aria()}
 				>
 					{item.slug}
 				</Badge>

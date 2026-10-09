@@ -19,7 +19,25 @@
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Tabs from '@components/ui/tabs';
-	import { system_permission, system_roles } from '@src/paraglide/messages';
+	import {
+		access_intro,
+		access_loading_admin_role,
+		access_loading_roles,
+		access_loading_sso,
+		access_loading_website_tokens,
+		access_reset,
+		access_reset_changes_aria,
+		access_save_all_aria,
+		access_save_count,
+		access_saving,
+		access_title,
+		access_tab_admin,
+		access_tab_sso,
+		access_tab_website_tokens,
+		common_loading_permissions,
+		system_permission,
+		system_roles
+	} from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -114,7 +132,7 @@
 </script>
 
 <AdminPageShell
-	title="Access Management"
+	title={access_title()}
 	icon="mdi:shield-account-outline"
 	showBackButton={true}
 	backUrl="/config"
@@ -130,27 +148,27 @@
 			<Button
 				variant="tertiary"
 				onclick={saveAllChanges}
-				aria-label="Save all changes"
+				aria-label={access_save_all_aria()}
 				data-testid="access-mgmt-save"
 				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 				class="font-semibold shadow-xs"
 			>
 				{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
-					Saving...
+					{access_saving()}
 				{:else}
-					Save ({modifiedCount})
+					{access_save_count({ count: modifiedCount })}
 				{/if}
 			</Button>
 
 			<Button
 				variant="ghost"
 				onclick={resetChanges}
-				aria-label="Reset changes"
+				aria-label={access_reset_changes_aria()}
 				data-testid="access-mgmt-reset"
 				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 				class="font-semibold shadow-xs"
 			>
-				Reset
+				{access_reset()}
 			</Button>
 		</div>
 	{/snippet}
@@ -161,8 +179,7 @@
 	>
 		<div class="mb-4">
 			<p class="text-tertiary-500 dark:text-primary-500 text-sm">
-				Here you can create and manage user roles and permissions. Each role defines a set of
-				permissions that determine what actions users with that role can perform in the system.
+				{access_intro()}
 			</p>
 		</div>
 
@@ -194,7 +211,7 @@
 					>
 						<iconify-icon icon="mdi:account-cog" width="18" height="18" aria-hidden="true"
 						></iconify-icon>
-						Admin
+						{access_tab_admin()}
 					</Tabs.Trigger>
 					<Tabs.Trigger
 						value="3"
@@ -202,7 +219,7 @@
 						aria-current={currentTab === '3' ? 'page' : undefined}
 					>
 						<iconify-icon icon="mdi:web" width="18" height="18" aria-hidden="true"></iconify-icon>
-						Website Tokens
+						{access_tab_website_tokens()}
 					</Tabs.Trigger>
 					<Tabs.Trigger
 						value="4"
@@ -211,7 +228,7 @@
 					>
 						<iconify-icon icon="mdi:shield-key-outline" width="18" height="18" aria-hidden="true"
 						></iconify-icon>
-						SSO & OIDC
+						{access_tab_sso()}
 					</Tabs.Trigger>
 				</Tabs.List>
 			</div>
@@ -220,7 +237,7 @@
 				<div class="p-2">
 					{#if currentTab === '0'}
 						{#await import('./permissions.svelte')}
-							<p class="text-sm text-surface-500">Loading permissions…</p>
+							<p class="text-sm text-surface-500">{common_loading_permissions()}</p>
 						{:then mod}
 							<mod.default roleData={rolesData} {setRoleData} {updateModifiedCount} />
 						{/await}
@@ -231,7 +248,7 @@
 				<div class="p-2">
 					{#if currentTab === '1'}
 						{#await import('./roles.svelte')}
-							<p class="text-sm text-surface-500">Loading roles…</p>
+							<p class="text-sm text-surface-500">{access_loading_roles()}</p>
 						{:then mod}
 							<mod.default
 								roleData={rolesData}
@@ -247,7 +264,7 @@
 				<div class="p-2">
 					{#if currentTab === '2'}
 						{#await import('./admin-role.svelte')}
-							<p class="text-sm text-surface-500">Loading admin role…</p>
+							<p class="text-sm text-surface-500">{access_loading_admin_role()}</p>
 						{:then mod}
 							<mod.default roleData={rolesData} {setRoleData} />
 						{/await}
@@ -258,7 +275,7 @@
 				<div class="p-2">
 					{#if currentTab === '3'}
 						{#await import('./website-tokens.svelte')}
-							<p class="text-sm text-surface-500">Loading website tokens…</p>
+							<p class="text-sm text-surface-500">{access_loading_website_tokens()}</p>
 						{:then mod}
 							<mod.default permissions={page.data.permissions} />
 						{/await}
@@ -269,7 +286,7 @@
 				<div class="p-2">
 					{#if currentTab === '4'}
 						{#await import('./sso-providers.svelte')}
-							<p class="text-sm text-surface-500">Loading SSO providers…</p>
+							<p class="text-sm text-surface-500">{access_loading_sso()}</p>
 						{:then mod}
 							<mod.default availableRoles={rolesData} />
 						{/await}

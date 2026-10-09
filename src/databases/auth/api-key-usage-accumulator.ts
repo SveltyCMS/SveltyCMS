@@ -26,6 +26,8 @@ import { logger } from "@src/utils/logger";
 export const API_KEY_USAGE_FLUSH_INTERVAL_MS = 10_000;
 
 interface ApiKeyUsageEntry {
+  /** The raw API key ID */
+  keyId: string;
   /** Number of authenticated requests aggregated for this key. */
   count: number;
   /** Most recent client IP (platform address only — never raw X-Forwarded-For). */
@@ -63,7 +65,7 @@ export function recordApiKeyUsage(
     existing.ip = ip; // latest wins
     existing.ts = Date.now();
   } else {
-    pendingUsage.set(compositeKey, { count: 1, ip, ts: Date.now(), tenantId });
+    pendingUsage.set(compositeKey, { keyId, count: 1, ip, ts: Date.now(), tenantId });
   }
 }
 
@@ -88,36 +90,38 @@ async function drainPendingUsage(): Promise<void> {
   const batch = pendingUsage;
   pendingUsage = new Map<string, ApiKeyUsageEntry>();
 
-  await Promise.all(
-    [...batch.entries()].map(async ([compositeKey, entry]) => {
-      const keyId = compositeKey.slice(compositeKey.indexOf("|") + 1);
-      try {
-        const result = await dbAdapter.auth.updateApiKeyUsage(
-          keyId as DatabaseId,
-          entry.ip,
-          {
-            tenantId: entry.tenantId as DatabaseId | null | undefined,
-          },
-          {
-            usageCount: entry.count,
-            lastUsedAt: new Date(entry.ts),
-          },
-        );
-        if (!result.success) {
-          logger.debug(
-            `[ApiKeyUsage] Flush failed for key ${keyId}: ${result.message ?? "unknown"}`,
-          );
-        }
-      } catch (err) {
-        // Adapter failures (DB blip, connection loss) must never surface to requests.
-        logger.debug(
-          `[ApiKeyUsage] Flush error for key ${keyId}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    }),
-  );
+  const flushes: Promise<void>[] = [];
+  for (const entry of batch.values()) {
+    flushes.push(flushSingleEntry(entry));
+  }
+  await Promise.all(flushes);
+}
+
+async function flushSingleEntry(entry: ApiKeyUsageEntry): Promise<void> {
+  const { keyId } = entry;
+  try {
+    const result = await dbAdapter.auth.updateApiKeyUsage(
+      keyId as DatabaseId,
+      entry.ip,
+      {
+        tenantId: entry.tenantId as DatabaseId | null | undefined,
+      },
+      {
+        usageCount: entry.count,
+        lastUsedAt: new Date(entry.ts),
+      },
+    );
+    if (!result.success) {
+      logger.debug(`[ApiKeyUsage] Flush failed for key ${keyId}: ${result.message ?? "unknown"}`);
+    }
+  } catch (err) {
+    // Adapter failures (DB blip, connection loss) must never surface to requests.
+    logger.debug(
+      `[ApiKeyUsage] Flush error for key ${keyId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
 }
 
 /** Clears pending usage records without flushing (tests). */

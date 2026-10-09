@@ -23,6 +23,19 @@ and rule-of-thirds grid overlay.
 	import Button from '@components/ui/button.svelte';
 	import AspectPreview from '@components/media/aspect-preview.svelte';
 	import { page } from '$app/state';
+	import {
+		button_cancel,
+		button_save,
+		mediagallery_center,
+		mediagallery_crop_previews,
+		mediagallery_focal_close_esc,
+		mediagallery_focal_hint,
+		mediagallery_focal_position,
+		mediagallery_focal_title,
+		mediagallery_focal_xy,
+		mediagallery_reset_center,
+		usersessions_close_modal
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		/** The media image to adjust focal point for */
@@ -158,7 +171,7 @@ and rule-of-thirds grid overlay.
 			onclick={handleClose}
 			role="button"
 			tabindex="0"
-			aria-label="Close modal"
+			aria-label={usersessions_close_modal()}
 			onkeydown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') handleClose();
 			}}
@@ -180,12 +193,12 @@ and rule-of-thirds grid overlay.
 						width="24"
 						class="text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
-					Set Focal Point
+					{mediagallery_focal_title()}
 				</h3>
 				<Button
 					variant="outline"
 					onclick={handleClose}
-					aria-label="Close (Escape)"
+					aria-label={mediagallery_focal_close_esc()}
 					aria-keyshortcuts="Escape"
 					class="p-0! min-w-0"
 				>
@@ -196,8 +209,7 @@ and rule-of-thirds grid overlay.
 			<!-- Image Container -->
 			<div class="p-4">
 				<p class="text-sm text-surface-500 dark:text-surface-50 mb-3">
-					Click or drag to set the focal point. This determines the focus area when the image is
-					cropped for different sizes.
+					{mediagallery_focal_hint()}
 				</p>
 
 				<div
@@ -211,7 +223,7 @@ and rule-of-thirds grid overlay.
 					aria-valuemin={0}
 					aria-valuemax={100}
 					aria-valuenow={focalPoint.x}
-					aria-label="Focal point position"
+					aria-label={mediagallery_focal_position()}
 					tabindex="0"
 				>
 					<img
@@ -256,7 +268,7 @@ and rule-of-thirds grid overlay.
 						<h4
 							class="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"
 						>
-							Crop Previews
+							{mediagallery_crop_previews()}
 						</h4>
 						<AspectPreview imageUrl={media.url} {focalPoint} readonly={true} />
 					</div>
@@ -272,20 +284,30 @@ and rule-of-thirds grid overlay.
 					<div
 						class="text-sm font-mono text-surface-600 dark:text-surface-50 bg-surface-200 dark:bg-surface-700 px-2 py-1 rounded"
 					>
-						X: {focalPoint.x.toFixed(0)}% | Y: {focalPoint.y.toFixed(0)}%
+						{mediagallery_focal_xy({
+							x: focalPoint.x.toFixed(0),
+							y: focalPoint.y.toFixed(0)
+						})}
 					</div>
 					<!-- Reset button -->
-					<Button variant="outline" onclick={resetToCenter} title="Reset to center" size="sm">
+					<Button
+						variant="outline"
+						onclick={resetToCenter}
+						title={mediagallery_reset_center()}
+						size="sm"
+					>
 						<iconify-icon icon="mdi:target" width="16"></iconify-icon>
-						<span>Center</span>
+						<span>{mediagallery_center()}</span>
 					</Button>
 				</div>
 
 				<div class="flex gap-2">
-					<Button variant="outline" onclick={handleClose} aria-keyshortcuts="Escape">Cancel</Button>
+					<Button variant="outline" onclick={handleClose} aria-keyshortcuts="Escape"
+						>{button_cancel()}</Button
+					>
 					<Button variant="tertiary" onclick={handleSave} aria-keyshortcuts="mod+s">
 						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-						<span>Save</span>
+						<span>{button_save()}</span>
 					</Button>
 				</div>
 			</footer>

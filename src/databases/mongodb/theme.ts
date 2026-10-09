@@ -23,6 +23,7 @@ import { nowISODateString, toISOString } from "@utils/date";
 import { logger } from "@utils/logger";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 
 // Theme schema
 export const themeSchema = new Schema<Theme>(
@@ -218,7 +219,6 @@ export class MongoThemeMethods {
     tenantId?: string | null;
     systemScope?: SystemTenantScope;
   }): Promise<DatabaseResult<Theme>> {
-    const { assertTenantContext } = await import("@src/utils/security/safe-query");
     // Fail-closed under MT: tenantId or withSystemScope(...) required (no auto-bypass)
     assertTenantContext(options as any, "system.themes.getDefaultTheme");
 

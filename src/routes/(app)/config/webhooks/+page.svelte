@@ -39,6 +39,40 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		testWebhookDelivery,
 		unwrapWebhookList
 	} from './webhooks-api';
+	import {
+		automation_webhook_url_placeholder,
+		automations_empty_cta,
+		button_cancel,
+		button_edit,
+		button_test,
+		common_active,
+		config_tile_webhooks,
+		twofa_status_disabled,
+		usersessions_close_modal,
+		webhooks_add,
+		webhooks_add_aria,
+		webhooks_cancel_editing,
+		webhooks_delete_aria,
+		webhooks_delete_title,
+		webhooks_delivery_logs,
+		webhooks_edit_aria,
+		webhooks_edit_configuration,
+		webhooks_empty_intro,
+		webhooks_empty_title,
+		webhooks_name_placeholder,
+		webhooks_no_match,
+		webhooks_regenerate_secret,
+		webhooks_save_aria,
+		webhooks_search_aria,
+		webhooks_search_placeholder,
+		webhooks_secret_hint,
+		webhooks_secret_key_aria,
+		webhooks_secret_key_label,
+		webhooks_send_test_event,
+		webhooks_test_aria,
+		webhooks_trigger_events,
+		webhooks_trigger_events_hint
+	} from '@src/paraglide/messages';
 
 	let webhooks: Webhook[] = $state([]);
 	let isLoading = $state(true);
@@ -174,7 +208,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 </script>
 
 <AdminPageShell
-	title="Webhooks"
+	title={config_tile_webhooks()}
 	icon="mdi:webhook"
 	description="Manage webhook endpoints and event subscriptions"
 	showBackButton={true}
@@ -190,16 +224,16 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 				leadingIcon="mdi:clipboard-text-outline"
 				size="sm"
 			>
-				Delivery Logs
+				{webhooks_delivery_logs()}
 			</Button>
 			<Button
 				variant="tertiary"
 				onclick={openAddModal}
-				aria-label="Add webhook"
+				aria-label={webhooks_add_aria()}
 				leadingIcon="mdi:plus"
 				data-testid="webhooks-add"
 			>
-				Add Webhook
+				{webhooks_add()}
 			</Button>
 		</div>
 	{/snippet}
@@ -219,8 +253,8 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<Input
 						type="search"
 						bind:value={searchQuery}
-						placeholder="Search webhooks..."
-						aria-label="Search webhooks"
+						placeholder={webhooks_search_placeholder()}
+						aria-label={webhooks_search_aria()}
 						data-testid="webhooks-search"
 						class="max-w-md"
 					/>
@@ -234,21 +268,21 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 						data-testid="webhooks-empty"
 					>
 						<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
-						<h3 class="h3 font-bold">No Webhooks Configured</h3>
-						<p class="mb-6 opacity-60">Add a webhook to start integrating with external systems.</p>
+						<h3 class="h3 font-bold">{webhooks_empty_title()}</h3>
+						<p class="mb-6 opacity-60">{webhooks_empty_intro()}</p>
 						<Button
 							variant="tertiary"
 							onclick={openAddModal}
-							aria-label="Add webhook"
+							aria-label={webhooks_add_aria()}
 							data-testid="webhooks-empty-cta"
 						>
-							Get Started
+							{automations_empty_cta()}
 						</Button>
 					</AdminCard>
 				</div>
 			{:else if filteredWebhooks.length === 0}
 				<AdminCard class="p-8 text-center" data-testid="webhooks-search-empty">
-					<p class="opacity-60">No webhooks match your search.</p>
+					<p class="opacity-60">{webhooks_no_match()}</p>
 				</AdminCard>
 			{:else}
 				<div in:fade>
@@ -267,10 +301,12 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 										<div class="flex items-center gap-2 mb-1">
 											<span class="font-bold text-lg truncate">{webhook.name}</span>
 											{#if webhook.active}
-												<Badge variant="success" size="sm" class="uppercase">Active</Badge>
+												<Badge variant="success" size="sm" class="uppercase"
+													>{common_active()}</Badge
+												>
 											{:else}
 												<Badge preset="tonal" color="surface" size="sm" class="uppercase"
-													>Disabled</Badge
+													>{twofa_status_disabled()}</Badge
 												>
 											{/if}
 										</div>
@@ -288,30 +324,30 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 										<Button
 											variant="surface"
 											onclick={() => testWebhook(webhook as Webhook)}
-											title="Send Test Event"
-											aria-label="Test webhook {webhook.name}"
+											title={webhooks_send_test_event()}
+											aria-label={webhooks_test_aria({ name: webhook.name })}
 											data-testid="webhook-test"
 											size="sm"
 										>
 											<iconify-icon icon="mdi:send-outline"></iconify-icon>
-											<span class="hidden sm:inline">Test</span>
+											<span class="hidden sm:inline">{button_test()}</span>
 										</Button>
 										<Button
 											variant="surface"
 											onclick={() => openEditModal(webhook)}
-											title="Edit Configuration"
-											aria-label="Edit webhook {webhook.name}"
+											title={webhooks_edit_configuration()}
+											aria-label={webhooks_edit_aria({ name: webhook.name })}
 											data-testid="webhook-edit"
 											size="sm"
 										>
 											<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
-											<span class="hidden sm:inline">Edit</span>
+											<span class="hidden sm:inline">{button_edit()}</span>
 										</Button>
 										<Button
 											variant="error"
 											onclick={() => confirmDelete(webhook)}
-											title="Delete Webhook"
-											aria-label="Delete webhook {webhook.name}"
+											title={webhooks_delete_title()}
+											aria-label={webhooks_delete_aria({ name: webhook.name })}
 											data-testid="webhook-delete"
 											size="sm"
 										>
@@ -353,7 +389,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<Button
 						variant="ghost"
 						onclick={() => (showModal = false)}
-						aria-label="Close modal"
+						aria-label={usersessions_close_modal()}
 						size="sm"
 						data-testid="webhook-modal-close"
 					>
@@ -365,7 +401,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<Input
 						label="Webhook Name"
 						type="text"
-						placeholder="e.g. My External API"
+						placeholder={webhooks_name_placeholder()}
 						bind:value={activeWebhook.name}
 						error={formErrors.name}
 						data-testid="webhook-name"
@@ -374,7 +410,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<Input
 						label="Payload URL"
 						type="url"
-						placeholder="https://example.com/webhook"
+						placeholder={automation_webhook_url_placeholder()}
 						bind:value={activeWebhook.url}
 						error={formErrors.url}
 						data-testid="webhook-url"
@@ -383,13 +419,13 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-1">
 							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
-								>Secret Key (HMAC-SHA256)</span
+								>{webhooks_secret_key_label()}</span
 							>
 							<div class="flex gap-1">
 								<Input
 									type="text"
 									bind:value={activeWebhook.secret}
-									aria-label="Secret key"
+									aria-label={webhooks_secret_key_aria()}
 									inputClass="font-mono text-xs"
 									class="flex-1"
 									data-testid="webhook-secret"
@@ -397,7 +433,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 								<Button
 									variant="ghost"
 									onclick={() => activeWebhook && (activeWebhook.secret = generateSecureToken(16))}
-									aria-label="Regenerate secret"
+									aria-label={webhooks_regenerate_secret()}
 									size="sm"
 									data-testid="webhook-regenerate-secret"
 								>
@@ -405,7 +441,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 								</Button>
 							</div>
 							<p class="text-[10px] opacity-60 mt-1 italic">
-								Used to sign payloads for security verify.
+								{webhooks_secret_hint()}
 							</p>
 						</div>
 
@@ -417,11 +453,11 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<hr class="opacity-30" />
 
 					<div class="space-y-2" data-testid="webhook-events">
-						<span class="block font-bold">Trigger Events</span>
+						<span class="block font-bold">{webhooks_trigger_events()}</span>
 						{#if formErrors.events}
 							<p class="text-sm text-error-500" role="alert">{formErrors.events}</p>
 						{/if}
-						<p class="text-xs opacity-60 mb-2">Select which events should trigger this webhook.</p>
+						<p class="text-xs opacity-60 mb-2">{webhooks_trigger_events_hint()}</p>
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 							{#each WEBHOOK_EVENT_TYPES as event (event)}
 								<div
@@ -444,16 +480,16 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<Button
 						variant="ghost"
 						onclick={() => (showModal = false)}
-						aria-label="Cancel editing"
+						aria-label={webhooks_cancel_editing()}
 						data-testid="webhook-cancel"
 					>
-						Cancel
+						{button_cancel()}
 					</Button>
 					<Button
 						variant="tertiary"
 						disabled={isSaving}
 						onclick={saveWebhook}
-						aria-label="Save webhook"
+						aria-label={webhooks_save_aria()}
 						loading={isSaving}
 						data-testid="webhook-save"
 					>

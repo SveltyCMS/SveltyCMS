@@ -94,12 +94,20 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 
 // Pre-compiled Trie for O(L) lookups
 const PERMISSION_TRIE = new Trie<string[]>();
+const TRIE_FALLBACK_OPTS = { fallback: true } as const;
 
-// Initialize the trie once at startup
+// Pre-compiled direct lookup Map for instantaneous O(1) checks without splitting or Trie traversal
+const DIRECT_PERMISSIONS = new Map<string, string[]>();
+
+// Initialize the trie and direct map once at startup
 for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
   // Support both 'api:endpoint' and 'api:parent/child' formats
   const path = endpoint.replace(":", "/").split("/");
   PERMISSION_TRIE.insert(path, roles);
+
+  if (endpoint.startsWith("api:")) {
+    DIRECT_PERMISSIONS.set(endpoint.slice(4), roles);
+  }
 }
 
 /**
@@ -120,15 +128,35 @@ export function hasApiPermission(
     return true;
   }
 
-  const roles = Array.isArray(userRoles) ? userRoles : [userRoles];
-
-  // Admin role fast-path
-  if (roles.includes("admin")) {
+  // Admin role fast-path without array wrapping
+  if (typeof userRoles === "string") {
+    if (userRoles === "admin") {
+      return true;
+    }
+  } else if (Array.isArray(userRoles) && userRoles.includes("admin")) {
     return true;
   }
 
-  // O(L) Trie Lookup instead of object property check
-  const allowedRoles = PERMISSION_TRIE.find(["api", ...apiEndpoint.split("/")], { fallback: true });
+  // Fast path: direct O(1) Map lookup for exact endpoints (>90% of requests)
+  const directRoles = DIRECT_PERMISSIONS.get(apiEndpoint);
+  if (directRoles !== undefined) {
+    if (directRoles.includes("*")) {
+      return true;
+    }
+    if (typeof userRoles === "string") {
+      return directRoles.includes(userRoles);
+    }
+    for (let i = 0; i < userRoles.length; i++) {
+      if (directRoles.includes(userRoles[i])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Fallback: O(L) Trie Lookup for nested/hierarchical endpoints
+  const path = ["api", ...apiEndpoint.split("/")];
+  const allowedRoles = PERMISSION_TRIE.find(path, TRIE_FALLBACK_OPTS);
 
   if (!allowedRoles) {
     // If endpoint is not defined, deny access by default (secure by default)
@@ -141,8 +169,11 @@ export function hasApiPermission(
   }
 
   // Check if ANY of the user's roles is in the allowed roles
-  for (let i = 0; i < roles.length; i++) {
-    if (allowedRoles.includes(roles[i])) {
+  if (typeof userRoles === "string") {
+    return allowedRoles.includes(userRoles);
+  }
+  for (let i = 0; i < userRoles.length; i++) {
+    if (allowedRoles.includes(userRoles[i])) {
       return true;
     }
   }

@@ -30,6 +30,24 @@ canManage: boolean;
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import {
+		widgetcard_active,
+		widgetcard_always_active,
+		widgetcard_always_active_title,
+		widgetcard_core,
+		widgetcard_custom,
+		widgetcard_db_valid,
+		widgetcard_db_valid_title,
+		widgetcard_depends_on,
+		widgetcard_display,
+		widgetcard_display_title,
+		widgetcard_inactive,
+		widgetcard_input,
+		widgetcard_input_title,
+		widgetcard_required,
+		widgetcard_required_title,
+		widgetcard_uninstall_title
+	} from '@src/paraglide/messages';
 	// Using iconify-icon web component
 	interface Props {
 		canManage: boolean;
@@ -69,14 +87,14 @@ canManage: boolean;
 				<div class="flex flex-wrap items-center gap-2">
 					<h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">{widget.name}</h3>
 					{#if widget.isCore}
-						<Badge variant="primary">Core</Badge>
+						<Badge variant="primary">{widgetcard_core()}</Badge>
 					{:else}
-						<Badge variant="tertiary">Custom</Badge>
+						<Badge variant="tertiary">{widgetcard_custom()}</Badge>
 					{/if}
 					{#if widget.isActive}
-						<Badge variant="success">Active</Badge>
+						<Badge variant="success">{widgetcard_active()}</Badge>
 					{:else}
-						<Badge variant="surface">Inactive</Badge>
+						<Badge variant="surface">{widgetcard_inactive()}</Badge>
 					{/if}
 				</div>
 				{#if widget.description}
@@ -88,17 +106,17 @@ canManage: boolean;
 				<!-- 3-Pillar Architecture Indicators -->
 				{#if widget.pillar}
 					<div class="flex items-center gap-4 pt-1 text-xs text-surface-500">
-						<div class="flex items-center gap-1" title="Input Component">
+						<div class="flex items-center gap-1" title={widgetcard_input_title()}>
 							<iconify-icon icon="mdi:form-textbox" width="18"></iconify-icon>
-							<span>Input</span>
+							<span>{widgetcard_input()}</span>
 						</div>
-						<div class="flex items-center gap-1" title="Display Component">
+						<div class="flex items-center gap-1" title={widgetcard_display_title()}>
 							<iconify-icon icon="mdi:monitor-dashboard" width="18"></iconify-icon>
-							<span>Display</span>
+							<span>{widgetcard_display()}</span>
 						</div>
-						<div class="flex items-center gap-1" title="Database/Validation">
+						<div class="flex items-center gap-1" title={widgetcard_db_valid_title()}>
 							<iconify-icon icon="mdi:database-check" width="18"></iconify-icon>
-							<span>DB/Valid</span>
+							<span>{widgetcard_db_valid()}</span>
 						</div>
 					</div>
 				{/if}
@@ -106,7 +124,7 @@ canManage: boolean;
 				<!-- Dependencies -->
 				{#if widget.dependencies && widget.dependencies.length > 0}
 					<div class="flex flex-wrap gap-1.5 pt-1">
-						<span class="text-xs text-surface-500">Depends on:</span>
+						<span class="text-xs text-surface-500">{widgetcard_depends_on()}</span>
 						{#each widget.dependencies as dep (dep)}
 							<Badge variant="secondary" class="text-xs">{dep}</Badge>
 						{/each}
@@ -120,7 +138,9 @@ canManage: boolean;
 			<!-- Toggle Active Status -->
 			{#if widget.isCore}
 				<!-- Core widgets are always active and cannot be deactivated -->
-				<Badge variant="primary" title="Core widgets are always active">Always Active</Badge>
+				<Badge variant="primary" title={widgetcard_always_active_title()}
+					>{widgetcard_always_active()}</Badge
+				>
 			{:else if canManage && widget.canDisable}
 				<Button
 					variant="error"
@@ -132,7 +152,7 @@ canManage: boolean;
 					{widget.isActive ? 'Deactivate' : 'Activate'}
 				</Button>
 			{:else if !widget.canDisable}
-				<Badge variant="warning" title="Required by other widgets">Required</Badge>
+				<Badge variant="warning" title={widgetcard_required_title()}>{widgetcard_required()}</Badge>
 			{/if}
 
 			<!-- Uninstall (only for inactive custom widgets) -->
@@ -141,7 +161,7 @@ canManage: boolean;
 					variant="surface"
 					type="button"
 					onclick={() => onUninstall?.(widget.name)}
-					title="Uninstall widget"
+					title={widgetcard_uninstall_title()}
 					class="p-0! min-w-0"
 				>
 					<iconify-icon icon="mdi:trash-can-outline" width="20" class="text-lg"></iconify-icon>

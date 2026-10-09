@@ -25,8 +25,11 @@ None (reads `page` rune from `$app/state`).
 		db_error_description,
 		db_error_title,
 		error_goback,
+		error_go_dashboard,
 		error_page_moved,
 		error_pagenotfound,
+		error_reload_view,
+		error_title_suffix,
 		error_wrong
 	} from '@src/paraglide/messages';
 
@@ -76,7 +79,7 @@ None (reads `page` rune from `$app/state`).
 </script>
 
 <svelte:head>
-	<title>{status} - {errorTitle} | SveltyCMS Admin</title>
+	<title>{status} - {errorTitle} {error_title_suffix()}</title>
 </svelte:head>
 
 <AdminPageShell
@@ -116,7 +119,7 @@ None (reads `page` rune from `$app/state`).
 			</p>
 
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-				<Button variant="primary" href="/dashboard">Go to Dashboard</Button>
+				<Button variant="primary" href="/dashboard">{error_go_dashboard()}</Button>
 
 				<Button
 					variant="secondary"
@@ -124,7 +127,7 @@ None (reads `page` rune from `$app/state`).
 						if (typeof window !== 'undefined') window.location.reload();
 					}}
 				>
-					Reload View
+					{error_reload_view()}
 				</Button>
 
 				<Button

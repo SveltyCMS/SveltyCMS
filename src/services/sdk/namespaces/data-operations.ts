@@ -437,10 +437,15 @@ export class ContentStructureNamespace extends BaseNamespace {
 
   async deleteByIds(ids: string[], options: LocalApiOptions = {}) {
     const current = await this.getFlatStructure(options);
-    const paths = current
-      .filter((n) => ids.includes(n._id?.toString()))
-      .map((n) => n.path)
-      .filter((p): p is string => !!p);
+    // Set-based membership + a single pass — avoids the filter→map→filter chains
+    // and the O(ids) `.includes()` scan per node.
+    const idSet = new Set(ids);
+    const paths: string[] = [];
+    for (const n of current) {
+      if (idSet.has(n._id?.toString()) && n.path) {
+        paths.push(n.path);
+      }
+    }
 
     if (paths.length === 0) {
       return { found: false as const, paths: [] as string[] };

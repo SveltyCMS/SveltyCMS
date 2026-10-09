@@ -113,7 +113,28 @@ export function invalidateCache(
   tenantId?: DatabaseId | null,
   opts?: { skipRequestCacheClear?: boolean; writtenId?: string; writtenIds?: readonly string[] },
 ): void {
-  if (!opts?.skipRequestCacheClear) {
+  queueInvalidation(
+    schema,
+    tenantId,
+    opts?.skipRequestCacheClear === true,
+    opts?.writtenId,
+    opts?.writtenIds,
+  );
+}
+
+/**
+ * Positional-arg core of invalidateCache so the per-write caller
+ * (schedulePostWrite) skips the options-object allocation; all invalidation
+ * semantics live here.
+ */
+function queueInvalidation(
+  schema: Schema,
+  tenantId: DatabaseId | null | undefined,
+  skipRequestCacheClear: boolean,
+  writtenId: string | undefined,
+  writtenIds: readonly string[] | undefined,
+): void {
+  if (!skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
   }
   if (schema._id) {
@@ -124,14 +145,14 @@ export function invalidateCache(
   const schemaId = schema._id as string | undefined;
   const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
 
-  if (schemaId && (opts?.writtenId || opts?.writtenIds?.length)) {
+  if (schemaId && (writtenId || writtenIds?.length)) {
     let ids = _pendingInvalidationIds.get(requestKey);
     if (!ids) {
       ids = acquireIdSet();
       _pendingInvalidationIds.set(requestKey, ids);
     }
-    if (opts.writtenId) ids.add(opts.writtenId);
-    if (opts.writtenIds) for (const id of opts.writtenIds) ids.add(id);
+    if (writtenId) ids.add(writtenId);
+    if (writtenIds) for (const id of writtenIds) ids.add(id);
   }
 
   if (_pendingInvalidationTasks.has(requestKey)) {
@@ -171,7 +192,7 @@ export function invalidateCache(
       _pendingInvalidationTasks.delete(requestKey);
       if (_pendingInvalidationDirty.has(requestKey)) {
         _pendingInvalidationDirty.delete(requestKey);
-        invalidateCache(schema, tenantId, { skipRequestCacheClear: true });
+        queueInvalidation(schema, tenantId, true, undefined, undefined);
       }
     }
   });
@@ -206,7 +227,7 @@ export function schedulePostWrite(
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
   // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
-  invalidateCache(schema, tenantId, { skipRequestCacheClear: true, writtenId: id });
+  queueInvalidation(schema, tenantId, true, id, undefined);
 
   if (action === "create" || action === "update") {
     recordWriteAccess(tid || "global", schemaId, id);
@@ -434,6 +455,9 @@ async function enqueueOutboxBatch(batch: PendingOutboxItem[]): Promise<void> {
   } catch {}
 }
 
+/** Shared frozen empty tx-options — every caller only spreads it, never mutates. */
+const EMPTY_TX_OPTS: Record<string, unknown> = Object.freeze({});
+
 /**
  * Persist a mutation; schedule outbox emit off the critical path.
  * Single-statement INSERT/UPDATE/DELETE are natively atomic — no BEGIN/COMMIT wrapper.
@@ -449,7 +473,7 @@ export async function persistWithOutbox(
   options?: { skipSideEffects?: boolean },
 ): Promise<any> {
   const writeMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:adapter-write") : null;
-  const result = await write({});
+  const result = await write(EMPTY_TX_OPTS);
   writeMark?.();
   if (result?.success) {
     const id = getId(result);

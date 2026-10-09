@@ -6,6 +6,15 @@
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import {
+		widget_geo_ew,
+		widget_geo_geojson,
+		widget_geo_get_current,
+		widget_geo_latitude,
+		widget_geo_locating,
+		widget_geo_longitude,
+		widget_geo_ns
+	} from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -66,13 +75,15 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 		<!-- Latitude -->
 		<div class="flex flex-col gap-1.5">
-			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Latitude</span>
+			<span class="text-xs font-bold uppercase tracking-widest text-surface-400"
+				>{widget_geo_latitude()}</span
+			>
 			<div
 				class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
 			>
 				<Input
 					type="number"
-					aria-label="Latitude"
+					aria-label={widget_geo_latitude()}
 					step="0.000001"
 					bind:value={lat}
 					oninput={updateValue}
@@ -82,20 +93,22 @@
 				<div
 					class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800"
 				>
-					N/S
+					{widget_geo_ns()}
 				</div>
 			</div>
 		</div>
 
 		<!-- Longitude -->
 		<div class="flex flex-col gap-1.5">
-			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Longitude</span>
+			<span class="text-xs font-bold uppercase tracking-widest text-surface-400"
+				>{widget_geo_longitude()}</span
+			>
 			<div
 				class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
 			>
 				<Input
 					type="number"
-					aria-label="Longitude"
+					aria-label={widget_geo_longitude()}
 					step="0.000001"
 					bind:value={lng}
 					oninput={updateValue}
@@ -105,7 +118,7 @@
 				<div
 					class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800"
 				>
-					E/W
+					{widget_geo_ew()}
 				</div>
 			</div>
 		</div>
@@ -120,10 +133,10 @@
 	>
 		{#if isLocating}
 			<iconify-icon icon="line-md:loading-twotone-loop" width="20"></iconify-icon>
-			Locating...
+			{widget_geo_locating()}
 		{:else}
 			<iconify-icon icon="mdi:crosshairs-gps" width="20"></iconify-icon>
-			Get Current Location
+			{widget_geo_get_current()}
 		{/if}
 	</Button>
 
@@ -132,7 +145,8 @@
 		<div
 			class="p-3 bg-surface-500/10 dark:bg-surface-800 rounded border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
 		>
-			GeoJSON: {JSON.stringify(value)}
+			{widget_geo_geojson()}
+			{JSON.stringify(value)}
 		</div>
 	{/if}
 </div>

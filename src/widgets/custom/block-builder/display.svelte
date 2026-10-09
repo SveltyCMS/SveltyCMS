@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
+	import { widget_block_empty_layout } from '@src/paraglide/messages';
 	import type { BlockInstance } from './types';
 
 	interface Props {
@@ -37,6 +38,6 @@
 			<span class="text-xs text-surface-400">+{blockList.length - 3}</span>
 		{/if}
 	{:else}
-		<span class="text-surface-400 italic text-xs">Empty layout</span>
+		<span class="text-surface-400 italic text-xs">{widget_block_empty_layout()}</span>
 	{/if}
 </div>

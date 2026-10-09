@@ -24,6 +24,31 @@ before saving to the database.
 <script lang="ts">
 	import Button from '@src/components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import {
+		builder_required,
+		common_clear,
+		common_desktop,
+		common_mobile,
+		common_tablet,
+		preview_bold,
+		preview_browse,
+		preview_bullet_list,
+		preview_create_new,
+		preview_desktop_aria,
+		preview_draft,
+		preview_drag_drop_part1,
+		preview_fill_sample,
+		preview_italic,
+		preview_link,
+		preview_mobile_aria,
+		preview_no_fields,
+		preview_no_fields_hint,
+		preview_responsive_aria,
+		preview_save_entry,
+		preview_supports_files,
+		preview_tablet_aria,
+		preview_viewport_label
+	} from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
 
 	export type WidgetListItem = FieldInstance & { id: number; _dragId: string };
@@ -126,12 +151,12 @@ before saving to the database.
 		<!-- Left: Viewport Switcher -->
 		<div class="flex items-center gap-1">
 			<span class="me-2 text-xs font-semibold text-surface-500 dark:text-surface-400"
-				>Viewport:</span
+				>{preview_viewport_label()}</span
 			>
 			<div
 				class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40"
 				role="group"
-				aria-label="Responsive Viewport"
+				aria-label={preview_responsive_aria()}
 			>
 				<button
 					type="button"
@@ -140,10 +165,10 @@ before saving to the database.
 						? 'bg-white font-bold text-tertiary-600 shadow-xs dark:bg-surface-800 dark:text-primary-500'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 					onclick={() => (viewport = 'desktop')}
-					aria-label="Desktop viewport"
+					aria-label={preview_desktop_aria()}
 				>
 					<iconify-icon icon="mdi:monitor" width="16"></iconify-icon>
-					<span class="hidden sm:inline">Desktop</span>
+					<span class="hidden sm:inline">{common_desktop()}</span>
 				</button>
 				<button
 					type="button"
@@ -152,10 +177,10 @@ before saving to the database.
 						? 'bg-white font-bold text-tertiary-600 shadow-xs dark:bg-surface-800 dark:text-primary-500'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 					onclick={() => (viewport = 'tablet')}
-					aria-label="Tablet viewport"
+					aria-label={preview_tablet_aria()}
 				>
 					<iconify-icon icon="mdi:tablet" width="16"></iconify-icon>
-					<span class="hidden sm:inline">Tablet</span>
+					<span class="hidden sm:inline">{common_tablet()}</span>
 				</button>
 				<button
 					type="button"
@@ -164,10 +189,10 @@ before saving to the database.
 						? 'bg-white font-bold text-tertiary-600 shadow-xs dark:bg-surface-800 dark:text-primary-500'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 					onclick={() => (viewport = 'mobile')}
-					aria-label="Mobile viewport"
+					aria-label={preview_mobile_aria()}
 				>
 					<iconify-icon icon="mdi:cellphone" width="16"></iconify-icon>
-					<span class="hidden sm:inline">Mobile</span>
+					<span class="hidden sm:inline">{common_mobile()}</span>
 				</button>
 			</div>
 		</div>
@@ -181,7 +206,7 @@ before saving to the database.
 				leadingIcon="mdi:auto-fix"
 				class="text-xs"
 			>
-				Fill Sample Data
+				{preview_fill_sample()}
 			</Button>
 			{#if Object.keys(sampleValues).length > 0}
 				<Button
@@ -191,7 +216,7 @@ before saving to the database.
 					leadingIcon="mdi:refresh"
 					class="text-xs"
 				>
-					Clear
+					{common_clear()}
 				</Button>
 			{/if}
 		</div>
@@ -213,7 +238,7 @@ before saving to the database.
 						</div>
 						<div>
 							<h3 class="text-lg font-bold text-surface-900 dark:text-surface-100">
-								Create New {collectionName || 'Entry'}
+								{preview_create_new({ name: collectionName || 'Entry' })}
 							</h3>
 							{#if collectionDescription}
 								<p class="text-xs text-surface-500 dark:text-surface-400">
@@ -226,10 +251,10 @@ before saving to the database.
 						<span
 							class="rounded-full border border-warning-500/30 bg-warning-500/10 px-2.5 py-0.5 text-xs font-semibold text-warning-500"
 						>
-							Draft
+							{preview_draft()}
 						</span>
 						<Button variant="primary" size="sm" disabled class="opacity-60 text-xs">
-							Save Entry
+							{preview_save_entry()}
 						</Button>
 					</div>
 				</div>
@@ -241,10 +266,10 @@ before saving to the database.
 					<iconify-icon icon="mdi:playlist-remove" width="48" class="mx-auto mb-2 text-surface-400"
 					></iconify-icon>
 					<h4 class="text-base font-semibold text-surface-600 dark:text-surface-400">
-						No Fields Defined
+						{preview_no_fields()}
 					</h4>
 					<p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
-						Add fields on the Canvas tab to see how they render in this preview.
+						{preview_no_fields_hint()}
 					</p>
 				</div>
 			{:else}
@@ -270,7 +295,7 @@ before saving to the database.
 										{item.label || 'Unnamed Field'}
 									</label>
 									{#if item.required}
-										<span class="text-error-500" title="Required">*</span>
+										<span class="text-error-500" title={builder_required()}>*</span>
 									{/if}
 									{#if item.helper}
 										<SystemTooltip title={item.helper}>
@@ -313,12 +338,13 @@ before saving to the database.
 										class="text-surface-400 mb-2"
 									></iconify-icon>
 									<p class="text-xs font-medium text-surface-600 dark:text-surface-400">
-										Drag & drop files or <span
-											class="text-tertiary-500 dark:text-primary-500 underline">browse</span
+										{preview_drag_drop_part1()}{' '}<span
+											class="text-tertiary-500 dark:text-primary-500 underline"
+											>{preview_browse()}</span
 										>
 									</p>
 									<span class="text-[10px] text-surface-400 mt-1">
-										Supports images, videos, documents up to 50MB
+										{preview_supports_files()}
 									</span>
 								</div>
 							{:else if widgetKey.includes('rich') || widgetKey.includes('markdown')}
@@ -328,23 +354,31 @@ before saving to the database.
 									<div
 										class="flex items-center gap-1 border-b border-surface-500/20 bg-surface-500/10 px-2 py-1.5 text-surface-600 dark:text-surface-400"
 									>
-										<button type="button" class="p-1 hover:bg-surface-500/20 rounded" title="Bold">
+										<button
+											type="button"
+											class="p-1 hover:bg-surface-500/20 rounded"
+											title={preview_bold()}
+										>
 											<iconify-icon icon="mdi:format-bold" width="16"></iconify-icon>
 										</button>
 										<button
 											type="button"
 											class="p-1 hover:bg-surface-500/20 rounded"
-											title="Italic"
+											title={preview_italic()}
 										>
 											<iconify-icon icon="mdi:format-italic" width="16"></iconify-icon>
 										</button>
-										<button type="button" class="p-1 hover:bg-surface-500/20 rounded" title="Link">
+										<button
+											type="button"
+											class="p-1 hover:bg-surface-500/20 rounded"
+											title={preview_link()}
+										>
 											<iconify-icon icon="mdi:link" width="16"></iconify-icon>
 										</button>
 										<button
 											type="button"
 											class="p-1 hover:bg-surface-500/20 rounded"
-											title="Bullet List"
+											title={preview_bullet_list()}
 										>
 											<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
 										</button>

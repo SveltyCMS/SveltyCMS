@@ -46,7 +46,7 @@ Uses the same shared TreeView as collections:
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
-	import { pinnedStore } from '@src/stores/pinned-store.svelte';
+	import { pinnedStore } from '@src/stores/collection-metadata-store.svelte';
 	import { page } from '$app/state';
 
 	interface FolderNode extends TreeItem {

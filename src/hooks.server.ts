@@ -833,6 +833,89 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const pathname = event.url.pathname;
 
+  // 🚀 Health check early-exit dispatcher: skip trace setup, context, collection checks, and full pipeline
+  if (
+    lane === RequestLane.HEALTH ||
+    pathname === "/api/system/health" ||
+    pathname === "/health" ||
+    pathname === "/healthz" ||
+    pathname === "/livez" ||
+    pathname === "/readyz" ||
+    pathname === "/_healthz"
+  ) {
+    inFlightRequests++;
+    try {
+      const state =
+        (globalThis as any).__SYSTEM_OVERALL_STATE__ || (setupComplete ? "READY" : "SETUP");
+
+      if (
+        setupComplete &&
+        (state === "IDLE" || (globalThis as any).__SYSTEM_OVERALL_STATE__ === undefined)
+      ) {
+        import("./databases/db")
+          .then(({ getDbInitPromise }) => {
+            getDbInitPromise(false, "CORE").catch((err) =>
+              logger.error("[System] Database init failed", err),
+            );
+          })
+          .catch((err) => logger.error("[System] DB module load failed", err));
+      }
+
+      const isReady =
+        state === "READY" || state === "WARMED" || state === "WARMING" || state === "DEGRADED";
+      const isDbConnected = state !== "SETUP" && state !== "IDLE" && state !== "FAILED";
+
+      const includeDiagnostics =
+        event.url.searchParams.has("verbose") ||
+        event.url.searchParams.has("hooks") ||
+        event.url.searchParams.has("gc");
+
+      const ready = isSystemReady();
+      const health: Record<string, unknown> = {
+        status: isReady ? "healthy" : "unhealthy",
+        overallStatus: state,
+        ready,
+        database: isDbConnected ? "connected" : "disconnected",
+        timestamp: Date.now(),
+        uptime: process.uptime(),
+        dbType: process.env.DB_TYPE || "unknown",
+      };
+
+      if (includeDiagnostics) {
+        if (event.url.searchParams.has("gc")) {
+          if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
+          if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc) {
+            (globalThis as any).Bun.gc(true);
+          }
+        }
+
+        const mem = process.memoryUsage();
+        const hooks = getHookTimings();
+        health.memory = {
+          rss: mem.rss,
+          heapTotal: mem.heapTotal,
+          heapUsed: mem.heapUsed,
+          external: mem.external,
+          arrayBuffers: mem.arrayBuffers,
+        };
+        if (Object.keys(hooks).length > 0) health.hooks = hooks;
+
+        try {
+          const { contentSystem } = await loadContentModule();
+          health.content = contentSystem.getHealthStatus();
+        } catch {}
+        try {
+          health.graphql = metricsService.getReport().graphql;
+        } catch {}
+      }
+
+      const healthRes = Response.json(health, { headers: HEALTH_HEADERS });
+      return withLane(healthRes, lane);
+    } finally {
+      inFlightRequests--;
+    }
+  }
+
   // Warm collection point-read: turbo HIT or one findById. Misses used to
   // fall through ~9 async hooks + SvelteKit routing before the same SQL.
   if (
@@ -906,103 +989,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   // 🚀 Fast-return for known static/missing paths (avoids ALL middleware + trace overhead)
   if (pathname === "/favicon.ico") {
     return withLane(new Response(null, { status: 204 }), lane);
-  }
-
-  // 🚀 Health check fast-return: skip trace setup, context, and full pipeline
-  if (
-    lane === RequestLane.HEALTH ||
-    pathname === "/api/system/health" ||
-    pathname === "/health" ||
-    pathname === "/healthz" ||
-    pathname === "/livez" ||
-    pathname === "/readyz" ||
-    pathname === "/_healthz"
-  ) {
-    inFlightRequests++;
-    try {
-      const state =
-        (globalThis as any).__SYSTEM_OVERALL_STATE__ || (setupComplete ? "READY" : "SETUP");
-
-      if (
-        setupComplete &&
-        (state === "IDLE" || (globalThis as any).__SYSTEM_OVERALL_STATE__ === undefined)
-      ) {
-        import("./databases/db")
-          .then(({ getDbInitPromise }) => {
-            getDbInitPromise(false, "CORE").catch((err) =>
-              logger.error("[System] Database init failed", err),
-            );
-          })
-          .catch((err) => logger.error("[System] DB module load failed", err));
-      }
-
-      const isReady =
-        state === "READY" || state === "WARMED" || state === "WARMING" || state === "DEGRADED";
-      const isDbConnected = state !== "SETUP" && state !== "IDLE" && state !== "FAILED";
-
-      const includeDiagnostics =
-        event.url.searchParams.has("verbose") ||
-        event.url.searchParams.has("hooks") ||
-        event.url.searchParams.has("gc");
-      // 🔴 READINESS TRUTHFULNESS (2026-09-28): `overallStatus`/`status` alone are
-      // DB-presence derived, so a server still warming its boot cache counted as
-      // ready and every benchmark leg measured the warm-up itself. `ready` is the
-      // strict predicate (operational state AND the boot pre-warm settled);
-      // harnesses require it (`data.ready !== false`) before measuring.
-      const ready = isSystemReady();
-      const health: Record<string, unknown> = {
-        status: isReady ? "healthy" : "unhealthy",
-        overallStatus: state,
-        ready,
-        database: isDbConnected ? "connected" : "disconnected",
-        timestamp: Date.now(),
-        uptime: process.uptime(),
-        dbType: process.env.DB_TYPE || "unknown",
-      };
-
-      if (includeDiagnostics) {
-        if (event.url.searchParams.has("gc")) {
-          if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-          if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc) {
-            (globalThis as any).Bun.gc(true);
-          }
-        }
-
-        const mem = process.memoryUsage();
-        const hooks = getHookTimings();
-        // `arrayBuffers` MUST be in this payload: the longevity soak samples
-        // `memory.arrayBuffers` per bucket to separate an HTTP body/buffer growth
-        // from V8 heap retention. Omitting it made every soak series record a
-        // structural `0.00` for arrayBuffers, so the off-heap branch of the soak
-        // verdict could never observe buffer growth (roadmap-2026, long-horizon
-        // memory row). Same `process.memoryUsage()` call — no extra cost.
-        health.memory = {
-          rss: mem.rss,
-          heapTotal: mem.heapTotal,
-          heapUsed: mem.heapUsed,
-          external: mem.external,
-          arrayBuffers: mem.arrayBuffers,
-        };
-        if (Object.keys(hooks).length > 0) health.hooks = hooks;
-
-        // 🎯 CONTENT-STORE READINESS + GRAPHQL CACHE CAUSES: "DB connected but
-        // content not READY" windows (slow compile/scan after boot) misattribute
-        // latency to cold start; schemaHits≈0 with schemaMisses climbing is the
-        // per-request schema-rebuild signature (identity-flip class).
-        try {
-          const { contentSystem } = await loadContentModule();
-          health.content = contentSystem.getHealthStatus();
-        } catch {}
-        try {
-          health.graphql = metricsService.getReport().graphql;
-        } catch {}
-      }
-
-      const healthRes = Response.json(health, { headers: HEALTH_HEADERS });
-      return withLane(healthRes, lane);
-    } finally {
-      inFlightRequests--;
-    }
   }
 
   inFlightRequests++;

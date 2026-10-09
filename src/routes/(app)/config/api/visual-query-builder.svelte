@@ -9,6 +9,29 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import {
+		api_vqb_add_filter,
+		api_vqb_copy,
+		api_vqb_copy_response_aria,
+		api_vqb_copy_rest,
+		api_vqb_executing,
+		api_vqb_execution_response,
+		api_vqb_field_placeholder,
+		api_vqb_filter_conditions,
+		api_vqb_graphql,
+		api_vqb_heading,
+		api_vqb_intro,
+		api_vqb_limit,
+		api_vqb_no_filters,
+		api_vqb_order,
+		api_vqb_remove_filter_aria,
+		api_vqb_response_hint,
+		api_vqb_rest_endpoint,
+		api_vqb_run_now,
+		api_vqb_sort_field,
+		api_vqb_target_collection,
+		api_vqb_value_placeholder
+	} from '@src/paraglide/messages';
 	import { generateUUID } from '@utils/native-utils';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
@@ -150,10 +173,10 @@
 			<div class="space-y-6">
 				<div>
 					<h3 class="text-base font-bold text-surface-900 dark:text-surface-100">
-						Visual Query Builder
+						{api_vqb_heading()}
 					</h3>
 					<p class="text-xs text-surface-600 dark:text-surface-400">
-						Configure collection filters, ordering, and pagination to generate reactive queries.
+						{api_vqb_intro()}
 					</p>
 				</div>
 
@@ -163,7 +186,7 @@
 						for="query-collection-select"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
 					>
-						Target Collection
+						{api_vqb_target_collection()}
 					</label>
 					<Select
 						id="query-collection-select"
@@ -177,11 +200,11 @@
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
 						<span class="text-xs font-bold uppercase tracking-wider text-surface-500">
-							Filter Conditions
+							{api_vqb_filter_conditions()}
 						</span>
 						<Button variant="ghost" size="sm" class="text-xs" onclick={addFilter}>
 							<iconify-icon icon="mdi:plus" width="16" class="me-1"></iconify-icon>
-							Add Filter
+							{api_vqb_add_filter()}
 						</Button>
 					</div>
 
@@ -192,7 +215,7 @@
 							>
 								<Input
 									bind:value={filter.field}
-									placeholder="field (e.g. status)"
+									placeholder={api_vqb_field_placeholder()}
 									class="text-xs font-mono"
 								/>
 								<Select
@@ -207,13 +230,17 @@
 									]}
 									onchange={(val: string) => (filter.operator = val as FilterRow['operator'])}
 								/>
-								<Input bind:value={filter.value} placeholder="value" class="text-xs" />
+								<Input
+									bind:value={filter.value}
+									placeholder={api_vqb_value_placeholder()}
+									class="text-xs"
+								/>
 								<Button
 									variant="ghost"
 									size="sm"
 									class="text-error-500 hover:bg-error-500/10 shrink-0 p-1.5"
 									onclick={() => removeFilter(filter.id)}
-									aria-label="Remove filter"
+									aria-label={api_vqb_remove_filter_aria()}
 								>
 									<iconify-icon icon="mdi:trash-can-outline" width="18"></iconify-icon>
 								</Button>
@@ -224,7 +251,7 @@
 							<div
 								class="p-4 text-center rounded-lg border border-dashed border-surface-500/30 text-xs text-surface-500"
 							>
-								No active filters. All entries in the collection will be queried.
+								{api_vqb_no_filters()}
 							</div>
 						{/if}
 					</div>
@@ -237,7 +264,7 @@
 							for="query-sort-field"
 							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
 						>
-							Sort Field
+							{api_vqb_sort_field()}
 						</label>
 						<Input id="query-sort-field" bind:value={sortField} class="text-xs font-mono" />
 					</div>
@@ -247,7 +274,7 @@
 							for="query-sort-order"
 							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
 						>
-							Order
+							{api_vqb_order()}
 						</label>
 						<Select
 							id="query-sort-order"
@@ -265,7 +292,7 @@
 							for="query-limit-input"
 							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
 						>
-							Limit (Max rows)
+							{api_vqb_limit()}
 						</label>
 						<Input
 							id="query-limit-input"
@@ -283,15 +310,15 @@
 					<Button variant="primary" disabled={isExecuting} onclick={executeQuery}>
 						{#if isExecuting}
 							<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
-							Executing Query...
+							{api_vqb_executing()}
 						{:else}
 							<iconify-icon icon="mdi:play" width="18" class="me-1.5"></iconify-icon>
-							Run Query Now
+							{api_vqb_run_now()}
 						{/if}
 					</Button>
 					<Button variant="outline" onclick={() => copyToClipboard(generatedRestUrl, 'REST URL')}>
 						<iconify-icon icon="mdi:content-copy" width="16" class="me-1.5"></iconify-icon>
-						Copy REST URL
+						{api_vqb_copy_rest()}
 					</Button>
 				</div>
 			</div>
@@ -305,7 +332,7 @@
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
-						Generated REST Endpoint
+						{api_vqb_rest_endpoint()}
 					</h3>
 					<Badge variant="tertiary" size="sm">GET</Badge>
 				</div>
@@ -318,7 +345,7 @@
 
 				<div class="flex items-center justify-between pt-2">
 					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
-						Equivalent GraphQL
+						{api_vqb_graphql()}
 					</h3>
 					<button
 						type="button"
@@ -326,7 +353,7 @@
 						onclick={() => copyToClipboard(generatedGraphql, 'GraphQL Query')}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
-						Copy
+						{api_vqb_copy()}
 					</button>
 				</div>
 
@@ -340,7 +367,7 @@
 			<div class="space-y-3">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
-						Execution Response
+						{api_vqb_execution_response()}
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if executeStatus !== null}
@@ -358,7 +385,7 @@
 								type="button"
 								onclick={() => copyToClipboard(executeResponse || '', 'Response')}
 								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-								aria-label="Copy Response JSON"
+								aria-label={api_vqb_copy_response_aria()}
 							>
 								<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 							</button>
@@ -377,7 +404,7 @@
 						<pre>{executeResponse}</pre>
 					{:else}
 						<div class="text-center py-8 text-surface-500 italic">
-							Click "Run Query Now" to execute the query against your database.
+							{api_vqb_response_hint()}
 						</div>
 					{/if}
 				</div>

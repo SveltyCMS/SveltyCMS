@@ -24,6 +24,9 @@ import { logger } from "@utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { BaseAdapter } from "../core/base-adapter";
 import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from "../db-interface";
+import { getDatabaseConnectionString } from "../config-state";
+import { isLoopbackHost } from "../db-local-socket";
+import { registerSystemModels } from "./model-registration";
 
 /** Escapes special regex characters so user input can't inject patterns or ReDoS. */
 function escapeRegExp(str: string): string {
@@ -76,6 +79,12 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     supportsIndexing: true,
     supportsPartitioning: false,
     supportsStreaming: true,
+    supportsNativeJson: true,
+    supportsReturning: true,
+    supportsWriteCoalescing: true,
+    supportsPreparedStatementWarmup: false,
+    supportsWireStreaming: false,
+    supportsVectorSearch: false,
   };
 
   public get connection(): mongoose.Connection | null {
@@ -97,7 +106,6 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           : (connectionStringOrOptions as any)?.connectionString || "";
 
       if (!connectionString) {
-        const { getDatabaseConnectionString } = await import("../config-state");
         connectionString = getDatabaseConnectionString();
       }
 
@@ -114,7 +122,6 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           ? connectionStringOrOptions
           : {};
 
-      const { isLoopbackHost } = await import("../db-local-socket");
       let mongoHost = "";
       try {
         mongoHost = new URL(connectionString.replace(/^mongodb(\+srv)?:/, "http:")).hostname;
@@ -218,7 +225,6 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
       this.connected = true;
 
-      const { registerSystemModels } = await import("./model-registration");
       await registerSystemModels(this._connection);
 
       logger.info("Connected to MongoDB");

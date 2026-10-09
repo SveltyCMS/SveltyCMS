@@ -10,7 +10,55 @@
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
-	import { button_cancel, button_delete, button_save } from '@src/paraglide/messages';
+	import {
+		button_cancel,
+		button_delete,
+		button_save,
+		widget_form_apply_aria,
+		widget_form_db_name,
+		widget_form_db_name_hint,
+		widget_form_db_name_placeholder,
+		widget_form_default,
+		widget_form_default_hint,
+		widget_form_default_placeholder,
+		widget_form_duplicate,
+		widget_form_edit_field,
+		widget_form_field_label,
+		widget_form_field_label_hint,
+		widget_form_field_label_placeholder,
+		widget_form_help_text,
+		widget_form_help_text_hint,
+		widget_form_help_text_placeholder,
+		widget_form_icon,
+		widget_form_icon_hint,
+		widget_form_no_roles,
+		widget_form_no_settings,
+		widget_form_no_settings_part1,
+		widget_form_no_settings_part2,
+		widget_form_placeholder,
+		widget_form_placeholder_hint,
+		widget_form_placeholder_placeholder,
+		widget_form_require_auth,
+		widget_form_require_auth_aria,
+		widget_form_require_auth_hint,
+		widget_form_required,
+		widget_form_required_aria,
+		widget_form_required_hint,
+		widget_form_role_matrix,
+		widget_form_role_matrix_hint,
+		widget_form_roles_edit,
+		widget_form_roles_role,
+		widget_form_roles_view,
+		widget_form_settings_suffix,
+		widget_form_translated,
+		widget_form_translated_aria,
+		widget_form_translated_hint,
+		widget_form_visibility,
+		widget_form_width,
+		widget_form_width_hint,
+		widget_form_width_placeholder,
+		widget_form_widget_type
+	} from '@src/paraglide/messages';
 	import { setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
@@ -223,12 +271,13 @@
 		<!-- Header -->
 		<div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-white">
-				Edit Field: <span class="text-tertiary-500 dark:text-primary-500"
+				{widget_form_edit_field()}{' '}<span class="text-tertiary-500 dark:text-primary-500"
 					>{local.label || 'Unnamed'}</span
 				>
 			</h2>
 			<p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-				Widget type: {widgetKey || 'unknown'}
+				{widget_form_widget_type()}
+				{widgetKey || 'unknown'}
 			</p>
 		</div>
 
@@ -247,17 +296,17 @@
 							<label
 								for="field-label"
 								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
-								>Field Label</label
+								>{widget_form_field_label()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
-							<SystemTooltip title="The human-readable label shown to editors for this field."
+							<SystemTooltip title={widget_form_field_label_hint()}
 								><HelpIcon ariaLabel="Help: Field Label" /></SystemTooltip
 							>
 						</div>
 						<Input
 							id="field-label"
 							bind:value={local.label}
-							placeholder="e.g. Profile Picture"
+							placeholder={widget_form_field_label_placeholder()}
 							data-testid="widget-field-label"
 							oninput={() => {
 								if (!local.db_fieldName) {
@@ -270,9 +319,9 @@
 					<div class="space-y-1.5">
 						<div class="flex items-center gap-1.5">
 							<span class="block text-sm font-medium text-surface-600 dark:text-surface-400"
-								>Icon</span
+								>{widget_form_icon()}</span
 							>
-							<SystemTooltip title="Visual icon to represent this field in the UI."
+							<SystemTooltip title={widget_form_icon_hint()}
 								><HelpIcon ariaLabel="Help: Field Icon" /></SystemTooltip
 							>
 						</div>
@@ -284,18 +333,17 @@
 							<label
 								for="field-dbname"
 								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
-								>Database Field Name</label
+								>{widget_form_db_name()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
-							<SystemTooltip
-								title="The physical column or key name in the database. Auto-generated from the label if left empty. Must be unique."
+							<SystemTooltip title={widget_form_db_name_hint()}
 								><HelpIcon ariaLabel="Help: Database Field Name" /></SystemTooltip
 							>
 						</div>
 						<Input
 							id="field-dbname"
 							bind:value={local.db_fieldName}
-							placeholder="e.g. profile_pic"
+							placeholder={widget_form_db_name_placeholder()}
 							data-testid="widget-field-name"
 						/>
 					</div>
@@ -305,16 +353,16 @@
 							<label
 								for="field-placeholder"
 								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
-								>Placeholder</label
+								>{widget_form_placeholder()}</label
 							>
-							<SystemTooltip title="Ghost text displayed when the field is empty to guide the user."
+							<SystemTooltip title={widget_form_placeholder_hint()}
 								><HelpIcon ariaLabel="Help: Placeholder" /></SystemTooltip
 							>
 						</div>
 						<Input
 							id="field-placeholder"
 							bind:value={local.placeholder}
-							placeholder="Placeholder text shown when field is empty"
+							placeholder={widget_form_placeholder_placeholder()}
 						/>
 					</div>
 
@@ -323,16 +371,16 @@
 							<label
 								for="field-default"
 								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
-								>Default Value</label
+								>{widget_form_default()}</label
 							>
-							<SystemTooltip title="The initial value automatically populated for new entries."
+							<SystemTooltip title={widget_form_default_hint()}
 								><HelpIcon ariaLabel="Help: Default Value" /></SystemTooltip
 							>
 						</div>
 						<Input
 							id="field-default"
 							bind:value={local.default}
-							placeholder="Default value for this field"
+							placeholder={widget_form_default_placeholder()}
 						/>
 					</div>
 
@@ -340,14 +388,16 @@
 						class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50"
 					>
 						<div>
-							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Required</p>
+							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+								{widget_form_required()}
+							</p>
 							<p class="text-xs text-surface-500 dark:text-surface-400">
-								Must be filled to save content
+								{widget_form_required_hint()}
 							</p>
 						</div>
 						<input
 							type="checkbox"
-							aria-label="Required field"
+							aria-label={widget_form_required_aria()}
 							bind:checked={local.required}
 							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 						/>
@@ -357,14 +407,16 @@
 						class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50"
 					>
 						<div>
-							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Translated</p>
+							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+								{widget_form_translated()}
+							</p>
 							<p class="text-xs text-surface-500 dark:text-surface-400">
-								Stores one value per content language (field-level i18n)
+								{widget_form_translated_hint()}
 							</p>
 						</div>
 						<input
 							type="checkbox"
-							aria-label="Translated field"
+							aria-label={widget_form_translated_aria()}
 							data-testid="widget-field-translated"
 							bind:checked={local.translated}
 							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
@@ -376,16 +428,16 @@
 							<label
 								for="field-helper"
 								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
-								>Help Text / Description</label
+								>{widget_form_help_text()}</label
 							>
-							<SystemTooltip title="Helpful description shown below the field to assist editors."
+							<SystemTooltip title={widget_form_help_text_hint()}
 								><HelpIcon ariaLabel="Help: Help Text" /></SystemTooltip
 							>
 						</div>
 						<Input
 							id="field-helper"
 							bind:value={local.helper}
-							placeholder="Help text shown below the field"
+							placeholder={widget_form_help_text_placeholder()}
 						/>
 					</div>
 
@@ -394,13 +446,17 @@
 							<label
 								for="field-width"
 								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
-								>Width</label
+								>{widget_form_width()}</label
 							>
-							<SystemTooltip title="Controls how wide the field is in the editor layout."
+							<SystemTooltip title={widget_form_width_hint()}
 								><HelpIcon ariaLabel="Help: Width" /></SystemTooltip
 							>
 						</div>
-						<Input id="field-width" bind:value={local.width} placeholder="e.g. 1/2, 1/3, full" />
+						<Input
+							id="field-width"
+							bind:value={local.width}
+							placeholder={widget_form_width_placeholder()}
+						/>
 					</div>
 				</div>
 			{:else if activeTab === 'settings'}
@@ -410,7 +466,7 @@
 						<p
 							class="text-xs font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400"
 						>
-							{widgetKey} Settings
+							{widget_form_settings_suffix({ widget: widgetKey })}
 						</p>
 						{#each specificKeys as key (key)}
 							<InputSwitch
@@ -427,10 +483,12 @@
 						class="flex flex-col items-center justify-center py-12 text-surface-400 dark:text-surface-500 space-y-2"
 					>
 						<iconify-icon icon="mdi:tune" width="40" class="opacity-20"></iconify-icon>
-						<p class="text-sm">No specific settings for this widget type</p>
+						<p class="text-sm">{widget_form_no_settings()}</p>
 						<p class="text-xs">
-							The <span class="font-semibold">{widgetKey || 'selected'}</span> widget has no additional
-							configuration options.
+							{widget_form_no_settings_part1()}{' '}<span class="font-semibold"
+								>{widgetKey || 'selected'}</span
+							>{' '}
+							{widget_form_no_settings_part2()}
 						</p>
 					</div>
 				{/if}
@@ -444,7 +502,7 @@
 						<h4
 							class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400"
 						>
-							Visibility
+							{widget_form_visibility()}
 						</h4>
 						<button
 							type="button"
@@ -479,18 +537,18 @@
 						>
 							<input
 								type="checkbox"
-								aria-label="Require authentication"
+								aria-label={widget_form_require_auth_aria()}
 								class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
 								checked={localPerms.requiredAuth}
 								onchange={(e) =>
 									updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
 							/>
 							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
-								>Require authentication</span
+								>{widget_form_require_auth()}</span
 							>
 						</label>
 						<p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
-							When enabled, user must be logged in to access this field.
+							{widget_form_require_auth_hint()}
 						</p>
 					</div>
 
@@ -502,25 +560,24 @@
 							<h4
 								class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400"
 							>
-								Role-Based Access — Per-Field Matrix
+								{widget_form_role_matrix()}
 							</h4>
 							<p class="mb-4 text-xs text-surface-500 dark:text-surface-400">
-								Configure which roles can view or edit this specific field. Empty selection means no
-								role restriction (follows visibility setting).
+								{widget_form_role_matrix_hint()}
 							</p>
 
 							<!-- Table header -->
 							<div class="grid grid-cols-[1fr_60px_60px] gap-2 mb-2 px-2">
 								<span class="text-xs font-semibold text-surface-600 dark:text-surface-400"
-									>Role</span
+									>{widget_form_roles_role()}</span
 								>
 								<span
 									class="text-xs font-semibold text-surface-600 dark:text-surface-400 text-center"
-									>View</span
+									>{widget_form_roles_view()}</span
 								>
 								<span
 									class="text-xs font-semibold text-surface-600 dark:text-surface-400 text-center"
-									>Edit</span
+									>{widget_form_roles_edit()}</span
 								>
 							</div>
 
@@ -564,7 +621,7 @@
 								class="text-surface-400 opacity-30 mb-2"
 							></iconify-icon>
 							<p class="text-sm text-surface-500 dark:text-surface-400">
-								No roles defined. Configure roles in Access Management to restrict by role.
+								{widget_form_no_roles()}
 							</p>
 						</div>
 					{/if}
@@ -583,7 +640,7 @@
 				</Button>
 				<Button variant="tertiary" type="button" onclick={handleDuplicate}>
 					<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-					<span class="hidden sm:inline ms-1">Duplicate</span>
+					<span class="hidden sm:inline ms-1">{widget_form_duplicate()}</span>
 				</Button>
 			</div>
 
@@ -598,7 +655,7 @@
 					onclick={handleSave}
 					disabled={!local?.label || !local?.db_fieldName}
 					data-testid="widget-field-apply"
-					aria-label="Apply field changes"
+					aria-label={widget_form_apply_aria()}
 				>
 					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
 					<span class="ms-1">{button_save()}</span>

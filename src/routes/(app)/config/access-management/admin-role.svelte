@@ -22,6 +22,16 @@ It provides functionality to:
 	import type { Role } from '@src/databases/auth/types';
 	// Components
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import {
+		access_admin_role_heading,
+		access_admin_role_intro,
+		access_admin_role_current,
+		access_admin_role_selected,
+		access_admin_role_placeholder,
+		access_saving,
+		button_cancel,
+		common_save_changes
+	} from '@src/paraglide/messages';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { tick } from 'svelte';
 	import Button from '@components/ui/button.svelte';
@@ -112,17 +122,15 @@ It provides functionality to:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>
+	<h3 class="mb-2 text-center text-xl font-bold">{access_admin_role_heading()}</h3>
 	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
-		Please select a new role for the administrator from the dropdown below. Your changes will take
-		effect after you click "Save Changes".
+		{access_admin_role_intro()}
 	</p>
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-start">
-			Current Admin Role: <span class="ms-2 text-tertiary-500 dark:text-primary-500"
-				>{currentAdminName}</span
-			>
+			{access_admin_role_current()}
+			<span class="ms-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->
@@ -130,27 +138,26 @@ It provides functionality to:
 			label="Select new Administrator Role:"
 			bind:value={selectedAdminRole}
 			options={adminRoleOptions}
-			placeholder="Select a role..."
+			placeholder={access_admin_role_placeholder()}
 		/>
 
 		<!-- Save and Cancel Buttons -->
 		{#if hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-start">
-				Selected Admin Role ID: <span class="ms-2 text-tertiary-500 dark:text-primary-500"
-					>{selectedAdminRole}</span
-				>
+				{access_admin_role_selected()}
+				<span class="ms-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
-				<Button variant="outline" onclick={cancelChanges}>Cancel</Button>
+				<Button variant="outline" onclick={cancelChanges}>{button_cancel()}</Button>
 
 				<!-- Save -->
 				<Button variant="tertiary" onclick={saveAdminRole} disabled={isSaving}>
 					{#if isSaving}
-						Saving...
+						{access_saving()}
 					{:else}
-						Save Changes
+						{common_save_changes()}
 					{/if}
 				</Button>
 			</div>

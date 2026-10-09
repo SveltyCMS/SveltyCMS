@@ -15,6 +15,31 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import {
+		button_close,
+		dwv_author,
+		dwv_cms_compat,
+		dwv_default_grid,
+		dwv_empty,
+		dwv_empty_hint,
+		dwv_free_tier,
+		dwv_freemium_trial,
+		dwv_grid,
+		dwv_grid_cols,
+		dwv_grid_rows,
+		dwv_heading,
+		dwv_inspect,
+		dwv_intro,
+		dwv_license_model,
+		dwv_monitoring,
+		dwv_plugin_label,
+		dwv_plugin_req_part1,
+		dwv_plugin_req_part2,
+		dwv_search_aria,
+		dwv_search_placeholder,
+		dwv_total_widgets,
+		dwv_version_sep
+	} from '@src/paraglide/messages';
 
 	interface DashboardWidgetManifest {
 		id: string;
@@ -85,11 +110,10 @@
 <div class="flex flex-col gap-6" data-testid="dashboard-widgets-view">
 	<div class="flex flex-col gap-2">
 		<h2 class="text-lg font-bold text-surface-900 dark:text-surface-100">
-			Installed Dashboard Widgets
+			{dwv_heading()}
 		</h2>
 		<p class="text-sm text-surface-500 dark:text-surface-400">
-			Manage and inspect the portable dashboard widgets installed in your CMS. These widgets power
-			the customizable analytics dashboard.
+			{dwv_intro()}
 		</p>
 	</div>
 
@@ -104,7 +128,7 @@
 				<iconify-icon icon="mdi:view-dashboard" width="22" aria-hidden="true"></iconify-icon>
 			</div>
 			<div>
-				<p class="text-xs font-medium text-surface-500">Total Widgets</p>
+				<p class="text-xs font-medium text-surface-500">{dwv_total_widgets()}</p>
 				<p class="text-xl font-bold text-surface-900 dark:text-surface-100">{stats.total}</p>
 			</div>
 		</AdminCard>
@@ -118,7 +142,7 @@
 				<iconify-icon icon="mdi:gift-outline" width="22" aria-hidden="true"></iconify-icon>
 			</div>
 			<div>
-				<p class="text-xs font-medium text-surface-500">Free Tier</p>
+				<p class="text-xs font-medium text-surface-500">{dwv_free_tier()}</p>
 				<p class="text-xl font-bold text-surface-900 dark:text-surface-100">{stats.free}</p>
 			</div>
 		</AdminCard>
@@ -132,7 +156,7 @@
 				<iconify-icon icon="mdi:star-outline" width="22" aria-hidden="true"></iconify-icon>
 			</div>
 			<div>
-				<p class="text-xs font-medium text-surface-500">Freemium (Trial)</p>
+				<p class="text-xs font-medium text-surface-500">{dwv_freemium_trial()}</p>
 				<p class="text-xl font-bold text-surface-900 dark:text-surface-100">{stats.freemium}</p>
 			</div>
 		</AdminCard>
@@ -146,7 +170,7 @@
 				<iconify-icon icon="mdi:chart-line" width="22" aria-hidden="true"></iconify-icon>
 			</div>
 			<div>
-				<p class="text-xs font-medium text-surface-500">Monitoring</p>
+				<p class="text-xs font-medium text-surface-500">{dwv_monitoring()}</p>
 				<p class="text-xl font-bold text-surface-900 dark:text-surface-100">{stats.monitoring}</p>
 			</div>
 		</AdminCard>
@@ -157,8 +181,8 @@
 		<div class="flex min-w-64 flex-1 items-center gap-2">
 			<Input
 				bind:value={searchQuery}
-				placeholder="Search dashboard widgets by name or description…"
-				aria-label="Search dashboard widgets"
+				placeholder={dwv_search_placeholder()}
+				aria-label={dwv_search_aria()}
 				data-testid="dashboard-widgets-search"
 			/>
 		</div>
@@ -210,9 +234,9 @@
 		>
 			<iconify-icon icon="mdi:view-dashboard-outline" width="48" class="mb-2 opacity-50"
 			></iconify-icon>
-			<p class="text-base font-medium">No dashboard widgets match your filters</p>
+			<p class="text-base font-medium">{dwv_empty()}</p>
 			<p class="text-xs text-surface-500">
-				Try clearing your search query or selecting a different category.
+				{dwv_empty_hint()}
 			</p>
 		</div>
 	{:else}
@@ -274,13 +298,15 @@
 								</Badge>
 							{/if}
 							<Badge variant="outline" size="sm">
-								{widget.defaultSize.w} × {widget.defaultSize.h} grid
+								{widget.defaultSize.w} × {widget.defaultSize.h}
+								{dwv_grid()}
 							</Badge>
 							{#if widget.requiresPlugin}
 								<Badge variant="warning" size="sm" class="flex items-center gap-1">
 									<iconify-icon icon="mdi:puzzle-outline" width="12" aria-hidden="true"
 									></iconify-icon>
-									Plugin: {widget.requiresPlugin}
+									{dwv_plugin_label()}
+									{widget.requiresPlugin}
 								</Badge>
 							{/if}
 						</div>
@@ -296,7 +322,7 @@
 							onclick={() => openDetail(widget)}
 							data-testid={`dashboard-widget-inspect-${widget.id}`}
 						>
-							Inspect
+							{dwv_inspect()}
 						</Button>
 					</div>
 				</AdminCard>
@@ -327,7 +353,9 @@
 						{detailWidget.name}
 					</h3>
 					<p class="text-xs text-surface-500">
-						ID: {detailWidget.id} · Version: {detailWidget.version}
+						ID: {detailWidget.id}
+						{dwv_version_sep()}
+						{detailWidget.version}
 					</p>
 				</div>
 			</div>
@@ -340,28 +368,31 @@
 				class="grid grid-cols-2 gap-3 rounded-lg border border-surface-500/20 bg-surface-500/10 p-3 text-xs"
 			>
 				<div>
-					<span class="text-surface-500 block">Author</span>
+					<span class="text-surface-500 block">{dwv_author()}</span>
 					<span class="font-medium text-surface-600 dark:text-surface-400"
 						>{detailWidget.author || 'SveltyCMS'}</span
 					>
 				</div>
 				<div>
-					<span class="text-surface-500 block">License Model</span>
+					<span class="text-surface-500 block">{dwv_license_model()}</span>
 					<span class="font-medium capitalize text-surface-600 dark:text-surface-400">
 						{detailWidget.license}
 						{detailWidget.price ? `(€${detailWidget.price.toFixed(2)})` : ''}
 					</span>
 				</div>
 				<div>
-					<span class="text-surface-500 block">CMS Compatibility</span>
+					<span class="text-surface-500 block">{dwv_cms_compat()}</span>
 					<span class="font-mono text-surface-600 dark:text-surface-400"
 						>{detailWidget.sveltycms}</span
 					>
 				</div>
 				<div>
-					<span class="text-surface-500 block">Default Grid Size</span>
+					<span class="text-surface-500 block">{dwv_default_grid()}</span>
 					<span class="font-medium text-surface-600 dark:text-surface-400"
-						>{detailWidget.defaultSize.w} cols × {detailWidget.defaultSize.h} rows</span
+						>{detailWidget.defaultSize.w}
+						{dwv_grid_cols()}
+						{detailWidget.defaultSize.h}
+						{dwv_grid_rows()}</span
 					>
 				</div>
 			</div>
@@ -372,13 +403,16 @@
 				>
 					<iconify-icon icon="mdi:alert-circle-outline" width="16"></iconify-icon>
 					<span
-						>This widget requires the <strong>{detailWidget.requiresPlugin}</strong> plugin to be active.</span
+						>{dwv_plugin_req_part1()} <strong>{detailWidget.requiresPlugin}</strong>{' '}
+						{dwv_plugin_req_part2()}</span
 					>
 				</div>
 			{/if}
 
 			<div class="flex justify-end gap-2 pt-2">
-				<Button variant="outline" size="sm" onclick={() => (detailOpen = false)}>Close</Button>
+				<Button variant="outline" size="sm" onclick={() => (detailOpen = false)}
+					>{button_close()}</Button
+				>
 			</div>
 		</div>
 	{/if}

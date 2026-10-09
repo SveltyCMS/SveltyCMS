@@ -18,6 +18,13 @@
 
 <script lang="ts">
 	import { debounce } from '@utils/debounce';
+	import {
+		seo_heatmap_aria,
+		seo_heatmap_heat_label,
+		seo_heatmap_keyword_density,
+		seo_heatmap_no_content,
+		seo_heatmap_no_keywords
+	} from '@src/paraglide/messages';
 	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 
@@ -137,24 +144,29 @@
 				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword
 					? 'border-b-2 border-tertiary-500'
 					: ''} group"
-				aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
+				aria-label={seo_heatmap_aria({
+					level: heatLevel,
+					word,
+					keywordSuffix: isKeyword ? ', keyword' : ''
+				})}
 				transition:fade={{ duration: 200 }}
 			>
 				{word}
 				<span
 					class="absolute bottom-full inset-s-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 p-1 text-xs text-white group-hover:block"
 				>
-					Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}
+					{seo_heatmap_heat_label()}
+					{heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}
 				</span>
 			</span>
 		{/each}
 	{:else}
-		<p>No content available for heatmap.</p>
+		<p>{seo_heatmap_no_content()}</p>
 	{/if}
 </div>
 
 <div class="mt-5 text-sm max-sm:text-xs">
-	<h4>Keyword Density</h4>
+	<h4>{seo_heatmap_keyword_density()}</h4>
 	{#if Object.keys(keywordDensity).length > 0}
 		<ul>
 			{#each Object.entries(keywordDensity) as [keyword, density] (keyword)}
@@ -162,6 +174,6 @@
 			{/each}
 		</ul>
 	{:else}
-		<p>No keywords provided or no matching keywords found in content.</p>
+		<p>{seo_heatmap_no_keywords()}</p>
 	{/if}
 </div>

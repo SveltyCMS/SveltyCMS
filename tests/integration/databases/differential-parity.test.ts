@@ -369,13 +369,18 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
     // With the flag — what the read lane passes for a publication-clamped caller —
     // the draft must never reach the socket, while the published row still does.
-    const draftWire = unwrapResult(
-      await wire.findPointWireStream(COLLECTION, draftId, {
-        tenantId: TENANT,
-        requirePublished: true,
-      }),
-    );
-    expect(draftWire).toBeNull();
+    // The wire reports a definitive miss (`RECORD_NOT_FOUND`), which the read lane
+    // (`handle-collection-read-lane.ts`) maps to the `200 {success:true,data:null}`
+    // envelope without a redundant re-query.
+    const draftWire = await wire.findPointWireStream(COLLECTION, draftId, {
+      tenantId: TENANT,
+      requirePublished: true,
+    });
+    expect(draftWire.success).toBe(false);
+    if (draftWire.success) {
+      throw new Error("wire returned the draft row to a publication-clamped caller");
+    }
+    expect(draftWire.error.code).toBe("RECORD_NOT_FOUND");
 
     const publishedWire = unwrapResult(
       await wire.findPointWireStream(COLLECTION, publishedId, {

@@ -11,6 +11,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import type { Authenticator, User } from "@src/databases/auth/types";
+import { nowISODateString } from "@utils/date";
 import { parseAuthData, verifyAssertionSignature } from "./attestation";
 import { decodeCBOR } from "./cbor-decoder";
 
@@ -214,7 +215,7 @@ export function verifyRegistrationResponse(
     credentialDeviceType: "multi-device",
     credentialBackedUp: !!(parsed.flags & 0x10),
     transports: ["internal", "hybrid"],
-    createdAt: new Date().toISOString(),
+    createdAt: nowISODateString(),
   };
 }
 

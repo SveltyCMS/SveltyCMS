@@ -439,6 +439,49 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
         return { success: true, data: flatResults as T[], meta };
       }
 
+      // 🚀 Driver Fast-Path: bypass Mongoose Query execution when collection is available
+      if (this.model.collection && typeof (this.model.collection as any).find === "function") {
+        try {
+          let cursor = (this.model.collection as any).find(query);
+          if (projection && Object.keys(projection).length > 0) {
+            cursor = cursor.project(projection);
+          }
+          if (this.multiSortOptions.length > 0) {
+            const sortObj: Record<string, 1 | -1> = {};
+            this.multiSortOptions.forEach(({ field, direction }) => {
+              sortObj[field as string] = normalizeSortDirection(direction) === "asc" ? 1 : -1;
+            });
+            if (this.limitValue !== undefined || this.skipValue !== undefined) {
+              sortObj["_id"] = sortObj["_id"] ?? lastSortKeyDirection(sortObj);
+            }
+            cursor = cursor.sort(sortObj);
+          } else if (Object.keys(this.sortOptions).length > 0) {
+            const sortCopy = { ...this.sortOptions };
+            if (this.limitValue !== undefined || this.skipValue !== undefined) {
+              (sortCopy as Record<string, 1 | -1>)["_id"] =
+                (sortCopy as Record<string, 1 | -1>)["_id"] ?? lastSortKeyDirection(sortCopy);
+            }
+            cursor = cursor.sort(sortCopy);
+          } else if (this.limitValue !== undefined || this.skipValue !== undefined) {
+            cursor = cursor.sort({ _id: 1 });
+          }
+          if (this.skipValue !== undefined && this.skipValue > 0) {
+            cursor = cursor.skip(this.skipValue);
+          }
+          if (this.limitValue !== undefined) {
+            cursor = cursor.limit(this.limitValue);
+          }
+          const results = await cursor.toArray();
+          for (let i = 0; i < results.length; i++) {
+            this.stampIsoDatesInPlace(results[i] as T);
+          }
+          const meta = this.buildQueryMeta(startTime);
+          return { success: true, data: results as T[], meta };
+        } catch {
+          // Fall back to Mongoose query execution below
+        }
+      }
+
       // Execute the query with lean() for better performance
       const results = await mongoQuery.lean().exec();
       for (let i = 0; i < results.length; i++) {

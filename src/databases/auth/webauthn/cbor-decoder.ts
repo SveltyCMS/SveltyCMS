@@ -14,12 +14,14 @@
  * - zero external dependencies
  */
 
+const UTF8_DECODER = new TextDecoder();
+
 export function decodeCBORPartial(
   buffer: Uint8Array | Buffer,
   startOffset = 0,
 ): { value: any; bytesRead: number } {
   let offset = startOffset;
-  const data = new Uint8Array(buffer);
+  const data = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
 
   function readByte(): number {
     if (offset >= data.length) {
@@ -96,12 +98,13 @@ export function decodeCBORPartial(
       }
       case 2: {
         const length = Number(parseUint(additionalInfo));
-        return Buffer.from(readBytes(length));
+        const bytes = readBytes(length);
+        return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       }
       case 3: {
         const length = Number(parseUint(additionalInfo));
         const bytes = readBytes(length);
-        return new TextDecoder().decode(bytes);
+        return UTF8_DECODER.decode(bytes);
       }
       case 4: {
         const length = Number(parseUint(additionalInfo));

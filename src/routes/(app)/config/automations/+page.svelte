@@ -21,6 +21,39 @@ Lists all configured workflow automations with status, trigger, and operation su
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import {
+		automations_activate_selected,
+		automations_activate_selected_aria,
+		automations_delete_selected,
+		automations_delete_selected_aria,
+		automations_delete_aria,
+		automations_duplicate_aria,
+		automations_duplicate_title,
+		automations_edit_aria,
+		automations_edit_title,
+		automations_empty_cta,
+		automations_empty_example,
+		automations_empty_intro,
+		automations_empty_title,
+		automations_errors,
+		automations_last_triggered,
+		automations_loading,
+		automations_new,
+		automations_no_match,
+		automations_pause_selected,
+		automations_pause_selected_aria,
+		automations_search_aria,
+		automations_search_placeholder,
+		automations_selected,
+		automations_test_aria,
+		automations_test_title,
+		automations_title,
+		automations_total_runs,
+		automations_view_aria,
+		automation_paused,
+		button_delete,
+		common_active
+	} from '@src/paraglide/messages';
+	import {
 		deleteAutomation,
 		listAutomations,
 		testAutomation,
@@ -188,7 +221,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 </script>
 
 <AdminPageShell
-	title="Workflow Automations"
+	title={automations_title()}
 	icon="mdi:robot-outline"
 	description="Automate actions when content changes — send emails, call webhooks, update fields"
 	spaceY="8"
@@ -204,7 +237,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 			data-preload="hover"
 			data-testid="automations-new"
 		>
-			New Automation
+			{automations_new()}
 		</Button>
 	{/snippet}
 
@@ -222,8 +255,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 					<Input
 						type="search"
 						bind:value={searchQuery}
-						placeholder="Search automations..."
-						aria-label="Search automations"
+						placeholder={automations_search_placeholder()}
+						aria-label={automations_search_aria()}
 						class="ps-10 w-full"
 						data-testid="automations-search"
 					/>
@@ -248,12 +281,14 @@ Lists all configured workflow automations with status, trigger, and operation su
 							transition:slide={{ axis: 'x' }}
 							data-testid="automations-bulk-actions"
 						>
-							<span class="text-xs font-bold me-2">{selectedIds.length} Selected</span>
+							<span class="text-xs font-bold me-2"
+								>{selectedIds.length} {automations_selected()}</span
+							>
 							<Button
 								variant="surface"
 								onclick={() => bulkToggle(true)}
-								title="Activate Selected"
-								aria-label="Activate selected"
+								title={automations_activate_selected()}
+								aria-label={automations_activate_selected_aria()}
 								size="sm"
 								data-testid="automations-bulk-activate"
 							>
@@ -262,8 +297,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 							<Button
 								variant="surface"
 								onclick={() => bulkToggle(false)}
-								title="Pause Selected"
-								aria-label="Pause selected"
+								title={automations_pause_selected()}
+								aria-label={automations_pause_selected_aria()}
 								size="sm"
 								data-testid="automations-bulk-pause"
 							>
@@ -272,8 +307,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 							<Button
 								variant="error"
 								onclick={bulkDelete}
-								title="Delete Selected"
-								aria-label="Delete selected"
+								title={automations_delete_selected()}
+								aria-label={automations_delete_selected_aria()}
 								size="sm"
 								data-testid="automations-bulk-delete"
 							>
@@ -297,7 +332,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 						height="size-16"
 						ariaLabel="Loading automations"
 					/>
-					<p>Loading automations...</p>
+					<p>{automations_loading()}</p>
 				</div>
 			</AdminCard>
 		{:else if flows.length === 0}
@@ -311,10 +346,10 @@ Lists all configured workflow automations with status, trigger, and operation su
 					height="64"
 					class="text-tertiary-500 dark:text-primary-500"
 				></iconify-icon>
-				<h3 class="h3 font-bold">No Automations Yet</h3>
-				<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
+				<h3 class="h3 font-bold">{automations_empty_title()}</h3>
+				<p class="mb-2 opacity-60">{automations_empty_intro()}</p>
 				<p class="mb-6 text-sm opacity-40">
-					Example: Send an email when a new article is published.
+					{automations_empty_example()}
 				</p>
 				<Button
 					variant="primary"
@@ -324,7 +359,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 					data-testid="automations-empty-cta"
 				>
 					<iconify-icon icon="mdi:plus"></iconify-icon>
-					Get Started
+					{automations_empty_cta()}
 				</Button>
 			</AdminCard>
 		{:else}
@@ -378,7 +413,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center gap-2 mb-0.5">
 												<a
-													aria-label="View automation"
+													aria-label={automations_view_aria()}
 													class="font-bold text-lg truncate hover:text-tertiary-600 dark:text-primary-600 transition-colors text-start"
 													href={`/config/automations/${flow.id}`}
 													data-sveltekit-preload-data="hover"
@@ -386,14 +421,18 @@ Lists all configured workflow automations with status, trigger, and operation su
 													{flow.name}
 												</a>
 												{#if flow.active}
-													<Badge variant="success" size="sm" class="uppercase">Active</Badge>
+													<Badge variant="success" size="sm" class="uppercase"
+														>{common_active()}</Badge
+													>
 												{:else}
 													<Badge preset="tonal" color="surface" size="sm" class="uppercase"
-														>Paused</Badge
+														>{automation_paused()}</Badge
 													>
 												{/if}
 												{#if (flow.failureCount ?? 0) > 0}
-													<Badge variant="error" size="sm">{flow.failureCount} errors</Badge>
+													<Badge variant="error" size="sm"
+														>{flow.failureCount} {automations_errors()}</Badge
+													>
 												{/if}
 											</div>
 
@@ -422,11 +461,11 @@ Lists all configured workflow automations with status, trigger, and operation su
 									>
 										<!-- Stats -->
 										<div class="hidden lg:flex items-center gap-4 text-xs opacity-60 me-4">
-											<span title="Total runs">
+											<span title={automations_total_runs()}>
 												<iconify-icon icon="mdi:play-circle-outline"></iconify-icon>
 												{flow.triggerCount ?? 0}
 											</span>
-											<span title="Last triggered">
+											<span title={automations_last_triggered()}>
 												<iconify-icon icon="mdi:clock-outline"></iconify-icon>
 												{timeAgo(flow.lastTriggered)}
 											</span>
@@ -437,8 +476,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 											<Button
 												variant="surface"
 												onclick={() => testFlow(flow)}
-												title="Test Run"
-												aria-label="Test Automation"
+												title={automations_test_title()}
+												aria-label={automations_test_aria()}
 												size="sm"
 											>
 												<iconify-icon icon="mdi:play-outline"></iconify-icon>
@@ -456,8 +495,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 												variant="secondary"
 												size="sm"
 												href={`/config/automations/${flow.id}`}
-												title="Edit"
-												aria-label="Edit Automation"
+												title={automations_edit_title()}
+												aria-label={automations_edit_aria()}
 												data-sveltekit-preload-data="hover"
 												class="p-0! min-w-0"
 											>
@@ -467,8 +506,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 												variant="secondary"
 												size="sm"
 												href={`/config/automations/${flow.id}?duplicate=true`}
-												title="Duplicate"
-												aria-label="Duplicate Automation"
+												title={automations_duplicate_title()}
+												aria-label={automations_duplicate_aria()}
 												data-sveltekit-preload-data="hover"
 												class="p-0! min-w-0"
 											>
@@ -477,8 +516,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 											<Button
 												variant="error"
 												onclick={() => deleteFlow(flow)}
-												title="Delete"
-												aria-label="Delete Automation"
+												title={button_delete()}
+												aria-label={automations_delete_aria()}
 												size="sm"
 												data-testid="automation-delete"
 											>
@@ -491,7 +530,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 						</div>
 					{:else}
 						<p class="text-center opacity-50 py-8" data-testid="automations-search-empty">
-							No automations match your search.
+							{automations_no_match()}
 						</p>
 					{/each}
 				</div>

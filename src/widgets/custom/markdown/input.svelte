@@ -7,6 +7,12 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import {
+		button_edit,
+		common_split,
+		Fields_preview,
+		widget_md_placeholder
+	} from '@src/paraglide/messages';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { parseMarkdown } from './parse-markdown';
 	import type { FieldType } from './index';
@@ -52,19 +58,19 @@
 				type="button"
 				size="sm"
 				variant={previewMode === 'edit' ? 'tertiary' : 'surface'}
-				onclick={() => (previewMode = 'edit')}>Edit</Button
+				onclick={() => (previewMode = 'edit')}>{button_edit()}</Button
 			>
 			<Button
 				type="button"
 				size="sm"
 				variant={previewMode === 'split' ? 'tertiary' : 'surface'}
-				onclick={() => (previewMode = 'split')}>Split</Button
+				onclick={() => (previewMode = 'split')}>{common_split()}</Button
 			>
 			<Button
 				type="button"
 				size="sm"
 				variant={previewMode === 'preview' ? 'tertiary' : 'surface'}
-				onclick={() => (previewMode = 'preview')}>Preview</Button
+				onclick={() => (previewMode = 'preview')}>{Fields_preview()}</Button
 			>
 		</div>
 		<span class="text-[10px] text-surface-400 uppercase font-bold">{LANGUAGE}</span>
@@ -79,7 +85,7 @@
 				textareaClass="min-h-0 flex-1 resize-none border-0 bg-transparent p-4 font-mono text-sm shadow-none focus-visible:ring-0"
 				value={rawText}
 				oninput={handleInput}
-				placeholder="Write markdown here..."
+				placeholder={widget_md_placeholder()}
 			/>
 		{/if}
 

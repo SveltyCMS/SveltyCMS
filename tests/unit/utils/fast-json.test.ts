@@ -16,6 +16,12 @@ import {
   serializeContentNodeSafe,
   serializeArrayFast,
   serializeQueryShape,
+  serializeSuccessEnvelope,
+  serializeListEnvelope,
+  serializeErrorEnvelope,
+  serializeItemsEnvelopeSafe,
+  serializeRowFast,
+  STATIC_ENVELOPES,
 } from "@src/utils/fast-json";
 
 describe("Fast JSON Serializers", () => {
@@ -142,5 +148,85 @@ describe("Fast JSON Serializers", () => {
     expect(shape1).toContain("status=published;");
     expect(shape1).toContain("category=tech;");
     expect(shape1).toContain("l:50|o:0");
+  });
+
+  it("serializes success, list, and error envelopes with zero reflection", () => {
+    const successEnv = serializeSuccessEnvelope('{"key":"value"}');
+    expect(JSON.parse(successEnv)).toEqual({ success: true, data: { key: "value" } });
+
+    const listEnv = serializeListEnvelope('[{"id":1},{"id":2}]', { total: 42, page: 1, limit: 10 });
+    expect(JSON.parse(listEnv)).toEqual({
+      success: true,
+      data: [{ id: 1 }, { id: 2 }],
+      total: 42,
+      page: 1,
+      limit: 10,
+    });
+
+    const errorEnv = serializeErrorEnvelope("Item not found", "NOT_FOUND", 404);
+    expect(JSON.parse(errorEnv)).toEqual({
+      success: false,
+      message: "Item not found",
+      code: "NOT_FOUND",
+      status: 404,
+    });
+
+    const staticUnauthorized = JSON.parse(STATIC_ENVELOPES.UNAUTHORIZED);
+    expect(staticUnauthorized.success).toBe(false);
+    expect(staticUnauthorized.code).toBe("UNAUTHORIZED");
+  });
+
+  it("serializes items directly into an envelope via serializeItemsEnvelopeSafe", () => {
+    const users = [{ _id: "u1", email: "u1@test.com", username: "u1", role: "user" }];
+    const envelopeStr = serializeItemsEnvelopeSafe(users, serializeUserSafe, { total: 1 });
+    const parsed = JSON.parse(envelopeStr);
+    expect(parsed.success).toBe(true);
+    expect(parsed.total).toBe(1);
+    expect(parsed.data[0]._id).toBe("u1");
+  });
+
+  it("serializeRowFast is byte-identical to JSON.stringify for content-row shapes", () => {
+    const rows: unknown[] = [
+      {},
+      { _id: "a", title: "Hello world" },
+      {
+        title: 'quote " inside \\ and \n newline',
+        views: 42,
+        pi: 3.14,
+        neg: -0,
+        big: 1e21,
+        small: 1e-7,
+        ok: true,
+        no: false,
+        missing: null,
+        unicode: "日本語 🚀 ünïcödé",
+        nested: { a: [1, 2, { b: "c" }], d: null },
+        arr: ["x", null, 3, true],
+        when: new Date("2026-10-09T12:00:00.000Z"),
+      },
+      { status: "publish", count: 0, ratio: 0.5 },
+    ];
+    for (const row of rows) {
+      expect(serializeRowFast(row)).toBe(JSON.stringify(row));
+    }
+    // Array-in-envelope path matches too.
+    expect(serializeArrayFast(rows, serializeRowFast)).toBe(JSON.stringify(rows));
+  });
+
+  it("serializeRowFast preserves JSON.stringify edge semantics", () => {
+    // undefined-valued keys are dropped; NaN/Infinity become null.
+    expect(serializeRowFast({ a: undefined, b: NaN, c: Infinity, d: 1 })).toBe(
+      JSON.stringify({ a: undefined, b: NaN, c: Infinity, d: 1 }),
+    );
+    // Integer-like keys reorder per spec → fallback keeps byte-identity.
+    expect(serializeRowFast({ "2": "b", "1": "a", x: 1 })).toBe(
+      JSON.stringify({ "2": "b", "1": "a", x: 1 }),
+    );
+    // Lone surrogates escape exactly like JSON.stringify.
+    expect(serializeRowFast({ t: "\uD800" })).toBe(JSON.stringify({ t: "\uD800" }));
+    // Non-object rows fall back to JSON.stringify.
+    expect(serializeRowFast(null)).toBe("null");
+    expect(serializeRowFast([1, "a"])).toBe(JSON.stringify([1, "a"]));
+    expect(serializeRowFast(7)).toBe("7");
   });
 });

@@ -941,7 +941,10 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       });
       q = this.db.select(projection).from(this.table).$dynamic();
     } else {
-      q = this.db.select().from(this.table).$dynamic();
+      q = this.db
+        .select(getTableColumns(this.table as any) as Record<string, Column>)
+        .from(this.table)
+        .$dynamic();
     }
 
     if (this.conditions.length > 0) {

@@ -15,6 +15,7 @@ Features:
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Button from '@components/ui/button.svelte';
+	import { common_input, mediagallery_edit_aria } from '@src/paraglide/messages';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
@@ -119,7 +120,7 @@ Features:
 						<div class="absolute inset-s-2 top-2 z-20">
 							<div class="h-6 w-6 rounded-full bg-white shadow-md flex items-center justify-center">
 								<input
-									aria-label="Input"
+									aria-label={common_input()}
 									type="checkbox"
 									checked={isSelected}
 									onchange={() => toggleSelection(file)}
@@ -157,7 +158,7 @@ Features:
 									e.stopPropagation();
 									onEditImage(file as MediaImage);
 								}}
-								aria-label="Edit {file.filename}"
+								aria-label={mediagallery_edit_aria({ name: file.filename })}
 								class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 shadow-sm"
 							>
 								<iconify-icon icon="mdi:pencil" width={16}></iconify-icon>

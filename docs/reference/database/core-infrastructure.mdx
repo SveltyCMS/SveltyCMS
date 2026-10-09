@@ -110,7 +110,10 @@ They are also handled by the `forTenant()` wrapper and higher security layers (s
 
 What `core` provides:
 
-- **Shared Relational Modules**: `relational-auth.ts`, `relational-content.ts`, `relational-media.ts`, `relational-system.ts` — implement `IAuthAdapter`, `IContentAdapter`, etc. for Drizzle-based engines. Each SQL adapter (PostgreSQL, MariaDB, SQLite) composes these modules. `relational-system.ts` owns `websiteTokens.*` (hash-at-rest, tenant-scoped list/lookup, parallel `getAll`).
+- **Shared Relational Modules**: `relational-auth.ts`, `relational-content.ts`, `relational-media.ts`, `relational-system.ts`, `relational-crud.ts` — implement `IAuthAdapter`, `IContentAdapter`, etc. for Drizzle-based engines. Each SQL adapter (PostgreSQL, MariaDB, SQLite) composes these modules. `relational-media.ts` includes high-performance JSON path extraction for media references, and `relational-system.ts` owns `websiteTokens.*` (hash-at-rest, tenant-scoped list/lookup, parallel `getAll`).
+- **Query Primitives**: `query-primitives.ts` — consolidates string/UUID ID contracts (`isNumericIdString`, `isCanonicalUuid`), lookup extraction, and RFC 7396 partial JSON patch directives (`replaceData`, `skipReturning`).
+- **Network DB Queue Gate**: `network-db-queue-gate.ts` — in-app bounded queue gate with `AsyncLocalStorage` re-entrancy for PostgreSQL and MariaDB, preventing pool blowout and socket exhaustion during burst concurrency.
+- **Cache Module**: `cache-module.ts` — query cache invalidation and short-lived tenant count caching (`createCountCachedCrud`).
 - **Credential Hashing Utility**: `src/utils/security/credential-hash.ts` — `hashCredentialSha256Hex()` shared by SQL and Mongo website-token adapters (Web Crypto, hex output for indexed equality lookups).
 - **Drizzle SQL Helpers**: `drizzle-sql-helpers.ts` — centralized table aliases, physical column selection maps (defeating minifier ghost columns), and Drizzle condition builders.
 - **Relational Utilities**: `relational-utils.ts` — JSON field detection (zero-clone dirty-bit transform), DATE field normalization, ID generation, pagination, and tenant filter injection.
@@ -119,7 +122,7 @@ What `core` provides:
 - **Base Adapter**: `base-adapter.ts` — `BaseAdapter` abstract class with `wrap()` (metrics + error handling), hook system, cache invalidation, ring-buffer result pooling (256-slot), and `getCollectionData`.
 
 - **SQL Adapter Core**: `sql-adapter-core.ts` — `SqlAdapterCore` abstract class extending `BaseAdapter`, implementing `ISqlAdapter`. Absorbs ~1,300 lines of duplicated CRUD, delegation, module-getter, and `prepareValues` logic shared by all three SQL engines. Each adapter (PostgreSQL, MariaDB, SQLite) now extends this class and implements only dialect-specific hooks (`getTable`, `getJsonField`, `isMissingTableError`, etc.). `prepareUpdateValues()` stamps `isUpdate` so `createdAt` is insert-only and empty `data={}` blobs are omitted on partial UPDATE.
-- **Plugin Registry**: `plugin-registry.ts` — topological dependency-aware parallel service boot with **zero settling delay** (no `setTimeout`); one pass into ready/blocked lists per wave.
+- **Topological Service Boot**: `db-init.ts` — contains `DBPluginRegistry`, topological dependency-aware parallel service boot with **zero settling delay** (no `setTimeout`); one pass into ready/blocked lists per wave.
 - **Schema Proxy**: `schema-proxy.ts` — guarded `db.posts.findOne()` sugar for collection-name-based access.
 
 ---

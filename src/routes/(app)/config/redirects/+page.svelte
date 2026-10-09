@@ -20,7 +20,35 @@
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import { deleteRedirect, saveRedirect } from './redirects.remote';
 	import { toast } from '@src/stores/toast.svelte';
-	import { button_save } from '@src/paraglide/messages';
+	import {
+		button_save,
+		redirects_add,
+		redirects_add_aria,
+		redirects_actions,
+		redirects_cancel,
+		redirects_count_plural,
+		redirects_count_singular,
+		redirects_delete_aria,
+		redirects_edit,
+		redirects_edit_aria,
+		redirects_empty_match,
+		redirects_empty_none,
+		redirects_from_aria,
+		redirects_from_path,
+		redirects_inactive,
+		redirects_matching,
+		redirects_modal_action_add,
+		redirects_modal_action_edit,
+		redirects_modal_noun,
+		redirects_search_aria,
+		redirects_search_placeholder,
+		redirects_status,
+		redirects_title,
+		redirects_to_aria,
+		redirects_to_path,
+		redirects_type,
+		common_active
+	} from '@src/paraglide/messages';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { refreshAll } from '$app/navigation';
 	import {
@@ -155,7 +183,7 @@
 </script>
 
 <AdminPageShell
-	title="Redirect Manager"
+	title={redirects_title()}
 	icon="mdi:arrow-decision"
 	description="Manage your site redirects globally"
 	showBackButton={true}
@@ -167,9 +195,9 @@
 			onclick={() => openModal()}
 			leadingIcon="mdi:plus"
 			data-testid="redirects-add"
-			aria-label="Add redirect"
+			aria-label={redirects_add_aria()}
 		>
-			Add Redirect
+			{redirects_add()}
 		</Button>
 	{/snippet}
 
@@ -186,8 +214,8 @@
 				<Input
 					type="search"
 					bind:value={searchQuery}
-					placeholder="Search by path..."
-					aria-label="Search redirects by path"
+					placeholder={redirects_search_placeholder()}
+					aria-label={redirects_search_aria()}
 					data-testid="redirects-search"
 					class="ps-10 w-full"
 				/>
@@ -195,9 +223,9 @@
 
 			<p class="text-xs text-surface-500" data-testid="redirects-count">
 				{filteredRedirects.length}
-				{filteredRedirects.length === 1 ? 'redirect' : 'redirects'}
+				{filteredRedirects.length === 1 ? redirects_count_singular() : redirects_count_plural()}
 				{#if searchQuery.trim()}
-					matching “{searchQuery.trim()}”
+					{redirects_matching()} “{searchQuery.trim()}”
 				{/if}
 			</p>
 
@@ -207,11 +235,11 @@
 						<tr
 							class="border-b border-surface-500/30 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-500/40"
 						>
-							<th class="pb-3 font-semibold">From Path</th>
-							<th class="pb-3 font-semibold">To Path</th>
-							<th class="pb-3 font-semibold">Type</th>
-							<th class="pb-3 font-semibold">Status</th>
-							<th class="pb-3 pe-2 font-semibold">Actions</th>
+							<th class="pb-3 font-semibold">{redirects_from_path()}</th>
+							<th class="pb-3 font-semibold">{redirects_to_path()}</th>
+							<th class="pb-3 font-semibold">{redirects_type()}</th>
+							<th class="pb-3 font-semibold">{redirects_status()}</th>
+							<th class="pb-3 pe-2 font-semibold">{redirects_actions()}</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -232,9 +260,9 @@
 								</td>
 								<td class="py-3">
 									{#if redirect.active}
-										<Badge variant="primary">Active</Badge>
+										<Badge variant="primary">{common_active()}</Badge>
 									{:else}
-										<Badge variant="surface">Inactive</Badge>
+										<Badge variant="surface">{redirects_inactive()}</Badge>
 									{/if}
 								</td>
 								<td class="py-3 pe-2">
@@ -243,16 +271,16 @@
 											variant="outline"
 											size="sm"
 											onclick={() => openModal(redirect)}
-											aria-label="Edit redirect {redirect.from}"
+											aria-label={redirects_edit_aria({ from: redirect.from })}
 											data-testid="redirect-edit"
 										>
 											<iconify-icon icon="mdi:pencil" width="18" height="18"></iconify-icon>
-											<span class="sr-only">Edit</span>
+											<span class="sr-only">{redirects_edit()}</span>
 										</Button>
 										<Button
 											variant="error"
 											size="sm"
-											aria-label="Delete redirect {redirect.from}"
+											aria-label={redirects_delete_aria({ from: redirect.from })}
 											data-testid="redirect-delete"
 											onclick={() => confirmDelete(redirect)}
 										>
@@ -266,9 +294,9 @@
 							<tr>
 								<td colspan="5" class="py-12 text-center opacity-50" data-testid="redirects-empty">
 									{#if searchQuery.trim()}
-										No redirects match your search.
+										{redirects_empty_match()}
 									{:else}
-										No redirects yet. Add one to map old paths to new destinations.
+										{redirects_empty_none()}
 									{/if}
 								</td>
 							</tr>
@@ -294,7 +322,10 @@
 			data-testid="redirects-modal"
 		>
 			<h3 id="redirect-modal-title" class="h3">
-				{selectedRedirect._id || selectedRedirect.id ? 'Edit' : 'Add'} Redirect
+				{selectedRedirect._id || selectedRedirect.id
+					? redirects_modal_action_edit()
+					: redirects_modal_action_add()}
+				{redirects_modal_noun()}
 			</h3>
 
 			<form onsubmit={handleSave} class="space-y-4" data-testid="redirects-form">
@@ -304,7 +335,7 @@
 					required
 					error={formErrors.from}
 					data-testid="redirect-from"
-					aria-label="From path"
+					aria-label={redirects_from_aria()}
 				/>
 				<Input
 					label="To Path (e.g. /new-blog or https://example.com/new)"
@@ -312,7 +343,7 @@
 					required
 					error={formErrors.to}
 					data-testid="redirect-to"
-					aria-label="To path"
+					aria-label={redirects_to_aria()}
 				/>
 
 				<div class="grid grid-cols-2 gap-4" data-testid="redirect-type-status">
@@ -342,7 +373,7 @@
 						disabled={saving}
 						data-testid="redirect-cancel"
 					>
-						Cancel
+						{redirects_cancel()}
 					</Button>
 					<Button variant="tertiary" type="submit" disabled={saving} data-testid="redirect-save">
 						{saving ? 'Saving...' : button_save()}

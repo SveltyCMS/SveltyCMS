@@ -37,6 +37,14 @@ This layout provides the administrative shell, including sidebars and header con
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import Portal from '@components/ui/portal.svelte';
+	import {
+		applayout_application_error,
+		applayout_close_left_sidebar,
+		applayout_close_right_sidebar,
+		applayout_left_sidebar_nav,
+		applayout_page_actions,
+		applayout_right_sidebar
+	} from '@src/paraglide/messages';
 	import BackToTop from '@components/ui/back-to-top.svelte';
 	import Slot from '@components/system/slot.svelte';
 	import AdminZone from '@components/system/admin-zone.svelte';
@@ -488,7 +496,9 @@ This layout provides the administrative shell, including sidebars and header con
 {#if loadError}
 	<div class="flex h-screen w-screen items-center justify-center bg-error-500/10 dark:bg-error-900">
 		<div class="text-center">
-			<h1 class="text-2xl font-bold text-error-600 dark:text-error-400">Application Error</h1>
+			<h1 class="text-2xl font-bold text-error-600 dark:text-error-400">
+				{applayout_application_error()}
+			</h1>
 			<p class="mt-2 text-error-500 dark:text-error-500">{loadError.message}</p>
 		</div>
 	</div>
@@ -536,7 +546,7 @@ This layout provides the administrative shell, including sidebars and header con
 							style="width: {ui.state.leftSidebar === 'full'
 								? 'var(--admin-sidebar-width, 240px)'
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
-							aria-label="Left sidebar navigation"
+							aria-label={applayout_left_sidebar_nav()}
 						>
 							<LeftSidebar />
 						</aside>
@@ -566,7 +576,7 @@ This layout provides the administrative shell, including sidebars and header con
 								class="sticky bottom-0 z-20 w-full border-t border-surface-500/30 dark:border-surface-500/40 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
 								style="min-height: var(--admin-sticky-bar-height, 56px);"
 								role="toolbar"
-								aria-label="Page actions"
+								aria-label={applayout_page_actions()}
 								aria-live="polite"
 							>
 								<div class="flex items-center justify-end gap-2 px-4 py-2">
@@ -588,7 +598,7 @@ This layout provides the administrative shell, including sidebars and header con
 					{#if !screen.isMobile && ui.state.rightSidebar !== 'hidden'}
 						<aside
 							class="max-h-dvh w-60 border-s bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
-							aria-label="Right sidebar"
+							aria-label={applayout_right_sidebar()}
 						>
 							<RightSidebar />
 						</aside>
@@ -602,7 +612,7 @@ This layout provides the administrative shell, including sidebars and header con
 						<button
 							type="button"
 							class="fixed inset-0 z-40 bg-surface-900/20 backdrop-blur-xs dark:bg-black/50"
-							aria-label="Close left sidebar"
+							aria-label={applayout_close_left_sidebar()}
 							transition:fade={{ duration: 150 }}
 							onclick={() => ui.toggle('leftSidebar', 'hidden')}
 						></button>
@@ -614,7 +624,7 @@ This layout provides the administrative shell, including sidebars and header con
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
 							role="dialog"
 							aria-modal="true"
-							aria-label="Left sidebar navigation"
+							aria-label={applayout_left_sidebar_nav()}
 							transition:adminSlide={{ distance: ui.state.leftSidebar === 'full' ? -240 : -120 }}
 						>
 							<LeftSidebar />
@@ -629,7 +639,7 @@ This layout provides the administrative shell, including sidebars and header con
 						<button
 							type="button"
 							class="fixed inset-0 z-40 bg-surface-900/20 backdrop-blur-xs dark:bg-black/50"
-							aria-label="Close right sidebar"
+							aria-label={applayout_close_right_sidebar()}
 							transition:fade={{ duration: 150 }}
 							onclick={() => ui.toggle('rightSidebar', 'hidden')}
 						></button>
@@ -638,7 +648,7 @@ This layout provides the administrative shell, including sidebars and header con
 							class="fixed inset-e-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-s border-surface-500/30 bg-surface-500/10 shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
 							role="dialog"
 							aria-modal="true"
-							aria-label="Right sidebar"
+							aria-label={applayout_right_sidebar()}
 							transition:adminSlide={{ distance: 240 }}
 						>
 							<RightSidebar />

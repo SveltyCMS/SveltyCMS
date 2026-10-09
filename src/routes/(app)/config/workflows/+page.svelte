@@ -36,6 +36,28 @@ their arrows so the canvas stays readable.
 		loadWorkflow as loadWorkflowApi,
 		saveWorkflowDefinition
 	} from './workflows-api';
+	import {
+		workflows_add_state,
+		workflows_add_transition,
+		workflows_collection_placeholder,
+		workflows_delete_state,
+		workflows_delete_state_aria,
+		workflows_delete_transition,
+		workflows_description_placeholder,
+		workflows_initial,
+		workflows_inspector_hint,
+		workflows_name_placeholder,
+		workflows_properties,
+		workflows_save,
+		workflows_state_label,
+		workflows_state_name_aria,
+		workflows_state_plural,
+		workflows_state_singular,
+		workflows_title,
+		workflows_transition_label,
+		workflows_transition_plural,
+		workflows_transition_singular
+	} from '@src/paraglide/messages';
 
 	/** Default placement grid for cards that carry no persisted position. */
 	const CARD_WIDTH = 192; // matches w-48
@@ -368,7 +390,7 @@ their arrows so the canvas stays readable.
 
 <div data-testid="workflows-page" class="contents">
 	<AdminPageShell
-		title="Workflow Engine"
+		title={workflows_title()}
 		icon="mdi:sitemap"
 		description="Visual Lifecycle Management (FSM)"
 		fullHeight
@@ -376,13 +398,13 @@ their arrows so the canvas stays readable.
 	>
 		{#snippet actions()}
 			<Button variant="surface" onclick={addState} data-testid="workflow-add-state"
-				>+ Add State</Button
+				>{workflows_add_state()}</Button
 			>
 			<Button variant="surface" onclick={addTransition} data-testid="workflow-add-transition"
-				>+ Add Transition</Button
+				>{workflows_add_transition()}</Button
 			>
 			<Button variant="tertiary" onclick={saveWorkflow} data-testid="workflow-save"
-				>Save Workflow</Button
+				>{workflows_save()}</Button
 			>
 		{/snippet}
 
@@ -395,7 +417,7 @@ their arrows so the canvas stays readable.
 					bind:value={selectedCollectionId}
 					label="Target Collection"
 					options={collectionOptions}
-					placeholder="Select Collection..."
+					placeholder={workflows_collection_placeholder()}
 					size="sm"
 					onchange={() => loadWorkflow(selectedCollectionId)}
 					class="min-w-48"
@@ -404,13 +426,13 @@ their arrows so the canvas stays readable.
 			<Input
 				bind:value={workflowName}
 				label="Workflow Name"
-				placeholder="e.g. Blog Review Flow"
+				placeholder={workflows_name_placeholder()}
 				class="min-w-48"
 			/>
 			<Input
 				bind:value={workflowDescription}
 				label="Description"
-				placeholder="Optional description"
+				placeholder={workflows_description_placeholder()}
 				class="min-w-48"
 			/>
 			{#if workflowId}
@@ -525,7 +547,7 @@ their arrows so the canvas stays readable.
 						{#if state.isInitial}
 							<span
 								class="absolute -top-3 inset-s-1/2 -translate-x-1/2 rounded-full bg-primary-500 px-2 py-0.5 text-xs font-bold uppercase text-white"
-								>Initial</span
+								>{workflows_initial()}</span
 							>
 						{/if}
 
@@ -539,14 +561,14 @@ their arrows so the canvas stays readable.
 							<div class="min-w-0 flex-1">
 								<Input
 									bind:value={state.label}
-									aria-label="State name"
+									aria-label={workflows_state_name_aria()}
 									inputClass="h-8 border-none bg-transparent px-0 text-sm font-semibold shadow-none focus-visible:ring-0"
 								/>
 							</div>
 							<button
 								type="button"
 								class="text-error-500 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-								title="Delete state"
+								title={workflows_delete_state_aria()}
 								aria-label={`Delete state ${state.label}`}
 								onclick={() => removeState(state.id)}>×</button
 							>
@@ -600,13 +622,15 @@ their arrows so the canvas stays readable.
 			<AdminCard
 				class="overflow-y-auto border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
 			>
-				<h3 class="mb-6 text-xs font-bold uppercase tracking-widest opacity-40">Properties</h3>
+				<h3 class="mb-6 text-xs font-bold uppercase tracking-widest opacity-40">
+					{workflows_properties()}
+				</h3>
 
 				{#if selectedNodeId}
 					{const node = states.find((s) => s.id === selectedNodeId)}
 					{#if node}
 						<div class="space-y-6" in:fade>
-							<Badge variant="primary" size="sm">State: {node.id}</Badge>
+							<Badge variant="primary" size="sm">{workflows_state_label()} {node.id}</Badge>
 							<Input id="state-name" bind:value={node.label} label="Display Label" />
 							<Input
 								id="accent-color"
@@ -636,7 +660,7 @@ their arrows so the canvas stays readable.
 									selectedNodeId = null;
 								}}
 								size="sm"
-								class="mt-4 w-full">Delete State</Button
+								class="mt-4 w-full">{workflows_delete_state()}</Button
 							>
 						</div>
 					{/if}
@@ -644,7 +668,7 @@ their arrows so the canvas stays readable.
 					{const trans = transitions.find((t) => t.id === selectedTransitionId)}
 					{#if trans}
 						<div class="space-y-6" in:fade>
-							<Badge variant="secondary" size="sm">Transition: {trans.id}</Badge>
+							<Badge variant="secondary" size="sm">{workflows_transition_label()} {trans.id}</Badge>
 							<Input id="trans-label" bind:value={trans.label} label="Button Label" />
 							<Select
 								bind:value={trans.from}
@@ -676,7 +700,7 @@ their arrows so the canvas stays readable.
 									selectedTransitionId = null;
 								}}
 								size="sm"
-								class="mt-4 w-full">Delete Transition</Button
+								class="mt-4 w-full">{workflows_delete_transition()}</Button
 							>
 						</div>
 					{/if}
@@ -687,8 +711,16 @@ their arrows so the canvas stays readable.
 						>
 							<p class="mb-2 text-sm font-semibold">{workflowName || 'Untitled workflow'}</p>
 							<ul class="space-y-1 text-xs opacity-70">
-								<li>{states.length} state{states.length === 1 ? '' : 's'}</li>
-								<li>{transitions.length} transition{transitions.length === 1 ? '' : 's'}</li>
+								<li>
+									{states.length}{' '}{states.length === 1
+										? workflows_state_singular()
+										: workflows_state_plural()}
+								</li>
+								<li>
+									{transitions.length}{' '}{transitions.length === 1
+										? workflows_transition_singular()
+										: workflows_transition_plural()}
+								</li>
 								<li>
 									{selectedCollectionId
 										? `Collection: ${collectionOptions.find((o) => o.value === selectedCollectionId)?.label ?? selectedCollectionId}`
@@ -701,7 +733,7 @@ their arrows so the canvas stays readable.
 						>
 							<iconify-icon icon="mdi:gesture-tap" width="40" class="mb-3"></iconify-icon>
 							<p class="text-sm font-medium">
-								Select a state or transition on the canvas to edit its properties
+								{workflows_inspector_hint()}
 							</p>
 						</div>
 					</div>

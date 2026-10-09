@@ -13,8 +13,20 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import {
+		button_edit,
+		builder_tag_input_label,
+		mediagallery_drag_to_folder,
 		mediagallery_drop_files,
+		mediagallery_file_name_label,
+		mediagallery_filter_media_aria,
+		mediagallery_loading_more,
+		mediagallery_media_grid_aria,
 		mediagallery_no_media,
+		mediagallery_original,
+		mediagallery_preview_drag_aria,
+		mediagallery_resized_variants,
+		mediagallery_size,
+		mediagallery_Pixel,
 		mediagallery_upload_first
 	} from '@src/paraglide/messages';
 	import Checkbox from '@components/ui/checkbox.svelte';
@@ -209,7 +221,7 @@
 	style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
 	role="grid"
 	tabindex="-1"
-	aria-label="Media asset grid"
+	aria-label={mediagallery_media_grid_aria()}
 	data-testid="media-grid"
 	ontouchstart={() => {
 		touchActiveId = null;
@@ -238,7 +250,7 @@
 				<span>{mediagallery_upload_first()}</span>
 			</Button>
 			<input
-				aria-label="Filter media"
+				aria-label={mediagallery_filter_media_aria()}
 				type="file"
 				multiple
 				class="hidden"
@@ -280,7 +292,7 @@
 					attributes: { draggingClass: 'opacity-50' }
 				}}
 				ondragstart={suppressNativeDragGhost}
-				title="Drag to a folder in the sidebar to move"
+				title={mediagallery_drag_to_folder()}
 				data-testid="media-item"
 				data-media-id={fileId}
 				in:fade={{ duration: motionDuration(120) }}
@@ -328,7 +340,7 @@
 						class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
 						onclick={() => handleItemClick(file)}
 						onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
-						aria-label="Preview {file.filename}. Drag to move into a folder."
+						aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
 					>
 						{#if file.type === 'image' && !failedImages.has(fileId)}
 							<div
@@ -414,7 +426,8 @@
 									<div
 										class="border-b border-surface-500/30 dark:border-surface-500/40 pb-2 mb-0 text-center text-[13px]"
 									>
-										File NAME : {file.filename}
+										{mediagallery_file_name_label()}
+										{file.filename}
 									</div>
 									<table class="w-full text-start border-collapse mt-2">
 										<thead>
@@ -423,20 +436,22 @@
 											>
 												<th
 													class="font-bold py-1 px-2 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
-													>Size</th
+													>{mediagallery_size()}</th
 												>
 												<th
 													class="font-bold py-1 px-2 border-e border-surface-500/30 dark:border-surface-500/40 text-center"
-													>Pixel</th
+													>{mediagallery_Pixel()}</th
 												>
-												<th class="font-bold py-1 px-2 text-end" colspan="2">Size</th>
+												<th class="font-bold py-1 px-2 text-end" colspan="2"
+													>{mediagallery_size()}</th
+												>
 											</tr>
 										</thead>
 										<tbody class="text-surface-600 dark:text-surface-400">
 											<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
 												<td
 													class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
-													>original</td
+													>{mediagallery_original()}</td
 												>
 												<td
 													class="py-1 px-2 text-center border-e border-surface-500/30 dark:border-surface-500/40"
@@ -454,7 +469,8 @@
 														class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
 														colspan="4"
 													>
-														Resized variants — {primaryLabel}{#if hasWebp}
+														{mediagallery_resized_variants()}
+														{primaryLabel}{#if hasWebp}
 															+ WebP{/if}
 													</td>
 												</tr>
@@ -501,7 +517,7 @@
 						</MediaGridActionTooltip>
 
 						<MediaGridActionTooltip
-							title="Edit"
+							title={button_edit()}
 							ariaLabel="Edit {file.filename}"
 							class={actionBtnClass}
 							data-testid="media-edit-button"
@@ -517,7 +533,7 @@
 
 						{#if file.type === 'image'}
 							<MediaGridActionTooltip
-								title="Tags"
+								title={builder_tag_input_label()}
 								ariaLabel="Tags for {file.filename}"
 								class={actionBtnClass}
 								onclick={(e) => {
@@ -579,7 +595,7 @@
 				aria-hidden="true"
 			>
 				<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
-				<span>Loading more…</span>
+				<span>{mediagallery_loading_more()}</span>
 			</div>
 		{/if}
 	{/if}

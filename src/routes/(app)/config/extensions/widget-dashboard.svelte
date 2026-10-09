@@ -18,6 +18,41 @@ Features:
 	import WidgetCard from './widget-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import {
+		button_cancel,
+		button_retry,
+		common_active,
+		widgetcard_core,
+		widgetcard_custom,
+		wd_clear_all_filters,
+		wd_clear_all_filters_aria,
+		wd_clear_search,
+		wd_clear_search_aria,
+		wd_error_heading,
+		wd_filter_aria,
+		wd_info_active_aria,
+		wd_info_active_title,
+		wd_info_core_aria,
+		wd_info_core_title,
+		wd_info_custom_aria,
+		wd_info_custom_title,
+		wd_info_total_aria,
+		wd_info_total_title,
+		wd_limited_access,
+		wd_limited_access_desc,
+		wd_loading,
+		wd_no_criteria,
+		wd_no_filter_part1,
+		wd_no_filter_part2,
+		wd_no_match_part1,
+		wd_no_widgets,
+		wd_search_placeholder,
+		wd_total,
+		wd_uninstall,
+		wd_uninstall_confirm_part1,
+		wd_uninstall_confirm_part2,
+		wd_uninstall_modal_title
+	} from '@src/paraglide/messages';
 	import Modal from '@components/ui/modal.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import {
@@ -257,7 +292,7 @@ Features:
 			<div
 				class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-600 border-t-transparent"
 			></div>
-			<span class="ms-3 text-lg">Loading widgets...</span>
+			<span class="ms-3 text-lg">{wd_loading()}</span>
 		</div>
 	{:else if error}
 		<div class="rounded border border-error-500/20 bg-error-500/10 p-4 dark:bg-error-900/20">
@@ -265,12 +300,12 @@ Features:
 				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-error-600"
 				></iconify-icon>
 				<div>
-					<h3 class="font-semibold text-error-600 dark:text-error-400">Error Loading Widgets</h3>
+					<h3 class="font-semibold text-error-600 dark:text-error-400">{wd_error_heading()}</h3>
 					<p class="text-error-600 dark:text-error-400">{error}</p>
 					<button
 						onclick={() => loadWidgets()}
 						class="mt-2 rounded bg-error-500 px-3 py-1 text-sm text-white hover:bg-error-600"
-						>Retry</button
+						>{button_retry()}</button
 					>
 				</div>
 			</div>
@@ -285,10 +320,11 @@ Features:
 					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-warning-600"
 					></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-warning-600 dark:text-warning-400">Limited Access</h3>
+						<h3 class="font-semibold text-warning-600 dark:text-warning-400">
+							{wd_limited_access()}
+						</h3>
 						<p class="text-warning-600 dark:text-warning-400">
-							You have read-only access to widget management. Contact your administrator to request
-							widget management permissions.
+							{wd_limited_access_desc()}
 						</p>
 					</div>
 				</div>
@@ -303,8 +339,8 @@ Features:
 			>
 				<Button
 					variant="ghost"
-					aria-label="Information about total widgets"
-					title="All registered widgets in the system (core + custom)"
+					aria-label={wd_info_total_aria()}
+					title={wd_info_total_title()}
 					class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400"
 				>
 					<iconify-icon icon="mdi:information" width="20"></iconify-icon>
@@ -316,7 +352,7 @@ Features:
 						class="text-2xl text-tertiary-600 dark:text-tertiary-400"
 					></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">Total</h3>
+						<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">{wd_total()}</h3>
 						<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">
 							{stats.total}
 						</p>
@@ -330,8 +366,8 @@ Features:
 			>
 				<Button
 					variant="ghost"
-					aria-label="Information about active widgets"
-					title="Widgets currently enabled and available for use in collections"
+					aria-label={wd_info_active_aria()}
+					title={wd_info_active_title()}
 					class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-500 dark:text-primary-500"
 				>
 					<iconify-icon icon="mdi:information" width="20"></iconify-icon>
@@ -343,7 +379,7 @@ Features:
 						class="text-2xl text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">Active</h3>
+						<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{common_active()}</h3>
 						<p class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">
 							{stats.active}
 						</p>
@@ -357,8 +393,8 @@ Features:
 			>
 				<Button
 					variant="ghost"
-					aria-label="Information about core widgets"
-					title="Essential system widgets that are always active and cannot be disabled"
+					aria-label={wd_info_core_aria()}
+					title={wd_info_core_title()}
 					class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400"
 				>
 					<iconify-icon icon="mdi:information" width="20"></iconify-icon>
@@ -370,7 +406,9 @@ Features:
 						class="text-2xl text-tertiary-600 dark:text-tertiary-400"
 					></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">Core</h3>
+						<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">
+							{widgetcard_core()}
+						</h3>
 						<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">
 							{stats.core}
 						</p>
@@ -384,8 +422,8 @@ Features:
 			>
 				<Button
 					variant="ghost"
-					aria-label="Information about custom widgets"
-					title="Optional widgets that can be toggled on/off as needed"
+					aria-label={wd_info_custom_aria()}
+					title={wd_info_custom_title()}
 					class="p-0! min-w-0 absolute inset-e-2 top-2 text-warning-600 dark:text-warning-400"
 				>
 					<iconify-icon icon="mdi:information" width="20"></iconify-icon>
@@ -397,7 +435,9 @@ Features:
 						class="text-2xl text-warning-600 dark:text-warning-400"
 					></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-warning-600 dark:text-warning-400">Custom</h3>
+						<h3 class="font-semibold text-warning-600 dark:text-warning-400">
+							{widgetcard_custom()}
+						</h3>
 						<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">
 							{stats.custom}
 						</p>
@@ -420,15 +460,15 @@ Features:
 					<Input
 						type="search"
 						bind:value={searchQuery}
-						placeholder="Search widgets... (Ctrl+F)"
+						placeholder={wd_search_placeholder()}
 						inputClass="py-2 ps-10 pe-10"
 					/>
 					{#if searchQuery}
 						<button
 							onclick={() => (searchQuery = '')}
 							class="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-							aria-label="Clear search"
-							title="Clear search (Esc)"
+							aria-label={wd_clear_search_aria()}
+							title={wd_clear_search()}
 						>
 							<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
 						</button>
@@ -442,7 +482,7 @@ Features:
 					<Button
 						variant="tertiary"
 						onclick={() => (activeFilter = filter.value)}
-						aria-label={`${filter.label} widgets (${filter.count})`}
+						aria-label={wd_filter_aria({ filter: filter.label, count: filter.count })}
 						class={activeFilter === filter.value ? 'text-white' : ''}
 					>
 						<iconify-icon icon={filter.icon} width="20"></iconify-icon>
@@ -467,15 +507,15 @@ Features:
 					<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-surface-400"
 					></iconify-icon>
 					<h3 class="mt-4 text-lg font-semibold text-surface-900 dark:text-surface-100">
-						No Widgets Found
+						{wd_no_widgets()}
 					</h3>
 					<p class="mt-2 text-surface-600 dark:text-surface-400">
 						{#if searchQuery}
-							No widgets match your search "<strong>{searchQuery}</strong>"
+							{wd_no_match_part1()}"<strong>{searchQuery}</strong>"
 						{:else if activeFilter !== 'all'}
-							No {activeFilter} widgets available
+							{wd_no_filter_part1()}{activeFilter}{wd_no_filter_part2()}
 						{:else}
-							No widgets match your criteria
+							{wd_no_criteria()}
 						{/if}
 					</p>
 					{#if searchQuery || activeFilter !== 'all'}
@@ -485,10 +525,10 @@ Features:
 								activeFilter = 'all';
 							}}
 							class="mt-6 inline-flex items-center gap-2 rounded bg-tertiary-600 px-6 py-3 text-sm font-medium text-white hover:bg-tertiary-700 focus:outline-none focus:ring-2 focus:ring-tertiary-500 focus:ring-offset-2"
-							aria-label="Clear all filters and search"
+							aria-label={wd_clear_all_filters_aria()}
 						>
 							<iconify-icon icon="mdi:filter-off" width="24" class="text-lg"></iconify-icon>
-							Clear All Filters
+							{wd_clear_all_filters()}
 						</button>
 					{/if}
 				</div>
@@ -506,17 +546,17 @@ Features:
 	{/if}
 </div>
 
-<Modal bind:open={uninstallConfirmOpen} title="Uninstall Widget" size="sm">
+<Modal bind:open={uninstallConfirmOpen} title={wd_uninstall_modal_title()} size="sm">
 	<div class="flex flex-col gap-4">
 		<p class="text-sm text-surface-600 dark:text-surface-400">
-			Are you sure you want to uninstall the widget <strong>{uninstallTarget}</strong>? This action
-			cannot be undone.
+			{wd_uninstall_confirm_part1()}
+			<strong>{uninstallTarget}</strong>{wd_uninstall_confirm_part2()}
 		</p>
 		<div class="flex justify-end gap-2">
 			<Button variant="outline" size="sm" onclick={() => (uninstallConfirmOpen = false)}>
-				Cancel
+				{button_cancel()}
 			</Button>
-			<Button variant="error" size="sm" onclick={performUninstall}>Uninstall</Button>
+			<Button variant="error" size="sm" onclick={performUninstall}>{wd_uninstall()}</Button>
 		</div>
 	</div>
 </Modal>

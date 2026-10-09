@@ -302,6 +302,7 @@ export function hasPermissionBitIndex(
 ): boolean {
   if (!bitset) return false;
   const word = bitIndex >>> 5;
+  if (word >= bitset.length) return false;
   const bit = bitIndex & 31;
   const val = bitset[word];
   if (val === undefined) return false;
@@ -318,6 +319,7 @@ export function serializePermissionBitset(bitset: Uint32Array): number[] {
 /**
  * Rehydrates a Uint32Array bitset from serialized number array words.
  */
-export function rehydratePermissionBitset(permBits?: number[] | null): Uint32Array {
+export function rehydratePermissionBitset(permBits?: Uint32Array | number[] | null): Uint32Array {
+  if (permBits instanceof Uint32Array) return permBits;
   return permBits && permBits.length > 0 ? Uint32Array.from(permBits) : new Uint32Array(4);
 }

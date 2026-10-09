@@ -17,7 +17,14 @@
  */
 
 import { logger } from "@utils/logger";
-import { type DatabaseAdapter, type IDBAdapter } from "./db-interface";
+import { type ConnectionPoolOptions, type DatabaseAdapter, type IDBAdapter } from "./db-interface";
+import {
+  parseDbReplicasEnv,
+  type DbReplicaTarget,
+  type ReadReplicaConfig,
+  type ReplicaRouterAdapter,
+  type ReplicaStats,
+} from "./core/replica-router";
 import {
   loadPrivateConfig as loadConfig,
   getPrivateEnv as getEnv,
@@ -43,6 +50,7 @@ const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
 const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
 const AUTH_KEY = "__AUTH_INSTANCE__";
 const BOOT_PHASE_KEY = "__BOOT_PHASE__";
+const REPLICA_ROUTER_KEY = "__DB_REPLICA_ROUTER__";
 
 // 🚀 AGNOSTIC CORE: High-performance, safe access to the database adapter.
 export async function getDbSafe(): Promise<DatabaseAdapter> {
@@ -76,6 +84,20 @@ export function loadPrivateConfig(): any {
 }
 export function getBootPhase(): string {
   return getGlobal(BOOT_PHASE_KEY, "IDLE");
+}
+
+/**
+ * Active read-replica router adapter (Option 4), or null when `DB_REPLICAS` is
+ * not configured. Consumers route reads through this adapter to benefit from
+ * replica pooling + Read-Your-Writes consistency; mutations stay on the primary.
+ */
+export function getReplicaRouter(): ReplicaRouterAdapter | null {
+  return getGlobal<ReplicaRouterAdapter | null>(REPLICA_ROUTER_KEY, null);
+}
+
+/** Live replica-routing diagnostics, or null when the router is disabled. */
+export function getReplicaStats(): ReplicaStats | null {
+  return getReplicaRouter()?.getReplicaStats() ?? null;
 }
 
 // Direct access to the current auth service instance.
@@ -189,6 +211,139 @@ async function getResilienceIntegration() {
   return _resilienceIntegration;
 }
 
+/**
+ * Fail-closed tenant isolation for a freshly constructed adapter (primary and
+ * replicas): wraps crud (tenant guard + short-lived count cache) and the domain
+ * namespaces so plugins/widgets cannot run unscoped. Replicas receive the same
+ * guard as the primary so replica-routed reads stay tenant-scoped.
+ */
+async function applyTenantIsolationGuards(adapter: IDBAdapter): Promise<void> {
+  try {
+    const { createTenantGuardedCrud, createTenantGuardedNamespace } =
+      await import("./crud-tenant-guard");
+    const { createCountCachedCrud } = await import("./core/cache-module");
+    const originalCrud = adapter.crud;
+    // Tenant guard first (fail-closed), then short-lived count cache (equal on all DBs).
+    (adapter as any).crud = createCountCachedCrud(createTenantGuardedCrud(originalCrud, "reject"));
+
+    for (const ns of ["auth", "content", "media", "collection", "system"] as const) {
+      const original = (adapter as any)[ns];
+      if (original && typeof original === "object") {
+        const guarded = createTenantGuardedNamespace(original, "reject", ns);
+        // Some adapters define namespaces as getter-only properties.
+        // Use defineProperty to handle both writable and getter-only cases.
+        try {
+          (adapter as any)[ns] = guarded;
+        } catch {
+          try {
+            Object.defineProperty(adapter, ns, {
+              value: guarded,
+              writable: true,
+              configurable: true,
+              enumerable: true,
+            });
+          } catch {
+            // Keep original; tenant guard won't wrap this namespace
+          }
+        }
+      }
+    }
+  } catch (e) {
+    logger.warn(`[Boot] Tenant guard not applied (non-fatal): ${e}`);
+  }
+}
+
+/** Subset of the private DB config the read-replica bootstrap consumes. */
+export interface ReplicaBootConfig {
+  DB_TYPE?: string;
+  DB_USER?: string;
+  DB_PASSWORD?: string;
+  DB_NAME?: string;
+  replicaSettings?: ReadReplicaConfig;
+}
+
+/**
+ * Option 4 boot wiring: constructs one tenant-guarded adapter per validated
+ * `DB_REPLICAS` target, connects each to its own host:port, pre-warms its pool,
+ * then wraps the already-connected primary in a ReplicaRouterAdapter (RYW
+ * watermark + circuit breaker live in core/replica-router).
+ *
+ * Fails open: replicas that cannot be constructed or connected are skipped with
+ * a warning; with zero healthy replicas no router is created and the primary
+ * keeps serving all traffic. On success the router is exposed through the
+ * REPLICA_ROUTER_KEY global (see getReplicaRouter()).
+ */
+export async function bootstrapReplicaRouter(
+  primary: IDBAdapter,
+  targets: DbReplicaTarget[],
+  cfg: ReplicaBootConfig | null,
+): Promise<ReplicaRouterAdapter | null> {
+  const dbInit = await getDbInit();
+  const { preWarmConnectionPool } = await import("@src/databases/database-resilience");
+
+  const replicas: IDBAdapter[] = [];
+  for (const target of targets) {
+    const label = `${target.host}:${target.port}`;
+    try {
+      // Reuse the centralized adapter factory with the replica's host:port.
+      // readReplicas: [] keeps the factory from recursing into DB_READ_REPLICAS.
+      const replica = await dbInit.loadAdapters({
+        ...cfg,
+        host: target.host,
+        port: target.port,
+        DB_HOST: target.host,
+        DB_PORT: target.port,
+        readReplicas: [],
+      });
+      if (!replica) {
+        throw new Error("adapter factory returned no instance");
+      }
+
+      await applyTenantIsolationGuards(replica);
+
+      // Explicit connection options — the global connection string always points
+      // at the primary, so each replica must receive its own host:port.
+      const result = await replica.connect({
+        host: target.host,
+        port: target.port,
+        user: cfg?.DB_USER,
+        password: cfg?.DB_PASSWORD,
+        database: cfg?.DB_NAME,
+      } as unknown as ConnectionPoolOptions);
+      if (!result.success) {
+        throw new Error(result.message || "replica connection failed");
+      }
+
+      await preWarmConnectionPool(replica).catch((err) => {
+        logger.debug(
+          `[Boot] Read replica ${label} pool pre-warm non-fatal: ${(err as Error).message}`,
+        );
+      });
+
+      replicas.push(replica);
+      logger.info(`[Boot] Read replica connected: ${label}`);
+    } catch (err) {
+      logger.warn(`[Boot] Read replica ${label} unavailable — skipped: ${(err as Error).message}`);
+    }
+  }
+
+  if (replicas.length === 0) {
+    logger.warn(
+      `[Boot] DB_REPLICAS listed ${targets.length} target(s) but none connected — read-replica routing stays disabled and the primary serves all traffic.`,
+    );
+    setGlobal(REPLICA_ROUTER_KEY, null);
+    return null;
+  }
+
+  const { createReplicaRouterAdapter } = await import("./core/replica-router");
+  const router = createReplicaRouterAdapter(primary, replicas, cfg?.replicaSettings);
+  setGlobal(REPLICA_ROUTER_KEY, router);
+  logger.info(
+    `[Boot] Read-replica router enabled: ${replicas.length}/${targets.length} replica(s) serving reads.`,
+  );
+  return router as ReplicaRouterAdapter;
+}
+
 // Centralized, idempotent system initialization.
 export async function ensureFullInitialization(): Promise<any | null> {
   // 🚀 SAFETY: Clear the shutdown guard — any call to re-initialize, whether from
@@ -281,41 +436,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       // 🛡️ Fail-closed tenant guard (MULTI_TENANT): never invent tenantId="global".
       // Wraps crud + domain namespaces so plugins/widgets cannot run unscoped.
       // Single-tenant / benchmarks: guard returns inner adapter directly (zero overhead).
-      try {
-        const { createTenantGuardedCrud, createTenantGuardedNamespace } =
-          await import("./crud-tenant-guard");
-        const { createCountCachedCrud } = await import("./core/cache-module");
-        const originalCrud = adapter.crud;
-        // Tenant guard first (fail-closed), then short-lived count cache (equal on all DBs).
-        (adapter as any).crud = createCountCachedCrud(
-          createTenantGuardedCrud(originalCrud, "reject"),
-        );
-
-        for (const ns of ["auth", "content", "media", "collection", "system"] as const) {
-          const original = (adapter as any)[ns];
-          if (original && typeof original === "object") {
-            const guarded = createTenantGuardedNamespace(original, "reject", ns);
-            // Some adapters define namespaces as getter-only properties.
-            // Use defineProperty to handle both writable and getter-only cases.
-            try {
-              (adapter as any)[ns] = guarded;
-            } catch {
-              try {
-                Object.defineProperty(adapter, ns, {
-                  value: guarded,
-                  writable: true,
-                  configurable: true,
-                  enumerable: true,
-                });
-              } catch {
-                // Keep original; tenant guard won't wrap this namespace
-              }
-            }
-          }
-        }
-      } catch (e) {
-        logger.warn(`[Boot] Tenant guard not applied (non-fatal): ${e}`);
-      }
+      await applyTenantIsolationGuards(adapter);
 
       const { connectDatabaseWithResilience } = await getResilienceIntegration();
       const connectionResult = await connectDatabaseWithResilience(
@@ -362,8 +483,48 @@ export async function ensureFullInitialization(): Promise<any | null> {
           );
         });
 
+      // 🚀 Statement warm-up (PostgreSQL): cross the planner's custom-plan
+      // window (5 executions) before traffic arrives so fresh pools and
+      // post-idle reconnects serve generic plans from the first request.
+      // Env-gated per adapter (SVELTY_PG_STATEMENT_WARMUP); non-fatal.
+      if (
+        typeof (adapter as { warmPreparedStatements?: () => Promise<void> })
+          .warmPreparedStatements === "function"
+      ) {
+        await (adapter as { warmPreparedStatements: () => Promise<void> })
+          .warmPreparedStatements()
+          .catch((err) => {
+            logger.debug(`[Boot] Statement warm-up non-fatal failure: ${(err as Error).message}`);
+          });
+      }
+
       const authInstance = (adapter as any).authService;
       setGlobal(AUTH_KEY, authInstance);
+
+      // 🚀 READ-REPLICA ROUTER (Option 4): DB_REPLICAS="host:port,..." boot wiring.
+      // Default-off: without DB_REPLICAS this block performs no work — the boot path
+      // behaves exactly like a single-primary deployment (no router constructed, no
+      // extra queries). With a non-empty parseable list, each target becomes a
+      // tenant-guarded replica adapter connected to its own host:port; the
+      // ReplicaRouterAdapter (RYW watermark + circuit breaker) wraps the connected
+      // primary and is exposed via getReplicaRouter().
+      const replicaTargets = parseDbReplicasEnv(process.env.DB_REPLICAS);
+      if (replicaTargets.length > 0) {
+        const engineType = String(
+          (adapter as { type?: string }).type || cfg?.DB_TYPE || "sqlite",
+        ).toLowerCase();
+        if (engineType === "sqlite") {
+          logger.warn(
+            "[Boot] DB_REPLICAS is set but the active engine is SQLite — read replicas apply to networked databases; ignoring DB_REPLICAS.",
+          );
+        } else {
+          await bootstrapReplicaRouter(
+            adapter,
+            replicaTargets,
+            cfg as unknown as ReplicaBootConfig | null,
+          );
+        }
+      }
 
       // 🚀 WARM SETTINGS CACHE (API-only cold boot): eagerly load the global
       // settings cache so synchronous getters (getPrivateSettingSync, e.g.

@@ -9,6 +9,12 @@
 -->
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import {
+		plugins_configure,
+		plugins_intro,
+		plugins_missing_config,
+		plugins_no_plugins
+	} from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { togglePlugin } from './plugins-api';
@@ -54,14 +60,14 @@
 </script>
 
 <div class="mb-6 text-center text-surface-500 dark:text-surface-50" data-testid="plugins-view">
-	Manage installed plugins to extend your CMS functionality.
+	{plugins_intro()}
 </div>
 
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="plugins-grid">
 	{#if !data.plugins || data.plugins.length === 0}
 		<div class="col-span-full py-12 text-center text-surface-400" data-testid="plugins-empty">
 			<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
-			<p>No plugins installed.</p>
+			<p>{plugins_no_plugins()}</p>
 		</div>
 	{:else}
 		{#each data.plugins as plugin (plugin.name)}
@@ -91,7 +97,7 @@
 										<div
 											class="absolute bottom-full inset-s-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
 										>
-											Missing Configuration
+											{plugins_missing_config()}
 											<div
 												class="absolute -bottom-1 inset-s-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"
 											></div>
@@ -135,7 +141,7 @@
 						data-testid={`plugin-configure-${plugin.name}`}
 					>
 						<iconify-icon icon="mdi:cog" width="18" class="me-1"></iconify-icon>
-						Configure
+						{plugins_configure()}
 					</Button>
 				</div>
 			</div>

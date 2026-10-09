@@ -24,6 +24,12 @@ Part of the Three Pillars Architecture for widget system.
 
 <script lang="ts">
 	import Input from '@components/ui/input.svelte';
+	import {
+		common_start,
+		common_end,
+		widget_daterange_start_label,
+		widget_daterange_end_label
+	} from '@src/paraglide/messages';
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './';
@@ -106,7 +112,8 @@ Part of the Three Pillars Architecture for widget system.
 		<div class="flex-1">
 			<label
 				for={`${field.db_fieldName}_start`}
-				class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1">Start</label
+				class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1"
+				>{common_start()}</label
 			>
 			<div
 				class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
@@ -119,7 +126,7 @@ Part of the Three Pillars Architecture for widget system.
 					oninput={(e) => handleInput('start', e)}
 					required={field.required}
 					inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500"
-					aria-label="Start Date"
+					aria-label={widget_daterange_start_label()}
 				/>
 			</div>
 		</div>
@@ -128,7 +135,8 @@ Part of the Three Pillars Architecture for widget system.
 		<div class="flex-1">
 			<label
 				for={`${field.db_fieldName}_end`}
-				class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1">End</label
+				class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1"
+				>{common_end()}</label
 			>
 			<div
 				class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
@@ -141,7 +149,7 @@ Part of the Three Pillars Architecture for widget system.
 					oninput={(e) => handleInput('end', e)}
 					required={field.required}
 					inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500"
-					aria-label="End Date"
+					aria-label={widget_daterange_end_label()}
 				/>
 			</div>
 		</div>

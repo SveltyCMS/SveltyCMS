@@ -39,6 +39,30 @@ function loadContentModule(): Promise<typeof import("@src/content/index.server")
   return (contentModulePromise ??= import("@src/content/index.server"));
 }
 
+/** Cached lazy handle to the widget store — one module-registry lookup instead of one per call. */
+let widgetStoreModulePromise:
+  | Promise<typeof import("@src/stores/widget-store.svelte.ts")>
+  | undefined;
+function loadWidgetStoreModule(): Promise<typeof import("@src/stores/widget-store.svelte.ts")> {
+  return (widgetStoreModulePromise ??= import("@src/stores/widget-store.svelte.ts"));
+}
+
+/** Cached lazy handle to the credential auth cache (website-token invalidation). */
+let credentialAuthCachePromise:
+  | Promise<typeof import("@src/databases/auth/credential-auth-cache")>
+  | undefined;
+function loadCredentialAuthCache(): Promise<
+  typeof import("@src/databases/auth/credential-auth-cache")
+> {
+  return (credentialAuthCachePromise ??= import("@src/databases/auth/credential-auth-cache"));
+}
+
+/** Cached lazy handle to the email module. */
+let emailModulePromise: Promise<typeof import("@utils/email.server")> | undefined;
+function loadEmailModule(): Promise<typeof import("@utils/email.server")> {
+  return (emailModulePromise ??= import("@utils/email.server"));
+}
+
 export abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}
 }
@@ -58,15 +82,19 @@ export class WidgetsNamespace extends BaseNamespace {
 
   async list(options: LocalApiOptions = {}) {
     const { tenantId = "default-tenant" } = options;
-    const { widgets, getWidgetDependencies } = await import("@src/stores/widget-store.svelte.ts");
+    const { widgets, getWidgetDependencies } = await loadWidgetStoreModule();
     await widgets.initialize(tenantId as string);
     const activeWidgetsResult = await this._dbAdapter.system.widgets.getActiveWidgets();
-    const activeWidgetNames = (activeWidgetsResult.success ? activeWidgetsResult.data : []).map(
-      (w: any) => (typeof w === "string" ? w : w.name),
+    // Set-based membership checks — O(1) lookups instead of an array `.includes()` scan per widget.
+    const activeWidgetNameSet = new Set(
+      (activeWidgetsResult.success ? activeWidgetsResult.data : []).map((w: any) =>
+        typeof w === "string" ? w : w.name,
+      ),
     );
+    const coreWidgetSet = new Set(widgets.coreWidgets);
     const widgetList = Object.entries(widgets.widgetFunctions).map(([name, widgetFn]) => {
-      const isActive = activeWidgetNames.includes(name);
-      const isCore = widgets.coreWidgets.includes(name);
+      const isActive = activeWidgetNameSet.has(name);
+      const isCore = coreWidgetSet.has(name);
       const dependencies = getWidgetDependencies(name);
       const widget = widgetFn as unknown as Record<string, unknown>;
       return {
@@ -146,22 +174,61 @@ export class SettingsNamespace {
 }
 
 /**
+ * JSON:API included-entry shape — only the fields we read.
+ */
+interface DrupalIncludedEntity {
+  type?: unknown;
+  id?: unknown;
+  attributes?: Record<string, unknown>;
+}
+
+/** O(1) lookup index over JSON:API `included[]`, keyed by (type, id). */
+type DrupalIncludedIndex = Map<unknown, Map<unknown, DrupalIncludedEntity>>;
+
+/** Shared empty index for non-Drupal imports (lookup-only, never mutated). */
+const EMPTY_INCLUDED_INDEX: DrupalIncludedIndex = new Map();
+
+/** Shared empty object for missing Drupal attribute/relationship bags (read-only). */
+const EMPTY_OBJECT: Record<string, never> = {};
+
+/**
+ * Build the (type, id) index for JSON:API `included[]` in a single pass.
+ * First occurrence wins — identical to the previous linear `find()` semantics.
+ */
+function buildDrupalIncludedIndex(included: unknown[] | undefined): DrupalIncludedIndex {
+  const index: DrupalIncludedIndex = new Map();
+  if (!included) return index;
+  for (const entry of included) {
+    if (!entry || typeof entry !== "object") continue;
+    const inc = entry as DrupalIncludedEntity;
+    if (inc.id == null) continue;
+    let byId = index.get(inc.type);
+    if (!byId) {
+      byId = new Map();
+      index.set(inc.type, byId);
+    }
+    if (!byId.has(inc.id)) byId.set(inc.id, inc);
+  }
+  return index;
+}
+
+/**
  * Resolve a Drupal taxonomy term name from JSON:API included data or reference ID.
  * JSON:API includes resolved entities in `included[]` with type and attributes.name.
  */
 function resolveDrupalTermName(
   ref: { type?: string; id?: string },
-  included: any[],
+  includedIndex: DrupalIncludedIndex,
 ): string | null {
   if (!ref?.id) return null;
 
-  // Try to find the term in the included data
-  const resolved = included.find((inc: any) => inc?.type === ref.type && inc?.id === ref.id);
+  // Look the term up in the pre-built (type, id) index
+  const resolved = includedIndex.get(ref.type)?.get(ref.id);
   if (resolved?.attributes?.name) {
-    return resolved.attributes.name;
+    return resolved.attributes.name as string;
   }
   if (resolved?.attributes?.title) {
-    return resolved.attributes.title;
+    return resolved.attributes.title as string;
   }
   if (resolved?.attributes?.drupal_internal__target_id) {
     return String(resolved.attributes.drupal_internal__target_id);
@@ -292,6 +359,16 @@ export class ImporterNamespace {
         mapping: finalMapping,
         sampleData: externalData.items.slice(0, 3),
       };
+
+    // Hoisted per-import derived state — stable across every item, so compute it once:
+    const isDrupal = sourceType === "drupal";
+    const includedIndex = isDrupal
+      ? buildDrupalIncludedIndex((externalData as { _included?: unknown[] })._included)
+      : EMPTY_INCLUDED_INDEX;
+    // Snapshot the mapping's entries once — `finalMapping` is fixed for the whole import.
+    // (Falls back to a per-item `Object.entries` for a falsy mapping — identical error semantics.)
+    const mappingEntries = finalMapping ? Object.entries(finalMapping) : undefined;
+
     const mediaService = new MediaService(this._dbAdapter);
     let importedCount = 0,
       errorCount = 0;
@@ -308,19 +385,21 @@ export class ImporterNamespace {
     for (const item of externalData.items) {
       try {
         const transformed: Record<string, any> = {};
-        const attributes = sourceType === "drupal" ? item.attributes || {} : item;
-        const relationships = sourceType === "drupal" ? item.relationships || {} : {};
+        const attributes = isDrupal ? item.attributes || EMPTY_OBJECT : item;
+        const relationships = isDrupal ? item.relationships || EMPTY_OBJECT : EMPTY_OBJECT;
+        // Snapshot relationship entries once per item — reused for taxonomy + pending refs.
+        const relationshipEntries = Object.entries(relationships);
         const sourceUuid = item.id || (item as any).uuid || undefined;
 
         // Preserve source UUID for relationship resolution
         if (sourceUuid) transformed._importSourceId = sourceUuid;
 
         // Resolve Drupal taxonomy terms from relationships into tags/categories
-        if (sourceType === "drupal" && Object.keys(relationships).length > 0) {
+        if (isDrupal && relationshipEntries.length > 0) {
           const taxonomyNames: string[] = [];
           const categoryNames: string[] = [];
 
-          for (const [relName, relData] of Object.entries(relationships)) {
+          for (const [relName, relData] of relationshipEntries) {
             const rel = relData as any;
             const data = rel?.data;
             if (!data) continue;
@@ -330,10 +409,7 @@ export class ImporterNamespace {
             const refIds: string[] = [];
             for (const ref of items) {
               if (ref?.id) {
-                const resolvedName = resolveDrupalTermName(
-                  ref,
-                  (externalData as any)._included || [],
-                );
+                const resolvedName = resolveDrupalTermName(ref, includedIndex);
                 names.push(resolvedName || ref.id);
                 refIds.push(ref.id);
               }
@@ -353,7 +429,7 @@ export class ImporterNamespace {
           if (categoryNames.length > 0) transformed.categories = categoryNames;
         }
 
-        for (const [sourceField, targetField] of Object.entries(finalMapping)) {
+        for (const [sourceField, targetField] of mappingEntries ?? Object.entries(finalMapping)) {
           let targetKey =
             typeof targetField === "string" ? targetField : (targetField as any).target;
           let transform =
@@ -361,7 +437,7 @@ export class ImporterNamespace {
           let value = attributes[sourceField];
 
           // Flatten Drupal richtext fields (body → { value, format })
-          if (sourceType === "drupal" && value && typeof value === "object" && "value" in value) {
+          if (isDrupal && value && typeof value === "object" && "value" in value) {
             const fmt = (value as Record<string, unknown>).format;
             if (fmt) {
               transformed[`${targetKey}Format`] = fmt;
@@ -399,7 +475,7 @@ export class ImporterNamespace {
           }
 
           // Collect entity references that need post-import resolution
-          for (const [relName, relData] of Object.entries(relationships)) {
+          for (const [relName, relData] of relationshipEntries) {
             const rel = relData as any;
             const data = rel?.data;
             if (!data) continue;
@@ -452,7 +528,7 @@ export class ImporterNamespace {
 
     // Phase 3: Import revisions if Drupal source
     let revisionCount = 0;
-    if (sourceType === "drupal") {
+    if (isDrupal) {
       // Reuse the schema resolved above — no second listSchemas round-trip.
       const supportsRevisions = targetCol?.revision !== false;
 
@@ -463,7 +539,7 @@ export class ImporterNamespace {
             const destId = sourceUuid ? idMap.get(sourceUuid) : undefined;
             if (!destId) continue;
 
-            const attrs = sourceType === "drupal" ? item.attributes || {} : item;
+            const attrs = item.attributes || EMPTY_OBJECT;
             // Drupal revisions: check for revision fields
             const revisionId = attrs.vid || attrs.revision_id || attrs.drupal_internal__vid;
             const revisionLog = attrs.revision_log || attrs.revision_log_message;
@@ -471,7 +547,8 @@ export class ImporterNamespace {
             if (revisionId) {
               // Build the revision data from attributes
               const revisionData: Record<string, any> = {};
-              for (const [sourceField, targetField] of Object.entries(finalMapping)) {
+              for (const [sourceField, targetField] of mappingEntries ??
+                Object.entries(finalMapping)) {
                 const targetKey =
                   typeof targetField === "string" ? targetField : (targetField as any).target;
                 let value = attrs[sourceField];
@@ -518,6 +595,10 @@ export class ImporterNamespace {
 /**
  * Website Tokens Namespace
  */
+
+/** Shared tenant-scope metadata for website-token operations (`withTenant` reads it only). */
+const WEBSITE_TOKENS_SCOPE = { collection: "websiteTokens" };
+
 export class WebsiteTokensNamespace extends BaseNamespace {
   constructor(_dbAdapterOverride: IDBAdapter) {
     super(_dbAdapterOverride);
@@ -548,7 +629,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
           },
         };
       },
-      { collection: "websiteTokens" },
+      WEBSITE_TOKENS_SCOPE,
     );
   }
   async create(options: {
@@ -579,7 +660,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
         if (!result.success) throw new AppError(result.message, 500);
         return { ...result.data, token: tokenValue };
       },
-      { collection: "websiteTokens" },
+      WEBSITE_TOKENS_SCOPE,
     );
   }
   async delete(tokenId: string, options: LocalApiOptions = {}) {
@@ -595,13 +676,12 @@ export class WebsiteTokensNamespace extends BaseNamespace {
         const result = await websiteTokens.delete(tokenId as any, tenantId ?? undefined);
         if (!result.success) throw new AppError(result.message, 500);
 
-        const { invalidateWebsiteTokenAuth } =
-          await import("@src/databases/auth/credential-auth-cache");
+        const { invalidateWebsiteTokenAuth } = await loadCredentialAuthCache();
         await invalidateWebsiteTokenAuth(tokenId, tenantId ?? undefined, storedHash);
 
         return result.data;
       },
-      { collection: "websiteTokens" },
+      WEBSITE_TOKENS_SCOPE,
     );
   }
 
@@ -614,8 +694,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       tenantId ?? null,
       async () => {
         const websiteTokens = this._dbAdapter.system.websiteTokens as any;
-        const { invalidateWebsiteTokenAuth } =
-          await import("@src/databases/auth/credential-auth-cache");
+        const { invalidateWebsiteTokenAuth } = await loadCredentialAuthCache();
         let deletedCount = 0;
         await Promise.all(
           tokenIds.map(async (tokenId) => {
@@ -631,7 +710,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
         );
         return { deletedCount };
       },
-      { collection: "websiteTokens" },
+      WEBSITE_TOKENS_SCOPE,
     );
   }
 
@@ -649,7 +728,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },
-      { collection: "websiteTokens" },
+      WEBSITE_TOKENS_SCOPE,
     );
   }
 }
@@ -717,7 +796,7 @@ export class SystemNamespace {
     props?: any;
     languageTag?: string;
   }) {
-    const { sendMail: coreSendMail } = await import("@utils/email.server");
+    const { sendMail: coreSendMail } = await loadEmailModule();
     return coreSendMail(params);
   }
 }

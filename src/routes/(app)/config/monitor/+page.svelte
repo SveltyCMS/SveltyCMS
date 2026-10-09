@@ -9,6 +9,50 @@
 	import { invalidate } from '$app/navigation';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import {
+		common_active,
+		monitor_24h,
+		monitor_actions,
+		monitor_active_hooks,
+		monitor_all_secured,
+		monitor_audit_details,
+		monitor_audit_empty,
+		monitor_audit_event,
+		monitor_audit_hash,
+		monitor_audit_result,
+		monitor_audit_timestamp,
+		monitor_audit_user,
+		monitor_audit_trail,
+		monitor_audit_trail_desc,
+		monitor_avg,
+		monitor_blocked,
+		monitor_collection_builder,
+		monitor_error_rate,
+		monitor_errors,
+		monitor_export_chain,
+		monitor_failures,
+		monitor_incidents,
+		monitor_init_time,
+		monitor_jump_tools,
+		monitor_message,
+		monitor_quick_links,
+		monitor_requests,
+		monitor_security,
+		monitor_security_feed,
+		monitor_service,
+		monitor_service_health,
+		monitor_services,
+		monitor_status,
+		monitor_syncing,
+		monitor_system,
+		monitor_system_is,
+		monitor_system_settings,
+		monitor_title,
+		monitor_total,
+		monitor_uptime,
+		monitor_view_all_logs,
+		monitor_webhook_status
+	} from '@src/paraglide/messages';
 	import { formatTime, formatDateTime } from '@utils/format-date';
 
 	let { data } = $props();
@@ -44,7 +88,7 @@
 </script>
 
 <AdminPageShell
-	title="Enterprise Monitor"
+	title={monitor_title()}
 	icon="mdi:shield-check-outline"
 	showBackButton={true}
 	backUrl="/config"
@@ -57,7 +101,7 @@
 				color="primary"
 				size="sm"
 				class="animate-pulse"
-				data-testid="monitor-syncing">Syncing...</Badge
+				data-testid="monitor-syncing">{monitor_syncing()}</Badge
 			>
 		{/if}
 		<Badge
@@ -85,20 +129,25 @@
 							class="text-2xl text-tertiary-500 dark:text-primary-500"
 						></iconify-icon>
 					</div>
-					<Badge variant="primary">Active</Badge>
+					<Badge variant="primary">{common_active()}</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Security</h3>
+					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">
+						{monitor_security()}
+					</h3>
 					<p class="text-3xl font-black">
 						{data.security?.incidentCount || 0}
-						<span class="text-base font-normal opacity-50">Incidents</span>
+						<span class="text-base font-normal opacity-50">{monitor_incidents()}</span>
 					</p>
 				</div>
 				<div
 					class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40"
 				>
-					<span>Blocked: <b class="text-error-500">{data.security?.blockedIpsCount || 0}</b></span>
-					<span class="opacity-50">24h</span>
+					<span
+						>{monitor_blocked()}
+						<b class="text-error-500">{data.security?.blockedIpsCount || 0}</b></span
+					>
+					<span class="opacity-50">{monitor_24h()}</span>
 				</div>
 			</AdminCard>
 
@@ -117,18 +166,19 @@
 					>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">System</h3>
+					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">{monitor_system()}</h3>
 					<p class="text-3xl font-black" data-testid="monitor-uptime">
 						{formatUptime(system?.uptime ?? 0)}
-						<span class="text-base font-normal opacity-50">Uptime</span>
+						<span class="text-base font-normal opacity-50">{monitor_uptime()}</span>
 					</p>
 				</div>
 				<div
 					class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40"
 				>
-					<span>Services: <b>{systemState?.services?.length ?? 0}</b></span>
+					<span>{monitor_services()} <b>{systemState?.services?.length ?? 0}</b></span>
 					<span class="opacity-50"
-						>Avg: {system?.requests?.avgResponseTime != null
+						>{monitor_avg()}
+						{system?.requests?.avgResponseTime != null
 							? `${Math.round(system.requests.avgResponseTime)}ms`
 							: 'N/A'}</span
 					>
@@ -147,16 +197,20 @@
 					<Badge preset="tonal" color="surface" size="sm">API</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Requests</h3>
+					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">
+						{monitor_requests()}
+					</h3>
 					<p class="text-3xl font-black">
 						{system?.requests?.total ?? 0}
-						<span class="text-base font-normal opacity-50">Total</span>
+						<span class="text-base font-normal opacity-50">{monitor_total()}</span>
 					</p>
 				</div>
 				<div
 					class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40"
 				>
-					<span>Errors: <b class="text-error-500">{system?.requests?.errors ?? 0}</b></span>
+					<span
+						>{monitor_errors()} <b class="text-error-500">{system?.requests?.errors ?? 0}</b></span
+					>
 					<span class="opacity-50"
 						>{system?.requests?.errorRate != null
 							? `${system.requests.errorRate.toFixed(1)}%`
@@ -175,11 +229,13 @@
 						<iconify-icon icon="mdi:lightning-bolt" class="text-2xl text-tertiary-500"
 						></iconify-icon>
 					</div>
-					<Badge preset="tonal" color="primary" size="sm">Actions</Badge>
+					<Badge preset="tonal" color="primary" size="sm">{monitor_actions()}</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Quick Links</h3>
-					<p class="text-sm opacity-60">Jump to common admin tools</p>
+					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">
+						{monitor_quick_links()}
+					</h3>
+					<p class="text-sm opacity-60">{monitor_jump_tools()}</p>
 				</div>
 				<div class="space-y-2 border-t border-surface-500/30 pt-2 dark:border-surface-500/40">
 					<Button
@@ -191,7 +247,7 @@
 						data-preload="hover"
 						data-testid="monitor-link-settings"
 					>
-						<span>System Settings</span>
+						<span>{monitor_system_settings()}</span>
 						<iconify-icon icon="mdi:arrow-right"></iconify-icon>
 					</Button>
 					<Button
@@ -203,7 +259,7 @@
 						data-preload="hover"
 						data-testid="monitor-link-builder"
 					>
-						<span>Collection Builder</span>
+						<span>{monitor_collection_builder()}</span>
 						<iconify-icon icon="mdi:arrow-right"></iconify-icon>
 					</Button>
 				</div>
@@ -215,22 +271,22 @@
 			class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
 			data-testid="monitor-service-health"
 		>
-			<h2 class="mb-4 text-lg font-bold">Service Health</h2>
+			<h2 class="mb-4 text-lg font-bold">{monitor_service_health()}</h2>
 			{#if systemState?.services?.length > 0}
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm">
 						<thead>
 							<tr class="border-b border-surface-500/30 text-start dark:border-surface-500/40">
-								<th class="pb-2 text-xs font-bold uppercase opacity-50">Service</th>
-								<th class="pb-2 text-xs font-bold uppercase opacity-50">Status</th>
+								<th class="pb-2 text-xs font-bold uppercase opacity-50">{monitor_service()}</th>
+								<th class="pb-2 text-xs font-bold uppercase opacity-50">{monitor_status()}</th>
 								<th class="hidden pb-2 text-xs font-bold uppercase opacity-50 sm:table-cell"
-									>Init Time</th
+									>{monitor_init_time()}</th
 								>
 								<th class="hidden pb-2 text-xs font-bold uppercase opacity-50 md:table-cell"
-									>Failures</th
+									>{monitor_failures()}</th
 								>
 								<th class="hidden pb-2 text-xs font-bold uppercase opacity-50 lg:table-cell"
-									>Message</th
+									>{monitor_message()}</th
 								>
 							</tr>
 						</thead>
@@ -268,7 +324,8 @@
 				</div>
 			{:else}
 				<p class="text-sm italic opacity-50">
-					System is {systemState?.overallState || 'starting'}.
+					{monitor_system_is()}
+					{systemState?.overallState || 'starting'}.
 				</p>
 			{/if}
 		</AdminCard>
@@ -279,8 +336,8 @@
 				class="border border-surface-500/30 bg-white p-6 shadow-sm lg:col-span-2 dark:border-surface-500/40 dark:bg-surface-900"
 			>
 				<div class="mb-6 flex items-center justify-between">
-					<h2 class="text-lg font-bold">Security Incident Feed</h2>
-					<Button variant="ghost" size="sm">View All Logs</Button>
+					<h2 class="text-lg font-bold">{monitor_security_feed()}</h2>
+					<Button variant="ghost" size="sm">{monitor_view_all_logs()}</Button>
 				</div>
 				<div class="space-y-4">
 					{#if data.security?.recentIncidents?.length > 0}
@@ -301,7 +358,7 @@
 					{:else}
 						<div class="py-12 text-center italic opacity-30">
 							<iconify-icon icon="mdi:shield-check" width="48" class="mb-2"></iconify-icon>
-							<p>All systems secured. No recent incidents.</p>
+							<p>{monitor_all_secured()}</p>
 						</div>
 					{/if}
 				</div>
@@ -311,10 +368,10 @@
 				<AdminCard
 					class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
 				>
-					<h2 class="mb-4 text-lg font-bold">Webhook Status</h2>
+					<h2 class="mb-4 text-lg font-bold">{monitor_webhook_status()}</h2>
 					<div class="space-y-4">
 						<div class="flex items-center justify-between text-sm">
-							<span class="opacity-50">Active Hooks</span>
+							<span class="opacity-50">{monitor_active_hooks()}</span>
 							<span class="font-bold">{webhooks?.active || 0}</span>
 						</div>
 						<div
@@ -326,7 +383,7 @@
 							></div>
 						</div>
 						<div class="flex items-center justify-between text-sm">
-							<span class="opacity-50">Error Rate</span>
+							<span class="opacity-50">{monitor_error_rate()}</span>
 							<span class="font-bold text-tertiary-500 dark:text-primary-500"
 								>{webhooks?.total > 0 ? '0%' : 'N/A'}</span
 							>
@@ -342,16 +399,16 @@
 		>
 			<div class="mb-6 flex items-center justify-between">
 				<div>
-					<h2 class="text-lg font-bold">Cryptographic Audit Trail</h2>
+					<h2 class="text-lg font-bold">{monitor_audit_trail()}</h2>
 					<p class="text-xs text-surface-500 dark:text-surface-400">
-						Verifiable SHA-256 tamper-evident log chain isolation
+						{monitor_audit_trail_desc()}
 					</p>
 				</div>
 				<Button
 					variant="ghost"
 					size="sm"
 					onclick={() => window.open('/api/logs/download?type=latest&format=text', '_blank')}
-					>Export Raw Chain</Button
+					>{monitor_export_chain()}</Button
 				>
 			</div>
 
@@ -362,12 +419,12 @@
 							<tr
 								class="border-b border-surface-500/30 text-start dark:border-surface-500/40 opacity-50 text-xs font-bold uppercase"
 							>
-								<th class="pb-2 text-start">Timestamp</th>
-								<th class="pb-2 text-start">User / Actor</th>
-								<th class="pb-2 text-start">Event Type</th>
-								<th class="pb-2 text-start">Result</th>
-								<th class="pb-2 text-start hidden md:table-cell">Details</th>
-								<th class="pb-2 text-end hidden lg:table-cell">SHA-256 Hash</th>
+								<th class="pb-2 text-start">{monitor_audit_timestamp()}</th>
+								<th class="pb-2 text-start">{monitor_audit_user()}</th>
+								<th class="pb-2 text-start">{monitor_audit_event()}</th>
+								<th class="pb-2 text-start">{monitor_audit_result()}</th>
+								<th class="pb-2 text-start hidden md:table-cell">{monitor_audit_details()}</th>
+								<th class="pb-2 text-end hidden lg:table-cell">{monitor_audit_hash()}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -403,7 +460,7 @@
 			{:else}
 				<div class="py-8 text-center italic opacity-35">
 					<iconify-icon icon="mdi:script-text-outline" width="32" class="mb-2"></iconify-icon>
-					<p>No audit trail records found for this tenant.</p>
+					<p>{monitor_audit_empty()}</p>
 				</div>
 			{/if}
 		</AdminCard>

@@ -13,6 +13,12 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 
 /**
+ * Max ids per relation query — protects SQL variable limits. Hoisted so the
+ * constant is not re-created per target-collection resolution.
+ */
+const RELATION_FETCH_CHUNK_SIZE = 500;
+
+/**
  * Resolve populated relations for a result set.
  * Coalesces lookups across all populate fields sharing the same target collection
  * into a single query per collection, eliminating redundant database round-trips.
@@ -46,7 +52,7 @@ export async function resolvePopulatedRelations(
     string,
     {
       collectionId: string;
-      fields: Array<{ fieldName: string }>;
+      fields: string[];
       ids: Set<string>;
     }
   >();
@@ -64,7 +70,7 @@ export async function resolvePopulatedRelations(
       target = { collectionId: relationCollection, fields: [], ids: new Set<string>() };
       collectionTargets.set(collectionName, target);
     }
-    target.fields.push({ fieldName });
+    target.fields.push(fieldName);
 
     for (let i = 0; i < items.length; i++) {
       const val = items[i][fieldName];
@@ -81,14 +87,20 @@ export async function resolvePopulatedRelations(
 
   if (collectionTargets.size === 0) return;
 
-  // 2. Resolve relations per target collection with L1 cache-through
-  const collectionFetches = Array.from(collectionTargets.entries()).map(
+  // 2. Resolve relations per target collection with L1 cache-through.
+  // Single Array.from with a map function: one array allocation instead of
+  // entries() + .map() (two).
+  const collectionFetches = Array.from(
+    collectionTargets.entries(),
     async ([collectionName, { collectionId, fields, ids }]) => {
       if (ids.size === 0) return;
 
       try {
         const relatedMap = new Map<string, any>();
         const missingIds: string[] = [];
+        // L2 keys are built once during the L1 probe and carried in parallel,
+        // so the Redis batch never re-interpolates the same key strings.
+        const missingKeys: string[] = [];
 
         // 🚀 L1 Probe: Check if relation entity is already in-memory
         const tenantKey = tenantId || "global";
@@ -103,13 +115,18 @@ export async function resolvePopulatedRelations(
             }
           }
           missingIds.push(id);
+          missingKeys.push(cacheKey);
         }
 
         // 🚀 L2 Probe (Redis batch mGet): If Redis is available, check missing keys in bulk
         if (missingIds.length > 0 && typeof cacheService.getMany === "function") {
-          const l2Keys = missingIds.map((id) => `${tenantKey}:collection:${collectionId}:${id}`);
-          const l2Results = await cacheService.getMany<any>(l2Keys, tenantId).catch(() => []);
-          const stillMissing: string[] = [];
+          const l2Results = await cacheService.getMany<any>(missingKeys, tenantId).catch(() => []);
+          // In-place compaction of the ID list only (no `stillMissing` copy);
+          // survivors keep their original relative order for the DB `$in` batch
+          // below. `missingKeys` is deliberately NOT compacted/truncated: the
+          // array reference was handed to getMany, and callers that retain it
+          // (spies, mock call recordings) must keep seeing the as-called keys.
+          let write = 0;
           for (let i = 0; i < missingIds.length; i++) {
             const cached = l2Results[i];
             if (cached && typeof cached === "object") {
@@ -119,17 +136,16 @@ export async function resolvePopulatedRelations(
                 continue;
               }
             }
-            stillMissing.push(missingIds[i]);
+            missingIds[write] = missingIds[i];
+            write++;
           }
-          missingIds.length = 0;
-          missingIds.push(...stillMissing);
+          missingIds.length = write;
         }
 
         // Fetch remaining un-cached IDs in chunked batches (protects SQL variable limits)
         if (missingIds.length > 0) {
-          const CHUNK_SIZE = 500;
-          for (let c = 0; c < missingIds.length; c += CHUNK_SIZE) {
-            const chunk = missingIds.slice(c, c + CHUNK_SIZE);
+          for (let c = 0; c < missingIds.length; c += RELATION_FETCH_CHUNK_SIZE) {
+            const chunk = missingIds.slice(c, c + RELATION_FETCH_CHUNK_SIZE);
             const relatedResult = await _dbAdapter.crud.findMany(
               collectionName,
               { _id: { $in: chunk } },
@@ -163,7 +179,7 @@ export async function resolvePopulatedRelations(
 
         // Attach resolved relations directly to items
         for (let f = 0; f < fields.length; f++) {
-          const fieldName = fields[f].fieldName;
+          const fieldName = fields[f];
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
             const val = item[fieldName];
@@ -185,5 +201,10 @@ export async function resolvePopulatedRelations(
     },
   );
 
-  await Promise.all(collectionFetches);
+  // One target: await it directly — Promise.all([p]) only adds a wrapper.
+  if (collectionFetches.length === 1) {
+    await collectionFetches[0];
+  } else {
+    await Promise.all(collectionFetches);
+  }
 }

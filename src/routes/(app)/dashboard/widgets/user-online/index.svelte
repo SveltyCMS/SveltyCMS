@@ -28,6 +28,21 @@
 <script lang="ts">
 	import { getClientLicenseStatus } from '@utils/client-license-cache';
 	import type { LicenseStatus } from '@utils/license-manager';
+	import BaseWidget from '../../base-widget.svelte';
+	import {
+		widget_premium_extension,
+		widget_premium_trial_expired,
+		widget_premium_upgrade_license,
+		widget_useronline_active,
+		widget_useronline_appear_when_active,
+		widget_useronline_filter_ph,
+		widget_useronline_list_aria,
+		widget_useronline_no_match,
+		widget_useronline_none,
+		widget_useronline_online,
+		widget_useronline_online_now,
+		widget_useronline_search_aria
+	} from '@src/paraglide/messages';
 
 	let licenseStatus = $state<LicenseStatus | null>(null);
 
@@ -38,7 +53,6 @@
 	});
 
 	import type { WidgetSize } from '@src/content/types';
-	import BaseWidget from '../../base-widget.svelte';
 	import { formatTime } from '@utils/format-date';
 
 	interface OnlineUser {
@@ -125,16 +139,16 @@
 		>
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
 			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
-				Premium Extension
+				{widget_premium_extension()}
 			</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">
-				Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.
+				{widget_premium_trial_expired()}
 			</p>
 			<a
 				href="https://marketplace.sveltycms.com"
 				target="_blank"
 				class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500"
-				>Upgrade License &rarr;</a
+				>{widget_premium_upgrade_license()}</a
 			>
 		</div>
 	</BaseWidget>
@@ -166,10 +180,10 @@
 				<div class="flex h-full flex-col items-center justify-center text-center px-3">
 					<div class="text-4xl opacity-30 mb-3">👥</div>
 					<div class="text-sm font-medium text-surface-500 dark:text-surface-400">
-						No users online
+						{widget_useronline_none()}
 					</div>
 					<div class="text-xs text-surface-400 dark:text-surface-500 mt-1">
-						They'll appear here when active
+						{widget_useronline_appear_when_active()}
 					</div>
 				</div>
 			{:else if isCompact}
@@ -180,7 +194,9 @@
 						<span class="text-lg font-bold tabular-nums text-success-600 dark:text-success-400">
 							{totalOnline}
 						</span>
-						<span class="text-xs text-surface-500 dark:text-surface-400">online</span>
+						<span class="text-xs text-surface-500 dark:text-surface-400"
+							>{widget_useronline_online()}</span
+						>
 					</div>
 
 					<!-- Divider -->
@@ -193,7 +209,7 @@
 								class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 								title="{user.name} — {getRoleLabel(user.role)} · {formatOnlineTime(
 									user.onlineMinutes
-								)} online"
+								)} {widget_useronline_online()}"
 							>
 								<div class="relative shrink-0">
 									<img
@@ -225,14 +241,17 @@
 							>
 								{totalOnline}
 							</span>
-							<span class="text-sm text-surface-500 dark:text-surface-400">online now</span>
+							<span class="text-sm text-surface-500 dark:text-surface-400"
+								>{widget_useronline_online_now()}</span
+							>
 						</div>
 
 						{#if totalOnline > 1}
 							<div
 								class="rounded-full bg-surface-500/10 px-2.5 py-0.5 text-xs text-surface-600 dark:bg-surface-800 dark:text-surface-400"
 							>
-								{totalOnline} active
+								{totalOnline}
+								{widget_useronline_active()}
 							</div>
 						{/if}
 					</div>
@@ -241,10 +260,10 @@
 					{#if totalOnline > 3}
 						<div class="relative mb-3">
 							<input
-								aria-label="Search users"
+								aria-label={widget_useronline_search_aria()}
 								type="text"
 								bind:value={searchTerm}
-								placeholder="Filter users..."
+								placeholder={widget_useronline_filter_ph()}
 								class="w-full rounded border border-surface-500/30 bg-surface-500/10 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
 							/>
 							<iconify-icon
@@ -259,7 +278,7 @@
 					<div
 						class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll"
 						role="list"
-						aria-label="Online users"
+						aria-label={widget_useronline_list_aria()}
 					>
 						{#each filteredUsers as user (user.id)}
 							<div
@@ -296,7 +315,8 @@
 										</span>
 									</div>
 									<div class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
-										{formatOnlineTime(user.onlineMinutes)} online
+										{formatOnlineTime(user.onlineMinutes)}
+										{widget_useronline_online()}
 									</div>
 								</div>
 
@@ -315,7 +335,7 @@
 							<div
 								class="flex h-24 items-center justify-center text-sm text-surface-400 dark:text-surface-500"
 							>
-								No users match "{searchTerm}"
+								{widget_useronline_no_match({ term: searchTerm })}
 							</div>
 						{/if}
 					</div>

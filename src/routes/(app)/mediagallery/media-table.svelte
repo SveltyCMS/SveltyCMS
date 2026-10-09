@@ -38,6 +38,15 @@
 	} from '@utils/media/media-dnd';
 	import { liftAndCarry } from '@utils/media/media-lift-drag';
 	import { formatBytes } from '@utils/file';
+	import {
+		common_media_files,
+		Fields_preview,
+		mediagallery_drag_to_folder_breadcrumb,
+		mediagallery_name,
+		mediagallery_size,
+		mediagallery_type_placeholder,
+		trash_th_actions
+	} from '@src/paraglide/messages';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Checkbox from '@components/ui/checkbox.svelte';
 
@@ -236,7 +245,7 @@
 		scrollClass="media-table-scroll"
 	>
 		<!-- Mobile: compact list rows (no table — fits viewport without scroll) -->
-		<div class="flex flex-col md:hidden" role="table" aria-label="Media files">
+		<div class="flex flex-col md:hidden" role="table" aria-label={common_media_files()}>
 			<div
 				class="{SMART_TABLE_THEAD} flex items-center gap-3 px-2 py-2.5 backdrop-blur-sm"
 				role="row"
@@ -264,13 +273,13 @@
 					class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500"
 					role="columnheader"
 				>
-					Name
+					{mediagallery_name()}
 				</div>
 				<div
 					class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500"
 					role="columnheader"
 				>
-					<span class="sr-only">Actions</span>
+					<span class="sr-only">{trash_th_actions()}</span>
 				</div>
 			</div>
 
@@ -298,7 +307,7 @@
 						attributes: { draggingClass: 'opacity-50' }
 					}}
 					ondragstart={suppressNativeDragGhost}
-					title="Drag to a folder or breadcrumb to move"
+					title={mediagallery_drag_to_folder_breadcrumb()}
 					onclick={() => handleRowClick(file)}
 					onkeydown={(e) => handleKeyDown(e, file)}
 				>
@@ -418,7 +427,7 @@
 						class="media-table-preview relative {SMART_TABLE_TH} w-16 shrink-0 text-start!"
 						style={smartTable.getColumnWidthStyle('preview')}
 					>
-						<span>Preview</span>
+						<span>{Fields_preview()}</span>
 						<ColumnResizeHandle columnKey="preview" onResize={smartTable.setColumnWidth} />
 					</th>
 					<th
@@ -430,7 +439,7 @@
 							class="font-semibold uppercase"
 							onclick={() => smartTable.setSort('filename')}
 						>
-							Name
+							{mediagallery_name()}
 							{#if smartTable.sort.sortedBy === 'filename' && smartTable.sort.isSorted !== 0}
 								<iconify-icon
 									icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
@@ -450,7 +459,7 @@
 							class="font-semibold uppercase"
 							onclick={() => smartTable.setSort('size')}
 						>
-							Size
+							{mediagallery_size()}
 							{#if smartTable.sort.sortedBy === 'size' && smartTable.sort.isSorted !== 0}
 								<iconify-icon
 									icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
@@ -470,7 +479,7 @@
 							class="font-semibold uppercase"
 							onclick={() => smartTable.setSort('type')}
 						>
-							Type
+							{mediagallery_type_placeholder()}
 							{#if smartTable.sort.sortedBy === 'type' && smartTable.sort.isSorted !== 0}
 								<iconify-icon
 									icon={smartTable.sort.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
@@ -484,7 +493,7 @@
 					<th
 						class="media-table-actions {SMART_TABLE_TH} {pinCellClass(
 							'end'
-						)} w-11 shrink-0 text-end!">Actions</th
+						)} w-11 shrink-0 text-end!">{trash_th_actions()}</th
 					>
 				</tr>
 			</thead>
@@ -515,7 +524,7 @@
 							attributes: { draggingClass: 'opacity-50' }
 						}}
 						ondragstart={suppressNativeDragGhost}
-						title="Drag to a folder or breadcrumb to move"
+						title={mediagallery_drag_to_folder_breadcrumb()}
 					>
 						<td
 							class="media-table-select {SMART_TABLE_TD} {pinCellClass(

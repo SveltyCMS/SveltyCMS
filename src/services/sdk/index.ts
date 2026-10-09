@@ -267,10 +267,16 @@ export class LocalCMS {
   /**
    * Static factory to provide an ergonomic locals bridge.
    * Preserves backward compatibility for existing controllers.
+   *
+   * The namespace props are installed as shared enumerable getters (see
+   * `LOCALS_NAMESPACE_KEYS` below): a handler that uses one namespace never
+   * reads — and therefore never instantiates or awaits — the other sixteen.
+   * Method signatures, resolved value shapes, and `Object.keys` order are
+   * unchanged from the previous eager facade.
    */
-  static getLocals(adapter: IDBAdapter, eventLocals: any, contentSystem?: any) {
+  static getLocals(adapter: IDBAdapter, eventLocals: any, contentSystem?: any): LocalsFacade {
     const cms = new LocalCMS(adapter, contentSystem);
-    return {
+    const facade = {
       find: (id: string, options?: any) =>
         cms.collections.find(id, {
           tenantId: eventLocals.tenantId,
@@ -301,24 +307,12 @@ export class LocalCMS {
           user: eventLocals.user,
           ...options,
         }),
-      auth: cms.auth,
-      collections: cms.collections,
-      media: cms.media,
-      system: cms.system,
-      tokens: cms.tokens,
-      automation: cms.automation,
-      telemetry: cms.telemetry,
-      websiteTokens: cms.websiteTokens,
-      widgets: cms.widgets,
-      virtualCollections: cms.virtualCollections,
-      pluginStorage: cms.pluginStorage,
-      config: cms.config,
-      contentTransfer: cms.contentTransfer,
-      migrations: cms.migrations,
-      importers: cms.importers,
-      backups: cms.backups,
-      contentSync: cms.contentSync,
-    };
+    } as LocalsFacade;
+    localsCmsBinding.set(facade, cms);
+    for (const key of LOCALS_NAMESPACE_KEYS) {
+      Object.defineProperty(facade, key, localsNamespaceDescriptors[key]);
+    }
+    return facade;
   }
 
   /**
@@ -331,4 +325,76 @@ export class LocalCMS {
       return false;
     }
   }
+}
+
+/**
+ * Namespace props of the `getLocals()` facade, in the exact `Object.keys`
+ * order of the previous eager facade (auth, collections, media, system, tokens
+ * first — the legacy controller order, not the constructor order).
+ */
+export const LOCALS_NAMESPACE_KEYS = [
+  "auth",
+  "collections",
+  "media",
+  "system",
+  "tokens",
+  "automation",
+  "telemetry",
+  "websiteTokens",
+  "widgets",
+  "virtualCollections",
+  "pluginStorage",
+  "config",
+  "contentTransfer",
+  "migrations",
+  "importers",
+  "backups",
+  "contentSync",
+] as const;
+
+export type LocalsNamespaceKey = (typeof LOCALS_NAMESPACE_KEYS)[number];
+
+/** Namespace props of the facade — the same async-resolved shapes as `LocalCMS`. */
+type LocalsNamespaceProps = Pick<LocalCMS, LocalsNamespaceKey>;
+
+/** Observable shape of `LocalCMS.getLocals()`: five CRUD closures + lazy namespaces. */
+export interface LocalsFacade extends LocalsNamespaceProps {
+  find(id: string, options?: any): ReturnType<CollectionsNamespace["find"]>;
+  findById(
+    id: string,
+    entryId: string,
+    options?: any,
+  ): ReturnType<CollectionsNamespace["findById"]>;
+  create(id: string, data: any, options?: any): ReturnType<CollectionsNamespace["create"]>;
+  update(
+    id: string,
+    entryId: string,
+    data: any,
+    options?: any,
+  ): ReturnType<CollectionsNamespace["update"]>;
+  delete(id: string, entryId: string, options?: any): ReturnType<CollectionsNamespace["delete"]>;
+}
+
+/** Per-facade LocalCMS binding; the shared getters resolve it via `this`. */
+const localsCmsBinding = new WeakMap<object, LocalCMS>();
+
+/**
+ * One getter closure + one descriptor per namespace, created once at module
+ * scope and reused by every facade. `getLocals()` therefore allocates only the
+ * facade object and the five CRUD closures per request; the previous eager
+ * literal also materialized seventeen forwarding proxies it rarely used. The
+ * getters stay plain pass-throughs: `defineLazyNamespace` already caches the
+ * proxy and hot-swaps it for the resolved instance after the first method
+ * call, so reads after resolution are plain property reads on the `LocalCMS`.
+ */
+const localsNamespaceDescriptors = {} as Record<LocalsNamespaceKey, PropertyDescriptor>;
+for (const key of LOCALS_NAMESPACE_KEYS) {
+  localsNamespaceDescriptors[key] = {
+    enumerable: true,
+    configurable: true,
+    get(this: object): LocalCMS[LocalsNamespaceKey] | undefined {
+      const cms = localsCmsBinding.get(this);
+      return cms ? cms[key] : undefined;
+    },
+  };
 }

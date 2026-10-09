@@ -59,21 +59,29 @@ export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): Se
     }
   }
 
+  // Pre-calculate search bounds & lowercased strings once
+  const searchFilename = criteria.filename?.toLowerCase();
+  const searchTags = criteria.tags?.map((t) => t.toLowerCase());
+  const searchCamera = criteria.camera?.toLowerCase();
+  const searchLocation = criteria.location?.toLowerCase();
+  const searchColor = criteria.dominantColor?.toLowerCase();
+  const afterTime = criteria.uploadedAfter ? criteria.uploadedAfter.getTime() : undefined;
+  const beforeTime = criteria.uploadedBefore ? criteria.uploadedBefore.getTime() : undefined;
+
   for (const file of files) {
     let ok = true;
     const fileMatched: string[] = [];
 
-    if (criteria.filename) {
-      ok &&= file.filename.toLowerCase().includes(criteria.filename.toLowerCase());
+    if (searchFilename) {
+      ok &&= file.filename.toLowerCase().includes(searchFilename);
       if (ok) fileMatched.push(`Filename: "${criteria.filename}"`);
     }
 
-    if (criteria.tags?.length) {
+    if (searchTags?.length) {
       const fileTags = (file.metadata?.tags as string[] | undefined) ?? [];
-      ok &&= criteria.tags.every((t) =>
-        fileTags.some((ft) => ft.toLowerCase() === t.toLowerCase()),
-      );
-      if (ok) fileMatched.push(`Tags: ${criteria.tags.join(", ")}`);
+      const lowerFileTags = fileTags.map((ft) => ft.toLowerCase());
+      ok &&= searchTags.every((t) => lowerFileTags.includes(t));
+      if (ok) fileMatched.push(`Tags: ${criteria.tags!.join(", ")}`);
     }
 
     // Image-specific — use the proper type guard
@@ -125,29 +133,32 @@ export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): Se
       ok &&= isStoredMedia(file) && criteria.fileTypes.includes(file.mimeType);
     }
 
-    if (criteria.uploadedAfter) {
-      ok &&= new Date(file.createdAt) >= criteria.uploadedAfter;
-    }
-    if (criteria.uploadedBefore) {
-      ok &&= new Date(file.createdAt) <= criteria.uploadedBefore;
+    if (afterTime !== undefined || beforeTime !== undefined) {
+      const fileTime = new Date(file.createdAt).getTime();
+      if (Number.isNaN(fileTime)) {
+        ok = false;
+      } else {
+        if (afterTime !== undefined) ok &&= fileTime >= afterTime;
+        if (beforeTime !== undefined) ok &&= fileTime <= beforeTime;
+      }
     }
 
     if (criteria.hasEXIF !== undefined) {
       ok &&= !!file.metadata?.exif === criteria.hasEXIF;
     }
 
-    if (criteria.camera) {
+    if (searchCamera) {
       const exif = file.metadata?.exif as { Make?: string; Model?: string } | undefined;
       const cam = `${exif?.Make ?? ""} ${exif?.Model ?? ""}`.trim().toLowerCase();
-      ok &&= cam.includes(criteria.camera.toLowerCase());
+      ok &&= cam.includes(searchCamera);
     }
 
-    if (criteria.location) {
+    if (searchLocation) {
       const exif = file.metadata?.exif as
         | { GPSLatitude?: number; GPSLongitude?: number; location?: string }
         | undefined;
       const loc = (exif?.location ?? "").toLowerCase();
-      ok &&= loc.includes(criteria.location.toLowerCase());
+      ok &&= loc.includes(searchLocation);
     }
 
     if (criteria.showDuplicatesOnly && isStoredMedia(file)) {
@@ -155,11 +166,10 @@ export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): Se
       ok &&= count > 1;
     }
 
-    if (criteria.dominantColor) {
+    if (searchColor) {
       const metadata = file.metadata as { dominantColor?: string } | undefined;
       ok &&=
-        !!metadata?.dominantColor &&
-        metadata.dominantColor.toLowerCase().includes(criteria.dominantColor.toLowerCase());
+        !!metadata?.dominantColor && metadata.dominantColor.toLowerCase().includes(searchColor);
     }
 
     if (ok) {

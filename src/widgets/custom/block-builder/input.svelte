@@ -10,6 +10,22 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import {
+		builder_collapse_all,
+		builder_expand_all,
+		button_cancel,
+		widget_block_add_aria,
+		widget_block_choose_first,
+		widget_block_close_dialog_aria,
+		widget_block_collapse_all_aria,
+		widget_block_content_blocks,
+		widget_block_empty_desc,
+		widget_block_expand_all_aria,
+		widget_block_no_blocks,
+		widget_block_payload_json,
+		widget_block_select_desc,
+		widget_block_select_type
+	} from '@src/paraglide/messages';
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Select from '@components/ui/select.svelte';
@@ -143,7 +159,7 @@
 	>
 		<div class="flex items-center gap-2">
 			<span class="text-sm font-semibold text-surface-900 dark:text-surface-50">
-				Content Blocks
+				{widget_block_content_blocks()}
 			</span>
 			<Badge variant="surface" size="sm">
 				{blocks.length}{field?.max ? ` / ${field.max}` : ''}
@@ -156,17 +172,17 @@
 					type="button"
 					onclick={() => toggleAll(true)}
 					class="rounded px-2 py-1 text-xs text-surface-500 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-					aria-label="Collapse all blocks"
+					aria-label={widget_block_collapse_all_aria()}
 				>
-					Collapse All
+					{builder_collapse_all()}
 				</button>
 				<button
 					type="button"
 					onclick={() => toggleAll(false)}
 					class="rounded px-2 py-1 text-xs text-surface-500 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-					aria-label="Expand all blocks"
+					aria-label={widget_block_expand_all_aria()}
 				>
-					Expand All
+					{builder_expand_all()}
 				</button>
 			{/if}
 
@@ -175,7 +191,7 @@
 				size="sm"
 				disabled={isMaxReached}
 				onclick={() => (showAddModal = true)}
-				aria-label="Add a new content block"
+				aria-label={widget_block_add_aria()}
 			>
 				<iconify-icon icon="mdi:plus" width="16" class="me-1.5"></iconify-icon>
 				{field?.addLabel || 'Add Block'}
@@ -195,15 +211,14 @@
 				<iconify-icon icon="mdi:view-dashboard-outline" width="24"></iconify-icon>
 			</div>
 			<h4 class="text-base font-medium text-surface-900 dark:text-surface-100">
-				No blocks added yet
+				{widget_block_no_blocks()}
 			</h4>
 			<p class="mt-1 max-w-sm text-xs text-surface-500">
-				Compose dynamic landing pages, marketing banners, testimonials, and media showcases using
-				modular content blocks.
+				{widget_block_empty_desc()}
 			</p>
 			<Button variant="secondary" size="sm" class="mt-4" onclick={() => (showAddModal = true)}>
 				<iconify-icon icon="mdi:plus" width="16" class="me-1.5"></iconify-icon>
-				Choose First Block
+				{widget_block_choose_first()}
 			</Button>
 		</div>
 	{/if}
@@ -365,7 +380,7 @@
 									for={`field_${block._id}_raw`}
 									class="block text-xs font-medium text-surface-500"
 								>
-									Block Payload (JSON)
+									{widget_block_payload_json()}
 								</label>
 								<Textarea
 									id={`field_${block._id}_raw`}
@@ -404,17 +419,17 @@
 							id="modal-add-block-title"
 							class="text-base font-semibold text-surface-900 dark:text-surface-50"
 						>
-							Select Block Type
+							{widget_block_select_type()}
 						</h3>
 						<p class="text-xs text-surface-500">
-							Choose a content block to add to your layout composition.
+							{widget_block_select_desc()}
 						</p>
 					</div>
 					<button
 						type="button"
 						onclick={() => (showAddModal = false)}
 						class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-						aria-label="Close dialog"
+						aria-label={widget_block_close_dialog_aria()}
 					>
 						<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 					</button>
@@ -448,7 +463,7 @@
 
 				<div class="mt-6 flex justify-end border-t border-surface-500/15 pt-4">
 					<Button variant="secondary" size="sm" onclick={() => (showAddModal = false)}>
-						Cancel
+						{button_cancel()}
 					</Button>
 				</div>
 			</div>

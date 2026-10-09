@@ -8,6 +8,12 @@
 	// Using iconify-icon web component
 	// Modern widget system
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
+	import {
+		widget_select_category_suffix,
+		widget_select_no_match,
+		widget_select_search_aria,
+		widget_select_search_placeholder
+	} from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	// Native UI Components Stores
 	import { modalState } from '@utils/modal.svelte';
@@ -62,9 +68,9 @@
 			></iconify-icon>
 			<input
 				type="text"
-				aria-label="Search widgets"
+				aria-label={widget_select_search_aria()}
 				data-testid="select-widget-search"
-				placeholder="Search widgets..."
+				placeholder={widget_select_search_placeholder()}
 				class="input h-12 w-full ps-12 text-lg"
 				bind:value={searchTerm}
 			/>
@@ -91,7 +97,7 @@
 						<h3
 							class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50"
 						>
-							{category} Widgets
+							{widget_select_category_suffix({ category })}
 						</h3>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 							{#each filteredKeys as item (item)}
@@ -137,7 +143,7 @@
 						.includes(searchTerm.toLowerCase()) ).length === 0}
 				<div class="flex flex-col items-center justify-center py-20 opacity-50">
 					<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
-					<p class="text-xl">No widgets found for "{searchTerm}"</p>
+					<p class="text-xl">{widget_select_no_match({ term: searchTerm })}</p>
 				</div>
 			{/if}
 		</div>

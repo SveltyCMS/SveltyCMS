@@ -28,6 +28,7 @@ Part of the Three Pillars Architecture for widget system.
 	// Components
 	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { widget_required_hint } from '@src/paraglide/messages';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
@@ -201,7 +202,7 @@ Part of the Three Pillars Architecture for widget system.
 	<label for={field.db_fieldName} class="sr-only">
 		{field.label}
 		{#if field.required}
-			<span>(required)</span>
+			<span>({widget_required_hint()})</span>
 		{/if}
 	</label>
 

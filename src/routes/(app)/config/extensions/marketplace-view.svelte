@@ -18,6 +18,34 @@
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import {
+		mp_activate_license,
+		mp_details,
+		mp_downloads,
+		mp_enter_license_part1,
+		mp_enter_license_part2,
+		mp_installed,
+		mp_install,
+		mp_license_key,
+		mp_license_key_aria,
+		mp_license_key_placeholder,
+		mp_license_modal_title,
+		mp_loading_catalog,
+		mp_no_packages,
+		mp_offline,
+		mp_open_checkout,
+		mp_open_full_site,
+		mp_open_listing,
+		mp_remote_online,
+		mp_save_install,
+		mp_search,
+		mp_search_aria,
+		mp_search_placeholder,
+		mp_source,
+		mp_type,
+		mp_version_sep,
+		mp_view
+	} from '@src/paraglide/messages';
 	import { onMount } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { fetchApi } from '@utils/api';
@@ -174,12 +202,14 @@
 <div class="flex flex-col gap-4" data-testid="marketplace-catalog">
 	<div class="flex flex-wrap items-end gap-3">
 		<div class="min-w-50 flex-1">
-			<label class="mb-1 block text-xs font-medium text-surface-500" for="mp-search">Search</label>
+			<label class="mb-1 block text-xs font-medium text-surface-500" for="mp-search"
+				>{mp_search()}</label
+			>
 			<Input
 				id="mp-search"
 				bind:value={query}
-				placeholder="Search packages…"
-				aria-label="Search marketplace"
+				placeholder={mp_search_placeholder()}
+				aria-label={mp_search_aria()}
 				data-testid="marketplace-search"
 				onkeydown={(e: KeyboardEvent) => {
 					if (e.key === 'Enter') loadCatalog();
@@ -187,7 +217,9 @@
 			/>
 		</div>
 		<div class="w-40">
-			<label class="mb-1 block text-xs font-medium text-surface-500" for="mp-type">Type</label>
+			<label class="mb-1 block text-xs font-medium text-surface-500" for="mp-type"
+				>{mp_type()}</label
+			>
 			<Select
 				id="mp-type"
 				bind:value={typeFilter}
@@ -206,27 +238,27 @@
 			class="text-sm text-tertiary-600 underline dark:text-primary-400"
 			data-testid="marketplace-external"
 		>
-			Open full site
+			{mp_open_full_site()}
 		</a>
 	</div>
 
 	<div class="flex items-center gap-2 text-xs text-surface-500" data-testid="marketplace-source">
-		<span>Source:</span>
+		<span>{mp_source()}</span>
 		<Badge variant="outline">{source}</Badge>
 		{#if remoteAvailable}
-			<Badge variant="success">Remote online</Badge>
+			<Badge variant="success">{mp_remote_online()}</Badge>
 		{:else}
-			<Badge variant="warning">Offline / local catalog</Badge>
+			<Badge variant="warning">{mp_offline()}</Badge>
 		{/if}
 	</div>
 
 	{#if loading && items.length === 0}
 		<p class="py-12 text-center text-sm text-surface-500" data-testid="marketplace-loading">
-			Loading catalog…
+			{mp_loading_catalog()}
 		</p>
 	{:else if items.length === 0}
 		<p class="py-12 text-center text-sm text-surface-500" data-testid="marketplace-empty">
-			No packages found. Try another search or open the full marketplace.
+			{mp_no_packages()}
 		</p>
 	{:else}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="marketplace-grid">
@@ -236,7 +268,8 @@
 						<div>
 							<h3 class="font-semibold text-surface-900 dark:text-surface-100">{item.name}</h3>
 							<p class="text-xs text-surface-500">
-								{item.author} · v{item.version}
+								{item.author}
+								{mp_version_sep()}{item.version}
 							</p>
 						</div>
 						<div class="flex flex-col items-end gap-1">
@@ -266,7 +299,7 @@
 					</p>
 					<div class="flex flex-wrap items-center gap-2">
 						{#if item.installed}
-							<Badge variant="success">Installed</Badge>
+							<Badge variant="success">{mp_installed()}</Badge>
 						{/if}
 						{#if item.homepageUrl}
 							<a
@@ -275,11 +308,11 @@
 								rel="noopener noreferrer"
 								class="text-xs text-tertiary-600 underline dark:text-primary-400"
 							>
-								Details
+								{mp_details()}
 							</a>
 						{/if}
 						{#if item.downloads != null}
-							<span class="text-xs text-surface-500">{item.downloads} downloads</span>
+							<span class="text-xs text-surface-500">{item.downloads} {mp_downloads()}</span>
 						{/if}
 						<Button
 							variant="ghost"
@@ -290,7 +323,7 @@
 							}}
 							data-testid={`marketplace-detail-${item.id}`}
 						>
-							View
+							{mp_view()}
 						</Button>
 						{#if !item.installed && item.installable !== false && item.source === 'remote'}
 							<Button
@@ -300,7 +333,7 @@
 								onclick={() => installItem(item)}
 								data-testid={`marketplace-install-${item.id}`}
 							>
-								Install
+								{mp_install()}
 							</Button>
 						{:else if item.license === 'paid' && !item.installed}
 							<Button
@@ -312,7 +345,7 @@
 								}}
 								data-testid={`marketplace-license-cta-${item.id}`}
 							>
-								Activate license
+								{mp_activate_license()}
 							</Button>
 						{/if}
 					</div>
@@ -322,17 +355,21 @@
 	{/if}
 </div>
 
-<Modal bind:open={licenseOpen} title="Marketplace license" size="md">
+<Modal bind:open={licenseOpen} title={mp_license_modal_title()} size="md">
 	<div class="flex flex-col gap-3">
 		<p class="text-sm text-surface-600 dark:text-surface-400">
-			Enter a license key for {licenseTarget?.name ?? 'this package'}, or open hosted checkout.
+			{mp_enter_license_part1()}
+			{licenseTarget?.name ?? 'this package'}
+			{mp_enter_license_part2()}
 		</p>
-		<label class="text-xs font-medium text-surface-500" for="mp-license-key">License key</label>
+		<label class="text-xs font-medium text-surface-500" for="mp-license-key"
+			>{mp_license_key()}</label
+		>
 		<Input
 			id="mp-license-key"
 			bind:value={licenseKey}
-			placeholder="XXXX-XXXX-XXXX"
-			aria-label="Marketplace license key"
+			placeholder={mp_license_key_placeholder()}
+			aria-label={mp_license_key_aria()}
 			data-testid="marketplace-license-key"
 		/>
 		<div class="flex flex-wrap gap-2">
@@ -341,7 +378,7 @@
 				onclick={() => submitLicense()}
 				data-testid="marketplace-license-save"
 			>
-				Save and install
+				{mp_save_install()}
 			</Button>
 			{#if licenseTarget}
 				<a
@@ -352,7 +389,7 @@
 					rel="noopener noreferrer"
 					class="text-sm text-tertiary-600 underline dark:text-primary-400 self-center"
 				>
-					Open checkout
+					{mp_open_checkout()}
 				</a>
 			{/if}
 		</div>
@@ -371,7 +408,8 @@
 		<div class="flex flex-col gap-3" data-testid="marketplace-package-detail">
 			<p class="text-sm text-surface-600 dark:text-surface-400">{detailItem.description}</p>
 			<p class="text-xs text-surface-500">
-				{detailItem.author} · v{detailItem.version} · {detailItem.type}
+				{detailItem.author}
+				{mp_version_sep()}{detailItem.version} · {detailItem.type}
 			</p>
 			{#if detailItem.homepageUrl}
 				<a
@@ -380,12 +418,12 @@
 					rel="noopener noreferrer"
 					class="text-sm text-tertiary-600 underline dark:text-primary-400"
 				>
-					Open listing
+					{mp_open_listing()}
 				</a>
 			{/if}
 			{#if !detailItem.installed && detailItem.installable !== false}
 				<Button variant="primary" onclick={() => detailItem && installItem(detailItem)}>
-					Install
+					{mp_install()}
 				</Button>
 			{/if}
 		</div>

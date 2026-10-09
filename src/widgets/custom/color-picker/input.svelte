@@ -23,6 +23,11 @@ Renders a color input with label, helper, and validation
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import {
+		widget_color_picker_label,
+		widget_color_hex_label,
+		widget_color_reset
+	} from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -95,7 +100,7 @@ Renders a color input with label, helper, and validation
 			class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40"
 		>
 			<input
-				aria-label="Color picker"
+				aria-label={widget_color_picker_label()}
 				type="color"
 				value={colorValue}
 				id={fieldName + '-color'}
@@ -107,7 +112,7 @@ Renders a color input with label, helper, and validation
 		<div class="flex grow items-center gap-2 px-2">
 			<span class="text-surface-400 font-mono">#</span>
 			<input
-				aria-label="Color hex value"
+				aria-label={widget_color_hex_label()}
 				type="text"
 				value={colorValue.replace('#', '')}
 				id={fieldName + '-hex'}
@@ -124,7 +129,7 @@ Renders a color input with label, helper, and validation
 			type="button"
 			class="p-1! me-1"
 			onclick={handleReset}
-			title="Reset to default"
+			title={widget_color_reset()}
 		>
 			<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
 		</Button>

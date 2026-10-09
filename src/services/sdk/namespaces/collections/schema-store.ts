@@ -155,23 +155,29 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   let hasDateTimeFields = false;
   let hasHookFields = false;
   let hasAfterOperationHooks = false;
+  let hasGuardedFields = false;
 
-  for (const f of fields) {
-    const pendingName = f.widget?.Name;
-    if (
-      pendingName &&
-      !INLINE_MODIFY_WIDGETS.has(pendingName) &&
-      !widgetRegistryService.getWidgetSync(pendingName) &&
-      widgetRegistryService.canLoad(pendingName)
-    ) {
-      // Factory chunk is not evaluated yet. Leave the flags unset so the
-      // next call, after ensureWidgets, sees modifyRequest.
-      return s;
-    }
-  }
-
+  // Single-pass inspection. The legacy shape was a pending-widget probe loop
+  // followed by a second full flag-compile loop (two field scans and two
+  // registry lookups per widget field). The probe must still bail BEFORE any
+  // flag is attached — that contract is what makes the next call, after
+  // ensureWidgets, re-inspect and see modifyRequest.
   for (const f of fields) {
     const widgetName = f.widget?.Name;
+    if (widgetName && !INLINE_MODIFY_WIDGETS.has(widgetName)) {
+      const wFn = widgetRegistryService.getWidgetSync(widgetName);
+      if (!wFn) {
+        if (widgetRegistryService.canLoad(widgetName)) {
+          // Factory chunk is not evaluated yet. Leave the flags unset so the
+          // next call, after ensureWidgets, sees modifyRequest.
+          return s;
+        }
+      } else if ((wFn as { modifyRequest?: unknown }).modifyRequest) {
+        const dbName = (f as { db_fieldName?: string }).db_fieldName;
+        const fieldName = dbName || widgetName;
+        if (fieldName) activeWidgetFieldNames.push(fieldName);
+      }
+    }
     const dbName = (f as { db_fieldName?: string }).db_fieldName;
     if (f.encrypt === true && dbName && !NON_ENCRYPTABLE_FIELDS.has(dbName)) {
       encryptedFieldNames.push(dbName);
@@ -179,13 +185,6 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
     if (widgetName === "DateTime") {
       hasDateTimeFields = true;
       if (dbName) dateTimeFieldNames.push(dbName);
-    }
-    if (widgetName && !INLINE_MODIFY_WIDGETS.has(widgetName)) {
-      const wFn = widgetRegistryService.getWidgetSync(widgetName);
-      if (wFn && (wFn as { modifyRequest?: unknown }).modifyRequest) {
-        const fieldName = dbName || widgetName;
-        if (fieldName) activeWidgetFieldNames.push(fieldName);
-      }
     }
     const fieldHooks = (
       f as {
@@ -230,14 +229,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
       const name = String(f.name || dbName || "unknown");
       if (key) requiredFields.push({ name, key });
     }
-  }
-
-  let hasGuardedFields = false;
-  for (const f of fields) {
-    if (fieldDeclaresGuard(f)) {
-      hasGuardedFields = true;
-      break;
-    }
+    if (fieldDeclaresGuard(f)) hasGuardedFields = true;
   }
 
   s._hasActiveWidgets = activeWidgetFieldNames.length > 0;

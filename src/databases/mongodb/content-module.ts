@@ -20,11 +20,11 @@ import type {
 import type { MongoAdapterCore } from "./adapter-core";
 import { MongoCrudMethods } from "./crud-methods";
 import { CacheCategory, invalidateCategoryCache, withCache } from "./mongodb-cache-utils";
-import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
-import { normalizeId } from "./normalize-id";
+import { createDatabaseError, generateId, normalizeId, processDates } from "./mongodb-utils";
 import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
 import { logger } from "@utils/logger";
 import type { Model, QueryFilter as MongoQueryFilter } from "mongoose";
+import { contentStructureSchema, draftSchema, revisionSchema } from "./schema";
 
 /**
  * Converts a flat array of content nodes into a nested tree.
@@ -74,10 +74,6 @@ export class MongoContentModule
         revisionsRepo: this._revisionsRepo,
       };
     }
-
-    const { contentStructureSchema } = await import("./content-structure");
-    const { draftSchema } = await import("./draft");
-    const { revisionSchema } = await import("./revision");
 
     const nodeModel = (this.adapter as any)._getOrCreateModel(
       "system_content_structure",

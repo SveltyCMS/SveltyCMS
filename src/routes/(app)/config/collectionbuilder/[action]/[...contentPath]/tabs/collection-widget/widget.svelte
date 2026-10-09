@@ -12,7 +12,11 @@
 		button_save,
 		collection_widgetfield_addFields,
 		collection_widgetfield_addrequired,
-		collection_widgetfield_drag
+		collection_widgetfield_drag,
+		collection_widgetfield_collection_inputs,
+		collection_widgetfield_drag_aria,
+		collection_widgetfield_field_aria,
+		collection_widgetfield_field_list_aria
 	} from '@src/paraglide/messages';
 	import {
 		collections,
@@ -240,7 +244,7 @@
 		<p>
 			{collection_widgetfield_addrequired()}
 			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span>
-			Collection inputs.
+			{collection_widgetfield_collection_inputs()}
 		</p>
 		<p class="mb-2">{collection_widgetfield_drag()}</p>
 	</div>
@@ -248,9 +252,9 @@
 		style="max-height: 55vh !important;"
 		class="overflow-y-auto"
 		role="table"
-		aria-label="Field list"
+		aria-label={collection_widgetfield_field_list_aria()}
 	>
-		<section class="my-1 w-full" role="list" aria-label="Field list">
+		<section class="my-1 w-full" role="list" aria-label={collection_widgetfield_field_list_aria()}>
 			{#each fields as field (field.id)}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
@@ -270,13 +274,13 @@
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
 					role="listitem"
 					tabindex="0"
-					aria-label="Field: {field.label}. Press Space to grab, arrows to move."
+					aria-label={collection_widgetfield_field_aria({ label: field.label })}
 				>
 					<div class="flex items-center gap-1" role="cell">
 						<button
 							type="button"
 							class="field-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none"
-							aria-label="Drag {field.label}"
+							aria-label={collection_widgetfield_drag_aria({ label: field.label })}
 							title={builder_tip_drag_reorder()}
 						>
 							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>

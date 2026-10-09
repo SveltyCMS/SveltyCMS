@@ -11,6 +11,14 @@
 <script lang="ts">
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Button from '@components/ui/button.svelte';
+	import {
+		button_close,
+		widget_rt_add_video,
+		widget_rt_browse_locally,
+		widget_rt_or,
+		widget_rt_video_upload_unavailable,
+		widget_rt_youtube
+	} from '@src/paraglide/messages';
 	import type { Editor } from '@tiptap/core';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -87,13 +95,13 @@
 			variant="ghost"
 			type="button"
 			onclick={close}
-			aria-label="Close"
+			aria-label={button_close()}
 			class="p-0! min-w-0 absolute inset-e-4 top-4"
 		>
 			<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
 		</Button>
 
-		<h3 id="video-dialog-title" class="mb-4 text-lg font-medium">Add Video</h3>
+		<h3 id="video-dialog-title" class="mb-4 text-lg font-medium">{widget_rt_add_video()}</h3>
 
 		{#if insertUrl}
 			<form
@@ -107,16 +115,16 @@
 					name="Youtube URL"
 					label="Youtube URL"
 				/>
-				<Button type="submit" variant="primary" class="w-full">Add Video</Button>
+				<Button type="submit" variant="primary" class="w-full">{widget_rt_add_video()}</Button>
 			</form>
 		{:else}
 			<div class="relative mt-2 flex flex-col items-center justify-center gap-4">
-				<p class="text-sm text-gray-500">Video upload is not yet implemented.</p>
-				<p>or</p>
+				<p class="text-sm text-gray-500">{widget_rt_video_upload_unavailable()}</p>
+				<p>{widget_rt_or()}</p>
 				<div class="flex w-full justify-center gap-2">
-					<Button variant="outline" class="w-full" disabled>Browse locally</Button>
+					<Button variant="outline" class="w-full" disabled>{widget_rt_browse_locally()}</Button>
 					<Button variant="secondary" class="w-full" onclick={() => (insertUrl = true)}
-						>YouTube</Button
+						>{widget_rt_youtube()}</Button
 					>
 				</div>
 			</div>

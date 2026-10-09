@@ -32,7 +32,7 @@ vi.mock("mongoose", () => {
   return { default: mongooseStub, ...mongooseStub, Model: class Model {} };
 });
 
-import { contentStructureSchema } from "@src/databases/mongodb/content-structure";
+import { contentStructureSchema } from "@src/databases/mongodb/schema";
 
 type ReorderItem = { id: string; order: number; parentId: string | null; path: string };
 

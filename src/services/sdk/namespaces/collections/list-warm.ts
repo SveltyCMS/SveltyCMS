@@ -28,6 +28,11 @@ const LIST_WARM_MIN_INTERVAL_MS = 5_000;
 
 const warmedAt = new Map<string, number>();
 
+/** Fallback macrotask scheduler for environments without setImmediate (allocated once). */
+function scheduleMacrotask(fn: () => void): void {
+  setTimeout(fn, 0);
+}
+
 function isDisabled(): boolean {
   const raw = process.env.SVELTY_DISABLE_LIST_WARM;
   return raw === "1" || raw?.toLowerCase() === "true";
@@ -75,9 +80,9 @@ export function scheduleDefaultListWarm(
 
   warmedAt.set(key, now);
   // Macrotask, not microtask: a same-tick find() steals the SQLite write
-  // mutex from the next concurrent create (the 8c HTTP cliff).
-  const later =
-    typeof setImmediate === "function" ? setImmediate : (fn: () => void) => setTimeout(fn, 0);
+  // mutex from the next concurrent create (the 8c HTTP cliff). The setImmediate
+  // check stays per-call (late polyfills), but the fallback closure is shared.
+  const later = typeof setImmediate === "function" ? setImmediate : scheduleMacrotask;
   later(() => {
     runFind({ tenantId, user }).catch((err: unknown) => {
       logger.debug(

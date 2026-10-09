@@ -228,6 +228,27 @@ class CollectionState {
     this.mode = newMode;
   }
 
+  /**
+   * Safe mode transition with unsaved-change guards.
+   */
+  async transitionTo(newMode: ModeType): Promise<boolean> {
+    const currentMode = this.mode;
+    if (currentMode === newMode) return true;
+
+    // Check unsaved changes when leaving edit/create to view
+    if ((currentMode === "create" || currentMode === "edit") && newMode === "view") {
+      if (this.hasChanges) {
+        logger.warn(
+          `[CollectionState] Transition blocked by unsaved changes: ${currentMode} -> ${newMode}`,
+        );
+        return false;
+      }
+    }
+
+    this.setMode(newMode);
+    return true;
+  }
+
   setCollectionValue(newValue: Record<string, unknown>) {
     this.activeValue = newValue;
     // Business logic: ensure status is set if not present
@@ -358,3 +379,7 @@ export const applyRemoteContentStructure = (v: ContentNode[]) =>
 /** Current structure revision — see `CollectionState.structureRevision`. */
 export const getStructureRevision = () => collections.structureRevision;
 export const setTargetWidget = (v: Widget) => collections.setTargetWidget(v);
+export const modeTransitionGuard = {
+  setMode: (mode: ModeType) => collections.setMode(mode),
+  transitionTo: (mode: ModeType) => collections.transitionTo(mode),
+};

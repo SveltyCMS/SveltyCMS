@@ -232,7 +232,7 @@ These rules are enforced. A PR that violates them will not be merged.
 > 8. **Local SDK Performance Emphasis**: When adding or modifying core CMS functionality, ensure it is exposed through the `LocalCMS` class (`src/services/sdk/index.ts`). Documentation for these features must highlight the performance advantage of using the Local SDK (zero HTTP overhead, direct DB adapter access) over external HTTP calls.
 > 9. **"Next Steps" Footer Required**: Every guide, tutorial, and architecture page **must** end with a `## Next Steps` or `## Related` section linking to 2-3 relevant pages. This keeps readers flowing through the docs. A page that dead-ends at the last paragraph will be rejected.
 > 10. **Frontmatter `updated` Date**: Update the `updated` field in frontmatter with every content change. Stale dates erode trust. The date must be in `YYYY-MM-DD` format.
-> 11. **One question, one page**: A task is a guide. A contract is a reference page. An engine explanation is architecture. The product model stays in `docs/concepts/` and stays short. Do not copy the same explanation into a second folder.
+> 11. **One question, one page**: A task is a guide. A contract is a reference page. An engine explanation is architecture. The product model stays in `docs/concepts.mdx` and stays short. Do not copy the same explanation into a second folder.
 
 ---
 
@@ -243,7 +243,7 @@ The docs follow the reader's question. One page answers one question. Do not add
 | Question                                                 | Put the page in                                                       | On the public sidebar                                                      |
 | :------------------------------------------------------- | :-------------------------------------------------------------------- | :------------------------------------------------------------------------- |
 | How do I learn this by doing it?                         | `docs/onboarding/` or `docs/getting-started.mdx`                      | Get started                                                                |
-| What are the pieces of the product?                      | `docs/concepts/`                                                      | Concepts                                                                   |
+| What are the pieces of the product?                      | `docs/concepts.mdx`                                                   | Concepts                                                                   |
 | How do I finish this task in the admin or in operations? | `docs/guides/`                                                        | Guides                                                                     |
 | How do I extend the CMS (widget, plugin, frontend)?      | `docs/development/`                                                   | Build                                                                      |
 | What is the exact contract?                              | `docs/reference/api/`, `security/`, `database/`, or `components/`     | Reference                                                                  |
@@ -257,7 +257,7 @@ Do not add a new top-level folder. Do not paste a full file tree into this guide
 
 Concepts stay short. A procedure belongs in a guide. A parameter table belongs in reference. A module layout belongs in architecture.
 
-Architecture is not onboarding. Write those pages for someone changing that subsystem. Point a newcomer at [Concepts](../concepts/index.mdx).
+Architecture is not onboarding. Write those pages for someone changing that subsystem. Point a newcomer at [Concepts](../concepts.mdx).
 
 #### Public URLs
 
@@ -265,7 +265,7 @@ Architecture is not onboarding. Write those pages for someone changing that subs
 
 | File                                 | URL                               |
 | :----------------------------------- | :-------------------------------- |
-| `docs/concepts/index.mdx`            | `/docs/concepts`                  |
+| `docs/concepts.mdx`                  | `/docs/concepts`                  |
 | `docs/getting-started.mdx`           | `/docs/getting-started`           |
 | `docs/reference/api/collections.mdx` | `/docs/reference/api/collections` |
 | `docs/development/widgets/index.mdx` | `/docs/development/widgets`       |
@@ -276,7 +276,7 @@ The site homepage has to use those paths. `/docs/architecture`, `/docs/api`, and
 
 | Folder                         | Holds                                                                        |
 | :----------------------------- | :--------------------------------------------------------------------------- |
-| `docs/concepts/`               | The product model. Keep it to a sitting's worth of reading.                  |
+| `docs/concepts.mdx`            | The product model. Keep it to a sitting's worth of reading.                  |
 | `docs/onboarding/`             | Tutorials that produce a running install.                                    |
 | `docs/guides/`                 | Tasks: `content/`, `configuration/`, `deployment/`, `legal/`.                |
 | `docs/development/`            | Widgets, plugins, dashboard widgets, LocalCMS, the site starter, automation. |
@@ -470,7 +470,7 @@ Before opening a PR, verify every item:
 
 ## Related Documents
 
-- [Concepts](../concepts/index.mdx)
+- [Concepts](../concepts.mdx)
 - [Documentation hub](../README.mdx)
 - [Code of Conduct](../../CODE-OF-CONDUCT.md)
 - [Contribution Guidelines](../../CONTRIBUTING.md)

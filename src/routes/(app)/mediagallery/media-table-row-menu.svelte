@@ -8,6 +8,12 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	import Button from '@components/ui/button.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import {
+		builder_tag_input_label,
+		button_edit,
+		mediagallery_actions_for,
+		mp_details
+	} from '@src/paraglide/messages';
 
 	let {
 		file,
@@ -104,7 +110,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 			variant="ghost"
 			size="sm"
 			type="button"
-			aria-label="Actions for {file.filename}"
+			aria-label={mediagallery_actions_for({ name: file.filename })}
 			aria-haspopup="menu"
 			aria-expanded={open}
 			class="h-8 w-8 min-w-0 p-0! text-surface-500 hover:bg-surface-500/10 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
@@ -120,7 +126,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				bind:this={menuEl}
 				role="menu"
 				tabindex="-1"
-				aria-label="Actions for {file.filename}"
+				aria-label={mediagallery_actions_for({ name: file.filename })}
 				class="fixed z-200 w-44 min-w-44 rounded-lg border border-surface-500/30 bg-surface-500/10 p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
 				style={menuStyle}
 				onclick={(e) => e.stopPropagation()}
@@ -134,7 +140,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				>
 					<iconify-icon icon="mdi:information-outline" width="16" class="shrink-0 text-primary-500"
 					></iconify-icon>
-					<span>Details</span>
+					<span>{mp_details()}</span>
 				</button>
 
 				<button
@@ -148,7 +154,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 						width="16"
 						class="shrink-0 text-surface-500 dark:text-surface-400"
 					></iconify-icon>
-					<span>Edit</span>
+					<span>{button_edit()}</span>
 				</button>
 
 				{#if isImage}
@@ -163,7 +169,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 							width="16"
 							class="shrink-0 text-surface-500 dark:text-surface-400"
 						></iconify-icon>
-						<span>Tags</span>
+						<span>{builder_tag_input_label()}</span>
 					</button>
 				{/if}
 

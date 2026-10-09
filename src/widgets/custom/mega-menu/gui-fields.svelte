@@ -23,6 +23,20 @@ Interactive level configuration with add/remove level capabilities
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import {
+		widget_menu_add_level,
+		widget_menu_config_desc,
+		widget_menu_field_singular,
+		widget_menu_fields_for_level,
+		widget_menu_level_number,
+		widget_menu_nested_level,
+		widget_menu_no_fields_configured,
+		widget_menu_remove_level_aria,
+		widget_menu_remove_level_title,
+		widget_menu_root_level,
+		widget_menu_structure_config,
+		widget_menu_use_builder_hint
+	} from '@src/paraglide/messages';
 	import WidgetBuilder from '@src/components/system/builder/widget-builder.svelte';
 	import type { FieldInstance } from '@src/content/types';
 
@@ -55,11 +69,10 @@ Interactive level configuration with add/remove level capabilities
 <div class="space-y-6">
 	<div class="border-b border-surface-500/30 pb-4 dark:text-surface-50">
 		<h3 class="mb-2 text-lg font-semibold text-surface-900 dark:text-surface-100">
-			Menu Structure Configuration
+			{widget_menu_structure_config()}
 		</h3>
 		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-400">
-			Define the fields available at each level of your hierarchical menu. Each level can have
-			different widgets and configurations.
+			{widget_menu_config_desc()}
 		</p>
 	</div>
 
@@ -76,17 +89,17 @@ Interactive level configuration with add/remove level capabilities
 				>
 					<div class="level-info flex items-center gap-3">
 						<h4 class="level-title text-base font-medium text-surface-600 dark:text-surface-100">
-							Level {levelIndex + 1}
+							{widget_menu_level_number({ number: levelIndex + 1 })}
 						</h4>
 						{#if levelIndex === 0}
 							<span
 								class="level-badge rounded-full bg-primary-500/10 px-2 py-1 text-xs font-medium text-primary-600 dark:bg-primary-900 dark:text-primary-400"
-								>Root Level</span
+								>{widget_menu_root_level()}</span
 							>
 						{:else}
 							<span
 								class="level-badge rounded-full bg-secondary-500/10 px-2 py-1 text-xs font-medium text-secondary-600 dark:bg-secondary-900 dark:text-secondary-400"
-								>Nested Level</span
+								>{widget_menu_nested_level()}</span
 							>
 						{/if}
 					</div>
@@ -96,8 +109,8 @@ Interactive level configuration with add/remove level capabilities
 							variant="error"
 							type="button"
 							onclick={() => removeLevel(levelIndex)}
-							aria-label="Remove level {levelIndex + 1}"
-							title="Remove this menu level"
+							aria-label={widget_menu_remove_level_aria({ level: levelIndex + 1 })}
+							title={widget_menu_remove_level_title()}
 						>
 							<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 						</Button>
@@ -110,10 +123,10 @@ Interactive level configuration with add/remove level capabilities
 							class="block text-sm font-medium text-surface-600 dark:text-surface-400"
 							for={'widget-builder-' + levelIndex}
 						>
-							Fields for Level {levelIndex + 1}
+							{widget_menu_fields_for_level({ level: levelIndex + 1 })}
 							<span class="field-count font-normal text-surface-500 dark:text-surface-50"
 								>({levelFields.length}
-								field{levelFields.length !== 1 ? 's' : ''})</span
+								{widget_menu_field_singular()}{levelFields.length !== 1 ? 's' : ''})</span
 							>
 						</label>
 
@@ -131,10 +144,10 @@ Interactive level configuration with add/remove level capabilities
 							<iconify-icon icon="mdi:information" width="24" class="text-surface-400"
 							></iconify-icon>
 							<span class="text-sm font-medium text-surface-600 dark:text-surface-400"
-								>No fields configured for this level yet.</span
+								>{widget_menu_no_fields_configured()}</span
 							>
 							<span class="text-xs text-surface-500 dark:text-surface-50"
-								>Use the Widget Builder above to add fields.</span
+								>{widget_menu_use_builder_hint()}</span
 							>
 						</div>
 					{/if}
@@ -146,7 +159,7 @@ Interactive level configuration with add/remove level capabilities
 	<div class=" border-t border-surface-500/30 pt-4 dark:text-surface-50">
 		<Button variant="tertiary" type="button" onclick={addLevel}>
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
-			Add Menu Level
+			{widget_menu_add_level()}
 		</Button>
 	</div>
 </div>

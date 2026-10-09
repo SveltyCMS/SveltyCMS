@@ -7,6 +7,31 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
+	import {
+		common_advanced,
+		common_basic,
+		common_social,
+		seo_input_get_license,
+		seo_input_locked_body,
+		seo_input_locked_title,
+		seo_input_main_keyword,
+		seo_input_og_description_placeholder,
+		seo_input_og_heading,
+		seo_input_og_title_placeholder,
+		seo_input_page_description,
+		seo_input_page_title,
+		seo_input_purchase_license,
+		seo_input_robots_placeholder,
+		seo_input_schema_aria,
+		seo_input_schema_heading,
+		seo_input_schema_hint,
+		seo_input_slug_placeholder,
+		seo_input_trial_active,
+		seo_input_trial_body,
+		seo_input_twitter_card_heading,
+		seo_input_twitter_description_placeholder,
+		seo_input_twitter_title_placeholder
+	} from '@src/paraglide/messages';
 	// Stores & Props
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { onMount } from 'svelte';
@@ -191,15 +216,15 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
 					<span
-						><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start
-						to test the Advanced, Social, and Schema SEO features.</span
+						><strong>{seo_input_trial_active()}</strong>{' '}
+						{seo_input_trial_body({ days: licenseStatus.daysRemaining })}</span
 					>
 				</div>
 				<a
 					href="https://marketplace.sveltycms.com"
 					target="_blank"
 					class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs"
-					>Get License</a
+					>{seo_input_get_license()}</a
 				>
 			</div>
 		{/if}
@@ -246,16 +271,15 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 				>
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"
 					></iconify-icon>
-					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
+					<h3 class="h3 font-bold mb-2">{seo_input_locked_title()}</h3>
 					<p class="mb-4">
-						Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI
-						features, please purchase a license.
+						{seo_input_locked_body()}
 					</p>
 					<a
 						href="https://marketplace.sveltycms.com"
 						target="_blank"
 						class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs"
-						>Purchase License</a
+						>{seo_input_purchase_license()}</a
 					>
 				</div>
 			</div>
@@ -263,15 +287,15 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 		<Tabs bind:value={activeTab} class="w-full">
 			<Tabs.List class="mb-6 border-surface-500">
-				<Tabs.Trigger value="basic">Basic</Tabs.Trigger>
+				<Tabs.Trigger value="basic">{common_basic()}</Tabs.Trigger>
 				{#if hasFeature('social')}
 					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}
-						>Social</Tabs.Trigger
+						>{common_social()}</Tabs.Trigger
 					>
 				{/if}
 				{#if hasFeature('advanced')}
 					<Tabs.Trigger value="advanced" disabled={!isCheckingLicense && !licenseStatus.active}
-						>Advanced</Tabs.Trigger
+						>{common_advanced()}</Tabs.Trigger
 					>
 				{/if}
 			</Tabs.List>
@@ -290,7 +314,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						maxLength={60}
 						optimalMin={50}
 						optimalMax={60}
-						placeholder="Page Title"
+						placeholder={seo_input_page_title()}
 					/>
 
 					<SeoField
@@ -306,7 +330,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						maxLength={160}
 						optimalMin={150}
 						optimalMax={160}
-						placeholder="Page Description"
+						placeholder={seo_input_page_description()}
 					/>
 
 					<SeoField
@@ -318,7 +342,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						translated={isTranslated}
 						translationPct={translationStats.focusKeyword || 0}
 						onUpdate={(v: string) => updateField('focusKeyword', v)}
-						placeholder="Main keyword"
+						placeholder={seo_input_main_keyword()}
 					>
 						<!-- Example of using slot for extra icon if needed --></SeoField
 					>
@@ -328,7 +352,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					<Tabs.Content value="social" class="mt-4 space-y-4">
 						<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 							<div class="space-y-4">
-								<h3 class="h3 font-bold">Open Graph (Facebook/LinkedIn)</h3>
+								<h3 class="h3 font-bold">{seo_input_og_heading()}</h3>
 
 								<SeoField
 									id="seo-ogTitle"
@@ -339,7 +363,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 									translated={isTranslated}
 									translationPct={translationStats.ogTitle || 0}
 									onUpdate={(v: string) => updateField('ogTitle', v)}
-									placeholder="Open Graph Title (same as Title if empty)"
+									placeholder={seo_input_og_title_placeholder()}
 								/>
 
 								<SeoField
@@ -352,12 +376,12 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 									translated={isTranslated}
 									translationPct={translationStats.ogDescription || 0}
 									onUpdate={(v: string) => updateField('ogDescription', v)}
-									placeholder="Open Graph Description"
+									placeholder={seo_input_og_description_placeholder()}
 								/>
 							</div>
 
 							<div class="space-y-4">
-								<h3 class="h3 font-bold">Twitter Card</h3>
+								<h3 class="h3 font-bold">{seo_input_twitter_card_heading()}</h3>
 
 								<SeoField
 									id="seo-twitterTitle"
@@ -368,7 +392,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 									translated={isTranslated}
 									translationPct={translationStats.twitterTitle || 0}
 									onUpdate={(v: string) => updateField('twitterTitle', v)}
-									placeholder="Twitter Title"
+									placeholder={seo_input_twitter_title_placeholder()}
 								/>
 
 								<SeoField
@@ -381,7 +405,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 									translated={isTranslated}
 									translationPct={translationStats.twitterDescription || 0}
 									onUpdate={(v: string) => updateField('twitterDescription', v)}
-									placeholder="Twitter Description"
+									placeholder={seo_input_twitter_description_placeholder()}
 								/>
 							</div>
 						</div>
@@ -409,7 +433,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							translated={isTranslated}
 							translationPct={translationStats.robotsMeta || 0}
 							onUpdate={(v: string) => updateField('robotsMeta', v)}
-							placeholder="index, follow"
+							placeholder={seo_input_robots_placeholder()}
 						>
 							{#snippet icon()}
 								<iconify-icon icon="mdi:robot-happy-outline" width="24"></iconify-icon>
@@ -425,7 +449,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							translated={isTranslated}
 							translationPct={translationStats.canonicalUrl || 0}
 							onUpdate={(v: string) => updateField('canonicalUrl', v)}
-							placeholder="https://example.com/slug"
+							placeholder={seo_input_slug_placeholder()}
 						>
 							{#snippet icon()}
 								<iconify-icon icon="mdi:link-variant" width="24"></iconify-icon>
@@ -439,7 +463,9 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						<div class="space-y-2">
 							<div class="flex items-center justify-between mb-1">
 								<div class="flex items-center gap-2">
-									<label for="seo-schemaMarkup" class="font-bold text-sm">Schema.org JSON-LD</label>
+									<label for="seo-schemaMarkup" class="font-bold text-sm"
+										>{seo_input_schema_heading()}</label
+									>
 									<iconify-icon icon="mdi:code-json" width="24"></iconify-icon>
 								</div>
 								{#if isTranslated}
@@ -456,7 +482,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							</div>
 							<div class="relative">
 								<textarea
-									aria-label="SEO description"
+									aria-label={seo_input_schema_aria()}
 									id="seo-schemaMarkup"
 									class="textarea font-mono text-xs"
 									rows="10"
@@ -471,7 +497,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 									}}></textarea>
 							</div>
 							<p class="text-xs text-surface-400 dark:text-surface-400">
-								Paste valid JSON-LD structure here.
+								{seo_input_schema_hint()}
 							</p>
 						</div>
 					</Tabs.Content>

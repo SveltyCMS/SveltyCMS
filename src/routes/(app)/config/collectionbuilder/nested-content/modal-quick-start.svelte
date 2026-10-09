@@ -18,6 +18,21 @@ Selecting a template auto-creates the collections using the installTemplateColle
 	import Badge from '@components/ui/badge.svelte';
 	import type { ContentNode } from '@src/databases/db-interface';
 	import { PRESETS } from '@src/routes/setup/presets';
+	import {
+		builder_quickstart_available_templates,
+		builder_quickstart_cancel_aria,
+		builder_quickstart_creates_label,
+		builder_quickstart_creates_plural,
+		builder_quickstart_creates_singular,
+		builder_quickstart_install,
+		builder_quickstart_install_aria,
+		builder_quickstart_installing,
+		builder_quickstart_intro_part1,
+		builder_quickstart_more,
+		builder_quickstart_template_aria,
+		button_cancel,
+		common_recommended
+	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { scale } from 'svelte/transition';
@@ -93,15 +108,16 @@ Selecting a template auto-creates the collections using the installTemplateColle
 <div class="modal-quick-start space-y-5" role="dialog" aria-describedby="quick-start-desc">
 	<!-- Description -->
 	<p id="quick-start-desc" class="text-sm text-surface-600 dark:text-surface-400">
-		Choose a pre-built template to instantly create collections for your {availablePresets.length} available
-		templates
+		{builder_quickstart_intro_part1()}
+		{availablePresets.length}{' '}
+		{builder_quickstart_available_templates()}
 	</p>
 
 	<!-- Template Grid -->
 	<div
 		class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
 		role="radiogroup"
-		aria-label="Template selection"
+		aria-label={builder_quickstart_template_aria()}
 	>
 		{#each availablePresets as preset (preset.id)}
 			{@const isSelected = selectedPreset === preset.id}
@@ -145,7 +161,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 						</h3>
 						<div class="mt-1 flex flex-wrap items-center gap-1.5">
 							{#if preset.recommended}
-								<Badge variant="tertiary" preset="tonal" size="sm">Recommended</Badge>
+								<Badge variant="tertiary" preset="tonal" size="sm">{common_recommended()}</Badge>
 							{/if}
 							<Badge variant={getComplexityVariant(preset.complexity)} preset="tonal" size="sm">
 								{preset.complexity ?? 'moderate'}
@@ -173,7 +189,10 @@ Selecting a template auto-creates the collections using the installTemplateColle
 					class="mt-auto space-y-1.5 border-t border-surface-100 pt-3 dark:border-surface-500/40"
 				>
 					<span class="text-xs font-medium text-surface-500 dark:text-surface-400"
-						>Creates {collections.length} collection{collections.length !== 1 ? 's' : ''}:</span
+						>{builder_quickstart_creates_label()}{' '}
+						{collections.length !== 1
+							? builder_quickstart_creates_plural({ count: collections.length })
+							: builder_quickstart_creates_singular({ count: collections.length })}</span
 					>
 					<div class="flex flex-wrap gap-1">
 						{#each collections.slice(0, 4) as col (col.name)}
@@ -192,7 +211,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 						{#if collections.length > 4}
 							<span
 								class="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-500 dark:bg-surface-700 dark:text-surface-400"
-								>+{collections.length - 4} more</span
+								>+{collections.length - 4} {builder_quickstart_more()}</span
 							>
 						{/if}
 					</div>
@@ -210,24 +229,24 @@ Selecting a template auto-creates the collections using the installTemplateColle
 			type="button"
 			onclick={() => close?.(null)}
 			disabled={isSubmitting}
-			aria-label="Cancel template selection"
+			aria-label={builder_quickstart_cancel_aria()}
 		>
-			Cancel
+			{button_cancel()}
 		</Button>
 		<Button
 			variant="tertiary"
 			type="button"
 			onclick={handleInstall}
 			disabled={isSubmitting || !selectedPreset}
-			aria-label="Install selected template collections"
+			aria-label={builder_quickstart_install_aria()}
 		>
 			{#if isSubmitting}
 				<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"
 				></iconify-icon>
-				Installing...
+				{builder_quickstart_installing()}
 			{:else}
 				<iconify-icon icon="mdi:magic-staff" width="18" aria-hidden="true"></iconify-icon>
-				Install Template
+				{builder_quickstart_install()}
 			{/if}
 		</Button>
 	</footer>

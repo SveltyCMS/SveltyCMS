@@ -26,6 +26,25 @@
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import {
+		widget_tenant_24h_req,
+		widget_tenant_activity,
+		widget_tenant_collections,
+		widget_tenant_data_appear,
+		widget_tenant_entries,
+		widget_tenant_files_count,
+		widget_tenant_last_24h,
+		widget_tenant_no_analytics,
+		widget_tenant_org_scoped,
+		widget_tenant_quota,
+		widget_tenant_quota_aria,
+		widget_tenant_requests,
+		widget_tenant_storage,
+		widget_tenant_storage_lower,
+		widget_tenant_updated,
+		widget_tenant_users,
+		widget_tenant_users_lower
+	} from '@src/paraglide/messages';
 	import { formatTime, formatNumber } from '@utils/format-date';
 
 	interface TenantAnalytics {
@@ -107,8 +126,8 @@
 		{#if !analytics}
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:chart-bar" class="mb-3 text-4xl opacity-20"></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">No analytics yet</div>
-				<div class="mt-1 text-xs text-surface-400">Data will appear once content is created</div>
+				<div class="text-sm font-medium text-surface-500">{widget_tenant_no_analytics()}</div>
+				<div class="mt-1 text-xs text-surface-400">{widget_tenant_data_appear()}</div>
 			</div>
 		{:else if isCompact}
 			<!-- ===== Compact (h:1) ===== -->
@@ -117,19 +136,19 @@
 					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
 						{statValue(analytics.users.total)}
 					</div>
-					<div class="text-xs text-surface-500">users</div>
+					<div class="text-xs text-surface-500">{widget_tenant_users_lower()}</div>
 				</div>
 				<div class="shrink-0 text-center">
 					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
 						{analytics.storage?.formatted ?? '0 B'}
 					</div>
-					<div class="text-xs text-surface-500">storage</div>
+					<div class="text-xs text-surface-500">{widget_tenant_storage_lower()}</div>
 				</div>
 				<div class="shrink-0 text-end">
 					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
 						{statValue(analytics.recentRequests?.last24h)}
 					</div>
-					<div class="text-xs text-surface-500">24h req</div>
+					<div class="text-xs text-surface-500">{widget_tenant_24h_req()}</div>
 				</div>
 			</div>
 		{:else}
@@ -139,7 +158,7 @@
 				<div class="grid grid-cols-3 gap-2">
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
-							Users
+							{widget_tenant_users()}
 						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.users.total)}
@@ -147,7 +166,7 @@
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
-							Collections
+							{widget_tenant_collections()}
 						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.collections)}
@@ -155,7 +174,7 @@
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
-							Entries
+							{widget_tenant_entries()}
 						</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.contentEntries)}
@@ -171,19 +190,21 @@
 					>
 						<div>
 							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
-								Storage
+								{widget_tenant_storage()}
 							</div>
 							<div
 								class="mt-1 text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100"
 							>
 								{analytics.storage?.formatted ?? '0 B'}
 							</div>
-							<div class="text-xs text-surface-500">{statValue(analytics.media.total)} files</div>
+							<div class="text-xs text-surface-500">
+								{widget_tenant_files_count({ count: statValue(analytics.media.total) })}
+							</div>
 						</div>
 						<!-- Mini quota bar -->
 						<div class="mt-2">
 							<div class="flex items-center justify-between text-[10px] text-surface-400 mb-1">
-								<span>Quota</span>
+								<span>{widget_tenant_quota()}</span>
 								<span>{quotaPercentage.toFixed(0)}%</span>
 							</div>
 							<div
@@ -192,7 +213,7 @@
 								aria-valuenow={quotaPercentage}
 								aria-valuemin={0}
 								aria-valuemax={100}
-								aria-label="Storage quota usage"
+								aria-label={widget_tenant_quota_aria()}
 							>
 								<div
 									class="h-full transition-all duration-300 {quotaColorClass(quotaPercentage)}"
@@ -208,7 +229,7 @@
 					>
 						<div>
 							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
-								Activity
+								{widget_tenant_activity()}
 							</div>
 							<div class="mt-2 flex items-baseline gap-1">
 								<span
@@ -216,12 +237,12 @@
 								>
 									{statValue(analytics.recentRequests?.last24h)}
 								</span>
-								<span class="text-xs text-surface-500">requests</span>
+								<span class="text-xs text-surface-500">{widget_tenant_requests()}</span>
 							</div>
-							<div class="text-xs text-surface-500">in the last 24 hours</div>
+							<div class="text-xs text-surface-500">{widget_tenant_last_24h()}</div>
 						</div>
 						<div class="mt-1 text-[10px] text-surface-400">
-							Updated {formatTimestamp(analytics.timestamp)}
+							{widget_tenant_updated({ time: formatTimestamp(analytics.timestamp) })}
 						</div>
 					</div>
 				</div>
@@ -233,7 +254,7 @@
 					<iconify-icon icon="mdi:information-outline" class="shrink-0 text-surface-400"
 					></iconify-icon>
 					<span class="text-surface-600 dark:text-surface-400">
-						All metrics are scoped to your organization.
+						{widget_tenant_org_scoped()}
 					</span>
 				</div>
 			</div>

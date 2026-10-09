@@ -25,7 +25,7 @@ interface StoredEntry {
 interface MultiOp {
   op: "set" | "sAdd" | "del";
   key: string;
-  value?: string;
+  value?: string | string[];
   opts?: SetOptions;
 }
 
@@ -107,7 +107,7 @@ export class FakeRedis {
 
   multi(): {
     set: (key: string, value: string, opts?: SetOptions) => void;
-    sAdd: (key: string, member: string) => void;
+    sAdd: (key: string, member: string | string[]) => void;
     del: (...keys: string[]) => void;
     exec: () => Promise<unknown[]>;
   } {
@@ -118,7 +118,7 @@ export class FakeRedis {
       set: (key: string, value: string, opts?: SetOptions) => {
         ops.push({ op: "set", key, value, opts });
       },
-      sAdd: (key: string, member: string) => {
+      sAdd: (key: string, member: string | string[]) => {
         ops.push({ op: "sAdd", key, value: member });
       },
       del: (...keys: string[]) => {
@@ -137,11 +137,15 @@ export class FakeRedis {
               : op.opts?.EX
                 ? Date.now() + op.opts.EX * 1000
                 : 0;
-            this.store.set(op.key, { value: op.value!, expiresAt });
+            this.store.set(op.key, { value: op.value as string, expiresAt });
             replies.push("OK");
           } else if (op.op === "sAdd") {
             const set = this.sets.get(op.key) ?? new Set<string>();
-            set.add(op.value!);
+            if (Array.isArray(op.value)) {
+              for (const m of op.value) set.add(m);
+            } else if (op.value) {
+              set.add(op.value as string);
+            }
             this.sets.set(op.key, set);
             replies.push(1);
           } else {
@@ -158,9 +162,13 @@ export class FakeRedis {
     };
   }
 
-  async sAdd(key: string, member: string): Promise<number> {
+  async sAdd(key: string, member: string | string[]): Promise<number> {
     const set = this.sets.get(key) ?? new Set<string>();
-    set.add(member);
+    if (Array.isArray(member)) {
+      for (const m of member) set.add(m);
+    } else {
+      set.add(member);
+    }
     this.sets.set(key, set);
     return 1;
   }

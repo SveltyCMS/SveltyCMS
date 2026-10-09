@@ -39,7 +39,7 @@ class InMemorySessionManager implements SessionStore {
     string,
     {
       user: User;
-      expiresAt: Date;
+      expiresAtMs: number;
       amr?: string[];
       mfaVerifiedAt?: ISODateString;
       permMask?: bigint;
@@ -52,10 +52,10 @@ class InMemorySessionManager implements SessionStore {
   async get(sessionId: string): Promise<User | null> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      return null; // Check if session has expired
+      return null;
     }
 
-    if (new Date() > session.expiresAt) {
+    if (Date.now() > session.expiresAtMs) {
       this.sessions.delete(sessionId);
       return null;
     }
@@ -69,7 +69,7 @@ class InMemorySessionManager implements SessionStore {
       return null;
     }
 
-    if (new Date() > session.expiresAt) {
+    if (Date.now() > session.expiresAtMs) {
       this.sessions.delete(sessionId);
       return null;
     }
@@ -90,7 +90,7 @@ class InMemorySessionManager implements SessionStore {
     expiration: ISODateString,
     metadata?: SessionMetadata,
   ): Promise<void> {
-    const expirationDate = isoDateStringToDate(expiration);
+    const expiresAtMs = isoDateStringToDate(expiration).getTime();
     // Bounded capacity protection: prune expired or oldest if exceeding MAX_SESSIONS
     if (this.sessions.size >= InMemorySessionManager.MAX_SESSIONS) {
       this.cleanup();
@@ -111,7 +111,7 @@ class InMemorySessionManager implements SessionStore {
 
     this.sessions.set(sessionId, {
       user: toSafeSessionUser(user),
-      expiresAt: expirationDate,
+      expiresAtMs,
       amr,
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
       permMask,
@@ -181,9 +181,9 @@ class InMemorySessionManager implements SessionStore {
   } // Cleanup expired sessions
 
   cleanup(): void {
-    const now = new Date();
+    const nowMs = Date.now();
     for (const [sessionId, session] of this.sessions) {
-      if (now > session.expiresAt) {
+      if (nowMs > session.expiresAtMs) {
         this.sessions.delete(sessionId);
       }
     }
@@ -206,7 +206,11 @@ class RedisSessionManager implements SessionStore {
         const sessionData = await this.redisClient.get(sessionId);
         if (sessionData) {
           const parsed = JSON.parse(sessionData); // Check expiration
-          if (new Date() > new Date(parsed.expiresAt)) {
+          const expiresAtMs =
+            typeof parsed.expiresAt === "number"
+              ? parsed.expiresAt
+              : new Date(parsed.expiresAt).getTime();
+          if (Date.now() > expiresAtMs) {
             await this.redisClient.del(sessionId);
             return null;
           }
@@ -226,7 +230,11 @@ class RedisSessionManager implements SessionStore {
         const sessionData = await this.redisClient.get(sessionId);
         if (sessionData) {
           const parsed = JSON.parse(sessionData);
-          if (new Date() > new Date(parsed.expiresAt)) {
+          const expiresAtMs =
+            typeof parsed.expiresAt === "number"
+              ? parsed.expiresAt
+              : new Date(parsed.expiresAt).getTime();
+          if (Date.now() > expiresAtMs) {
             await this.redisClient.del(sessionId);
             return null;
           }

@@ -381,9 +381,8 @@ export function generateManualEntryDetails(
  */
 async function computeTotpCode(counter: number, keyBuffer: Buffer): Promise<string> {
   const cryptoModule = await getCrypto();
-  const counterBuffer = Buffer.alloc(8);
-  counterBuffer.writeUInt32BE(Math.floor(counter / 0x1_00_00_00_00), 0);
-  counterBuffer.writeUInt32BE(counter & 0xff_ff_ff_ff, 4);
+  const counterBuffer = Buffer.allocUnsafe(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter), 0);
 
   const hmac = cryptoModule.createHmac(TOTP_CONFIG.ALGORITHM, keyBuffer);
   hmac.update(counterBuffer);
@@ -414,16 +413,18 @@ export async function verifyTOTPCode(secret: string, userCode: string): Promise<
   const cryptoModule = await getCrypto();
   const now = Math.floor(Date.now() / 1000);
   const keyBuffer = base32Decode(secret); // Decode once; shared across all windows
+  const userCodeBuf = Buffer.from(userCode);
 
   // Check current window and adjacent windows (for time drift tolerance)
   for (let i = -TOTP_CONFIG.WINDOW; i <= TOTP_CONFIG.WINDOW; i++) {
     const counter = Math.floor(now / TOTP_CONFIG.STEP) + i;
     const code = await computeTotpCode(counter, keyBuffer);
+    const codeBuf = Buffer.from(code);
 
     // Timing-safe comparison
     if (
-      code.length === userCode.length &&
-      cryptoModule.timingSafeEqual(Buffer.from(code), Buffer.from(userCode))
+      codeBuf.length === userCodeBuf.length &&
+      cryptoModule.timingSafeEqual(codeBuf, userCodeBuf)
     ) {
       return true;
     }

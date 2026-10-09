@@ -84,6 +84,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
     supportsAggregation: true,
     supportsStreaming: true,
     supportsPartitioning: true,
+    supportsNativeJson: true,
+    supportsReturning: false,
+    supportsWriteCoalescing: true,
+    supportsPreparedStatementWarmup: true,
+    supportsWireStreaming: true,
+    supportsVectorSearch: false,
     maxBatchSize: 1000,
     maxQueryComplexity: 100,
   };
@@ -1213,6 +1219,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Phase 2 statement coalescing gate: concurrent single-row inserts for the
+   * same collection coalesce into one multi-VALUES statement (PostgreSQL
+   * parity — the PG lane measured +12–16% create RPS).
+   * `SVELTY_WRITE_COALESCING=0` restores this adapter's dedicated per-row raw
+   * INSERT path (A/B control lane).
+   */
+  protected override get insertCoalescingEnabled(): boolean {
+    return process.env.SVELTY_WRITE_COALESCING !== "0";
+  }
+
+  /**
    * Raw single INSERT (no RETURNING) — MariaDB's Drizzle dialect has no
    * .returning() and the base path pays the Drizzle AST build per insert. The
    * row is reconstructed from the prepared values (identical shape to the
@@ -1273,6 +1290,16 @@ export abstract class AdapterCore extends SqlAdapterCore {
     }
     const invalid = this.validateEntryId(collection, (data as any)?._id);
     if (invalid) return invalid;
+    // Phase 2 statement coalescing (PG parity): route through the base
+    // executeInsert so concurrent same-collection inserts coalesce via the
+    // per-collection StatementCoalescer into rawInsertManyReturning's one
+    // multi-VALUES statement. `SVELTY_WRITE_COALESCING=0` keeps this
+    // adapter's dedicated raw INSERT path hot (A/B control lane). Batches
+    // that the engine declines replay per row through the base path's
+    // missing-table provision (fault isolation).
+    if (this.insertCoalescingEnabled && !options?.transaction) {
+      return super.insert(collection, data, options);
+    }
     // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
     // another caller) the raw pool path would bypass the txn connection and
     // commit immediately — defer to the base Drizzle path. With the
@@ -1378,12 +1405,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   /**
-   * Raw multi-VALUES INSERT fast path — mirrors the SQLite/PG insertMany
-   * paths: one prepared multi-row statement per chunk instead of the Drizzle
-   * AST build. MariaDB materializes multi-row RETURNING (slow — measured
-   * 62 RPS vs 190 for the no-read-back path), so rows are synthesized from
-   * the prepared values exactly like the base no-returning path. Falls back
-   * to the base path on any error or inside an outer transaction.
+   * Raw multi-VALUES INSERT fast path — serves both the seed `insertMany`
+   * path and the Phase 2 StatementCoalescer contract: it receives prepared
+   * `prepareValues` rows (timestamps/tenant baked in) and returns the created
+   * rows in INPUT ORDER, or null to decline (the coalescer then replays per
+   * row — fault isolation). One multi-row statement per chunk instead of the
+   * Drizzle AST build. MariaDB materializes multi-row RETURNING (slow —
+   * measured 62 RPS vs 190 for the no-read-back path), so RETURNING is
+   * deliberately NOT used: rows are synthesized from the prepared values
+   * exactly like the single-row no-read-back path, which makes the input
+   * order mapping exact by construction. Falls back to the base path on any
+   * error or inside an outer transaction.
    *
    * Measured and deliberately NOT replaced by `INSERT … SELECT FROM
    * JSON_TABLE` (A/B, 2026-10-04): direct binding beats JSON parse+extract

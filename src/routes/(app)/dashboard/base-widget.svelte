@@ -19,6 +19,18 @@ New Features:
 	import Button from '@components/ui/button.svelte';
 	import type { Snippet } from 'svelte';
 	import { shouldFetchOnVisibility, shouldSkipScheduledPoll } from './widget-runtime';
+	import {
+		widget_base_loading,
+		widget_base_no_content,
+		widget_base_refresh_aria,
+		widget_base_refresh_title,
+		widget_base_remove_aria,
+		widget_base_resize_aria,
+		widget_base_resize_title,
+		widget_base_retry,
+		widget_base_size_aria,
+		widget_base_snap_to
+	} from '@src/paraglide/messages';
 
 	interface ChildSnippetProps {
 		data: any;
@@ -416,7 +428,7 @@ New Features:
 						<span class="flex items-center gap-1">
 							<iconify-icon icon="mdi:refresh" width={10} class="animate-spin"></iconify-icon>
 							{#if currentRetry > 0}
-								<span>Retry {currentRetry}/{retryCount}</span>
+								<span>{widget_base_retry({ current: currentRetry, total: retryCount })}</span>
 							{/if}
 						</span>
 					{/if}
@@ -428,9 +440,9 @@ New Features:
 			<Button
 				variant="ghost"
 				onclick={() => refresh()}
-				aria-label="Refresh widget"
+				aria-label={widget_base_refresh_aria()}
 				disabled={loading}
-				title="Refresh data"
+				title={widget_base_refresh_title()}
 				class="p-0! min-w-0 preset-outlined-surface-500"
 			>
 				<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}
@@ -441,7 +453,7 @@ New Features:
 				<Button
 					variant="ghost"
 					onclick={() => (showSizeMenu = !showSizeMenu)}
-					aria-label="Change widget size"
+					aria-label={widget_base_size_aria()}
 					class="p-0! min-w-0 preset-outlined-surface-500"
 				>
 					<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
@@ -476,7 +488,7 @@ New Features:
 			<Button
 				variant="ghost"
 				onclick={onCloseRequest}
-				aria-label="Remove {label} widget"
+				aria-label={widget_base_remove_aria({ label })}
 				class="p-0! min-w-0"
 			>
 				<iconify-icon icon="mdi:close" width={18}></iconify-icon>
@@ -492,7 +504,7 @@ New Features:
 				<div
 					class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base"
 				>
-					Loading...
+					{widget_base_loading()}
 				</div>
 			{:else if endpoint && error && !internalData}
 				<div
@@ -516,7 +528,7 @@ New Features:
 					style="width: 100%; height: 100%;">{JSON.stringify(internalData, null, 2)}</pre>
 			{:else}
 				<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">
-					No content.
+					{widget_base_no_content()}
 				</div>
 			{/if}
 		</div>
@@ -528,8 +540,8 @@ New Features:
 					class="pointer-events-auto absolute z-20 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
 					style="width: 16px; height: 16px; {handle.style || ''}"
 					data-direction={handle.dir}
-					title="Resize widget by dragging {handle.dir}"
-					aria-label="Resize widget {handle.dir}"
+					title={widget_base_resize_title({ dir: handle.dir })}
+					aria-label={widget_base_resize_aria({ dir: handle.dir })}
 					onpointerdown={handleResizePointerDown}
 					role="button"
 					tabindex="0"
@@ -554,7 +566,7 @@ New Features:
 			class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded bg-tertiary-500 dark:bg-primary-500/10 backdrop-blur-sm"
 		>
 			<div class="rounded bg-tertiary-500 dark:bg-primary-500 px-4 py-2 text-white shadow-lg">
-				Snap to: {getSizeLabel(previewSize)}
+				{widget_base_snap_to({ size: getSizeLabel(previewSize) })}
 			</div>
 		</div>
 	{/if}

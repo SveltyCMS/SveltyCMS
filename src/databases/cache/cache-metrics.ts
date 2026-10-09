@@ -64,6 +64,15 @@ export class CacheMetrics {
   // Response time histogram buckets (for Prometheus)
   private responseTimeBuckets = HISTOGRAM_BOUNDS.map(() => 0);
 
+  private getOrCreateCategory(category: string) {
+    let cat = this.categoryMetrics.get(category);
+    if (!cat) {
+      cat = { hits: 0, misses: 0, totalTTL: 0, ttlCount: 0 };
+      this.categoryMetrics.set(category, cat);
+    }
+    return cat;
+  }
+
   recordHit(_key: string, category: string, tenantId?: string | null, responseTime?: number): void {
     this.hits++;
     this.requestCount++;
@@ -71,12 +80,7 @@ export class CacheMetrics {
       this.totalResponseTime += responseTime;
       this.updateResponseHistogram(responseTime);
     }
-    let cat = this.categoryMetrics.get(category);
-    if (!cat) {
-      cat = { hits: 0, misses: 0, totalTTL: 0, ttlCount: 0 };
-      this.categoryMetrics.set(category, cat);
-    }
-    cat.hits++;
+    this.getOrCreateCategory(category).hits++;
     if (tenantId) {
       let ten = this.tenantMetrics.get(tenantId);
       if (!ten) {
@@ -101,12 +105,7 @@ export class CacheMetrics {
       this.totalResponseTime += responseTime;
       this.updateResponseHistogram(responseTime);
     }
-    let cat = this.categoryMetrics.get(category);
-    if (!cat) {
-      cat = { hits: 0, misses: 0, totalTTL: 0, ttlCount: 0 };
-      this.categoryMetrics.set(category, cat);
-    }
-    cat.misses++;
+    this.getOrCreateCategory(category).misses++;
     if (tenantId) {
       let ten = this.tenantMetrics.get(tenantId);
       if (!ten) {
@@ -118,7 +117,9 @@ export class CacheMetrics {
   }
 
   recordSet(key: string, category: string, ttl: number, tenantId?: string | null): void {
-    this.updateCategory(category, { totalTTL: ttl, ttlCount: 1 });
+    const cat = this.getOrCreateCategory(category);
+    cat.totalTTL += ttl;
+    cat.ttlCount++;
     this.addEvent({
       type: "set",
       key,
@@ -143,30 +144,6 @@ export class CacheMetrics {
       category,
       tenantId,
     });
-  }
-
-  private updateCategory(
-    category: string,
-    updates: Partial<{
-      hits: number;
-      misses: number;
-      totalTTL: number;
-      ttlCount: number;
-    }>,
-  ): void {
-    const metrics = this.categoryMetrics.get(category) || {
-      hits: 0,
-      misses: 0,
-      totalTTL: 0,
-      ttlCount: 0,
-    };
-    Object.assign(metrics, {
-      hits: metrics.hits + (updates.hits || 0),
-      misses: metrics.misses + (updates.misses || 0),
-      totalTTL: metrics.totalTTL + (updates.totalTTL || 0),
-      ttlCount: metrics.ttlCount + (updates.ttlCount || 0),
-    });
-    this.categoryMetrics.set(category, metrics);
   }
 
   private addEvent(event: Omit<InternalCacheEvent, "timestamp">): void {
@@ -299,6 +276,10 @@ export class CacheMetrics {
   }
 
   private updateResponseHistogram(time: number): void {
+    if (time <= 0) {
+      this.responseTimeBuckets[0]++;
+      return;
+    }
     const buckets = this.responseTimeBuckets;
     const len = buckets.length;
     for (let i = 0; i < len; i++) {

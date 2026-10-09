@@ -23,12 +23,12 @@ export const LOCK_ERROR = "";
 
 export class CacheLockManager {
   private pendingRequests = new Map<string, Promise<any>>();
-  private lockedKeys = new Map<string, Promise<boolean>>();
   private activeLocks = new Map<string, string>();
 
   /**
    * Coalesces concurrent asynchronous operations for the exact same key into a single execution
    * with occupant guard and timeout safety to prevent permanent stalls.
+   * 🚀 Zero-allocation single-promise coalescing (replaces Promise.race + execution wrapper).
    */
   async coalesce<T>(key: string, fn: () => Promise<T>, timeoutMs = 8000): Promise<T> {
     const existing = this.pendingRequests.get(key);
@@ -36,28 +36,34 @@ export class CacheLockManager {
       return existing as Promise<T>;
     }
 
-    let timeoutHandle: any;
-    const timeoutPromise = new Promise<never>((_, reject) => {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const promise = new Promise<T>((resolve, reject) => {
       timeoutHandle = setTimeout(() => {
+        if (this.pendingRequests.get(key) === promise) {
+          this.pendingRequests.delete(key);
+        }
         reject(new Error(`[CacheLock] Coalesce timeout after ${timeoutMs}ms for ${key}`));
       }, timeoutMs);
       if (typeof timeoutHandle?.unref === "function") timeoutHandle.unref();
+
+      fn().then(
+        (val) => {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+          if (this.pendingRequests.get(key) === promise) {
+            this.pendingRequests.delete(key);
+          }
+          resolve(val);
+        },
+        (err) => {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+          if (this.pendingRequests.get(key) === promise) {
+            this.pendingRequests.delete(key);
+          }
+          reject(err);
+        },
+      );
     });
 
-    const ref: { current: Promise<T> | null } = { current: null };
-    const executionPromise = (async () => {
-      try {
-        return await fn();
-      } finally {
-        if (timeoutHandle) clearTimeout(timeoutHandle);
-        if (ref.current && this.pendingRequests.get(key) === ref.current) {
-          this.pendingRequests.delete(key);
-        }
-      }
-    })();
-
-    const promise = Promise.race([executionPromise, timeoutPromise]);
-    ref.current = promise;
     this.pendingRequests.set(key, promise);
     return promise;
   }
@@ -76,6 +82,10 @@ export class CacheLockManager {
 
   deletePending(key: string): void {
     this.pendingRequests.delete(key);
+  }
+
+  hasActiveLock(key: string): boolean {
+    return this.activeLocks.has(key);
   }
 
   /**
@@ -100,7 +110,6 @@ export class CacheLockManager {
       });
       if (result !== "OK") return null;
 
-      this.lockedKeys.set(lockKey, Promise.resolve(true));
       this.activeLocks.set(key, ownerId);
       return ownerId;
     } catch (err) {
@@ -133,7 +142,6 @@ export class CacheLockManager {
     } catch (err) {
       logger.error(`[CacheLock] Failed to release lock for ${key}`, err);
     } finally {
-      this.lockedKeys.delete(lockKey);
       this.activeLocks.delete(key);
     }
   }
@@ -149,9 +157,10 @@ export class CacheLockManager {
     deserializeFn: (val: any) => any,
     onHydrate?: (k: string) => void,
   ): Promise<void> {
-    const start = Date.now();
+    if (l1.has(key)) return;
+    const deadline = Date.now() + maxWaitMs;
     let delay = 10;
-    while (Date.now() - start < maxWaitMs) {
+    while (Date.now() < deadline) {
       if (l1.has(key)) break;
 
       if (l2 && l2.isOpen) {
@@ -175,7 +184,6 @@ export class CacheLockManager {
 
   clear(): void {
     this.pendingRequests.clear();
-    this.lockedKeys.clear();
     this.activeLocks.clear();
   }
 }

@@ -61,11 +61,13 @@ import {
   buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
+  getEffectiveTenantId,
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
+import { PG_STATEMENT_WARMUP_ENV, IMPOSSIBLE_ID } from "./statement-warmup";
 
 /**
  * Keep date/timestamp as ISO text. postgres.js default-parses timestamptz to
@@ -80,6 +82,11 @@ const PG_TEXT_DATE_TYPES = {
     parse: (x: unknown) => x,
   },
 };
+
+/** VALUES-join UPDATE template size buckets — stable SQL text per bucket. */
+const UPDATE_BATCH_SIZE_BUCKETS = [2, 4, 8, 16];
+/** Largest single chunk executed per multi-row UPDATE statement. */
+const MAX_UPDATE_BATCH_SIZE = UPDATE_BATCH_SIZE_BUCKETS[UPDATE_BATCH_SIZE_BUCKETS.length - 1];
 
 /**
  * Idle reclaim for every postgres.js pool (shared, replica, dedicated tenant).
@@ -157,6 +164,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     supportsAggregation: true,
     supportsStreaming: true,
     supportsPartitioning: true,
+    supportsNativeJson: true,
+    supportsReturning: true,
+    supportsWriteCoalescing: true,
+    supportsPreparedStatementWarmup: true,
+    supportsWireStreaming: true,
+    supportsVectorSearch: false,
     maxBatchSize: 1000,
     maxQueryComplexity: 100,
   };
@@ -319,6 +332,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Phase 2 statement coalescing gate: concurrent single-row inserts for the
+   * same collection coalesce into one UNNEST multi-row statement.
+   * `SVELTY_WRITE_COALESCING=0` restores the per-row path (A/B control lane).
+   */
+  protected override get insertCoalescingEnabled(): boolean {
+    return process.env.SVELTY_WRITE_COALESCING !== "0";
+  }
+
+  /**
    * Fast multi-row raw INSERT for PostgreSQL:
    * Batches multiple synthesized rows into a single parameterized UNNEST query
    * with stable SQL text, hitting the postgres.js prepared statement cache.
@@ -384,7 +406,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const row = synthesizedRows[r];
         for (let c = 0; c < numCols; c++) {
           const colName = tpl.synthCols[c];
-          colArrays[c][r] = bindPgParam(row[colName], tpl.isJsonMap[c]);
+          const val = bindPgParam(row[colName], tpl.isJsonMap[c]);
+          colArrays[c][r] = val === null || val === undefined ? null : String(val);
         }
       }
 
@@ -401,6 +424,196 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       logger.debug(`[PostgreSQL] rawInsertManyReturning error for ${collection}:`, err);
       return null;
     }
+  }
+
+  /**
+   * Phase 2 statement coalescing gate for updates. Opt-in (`=1`): the lever
+   * is profile-dependent — measured +11–15 % on the 100k-doc external harness
+   * (8–16-row batches amortize the VALUES join) but −41–54 % on the matrix's
+   * 10k-doc replica across two paired A/Bs (2026-10-09), so it must not ship
+   * as a default at that profile. The UNNEST join form lost −14 % — postgres.js
+   * pipeline mode already overlaps single UPDATE round trips and the casts cost
+   * more than they save at wave-sized batches.
+   * Insert coalescing stays on `SVELTY_WRITE_COALESCING` (measured +12–16 %).
+   */
+  protected override get updateCoalescingEnabled(): boolean {
+    return process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
+  }
+
+  /**
+   * Multi-row UPDATE…FROM (VALUES …) fast path (statement coalescing).
+   * One pre-compiled template per size bucket (2/4/8/16) keeps the SQL text
+   * stable for the prepared-statement cache while giving the planner an exact
+   * row count (the UNNEST function scan's unknown cardinality made the planner
+   * pick worse joins — the measured −14% regression). Partial buckets pad with
+   * sentinel rows (impossible UUIDv7 — never matches, never writes).
+   *
+   * All rows in the batch share one column signature and the tenant shape
+   * (guaranteed by the coalescer's group key). Returns null to decline — the
+   * caller replays every row through its single-statement path.
+   */
+  protected override async rawUpdateManyReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
+  ): Promise<T[] | null> {
+    const len = batch.length;
+    if (len === 0) return [];
+    const options = batch[0].options;
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      const tableName = getTableName(table);
+      const idColName = this.getColumn(table, "_id")?.name ?? "_id";
+
+      // Column signature: SET columns from the first row (all rows share it).
+      const columns = Object.keys(batch[0].values).filter(
+        (c) => c !== idColName && c !== "id" && c !== "tenantId",
+      );
+      if (columns.length === 0) return null;
+
+      const tenant = getEffectiveTenantId(options);
+      const hasTenant = tenant !== undefined && tenant !== null;
+      const skipReturning = (options as any)?.skipReturning === true;
+      const templates = this.getUpdateValuesTemplates(
+        table,
+        tableName,
+        idColName,
+        columns,
+        hasTenant,
+        skipReturning,
+      );
+
+      // text binding: every cell coerced to text (objects → JSON) so the
+      // ::text-typed VALUES cells parse deterministically for every column cast.
+      const toText = (val: unknown): string | null => {
+        if (val === null || val === undefined) return null;
+        if (typeof val === "object") return JSON.stringify(val);
+        return String(val);
+      };
+
+      const results: T[] = [];
+      for (let offset = 0; offset < len; offset += MAX_UPDATE_BATCH_SIZE) {
+        const chunk = batch.slice(offset, offset + MAX_UPDATE_BATCH_SIZE);
+        const tpl = templates.find((t) => t.size >= chunk.length);
+        if (!tpl) return null;
+
+        // Flat parameter list: real rows first, then sentinel padding rows.
+        const params: (string | null)[] = [];
+        for (let r = 0; r < tpl.size; r++) {
+          const row = r < chunk.length ? chunk[r] : null;
+          for (const col of columns) params.push(row ? toText(row.values[col]) : null);
+          params.push(row ? String(row.id) : IMPOSSIBLE_ID);
+          if (hasTenant) {
+            params.push(row ? toText(getEffectiveTenantId(row.options)) : IMPOSSIBLE_ID);
+          }
+        }
+
+        if (skipReturning) {
+          await exec.unsafe(tpl.sqlText, params, { prepare: true });
+          // Parity with the single skipReturning path: reconstruct from memory.
+          for (const row of chunk) {
+            results.push(
+              convertDatesToISO(
+                { ...row.values, [idColName]: row.id },
+                { ...this.convertDatesOptions, table: collection },
+              ) as unknown as T,
+            );
+          }
+          continue;
+        }
+
+        const rows = await exec.unsafe(tpl.sqlText, params, { prepare: true });
+        // Map rows back to callers in input order; any missing row (concurrently
+        // deleted) declines the whole batch so each caller replays its own path.
+        const byId = new Map<string, Record<string, any>>();
+        for (const row of rows as Record<string, any>[]) {
+          byId.set(String(row[idColName] ?? row._id), row);
+        }
+        for (const entry of chunk) {
+          const found = byId.get(String(entry.id));
+          if (!found) return null;
+          results.push(
+            convertDatesToISO(found, {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as unknown as T,
+          );
+        }
+      }
+      return results;
+    } catch (err) {
+      logger.debug(`[PostgreSQL] rawUpdateManyReturning error for ${collection}:`, err);
+      return null;
+    }
+  }
+
+  /** Per-column cast expression for a VALUES-join UPDATE cell. */
+  private pgUpdateCastExpr(table: any, col: string, i: number): string {
+    const phys = this.getColumn(table, col);
+    const isJson = col === "data" || String((phys as any)?.columnType).includes("Json");
+    if (isJson) return `u.c${i}::jsonb`;
+    if (phys?.dataType === "date" || String((phys as any)?.columnType).includes("Timestamp")) {
+      return `u.c${i}::timestamptz`;
+    }
+    if (phys?.dataType === "boolean") return `u.c${i}::boolean`;
+    if (phys?.dataType === "number" || String((phys as any)?.columnType).includes("Int")) {
+      return `u.c${i}::numeric`;
+    }
+    return `u.c${i}`;
+  }
+
+  private _updateValuesTemplateCache = new Map<string, Array<{ size: number; sqlText: string }>>();
+
+  /**
+   * Pre-compiled per-size-bucket VALUES-join UPDATE templates. Stable SQL text
+   * per (table, columns, tenant shape, returning mode, size) — prepared-cache
+   * friendly, and the planner sees the exact VALUES cardinality.
+   */
+  private getUpdateValuesTemplates(
+    table: any,
+    tableName: string,
+    idColName: string,
+    columns: string[],
+    hasTenant: boolean,
+    skipReturning: boolean,
+  ): Array<{ size: number; sqlText: string }> {
+    const key = `${tableName}\u0000${columns.join(",")}\u0000${hasTenant ? 1 : 0}\u0000${skipReturning ? 1 : 0}`;
+    const cached = this._updateValuesTemplateCache.get(key);
+    if (cached) return cached;
+
+    const safeTableName = assertSafeSqlIdentifier(tableName, "table");
+    const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+    const setClauses = columns.map((col, i) => {
+      const phys = this.getColumn(table, col);
+      const physical = phys?.name ?? col;
+      return `"${assertSafeSqlIdentifier(physical, "column")}" = ${this.pgUpdateCastExpr(table, col, i)}`;
+    });
+    const aliasCols = [
+      ...columns.map((_, i) => `c${i}`),
+      "_id",
+      ...(hasTenant ? ["_tenantId"] : []),
+    ].join(", ");
+    const where = hasTenant
+      ? `t."${safeIdCol}" = u._id AND t."tenantId" = u._tenantId`
+      : `t."${safeIdCol}" = u._id`;
+
+    const templates = UPDATE_BATCH_SIZE_BUCKETS.map((size) => {
+      const rowsSql: string[] = [];
+      let p = 0;
+      for (let r = 0; r < size; r++) {
+        const cells: string[] = [];
+        for (let c = 0; c < columns.length; c++) cells.push(`$${++p}::text`);
+        cells.push(`$${++p}::text`);
+        if (hasTenant) cells.push(`$${++p}::text`);
+        rowsSql.push(`(${cells.join(", ")})`);
+      }
+      const sqlText = `UPDATE "${safeTableName}" AS t SET ${setClauses.join(", ")} FROM (VALUES ${rowsSql.join(", ")}) AS u(${aliasCols}) WHERE ${where}${skipReturning ? "" : " RETURNING t.*"}`;
+      return { size, sqlText };
+    });
+    this._updateValuesTemplateCache.set(key, templates);
+    return templates;
   }
 
   protected _updateTemplateCache = new Map<
@@ -1271,10 +1484,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
       return Array.isArray(rows) ? rows : [];
     }
-    return this.queueGate.acquire(async () => {
+    const isWrite = /^\s*(?:INSERT|UPDATE|DELETE)\b/i.test(sqlText);
+    const run = async () => {
       const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
       return Array.isArray(rows) ? rows : [];
-    });
+    };
+    return isWrite ? this.queueGate.coalesceWrite(run) : this.queueGate.acquire(run);
   }
 
   /**
@@ -1976,6 +2191,31 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
   public isConnected(): boolean {
     return this.connected;
+  }
+
+  /**
+   * Phase-1 statement warm-up (see statement-warmup.ts): crosses the planner's
+   * custom-plan window on every pooled connection before traffic arrives, so
+   * the first requests already run on generic plans.
+   *
+   * Non-fatal and env-gated (`SVELTY_PG_STATEMENT_WARMUP=0` disables).
+   */
+  public async warmPreparedStatements(): Promise<void> {
+    if (process.env[PG_STATEMENT_WARMUP_ENV] === "0") return;
+    if (!this.connected || !this.sql) return;
+    try {
+      const opts = this._rawConnectionConfig?.options as { max?: number } | undefined;
+      const poolMax = Number(opts?.max) || 20;
+      const { warmPgPreparedStatements } = await import("./statement-warmup");
+      const stats = await warmPgPreparedStatements(this.sql, poolMax);
+      logger.info(
+        `[PostgreSQL] Statement warm-up: ${stats.warmed}/${stats.total} prepared statements on generic plans`,
+      );
+    } catch (err) {
+      logger.debug(
+        `[PostgreSQL] Statement warm-up skipped: ${(err as Error)?.message ?? String(err)}`,
+      );
+    }
   }
 
   public async waitForConnection(): Promise<void> {

@@ -12,7 +12,20 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SiteName from '@src/components/site-name.svelte';
-	import { collection_add, collection_addcategory } from '@src/paraglide/messages';
+	import {
+		builder_collection_required_part1,
+		builder_collection_required_part2,
+		builder_empty_blueprint,
+		builder_empty_intro,
+		builder_empty_your,
+		builder_quick_start,
+		builder_quick_start_aria,
+		builder_quick_start_recommended,
+		builder_templates_note_part1,
+		button_save,
+		collection_add,
+		collection_addcategory
+	} from '@src/paraglide/messages';
 	import { fade, scale } from 'svelte/transition';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 
@@ -57,11 +70,12 @@
 	<!-- Text Content -->
 	<div class="max-w-lg space-y-2" in:fade={{ duration: 400, delay: 400 }}>
 		<h2 class="text-2xl font-bold tracking-tight text-black dark:text-white sm:text-3xl">
-			Your <SiteName highlight="CMS" /> Blueprint is Empty
+			{builder_empty_your()}
+			<SiteName highlight="CMS" />
+			{builder_empty_blueprint()}
 		</h2>
 		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-50">
-			Start with a Quick Start template for ready-made collections, or add a collection manually.
-			Categories are optional — use them only if you want to group collections in the sidebar.
+			{builder_empty_intro()}
 		</p>
 	</div>
 
@@ -74,14 +88,14 @@
 					variant="warning"
 					size="md"
 					class="group w-full min-w-0 justify-center"
-					aria-label="Quick Start — recommended for new projects"
+					aria-label={builder_quick_start_aria()}
 				>
 					<iconify-icon
 						icon="mdi:magic-staff"
 						width="22"
 						class="transition-transform group-hover:rotate-12"
 					></iconify-icon>
-					<span>Quick Start</span>
+					<span>{builder_quick_start()}</span>
 				</Button>
 			{/if}
 
@@ -124,16 +138,18 @@
 				class="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-medium text-tertiary-600 dark:text-primary-500"
 			>
 				<iconify-icon icon="mdi:star-four-points" width="12" aria-hidden="true"></iconify-icon>
-				Quick Start is recommended for new projects
+				{builder_quick_start_recommended()}
 			</p>
 		{/if}
 
 		<p class="mx-auto mt-4 max-w-md text-xs text-surface-600 dark:text-surface-400" role="note">
-			Templates apply immediately. Categories and layout changes require <strong>Save</strong>.
+			{builder_templates_note_part1()} <strong>{button_save()}</strong>.
 		</p>
 
 		<p class="mt-2 text-xs italic text-tertiary-500 dark:text-primary-500">
-			At least one collection is required to use the {publicEnv.SITE_NAME} features.
+			{builder_collection_required_part1()}
+			{publicEnv.SITE_NAME}
+			{builder_collection_required_part2()}
 		</p>
 	</div>
 </div>

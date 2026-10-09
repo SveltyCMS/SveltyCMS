@@ -24,6 +24,8 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 -->
 
 <script lang="ts">
+	import { widget_email_link_title } from '@src/paraglide/messages';
+
 	const { value }: { value: string | null | undefined } = $props();
 </script>
 
@@ -34,7 +36,7 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 		<a
 			href="mailto:{value}"
 			class="text-tertiary-600 dark:text-primary-500 hover:underline font-medium transition-colors"
-			title="Email: {value}"
+			title={widget_email_link_title({ value })}
 		>
 			{value}
 		</a>

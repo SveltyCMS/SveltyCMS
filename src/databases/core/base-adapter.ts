@@ -301,6 +301,9 @@ export abstract class BaseAdapter {
     },
   ): Promise<DatabaseResult<T>> {
     if (this.queueGate && !options?.transaction) {
+      if (options?.isWrite) {
+        return this.queueGate.coalesceWrite(() => this.wrapInternal(fn, code, message, options));
+      }
       return this.queueGate.acquire(() => this.wrapInternal(fn, code, message, options));
     }
     return this.wrapInternal(fn, code, message, options);

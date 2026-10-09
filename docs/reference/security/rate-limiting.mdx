@@ -1,0 +1,163 @@
+---
+path: "docs/reference/security/rate-limiting.mdx"
+title: "Rate Limiting"
+description: "Cluster-wide rate limiting for SveltyCMS: atomic Redis token bucket with seamless in-memory fallback, adaptive capacity by tier × tenant plan × system pressure, predictive throttling, and cost-aware lanes."
+order: 4
+icon: "mdi:speedometer"
+author: "SveltyCMS Team"
+created: "2026-10-09"
+updated: "2026-10-09"
+tags:
+  - "security"
+  - "rate-limiting"
+  - "redis"
+  - "middleware"
+---
+
+# Rate Limiting (Token Bucket with Redis Fallback)
+
+Cluster-wide rate limiting for SveltyCMS. Primary store is **Redis (atomic token bucket)** with a
+seamless **in-memory fallback** and **adaptive capacity** per user profile. This page documents the
+engine in `src/utils/rate-limit/`; the login-specific limiter work (IP resolution, `RATE_LIMIT_SECRET`)
+lives in [Login security](./login-security.mdx).
+
+## Architecture
+
+| File                  | Responsibility                                                     |
+| --------------------- | ------------------------------------------------------------------ |
+| `token-bucket.ts`     | Pure token-bucket math (no dependencies)                           |
+| `adaptive.ts`         | Adaptive capacity by tier × tenant plan × system pressure          |
+| `role-tiers.ts`       | RBAC seeding of role tiers (hot path: set lookup, no DB access)    |
+| `tenant-plan.ts`      | In-memory plan cache per `tenantId` (hot path: map get)            |
+| `system-pressure.ts`  | EWMA over CPU/RAM → capacity reduction (no cost inflation)         |
+| `request-clock.ts`    | Predictive throttling (time series → predicted pressure)           |
+| `request-velocity.ts` | Per-key velocity tax (EMA of the request rate, observability only) |
+| `endpoint-cost.ts`    | Cost-aware limiting (cost per path, no explicit `cost` argument)   |
+| `config.ts`           | Loads and normalizes `RATE_LIMIT_*` environment parameters         |
+| `redis-client.ts`     | Redis connection manager + connection detector (fail-open)         |
+| `memory-store.ts`     | In-memory fallback (bounded, LRU, cleanup)                         |
+| `index.ts`            | Orchestrator: adapt → Redis → memory fallback (public API)         |
+
+The middleware hook is `src/hooks/handle-rate-limit.ts` (wired into `hooks.server.ts`; it protects
+all `/api` mutations after authentication). There is exactly **one** mutation limiter — the former
+second Redis hook was removed; the Lua script lives only in `redis-client.ts`.
+
+## Token-bucket algorithm
+
+A bucket has `capacity` (max burst) and `refillPerSecond` (refill rate).
+
+- **Refill:** `tokens += elapsedSec * refillPerSecond`, capped at `capacity`.
+- **Allow:** when `tokens >= cost` → `tokens -= cost`; otherwise **429** with
+  `Retry-After = ceil((cost - tokens) / refillPerSecond)`.
+- On denial the state stays **unchanged** (refill only) — no double penalty.
+- Redis uses an atomic **Lua script** (`EVAL`), cluster-slot safe (single key).
+
+### Request flow
+
+1. `loadBaseRateLimitConfig()` reads the base configuration from environment variables.
+2. `computeAdaptiveBucket()` adjusts `capacity`/`refill` for the caller's profile.
+3. `rateLimit()` tries **Redis** first → on error/timeout it falls back to **memory** (with logging).
+4. The hook sets `X-RateLimit-*` headers or returns **429** (`RATE_LIMITED`).
+
+## Configuration
+
+| Variable                    | Default                  | Meaning                                                     |
+| --------------------------- | ------------------------ | ----------------------------------------------------------- |
+| `RATE_LIMIT_CAPACITY`       | 100                      | Max burst / bucket capacity                                 |
+| `RATE_LIMIT_MAX_REQUESTS`   | 100                      | Compatibility alias for `CAPACITY` (`NODE_ENV!=prod`: 1000) |
+| `RATE_LIMIT_WINDOW_MS`      | 60000                    | Window in ms (drives the derived refill rate)               |
+| `RATE_LIMIT_REFILL_PER_SEC` | `capacity/windowSec`     | Explicit refill rate in tokens/s (overrides the derivation) |
+| `RATE_LIMIT_REDIS_PING_MS`  | 30000                    | Ping interval of the Redis detector                         |
+| `REDIS_URL`                 | `redis://127.0.0.1:6379` | Redis endpoint                                              |
+
+### Refill-rate default
+
+When `RATE_LIMIT_REFILL_PER_SEC` is not set, the bucket refills **completely once per window**:
+`refillPerSecond = capacity / (windowMs / 1000)`.
+
+### Adaptive capacity (tier × tenant plan × system pressure)
+
+`capacity = base.capacity × tierMultiplier × tenantPlanScale × pressureFactor`, clamped to `>= 1`.
+The refill rate scales proportionally so the time to a "full bucket" stays constant.
+
+| Tier      | Determination                                       | Multiplier |
+| --------- | --------------------------------------------------- | ---------- |
+| Admin     | `isAdmin` (server session only) / seeded admin role | 10×        |
+| Staff     | Role with write permission (RBAC seed)              | 2×         |
+| Guest     | `userId` present                                    | 2×         |
+| Anonymous | No `userId` (bot surface)                           | 1×         |
+
+Roles do **not** come from a name list inside the limiter — they are seeded via
+`seedRoleTiers()` from `getAllRoles()` (`role-tiers.ts`); the hot path is a set lookup without a
+database query.
+
+The tenant plan is written into an in-memory cache via `seedTenantPlan()` (for example from
+`tenant-service`): `enterprise` 3×, `pro` 1.5×, `free`/unknown 1×. A miss or an expired entry
+yields 1× — the limiter never queries the database.
+
+System pressure (`system-pressure.ts`, EWMA over CPU/RAM) additionally lowers capacity for
+non-admin tiers; admins stay exempt. When the predicted pressure is above 0.75, the engine applies
+prophylactic multipliers: staff 0.85× / guest 0.7× / anonymous 0.55×.
+
+## Redis outage (fail-open fallback)
+
+- `connect()` attempts a connection (timeout defaults to 1000 ms). On failure the store becomes
+  `unavailable`.
+- The ping detector checks Redis every `RATE_LIMIT_REDIS_PING_MS`. A runtime failure (connection
+  lost, timeout) flips the store to `unavailable` immediately and the next request lands in the
+  **memory fallback**. Redis can come back later without a restart.
+- **Fail-open:** if neither Redis nor local state is available (unlikely), the request is
+  **let through** — availability beats blocking on errors.
+- Every fallback is logged (`[RateLimit] Redis fehlgeschlagen, lokaler Fallback aktiv`).
+- Success headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`,
+  `X-RateLimit-Lane`. When a tenant bucket exists, `X-RateLimit-Scope: tenant` and
+  `X-RateLimit-Tenant-Remaining` are added. On 429, `Retry-After` is included.
+
+## Endpoints and limits
+
+- Only `/api` paths are protected; `GET/HEAD/OPTIONS` are free (mutations are the brute-force
+  scenario).
+- Excluded: `/api/setup`, `/api/system/health`, `/api/testing`, `/favicon.ico`, `/.well-known`.
+- Bucket key = `rl:<namespace>:<tenantId>:<cost>` (no PII; the namespace contains the IP hash).
+
+## Using the engine directly
+
+```ts
+import { initRateLimiter, resetRateLimitStores, rateLimit } from "@utils/rate-limit";
+
+await initRateLimiter(); // idempotent, fallback-safe
+
+const decision = await rateLimit({
+  context: { tenantId: "acme", userId: "u1" },
+  namespace: "api", // bucket isolation
+  cost: 1, // e.g. 4 for sensitive endpoints
+});
+
+if (!decision.allowed) {
+  // 429 with Retry-After = decision.retryAfterSeconds
+}
+```
+
+## Tests
+
+```
+npx vitest run tests/unit/rate-limit
+```
+
+- `token-bucket.test.ts` — pure bucket math (refill, burst, denial).
+- `adaptive.test.ts` — tier/plan/pressure → capacity mapping.
+- `redis-client.test.ts` — connection detector (unreachable endpoint → unavailable).
+- `engine-fallback.test.ts` — Redis down → memory fallback, limits keep applying.
+- `system-pressure.test.ts` — EWMA scaling and the rejection threshold.
+- `request-clock.test.ts` / `request-velocity.test.ts` — predictive pressure and velocity tax.
+- `endpoint-cost.test.ts` — cost mapping per path.
+
+The HTTP 429 path (`RATE_LIMITED` plus headers) is covered in `tests/unit/hooks/rate-limit.test.ts`.
+
+## Related
+
+- [Login security](./login-security.mdx) — IP resolution and the rate limiter secret
+- [Login resilience](./login-resilience.mdx)
+- [Server hooks](../architecture/server-hooks.mdx) — middleware order
+- [API security and token hardening](./api-security.mdx)
+- [Test-to-docs cross-reference](../../tests/test-to-docs-map.mdx)

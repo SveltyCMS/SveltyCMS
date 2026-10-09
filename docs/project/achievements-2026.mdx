@@ -2128,7 +2128,15 @@ checkpoint spikes are gone), matching the earlier single-run A/B (`AUTOCHECKPOIN
 excess ≈ 6.5 ms). The absolute tail excess is still above the 4 ms `WATCH` bound: the checkpoint spikes were
 removed, the write-mutex queue is not.
 
-**Opt-in (`SVELTY_SQLITE_GROUP_COMMIT=1`) — write coalescing.** New `src/databases/sqlite/write-batcher.ts`
+**Shipped default ON (2026-10-09) — group commit is the default write path.** The batcher is now constructed
+by default (`SVELTY_SQLITE_GROUP_COMMIT` defaults to `1`; `=0` restores the per-write commit control lane).
+Paired A/B on the 10k-doc matrix replica (`competitive-workload-replica`, `--db=sqlite`):
+**create @8c 1,833 → 2,892 RPS (+57.8 %)** and **update @8c 1,896 → 3,347 RPS (+76.6 %)** with improved p95
+(6.74 → 5.29 ms and 5.38 → 3.48 ms), `mixed @8c` +12.1 %, `Seed Burst` +8.0 %; sequential lanes neutral
+(update +1.7 %) except create −9.9 % (single-pair, within the lane's CoV). The remaining acceptance gate
+(no 🔴 row, `--strict-variance` green on a ≥3-run ensemble) is tracked in the roadmap.
+
+**Opt-in (`SVELTY_SQLITE_GROUP_COMMIT=1`) — write coalescing (original measurement).** New `src/databases/sqlite/write-batcher.ts`
 queues batchable single-statement writes and drains them on a bounded event-loop tick
 (`setImmediate`/`queueMicrotask`, never a delay timer) into one `BEGIN IMMEDIATE … COMMIT`; each op keeps a
 `SAVEPOINT` so one failure rolls back only itself, results are buffered and settled after `COMMIT`, and a lone
@@ -2148,6 +2156,20 @@ per-statement commit itself; the win here is queue coalescing, not a cheaper com
 `maxBatchSize` split, per-op isolation, throw/unsettled safety net, default-scheduler deferral) and
 `tests/unit/databases/wal-scheduling.test.ts` (9 cases: size-cap band, interval gate, idle precedence,
 scheduler wiring). `node ./node_modules/vitest/vitest.mjs run tests/unit/databases` → 53 files / 461 passed.
+
+- **Phase 4: True Statement Coalescing & Adaptive Window (2026-10)**: Replaced per-write TCP statement round trips with PostgreSQL array-based multi-row statement coalescing (`statement-coalescer.ts`, `postgresql/adapter-core.ts`):
+  - **INSERT Coalescing (default ON via `SVELTY_WRITE_COALESCING`)**: Batches concurrent single-row inserts for the same collection into `INSERT INTO ... SELECT ... FROM UNNEST($1::text[], ...) RETURNING *` with `String(val)` text-array coercion. Measured across alternated replica runs on PostgreSQL (100k docs, 8c): **+12–18% create throughput** (2,216 → 2,624 RPS) with improved p95 latency (4.05–4.21 ms vs 4.76–4.94 ms).
+  - **UPDATE Coalescing with Lever 2 Adaptive Window (`SVELTY_WRITE_COALESCE_UPDATE=1`, `SVELTY_COALESCE_UPDATE_WINDOW_MS=1`)**: Executes multi-row `UPDATE ... FROM UNNEST(...) WHERE t._id = u._id` with an adaptive 1 ms burst-hold window. While wave-sized batches (2–5 rows) previously regressed due to UNNEST join/cast overhead, the 1 ms window grows batches to 8–16 rows where the join amortizes, delivering **+11–15% update throughput gain** (update/create ratio 1.17–1.18 vs control 1.02–1.07) on the 100k-doc harness. Lone writes still flush on the tick boundary with 0 ms added hold delay. **2026-10-09:** two paired A/Bs on the 10k-doc matrix replica measured −41–54 % on the update lanes with the lever defaulted, so it stays **opt-in** — the gain is harness-profile-dependent (batch-size dynamics at 10k docs never reach the amortizing 8–16-row waves).
+  - **Fault Isolation**: Batch rejection or duplicate-key aborts automatically replay each row individually through its single-statement path — no sibling write is corrupted by an error. Verified: `tests/unit/databases/statement-coalescer.test.ts` (8/8 green), full unit suite 5,666/5,666 green.
+
+- **Phase 5: Cold Read Lane Direct-to-Wire List Streaming (`findListWireStream`) (2026-10-09)**: Extended the Wire Plane architecture from point reads (`findPointWireStream`) to cold list reads (`findListWireStream` in `handle-collection-read-lane.ts`):
+  - **In-Engine Direct-to-Wire Aggregation**: Eliminates V8 entity hydration, DTO transformations, and `JSON.stringify` allocations by producing the wire JSON array inside the database engine.
+  - **Fail-Closed Admission Predicate**: Enforces strict admissibility via `isWirePlaneAdmissible(event, wireMeta)`: requires published-only status, default pagination limit (50), page 1, no custom filter/sort, absence of mutating lifecycle hooks, and projection equivalence.
+  - **Strict Multi-Engine Paired A/B Measurement**: Evaluated across paired alternating arms (Domain Plane vs Direct-to-Wire, 3 alternated pairs, 50-row pages):
+    - **SQLite (In-Process C Engine)**: **+22.7% to +50.2% RPS** (0.124 ms → 0.083 ms, **−33.1% latency**). Shipped and enabled.
+    - **PostgreSQL (Client-Server Network Engine)**: **−29.9% RPS** (0.852 ms → 1.215 ms, +42.6% latency). Server-side `jsonb_agg` serialization in the Postgres backend is slower than Node.js V8 binary-row parsing + C++ `JSON.stringify`. Declines list wire contract (`{ kind: "declined" }`), seamlessly preserving the faster Domain Plane.
+    - **MariaDB (Client-Server Network Engine)**: **−16.0% RPS** (0.873 ms → 1.046 ms, +19.8% latency). `JSON_ARRAYAGG` similarly incurs server-side serialization overhead. Declines list wire contract.
+  - **Verification**: `tests/unit/hooks/collection-read-lane.test.ts` (22/22 green), full core unit suite (139 files, 1,416 tests green), `tsc --noEmit` clean, `bun run check` clean, `bun run risk:audit` 5/5 clean.
 
 ## Related
 

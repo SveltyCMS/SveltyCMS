@@ -53,37 +53,32 @@ export interface TotpRegistryAdapter {
 // In-Memory Adapter (single-instance deployments)
 // ---------------------------------------------------------------------------
 
-interface ConsumedEntry {
-  userId: string;
-  code: string;
-  expiresAt: number;
-}
-
 export class InMemoryTotpRegistryAdapter implements TotpRegistryAdapter {
-  private _store = new Map<string, ConsumedEntry>();
-
-  private _makeKey(userId: string, code: string): string {
-    return `${userId}:${code}`;
-  }
+  private _store = new Map<string, number>();
+  private static readonly MAX_ENTRIES = 10_000;
 
   async tryInsert(userId: string, code: string, expiresAt: number): Promise<boolean> {
-    const key = this._makeKey(userId, code);
+    const key = `${userId}:${code}`;
 
     // Check for existing non-expired entry (atomic at the JS level since
     // this runs in a single-threaded event loop)
-    const existing = this._store.get(key);
-    if (existing && existing.expiresAt > Date.now()) {
+    const existingExpiresAt = this._store.get(key);
+    if (existingExpiresAt !== undefined && existingExpiresAt > Date.now()) {
       return false; // replay detected
     }
 
-    this._store.set(key, { userId, code, expiresAt });
+    if (this._store.size >= InMemoryTotpRegistryAdapter.MAX_ENTRIES) {
+      await this.deleteExpired();
+    }
+
+    this._store.set(key, expiresAt);
     return true;
   }
 
   async deleteExpired(): Promise<void> {
     const now = Date.now();
-    for (const [key, entry] of this._store) {
-      if (entry.expiresAt <= now) {
+    for (const [key, expiresAt] of this._store) {
+      if (expiresAt <= now) {
         this._store.delete(key);
       }
     }

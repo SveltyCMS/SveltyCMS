@@ -9,6 +9,15 @@ Features:
 -->
 <script lang="ts">
 	import { modalState } from '@utils/modal.svelte';
+	import {
+		button_cancel,
+		modalnameconflict_custom_placeholder,
+		modalnameconflict_heading,
+		modalnameconflict_part1,
+		modalnameconflict_part2,
+		modalnameconflict_use_selected,
+		modalnameconflict_validation
+	} from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -65,9 +74,10 @@ Features:
 <div class="modal-body p-4">
 	<div class="alert preset-filled-warning-500 mb-4">
 		<div class="alert-message">
-			<h3 class="h3 font-bold">Collection Name Conflict</h3>
+			<h3 class="h3 font-bold">{modalnameconflict_heading()}</h3>
 			<p class="text-sm">
-				The collection name "<code class="font-bold">{conflictingName}</code>" already exists at:
+				{modalnameconflict_part1()}<code class="font-bold">{conflictingName}</code
+				>{modalnameconflict_part2()}
 			</p>
 			<code class="mt-2 block rounded bg-surface-900 text-white p-2 text-xs">{conflictPath}</code>
 		</div>
@@ -88,25 +98,24 @@ Features:
 			id="custom-name"
 			bind:value={customName}
 			disabled={!useCustomName}
-			placeholder="Enter custom name"
+			placeholder={modalnameconflict_custom_placeholder()}
 		/>
 		{#if useCustomName && customName && !validateCustomName(customName)}
 			<p class="mt-1 text-sm text-error-500">
-				Name must start with a letter and contain only letters and numbers (no spaces or special
-				characters).
+				{modalnameconflict_validation()}
 			</p>
 		{/if}
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
+		<Button variant="outline" type="button" onclick={handleCancel}>{button_cancel()}</Button>
 		<Button
 			variant="tertiary"
 			type="button"
 			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
 		>
-			Use Selected Name
+			{modalnameconflict_use_selected()}
 		</Button>
 	</footer>
 </div>

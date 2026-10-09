@@ -29,6 +29,23 @@
 
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import {
+		widget_security_active_count,
+		widget_security_active_incidents,
+		widget_security_all_secure,
+		widget_security_blocked_ips,
+		widget_security_csp_violations,
+		widget_security_incidents_count,
+		widget_security_indicators,
+		widget_security_loading,
+		widget_security_premium_notice,
+		widget_security_rate_limits,
+		widget_security_summary_aria,
+		widget_security_threat_level,
+		widget_security_throttled,
+		widget_security_trend_title,
+		widget_security_upgrade
+	} from '@src/paraglide/messages';
 	import { formatTime } from '@utils/format-date';
 
 	const {
@@ -142,14 +159,14 @@
 					<div
 						class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
 					></div>
-					<p class="text-sm">Loading security metrics...</p>
+					<p class="text-sm">{widget_security_loading()}</p>
 				</div>
 			</div>
 		{:else}
 			<div
 				class="flex h-full flex-col justify-between"
 				role="region"
-				aria-label="Security Metrics Summary"
+				aria-label={widget_security_summary_aria()}
 			>
 				{#if size.h === 1}
 					<!-- Compact mode -->
@@ -176,7 +193,7 @@
 							<div>
 								<span class="font-semibold capitalize {threatColor}">{overallThreatLevel}</span>
 								<span class="text-surface-500 dark:text-surface-400 ms-1"
-									>({statsData.activeIncidents} active)</span
+									>{widget_security_active_count({ count: statsData.activeIncidents })}</span
 								>
 							</div>
 						</div>
@@ -250,13 +267,10 @@
 								</div>
 								<div>
 									<div class="text-lg font-bold capitalize {threatColor} leading-tight">
-										{overallThreatLevel} Threat Level
+										{widget_security_threat_level({ level: overallThreatLevel })}
 									</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										{statsData.activeIncidents} active security incident{statsData.activeIncidents !==
-										1
-											? 's'
-											: ''}
+										{widget_security_incidents_count({ count: statsData.activeIncidents })}
 									</div>
 								</div>
 							</div>
@@ -273,7 +287,7 @@
 									.join(' ')}
 								{const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} 28 L ${points[0].x.toFixed(2)} 28 Z`}
 
-								<div class="w-24 h-8" aria-hidden="true" title="Incident volume trend">
+								<div class="w-24 h-8" aria-hidden="true" title={widget_security_trend_title()}>
 									<svg viewBox="0 0 100 28" class="w-full h-full overflow-visible">
 										<defs>
 											<linearGradient id="secThreatGrad" x1="0" y1="0" x2="0" y2="1">
@@ -308,7 +322,9 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">Blocked IPs</div>
+								<div class="text-xs text-surface-500 dark:text-surface-400">
+									{widget_security_blocked_ips()}
+								</div>
 								<div class="text-2xl font-bold tabular-nums mt-1 text-error-500">
 									{statsData.blockedIPs}
 								</div>
@@ -316,7 +332,9 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">Throttled</div>
+								<div class="text-xs text-surface-500 dark:text-surface-400">
+									{widget_security_throttled()}
+								</div>
 								<div class="text-2xl font-bold tabular-nums mt-1 text-warning-500">
 									{statsData.throttledIPs}
 								</div>
@@ -324,7 +342,9 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">CSP Violations</div>
+								<div class="text-xs text-surface-500 dark:text-surface-400">
+									{widget_security_csp_violations()}
+								</div>
 								<div
 									class="text-2xl font-bold tabular-nums mt-1 text-purple-600 dark:text-purple-400"
 								>
@@ -334,7 +354,9 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">Rate Limits</div>
+								<div class="text-xs text-surface-500 dark:text-surface-400">
+									{widget_security_rate_limits()}
+								</div>
 								<div
 									class="text-2xl font-bold tabular-nums mt-1 text-tertiary-600 dark:text-tertiary-400"
 								>
@@ -350,7 +372,7 @@
 									class="mb-2 text-xs font-semibold text-surface-500 dark:text-surface-400 flex items-center gap-1.5 tracking-wider"
 								>
 									<iconify-icon icon="mdi:alert-circle" class="text-warning-500"></iconify-icon>
-									ACTIVE INCIDENTS ({activeIncidents.length})
+									{widget_security_active_incidents()} ({activeIncidents.length})
 								</h4>
 
 								{#if activeIncidents.length > 0}
@@ -386,7 +408,9 @@
 												<div
 													class="text-[10px] text-surface-500 dark:text-surface-400 mt-1 flex justify-between"
 												>
-													<span>{incident.indicatorCount} indicators</span>
+													<span
+														>{widget_security_indicators({ count: incident.indicatorCount })}</span
+													>
 													<span>{formatTime(incident.timestamp)}</span>
 												</div>
 											</div>
@@ -402,7 +426,7 @@
 												class="text-4xl text-tertiary-500 dark:text-primary-500/80 animate-pulse"
 											></iconify-icon>
 											<p class="text-xs text-surface-500 dark:text-surface-400 mt-2 font-medium">
-												All systems secure
+												{widget_security_all_secure()}
 											</p>
 										</div>
 									</div>
@@ -418,13 +442,13 @@
 								<span class="text-xs text-warning-600 dark:text-warning-400">
 									<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"
 									></iconify-icon>
-									Active incident feed and threat analytics are premium features.
+									{widget_security_premium_notice()}
 								</span>
 								<a
 									href="https://marketplace.sveltycms.com"
 									target="_blank"
 									class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3"
-									>Upgrade €19.99 →</a
+									>{widget_security_upgrade()}</a
 								>
 							</div>
 						{/if}

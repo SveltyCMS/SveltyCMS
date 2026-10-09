@@ -53,6 +53,8 @@ import {
 } from "./drizzle-sql-helpers";
 import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
+import { serializeSuccessEnvelope } from "@utils/fast-json";
+import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { hasIsoDateTimePrefix, nowISODateString } from "@src/utils/date";
 import {
   count as drizzleCount,
@@ -71,6 +73,7 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
+  getEffectiveTenantId,
   registerTableSchema,
   validateId,
 } from "./relational-utils";
@@ -102,6 +105,7 @@ import {
   setJsonDataPatch,
 } from "./query-primitives";
 import { isPublishedStatus } from "@src/utils/security/publication-policy";
+import { StatementCoalescer } from "./statement-coalescer";
 import { translateAggregation } from "./aggregation-translator";
 import { SqlQueryBuilder, type SqlDialect, readCount, SQLITE_DIALECT } from "./sql-query-builder";
 
@@ -172,6 +176,16 @@ export interface ListIndexRequest {
 export type RawPointWireStreamResult =
   | { kind: "found"; wireBody: string; etag: string }
   | { kind: "missing" }
+  | { kind: "declined" };
+
+/**
+ * Outcome of a native direct-to-wire list read (`rawFindListWireStream`).
+ *
+ * - `found`    — the engine produced a pre-serialized JSON array wire body.
+ * - `declined` — the engine declines (e.g. client-server DBs where JS stringification is faster).
+ */
+export type RawListWireStreamResult =
+  | { kind: "found"; wireBody: string; etag: string }
   | { kind: "declined" };
 
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -802,6 +816,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   /**
+   * Base rawFindListWireStream: returns `{ kind: "declined" }` by default.
+   * Engines override this when in-engine aggregation yields net performance gains (e.g. SQLite).
+   */
+  protected async rawFindListWireStream(
+    _table: any,
+    _collection: string,
+    _options: BaseQueryOptions & {
+      limit?: number;
+      offset?: number;
+      requirePublished?: boolean;
+    },
+  ): Promise<RawListWireStreamResult> {
+    return { kind: "declined" };
+  }
+
+  /**
    * Adapter-specific raw INSERT…RETURNING — returns null when not used.
    * MariaDB/PostgreSQL override this to skip Drizzle's per-call AST building
    * on the write path while keeping a single round trip (values + row back).
@@ -847,6 +877,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _id: DatabaseId,
     _options: BaseQueryOptions,
   ): Promise<T | null> {
+    return null;
+  }
+
+  /**
+   * Adapter-specific raw multi-row UPDATE fast path (statement coalescing) —
+   * returns null when not used, which replays every row individually.
+   * All rows in a batch share one column signature and the tenant shape.
+   */
+  protected async rawUpdateManyReturning<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
+  ): Promise<T[] | null> {
     return null;
   }
 
@@ -1717,7 +1760,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return this.wrap(async () => {
       if (rawWire.kind === "found") return { wireBody: rawWire.wireBody, etag: rawWire.etag };
 
-      // Engine declined (no native JSON support, etc.) → findOne fallback
+      // Engine declined (no native JSON support, etc.) → findOne fallback.
+      // The HTTP point-read contract is the TRIMMED body
+      // (`trimPointReadEnvelope`: no tenantId/createdAt/updatedAt/isDeleted,
+      // no SDK `_collection`, null mirror columns dropped) — the compiled wire
+      // body is inherently lean, so the fallback must apply the same trim or a
+      // declined-engine read serves ~277 B of system noise the lane never does.
       const findRes = await this.findOne(collection, { _id: id } as any, options as any);
       const record =
         findRes && typeof findRes === "object" && "success" in findRes
@@ -1728,10 +1776,56 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       // where the table has a `status` column. An unfiltered fallback read must
       // never serialize unpublished bytes to a published-only caller.
       if (options.requirePublished === true && !isPublishedStatus(record)) return null;
-      const wireBody = JSON.stringify({ success: true, data: record });
+      const trimmed = trimPointReadEnvelope({ success: true, data: record }) as {
+        data?: unknown;
+      };
+      const wireBody = serializeSuccessEnvelope(JSON.stringify(trimmed.data ?? null));
       const etag = `"${String((record as any)._id ?? id)}-${String((record as any).updatedAt ?? "")}"`;
       return { wireBody, etag };
     }, "FIND_POINT_WIRE_STREAM_FAILED");
+  }
+
+  // --------------------------------------------------------------------------
+  // 🚀 Direct-to-Wire Streaming (Phase 2): findListWireStream
+  // --------------------------------------------------------------------------
+
+  async findListWireStream(
+    collection: string,
+    options: BaseQueryOptions & {
+      limit?: number;
+      offset?: number;
+      requirePublished?: boolean;
+    } = {},
+  ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: "Invalid collection",
+        error: { code: "INVALID_QUERY", message: "Invalid collection" },
+      };
+    }
+    const table = this.getTable(collection);
+    if (!table) {
+      return {
+        success: false,
+        message: `Collection table not found: ${collection}`,
+        error: {
+          code: "COLLECTION_NOT_FOUND",
+          message: `Collection table not found: ${collection}`,
+        },
+      };
+    }
+
+    const rawWire = await this.rawFindListWireStream(table, collection, options);
+    if (rawWire.kind === "found") {
+      return { success: true, data: { wireBody: rawWire.wireBody, etag: rawWire.etag } };
+    }
+
+    return {
+      success: false,
+      message: "Direct-to-wire list declined",
+      error: { code: "DECLINED", message: "Direct-to-wire list declined" },
+    };
   }
 
   // --------------------------------------------------------------------------
@@ -2401,29 +2495,174 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }) as T;
     };
 
-    let finalData: T;
-    const mExec = PROFILE_WRITE_ENABLED ? profileMark("db:ins:exec") : null;
-    try {
-      finalData = await runInsert();
-    } catch (err: any) {
-      // Auto-provision dynamic collection tables on first write (MariaDB/Postgres).
-      // Without this, plugin_settings → collection_plugin_settings fails with missing table.
-      if (this.isMissingTableError(err) && typeof (this as any).createModel === "function") {
-        await (this as any).createModel({
-          _id: collection,
-          name: collection,
-          fields: [],
-        });
-        finalData = await runInsert();
-      } else {
+    /** Single-path execution with the missing-table auto-provision fallback. */
+    const runWithProvision = async (): Promise<T> => {
+      try {
+        return await runInsert();
+      } catch (err: any) {
+        // Auto-provision dynamic collection tables on first write (MariaDB/Postgres).
+        // Without this, plugin_settings → collection_plugin_settings fails with missing table.
+        if (this.isMissingTableError(err) && typeof (this as any).createModel === "function") {
+          await (this as any).createModel({
+            _id: collection,
+            name: collection,
+            fields: [],
+          });
+          return runInsert();
+        }
         throw err;
       }
+    };
+
+    let finalData: T;
+    const mExec = PROFILE_WRITE_ENABLED ? profileMark("db:ins:exec") : null;
+    if (this.insertCoalescingEnabled && !(options as any)?.transaction) {
+      // Phase 2 statement coalescing: concurrent inserts for the same
+      // collection that land within one tick become one multi-row statement.
+      // The runSingle closure below includes the missing-table provision
+      // fallback, so a replayed row keeps the full single-path semantics.
+      const tableForBatch = table;
+      finalData = await this.submitCoalescedInsert<T>(
+        collection,
+        tableForBatch,
+        values,
+        runWithProvision,
+      );
+    } else {
+      finalData = await runWithProvision();
     }
     mExec?.();
 
     return this.hooks.length > 0
       ? await this.runHooks("after", "insert", collection, finalData, options)
       : finalData;
+  }
+
+  // --------------------------------------------------------------------------
+  // Microtask INSERT coalescing (Phase 2 statement coalescing)
+  // --------------------------------------------------------------------------
+
+  /**
+   * True when this engine may coalesce concurrent single-row inserts into one
+   * multi-row statement. Defaults off — in-process engines (SQLite) gain
+   * nothing from batching round trips; PostgreSQL overrides this.
+   */
+  protected get insertCoalescingEnabled(): boolean {
+    return false;
+  }
+
+  protected get insertCoalesceWindowMs(): number {
+    return Number(process.env.SVELTY_COALESCE_INSERT_WINDOW_MS || 0);
+  }
+
+  private _insertCoalescers?: Map<string, StatementCoalescer<any>>;
+
+  private getInsertCoalescer(collection: string): StatementCoalescer<any> {
+    if (!this._insertCoalescers) this._insertCoalescers = new Map();
+    let coalescer = this._insertCoalescers.get(collection);
+    if (!coalescer) {
+      // `getTable` resolves at drain time so auto-provisioned tables work.
+      coalescer = new StatementCoalescer<any>(
+        async (values) => {
+          const table = this.getTable(collection);
+          if (!table) return null;
+          const rawBatch = await this.rawInsertManyReturning(table, collection, values, {});
+          if (rawBatch !== null) return rawBatch;
+
+          // Multi-row Drizzle fallback if raw path declines
+          try {
+            const drizzleBatch = this.persistTimestampsAsDate
+              ? values
+              : values.map((row) =>
+                  convertISOToDates({ ...row }, { ...this.convertDatesOptions, table: collection }),
+                );
+            const query = this.getDrizzleInstance({}).insert(table).values(drizzleBatch);
+            if (this.insertReturnsRows) {
+              const results = await (query as any).returning();
+              return convertArrayDatesToISO(results as any, {
+                ...this.convertDatesOptions,
+                table: collection,
+              });
+            } else {
+              await (query as any);
+              return convertArrayDatesToISO(values, {
+                ...this.convertDatesOptions,
+                table: collection,
+              });
+            }
+          } catch {
+            return null;
+          }
+        },
+        undefined,
+        this.insertCoalesceWindowMs,
+      );
+      this._insertCoalescers.set(collection, coalescer);
+    }
+    return coalescer;
+  }
+
+  private submitCoalescedInsert<T extends BaseEntity>(
+    collection: string,
+    _table: any,
+    values: Record<string, any>,
+    runSingle: () => Promise<T>,
+  ): Promise<T> {
+    return this.getInsertCoalescer(collection).submit(values, runSingle);
+  }
+
+  // --------------------------------------------------------------------------
+  // Tick UPDATE coalescing (Phase 2 statement coalescing)
+  // --------------------------------------------------------------------------
+
+  /**
+   * True when this engine may coalesce concurrent single-row updates into one
+   * multi-row statement. Defaults off; PostgreSQL overrides this.
+   */
+  protected get updateCoalescingEnabled(): boolean {
+    return false;
+  }
+
+  protected get updateCoalesceWindowMs(): number {
+    return Number(
+      process.env.SVELTY_COALESCE_UPDATE_WINDOW_MS || process.env.SVELTY_COALESCE_WINDOW_MS || 0,
+    );
+  }
+
+  private _updateCoalescers?: Map<string, StatementCoalescer<any>>;
+
+  private getUpdateCoalescer(key: string, collection: string): StatementCoalescer<any> {
+    if (!this._updateCoalescers) this._updateCoalescers = new Map();
+    let coalescer = this._updateCoalescers.get(key);
+    if (!coalescer) {
+      coalescer = new StatementCoalescer<any>(
+        async (entries) => {
+          const table = this.getTable(collection);
+          if (!table) return null;
+          const batch = entries as Array<{
+            id: DatabaseId;
+            values: Record<string, any>;
+            options: BaseQueryOptions;
+          }>;
+          return this.rawUpdateManyReturning(table, collection, batch);
+        },
+        undefined,
+        this.updateCoalesceWindowMs,
+      );
+      this._updateCoalescers.set(key, coalescer);
+    }
+    return coalescer;
+  }
+
+  private submitCoalescedUpdate<T extends BaseEntity>(
+    collection: string,
+    key: string,
+    id: DatabaseId,
+    values: Record<string, any>,
+    options: BaseQueryOptions,
+    runSingle: () => Promise<T | null>,
+  ): Promise<T | null> {
+    return this.getUpdateCoalescer(key, collection).submit({ id, values, options }, runSingle);
   }
 
   // --------------------------------------------------------------------------
@@ -2583,7 +2822,26 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // reconstruction from prepared values). Returns null when the adapter
     // has no fast path or bailed; the Drizzle branches below fall back.
     const mRawU = PROFILE_WRITE_ENABLED ? profileMark("db:upd:raw") : null;
-    const rawRow = await this.rawUpdateReturning<T>(table, collection, values, idCol, id, options);
+
+    // Phase 2 statement coalescing: concurrent updates that share a column
+    // signature (and tenant shape, and skipReturning mode) coalesce into one
+    // multi-row UPDATE…FROM UNNEST statement. Rows with JSON data patches or
+    // an explicit transaction keep the single-statement path (patch merges
+    // and tx boundaries must not be batched).
+    const batchEligible =
+      this.updateCoalescingEnabled && !(options as any)?.transaction && !jsonPatch;
+    let rawRow: T | null;
+    if (batchEligible) {
+      const tenant = getEffectiveTenantId(options);
+      const hasTenant = tenant !== undefined && tenant !== null;
+      const columnsKey = Object.keys(values).sort().join(",");
+      const key = `${collection}\u0000${columnsKey}\u0000${hasTenant ? 1 : 0}\u0000${skipReturning ? 1 : 0}`;
+      rawRow = await this.submitCoalescedUpdate<T>(collection, key, id, values, options, () =>
+        this.rawUpdateReturning<T>(table, collection, values, idCol, id, options),
+      );
+    } else {
+      rawRow = await this.rawUpdateReturning<T>(table, collection, values, idCol, id, options);
+    }
     mRawU?.();
     if (rawRow !== null) {
       return this.hooks.length > 0

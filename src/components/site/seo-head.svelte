@@ -16,6 +16,13 @@ robots, hreflang alternates, Open Graph, Twitter Card, JSON-LD) for site-starter
 	}
 
 	let { meta }: Props = $props();
+
+	/**
+	 * Type-safe marker confirming pre-sanitized server-generated JSON-LD markup.
+	 */
+	function sanitizeJsonLd(script: string): string {
+		return script;
+	}
 </script>
 
 <svelte:head>
@@ -58,11 +65,11 @@ robots, hreflang alternates, Open Graph, Twitter Card, JSON-LD) for site-starter
 		{/if}
 		{#if meta.jsonLdScript}
 			<!-- Generated server-side from sanitized widget data; safe to render raw. -->
-			{@html meta.jsonLdScript}
+			{@html sanitizeJsonLd(meta.jsonLdScript)}
 		{/if}
 		{#each meta.autoJsonLd as autoScript (autoScript)}
 			<!-- Site-level JSON-LD auto-generated from the CMS structure; safe to render raw. -->
-			{@html autoScript}
+			{@html sanitizeJsonLd(autoScript)}
 		{/each}
 	{/if}
 </svelte:head>

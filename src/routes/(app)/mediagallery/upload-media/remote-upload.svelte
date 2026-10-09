@@ -13,6 +13,12 @@
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import Button from '@components/ui/button.svelte';
+	import {
+		mediagallery_remote_aria,
+		mediagallery_remote_hint,
+		mediagallery_remote_placeholder,
+		mediagallery_remote_title
+	} from '@src/paraglide/messages';
 	import { uploadRemoteUrls as uploadRemoteUrlsRemote } from './remote-upload.remote';
 
 	interface Props {
@@ -67,20 +73,20 @@
 		for="remote-urls"
 		class="block text-sm font-medium text-surface-600 dark:text-surface-400"
 	>
-		Remote image/media URLs
+		{mediagallery_remote_title()}
 	</label>
 	<textarea
 		id="remote-urls"
 		name="remote-urls"
-		aria-label="Remote media URLs, one per line"
+		aria-label={mediagallery_remote_aria()}
 		data-testid="remote-urls-input"
-		title="Remote media URLs"
+		title={mediagallery_remote_title()}
 		bind:value={urlsText}
-		placeholder="Paste Remote URLs here, one per line (https://...)"
+		placeholder={mediagallery_remote_placeholder()}
 		rows="6"
 		class="textarea w-full bg-secondary-500/10 dark:bg-secondary-800"></textarea>
 	<p class="text-xs text-surface-500">
-		Each line must be a public http(s) URL. Invalid lines are ignored.
+		{mediagallery_remote_hint()}
 	</p>
 	<Button
 		variant="tertiary"

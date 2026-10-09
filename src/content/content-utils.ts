@@ -14,6 +14,7 @@ import { contentStore } from "@stores/content-registry.svelte";
 import type { ContentNode, NavigationNode, Schema } from "./types";
 import { logger } from "@utils/logger";
 import { sanitizeHtml, stripHtml } from "@src/utils/sanitize-html";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
@@ -33,7 +34,7 @@ export function generateCategoryNodesFromPaths(
   tenantId?: string | null,
 ): ContentNode[] {
   const folders = new Map<string, ContentNode>();
-  const now = new Date().toISOString();
+  const now = nowISODateString();
 
   for (const file of files) {
     if (!file.path) continue;
@@ -163,10 +164,19 @@ export const contentNavigation = {
       }
     }
 
-    const tenantStructure = await this.getContentStructure(tenantId);
+    if (contentStore.initState === "initializing") {
+      logger.warn("[ContentNavigation] getNavigationStructure called during initialization");
+      return [];
+    }
 
-    const stripToNavigation = (nodes: ContentNode[]): NavigationNode[] => {
-      return nodes.map((node) => ({
+    const allNodes = contentStore.getAllNodes();
+    const filteredNodes = tenantId
+      ? allNodes.filter((node) => node.tenantId === tenantId)
+      : allNodes;
+
+    const navMap = new Map<string, NavigationNode>();
+    for (const node of filteredNodes) {
+      navMap.set(node._id.toString(), {
         _id: node._id.toString(),
         name: node.name,
         path: node.path,
@@ -175,11 +185,20 @@ export const contentNavigation = {
         order: node.order,
         parentId: node.parentId?.toString(),
         translations: node.translations,
-        children: node.children?.length ? stripToNavigation(node.children) : undefined,
-      }));
-    };
+        children: undefined,
+      });
+    }
 
-    const result = stripToNavigation(tenantStructure);
+    const result: NavigationNode[] = [];
+    for (const navNode of navMap.values()) {
+      const pId = navNode.parentId;
+      if (pId && navMap.has(pId)) {
+        const parent = navMap.get(pId)!;
+        (parent.children ??= []).push(navNode);
+      } else {
+        result.push(navNode);
+      }
+    }
 
     if (typeof window === "undefined" && import.meta.env.SSR) {
       try {

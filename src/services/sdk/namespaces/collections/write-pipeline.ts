@@ -21,7 +21,7 @@ import {
   validateNumberFieldPlans,
   type CollectionFieldPrepFlags,
 } from "@src/content/content-utils";
-import { applySchemaHookPipeline } from "@src/content/schema-hooks";
+import { applySchemaHookPipeline, type SchemaHookPipelineOptions } from "@src/content/schema-hooks";
 import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";
 import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
@@ -71,14 +71,28 @@ function schemaDeclaresField(schema: Schema, name: string): boolean {
   if (!set) {
     set = new Set<string>();
     for (const f of fields) {
-      const n =
-        (f as { db_fieldName?: string }).db_fieldName || (f as { name?: string }).name;
+      const n = (f as { db_fieldName?: string }).db_fieldName || (f as { name?: string }).name;
       if (n) set.add(n);
     }
     declaredFieldNamesCache.set(schema as object, set);
   }
   return set.has(name);
 }
+
+/** Shared FIELD_VALIDATION_ERROR factory — hoisted so writes skip a per-call closure. */
+function fieldValidationError(messages: string[]): AppError {
+  return new AppError(messages.join("; "), 400, "FIELD_VALIDATION_ERROR");
+}
+
+/**
+ * Per-schema pre-compiled write-prep plans. All three are keyed by schema
+ * identity (WeakMap — bounded by live schemas), are read-only contracts for
+ * their consumers, and are constant for a schema's lifetime, so a single
+ * instance is shared across every write instead of one allocation per write.
+ */
+const prepFlagsCache = new WeakMap<object, CollectionFieldPrepFlags>();
+const numberFieldValidatorCache = new WeakMap<object, (doc: Record<string, unknown>) => string[]>();
+const hookPipelineOptionsCache = new WeakMap<object, SchemaHookPipelineOptions>();
 
 /**
  * Single-pass write payload preparation used by create() and update():
@@ -105,10 +119,14 @@ export function prepareWritePayload(
     // fields (for example `{ count }` on a collection with rich text), generic
     // payload sanitization below remains in force and this field-specific pass
     // cannot change the result.
-    const prepFlags: CollectionFieldPrepFlags = {
-      sanitize: hot._hasSanitizableFields,
-      constraints: hot._hasConstrainedFields,
-    };
+    let prepFlags = prepFlagsCache.get(schema as object);
+    if (!prepFlags) {
+      prepFlags = {
+        sanitize: hot._hasSanitizableFields,
+        constraints: hot._hasConstrainedFields,
+      };
+      prepFlagsCache.set(schema as object, prepFlags);
+    }
     entryData = payloadTouchesCollectionFieldPreparation(data, schema as PrepFieldSchema, prepFlags)
       ? prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags)
       : data;
@@ -171,9 +189,6 @@ export function prepareWritePayload(
     }
   }
 
-  const fieldValidationError = (messages: string[]) =>
-    new AppError(messages.join("; "), 400, "FIELD_VALIDATION_ERROR");
-
   const needsWriteGuard =
     !system &&
     !user?.isAdmin &&
@@ -188,24 +203,43 @@ export function prepareWritePayload(
       tenantId: tenantId as string | undefined,
       userId: user?._id as string | undefined,
     };
-    const validate =
+    let validate =
       hot._hasNumberFields && hot._numberFields
-        ? (doc: Record<string, unknown>) => validateNumberFieldPlans(doc, hot._numberFields!)
+        ? numberFieldValidatorCache.get(schema as object)
         : undefined;
+    if (hot._hasNumberFields && hot._numberFields && !validate) {
+      validate = (doc: Record<string, unknown>) =>
+        validateNumberFieldPlans(doc, hot._numberFields!);
+      numberFieldValidatorCache.set(schema as object, validate);
+    }
+    let pipelineOptions = hookPipelineOptionsCache.get(schema as object);
+    if (!pipelineOptions) {
+      pipelineOptions = {
+        createError: fieldValidationError,
+        ...(hot._hasHookFields ? { fields: schema.fields } : {}),
+      };
+      hookPipelineOptionsCache.set(schema as object, pipelineOptions);
+    }
     const mHooks = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:hooks+guard") : null;
-    return applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
-      createError: fieldValidationError,
-      ...(hot._hasHookFields ? { fields: schema.fields } : {}),
-    }).then(async (prepared) => {
-      if (needsWriteGuard) {
-        await assertWriteAllowed(schema.fields as FieldInstance[], prepared, user, {
-          collectionName: schema.name,
-          ...(entryId !== undefined ? { entryId } : {}),
-          tenantId: tenantId ?? undefined,
-        });
+    return applySchemaHookPipeline(
+      schema.hooks,
+      entryData,
+      hookCtx,
+      validate,
+      pipelineOptions,
+    ).then((prepared) => {
+      if (!needsWriteGuard) {
+        mHooks?.();
+        return prepared;
       }
-      mHooks?.();
-      return prepared;
+      return assertWriteAllowed(schema.fields as FieldInstance[], prepared, user, {
+        collectionName: schema.name,
+        ...(entryId !== undefined ? { entryId } : {}),
+        tenantId: tenantId ?? undefined,
+      }).then(() => {
+        mHooks?.();
+        return prepared;
+      });
     });
   }
 
@@ -234,17 +268,22 @@ export function prepareWritePayload(
 
 /**
  * Encrypt `encrypt: true` fields in place after sanitization/widgets and
- * before adapter persist. Zero-cost when the schema has no encrypted fields.
+ * before adapter persist. Returns `data` synchronously (no Promise hop) when
+ * the schema has no encrypted fields — the hot path for the vast majority of
+ * collections. All callers `await` it, so the contract is unchanged.
  */
-export async function encryptWritePayload(
+export function encryptWritePayload(
   data: any,
   hot: SchemaHotFlags,
   context: FieldEncryptionContext,
-): Promise<any> {
+): any {
   if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) return data;
   if (!data || typeof data !== "object") return data;
-  await encryptDocumentFields(data as Record<string, unknown>, hot._encryptedFieldNames, context);
-  return data;
+  return encryptDocumentFields(
+    data as Record<string, unknown>,
+    hot._encryptedFieldNames,
+    context,
+  ).then(() => data);
 }
 
 /**

@@ -21,7 +21,16 @@
 -->
 
 <script lang="ts">
-	import { button_cancel } from '@src/paraglide/messages';
+	import {
+		access_permissions_search_aria,
+		access_role_copy_placeholder,
+		access_role_description_placeholder,
+		access_role_name_placeholder,
+		access_role_no_permissions,
+		access_role_permissions_label,
+		button_cancel,
+		table_search_placeholder
+	} from '@src/paraglide/messages';
 	import { modalState } from '@utils/modal.svelte';
 	import type { SvelteComponent } from 'svelte';
 	import AdminCard from '@components/admin-card.svelte';
@@ -147,7 +156,7 @@
 			label="Role Name"
 			name="roleName"
 			bind:value={formName}
-			placeholder="Role Name"
+			placeholder={access_role_name_placeholder()}
 			required
 			data-testid="role-name-input"
 		/>
@@ -155,27 +164,29 @@
 			id="role-description"
 			label="Role Description"
 			bind:value={formDescription}
-			placeholder="Role Description"
+			placeholder={access_role_description_placeholder()}
 			rows={3}
 			data-testid="role-description-input"
 		/>
 
 		<div class="space-y-2">
 			<div class="flex items-center justify-between gap-2">
-				<span class="font-bold">Permissions ({localSelectedPermissions.length})</span>
+				<span class="font-bold"
+					>{access_role_permissions_label({ count: localSelectedPermissions.length })}</span
+				>
 				<div class="flex gap-2">
 					<Select
 						bind:value={copyFromRoleId}
 						options={copyRoleOptions}
-						placeholder="Copy permissions from..."
+						placeholder={access_role_copy_placeholder()}
 						size="sm"
 						onchange={handleCopyPermissions}
 						class="min-w-44"
 					/>
 					<Input
 						bind:value={permSearch}
-						placeholder="Search..."
-						aria-label="Search permissions"
+						placeholder={table_search_placeholder()}
+						aria-label={access_permissions_search_aria()}
 						class="max-w-37.5"
 						inputClass="text-sm h-8"
 					/>
@@ -194,7 +205,7 @@
 						/>
 					</div>
 				{:else}
-					<div class="text-center p-4 opacity-50 text-sm">No permissions found</div>
+					<div class="text-center p-4 opacity-50 text-sm">{access_role_no_permissions()}</div>
 				{/each}
 			</div>
 		</div>

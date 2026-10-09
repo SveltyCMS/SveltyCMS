@@ -62,12 +62,13 @@ export function setRequestCache(
   const ck = collectionId ? collectionEpochKey(collectionId, tenantId) : null;
   const epoch = ck ? (_collectionEpochs.get(ck) ?? 0) : 0;
   _requestCache.set(key, { value, ck, epoch });
-  if (collectionId && isListCacheKey(key)) {
-    const prefix = `${tenantId || "global"}:${collectionId}`;
-    let set = _requestCacheKeys.get(prefix);
+  if (ck && isListCacheKey(key)) {
+    // The epoch key IS the `tenant:collection` keyspace prefix — reuse it
+    // instead of re-interpolating the same string per insert.
+    let set = _requestCacheKeys.get(ck);
     if (!set) {
       set = new Set<string>();
-      _requestCacheKeys.set(prefix, set);
+      _requestCacheKeys.set(ck, set);
     }
     set.add(key);
   }
@@ -82,7 +83,9 @@ export function evictRequestCache(collectionId?: string, tenantId?: string): voi
     return;
   }
 
-  const prefix = `${tenantId || "global"}:${collectionId}`;
+  // One prefix string serves both the list-key eviction and the generation
+  // bump: collectionEpochKey formats exactly `tenant || "global":collectionId`.
+  const prefix = collectionEpochKey(collectionId, tenantId);
 
   // List keys: explicit scoped eviction (low cardinality — frees LRU memory now).
   const keys = _requestCacheKeys.get(prefix);
@@ -96,20 +99,22 @@ export function evictRequestCache(collectionId?: string, tenantId?: string): voi
   // Per-id keys: bump the generation so every cached entry for this collection
   // is logically invalidated in O(1). Stale entries are skipped on read and
   // reclaimed by TTL/LRU — never a full LRU scan.
-  const ck = collectionEpochKey(collectionId, tenantId);
-  _collectionEpochs.set(ck, (_collectionEpochs.get(ck) ?? 0) + 1);
+  _collectionEpochs.set(prefix, (_collectionEpochs.get(prefix) ?? 0) + 1);
+}
+
+/** Shared single lookup: one LRU read + one staleness check for both predicates. */
+function getCacheEntry(key: string): CacheEntry | undefined {
+  const entry = _requestCache.get(key);
+  if (!entry || isStale(entry)) return undefined;
+  return entry;
 }
 
 /** Synchronous presence check for the L1 request cache (epoch-aware). */
 export function hasRequestCache(key: string): boolean {
-  const entry = _requestCache.get(key);
-  if (!entry || isStale(entry)) return false;
-  return true;
+  return getCacheEntry(key) !== undefined;
 }
 
 /** Synchronous read from the L1 request cache (epoch-aware). */
 export function getRequestCache<T = any>(key: string): T | undefined {
-  const entry = _requestCache.get(key);
-  if (!entry || isStale(entry)) return undefined;
-  return entry.value;
+  return getCacheEntry(key)?.value;
 }

@@ -7,6 +7,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import { widget_json_data_label, widget_json_format } from '@src/paraglide/messages';
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './index';
@@ -55,9 +56,11 @@
 
 <div class="relative group">
 	<div class="flex items-center justify-between mb-2 px-1">
-		<span class="text-[10px] uppercase tracking-widest text-surface-400 font-bold">JSON Data</span>
+		<span class="text-[10px] uppercase tracking-widest text-surface-400 font-bold"
+			>{widget_json_data_label()}</span
+		>
 		<Button variant="tertiary" size="sm" type="button" onclick={formatJson} disabled={!!parseError}>
-			Format JSON
+			{widget_json_format()}
 		</Button>
 	</div>
 

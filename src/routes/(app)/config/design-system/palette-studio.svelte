@@ -23,6 +23,21 @@ into theme customCss (marked block), and preview on native components.
 	import Input from '@components/ui/input.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import {
+		palette_apply,
+		palette_app_css,
+		palette_clear_block,
+		palette_css_hint_part1,
+		palette_css_hint_part2,
+		palette_css_hint_part3,
+		palette_css_hint_part4,
+		palette_css_markers,
+		palette_expanded_shades,
+		palette_intro_part1,
+		palette_open_preview,
+		palette_reset_seeds,
+		palette_studio
+	} from '@src/paraglide/messages';
+	import {
 		buildPaletteCssFromSeeds,
 		DEFAULT_PALETTE_SEEDS,
 		expandShorthandPaletteProperties,
@@ -136,11 +151,11 @@ into theme customCss (marked block), and preview on native components.
 			<h3 class="text-base font-bold flex items-center gap-2" style="color: var(--admin-text-body)">
 				<iconify-icon icon="mdi:palette" class="text-tertiary-500 dark:text-primary-500" width="22"
 				></iconify-icon>
-				Palette studio
+				{palette_studio()}
 			</h3>
 			<p class="text-sm mt-1" style="color: var(--admin-text-muted)">
-				Pick brand seeds. Shades expand automatically and apply as runtime CSS — no need to edit
-				<code class="text-xs">app.css</code>.
+				{palette_intro_part1()}{' '}
+				<code class="text-xs">{palette_app_css()}</code>.
 			</p>
 		</div>
 		<div class="flex flex-col items-end gap-2">
@@ -220,7 +235,7 @@ into theme customCss (marked block), and preview on native components.
 	<!-- Expanded swatches -->
 	<div class="space-y-3">
 		<h4 class="text-xs font-bold uppercase tracking-wider" style="color: var(--admin-text-muted)">
-			Expanded shades
+			{palette_expanded_shades()}
 		</h4>
 		<div class="space-y-2">
 			{#each Object.keys(seedRecord) as paletteKey (paletteKey)}
@@ -252,10 +267,10 @@ into theme customCss (marked block), and preview on native components.
 
 	<div class="flex flex-wrap gap-2 pt-1">
 		<Button variant="primary" size="sm" onclick={applyPalette} data-testid="palette-studio-apply">
-			Apply palette
+			{palette_apply()}
 		</Button>
 		<Button variant="outline" size="sm" onclick={resetSeeds} data-testid="palette-studio-reset">
-			Reset to default seeds
+			{palette_reset_seeds()}
 		</Button>
 		<Button
 			variant="ghost"
@@ -263,7 +278,7 @@ into theme customCss (marked block), and preview on native components.
 			onclick={clearPaletteBlock}
 			data-testid="palette-studio-clear"
 		>
-			Clear palette block
+			{palette_clear_block()}
 		</Button>
 		{#if onOpenPreview}
 			<Button
@@ -272,13 +287,13 @@ into theme customCss (marked block), and preview on native components.
 				onclick={onOpenPreview}
 				data-testid="palette-studio-preview"
 			>
-				Open Live Preview
+				{palette_open_preview()}
 			</Button>
 		{/if}
 	</div>
 	<p class="text-[11px]" style="color: var(--admin-text-muted)">
-		Applied CSS is stored in the theme’s custom CSS (Advanced tab) between
-		<code class="text-[10px]">sveltycms-palette-start/end</code> markers. Click
-		<strong>Save Theme</strong> to persist.
+		{palette_css_hint_part1()}{' '}
+		<code class="text-[10px]">{palette_css_markers()}</code>{palette_css_hint_part2()}{' '}
+		<strong>{palette_css_hint_part3()}</strong>{palette_css_hint_part4()}
 	</p>
 </AdminCard>

@@ -19,6 +19,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { collectionname_description, widget_rt_enter_description } from '@src/paraglide/messages';
 	interface Props {
 		active?: string;
 		key?: string;
@@ -80,13 +81,13 @@
 	<Button
 		variant="outline"
 		onclick={handleClick}
-		aria-label="Description"
+		aria-label={collectionname_description()}
 		size="sm"
 		class="flex items-center"
 	>
 		<iconify-icon icon="material-symbols:description" width={24}></iconify-icon>
 
-		<span class="hidden sm:inline">Description</span>
+		<span class="hidden sm:inline">{collectionname_description()}</span>
 	</Button>
 
 	{#if showInput}
@@ -96,7 +97,7 @@
 				bind:value={VALUE.value}
 				onkeydown={handleKeydown}
 				label="Description"
-				placeholder="Enter description"
+				placeholder={widget_rt_enter_description()}
 			/>
 		</div>
 	{/if}

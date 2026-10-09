@@ -36,6 +36,16 @@ Interactive menu builder with add/edit/reorder capabilities
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import {
+		common_drag_reorder_keys,
+		widget_menu_add_child_item,
+		widget_menu_add_item,
+		widget_menu_children_count,
+		widget_menu_delete_item,
+		widget_menu_edit_item,
+		widget_menu_empty_message,
+		widget_menu_structure
+	} from '@src/paraglide/messages';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import type { FieldType } from './';
@@ -217,10 +227,12 @@ Interactive menu builder with add/edit/reorder capabilities
 	<div
 		class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:text-surface-50"
 	>
-		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
+		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">
+			{widget_menu_structure()}
+		</h3>
 		<Button variant="tertiary" type="button" onclick={addItem}>
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
-			Add Menu Item
+			{widget_menu_add_item()}
 		</Button>
 	</div>
 
@@ -255,8 +267,8 @@ Interactive menu builder with add/edit/reorder capabilities
 								<button
 									type="button"
 									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-400 bg-transparent border-none"
-									aria-label="Drag to reorder. Use Arrow Keys to move."
-									title="Drag to reorder. Use Arrow Keys to move."
+									aria-label={common_drag_reorder_keys()}
+									title={common_drag_reorder_keys()}
 									onkeydown={(e) => handleKeyDown(e, index)}
 								>
 									<iconify-icon icon="mdi:drag" width="24"></iconify-icon>
@@ -290,7 +302,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							</span>
 							{#if item.children?.length > 0}
 								<span class=" ms-2 text-xs text-surface-500 dark:text-surface-50"
-									>({item.children.length} children)</span
+									>({widget_menu_children_count({ count: item.children.length })})</span
 								>
 							{/if}
 						</div>
@@ -301,8 +313,8 @@ Interactive menu builder with add/edit/reorder capabilities
 									variant="tertiary"
 									type="button"
 									onclick={() => addChildItem(item)}
-									aria-label="Add child item"
-									title="Add child item"
+									aria-label={widget_menu_add_child_item()}
+									title={widget_menu_add_child_item()}
 								>
 									<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 								</Button>
@@ -312,8 +324,8 @@ Interactive menu builder with add/edit/reorder capabilities
 								variant="surface"
 								type="button"
 								onclick={() => editItem(item, 0)}
-								aria-label="Edit item"
-								title="Edit item"
+								aria-label={widget_menu_edit_item()}
+								title={widget_menu_edit_item()}
 								class="abtn"
 							>
 								<iconify-icon icon="mdi:pencil" width="24"></iconify-icon>
@@ -323,8 +335,8 @@ Interactive menu builder with add/edit/reorder capabilities
 								variant="error"
 								type="button"
 								onclick={() => deleteItem(item)}
-								aria-label="Delete item"
-								title="Delete item"
+								aria-label={widget_menu_delete_item()}
+								title={widget_menu_delete_item()}
 							>
 								<iconify-icon icon="mdi:trash-can-outline" width="24"></iconify-icon>
 							</Button>
@@ -343,7 +355,7 @@ Interactive menu builder with add/edit/reorder capabilities
 				<iconify-icon icon="mdi:menu" width="48" class="mx-auto block text-surface-400"
 				></iconify-icon>
 				<p class="empty-message text-surface-500 dark:text-surface-50">
-					No menu items yet. Click "Add Menu Item" to get started.
+					{widget_menu_empty_message()}
 				</p>
 			</div>
 		{/if}

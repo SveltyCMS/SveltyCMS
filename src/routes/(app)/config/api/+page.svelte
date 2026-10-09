@@ -13,6 +13,40 @@
 	import Textarea from '@components/ui/textarea.svelte';
 	import Select from '@components/ui/select.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
+	import {
+		api_codegen_heading,
+		api_codegen_intro,
+		api_collection_label,
+		api_copy_code,
+		api_copy_gql_aria,
+		api_copy_response_aria,
+		api_endpoint_placeholder,
+		api_execute_request,
+		api_executing,
+		api_full_swagger,
+		api_gql_hint,
+		api_gql_operation,
+		api_gql_query,
+		api_gql_reset,
+		api_gql_result,
+		api_gql_run,
+		api_gql_running,
+		api_gql_variables,
+		api_openapi_spec,
+		api_playground_title,
+		api_quick_presets,
+		api_request_body,
+		api_response,
+		api_response_hint,
+		api_send_request,
+		api_snippet_curl,
+		api_snippet_localcms,
+		api_snippet_python,
+		api_snippet_typescript,
+		api_status_label,
+		api_system_version,
+		api_tenant_label
+	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
@@ -235,14 +269,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 </script>
 
 <AdminPageShell
-	title="Developer & API Playground"
+	title={api_playground_title()}
 	description="Test REST and GraphQL endpoints directly with active session credentials"
 >
 	{#snippet actions()}
 		<div class="flex items-center gap-2">
 			{#if data.tenantId}
 				<Badge variant="tertiary" size="sm">
-					Tenant: {data.tenantId}
+					{api_tenant_label()}
+					{data.tenantId}
 				</Badge>
 			{/if}
 			<a
@@ -252,7 +287,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/20 bg-surface-500/10 px-3 py-1.5 text-xs font-medium text-surface-900 transition-colors hover:bg-surface-500/10 dark:bg-surface-800 dark:text-surface-100"
 			>
 				<iconify-icon icon="mdi:open-in-new" width="14"></iconify-icon>
-				Full Swagger UI
+				{api_full_swagger()}
 			</a>
 		</div>
 	{/snippet}
@@ -282,7 +317,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<!-- Request Form -->
 			<AdminCard class={cardClass}>
 				<h3 class="mb-4 text-base font-semibold text-surface-900 dark:text-surface-50">
-					Send API Request
+					{api_send_request()}
 				</h3>
 
 				<div class="space-y-4">
@@ -299,16 +334,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 							/>
 						</div>
 						<div class="flex-1">
-							<Input
-								bind:value={restEndpoint}
-								placeholder="/api/openapi.json or /api/content/..."
-							/>
+							<Input bind:value={restEndpoint} placeholder={api_endpoint_placeholder()} />
 						</div>
 					</div>
 
 					<!-- Presets for fast testing -->
 					<div class="flex flex-wrap items-center gap-1.5">
-						<span class="text-xs text-surface-500">Quick Presets:</span>
+						<span class="text-xs text-surface-500">{api_quick_presets()}</span>
 						<button
 							type="button"
 							onclick={() => {
@@ -317,7 +349,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 							}}
 							class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 						>
-							OpenAPI Spec
+							{api_openapi_spec()}
 						</button>
 						<button
 							type="button"
@@ -327,7 +359,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 							}}
 							class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 						>
-							System Version
+							{api_system_version()}
 						</button>
 						{#each data.collections.slice(0, 3) as col (col.id)}
 							<button
@@ -347,7 +379,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					{#if restMethod === 'POST'}
 						<div class="space-y-1">
 							<label for="rest-body-input" class="block text-xs font-medium text-surface-500">
-								Request Body (JSON)
+								{api_request_body()}
 							</label>
 							<Textarea
 								id="rest-body-input"
@@ -367,10 +399,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 						>
 							{#if restLoading}
 								<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
-								Executing...
+								{api_executing()}
 							{:else}
 								<iconify-icon icon="mdi:send" width="16" class="me-1.5"></iconify-icon>
-								Execute Request
+								{api_execute_request()}
 							{/if}
 						</Button>
 					</div>
@@ -380,14 +412,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<!-- Response Viewer -->
 			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">Response</h3>
+					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
+						{api_response()}
+					</h3>
 					<div class="flex items-center gap-2">
 						{#if restStatus !== null}
 							<Badge
 								variant={restStatus >= 200 && restStatus < 300 ? 'success' : 'error'}
 								size="sm"
 							>
-								Status: {restStatus}
+								{api_status_label()}
+								{restStatus}
 							</Badge>
 						{/if}
 						{#if restDuration !== null}
@@ -400,7 +435,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								type="button"
 								onclick={() => copyToClipboard(restResponse || '', 'Response')}
 								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-								aria-label="Copy response payload"
+								aria-label={api_copy_response_aria()}
 							>
 								<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 							</button>
@@ -419,7 +454,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						<pre>{restResponse}</pre>
 					{:else}
 						<div class="flex h-full min-h-55 items-center justify-center text-surface-500 italic">
-							Click "Execute Request" to inspect the live response.
+							{api_response_hint()}
 						</div>
 					{/if}
 				</div>
@@ -434,7 +469,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
-						GraphQL Query
+						{api_gql_query()}
 					</h3>
 					<span class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</span>
 				</div>
@@ -442,7 +477,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				<div class="space-y-4">
 					<div class="space-y-1">
 						<label for="gql-query-input" class="block text-xs font-medium text-surface-500">
-							Operation Definition
+							{api_gql_operation()}
 						</label>
 						<Textarea
 							id="gql-query-input"
@@ -455,7 +490,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 					<div class="space-y-1">
 						<label for="gql-vars-input" class="block text-xs font-medium text-surface-500">
-							Query Variables (JSON)
+							{api_gql_variables()}
 						</label>
 						<Textarea
 							id="gql-vars-input"
@@ -474,10 +509,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 						>
 							{#if gqlLoading}
 								<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
-								Running Query...
+								{api_gql_running()}
 							{:else}
 								<iconify-icon icon="mdi:play" width="16" class="me-1.5"></iconify-icon>
-								Run GraphQL Query
+								{api_gql_run()}
 							{/if}
 						</Button>
 
@@ -488,7 +523,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								gqlVariables = '{}';
 							}}
 						>
-							Reset Example
+							{api_gql_reset()}
 						</Button>
 					</div>
 				</div>
@@ -498,12 +533,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
-						GraphQL Result
+						{api_gql_result()}
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if gqlStatus !== null}
 							<Badge variant={gqlStatus === 200 ? 'success' : 'error'} size="sm">
-								Status: {gqlStatus}
+								{api_status_label()}
+								{gqlStatus}
 							</Badge>
 						{/if}
 						{#if gqlDuration !== null}
@@ -516,7 +552,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								type="button"
 								onclick={() => copyToClipboard(gqlResponse || '', 'GraphQL Result')}
 								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-								aria-label="Copy GraphQL response"
+								aria-label={api_copy_gql_aria()}
 							>
 								<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 							</button>
@@ -535,7 +571,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						<pre>{gqlResponse}</pre>
 					{:else}
 						<div class="flex h-full min-h- items-center justify-center text-surface-500 italic">
-							Click "Run GraphQL Query" to execute operation.
+							{api_gql_hint()}
 						</div>
 					{/if}
 				</div>
@@ -551,18 +587,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 			>
 				<div>
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
-						Client SDK & Query Generator
+						{api_codegen_heading()}
 					</h3>
 					<p class="text-xs text-surface-500">
-						Copy-pasteable code examples for integrating SveltyCMS into external frontend frameworks
-						or internal server actions.
+						{api_codegen_intro()}
 					</p>
 				</div>
 
 				<div class="flex flex-wrap items-center gap-3">
 					<!-- Target Collection -->
 					<div class="flex items-center gap-2">
-						<span class="text-xs text-surface-500">Collection:</span>
+						<span class="text-xs text-surface-500">{api_collection_label()}</span>
 						<Select
 							value={selectedCollection}
 							options={data.collections.map((col) => ({ value: col.id, label: col.name }))}
@@ -582,7 +617,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								? 'bg-primary-500 text-white'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
-							TypeScript
+							{api_snippet_typescript()}
 						</button>
 						<button
 							type="button"
@@ -592,7 +627,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								? 'bg-primary-500 text-white'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
-							LocalCMS (SvelteKit)
+							{api_snippet_localcms()}
 						</button>
 						<button
 							type="button"
@@ -602,7 +637,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								? 'bg-primary-500 text-white'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
-							cURL
+							{api_snippet_curl()}
 						</button>
 						<button
 							type="button"
@@ -612,7 +647,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								? 'bg-primary-500 text-white'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 						>
-							Python
+							{api_snippet_python()}
 						</button>
 					</div>
 				</div>
@@ -629,7 +664,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						onclick={() => copyToClipboard(generatedSnippet, 'Code snippet')}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14" class="me-1.5"></iconify-icon>
-						Copy Code
+						{api_copy_code()}
 					</Button>
 				</div>
 				<pre class="overflow-x-auto pt-8">{generatedSnippet}</pre>

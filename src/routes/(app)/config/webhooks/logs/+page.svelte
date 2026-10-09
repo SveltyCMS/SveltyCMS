@@ -13,6 +13,22 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Select from '@components/ui/select.svelte';
+	import {
+		button_refresh,
+		collection_status,
+		common_error,
+		trash_th_actions,
+		webhooks_logs_attempts,
+		webhooks_logs_failed_dlq,
+		webhooks_logs_last_attempt,
+		webhooks_logs_no_logs,
+		webhooks_logs_no_logs_hint,
+		webhooks_logs_retry_now,
+		webhooks_logs_retrying,
+		webhooks_logs_success,
+		webhooks_logs_title,
+		webhooks_logs_webhook_event
+	} from '@src/paraglide/messages';
 
 	let logs = $state<any[]>([]);
 	let isLoading = $state(true);
@@ -54,7 +70,7 @@
 </script>
 
 <AdminPageShell
-	title="Webhook Health Monitor"
+	title={webhooks_logs_title()}
 	icon="mdi:webhook"
 	description="Monitor delivery status and manage the Dead-Letter Queue."
 	showBackButton={true}
@@ -78,7 +94,7 @@
 				leadingIcon="mdi:refresh"
 				data-testid="webhook-logs-refresh"
 			>
-				Refresh
+				{button_refresh()}
 			</Button>
 		</div>
 	{/snippet}
@@ -97,8 +113,10 @@
 				data-testid="webhook-logs-empty"
 			>
 				<iconify-icon icon="mdi:webhook" width="64" class="mx-auto mb-4 opacity-20"></iconify-icon>
-				<h3 class="text-xl font-semibold text-surface-900 dark:text-white">No logs found</h3>
-				<p class="text-surface-500">Webhook delivery attempts will appear here.</p>
+				<h3 class="text-xl font-semibold text-surface-900 dark:text-white">
+					{webhooks_logs_no_logs()}
+				</h3>
+				<p class="text-surface-500">{webhooks_logs_no_logs_hint()}</p>
 			</AdminCard>
 		{:else}
 			<AdminCard
@@ -111,12 +129,12 @@
 							<tr
 								class="border-b border-surface-500/30 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-500/40"
 							>
-								<th class="px-4 py-3 font-semibold">Webhook / Event</th>
-								<th class="px-4 py-3 font-semibold">Status</th>
-								<th class="px-4 py-3 font-semibold">Attempts</th>
-								<th class="px-4 py-3 font-semibold">Last Attempt</th>
-								<th class="px-4 py-3 font-semibold">Error</th>
-								<th class="px-4 py-3 text-end font-semibold">Actions</th>
+								<th class="px-4 py-3 font-semibold">{webhooks_logs_webhook_event()}</th>
+								<th class="px-4 py-3 font-semibold">{collection_status()}</th>
+								<th class="px-4 py-3 font-semibold">{webhooks_logs_attempts()}</th>
+								<th class="px-4 py-3 font-semibold">{webhooks_logs_last_attempt()}</th>
+								<th class="px-4 py-3 font-semibold">{common_error()}</th>
+								<th class="px-4 py-3 text-end font-semibold">{trash_th_actions()}</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -130,11 +148,11 @@
 									</td>
 									<td class="px-4 py-3">
 										{#if log.status === 'completed'}
-											<Badge variant="success">SUCCESS</Badge>
+											<Badge variant="success">{webhooks_logs_success()}</Badge>
 										{:else if log.status === 'failed'}
-											<Badge variant="error">FAILED (DLQ)</Badge>
+											<Badge variant="error">{webhooks_logs_failed_dlq()}</Badge>
 										{:else}
-											<Badge variant="warning">RETRYING</Badge>
+											<Badge variant="warning">{webhooks_logs_retrying()}</Badge>
 										{/if}
 									</td>
 									<td class="px-4 py-3">{log.attempts} / {log.maxAttempts || 5}</td>
@@ -145,7 +163,7 @@
 									<td class="px-4 py-3 text-end">
 										{#if log.status === 'failed'}
 											<Button variant="primary" onclick={() => retryWebhook(log._id)} size="sm">
-												Retry Now
+												{webhooks_logs_retry_now()}
 											</Button>
 										{/if}
 									</td>

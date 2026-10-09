@@ -553,9 +553,7 @@ export class Auth {
     if (rawSession?.success && rawSession.data) {
       const sessionData = rawSession.data as any;
       sessionData.amr = amr;
-      const mfaVerifiedAt = amr.includes("mfa")
-        ? (new Date().toISOString() as ISODateString)
-        : undefined;
+      const mfaVerifiedAt = amr.includes("mfa") ? nowISODateString() : undefined;
       if (mfaVerifiedAt) sessionData.mfaVerifiedAt = mfaVerifiedAt;
       // updateSession is adapter-optional (IAuthAdapter has no such method) —
       // widen once so the runtime guard type-checks.

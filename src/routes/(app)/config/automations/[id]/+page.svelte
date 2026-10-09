@@ -43,6 +43,91 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	import type { DragDropState } from '@thisux/sveltednd';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import {
+		automation_add_op_aria,
+		automation_add_operation,
+		automation_body_token_aria,
+		automation_cancel_aria,
+		automation_chain_aria,
+		automation_chain_hint_part1,
+		automation_chain_hint_part2,
+		automation_chain_label,
+		automation_condition_field_aria,
+		automation_condition_field_placeholder,
+		automation_condition_value_aria,
+		automation_condition_value_placeholder,
+		automation_cron_aria,
+		automation_cron_example_interval,
+		automation_cron_example_weekdays,
+		automation_cron_examples,
+		automation_cron_label_aria,
+		automation_cron_label_placeholder,
+		automation_ctrl_enter,
+		automation_ctrl_s,
+		automation_description_aria,
+		automation_description_placeholder,
+		automation_email_recipient_aria,
+		automation_email_subject_aria,
+		automation_field_placeholder,
+		automation_go_back_aria,
+		automation_http_method_placeholder,
+		automation_log_level_placeholder,
+		automation_log_message_aria,
+		automation_manual,
+		automation_manual_trigger,
+		automation_manual_trigger_hint,
+		automation_move_down,
+		automation_move_down_aria,
+		automation_move_up,
+		automation_move_up_aria,
+		automation_name_aria,
+		automation_name_placeholder,
+		automation_next_aria,
+		automation_no_operations,
+		automation_operation_chain,
+		automation_operator_placeholder,
+		automation_paused,
+		automation_preview_test,
+		automation_remove_op_aria,
+		automation_run_test,
+		automation_run_test_aria,
+		automation_save_aria,
+		automation_save_first_hint,
+		automation_select_events,
+		automation_select_events_hint,
+		automation_select_trigger_aria,
+		automation_set_field_name_aria,
+		automation_set_field_value_aria,
+		automation_show_details,
+		automation_testing,
+		automation_token_body_aria,
+		automation_token_email_body_aria,
+		automation_token_insert_aria,
+		automation_token_message_aria,
+		automation_token_recipient_aria,
+		automation_token_subject_aria,
+		automation_tokens_entry,
+		automation_tokens_reference,
+		automation_tokens_system,
+		automation_tokens_trigger,
+		automation_tokens_user,
+		automation_trigger_config,
+		automation_trigger_label,
+		automation_trigger_type,
+		automation_value_placeholder,
+		automation_value_token_aria,
+		automation_webhook_secret_aria,
+		automation_webhook_secret_placeholder,
+		automation_webhook_url_aria,
+		automation_webhook_url_placeholder,
+		button_back,
+		button_cancel,
+		button_next,
+		builder_remove,
+		common_active,
+		common_insert_token,
+		common_saving
+	} from '@src/paraglide/messages';
 	import { getAutomation, saveAutomation, testAutomation, unwrapFlow } from '../automations-api';
 
 	// ── State ──
@@ -410,7 +495,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									icon="mdi:flash-outline"
 									class="text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
-								Trigger Configuration
+								{automation_trigger_config()}
 							</h3>
 
 							<!-- Name & Description -->
@@ -418,16 +503,16 @@ and preview/test functionality. Reuses TokenPicker patterns.
 								<Input
 									bind:value={flow.name}
 									label="Automation Name *"
-									placeholder="e.g. Notify editors on publish"
-									aria-label="Automation name"
+									placeholder={automation_name_placeholder()}
+									aria-label={automation_name_aria()}
 									data-testid="automation-name"
 									required
 								/>
 								<Input
 									bind:value={flow.description}
 									label="Description"
-									placeholder="What does this automation do?"
-									aria-label="Automation description"
+									placeholder={automation_description_placeholder()}
+									aria-label={automation_description_aria()}
 									data-testid="automation-description"
 								/>
 							</div>
@@ -436,7 +521,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 							<!-- Trigger Type Selector -->
 							<div>
-								<span class="block font-medium mb-2">Trigger Type</span>
+								<span class="block font-medium mb-2">{automation_trigger_type()}</span>
 								<div class="grid grid-cols-3 gap-3" data-testid="automation-trigger-types">
 									{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 										{const isSelected = flow.trigger.type === triggerOption.type}
@@ -447,7 +532,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 												: 'border-surface-500/30 dark:border-surface-500/40'}"
 											onclick={() =>
 												setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
-											aria-label="Select {triggerOption.label} trigger"
+											aria-label={automation_select_trigger_aria({ trigger: triggerOption.label })}
 											data-testid={`automation-trigger-${triggerOption.type}`}
 										>
 											<iconify-icon icon={triggerOption.icon} class="text-2xl mb-1"></iconify-icon>
@@ -461,8 +546,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							<!-- Event Configuration -->
 							{#if flow.trigger.type === 'event'}
 								<div class="space-y-3" transition:slide>
-									<span class="block font-medium">Select Events</span>
-									<p class="text-xs opacity-60">Choose which CMS events trigger this automation.</p>
+									<span class="block font-medium">{automation_select_events()}</span>
+									<p class="text-xs opacity-60">{automation_select_events_hint()}</p>
 									<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 										{#each AUTOMATION_EVENTS as eventMeta (eventMeta.event)}
 											<div
@@ -501,18 +586,20 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											label="Cron Expression"
 											placeholder="*/5 * * * *"
 											inputClass="font-mono"
-											aria-label="Cron expression"
+											aria-label={automation_cron_aria()}
 										/>
 										<p class="text-xs opacity-60 mt-1">
-											Examples: <code>0 9 * * 1-5</code> (weekdays at 9am),
-											<code>*/15 * * * *</code> (every 15 min)
+											{automation_cron_examples()} <code>0 9 * * 1-5</code>{' '}
+											{automation_cron_example_weekdays()}
+											<code>*/15 * * * *</code>
+											{automation_cron_example_interval()}
 										</p>
 									</div>
 									<Input
 										bind:value={flow.trigger.cronLabel}
 										label="Description"
-										placeholder="e.g. Every weekday at 9 AM"
-										aria-label="Cron description"
+										placeholder={automation_cron_label_placeholder()}
+										aria-label={automation_cron_label_aria()}
 									/>
 								</div>
 							{/if}
@@ -525,11 +612,10 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											icon="mdi:information-outline"
 											class="text-lg text-tertiary-500 dark:text-primary-500"
 										></iconify-icon>
-										<span class="font-medium">Manual Trigger</span>
+										<span class="font-medium">{automation_manual_trigger()}</span>
 									</div>
 									<p class="text-sm opacity-70">
-										This automation must be triggered manually via the "Test" button or API
-										endpoint. Useful for one-off tasks or integrations.
+										{automation_manual_trigger_hint()}
 									</p>
 								</div>
 							{/if}
@@ -555,14 +641,14 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							<h3 class="h3 font-bold flex items-center gap-2">
 								<iconify-icon icon="mdi:cog-outline" class="text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
-								Operation Chain
+								{automation_operation_chain()}
 							</h3>
 						</div>
 						<p class="text-sm opacity-60">
-							Operations run in order. Use <code
+							{automation_chain_hint_part1()}{' '}<code
 								class="px-1 py-0.5 bg-surface-200 dark:bg-surface-700 rounded text-xs"
 								>{'{{ tokens }}'}</code
-							> in any text field for dynamic values.
+							>{' '}{automation_chain_hint_part2()}
 						</p>
 
 						<!-- Operation List -->
@@ -576,7 +662,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									attributes: { dragOverClass: 'bg-secondary-200' }
 								}}
 								role="list"
-								aria-label="Operation chain"
+								aria-label={automation_chain_aria()}
 							>
 								{#each flow.operations as op, i (op.id)}
 									{const meta = getOperationMeta(op.type)}
@@ -612,8 +698,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 													variant="ghost"
 													onclick={() => moveOperation(i, -1)}
 													disabled={i === 0}
-													title="Move Up"
-													aria-label="Move operation up"
+													title={automation_move_up()}
+													aria-label={automation_move_up_aria()}
 													size="sm"
 												>
 													<iconify-icon icon="mdi:chevron-up"></iconify-icon>
@@ -622,8 +708,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 													variant="ghost"
 													onclick={() => moveOperation(i, 1)}
 													disabled={i === flow.operations.length - 1}
-													title="Move Down"
-													aria-label="Move operation down"
+													title={automation_move_down()}
+													aria-label={automation_move_down_aria()}
 													size="sm"
 												>
 													<iconify-icon icon="mdi:chevron-down"></iconify-icon>
@@ -631,8 +717,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 												<Button
 													variant="error"
 													onclick={() => removeOperation(i)}
-													title="Remove"
-													aria-label="Remove operation"
+													title={builder_remove()}
+													aria-label={automation_remove_op_aria()}
 													size="sm"
 												>
 													<iconify-icon icon="mdi:close"></iconify-icon>
@@ -650,15 +736,15 @@ and preview/test functionality. Reuses TokenPicker patterns.
 															type="url"
 															bind:value={cfg.url}
 															label="Payload URL"
-															placeholder="https://example.com/webhook"
-															aria-label="Webhook URL"
+															placeholder={automation_webhook_url_placeholder()}
+															aria-label={automation_webhook_url_aria()}
 														/>
 													</div>
 													<Select
 														bind:value={cfg.method}
 														label="HTTP Method"
 														options={httpMethodOptions}
-														placeholder="Method"
+														placeholder={automation_http_method_placeholder()}
 													/>
 												</div>
 												<div class="relative">
@@ -674,8 +760,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 															<Button
 																variant="outline"
 																type="button"
-																title="Insert Token"
-																aria-label="Insert token into body"
+																title={common_insert_token()}
+																aria-label={automation_token_body_aria()}
 																size="sm"
 																class="p-1 opacity-40 hover:opacity-100"
 															>
@@ -703,9 +789,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 															type="password"
 															bind:value={cfg.secret}
 															label="Secret (HMAC-SHA256)"
-															placeholder="Optional signing secret"
+															placeholder={automation_webhook_secret_placeholder()}
 															inputClass="font-mono text-xs"
-															aria-label="Webhook secret"
+															aria-label={automation_webhook_secret_aria()}
 														/>
 													</div>
 												{/if}
@@ -722,15 +808,15 @@ and preview/test functionality. Reuses TokenPicker patterns.
 														label="To (supports tokens)"
 														placeholder={'editor@example.com or {{ entry.author_email }}'}
 														inputClass="pe-10"
-														aria-label="Email recipient"
+														aria-label={automation_email_recipient_aria()}
 													/>
 													<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 														<div class="dropdown">
 															<Button
 																variant="outline"
 																type="button"
-																title="Insert Token"
-																aria-label="Insert token into recipient"
+																title={common_insert_token()}
+																aria-label={automation_token_recipient_aria()}
 																size="sm"
 																class="p-1 opacity-40 hover:opacity-100"
 															>
@@ -758,15 +844,15 @@ and preview/test functionality. Reuses TokenPicker patterns.
 														label="Subject (supports tokens)"
 														placeholder={'New article published: {{ entry.title }}'}
 														inputClass="pe-10"
-														aria-label="Email subject"
+														aria-label={automation_email_subject_aria()}
 													/>
 													<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 														<div class="dropdown">
 															<Button
 																variant="outline"
 																type="button"
-																title="Insert Token"
-																aria-label="Insert token into subject"
+																title={common_insert_token()}
+																aria-label={automation_token_subject_aria()}
 																size="sm"
 																class="p-1 opacity-40 hover:opacity-100"
 															>
@@ -781,7 +867,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 																		size="sm"
 																		class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																		onclick={() => insertToken(i, 'subject', token.value)}
-																		aria-label="Insert token {token.label}">{token.label}</Button
+																		aria-label={automation_token_insert_aria({
+																			token: token.label
+																		})}>{token.label}</Button
 																	>
 																{/each}
 															</div>
@@ -801,8 +889,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 															<Button
 																variant="outline"
 																type="button"
-																title="Insert Token"
-																aria-label="Insert token into email body"
+																title={common_insert_token()}
+																aria-label={automation_token_email_body_aria()}
 																size="sm"
 																class="p-1 opacity-40 hover:opacity-100"
 															>
@@ -817,7 +905,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 																		size="sm"
 																		class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																		onclick={() => insertToken(i, 'body', token.value)}
-																		aria-label="Insert body token {token.label}"
+																		aria-label={automation_body_token_aria({ token: token.label })}
 																		>{token.label}</Button
 																	>
 																{/each}
@@ -839,15 +927,15 @@ and preview/test functionality. Reuses TokenPicker patterns.
 															label="Message (supports tokens)"
 															placeholder={'{{ trigger.event }}: {{ entry.title }}'}
 															inputClass="pe-10"
-															aria-label="Log message"
+															aria-label={automation_log_message_aria()}
 														/>
 														<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 															<div class="dropdown">
 																<Button
 																	variant="outline"
 																	type="button"
-																	title="Insert Token"
-																	aria-label="Insert token into message"
+																	title={common_insert_token()}
+																	aria-label={automation_token_message_aria()}
 																	size="sm"
 																	class="p-1 opacity-40 hover:opacity-100"
 																>
@@ -873,7 +961,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 														bind:value={cfg.level}
 														label="Log Level"
 														options={logLevelOptions}
-														placeholder="Level"
+														placeholder={automation_log_level_placeholder()}
 													/>
 												</div>
 											</div>
@@ -886,23 +974,23 @@ and preview/test functionality. Reuses TokenPicker patterns.
 												<Input
 													bind:value={cfg.field}
 													label="Field Name"
-													placeholder="status"
-													aria-label="Set field name"
+													placeholder={automation_field_placeholder()}
+													aria-label={automation_set_field_name_aria()}
 												/>
 												<div class="relative">
 													<Input
 														bind:value={cfg.value}
 														label="Value (supports tokens)"
-														placeholder="reviewed"
+														placeholder={automation_value_placeholder()}
 														inputClass="pe-10"
-														aria-label="Set field value"
+														aria-label={automation_set_field_value_aria()}
 													/>
 													<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 														<div class="dropdown">
 															<Button
 																variant="outline"
 																type="button"
-																title="Insert Token"
+																title={common_insert_token()}
 																size="sm"
 																class="p-1 opacity-40 hover:opacity-100"
 															>
@@ -917,7 +1005,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 																		size="sm"
 																		class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																		onclick={() => insertToken(i, 'value', token.value)}
-																		aria-label="Insert value token {token.label}"
+																		aria-label={automation_value_token_aria({ token: token.label })}
 																		>{token.label}</Button
 																	>
 																{/each}
@@ -935,20 +1023,20 @@ and preview/test functionality. Reuses TokenPicker patterns.
 												<Input
 													bind:value={cfg.field}
 													label="Field"
-													placeholder="status"
-													aria-label="Condition field"
+													placeholder={automation_condition_field_placeholder()}
+													aria-label={automation_condition_field_aria()}
 												/>
 												<Select
 													bind:value={cfg.operator}
 													label="Operator"
 													options={conditionOperatorOptions}
-													placeholder="Operator"
+													placeholder={automation_operator_placeholder()}
 												/>
 												<Input
 													bind:value={cfg.value}
 													label="Value"
-													placeholder="publish"
-													aria-label="Condition value"
+													placeholder={automation_condition_value_placeholder()}
+													aria-label={automation_condition_value_aria()}
 												/>
 											</div>
 										{/if}
@@ -962,14 +1050,14 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							class="border-2 border-dashed border-surface-500/30 dark:border-surface-600 rounded p-4"
 							data-testid="automation-add-ops"
 						>
-							<p class="text-sm font-medium mb-3 opacity-70">Add Operation</p>
+							<p class="text-sm font-medium mb-3 opacity-70">{automation_add_operation()}</p>
 							<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 								{#each OPERATION_TYPES as opType (opType.type)}
 									<Button
 										variant="surface"
 										class="p-3 text-center border border-surface-500/30 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
 										onclick={() => addOperation(opType.type)}
-										aria-label="Add {opType.label} operation"
+										aria-label={automation_add_op_aria({ operation: opType.label })}
 										data-testid={`automation-add-op-${opType.type}`}
 									>
 										<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>
@@ -987,7 +1075,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<h3 class="h3 font-bold flex items-center gap-2">
 							<iconify-icon icon="mdi:eye-outline" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							Preview & Test
+							{automation_preview_test()}
 						</h3>
 
 						<!-- Flow Summary -->
@@ -995,9 +1083,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							<div class="flex items-center justify-between">
 								<h4 class="font-bold text-lg">{flow.name || 'Untitled'}</h4>
 								{#if flow.active}
-									<Badge variant="success" size="sm" class="uppercase">Active</Badge>
+									<Badge variant="success" size="sm" class="uppercase">{common_active()}</Badge>
 								{:else}
-									<Badge preset="tonal" color="surface" size="sm" class="uppercase">Paused</Badge>
+									<Badge preset="tonal" color="surface" size="sm" class="uppercase"
+										>{automation_paused()}</Badge
+									>
 								{/if}
 							</div>
 
@@ -1007,7 +1097,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 							<!-- Trigger Info -->
 							<div class="flex items-center gap-2 text-sm">
-								<span class="font-medium">Trigger:</span>
+								<span class="font-medium">{automation_trigger_label()}</span>
 								{#if flow.trigger.type === 'event'}
 									{#each flow.trigger.events || [] as event (event)}
 										{const meta = AUTOMATION_EVENTS.find((e) => e.event === event)}
@@ -1022,13 +1112,13 @@ and preview/test functionality. Reuses TokenPicker patterns.
 										{flow.trigger.cronLabel || flow.trigger.cron || 'Schedule'}
 									</Badge>
 								{:else}
-									<Badge preset="tonal" color="surface" size="sm">Manual</Badge>
+									<Badge preset="tonal" color="surface" size="sm">{automation_manual()}</Badge>
 								{/if}
 							</div>
 
 							<!-- Operations Chain -->
 							<div class="flex flex-wrap items-center gap-2 text-sm">
-								<span class="font-medium">Chain:</span>
+								<span class="font-medium">{automation_chain_label()}</span>
 								{#each flow.operations as op, i (op.id)}
 									{const meta = getOperationMeta(op.type)}
 									<Badge preset="tonal" color="secondary" size="sm">
@@ -1040,7 +1130,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									{/if}
 								{/each}
 								{#if flow.operations.length === 0}
-									<span class="text-xs opacity-50 italic">No operations configured</span>
+									<span class="text-xs opacity-50 italic">{automation_no_operations()}</span>
 								{/if}
 							</div>
 						</AdminCard>
@@ -1052,19 +1142,21 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									variant="tertiary"
 									onclick={testFlow}
 									disabled={isTesting || isNew}
-									aria-label="Run test"
+									aria-label={automation_run_test_aria()}
 								>
 									{#if isTesting}
 										<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
-										<span>Testing...</span>
+										<span>{automation_testing()}</span>
 									{:else}
 										<iconify-icon icon="mdi:play-outline"></iconify-icon>
-										<span>Run Test</span>
-										<span class="text-[10px] opacity-60 ms-1 hidden sm:inline">(Ctrl+Enter)</span>
+										<span>{automation_run_test()}</span>
+										<span class="text-[10px] opacity-60 ms-1 hidden sm:inline"
+											>{automation_ctrl_enter()}</span
+										>
 									{/if}
 								</Button>
 								{#if isNew}
-									<p class="text-xs opacity-50">Save first to enable testing</p>
+									<p class="text-xs opacity-50">{automation_save_first_hint()}</p>
 								{/if}
 							</div>
 
@@ -1123,7 +1215,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											{/if}
 
 											<details class="text-[10px] opacity-60">
-												<summary class="cursor-pointer hover:opacity-100">Show Details</summary>
+												<summary class="cursor-pointer hover:opacity-100"
+													>{automation_show_details()}</summary
+												>
 												<pre
 													class="bg-surface-900 text-surface-100 p-2 rounded mt-1 overflow-auto max-h-32">{JSON.stringify(
 														opResult,
@@ -1137,6 +1231,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							{/if}
 						</div>
 
+						<!-- copy:ignore -->
 						<style>
 							.dropdown {
 								position: relative;
@@ -1159,30 +1254,30 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<details class="preset-tonal-surface rounded">
 							<summary class="p-3 cursor-pointer font-medium text-sm flex items-center gap-2">
 								<iconify-icon icon="mdi:code-braces"></iconify-icon>
-								Available Tokens Reference
+								{automation_tokens_reference()}
 							</summary>
 							<div class="px-3 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
 								<div>
-									<p class="font-bold mb-1">Entry Tokens</p>
+									<p class="font-bold mb-1">{automation_tokens_entry()}</p>
 									<code class="block opacity-70">{'{{ entry.title }}'}</code>
 									<code class="block opacity-70">{'{{ entry.status }}'}</code>
 									<code class="block opacity-70">{'{{ entry.author }}'}</code>
 									<code class="block opacity-70">{'{{ entry.<field_name> }}'}</code>
 								</div>
 								<div>
-									<p class="font-bold mb-1">Trigger Tokens</p>
+									<p class="font-bold mb-1">{automation_tokens_trigger()}</p>
 									<code class="block opacity-70">{'{{ trigger.event }}'}</code>
 									<code class="block opacity-70">{'{{ trigger.collection }}'}</code>
 									<code class="block opacity-70">{'{{ trigger.timestamp }}'}</code>
 									<code class="block opacity-70">{'{{ trigger.previous.<field> }}'}</code>
 								</div>
 								<div>
-									<p class="font-bold mb-1">User Tokens</p>
+									<p class="font-bold mb-1">{automation_tokens_user()}</p>
 									<code class="block opacity-70">{'{{ user.email }}'}</code>
 									<code class="block opacity-70">{'{{ user.username }}'}</code>
 								</div>
 								<div>
-									<p class="font-bold mb-1">System Tokens</p>
+									<p class="font-bold mb-1">{automation_tokens_system()}</p>
 									<code class="block opacity-70">{'{{ system.now }}'}</code>
 								</div>
 							</div>
@@ -1201,18 +1296,18 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<Button
 							variant="surface"
 							onclick={() => (activeStep -= 1)}
-							aria-label="Go back"
+							aria-label={automation_go_back_aria()}
 							data-testid="automation-back"
 						>
 							<iconify-icon icon="mdi:chevron-left"></iconify-icon>
-							Back
+							{button_back()}
 						</Button>
 					{:else}
 						<Button
 							variant="surface"
 							onclick={() => goto('/config/automations')}
-							aria-label="Cancel and go back"
-							data-testid="automation-cancel">Cancel</Button
+							aria-label={automation_cancel_aria()}
+							data-testid="automation-cancel">{button_cancel()}</Button
 						>
 					{/if}
 				</div>
@@ -1223,10 +1318,10 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							variant="tertiary"
 							onclick={() => (activeStep += 1)}
 							disabled={!canProceed}
-							aria-label="Go to next step"
+							aria-label={automation_next_aria()}
 							data-testid="automation-next"
 						>
-							Next
+							{button_next()}
 							<iconify-icon icon="mdi:chevron-right"></iconify-icon>
 						</Button>
 					{:else}
@@ -1235,16 +1330,18 @@ and preview/test functionality. Reuses TokenPicker patterns.
 								variant="tertiary"
 								onclick={save}
 								disabled={isSaving}
-								aria-label="Save automation"
+								aria-label={automation_save_aria()}
 								data-testid="automation-save"
 							>
 								{#if isSaving}
 									<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
-									Saving...
+									{common_saving()}
 								{:else}
 									<iconify-icon icon="mdi:content-save"></iconify-icon>
 									{isNew ? 'Create Automation' : 'Save Changes'}
-									<span class="text-[10px] opacity-60 ms-1 hidden sm:inline">(Ctrl+S)</span>
+									<span class="text-[10px] opacity-60 ms-1 hidden sm:inline"
+										>{automation_ctrl_s()}</span
+									>
 								{/if}
 							</Button>
 						</StickyActions>

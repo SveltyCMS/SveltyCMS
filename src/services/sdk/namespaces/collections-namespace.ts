@@ -54,7 +54,7 @@ import {
   resolvePageSort,
   withIdTiebreaker,
 } from "@src/databases/core/page-utils";
-import { parseIdLookup } from "@src/databases/core/lookup-query";
+import { parseIdLookup } from "@src/databases/core/query-primitives";
 import { nowISODateString } from "@src/utils/date";
 import { clampPageSize } from "@utils/api-params";
 import { redactReadEnvelope, redactRecord } from "@utils/field-access";
@@ -184,10 +184,15 @@ export function stripUnownedRows(envelope: unknown, field: string, user: unknown
   if (!envelope || typeof envelope !== "object") return envelope;
   const record = envelope as { data?: unknown };
   const ownerId = (user as { _id?: unknown } | undefined | null)?._id;
+  // Coerced once outside the per-row closure — `String(ownerId)` was per row.
+  // A missing/empty owner id must still strip every row on a copied envelope
+  // (never early-return the original), so `owns` keeps its per-row guard.
+  const ownerKey =
+    ownerId === undefined || ownerId === null || ownerId === "" ? null : String(ownerId);
   const owns = (row: unknown): boolean => {
-    if (ownerId === undefined || ownerId === null || ownerId === "") return false;
+    if (ownerKey === null) return false;
     const value = ownerValue(row, field);
-    return value !== undefined && value !== null && String(value) === String(ownerId);
+    return value !== undefined && value !== null && String(value) === ownerKey;
   };
 
   const data = record.data;
@@ -218,7 +223,7 @@ async function presentRead(
   user: LocalApiOptions["user"],
   system?: boolean,
 ): Promise<any> {
-  const decoded = await decryptReadResult(result, hot, encCtx, { clone: true });
+  const decoded = await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
   const permitted =
     !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
       ? decoded
@@ -278,6 +283,13 @@ const NO_ENCRYPTION_CONTEXT: FieldEncryptionContext = Object.freeze({
   tenantId: "",
 });
 
+/**
+ * Shared `{ clone: true }` options object for `decryptReadResult` — the function
+ * only reads `opts.clone` (never mutates opts), so the hot read lanes share one
+ * frozen instance instead of allocating one per call.
+ */
+const DECRYPT_CLONE_OPTIONS: Readonly<{ clone: true }> = Object.freeze({ clone: true });
+
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
 
@@ -301,6 +313,38 @@ function sameShallowPayload(updates: Array<{ data: Record<string, unknown> }>): 
     }
   }
   return true;
+}
+
+/**
+ * Shared publish-gate check for create/update: `hot._requiredFields` is the
+ * pre-compiled plan from schema-store, so the check is one pass with no
+ * per-call field walk. Throws the same FIELD_VALIDATION_ERROR both write
+ * lanes raised before (message and code unchanged).
+ */
+function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): void {
+  const required = hot._requiredFields;
+  if (!hot._hasRequiredFields || !required || required.length === 0) return;
+  const record = payload as Record<string, unknown>;
+  const missingFields: string[] = [];
+  for (let i = 0; i < required.length; i++) {
+    const rf = required[i];
+    const val = record[rf.key];
+    if (
+      val === undefined ||
+      val === null ||
+      val === "" ||
+      (Array.isArray(val) && val.length === 0)
+    ) {
+      missingFields.push(rf.name);
+    }
+  }
+  if (missingFields.length > 0) {
+    throw new AppError(
+      missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+      400,
+      "FIELD_VALIDATION_ERROR",
+    );
+  }
 }
 
 let resolvedContentSystem: ContentSystem | null = null;
@@ -619,13 +663,17 @@ export class CollectionsNamespace {
       if (col._id) collectionMap.set(col._id, col);
     }
 
-    let collectionsToSearch: string[] = [];
+    let collectionsToSearch: string[];
     if (collections && collections.length > 0) {
       collectionsToSearch = collections;
     } else {
-      collectionsToSearch = allCollections
-        .map((c) => c._id)
-        .filter((id): id is string => id !== undefined);
+      // Single pass — the previous map().filter() built a throwaway intermediate
+      // array of the same length on every search.
+      const ids: string[] = [];
+      for (const c of allCollections) {
+        if (c._id !== undefined) ids.push(c._id);
+      }
+      collectionsToSearch = ids;
     }
 
     const baseFilter: any = normalizeRelationshipFilter({
@@ -647,7 +695,10 @@ export class CollectionsNamespace {
       if (!collection) return [];
 
       try {
-        assertEncryptedFieldsNotQueried(baseFilter, ensureSchemaHotFlags(collection));
+        // Hot flags resolved once per collection — the result lane below
+        // re-used a second `ensureSchemaHotFlags` call on the same schema.
+        const hot = ensureSchemaHotFlags(collection);
+        assertEncryptedFieldsNotQueried(baseFilter, hot);
         const result = await this._dbAdapter.crud.findMany(
           this.getCollectionName(collection._id as string),
           baseFilter,
@@ -658,12 +709,11 @@ export class CollectionsNamespace {
         );
 
         if (result.success && result.data) {
-          const hot = ensureSchemaHotFlags(collection);
           const decrypted = (await presentRead(
             { success: true, data: result.data },
             collection,
             hot,
-            fieldEncryptionContext(collection, tenantId),
+            readEncryptionContext(collection, tenantId, hot),
             user,
             options.system,
           )) as { data?: unknown };
@@ -779,7 +829,9 @@ export class CollectionsNamespace {
     );
 
     const hot = ensureSchemaHotFlags(schema);
-    const encCtx = fieldEncryptionContext(schema, tenantId);
+    // Unencrypted schemas (the common read case) share the frozen placeholder —
+    // `decryptReadResult` never reads the context without `_hasEncryptedFields`.
+    const encCtx = readEncryptionContext(schema, tenantId, hot);
     assertEncryptedFieldsNotQueried(
       query,
       hot,
@@ -1019,7 +1071,7 @@ export class CollectionsNamespace {
     // via cs.getCollection, causing duplicate resolution per stream.
     const schema = await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
-    const encCtx = fieldEncryptionContext(schema, tenantId);
+    const encCtx = readEncryptionContext(schema, tenantId, hot);
     // 🚀 Avoid the `{ ...options.filter }` spread allocation when filter is empty or
     // already a plain object with no relational operators — normalizeRelationshipFilter
     // only clones when an operator rewrite is needed (lazy-clone internally).
@@ -1296,8 +1348,13 @@ export class CollectionsNamespace {
 
     const now = nowISODateString();
     const encCtx = fieldEncryptionContext(schema, tenantId);
+    // Resolved once — the previous per-row `(schema.fields ?? []).some(...)` walk
+    // repeated the same schema scan for every row of the batch.
+    const schemaHasUpdatedByField = (schema.fields ?? []).some(
+      (f) => (f as { db_fieldName?: string }).db_fieldName === "updatedBy",
+    );
 
-    const formattedUpdates = [];
+    const formattedUpdates: Array<{ id: DatabaseId; data: Record<string, unknown> }> = [];
     for (const u of updates) {
       const raw = (u.data ?? {}) as Record<string, unknown>;
       const patched = isShallowPatch(raw)
@@ -1308,11 +1365,7 @@ export class CollectionsNamespace {
       // every bulk update (write amplification on all SQL engines).
       const data = {
         ...patched,
-        ...((schema.fields ?? []).some(
-          (f) => (f as { db_fieldName?: string }).db_fieldName === "updatedBy",
-        )
-          ? { updatedBy: user?._id }
-          : {}),
+        ...(schemaHasUpdatedByField ? { updatedBy: user?._id } : {}),
         updatedAt: now,
       };
       await encryptWritePayload(data, hot, encCtx);
@@ -1398,7 +1451,7 @@ export class CollectionsNamespace {
       envelope,
       schema,
       hot,
-      fieldEncryptionContext(schema, tenantId),
+      readEncryptionContext(schema, tenantId, hot),
       options.user,
       options.system,
     );
@@ -1468,19 +1521,16 @@ export class CollectionsNamespace {
       }
     }
 
-    // Single-id hot path: direct loadOneById (no microtask batch delay)
-    return this.loadOneById(schema, entryId, {
-      ...options,
-      tenantId,
-      bypassCache,
-      effectivePublicationFilter,
-    });
+    // Single-id hot path: direct loadOneById (no microtask batch delay). The
+    // cache key built above is threaded through so the point-read lane does not
+    // rebuild the same string and does not copy the options object.
+    return this.loadOneById(schema, entryId, options, cacheKey);
   }
 
   /**
    * Single-id hot path — findOne + optional widget pipeline (no microtask batch delay).
    */
-  private async loadOneById(schema: Schema, entryId: string, options: any) {
+  private async loadOneById(schema: Schema, entryId: string, options: any, cacheKey?: string) {
     const { tenantId, ttl, bypassCache } = options;
     const collectionName = this.getCollectionName(schema._id as string);
     const effectivePublicationFilter =
@@ -1552,13 +1602,20 @@ export class CollectionsNamespace {
     }
 
     const finalResult = { success: true, data: item || null };
-    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
+    const resolvedCacheKey =
+      cacheKey ??
+      `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
 
     if (!bypassCache && !options.skipCacheService) {
       // The HTTP lane already stores the response body. A second copy of every
       // random id in this LRU is insert+evict work the next GET never reads:
       // the lane returns from the response cache before findById runs again.
-      CollectionsNamespace.setRequestCache(cacheKey, finalResult, schema._id as string, tenantId);
+      CollectionsNamespace.setRequestCache(
+        resolvedCacheKey,
+        finalResult,
+        schema._id as string,
+        tenantId,
+      );
       if (item) {
         // Point-read lanes that already cache the full HTTP response opt out of
         // the second entry: cacheService.set also writes the key prefix map, the
@@ -1567,7 +1624,7 @@ export class CollectionsNamespace {
         if (!options.skipCacheService) {
           cacheService
             .set(
-              cacheKey,
+              resolvedCacheKey,
               finalResult,
               ttl || 180,
               (tenantId || undefined) as string,
@@ -1582,7 +1639,7 @@ export class CollectionsNamespace {
             .catch(() => {});
         }
       } else {
-        cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+        cacheService.recordMiss(resolvedCacheKey, (tenantId || undefined) as string);
       }
     }
 
@@ -1654,11 +1711,8 @@ export class CollectionsNamespace {
     // 🚪 Publication gate: workflows with gatePublication block direct
     // publishing of brand-new entries (no instance exists yet — the workflow
     // must approve before publish). System writes bypass the gate.
-    if (
-      !system &&
-      ((data as { status?: string } | null)?.status === "publish" ||
-        (data as { status?: string } | null)?.status === "published")
-    ) {
+    const requestedStatus = (data as { status?: string } | null)?.status;
+    if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
       const workflowService = await getWorkflowServiceLazy();
       await workflowService.assertPublishAllowed(
         schema._id as string,
@@ -1667,26 +1721,7 @@ export class CollectionsNamespace {
       );
 
       if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
-        const missingFields: string[] = [];
-        for (let i = 0; i < hot._requiredFields.length; i++) {
-          const rf = hot._requiredFields[i];
-          const val = (entryData as Record<string, unknown>)[rf.key];
-          if (
-            val === undefined ||
-            val === null ||
-            val === "" ||
-            (Array.isArray(val) && val.length === 0)
-          ) {
-            missingFields.push(rf.name);
-          }
-        }
-        if (missingFields.length > 0) {
-          throw new AppError(
-            missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
-            400,
-            "FIELD_VALIDATION_ERROR",
-          );
-        }
+        assertRequiredFieldsForPublish(hot, entryData);
       } else if (schema.fields && schema.fields.length > 0) {
         const { valid, missingFields } = validateRequiredFields(
           entryData,
@@ -1763,9 +1798,12 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedCreate = await decryptReadResult(result, hot, encCtx, { clone: true });
+    const decryptedCreate = await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
+      // Resolved once — the three side-effect schedules below shared the same
+      // `decryptedCreate?.data ?? result.data` expression.
+      const postWriteDoc = decryptedCreate?.data ?? result.data;
       // ⚡ Response-path: never await side effects — concurrent create RPS depends on this
       schedulePostWrite(
         this._dbAdapter,
@@ -1774,20 +1812,13 @@ export class CollectionsNamespace {
         collectionId,
         tenantId,
         createdId,
-        decryptedCreate?.data ?? result.data,
+        postWriteDoc,
         effectiveUser,
         options,
       );
-      scheduleAfterOperation(
-        schema,
-        hot,
-        decryptedCreate?.data ?? result.data,
-        "create",
-        effectiveUser,
-        tenantId,
-      );
+      scheduleAfterOperation(schema, hot, postWriteDoc, "create", effectiveUser, tenantId);
       if (!shouldSkipWriteSideEffects(options)) {
-        scheduleIndexNowPing(collectionId, decryptedCreate?.data ?? result.data, tenantId);
+        scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
         );
@@ -1832,16 +1863,13 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    let preloadedExisting: any = null;
+    let preloadedExisting: Awaited<ReturnType<IDBAdapter["crud"]["findOne"]>> | null = null;
 
     // 🚪 Publication gate: workflows with gatePublication only allow status
     // "publish" while the entry's workflow instance is in a final state.
     // System writes (scheduled publishing, sync, imports) bypass the gate.
-    if (
-      !system &&
-      ((data as { status?: string } | null)?.status === "publish" ||
-        (data as { status?: string } | null)?.status === "published")
-    ) {
+    const requestedStatus = (data as { status?: string } | null)?.status;
+    if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
       const workflowService = await getWorkflowServiceLazy();
       await workflowService.assertPublishAllowed(
         schema._id as string,
@@ -1865,26 +1893,7 @@ export class CollectionsNamespace {
           ...updateData,
         };
         if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
-          const missingFields: string[] = [];
-          for (let i = 0; i < hot._requiredFields.length; i++) {
-            const rf = hot._requiredFields[i];
-            const val = (merged as Record<string, unknown>)[rf.key];
-            if (
-              val === undefined ||
-              val === null ||
-              val === "" ||
-              (Array.isArray(val) && val.length === 0)
-            ) {
-              missingFields.push(rf.name);
-            }
-          }
-          if (missingFields.length > 0) {
-            throw new AppError(
-              missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
-              400,
-              "FIELD_VALIDATION_ERROR",
-            );
-          }
+          assertRequiredFieldsForPublish(hot, merged);
         } else {
           const { valid, missingFields } = validateRequiredFields(
             merged,
@@ -1996,12 +2005,15 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedUpdate = await decryptReadResult(result, hot, encCtx, { clone: true });
+    const decryptedUpdate = await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
       if (revisionEnabled && previousSnapshot) {
         void this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
       }
+      // Resolved once — the three side-effect schedules below shared the same
+      // `decryptedUpdate?.data ?? result.data` expression.
+      const postWriteDoc = decryptedUpdate?.data ?? result.data;
       // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
       schedulePostWrite(
         this._dbAdapter,
@@ -2010,20 +2022,13 @@ export class CollectionsNamespace {
         collectionId,
         tenantId,
         entryId,
-        decryptedUpdate?.data ?? result.data,
+        postWriteDoc,
         effectiveUser,
         options,
       );
-      scheduleAfterOperation(
-        schema,
-        hot,
-        decryptedUpdate?.data ?? result.data,
-        "update",
-        effectiveUser,
-        tenantId,
-      );
+      scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
       if (!shouldSkipWriteSideEffects(options)) {
-        scheduleIndexNowPing(collectionId, decryptedUpdate?.data ?? result.data, tenantId);
+        scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
         );

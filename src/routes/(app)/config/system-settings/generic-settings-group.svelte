@@ -22,6 +22,8 @@ Handles all field types and validation automatically
 	import { logger } from '@utils/logger';
 	import {
 		button_add,
+		common_error,
+		common_saving,
 		setup_badge_english_ui,
 		setup_badge_rtl,
 		setup_badge_translated,
@@ -29,14 +31,38 @@ Handles all field types and validation automatically
 		setup_label_system_languages,
 		setup_note_machine_translate,
 		setup_search_languages,
+		setup_search_placeholder,
+		settings_add_language_aria,
+		settings_add_log_level,
+		settings_array_hint,
+		settings_configured_in_env,
+		settings_default_values_detected_body,
+		settings_default_values_detected_title,
+		settings_discard,
+		settings_example,
+		settings_export_group_json,
+		settings_import_group_json_file,
+		settings_import_json,
 		settings_inlang_added,
 		settings_inlang_status_pending,
 		settings_inlang_status_ready,
 		settings_languages_content_heading,
 		settings_languages_system_heading,
+		settings_loading,
 		settings_locales_help,
 		settings_no_matches,
-		settings_search_languages
+		settings_remove_language,
+		settings_remove_log_level,
+		settings_reset_defaults,
+		settings_restart_required_body,
+		settings_restart_required_title,
+		settings_search_languages,
+		settings_status_dynamic,
+		settings_status_environment,
+		settings_status_groups,
+		settings_status_loaded,
+		settings_status_settings,
+		settings_system_operational
 	} from '@src/paraglide/messages';
 	import { BUNDLED_SYSTEM_LOCALES, isCompiledSystemLocale } from '@utils/system-locale';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
@@ -698,23 +724,22 @@ Handles all field types and validation automatically
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
-		<Alert variant="warning" title="Restart Required" class="mb-4">
-			Changes to these settings require a server restart to take effect.
+		<Alert variant="warning" title={settings_restart_required_title()} class="mb-4">
+			{settings_restart_required_body()}
 		</Alert>
 	{/if}
 
 	<!-- Default Values Notice -->
 	{#if hasEmptyRequiredFields}
-		<Alert variant="error" title="Default Values Detected" class="mb-4">
-			Some settings are using placeholder values from the system defaults. Please review and update
-			these values to match your infrastructure and requirements before using in production.
+		<Alert variant="error" title={settings_default_values_detected_title()} class="mb-4">
+			{settings_default_values_detected_body()}
 		</Alert>
 	{/if}
 
 	<!-- Loading overlay — preserves form DOM so input bindings survive loadSettings refresh -->
 	{#if loading}
 		<div class="flex items-center justify-center p-12">
-			<p class="text-surface-500">Loading settings...</p>
+			<p class="text-surface-500">{settings_loading()}</p>
 		</div>
 	{/if}
 
@@ -722,7 +747,7 @@ Handles all field types and validation automatically
 	<div style={loading ? 'visibility: hidden; position: absolute;' : ''}>
 		<!-- Error Message -->
 		{#if error}
-			<Alert variant="error" title="Error" class="mb-4">
+			<Alert variant="error" title={common_error()} class="mb-4">
 				{error}
 			</Alert>
 		{/if}
@@ -825,7 +850,7 @@ Handles all field types and validation automatically
 															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() =>
 																removeLanguage(availableLangsField.key, langCode as string)}
-															aria-label="Remove {langCode}"
+															aria-label={settings_remove_language({ langCode })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
@@ -852,7 +877,7 @@ Handles all field types and validation automatically
 												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												Add
+												{button_add()}
 											</Button>
 										{/if}
 									</div>
@@ -863,13 +888,13 @@ Handles all field types and validation automatically
 											id="{availableLangsField.key}-lang-picker"
 											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
-											aria-label="Add language"
+											aria-label={settings_add_language_aria()}
 											tabindex="-1"
 										>
 											<Input
-												placeholder="Search..."
+												placeholder={setup_search_placeholder()}
 												bind:value={languageSearch[availableLangsField.key]}
-												aria-label="Search languages"
+												aria-label={settings_search_languages()}
 												inputClass="text-xs py-1"
 												class="mb-2"
 											/>
@@ -919,7 +944,8 @@ Handles all field types and validation automatically
 								{/if}
 								{#if availableLangsField.placeholder}
 									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-										Example: {availableLangsField.placeholder}
+										{settings_example()}
+										{availableLangsField.placeholder}
 									</p>
 								{/if}
 							</div>
@@ -1034,7 +1060,7 @@ Handles all field types and validation automatically
 																	values.BASE_LOCALE = remaining[0] || 'en';
 																}
 															}}
-															aria-label="Remove {langCode}"
+															aria-label={settings_remove_language({ langCode })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
@@ -1172,7 +1198,8 @@ Handles all field types and validation automatically
 								</p>
 								{#if localesField.placeholder}
 									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-										Example: {localesField.placeholder}
+										{settings_example()}
+										{localesField.placeholder}
 									</p>
 								{/if}
 							</div>
@@ -1274,7 +1301,7 @@ Handles all field types and validation automatically
 									/>
 									{#if field.sensitive && field.readonly}
 										<div class="absolute inset-e-2 top-2 text-xs text-surface-500 italic">
-											Configured in .env
+											{settings_configured_in_env()}
 										</div>
 									{:else if !field.readonly}
 										<Button
@@ -1339,7 +1366,7 @@ Handles all field types and validation automatically
 									error={errors[field.key]}
 								/>
 								<p class="mt-1 text-xs text-surface-500 dark:text-surface-50">
-									Enter values separated by commas
+									{settings_array_hint()}
 								</p>
 								<!-- Language Multi-Select -->
 							{:else if field.type === 'language-multi'}
@@ -1366,7 +1393,7 @@ Handles all field types and validation automatically
 															type="button"
 															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLanguage(field.key, langCode as string)}
-															aria-label="Remove {langCode}"
+															aria-label={settings_remove_language({ langCode })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
@@ -1393,7 +1420,7 @@ Handles all field types and validation automatically
 												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												Add
+												{button_add()}
 											</Button>
 										{/if}
 									</div>
@@ -1404,13 +1431,13 @@ Handles all field types and validation automatically
 											id="{field.key}-lang-picker"
 											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
-											aria-label="Add language"
+											aria-label={settings_add_language_aria()}
 											tabindex="-1"
 										>
 											<Input
-												placeholder="Search..."
+												placeholder={setup_search_placeholder()}
 												bind:value={languageSearch[field.key]}
-												aria-label="Search languages"
+												aria-label={settings_search_languages()}
 												inputClass="text-xs py-1"
 												class="mb-2"
 											/>
@@ -1450,7 +1477,8 @@ Handles all field types and validation automatically
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
 									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">
-										Example: {field.placeholder}
+										{settings_example()}
+										{field.placeholder}
 									</p>
 								{/if}
 								<!-- Log Level Multi-Select -->
@@ -1475,7 +1503,7 @@ Handles all field types and validation automatically
 															type="button"
 															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLogLevel(field.key, level as LogLevel)}
-															aria-label="Remove {level}"
+															aria-label={settings_remove_log_level({ level })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
@@ -1499,7 +1527,7 @@ Handles all field types and validation automatically
 												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												Add
+												{button_add()}
 											</Button>
 										{/if}
 									</div>
@@ -1510,7 +1538,7 @@ Handles all field types and validation automatically
 											id="{field.key}-loglevel-picker"
 											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
-											aria-label="Add log level"
+											aria-label={settings_add_log_level()}
 											tabindex="-1"
 										>
 											<div class="max-h-48 overflow-auto">
@@ -1540,7 +1568,8 @@ Handles all field types and validation automatically
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
 									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">
-										Example: {field.placeholder}
+										{settings_example()}
+										{field.placeholder}
 									</p>
 								{/if}
 							{/if}
@@ -1575,7 +1604,7 @@ Handles all field types and validation automatically
 								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
 							>
 								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-								<span>Reset to Defaults</span>
+								<span>{settings_reset_defaults()}</span>
 							</Button>
 
 							<Button
@@ -1587,7 +1616,7 @@ Handles all field types and validation automatically
 								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
 							>
 								<iconify-icon icon="mdi:export" width="16"></iconify-icon>
-								<span>Export Group JSON</span>
+								<span>{settings_export_group_json()}</span>
 							</Button>
 
 							<input
@@ -1597,8 +1626,8 @@ Handles all field types and validation automatically
 								class="sr-only"
 								id="settings-group-import-input"
 								name="settings-group-import"
-								aria-label="Import settings group JSON file"
-								title="Import settings group JSON file"
+								aria-label={settings_import_group_json_file()}
+								title={settings_import_group_json_file()}
 								data-testid="settings-group-import-input"
 								onchange={handleImportFile}
 							/>
@@ -1611,7 +1640,7 @@ Handles all field types and validation automatically
 								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
 							>
 								<iconify-icon icon="mdi:import" width="16"></iconify-icon>
-								<span>Import JSON</span>
+								<span>{settings_import_json()}</span>
 							</Button>
 
 							<Button
@@ -1623,7 +1652,7 @@ Handles all field types and validation automatically
 								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
 							>
 								<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
-								<span>Discard</span>
+								<span>{settings_discard()}</span>
 							</Button>
 						</div>
 
@@ -1634,25 +1663,34 @@ Handles all field types and validation automatically
 							<div class="flex items-center gap-1.5 shrink-0">
 								<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
 								<span class="font-semibold text-tertiary-500 dark:text-primary-500"
-									>System Operational</span
+									>{settings_system_operational()}</span
 								>
 							</div>
 							<span class="hidden sm:inline text-dark dark:text-white">|</span>
 							<div class="flex items-center gap-1 shrink-0">
-								<span class="text-surface-600 dark:text-surface-50">Settings:</span>
-								<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
+								<span class="text-surface-600 dark:text-surface-50"
+									>{settings_status_settings()}</span
+								>
+								<span class="font-semibold text-tertiary-500 dark:text-primary-500"
+									>{settings_status_loaded()}</span
+								>
 							</div>
 							<span class="hidden sm:inline text-dark dark:text-white">|</span>
 							<div class="flex items-center gap-1 shrink-0">
-								<span class="text-surface-600 dark:text-surface-50">Groups:</span>
+								<span class="text-surface-600 dark:text-surface-50">{settings_status_groups()}</span
+								>
 								<span class="font-semibold text-tertiary-500 dark:text-primary-500"
 									>{group.fields?.length ?? 0}</span
 								>
 							</div>
 							<span class="hidden sm:inline text-dark dark:text-white">|</span>
 							<div class="flex items-center gap-1 shrink-0">
-								<span class="text-surface-600 dark:text-surface-50">Environment:</span>
-								<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
+								<span class="text-surface-600 dark:text-surface-50"
+									>{settings_status_environment()}</span
+								>
+								<span class="font-semibold text-tertiary-500 dark:text-primary-500"
+									>{settings_status_dynamic()}</span
+								>
 							</div>
 						</div>
 
@@ -1666,7 +1704,7 @@ Handles all field types and validation automatically
 						>
 							{#if saving}
 								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
-								<span>Saving...</span>
+								<span>{common_saving()}</span>
 							{:else}
 								<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
 								<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>

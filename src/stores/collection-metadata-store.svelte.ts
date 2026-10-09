@@ -204,3 +204,68 @@ class CollectionMetadataStore {
 }
 
 export const collectionMetadata = new CollectionMetadataStore();
+
+// --- Integrated Pinned Store (consolidated under collection-metadata) ---
+
+export interface PinnedItem {
+  id: string;
+  name: string;
+  type: "collection" | "folder";
+  path: string;
+  icon?: string;
+}
+
+class PinnedStore {
+  items = $state<PinnedItem[]>([]);
+
+  constructor() {
+    if (browser) {
+      this.load();
+    }
+  }
+
+  load() {
+    try {
+      const stored = localStorage.getItem("sveltycms_pinned_items");
+      if (stored) {
+        this.items = JSON.parse(stored);
+      }
+    } catch (e) {
+      logger.error("Failed to load pinned items from localStorage:", e);
+    }
+  }
+
+  save() {
+    try {
+      localStorage.setItem("sveltycms_pinned_items", JSON.stringify(this.items));
+    } catch (e) {
+      logger.error("Failed to save pinned items to localStorage:", e);
+    }
+  }
+
+  pin(item: PinnedItem) {
+    if (!this.items.some((i) => i.id === item.id)) {
+      this.items.push(item);
+      this.save();
+    }
+  }
+
+  unpin(id: string) {
+    this.items = this.items.filter((i) => i.id !== id);
+    this.save();
+  }
+
+  isPinned(id: string): boolean {
+    return this.items.some((i) => i.id === id);
+  }
+
+  togglePin(item: PinnedItem) {
+    if (this.isPinned(item.id)) {
+      this.unpin(item.id);
+    } else {
+      this.pin(item);
+    }
+  }
+}
+
+export const pinnedStore = new PinnedStore();

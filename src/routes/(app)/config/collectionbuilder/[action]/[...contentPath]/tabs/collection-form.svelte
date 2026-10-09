@@ -30,6 +30,25 @@
 		collection_description_placeholder,
 		collection_name,
 		collection_name_placeholder,
+		collection_tags_aria,
+		collection_tags_comma_hint,
+		collection_tags_label,
+		collection_tags_placeholder,
+		collection_tags_remove_aria,
+		collection_tags_suggested,
+		collection_tags_suggested_add_aria,
+		collection_favorite_add_aria,
+		collection_favorite_favorited_aria,
+		collection_favorite_heading,
+		collection_favorite_hint,
+		collection_form_db_name,
+		collection_form_db_name_aria,
+		collection_form_db_name_hint,
+		collection_form_definition,
+		collection_form_identity,
+		collection_form_intro,
+		collection_form_org_tags,
+		collection_form_visual,
 		collectionname_description,
 		collectionname_labelicon
 	} from '@src/paraglide/messages';
@@ -200,15 +219,14 @@
 		<div>
 			<div class="flex items-center gap-2">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
-					Collection Definition
+					{collection_form_definition()}
 				</h2>
 				<SystemTooltip title={builder_tip_def_step()}>
 					<HelpIcon ariaLabel={builder_help_definition()} />
 				</SystemTooltip>
 			</div>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
-				Step 1: Set up the core identity of your collection. Provide a unique name, choose an icon,
-				and optionally add tags and a description.
+				{collection_form_intro()}
 			</p>
 		</div>
 	</div>
@@ -221,7 +239,7 @@
 					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
 				>
 					<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>
-					Identity
+					{collection_form_identity()}
 				</h3>
 				<SystemTooltip title={builder_tip_def_identity()}>
 					<HelpIcon ariaLabel={builder_help_identity()} />
@@ -256,7 +274,7 @@
 					<div class="space-y-1 mt-6">
 						<div class="flex items-center gap-2">
 							<span class="text-sm font-medium text-surface-600 dark:text-surface-400">
-								Database Name
+								{collection_form_db_name()}
 							</span>
 							<SystemTooltip title={builder_tip_def_dbname()}>
 								<HelpIcon ariaLabel={builder_help_dbname()} />
@@ -268,10 +286,10 @@
 							oninput={handleDbNameInput}
 							onblur={handleDbNameBlur}
 							class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-500"
-							aria-label="Database Name"
+							aria-label={collection_form_db_name_aria()}
 						/>
 						<p class="text-[11px] text-surface-500 dark:text-surface-400">
-							Auto-generated from collection name — used as the database table name
+							{collection_form_db_name_hint()}
 						</p>
 					</div>
 				{/if}
@@ -286,7 +304,7 @@
 				>
 					<iconify-icon icon="mdi:palette-outline" width="18" class="text-tertiary-500"
 					></iconify-icon>
-					Visual Identity
+					{collection_form_visual()}
 				</h3>
 				<SystemTooltip title={builder_tip_def_visual()}>
 					<HelpIcon ariaLabel={builder_help_visual()} />
@@ -341,7 +359,7 @@
 				>
 					<iconify-icon icon="mdi:tag-multiple-outline" width="18" class="text-tertiary-500"
 					></iconify-icon>
-					Organization & Tags
+					{collection_form_org_tags()}
 				</h3>
 				<SystemTooltip title={builder_tip_def_tags()}>
 					<HelpIcon ariaLabel={builder_help_org_tags()} />
@@ -357,21 +375,19 @@
 								for="collection-tags-input"
 								class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50"
 							>
-								Collection Tags
+								{collection_tags_label()}
 							</label>
 							<SystemTooltip title={builder_tip_def_tags_input()}>
 								<HelpIcon ariaLabel={builder_help_collection_tags()} />
 							</SystemTooltip>
 						</div>
-						<span class="text-[11px] text-surface-400"
-							>Comma-separated tags for grouping & filtering</span
-						>
+						<span class="text-[11px] text-surface-400">{collection_tags_comma_hint()}</span>
 					</div>
 
 					<Input
 						id="collection-tags-input"
 						bind:value={tagsInput}
-						placeholder="e.g. news, featured, press, marketing"
+						placeholder={collection_tags_placeholder()}
 						onblur={handleTagsBlur}
 						onkeydown={(e) => {
 							if (e.key === 'Enter') {
@@ -379,7 +395,7 @@
 								handleTagsBlur();
 							}
 						}}
-						aria-label="Collection Tags"
+						aria-label={collection_tags_aria()}
 					/>
 
 					{#if currentTags.length > 0}
@@ -396,7 +412,7 @@
 										type="button"
 										onclick={() => removeTag(tag)}
 										class="rounded-full p-0.5 hover:text-error-500 transition-colors"
-										aria-label="Remove tag {tag}">&times;</Button
+										aria-label={collection_tags_remove_aria({ tag })}>&times;</Button
 									>
 								</span>
 							{/each}
@@ -407,7 +423,7 @@
 						<div class="pt-2">
 							<div class="flex items-center gap-1.5 mb-1.5">
 								<span class="text-[11px] font-bold uppercase tracking-wider text-surface-400 block">
-									Suggested Tags
+									{collection_tags_suggested()}
 								</span>
 								<SystemTooltip title={builder_tip_def_suggested_tags()}>
 									<HelpIcon ariaLabel={builder_help_suggested_tags()} />
@@ -421,7 +437,7 @@
 										type="button"
 										onclick={() => addSuggestedTag(stag)}
 										class="text-xs px-2 py-0.5 rounded-md"
-										aria-label="Add suggested tag {stag}"
+										aria-label={collection_tags_suggested_add_aria({ tag: stag })}
 									>
 										+ {stag}
 									</Button>
@@ -445,14 +461,14 @@
 							<div>
 								<div class="flex items-center gap-1.5">
 									<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-100">
-										Favorite Collection
+										{collection_favorite_heading()}
 									</h4>
 									<SystemTooltip title={builder_tip_def_favorite()}>
 										<HelpIcon ariaLabel={builder_help_favorite()} />
 									</SystemTooltip>
 								</div>
 								<p class="text-xs text-surface-500 dark:text-surface-400">
-									Pin to Favorites filter chip in sidebar and builder board
+									{collection_favorite_hint()}
 								</p>
 							</div>
 						</div>
@@ -463,7 +479,9 @@
 							type="button"
 							onclick={toggleFavorite}
 							class="flex items-center gap-1.5 rounded-full"
-							aria-label={isFavorite ? 'Favorited collection' : 'Add collection to favorites'}
+							aria-label={isFavorite
+								? collection_favorite_favorited_aria()
+								: collection_favorite_add_aria()}
 						>
 							<iconify-icon icon={isFavorite ? 'bi:star-fill' : 'bi:star'} width="14"
 							></iconify-icon>

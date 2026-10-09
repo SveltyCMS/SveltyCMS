@@ -13,6 +13,18 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import {
+		seo_cwv_heading,
+		seo_cwv_intro,
+		seo_cwv_lab_data,
+		seo_cwv_lab_measurement,
+		seo_cwv_measure_cta,
+		seo_cwv_measuring,
+		seo_cwv_no_field_data,
+		seo_cwv_set_canonical_hint,
+		seo_cwv_webdev_link,
+		seo_cwv_field_data
+	} from '@src/paraglide/messages';
 	import { rethrow } from '@utils/error-handling';
 	import { isAbsoluteHttpUrl, parsePsiReport, type CwvRating, type CwvReport } from '../cwv';
 
@@ -69,17 +81,14 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 >
 	<h3 id="seo-cwv-heading" class="flex items-center gap-2 text-sm font-bold">
 		<iconify-icon icon="mdi:speedometer" width="24"></iconify-icon>
-		Core Web Vitals (LCP / INP / CLS)
+		{seo_cwv_heading()}
 	</h3>
 	<p class="text-xs text-surface-500">
-		Measured on demand for the canonical URL via the Google PageSpeed Insights API — field data
-		(CrUX: real Chrome users, 28-day rolling, origin-level) and lab data (Lighthouse simulation of
-		this URL). No API key required. This panel displays the metrics; improving them is site-level
-		work (hosting, rendering, layout).
+		{seo_cwv_intro()}
 	</p>
 
 	{#if !measurable}
-		<p class="text-xs text-surface-500">Set a canonical URL above to measure this page.</p>
+		<p class="text-xs text-surface-500">{seo_cwv_set_canonical_hint()}</p>
 	{:else}
 		<button
 			type="button"
@@ -88,9 +97,9 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 			disabled={isLoading}
 		>
 			{#if isLoading}
-				Measuring…
+				{seo_cwv_measuring()}
 			{:else}
-				Measure page experience
+				{seo_cwv_measure_cta()}
 			{/if}
 		</button>
 	{/if}
@@ -103,7 +112,7 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 		{#if report.field && report.field.length > 0}
 			<div class="space-y-2">
 				<h4 class="text-xs font-semibold uppercase tracking-wide text-surface-500">
-					Field data — real users (origin, p75)
+					{seo_cwv_field_data()}
 				</h4>
 				<ul class="space-y-2">
 					{#each report.field as reading (reading.metric)}
@@ -127,14 +136,14 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 			</div>
 		{:else}
 			<p class="text-xs text-surface-500">
-				No field data yet — Google has no real-user traffic sample for this origin.
+				{seo_cwv_no_field_data()}
 			</p>
 		{/if}
 
 		{#if report.lab && report.lab.length > 0}
 			<div class="space-y-2">
 				<h4 class="text-xs font-semibold uppercase tracking-wide text-surface-500">
-					Lab data — Lighthouse simulation (this URL)
+					{seo_cwv_lab_data()}
 				</h4>
 				<ul class="space-y-2">
 					{#each report.lab as reading (reading.metric)}
@@ -160,8 +169,12 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 
 		{#if report.labMeasuredAt}
 			<p class="text-xs text-surface-400">
-				Lab measurement: {report.labMeasuredAt.slice(0, 16).replace('T', ' ')} UTC · thresholds per
-				<a href="https://web.dev/vitals/" class="text-tertiary-500 underline">web.dev/vitals</a>
+				{seo_cwv_lab_measurement({
+					timestamp: report.labMeasuredAt.slice(0, 16).replace('T', ' ')
+				})}{' '}
+				<a href="https://web.dev/vitals/" class="text-tertiary-500 underline"
+					>{seo_cwv_webdev_link()}</a
+				>
 			</p>
 		{/if}
 	{/if}

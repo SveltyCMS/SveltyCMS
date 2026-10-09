@@ -8,7 +8,32 @@
 	import Button from '@src/components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
-	import { builder_tip_grant_all, builder_tip_revoke_all } from '@src/paraglide/messages';
+	import {
+		builder_tip_grant_all,
+		builder_tip_revoke_all,
+		collection_permissions_actions,
+		collection_permissions_actions_title,
+		collection_permissions_edit,
+		collection_permissions_edit_desc,
+		collection_permissions_edit_title,
+		collection_permissions_heading,
+		collection_permissions_help_aria,
+		collection_permissions_how,
+		collection_permissions_inherited_link,
+		collection_permissions_inherited_part1,
+		collection_permissions_inherited_part2,
+		collection_permissions_intro,
+		collection_permissions_manage_in,
+		collection_permissions_no_roles,
+		collection_permissions_role,
+		collection_permissions_role_title,
+		collection_permissions_view,
+		collection_permissions_view_desc,
+		collection_permissions_view_title,
+		collection_permissions_write,
+		collection_permissions_write_desc,
+		collection_permissions_write_title
+	} from '@src/paraglide/messages';
 	import type { Role } from '@src/databases/auth/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 
@@ -107,34 +132,38 @@
 		<div>
 			<div class="flex items-center gap-2">
 				<h2 class="text-xl font-bold leading-none text-surface-900 dark:text-surface-100">
-					Collection Permissions
+					{collection_permissions_heading()}
 				</h2>
 				<SystemTooltip positioning={{ placement: 'bottom' }} triggerClass="flex items-center">
 					{#snippet content()}
 						<div class="text-sm min-w-64 max-w-sm">
-							<p class="font-semibold mb-2">How permissions work</p>
+							<p class="font-semibold mb-2">{collection_permissions_how()}</p>
 							<ul class="list-disc list-inside space-y-1 text-xs">
-								<li><strong>View</strong>: Can see the collection and its entries</li>
-								<li><strong>Edit</strong>: Can create and update entries</li>
-								<li><strong>Write</strong>: Can delete entries and manage collection settings</li>
+								<li>
+									<strong>{collection_permissions_view()}</strong>: {collection_permissions_view_desc()}
+								</li>
+								<li>
+									<strong>{collection_permissions_edit()}</strong>: {collection_permissions_edit_desc()}
+								</li>
+								<li>
+									<strong>{collection_permissions_write()}</strong>: {collection_permissions_write_desc()}
+								</li>
 							</ul>
 							<p class="mt-3 text-xs leading-relaxed">
-								Collection-level permissions are inherited by all entries. For granular per-field
-								permissions, use the widget inspector. Full RBAC management is available in
+								{collection_permissions_inherited_part1()}{' '}
 								<a
 									href="/config/access-management"
 									class="text-tertiary-500 dark:text-primary-500 underline hover:text-tertiary-600 dark:hover:text-primary-400 transition-colors"
-									>Access Management</a
-								>.
+									>{collection_permissions_inherited_link()}</a
+								>{collection_permissions_inherited_part2()}
 							</p>
 						</div>
 					{/snippet}
-					<HelpIcon ariaLabel="Help: Collection Permissions" />
+					<HelpIcon ariaLabel={collection_permissions_help_aria()} />
 				</SystemTooltip>
 			</div>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
-				Step 3: Define role-based access control (RBAC). Configure which roles can view, edit, and
-				write entries in this collection.
+				{collection_permissions_intro()}
 			</p>
 		</div>
 	</div>
@@ -151,9 +180,9 @@
 							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"
 						>
 							<div class="flex items-center justify-start gap-1">
-								Role
+								{collection_permissions_role()}
 								<SystemTooltip
-									title="User role or group these permissions apply to."
+									title={collection_permissions_role_title()}
 									positioning={{ placement: 'top-start' }}
 									triggerClass="flex items-center"
 								>
@@ -165,9 +194,9 @@
 							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
 							<div class="flex items-center justify-center gap-1">
-								View
+								{collection_permissions_view()}
 								<SystemTooltip
-									title="Can see the collection and read its entries."
+									title={collection_permissions_view_title()}
 									positioning={{ placement: 'top' }}
 									triggerClass="flex items-center"
 								>
@@ -179,9 +208,9 @@
 							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
 							<div class="flex items-center justify-center gap-1">
-								Edit
+								{collection_permissions_edit()}
 								<SystemTooltip
-									title="Can create new entries and update existing ones."
+									title={collection_permissions_edit_title()}
 									positioning={{ placement: 'top' }}
 									triggerClass="flex items-center"
 								>
@@ -193,9 +222,9 @@
 							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
 						>
 							<div class="flex items-center justify-center gap-1">
-								Write
+								{collection_permissions_write()}
 								<SystemTooltip
-									title="Can delete entries and manage collection settings."
+									title={collection_permissions_write_title()}
 									positioning={{ placement: 'top' }}
 									triggerClass="flex items-center"
 								>
@@ -207,9 +236,9 @@
 							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-32"
 						>
 							<div class="flex items-center justify-end gap-1">
-								Actions
+								{collection_permissions_actions()}
 								<SystemTooltip
-									title="Quickly grant or revoke all permissions."
+									title={collection_permissions_actions_title()}
 									positioning={{ placement: 'top-end' }}
 									triggerClass="flex items-center"
 								>
@@ -339,12 +368,13 @@
 			<div class="flex flex-col items-center justify-center py-12 text-surface-400">
 				<iconify-icon icon="mdi:shield-off-outline" width="48" class="mb-3 opacity-20"
 				></iconify-icon>
-				<p class="text-sm font-medium">No roles configured</p>
+				<p class="text-sm font-medium">{collection_permissions_no_roles()}</p>
 				<p class="mt-1 text-xs opacity-60">
-					Manage roles in
+					{collection_permissions_manage_in()}{' '}
 					<a
 						href="/config/access-management"
-						class="text-tertiary-500 dark:text-primary-500 underline">Access Management</a
+						class="text-tertiary-500 dark:text-primary-500 underline"
+						>{collection_permissions_inherited_link()}</a
 					>
 				</p>
 			</div>

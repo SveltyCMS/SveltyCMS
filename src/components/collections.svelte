@@ -34,7 +34,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		setDraftContentStructure
 	} from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
-	import { pinnedStore } from '@src/stores/pinned-store.svelte';
+	import { pinnedStore } from '@src/stores/collection-metadata-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';

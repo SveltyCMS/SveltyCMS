@@ -184,6 +184,20 @@ export function createTenantGuardedCrud(
         }
       : {}),
 
+    ...(typeof inner.findListWireStream === "function"
+      ? {
+          findListWireStream: async (
+            collection: string,
+            options?: BaseQueryOptions & {
+              limit?: number;
+              offset?: number;
+              requirePublished?: boolean;
+            },
+          ) =>
+            inner.findListWireStream!(collection, g(options, `${collection}.findListWireStream`)),
+        }
+      : {}),
+
     atomicIncrement: async (collection, id, field, amount, options) =>
       inner.atomicIncrement!(
         collection,

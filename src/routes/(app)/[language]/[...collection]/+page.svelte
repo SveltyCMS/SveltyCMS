@@ -22,7 +22,8 @@ This page dynamically switches between List views and Field editors based on the
 	import {
 		collection_autosaving_draft,
 		collection_not_loaded,
-		collection_unable_to_load
+		collection_unable_to_load,
+		page_title_suffix
 	} from '@src/paraglide/messages';
 	import EntryList from '@src/components/collection-display/entry-list.svelte';
 	import Fields from '@src/components/collection-display/fields.svelte';
@@ -483,7 +484,9 @@ This page dynamically switches between List views and Field editors based on the
 	});
 </script>
 
-<svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
+<svelte:head
+	><title>{collectionSchema?.name ?? 'Collection'} {page_title_suffix()}</title></svelte:head
+>
 
 <div class="content flex min-h-0 flex-1 flex-col">
 	<!-- Auto-save indicator -->

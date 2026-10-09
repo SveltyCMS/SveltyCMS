@@ -7,6 +7,18 @@
 import type { Connection } from "mongoose";
 import { logger } from "@utils/logger";
 
+import {
+  contentStructureSchema,
+  registerContentStructureDiscriminators,
+  draftSchema,
+  revisionSchema,
+  themeSchema,
+  systemSettingSchema,
+  systemPreferencesSchema,
+  outboxSchema,
+  pluginStorageSchema,
+} from "./schema";
+
 /**
  * Registers all core CMS models on the provided connection.
  * This should be called immediately after connection establishment.
@@ -16,50 +28,41 @@ export async function registerSystemModels(connection: Connection): Promise<void
     logger.debug("[MongoDB] Registering system models on connection...");
 
     // Content Structure
-    const { contentStructureSchema, registerContentStructureDiscriminators } =
-      await import("./content-structure");
     if (!connection.models.system_content_structure) {
       connection.model("system_content_structure", contentStructureSchema);
       registerContentStructureDiscriminators(connection);
     }
 
     // Drafts
-    const { draftSchema } = await import("./draft");
     if (!connection.models.content_drafts) {
       connection.model("content_drafts", draftSchema);
     }
 
     // Revisions
-    const { revisionSchema } = await import("./revision");
     if (!connection.models.content_revisions) {
       connection.model("content_revisions", revisionSchema);
     }
 
     // Themes
-    const { themeSchema } = await import("./theme");
     if (!connection.models.system_theme) {
       connection.model("system_theme", themeSchema);
     }
 
     // Settings & Preferences
-    const { systemSettingSchema } = await import("./system-module");
     if (!connection.models.SystemSetting) {
       connection.model("SystemSetting", systemSettingSchema);
     }
 
-    const { systemPreferencesSchema } = await import("./system-preferences");
     if (!connection.models.SystemPreferences) {
       connection.model("SystemPreferences", systemPreferencesSchema);
     }
 
     // Outbox Events
-    const { outboxSchema } = await import("./outbox");
     if (!connection.models.OutboxEvent) {
       connection.model("OutboxEvent", outboxSchema);
     }
 
     // Plugin storage (shared JSON store for plugins)
-    const { pluginStorageSchema } = await import("./plugin-storage");
     if (!connection.models.PluginStorage) {
       connection.model("PluginStorage", pluginStorageSchema);
     }

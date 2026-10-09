@@ -28,6 +28,7 @@ Interactive selector with "Select" button and clear functionality
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import { builder_remove, widget_select_entry } from '@src/paraglide/messages';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -121,7 +122,7 @@ Interactive selector with "Select" button and clear functionality
 					variant="ghost"
 					onclick={() => removeItem(entry._id)}
 					type="button"
-					aria-label="Remove"
+					aria-label={builder_remove()}
 					class="p-0! min-w-0 rounded-full w-4 h-4 bg-error-500/20 text-error-500 hover:bg-error-500 hover:text-white"
 				>
 					<iconify-icon icon="mdi:close" width="12"></iconify-icon>
@@ -136,7 +137,7 @@ Interactive selector with "Select" button and clear functionality
 			variant="primary"
 			size="sm"
 			leadingIcon="mdi:plus"
-			aria-label="Select Entry"
+			aria-label={widget_select_entry()}
 		>
 			{field.multiple
 				? 'Add Entries'

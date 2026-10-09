@@ -61,6 +61,8 @@ const DIAGNOSTIC_KEYS = [
   "SVELTY_WAL_CHECKPOINT",
   "SVELTY_WAL_MAX_BYTES",
   "SVELTY_SQLITE_GROUP_COMMIT",
+  "SVELTY_WRITE_COALESCE_UPDATE",
+  "SVELTY_COALESCE_UPDATE_WINDOW_MS",
   "SVELTY_SRV_SPLIT",
   "SVELTY_SRV_DUR",
   // Test-side knob (api-latency zstd transfer row) — forwarded so matrix runs can

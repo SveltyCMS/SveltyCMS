@@ -21,7 +21,7 @@ import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateCategoryNodesFromPaths } from "./content-utils";
-import { compareCollectionSchemas } from "./first-collection";
+import { compareCollectionSchemas, getSchemaPath } from "./first-collection";
 import { cacheService } from "@src/databases/cache/cache-service";
 import {
   explicitOrder,
@@ -717,9 +717,7 @@ export const contentService = {
       ...s,
       nodeType: "collection",
       collectionDef: s,
-      path:
-        s.path ||
-        `/collection/${((s as any).slug || (s as any).name || (s as any)._id || "").toLowerCase()}`,
+      path: getSchemaPath(s),
       tenantId: tenantId || "global",
     })) as any;
     contentStore.sync(nodes);
@@ -800,9 +798,7 @@ export const contentService = {
 
     for (const schema of schemas) {
       // 🚀 PATH RECOVERY: Ensure schema has a valid path derived from ID if missing
-      const schemaPath =
-        schema.path ||
-        `/collection/${(schema.slug || schema.name || schema._id || "").toLowerCase()}`;
+      const schemaPath = getSchemaPath(schema);
 
       let existing = dbMapByPath.get(schemaPath);
       if (!existing && schema.name) {

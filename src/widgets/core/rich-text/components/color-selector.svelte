@@ -18,6 +18,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { widget_rt_select_color } from '@src/paraglide/messages';
 	import { onMount } from 'svelte';
 	import ColorPicker, { ChromeVariant } from 'svelte-awesome-color-picker';
 
@@ -123,7 +124,7 @@
 		type="button"
 		onclick={toggle}
 		onkeydown={(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && toggle()}
-		aria-label="Select color"
+		aria-label={widget_rt_select_color()}
 		aria-expanded={expanded}
 		aria-controls="color-palette-{key}"
 		size="sm"

@@ -16,6 +16,11 @@ Renders a group of fields, allowing for nested data structures.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
+	import {
+		Fields_no_widgets_found,
+		widget_group_no_fields,
+		widget_group_value_missing
+	} from '@src/paraglide/messages';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -133,17 +138,17 @@ Renders a group of fields, allowing for nested data structures.
 								{collectionName}
 							/>
 						{:else if !value}
-							<p class="text-error-500">Group value is missing</p>
+							<p class="text-error-500">{widget_group_value_missing()}</p>
 						{:else}
 							<div class="rounded border border-error-500 p-2 text-error-500">
-								Widget not found: {widgetName}
+								{Fields_no_widgets_found({ name: widgetName })}
 							</div>
 						{/if}
 					</div>
 				{/each}
 			</div>
 		{:else}
-			<p class="text-sm italic text-gray-500">No fields defined in this group.</p>
+			<p class="text-sm italic text-gray-500">{widget_group_no_fields()}</p>
 		{/if}
 	</div>
 </div>

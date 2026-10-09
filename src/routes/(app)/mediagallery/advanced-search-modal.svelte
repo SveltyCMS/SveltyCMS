@@ -34,6 +34,37 @@ Structure optimized for LLM integration and AI-powered search.
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import {
+		button_cancel,
+		button_reset,
+		common_advanced,
+		MediaGallery_Search,
+		mediagallery_advanced_search,
+		mediagallery_aspect_ratio,
+		mediagallery_basic_criteria,
+		mediagallery_camera_placeholder,
+		mediagallery_common_dimensions,
+		mediagallery_ctrl_enter,
+		mediagallery_dimensions,
+		mediagallery_exif_placeholder,
+		mediagallery_filename_placeholder,
+		mediagallery_file_properties,
+		mediagallery_found,
+		mediagallery_id_placeholder,
+		mediagallery_large_5mb,
+		mediagallery_location_placeholder,
+		mediagallery_metadata_exif,
+		mediagallery_mime_placeholder,
+		mediagallery_press,
+		mediagallery_recent_7d,
+		mediagallery_recent_30d,
+		mediagallery_suggestions,
+		mediagallery_tags_placeholder,
+		mediagallery_tip,
+		mediagallery_to_search,
+		mediagallery_upload_dates,
+		mediagallery_4k_images
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		files: MediaBase[];
@@ -200,7 +231,7 @@ Structure optimized for LLM integration and AI-powered search.
 				id="advanced-search-title"
 				class="text-center text-2xl font-bold text-tertiary-500 underline dark:text-primary-500"
 			>
-				Advanced Search
+				{mediagallery_advanced_search()}
 			</h2>
 		</div>
 
@@ -228,7 +259,7 @@ Structure optimized for LLM integration and AI-powered search.
 						}}
 					>
 						<iconify-icon icon="mdi:calendar-week" width={24}></iconify-icon>
-						<span>Recent (7 days)</span>
+						<span>{mediagallery_recent_7d()}</span>
 					</Button>
 					<Button
 						variant="outline"
@@ -242,7 +273,7 @@ Structure optimized for LLM integration and AI-powered search.
 						}}
 					>
 						<iconify-icon icon="mdi:calendar-month" width={24}></iconify-icon>
-						<span>Recent (30 days)</span>
+						<span>{mediagallery_recent_30d()}</span>
 					</Button>
 					<Button
 						variant="outline"
@@ -254,7 +285,7 @@ Structure optimized for LLM integration and AI-powered search.
 						}}
 					>
 						<iconify-icon icon="mdi:file-star" width={24}></iconify-icon>
-						<span>Large (>5MB)</span>
+						<span>{mediagallery_large_5mb()}</span>
 					</Button>
 					<Button
 						variant="outline"
@@ -266,7 +297,7 @@ Structure optimized for LLM integration and AI-powered search.
 						}}
 					>
 						<iconify-icon icon="mdi:monitor-screenshot" width={24}></iconify-icon>
-						<span>4K+ Images</span>
+						<span>{mediagallery_4k_images()}</span>
 					</Button>
 				</div>
 
@@ -275,19 +306,24 @@ Structure optimized for LLM integration and AI-powered search.
 				<!-- Basic Search -->
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
-						Basic Criteria
+						{mediagallery_basic_criteria()}
 					</h3>
 					<div class="grid gap-4 md:grid-cols-2">
-						<Input bind:value={formValues.filename} label="Filename" placeholder="image.jpg" />
+						<Input
+							bind:value={formValues.filename}
+							label="Filename"
+							placeholder={mediagallery_filename_placeholder()}
+						/>
 						<div>
 							<Input
 								bind:value={formValues.tagsInput}
 								label="Tags (comma-separated)"
-								placeholder="landscape, nature"
+								placeholder={mediagallery_tags_placeholder()}
 							/>
 							{#if suggestions.tags.length > 0}
 								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-									Suggestions: {suggestions.tags.join(', ')}
+									{mediagallery_suggestions()}
+									{suggestions.tags.join(', ')}
 								</div>
 							{/if}
 						</div>
@@ -297,7 +333,7 @@ Structure optimized for LLM integration and AI-powered search.
 				<!-- Dimensions -->
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
-						Dimensions
+						{mediagallery_dimensions()}
 					</h3>
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 						<Input
@@ -331,13 +367,14 @@ Structure optimized for LLM integration and AI-powered search.
 							bind:value={formValues.aspectRatio}
 							label="Aspect Ratio"
 							options={aspectRatioOptions}
-							placeholder="Aspect ratio"
+							placeholder={mediagallery_aspect_ratio()}
 						/>
 					</div>
 
 					{#if suggestions.dimensions.length > 0}
 						<div class="mt-2 text-xs text-surface-600 dark:text-surface-50">
-							Common dimensions: {suggestions.dimensions.join(', ')}
+							{mediagallery_common_dimensions()}
+							{suggestions.dimensions.join(', ')}
 						</div>
 					{/if}
 				</section>
@@ -345,7 +382,7 @@ Structure optimized for LLM integration and AI-powered search.
 				<!-- File Properties -->
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
-						File Properties
+						{mediagallery_file_properties()}
 					</h3>
 					<div class="grid gap-4 md:grid-cols-3">
 						<Input
@@ -365,7 +402,7 @@ Structure optimized for LLM integration and AI-powered search.
 						<Input
 							bind:value={formValues.fileTypesInput}
 							label="File Types"
-							placeholder="image/jpeg, image/png"
+							placeholder={mediagallery_mime_placeholder()}
 						/>
 					</div>
 				</section>
@@ -373,7 +410,7 @@ Structure optimized for LLM integration and AI-powered search.
 				<!-- Dates -->
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
-						Upload Dates
+						{mediagallery_upload_dates()}
 					</h3>
 					<div class="grid gap-4 md:grid-cols-2">
 						<Input bind:value={formValues.uploadedAfter} type="date" label="Uploaded After" />
@@ -384,31 +421,40 @@ Structure optimized for LLM integration and AI-powered search.
 				<!-- EXIF & Metadata -->
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
-						Metadata & EXIF
+						{mediagallery_metadata_exif()}
 					</h3>
 					<div class="grid gap-4 md:grid-cols-3">
 						<Select
 							bind:value={formValues.hasEXIF}
 							label="Has EXIF Data"
 							options={hasExifOptions}
-							placeholder="EXIF"
+							placeholder={mediagallery_exif_placeholder()}
 						/>
 						<div>
-							<Input bind:value={formValues.camera} label="Camera" placeholder="Canon EOS 5D" />
+							<Input
+								bind:value={formValues.camera}
+								label="Camera"
+								placeholder={mediagallery_camera_placeholder()}
+							/>
 							{#if suggestions.cameras.length > 0}
 								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-									Found: {suggestions.cameras.join(', ')}
+									{mediagallery_found()}
+									{suggestions.cameras.join(', ')}
 								</div>
 							{/if}
 						</div>
-						<Input bind:value={formValues.location} label="Location" placeholder="New York" />
+						<Input
+							bind:value={formValues.location}
+							label="Location"
+							placeholder={mediagallery_location_placeholder()}
+						/>
 					</div>
 				</section>
 
 				<!-- Advanced -->
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
-						Advanced
+						{common_advanced()}
 					</h3>
 					<div class="grid gap-4 md:grid-cols-2">
 						<Input
@@ -416,7 +462,11 @@ Structure optimized for LLM integration and AI-powered search.
 							label="Dominant Color (hex)"
 							placeholder="#FF5733"
 						/>
-						<Input bind:value={formValues.hashMatch} label="Hash Match" placeholder="a1b2c3d4..." />
+						<Input
+							bind:value={formValues.hashMatch}
+							label="Hash Match"
+							placeholder={mediagallery_id_placeholder()}
+						/>
 					</div>
 
 					<div class="mt-4">
@@ -432,20 +482,20 @@ Structure optimized for LLM integration and AI-powered search.
 		>
 			<div class="flex items-center justify-between">
 				<div class="hidden text-sm sm:block">
-					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong>
-					Press
+					<strong class="text-tertiary-500 dark:text-primary-500">{mediagallery_tip()}</strong>
+					{mediagallery_press()}
 					<kbd class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500"
-						>Ctrl+Enter</kbd
+						>{mediagallery_ctrl_enter()}</kbd
 					>
-					to search
+					{mediagallery_to_search()}
 				</div>
 
 				<div class="ms-auto flex gap-3">
-					<Button variant="outline" type="button" onclick={resetForm}>Reset</Button>
-					<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
+					<Button variant="outline" type="button" onclick={resetForm}>{button_reset()}</Button>
+					<Button variant="outline" type="button" onclick={onClose}>{button_cancel()}</Button>
 					<Button variant="tertiary" type="submit" form="advanced-search-form">
 						<iconify-icon icon="mdi:magnify" width={20}></iconify-icon>
-						Search
+						{MediaGallery_Search()}
 					</Button>
 				</div>
 			</div>

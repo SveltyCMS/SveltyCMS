@@ -25,11 +25,11 @@ import {
 } from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
 import type { DatabaseId } from "@src/databases/db-interface";
-import { getRequestCache, hasRequestCache, setRequestCache } from "./request-cache";
+import { getRequestCache, setRequestCache } from "./request-cache";
 import { serializeQueryShape } from "@utils/fast-json";
 import { AppError } from "@utils/error-handling";
 import {
-  decryptDocumentFields,
+  decryptDocumentFieldsSync,
   type FieldEncryptionContext,
 } from "@utils/security/field-encryption";
 import type { SchemaHotFlags } from "./schema-store";
@@ -48,7 +48,10 @@ export function normalizeRelationshipFilter(filter: any): any {
   for (const key in filter) {
     if (!Object.hasOwn(filter, key)) continue;
     const value = filter[key];
-    if (value && typeof value === "object") {
+    if (Array.isArray(value)) {
+      if (!normalized) normalized = { ...filter };
+      normalized![key] = { $in: value };
+    } else if (value && typeof value === "object") {
       if ("$eq" in value && Array.isArray((value as any).$eq)) {
         if (!normalized) normalized = { ...filter };
         normalized![key] = { $in: (value as any).$eq };
@@ -56,9 +59,6 @@ export function normalizeRelationshipFilter(filter: any): any {
         if (!normalized) normalized = { ...filter };
         normalized![key] = { $nin: (value as any).$ne };
       }
-    } else if (Array.isArray(value)) {
-      if (!normalized) normalized = { ...filter };
-      normalized![key] = { $in: value };
     }
   }
   return normalized ?? filter;
@@ -312,19 +312,24 @@ export async function readThroughCache(
   tenantId: DatabaseId | null | undefined,
   opts: { skipRequestCache: boolean; bypassCache: boolean },
 ): Promise<{ hit: boolean; payload?: any }> {
-  if (!opts.skipRequestCache && hasRequestCache(cacheKey)) {
-    return { hit: true, payload: getRequestCache(cacheKey) };
+  // Single L1 lookup — was hasRequestCache + getRequestCache, i.e. two LRU
+  // reads and two recency promotions per hit. Values stored in the request
+  // cache are always envelope objects, so `undefined` means "absent".
+  if (!opts.skipRequestCache) {
+    const payload = getRequestCache(cacheKey);
+    if (payload !== undefined) return { hit: true, payload };
   }
 
   if (!opts.bypassCache) {
-    const syncCached = cacheService.getSync?.<any>(cacheKey, (tenantId || undefined) as string);
+    const cacheTenant = (tenantId || undefined) as string;
+    const syncCached = cacheService.getSync?.<any>(cacheKey, cacheTenant);
     if (syncCached !== undefined && syncCached !== null) {
       const payload = normalizeCachePayload(syncCached);
       setRequestCache(cacheKey, payload);
       return { hit: true, payload };
     }
     try {
-      const cached = await cacheService.get<any>(cacheKey, (tenantId || undefined) as string);
+      const cached = await cacheService.get<any>(cacheKey, cacheTenant);
       if (cached !== undefined && cached !== null) {
         const payload = normalizeCachePayload(cached);
         setRequestCache(cacheKey, payload);
@@ -341,14 +346,16 @@ function shallowCloneDoc(doc: unknown): unknown {
   return { ...(doc as Record<string, unknown>) };
 }
 
-async function decryptOneDoc(
+function decryptOneDoc(
   doc: unknown,
   fieldNames: readonly string[],
   context: FieldEncryptionContext,
-): Promise<unknown> {
-  if (!doc || typeof doc !== "object") return doc;
-  await decryptDocumentFields(doc as Record<string, unknown>, fieldNames, context);
-  return doc;
+): void {
+  if (!doc || typeof doc !== "object") return;
+  // Sync decrypt: decryptDocumentFields is a thin async wrapper around
+  // decryptDocumentFieldsSync, so the await only added a promise + microtask
+  // per document. Errors still surface as rejections — callers are async.
+  decryptDocumentFieldsSync(doc as Record<string, unknown>, fieldNames, context);
 }
 
 /**
@@ -368,25 +375,32 @@ export async function decryptReadResult(
   const fieldNames = hot._encryptedFieldNames;
   const clone = opts?.clone !== false;
 
-  const decryptData = async (data: unknown): Promise<unknown> => {
-    if (Array.isArray(data)) {
-      const out = clone ? data.map(shallowCloneDoc) : data;
-      for (let i = 0; i < out.length; i++) {
-        out[i] = await decryptOneDoc(out[i], fieldNames, context);
-      }
-      return out;
-    }
-    const doc = clone ? shallowCloneDoc(data) : data;
-    return decryptOneDoc(doc, fieldNames, context);
-  };
-
+  // Inlined (previously an async closure): every branch decrypts synchronously,
+  // so no per-document promise/microtask is created on the hot read lane.
   if (typeof result === "object" && "success" in result && "data" in result) {
     if (result.data == null) return result;
-    const data = await decryptData(result.data);
-    return clone ? { ...result, data } : result;
+    if (Array.isArray(result.data)) {
+      const data = clone ? result.data.map(shallowCloneDoc) : result.data;
+      for (let i = 0; i < data.length; i++) {
+        decryptOneDoc(data[i], fieldNames, context);
+      }
+      return clone ? { ...result, data } : result;
+    }
+    const doc = clone ? shallowCloneDoc(result.data) : result.data;
+    decryptOneDoc(doc, fieldNames, context);
+    return clone ? { ...result, data: doc } : result;
   }
 
-  return decryptData(result);
+  if (Array.isArray(result)) {
+    const out = clone ? result.map(shallowCloneDoc) : result;
+    for (let i = 0; i < out.length; i++) {
+      decryptOneDoc(out[i], fieldNames, context);
+    }
+    return out;
+  }
+  const doc = clone ? shallowCloneDoc(result) : result;
+  decryptOneDoc(doc, fieldNames, context);
+  return doc;
 }
 
 /**
@@ -412,6 +426,34 @@ function getEncryptedFieldSet(hot: SchemaHotFlags): ReadonlySet<string> | null {
 }
 
 /**
+ * Depth-first filter walk rejecting any key that is an encrypted field.
+ * Hoisted to module scope so repeated find()/count() calls share one closure
+ * instead of allocating a fresh `walk` per call.
+ */
+function assertNoEncryptedFilterKeys(node: unknown, names: ReadonlySet<string>): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) assertNoEncryptedFilterKeys(node[i], names);
+    return;
+  }
+  const rec = node as Record<string, unknown>;
+  for (const key in rec) {
+    if (!Object.hasOwn(rec, key)) continue;
+    if (key.startsWith("$")) {
+      assertNoEncryptedFilterKeys(rec[key], names);
+      continue;
+    }
+    if (names.has(key)) {
+      throw new AppError(
+        `Cannot filter on encrypted field "${key}".`,
+        400,
+        "ENCRYPTED_FIELD_NOT_QUERYABLE",
+      );
+    }
+  }
+}
+
+/**
  * Encrypted fields cannot be filtered or sorted: AES-256-GCM IVs are random,
  * so equality on plaintext never matches stored ciphertext.
  */
@@ -431,30 +473,7 @@ export function assertEncryptedFieldsNotQueried(
     );
   }
 
-  const walk = (node: unknown): void => {
-    if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) {
-      for (let i = 0; i < node.length; i++) walk(node[i]);
-      return;
-    }
-    const rec = node as Record<string, unknown>;
-    for (const key in rec) {
-      if (!Object.hasOwn(rec, key)) continue;
-      if (key.startsWith("$")) {
-        walk(rec[key]);
-        continue;
-      }
-      if (names.has(key)) {
-        throw new AppError(
-          `Cannot filter on encrypted field "${key}".`,
-          400,
-          "ENCRYPTED_FIELD_NOT_QUERYABLE",
-        );
-      }
-    }
-  };
-
-  walk(filter);
+  assertNoEncryptedFilterKeys(filter, names);
 }
 
 /**
@@ -472,6 +491,7 @@ export async function* decryptReadStream(
   const fieldNames = hot._encryptedFieldNames;
   for await (const doc of source) {
     const clone = shallowCloneDoc(doc);
-    yield await decryptOneDoc(clone, fieldNames, context);
+    decryptOneDoc(clone, fieldNames, context);
+    yield clone;
   }
 }

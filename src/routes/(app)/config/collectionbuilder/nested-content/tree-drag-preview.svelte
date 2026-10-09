@@ -12,6 +12,7 @@ Features:
 -->
 <script lang="ts">
 	import Portal from '@components/ui/portal.svelte';
+	import { builder_tree_inside } from '@src/paraglide/messages';
 	import { dndState } from '@thisux/sveltednd';
 
 	interface Props {
@@ -145,7 +146,7 @@ Features:
 				>
 				{#if nestTargetName}
 					<span class="truncate text-[11px] font-semibold text-warning-500 dark:text-warning-400"
-						>↳ Inside {nestTargetName}</span
+						>{builder_tree_inside({ name: nestTargetName })}</span
 					>
 				{/if}
 			</div>

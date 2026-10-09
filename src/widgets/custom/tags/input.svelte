@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { widget_tags_count_suffix, widget_tags_search_aria } from '@src/paraglide/messages';
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -115,7 +116,7 @@
 		{/if}
 
 		<input
-			aria-label="Search tags"
+			aria-label={widget_tags_search_aria()}
 			id={`${fieldName}-input`}
 			type="text"
 			bind:value={inputValue}
@@ -135,7 +136,8 @@
 
 	{#if field.maxTags && Array.isArray(value)}
 		<p class="text-[10px] text-surface-400 text-end">
-			{value.length} / {field.maxTags} tags
+			{value.length} / {field.maxTags}
+			{widget_tags_count_suffix()}
 		</p>
 	{/if}
 </div>

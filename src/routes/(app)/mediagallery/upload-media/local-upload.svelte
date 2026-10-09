@@ -25,6 +25,28 @@
 	import { optimizeImage } from '@src/utils/media/webgpu-processor';
 	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
 	import Button from '@components/ui/button.svelte';
+	import {
+		button_cancel,
+		common_input,
+		mediagallery_add_files,
+		mediagallery_browse_files,
+		mediagallery_cancel_upload,
+		mediagallery_drag_files_hint,
+		mediagallery_dropzone_aria,
+		mediagallery_file,
+		mediagallery_files,
+		mediagallery_max_file_size,
+		mediagallery_multiple_files,
+		mediagallery_optimize_webgpu,
+		mediagallery_queue_hint,
+		mediagallery_remove_file,
+		mediagallery_size,
+		mediagallery_speed,
+		mediagallery_upload_action,
+		mediagallery_upload_progress,
+		mediagallery_upload_title,
+		useravatar_uploading
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		folder?: string;
@@ -360,7 +382,7 @@
 		ondragleave={handleDragLeave}
 		class="mt-2 flex h-50 w-full max-w-full select-none flex-col items-center justify-center gap-4 overflow-x-auto rounded border-2 border-dashed border-surface-600 bg-secondary-500/10 px-2 sm:flex-row dark:border-surface-500 dark:bg-surface-700"
 		role="region"
-		aria-label="File drop zone"
+		aria-label={mediagallery_dropzone_aria()}
 	>
 		<div class="flex w-full flex-col items-center gap-4 p-4 sm:flex-row">
 			<iconify-icon icon="fa6-solid:file-arrow-up" width={32} class="shrink-0 sm:w-12"
@@ -368,8 +390,8 @@
 
 			<div class="min-w-0 flex-1 space-y-4 text-center sm:text-start">
 				<p class="font-bold">
-					<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
-					Drag files here to upload
+					<span class="text-tertiary-500 dark:text-primary-500">{mediagallery_upload_title()}</span>
+					{mediagallery_drag_files_hint()}
 				</p>
 
 				<label class="flex items-center gap-2 cursor-pointer justify-center mt-2 sm:justify-start">
@@ -377,12 +399,12 @@
 						type="checkbox"
 						bind:checked={optimizeBeforeUpload}
 						class="checkbox checkbox-sm"
-						aria-label="Input"
+						aria-label={common_input()}
 					/>
-					<span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
+					<span class="text-xs font-bold opacity-75">{mediagallery_optimize_webgpu()}</span>
 				</label>
 
-				<p class="text-sm opacity-75">Multiple files allowed</p>
+				<p class="text-sm opacity-75">{mediagallery_multiple_files()}</p>
 
 				<Button
 					variant="tertiary"
@@ -391,11 +413,13 @@
 					disabled={isUploading}
 					class="mt-3"
 				>
-					> Browse Files
+					{mediagallery_browse_files()}
 				</Button>
 
 				<!-- File Size Limit -->
-				<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: 50 MB</p>
+				<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">
+					{mediagallery_max_file_size()}
+				</p>
 			</div>
 		</div>
 
@@ -409,14 +433,13 @@
 			onchange={onChange}
 			aria-hidden="true"
 			tabindex="-1"
-			aria-label="Input"
+			aria-label={common_input()}
 		/>
 	</div>
 {:else}
 	<div class="mb-5 text-center sm:text-start">
 		<p class="text-center text-tertiary-500 dark:text-primary-500">
-			This area facilitates the queuing and previewing of media files before they are officially
-			uploaded to the gallery. Verify your selection below, then confirm to complete the transfer.
+			{mediagallery_queue_hint()}
 		</p>
 	</div>
 	<!-- Grid View State -->
@@ -433,12 +456,12 @@
 				>
 					<!-- Delete button -->
 					<div class="absolute inset-e-1 top-1 z-10 flex cursor-pointer shadow-sm">
-						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
+						<SystemTooltip title={mediagallery_remove_file()} positioning={{ placement: 'top' }}>
 							<Button
 								variant="ghost"
 								type="button"
 								onclick={() => handleDeleteFile(file)}
-								aria-label="Remove file"
+								aria-label={mediagallery_remove_file()}
 								class="p-0! min-w-0 bg-error-500 rounded-full"
 							>
 								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"
@@ -483,7 +506,7 @@
 							</div>
 						</SystemTooltip>
 						<!-- Size -->
-						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
+						<SystemTooltip title={mediagallery_size()} positioning={{ placement: 'top' }}>
 							<p
 								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex shrink-0 items-center gap-1 text-[10px]"
 							>
@@ -503,7 +526,7 @@
 				class="flex-col items-center gap-2"
 			>
 				<iconify-icon icon="mingcute:add-fill" width={24}></iconify-icon>
-				<span class="font-bold">Add Files</span>
+				<span class="font-bold">{mediagallery_add_files()}</span>
 			</Button>
 		</div>
 
@@ -514,21 +537,26 @@
 			class="hidden"
 			multiple
 			onchange={onChange}
-			aria-label="Input"
+			aria-label={common_input()}
 		/>
 
 		<!-- Actions Footer -->
 		<div
 			class="flex items-center justify-between border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
 		>
-			<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
+			<Button variant="outline" type="button" onclick={handleCancel}>{button_cancel()}</Button>
 			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading}>
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
-					<span class="truncate">Uploading... {uploadProgress}%</span>
+					<span class="truncate">{useravatar_uploading()} {uploadProgress}%</span>
 				{:else}
 					<iconify-icon icon="mingcute:check-fill" width={24}></iconify-icon>
-					<span class="truncate">Upload {files.length} File{files.length !== 1 ? 's' : ''}</span>
+					<span class="truncate"
+						>{mediagallery_upload_action()}
+						{files.length}{' '}{files.length !== 1
+							? mediagallery_files()
+							: mediagallery_file()}</span
+					>
 				{/if}
 			</Button>
 		</div>
@@ -544,7 +572,7 @@
 		<div
 			class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600"
 			role="progressbar"
-			aria-label="Upload progress"
+			aria-label={mediagallery_upload_progress()}
 			aria-valuenow={uploadProgress}
 			aria-valuemin={0}
 			aria-valuemax={100}
@@ -557,7 +585,7 @@
 		<div
 			class="flex flex-wrap items-center justify-between gap-2 text-xs text-surface-600 dark:text-surface-50"
 		>
-			<span>Speed: {formatBytes(uploadSpeed)}/s</span>
+			<span>{mediagallery_speed()} {formatBytes(uploadSpeed)}/s</span>
 			{#if uploadFileLabel}
 				<span class="max-w-48 truncate" title={uploadFileLabel}>{uploadFileLabel}</span>
 			{/if}
@@ -567,9 +595,9 @@
 				size="sm"
 				type="button"
 				onclick={() => uploadCancel?.()}
-				aria-label="Cancel upload"
+				aria-label={mediagallery_cancel_upload()}
 			>
-				Cancel
+				{button_cancel()}
 			</Button>
 		</div>
 	</div>

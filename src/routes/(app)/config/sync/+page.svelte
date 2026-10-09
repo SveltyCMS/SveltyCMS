@@ -21,6 +21,33 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import {
+		sync_action,
+		sync_backup_heading,
+		sync_backup_intro,
+		sync_changes_detected,
+		sync_changes_summary,
+		sync_deleted_missing,
+		sync_export_schema,
+		sync_in_sync,
+		sync_in_sync_desc,
+		sync_intro_part1,
+		sync_intro_part2,
+		sync_intro_part3,
+		sync_name,
+		sync_new_create,
+		sync_options_aria,
+		sync_raw_api,
+		sync_safety_mode,
+		sync_safety_mode_aria,
+		sync_schema_code,
+		sync_sync_path,
+		sync_title,
+		sync_type,
+		sync_unmet_heading,
+		sync_unmet_intro,
+		sync_updated_merge
+	} from '@src/paraglide/messages';
 
 	type ConfigStatus = {
 		status: 'in_sync' | 'changes_detected' | 'error';
@@ -169,7 +196,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 </script>
 
 <AdminPageShell
-	title="Config Sync & Backup"
+	title={sync_title()}
 	icon="mdi:sync"
 	description="Synchronize configuration between filesystem and database (Schema as Code)"
 	showBackButton={true}
@@ -181,16 +208,15 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		>
 			<div class="preset-tonal-surface mb-4 p-4 rounded-md">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
-					Manage your system configuration using <strong>Schema as Code</strong>. Deploy filesystem
-					changes to the active database, or export the active configuration to
-					<code>config/sync/</code> for version control.
+					{sync_intro_part1()}{' '}<strong>{sync_schema_code()}</strong>{sync_intro_part2()}
+					<code>{sync_sync_path()}</code>{sync_intro_part3()}
 				</p>
 			</div>
 
 			<div
 				class="flex w-full overflow-x-auto border border-surface-500/30 rounded-md bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/70 mb-6"
 				role="tablist"
-				aria-label="Sync Options"
+				aria-label={sync_options_aria()}
 				data-testid="sync-tabs"
 			>
 				{#each ['sync', 'backups', 'debug'] as tab (tab)}
@@ -226,10 +252,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 						<div class="alert preset-filled-error-500 my-4 p-4 rounded-md" transition:slide>
 							<h4 class="font-bold flex items-center gap-2">
 								<iconify-icon icon="mdi:alert-circle"></iconify-icon>
-								Sync Blocked: Unmet Requirements
+								{sync_unmet_heading()}
 							</h4>
 							<p class="text-sm mt-1">
-								The following requirements must be satisfied before importing configuration:
+								{sync_unmet_intro()}
 							</p>
 							<ul class="mt-2 list-disc ps-5 text-sm">
 								{#each status.unmetRequirements as req (req.name + req.type)}
@@ -249,12 +275,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								for="safety-mode-select"
 								class="text-xs font-semibold uppercase tracking-wider text-surface-500"
 							>
-								Promotion Safety Mode
+								{sync_safety_mode()}
 							</label>
 							<div class="flex items-center gap-2">
 								<select
 									id="safety-mode-select"
-									aria-label="Promotion safety mode"
+									aria-label={sync_safety_mode_aria()}
 									bind:value={selectedMode}
 									class="px-3 py-1.5 text-sm rounded-md border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-surface-800 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
 								>
@@ -333,9 +359,9 @@ Allows synchronization between filesystem and database, safety mode selection, a
 						<div class="space-y-3 py-12 text-center" data-testid="sync-in-sync">
 							<iconify-icon icon="mdi:check-circle" class="mx-auto text-6xl text-success-500"
 							></iconify-icon>
-							<h2 class="text-xl font-semibold">System is in Sync</h2>
+							<h2 class="text-xl font-semibold">{sync_in_sync()}</h2>
 							<p class="text-surface-500">
-								Your database and filesystem configurations match perfectly.
+								{sync_in_sync_desc()}
 							</p>
 						</div>
 					{:else}
@@ -343,11 +369,14 @@ Allows synchronization between filesystem and database, safety mode selection, a
 							<div class="flex items-center justify-between">
 								<h3 class="flex items-center gap-2 text-lg font-semibold">
 									<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
-									Changes Detected
+									{sync_changes_detected()}
 								</h3>
 								<p class="text-sm text-surface-500">
-									{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary()
-										.deleted} deleted
+									{sync_changes_summary({
+										newCount: changeSummary().new,
+										updatedCount: changeSummary().updated,
+										deletedCount: changeSummary().deleted
+									})}
 								</p>
 							</div>
 
@@ -359,10 +388,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 										<tr
 											class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400"
 										>
-											<th class="px-4 py-3 font-semibold">Name</th>
-											<th class="px-4 py-3 font-semibold">Type</th>
+											<th class="px-4 py-3 font-semibold">{sync_name()}</th>
+											<th class="px-4 py-3 font-semibold">{sync_type()}</th>
 											<th class="px-4 py-3 font-semibold">UUID</th>
-											<th class="px-4 py-3 font-semibold text-end">Action</th>
+											<th class="px-4 py-3 font-semibold text-end">{sync_action()}</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -383,14 +412,14 @@ Allows synchronization between filesystem and database, safety mode selection, a
 													<td class="px-4 py-3 text-end">
 														{#if changeType === 'new'}
 															<Badge variant="tertiary" class="dark:preset-filled-primary-500"
-																>New (Create)</Badge
+																>{sync_new_create()}</Badge
 															>
 														{/if}
 														{#if changeType === 'updated'}
-															<Badge variant="warning">Updated (Merge)</Badge>
+															<Badge variant="warning">{sync_updated_merge()}</Badge>
 														{/if}
 														{#if changeType === 'deleted'}
-															<Badge variant="error">Deleted (Missing)</Badge>
+															<Badge variant="error">{sync_deleted_missing()}</Badge>
 														{/if}
 													</td>
 												</tr>
@@ -410,10 +439,9 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								icon="mdi:database-export-outline"
 								class="mx-auto text-5xl text-surface-400"
 							></iconify-icon>
-							<h3 class="mt-4 text-lg font-semibold">Backup & Content Transfer</h3>
+							<h3 class="mt-4 text-lg font-semibold">{sync_backup_heading()}</h3>
 							<p class="mt-2 text-surface-500 text-sm">
-								Transfer editorial content packages (.svelty-package) between SveltyCMS instances
-								with streaming NDJSON.
+								{sync_backup_intro()}
 							</p>
 							<div class="mt-4 flex justify-center gap-3">
 								<Button
@@ -421,7 +449,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 									onclick={exportCurrentConfig}
 									leadingIcon="mdi:file-export"
 								>
-									Export Schema as Code
+									{sync_export_schema()}
 								</Button>
 							</div>
 						</AdminCard>
@@ -434,7 +462,8 @@ Allows synchronization between filesystem and database, safety mode selection, a
 						class="rounded border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
 					>
 						<h3 class="mb-3 flex items-center gap-2 font-semibold">
-							<iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response
+							<iconify-icon icon="mdi:bug-outline"></iconify-icon>
+							{sync_raw_api()}
 						</h3>
 						<pre
 							class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 rounded bg-surface-500/10 dark:bg-surface-800">{JSON.stringify(

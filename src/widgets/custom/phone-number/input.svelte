@@ -35,6 +35,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { common_clear } from '@src/paraglide/messages';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -156,7 +157,7 @@
 				type="button"
 				class="p-1! me-1"
 				onclick={handleClear}
-				title="Clear"
+				title={common_clear()}
 			>
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</Button>

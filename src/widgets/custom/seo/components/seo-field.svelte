@@ -2,6 +2,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import { common_input, common_insert_token, common_textarea } from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/token-target';
@@ -85,11 +86,11 @@
 		</div>
 
 		<div class="flex items-center gap-3 text-xs">
-			<SystemTooltip title="Insert Token">
+			<SystemTooltip title={common_insert_token()}>
 				<Button
 					variant="outline"
 					type="button"
-					aria-label="Insert Token"
+					aria-label={common_insert_token()}
 					onclick={() => inputRef?.focus()}
 				>
 					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"
@@ -117,7 +118,7 @@
 	<div class="relative">
 		{#if type === 'textarea'}
 			<Textarea
-				aria-label="Textarea"
+				aria-label={common_textarea()}
 				{id}
 				class="space-y-0"
 				textareaClass="pe-12 resize-y"
@@ -128,7 +129,7 @@
 			/>
 		{:else}
 			<Input
-				aria-label="Input"
+				aria-label={common_input()}
 				bind:inputRef={inputRef as HTMLInputElement}
 				{id}
 				type="text"

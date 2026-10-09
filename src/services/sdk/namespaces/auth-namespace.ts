@@ -38,7 +38,9 @@ import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type {
+  BaseQueryOptions,
   DatabaseId,
+  IAuthAdapter,
   IDBAdapter,
   ISODateString,
   DatabaseResult,
@@ -56,23 +58,27 @@ async function safeCall<T>(fn: () => Promise<T>, context?: string): Promise<Data
         success: false,
         message: err.message,
         error: {
-          code: (err as AppError & { code?: string }).code || "APP_ERROR",
+          code: err.code || "APP_ERROR",
           message: err.message,
         },
       };
     }
     const message = context ? `${context}: ${getErrorMessage(err)}` : getErrorMessage(err);
-    const errorInstance = err instanceof Error ? err : new Error(String(err));
     return {
       success: false,
       message,
-      error: { code: "SDK_ERROR", message: errorInstance.message },
+      // Read the message directly instead of allocating an intermediate Error
+      // whose only purpose was its `.message` property.
+      error: { code: "SDK_ERROR", message: err instanceof Error ? err.message : String(err) },
     };
   }
 }
 import type { Role, User } from "@src/databases/auth/types";
 
 import { type LocalApiOptions } from "./types";
+
+/** Compiled once — the email shape check is identical on every call path. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,7 +125,9 @@ export class AuthNamespace {
     this.tokens = new TokensNamespace(this._dbAdapter);
   }
 
-  private async getAuth() {
+  private getAuth(): IAuthAdapter {
+    // Resolved per call on purpose: `_dbAdapter` is a self-healing proxy, so a
+    // cached handle would pin a stale auth adapter after a DB re-initialization.
     return this._dbAdapter.auth;
   }
 
@@ -226,7 +234,7 @@ export class AuthNamespace {
     return safeCall(async () => {
       const { tenantId } = options;
       const { email, password, confirmPassword } = userData;
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (!email || !EMAIL_PATTERN.test(email)) {
         throw new AppError("Invalid email format", 400);
       }
       if (password && confirmPassword && password !== confirmPassword) {
@@ -367,13 +375,15 @@ export class AuthNamespace {
       const auth = await this.getAuth();
       // Forward branded systemScope (E2E / null-tenant) and
       // allowPrivilegeEscalation (admin / seed role assignment)
-      const result = await auth.updateUserAttributes(userId as DatabaseId, data, {
-        ...(tenantId !== undefined && tenantId !== null && tenantId !== ""
-          ? { tenantId: tenantId as DatabaseId }
-          : {}),
-        ...(systemScope ? { systemScope } : {}),
-        ...(allowPrivilegeEscalation ? { allowPrivilegeEscalation: true } : {}),
-      });
+      // Single options bag — the conditional spreads built up to three
+      // throwaway objects per call; assign conditionally instead (same keys).
+      const updateOptions: BaseQueryOptions & { allowPrivilegeEscalation?: boolean } = {};
+      if (tenantId !== undefined && tenantId !== null && tenantId !== "") {
+        updateOptions.tenantId = tenantId as DatabaseId;
+      }
+      if (systemScope) updateOptions.systemScope = systemScope;
+      if (allowPrivilegeEscalation) updateOptions.allowPrivilegeEscalation = true;
+      const result = await auth.updateUserAttributes(userId as DatabaseId, data, updateOptions);
       if (!result || (typeof result === "object" && "success" in result && !result.success)) {
         throw new AppError(
           (result as { message?: string })?.message || "Failed to update user",
@@ -429,8 +439,9 @@ export class AuthNamespace {
       // --- ACCOUNT LOCKOUT CHECK (parity with Auth.authenticate) ---
       if (user.lockoutUntil) {
         const lockoutDate = isoDateStringToDate(user.lockoutUntil);
-        if (lockoutDate > new Date()) {
-          const remainingMinutes = Math.ceil((lockoutDate.getTime() - Date.now()) / 60000);
+        const now = Date.now();
+        if (lockoutDate.getTime() > now) {
+          const remainingMinutes = Math.ceil((lockoutDate.getTime() - now) / 60000);
           logger.warn("Authentication attempt on locked account", {
             email,
             lockoutUntil: user.lockoutUntil,
@@ -637,7 +648,13 @@ export class AuthNamespace {
         },
         { collection: "roles" },
       );
-      const existingRoleIds = new Set(existingRoles.map((r) => r._id));
+      // Index existing roles once — the update loop used to `find()` the same
+      // role again per incoming role (O(n·m) scan); a Map lookup is O(1).
+      const existingRoleById = new Map<DatabaseId, Role>();
+      for (const r of existingRoles) {
+        if (!existingRoleById.has(r._id)) existingRoleById.set(r._id, r);
+      }
+      const existingRoleIds = new Set(existingRoleById.keys());
       const incomingRoleIds = new Set(roles.map((r: Role) => r._id));
 
       const actor = {
@@ -682,7 +699,7 @@ export class AuthNamespace {
               // role's grants (encoding/caching bug), not that the admin removed
               // every permission. Preserve the stored grants in that case.
               if (Array.isArray(roleData.permissions) && roleData.permissions.length === 0) {
-                const existing = existingRoles.find((r) => r._id === role._id);
+                const existing = existingRoleById.get(role._id);
                 if (
                   existing &&
                   Array.isArray(existing.permissions) &&
@@ -771,10 +788,10 @@ export class AuthNamespace {
 
     for (const role of roles) {
       if (roleIds.has(role._id)) return { isValid: false, error: `Duplicate ID: ${role._id}` };
-      if (roleNames.has(role.name.toLowerCase()))
-        return { isValid: false, error: `Duplicate name: ${role.name}` };
+      const nameKey = role.name.toLowerCase();
+      if (roleNames.has(nameKey)) return { isValid: false, error: `Duplicate name: ${role.name}` };
       roleIds.add(role._id);
-      roleNames.add(role.name.toLowerCase());
+      roleNames.add(nameKey);
       if (!role.isAdmin) {
         for (const perm of role.permissions) {
           if (!permissionIds.has(perm as DatabaseId))
@@ -797,24 +814,28 @@ export class AuthNamespace {
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-      const batchResult = await (() => {
-        switch (action) {
-          case "delete":
-            return auth.deleteUsers(userIds as DatabaseId[], {
-              tenantId: tenantId as DatabaseId,
-            });
-          case "block":
-            return auth.blockUsers(userIds as DatabaseId[], {
-              tenantId: tenantId as DatabaseId,
-            });
-          case "unblock":
-            return auth.unblockUsers(userIds as DatabaseId[], {
-              tenantId: tenantId as DatabaseId,
-            });
-          default:
-            throw new AppError("Invalid action", 400);
-        }
-      })();
+      // Direct switch — the IIFE existed only to `return` out of a case and
+      // cost a closure allocation per batch call.
+      let batchResult: DatabaseResult<{ deletedCount: number } | { modifiedCount: number }>;
+      switch (action) {
+        case "delete":
+          batchResult = await auth.deleteUsers(userIds as DatabaseId[], {
+            tenantId: tenantId as DatabaseId,
+          });
+          break;
+        case "block":
+          batchResult = await auth.blockUsers(userIds as DatabaseId[], {
+            tenantId: tenantId as DatabaseId,
+          });
+          break;
+        case "unblock":
+          batchResult = await auth.unblockUsers(userIds as DatabaseId[], {
+            tenantId: tenantId as DatabaseId,
+          });
+          break;
+        default:
+          throw new AppError("Invalid action", 400);
+      }
 
       if (!batchResult.success)
         throw new AppError(batchResult.message || "Batch action failed", 500);
@@ -865,26 +886,35 @@ export class TokensNamespace {
       async () => {
         const tokensRes = await this._dbAdapter.auth.getAllTokens({
           tenantId: tenantId as DatabaseId,
-        } as any);
+        });
         if (!tokensRes.success) throw new AppError(tokensRes.message, 500);
 
         const normalizedSearch = search?.toLowerCase();
         let tokens = (tokensRes.data || []).filter((token: any) => {
           if (!normalizedSearch) return true;
-          return [token.email, token.token].some(
-            (value) => typeof value === "string" && value.toLowerCase().includes(normalizedSearch),
+          // Inline the [email, token] array probe — the two-element array per
+          // row was per-token garbage on the list path.
+          const email = token.email;
+          if (typeof email === "string" && email.toLowerCase().includes(normalizedSearch)) {
+            return true;
+          }
+          const tokenValue = token.token;
+          return (
+            typeof tokenValue === "string" && tokenValue.toLowerCase().includes(normalizedSearch)
           );
         });
 
+        // Hoist the per-comparison `order === "asc"` check out of the O(n log n) sort.
+        const ascending = order === "asc";
         tokens = tokens.sort((a: any, b: any) => {
           const aValue = a?.[sort];
           const bValue = b?.[sort];
 
           if (aValue === bValue) return 0;
-          if (aValue === undefined || aValue === null) return order === "asc" ? -1 : 1;
-          if (bValue === undefined || bValue === null) return order === "asc" ? 1 : -1;
+          if (aValue === undefined || aValue === null) return ascending ? -1 : 1;
+          if (bValue === undefined || bValue === null) return ascending ? 1 : -1;
 
-          return order === "asc"
+          return ascending
             ? String(aValue).localeCompare(String(bValue))
             : String(bValue).localeCompare(String(aValue));
         });
@@ -967,7 +997,7 @@ export class TokensNamespace {
   async create(input: TokenCreateInput) {
     const { email, expires, role, userId, tenantId } = input;
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !EMAIL_PATTERN.test(email)) {
       throw new AppError("Invalid email format", 400);
     }
 

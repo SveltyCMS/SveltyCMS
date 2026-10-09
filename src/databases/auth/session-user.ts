@@ -71,19 +71,22 @@ export function evaluateSessionAnomaly(options: {
   storedUserAgent?: string | null;
 }): { ipChanged: boolean; userAgentChanged: boolean } {
   const { currentIp, currentUserAgent, storedIp, storedUserAgent } = options;
-  const normalize = (value?: string | null): string => (value ? value.trim().toLowerCase() : "");
 
-  const storedIpNorm = normalize(storedIp);
-  const currentIpNorm = normalize(currentIp);
-  const storedUaNorm = normalize(storedUserAgent);
-  const currentUaNorm = normalize(currentUserAgent);
+  let ipChanged = false;
+  if (storedIp && currentIp) {
+    const sIp = storedIp.trim().toLowerCase();
+    const cIp = currentIp.trim().toLowerCase();
+    ipChanged = sIp.length > 0 && cIp.length > 0 && sIp !== cIp;
+  }
 
-  return {
-    ipChanged:
-      storedIpNorm.length > 0 && currentIpNorm.length > 0 && currentIpNorm !== storedIpNorm,
-    userAgentChanged:
-      storedUaNorm.length > 0 && currentUaNorm.length > 0 && currentUaNorm !== storedUaNorm,
-  };
+  let userAgentChanged = false;
+  if (storedUserAgent && currentUserAgent) {
+    const sUa = storedUserAgent.trim().toLowerCase();
+    const cUa = currentUserAgent.trim().toLowerCase();
+    userAgentChanged = sUa.length > 0 && cUa.length > 0 && sUa !== cUa;
+  }
+
+  return { ipChanged, userAgentChanged };
 }
 
 /**

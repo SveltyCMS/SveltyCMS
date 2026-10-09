@@ -27,6 +27,78 @@ so preview stays in sync with Layout & Visual Style tabs.
 	import Textarea from '@components/ui/textarea.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import ThemeToggle from '@components/theme-toggle.svelte';
+	import {
+		dsp_admincard_shell,
+		dsp_admincard_shell_desc,
+		dsp_adminfade_label,
+		dsp_adminfade_desc,
+		dsp_adminpage_label,
+		dsp_adminpage_desc,
+		dsp_adminpage_code,
+		dsp_adminslide_label,
+		dsp_adminslide_desc,
+		dsp_adminslide_code,
+		dsp_adminstagger_label,
+		dsp_adminstagger_code,
+		dsp_admin_transitions_util,
+		dsp_admin_ease,
+		dsp_admin_asterisk,
+		dsp_admin_motion_base,
+		dsp_admin_motion_fast,
+		dsp_admin_motion_slow,
+		dsp_appearance,
+		dsp_badges,
+		dsp_border_fill,
+		dsp_buttons,
+		dsp_cards,
+		dsp_color_mode,
+		dsp_color_prefix,
+		dsp_cubic_bezier,
+		dsp_density_open,
+		dsp_density_values,
+		dsp_density_word,
+		dsp_enter_text,
+		dsp_error,
+		dsp_filled,
+		dsp_form_controls,
+		dsp_large,
+		dsp_loading,
+		dsp_medium,
+		dsp_motion_heading,
+		dsp_ms_150,
+		dsp_ms_200,
+		dsp_ms_300,
+		dsp_motion_intro_part1,
+		dsp_motion_intro_part2,
+		dsp_motion_intro_part3,
+		dsp_motion_intro_part4,
+		dsp_motion_intro_part5,
+		dsp_motion_intro_part6,
+		dsp_outlined,
+		dsp_outlined_card,
+		dsp_playground_controls,
+		dsp_preset_passthrough,
+		dsp_prefers_reduced_motion,
+		dsp_replay_all,
+		dsp_resolved_value,
+		dsp_semantic_palettes,
+		dsp_semantic_roles,
+		dsp_semantic_roles_desc_part1,
+		dsp_semantic_roles_desc_part2,
+		dsp_small,
+		dsp_structural_tokens,
+		dsp_surface,
+		dsp_themes_glob,
+		dsp_token,
+		dsp_tonal,
+		dsp_tonal_card,
+		dsp_utilities_map,
+		dsp_utilities_map_part1,
+		dsp_variant_open,
+		dsp_variant_word,
+		dsp_warning,
+		dsp_with_icon
+	} from '@src/paraglide/messages';
 	import { adminFade, adminPage, adminSlide, adminStagger } from '@utils/admin-transitions';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
 	import type { AdminTheme } from '@components/ui/theme-context.svelte';
@@ -137,13 +209,15 @@ so preview stays in sync with Layout & Visual Style tabs.
 		>
 			<iconify-icon icon="mdi:tune-vertical" class="text-tertiary-500 dark:text-primary-500"
 			></iconify-icon>
-			Playground controls
+			{dsp_playground_controls()}
 		</h2>
 		<div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<Select label="Density" bind:value={density} options={densityOptions} />
 			<Select label="Card variant" bind:value={variant} options={variantOptions} />
 			<div class="flex flex-col gap-2">
-				<span class="text-sm font-medium" style="color: var(--admin-text-body)">Color mode</span>
+				<span class="text-sm font-medium" style="color: var(--admin-text-body)"
+					>{dsp_color_mode()}</span
+				>
 				<ThemeToggle showTooltip={false} buttonClass="preset-outlined-surface-500 btn-icon" />
 			</div>
 			{#if showAppearanceLink}
@@ -153,7 +227,7 @@ so preview stays in sync with Layout & Visual Style tabs.
 						href="/config/design-system?tab=style"
 						leadingIcon="mdi:palette-outline"
 					>
-						Appearance
+						{dsp_appearance()}
 					</Button>
 				</div>
 			{/if}
@@ -163,11 +237,11 @@ so preview stays in sync with Layout & Visual Style tabs.
 	<!-- Semantic surface roles -->
 	<AdminCard class="p-5">
 		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
-			Admin surface roles
+			{dsp_semantic_roles()}
 		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			Semantic <code class="text-xs">--admin-*</code> roles for page/card elevation. Shadows still follow
-			card variant (flat / bordered / elevated).
+			{dsp_semantic_roles_desc_part1()}{' '}<code class="text-xs">{dsp_admin_asterisk()}</code>{' '}
+			{dsp_semantic_roles_desc_part2()}
 		</p>
 		<div class="flex flex-wrap gap-3">
 			{#each semanticRoles as role (role.varName)}
@@ -186,11 +260,13 @@ so preview stays in sync with Layout & Visual Style tabs.
 	<!-- Color tokens -->
 	<AdminCard class="p-5">
 		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
-			Semantic palettes
+			{dsp_semantic_palettes()}
 		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			Tailwind utilities map to <code class="text-xs">--color-{'{palette}'}-{'{shade}'}</code>
-			tokens. Override at runtime via Appearance or <code class="text-xs">/themes/*.json</code>.
+			{dsp_utilities_map()}{' '}<code class="text-xs"
+				>{dsp_color_prefix()}-{'{palette}'}-{'{shade}'}</code
+			>{' '}
+			{dsp_utilities_map_part1()}{' '}<code class="text-xs">{dsp_themes_glob()}</code>.
 		</p>
 		<div class="space-y-4">
 			{#each PALETTES as palette (palette)}
@@ -220,39 +296,41 @@ so preview stays in sync with Layout & Visual Style tabs.
 
 	<!-- Buttons -->
 	<AdminCard class="p-5">
-		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">Buttons</h2>
+		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">{dsp_buttons()}</h2>
 		<div class="mb-4 flex flex-wrap gap-2">
 			{#each BUTTON_VARIANTS as btnVariant (btnVariant)}
 				<Button variant={btnVariant} size="md">{btnVariant}</Button>
 			{/each}
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
-			<Button variant="primary" size="sm">Small</Button>
-			<Button variant="primary" size="md">Medium</Button>
-			<Button variant="primary" size="lg">Large</Button>
-			<Button variant="primary" loading>Loading</Button>
-			<Button variant="primary" leadingIcon="mdi:content-save">With icon</Button>
+			<Button variant="primary" size="sm">{dsp_small()}</Button>
+			<Button variant="primary" size="md">{dsp_medium()}</Button>
+			<Button variant="primary" size="lg">{dsp_large()}</Button>
+			<Button variant="primary" loading>{dsp_loading()}</Button>
+			<Button variant="primary" leadingIcon="mdi:content-save">{dsp_with_icon()}</Button>
 		</div>
 	</AdminCard>
 
 	<!-- Badges -->
 	<AdminCard class="p-5">
-		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">Badges</h2>
+		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">{dsp_badges()}</h2>
 		<div class="flex flex-wrap gap-2">
-			<Badge variant="primary" preset="filled">Filled</Badge>
-			<Badge variant="tertiary" preset="tonal">Tonal</Badge>
-			<Badge variant="success" preset="outlined">Outlined</Badge>
-			<Badge variant="warning">Warning</Badge>
-			<Badge variant="error">Error</Badge>
-			<Badge variant="surface">Surface</Badge>
+			<Badge variant="primary" preset="filled">{dsp_filled()}</Badge>
+			<Badge variant="tertiary" preset="tonal">{dsp_tonal()}</Badge>
+			<Badge variant="success" preset="outlined">{dsp_outlined()}</Badge>
+			<Badge variant="warning">{dsp_warning()}</Badge>
+			<Badge variant="error">{dsp_error()}</Badge>
+			<Badge variant="surface">{dsp_surface()}</Badge>
 		</div>
 	</AdminCard>
 
 	<!-- Forms -->
 	<AdminCard class="p-5">
-		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">Form controls</h2>
+		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">
+			{dsp_form_controls()}
+		</h2>
 		<div class="grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
-			<Input bind:value={sampleInput} label="Text input" placeholder="Enter text" />
+			<Input bind:value={sampleInput} label="Text input" placeholder={dsp_enter_text()} />
 			<Select bind:value={sampleSelect} label="Select" options={selectOptions} />
 			<Textarea bind:value={sampleTextarea} label="Textarea" rows={3} />
 			<Toggle bind:value={sampleToggle} label="Toggle feature" />
@@ -262,23 +340,25 @@ so preview stays in sync with Layout & Visual Style tabs.
 
 	<!-- Cards -->
 	<AdminCard class="p-5">
-		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">Cards</h2>
+		<h2 class="mb-4 text-base font-bold" style="color: var(--admin-text-body)">{dsp_cards()}</h2>
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 			<AdminCard class="p-4">
-				<p class="text-sm font-medium" style="color: var(--admin-text-body)">AdminCard shell</p>
+				<p class="text-sm font-medium" style="color: var(--admin-text-body)">
+					{dsp_admincard_shell()}
+				</p>
 				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">
-					Uses --admin-bg-card, --admin-radius-card, and theme shadows.
+					{dsp_admincard_shell_desc()}
 				</p>
 			</AdminCard>
 			<AdminCard class="p-4" variant="tertiary" preset="tonal">
-				<p class="text-sm font-medium">Tonal Card</p>
+				<p class="text-sm font-medium">{dsp_tonal_card()}</p>
 				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">
-					Via Card preset passthrough.
+					{dsp_preset_passthrough()}
 				</p>
 			</AdminCard>
 			<AdminCard class="p-4" variant="primary" preset="outlined">
-				<p class="text-sm font-medium">Outlined Card</p>
-				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">Border + subtle fill.</p>
+				<p class="text-sm font-medium">{dsp_outlined_card()}</p>
+				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">{dsp_border_fill()}</p>
 			</AdminCard>
 		</div>
 	</AdminCard>
@@ -286,29 +366,31 @@ so preview stays in sync with Layout & Visual Style tabs.
 	<!-- Motion & transitions -->
 	<AdminCard class="p-5">
 		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
-			Motion & transitions
+			{dsp_motion_heading()}
 		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			Shared transitions from <code class="text-xs">@utils/admin-transitions</code> — all drop to
-			0ms under
-			<code class="text-xs">prefers-reduced-motion</code>. Page entry uses
-			<code class="text-xs">adminPage</code>
-			on every route, grids use <code class="text-xs">adminStagger</code>, drawers use
-			<code class="text-xs">adminSlide</code>.
+			{dsp_motion_intro_part1()}{' '}<code class="text-xs">{dsp_admin_transitions_util()}</code
+			>{' '}
+			{dsp_motion_intro_part2()}
+			<code class="text-xs">{dsp_prefers_reduced_motion()}</code>{dsp_motion_intro_part3()}
+			<code class="text-xs">{dsp_adminpage_code()}</code>{' '}
+			{dsp_motion_intro_part4()}{' '}<code class="text-xs">{dsp_adminstagger_code()}</code
+			>{dsp_motion_intro_part5()}{' '}
+			<code class="text-xs">{dsp_adminslide_code()}</code>{dsp_motion_intro_part6()}
 		</p>
 		<div
 			class="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]"
 			style="color: var(--admin-text-muted)"
 		>
-			<span><code class="text-xs">--admin-motion-fast</code> 150ms</span>
-			<span><code class="text-xs">--admin-motion-base</code> 200ms</span>
-			<span><code class="text-xs">--admin-motion-slow</code> 300ms</span>
-			<span><code class="text-xs">--admin-ease-out</code> cubic-bezier(0.16, 1, 0.3, 1)</span>
+			<span><code class="text-xs">{dsp_admin_motion_fast()}</code> {dsp_ms_150()}</span>
+			<span><code class="text-xs">{dsp_admin_motion_base()}</code> {dsp_ms_200()}</span>
+			<span><code class="text-xs">{dsp_admin_motion_slow()}</code> {dsp_ms_300()}</span>
+			<span><code class="text-xs">{dsp_admin_ease()}</code> {dsp_cubic_bezier()}</span>
 		</div>
 
 		<div class="mb-3">
 			<Button variant="tertiary" size="sm" onclick={replayMotion} leadingIcon="mdi:replay"
-				>Replay all</Button
+				>{dsp_replay_all()}</Button
 			>
 		</div>
 
@@ -319,14 +401,14 @@ so preview stays in sync with Layout & Visual Style tabs.
 						class="mb-2 text-xs font-semibold uppercase tracking-wider"
 						style="color: var(--admin-text-muted)"
 					>
-						adminPage — page entry
+						{dsp_adminpage_label()}
 					</div>
 					<div
 						in:adminPage={{ duration: 240, rise: 8 }}
 						class="rounded-md border px-4 py-3 text-sm"
 						style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
 					>
-						240ms fade + 8px rise — used by every admin route.
+						{dsp_adminpage_desc()}
 					</div>
 				</div>
 
@@ -335,14 +417,14 @@ so preview stays in sync with Layout & Visual Style tabs.
 						class="mb-2 text-xs font-semibold uppercase tracking-wider"
 						style="color: var(--admin-text-muted)"
 					>
-						adminFade — reveals
+						{dsp_adminfade_label()}
 					</div>
 					<div
 						in:adminFade={{ duration: 200 }}
 						class="rounded-md border px-4 py-3 text-sm"
 						style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
 					>
-						200ms fade — modals and section reveals.
+						{dsp_adminfade_desc()}
 					</div>
 				</div>
 
@@ -351,14 +433,14 @@ so preview stays in sync with Layout & Visual Style tabs.
 						class="mb-2 text-xs font-semibold uppercase tracking-wider"
 						style="color: var(--admin-text-muted)"
 					>
-						adminSlide — drawers
+						{dsp_adminslide_label()}
 					</div>
 					<div
 						in:adminSlide={{ duration: 240, distance: 48 }}
 						class="rounded-md border px-4 py-3 text-sm"
 						style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
 					>
-						Slides in from the right — mobile sidebars and slide-overs.
+						{dsp_adminslide_desc()}
 					</div>
 				</div>
 
@@ -367,7 +449,7 @@ so preview stays in sync with Layout & Visual Style tabs.
 						class="mb-2 text-xs font-semibold uppercase tracking-wider"
 						style="color: var(--admin-text-muted)"
 					>
-						adminStagger — grids
+						{dsp_adminstagger_label()}
 					</div>
 					<div class="flex flex-col gap-2">
 						{#each ['first', 'second', 'third', 'fourth'] as item, i (item)}
@@ -388,10 +470,13 @@ so preview stays in sync with Layout & Visual Style tabs.
 	<!-- Structural tokens -->
 	<AdminCard class="p-5">
 		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">
-			Structural tokens
+			{dsp_structural_tokens()}
 		</h2>
 		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
-			<code class="text-xs">--admin-*</code> values from AdminTheme (density: {density}, variant: {variant}).
+			<code class="text-xs">{dsp_admin_asterisk()}</code>
+			{dsp_density_values()}{dsp_density_open()}
+			{dsp_density_word()}: {density}{dsp_variant_open()}
+			{dsp_variant_word()}: {variant}).
 		</p>
 		<div class="overflow-x-auto">
 			<table class="w-full border-collapse text-sm">
@@ -400,8 +485,8 @@ so preview stays in sync with Layout & Visual Style tabs.
 						class="border-b text-start text-xs uppercase tracking-wider"
 						style="border-color: var(--admin-border-default); color: var(--admin-text-muted)"
 					>
-						<th class="pb-3 pe-4 font-semibold">Token</th>
-						<th class="pb-3 font-semibold">Resolved value</th>
+						<th class="pb-3 pe-4 font-semibold">{dsp_token()}</th>
+						<th class="pb-3 font-semibold">{dsp_resolved_value()}</th>
 					</tr>
 				</thead>
 				<tbody

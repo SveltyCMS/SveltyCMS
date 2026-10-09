@@ -23,6 +23,30 @@ All dynamic CMS settings organized into logical groups
 	import { logger } from '@utils/logger';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import {
+		syssettings_action_required,
+		syssettings_check_structure,
+		syssettings_collections_moved,
+		syssettings_configure_before_prod,
+		syssettings_configure_following,
+		syssettings_configure_heading,
+		syssettings_db_updated,
+		syssettings_groups_need,
+		syssettings_group_needs,
+		syssettings_intro_part1,
+		syssettings_logical_groups,
+		syssettings_media_moved,
+		syssettings_mode,
+		syssettings_mt_heading,
+		syssettings_mt_intro,
+		syssettings_open,
+		syssettings_repair_aria,
+		syssettings_select_group,
+		syssettings_selected_group_missing_part1,
+		syssettings_selected_group_missing_part2,
+		syssettings_title,
+		syssettings_warnings
+	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
@@ -195,7 +219,7 @@ All dynamic CMS settings organized into logical groups
 </script>
 
 <AdminPageShell
-	title="System Settings"
+	title={syssettings_title()}
 	icon="mdi:cog-outline"
 	showBackButton={true}
 	backUrl="/config"
@@ -206,17 +230,14 @@ All dynamic CMS settings organized into logical groups
 			class="border border-surface-500/30 bg-white p-4 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
 		>
 			<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
-				Configure global system settings
+				{syssettings_configure_heading()}
 			</h2>
 
 			<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
-				These are critical system settings loaded dynamically from the database. Most changes take
-				effect immediately, though settings marked with "Restart Required" need a server restart.
-				Settings are organized into <span
+				{syssettings_intro_part1()}{' '}<span
 					class="font-bold text-tertiary-500 dark:text-primary-500"
 					data-testid="system-settings-group-count">{availableGroups.length}</span
-				>
-				logical groups for easy management.
+				>{' '}{syssettings_logical_groups()}
 			</p>
 
 			{#if repairResult}
@@ -243,12 +264,14 @@ All dynamic CMS settings organized into logical groups
 				>
 					<div class="text-sm opacity-90">
 						<strong
-							>⚠️ Action Required: {unconfiguredCount}
-							{unconfiguredCount === 1 ? 'group needs' : 'groups need'}
-							configuration before production use.</strong
+							>{syssettings_action_required()}
+							{unconfiguredCount}
+							{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
+							{syssettings_configure_before_prod()}</strong
 						>
 						<p class="mt-2">
-							Please configure the following {unconfiguredCount === 1 ? 'group' : 'groups'}:
+							{syssettings_configure_following()}
+							{unconfiguredCount === 1 ? 'group' : 'groups'}:
 							{#each availableGroups.filter( (g) => groupsNeedingConfig.has(g.id) ) as group, i (group.id)}
 								<button
 									type="button"
@@ -314,7 +337,7 @@ All dynamic CMS settings organized into logical groups
 														isRepairing = false;
 													}
 												}}
-												aria-label="Repair Cache"
+												aria-label={syssettings_repair_aria()}
 												class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
 											>
 												<iconify-icon
@@ -336,8 +359,8 @@ All dynamic CMS settings organized into logical groups
 								data-testid="system-settings-group-missing"
 							>
 								<p class="text-surface-500">
-									Selected group &quot;{selectedGroupId}&quot; was not found or is not available for
-									your role.
+									{syssettings_selected_group_missing_part1()} &quot;{selectedGroupId}&quot;
+									{syssettings_selected_group_missing_part2()}
 								</p>
 								{#if availableGroups[0]}
 									<Button
@@ -345,7 +368,8 @@ All dynamic CMS settings organized into logical groups
 										type="button"
 										onclick={() => selectGroup(availableGroups[0].id)}
 									>
-										Open {availableGroups[0].name}
+										{syssettings_open()}
+										{availableGroups[0].name}
 									</Button>
 								{/if}
 							</div>
@@ -356,7 +380,7 @@ All dynamic CMS settings organized into logical groups
 						class="flex h-full items-center justify-center p-6 text-center"
 						data-testid="system-settings-group-unselected"
 					>
-						<p class="text-surface-500">Select a group to configure.</p>
+						<p class="text-surface-500">{syssettings_select_group()}</p>
 					</div>
 				{/if}
 			</AdminCard>
@@ -368,11 +392,10 @@ All dynamic CMS settings organized into logical groups
 			data-testid="system-settings-mt-migration"
 		>
 			<h2 class="h2 mb-4 font-bold text-tertiary-600 dark:text-primary-500">
-				Multi-Tenancy Migration
+				{syssettings_mt_heading()}
 			</h2>
 			<p class="text-surface-600 dark:text-surface-400 text-sm mb-4">
-				Migrate collections and media files between flat and tenant-namespaced structures. Check the
-				current state, then migrate if needed.
+				{syssettings_mt_intro()}
 			</p>
 
 			{#if migrationResult}
@@ -388,11 +411,11 @@ All dynamic CMS settings organized into logical groups
 					</p>
 					{#if migrationResult.details}
 						<ul class="mt-2 text-sm opacity-90 list-disc list-inside">
-							<li>Collections moved: {migrationResult.details.collectionsMoved}</li>
-							<li>Media files moved: {migrationResult.details.mediaFilesMoved}</li>
-							<li>DB records updated: {migrationResult.details.mediaRecordsUpdated}</li>
+							<li>{syssettings_collections_moved()} {migrationResult.details.collectionsMoved}</li>
+							<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
+							<li>{syssettings_db_updated()} {migrationResult.details.mediaRecordsUpdated}</li>
 							{#if migrationResult.details.warnings.length > 0}
-								<li>Warnings: {migrationResult.details.warnings.join(', ')}</li>
+								<li>{syssettings_warnings()} {migrationResult.details.warnings.join(', ')}</li>
 							{/if}
 						</ul>
 					{/if}
@@ -407,12 +430,13 @@ All dynamic CMS settings organized into logical groups
 					aria-live="polite"
 				>
 					<p>
-						Mode: <strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong>
+						{syssettings_mode()}
+						<strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong>
 					</p>
 					{#if structureInfo.warnings && structureInfo.warnings.length > 0}
 						<div class="mt-2 p-3 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400">
 							{#each structureInfo.warnings as w, i (i)}
-								<p class="text-xs">\u26a0\ufe0f {w}</p>
+								<p class="text-xs">{'\u26a0\ufe0f'} {w}</p>
 							{/each}
 						</div>
 					{/if}
@@ -429,7 +453,7 @@ All dynamic CMS settings organized into logical groups
 				>
 					<iconify-icon icon="mdi:refresh" width="16" class={isMigrating ? 'animate-spin' : ''}
 					></iconify-icon>
-					<span>Check Structure</span>
+					<span>{syssettings_check_structure()}</span>
 				</Button>
 
 				{#if structureInfo?.needsMigration}

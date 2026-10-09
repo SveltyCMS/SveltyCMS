@@ -12,6 +12,12 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import {
+		extensions_categories_aria,
+		extensions_in_app,
+		extensions_marketplace,
+		extensions_title
+	} from '@src/paraglide/messages';
 	import PluginsView from './plugins-view.svelte';
 	import WidgetDashboard from './widget-dashboard.svelte';
 	import DashboardWidgetsView from './dashboard-widgets-view.svelte';
@@ -30,7 +36,7 @@
 </script>
 
 <AdminPageShell
-	title="Extension Management"
+	title={extensions_title()}
 	icon="mdi:puzzle-outline"
 	description="Install and manage plugins, widgets, and marketplace extensions"
 	showBackButton={true}
@@ -47,7 +53,7 @@
 				<div
 					class="flex gap-1"
 					role="tablist"
-					aria-label="Extension categories"
+					aria-label={extensions_categories_aria()}
 					data-testid="extensions-tabs"
 				>
 					{#each tabs as tab (tab.id)}
@@ -88,11 +94,11 @@
 					onclick={() => (activeTab = 'marketplace')}
 				>
 					<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
-					<span>Marketplace</span>
+					<span>{extensions_marketplace()}</span>
 					<span
 						class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
 					>
-						In-app
+						{extensions_in_app()}
 					</span>
 				</button>
 			</div>

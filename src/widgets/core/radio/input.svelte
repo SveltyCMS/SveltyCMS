@@ -27,6 +27,7 @@ Renders radio group with options from field.options array
 -->
 
 <script lang="ts">
+	import { widget_radio_value } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
 
@@ -110,7 +111,7 @@ Renders radio group with options from field.options array
 			{#each field.options || [] as option (option.value)}
 				<label class="flex items-center gap-2 text-base text-surface-600 dark:text-surface-50">
 					<input
-						aria-label="Radio value"
+						aria-label={widget_radio_value()}
 						type="radio"
 						name={field.db_fieldName}
 						group={localValue}

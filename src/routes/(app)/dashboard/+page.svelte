@@ -50,7 +50,26 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Loader from '@components/ui/loader.svelte';
-	import { button_Collections } from '@src/paraglide/messages';
+	import {
+		button_Collections,
+		dashboard_add_first_widget,
+		dashboard_add_widget,
+		dashboard_ai_connecting,
+		dashboard_ai_generating_title,
+		dashboard_ai_toggle,
+		dashboard_empty_desc,
+		dashboard_empty_title,
+		dashboard_grid_aria,
+		dashboard_no_widgets,
+		dashboard_remove_widget,
+		dashboard_reset_widgets,
+		dashboard_search_widgets,
+		dashboard_search_widgets_ph,
+		dashboard_title,
+		dashboard_widget_failed_load,
+		dashboard_widget_load_error,
+		dashboard_widget_reorder_aria
+	} from '@src/paraglide/messages';
 	import { page } from '$app/state';
 
 	const { data }: { data: PageData } = $props();
@@ -680,7 +699,7 @@
 
 <div>
 	<AdminPageShell
-		title="Dashboard"
+		title={dashboard_title()}
 		icon="bi:bar-chart-line"
 		showBackButton={true}
 		backUrl="/config"
@@ -690,8 +709,8 @@
 				<Button
 					variant="outline"
 					onclick={toggleAiMode}
-					aria-label="Toggle AI Dashboard Mode"
-					title="Toggle AI Dashboard Mode"
+					aria-label={dashboard_ai_toggle()}
+					title={dashboard_ai_toggle()}
 					data-testid="dashboard-ai-toggle"
 					class="p-0! min-w-0"
 				>
@@ -705,8 +724,8 @@
 					<Button
 						variant="outline"
 						onclick={resetAllWidgets}
-						aria-label="Reset all widgets"
-						title="Reset all widgets"
+						aria-label={dashboard_reset_widgets()}
+						title={dashboard_reset_widgets()}
 						data-testid="dashboard-reset-widgets"
 						class="p-0! min-w-0"
 					>
@@ -720,11 +739,11 @@
 							onclick={() => (dropdownOpen = !dropdownOpen)}
 							aria-haspopup="true"
 							aria-expanded={dropdownOpen}
-							aria-label="Add Widget"
+							aria-label={dashboard_add_widget()}
 							data-testid="dashboard-add-widget"
 						>
 							<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
-							Add Widget
+							{dashboard_add_widget()}
 						</Button>
 					{/if}
 					{#if dropdownOpen}
@@ -737,8 +756,8 @@
 								<Input
 									type="search"
 									bind:value={searchQuery}
-									placeholder="Search widgets..."
-									aria-label="Search widgets"
+									placeholder={dashboard_search_widgets_ph()}
+									aria-label={dashboard_search_widgets()}
 									data-testid="dashboard-widget-search"
 									class="w-full"
 								/>
@@ -775,7 +794,7 @@
 										{/if}
 									</Button>
 								{:else}
-									<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
+									<div class="px-4 py-2 text-sm text-gray-500">{dashboard_no_widgets()}</div>
 								{/each}
 							</div>
 						</div>
@@ -820,9 +839,9 @@
 							ariaLabel="Generating AI dashboard"
 						/>
 						<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">
-							Generating AI Dashboard...
+							{dashboard_ai_generating_title()}
 						</p>
-						<p class="text-sm text-surface-500">Connecting to Knowledge Core (mcp.sveltycms.com)</p>
+						<p class="text-sm text-surface-500">{dashboard_ai_connecting()}</p>
 					</AdminCard>
 				{:else if aiDashboardSpec && GenerativeDashboardComp}
 					<GenerativeDashboardComp spec={aiDashboardSpec} />
@@ -831,7 +850,7 @@
 						class="responsive-dashboard-grid"
 						role="grid"
 						data-testid="dashboard-widget-grid"
-						aria-label="Dashboard widgets"
+						aria-label={dashboard_grid_aria()}
 					>
 						{#if gridDropIndicator}
 							<div
@@ -850,7 +869,7 @@
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<div
 								role="article"
-								aria-label="{widgetName} widget. Press Ctrl + Arrow keys to reorder."
+								aria-label={dashboard_widget_reorder_aria({ name: widgetName })}
 								tabindex="0"
 								class="widget-container group relative select-none overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
@@ -878,13 +897,15 @@
 									>
 										<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"
 										></iconify-icon>
-										<h3 class="h4 mb-2">Widget Load Error</h3>
-										<p class="text-sm">Failed to load: {item.component}</p>
+										<h3 class="h4 mb-2">{dashboard_widget_load_error()}</h3>
+										<p class="text-sm">
+											{dashboard_widget_failed_load({ component: item.component })}
+										</p>
 										<Button
 											variant="error"
 											onclick={() => removeWidget(item.id)}
 											size="sm"
-											class="mt-4">Remove Widget</Button
+											class="mt-4">{dashboard_remove_widget()}</Button
 										>
 									</AdminCard>
 								{:else}
@@ -927,20 +948,20 @@
 								class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"
 							></iconify-icon>
 							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">
-								Your Dashboard is Empty
+								{dashboard_empty_title()}
 							</p>
 							<p class="mb-6 text-base text-surface-600 dark:text-surface-400">
-								Add widgets from the toolbar. Available widgets vary per install (core + plugins).
+								{dashboard_empty_desc()}
 							</p>
 							<Button
 								variant="outline"
 								onclick={() => (dropdownOpen = true)}
-								aria-label="Add first widget"
+								aria-label={dashboard_add_first_widget()}
 								data-testid="dashboard-add-first-widget"
 								class="rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
 							>
 								<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
-								Add Widget
+								{dashboard_add_widget()}
 							</Button>
 						</div>
 					</div>

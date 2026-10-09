@@ -7,57 +7,25 @@
 import { DatabaseModule } from "../core/base-adapter";
 import type { DatabaseId, DatabaseResult, ISystemAdapter } from "../db-interface";
 import type { SystemPreferencesDocument } from "@src/content/types";
-import { generateId } from "@src/databases/mongodb/mongodb-utils";
-import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import mongoose, { type Model, Schema } from "mongoose";
+import type { Model } from "mongoose";
 import type { MongoAdapterCore } from "./adapter-core";
 import { MongoCrudMethods } from "./crud-methods";
 import { createDatabaseError } from "./mongodb-utils";
-import { mediaSchema } from "./media";
+import {
+  systemSettingSchema,
+  SystemSettingModel,
+  type SystemSetting,
+  systemVirtualFolderSchema,
+  websiteTokenSchema,
+  mediaSchema,
+} from "./schema";
+import { MongoThemeMethods } from "./theme";
+import { MongoSystemVirtualFolderMethods } from "./system-virtual-folder";
+import { MongoWidgetMethods } from "./widget";
+import { MongoWebsiteTokenMethods } from "./website-token";
 
-export interface SystemSetting {
-  _id: string;
-  category: string;
-  isGlobal?: boolean;
-  key: string;
-  scope: string;
-  tenantId?: string | null;
-  updatedAt?: string;
-  value: unknown;
-}
-
-const SYSTEM_SETTING_SCHEMA = new Schema<SystemSetting>(
-  {
-    _id: { type: String, required: true, default: () => generateId() },
-    key: { type: String, required: true },
-    tenantId: { type: String, default: null },
-    value: { type: Schema.Types.Mixed, required: true },
-    scope: { type: String, default: "system", index: true },
-    category: {
-      type: String,
-      enum: ["public", "private"],
-      default: "public",
-      index: true,
-    },
-    isGlobal: { type: Boolean, default: true },
-    updatedAt: { type: String, default: () => nowISODateString() },
-  },
-  {
-    timestamps: true,
-    collection: "system_settings",
-    strict: true,
-    _id: false,
-  },
-);
-
-SYSTEM_SETTING_SCHEMA.index({ key: 1, tenantId: 1 }, { unique: true });
-
-export const systemSettingSchema = SYSTEM_SETTING_SCHEMA;
-
-export const SystemSettingModel =
-  (mongoose.models?.SystemSetting as mongoose.Model<SystemSetting> | undefined) ||
-  mongoose.model<SystemSetting>("SystemSetting", systemSettingSchema);
+export { systemSettingSchema, SystemSettingModel, type SystemSetting };
 
 export class MongoSystemMethods {
   private readonly SystemPreferencesModel: Model<SystemPreferencesDocument>;
@@ -627,12 +595,6 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
 
   private async _getMethods() {
     if (this._methods) return this._methods;
-
-    const { MongoThemeMethods } = await import("./theme");
-    const { MongoSystemVirtualFolderMethods, systemVirtualFolderSchema } =
-      await import("./system-virtual-folder");
-    const { MongoWidgetMethods } = await import("./widget");
-    const { MongoWebsiteTokenMethods, websiteTokenSchema } = await import("./website-token");
 
     const SystemSettingModelLocal = (this.adapter as any)._getOrCreateModel(
       "SystemSetting",

@@ -25,6 +25,8 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 -->
 
 <script lang="ts">
+	import { widget_phone_call_title } from '@src/paraglide/messages';
+
 	const { value }: { value: string | null | undefined } = $props();
 </script>
 
@@ -35,7 +37,7 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 		<a
 			href="tel:{value.replace(/\s/g, '')}"
 			class="text-tertiary-600 dark:text-primary-500 hover:underline font-medium transition-colors"
-			title="Call: {value}"
+			title={widget_phone_call_title({ value })}
 		>
 			{value}
 		</a>

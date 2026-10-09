@@ -30,6 +30,32 @@
 	} from '@components/ui/smart-table';
 	import SmartTableEmpty from '@components/ui/smart-table/smart-table-empty.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
+	import {
+		common_drag_reorder,
+		tokens_action,
+		tokens_copy_aria,
+		tokens_current_tenant,
+		tokens_delete_selected,
+		tokens_drag_columns_aria,
+		tokens_drag_hint,
+		tokens_empty_title,
+		tokens_existing,
+		tokens_expired,
+		tokens_generate,
+		tokens_generate_heading,
+		tokens_global,
+		tokens_heading,
+		tokens_intro,
+		tokens_name_placeholder,
+		tokens_never,
+		tokens_no_permissions_match,
+		tokens_permissions,
+		tokens_permissions_hint_part1,
+		tokens_permissions_hint_part2,
+		tokens_read_only,
+		tokens_search_aria,
+		tokens_search_placeholder
+	} from '@src/paraglide/messages';
 	import type { Permission } from '@src/databases/auth/types';
 	import type { TokenUserRef } from './website-tokens-api';
 	import type { DatabaseId, WebsiteToken } from '@src/content/types';
@@ -462,10 +488,10 @@
 
 <div class="space-y-4" data-testid="website-tokens-panel">
 	<h3 class="mb-2 text-center text-xl font-bold" data-testid="website-tokens-title">
-		Website Access Tokens
+		{tokens_heading()}
 	</h3>
 	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
-		Manage API tokens for external websites to access your content.
+		{tokens_intro()}
 	</p>
 
 	<AdminCard class="mb-4 border border-surface-500/30 dark:border-surface-500/40">
@@ -474,11 +500,15 @@
 				class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500"
 				data-testid="website-tokens-generate"
 			>
-				Generate New Website Token
+				{tokens_generate_heading()}
 			</h4>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<Input label="Token Name" placeholder="e.g. Production Website" bind:value={newTokenName} />
+				<Input
+					label="Token Name"
+					placeholder={tokens_name_placeholder()}
+					bind:value={newTokenName}
+				/>
 
 				<div class="flex flex-col gap-2">
 					<Select label="Tenant Scope" bind:value={tenantScope} options={tenantScopeOptions} />
@@ -491,12 +521,12 @@
 
 			<div class="mt-4">
 				<div class="mb-2 flex items-center justify-between">
-					<h5 class="h5 font-bold">Permissions</h5>
+					<h5 class="h5 font-bold">{tokens_permissions()}</h5>
 					<div class="flex items-center gap-4">
 						<Input
-							placeholder="Search permissions..."
+							placeholder={tokens_search_placeholder()}
 							bind:value={permissionSearchTerm}
-							aria-label="Search available permissions"
+							aria-label={tokens_search_aria()}
 							class="max-w-xs"
 						/>
 						<Button variant="surface" onclick={toggleSelectAllPermissions} size="sm">
@@ -510,9 +540,8 @@
 					aria-labelledby="permissions-title"
 				>
 					<p id="permissions-title" class="text-sm text-surface-500 mb-2">
-						Select permissions to grant to this token. If none selected, the token will have <strong
-							>Read Only</strong
-						> access.
+						{tokens_permissions_hint_part1()}{' '}<strong>{tokens_read_only()}</strong>{' '}
+						{tokens_permissions_hint_part2()}
 					</p>
 
 					{#if filteredAvailablePermissions.length > 0}
@@ -530,7 +559,7 @@
 						</div>
 					{:else}
 						<div class="text-xs text-center p-4 italic opacity-50">
-							No permissions match your search.
+							{tokens_no_permissions_match()}
 						</div>
 					{/if}
 				</AdminCard>
@@ -538,7 +567,7 @@
 
 			<div class="mt-4 flex justify-end">
 				<Button variant="tertiary" onclick={generateToken} leadingIcon="mdi:key-plus">
-					Generate Token
+					{tokens_generate()}
 				</Button>
 			</div>
 		</div>
@@ -548,10 +577,10 @@
 		<div class="p-4">
 			<div class={SMART_TABLE_TOOLBAR}>
 				<div class="flex items-center gap-4">
-					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
+					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">{tokens_existing()}</h4>
 					{#if smartTable.selectedCount > 0}
 						<Button variant="error" onclick={bulkDeleteTokens} size="sm">
-							Delete Selected ({smartTable.selectedCount})
+							{tokens_delete_selected({ count: smartTable.selectedCount })}
 						</Button>
 					{/if}
 				</div>
@@ -574,7 +603,7 @@
 			{#if columnShow}
 				<div class={SMART_TABLE_COLUMN_MANAGER}>
 					<div class="text-sm text-surface-600 dark:text-surface-400">
-						Drag and drop to reorder columns
+						{tokens_drag_hint()}
 					</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
@@ -583,7 +612,7 @@
 						<section
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
 							role="list"
-							aria-label="Drag columns to reorder"
+							aria-label={tokens_drag_columns_aria()}
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<div
@@ -610,7 +639,7 @@
 										type="button"
 										class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
 										aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
-										title="Drag to reorder"
+										title={common_drag_reorder()}
 									>
 										<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
 									</button>
@@ -645,7 +674,7 @@
 			<div class="{SMART_TABLE_SCROLL} w-full">
 				{#if tokens.length === 0}
 					<SmartTableEmpty
-						title="No website tokens"
+						title={tokens_empty_title()}
 						description="Generate a token above to allow external sites to access your content."
 						icon="mdi:key-outline"
 					/>
@@ -712,7 +741,8 @@
 										/>
 									</th>
 								{/each}
-								<th class="{SMART_TABLE_TH} {pinCellClass('end')}" scope="col">Action</th>
+								<th class="{SMART_TABLE_TH} {pinCellClass('end')}" scope="col">{tokens_action()}</th
+								>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
@@ -759,7 +789,7 @@
 																await navigator.clipboard.writeText(token.token);
 																toast.success('Token copied to clipboard');
 															}}
-															aria-label="Copy token to clipboard"
+															aria-label={tokens_copy_aria()}
 															class="p-0! min-w-0"
 														>
 															<iconify-icon icon="mdi:clipboard-outline" width={20}></iconify-icon>
@@ -783,17 +813,17 @@
 													>
 														{formatDate(token.expiresAt)}
 														{#if daysLeft < 0}
-															(Expired)
+															{tokens_expired()}
 														{/if}
 													</span>
 												{:else}
-													<span class="opacity-50">Never</span>
+													<span class="opacity-50">{tokens_never()}</span>
 												{/if}
 											{:else if header.key === 'tenantId'}
 												{#if token.tenantId}
-													<span class="text-xs">Current Tenant</span>
+													<span class="text-xs">{tokens_current_tenant()}</span>
 												{:else}
-													<Badge variant="secondary" class="text-xs">Global</Badge>
+													<Badge variant="secondary" class="text-xs">{tokens_global()}</Badge>
 												{/if}
 											{:else if header.key === 'createdBy'}
 												{userMap.get(token.createdBy as DatabaseId) || token.createdBy}

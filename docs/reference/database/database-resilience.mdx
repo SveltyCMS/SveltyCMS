@@ -55,8 +55,9 @@ flowchart TD
 | Redis connection retries                  | ✅     | `cache-service.ts` `initializeL2()` (reconnect strategy)         |
 | Self-healing adapter proxy                | ✅     | `createSelfHealingProxy` in `db.ts`                              |
 | Init promise locking                      | ✅     | `INIT_PROMISE_KEY` double-check in `db.ts`                       |
-| Capability guards                         | ✅     | `ensureAuth()`, `ensureSystem()`, …                              |
 | SQL migrations                            | ✅     | `runMigrations()` per Drizzle adapter                            |
+| Network DB connection queue gate          | ✅     | `NetworkDbQueueGate` (`core/network-db-queue-gate.ts`)           |
+| Read-replica splitting & RYW consistency  | ✅     | `ReplicaRouterAdapter` (`core/replica-router.ts`)                |
 
 | Dashboard pool widget | ✅ | `database-pool-diagnostics.svelte` |
 
@@ -113,11 +114,52 @@ const status = await getSystemStatus();
 
 ---
 
+## Connection Pool Burst Gate (`NetworkDbQueueGate`)
+
+For network-attached databases (PostgreSQL and MariaDB), sudden concurrent traffic spikes can saturate physical connection pools, resulting in OS socket drops, connection resets, and worker thread starvation.
+
+`NetworkDbQueueGate` (`src/databases/core/network-db-queue-gate.ts`) provides in-app bounded concurrency ahead of driver pools:
+
+- **Bounded In-App Concurrency**: Caps simultaneous active queries dispatched to the driver pool, buffering excess requests in a low-overhead queue rather than thrashing TCP sockets.
+- **AsyncLocalStorage Re-entrancy**: Transaction contexts bypass outer concurrency gates automatically via `AsyncLocalStorage` context tracking, eliminating nested-query deadlocks.
+- **Fail-Fast Timers**: Requests queued longer than configured timeout thresholds abort gracefully to prevent cascading request buildup.
+
+---
+
 ## Circuit Breaker & Adaptive Cooldown
 
 - **Threshold**: 5 consecutive failures → `OPEN` for 60s (configurable)
 - **Recovery**: `HALF_OPEN` probe → `CLOSED` on success
 - **Adaptive**: Rapid recovery (&lt;5s) shrinks cooldown by 20% (floor 10s)
+
+---
+
+## Read-Replica Splitting & Read-Your-Writes (RYW) Consistency
+
+`ReplicaRouterAdapter` (`src/databases/core/replica-router.ts`) scales database read workloads horizontally by distributing queries across one or more read replicas while strictly maintaining transaction semantics and data consistency.
+
+```mermaid
+flowchart TD
+  Client[Client / SDK Request] --> Router[ReplicaRouterAdapter]
+  Router --> Check{Operation Type?}
+  Check -->|Write: insert / update / delete| Primary[(Primary DB)]
+  Primary --> Track[Update RYW Watermark]
+  Check -->|Read within Transaction| Primary
+  Check -->|Read: find* / count / aggregate| RYW{Recent Write by Client?}
+  RYW -->|Yes: Within RYW Window| Primary
+  RYW -->|No: Standard Read| Pool[Replica Pool: Round-Robin / Least-Conn]
+  Pool --> Replicas[(Read Replicas)]
+  Replicas -.->|Replica Failure / Circuit Open| Fallback[Failover to Primary]
+  Fallback --> Primary
+```
+
+### Core Guarantees:
+
+1. **Zero Single-Node Overhead**: When no read replicas are configured (`readReplicas` is empty), `createReplicaRouterAdapter()` returns the primary adapter directly without any proxy layer or routing overhead.
+2. **Read-Your-Writes (RYW) Consistency**: Tracks per-client write watermarks across tenants via `ReadYourWritesTracker`. When a client performs a write, subsequent reads by that client within the `readYourWritesWindowMs` window (default: 2,000 ms) are pinned to the primary database, eliminating stale reads caused by replication lag.
+3. **Transaction Pinning**: Reads executed inside active transactions (`transaction.execute`) automatically bypass replicas and run against the primary via `AsyncLocalStorage` context tracking (`replicaStorage`).
+4. **Per-Replica Circuit Breaking**: Each replica node tracks consecutive errors. After 3 consecutive failures, the replica enters a 15-second cooldown period and traffic routes to other healthy replicas or the primary.
+5. **Seamless Primary Failover**: If all replicas are unavailable or a replica query errors out, the router automatically fails over to the primary database to ensure high availability.
 
 ---
 

@@ -23,6 +23,22 @@ Provides actionable information for developers and administrators.
 <script lang="ts">
 	import type { FieldInstance } from '@src/content/types';
 	import { logger } from '@utils/logger';
+	import {
+		widget_missing_body_part1,
+		widget_missing_body_part2,
+		widget_missing_debug_field,
+		widget_missing_debug_label,
+		widget_missing_debug_widget,
+		widget_missing_note,
+		widget_missing_production_warning,
+		widget_missing_solution_1a,
+		widget_missing_solution_2,
+		widget_missing_solution_3,
+		widget_missing_solution_4,
+		widget_missing_solutions,
+		widget_missing_title,
+		widget_missing_widget_management
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		config: FieldInstance;
@@ -70,12 +86,14 @@ Provides actionable information for developers and administrators.
 		</svg>
 
 		<div class="flex-1">
-			<h3 class="text-lg font-semibold text-warning-600 dark:text-warning-400">Missing Widget</h3>
+			<h3 class="text-lg font-semibold text-warning-600 dark:text-warning-400">
+				{widget_missing_title()}
+			</h3>
 
 			<!-- Main error message -->
 			<p class="mt-1 text-sm text-warning-600 dark:text-warning-400">
-				The widget <strong>"{widgetName}"</strong> is not available for the field
-				<strong>"{fieldLabel}"</strong>.
+				{widget_missing_body_part1()} <strong>"{widgetName}"</strong>{' '}
+				{widget_missing_body_part2()} <strong>"{fieldLabel}"</strong>.
 			</p>
 		</div>
 	</div>
@@ -86,15 +104,21 @@ Provides actionable information for developers and administrators.
 			class="mt-3 space-y-2 rounded border border-warning-500/30 bg-warning-500/10 p-3 text-xs font-mono dark:border-warning-500/40 dark:bg-warning-900"
 		>
 			<div class="flex gap-2">
-				<span class="font-semibold text-warning-600 dark:text-warning-400">Widget:</span>
+				<span class="font-semibold text-warning-600 dark:text-warning-400"
+					>{widget_missing_debug_widget()}</span
+				>
 				<span class="text-warning-600 dark:text-warning-400">{widgetName}</span>
 			</div>
 			<div class="flex gap-2">
-				<span class="font-semibold text-warning-600 dark:text-warning-400">Field:</span>
+				<span class="font-semibold text-warning-600 dark:text-warning-400"
+					>{widget_missing_debug_field()}</span
+				>
 				<span class="text-warning-600 dark:text-warning-400">{fieldName}</span>
 			</div>
 			<div class="flex gap-2">
-				<span class="font-semibold text-warning-600 dark:text-warning-400">Label:</span>
+				<span class="font-semibold text-warning-600 dark:text-warning-400"
+					>{widget_missing_debug_label()}</span
+				>
 				<span class="text-warning-600 dark:text-warning-400">{fieldLabel}</span>
 			</div>
 		</div>
@@ -102,32 +126,34 @@ Provides actionable information for developers and administrators.
 
 	<!-- Suggested Actions -->
 	<div class="mt-4 space-y-2">
-		<p class="text-sm font-semibold text-warning-600 dark:text-warning-400">Possible Solutions:</p>
+		<p class="text-sm font-semibold text-warning-600 dark:text-warning-400">
+			{widget_missing_solutions()}
+		</p>
 
 		<ul class="ms-4 space-y-1 text-sm text-warning-600 dark:text-warning-400">
 			<li class="flex items-start gap-2">
 				<span class="mt-0.5">•</span>
 				<span
-					>Check if the widget is installed and activated in
+					>{widget_missing_solution_1a()}{' '}
 					<a
 						href="/config/widgetManagement"
 						class="underline hover:text-warning-900 dark:hover:text-warning-100"
-						>Widget Management</a
+						>{widget_missing_widget_management()}</a
 					></span
 				>
 			</li>
 			<li class="flex items-start gap-2">
 				<span class="mt-0.5">•</span>
-				<span>Verify the widget name matches an available widget</span>
+				<span>{widget_missing_solution_2()}</span>
 			</li>
 			<li class="flex items-start gap-2">
 				<span class="mt-0.5">•</span>
-				<span>Check the collection schema configuration for typos</span>
+				<span>{widget_missing_solution_3()}</span>
 			</li>
 			{#if isDevelopment}
 				<li class="flex items-start gap-2">
 					<span class="mt-0.5">•</span>
-					<span>Ensure the widget module is properly exported from its index.ts</span>
+					<span>{widget_missing_solution_4()}</span>
 				</li>
 			{/if}
 		</ul>
@@ -138,8 +164,8 @@ Provides actionable information for developers and administrators.
 		<div
 			class="mt-4 rounded border border-error-500/30 bg-error-500/10 p-2 text-xs text-error-600 dark:border-error-500/40 dark:bg-error-500/10 dark:text-error-400"
 		>
-			<strong>Note:</strong>
-			This field will not be editable until the widget is available.
+			<strong>{widget_missing_note()}</strong>
+			{widget_missing_production_warning()}
 		</div>
 	{/if}
 </div>

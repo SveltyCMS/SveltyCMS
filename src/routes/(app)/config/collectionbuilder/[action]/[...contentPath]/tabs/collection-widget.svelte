@@ -13,7 +13,50 @@
 	import { modalState } from '@utils/modal.svelte';
 	import { getGuiFields } from '@utils/schema/field-utils';
 	import { logger } from '@utils/logger';
-	import { builder_duplicate, builder_remove, button_edit } from '@src/paraglide/messages';
+	import {
+		builder_duplicate,
+		builder_remove,
+		builder_required,
+		builder_ts_add_field,
+		builder_ts_available_widgets,
+		builder_ts_browse_marketplace,
+		builder_ts_click_configure,
+		builder_ts_click_to_add,
+		builder_ts_config_path,
+		builder_ts_drag_hint,
+		builder_ts_drag_reorder_title,
+		builder_ts_duplicate,
+		builder_ts_duplicate_aria,
+		builder_ts_duplicate_badge_title,
+		builder_ts_duplicate_banner_title,
+		builder_ts_duplicate_banner_body_part1,
+		builder_ts_duplicate_banner_body_part2,
+		builder_ts_edit_field_aria,
+		builder_ts_empty_heading,
+		builder_ts_empty_intro,
+		builder_ts_extensions_link,
+		builder_ts_fields_defined,
+		builder_ts_fields_list_aria,
+		builder_ts_inferred_widget,
+		builder_ts_live_parity,
+		builder_ts_loading,
+		builder_ts_marketplace,
+		builder_ts_marketplace_view,
+		builder_ts_move_down_title,
+		builder_ts_move_up_title,
+		builder_ts_no_remote,
+		builder_ts_parity_code,
+		builder_ts_parity_part1,
+		builder_ts_press_enter,
+		builder_ts_quick_add_aria,
+		builder_ts_quick_add_placeholder,
+		builder_ts_remove_field_aria,
+		builder_ts_search_aria,
+		builder_ts_search_placeholder,
+		builder_ts_ts_suffix,
+		builder_ts_widget_category_aria,
+		button_edit
+	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 
@@ -561,15 +604,15 @@
 			>
 				<iconify-icon icon="mdi:code-json" width="20" class="text-tertiary-500"></iconify-icon>
 				<span class="font-mono text-xs font-bold text-surface-900 dark:text-surface-100">
-					config/collections/{(collections.active?.name || 'collection')
+					{builder_ts_config_path()}{(collections.active?.name || 'collection')
 						.toLowerCase()
-						.replace(/\s+/g, '_')}.ts
+						.replace(/\s+/g, '_')}{builder_ts_ts_suffix()}
 				</span>
 				<span
 					class="inline-flex items-center gap-1 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-semibold text-success-500 dark:bg-success-500/20"
 				>
 					<span class="h-1.5 w-1.5 rounded-full bg-success-500 animate-pulse"></span>
-					Live Parity
+					{builder_ts_live_parity()}
 				</span>
 			</div>
 
@@ -597,8 +640,10 @@
 		<div
 			class="shrink-0 border-t border-surface-500/30 bg-surface-500/10 px-4 py-2 text-[11px] text-surface-400 dark:border-surface-500/40 dark:bg-surface-900/60 flex items-center justify-between"
 		>
-			<span>⚡ Real-time TypeScript schema parity with <code>compilation/compile.ts</code></span>
-			<span class="font-mono text-[10px] opacity-70">{items.length} fields defined</span>
+			<span>{builder_ts_parity_part1()} <code>{builder_ts_parity_code()}</code></span>
+			<span class="font-mono text-[10px] opacity-70"
+				>{items.length} {builder_ts_fields_defined()}</span
+			>
 		</div>
 	</div>
 {/snippet}
@@ -637,13 +682,12 @@
 								class="text-warning-500 shrink-0"
 							></iconify-icon>
 							<div class="text-xs">
-								<p class="font-bold">Duplicate Database Column Detected</p>
+								<p class="font-bold">{builder_ts_duplicate_banner_title()}</p>
 								<p class="mt-0.5 opacity-90">
-									Fields sharing database identifier <code
+									{builder_ts_duplicate_banner_body_part1()}{' '}<code
 										class="font-mono font-bold text-warning-600 dark:text-warning-400"
 										>"{Array.from(duplicateFieldNames).join(', ')}"</code
-									> will collide in database tables and TypeScript schemas. Please rename them before
-									saving.
+									>{' '}{builder_ts_duplicate_banner_body_part2()}
 								</p>
 							</div>
 						</div>
@@ -657,7 +701,7 @@
 					<div class="flex items-center gap-2">
 						<div class="relative flex-1">
 							<input
-								aria-label="Quick-Add field names"
+								aria-label={builder_ts_quick_add_aria()}
 								type="text"
 								bind:value={quickAddInput}
 								onkeydown={(e) => {
@@ -666,7 +710,7 @@
 										handleQuickAdd();
 									}
 								}}
-								placeholder="⚡ Quick-Add: type 'email', 'price', 'cover_photo', 'tags', 'bio' and hit Enter..."
+								placeholder={builder_ts_quick_add_placeholder()}
 								class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3.5 py-2 text-xs sm:text-sm text-surface-900 placeholder:text-surface-400 focus:border-tertiary-500 dark:focus:border-primary-500 focus:bg-white focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
 								data-testid="quick-add-field-input"
 							/>
@@ -680,12 +724,14 @@
 							leadingIcon="mdi:plus"
 							data-testid="quick-add-field-button"
 						>
-							Add Field
+							{builder_ts_add_field()}
 						</Button>
 					</div>
 					{#if inferredWidget}
 						<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-							<span class="text-surface-500 dark:text-surface-400">Inferred widget:</span>
+							<span class="text-surface-500 dark:text-surface-400"
+								>{builder_ts_inferred_widget()}</span
+							>
 							<span
 								class="inline-flex items-center gap-1 rounded-full bg-tertiary-500/10 px-2.5 py-0.5 font-medium text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400"
 							>
@@ -693,7 +739,9 @@
 								{inferredWidget.displayName}
 								<span class="opacity-60">({inferredWidget.db_fieldName})</span>
 							</span>
-							<span class="text-surface-400 ms-auto hidden sm:inline">Press Enter ↵ to add</span>
+							<span class="text-surface-400 ms-auto hidden sm:inline"
+								>{builder_ts_press_enter()}</span
+							>
 						</div>
 					{/if}
 				</div>
@@ -711,7 +759,7 @@
 					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
 					data-testid="widget-fields-list"
 					role="list"
-					aria-label="Widget fields list"
+					aria-label={builder_ts_fields_list_aria()}
 				>
 					{#each items as item, index (item._dragId)}
 						{@const isDuplicate = duplicateFieldNames.has(
@@ -800,15 +848,15 @@
 										{#if isDuplicate}
 											<span
 												class="flex items-center gap-1 rounded bg-warning-500/10 px-1.5 py-0.5 text-[10px] font-bold text-warning-500 border border-warning-500/30"
-												title="Duplicate database field name will cause schema collisions"
+												title={builder_ts_duplicate_badge_title()}
 												data-testid="duplicate-field-badge"
 											>
 												<iconify-icon icon="mdi:alert" width="12"></iconify-icon>
-												Duplicate
+												{builder_ts_duplicate()}
 											</span>
 										{/if}
 										{#if item.required}
-											<span class="flex items-center text-error-500" title="Required">
+											<span class="flex items-center text-error-500" title={builder_required()}>
 												<iconify-icon icon="mdi:asterisk" width="10"></iconify-icon>
 											</span>
 										{/if}
@@ -817,7 +865,7 @@
 
 								<!-- Actions -->
 								<div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
-									<SystemTooltip title="Move up (Alt+Up)">
+									<SystemTooltip title={builder_ts_move_up_title()}>
 										<Button
 											variant="transparent"
 											size="sm"
@@ -833,7 +881,7 @@
 											<iconify-icon icon="mdi:arrow-up" width="18"></iconify-icon>
 										</Button>
 									</SystemTooltip>
-									<SystemTooltip title="Move down (Alt+Down)">
+									<SystemTooltip title={builder_ts_move_down_title()}>
 										<Button
 											variant="transparent"
 											size="sm"
@@ -858,7 +906,7 @@
 												e.stopPropagation();
 												editField(item);
 											}}
-											aria-label="Edit field"
+											aria-label={builder_ts_edit_field_aria()}
 											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 										>
 											<iconify-icon
@@ -877,7 +925,7 @@
 												e.stopPropagation();
 												duplicateField(item);
 											}}
-											aria-label="Duplicate field"
+											aria-label={builder_ts_duplicate_aria()}
 											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 										>
 											<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
@@ -892,7 +940,7 @@
 												e.stopPropagation();
 												deleteField(item._dragId);
 											}}
-											aria-label="Remove field"
+											aria-label={builder_ts_remove_field_aria()}
 											class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 										>
 											<iconify-icon icon="mdi:delete" width="20" class="text-error-500"
@@ -902,7 +950,7 @@
 								</div>
 
 								<!-- Drag Handle -->
-								<SystemTooltip title="Drag to reorder">
+								<SystemTooltip title={builder_ts_drag_reorder_title()}>
 									<span
 										class="field-drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing hover:opacity-100"
 										aria-hidden="true"
@@ -925,12 +973,10 @@
 								<iconify-icon icon="mdi:widgets-outline" width="32"></iconify-icon>
 							</div>
 							<h3 class="text-base font-bold text-surface-900 dark:text-surface-100">
-								Start Building Your Collection Fields
+								{builder_ts_empty_heading()}
 							</h3>
 							<p class="mt-1 max-w-md text-xs text-surface-500 dark:text-surface-400">
-								Fields define what data your collection stores. Add fields by clicking or dragging
-								from the Available Widgets palette on the right, typing in the Quick-Add bar above,
-								or picking a starter preset below:
+								{builder_ts_empty_intro()}
 							</p>
 
 							<!-- Starter Presets -->
@@ -960,9 +1006,9 @@
 						>
 							<span class="flex items-center gap-1">
 								<iconify-icon icon="mdi:drag" width="14"></iconify-icon>
-								Drag handles to reorder fields
+								{builder_ts_drag_hint()}
 							</span>
-							<span>Click any field to configure properties & validation</span>
+							<span>{builder_ts_click_configure()}</span>
 						</div>
 					{/if}
 				</div>
@@ -988,20 +1034,20 @@
 							width="18"
 							class="text-tertiary-500 dark:text-primary-500"
 						></iconify-icon>
-						Available Widgets
+						{builder_ts_available_widgets()}
 					</h3>
 					<FloatingInput
 						bind:value={sidebarSearch}
-						placeholder="Search widgets..."
+						placeholder={builder_ts_search_placeholder()}
 						icon="mdi:magnify"
-						aria-label="Search widgets"
+						aria-label={builder_ts_search_aria()}
 						inputClass="h-9 text-sm rounded"
 					/>
 					<!-- Category Filter Chips -->
 					<div
 						class="flex flex-wrap items-center gap-1.5 pt-0.5"
 						role="group"
-						aria-label="Widget category filter"
+						aria-label={builder_ts_widget_category_aria()}
 						data-testid="widget-category-chips"
 					>
 						{#each [{ id: 'all', label: 'All' }, { id: 'inputs', label: 'Inputs' }, { id: 'media', label: 'Media' }, { id: 'structure', label: 'Structure' }, { id: 'advanced', label: 'Advanced' }] as cat (cat.id)}
@@ -1020,7 +1066,7 @@
 						{/each}
 					</div>
 					<p class="text-[11px] text-surface-500 dark:text-surface-400">
-						Click to add, or drag onto the field list.
+						{builder_ts_click_to_add()}
 					</p>
 				</div>
 
@@ -1081,10 +1127,10 @@
 					<div>
 						<div class="mb-2 flex items-center justify-between px-1">
 							<h4 class="text-[10px] font-bold tracking-widest text-surface-400 uppercase">
-								Marketplace
+								{builder_ts_marketplace()}
 							</h4>
 							{#if remoteLoading}
-								<span class="text-[10px] text-surface-400">Loading…</span>
+								<span class="text-[10px] text-surface-400">{builder_ts_loading()}</span>
 							{/if}
 						</div>
 
@@ -1119,7 +1165,7 @@
 											rel="noopener noreferrer"
 											class="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-warning-600 hover:underline dark:text-warning-400"
 										>
-											View on Marketplace
+											{builder_ts_marketplace_view()}
 											<iconify-icon icon="mdi:open-in-new" width="12"></iconify-icon>
 										</a>
 									</div>
@@ -1127,7 +1173,7 @@
 							</div>
 						{:else if !remoteLoading}
 							<p class="px-1 text-[11px] text-surface-500">
-								No remote widgets listed. Browse the full catalog below.
+								{builder_ts_no_remote()}
 							</p>
 						{/if}
 					</div>
@@ -1144,7 +1190,7 @@
 						class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-warning-500/30 bg-warning-500/10 p-3 text-sm font-semibold text-warning-600 transition-colors hover:bg-warning-500/10 dark:border-warning-500/40 dark:bg-warning-900/20 dark:text-warning-400 dark:hover:bg-warning-900/20"
 					>
 						<iconify-icon icon="mdi:store-outline" width="18"></iconify-icon>
-						Browse Widget Marketplace
+						{builder_ts_browse_marketplace()}
 						<iconify-icon icon="mdi:open-in-new" width="16"></iconify-icon>
 					</a>
 					<a
@@ -1152,7 +1198,7 @@
 						class="flex items-center justify-center gap-2 rounded-lg border border-surface-500/30 p-2 text-xs font-medium text-surface-600 hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-surface-300 dark:hover:bg-surface-800"
 					>
 						<iconify-icon icon="mdi:puzzle-outline" width="16"></iconify-icon>
-						Installed extensions & widgets
+						{builder_ts_extensions_link()}
 					</a>
 				</div>
 			</aside>

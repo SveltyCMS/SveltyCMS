@@ -26,6 +26,7 @@ import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-
 import { wafGuard } from "./handle-waf-guard";
 import { PROFILE_WRITE_ENABLED } from "@utils/write-profiler";
 import { isValidSubmissionId, markSubmissionSeen } from "@utils/security/submission-guard";
+import { fastHash, FastLRU } from "@utils/native-utils";
 
 // ESM-safe dynamic import for graphql
 let graphqlModuleCache: any = null;
@@ -109,9 +110,18 @@ interface GraphqlComplexityResult {
   ast?: unknown;
 }
 
+const GRAPHQL_COMPLEXITY_CACHE_MAX = 512;
+const graphqlComplexityCache = new FastLRU<string, GraphqlComplexityResult>({
+  max: GRAPHQL_COMPLEXITY_CACHE_MAX,
+});
+
 async function calculateGraphqlComplexity(query: string): Promise<GraphqlComplexityResult> {
   const quickScore = quickComplexityCheck(query);
   if (quickScore !== null) return { complexity: quickScore };
+
+  const queryHash = fastHash(query);
+  const cached = graphqlComplexityCache.get(queryHash);
+  if (cached) return cached;
 
   const gql = await getGraphQL();
   if (!gql) return { complexity: MAX_COMPLEXITY + 1 };
@@ -143,7 +153,9 @@ async function calculateGraphqlComplexity(query: string): Promise<GraphqlComplex
         },
       },
     });
-    return { complexity, ast };
+    const result: GraphqlComplexityResult = { complexity, ast };
+    graphqlComplexityCache.set(queryHash, result);
+    return result;
   } catch {
     return { complexity: MAX_COMPLEXITY + 1 };
   }

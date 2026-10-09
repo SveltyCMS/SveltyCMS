@@ -98,6 +98,26 @@ import "@utils/v8-shim";
 /**
  * 🚀 AGNOSTIC CORE: Loads the physical database adapter based on config.
  */
+async function createAdapterInstance(type: string, cfg: any): Promise<IDBAdapter> {
+  if (type === "sqlite") {
+    const { SQLiteAdapter } = await import("./sqlite/sqlite-adapter");
+    return new SQLiteAdapter(cfg);
+  } else if (type === "postgresql") {
+    const { PostgreSQLAdapter } = await import("./postgresql/postgres-adapter");
+    return new PostgreSQLAdapter(cfg);
+  } else if (type === "mariadb") {
+    const { MariaDBAdapter } = await import("./mariadb/mariadb-adapter");
+    return new MariaDBAdapter(cfg);
+  } else if (type === "mongodb") {
+    const { MongoDBAdapter } = await import("./mongodb/mongo-db-adapter");
+    return new MongoDBAdapter(cfg);
+  }
+  throw new Error(`Unsupported database type: ${type}`);
+}
+
+/**
+ * 🚀 AGNOSTIC CORE: Loads the physical database adapter based on config.
+ */
 export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
   // 🚀 RESILIENT RESOLUTION: Support all casing and environment sources
   const type = (
@@ -112,20 +132,34 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
   logger.debug(`[DB Init] Loading ${type} adapter...`);
 
   try {
-    if (type === "sqlite") {
-      const { SQLiteAdapter } = await import("./sqlite/sqlite-adapter");
-      return new SQLiteAdapter(config);
-    } else if (type === "postgresql") {
-      const { PostgreSQLAdapter } = await import("./postgresql/postgres-adapter");
-      return new PostgreSQLAdapter(config);
-    } else if (type === "mariadb") {
-      const { MariaDBAdapter } = await import("./mariadb/mariadb-adapter");
-      return new MariaDBAdapter(config);
-    } else if (type === "mongodb") {
-      const { MongoDBAdapter } = await import("./mongodb/mongo-db-adapter");
-      return new MongoDBAdapter(config);
+    const primary = await createAdapterInstance(type, config);
+
+    // 🚀 READ-REPLICA SPLITTING (2027 Architecture):
+    // If readReplicas are specified in config or environment variables, load replica instances
+    // and wrap in high-performance ReplicaRouterAdapter with Read-Your-Writes consistency.
+    let replicaConfigs: any[] | null = config?.readReplicas ?? null;
+    if (!replicaConfigs && process.env.DB_READ_REPLICAS) {
+      try {
+        replicaConfigs = JSON.parse(process.env.DB_READ_REPLICAS);
+      } catch {
+        logger.warn("[DB Init] Failed to parse DB_READ_REPLICAS JSON env var");
+      }
     }
-    throw new Error(`Unsupported database type: ${type}`);
+
+    if (Array.isArray(replicaConfigs) && replicaConfigs.length > 0) {
+      logger.info(`[DB Init] Booting ${replicaConfigs.length} read replica adapters...`);
+      const replicas: IDBAdapter[] = [];
+      for (const repCfg of replicaConfigs) {
+        const mergedCfg =
+          typeof repCfg === "string" ? { ...config, host: repCfg } : { ...config, ...repCfg };
+        const repAdapter = await createAdapterInstance(type, mergedCfg);
+        replicas.push(repAdapter);
+      }
+      const { createReplicaRouterAdapter } = await import("./core/replica-router");
+      return createReplicaRouterAdapter(primary, replicas, config?.replicaSettings);
+    }
+
+    return primary;
   } catch (err: any) {
     logger.error(`[DB Init] Failed to load adapter for ${type}:`, {
       message: err.message,

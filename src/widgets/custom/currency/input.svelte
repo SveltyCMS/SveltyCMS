@@ -29,6 +29,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { widget_clear_value, widget_currency_amount } from '@src/paraglide/messages';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -149,7 +150,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 me-2"
 			></iconify-icon>
 			<input
-				aria-label="Currency amount"
+				aria-label={widget_currency_amount()}
 				type="text"
 				value={displayValue}
 				oninput={handleInput}
@@ -183,7 +184,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 				type="button"
 				class="p-1! me-1"
 				onclick={handleClear}
-				title="Clear value"
+				title={widget_clear_value()}
 			>
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</Button>

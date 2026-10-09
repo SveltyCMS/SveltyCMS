@@ -53,6 +53,17 @@ export const CATEGORY_TTL_SECONDS: Record<string, number> = {
   general: 300, // 5 min   — fallback
 };
 
+// 🚀 Hoisted zero-allocation options for L1 get and set hot paths.
+const L1_GET_OPTS_DEFAULT = Object.freeze({ updateAgeOnGet: true, updateRecencyOnGet: true });
+const L1_GET_OPTS_COLD = Object.freeze({ updateAgeOnGet: false, updateRecencyOnGet: false });
+const L1_GET_OPTS_SYNC = Object.freeze({ updateAgeOnGet: false });
+
+const CATEGORY_TTL_OPTS: Record<string, { ttl: number }> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(CATEGORY_TTL_SECONDS).map(([k, sec]) => [k, Object.freeze({ ttl: sec * 1000 })]),
+  ),
+);
+
 /** How long collection-generation epochs live in L1/L2 (weak ETag 304). */
 export const COLLECTION_EPOCH_TTL_S = 7 * 24 * 3600;
 
@@ -142,8 +153,11 @@ export class CacheService {
       },
       ttl: 1000 * 60 * 5,
       dispose: (_value: unknown, key: string) => {
-        this.cleanupTagsForKey(key);
-        this.removeFromPrefixMap(key);
+        if (!this._isBulkClearing) {
+          this.stats.evictions++;
+          this.cleanupTagsForKey(key);
+          this.removeFromPrefixMap(key);
+        }
       },
     });
 
@@ -210,7 +224,7 @@ export class CacheService {
   // ── Tag & Prefix Management ─────────────────────────────────────────────
 
   private cleanupTagsForKey(key: string) {
-    if (this._isBulkClearing) return;
+    if (this._isBulkClearing || this.keyToTags.size === 0) return;
     const tags = this.keyToTags.get(key);
     if (tags) {
       for (const tag of tags) {
@@ -475,11 +489,13 @@ export class CacheService {
   }
 
   private buildKey(key: string, tenantId?: string | null): string {
-    if (key.startsWith("tenant:")) return key;
-    if (!tenantId || tenantId === "default") {
-      return `tenant:default:${key}`;
+    if (key.charCodeAt(0) === 116 && key.charCodeAt(6) === 58 && key.startsWith("tenant:")) {
+      return key;
     }
-    return `tenant:${tenantId}:${key}`;
+    if (!tenantId || tenantId === "default") {
+      return "tenant:default:" + key;
+    }
+    return "tenant:" + tenantId + ":" + key;
   }
 
   public isNegativeHit(key: string, tenantId?: string | null): boolean {
@@ -490,13 +506,15 @@ export class CacheService {
   public recordMiss(key: string, tenantId?: string | null) {
     const fullKey = this.generateKey(key, tenantId);
     this.negative.recordMiss(fullKey);
-    this.locks.releaseLock(this.l2, fullKey).catch(() => {});
+    if (this.locks.hasActiveLock(fullKey)) {
+      this.locks.releaseLock(this.l2, fullKey).catch(() => {});
+    }
   }
 
   getSync<T>(key: string, tenantId?: string | null): T | null {
     const fullKey = this.generateKey(key, tenantId);
     const start = performance.now();
-    const l1Value = this.l1.get(fullKey, { updateAgeOnGet: false });
+    const l1Value = this.l1.get(fullKey, L1_GET_OPTS_SYNC);
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
@@ -520,10 +538,7 @@ export class CacheService {
     // pages and must be promoted + kept warm on every hit.
     const l1Start = performance.now();
     const coldCategory = _category === CacheCategory.ENTRY;
-    const l1Value = this.l1.get(fullKey, {
-      updateAgeOnGet: !coldCategory,
-      updateRecencyOnGet: !coldCategory,
-    });
+    const l1Value = this.l1.get(fullKey, coldCategory ? L1_GET_OPTS_COLD : L1_GET_OPTS_DEFAULT);
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
@@ -632,13 +647,14 @@ export class CacheService {
   }
 
   async getMany<T>(keys: string[], tenantId?: string | null): Promise<(T | null)[]> {
-    if (keys.length === 0) return [];
+    const count = keys.length;
+    if (count === 0) return [];
     const fullKeys = keys.map((k) => this.generateKey(k, tenantId));
-    const results: (T | null)[] = Array.from({ length: keys.length }, () => null);
+    const results: (T | null)[] = Array.from({ length: count }, () => null);
     const missingIndices: number[] = [];
     const missingKeys: string[] = [];
 
-    for (let i = 0; i < fullKeys.length; i++) {
+    for (let i = 0; i < count; i++) {
       const l1Value = this.l1.get(fullKeys[i]);
       if (l1Value !== undefined) {
         results[i] = l1Value as T;
@@ -647,6 +663,7 @@ export class CacheService {
       } else {
         missingIndices.push(i);
         missingKeys.push(fullKeys[i]);
+        results[i] = null;
       }
     }
 
@@ -689,8 +706,10 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
     const effectiveTTL =
       ttl > 0 ? ttl : (CATEGORY_TTL_SECONDS[_category] ?? CATEGORY_TTL_SECONDS.general ?? 300);
+    const ttlOpts =
+      ttl > 0 ? { ttl: ttl * 1000 } : (CATEGORY_TTL_OPTS[_category] ?? CATEGORY_TTL_OPTS.general);
 
-    this.l1.set(fullKey, value, { ttl: effectiveTTL * 1000 });
+    this.l1.set(fullKey, value, ttlOpts);
     this.negative.invalidate(fullKey);
     this.addToPrefixMap(fullKey);
     cacheMetrics.recordSet(fullKey, _category, effectiveTTL, tenantId);
@@ -715,7 +734,9 @@ export class CacheService {
       }
     }
 
-    this.locks.releaseLock(this.l2, fullKey).catch(() => {});
+    if (this.locks.hasActiveLock(fullKey)) {
+      this.locks.releaseLock(this.l2, fullKey).catch(() => {});
+    }
   }
 
   setSync(
@@ -727,10 +748,10 @@ export class CacheService {
     tags: string[] = [],
   ): void {
     const fullKey = this.generateKey(key, tenantId);
-    const effectiveTTL =
-      ttl > 0 ? ttl : (CATEGORY_TTL_SECONDS[_category] ?? CATEGORY_TTL_SECONDS.general ?? 300);
+    const ttlOpts =
+      ttl > 0 ? { ttl: ttl * 1000 } : (CATEGORY_TTL_OPTS[_category] ?? CATEGORY_TTL_OPTS.general);
 
-    this.l1.set(fullKey, value, { ttl: effectiveTTL * 1000 });
+    this.l1.set(fullKey, value, ttlOpts);
     this.negative.invalidate(fullKey);
     this.addToPrefixMap(fullKey);
     if (tags.length > 0) {
@@ -994,20 +1015,26 @@ export class CacheService {
 
   private processTagKeys(scoped: string, keys: Set<string>, tenantKeyPrefix: string | null) {
     let keep: Set<string> | null = null;
-    for (const key of keys) {
-      if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
-        if (!keep) keep = new Set<string>();
-        keep.add(key);
-        continue;
+    const prevBulk = this._isBulkClearing;
+    this._isBulkClearing = true;
+    try {
+      for (const key of keys) {
+        if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
+          if (!keep) keep = new Set<string>();
+          keep.add(key);
+          continue;
+        }
+        this.l1.delete(key);
+        this.keyToTags.delete(key);
+        const bucketKey = this.getNamespaceBucketKey(key);
+        const bucket = this.prefixMap.get(bucketKey);
+        if (bucket) {
+          bucket.delete(key);
+          if (bucket.size === 0) this.prefixMap.delete(bucketKey);
+        }
       }
-      this.l1.delete(key);
-      this.keyToTags.delete(key);
-      const bucketKey = this.getNamespaceBucketKey(key);
-      const bucket = this.prefixMap.get(bucketKey);
-      if (bucket) {
-        bucket.delete(key);
-        if (bucket.size === 0) this.prefixMap.delete(bucketKey);
-      }
+    } finally {
+      this._isBulkClearing = prevBulk;
     }
     if (!keep || keep.size === 0) {
       this.tagMap.delete(scoped);
@@ -1106,6 +1133,7 @@ export class CacheService {
 
     this._isBulkClearing = true;
     const deletedKeys: string[] = [];
+    let usedBucket = false;
 
     try {
       if (isWildcardTenant) {
@@ -1130,12 +1158,20 @@ export class CacheService {
         const bucket = this.prefixMap.get(bucketKey);
 
         if (bucket) {
+          usedBucket = true;
           // O(#keys in this namespace bucket) — the fast path.
           for (const key of bucket) {
             if (key.startsWith(patternPrefix)) {
               this.l1.delete(key);
               deletedKeys.push(key);
             }
+          }
+          // Direct deletion from the matched bucket: bypasses redundant getNamespaceBucketKey lookups
+          for (let i = 0; i < deletedKeys.length; i++) {
+            bucket.delete(deletedKeys[i]);
+          }
+          if (bucket.size === 0) {
+            this.prefixMap.delete(bucketKey);
           }
         } else if (this.canFullScan()) {
           // Bucket miss on a small cache — cheap to scan exhaustively.
@@ -1158,7 +1194,9 @@ export class CacheService {
 
     for (let i = 0; i < deletedKeys.length; i++) {
       this.cleanupTagsForKey(deletedKeys[i]);
-      this.removeFromPrefixMap(deletedKeys[i]);
+      if (!usedBucket) {
+        this.removeFromPrefixMap(deletedKeys[i]);
+      }
     }
   }
 

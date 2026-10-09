@@ -89,6 +89,14 @@ export async function fetchApi<T>(
     Object.assign(headers, extra);
   }
 
+  // Admin-UI write consumers read the returned document (`data._id`, the merged
+  // row, batch counts), while the API's default is now a minimal status-only ack
+  // (`Prefer: return=minimal`). Explicitly opt the UI back into the full
+  // representation — unless the caller already chose a preference.
+  if (isMutation && !Object.keys(headers).some((h) => h.toLowerCase() === "prefer")) {
+    headers.prefer = "return=representation";
+  }
+
   try {
     const response = await fetch(endpoint, {
       credentials: "include",

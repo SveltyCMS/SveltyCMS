@@ -33,6 +33,18 @@
 
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import {
+		common_desktop_view,
+		common_keyword,
+		common_mobile_view,
+		seo_preview_good_length,
+		seo_preview_heatmap,
+		seo_preview_neutral,
+		seo_preview_power_word,
+		seo_preview_prominent,
+		seo_preview_title,
+		seo_preview_toggle_heatmap
+	} from '@src/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
@@ -111,16 +123,16 @@
 
 <div class="mt-1 border-t border-surface-500 dark:text-surface-50">
 	<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
-		<h3 class="h3 text-xl">SEO Preview</h3>
+		<h3 class="h3 text-xl">{seo_preview_title()}</h3>
 
 		<div class="btn-group border border-surface-500 overflow-hidden">
 			<!-- Device Toggle: Desktop -->
-			<SystemTooltip title="Desktop View">
+			<SystemTooltip title={common_desktop_view()}>
 				<Button
 					variant="tertiary"
 					type="button"
 					onclick={() => (SeoPreviewToggle = false)}
-					aria-label="Desktop View"
+					aria-label={common_desktop_view()}
 					class="p-0! min-w-0 {!SeoPreviewToggle ? ' dark: ' : ' '}"
 				>
 					<iconify-icon icon="mdi:monitor" width={24}></iconify-icon>
@@ -128,12 +140,12 @@
 			</SystemTooltip>
 
 			<!-- Device Toggle: Mobile -->
-			<SystemTooltip title="Mobile View">
+			<SystemTooltip title={common_mobile_view()}>
 				<Button
 					variant="tertiary"
 					type="button"
 					onclick={() => (SeoPreviewToggle = true)}
-					aria-label="Mobile View"
+					aria-label={common_mobile_view()}
 					class="p-0! min-w-0 {SeoPreviewToggle ? ' dark: ' : ' '}"
 				>
 					<iconify-icon icon="mdi:cellphone" width={24}></iconify-icon>
@@ -141,7 +153,7 @@
 			</SystemTooltip>
 
 			<!-- Heatmap Toggle -->
-			<SystemTooltip title="Toggle Heatmap Visualization">
+			<SystemTooltip title={seo_preview_toggle_heatmap()}>
 				<Button
 					variant="warning"
 					type="button"
@@ -149,7 +161,7 @@
 					class={heatmapMode ? 'preset-filled-warning-500' : ''}
 				>
 					<iconify-icon icon="mdi:fire" width={24}></iconify-icon>
-					<span class="hidden sm:inline">Heatmap</span>
+					<span class="hidden sm:inline">{seo_preview_heatmap()}</span>
 				</Button>
 			</SystemTooltip>
 		</div>
@@ -227,23 +239,23 @@
 		<div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]" transition:fade>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
 				<div class="w-2 h-2 rounded-full bg-error-500"></div>
-				<span>Keyword</span>
+				<span>{common_keyword()}</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
 				<div class="w-2 h-2 rounded-full bg-warning-500"></div>
-				<span>Power Word</span>
+				<span>{seo_preview_power_word()}</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
 				<div class="w-2 h-2 rounded-full bg-warning-400"></div>
-				<span>Prominent</span>
+				<span>{seo_preview_prominent()}</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
 				<div class="w-2 h-2 rounded-full bg-success-500"></div>
-				<span>Good Length</span>
+				<span>{seo_preview_good_length()}</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
 				<div class="w-2 h-2 rounded-full bg-tertiary-500"></div>
-				<span>Neutral</span>
+				<span>{seo_preview_neutral()}</span>
 			</div>
 		</div>
 	{/if}

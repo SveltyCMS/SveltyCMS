@@ -139,13 +139,13 @@ await db.crud.count("posts", {}, { mode: "estimate" });
 await db.crud.count("posts", filter, { tenantId, bypassCache: true });
 ```
 
-| Layer          | Module                                          | Role                                                      |
-| :------------- | :---------------------------------------------- | :-------------------------------------------------------- |
-| Modes          | `core/page-utils.ts` → `shouldUseEstimateCount` | Shared eligibility (tenant-safe)                          |
-| SQL estimate   | `SqlAdapterCore.estimateTableRows`              | PG `reltuples`, Maria `TABLE_ROWS`, SQLite `sqlite_stat1` |
-| Mongo estimate | `MongoCrudMethods.count`                        | `estimatedDocumentCount()`                                |
-| Cache          | `core/count-cache.ts` → `createCountCachedCrud` | 30s L1/L2; wired in `db.ts` after tenant guard            |
-| Invalidation   | `BaseAdapter.invalidateQueryCache`              | Clears `count:{collection}:*` + tag `count:{collection}`  |
+| Layer          | Module                                           | Role                                                      |
+| :------------- | :----------------------------------------------- | :-------------------------------------------------------- |
+| Modes          | `core/page-utils.ts` → `shouldUseEstimateCount`  | Shared eligibility (tenant-safe)                          |
+| SQL estimate   | `SqlAdapterCore.estimateTableRows`               | PG `reltuples`, Maria `TABLE_ROWS`, SQLite `sqlite_stat1` |
+| Mongo estimate | `MongoCrudMethods.count`                         | `estimatedDocumentCount()`                                |
+| Cache          | `core/cache-module.ts` → `createCountCachedCrud` | 30s L1/L2; wired in `db.ts` after tenant guard            |
+| Invalidation   | `BaseAdapter.invalidateQueryCache`               | Clears `count:{collection}:*` + tag `count:{collection}`  |
 
 > [!IMPORTANT]
 > Tenant-scoped counts never use whole-table estimates. Prefer `findPage` + `hasMore` for list UIs; use cached exact counts for badges; use estimate only for unscoped dashboards.

@@ -11,6 +11,18 @@ menu item at a specific level. Uses the standard widget loading system.
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import {
+		common_discard,
+		common_save_changes,
+		usersessions_close_modal,
+		widget_menu_configure_fields_hint,
+		widget_menu_item_title,
+		widget_menu_level_config,
+		widget_menu_no_fields_configured,
+		widget_menu_widget_missing,
+		widget_menu_widget_missing_desc,
+		widget_menu_widget_missing_field
+	} from '@src/paraglide/messages';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { modalState } from '@utils/modal.svelte';
@@ -55,17 +67,17 @@ menu item at a specific level. Uses the standard widget loading system.
 	>
 		<div class="flex flex-col">
 			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100">
-				{meta.isNew ? 'Add' : 'Edit'} Menu Item
+				{widget_menu_item_title({ action: meta.isNew ? 'Add' : 'Edit' })}
 			</h2>
 			<span class="text-xs font-medium uppercase tracking-wider text-surface-500"
-				>Level {meta.level + 1} Configuration</span
+				>{widget_menu_level_config({ level: meta.level + 1 })}</span
 			>
 		</div>
 		<Button
 			variant="surface"
 			type="button"
 			onclick={onCancel}
-			aria-label="Close modal"
+			aria-label={usersessions_close_modal()}
 			class="p-0! min-w-0 hover:"
 		>
 			<iconify-icon icon="mdi:close" width="24"></iconify-icon>
@@ -95,10 +107,10 @@ menu item at a specific level. Uses the standard widget loading system.
 							>
 								<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 								<div>
-									<p class="font-semibold text-sm">Widget Missing</p>
+									<p class="font-semibold text-sm">{widget_menu_widget_missing()}</p>
 									<p class="text-xs opacity-80">
-										Failed to load widget <strong>{widgetName}</strong> for field
-										<strong>{field.label}</strong>.
+										{widget_menu_widget_missing_desc()} <strong>{widgetName}</strong>{' '}
+										{widget_menu_widget_missing_field()} <strong>{field.label}</strong>.
 									</p>
 								</div>
 							</div>
@@ -116,10 +128,10 @@ menu item at a specific level. Uses the standard widget loading system.
 					class="mx-auto block text-surface-300 dark:text-surface-600"
 				></iconify-icon>
 				<p class="mt-4 text-surface-600 dark:text-surface-400 font-medium">
-					No fields configured for this level.
+					{widget_menu_no_fields_configured()}
 				</p>
 				<p class="text-xs text-surface-500 mt-1">
-					Configure fields in the collection schema to see them here.
+					{widget_menu_configure_fields_hint()}
 				</p>
 			</div>
 		{/if}
@@ -128,10 +140,10 @@ menu item at a specific level. Uses the standard widget loading system.
 	<footer
 		class="flex justify-end gap-3 border-t border-surface-500/30 pt-5 dark:border-surface-500/40"
 	>
-		<Button variant="outline" type="button" onclick={onCancel}>Discard</Button>
+		<Button variant="outline" type="button" onclick={onCancel}>{common_discard()}</Button>
 		<Button variant="tertiary" type="button" onclick={onSave}>
 			<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
-			Save Changes
+			{common_save_changes()}
 		</Button>
 	</footer>
 </div>

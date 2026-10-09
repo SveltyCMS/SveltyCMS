@@ -24,6 +24,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
+	import { checkbox_input_label } from '@src/paraglide/messages';
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from '.';
@@ -57,7 +58,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 	<div class="flex flex-col gap-y-2">
 		<label class="flex items-center gap-2 text-base text-surface-600 dark:text-surface-50">
 			<input
-				aria-label="Checkbox"
+				aria-label={checkbox_input_label()}
 				type="checkbox"
 				id={field.db_fieldName}
 				name={field.db_fieldName}

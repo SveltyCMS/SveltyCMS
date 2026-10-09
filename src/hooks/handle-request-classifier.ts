@@ -111,6 +111,7 @@ export function classifyRequest(
     path === "/favicon.ico" ||
     path === "/robots.txt" ||
     path === "/sitemap.xml" ||
+    path.startsWith("/.well-known/") ||
     (path.startsWith("/_app/") && !path.startsWith("/_app/remote/")) ||
     path.startsWith("/static/")
   ) {

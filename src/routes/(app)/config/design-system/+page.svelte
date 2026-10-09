@@ -32,6 +32,94 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	import Select from '@components/ui/select.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
+	import {
+		theme_active,
+		theme_activate,
+		theme_advanced,
+		theme_apply_instant,
+		theme_bordered,
+		theme_bordered_desc,
+		theme_branded_login,
+		theme_branded_login_desc,
+		theme_browse_from,
+		theme_catalog_source,
+		theme_clear_overrides,
+		theme_clone_aria,
+		theme_collapsible_sidebar,
+		theme_collapsible_sidebar_desc,
+		theme_collections_position,
+		theme_collections_position_desc,
+		theme_compact_aria,
+		theme_compact_pro,
+		theme_compact_pro_desc,
+		theme_cozy_aria,
+		theme_cozy_default,
+		theme_cozy_default_desc,
+		theme_create,
+		theme_create_heading,
+		theme_create_intro,
+		theme_css_hint,
+		theme_danger_zone,
+		theme_default,
+		theme_discard,
+		theme_elevated,
+		theme_elevated_desc,
+		theme_export_import,
+		theme_export_intro,
+		theme_export_json,
+		theme_flat,
+		theme_flat_desc,
+		theme_high_contrast,
+		theme_high_contrast_desc,
+		theme_header,
+		theme_import_json,
+		theme_import_intro,
+		theme_import_theme,
+		theme_installed,
+		theme_installed_themes,
+		theme_install,
+		theme_intro,
+		theme_layout_locked,
+		theme_layout_presets,
+		theme_layout_density,
+		theme_loading_marketplace,
+		theme_loading_themes,
+		theme_lock_overrides,
+		theme_lock_overrides_desc,
+		theme_marketplace,
+		theme_marketplace_url,
+		theme_my_layout,
+		theme_my_layout_desc,
+		theme_my_overrides,
+		theme_new_name_aria,
+		theme_new_name_placeholder,
+		theme_no_marketplace,
+		theme_open_preview,
+		theme_preview_rest,
+		theme_preview_aria,
+		theme_presets,
+		theme_presets_intro,
+		theme_reduced_motion,
+		theme_reduced_motion_desc,
+		theme_reset_defaults,
+		theme_reset_intro,
+		theme_save_preferences,
+		theme_save_theme,
+		theme_show_local,
+		theme_sidebar,
+		theme_spacious_aria,
+		theme_spacious_writer,
+		theme_spacious_writer_desc,
+		theme_sticky_bar,
+		theme_sticky_bar_desc,
+		theme_title,
+		theme_total_plural,
+		theme_total_singular,
+		theme_unsaved,
+		theme_use_current,
+		theme_visual_style,
+		theme_features
+	} from '@src/paraglide/messages';
 	import DesignSystemPreview from './design-system-preview.svelte';
 	import PaletteStudio from './palette-studio.svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -642,7 +730,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 </script>
 
 <AdminPageShell
-	title="Design System"
+	title={theme_title()}
 	icon="mdi:compass-outline"
 	description="Appearance, personal overrides, live component preview, and workspace themes"
 	showBackButton={true}
@@ -660,10 +748,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 				<div class="flex-1 min-w-0">
 					<div class="font-bold text-sm truncate">{current.name}</div>
 					<div class="text-xs" style="color: var(--admin-text-muted)">
-						{current.density || 'cozy'} · {current.variant || 'bordered'} · {themes.length} theme{themes.length !==
-						1
-							? 's'
-							: ''} total
+						{current.density || 'cozy'} · {current.variant || 'bordered'} · {themes.length}{' '}
+						{themes.length === 1 ? theme_total_singular() : theme_total_plural()}
 					</div>
 				</div>
 			</AdminCard>
@@ -709,9 +795,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								icon="mdi:account-edit"
 								class="text-xl text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							<h3 class="font-bold text-sm">My Overrides</h3>
+							<h3 class="font-bold text-sm">{theme_my_overrides()}</h3>
 							<span class="text-xs" style="color: var(--admin-text-muted)"
-								>Apply instantly — no reload needed</span
+								>{theme_apply_instant()}</span
 							>
 						</div>
 						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -760,10 +846,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						<div class="mt-2 pt-4 border-t" style="border-color: var(--admin-border-default)">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
 								<div>
-									<h4 class="font-semibold text-sm">My Layout</h4>
+									<h4 class="font-semibold text-sm">{theme_my_layout()}</h4>
 									<p class="text-xs" style="color: var(--admin-text-muted)">
-										Personal sidebar and shell region visibility. Sidebar toggles also auto-save
-										after 2 seconds.
+										{theme_my_layout_desc()}
 									</p>
 								</div>
 								<Button
@@ -772,12 +857,12 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									onclick={captureCurrentLayout}
 									disabled={layoutLocked}
 								>
-									Use current layout
+									{theme_use_current()}
 								</Button>
 							</div>
 							{#if layoutLocked}
 								<p class="text-xs text-warning-600 dark:text-warning-400 mb-3">
-									Layout is locked by your workspace admin — tenant defaults apply.
+									{theme_layout_locked()}
 								</p>
 							{/if}
 							<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -798,13 +883,13 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								variant="primary"
 								size="sm"
 								onclick={saveMyOverrides}
-								data-testid="appearance-save-overrides">Save My Preferences</Button
+								data-testid="appearance-save-overrides">{theme_save_preferences()}</Button
 							>
 							<Button
 								variant="ghost"
 								size="sm"
 								onclick={clearMyOverrides}
-								data-testid="appearance-clear-overrides">Clear Overrides</Button
+								data-testid="appearance-clear-overrides">{theme_clear_overrides()}</Button
 							>
 						</div>
 					</div>
@@ -827,15 +912,14 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								icon="mdi:theme-light-dark"
 								class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							Installed Themes
+							{theme_installed_themes()}
 						</h3>
 						<p class="text-sm text-surface-500 dark:text-surface-400 mb-4">
-							Switch between admin themes. Each theme stores its own density, variant, features, and
-							custom CSS. Create a new theme from scratch or clone an existing one.
+							{theme_intro()}
 						</p>
 
 						{#if loadingThemes}
-							<div class="text-center py-8 text-surface-400">Loading themes...</div>
+							<div class="text-center py-8 text-surface-400">{theme_loading_themes()}</div>
 						{:else}
 							<div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
 								{#each themes as t (t.id)}
@@ -859,10 +943,10 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 														preset="tonal"
 														color="success"
 														size="sm"
-														data-testid="appearance-theme-active-badge">Active</Badge
+														data-testid="appearance-theme-active-badge">{theme_active()}</Badge
 													>{/if}
 												{#if t.isDefault}<Badge preset="tonal" color="surface" size="sm"
-														>Default</Badge
+														>{theme_default()}</Badge
 													>{/if}
 											</div>
 											<div class="text-xs text-surface-500 dark:text-surface-400">
@@ -875,7 +959,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 													variant="primary"
 													size="sm"
 													onclick={() => handleActivate(t.id)}
-													data-testid={`appearance-theme-activate-${t.id}`}>Activate</Button
+													data-testid={`appearance-theme-activate-${t.id}`}
+													>{theme_activate()}</Button
 												>
 											{/if}
 											<Button
@@ -886,7 +971,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 													cloneName = '';
 													handleClone(t.id);
 												}}
-												aria-label="Clone {t.name}"
+												aria-label={theme_clone_aria({ name: t.name })}
 												data-testid={`appearance-theme-clone-${t.id}`}
 											></Button>
 											{#if !t.isActive && !t.isDefault}
@@ -909,13 +994,13 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="mt-6 max-w-2xl border border-surface-500/30 p-4 dark:border-surface-500/40"
 								data-testid="appearance-theme-create"
 							>
-								<h4 class="font-bold text-sm mb-3">Create New Theme</h4>
+								<h4 class="font-bold text-sm mb-3">{theme_create_heading()}</h4>
 								<div class="flex gap-2">
 									<Input
 										bind:value={newThemeName}
 										class="flex-1"
-										placeholder="Theme name (e.g. Midnight Blue, High Contrast)"
-										aria-label="New theme name"
+										placeholder={theme_new_name_placeholder()}
+										aria-label={theme_new_name_aria()}
 										data-testid="appearance-theme-name"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') handleCreate();
@@ -925,11 +1010,11 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										variant="tertiary"
 										onclick={handleCreate}
 										leadingIcon="mdi:plus"
-										data-testid="appearance-theme-create-btn">Create</Button
+										data-testid="appearance-theme-create-btn">{theme_create()}</Button
 									>
 								</div>
 								<p class="text-xs text-surface-400 mt-2">
-									New themes start with current density/variant/features as defaults.
+									{theme_create_intro()}
 								</p>
 							</AdminCard>
 						{/if}
@@ -944,22 +1029,22 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									icon="mdi:palette-swatch"
 									class="text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
-								Theme Presets
+								{theme_presets()}
 							</h3>
 							<p class="text-sm text-surface-500 dark:text-surface-400 mb-2">
-								Edit brand colors in the palette studio, apply layout presets, or import theme JSON.
+								{theme_presets_intro()}
 							</p>
 							<p class="text-sm mb-4">
 								<button
 									type="button"
-									aria-label="Theme preview"
+									aria-label={theme_preview_aria()}
 									class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1"
 									onclick={() => setActiveTab('preview')}
 								>
 									<iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
-									Open Live Preview
+									{theme_open_preview()}
 								</button>
-								— preview all native components and tokens live.
+								— {theme_preview_rest()}
 							</p>
 
 							<PaletteStudio
@@ -970,7 +1055,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								onOpenPreview={() => setActiveTab('preview')}
 							/>
 
-							<h4 class="font-bold text-sm mb-2 mt-2">Layout presets</h4>
+							<h4 class="font-bold text-sm mb-2 mt-2">{theme_layout_presets()}</h4>
 							<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 								<AdminCard
 									class="cursor-pointer p-4 border-2 {density === 'cozy' && variant === 'bordered'
@@ -982,15 +1067,15 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									}}
 									role="button"
 									tabindex={0}
-									aria-label="Apply Cozy Default preset"
+									aria-label={theme_cozy_aria()}
 								>
 									<iconify-icon
 										icon="mdi:monitor-dashboard"
 										class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
 									></iconify-icon>
-									<h4 class="font-bold text-sm">Cozy Default</h4>
+									<h4 class="font-bold text-sm">{theme_cozy_default()}</h4>
 									<p class="text-xs text-surface-500 dark:text-surface-400">
-										Standard admin density with subtle borders
+										{theme_cozy_default_desc()}
 									</p>
 								</AdminCard>
 
@@ -1004,15 +1089,15 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									}}
 									role="button"
 									tabindex={0}
-									aria-label="Apply Compact Pro preset"
+									aria-label={theme_compact_aria()}
 								>
 									<iconify-icon
 										icon="mdi:table-large"
 										class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
 									></iconify-icon>
-									<h4 class="font-bold text-sm">Compact Pro</h4>
+									<h4 class="font-bold text-sm">{theme_compact_pro()}</h4>
 									<p class="text-xs text-surface-500 dark:text-surface-400">
-										High-density for developers & data-heavy views
+										{theme_compact_pro_desc()}
 									</p>
 								</AdminCard>
 
@@ -1027,15 +1112,15 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									}}
 									role="button"
 									tabindex={0}
-									aria-label="Apply Spacious Writer preset"
+									aria-label={theme_spacious_aria()}
 								>
 									<iconify-icon
 										icon="mdi:pen"
 										class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
 									></iconify-icon>
-									<h4 class="font-bold text-sm">Spacious Writer</h4>
+									<h4 class="font-bold text-sm">{theme_spacious_writer()}</h4>
 									<p class="text-xs text-surface-500 dark:text-surface-400">
-										Distraction-free content authoring mode
+										{theme_spacious_writer_desc()}
 									</p>
 								</AdminCard>
 							</div>
@@ -1045,28 +1130,28 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									icon="icon-park-outline:shopping-bag"
 									class="text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
-								Theme Marketplace
+								{theme_marketplace()}
 							</h4>
 							<p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
-								Browse themes from
+								{theme_browse_from()}{' '}
 								<a
 									href="https://marketplace.sveltycms.com"
 									target="_blank"
 									rel="noopener"
 									class="text-tertiary-500 dark:text-primary-500 underline"
-									>marketplace.sveltycms.com</a
+									>{theme_marketplace_url()}</a
 								>.
 								{#if marketplaceSource === 'local'}
-									Showing built-in themes until the remote catalog is available.
+									{theme_show_local()}
 								{:else}
-									Catalog source: {marketplaceSource}.
+									{theme_catalog_source()} {marketplaceSource}.
 								{/if}
 							</p>
 
 							{#if loadingMarketplace}
-								<p class="text-sm text-surface-500 mb-4">Loading marketplace…</p>
+								<p class="text-sm text-surface-500 mb-4">{theme_loading_marketplace()}</p>
 							{:else if marketplaceThemes.length === 0}
-								<p class="text-sm text-surface-500 mb-4">No marketplace themes available.</p>
+								<p class="text-sm text-surface-500 mb-4">{theme_no_marketplace()}</p>
 							{:else}
 								<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 									{#each marketplaceThemes as item (item.id)}
@@ -1080,7 +1165,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 											<div class="flex items-center justify-between gap-2">
 												<Badge preset="tonal" color="surface" size="sm">{item.source}</Badge>
 												{#if item.installed}
-													<Badge preset="tonal" color="success" size="sm">Installed</Badge>
+													<Badge preset="tonal" color="success" size="sm">{theme_installed()}</Badge
+													>
 												{:else if isAdmin}
 													<Button
 														variant="tertiary"
@@ -1088,7 +1174,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 														onclick={() => installMarketplaceTheme(item.id)}
 														loading={saving}
 													>
-														Install
+														{theme_install()}
 													</Button>
 												{/if}
 											</div>
@@ -1097,9 +1183,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								</div>
 							{/if}
 
-							<h4 class="font-bold text-sm mb-2">Import Theme JSON</h4>
+							<h4 class="font-bold text-sm mb-2">{theme_import_json()}</h4>
 							<p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
-								Paste a SveltyCMS theme JSON export (or a shorthand palette block) to apply it.
+								{theme_import_intro()}
 							</p>
 							<div class="space-y-3">
 								<Textarea
@@ -1110,7 +1196,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									rows={6}
 								/>
 								<Button variant="tertiary" onclick={importPreset} loading={saving}
-									>Import Theme</Button
+									>{theme_import_theme()}</Button
 								>
 							</div>
 						</div>
@@ -1122,20 +1208,14 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:resize" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							Layout & Density
+							{theme_layout_density()}
 						</h3>
 						<div class="space-y-6 max-w-2xl">
 							<Select bind:value={density} label="Admin Density" options={densityOptions} />
 							<p class="text-xs text-surface-400 -mt-4">
-								Sidebar: {density === 'compact'
-									? '200px'
-									: density === 'spacious'
-										? '300px'
-										: '240px'} · Header: {density === 'compact'
-									? '48px'
-									: density === 'spacious'
-										? '72px'
-										: '64px'}
+								{theme_sidebar()}
+								{density === 'compact' ? '200px' : density === 'spacious' ? '300px' : '240px'} · {theme_header()}
+								{density === 'compact' ? '48px' : density === 'spacious' ? '72px' : '64px'}
 							</p>
 
 							<div class="grid grid-cols-3 gap-4">
@@ -1159,7 +1239,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:format-paint" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							Visual Style
+							{theme_visual_style()}
 						</h3>
 						<div class="space-y-6 max-w-2xl">
 							<Select bind:value={variant} label="Card Variant" options={variantOptions} />
@@ -1172,8 +1252,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										? '0'
 										: 'var(--admin-border-width, 1px)'}; box-shadow: none;"
 								>
-									<div class="text-sm font-bold mb-2">Flat</div>
-									<div class="text-xs text-surface-500">No borders · No shadows</div>
+									<div class="text-sm font-bold mb-2">{theme_flat()}</div>
+									<div class="text-xs text-surface-500">{theme_flat_desc()}</div>
 								</AdminCard>
 								<AdminCard
 									class="p-6 {variant === 'bordered'
@@ -1181,8 +1261,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										: 'border-surface-500/30 dark:border-surface-500/40'}"
 									style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));"
 								>
-									<div class="text-sm font-bold mb-2">Bordered</div>
-									<div class="text-xs text-surface-500">Subtle border · Light shadow</div>
+									<div class="text-sm font-bold mb-2">{theme_bordered()}</div>
+									<div class="text-xs text-surface-500">{theme_bordered_desc()}</div>
 								</AdminCard>
 								<AdminCard
 									class="p-6 {variant === 'elevated'
@@ -1190,8 +1270,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										: ''}"
 									style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevated, 0 10px 15px -3px rgb(0 0 0 / 0.05));"
 								>
-									<div class="text-sm font-bold mb-2">Elevated</div>
-									<div class="text-xs text-surface-500">Border · Prominent shadow</div>
+									<div class="text-sm font-bold mb-2">{theme_elevated()}</div>
+									<div class="text-xs text-surface-500">{theme_elevated_desc()}</div>
 								</AdminCard>
 							</div>
 						</div>
@@ -1203,16 +1283,16 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:toggle-switch" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							Theme Features
+							{theme_features()}
 						</h3>
 						<div class="max-w-2xl space-y-4">
 							<AdminCard
 								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
 							>
 								<div>
-									<div class="font-bold text-sm">Sticky Action Bar</div>
+									<div class="font-bold text-sm">{theme_sticky_bar()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Save/Delete buttons stick on scroll in content forms
+										{theme_sticky_bar_desc()}
 									</div>
 								</div>
 								<Toggle bind:value={stickyActionBar} />
@@ -1221,9 +1301,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
 							>
 								<div>
-									<div class="font-bold text-sm">Collapsible Sidebar</div>
+									<div class="font-bold text-sm">{theme_collapsible_sidebar()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Allow users to collapse the navigation sidebar
+										{theme_collapsible_sidebar_desc()}
 									</div>
 								</div>
 								<Toggle bind:value={collapsibleSidebar} />
@@ -1232,9 +1312,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
 							>
 								<div>
-									<div class="font-bold text-sm">Branded Login</div>
+									<div class="font-bold text-sm">{theme_branded_login()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Show tenant logo and custom colors on login page
+										{theme_branded_login_desc()}
 									</div>
 								</div>
 								<Toggle bind:value={brandedLogin} />
@@ -1243,9 +1323,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
 							>
 								<div>
-									<div class="font-bold text-sm">High Contrast Mode</div>
+									<div class="font-bold text-sm">{theme_high_contrast()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Enforce WCAG AAA contrast ratios across admin
+										{theme_high_contrast_desc()}
 									</div>
 								</div>
 								<Toggle bind:value={highContrastMode} />
@@ -1254,9 +1334,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
 							>
 								<div>
-									<div class="font-bold text-sm">Reduced Motion</div>
+									<div class="font-bold text-sm">{theme_reduced_motion()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Disable all animations and transitions globally
+										{theme_reduced_motion_desc()}
 									</div>
 								</div>
 								<Toggle bind:value={reducedMotion} />
@@ -1265,9 +1345,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							<!-- Layout Region: Collections Position -->
 							<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
 								<div class="mb-3">
-									<div class="font-bold text-sm">Collections Position</div>
+									<div class="font-bold text-sm">{theme_collections_position()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Which sidebar shows the content collections tree
+										{theme_collections_position_desc()}
 									</div>
 								</div>
 								<Select bind:value={collectionsLayout} options={collectionsLayoutOptions} />
@@ -1278,9 +1358,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="p-4 border border-warning-500/30 dark:border-warning-500/40 bg-warning-500/20 dark:bg-warning-900/10"
 							>
 								<div class="mb-3">
-									<div class="font-bold text-sm">Lock User Overrides</div>
+									<div class="font-bold text-sm">{theme_lock_overrides()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
-										Prevent users from changing these settings in My Overrides
+										{theme_lock_overrides_desc()}
 									</div>
 								</div>
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1300,7 +1380,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:code-tags" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
-							Advanced
+							{theme_advanced()}
 						</h3>
 						<div class="max-w-2xl space-y-6">
 							<div>
@@ -1313,19 +1393,19 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									rows={10}
 								/>
 								<p class="text-xs text-surface-500 dark:text-surface-400 mt-2">
-									Injected into admin panel. Dangerous constructs stripped.
+									{theme_css_hint()}
 								</p>
 							</div>
 
 							<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
-								<h4 class="font-bold text-sm mb-3">Export / Import</h4>
+								<h4 class="font-bold text-sm mb-3">{theme_export_import()}</h4>
 								<div class="flex flex-wrap gap-2">
 									<Button variant="outline" onclick={exportTheme} leadingIcon="mdi:export"
-										>Export Theme JSON</Button
+										>{theme_export_json()}</Button
 									>
 								</div>
 								<p class="text-xs text-surface-400 mt-2">
-									Export current settings. Import via Presets tab.
+									{theme_export_intro()}
 								</p>
 							</AdminCard>
 
@@ -1333,13 +1413,13 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								class="p-4 border border-error-500/30 dark:border-error-500/40 bg-error-500/30 dark:bg-error-900/10"
 							>
 								<h4 class="font-bold text-sm text-error-600 dark:text-error-400 mb-2">
-									Danger Zone
+									{theme_danger_zone()}
 								</h4>
 								<p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
-									Reset to factory defaults.
+									{theme_reset_intro()}
 								</p>
 								<Button variant="error" onclick={resetToDefaults} leadingIcon="mdi:restore-alert"
-									>Reset to Defaults</Button
+									>{theme_reset_defaults()}</Button
 								>
 							</AdminCard>
 						</div>
@@ -1356,19 +1436,19 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		>
 			<p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
 				<iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>
-				Unsaved changes — live preview active
+				{theme_unsaved()}
 			</p>
 			<div class="flex gap-2">
 				<Button
 					variant="ghost"
 					onclick={() => (hasChanges = false)}
-					data-testid="appearance-theme-discard">Discard</Button
+					data-testid="appearance-theme-discard">{theme_discard()}</Button
 				>
 				<Button
 					variant="primary"
 					onclick={saveTheme}
 					loading={saving}
-					data-testid="appearance-theme-save">Save Theme</Button
+					data-testid="appearance-theme-save">{theme_save_theme()}</Button
 				>
 			</div>
 		</div>

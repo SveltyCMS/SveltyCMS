@@ -72,11 +72,11 @@ async function registerRuntimeServerModules(): Promise<void> {
     for (const entry of readdirSync(pluginsDir, { withFileTypes: true })) {
       if (!entry.isDirectory() || pluginServerRegistry.has(entry.name)) continue;
       if (!existsSync(join(pluginsDir, entry.name, "index.server.ts"))) continue;
-  	    const id = entry.name;
-  	    const specifier = "./" + id + "/index.server";
-  	    pluginServerRegistry.register(id, () =>
-  	      import(/* @vite-ignore */ specifier).then((mod) => mod as PluginServerModule),
-  	    );
+      const id = entry.name;
+      const specifier = "./" + id + "/index.server";
+      pluginServerRegistry.register(id, () =>
+        import(/* @vite-ignore */ specifier).then((mod) => mod as PluginServerModule),
+      );
     }
     logger.debug("[PluginServerRegistry] Registered runtime server-module loaders");
   } catch (err) {

@@ -24,6 +24,10 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import {
+		widget_daterange_duration_label,
+		widget_daterange_context_label
+	} from '@src/paraglide/messages';
 	import type { DateRangeWidgetData } from './';
 
 	interface Props {
@@ -178,13 +182,16 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	{#if duration}
 		<span
 			class="ms-2 text-sm font-normal text-gray-500 dark:text-gray-400"
-			aria-label="Duration: {duration}"
+			aria-label={widget_daterange_duration_label({ duration })}
 		>
 			({duration})
 		</span>
 	{/if}
 	{#if relativeContext}
-		<span class={contextClasses} aria-label="Time context: {relativeContext}">
+		<span
+			class={contextClasses}
+			aria-label={widget_daterange_context_label({ context: relativeContext })}
+		>
 			{relativeContext}
 		</span>
 	{/if}

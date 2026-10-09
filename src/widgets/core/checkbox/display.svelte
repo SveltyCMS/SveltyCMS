@@ -21,6 +21,7 @@ Part of the CMS widget system.
 -->
 
 <script lang="ts">
+	import { checkbox_checked, checkbox_unchecked } from '@src/paraglide/messages';
 	import type { CheckboxWidgetData } from './';
 
 	interface Props {
@@ -48,7 +49,7 @@ Part of the CMS widget system.
 			viewBox="0 0 24 24"
 			fill="currentColor"
 			class="text-success-500 {sizeClass}"
-			aria-label="Checked"
+			aria-label={checkbox_checked()}
 			role="img"
 		>
 			<path d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41z" />
@@ -57,7 +58,7 @@ Part of the CMS widget system.
 		<!-- Dash for unchecked/null -->
 		<span
 			class="select-none text-lg text-surface-400 dark:text-surface-500"
-			aria-label="Unchecked"
+			aria-label={checkbox_unchecked()}
 			role="img"
 		>
 			−

@@ -22,6 +22,17 @@ Requires user confirmation before proceeding with changes that may cause data lo
 
 <script lang="ts">
 	import type { BreakingChange } from '@utils/collection-schema-warnings';
+	import {
+		button_cancel,
+		builder_warning_cannot_recover,
+		builder_warning_collection_label,
+		builder_warning_confirm_aria,
+		builder_warning_confirm_text,
+		builder_warning_data_loss_plural,
+		builder_warning_data_loss_singular,
+		builder_warning_other_plural,
+		builder_warning_other_singular
+	} from '@src/paraglide/messages';
 	import { fade, slide } from 'svelte/transition';
 
 	interface Props {
@@ -89,7 +100,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 					{hasDataLoss ? 'Data Loss Warning' : 'Breaking Changes Detected'}
 				</h2>
 				<p class="text-sm text-surface-600 dark:text-surface-50">
-					Collection: <span class="font-medium">{collectionName}</span>
+					{builder_warning_collection_label()}{' '}<span class="font-medium">{collectionName}</span>
 				</p>
 			</div>
 		</div>
@@ -100,9 +111,9 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				<div class="rounded border-2 border-error-500/30 bg-error-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-error-600 dark:text-error-500">
 						<iconify-icon icon="mdi:database-alert" width={24}></iconify-icon>
-						{dataLossChanges.length}
-						change{dataLossChanges.length > 1 ? 's' : ''}
-						will cause data loss:
+						{dataLossChanges.length > 1
+							? builder_warning_data_loss_plural({ count: dataLossChanges.length })
+							: builder_warning_data_loss_singular({ count: dataLossChanges.length })}
 					</p>
 					<ul class="space-y-2">
 						{#each dataLossChanges as change (change.type + change.message)}
@@ -133,8 +144,9 @@ Requires user confirmation before proceeding with changes that may cause data lo
 						class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400"
 					>
 						<iconify-icon icon="mdi:alert" width={20}></iconify-icon>
-						{otherChanges.length}
-						other breaking change{otherChanges.length > 1 ? 's' : ''}:
+						{otherChanges.length > 1
+							? builder_warning_other_plural({ count: otherChanges.length })
+							: builder_warning_other_singular({ count: otherChanges.length })}
 					</p>
 					<ul class="space-y-2">
 						{#each otherChanges as change (change.type + change.message)}
@@ -165,7 +177,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 					class="flex cursor-pointer items-start gap-3 rounded bg-surface-200/50 p-3 dark:bg-surface-700/50"
 				>
 					<input
-						aria-label="Confirmation text"
+						aria-label={builder_warning_confirm_aria()}
 						type="checkbox"
 						bind:checked={confirmed}
 						class="mt-1 h-5 w-5 cursor-pointer rounded border-surface-500 text-error-500 focus:ring-error-500"
@@ -173,10 +185,10 @@ Requires user confirmation before proceeding with changes that may cause data lo
 					/>
 					<div>
 						<span class="font-medium text-surface-900 dark:text-white">
-							I understand that this will permanently delete data
+							{builder_warning_confirm_text()}
 						</span>
 						<p id="confirm-description" class="mt-1 text-sm text-surface-600 dark:text-surface-50">
-							The affected field data cannot be recovered after saving
+							{builder_warning_cannot_recover()}
 						</p>
 					</div>
 				</label>
@@ -190,7 +202,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				onclick={onCancel}
 				class="rounded border border-surface-500/30 bg-white px-4 py-2 font-medium text-surface-700 transition-colors hover:bg-surface-500/10 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:hover:bg-surface-600"
 			>
-				Cancel
+				{button_cancel()}
 			</button>
 			<button
 				type="button"

@@ -20,6 +20,73 @@
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import {
+		button_cancel,
+		button_edit,
+		sso_add_aria,
+		sso_add_provider,
+		sso_add_rule,
+		sso_add_rule_aria,
+		sso_cancel_aria,
+		sso_claim_field_aria,
+		sso_claim_field_label,
+		sso_claim_field_placeholder,
+		sso_claim_value_placeholder,
+		sso_client_id_aria,
+		sso_client_id_label,
+		sso_client_id_placeholder,
+		sso_client_secret_aria,
+		sso_client_secret_label,
+		sso_close_form_aria,
+		sso_configure_first,
+		sso_configure_first_aria,
+		sso_default_role_aria,
+		sso_default_role_label,
+		sso_discover,
+		sso_discover_aria,
+		sso_display_name_aria,
+		sso_display_name_label,
+		sso_display_name_placeholder,
+		sso_editor_aria,
+		sso_heading,
+		sso_icon_aria,
+		sso_icon_label,
+		sso_icon_placeholder,
+		sso_intro,
+		sso_issuer_aria,
+		sso_issuer_label,
+		sso_issuer_placeholder,
+		sso_jit_disabled,
+		sso_jit_enable_aria,
+		sso_jit_enable_label,
+		sso_jit_heading,
+		sso_jit_intro,
+		sso_loading,
+		sso_mappings_label,
+		sso_no_rules,
+		sso_none,
+		sso_on_claim,
+		sso_pkce_active_body,
+		sso_pkce_active_strong,
+		sso_pkce_badge,
+		sso_pkce_s256,
+		sso_provider_id_aria,
+		sso_provider_id_label,
+		sso_provider_id_placeholder,
+		sso_quick_presets,
+		sso_redirects_aria,
+		sso_redirects_label,
+		sso_redirects_placeholder,
+		sso_role_sync,
+		sso_rule_singular,
+		sso_save_aria,
+		sso_save_provider,
+		sso_scopes_aria,
+		sso_scopes_label,
+		sso_scopes_placeholder,
+		sso_sync_roles_aria,
+		sso_sync_roles_label
+	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte';
 	import { fetchApi } from '@utils/api';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -283,23 +350,22 @@
 					aria-hidden="true"
 				></iconify-icon>
 				<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">
-					Enterprise Single Sign-On (OIDC & PKCE)
+					{sso_heading()}
 				</h3>
-				<Badge variant="success" class="text-xs">RFC 7636 PKCE (S256)</Badge>
+				<Badge variant="success" class="text-xs">{sso_pkce_badge()}</Badge>
 			</div>
 			<p class="text-sm text-surface-600 dark:text-surface-400">
-				Federate authentication with enterprise OpenID Connect Identity Providers. New users are
-				automatically provisioned with Just-In-Time (JIT) role mapping based on IdP claims.
+				{sso_intro()}
 			</p>
 		</div>
 		<Button
 			variant="tertiary"
 			onclick={openAddModal}
-			aria-label="Add new SSO Provider"
+			aria-label={sso_add_aria()}
 			class="shadow-xs shrink-0"
 		>
 			<iconify-icon icon="mdi:plus" width={18} aria-hidden="true"></iconify-icon>
-			<span>Add Provider</span>
+			<span>{sso_add_provider()}</span>
 		</Button>
 	</div>
 
@@ -308,7 +374,7 @@
 		<div
 			class="p-5 rounded-lg border border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50 shadow-md space-y-5 animate-fade-in"
 			role="region"
-			aria-label="SSO Provider Editor"
+			aria-label={sso_editor_aria()}
 		>
 			<div class="flex items-center justify-between border-b border-surface-500/20 pb-3">
 				<div class="flex items-center gap-2">
@@ -322,7 +388,7 @@
 					onclick={() => {
 						isEditing = false;
 					}}
-					aria-label="Close form"
+					aria-label={sso_close_form_aria()}
 					class="p-1"
 				>
 					<iconify-icon icon="mdi:close" width={20} aria-hidden="true"></iconify-icon>
@@ -332,7 +398,7 @@
 			<!-- Preset selector -->
 			<div>
 				<span class="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2"
-					>Quick Presets</span
+					>{sso_quick_presets()}</span
 				>
 				<div class="flex flex-wrap gap-2">
 					{#each PRESET_PROVIDERS as preset (preset.id)}
@@ -358,13 +424,13 @@
 					<label
 						for="sso-id"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>Provider ID (URL slug)</label
+						>{sso_provider_id_label()}</label
 					>
 					<Input
 						id="sso-id"
 						bind:value={formId}
-						placeholder="google, okta, azure-ad, keycloak"
-						aria-label="Provider ID"
+						placeholder={sso_provider_id_placeholder()}
+						aria-label={sso_provider_id_aria()}
 					/>
 				</div>
 
@@ -372,13 +438,13 @@
 					<label
 						for="sso-name"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>Display Name (Login button text)</label
+						>{sso_display_name_label()}</label
 					>
 					<Input
 						id="sso-name"
 						bind:value={formName}
-						placeholder="Google Workspace, Microsoft Entra ID"
-						aria-label="Display Name"
+						placeholder={sso_display_name_placeholder()}
+						aria-label={sso_display_name_aria()}
 					/>
 				</div>
 
@@ -386,13 +452,13 @@
 					<label
 						for="sso-icon"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>Iconify Icon Identifier</label
+						>{sso_icon_label()}</label
 					>
 					<Input
 						id="sso-icon"
 						bind:value={formIcon}
-						placeholder="flat-color-icons:google, logos:okta, logos:microsoft-icon"
-						aria-label="Icon Identifier"
+						placeholder={sso_icon_placeholder()}
+						aria-label={sso_icon_aria()}
 					/>
 				</div>
 
@@ -401,24 +467,24 @@
 						for="sso-issuer"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 					>
-						OIDC Issuer URL
+						{sso_issuer_label()}
 					</label>
 					<div class="flex gap-2">
 						<Input
 							id="sso-issuer"
 							bind:value={formIssuer}
-							placeholder="https://accounts.google.com"
-							aria-label="OIDC Issuer URL"
+							placeholder={sso_issuer_placeholder()}
+							aria-label={sso_issuer_aria()}
 							class="grow"
 						/>
 						<Button
 							variant="outline"
 							onclick={testDiscovery}
 							loading={isDiscovering}
-							aria-label="Test OIDC auto-discovery"
+							aria-label={sso_discover_aria()}
 							class="shrink-0 text-xs"
 						>
-							Discover
+							{sso_discover()}
 						</Button>
 					</div>
 					{#if discoveryNotice}
@@ -430,13 +496,13 @@
 					<label
 						for="sso-client-id"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>Client ID</label
+						>{sso_client_id_label()}</label
 					>
 					<Input
 						id="sso-client-id"
 						bind:value={formClientId}
-						placeholder="OIDC OAuth Client ID"
-						aria-label="Client ID"
+						placeholder={sso_client_id_placeholder()}
+						aria-label={sso_client_id_aria()}
 					/>
 				</div>
 
@@ -444,14 +510,14 @@
 					<label
 						for="sso-client-secret"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>Client Secret (stored securely on server)</label
+						>{sso_client_secret_label()}</label
 					>
 					<Input
 						id="sso-client-secret"
 						type="password"
 						bind:value={formClientSecret}
 						placeholder="••••••••"
-						aria-label="Client Secret"
+						aria-label={sso_client_secret_aria()}
 					/>
 				</div>
 
@@ -459,13 +525,13 @@
 					<label
 						for="sso-scopes"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>OAuth Scopes</label
+						>{sso_scopes_label()}</label
 					>
 					<Input
 						id="sso-scopes"
 						bind:value={formScopes}
-						placeholder="openid profile email groups"
-						aria-label="OAuth Scopes"
+						placeholder={sso_scopes_placeholder()}
+						aria-label={sso_scopes_aria()}
 					/>
 				</div>
 
@@ -473,13 +539,13 @@
 					<label
 						for="sso-redirect-uris"
 						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-						>Allowed Post-Logout Redirects</label
+						>{sso_redirects_label()}</label
 					>
 					<Input
 						id="sso-redirect-uris"
 						bind:value={formRedirectUris}
-						placeholder="https://example.com/logout, https://*.example.com/*"
-						aria-label="Allowed Post-Logout Redirects"
+						placeholder={sso_redirects_placeholder()}
+						aria-label={sso_redirects_aria()}
 					/>
 				</div>
 			</div>
@@ -496,8 +562,8 @@
 						aria-hidden="true"
 					></iconify-icon>
 					<span
-						><strong>RFC 7636 PKCE S256 Active:</strong> SveltyCMS automatically mints high-entropy code
-						verifiers and SHA-256 challenges on every authorization flow.</span
+						><strong>{sso_pkce_active_strong()}</strong>{' '}
+						{sso_pkce_active_body()}</span
 					>
 				</div>
 			</div>
@@ -507,22 +573,21 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<h5 class="text-sm font-bold text-surface-900 dark:text-surface-100">
-							Just-In-Time (JIT) Auto-Provisioning & Role Mapping
+							{sso_jit_heading()}
 						</h5>
 						<p class="text-xs text-surface-500">
-							Automatically register new CMS users upon successful SSO login and map their IdP
-							claims to local roles.
+							{sso_jit_intro()}
 						</p>
 					</div>
 					<label class="flex items-center gap-2 cursor-pointer">
 						<input
-							aria-label="Enable JIT Provisioning"
+							aria-label={sso_jit_enable_aria()}
 							type="checkbox"
 							bind:checked={formJitProvisioning}
 							class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
 						/>
 						<span class="text-xs font-medium text-surface-600 dark:text-surface-400"
-							>Enable JIT Provisioning</span
+							>{sso_jit_enable_label()}</span
 						>
 					</label>
 				</div>
@@ -535,7 +600,7 @@
 							<label
 								for="sso-default-role"
 								class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-								>Default Local Role</label
+								>{sso_default_role_label()}</label
 							>
 							<Select
 								id="sso-default-role"
@@ -547,7 +612,7 @@
 											{ value: 'editor', label: 'editor' },
 											{ value: 'admin', label: 'admin' }
 										]}
-								aria-label="Default Local Role"
+								aria-label={sso_default_role_aria()}
 							/>
 						</div>
 
@@ -555,26 +620,26 @@
 							<label
 								for="sso-claim-field"
 								class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
-								>IdP Claim Field Name</label
+								>{sso_claim_field_label()}</label
 							>
 							<Input
 								id="sso-claim-field"
 								bind:value={formClaimField}
-								placeholder="groups, roles, department"
-								aria-label="Claim Field Name"
+								placeholder={sso_claim_field_placeholder()}
+								aria-label={sso_claim_field_aria()}
 							/>
 						</div>
 
 						<div class="flex items-center pt-5">
 							<label class="flex items-center gap-2 cursor-pointer">
 								<input
-									aria-label="Synchronize roles on each login"
+									aria-label={sso_sync_roles_aria()}
 									type="checkbox"
 									bind:checked={formSyncRolesOnLogin}
 									class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
 								/>
 								<span class="text-xs text-surface-600 dark:text-surface-400"
-									>Synchronize roles on each login</span
+									>{sso_sync_roles_label()}</span
 								>
 							</label>
 						</div>
@@ -585,16 +650,16 @@
 						<div class="flex items-center justify-between">
 							<span
 								class="text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
-								>Claim Value $\to$ Local Role Mappings</span
+								>{sso_mappings_label()}</span
 							>
 							<Button
 								variant="ghost"
 								onclick={addMappingRule}
-								aria-label="Add mapping rule"
+								aria-label={sso_add_rule_aria()}
 								class="text-xs py-1 px-2"
 							>
 								<iconify-icon icon="mdi:plus" width={16} aria-hidden="true"></iconify-icon>
-								<span>Add Mapping Rule</span>
+								<span>{sso_add_rule()}</span>
 							</Button>
 						</div>
 
@@ -602,7 +667,7 @@
 							<p
 								class="text-xs text-surface-500 italic p-3 border border-dashed border-surface-500/30 rounded text-center"
 							>
-								No custom claim rules defined. Users will be assigned the default role ("{formDefaultRole}").
+								{sso_no_rules({ role: formDefaultRole })}
 							</p>
 						{:else}
 							<div class="space-y-2">
@@ -613,7 +678,7 @@
 										<div class="flex-1">
 											<Input
 												bind:value={rule.claimValue}
-												placeholder="IdP claim value (e.g. SveltyAdmins, Devs)"
+												placeholder={sso_claim_value_placeholder()}
 												aria-label={`Claim value rule ${i + 1}`}
 											/>
 										</div>
@@ -660,18 +725,18 @@
 					onclick={() => {
 						isEditing = false;
 					}}
-					aria-label="Cancel editing"
+					aria-label={sso_cancel_aria()}
 				>
-					Cancel
+					{button_cancel()}
 				</Button>
 				<Button
 					variant="tertiary"
 					onclick={saveCurrentProvider}
 					loading={isSaving}
-					aria-label="Save SSO Provider"
+					aria-label={sso_save_aria()}
 					class="shadow-xs font-semibold"
 				>
-					Save Provider
+					{sso_save_provider()}
 				</Button>
 			</div>
 		</div>
@@ -679,21 +744,21 @@
 
 	<!-- Providers List -->
 	{#if isLoading}
-		<div class="p-8 text-center text-sm text-surface-500">Loading configured SSO providers…</div>
+		<div class="p-8 text-center text-sm text-surface-500">{sso_loading()}</div>
 	{:else if providers.length === 0}
 		<div
 			class="p-8 text-center rounded-lg border border-dashed border-surface-500/30 text-surface-500 space-y-3"
 		>
 			<iconify-icon icon="mdi:shield-outline" width={40} class="text-surface-400" aria-hidden="true"
 			></iconify-icon>
-			<p class="text-sm">No SSO identity providers configured yet.</p>
+			<p class="text-sm">{sso_none()}</p>
 			<Button
 				variant="outline"
 				onclick={openAddModal}
-				aria-label="Configure your first SSO provider"
+				aria-label={sso_configure_first_aria()}
 				class="text-xs font-medium"
 			>
-				Configure First Provider
+				{sso_configure_first()}
 			</Button>
 		</div>
 	{:else}
@@ -721,25 +786,24 @@
 									class="text-xs px-1.5 py-0.5 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400"
 									>{provider.id}</code
 								>
-								<Badge variant="success" class="text-xs">PKCE S256</Badge>
+								<Badge variant="success" class="text-xs">{sso_pkce_s256()}</Badge>
 								{#if provider.jitProvisioning !== false}
 									<Badge variant="tertiary" class="text-xs"
 										>JIT: {provider.defaultRole || 'user'}</Badge
 									>
 								{:else}
-									<Badge variant="surface" class="text-xs">JIT Disabled</Badge>
+									<Badge variant="surface" class="text-xs">{sso_jit_disabled()}</Badge>
 								{/if}
 								{#if provider.syncRolesOnLogin}
-									<Badge variant="secondary" class="text-xs">Role Sync</Badge>
+									<Badge variant="secondary" class="text-xs">{sso_role_sync()}</Badge>
 								{/if}
 							</div>
 							<p class="text-xs text-surface-500 truncate max-w-md">{provider.issuer}</p>
 							{#if provider.roleMapping?.rules && provider.roleMapping.rules.length > 0}
 								<p class="text-xs text-tertiary-500 dark:text-primary-500">
-									{provider.roleMapping.rules.length} role mapping rule{provider.roleMapping.rules
-										.length > 1
-										? 's'
-										: ''} on claim "{provider.roleMapping.claimField || 'groups'}"
+									{provider.roleMapping.rules.length}
+									{sso_rule_singular()}{provider.roleMapping.rules.length > 1 ? 's' : ''}
+									{sso_on_claim({ field: provider.roleMapping.claimField || 'groups' })}
 								</p>
 							{/if}
 						</div>
@@ -753,7 +817,7 @@
 							class="text-xs"
 						>
 							<iconify-icon icon="mdi:pencil" width={16} aria-hidden="true"></iconify-icon>
-							<span>Edit</span>
+							<span>{button_edit()}</span>
 						</Button>
 						<Button
 							variant="ghost"

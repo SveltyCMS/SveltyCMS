@@ -20,6 +20,8 @@ import {
 } from "@src/databases/mongodb/mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { normalizeEmail } from "@src/utils/normalize-email";
+import { hashPassword } from "@src/utils/security/crypto";
+import { stripPrivilegeEscalationFields } from "@utils/security/user-attribute-policy";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 import { SessionSchema } from "./auth-session";
@@ -117,7 +119,6 @@ export class UserAdapter {
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 
@@ -175,8 +176,6 @@ export class UserAdapter {
       const normalizedData = { ...userData } as Record<string, unknown>;
       // 🛡️ Fail-closed: never persist role/isAdmin unless explicitly allowed
       if (!options.allowPrivilegeEscalation) {
-        const { stripPrivilegeEscalationFields } =
-          await import("@utils/security/user-attribute-policy");
         stripPrivilegeEscalationFields(normalizedData);
       }
       if (normalizedData.email) {
@@ -189,7 +188,6 @@ export class UserAdapter {
         typeof normalizedData.password === "string" &&
         !normalizedData.password.startsWith("$argon2")
       ) {
-        const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 

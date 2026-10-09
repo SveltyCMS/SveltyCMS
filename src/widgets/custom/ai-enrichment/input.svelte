@@ -1,4 +1,9 @@
 <script lang="ts">
+	import {
+		common_processing,
+		widget_ai_enrich_from,
+		widget_ai_placeholder
+	} from '@src/paraglide/messages';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import type { AIEnrichmentProps } from './types';
 	import { logger } from '@utils/logger';
@@ -90,20 +95,20 @@
 			{#if field.required}<span class="text-error-500">*</span>{/if}
 		</label>
 
-		<Button variant="outline">
-			type="button" class="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2
-			transition-all bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600
-			dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-500 disabled:opacity-50
-			disabled:pointer-events-none" onclick={runEnrichment}
+		<Button
+			variant="outline"
+			type="button"
+			class="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-all bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-500 disabled:opacity-50 disabled:pointer-events-none"
+			onclick={runEnrichment}
 			disabled={loading}
 			aria-controls={inputId}
-			>
+		>
 			{#if loading}
 				<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
-				<span aria-live="polite">Processing...</span>
+				<span aria-live="polite">{common_processing()}</span>
 			{:else}
 				<iconify-icon icon="mdi:auto-fix"></iconify-icon>
-				Enrich from {field.sourceField || 'source'}
+				{widget_ai_enrich_from({ source: field.sourceField || 'source' })}
 			{/if}
 		</Button>
 	</div>
@@ -119,7 +124,7 @@
 				bind:value={value[contentLanguage]}
 				class="w-full space-y-0"
 				textareaClass="w-full p-2"
-				placeholder="AI will generate content here..."
+				placeholder={widget_ai_placeholder()}
 				rows={field.action === 'summarize' || field.action === 'seo' ? 4 : 2}
 				aria-invalid={!!error}
 				aria-describedby={error ? errorId : undefined}
@@ -131,7 +136,7 @@
 				bind:value
 				class="w-full space-y-0"
 				textareaClass="w-full p-2"
-				placeholder="AI will generate content here..."
+				placeholder={widget_ai_placeholder()}
 				rows={field.action === 'summarize' || field.action === 'seo' ? 4 : 2}
 				aria-invalid={!!error}
 				aria-describedby={error ? errorId : undefined}

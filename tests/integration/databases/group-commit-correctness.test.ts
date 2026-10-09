@@ -1,8 +1,8 @@
 /**
  * @file tests/integration/databases/group-commit-correctness.test.ts
  * @description
- * Integration contract for the opt-in SQLite group-commit batcher
- * (`SVELTY_SQLITE_GROUP_COMMIT=1`, `src/databases/sqlite/write-batcher.ts` +
+ * Integration contract for the default-ON SQLite group-commit batcher
+ * (opt-out `SVELTY_SQLITE_GROUP_COMMIT=0`, `src/databases/sqlite/write-batcher.ts` +
  * `SQLiteAdapterCore.runGroupCommit`). Concurrent single-statement writes queue
  * and share one `BEGIN IMMEDIATE … COMMIT`; each op keeps its own `SAVEPOINT`.
  *
@@ -11,10 +11,10 @@
  * `SQLITE_GROUP_COMMIT_ENABLED` is a module-level constant read at import, and
  * another database test file eager-imports the adapter long before this file's
  * body executes — so an in-process `process.env` assignment cannot reliably
- * enable the batcher here. The worker starts with the flag already in its
- * environment, which keeps the coverage deterministic instead of depending on
- * file-evaluation order. The worker fails loudly if the batcher is off, so this
- * suite never passes while silently exercising the non-batched path.
+ * control the batcher here. The worker starts with the flag already in its
+ * environment (pinned `=1`), which keeps the coverage deterministic instead of
+ * depending on file-evaluation order. The worker fails loudly if the batcher is
+ * off, so this suite never passes while silently exercising the non-batched path.
  *
  * Covered:
  * - every op in one group transaction settles with its OWN result

@@ -25,6 +25,14 @@ Part of the Three Pillars Architecture for the widget system.
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/env';
+	import {
+		common_clear,
+		widget_address_city_placeholder,
+		widget_address_interactive_map,
+		widget_address_lat,
+		widget_address_lng,
+		widget_address_street_placeholder
+	} from '@src/paraglide/messages';
 	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -477,7 +485,7 @@ Part of the Three Pillars Architecture for the widget system.
 		</div>
 		<Button variant="surface" size="sm" type="button" onclick={handleClear}>
 			<iconify-icon icon="mdi:close-circle-outline" width="16"></iconify-icon>
-			Clear
+			{common_clear()}
 		</Button>
 	</div>
 
@@ -538,7 +546,7 @@ Part of the Three Pillars Architecture for the widget system.
 						labelClass="text-xs uppercase font-bold text-surface-500"
 						value={safeValue?.street || ''}
 						oninput={(e) => updateAddressField('street', e.currentTarget.value)}
-						placeholder="Street name"
+						placeholder={widget_address_street_placeholder()}
 					/>
 				</div>
 				<div>
@@ -569,7 +577,7 @@ Part of the Three Pillars Architecture for the widget system.
 						labelClass="text-xs uppercase font-bold text-surface-500"
 						value={safeValue?.city || ''}
 						oninput={(e) => updateAddressField('city', e.currentTarget.value)}
-						placeholder="Berlin"
+						placeholder={widget_address_city_placeholder()}
 					/>
 				</div>
 				<div class="md:col-span-1">
@@ -592,11 +600,11 @@ Part of the Three Pillars Architecture for the widget system.
 					class="flex items-center gap-4 p-2 bg-surface-500/10 dark:bg-surface-800 rounded text-xs font-mono"
 				>
 					<div class="flex items-center gap-1">
-						<span class="text-surface-400">Lat:</span>
+						<span class="text-surface-400">{widget_address_lat()}</span>
 						{safeValue.latitude.toFixed(6)}
 					</div>
 					<div class="flex items-center gap-1">
-						<span class="text-surface-400">Lng:</span>
+						<span class="text-surface-400">{widget_address_lng()}</span>
 						{safeValue.longitude.toFixed(6)}
 					</div>
 				</div>
@@ -613,7 +621,7 @@ Part of the Three Pillars Architecture for the widget system.
 				<div
 					class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between"
 				>
-					<span>Interactive Map</span>
+					<span>{widget_address_interactive_map()}</span>
 					<Badge
 						preset="tonal"
 						color="primary"

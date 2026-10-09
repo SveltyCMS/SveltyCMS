@@ -31,6 +31,15 @@ Part of the Three Pillars Architecture for widget system.
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import {
+		common_loading,
+		common_watch,
+		widget_clear_input,
+		widget_rv_add_description,
+		widget_rv_video_description,
+		widget_rv_video_title,
+		widget_rv_copy_link
+	} from '@src/paraglide/messages';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
@@ -276,7 +285,7 @@ Part of the Three Pillars Architecture for widget system.
 			/>
 
 			{#if isLoading}
-				<div class="flex items-center px-3" aria-label="Loading">
+				<div class="flex items-center px-3" aria-label={common_loading()}>
 					<div
 						class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
 					></div>
@@ -288,7 +297,7 @@ Part of the Three Pillars Architecture for widget system.
 					type="button"
 					class="flex items-center px-3 text-surface-400 hover:text-error-500 transition-colors"
 					onclick={handleClear}
-					aria-label="Clear input"
+					aria-label={widget_clear_input()}
 				>
 					<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
 				</button>
@@ -328,7 +337,7 @@ Part of the Three Pillars Architecture for widget system.
 					{#if isEditingManually}
 						<Input
 							type="text"
-							aria-label="Video title"
+							aria-label={widget_rv_video_title()}
 							class="w-full space-y-0"
 							inputClass="h-auto w-full border-0 bg-white p-1 text-base font-bold shadow-none focus-visible:ring-0 dark:bg-surface-700"
 							value={fetchedMetadata.title}
@@ -357,13 +366,13 @@ Part of the Three Pillars Architecture for widget system.
 
 				{#if isEditingManually}
 					<Textarea
-						aria-label="Video description"
+						aria-label={widget_rv_video_description()}
 						class="w-full space-y-0"
 						textareaClass="min-h-0 w-full border-0 bg-white p-1 text-xs shadow-none focus-visible:ring-0 dark:bg-surface-700"
 						rows={2}
 						value={fetchedMetadata.description || ''}
 						oninput={(e) => updateMetadataField('description', e.currentTarget.value)}
-						placeholder="Add description..."
+						placeholder={widget_rv_add_description()}
 					/>
 				{:else if fetchedMetadata.description}
 					<p class="text-xs text-surface-600 dark:text-surface-400 line-clamp-2">
@@ -396,7 +405,7 @@ Part of the Three Pillars Architecture for widget system.
 						class="px-3 py-1.5 rounded bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white transition-colors flex items-center gap-1 text-xs font-medium"
 					>
 						<iconify-icon icon="mdi:open-in-new" width="14"></iconify-icon>
-						Watch
+						{common_watch()}
 					</a>
 					<Button
 						variant="surface"
@@ -405,7 +414,7 @@ Part of the Three Pillars Architecture for widget system.
 						onclick={() => fetchedMetadata && navigator.clipboard.writeText(fetchedMetadata.url)}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
-						Link
+						{widget_rv_copy_link()}
 					</Button>
 				</div>
 			</div>

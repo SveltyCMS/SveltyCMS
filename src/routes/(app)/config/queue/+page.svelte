@@ -15,6 +15,42 @@
 	import Button from '@components/ui/button.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import {
+		button_next,
+		button_previous,
+		button_refresh,
+		queue_actions,
+		queue_attempts,
+		queue_clear_completed,
+		queue_clear_filter,
+		queue_completed,
+		queue_created,
+		queue_delete_aria,
+		queue_delete_title,
+		queue_empty,
+		queue_failed,
+		queue_filter,
+		queue_job_id,
+		queue_next_run,
+		queue_pending,
+		queue_recent,
+		queue_refresh_aria,
+		queue_retry_title,
+		queue_running,
+		queue_showing_part1,
+		queue_showing_part2,
+		queue_showing_part3,
+		queue_showing_jobs,
+		queue_status,
+		queue_task_type,
+		queue_title,
+		queue_total,
+		queue_view_all_aria,
+		queue_view_completed_aria,
+		queue_view_failed_aria,
+		queue_view_pending_aria,
+		queue_view_running_aria
+	} from '@src/paraglide/messages';
 
 	let { data } = $props();
 
@@ -112,7 +148,7 @@
 </script>
 
 <AdminPageShell
-	title="Background Queue"
+	title={queue_title()}
 	icon="mdi:tray-full"
 	description="Monitor and manage background job processing"
 	showBackButton={true}
@@ -125,9 +161,9 @@
 			size="sm"
 			leadingIcon="mdi:refresh"
 			data-testid="queue-refresh"
-			aria-label="Refresh job queue"
+			aria-label={queue_refresh_aria()}
 		>
-			Refresh
+			{button_refresh()}
 		</Button>
 	{/snippet}
 
@@ -138,7 +174,7 @@
 			data-testid="queue-stats"
 		>
 			<a
-				aria-label="View all jobs"
+				aria-label={queue_view_all_aria()}
 				href={getFilterUrl()}
 				class="block no-underline text-inherit"
 				data-testid="queue-stat-total"
@@ -152,7 +188,7 @@
 							<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Total</p>
+							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_total()}</p>
 							<p class="text-2xl font-bold" data-testid="queue-stat-total-value">
 								{data.stats.total}
 							</p>
@@ -162,7 +198,7 @@
 			</a>
 
 			<a
-				aria-label="View pending jobs"
+				aria-label={queue_view_pending_aria()}
 				href={getFilterUrl('pending')}
 				class="block no-underline text-inherit"
 				data-testid="queue-stat-pending"
@@ -176,7 +212,7 @@
 							<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Pending</p>
+							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_pending()}</p>
 							<p class="text-2xl font-bold">{data.stats.pending}</p>
 						</div>
 					</div>
@@ -184,7 +220,7 @@
 			</a>
 
 			<a
-				aria-label="View running jobs"
+				aria-label={queue_view_running_aria()}
 				href={getFilterUrl('running')}
 				class="block no-underline text-inherit"
 				data-testid="queue-stat-running"
@@ -198,7 +234,7 @@
 							<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Running</p>
+							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_running()}</p>
 							<p class="text-2xl font-bold">{data.stats.running}</p>
 						</div>
 					</div>
@@ -206,7 +242,7 @@
 			</a>
 
 			<a
-				aria-label="View completed jobs"
+				aria-label={queue_view_completed_aria()}
 				href={getFilterUrl('completed')}
 				class="block no-underline text-inherit"
 				data-testid="queue-stat-completed"
@@ -220,7 +256,9 @@
 							<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Completed</p>
+							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+								{queue_completed()}
+							</p>
 							<p class="text-2xl font-bold">{data.stats.completed}</p>
 						</div>
 					</div>
@@ -228,7 +266,7 @@
 			</a>
 
 			<a
-				aria-label="View failed jobs"
+				aria-label={queue_view_failed_aria()}
 				href={getFilterUrl('failed')}
 				class="block no-underline text-inherit"
 				data-testid="queue-stat-failed"
@@ -242,7 +280,7 @@
 							<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Failed</p>
+							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_failed()}</p>
 							<p class="text-2xl font-bold">{data.stats.failed}</p>
 						</div>
 					</div>
@@ -252,13 +290,14 @@
 
 		<div class="flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
-				<h2 class="text-lg font-bold">Recent Jobs</h2>
+				<h2 class="text-lg font-bold">{queue_recent()}</h2>
 				{#if page.url.searchParams.has('status')}
 					<Badge variant="primary" size="sm" class="uppercase" data-testid="queue-filter-badge">
-						Filter: {page.url.searchParams.get('status')}
+						{queue_filter()}
+						{page.url.searchParams.get('status')}
 					</Badge>
 					<Button variant="ghost" size="sm" href={getFilterUrl()} data-testid="queue-clear-filter"
-						>Clear Filter</Button
+						>{queue_clear_filter()}</Button
 					>
 				{/if}
 			</div>
@@ -272,7 +311,7 @@
 					leadingIcon="mdi:broom"
 					data-testid="queue-clear-completed"
 				>
-					Clear Completed
+					{queue_clear_completed()}
 				</Button>
 			</div>
 		</div>
@@ -288,13 +327,13 @@
 							<tr
 								class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400"
 							>
-								<th class="px-4 py-3 font-semibold">Job ID</th>
-								<th class="px-4 py-3 font-semibold">Task Type</th>
-								<th class="px-4 py-3 font-semibold">Status</th>
-								<th class="px-4 py-3 font-semibold">Attempts</th>
-								<th class="px-4 py-3 font-semibold">Next Run</th>
-								<th class="px-4 py-3 font-semibold">Created</th>
-								<th class="px-4 py-3 font-semibold text-end">Actions</th>
+								<th class="px-4 py-3 font-semibold">{queue_job_id()}</th>
+								<th class="px-4 py-3 font-semibold">{queue_task_type()}</th>
+								<th class="px-4 py-3 font-semibold">{queue_status()}</th>
+								<th class="px-4 py-3 font-semibold">{queue_attempts()}</th>
+								<th class="px-4 py-3 font-semibold">{queue_next_run()}</th>
+								<th class="px-4 py-3 font-semibold">{queue_created()}</th>
+								<th class="px-4 py-3 font-semibold text-end">{queue_actions()}</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -343,7 +382,7 @@
 											{#if job.status === 'failed'}
 												<Button
 													variant="primary"
-													title="Retry Job"
+													title={queue_retry_title()}
 													disabled={isRetrying}
 													onclick={async () => {
 														isRetrying = true;
@@ -369,12 +408,12 @@
 
 											<Button
 												variant="error"
-												title="Delete Job"
+												title={queue_delete_title()}
 												disabled={isDeleting}
 												onclick={() => handleDeleteJob(job._id)}
 												size="sm"
 												data-testid="queue-job-delete"
-												aria-label="Delete job {job._id}"
+												aria-label={queue_delete_aria({ id: job._id })}
 											>
 												<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 											</Button>
@@ -389,7 +428,7 @@
 										data-testid="queue-empty"
 									>
 										<iconify-icon icon="mdi:tray-off" class="text-4xl mb-2"></iconify-icon>
-										<p>No jobs found matching the current filters.</p>
+										<p>{queue_empty()}</p>
 									</td>
 								</tr>
 							{/each}
@@ -402,10 +441,13 @@
 						class="p-4 bg-surface-500/10 dark:bg-surface-900 border-t border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
 					>
 						<p class="text-xs opacity-60">
-							Showing {data.pagination.offset + 1} to {Math.min(
-								data.pagination.offset + data.pagination.limit,
-								data.totalCount
-							)} of {data.totalCount} jobs
+							{queue_showing_part1()}
+							{data.pagination.offset + 1}
+							{queue_showing_part2()}{' '}
+							{Math.min(data.pagination.offset + data.pagination.limit, data.totalCount)}{' '}
+							{queue_showing_part3()}
+							{data.totalCount}
+							{queue_showing_jobs()}
 						</p>
 						<div class="flex gap-2">
 							<Button
@@ -414,7 +456,7 @@
 								href={getPaginationUrl(Math.max(0, data.pagination.offset - data.pagination.limit))}
 								disabled={data.pagination.offset === 0}
 							>
-								Previous
+								{button_previous()}
 							</Button>
 							<Button
 								variant="ghost"
@@ -422,7 +464,7 @@
 								href={getPaginationUrl(data.pagination.offset + data.pagination.limit)}
 								disabled={data.pagination.offset + data.pagination.limit >= data.totalCount}
 							>
-								Next
+								{button_next()}
 							</Button>
 						</div>
 					</div>

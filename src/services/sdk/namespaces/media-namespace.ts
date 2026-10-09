@@ -303,7 +303,15 @@ export class MediaNamespace {
     options: TenantOptions = {},
   ): Promise<DatabaseResult<{ movedCount: number }>> {
     try {
-      const ids = [...new Set((fileIds ?? []).filter(Boolean))];
+      // Dedup in one pass — `filter` + `Set` + spread built two throwaway arrays.
+      const ids: string[] = [];
+      const seen = new Set<string>();
+      for (const id of fileIds ?? []) {
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          ids.push(id);
+        }
+      }
       if (ids.length === 0) throw new AppError("At least one media ID is required", 400);
 
       const { tenantId } = options;
@@ -314,10 +322,9 @@ export class MediaNamespace {
         tenantId != null ? { tenantId: tenantId as DatabaseId } : withSystemScope("bootstrap"),
       );
 
-      if (result.success) {
-        this.invalidateCache(tenantId);
-        if (targetFolderId) this.invalidateCache(tenantId, undefined, targetFolderId);
-      }
+      // `invalidateCache(tenantId)` already drops every key under the tenant
+      // prefix — the folder-scoped sweep below it was a redundant O(n) pass.
+      if (result.success) this.invalidateCache(tenantId);
 
       return result;
     } catch (err: any) {

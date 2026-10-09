@@ -325,6 +325,13 @@ export interface DatabaseCapabilities {
   nativeUpsert?: boolean;
   upsertByQuery?: boolean;
   supportsConflictTargets?: boolean;
+  // 2027 State-of-the-Art Engine Capabilities
+  supportsNativeJson?: boolean;
+  supportsReturning?: boolean;
+  supportsWriteCoalescing?: boolean;
+  supportsPreparedStatementWarmup?: boolean;
+  supportsWireStreaming?: boolean;
+  supportsVectorSearch?: boolean;
 }
 
 export interface PerformanceMetrics {
@@ -951,6 +958,19 @@ export interface ICrudAdapter {
     collection: string,
     id: DatabaseId,
     options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>>;
+  /**
+   * 🚀 Direct-to-Wire List Streaming (Phase 2):
+   * Returns pre-serialized JSON wire list payload directly from the database engine,
+   * completely bypassing V8 entity hydration, DTO transformations, and JSON.stringify().
+   */
+  findListWireStream?(
+    collection: string,
+    options?: BaseQueryOptions & {
+      limit?: number;
+      offset?: number;
+      requirePublished?: boolean;
+    },
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>>;
   find<T extends BaseEntity>(
     collection: string,

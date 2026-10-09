@@ -33,6 +33,14 @@ Displays a preview of the shared link for different platforms.
 
 <script lang="ts">
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import {
+		seo_social_no_image,
+		seo_social_no_og_image,
+		seo_social_preview_alt,
+		seo_social_share_preview,
+		seo_social_title_fb_long,
+		seo_social_title_x_long
+	} from '@src/paraglide/messages';
 	// Using iconify-icon web component
 	interface Props {
 		hostUrl: string;
@@ -76,7 +84,7 @@ Displays a preview of the shared link for different platforms.
 	<div class="flex items-center gap-2 mb-4">
 		<iconify-icon icon="mdi:share-variant" width="24" class="text-secondary-500 text-xl"
 		></iconify-icon>
-		<h3 class="h3">Social Share Preview</h3>
+		<h3 class="h3">{seo_social_share_preview()}</h3>
 	</div>
 
 	<!-- Platform Tabs -->
@@ -115,11 +123,17 @@ Displays a preview of the shared link for different platforms.
 				class="relative bg-gray-100 aspect-[1.91/1] flex items-center justify-center overflow-hidden"
 			>
 				{#if displayImage}
-					<img src={displayImage} alt="Social Preview" class="w-full h-full object-cover" />
+					<img
+						src={displayImage}
+						alt={seo_social_preview_alt()}
+						class="w-full h-full object-cover"
+					/>
 				{:else}
 					<div class="flex flex-col items-center text-gray-400">
 						<iconify-icon icon="mdi:image-off" width="24" class="text-4xl"></iconify-icon>
-						<span class="text-xs uppercase font-bold mt-2 tracking-wider">No Image</span>
+						<span class="text-xs uppercase font-bold mt-2 tracking-wider"
+							>{seo_social_no_image()}</span
+						>
 					</div>
 				{/if}
 			</div>
@@ -149,19 +163,19 @@ Displays a preview of the shared link for different platforms.
 		{#if displayTitle.length > 95 && activePlatform === 'facebook'}
 			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400">
 				<iconify-icon icon="mdi:alert"></iconify-icon>
-				<span>Title is slightly long for Facebook (recommended &lt; 95 chars).</span>
+				<span>{seo_social_title_fb_long()}</span>
 			</div>
 		{/if}
 		{#if displayTitle.length > 70 && activePlatform === 'twitter'}
 			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400">
 				<iconify-icon icon="mdi:alert"></iconify-icon>
-				<span>Title is too long for X cards (recommended &lt; 70 chars).</span>
+				<span>{seo_social_title_x_long()}</span>
 			</div>
 		{/if}
 		{#if !displayImage}
 			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400 mt-1">
 				<iconify-icon icon="mdi:image-search" width={24}></iconify-icon>
-				<span>No Og Image selected. The platform will try to scrape one from your page body.</span>
+				<span>{seo_social_no_og_image()}</span>
 			</div>
 		{/if}
 	</div>

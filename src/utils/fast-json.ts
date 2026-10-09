@@ -123,6 +123,69 @@ export function serializeArrayFast<T>(items: T[], serializer: (item: T) => strin
   return `[${parts.join(",")}]`;
 }
 
+/** JSON-spec integer-like object keys reorder to the front (ascending) — a generic
+ * hand-rolled serializer cannot cheaply replicate that, so such rows take the
+ * `JSON.stringify` fallback (content rows never carry numeric keys). */
+const INTEGER_KEY_RE = /^(0|[1-9]\d*)$/;
+
+/** Lone surrogates must be escaped by JSON.stringify — detect and fall back. */
+const LONE_SURROGATE_RE = /[\uD800-\uDFFF]/;
+
+/**
+ * Generic, byte-identical `JSON.stringify` replacement for one flat row.
+ *
+ * Fast-paths the shapes database rows actually carry (string / finite number /
+ * boolean / null / nested JSON via per-value `JSON.stringify`) and falls back to
+ * `JSON.stringify(row)` for anything exotic — integer-like keys (spec key
+ * reordering), lone surrogates, functions, symbols, BigInt — so the output is
+ * byte-for-byte the serialization the Domain Plane would produce.
+ *
+ * JSON.stringify semantics preserved:
+ * - `undefined`-valued object keys are DROPPED
+ * - `NaN`/`±Infinity` serialize as `null`
+ * - key order = insertion order (integer-like keys excluded via fallback)
+ */
+export function serializeRowFast(row: unknown): string {
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    return JSON.stringify(row) ?? "null";
+  }
+  const record = row as Record<string, unknown>;
+  const keys = Object.keys(record);
+  let out = "{";
+  let first = true;
+  for (const k of keys) {
+    if (INTEGER_KEY_RE.test(k)) return JSON.stringify(row);
+    const v = record[k];
+    let s: string | undefined;
+    switch (typeof v) {
+      case "string":
+        if (LONE_SURROGATE_RE.test(v)) {
+          s = JSON.stringify(v);
+        } else {
+          s = `"${fastEscapeString(v)}"`;
+        }
+        break;
+      case "number":
+        s = Number.isFinite(v) ? String(v) : "null";
+        break;
+      case "boolean":
+        s = v ? "true" : "false";
+        break;
+      case "undefined":
+        continue; // JSON.stringify drops undefined-valued object keys
+      case "object":
+        s = v === null ? "null" : JSON.stringify(v);
+        break;
+      default:
+        // function / symbol / bigint — keep exact JSON.stringify semantics.
+        return JSON.stringify(row);
+    }
+    out += (first ? "" : ",") + `"${fastEscapeString(k)}":${s}`;
+    first = false;
+  }
+  return out + "}";
+}
+
 /**
  * Deterministic, O(1) query shape serializer for cache key hashing.
  * Replaces JSON.stringify({ query, limit, offset, sort, fields, populate }).
@@ -169,4 +232,70 @@ export function serializeQueryShape(
     : "";
 
   return `q:${queryStr}|l:${limit}|o:${offset}|s:${sortStr}|f:${fieldsStr}|p:${populateStr}`;
+}
+
+/**
+ * Pre-compiled static JSON envelopes for zero-allocation common API responses.
+ */
+export const STATIC_ENVELOPES = {
+  SUCCESS_EMPTY: '{"success":true}',
+  SUCCESS_NULL: '{"success":true,"data":null}',
+  SUCCESS_EMPTY_ARRAY: '{"success":true,"data":[]}',
+  UNAUTHORIZED: '{"success":false,"message":"Unauthorized","code":"UNAUTHORIZED"}',
+  FORBIDDEN: '{"success":false,"message":"Forbidden","code":"FORBIDDEN"}',
+  NOT_FOUND: '{"success":false,"message":"Not Found","code":"NOT_FOUND"}',
+} as const;
+
+/**
+ * Pre-compiled success response envelope builder wrapping a data object or pre-serialized JSON string.
+ */
+export function serializeSuccessEnvelope(data: unknown): string {
+  if (data === null || data === undefined) return STATIC_ENVELOPES.SUCCESS_NULL;
+  const dataJson = typeof data === "string" ? data : JSON.stringify(data);
+  return `{"success":true,"data":${dataJson}}`;
+}
+
+/**
+ * Pre-compiled list response envelope builder with optional pagination metadata.
+ */
+export function serializeListEnvelope(
+  items: unknown,
+  meta?: { total?: number; limit?: number; offset?: number; page?: number; [key: string]: unknown },
+): string {
+  const itemsJson = typeof items === "string" ? items : JSON.stringify(items);
+  if (!meta || typeof meta !== "object") {
+    return `{"success":true,"data":${itemsJson}}`;
+  }
+  let out = `{"success":true,"data":${itemsJson}`;
+  const m = meta as Record<string, unknown>;
+  if (typeof m.total === "number") out += `,"total":${m.total}`;
+  if (typeof m.page === "number") out += `,"page":${m.page}`;
+  if (typeof m.limit === "number") out += `,"limit":${m.limit}`;
+  if (typeof m.offset === "number") out += `,"offset":${m.offset}`;
+  out += "}";
+  return out;
+}
+
+/**
+ * Pre-compiled error response envelope builder.
+ */
+export function serializeErrorEnvelope(message: string, code?: string, status?: number): string {
+  let out = `{"success":false,"message":"${fastEscapeString(message)}"`;
+  if (code) out += `,"code":"${fastEscapeString(code)}"`;
+  if (typeof status === "number") out += `,"status":${status}`;
+  out += "}";
+  return out;
+}
+
+/**
+ * High-performance combined list serializer: transforms items via schema serializer
+ * and embeds directly into a list envelope without intermediate object allocations.
+ */
+export function serializeItemsEnvelopeSafe<T>(
+  items: T[],
+  serializer: (item: T) => string,
+  meta?: { total?: number; limit?: number; offset?: number; page?: number },
+): string {
+  const itemsJson = serializeArrayFast(items, serializer);
+  return serializeListEnvelope(itemsJson, meta);
 }

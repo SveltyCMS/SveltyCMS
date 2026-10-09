@@ -25,7 +25,11 @@ export async function waitForSystemReady(options: WaitOptions = {}): Promise<boo
 
   // Check initial state synchronously
   let currentState = getSystemState();
-  if (currentState.overallState === "READY" || currentState.overallState === "DEGRADED") {
+  if (
+    currentState.overallState === "READY" ||
+    currentState.overallState === "WARMED" ||
+    currentState.overallState === "DEGRADED"
+  ) {
     return true;
   }
   if (currentState.overallState === "FAILED") {
@@ -47,7 +51,11 @@ export async function waitForSystemReady(options: WaitOptions = {}): Promise<boo
     };
 
     const unsubscribe = systemState.subscribe((state) => {
-      if (state.overallState === "READY" || state.overallState === "DEGRADED") {
+      if (
+        state.overallState === "READY" ||
+        state.overallState === "WARMED" ||
+        state.overallState === "DEGRADED"
+      ) {
         cleanup();
         resolve(true);
       } else if (state.overallState === "FAILED") {

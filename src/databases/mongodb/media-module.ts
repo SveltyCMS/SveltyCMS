@@ -15,7 +15,8 @@ import type {
   MediaQueryOptions,
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
-import { type IMedia, mediaSchema } from "./media";
+import { type IMedia, mediaSchema } from "./schema";
+import { buildMediaJsonPathMongoFilter } from "../core/relational-media";
 import { CacheCategory, invalidateCategoryCache, withCache } from "./mongodb-cache-utils";
 import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
 import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
@@ -322,7 +323,6 @@ export class MongoMediaMethods {
         }
 
         if (jsonPath?.trim()) {
-          const { buildMediaJsonPathMongoFilter } = await import("../core/relational-media");
           const { filter: jpFilter } = buildMediaJsonPathMongoFilter(jsonPath.trim());
           if (jpFilter) {
             query = { $and: [query, jpFilter] };

@@ -25,6 +25,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { widget_group_no_content } from '@src/paraglide/messages';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType, GroupWidgetData } from './';
 
@@ -158,7 +159,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		{:else}
 			<div class="flex items-center justify-center px-4 py-6">
 				<p class="text-center text-sm italic text-gray-500 dark:text-gray-400">
-					No content in this group
+					{widget_group_no_content()}
 				</p>
 			</div>
 		{/if}

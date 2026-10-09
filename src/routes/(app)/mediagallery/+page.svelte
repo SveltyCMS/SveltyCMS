@@ -14,11 +14,38 @@
 	import { onMount } from 'svelte';
 	import {
 		Collections_MediaGallery,
+		mediagallery_advanced_filters,
+		mediagallery_advanced_search,
+		mediagallery_cancel_upload,
 		mediagallery_create_folder,
+		mediagallery_del_esc_hint,
+		mediagallery_download_archive,
+		mediagallery_drop,
+		mediagallery_drop_move_hint,
 		mediagallery_filter_type,
+		mediagallery_folder_drop_path,
+		mediagallery_grid_size,
+		mediagallery_grid_size_aria,
+		mediagallery_grid_view,
+		mediagallery_json_path_filter,
+		mediagallery_json_path_format,
+		mediagallery_json_path_placeholder,
 		mediagallery_loading_table,
 		mediagallery_new_folder,
-		mediagallery_title
+		mediagallery_search_assets,
+		mediagallery_search_modf,
+		mediagallery_selected,
+		mediagallery_sort,
+		mediagallery_sort_by,
+		mediagallery_table_view,
+		mediagallery_tap_parent_hint,
+		mediagallery_title,
+		mediagallery_toggle_selection,
+		mediagallery_type_placeholder,
+		mediagallery_upload,
+		mediagallery_upload_progress,
+		mediagallery_view_mode,
+		button_cancel
 	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
 	import { refreshAll } from '$app/navigation';
@@ -765,7 +792,7 @@
 			</Button>
 
 			<input
-				aria-label="Upload media files"
+				aria-label={mediagallery_upload()}
 				type="file"
 				multiple
 				class="hidden"
@@ -782,7 +809,7 @@
 			<div
 				class="flex items-center gap-3 rounded border border-surface-500/30 bg-surface-500/10 p-2 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 				role="progressbar"
-				aria-label="Upload progress"
+				aria-label={mediagallery_upload_progress()}
 				aria-valuenow={uploadProgress}
 				aria-valuemin={0}
 				aria-valuemax={100}
@@ -810,10 +837,10 @@
 					size="sm"
 					type="button"
 					onclick={cancelUpload}
-					aria-label="Cancel upload"
+					aria-label={mediagallery_cancel_upload()}
 					class="shrink-0"
 				>
-					Cancel
+					{button_cancel()}
 				</Button>
 			</div>
 		</div>
@@ -831,10 +858,11 @@
 					<p class="text-xs text-surface-600 dark:text-surface-400">
 						<span
 							class="font-medium text-surface-600 dark:text-surface-100"
-							data-testid="media-bulk-count">{assetStats.selected} selected</span
+							data-testid="media-bulk-count"
+							>{assetStats.selected}{' '}{mediagallery_selected()}</span
 						>
 						<span class="hidden text-surface-500 sm:inline dark:text-surface-400">
-							· Del to remove · Esc to clear</span
+							{mediagallery_del_esc_hint()}</span
 						>
 					</p>
 					<Button
@@ -843,7 +871,7 @@
 						onclick={handleBulkDownload}
 						disabled={isBulkDownloading}
 						aria-busy={isBulkDownloading}
-						aria-label="Download selected files as archive"
+						aria-label={mediagallery_download_archive()}
 						data-testid="media-bulk-download"
 						class="h-8 gap-1.5 px-3"
 					>
@@ -869,7 +897,7 @@
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
 			<nav
 				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-500/40 dark:text-surface-400"
-				aria-label="Folder path — drop media on a parent to move (same as sidebar folders)"
+				aria-label={mediagallery_folder_drop_path()}
 			>
 				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
 					{@const isLast = i === breadcrumbs.length - 1}
@@ -954,11 +982,12 @@
 					class="pb-2 text-[11px] leading-tight text-surface-500 dark:text-surface-400"
 					role="status"
 				>
-					<span class="sm:hidden"> Tap a parent above, or drag an item onto a folder </span>
+					<span class="sm:hidden">{mediagallery_tap_parent_hint()}</span>
 					<span class="hidden sm:inline">
-						Drop {selectedFiles.size}
-						{selectedFiles.size === 1 ? 'item' : 'items'} on a sidebar folder or breadcrumb parent to
-						move
+						{mediagallery_drop()}
+						{selectedFiles.size}
+						{selectedFiles.size === 1 ? 'item' : 'items'}
+						{mediagallery_drop_move_hint()}
 					</span>
 				</p>
 			{/if}
@@ -979,9 +1008,9 @@
 							id="media-gallery-search"
 							bind:value={globalSearchValue}
 							type="search"
-							placeholder="Search media... (Mod+F)"
+							placeholder={mediagallery_search_modf()}
 							class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
-							aria-label="Search media assets"
+							aria-label={mediagallery_search_assets()}
 						/>
 						<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
 							<Button
@@ -989,7 +1018,7 @@
 								variant="ghost"
 								size="sm"
 								onclick={() => (showAdvancedSearch = true)}
-								aria-label="Advanced search and filters"
+								aria-label={mediagallery_advanced_filters()}
 								class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
 							>
 								<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
@@ -1026,16 +1055,16 @@
 									id="media-type-filter-m"
 									bind:value={selectedMediaType}
 									options={mediaTypeOptions}
-									placeholder="Type"
+									placeholder={mediagallery_type_placeholder()}
 									class="flex-1"
 								/>
 							{/if}
-							<label for="sort-by-filter-m" class="sr-only">Sort by</label>
+							<label for="sort-by-filter-m" class="sr-only">{mediagallery_sort_by()}</label>
 							<Select
 								id="sort-by-filter-m"
 								bind:value={sortBy}
 								options={sortOptions}
-								placeholder="Sort"
+								placeholder={mediagallery_sort()}
 								class="flex-1"
 							/>
 						</div>
@@ -1043,24 +1072,24 @@
 							<Input
 								bind:value={jsonPathFilter}
 								type="text"
-								placeholder="JSON path… e.g. metadata.camera = Canon"
+								placeholder={mediagallery_json_path_placeholder()}
 								class="w-full ps-2 text-xs"
-								aria-label="Filter by JSON path (supports = != ~ > < ; AND)"
-								title="Format: path = value · multi: a = 1; b > 2 · ops: = != ~ > < >= <="
+								aria-label={mediagallery_json_path_filter()}
+								title={mediagallery_json_path_format()}
 							/>
 						</div>
 						<div class="flex items-center gap-2">
 							<div
 								class="flex overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
 								role="group"
-								aria-label="View mode"
+								aria-label={mediagallery_view_mode()}
 							>
 								<Button
 									type="button"
 									variant={view === 'grid' ? 'primary' : 'ghost'}
 									size="md"
 									onclick={() => (view = 'grid')}
-									aria-label="Grid view"
+									aria-label={mediagallery_grid_view()}
 									aria-pressed={view === 'grid'}
 									class="h-10! w-10! px-0!"
 								>
@@ -1071,7 +1100,7 @@
 									variant={view === 'table' ? 'primary' : 'ghost'}
 									size="md"
 									onclick={() => (view = 'table')}
-									aria-label="Table view"
+									aria-label={mediagallery_table_view()}
 									aria-pressed={view === 'table'}
 									class="h-10! w-10! px-0! border-s border-surface-500/30 dark:border-surface-600"
 								>
@@ -1082,7 +1111,7 @@
 								<div
 									class="flex overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
 									role="group"
-									aria-label="Grid size"
+									aria-label={mediagallery_grid_size()}
 								>
 									{#each ['tiny', 'small', 'medium', 'large'] as const as size, i (size)}
 										<Button
@@ -1090,7 +1119,7 @@
 											variant={gridSize === size ? 'primary' : 'ghost'}
 											size="md"
 											onclick={() => (gridSize = size)}
-											aria-label="{size} grid"
+											aria-label={mediagallery_grid_size_aria({ size })}
 											aria-pressed={gridSize === size}
 											class="h-10! w-8! px-0! text-xs! {i > 0
 												? 'border-s border-surface-500/30 dark:border-surface-600'
@@ -1111,7 +1140,7 @@
 									variant={isSelectionMode ? 'primary' : 'outline'}
 									size="md"
 									onclick={() => (isSelectionMode = !isSelectionMode)}
-									aria-label="Toggle selection mode"
+									aria-label={mediagallery_toggle_selection()}
 									aria-pressed={isSelectionMode}
 									class="h-10 px-3"
 								>
@@ -1140,9 +1169,9 @@
 						id="media-gallery-search-desktop"
 						bind:value={globalSearchValue}
 						type="search"
-						placeholder="Search media... (Mod+F)"
+						placeholder={mediagallery_search_modf()}
 						class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
-						aria-label="Search media assets"
+						aria-label={mediagallery_search_assets()}
 					/>
 					<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
 						<Button
@@ -1150,7 +1179,7 @@
 							variant="ghost"
 							size="sm"
 							onclick={() => (showAdvancedSearch = true)}
-							aria-label="Advanced Search"
+							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
 							class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
 						>
@@ -1166,18 +1195,18 @@
 							id="media-type-filter"
 							bind:value={selectedMediaType}
 							options={mediaTypeOptions}
-							placeholder="Type"
+							placeholder={mediagallery_type_placeholder()}
 						/>
 					</div>
 				{/if}
 
 				<div class="w-36 shrink-0">
-					<label for="sort-by-filter" class="sr-only">Sort by</label>
+					<label for="sort-by-filter" class="sr-only">{mediagallery_sort_by()}</label>
 					<Select
 						id="sort-by-filter"
 						bind:value={sortBy}
 						options={sortOptions}
-						placeholder="Sort"
+						placeholder={mediagallery_sort()}
 					/>
 				</div>
 
@@ -1185,10 +1214,10 @@
 					<Input
 						bind:value={jsonPathFilter}
 						type="text"
-						placeholder="JSON path… e.g. metadata.camera = Canon"
+						placeholder={mediagallery_json_path_placeholder()}
 						class="w-full ps-2 text-xs"
-						aria-label="Filter by JSON path (supports = != ~ > < ; AND)"
-						title="Format: path = value · multi: a = 1; b > 2 · ops: = != ~ > < >= <="
+						aria-label={mediagallery_json_path_filter()}
+						title={mediagallery_json_path_format()}
 					/>
 				</div>
 
@@ -1199,7 +1228,7 @@
 				<div
 					class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
 					role="group"
-					aria-label="View mode"
+					aria-label={mediagallery_view_mode()}
 				>
 					<button
 						type="button"
@@ -1208,7 +1237,7 @@
 						'grid'
 							? 'bg-primary-500 text-white'
 							: 'text-surface-500 dark:text-surface-400'}"
-						aria-label="Grid view"
+						aria-label={mediagallery_grid_view()}
 						aria-pressed={view === 'grid' ? 'true' : 'false'}
 						data-testid="media-view-grid"
 					>
@@ -1221,7 +1250,7 @@
 						'table'
 							? 'bg-primary-500 text-white'
 							: 'text-surface-500 dark:text-surface-400'}"
-						aria-label="Table view"
+						aria-label={mediagallery_table_view()}
 						aria-pressed={view === 'table' ? 'true' : 'false'}
 						data-testid="media-view-table"
 					>
@@ -1234,7 +1263,7 @@
 					<div
 						class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
 						role="group"
-						aria-label="Grid size"
+						aria-label={mediagallery_grid_size()}
 					>
 						{#each ['tiny', 'small', 'medium', 'large'] as const as size, i (size)}
 							<Button
@@ -1242,7 +1271,7 @@
 								variant={gridSize === size ? 'primary' : 'ghost'}
 								size="md"
 								onclick={() => (gridSize = size)}
-								aria-label="{size} grid"
+								aria-label={mediagallery_grid_size_aria({ size })}
 								aria-pressed={gridSize === size}
 								class="h-10! w-8! px-0! text-xs! {i > 0
 									? 'border-s border-surface-500/30 dark:border-surface-600'
@@ -1258,7 +1287,7 @@
 						variant={isSelectionMode ? 'primary' : 'outline'}
 						size="md"
 						onclick={() => (isSelectionMode = !isSelectionMode)}
-						aria-label="Toggle selection mode"
+						aria-label={mediagallery_toggle_selection()}
 						aria-pressed={isSelectionMode}
 						data-testid="media-selection-toggle"
 						class="h-10 shrink-0 text-sm"

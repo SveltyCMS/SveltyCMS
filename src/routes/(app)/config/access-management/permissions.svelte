@@ -24,6 +24,20 @@ It provides the following functionality:
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
+	import {
+		access_permissions_action,
+		access_permissions_assign_all_title,
+		access_permissions_heading,
+		access_permissions_intro,
+		access_permissions_name,
+		access_permissions_role_all,
+		access_permissions_search_aria,
+		access_permissions_search_placeholder,
+		access_permissions_sort_action_aria,
+		access_permissions_sort_action_title,
+		access_permissions_sort_name_aria,
+		access_permissions_sort_name_title
+	} from '@src/paraglide/messages';
 	// Stores
 	import { page } from '$app/state';
 
@@ -279,10 +293,10 @@ It provides the following functionality:
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold text-surface-900 dark:text-surface-50">
-		Permission Management
+		{access_permissions_heading()}
 	</h3>
 	<p class="mb-6 text-center text-sm text-surface-500 dark:text-surface-400">
-		Select the roles for each permission and click 'Save' to apply your changes.
+		{access_permissions_intro()}
 	</p>
 
 	<div class="sticky top-0 z-10 mb-6 flex items-center justify-between">
@@ -294,8 +308,8 @@ It provides the following functionality:
 			</div>
 			<input
 				type="text"
-				aria-label="Search permissions"
-				placeholder="Search Permissions..."
+				aria-label={access_permissions_search_aria()}
+				placeholder={access_permissions_search_placeholder()}
 				bind:value={searchTerm}
 				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-500/30 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 			/>
@@ -325,7 +339,8 @@ It provides the following functionality:
 				<span
 					><span class="font-semibold text-tertiary-600 dark:text-primary-600"
 						>{adminRole.name}</span
-					> Role has all permissions by default.</span
+					>
+					{access_permissions_role_all()}</span
 				>
 			</div>
 		{/if}
@@ -346,13 +361,16 @@ It provides the following functionality:
 									: 'descending'
 								: 'none'}
 						>
-							<SystemTooltip title="Sort permissions by name" positioning={{ placement: 'top' }}>
+							<SystemTooltip
+								title={access_permissions_sort_name_title()}
+								positioning={{ placement: 'top' }}
+							>
 								<button
 									class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 									onclick={() => handleSort('name')}
-									aria-label="Sort by permission name"
+									aria-label={access_permissions_sort_name_aria()}
 								>
-									Permission Name
+									{access_permissions_name()}
 									{#if sortBy === 'name' && sortOrder !== 0}
 										<iconify-icon
 											icon={sortOrder === 1
@@ -374,13 +392,16 @@ It provides the following functionality:
 									: 'descending'
 								: 'none'}
 						>
-							<SystemTooltip title="Sort permissions by action" positioning={{ placement: 'top' }}>
+							<SystemTooltip
+								title={access_permissions_sort_action_title()}
+								positioning={{ placement: 'top' }}
+							>
 								<button
 									class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
 									onclick={() => handleSort('action')}
-									aria-label="Sort by action"
+									aria-label={access_permissions_sort_action_aria()}
 								>
-									Action
+									{access_permissions_action()}
 									{#if sortBy === 'action' && sortOrder !== 0}
 										<iconify-icon
 											icon={sortOrder === 1
@@ -425,7 +446,7 @@ It provides the following functionality:
 											<button
 												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/10 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
-												title="Assign role to all filtered permissions"
+												title={access_permissions_assign_all_title()}
 												aria-label={`Assign ${role.name} to all filtered permissions`}
 											>
 												<iconify-icon icon="mdi:check-all" width="12"></iconify-icon>

@@ -44,12 +44,17 @@ None (TreeView has its own keyboard navigation)
 	import { sanitizeHtml } from '@utils/sanitize-html';
 	import {
 		button_save,
+		builder_clear_category_aria,
+		builder_clear_selection,
 		builder_introspect_ingest,
 		builder_note_instant,
 		builder_note_layout,
 		builder_quick_start,
 		builder_tip_save_changes,
 		builder_tip_save_no_changes,
+		builder_unsaved_changes_part1,
+		builder_unsaved_changes_part2,
+		builder_unsaved_changes_save,
 		collection_add,
 		collection_addcategory,
 		collection_description,
@@ -808,10 +813,10 @@ None (TreeView has its own keyboard navigation)
 						variant="ghost"
 						class="flex items-center gap-1 text-surface-600 dark:text-surface-400"
 						disabled={isLoading}
-						aria-label="Clear category selection"
+						aria-label={builder_clear_category_aria()}
 					>
 						<iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
-						<span class="hidden sm:inline">Clear selection</span>
+						<span class="hidden sm:inline">{builder_clear_selection()}</span>
 					</Button>
 				{/if}
 			</div>
@@ -831,7 +836,9 @@ None (TreeView has its own keyboard navigation)
 							role="status"
 							aria-live="polite"
 						>
-							You have unsaved organizational changes. Click <strong>Save</strong> to persist.
+							{builder_unsaved_changes_part1()}{' '}<strong>{builder_unsaved_changes_save()}</strong
+							>{' '}
+							{builder_unsaved_changes_part2()}
 						</div>
 					{/if}
 					<p class="mb-6 text-center text-tertiary-600 dark:text-primary-500">

@@ -836,7 +836,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     ensure: async (theme: EntityCreate<Theme>): Promise<Theme> => {
       try {
         const [existing] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(eq(this.schema.themes.name, theme.name))
           .limit(1);

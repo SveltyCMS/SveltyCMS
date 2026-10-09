@@ -16,6 +16,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { AdaptiveWriteCoalescer, type CoalescerMetrics } from "./write-coalescer";
 
 export interface NetworkDbQueueGateOptions {
   /** Maximum number of concurrent database operations executing simultaneously. */
@@ -26,6 +27,8 @@ export interface NetworkDbQueueGateOptions {
   timeoutMs?: number;
   /** Name of the database adapter for diagnostic log messages. */
   name?: string;
+  /** Whether to enable adaptive micro-batch write coalescing. Defaults to true. */
+  enableWriteCoalescing?: boolean;
 }
 
 interface QueuedOperation {
@@ -42,12 +45,17 @@ export class NetworkDbQueueGate {
   private readonly timeoutMs: number;
   private readonly name: string;
   private readonly asyncLocal = new AsyncLocalStorage<boolean>();
+  private readonly writeCoalescer: AdaptiveWriteCoalescer | null;
 
   constructor(options: NetworkDbQueueGateOptions) {
     this.maxConcurrency = Math.max(1, options.maxConcurrency);
     this.maxQueue = Math.max(1, options.maxQueue ?? 500);
     this.timeoutMs = Math.max(500, options.timeoutMs ?? 15_000);
     this.name = options.name ?? "NetworkDB";
+    this.writeCoalescer =
+      options.enableWriteCoalescing !== false && process.env.SVELTY_WRITE_COALESCING !== "0"
+        ? new AdaptiveWriteCoalescer({ name: `${this.name}Coalescer` })
+        : null;
   }
 
   /**
@@ -136,6 +144,24 @@ export class NetworkDbQueueGate {
   }
 
   /**
+   * Coalesce a write operation during high-concurrency bursts.
+   * Dispatches immediately when idle; micro-batches when concurrent writers queue.
+   */
+  public async coalesceWrite<T>(fn: () => Promise<T>): Promise<T> {
+    if (!this.writeCoalescer) {
+      return this.acquire(fn);
+    }
+    return this.writeCoalescer.submit(() => this.acquire(fn));
+  }
+
+  /**
+   * Retrieve write coalescer metrics.
+   */
+  public getCoalescerMetrics(): CoalescerMetrics | null {
+    return this.writeCoalescer ? this.writeCoalescer.getMetrics() : null;
+  }
+
+  /**
    * Current metrics for monitoring and diagnostics.
    */
   public getMetrics(): {
@@ -143,12 +169,14 @@ export class NetworkDbQueueGate {
     waiting: number;
     maxConcurrency: number;
     maxQueue: number;
+    coalescing?: CoalescerMetrics | null;
   } {
     return {
       active: this.active,
       waiting: this.queue.length,
       maxConcurrency: this.maxConcurrency,
       maxQueue: this.maxQueue,
+      coalescing: this.getCoalescerMetrics(),
     };
   }
 

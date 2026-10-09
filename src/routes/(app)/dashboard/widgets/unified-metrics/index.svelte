@@ -40,6 +40,33 @@
 
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import {
+		widget_unified_auth,
+		widget_unified_auth_fails,
+		widget_unified_auth_ratio,
+		widget_unified_auth_success,
+		widget_unified_avg_hook_time,
+		widget_unified_avg_response,
+		widget_unified_bottlenecks,
+		widget_unified_cache,
+		widget_unified_cache_hit_rate,
+		widget_unified_csp,
+		widget_unified_error_rate,
+		widget_unified_errors,
+		widget_unified_gathering,
+		widget_unified_performance,
+		widget_unified_premium_notice,
+		widget_unified_rate_limits,
+		widget_unified_reqs_ratio,
+		widget_unified_requests,
+		widget_unified_resp,
+		widget_unified_security,
+		widget_unified_slow,
+		widget_unified_system_health,
+		widget_unified_total,
+		widget_unified_upgrade,
+		widget_unified_uptime
+	} from '@src/paraglide/messages';
 	import { formatNumber } from '@utils/format-date';
 
 	interface UnifiedMetrics {
@@ -160,7 +187,7 @@
 					<div
 						class="h-7 w-7 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
 					></div>
-					<p class="text-xs">Gathering metrics...</p>
+					<p class="text-xs">{widget_unified_gathering()}</p>
 				</div>
 			</div>
 		{:else}
@@ -179,7 +206,7 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">Resp</span>
+							<span class="text-[10px] font-medium text-surface-500">{widget_unified_resp()}</span>
 							<span
 								class="text-xs font-bold tabular-nums {metricCls(
 									m.requests.avgResponseTime,
@@ -191,7 +218,8 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">Errors</span>
+							<span class="text-[10px] font-medium text-surface-500">{widget_unified_errors()}</span
+							>
 							<span class="text-xs font-bold tabular-nums {metricCls(m.requests.errorRate, 1, 3)}"
 								>{m.requests.errorRate.toFixed(1)}%</span
 							>
@@ -199,7 +227,7 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">Auth</span>
+							<span class="text-[10px] font-medium text-surface-500">{widget_unified_auth()}</span>
 							<span
 								class="text-xs font-bold tabular-nums {m.authentication.successRate > 95
 									? 'text-success-500'
@@ -209,7 +237,7 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">Cache</span>
+							<span class="text-[10px] font-medium text-surface-500">{widget_unified_cache()}</span>
 							<span class="text-xs font-bold tabular-nums text-tertiary-500"
 								>{avgCache.toFixed(0)}%</span
 							>
@@ -224,18 +252,18 @@
 							></iconify-icon>
 							<div>
 								<div class="text-xl font-semibold capitalize {healthCls(health)}">{health}</div>
-								<div class="text-xs text-surface-500">System Health</div>
+								<div class="text-xs text-surface-500">{widget_unified_system_health()}</div>
 							</div>
 						</div>
 						<div class="text-end">
-							<div class="text-xs text-surface-500">Uptime</div>
+							<div class="text-xs text-surface-500">{widget_unified_uptime()}</div>
 							<div class="font-mono text-sm tabular-nums">{fmtUptime(m.uptime)}</div>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">Avg Response</div>
+							<div class="text-[11px] text-surface-500">{widget_unified_avg_response()}</div>
 							<div class="mt-1 flex items-end justify-between">
 								<span
 									class="text-2xl font-semibold tabular-nums {metricCls(
@@ -249,7 +277,7 @@
 							</div>
 						</div>
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">Error Rate</div>
+							<div class="text-[11px] text-surface-500">{widget_unified_error_rate()}</div>
 							<div class="mt-1">
 								<span
 									class="text-2xl font-semibold tabular-nums {metricCls(
@@ -260,11 +288,11 @@
 								>
 							</div>
 							<div class="mt-1 text-[10px] text-surface-400">
-								{m.requests.errors} of {m.requests.total} reqs
+								{widget_unified_reqs_ratio({ errors: m.requests.errors, total: m.requests.total })}
 							</div>
 						</div>
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">Auth Success</div>
+							<div class="text-[11px] text-surface-500">{widget_unified_auth_success()}</div>
 							<div class="mt-1">
 								<span
 									class="text-2xl font-semibold tabular-nums {m.authentication.successRate > 95
@@ -273,11 +301,14 @@
 								>
 							</div>
 							<div class="mt-1 text-[10px] text-surface-400">
-								{m.authentication.validations} ok / {m.authentication.failures} fail
+								{widget_unified_auth_ratio({
+									ok: m.authentication.validations,
+									fail: m.authentication.failures
+								})}
 							</div>
 						</div>
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">Cache Hit Rate</div>
+							<div class="text-[11px] text-surface-500">{widget_unified_cache_hit_rate()}</div>
 							<div class="mt-1">
 								<span class="text-2xl font-semibold tabular-nums text-tertiary-500"
 									>{avgCache.toFixed(1)}%</span
@@ -292,26 +323,26 @@
 								<h5
 									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
 								>
-									Requests
+									{widget_unified_requests()}
 								</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums">
 											{formatNumber(m.requests.total)}
 										</div>
-										<div class="text-[10px] text-surface-500">Total</div>
+										<div class="text-[10px] text-surface-500">{widget_unified_total()}</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-error-500">
 											{m.requests.errors}
 										</div>
-										<div class="text-[10px] text-surface-500">Errors</div>
+										<div class="text-[10px] text-surface-500">{widget_unified_errors()}</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-warning-500">
 											{m.performance.slowRequests}
 										</div>
-										<div class="text-[10px] text-surface-500">Slow</div>
+										<div class="text-[10px] text-surface-500">{widget_unified_slow()}</div>
 									</div>
 								</div>
 							</div>
@@ -319,26 +350,26 @@
 								<h5
 									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
 								>
-									Security
+									{widget_unified_security()}
 								</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-warning-500">
 											{m.security.rateLimitViolations}
 										</div>
-										<div class="text-[10px] text-surface-500">Rate Limits</div>
+										<div class="text-[10px] text-surface-500">{widget_unified_rate_limits()}</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-purple-500">
 											{m.security.cspViolations}
 										</div>
-										<div class="text-[10px] text-surface-500">CSP</div>
+										<div class="text-[10px] text-surface-500">{widget_unified_csp()}</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-error-500">
 											{m.security.authFailures}
 										</div>
-										<div class="text-[10px] text-surface-500">Auth Fails</div>
+										<div class="text-[10px] text-surface-500">{widget_unified_auth_fails()}</div>
 									</div>
 								</div>
 							</div>
@@ -346,12 +377,12 @@
 								<h5
 									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
 								>
-									Performance
+									{widget_unified_performance()}
 								</h5>
 								<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-800">
 									<div class="flex items-center justify-between">
-										<span class="text-xs text-surface-500">Avg Hook Time</span><span
-											class="font-mono text-sm font-semibold tabular-nums"
+										<span class="text-xs text-surface-500">{widget_unified_avg_hook_time()}</span
+										><span class="font-mono text-sm font-semibold tabular-nums"
 											>{fmtMs(m.performance.avgHookExecutionTime)}</span
 										>
 									</div>
@@ -362,7 +393,7 @@
 									<h5
 										class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
 									>
-										Bottlenecks
+										{widget_unified_bottlenecks()}
 									</h5>
 									<div class="space-y-1">
 										{#each m.performance.bottlenecks.slice(0, 3) as item (item)}
@@ -383,13 +414,13 @@
 						>
 							<span class="text-xs text-warning-600 dark:text-warning-400">
 								<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"></iconify-icon>
-								Full detail mode and bottleneck analysis are premium features.
+								{widget_unified_premium_notice()}
 							</span>
 							<a
 								href="https://marketplace.sveltycms.com"
 								target="_blank"
 								class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3"
-								>Upgrade €14.99 →</a
+								>{widget_unified_upgrade()}</a
 							>
 						</div>
 					{/if}

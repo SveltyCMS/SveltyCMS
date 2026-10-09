@@ -27,6 +27,7 @@
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { widget_char_count, widget_validating, widget_min_hint } from '@src/paraglide/messages';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
@@ -310,7 +311,7 @@
 					aria-live="polite"
 				>
 					{#if field?.count || field?.minLength || field?.maxLength}
-						<Badge variant={badgeVariant} class="me-1" aria-label="Character count">
+						<Badge variant={badgeVariant} class="me-1" aria-label={widget_char_count()}>
 							{#if field?.count && field?.minLength && field?.maxLength}
 								{count}/{field?.maxLength}
 							{:else if field?.count && field?.maxLength}
@@ -326,7 +327,7 @@
 							{:else if field?.maxLength}
 								{count}/{field?.maxLength}
 							{:else if field?.minLength}
-								min {field?.minLength}
+								{widget_min_hint()} {field?.minLength}
 							{/if}
 						</Badge>
 					{/if}
@@ -341,7 +342,10 @@
 
 			<!-- Validation indicator -->
 			{#if isValidating}
-				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Validating">
+				<div
+					class="flex items-center bg-white px-2 dark:bg-surface-900"
+					aria-label={widget_validating()}
+				>
 					<div
 						class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
 					></div>

@@ -26,6 +26,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 -->
 
 <script lang="ts">
+	import { widget_rating_value_title } from '@src/paraglide/messages';
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
@@ -42,7 +43,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 </script>
 
 {#if typeof value === 'number' && value >= 0}
-	<div class="rating-display" title="{value} out of {max} stars">
+	<div class="rating-display" title={widget_rating_value_title({ value, max })}>
 		<div class="flex items-center gap-0.5">
 			{#each stars as starIndex (starIndex)}
 				{#if starIndex <= Math.floor(value)}

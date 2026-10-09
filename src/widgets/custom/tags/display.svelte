@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import { widget_tags_no_tags } from '@src/paraglide/messages';
 	import type { FieldType } from './index';
 	import Badge from '@components/ui/badge.svelte';
 
@@ -27,6 +28,6 @@
 			</Badge>
 		{/each}
 	{:else}
-		<span class="text-surface-400 italic">No tags</span>
+		<span class="text-surface-400 italic">{widget_tags_no_tags()}</span>
 	{/if}
 </div>

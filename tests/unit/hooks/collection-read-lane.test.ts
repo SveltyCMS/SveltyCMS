@@ -12,13 +12,23 @@ import { setTurboAuthContext, clearTurboAuthCache } from "@src/hooks/handle-turb
 import { responseCache, buildUserResponseCacheKey } from "@src/services/cache/response-cache";
 import type { DatabaseId } from "@src/content/types";
 
-const { findMock, findByIdMock } = vi.hoisted(() => ({
-  findMock: vi.fn(),
-  findByIdMock: vi.fn(),
-}));
+const { findMock, findByIdMock, findPointWireStreamMock, findListWireStreamMock } = vi.hoisted(
+  () => ({
+    findMock: vi.fn(),
+    findByIdMock: vi.fn(),
+    findPointWireStreamMock: vi.fn(),
+    findListWireStreamMock: vi.fn(),
+  }),
+);
 
 vi.mock("@src/databases/db", () => ({
-  dbAdapter: { connected: true },
+  dbAdapter: {
+    connected: true,
+    crud: {
+      findPointWireStream: findPointWireStreamMock,
+      findListWireStream: findListWireStreamMock,
+    },
+  },
 }));
 
 vi.mock("@src/databases/tenant-adapter", () => ({
@@ -64,6 +74,8 @@ describe("collection read lane single-flight", () => {
     await responseCache.clearLocal();
     findMock.mockReset();
     findByIdMock.mockReset();
+    findPointWireStreamMock.mockReset();
+    findListWireStreamMock.mockReset();
     setTurboAuthContext(sessionId, user as never, [], null);
     // The lane re-applies the `handle-system-state` readiness decision itself
     // (`lane-state-gate`), so every test here must run in an operational state.
@@ -197,6 +209,41 @@ describe("collection read lane single-flight", () => {
     }
     expect(findMock).toHaveBeenCalledTimes(1);
     expect(responseCache.get(key, null)?.stale).toBe(true);
+  });
+
+  it("streams list directly to wire when admissible and bypasses cms.collections.find", async () => {
+    contentStore.setCollections("global", [
+      {
+        _id: "BenchmarkStable",
+        name: "BenchmarkStable",
+        label: "BenchmarkStable",
+        fields: [{ label: "Title", db_fieldName: "title" }],
+      } as never,
+    ]);
+
+    findListWireStreamMock.mockResolvedValue({
+      success: true,
+      data: {
+        wireBody: '[{"_id":"w1","title":"wire-item"}]',
+        etag: '"list-100-50-0"',
+      },
+    });
+
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const event = createMockEvent("/api/collections/BenchmarkStable?limit=50", {
+      method: "GET",
+      sessionCookie: sessionId,
+      user,
+    });
+
+    const res = await tryCollectionReadLane({ event, resolve });
+    expect(res.headers.get("X-Cache")).toBe("MISS");
+    const body = await res.text();
+    expect(body).toContain('"wire-item"');
+    expect(body).toContain('"meta":{"_collection":{"id":"BenchmarkStable"');
+    expect(findListWireStreamMock).toHaveBeenCalledTimes(1);
+    expect(findMock).not.toHaveBeenCalled();
+    contentStore.clear();
   });
 
   it("labels a point-read rebuild as MISS, admits on the repeat, then serves TURBO-HIT", async () => {

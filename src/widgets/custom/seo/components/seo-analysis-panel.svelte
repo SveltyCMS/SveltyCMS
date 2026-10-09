@@ -9,6 +9,27 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
+	import {
+		common_analysis,
+		common_no_data,
+		common_readability,
+		seo_analysis_excellent,
+		seo_analysis_fix,
+		seo_analysis_good_start,
+		seo_analysis_needs_work,
+		seo_analysis_analyzing,
+		seo_analysis_no_issues,
+		seo_analysis_word_count,
+		seo_analysis_min_read,
+		seo_analysis_suggestions,
+		seo_analysis_internal_linking,
+		seo_analysis_find_suggestions,
+		seo_analysis_searching,
+		seo_analysis_copy_relative_url,
+		seo_analysis_link_hint,
+		seo_analysis_run_hint,
+		seo_analysis_toggle_aria
+	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SeoAnalysisResult } from '../seo-types';
@@ -83,13 +104,13 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		type="button"
 		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
 		onclick={() => (expanded = !expanded)}
-		aria-label="Toggle SEO analysis"
+		aria-label={seo_analysis_toggle_aria()}
 		aria-expanded={expanded}
 	>
 		<div class="flex items-center gap-2 flex-1">
 			<iconify-icon icon="mdi:information" width="24" class="text-tertiary-500 text-xl"
 			></iconify-icon>
-			<h3 class="h3 text-lg!">Analysis</h3>
+			<h3 class="h3 text-lg!">{common_analysis()}</h3>
 		</div>
 
 		{#if analysisResult}
@@ -105,11 +126,11 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 				</div>
 				<div class="text-xs opacity-70 hidden sm:block">
 					{#if analysisResult.score.overall >= 80}
-						Excellent
+						{seo_analysis_excellent()}
 					{:else if analysisResult.score.overall >= 50}
-						Good Start
+						{seo_analysis_good_start()}
 					{:else}
-						Needs Work
+						{seo_analysis_needs_work()}
 					{/if}
 				</div>
 				{#if expanded}
@@ -121,9 +142,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		{:else}
 			<div class="text-xs opacity-50">
 				{#if isAnalyzing}
-					Analyzing...
+					{seo_analysis_analyzing()}
 				{:else}
-					No data
+					{common_no_data()}
 				{/if}
 			</div>
 		{/if}
@@ -133,23 +154,24 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		{#if isAnalyzing}
 			<div class="flex-1 flex flex-col items-center justify-center text-surface-400 opacity-50 p-4">
 				<div class="placeholder-circle animate-pulse w-8 h-8 mb-2"></div>
-				<span class="text-xs">Analyzing...</span>
+				<span class="text-xs">{seo_analysis_analyzing()}</span>
 			</div>
 		{:else if analysisResult}
 			<!-- Metrics Summary -->
 			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-500/10 border-b border-surface-500/10">
 				<div class="card p-2 preset-soft-surface">
-					<div class="text-[10px] uppercase opacity-50 font-bold">Readability</div>
+					<div class="text-[10px] uppercase opacity-50 font-bold">{common_readability()}</div>
 					<div class="text-sm font-bold">{analysisResult.readability.fleschKincaidScore}</div>
 					<div class="text-[9px] opacity-70 leading-tight">
 						{getReadingEaseDescription(analysisResult.readability.fleschKincaidScore)}
 					</div>
 				</div>
 				<div class="card p-2 preset-soft-surface">
-					<div class="text-[10px] uppercase opacity-50 font-bold">Word Count</div>
+					<div class="text-[10px] uppercase opacity-50 font-bold">{seo_analysis_word_count()}</div>
 					<div class="text-sm font-bold">{analysisResult.readability.wordCount}</div>
 					<div class="text-[9px] opacity-70">
-						~{analysisResult.readability.readingTime} min read
+						~{analysisResult.readability.readingTime}
+						{seo_analysis_min_read()}
 					</div>
 				</div>
 			</div>
@@ -157,7 +179,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			<!-- Scrollable Suggestions -->
 			<div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" transition:slide>
 				<div>
-					<h4 class="text-xs font-bold uppercase opacity-50 mb-2">Suggestions</h4>
+					<h4 class="text-xs font-bold uppercase opacity-50 mb-2">{seo_analysis_suggestions()}</h4>
 					<div class="space-y-2">
 						{#if analysisResult.suggestions.length > 0}
 							{#each analysisResult.suggestions as suggestion (suggestion.id)}
@@ -201,7 +223,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 												<div
 													class="mt-1.5 text-[10px] font-mono bg-surface-500/10 dark:bg-surface-700 p-1.5 rounded opacity-80"
 												>
-													<strong>Fix:</strong>
+													<strong>{seo_analysis_fix()}</strong>
 													{suggestion.fix}
 												</div>
 											{/if}
@@ -214,7 +236,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 								class="flex items-center gap-2 rounded border border-success-500/30 bg-success-500/50 p-3 text-success-600 dark:border-success-500/40 dark:bg-success-900/20 dark:text-success-400"
 							>
 								<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
-								<span class="text-sm">No issues found!</span>
+								<span class="text-sm">{seo_analysis_no_issues()}</span>
 							</div>
 						{/if}
 					</div>
@@ -223,7 +245,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 				<!-- Internal Link Suggestions -->
 				<div class="pt-2 border-t border-surface-500/10">
 					<div class="flex items-center justify-between mb-2">
-						<h4 class="text-xs font-bold uppercase opacity-50">Internal Linking</h4>
+						<h4 class="text-xs font-bold uppercase opacity-50">
+							{seo_analysis_internal_linking()}
+						</h4>
 						<Button
 							variant="primary"
 							onclick={fetchLinkSuggestions}
@@ -231,7 +255,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 							size="sm"
 							class="py-0.5 px-2 text-[10px]"
 						>
-							{isFetchingLinks ? 'Searching...' : 'Find Suggestions'}
+							{isFetchingLinks ? seo_analysis_searching() : seo_analysis_find_suggestions()}
 						</Button>
 					</div>
 
@@ -249,8 +273,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 										variant="ghost"
 										size="sm"
 										class="p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-										title="Copy relative URL"
-										aria-label="Copy relative URL"
+										title={seo_analysis_copy_relative_url()}
+										aria-label={seo_analysis_copy_relative_url()}
 										onclick={() => {
 											navigator.clipboard.writeText(link.url);
 										}}
@@ -262,14 +286,14 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						</div>
 					{:else if !isFetchingLinks}
 						<p class="text-[10px] opacity-40 italic text-center py-2">
-							Click button to discover internal link opportunities.
+							{seo_analysis_link_hint()}
 						</p>
 					{/if}
 				</div>
 			</div>
 		{:else}
 			<div class="flex-1 flex flex-col items-center justify-center text-surface-400 opacity-50 p-4">
-				<span class="text-xs">Run analysis to see results.</span>
+				<span class="text-xs">{seo_analysis_run_hint()}</span>
 			</div>
 		{/if}
 	{/if}

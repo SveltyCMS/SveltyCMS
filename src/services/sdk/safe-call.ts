@@ -6,7 +6,7 @@
  *   return await safeCall(async () => auth.authenticate(...));
  *   // Returns { success: true, data: ... } or { success: false, message: "..." }
  */
-import type { DatabaseResult } from "@src/databases/db-interface";
+import type { DatabaseResult, DatabaseError } from "@src/databases/db-interface";
 import { AppError, getErrorMessage } from "@utils/error-handling";
 
 export async function safeCall<T>(
@@ -16,13 +16,15 @@ export async function safeCall<T>(
   try {
     const data = await fn();
     return { success: true, data };
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof AppError) {
       return {
         success: false,
         message: err.message,
         error: {
-          code: String((err as AppError).code ?? "APP_ERROR"),
+          // AppError.code is always a string (constructor default "INTERNAL_ERROR");
+          // the fallback is dead at runtime but kept as an allocation-free guard.
+          code: err.code ?? "APP_ERROR",
           message: err.message,
           statusCode: err.status,
         },
@@ -31,7 +33,7 @@ export async function safeCall<T>(
     return {
       success: false,
       message: context ? `${context}: ${getErrorMessage(err)}` : getErrorMessage(err),
-      error: err,
+      error: err as DatabaseError,
     };
   }
 }

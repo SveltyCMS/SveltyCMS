@@ -172,6 +172,7 @@ describe("Collections API Unit Tests", () => {
     body: any = {},
     user: any = createMockUser({ _id: "user-123", email: "test@example.com" }),
     tenantId: string | null = "t1",
+    headers?: Record<string, string>,
   ) {
     return createMockRequestEvent({
       method,
@@ -179,6 +180,7 @@ describe("Collections API Unit Tests", () => {
       body,
       user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
       tenantId,
+      headers,
       roles:
         user === null
           ? []
@@ -221,7 +223,7 @@ describe("Collections API Unit Tests", () => {
   });
 
   describe("PATCH /api/collections/[collectionId]/[entryId] - Update Entry", () => {
-    it("should update an entry successfully", async () => {
+    it("should update an entry successfully (minimal ack is the default)", async () => {
       mockContentSystem.getCollection.mockResolvedValue({
         _id: "col-1",
         name: "posts",
@@ -236,7 +238,29 @@ describe("Collections API Unit Tests", () => {
       );
       const data = await response!.json();
       expect(data.success).toBe(true);
+      // Minimal is the API default: a status-only ack echoing the entry id.
+      expect(data.data._id).toBe("entry-1");
+    });
+
+    it("returns the full representation when the caller opts in", async () => {
+      mockContentSystem.getCollection.mockResolvedValue({
+        _id: "col-1",
+        name: "posts",
+        fields: [],
+      });
+      (mockDbAdapter as any).crud.update.mockResolvedValue({
+        success: true,
+        data: { _id: "updated-id", title: "Updated" },
+      });
+      const response = await dispatch(
+        event("PATCH", "collections/col-1/entry-1", { title: "Updated" }, undefined, "t1", {
+          prefer: "return=representation",
+        }),
+      );
+      const data = await response!.json();
+      expect(data.success).toBe(true);
       expect(data.data._id).toBe("updated-id");
+      expect(data.data.title).toBe("Updated");
     });
   });
 

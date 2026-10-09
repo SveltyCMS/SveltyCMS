@@ -22,6 +22,34 @@
 	import { locale } from '@src/stores/locale-store.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { getLocale } from '@src/paraglide/runtime';
+	import {
+		button_cancel,
+		widget_rt_ask_ai,
+		widget_rt_ask_ai_aria,
+		widget_rt_ask_ai_desc,
+		widget_rt_cancel_link_aria,
+		widget_rt_cancel_video_aria,
+		widget_rt_color_label,
+		widget_rt_command_menu,
+		widget_rt_custom_color,
+		widget_rt_embed,
+		widget_rt_embed_video_aria,
+		widget_rt_example_url,
+		widget_rt_hard_break,
+		widget_rt_hard_break_aria,
+		widget_rt_hard_break_desc,
+		widget_rt_image_alt,
+		widget_rt_image_url,
+		widget_rt_link_text,
+		widget_rt_link_url,
+		widget_rt_reset_color,
+		widget_rt_reset_color_aria,
+		widget_rt_set_link,
+		widget_rt_set_link_aria,
+		widget_rt_table_dimensions,
+		widget_rt_video_url,
+		widget_rt_youtube_url
+	} from '@src/paraglide/messages';
 	import { getTextDirection } from '@utils/string';
 	import { showModal } from '@utils/modal.svelte';
 	// Svelte
@@ -640,7 +668,10 @@
 																		hoverRows && c < hoverCols
 																		? 'bg-tertiary-500/10 border-tertiary-500 dark:bg-tertiary-600 dark:border-tertiary-400'
 																		: 'bg-surface-500/10 border-surface-500/30 dark:bg-surface-700 dark:border-surface-600'}"
-																	aria-label="{r + 1} by {c + 1} table"
+																	aria-label={widget_rt_table_dimensions({
+																		rows: r + 1,
+																		cols: c + 1
+																	})}
 																	onmouseover={() => {
 																		hoverRows = r + 1;
 																		hoverCols = c + 1;
@@ -675,10 +706,10 @@
 															editor?.chain().focus().unsetColor().run();
 															closeDropdowns();
 														}}
-														aria-label="reset-color"
+														aria-label={widget_rt_reset_color_aria()}
 													>
 														<iconify-icon icon="mdi:format-color-clear" width="18"></iconify-icon>
-														Reset Color
+														{widget_rt_reset_color()}
 													</button>
 
 													<div class="mb-2 grid grid-cols-5 gap-1">
@@ -691,7 +722,7 @@
 																	editor?.chain().focus().setColor(color).run();
 																	closeDropdowns();
 																}}
-																aria-label="Color {color}"
+																aria-label={widget_rt_color_label({ color })}
 																title={color}
 															></button>
 														{/each}
@@ -711,12 +742,12 @@
 																></iconify-icon>
 															</div>
 															<input
-																aria-label="Link URL"
+																aria-label={widget_rt_link_url()}
 																type="color"
 																class="absolute inset-0 w-full h-full opacity-0"
 																onchange={handleColorChange}
 																onclick={(e) => e.stopPropagation()}
-																title="Custom Color"
+																title={widget_rt_custom_color()}
 															/>
 														</div>
 													</div>
@@ -726,9 +757,9 @@
 													<div class="flex flex-col gap-2">
 														<Input
 															type="url"
-															aria-label="Link URL"
+															aria-label={widget_rt_link_url()}
 															bind:value={linkUrl}
-															placeholder="https://example.com"
+															placeholder={widget_rt_example_url()}
 															class="w-full space-y-0"
 															inputClass="h-8 w-full text-sm"
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
@@ -738,13 +769,14 @@
 																variant="secondary"
 																size="sm"
 																onclick={closeDropdowns}
-																aria-label="cancel-link-setup">Cancel</Button
+																aria-label={widget_rt_cancel_link_aria()}>{button_cancel()}</Button
 															>
 															<Button
 																variant="primary"
 																size="sm"
 																onclick={setLink}
-																aria-label="set-link">Set Link</Button
+																aria-label={widget_rt_set_link_aria()}
+																>{widget_rt_set_link()}</Button
 															>
 														</div>
 													</div>
@@ -754,9 +786,9 @@
 													<div class="flex flex-col gap-2">
 														<Input
 															type="url"
-															aria-label="Video URL"
+															aria-label={widget_rt_video_url()}
 															bind:value={videoUrl}
-															placeholder="YouTube URL"
+															placeholder={widget_rt_youtube_url()}
 															class="w-full space-y-0"
 															inputClass="h-8 w-full text-sm"
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
@@ -766,13 +798,14 @@
 																variant="secondary"
 																size="sm"
 																onclick={closeDropdowns}
-																aria-label="cancel-video-embed">Cancel</Button
+																aria-label={widget_rt_cancel_video_aria()}>{button_cancel()}</Button
 															>
 															<Button
 																variant="primary"
 																size="sm"
 																onclick={setVideo}
-																aria-label="embed-video">Embed</Button
+																aria-label={widget_rt_embed_video_aria()}
+																>{widget_rt_embed()}</Button
 															>
 														</div>
 													</div>
@@ -842,7 +875,7 @@
 		This prevents the Token Picker from opening whenever the user just clicks into the editor to type.
 	-->
 	<input
-		aria-label="Image URL"
+		aria-label={widget_rt_image_url()}
 		type="text"
 		id={field.db_fieldName}
 		class="sr-only"
@@ -861,7 +894,7 @@
 
 	{#if showSource}
 		<textarea
-			aria-label="Image alt text"
+			aria-label={widget_rt_image_alt()}
 			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
@@ -870,6 +903,7 @@
 			}}></textarea>
 	{/if}
 
+	<!-- copy:ignore -->
 	<style>
 		:global(.ProseMirror) {
 			height: 100%;
@@ -976,7 +1010,9 @@
 			<div
 				class="w-full max-w-lg rounded-2xl border border-surface-500/30 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl"
 			>
-				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
+				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">
+					{widget_rt_command_menu()}
+				</h3>
 				<div class="space-y-2">
 					<button
 						class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-500/10 dark:hover:bg-surface-700 transition"
@@ -984,12 +1020,16 @@
 							editor?.chain().focus().setHardBreak().run();
 							showSlashMenu = false;
 						}}
-						aria-label="insert-hard-break"
+						aria-label={widget_rt_hard_break_aria()}
 					>
 						<iconify-icon icon="mdi:arrow-down-bold" width="22"></iconify-icon>
 						<div class="text-start">
-							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
-							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
+							<div class="font-medium text-surface-900 dark:text-white">
+								{widget_rt_hard_break()}
+							</div>
+							<div class="text-sm text-surface-500 dark:text-surface-50">
+								{widget_rt_hard_break_desc()}
+							</div>
 						</div>
 					</button>
 					{#if field.aiEnabled}
@@ -999,13 +1039,13 @@
 								editor?.chain().focus().insertContent('/ai ');
 								showSlashMenu = false;
 							}}
-							aria-label="ask-ai"
+							aria-label={widget_rt_ask_ai_aria()}
 						>
 							<iconify-icon icon="mdi:sparkles" width="22"></iconify-icon>
 							<div class="text-start">
-								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
+								<div class="font-medium text-surface-900 dark:text-white">{widget_rt_ask_ai()}</div>
 								<div class="text-sm text-surface-500 dark:text-surface-50">
-									Generate or rewrite with AI
+									{widget_rt_ask_ai_desc()}
 								</div>
 							</div>
 						</button>
@@ -1016,7 +1056,7 @@
 	{/if}
 
 	<input
-		aria-label="Link text"
+		aria-label={widget_rt_link_text()}
 		bind:this={colorInput}
 		type="color"
 		class="hidden"

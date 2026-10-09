@@ -178,9 +178,12 @@ describe("Collection mutation HTTP contract", () => {
 
     // The reported shape: a PATCH body carrying ONE dynamic field. Until the JSON
     // `data` blob merged, this replaced the whole blob — a 1.5 KB document came back
-    // as a ~60-byte stub holding just `{ views, updatedBy }`.
+    // as a ~60-byte stub holding just `{ views, updatedBy }`. The full merged row
+    // is what `Prefer: return=representation` must return (the default ack is the
+    // 70 B status-only body).
     const patched = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
       method: "PATCH",
+      headers: { Prefer: "return=representation" },
       body: JSON.stringify({ views: 2 }),
     });
     expect(patched.response.ok).toBe(true);
@@ -242,15 +245,26 @@ describe("Collection mutation HTTP contract", () => {
     expect(row.title).toBe(title);
     expect(row.body).toBe("body text long enough to be measurable");
 
-    // Default (no preference) keeps returning the representation — no client changes.
+    // Minimal is the API default: a caller that wants the merged document back
+    // opts in explicitly with `Prefer: return=representation` (RFC 7240).
     const full = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
       method: "PATCH",
+      headers: { Prefer: "return=representation" },
       body: JSON.stringify({ views: 6 }),
     });
     const fullRow = (full.body.data ?? full.body) as Record<string, unknown>;
     expect(fullRow.title).toBe(title);
     expect(Number(fullRow.views)).toBe(6);
     expect(JSON.stringify(full.body).length).toBeGreaterThan(ackBody.length);
+
+    // And the bare default ack keeps its shape: status-only, created id present.
+    const defaulted = await jsonFetch(`/api/collections/${COLLECTION}/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ views: 7 }),
+    });
+    expect(defaulted.response.ok).toBe(true);
+    expect(JSON.stringify(defaulted.body).length).toBeLessThan(200);
+    expect((defaulted.body.data as Record<string, unknown>)._id).toBe(id);
   }, 120_000);
 
   it("keeps every write and read body within the document's own size class", async () => {

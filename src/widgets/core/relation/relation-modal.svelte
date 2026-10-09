@@ -18,7 +18,17 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	import { adminFade, adminSlide } from '@utils/admin-transitions';
 	import { modalState } from '@utils/modal.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
-	import { button_cancel, button_save } from '@src/paraglide/messages';
+	import {
+		button_cancel,
+		button_retry,
+		button_save,
+		widget_relation_collection_label,
+		widget_relation_fetching,
+		widget_relation_filter_placeholder,
+		widget_relation_no_entries,
+		widget_relation_select_title,
+		widget_relation_selected_count
+	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onMount } from 'svelte';
 
@@ -127,11 +137,10 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	<!-- Header -->
 	<header class="flex items-center justify-between border-b border-surface-500/20 pb-4">
 		<div class="flex flex-col gap-1">
-			<h3 class="text-xl font-bold tracking-tight">Select Related Entries</h3>
+			<h3 class="text-xl font-bold tracking-tight">{widget_relation_select_title()}</h3>
 			<p class="text-sm opacity-60">
-				Collection: <span class="font-mono text-tertiary-500 dark:text-primary-500"
-					>{collectionID}</span
-				>
+				{widget_relation_collection_label()}
+				<span class="font-mono text-tertiary-500 dark:text-primary-500">{collectionID}</span>
 			</p>
 		</div>
 		<div class="hidden sm:flex items-center gap-2">
@@ -140,7 +149,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					class="chip preset-tonal-tertiary"
 					transition:adminSlide={{ duration: 200, distance: 24 }}
 				>
-					{selected.size} selected
+					{widget_relation_selected_count({ count: selected.size })}
 				</span>
 			{/if}
 		</div>
@@ -153,7 +162,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 			label="Search entries..."
 			bind:value={searchQuery}
 			icon="mdi:magnify"
-			placeholder="Type to filter..."
+			placeholder={widget_relation_filter_placeholder()}
 			textColor="text-surface-600 dark:text-white"
 		/>
 	</div>
@@ -170,7 +179,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 						width="48"
 						class="text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
-					<span class="text-sm font-medium animate-pulse">Fetching collection data...</span>
+					<span class="text-sm font-medium animate-pulse">{widget_relation_fetching()}</span>
 				</div>
 			</div>
 		{:else if error}
@@ -178,14 +187,16 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 				<div class="flex flex-col items-center gap-2">
 					<iconify-icon icon="mdi:alert-circle" width="48"></iconify-icon>
 					<p>{error}</p>
-					<Button variant="error" onclick={fetchEntries} size="sm" class="mt-4">Retry</Button>
+					<Button variant="error" onclick={fetchEntries} size="sm" class="mt-4"
+						>{button_retry()}</Button
+					>
 				</div>
 			</div>
 		{:else if filteredEntries.length === 0}
 			<div class="flex h-full items-center justify-center py-12 opacity-40">
 				<div class="flex flex-col items-center gap-2">
 					<iconify-icon icon="mdi:database-search" width="48"></iconify-icon>
-					<p>No entries found matching your search</p>
+					<p>{widget_relation_no_entries()}</p>
 				</div>
 			</div>
 		{:else}
@@ -194,13 +205,14 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					{const id = entry._id || entry.id}
 					{const idStr = id.toString()}
 					{const isSelected = selected.has(idStr)}
-					<Button variant="outline">
-						type="button" class="flex w-full items-center gap-3 rounded p-3 text-start
-						transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800
-						focus-visible:ring-2 focus-visible:ring-primary-500" class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
-						class:text-white={isSelected}
+					<Button
+						variant="outline"
+						type="button"
+						class="flex w-full items-center gap-3 rounded p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus-visible:ring-2 focus-visible:ring-primary-500 {isSelected
+							? 'bg-tertiary-500 dark:bg-primary-500 text-white'
+							: ''}"
 						onclick={() => toggleSelection(idStr)}
-						>
+					>
 						<div
 							class="flex h-6 w-6 items-center justify-center rounded border border-surface-500/30 bg-white/10"
 						>

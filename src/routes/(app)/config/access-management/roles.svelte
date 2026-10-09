@@ -18,6 +18,20 @@ It provides the following functionality:
 
 <script lang="ts">
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import {
+		access_roles_create,
+		access_roles_delete_selected,
+		access_roles_dnd_instructions,
+		access_roles_drag_aria,
+		access_roles_edit,
+		access_roles_heading,
+		access_roles_intro,
+		access_roles_none,
+		access_roles_role_aria,
+		access_roles_search_aria,
+		access_roles_search_placeholder,
+		access_tab_admin
+	} from '@src/paraglide/messages';
 	import type { Role } from '@src/databases/auth/types';
 	import type { DatabaseId, ISODateString } from '@src/databases/db-interface';
 	import { generateUUID } from '@utils/native-utils';
@@ -220,11 +234,10 @@ It provides the following functionality:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>
+	<h3 class="mb-2 text-center text-xl font-bold">{access_roles_heading()}</h3>
 
 	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
-		Manage user roles and their access permissions. You can create, edit, or delete roles and assign
-		specific permissions to them.
+		{access_roles_intro()}
 	</p>
 
 	<div class="wrapper my-4">
@@ -236,7 +249,7 @@ It provides the following functionality:
 					leadingIcon="mdi:plus-circle-outline"
 					data-testid="access-create-role"
 				>
-					Create Role
+					{access_roles_create()}
 				</Button>
 				<Button
 					variant="error"
@@ -244,7 +257,7 @@ It provides the following functionality:
 					disabled={selectedRoles.size === 0}
 					data-testid="access-delete-roles"
 				>
-					Delete Selected ({selectedRoles.size})
+					{access_roles_delete_selected({ count: selectedRoles.size })}
 				</Button>
 			</div>
 
@@ -255,8 +268,8 @@ It provides the following functionality:
 				></iconify-icon>
 				<Input
 					bind:value={roleSearchTerm}
-					placeholder="Search roles..."
-					aria-label="Search roles"
+					placeholder={access_roles_search_placeholder()}
+					aria-label={access_roles_search_aria()}
 					data-testid="access-role-search"
 					class="ps-10 w-full"
 				/>
@@ -265,12 +278,11 @@ It provides the following functionality:
 
 		<div class="role mt-4 flex-1">
 			{#if roles.length === 0}
-				<p>No roles defined yet.</p>
+				<p>{access_roles_none()}</p>
 			{:else}
 				<div class="rounded-8">
 					<p class="sr-only" id="roles-dnd-instructions">
-						Press Enter or Space to select a role for reordering. Use Up and Down arrow keys to move
-						the selected role. Press Enter or Space again to drop.
+						{access_roles_dnd_instructions()}
 					</p>
 					<!-- Droppable only on items (v0.7.0) — nested list+item droppables cause callback ambiguity -->
 					<ul class="list-none space-y-2" aria-describedby="roles-dnd-instructions" role="list">
@@ -288,14 +300,14 @@ It provides the following functionality:
 								}}
 								data-role-id={role.id}
 								tabindex="0"
-								aria-label="Role: {role.name}. Press Space to grab, arrows to move."
+								aria-label={access_roles_role_aria({ name: role.name })}
 							>
 								<div class="flex items-center gap-2">
 									<div
 										class="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-surface-300 dark:hover:bg-surface-600"
 										role="button"
 										tabindex="0"
-										aria-label="Drag to reorder {role.name}"
+										aria-label={access_roles_drag_aria({ name: role.name })}
 									>
 										<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
 									</div>
@@ -315,7 +327,8 @@ It provides the following functionality:
 										>
 											{role.name}
 											{#if role.isAdmin}
-												<Badge preset="filled" color="secondary" size="sm" class="ms-2">Admin</Badge
+												<Badge preset="filled" color="secondary" size="sm" class="ms-2"
+													>{access_tab_admin()}</Badge
 												>
 											{/if}
 										</span>
@@ -337,7 +350,7 @@ It provides the following functionality:
 										size="sm"
 										leadingIcon="mdi:pencil"
 									>
-										Edit
+										{access_roles_edit()}
 									</Button>
 								</div>
 							</li>

@@ -11,7 +11,13 @@
 - Drag and drop support for reassigning collections
 -->
 <script lang="ts">
-	import { builder_tip_drag_reorder, Unassigned_Collections } from '@src/paraglide/messages';
+	import {
+		builder_tip_drag_reorder,
+		Unassigned_Collections,
+		unassigned_collections_aria,
+		unassigned_drag_aria,
+		unassigned_edit_aria
+	} from '@src/paraglide/messages';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';
@@ -73,7 +79,7 @@
 			attributes: { dragOverClass: 'bg-secondary-200' }
 		}}
 		role="list"
-		aria-label="Unassigned collections"
+		aria-label={unassigned_collections_aria()}
 	>
 		{#each items as item (item.id || item.name)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -93,7 +99,7 @@
 				<button
 					type="button"
 					class="unassigned-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
-					aria-label="Drag {item.name}"
+					aria-label={unassigned_drag_aria({ name: item.name })}
 					title={builder_tip_drag_reorder()}
 				>
 					<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
@@ -106,7 +112,7 @@
 
 				<a
 					href={`/collection/${item.name}/edit`}
-					aria-label="Edit {item.name}"
+					aria-label={unassigned_edit_aria({ name: item.name })}
 					class="p-1 text-surface-900 hover:text-tertiary-500 dark:text-surface-100 dark:hover:text-primary-500"
 					data-sveltekit-preload-data="hover"
 				>

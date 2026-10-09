@@ -6,6 +6,7 @@
 import { safeQuery, isMultiTenantMode } from "@src/utils/security/safe-query";
 import { hasTenantBypass } from "../system-tenant-scope";
 import { nowISODateString, toISOString } from "@utils/date";
+import { serializeSuccessEnvelope } from "@utils/fast-json";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import mongoose, { type Model } from "mongoose";
 import type {
@@ -29,10 +30,12 @@ import {
   decodePageCursor,
   defaultPageSortOption,
   mergeKeysetFilter,
+  normalizeSortDirection,
   resolvePageSort,
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "../core/page-utils";
+import { logger } from "@utils/logger";
 import { applyLookupStatus, parseIdLookup } from "../core/query-primitives";
 import { PUBLISHED_STATUS_LIST } from "@utils/security/publication-policy";
 
@@ -49,14 +52,82 @@ function plainNativeDoc<T>(raw: unknown): T {
   return raw as T;
 }
 
+/**
+ * Normalize any accepted sort spec — `"-field"` string, `{ field: -1 }` object,
+ * or arrays of strings / `[field, dir]` tuples / `{ field, direction }` objects —
+ * into the `{ field: 1 | -1 }` form `$sort` expects, preserving key order.
+ * Must consume the spec EXACTLY like mongoose `.sort()` (including the `_id`
+ * tiebreaker `withIdTiebreaker` appends), or the facet page orders differently
+ * from the two-query path inside tie groups.
+ */
+function toMongoSortSpec(sort: unknown): Record<string, 1 | -1> {
+  const out: Record<string, 1 | -1> = {};
+  if (!sort) return out;
+  if (typeof sort === "string") {
+    const desc = sort.startsWith("-");
+    out[desc ? sort.slice(1) : sort] = desc ? -1 : 1;
+    return out;
+  }
+  if (Array.isArray(sort)) {
+    for (const entry of sort) {
+      if (typeof entry === "string") {
+        const desc = entry.startsWith("-");
+        out[desc ? entry.slice(1) : entry] = desc ? -1 : 1;
+      } else if (Array.isArray(entry) && entry.length >= 1) {
+        out[String(entry[0])] = normalizeSortDirection(entry[1]) === "asc" ? 1 : -1;
+      } else if (entry && typeof entry === "object") {
+        const rec = entry as Record<string, unknown>;
+        const field = String(rec.field ?? rec.column ?? "");
+        if (!field) continue;
+        const dir = rec.direction ?? rec.dir ?? rec.order;
+        out[field] = normalizeSortDirection(dir) === "asc" ? 1 : -1;
+      }
+    }
+    return out;
+  }
+  if (typeof sort === "object") {
+    for (const [field, dir] of Object.entries(sort as Record<string, unknown>)) {
+      out[field] = normalizeSortDirection(dir) === "asc" ? 1 : -1;
+    }
+    return out;
+  }
+  return out;
+}
+
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
   protected readonly adapter: any;
   private _skipDateWalk: boolean | null = null;
+  private _uniqueFields: Set<string> | null = null;
 
   constructor(model: Model<T>, adapter: any) {
     this.model = model;
     this.adapter = adapter;
+  }
+
+  private getUniqueFields(): Set<string> {
+    if (this._uniqueFields !== null) return this._uniqueFields;
+    const set = new Set<string>();
+    try {
+      const schemaPaths = this.model.schema?.paths;
+      if (schemaPaths) {
+        for (const [path, definition] of Object.entries(schemaPaths)) {
+          if ((definition as any)._userProvidedOptions?.unique) set.add(path);
+        }
+      }
+      if (typeof this.model.schema?.indexes === "function") {
+        const indexes = this.model.schema.indexes();
+        for (const [indexFields, options] of indexes) {
+          if ((options as any)?.unique) {
+            Object.keys(indexFields).forEach((field) => set.add(field));
+          }
+        }
+      }
+    } catch {
+      // safe fallback
+    }
+    this._uniqueFields = set;
+    return set;
   }
 
   /**
@@ -224,7 +295,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const doc = plainNativeDoc<Record<string, unknown>>(rawDoc);
       const updatedAt = doc.updatedAt ? toISOString(doc.updatedAt) : "";
       delete doc.updatedAt;
-      const wireBody = JSON.stringify({ success: true, data: doc });
+      const wireBody = serializeSuccessEnvelope(JSON.stringify(doc));
       const etag = `"${String(id)}-${updatedAt}"`;
       return { success: true, data: { wireBody, etag } };
     } catch (err: any) {
@@ -250,6 +321,34 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
+
+      // 🚀 DRIVER FAST PATH: Batch lookup by _id directly via collection.find()
+      if (
+        !options.includeDeleted &&
+        !options.bypassSafeQuery &&
+        !options.hints?.mongo?.readConcern &&
+        !options.hints?.mongo?.readPreference &&
+        this.model.collection
+      ) {
+        const effectiveTenant = options.tenantId;
+        if (effectiveTenant || !isMultiTenantMode()) {
+          const filter: Record<string, unknown> = { _id: { $in: ids }, isDeleted: { $ne: true } };
+          if (effectiveTenant) filter.tenantId = effectiveTenant;
+
+          const projection = options.fields?.length
+            ? Object.fromEntries(options.fields.map((f) => [f, 1]))
+            : undefined;
+
+          const cursor = this.model.collection.find(filter, { projection });
+          const rawDocs = await cursor.toArray();
+          const data = this.mapDates(rawDocs.map((doc) => plainNativeDoc<T>(doc))) as T[];
+          return {
+            success: true,
+            data,
+            meta: { executionTime: performance.now() - startTime },
+          };
+        }
+      }
 
       const queryOptions: any = {};
       if (options.hints?.mongo?.readConcern) {
@@ -340,6 +439,39 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
       if (options.hints?.mongo?.readPreference) {
         queryOptions.readPreference = options.hints.mongo.readPreference;
+      }
+
+      // 🚀 Driver Fast-Path: bypass Mongoose Query instantiation when native collection is available
+      if (
+        this.model.collection &&
+        typeof (this.model.collection as any).find === "function" &&
+        this.model.collection?.name !== "auth_tokens" &&
+        this.model.collection?.name !== "sessions"
+      ) {
+        try {
+          const projection = options.fields?.length
+            ? Object.fromEntries(options.fields.map((f) => [f, 1]))
+            : undefined;
+          let cursor = (this.model.collection as any).find(secureQuery, {
+            ...queryOptions,
+            ...(projection ? { projection } : {}),
+          });
+          if (sort && Object.keys(sort).length > 0) {
+            cursor = cursor.sort(sort);
+          }
+          if (options.offset && options.offset > 0) {
+            cursor = cursor.skip(options.offset);
+          }
+          cursor = cursor.limit(options.limit || 1000);
+          const rawDocs = await cursor.toArray();
+          return {
+            success: true,
+            data: this.mapDates(rawDocs) as T[],
+            meta: { executionTime: performance.now() - startTime },
+          };
+        } catch {
+          // Fall back to Mongoose query execution below
+        }
       }
 
       const results = await this.model
@@ -582,28 +714,47 @@ export class MongoCrudMethods<T extends BaseEntity> {
             startTime,
           );
         }
-        const result = await this.model
-          .findOneAndUpdate(
-            { _id: id, ...options.filter },
-            { $set: updateData },
-            {
-              returnDocument: "after",
-              lean: true,
-              // 🚀 Validation already ran at the SDK/API layer (Valibot schema
-              // pipeline) — Mongoose re-validating every document on the hot
-              // update path is pure CPU overhead.
-              runValidators: false,
-              // 🚀 Mongoose Performance: Skip redundant update object cloning
-              cloneUpdate: false,
-              // 🐛 PARITY: Mongoose `strict` (the schema default) DROPS $set paths
-              // that are not in the model schema — dynamic collection fields were
-              // silently discarded on update while the SQL adapters store them in
-              // the JSON `data` blob. Writes follow the payload; the namespace /
-              // field-permission layer is what enforces schema rules.
-              strict: false,
-            },
-          )
-          .exec();
+        let result: any = null;
+        if (
+          this.model.collection &&
+          typeof (this.model.collection as any).findOneAndUpdate === "function"
+        ) {
+          try {
+            result = await (this.model.collection as any).findOneAndUpdate(
+              { _id: id, ...options.filter },
+              { $set: updateData },
+              { returnDocument: "after" },
+            );
+          } catch {
+            result = await this.model
+              .findOneAndUpdate(
+                { _id: id, ...options.filter },
+                { $set: updateData },
+                {
+                  returnDocument: "after",
+                  lean: true,
+                  runValidators: false,
+                  cloneUpdate: false,
+                  strict: false,
+                },
+              )
+              .exec();
+          }
+        } else {
+          result = await this.model
+            .findOneAndUpdate(
+              { _id: id, ...options.filter },
+              { $set: updateData },
+              {
+                returnDocument: "after",
+                lean: true,
+                runValidators: false,
+                cloneUpdate: false,
+                strict: false,
+              },
+            )
+            .exec();
+        }
         if (!result)
           return {
             success: false,
@@ -638,23 +789,47 @@ export class MongoCrudMethods<T extends BaseEntity> {
         return this.updateWithoutReadBack(query, updateData, String(id), startTime);
       }
 
-      const result = await this.model
-        .findOneAndUpdate(
-          query,
-          { $set: updateData },
-          {
-            returnDocument: "after",
-            lean: true,
-            // 🚀 SDK/API layer already validates (Valibot) — skip Mongoose re-validation.
-            runValidators: false,
-            // 🚀 Mongoose Performance: Skip redundant update object cloning
-            cloneUpdate: false,
-            // 🐛 PARITY: see the fast-path note — `strict` drops undeclared $set
-            // paths, which is how dynamic fields vanished on MongoDB updates.
-            strict: false,
-          },
-        )
-        .exec();
+      let result: any = null;
+      if (
+        this.model.collection &&
+        typeof (this.model.collection as any).findOneAndUpdate === "function"
+      ) {
+        try {
+          result = await (this.model.collection as any).findOneAndUpdate(
+            query,
+            { $set: updateData },
+            { returnDocument: "after" },
+          );
+        } catch {
+          result = await this.model
+            .findOneAndUpdate(
+              query,
+              { $set: updateData },
+              {
+                returnDocument: "after",
+                lean: true,
+                runValidators: false,
+                cloneUpdate: false,
+                strict: false,
+              },
+            )
+            .exec();
+        }
+      } else {
+        result = await this.model
+          .findOneAndUpdate(
+            query,
+            { $set: updateData },
+            {
+              returnDocument: "after",
+              lean: true,
+              runValidators: false,
+              cloneUpdate: false,
+              strict: false,
+            },
+          )
+          .exec();
+      }
 
       if (!result) {
         return {
@@ -697,6 +872,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
     startTime: number,
   ): Promise<DatabaseResult<T>> {
     const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
+    if (this.model.collection && typeof (this.model.collection as any).updateOne === "function") {
+      try {
+        await (this.model.collection as any).updateOne(query, { $set: updateData });
+        mStmt?.();
+        return {
+          success: true,
+          data: this.mapDates({ _id: id, ...updateData }) as T,
+          meta: { executionTime: performance.now() - startTime },
+        };
+      } catch {
+        // Fall back to Mongoose updateOne
+      }
+    }
     await this.model
       .updateOne(
         query,
@@ -804,10 +992,29 @@ export class MongoCrudMethods<T extends BaseEntity> {
         findOptions.w = options.hints.mongo.writeConcern;
       }
 
-      const updated = await this.model
-        .findOneAndUpdate(filter, { $set: updateData, $setOnInsert: setOnInsert }, findOptions)
-        .lean()
-        .exec();
+      let updated: any = null;
+      if (
+        this.model.collection &&
+        typeof (this.model.collection as any).findOneAndUpdate === "function"
+      ) {
+        try {
+          updated = await (this.model.collection as any).findOneAndUpdate(
+            filter,
+            { $set: updateData, $setOnInsert: setOnInsert },
+            findOptions,
+          );
+        } catch {
+          updated = await this.model
+            .findOneAndUpdate(filter, { $set: updateData, $setOnInsert: setOnInsert }, findOptions)
+            .lean()
+            .exec();
+        }
+      } else {
+        updated = await this.model
+          .findOneAndUpdate(filter, { $set: updateData, $setOnInsert: setOnInsert }, findOptions)
+          .lean()
+          .exec();
+      }
 
       if (!updated) {
         return {
@@ -861,8 +1068,23 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
 
       if (permanent) {
-        const result = await this.model.deleteOne(query, deleteOptions);
-        if ((result.deletedCount ?? 0) === 0) {
+        let deletedCount = 0;
+        if (
+          this.model.collection &&
+          typeof (this.model.collection as any).deleteOne === "function"
+        ) {
+          try {
+            const delRes = await (this.model.collection as any).deleteOne(query, deleteOptions);
+            deletedCount = delRes.deletedCount ?? 0;
+          } catch {
+            const result = await this.model.deleteOne(query, deleteOptions);
+            deletedCount = result.deletedCount ?? 0;
+          }
+        } else {
+          const result = await this.model.deleteOne(query, deleteOptions);
+          deletedCount = result.deletedCount ?? 0;
+        }
+        if (deletedCount === 0) {
           return {
             success: false,
             message: "Not found",
@@ -873,7 +1095,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
 
       // Soft Delete with unique field mangling
-      const doc = await this.model.findOne(query).lean().exec();
+      let doc: any = null;
+      if (this.model.collection && typeof (this.model.collection as any).findOne === "function") {
+        try {
+          doc = await (this.model.collection as any).findOne(query);
+        } catch {
+          doc = await this.model.findOne(query).lean().exec();
+        }
+      } else {
+        doc = await this.model.findOne(query).lean().exec();
+      }
       if (!doc) {
         return {
           success: false,
@@ -892,21 +1123,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       // Mangle unique fields to prevent collisions
       const timestamp = Date.now();
-
-      // Fix: Soft-delete field mangling now handles both user-provided unique and index-defined unique fields
-      const uniqueFields = new Set<string>();
-      const schemaPaths = this.model.schema.paths;
-      for (const [path, definition] of Object.entries(schemaPaths)) {
-        if ((definition as any)._userProvidedOptions?.unique) uniqueFields.add(path);
-      }
-
-      // Check indexes for unique constraints
-      const indexes = this.model.schema.indexes();
-      for (const [indexFields, options] of indexes) {
-        if (options.unique) {
-          Object.keys(indexFields).forEach((field) => uniqueFields.add(field));
-        }
-      }
+      const uniqueFields = this.getUniqueFields();
 
       for (const path of uniqueFields) {
         if ((doc as any)[path]) {
@@ -914,7 +1131,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }
       }
 
-      await this.model.updateOne(query, { $set: updateData }, deleteOptions);
+      if (this.model.collection && typeof (this.model.collection as any).updateOne === "function") {
+        try {
+          await (this.model.collection as any).updateOne(
+            query,
+            { $set: updateData },
+            deleteOptions,
+          );
+        } catch {
+          await this.model.updateOne(query, { $set: updateData }, deleteOptions);
+        }
+      } else {
+        await this.model.updateOne(query, { $set: updateData }, deleteOptions);
+      }
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -1118,6 +1347,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
+      if (
+        this.model.collection &&
+        typeof (this.model.collection as any).countDocuments === "function"
+      ) {
+        try {
+          const count = await (this.model.collection as any).countDocuments(secureQuery);
+          return { success: true, data: count };
+        } catch {
+          // Fall back to Mongoose countDocuments
+        }
+      }
       const count = await this.model.countDocuments(secureQuery);
       return { success: true, data: count };
     } catch (error) {
@@ -1161,12 +1401,21 @@ export class MongoCrudMethods<T extends BaseEntity> {
       includeDeleted: options.includeDeleted,
     });
 
-    // 🚀 SINGLE-ROUNDTRIP $facet: when exact count is requested or query cannot be estimated,
-    // execute data slice + count in one aggregation pipeline instead of two network roundtrips.
+    // 🚀 SINGLE-ROUNDTRIP $facet: when a count is requested and cannot come from
+    // metadata stats, run the data slice + total in ONE aggregation pipeline
+    // instead of two network round trips (find + countDocuments). `$facet`
+    // evaluates the count over the same `$match`-filtered set the two-query
+    // path counts (tenant/isDeleted/status conditions included) and applies
+    // skip/limit inside the facet. Every other case keeps the proven two-query
+    // path — keyset cursors (total must count the UNaugmented filter), metadata
+    // estimates, projections/hints (findMany honors them, aggregate does not),
+    // missing $facet support, or any pipeline error.
     if (
       totalMode !== "none" &&
       !canEstimate &&
       !cursor &&
+      !options.fields?.length &&
+      !options.hints &&
       typeof (this.model as any).aggregate === "function"
     ) {
       try {
@@ -1178,10 +1427,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
           }),
         );
 
-        const mongoSort: Record<string, 1 | -1> = {};
-        for (const [k, dir] of Object.entries(resolvedSort)) {
-          mongoSort[k] = dir === "desc" ? -1 : 1;
-        }
+        // Full multi-key sort — `_id` tiebreaker included — so tie groups order
+        // exactly like the two-query path (mongoose consumes the same spec).
+        const mongoSort = toMongoSortSpec(sortOpt);
 
         const skipCount = options.offset && options.offset > 0 ? options.offset : 0;
         const pipeline: Record<string, unknown>[] = [{ $match: secureQuery }];

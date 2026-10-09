@@ -1,17 +1,12 @@
 /**
  * @file src/stores/mode-transition-guard.svelte.ts
- * @description Single source of truth for mode changes.
+ * @description Single source of truth for mode changes with Svelte 5 fine-grained reactivity.
  *
- * Consolidates mode management into one place:
+ * Consolidates mode management:
  * - `setMode(mode)` — instant, no validation (GUI clicks, save/delete actions)
  * - `transitionTo(mode)` — validated (NavigationManager, programmatic transitions)
  *
  * Validation blocks edit/create → view if there are unsaved changes.
- *
- * Features:
- * - Unsaved changes detection (edit/create → view blocked)
- * - beforeTransition / afterTransition hooks
- * - Graceful force-reset to 'view' from unexpected states
  */
 import { logger } from "@utils/logger";
 import { setMode as _setMode, collections } from "./collection-store.svelte";
@@ -26,18 +21,7 @@ interface ModeTransition {
   validate?: () => boolean;
 }
 
-/**
- * Validated State Machine for UI Modes
- * Ensures transitions between View, Edit, and Create are safe and valid.
- */
 class ModeStateMachine {
-  // Use collection-store.mode as the underlying reactive value.
-  // All writes go through this class — setMode() for instant, transitionTo() for validated.
-
-  /**
-   * Instant mode change — no validation (GUI clicks, save/delete).
-   * For safe programmatic transitions, use transitionTo().
-   */
   setMode(newMode: Mode): void {
     _setMode(newMode);
   }
@@ -47,10 +31,6 @@ class ModeStateMachine {
     { from: "view", to: "edit" },
     { from: "view", to: "media" },
     { from: "media", to: "view" },
-
-    // Transitions from Edit/Create to View require valid state (e.g. no unsaved changes or explicit discard)
-    // But often "discard" is the action that triggers the transition.
-    // Validation here checks if we *can* transition.
     {
       from: "create",
       to: "view",
@@ -61,28 +41,16 @@ class ModeStateMachine {
       to: "view",
       validate: () => this.checkUnsavedChanges(),
     },
-
-    // Mode switching
-    { from: "create", to: "edit" }, // e.g. after save?
-    { from: "edit", to: "create" }, // clone?
+    { from: "create", to: "edit" },
+    { from: "edit", to: "create" },
   ];
 
-  /**
-   * Attempt to transition to a new mode.
-   * @returns true if transition successful, false if blocked/invalid.
-   */
   async transitionTo(newMode: Mode): Promise<boolean> {
     const currentMode = collections.mode as Mode;
-
-    // Idempotent check
-    if (currentMode === newMode) {
-      return true;
-    }
+    if (currentMode === newMode) return true;
 
     const transition = this.transitions.find((t) => t.from === currentMode && t.to === newMode);
-
     if (!transition) {
-      // Allow force-reset to view from weird states, or log warning
       if (newMode === "view") {
         logger.warn(
           `[ModeStateMachine] Forcing transition to 'view' from unexpected state '${currentMode}'`,
@@ -104,7 +72,6 @@ class ModeStateMachine {
       await transition.beforeTransition();
     }
 
-    // Perform the state change
     _setMode(newMode);
 
     if (transition?.afterTransition) {
@@ -116,10 +83,6 @@ class ModeStateMachine {
   }
 
   private checkUnsavedChanges() {
-    // If there are changes, we technically shouldn't just "switch" mode without saving or discarding.
-    // However, this validation is strict.
-    // If the user clicks "Cancel", we discard changes first, THEN transition.
-    // So this check is correct: if changes exist, we block.
     return !collections.hasChanges;
   }
 }

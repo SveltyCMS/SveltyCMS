@@ -215,22 +215,24 @@ export class CacheWarmingService {
                   const defaultKey = `collection:${id}:find:default_50:published`;
                   const defaultKeyAll = `collection:${id}:find:default_50`;
                   const tags = ["collection", `collection:${id}`];
-                  await cacheService.set(
-                    defaultKey,
-                    payload,
-                    300,
-                    tenantId,
-                    CacheCategory.COLLECTION,
-                    tags,
-                  );
-                  await cacheService.set(
-                    defaultKeyAll,
-                    payload,
-                    300,
-                    tenantId,
-                    CacheCategory.COLLECTION,
-                    tags,
-                  );
+                  await Promise.all([
+                    cacheService.set(
+                      defaultKey,
+                      payload,
+                      300,
+                      tenantId,
+                      CacheCategory.COLLECTION,
+                      tags,
+                    ),
+                    cacheService.set(
+                      defaultKeyAll,
+                      payload,
+                      300,
+                      tenantId,
+                      CacheCategory.COLLECTION,
+                      tags,
+                    ),
+                  ]);
                 }
               } catch {
                 logger.trace(
@@ -268,30 +270,32 @@ export class CacheWarmingService {
                   const keyAll = `collection:${collectionId}:${entryId}`;
                   const keyFindId = `collection:${collectionId}:find:id:${entryId}`;
                   const tags = ["collection", `collection:${collectionId}`, `doc:${entryId}`];
-                  await cacheService.set(
-                    keyPublished,
-                    payload,
-                    300,
-                    tenantId,
-                    CacheCategory.COLLECTION,
-                    tags,
-                  );
-                  await cacheService.set(
-                    keyAll,
-                    payload,
-                    300,
-                    tenantId,
-                    CacheCategory.COLLECTION,
-                    tags,
-                  );
-                  await cacheService.set(
-                    keyFindId,
-                    listPayload,
-                    300,
-                    tenantId,
-                    CacheCategory.COLLECTION,
-                    tags,
-                  );
+                  await Promise.all([
+                    cacheService.set(
+                      keyPublished,
+                      payload,
+                      300,
+                      tenantId,
+                      CacheCategory.COLLECTION,
+                      tags,
+                    ),
+                    cacheService.set(
+                      keyAll,
+                      payload,
+                      300,
+                      tenantId,
+                      CacheCategory.COLLECTION,
+                      tags,
+                    ),
+                    cacheService.set(
+                      keyFindId,
+                      listPayload,
+                      300,
+                      tenantId,
+                      CacheCategory.COLLECTION,
+                      tags,
+                    ),
+                  ]);
                 }
               } catch {
                 logger.trace(`[PredictiveCache] Skipping entry "${entryId}" in "${collectionId}"`);

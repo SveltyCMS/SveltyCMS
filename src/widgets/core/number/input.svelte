@@ -33,6 +33,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { common_clear, widget_clear_value } from '@src/paraglide/messages';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -158,8 +159,8 @@
 				variant="ghost"
 				type="button"
 				onclick={handleClear}
-				aria-label="Clear value"
-				title="Clear"
+				aria-label={widget_clear_value()}
+				title={common_clear()}
 				class="min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100"
 			>
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>

@@ -8,6 +8,23 @@
 	import type { User } from '@src/databases/auth/types';
 	import type { Role } from '@src/databases/auth/types';
 	import {
+		builder_editor_back,
+		builder_editor_canvas,
+		builder_editor_delete_aria,
+		builder_editor_define_hint,
+		builder_editor_finish_hint,
+		builder_editor_of_3,
+		builder_editor_permissions_hint,
+		builder_editor_preview,
+		builder_editor_previous_aria,
+		builder_editor_ready,
+		builder_editor_save_aria,
+		builder_editor_split_view,
+		builder_editor_step,
+		builder_editor_steps_ready,
+		builder_editor_typescript,
+		builder_editor_view_mode_aria,
+		builder_editor_widgets_hint,
 		builder_tip_save_need_name,
 		builder_tip_save_need_widgets,
 		button_delete,
@@ -388,7 +405,9 @@
 	{#snippet subtitle()}
 		<div class="flex flex-wrap items-center gap-2 text-xs">
 			<span class="font-semibold text-surface-600 dark:text-surface-400">
-				Step {activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'} of 3:
+				{builder_editor_step()}
+				{activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'}{' '}
+				{builder_editor_of_3()}
 				{activeTab === 'define'
 					? 'Collection Definition'
 					: activeTab === 'widgets'
@@ -399,18 +418,19 @@
 			<span
 				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-400"
 			>
-				{stepProgress.completedCount}/{stepProgress.total} steps ready
+				{stepProgress.completedCount}/{stepProgress.total}
+				{builder_editor_steps_ready()}
 			</span>
 			<span class="text-surface-300 dark:text-surface-600">•</span>
 			{#if !stepProgress.allRequiredDone}
 				<span class="text-warning-500 dark:text-warning-400 font-medium flex items-center gap-1">
 					<iconify-icon icon="mdi:information" width="14"></iconify-icon>
-					Finish Define & add ≥1 widget to save
+					{builder_editor_finish_hint()}
 				</span>
 			{:else}
 				<span class="text-success-500 dark:text-success-400 font-medium flex items-center gap-1">
 					<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
-					Ready to save
+					{builder_editor_ready()}
 				</span>
 			{/if}
 		</div>
@@ -422,7 +442,7 @@
 					variant="error"
 					onclick={handleCollectionDelete}
 					disabled={isLoading}
-					aria-label="Delete collection"
+					aria-label={builder_editor_delete_aria()}
 					class="flex items-center gap-1"
 				>
 					<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
@@ -434,12 +454,12 @@
 				<Button
 					variant="outline"
 					onclick={goBack}
-					aria-label="Previous step"
+					aria-label={builder_editor_previous_aria()}
 					data-testid="collection-step-back"
 					class="flex items-center gap-1"
 				>
 					<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
-					<span class="hidden sm:inline">Back</span>
+					<span class="hidden sm:inline">{builder_editor_back()}</span>
 				</Button>
 			{/if}
 
@@ -467,7 +487,7 @@
 				variant="tertiary"
 				onclick={() => handleCollectionSave()}
 				disabled={isLoading || !stepProgress.allRequiredDone}
-				aria-label="Save collection"
+				aria-label={builder_editor_save_aria()}
 				data-testid="save-collection-button"
 				class="flex min-w-25 items-center gap-1 dark:preset-filled-primary-500"
 				title={!stepProgress.defineOk
@@ -517,7 +537,7 @@
 					<div
 						class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10"
 						role="group"
-						aria-label="View Mode"
+						aria-label={builder_editor_view_mode_aria()}
 					>
 						<button
 							type="button"
@@ -528,7 +548,7 @@
 							onclick={() => (viewMode = 'canvas')}
 							data-testid="view-mode-canvas"
 						>
-							Canvas
+							{builder_editor_canvas()}
 						</button>
 						<button
 							type="button"
@@ -538,7 +558,7 @@
 							onclick={() => (viewMode = 'split')}
 							data-testid="view-mode-split"
 						>
-							Split View
+							{builder_editor_split_view()}
 						</button>
 						<button
 							type="button"
@@ -548,7 +568,7 @@
 							onclick={() => (viewMode = 'code')}
 							data-testid="view-mode-code"
 						>
-							TypeScript
+							{builder_editor_typescript()}
 						</button>
 						<button
 							type="button"
@@ -559,17 +579,17 @@
 							onclick={() => (viewMode = 'preview')}
 							data-testid="view-mode-preview"
 						>
-							Preview
+							{builder_editor_preview()}
 						</button>
 					</div>
 				{/if}
 				<p class="text-surface-500 dark:text-surface-400 hidden lg:block text-xs text-end">
 					{#if activeTab === 'define'}
-						Set the unique name, database identifier, and icon
+						{builder_editor_define_hint()}
 					{:else if activeTab === 'widgets'}
-						Add, configure, and reorder fields from the palette
+						{builder_editor_widgets_hint()}
 					{:else if activeTab === 'permissions'}
-						Configure role-based access rules (View / Edit / Write)
+						{builder_editor_permissions_hint()}
 					{/if}
 				</p>
 			</div>

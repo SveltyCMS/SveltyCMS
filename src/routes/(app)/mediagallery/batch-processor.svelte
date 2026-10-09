@@ -10,6 +10,19 @@
 	import type { SvelteSet } from 'svelte/reactivity';
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
+	import {
+		button_close,
+		mediagallery_batch_apply_filter,
+		mediagallery_batch_assets,
+		mediagallery_batch_configure,
+		mediagallery_batch_engine,
+		mediagallery_batch_filter_preset,
+		mediagallery_batch_processor,
+		mediagallery_batch_resize,
+		mediagallery_batch_resize_width,
+		mediagallery_batch_run,
+		mediagallery_batch_select_action
+	} from '@src/paraglide/messages';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 
@@ -78,13 +91,18 @@
 						{selectedIds.size}
 					</div>
 					<div>
-						<h3 class="text-lg font-bold">Batch Processor</h3>
+						<h3 class="text-lg font-bold">{mediagallery_batch_processor()}</h3>
 						<p class="font-mono text-xs uppercase tracking-widest opacity-50">
-							Sharp.js Multi-Asset Engine
+							{mediagallery_batch_engine()}
 						</p>
 					</div>
 				</div>
-				<Button variant="surface" onclick={onClose} aria-label="Close" class="min-w-0 p-0!">
+				<Button
+					variant="surface"
+					onclick={onClose}
+					aria-label={button_close()}
+					class="min-w-0 p-0!"
+				>
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</Button>
 			</div>
@@ -93,7 +111,7 @@
 				<!-- Step 1: Operation -->
 				<div class="space-y-3">
 					<span class="block text-[10px] font-bold uppercase tracking-widest opacity-60"
-						>1. Select Action</span
+						>{mediagallery_batch_select_action()}</span
 					>
 					<div class="flex flex-col gap-2">
 						<Button
@@ -103,7 +121,7 @@
 							class="justify-start gap-2 {operation === 'filter' ? ' dark: ' : ' '}"
 						>
 							<iconify-icon icon="mdi:auto-fix" width="18"></iconify-icon>
-							Apply Filter
+							{mediagallery_batch_apply_filter()}
 						</Button>
 						<Button
 							variant="tertiary"
@@ -112,7 +130,7 @@
 							class="justify-start gap-2 {operation === 'resize' ? ' dark: ' : ' '}"
 						>
 							<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
-							Batch Resize
+							{mediagallery_batch_resize()}
 						</Button>
 					</div>
 				</div>
@@ -120,13 +138,13 @@
 				<!-- Step 2: Params -->
 				<div class="space-y-3 border-x border-surface-500/30 px-6 dark:border-surface-500/40">
 					<span class="label text-[10px] font-bold uppercase tracking-widest opacity-60"
-						>2. Configure</span
+						>{mediagallery_batch_configure()}</span
 					>
 					{#if operation === 'filter'}
 						<Select
 							bind:value={filterPreset}
 							options={presetOptions}
-							placeholder="Filter preset"
+							placeholder={mediagallery_batch_filter_preset()}
 							size="sm"
 						/>
 					{:else}
@@ -135,7 +153,7 @@
 							type="number"
 							bind:value={width}
 							label="Width (px)"
-							aria-label="Batch resize width in pixels"
+							aria-label={mediagallery_batch_resize_width()}
 						/>
 					{/if}
 				</div>
@@ -152,7 +170,9 @@
 						{#if !isProcessing}
 							<iconify-icon icon="mdi:play-circle" width="20"></iconify-icon>
 						{/if}
-						Run {selectedIds.size} Assets
+						{mediagallery_batch_run()}
+						{selectedIds.size}
+						{mediagallery_batch_assets()}
 					</Button>
 				</div>
 			</div>

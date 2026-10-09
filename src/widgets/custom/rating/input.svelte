@@ -30,6 +30,7 @@ Interactive star rating with hover states and click selection
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Rating from '@components/ui/rating.svelte';
+	import { widget_rating_reset } from '@src/paraglide/messages';
 	import type { FieldType } from './';
 
 	let {
@@ -93,7 +94,13 @@ Interactive star rating with hover states and click selection
 		</div>
 
 		{#if !field.required || (value !== null && value !== undefined)}
-			<Button variant="surface" size="sm" type="button" onclick={handleClear} title="Reset Rating">
+			<Button
+				variant="surface"
+				size="sm"
+				type="button"
+				onclick={handleClear}
+				title={widget_rating_reset()}
+			>
 				<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
 			</Button>
 		{/if}

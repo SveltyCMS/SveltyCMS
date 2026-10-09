@@ -20,7 +20,8 @@
  * single job takes the `runSingle` path (no group transaction), so a lone write is
  * not delayed by the batching itself.
  *
- * Enabled only when the adapter constructs it (`SVELTY_SQLITE_GROUP_COMMIT=1`).
+ * Enabled when the adapter constructs it (default ON, opt-out via
+ * `SVELTY_SQLITE_GROUP_COMMIT=0`).
  *
  * ### Features:
  * - Bounded microtask/tick drain (injectable scheduler for deterministic tests)

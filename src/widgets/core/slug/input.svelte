@@ -16,6 +16,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { widget_slug_placeholder, widget_slug_from_title } from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
@@ -101,7 +102,7 @@
 			type="text"
 			name={field.db_fieldName}
 			aria-label={field.label || 'Slug'}
-			placeholder="url-slug"
+			placeholder={widget_slug_placeholder()}
 			value={value ?? ''}
 			oninput={onInput}
 			onblur={onBlur}
@@ -112,5 +113,7 @@
 			data-testid="slug-input"
 		/>
 	</div>
-	<Button type="button" variant="ghost" class="min-h-10" onclick={fillFromTitle}>From title</Button>
+	<Button type="button" variant="ghost" class="min-h-10" onclick={fillFromTitle}
+		>{widget_slug_from_title()}</Button
+	>
 </div>

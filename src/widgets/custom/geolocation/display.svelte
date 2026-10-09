@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import { widget_geo_view_map, widget_geo_no_location } from '@src/paraglide/messages';
 	import type { FieldType } from './index';
 	import type { GeoPoint } from './types';
 
@@ -29,9 +30,9 @@
 			target="_blank"
 			class="text-[10px] font-semibold h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-500 flex items-center justify-center transition-colors"
 		>
-			View on Map
+			{widget_geo_view_map()}
 		</a>
 	{:else}
-		<span class="italic text-surface-400">No location set</span>
+		<span class="italic text-surface-400">{widget_geo_no_location()}</span>
 	{/if}
 </div>

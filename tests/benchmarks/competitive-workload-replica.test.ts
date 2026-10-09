@@ -259,8 +259,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         method: "POST",
         headers:
           process.env.BENCH_PREFER_FULL === "1"
-            ? headers
-            : { ...headers, prefer: "return=minimal" },
+            ? { ...headers, prefer: "return=representation" }
+            : headers,
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -279,16 +279,18 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const url = `${collectionUrl}/${targetId}${projected ? `?fields=${UPDATE_FIELDS.join(",")}` : ""}`;
       const res = await fetch(url, {
         method: "PATCH",
-        // RFC 7240 `Prefer: return=minimal` by default. The external harness's Keystone
-        // shim response shape has changed over time (historically an id-only ack, later
-        // the full document), so a cross-vendor update comparison is only valid when
-        // BOTH sides use the same protocol — verify the shim's current shape before
-        // quoting a delta. BENCH_PREFER_FULL=1 benchmarks full-document responses on
-        // our side to match a full-document competitor row in the same session.
+        // RFC 7240: minimal is now the API default, so the default lane already
+        // measures the ack path. The external harness's Keystone shim response
+        // shape has changed over time (historically an id-only ack, later the
+        // full document), so a cross-vendor update comparison is only valid when
+        // BOTH sides use the same protocol — verify the shim's current shape
+        // before quoting a delta. BENCH_PREFER_FULL=1 sends an explicit
+        // `return=representation` to match a full-document competitor row in the
+        // same session.
         headers:
           process.env.BENCH_PREFER_FULL === "1" || projected
-            ? headers
-            : { ...headers, prefer: "return=minimal" },
+            ? { ...headers, prefer: "return=representation" }
+            : headers,
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

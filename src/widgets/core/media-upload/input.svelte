@@ -20,6 +20,12 @@
 
 <script lang="ts">
 	import MediaLibraryModal from '@components/media-library-modal.svelte';
+	import {
+		builder_remove,
+		common_drag_reorder,
+		common_media_files,
+		widget_aspect_ratio_preview
+	} from '@src/paraglide/messages';
 	import { collections, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -290,7 +296,7 @@
 				attributes: { dragOverClass: 'bg-secondary-200' }
 			}}
 			role="list"
-			aria-label="Media files"
+			aria-label={common_media_files()}
 		>
 			{#each selectedFiles as file (file._id)}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -311,7 +317,7 @@
 						type="button"
 						class="media-drag-handle absolute inset-s-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 						aria-label={`Drag to reorder ${file.name}`}
-						title="Drag to reorder"
+						title={common_drag_reorder()}
 					>
 						<iconify-icon icon="mdi:drag" width="14"></iconify-icon>
 					</button>
@@ -353,7 +359,7 @@
 							}}
 							class="absolute inset-e-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 							aria-label={`Preview aspect ratios for ${file.name}`}
-							title="Aspect Ratio Preview"
+							title={widget_aspect_ratio_preview()}
 						>
 							<iconify-icon icon="mdi:aspect-ratio" width="12"></iconify-icon>
 						</button>
@@ -362,8 +368,8 @@
 						type="button"
 						onclick={() => removeFile(file._id)}
 						class="absolute inset-e-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
-						aria-label="Remove"
-						title="Remove"
+						aria-label={builder_remove()}
+						title={builder_remove()}
 					>
 						×
 					</button>

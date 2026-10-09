@@ -13,6 +13,12 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 
 <script lang="ts">
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
+	import {
+		common_drag_reorder,
+		widget_repeater_items,
+		widget_repeater_remove_item,
+		widget_repeater_widget_not_found
+	} from '@src/paraglide/messages';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -156,7 +162,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		}}
 		class="flex flex-col gap-2"
 		role="list"
-		aria-label="Repeater items"
+		aria-label={widget_repeater_items()}
 	>
 		{#each items as item, index (item.id)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -182,8 +188,8 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 						<button
 							type="button"
 							class="repeater-drag-handle cursor-grab active:cursor-grabbing p-1 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-							aria-label="Drag to reorder"
-							title="Drag to reorder"
+							aria-label={common_drag_reorder()}
+							title={common_drag_reorder()}
 						>
 							<iconify-icon icon="mdi:drag" width={20}></iconify-icon>
 						</button>
@@ -205,8 +211,8 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 						variant="ghost"
 						onclick={() => removeItem(item.id)}
 						class="text-error-500 hover:text-error-600 p-1"
-						aria-label="Remove Item"
-						title="Remove Item"
+						aria-label={widget_repeater_remove_item()}
+						title={widget_repeater_remove_item()}
 					>
 						<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 					</Button>
@@ -237,7 +243,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 											{collectionName}
 										/>
 									{:else}
-										<div class="text-error-500 text-xs">Widget {widgetName} not found</div>
+										<div class="text-error-500 text-xs">
+											{widget_repeater_widget_not_found({ name: widgetName })}
+										</div>
 									{/if}
 								</div>
 							{/each}

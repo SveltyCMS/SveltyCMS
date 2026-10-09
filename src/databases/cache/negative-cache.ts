@@ -18,6 +18,7 @@ export class NegativeCacheManager {
   private negativeBloom: BloomFilter;
   private negativeInvalidated: Set<string>;
   private rotationTimer: any = null;
+  private missCount = 0;
   /** 🔴 FIX 7: hard cap on the invalidation-tracking Set so it can never grow
    * unbounded between 5-minute rotations. `cacheService.set()` calls
    * `negative.invalidate()` for EVERY write app-wide, and the pre-warming cycle
@@ -35,9 +36,11 @@ export class NegativeCacheManager {
 
   /**
    * Checks if a full key is a known negative cache hit (confirmed non-existent).
+   * 🚀 Fast path: when missCount is 0, skips all Bloom hashing and Set checks.
    */
   isNegativeHit(fullKey: string): boolean {
-    if (this.negativeInvalidated.has(fullKey)) return false;
+    if (this.missCount === 0) return false;
+    if (this.negativeInvalidated.size > 0 && this.negativeInvalidated.has(fullKey)) return false;
     return this.negativeBloom.has(fullKey);
   }
 
@@ -45,19 +48,16 @@ export class NegativeCacheManager {
    * Records a confirmed miss in the Bloom filter.
    */
   recordMiss(fullKey: string): void {
+    this.missCount++;
     this.negativeBloom.add(fullKey);
   }
 
   /**
    * Invalidates a key from negative cache when an item is created or updated.
-   * 🔴 FIX 7: enforces the size cap — when `negativeInvalidated` reaches the cap
-   * it is reset and only the current key is retained, so the just-written key
-   * is still correctly treated as non-negative while the rest of the (short-
-   * lived) override entries are released. Dropping older override entries is
-   * safe: worst case a key re-enters the Bloom filter and triggers a single
-   * extra DB query for the next request — never stale data or memory growth.
+   * 🚀 Fast path: when missCount is 0, no items exist in Bloom filter so invalidation is a no-op.
    */
   invalidate(fullKey: string): void {
+    if (this.missCount === 0) return;
     this.negativeInvalidated.add(fullKey);
     if (this.negativeInvalidated.size > this.maxInvalidatedEntries) {
       this.negativeInvalidated.clear();
@@ -67,13 +67,15 @@ export class NegativeCacheManager {
 
   /**
    * Starts the 5-minute rotation timer to purge accumulated negative entries.
+   * 🚀 Reuses the existing BloomFilter instance and typed array in-place via clear().
    */
   private startRotation(): void {
     if (this.rotationTimer) clearInterval(this.rotationTimer);
     this.rotationTimer = setInterval(
       () => {
-        this.negativeBloom = new BloomFilter(100000, 0.01);
+        this.negativeBloom.clear();
         this.negativeInvalidated.clear();
+        this.missCount = 0;
       },
       1000 * 60 * 5,
     );
@@ -84,8 +86,9 @@ export class NegativeCacheManager {
   }
 
   clear(): void {
-    this.negativeBloom = new BloomFilter(100000, 0.01);
+    this.negativeBloom.clear();
     this.negativeInvalidated.clear();
+    this.missCount = 0;
   }
 
   stop(): void {
