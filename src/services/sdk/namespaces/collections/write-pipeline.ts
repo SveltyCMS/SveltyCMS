@@ -71,7 +71,8 @@ function schemaDeclaresField(schema: Schema, name: string): boolean {
   if (!set) {
     set = new Set<string>();
     for (const f of fields) {
-      const n = (f as { db_fieldName?: string }).db_fieldName || f.name;
+      const n =
+        (f as { db_fieldName?: string }).db_fieldName || (f as { name?: string }).name;
       if (n) set.add(n);
     }
     declaredFieldNamesCache.set(schema as object, set);
