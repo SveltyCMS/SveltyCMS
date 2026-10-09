@@ -15,7 +15,7 @@ import {
   hasDeclaredFieldRename,
   materializedSqlType,
   planColumnReconcile,
-} from "@src/databases/core/column-renames";
+} from "@src/databases/core/collection-module";
 
 let tableCounter = 0;
 const nextTableKey = (prefix: string) => `${prefix}:unit_${++tableCounter}`;

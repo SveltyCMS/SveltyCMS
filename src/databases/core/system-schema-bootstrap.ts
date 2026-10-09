@@ -44,7 +44,7 @@ import {
   type SchemaItem,
   type TableSpec,
 } from "../system-schema-spec";
-import { planColumnReconcile } from "./column-renames";
+import { planColumnReconcile } from "./collection-module";
 
 export interface BootstrapResult {
   success: boolean;

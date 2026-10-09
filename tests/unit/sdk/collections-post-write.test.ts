@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { invalidateCache } from "@src/services/sdk/namespaces/collections/post-write";
-import { createCountCachedCrud } from "@src/databases/core/count-cache";
+import { createCountCachedCrud } from "@src/databases/core/cache-module";
 import {
   expectClearedCovers,
   expectedCollectionCacheTags,

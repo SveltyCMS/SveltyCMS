@@ -92,14 +92,16 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "./page-utils";
-import { applyLookupStatus, extractPkConflictId, parseIdLookup } from "./lookup-query";
-import { isPublishedStatus } from "@utils/security/publication-policy";
 import {
+  applyLookupStatus,
   clearJsonDataPatch,
+  extractPkConflictId,
   getJsonDataPatch,
   jsonPatchNeedsJsMerge,
+  parseIdLookup,
   setJsonDataPatch,
-} from "./json-data-patch";
+} from "./query-primitives";
+import { isPublishedStatus } from "@src/utils/security/publication-policy";
 import { translateAggregation } from "./aggregation-translator";
 import { SqlQueryBuilder, type SqlDialect, readCount, SQLITE_DIALECT } from "./sql-query-builder";
 
@@ -138,7 +140,7 @@ registerTableSchema("authSessions", [
 // ============================================================================
 // Partial-update JSON `data` merge
 // ============================================================================
-// The patch marker + helpers live in `json-data-patch.ts` (a leaf module — this
+// The patch marker + helpers live in `query-primitives.ts` (a leaf module — this
 // file imports BatchModule, so pulling the helpers in here would create a cycle).
 // Callers import them from there; this file re-exports nothing.
 

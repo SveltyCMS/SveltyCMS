@@ -64,7 +64,7 @@ import {
   getEffectiveTenantId,
   shouldBypassTenantCheck,
 } from "./relational-utils";
-import { getJsonDataPatch } from "./json-data-patch";
+import { getJsonDataPatch } from "./query-primitives";
 
 /**
  * Per-engine behavior surface for the shared SQL query builder.

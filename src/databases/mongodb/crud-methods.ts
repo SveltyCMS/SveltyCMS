@@ -33,7 +33,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "../core/page-utils";
-import { applyLookupStatus, parseIdLookup } from "../core/lookup-query";
+import { applyLookupStatus, parseIdLookup } from "../core/query-primitives";
 import { PUBLISHED_STATUS_LIST } from "@utils/security/publication-policy";
 
 /**

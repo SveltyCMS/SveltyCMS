@@ -12,7 +12,7 @@ import {
   applyLookupStatus,
   parseIdLookup,
   extractPkConflictId,
-} from "@src/databases/core/lookup-query";
+} from "@src/databases/core/query-primitives";
 
 describe("lookup-query (shared SQL + Mongo)", () => {
   it("accepts bare _id", () => {

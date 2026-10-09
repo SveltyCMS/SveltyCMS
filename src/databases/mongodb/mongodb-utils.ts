@@ -13,7 +13,7 @@ import type { DatabaseError, PaginatedResult, PaginationOptions } from "../db-in
 import type { Model, Schema, Connection } from "mongoose";
 import mongoose from "mongoose";
 
-export { validateId } from "../core/id-contract";
+export { validateId } from "../core/query-primitives";
 
 // ===================================================================================
 // Error Handling

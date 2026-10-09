@@ -322,7 +322,7 @@ export class MongoMediaMethods {
         }
 
         if (jsonPath?.trim()) {
-          const { buildMediaJsonPathMongoFilter } = await import("../core/media-json-path");
+          const { buildMediaJsonPathMongoFilter } = await import("../core/relational-media");
           const { filter: jpFilter } = buildMediaJsonPathMongoFilter(jsonPath.trim());
           if (jpFilter) {
             query = { $and: [query, jpFilter] };

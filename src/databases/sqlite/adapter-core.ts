@@ -10,7 +10,7 @@ import {
   type ListIndexRequest,
   type RawPointWireStreamResult,
 } from "../core/sql-adapter-core";
-import { getJsonDataPatch, parseJsonDataBlob } from "../core/json-data-patch";
+import { getJsonDataPatch, parseJsonDataBlob } from "../core/query-primitives";
 import type {
   BaseEntity,
   BaseQueryOptions,
@@ -32,7 +32,7 @@ import {
   applyDeclaredFieldRenames,
   hasDeclaredFieldRename,
   materializedSqlType,
-} from "@src/databases/core/column-renames";
+} from "@src/databases/core/collection-module";
 import { generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";

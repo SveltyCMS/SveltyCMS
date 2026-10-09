@@ -16,8 +16,7 @@
 
 import { CacheCategory } from "@src/databases/cache/types";
 import type { DatabaseId } from "@src/content/types";
-import { logger } from "@utils/logger";
-import { validateId } from "@src/databases/core/id-contract";
+import { validateId } from "@src/databases/core/query-primitives";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import {
   responseCache,

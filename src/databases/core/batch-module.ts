@@ -31,7 +31,7 @@ import {
   sameBatchPayload,
 } from "./relational-utils";
 import { executeWrite } from "./drizzle-sql-helpers";
-import { getJsonDataPatch } from "./json-data-patch";
+import { getJsonDataPatch } from "./query-primitives";
 
 import { DatabaseModule } from "../core/base-adapter";
 

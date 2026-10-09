@@ -17,6 +17,7 @@ import { assertSafeSqlIdentifier } from "./relational-utils";
 import { normalizeCollectionTableName } from "./collection-name";
 import { logger } from "@src/utils/logger";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import type { ColumnSpec } from "../system-schema-spec";
 
 export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
   private get crud() {
@@ -433,4 +434,196 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       );
     }, "LIST_SCHEMAS_FAILED");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Declared Column and Field Renames Replay
+// ---------------------------------------------------------------------------
+
+export type RenameDialect = "sqlite" | "postgresql" | "mariadb";
+
+interface DeclaredRename {
+  from: string;
+  to: string;
+}
+
+function declaredRenameOf(field: unknown): DeclaredRename | null {
+  if (!field || typeof field !== "object") return null;
+  const record = field as Record<string, unknown>;
+  const from = typeof record.renamedFrom === "string" ? record.renamedFrom.trim() : "";
+  if (!from) return null;
+  const candidates = [record.db_fieldName, record.label, record.name];
+  let to = "";
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      to = candidate.trim();
+      break;
+    }
+  }
+  if (!to || to === from) return null;
+  return { from, to };
+}
+
+/**
+ * True when any field declares `renamedFrom`. Adapters call this before any
+ * catalog query so rename-free schemas skip the round trip entirely.
+ */
+export function hasDeclaredFieldRename(fields: unknown): boolean {
+  if (!Array.isArray(fields)) return false;
+  for (let i = 0; i < fields.length; i++) {
+    if (declaredRenameOf(fields[i])) return true;
+  }
+  return false;
+}
+
+export type ColumnReconcilePlan = { action: "skip" } | { action: "rename"; from: string };
+
+export function planColumnReconcile(
+  have: ReadonlySet<string>,
+  column: Pick<ColumnSpec, "name" | "renamedFrom">,
+): ColumnReconcilePlan {
+  const name = typeof column.name === "string" ? column.name : "";
+  if (!name) return { action: "skip" };
+  const renamedFrom = typeof column.renamedFrom === "string" ? column.renamedFrom.trim() : "";
+  if (!renamedFrom) return { action: "skip" };
+  const lowerName = name.toLowerCase();
+  const lowerFrom = renamedFrom.toLowerCase();
+  if (lowerFrom === lowerName) return { action: "skip" };
+  if (have.has(lowerFrom) && !have.has(lowerName)) {
+    return { action: "rename", from: renamedFrom };
+  }
+  return { action: "skip" };
+}
+
+export interface DeclaredFieldRenamesOptions {
+  dialect: RenameDialect;
+  tableKey: string;
+  physicalName: string;
+  fields: unknown;
+  listColumns: () => Promise<Set<string>>;
+  execute: (sqlText: string, params?: unknown[]) => Promise<unknown>;
+}
+
+const renameResolvedTables = new Set<string>();
+
+function quoteIdentifier(dialect: RenameDialect, name: string): string {
+  if (dialect === "mariadb") return `\`${name.replace(/`/g, "``")}\``;
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Replay declared field renames for one collection table.
+ */
+export async function applyDeclaredFieldRenames(
+  options: DeclaredFieldRenamesOptions,
+): Promise<void> {
+  if (!hasDeclaredFieldRename(options.fields)) return;
+  if (renameResolvedTables.has(options.tableKey)) return;
+
+  let live: Set<string>;
+  try {
+    live = await options.listColumns();
+  } catch (err) {
+    logger.debug(
+      `[${options.dialect}] Column catalog read failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return;
+  }
+  if (!live || live.size === 0) return;
+
+  const byLowerCase = new Map<string, string>();
+  for (const name of live) byLowerCase.set(name.toLowerCase(), name);
+
+  let unresolved = false;
+  for (const field of options.fields as unknown[]) {
+    const rename = declaredRenameOf(field);
+    if (!rename) continue;
+    let from: string;
+    let to: string;
+    try {
+      from = assertSafeSqlIdentifier(rename.from, "renamedFrom");
+      to = assertSafeSqlIdentifier(rename.to, "column");
+    } catch (err) {
+      logger.warn(
+        `[${options.dialect}] Column rename skipped: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      continue;
+    }
+
+    const actualFrom = byLowerCase.get(from.toLowerCase());
+    if (!actualFrom) continue;
+    if (byLowerCase.has(to.toLowerCase())) continue;
+
+    const sqlText = `ALTER TABLE ${quoteIdentifier(options.dialect, options.physicalName)} RENAME COLUMN ${quoteIdentifier(options.dialect, actualFrom)} TO ${quoteIdentifier(options.dialect, to)}`;
+    try {
+      await options.execute(sqlText);
+      byLowerCase.delete(actualFrom.toLowerCase());
+      byLowerCase.set(to.toLowerCase(), to);
+      logger.info(
+        `[${options.dialect}] Renamed column ${actualFrom} → ${to} on ${options.physicalName}`,
+      );
+    } catch (err) {
+      unresolved = true;
+      logger.warn(
+        `[${options.dialect}] Column rename failed (will retry): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  if (!unresolved) renameResolvedTables.add(options.tableKey);
+}
+
+const mongoRenamedModels = new WeakSet<object>();
+
+/**
+ * Replay declared field renames on a Mongoose model.
+ */
+export async function applyMongoFieldRenames(model: unknown, fields: unknown): Promise<void> {
+  if (!model || (typeof model !== "object" && typeof model !== "function")) return;
+  if (!hasDeclaredFieldRename(fields)) return;
+  const key = model as object;
+  if (mongoRenamedModels.has(key)) return;
+
+  const updateMany = (
+    model as { updateMany?: (filter: unknown, update: unknown) => Promise<unknown> }
+  ).updateMany;
+  if (typeof updateMany !== "function") return;
+
+  let unresolved = false;
+  for (const field of fields as unknown[]) {
+    const rename = declaredRenameOf(field);
+    if (!rename) continue;
+    try {
+      await updateMany.call(
+        model,
+        { [rename.from]: { $exists: true } },
+        { $rename: { [rename.from]: rename.to } },
+      );
+    } catch (err) {
+      unresolved = true;
+      logger.debug(
+        `[mongodb] Field rename ${rename.from} → ${rename.to} failed (will retry): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+  if (!unresolved) mongoRenamedModels.add(key);
+}
+
+const EXACT_COLUMN_TYPES: Record<string, Record<RenameDialect, string>> = {
+  decimal: { sqlite: "TEXT", postgresql: "VARCHAR(64)", mariadb: "VARCHAR(64)" },
+  bigint: { sqlite: "TEXT", postgresql: "VARCHAR(64)", mariadb: "VARCHAR(64)" },
+  calendarDay: { sqlite: "TEXT", postgresql: "VARCHAR(10)", mariadb: "VARCHAR(10)" },
+  bytes: { sqlite: "TEXT", postgresql: "TEXT", mariadb: "TEXT" },
+};
+
+/**
+ * Physical SQL type for an exact string field, or null when the type is not an exact string type.
+ */
+export function materializedSqlType(dialect: RenameDialect, fieldType: unknown): string | null {
+  if (typeof fieldType !== "string") return null;
+  const entry = EXACT_COLUMN_TYPES[fieldType];
+  if (!entry) return null;
+  return entry[dialect] ?? null;
 }

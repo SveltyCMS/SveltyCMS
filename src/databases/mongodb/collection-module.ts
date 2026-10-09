@@ -9,7 +9,7 @@ import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import mongoose, { type Model, Schema as MongooseSchema } from "mongoose";
 import { DatabaseModule } from "../core/base-adapter";
-import { applyMongoFieldRenames, hasDeclaredFieldRename } from "../core/column-renames";
+import { applyMongoFieldRenames, hasDeclaredFieldRename } from "../core/collection-module";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import type {
   BaseQueryOptions,

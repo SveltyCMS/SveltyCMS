@@ -7,7 +7,83 @@ import { logger } from "@utils/logger";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import type { IDBAdapter } from "./db-interface";
 import { withSystemScope } from "./system-tenant-scope";
-import { dbPluginRegistry } from "./core/plugin-registry";
+
+export interface DBInitPlugin {
+  id: string;
+  dependencies?: string[];
+  critical?: boolean;
+  initialize(adapter: IDBAdapter): Promise<void>;
+}
+
+export class DBPluginRegistry {
+  private plugins: Map<string, DBInitPlugin> = new Map();
+  private initialized: Set<string> = new Set();
+
+  public register(plugin: DBInitPlugin): void {
+    if (this.plugins.has(plugin.id)) {
+      logger.info(`[DB Registry] Plugin '${plugin.id}' is already registered. Overwriting.`);
+    }
+    this.plugins.set(plugin.id, plugin);
+  }
+
+  public reset(): void {
+    this.plugins.clear();
+    this.initialized.clear();
+    logger.info("[DB Registry] Plugin registry reset.");
+  }
+
+  public async bootAll(adapter: IDBAdapter): Promise<void> {
+    logger.info(`[DB Registry] Booting ${this.plugins.size} services (dependency order)...`);
+    this.initialized.clear();
+    const queue = Array.from(this.plugins.values());
+
+    while (queue.length > 0) {
+      const readyToBoot: DBInitPlugin[] = [];
+      const blocked: DBInitPlugin[] = [];
+      for (let i = 0; i < queue.length; i++) {
+        const plugin = queue[i];
+        const deps = plugin.dependencies;
+        if (!deps || deps.every((d) => this.initialized.has(d))) {
+          readyToBoot.push(plugin);
+        } else {
+          blocked.push(plugin);
+        }
+      }
+
+      if (readyToBoot.length === 0) {
+        const remaining = blocked.map((p) => p.id).join(", ");
+        throw new Error(
+          `[DB Registry] Circular dependency or missing services detected: ${remaining}`,
+        );
+      }
+
+      await Promise.all(
+        readyToBoot.map(async (plugin) => {
+          try {
+            logger.debug(`[DB Registry] Initializing service: ${plugin.id}...`);
+            await plugin.initialize(adapter);
+            this.initialized.add(plugin.id);
+            logger.debug(`[DB Registry] Initialized: ${plugin.id}`);
+          } catch (error) {
+            logger.error(`[DB Registry] Failed to initialize ${plugin.id}:`, error);
+            if (plugin.critical) {
+              throw new Error(
+                `CRITICAL BOOT FAILURE: Service '${plugin.id}' failed to initialize: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            }
+            this.initialized.add(plugin.id);
+          }
+        }),
+      );
+      queue.length = 0;
+      for (let i = 0; i < blocked.length; i++) queue.push(blocked[i]);
+    }
+
+    logger.info("[DB Registry] System services online.");
+  }
+}
+
+export const dbPluginRegistry = new DBPluginRegistry();
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;

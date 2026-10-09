@@ -1496,7 +1496,7 @@ export interface ISqlAdapter extends BaseAdapter {
   withWriteLock<T>(fn: () => T | Promise<T>): Promise<T>;
   /**
    * Partial-update merge helpers for the JSON `data` blob (see
-   * `core/json-data-patch.ts`). Public because the batch/query-builder modules
+   * `core/query-primitives.ts`). Public because the batch/query-builder modules
    * share the exact same merge decision instead of re-deriving it:
    * `canMergeJsonInOneStatement` is the dialect exactness test,
    * `applyJsonMergeToSet` injects the operator into Drizzle `.set()` values, and

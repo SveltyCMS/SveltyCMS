@@ -22,7 +22,7 @@ import {
   jsonPatchNeedsJsMerge,
   parseJsonDataBlob,
   setJsonDataPatch,
-} from "@src/databases/core/json-data-patch";
+} from "@src/databases/core/query-primitives";
 
 describe("jsonPatchNeedsJsMerge — RFC 7396 deviation boundary", () => {
   it("keeps scalar, date and array patches on the SQL operator path", () => {

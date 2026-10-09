@@ -284,7 +284,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       try {
         const { createTenantGuardedCrud, createTenantGuardedNamespace } =
           await import("./crud-tenant-guard");
-        const { createCountCachedCrud } = await import("./core/count-cache");
+        const { createCountCachedCrud } = await import("./core/cache-module");
         const originalCrud = adapter.crud;
         // Tenant guard first (fail-closed), then short-lived count cache (equal on all DBs).
         (adapter as any).crud = createCountCachedCrud(
@@ -442,7 +442,7 @@ export async function shutdownSystem(): Promise<void> {
   stopDatabaseResilienceMonitor();
 
   // 🚀 HARDENING: Clear registries and promises
-  const { dbPluginRegistry } = await import("./core/plugin-registry");
+  const { dbPluginRegistry } = await import("./db-init");
   dbPluginRegistry.reset();
   const { pluginRegistry } = await import("@src/plugins/registry");
   pluginRegistry.reset();

@@ -126,7 +126,7 @@ function widgetNameOf(field: any): string {
 
 /**
  * Exact string field types — never coerced through numeric/boolean paths.
- * Their physical types come from `materializedSqlType` (see column-renames).
+ * Their physical types come from `materializedSqlType` (see collection-module).
  */
 export const EXACT_STRING_FIELD_TYPES: ReadonlySet<string> = new Set([
   "decimal",

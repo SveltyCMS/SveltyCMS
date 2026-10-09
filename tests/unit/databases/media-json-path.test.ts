@@ -9,7 +9,7 @@ import {
   escapeRegex,
   metadataRelativePath,
   resolveMediaJsonSqlDialect,
-} from "@src/databases/core/media-json-path";
+} from "@src/databases/core/relational-media";
 
 describe("media-json-path", () => {
   describe("metadataRelativePath", () => {

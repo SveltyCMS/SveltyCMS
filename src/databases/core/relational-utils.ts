@@ -28,7 +28,7 @@ export { isoDateStringToDate, nowISODateString };
 /** Compact RFC 9562 UUIDv7 (32-hex, time-ordered) for relational `_id` columns. */
 export const generateId = () => generateUUID().replace(/-/g, "") as DatabaseId;
 
-export { validateId } from "./id-contract";
+export { validateId } from "./query-primitives";
 
 export const createDatabaseError = (
   code: string,

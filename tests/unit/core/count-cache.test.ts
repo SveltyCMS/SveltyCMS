@@ -10,7 +10,7 @@ import {
   buildCountCacheTags,
   createCountCachedCrud,
   COUNT_CACHE_TTL_SECONDS,
-} from "@src/databases/core/count-cache";
+} from "@src/databases/core/cache-module";
 import { buildCollectionCacheTags } from "@src/databases/core/collection-name";
 import {
   expectClearedCovers,
