@@ -369,13 +369,20 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
     // With the flag — what the read lane passes for a publication-clamped caller —
     // the draft must never reach the socket, while the published row still does.
-    const draftWire = unwrapResult(
-      await wire.findPointWireStream(COLLECTION, draftId, {
-        tenantId: TENANT,
-        requirePublished: true,
-      }),
-    );
-    expect(draftWire).toBeNull();
+    // The wire plane answers a definitive `RECORD_NOT_FOUND` when the row is absent
+    // or publication-clamped (that code is what the read lane matches on to build its
+    // `{success:true,data:null}` envelope without a re-query); an engine that declines
+    // the fast path answers success with a null payload. Both mean "no body", so
+    // assert on the payload and pin the sentinel.
+    const draftWire = await wire.findPointWireStream(COLLECTION, draftId, {
+      tenantId: TENANT,
+      requirePublished: true,
+    });
+    const draftBody = draftWire.success ? draftWire.data : null;
+    expect(draftBody, `unpublished row must not reach the wire plane (${ENGINE})`).toBeNull();
+    if (!draftWire.success) {
+      expect(draftWire.error?.code).toBe("RECORD_NOT_FOUND");
+    }
 
     const publishedWire = unwrapResult(
       await wire.findPointWireStream(COLLECTION, publishedId, {
