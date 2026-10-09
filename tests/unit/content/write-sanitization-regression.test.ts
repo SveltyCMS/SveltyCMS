@@ -88,6 +88,36 @@ describe("Write-Path Sanitization & XSS Defense Regression", () => {
 
     expect(prepared.title).toBe("Hello World");
     expect(prepared.content).toBe("<p>Standard body content</p>");
+    // updatedBy is NOT stamped when the schema does not declare the field —
+    // an undeclared stamp would merge into the JSON `data` blob and force a
+    // full blob rewrite on every physical-only PATCH (write amplification).
+    expect(prepared.updatedBy).toBeUndefined();
+    expect(prepared.updatedAt).toBeDefined();
+  });
+
+  it("stamps updatedBy when the schema declares the field", () => {
+    const withAuditField = {
+      ...articleSchema,
+      fields: [
+        ...(articleSchema.fields ?? []),
+        {
+          db_fieldName: "updatedBy",
+          label: "Updated By",
+          type: "text",
+          widget: { Name: "Text" },
+        },
+      ],
+    } as Schema;
+    const hot = ensureSchemaHotFlags(withAuditField);
+
+    const prepared = prepareWritePayload({ title: "Hi" }, withAuditField, hot, {
+      operation: "update",
+      tenantId: "tenant-stamp" as DatabaseId,
+      system: true,
+      user: { _id: "system" },
+      entryId: "art-2",
+    });
+
     expect(prepared.updatedBy).toBe("system");
   });
 

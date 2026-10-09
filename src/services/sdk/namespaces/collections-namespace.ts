@@ -1303,9 +1303,16 @@ export class CollectionsNamespace {
       const patched = isShallowPatch(raw)
         ? raw
         : (copyDataWithFreshRowIds(raw) as Record<string, unknown>);
+      // Same schema-gated stamp as the single-update path: an undeclared
+      // `updatedBy` would merge into the JSON `data` blob and rewrite it on
+      // every bulk update (write amplification on all SQL engines).
       const data = {
         ...patched,
-        updatedBy: user?._id,
+        ...((schema.fields ?? []).some(
+          (f) => (f as { db_fieldName?: string }).db_fieldName === "updatedBy",
+        )
+          ? { updatedBy: user?._id }
+          : {}),
         updatedAt: now,
       };
       await encryptWritePayload(data, hot, encCtx);

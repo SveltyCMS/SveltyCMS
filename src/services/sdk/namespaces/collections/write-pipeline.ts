@@ -59,10 +59,32 @@ export interface PrepareWritePayloadOptions {
 }
 
 /**
+ * Schema-declared field names, cached per schema object (WeakMap — never grows
+ * beyond live schemas, no per-write array scan).
+ */
+const declaredFieldNamesCache = new WeakMap<object, Set<string>>();
+
+function schemaDeclaresField(schema: Schema, name: string): boolean {
+  const fields = schema.fields;
+  if (!fields || fields.length === 0) return false;
+  let set = declaredFieldNamesCache.get(schema as object);
+  if (!set) {
+    set = new Set<string>();
+    for (const f of fields) {
+      const n = (f as { db_fieldName?: string }).db_fieldName || f.name;
+      if (n) set.add(n);
+    }
+    declaredFieldNamesCache.set(schema as object, set);
+  }
+  return set.has(name);
+}
+
+/**
  * Single-pass write payload preparation used by create() and update():
  * (a) sanitize + constraints via prepareCollectionFields (flagged by hot flags)
  * (b) clone via `{...data}` only when the helper returned the same reference
- * (c) stamp tenantId/createdBy/createdAt (create) or updatedBy/updatedAt (update)
+ * (c) stamp tenantId/createdBy/createdAt (create) or updatedBy/updatedAt (update;
+ *     updatedBy only when the schema declares the field)
  * (d) schema hooks via applySchemaHookPipeline with the numeric-range gate
  *     (FIELD_VALIDATION_ERROR AppError, 400) — direct gate when no hooks
  * (e) assertWriteAllowed for non-admin/non-system writes on schemas with fields
@@ -113,7 +135,14 @@ export function prepareWritePayload(
     entryData.createdBy = system ? "system" : user?._id;
     entryData.createdAt = nowISODateString();
   } else {
-    entryData.updatedBy = system ? "system" : user?._id;
+    // `updatedBy` is stamped ONLY when the schema declares the field. An
+    // undeclared stamp would land in the JSON `data` blob and force a full
+    // blob rewrite (jsonb || patch + GIN + WAL + index churn) on every
+    // physical-only PATCH — the measured dominator of the competitive update
+    // lane's dbwrite. Audit attribution stays in audit_logs regardless.
+    if (schemaDeclaresField(schema, "updatedBy")) {
+      entryData.updatedBy = system ? "system" : user?._id;
+    }
     entryData.updatedAt = nowISODateString();
   }
 
