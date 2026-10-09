@@ -334,6 +334,32 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[1]}');
   });
 
+  test("full collection invalidateLocal drops all collection entry slots and leaves sibling collection entries", () => {
+    const tenant = "full-col-inval";
+    const post1 = buildUserResponseCacheKey("/api/collections/posts/p-1", "", "user-1");
+    const post2 = buildUserResponseCacheKey("/api/collections/posts/p-2", "", "user-1");
+    const author1 = buildUserResponseCacheKey("/api/collections/authors/a-1", "", "user-1");
+
+    // 2-touch admission
+    for (let i = 0; i < 2; i++) {
+      responseCache.set(post1, { body: '{"id":"p1"}', etag: '"p1"' }, 60_000, tenant);
+      responseCache.set(post2, { body: '{"id":"p2"}', etag: '"p2"' }, 60_000, tenant);
+      responseCache.set(author1, { body: '{"id":"a1"}', etag: '"a1"' }, 60_000, tenant);
+    }
+
+    expect(responseCache.get(post1, tenant)?.body).toBe('{"id":"p1"}');
+    expect(responseCache.get(post2, tenant)?.body).toBe('{"id":"p2"}');
+    expect(responseCache.get(author1, tenant)?.body).toBe('{"id":"a1"}');
+
+    // Invalidate whole posts collection (without entryIds)
+    responseCache.invalidateLocal("posts", tenant);
+
+    expect(responseCache.get(post1, tenant)).toBeNull();
+    expect(responseCache.get(post2, tenant)).toBeNull();
+    // Sibling collection "authors" remains untouched!
+    expect(responseCache.get(author1, tenant)?.body).toBe('{"id":"a1"}');
+  });
+
   test("a cold random point scan takes no point-tier slots", async () => {
     const tenant = "cold-scan";
     const keyFor = (i: number) =>

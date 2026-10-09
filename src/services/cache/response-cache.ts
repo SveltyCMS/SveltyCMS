@@ -329,6 +329,8 @@ class ResponseCacheService {
   >();
   private listIndex = new Map<string, Set<string>>();
   private entryIndex = new Map<string, Set<string>>();
+  /** Secondary index: `${tenant}\0${collection}` → Set of entry keys (`${tenant}\0${collection}\0${id}`). Enables O(1) collection purges. */
+  private collectionEntriesIndex = new Map<string, Set<string>>();
   private graphqlIndex = new Map<string, Set<string>>();
   /**
    * Exact byte usage per tier (entries ↔ L1 stores). Every insert/delete path
@@ -466,6 +468,14 @@ class ResponseCacheService {
         this.entryIndex.set(k, set);
       }
       set.add(fullKey);
+
+      const colKey = `${tenant}\0${slot.collection}`;
+      let colSet = this.collectionEntriesIndex.get(colKey);
+      if (!colSet) {
+        colSet = new Set();
+        this.collectionEntriesIndex.set(colKey, colSet);
+      }
+      colSet.add(k);
       return;
     }
     const k = `${tenant}\0${slot.collection}`;
@@ -495,7 +505,15 @@ class ResponseCacheService {
       const set = this.entryIndex.get(k);
       if (set) {
         set.delete(fullKey);
-        if (set.size === 0) this.entryIndex.delete(k);
+        if (set.size === 0) {
+          this.entryIndex.delete(k);
+          const colKey = `${meta.tenant}\0${meta.collection}`;
+          const colSet = this.collectionEntriesIndex.get(colKey);
+          if (colSet) {
+            colSet.delete(k);
+            if (colSet.size === 0) this.collectionEntriesIndex.delete(colKey);
+          }
+        }
       }
       return;
     }
@@ -511,6 +529,17 @@ class ResponseCacheService {
     const set = index.get(key);
     if (!set) return;
     index.delete(key);
+    if (index === this.entryIndex) {
+      const lastNull = key.lastIndexOf("\0");
+      if (lastNull > 0) {
+        const colKey = key.slice(0, lastNull);
+        const colSet = this.collectionEntriesIndex.get(colKey);
+        if (colSet) {
+          colSet.delete(key);
+          if (colSet.size === 0) this.collectionEntriesIndex.delete(colKey);
+        }
+      }
+    }
     for (const fullKey of set) {
       this.removeEntry(this.localL1, fullKey);
       this.removeEntry(this.pointL1, fullKey);
@@ -785,9 +814,14 @@ class ResponseCacheService {
       }
       return;
     }
-    const prefix = `${tenant}\0${collectionName}\0`;
-    for (const k of Array.from(this.entryIndex.keys())) {
-      if (k.startsWith(prefix)) this.dropIndexSet(this.entryIndex, k);
+    const colKey = `${tenant}\0${collectionName}`;
+    const entryKeys = this.collectionEntriesIndex.get(colKey);
+    if (entryKeys) {
+      const keysToDrop = Array.from(entryKeys);
+      for (const k of keysToDrop) {
+        this.dropIndexSet(this.entryIndex, k);
+      }
+      this.collectionEntriesIndex.delete(colKey);
     }
   }
 
@@ -829,6 +863,7 @@ class ResponseCacheService {
     this.l1Meta.clear();
     this.listIndex.clear();
     this.entryIndex.clear();
+    this.collectionEntriesIndex.clear();
     this.graphqlIndex.clear();
     this.pointAdmission.clear();
     this.listAdmission.clear();
