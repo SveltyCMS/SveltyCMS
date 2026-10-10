@@ -239,7 +239,7 @@
 
 <div class="flex flex-col">
 	<div
-		class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500"
+		class="border border-tertiary-500/30 rounded-t-md p-2 text-center dark:border-primary-500/40"
 	>
 		<p>
 			{collection_widgetfield_addrequired()}
@@ -271,7 +271,7 @@
 						attributes: { dragOverClass: 'bg-secondary-200' }
 					}}
 					data-field-label={field.label}
-					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
+					class="border border-surface-500/30 my-2 grid w-full grid-cols-6 items-center rounded p-1 text-start hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-white"
 					role="listitem"
 					tabindex="0"
 					aria-label={collection_widgetfield_field_aria({ label: field.label })}
@@ -286,7 +286,7 @@
 							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
 						</button>
 						<div
-							class="preset-ghost-tertiary-500 inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-8 w-8 rounded-full dark:preset-ghost-primary-500"
+							class="inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-8 w-8 rounded-full bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/20 dark:text-primary-400"
 						>
 							{field.id}
 						</div>

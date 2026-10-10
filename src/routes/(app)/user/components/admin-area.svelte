@@ -1142,7 +1142,7 @@
 															toast.error(useradmin_copy_failed());
 														});
 												}}
-												class="p-0! min-w-0 preset-ghost"
+												class="p-0! min-w-0"
 											>
 												<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 											</Button>
@@ -1157,7 +1157,7 @@
 														event.stopPropagation();
 														openUserSessions(row);
 													}}
-													class="p-0! min-w-0 preset-ghost text-primary-500 hover:text-primary-600 dark:text-primary-400"
+													class="p-0! min-w-0 text-primary-500 hover:text-primary-600 dark:text-primary-400"
 												>
 													<iconify-icon icon="mdi:devices" width={18}></iconify-icon>
 												</Button>
@@ -1187,7 +1187,7 @@
 															toast.error(useradmin_copy_failed());
 														});
 												}}
-												class="p-0! min-w-0 preset-ghost"
+												class="p-0! min-w-0"
 											>
 												<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 											</Button>

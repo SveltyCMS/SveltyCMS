@@ -13,7 +13,7 @@
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { onMount } from 'svelte';
-	import { fly } from 'svelte/transition';
+	import { adminFade, adminStagger } from '@utils/admin-transitions';
 	import { page } from '$app/state';
 	import {
 		applayout_systemconfiguration,
@@ -355,13 +355,8 @@
 	backUrl="/"
 	icon="material-symbols:build-circle"
 >
-	<AdminCard
-		class="border border-surface-500/30 bg-white p-4 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
-	>
-		<h2
-			class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500"
-			in:fly={{ y: -10, duration: 300 }}
-		>
+	<AdminCard class="p-4 shadow-sm">
+		<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500" in:adminFade>
 			{config_page_subtitle()}
 		</h2>
 
@@ -370,11 +365,11 @@
 				{const usePermissionGuard = !!item.permission}
 
 				{#if usePermissionGuard}
-					<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
+					<div in:adminStagger={{ index: idx }}>
 						<PermissionGuard {...{ config: item.permission } as any}>
 							<a
 								href={item.href}
-								class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl dark:bg-surface-900 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+								class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl dark:border-surface-500/40 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
 								aria-label={tileLabel(item.id, item.label)}
 								target={item.target}
 								rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -394,10 +389,10 @@
 						</PermissionGuard>
 					</div>
 				{:else}
-					<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
+					<div in:adminStagger={{ index: idx }}>
 						<a
 							href={item.href}
-							class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl dark:bg-surface-800 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+							class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl dark:border-surface-500/40 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
 							aria-label={tileLabel(item.id, item.label)}
 							target={item.target}
 							rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -419,7 +414,7 @@
 			{/each}
 
 			<!-- Plugin config_grid slots (each plugin supplies its own tile GUI) -->
-			<div class="contents" in:fly={{ y: 20, delay: configItems.length * 50, duration: 300 }}>
+			<div class="contents" in:adminStagger={{ index: configItems.length }}>
 				<PermissionGuard
 					{...{
 						config: {

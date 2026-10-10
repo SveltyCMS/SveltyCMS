@@ -290,7 +290,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			method: () => 'POST',
 			toastMessage: () =>
 				type === 'user' ? usermultibutton_users_deleted() : usermultibutton_tokens_deleted(),
-			toastBackground: 'preset-filled-success-500'
+			toastBackground: 'gradient-success'
 		},
 		block: {
 			buttonClass: 'gradient-pink',
@@ -315,7 +315,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			method: () => 'POST',
 			toastMessage: () =>
 				type === 'user' ? usermultibutton_users_blocked() : usermultibutton_tokens_blocked(),
-			toastBackground: 'preset-filled-success-500'
+			toastBackground: 'gradient-success'
 		},
 		unblock: {
 			buttonClass: 'gradient-yellow',
@@ -340,7 +340,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			method: () => 'POST',
 			toastMessage: () =>
 				type === 'user' ? usermultibutton_users_unblocked() : usermultibutton_tokens_unblocked(),
-			toastBackground: 'preset-filled-success-500'
+			toastBackground: 'gradient-success'
 		}
 	});
 

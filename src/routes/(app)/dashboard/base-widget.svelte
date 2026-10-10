@@ -398,12 +398,12 @@ New Features:
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-500/30 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
 	aria-labelledby="widget-title-{widgetId || label}"
 	style="overflow: visible;"
 >
 	<header
-		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 ps-4 pe-2 dark:text-surface-50 dark:bg-surface-800"
+		class="widget-header flex cursor-grab items-center justify-between border-b border-surface-500/20 bg-(--admin-bg-card,var(--color-surface-50)) py-2 ps-4 pe-2 dark:text-surface-50 dark:bg-surface-800"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
@@ -443,7 +443,7 @@ New Features:
 				aria-label={widget_base_refresh_aria()}
 				disabled={loading}
 				title={widget_base_refresh_title()}
-				class="p-0! min-w-0 preset-outlined-surface-500"
+				class="p-0! min-w-0"
 			>
 				<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}
 				></iconify-icon>
@@ -454,13 +454,13 @@ New Features:
 					variant="ghost"
 					onclick={() => (showSizeMenu = !showSizeMenu)}
 					aria-label={widget_base_size_aria()}
-					class="p-0! min-w-0 preset-outlined-surface-500"
+					class="p-0! min-w-0"
 				>
 					<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
 				</Button>
 				{#if showSizeMenu}
 					<div
-						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-500/30 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
@@ -496,7 +496,7 @@ New Features:
 		</div>
 	</header>
 	<section
-		class="widget-body relative min-h-12.5 flex-1 bg-white px-3 pb-2 dark:bg-surface-800"
+		class="widget-body relative min-h-12.5 flex-1 bg-(--admin-bg-card,var(--color-surface-50)) px-3 pb-2 dark:bg-surface-800"
 		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
 		<div aria-live="polite" class="contents">

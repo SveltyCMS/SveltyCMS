@@ -19,6 +19,7 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
+import { RequestLane } from "./handle-request-classifier";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
@@ -42,6 +43,7 @@ import {
 import { getClientIp } from "@utils/hook-utils";
 import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { decideSessionRisk, evaluateSessionAnomaly } from "@src/databases/auth/session-user";
+import { recordAuditEntry } from "./handle-audit-logging";
 
 /**
  * `SVELTY_SRV_DUR=1` records total server time for the write lane (`x-srv-dur`)
@@ -192,6 +194,7 @@ function finishWarmWrite(
   srvT0: number,
   t0: number,
 ): Response {
+  res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
   applyAllSecurityHeaders(
     res.headers,
     event.url.protocol === "https:",
@@ -452,6 +455,9 @@ export async function serveWarmCollectionWrite(
   event: RequestEvent,
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
 ): Promise<Response> {
+  const start = performance.now();
+  let statusCode = 500;
+  let executionError: unknown;
   try {
     // 🚀 LANE-LEAN RATE LIMIT: consume the in-memory bucket synchronously and
     // let the Redis ledger receive the spend after the response (measured
@@ -460,7 +466,7 @@ export async function serveWarmCollectionWrite(
     // Only this lane opts in; GraphQL writes and the full pipeline keep the
     // awaited Redis enforcement.
     (event.locals as { __rateLimitAsyncRemote?: boolean }).__rateLimitAsyncRemote = true;
-    return await handleRateLimit({
+    const res = await handleRateLimit({
       event,
       resolve: async () => {
         const written = await executeWarmCollectionWrite(event, turbo);
@@ -475,9 +481,21 @@ export async function serveWarmCollectionWrite(
         );
       },
     });
+    res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+    statusCode = res.status;
+    return res;
   } catch (err) {
-    if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);
+    executionError = err;
+    if (event.url.pathname.startsWith("/api/")) {
+      const errRes = handleApiError(err, event);
+      errRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+      statusCode = errRes.status;
+      return errRes;
+    }
     throw err;
+  } finally {
+    const durationMs = (performance.now() - start).toFixed(1);
+    recordAuditEntry(event, statusCode, durationMs, executionError);
   }
 }
 
@@ -503,7 +521,7 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   const srvT0 = stamp ? performance.now() : 0;
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
   try {
-    return await handleRateLimit({
+    const res = await handleRateLimit({
       event,
       resolve: async () => {
         const tSec = STAMP_WRITE_SPLIT ? performance.now() : 0;
@@ -514,8 +532,14 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
         return finishWarmWrite(event, res, marks, srvT0, srvT0);
       },
     });
+    res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+    return res;
   } catch (err) {
-    if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);
+    if (event.url.pathname.startsWith("/api/")) {
+      const errRes = handleApiError(err, event);
+      errRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+      return errRes;
+    }
     throw err;
   }
 };

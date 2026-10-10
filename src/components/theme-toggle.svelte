@@ -33,7 +33,7 @@ Relies on the centralized `themeStore` for state and logic.
 		variant = 'outline',
 		buttonClass = variant === 'ghost' || variant === 'transparent'
 			? 'text-black dark:text-white'
-			: 'preset-outlined-surface-500 rounded-full dark:text-white',
+			: 'border border-surface-500/30 rounded-full dark:border-surface-500/40 dark:text-white',
 		iconSize = 22
 	}: Props = $props();
 

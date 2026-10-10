@@ -64,13 +64,26 @@ describe("fast-lane write policy", () => {
     delete (globalThis as Record<string, unknown>).__SVELTY_FAST_LANES__;
   });
 
-  it("leaves the write lane unregistered unless SVELTY_FAST_LANE_WRITE=1", async () => {
-    delete process.env.SVELTY_FAST_LANE_WRITE;
+  it("leaves the write lane unregistered when SVELTY_FAST_LANE_WRITE=0", async () => {
+    process.env.SVELTY_FAST_LANE_WRITE = "0";
     const dispatch = await loadDispatcher();
     const { input, readBody } = writeInput();
 
     await expect(dispatch(input)).resolves.toBeNull();
     expect(mocks.tryCollectionWriteLane).not.toHaveBeenCalled();
+    expect(readBody).not.toHaveBeenCalled();
+  });
+
+  it("registers the write lane by default", async () => {
+    delete process.env.SVELTY_FAST_LANE_WRITE;
+    mocks.tryCollectionWriteLane.mockImplementation(
+      async ({ resolve }: { resolve: (e: unknown) => Promise<unknown> }) => resolve({}),
+    );
+    const dispatch = await loadDispatcher();
+    const { input, readBody } = writeInput();
+
+    await expect(dispatch(input)).resolves.toBeNull();
+    expect(mocks.tryCollectionWriteLane).toHaveBeenCalledTimes(1);
     expect(readBody).not.toHaveBeenCalled();
   });
 

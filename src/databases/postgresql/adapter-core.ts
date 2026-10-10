@@ -335,10 +335,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   /**
    * Phase 2 statement coalescing gate: concurrent single-row inserts for the
    * same collection coalesce into one UNNEST multi-row statement.
-   * `SVELTY_WRITE_COALESCING=0` restores the per-row path (A/B control lane).
+   * `SVELTY_WRITE_COALESCING=1` enables multi-row UNNEST statements.
+   * Off by default because postgres.js natively pipelines single parameterized
+   * INSERT statements over TCP without the setImmediate tick delay.
    */
   protected override get insertCoalescingEnabled(): boolean {
-    return process.env.SVELTY_WRITE_COALESCING !== "0";
+    return process.env.SVELTY_WRITE_COALESCING === "1";
   }
 
   /**

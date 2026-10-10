@@ -294,7 +294,7 @@ Features:
 			<div class="pt-2">
 				<Button
 					variant="tertiary"
-					class="dark:preset-filled-primary-500"
+					class="dark:bg-primary-500 dark:text-white"
 					size="md"
 					href="/config/importer"
 					leadingIcon="mdi:rocket-launch"
@@ -365,7 +365,7 @@ Features:
 		{#if activeTab !== 'database'}
 			<Button
 				variant="tertiary"
-				class="dark:preset-filled-primary-500"
+				class="dark:bg-primary-500 dark:text-white"
 				type="button"
 				disabled={isParsing || !parsedResult || parsedResult.fields.length === 0}
 				onclick={handleSubmit}

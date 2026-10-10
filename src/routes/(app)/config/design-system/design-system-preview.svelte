@@ -218,7 +218,7 @@ so preview stays in sync with Layout & Visual Style tabs.
 				<span class="text-sm font-medium" style="color: var(--admin-text-body)"
 					>{dsp_color_mode()}</span
 				>
-				<ThemeToggle showTooltip={false} buttonClass="preset-outlined-surface-500 btn-icon" />
+				<ThemeToggle showTooltip={false} />
 			</div>
 			{#if showAppearanceLink}
 				<div class="flex gap-2">

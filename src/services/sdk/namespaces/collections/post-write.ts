@@ -427,8 +427,12 @@ function enqueueOne(entry: PendingOutboxItem): void {
   );
 }
 
+function isOutboxDisabledEnv(): boolean {
+  return process.env.DISABLE_OUTBOX === "true" || process.env.DISABLE_OUTBOX === "1";
+}
+
 function scheduleOutboxEvent(item: PendingOutboxItem): void {
-  if (process.env.DISABLE_OUTBOX === "true") return;
+  if (isOutboxDisabledEnv()) return;
   if (_outboxRef) {
     if (_outboxRef.isOutboxDisabled()) return;
     enqueueOne(item);
@@ -446,7 +450,7 @@ function scheduleOutboxEvent(item: PendingOutboxItem): void {
 }
 
 async function enqueueOutboxBatch(batch: PendingOutboxItem[]): Promise<void> {
-  if (batch.length === 0 || process.env.DISABLE_OUTBOX === "true") return;
+  if (batch.length === 0 || isOutboxDisabledEnv()) return;
   try {
     const mod = await getOutboxLazy();
     _outboxRef = { isOutboxDisabled: mod.isOutboxDisabled, outboxService: mod.outboxService };
@@ -477,7 +481,7 @@ export async function persistWithOutbox(
   writeMark?.();
   if (result?.success) {
     const id = getId(result);
-    if (id && !options?.skipSideEffects && process.env.DISABLE_OUTBOX !== "true") {
+    if (id && !options?.skipSideEffects && !isOutboxDisabledEnv()) {
       const outboxMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:outbox") : null;
       scheduleOutboxEvent({
         schema,

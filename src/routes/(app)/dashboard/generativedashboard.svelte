@@ -77,9 +77,7 @@ This component acts as an intercept layer. It either renders a fully dynamic JSO
 				class="flex items-center justify-between gap-4 p-4 rounded bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 shadow-sm"
 			>
 				<div class="flex items-center gap-3">
-					<div
-						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded shadow-inner"
-					>
+					<div class="bg-tertiary-500 dark:bg-primary-500 text-white p-2 rounded shadow-inner">
 						<iconify-icon icon="mdi:robot-outline" width="24" class="text-white"></iconify-icon>
 					</div>
 					<div>

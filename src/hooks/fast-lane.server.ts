@@ -29,6 +29,7 @@ import { logger } from "@utils/logger";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./handle-collection-read-lane";
 import { tryCollectionWriteLane } from "./handle-collection-write-lane";
 import { isLaneServingAllowed } from "./lane-state-gate";
+import { RequestLane } from "./handle-request-classifier";
 
 /** What the server entry writes to the socket. */
 export interface FastLaneResult {
@@ -102,10 +103,11 @@ export const LANE_BYPASSED_HOOKS: ReadonlySet<string> = new Set([
 const lanes: FastLane[] = [];
 
 /**
- * Write lane is OPT-IN: it carries mutation bodies, so it must be enabled
- * deliberately (`SVELTY_FAST_LANE_WRITE=1`) and only after an equivalence run.
+ * Write lane is default ON: it shares the same checks (WAF, CSRF, rate-limit,
+ * turbo-auth, audit log parity) as the SvelteKit pipeline. `SVELTY_FAST_LANE_WRITE=0`
+ * opts out.
  */
-const WRITE_LANE_ENABLED = process.env.SVELTY_FAST_LANE_WRITE === "1";
+const WRITE_LANE_ENABLED = process.env.SVELTY_FAST_LANE_WRITE !== "0";
 
 /** Register a lane; order is precedence (first non-null result wins). */
 export function registerFastLane(lane: FastLane): void {
@@ -189,11 +191,15 @@ function fastLaneUrl(input: FastLaneInput): URL {
 async function responseToLaneResult(
   out: Response,
   extraSetCookies?: string[],
+  lane?: RequestLane,
 ): Promise<FastLaneResult> {
   const headers: Record<string, string | string[]> = {};
   out.headers.forEach((value, name) => {
     headers[name] = value;
   });
+  if (lane && !headers["x-svelty-lane"]) {
+    headers["x-svelty-lane"] = lane;
+  }
   if (extraSetCookies && extraSetCookies.length > 0 && !headers["set-cookie"]) {
     headers["set-cookie"] = extraSetCookies;
   }
@@ -244,7 +250,7 @@ const collectionReadLane: FastLane = async (input) => {
     resolve: async () => FALL_THROUGH as unknown as Response,
   });
   if (!out || (out as unknown) === FALL_THROUGH) return null;
-  return responseToLaneResult(out);
+  return responseToLaneResult(out, undefined, RequestLane.API_READ);
 };
 
 /**
@@ -312,7 +318,7 @@ const collectionWriteLane: FastLane = async (input) => {
       resolve: async () => FALL_THROUGH as unknown as Response,
     });
     if (!out || (out as unknown) === FALL_THROUGH) return null;
-    return await responseToLaneResult(out, setCookies);
+    return await responseToLaneResult(out, setCookies, RequestLane.API_WRITE);
   } catch (err) {
     // A consumed body cannot be replayed, so once `bodyRead` is set the lane must
     // answer rather than hand a half-read stream to the pipeline. Before that the
@@ -321,7 +327,7 @@ const collectionWriteLane: FastLane = async (input) => {
     logger.error("[FastLane] write lane failed after consuming the body", err);
     return {
       status: 500,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-svelty-lane": RequestLane.API_WRITE },
       body: '{"success":false,"message":"Internal error"}',
     };
   }
@@ -340,7 +346,7 @@ export function installFastLanes(): void {
   if (process.env.SVELTY_FAST_LANE === "0") return;
   if (lanes.length === 0) {
     registerFastLane(collectionReadLane);
-    if (WRITE_LANE_ENABLED || process.env.SVELTY_FAST_LANE_WRITE === "1") {
+    if (WRITE_LANE_ENABLED) {
       registerFastLane(collectionWriteLane);
     }
   }

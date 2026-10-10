@@ -23,6 +23,7 @@ All dynamic CMS settings organized into logical groups
 	import { logger } from '@utils/logger';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import Alert from '@components/ui/alert.svelte';
 	import {
 		syssettings_action_required,
 		syssettings_check_structure,
@@ -247,44 +248,42 @@ All dynamic CMS settings organized into logical groups
 					aria-live="polite"
 					data-testid="system-settings-repair-status"
 				>
-					<div class="preset-filled-{repairResult.success ? 'success' : 'error'}-500 p-4 rounded">
+					<Alert variant={repairResult.success ? 'success' : 'error'}>
 						<div class="flex items-center gap-3">
 							<span aria-hidden="true">{repairResult.success ? '✅' : '❌'}</span>
 							<p>{repairResult.success ? repairResult.message : repairResult.error}</p>
 						</div>
-					</div>
+					</Alert>
 				</div>
 			{/if}
 
 			{#if unconfiguredCount > 0}
-				<div
-					class="preset-filled-error-500 p-4 rounded mb-6"
-					role="status"
-					data-testid="system-settings-needs-config"
-				>
-					<div class="text-sm opacity-90">
-						<strong
-							>{syssettings_action_required()}
-							{unconfiguredCount}
-							{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
-							{syssettings_configure_before_prod()}</strong
-						>
-						<p class="mt-2">
-							{syssettings_configure_following()}
-							{unconfiguredCount === 1 ? 'group' : 'groups'}:
-							{#each availableGroups.filter( (g) => groupsNeedingConfig.has(g.id) ) as group, i (group.id)}
-								<button
-									type="button"
-									class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
-									data-testid={`settings-needs-config-${group.id}`}
-									onclick={() => selectGroup(group.id)}
-								>
-									<GroupIcon icon={group.icon} class="inline" />
-									{group.name}
-								</button>{i < unconfiguredCount - 1 ? ', ' : ''}
-							{/each}
-						</p>
-					</div>
+				<div class="mb-6" role="status" data-testid="system-settings-needs-config">
+					<Alert variant="error">
+						<div class="text-sm opacity-90">
+							<strong
+								>{syssettings_action_required()}
+								{unconfiguredCount}
+								{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
+								{syssettings_configure_before_prod()}</strong
+							>
+							<p class="mt-2">
+								{syssettings_configure_following()}
+								{unconfiguredCount === 1 ? 'group' : 'groups'}:
+								{#each availableGroups.filter( (g) => groupsNeedingConfig.has(g.id) ) as group, i (group.id)}
+									<button
+										type="button"
+										class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+										data-testid={`settings-needs-config-${group.id}`}
+										onclick={() => selectGroup(group.id)}
+									>
+										<GroupIcon icon={group.icon} class="inline" />
+										{group.name}
+									</button>{i < unconfiguredCount - 1 ? ', ' : ''}
+								{/each}
+							</p>
+						</div>
+					</Alert>
 				</div>
 			{/if}
 
@@ -400,25 +399,30 @@ All dynamic CMS settings organized into logical groups
 
 			{#if migrationResult}
 				<div
-					class="mb-4 p-4 rounded preset-filled-{migrationResult.success ? 'success' : 'error'}-500"
+					class="mb-4"
 					role="status"
 					aria-live="polite"
 					data-testid="system-settings-migration-status"
 				>
-					<p class="font-semibold">
-						{migrationResult.success ? '\u2705' : '\u274c'}
-						{migrationResult.message || migrationResult.error}
-					</p>
-					{#if migrationResult.details}
-						<ul class="mt-2 text-sm opacity-90 list-disc list-inside">
-							<li>{syssettings_collections_moved()} {migrationResult.details.collectionsMoved}</li>
-							<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
-							<li>{syssettings_db_updated()} {migrationResult.details.mediaRecordsUpdated}</li>
-							{#if migrationResult.details.warnings.length > 0}
-								<li>{syssettings_warnings()} {migrationResult.details.warnings.join(', ')}</li>
-							{/if}
-						</ul>
-					{/if}
+					<Alert variant={migrationResult.success ? 'success' : 'error'}>
+						<p class="font-semibold">
+							{migrationResult.success ? '\u2705' : '\u274c'}
+							{migrationResult.message || migrationResult.error}
+						</p>
+						{#if migrationResult.details}
+							<ul class="mt-2 text-sm opacity-90 list-disc list-inside">
+								<li>
+									{syssettings_collections_moved()}
+									{migrationResult.details.collectionsMoved}
+								</li>
+								<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
+								<li>{syssettings_db_updated()} {migrationResult.details.mediaRecordsUpdated}</li>
+								{#if migrationResult.details.warnings.length > 0}
+									<li>{syssettings_warnings()} {migrationResult.details.warnings.join(', ')}</li>
+								{/if}
+							</ul>
+						{/if}
+					</Alert>
 				</div>
 			{/if}
 

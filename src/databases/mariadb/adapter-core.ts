@@ -1185,9 +1185,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const tableName = getTableName(table);
       const cols = Object.keys(values);
       if (cols.length === 0) return null;
-      // 🚀 TEMPLATE CACHE: the column list + fixed `?` placeholders depend only
-      // on the column ORDER — build the SQL once per shape.
-      const tplKey = `${tableName}:${cols.join(",")}`;
+      // 🚀 NO-READ-BACK: skipReturning avoids RETURNING * round trip
+      const skipReturning = (_options as any)?.skipReturning === true;
+      const tplKey = `${tableName}:${cols.join(",")}:${skipReturning ? 1 : 0}`;
       let sqlText = this._mariaInsertReturningTplCache.get(tplKey);
       if (!sqlText) {
         const colList = cols
@@ -1200,7 +1200,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
           .map((c) => `\`${c}\``)
           .join(", ");
         const placeholders = cols.map(() => "?").join(", ");
-        sqlText = `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders}) RETURNING *`;
+        sqlText = skipReturning
+          ? `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders})`
+          : `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders}) RETURNING *`;
         this.evictIfFull(this._mariaInsertReturningTplCache);
         this._mariaInsertReturningTplCache.set(tplKey, sqlText);
       }
@@ -1213,6 +1215,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       const rows = (await this.raw.execute(sqlText, params)) as any[];
       mStmt?.();
+      if (skipReturning) {
+        return convertDatesToISO(values, {
+          table: collection,
+        }) as unknown as T;
+      }
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
         return convertDatesToISO(rows[0], {
@@ -1230,12 +1237,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
   /**
    * Phase 2 statement coalescing gate: concurrent single-row inserts for the
    * same collection coalesce into one multi-VALUES statement (PostgreSQL
-   * parity — the PG lane measured +12–16% create RPS).
-   * `SVELTY_WRITE_COALESCING=0` restores this adapter's dedicated per-row raw
-   * INSERT path (A/B control lane).
+   * parity — SVELTY_WRITE_COALESCING=1 enables multi-row statements).
+   * Off by default because mysql2 executes single parameterized INSERT
+   * statements immediately without the setImmediate tick delay.
    */
   protected override get insertCoalescingEnabled(): boolean {
-    return process.env.SVELTY_WRITE_COALESCING !== "0";
+    return process.env.SVELTY_WRITE_COALESCING === "1";
   }
 
   /**

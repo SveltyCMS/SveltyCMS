@@ -748,7 +748,7 @@
 					{/if}
 					{#if dropdownOpen}
 						<div
-							class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+							class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
 							role="menu"
 							data-testid="dashboard-widget-menu"
 						>

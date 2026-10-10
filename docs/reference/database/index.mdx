@@ -122,9 +122,12 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 | ------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
 | Durability knob (`PG_SYNCHRONOUS_COMMIT`, opt-in per connection)    | PostgreSQL           | update `dbwrite` p50 **9.76 → 2.3–2.9 ms**; lane ~1.5k → 2.0–3.1k RPS (warm 8c)           |
 | Durability parity (`innodb_flush_log_at_trx_commit=2`, harness DBs) | MariaDB              | update 1,269 → 1,918 RPS (+51 %); create +42 %; seed 5,686 → 7,676 docs/s                 |
+| Mongo write concern knob (`MONGO_WRITE_CONCERN` / hints)            | MongoDB              | configurable replica/fsync durability (`w: 1`, `w: "majority"`, `w: 0`)                   |
 | `INSERT … UNNEST` / `UPDATE … FROM UNNEST` bulk writes              | PostgreSQL           | one array per column, plan-cache-stable statements                                        |
 | `UPDATE … JOIN JSON_TABLE` bulk update (10.6+)                      | MariaDB              | heterogeneous 100-row batch **68.4 → 3.6 ms (19×)**                                       |
+| `skipReturning: true` fast path on all 4 adapters                   | all 4 DB adapters    | skips read-back overhead on seed and batch-write pipelines                                |
 | `PATCH …?fields=_id,count,updatedAt` projection                     | PostgreSQL (all SQL) | prunes `RETURNING` — the `data` blob is never re-read/de-TOASTed                          |
+| Direct non-blocking execution (pipelined defaults)                  | PostgreSQL, MariaDB  | avoids `setImmediate` tick delay; coalescing opt-in via `SVELTY_WRITE_COALESCING=1`       |
 | Lane-lean rate limit (local bucket + async Redis ledger)            | all                  | warm create/update srv-dur **1.86/1.49 → 0.36/0.31 ms (−79–81 %)** with Redis up (SQLite) |
 
 Details, harness commands, and the measured-and-declined experiments: [Achievements §3.45](/docs/project/achievements-2026). The PostgreSQL commit (~2.4–2.8 ms) remains the documented write floor.

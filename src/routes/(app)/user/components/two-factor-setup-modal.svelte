@@ -269,7 +269,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 			<!-- Backup Codes (Always Visible) -->
 			{#if backupCodes.length > 0}
-				<div class="preset-ghost-warning-500 rounded border p-4">
+				<div
+					class="rounded border border-warning-500/30 bg-warning-500/10 text-warning-500 dark:border-warning-500/40 dark:bg-warning-500/20 dark:text-warning-400 p-4"
+				>
 					<div class="mb-3 flex items-start gap-3">
 						<iconify-icon icon="mdi:information" width="24"></iconify-icon>
 						<div class="flex-1">

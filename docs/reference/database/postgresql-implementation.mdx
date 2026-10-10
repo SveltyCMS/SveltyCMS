@@ -93,6 +93,8 @@ SveltyCMS configures the `postgres.js` driver with production-tuned connection p
 > connections and most managed-database services (Supabase, RDS, Neon). Shorten it only when a
 > connection pooler like PgBouncer in **transaction mode** sits between the CMS and Postgres — there
 > the pooler handles recycling and idle CMS connections waste pooler slots.
+>
+> **Write Pipelining & Coalescing:** `postgres.js` pipelines single parameterized `INSERT` statements natively over TCP without artificial delays. Multi-row `UNNEST` statement coalescing is opt-in via `SVELTY_WRITE_COALESCING=1` (off by default), keeping single writes direct and tick-free.
 
 ### Connection Configuration
 

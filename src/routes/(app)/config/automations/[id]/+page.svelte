@@ -606,7 +606,10 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 							<!-- Manual trigger info -->
 							{#if flow.trigger.type === 'manual'}
-								<div class="preset-tonal-surface p-4 rounded" transition:slide>
+								<div
+									class="rounded border border-surface-500/20 bg-surface-500/10 p-4"
+									transition:slide
+								>
 									<div class="flex items-center gap-2 mb-2">
 										<iconify-icon
 											icon="mdi:information-outline"
@@ -1079,7 +1082,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						</h3>
 
 						<!-- Flow Summary -->
-						<AdminCard class="preset-tonal-surface p-4 rounded space-y-3">
+						<AdminCard class="border border-surface-500/20 bg-surface-500/10 p-4 rounded space-y-3">
 							<div class="flex items-center justify-between">
 								<h4 class="font-bold text-lg">{flow.name || 'Untitled'}</h4>
 								{#if flow.active}
@@ -1251,7 +1254,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						</style>
 
 						<!-- Token Reference -->
-						<details class="preset-tonal-surface rounded">
+						<details class="rounded border border-surface-500/20 bg-surface-500/10">
 							<summary class="p-3 cursor-pointer font-medium text-sm flex items-center gap-2">
 								<iconify-icon icon="mdi:code-braces"></iconify-icon>
 								{automation_tokens_reference()}

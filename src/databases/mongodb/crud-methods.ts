@@ -131,6 +131,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
   }
 
   /**
+   * Resolve MongoDB writeConcern: explicit per-query hint wins; falls back to
+   * MONGO_WRITE_CONCERN / MONGODB_WRITE_CONCERN environment variable (e.g. 1, 0, "majority").
+   */
+  private resolveWriteConcern(options?: BaseQueryOptions): unknown {
+    const explicit = options?.hints?.mongo?.writeConcern;
+    if (explicit !== undefined) return explicit;
+    const env = process.env.MONGO_WRITE_CONCERN || process.env.MONGODB_WRITE_CONCERN;
+    if (!env) return undefined;
+    const num = Number(env);
+    return Number.isFinite(num) ? num : env;
+  }
+
+  /**
    * 🛡️ ENTERPRISE `_id` CONTRACT — O(1) gate on every entry write (parity
    * with the SQL adapters): dynamic collection tables accept only UUIDv4 ids
    * (32-hex dash-less or 36-dashed); system tables (content_nodes, auth_*, …)
@@ -563,8 +576,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       } as unknown as T;
 
       const insertOpts: Record<string, unknown> = {};
-      if (options.hints?.mongo?.writeConcern) {
-        insertOpts.writeConcern = { w: options.hints.mongo.writeConcern };
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        insertOpts.writeConcern = { w: writeConcern };
       }
 
       // 🚀 insertOne avoids Mongoose Document construction + full validation graph
@@ -585,8 +599,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         ) {
           const mongooseDoc = new this.model(doc);
           const saveOptions: any = {};
-          if (options.hints?.mongo?.writeConcern) {
-            saveOptions.w = options.hints.mongo.writeConcern;
+          if (writeConcern !== undefined) {
+            saveOptions.w = writeConcern;
           }
           const result = await mongooseDoc.save(saveOptions);
           return {
@@ -596,6 +610,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
           };
         }
         throw insertErr;
+      }
+
+      if (options.skipReturning === true) {
+        return {
+          success: true,
+          data: doc as T,
+          meta: { executionTime: performance.now() - startTime },
+        };
       }
 
       return {
@@ -652,8 +674,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const bulkOptions: any = {
         ordered: options.ordered ?? options.hints?.mongo?.ordered ?? false,
       };
-      if (options.hints?.mongo?.writeConcern) {
-        bulkOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        bulkOptions.w = writeConcern;
       }
 
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);
@@ -786,7 +809,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       } as any;
 
       if ((options as { skipReturning?: boolean }).skipReturning === true) {
-        return this.updateWithoutReadBack(query, updateData, String(id), startTime);
+        return this.updateWithoutReadBack(query, updateData, String(id), startTime, options);
       }
 
       let result: any = null;
@@ -870,11 +893,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
     updateData: Record<string, unknown>,
     id: string,
     startTime: number,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T>> {
     const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
+    const writeConcern = this.resolveWriteConcern(options);
+    const updateOpts: Record<string, unknown> = {};
+    if (writeConcern !== undefined) {
+      updateOpts.writeConcern = { w: writeConcern };
+    }
     if (this.model.collection && typeof (this.model.collection as any).updateOne === "function") {
       try {
-        await (this.model.collection as any).updateOne(query, { $set: updateData });
+        await (this.model.collection as any).updateOne(query, { $set: updateData }, updateOpts);
         mStmt?.();
         return {
           success: true,
@@ -889,7 +918,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       .updateOne(
         query,
         { $set: updateData },
-        { runValidators: false, cloneUpdate: false, strict: false },
+        { runValidators: false, cloneUpdate: false, strict: false, ...updateOpts },
       )
       .exec();
     mStmt?.();
@@ -917,8 +946,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // in the model schema — dynamic fields were silently not written. SQL adapters
       // store them in the JSON `data` blob instead of discarding them.
       updateOptions.strict = false;
-      if (options.hints?.mongo?.writeConcern) {
-        updateOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        updateOptions.w = writeConcern;
       }
       const {
         _id,
@@ -988,8 +1018,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         runValidators: false,
         cloneUpdate: false,
       };
-      if (options.hints?.mongo?.writeConcern) {
-        findOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        findOptions.w = writeConcern;
       }
 
       let updated: any = null;
@@ -1063,8 +1094,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const deleteOptions: any = {};
-      if (options.hints?.mongo?.writeConcern) {
-        deleteOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        deleteOptions.w = writeConcern;
       }
 
       if (permanent) {
@@ -1172,8 +1204,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const deleteOptions: any = {};
-      if (options.hints?.mongo?.writeConcern) {
-        deleteOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        deleteOptions.w = writeConcern;
       }
 
       if (permanent) {
@@ -1627,8 +1660,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const bulkOptions: any = {
         ordered: options.ordered ?? options.hints?.mongo?.ordered ?? false,
       };
-      if (options.hints?.mongo?.writeConcern) {
-        bulkOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        bulkOptions.w = writeConcern;
       }
       const res = await this.model.bulkWrite(ops as any[], bulkOptions);
       return {
@@ -1687,8 +1721,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const bulkOptions: any = {
         ordered: options.ordered ?? options.hints?.mongo?.ordered ?? false,
       };
-      if (options.hints?.mongo?.writeConcern) {
-        bulkOptions.w = options.hints.mongo.writeConcern;
+      const writeConcern = this.resolveWriteConcern(options);
+      if (writeConcern !== undefined) {
+        bulkOptions.w = writeConcern;
       }
 
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);

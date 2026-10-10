@@ -19,7 +19,7 @@ and rule-of-thirds grid overlay.
 	import { registerHotkey } from '@src/utils/hotkeys';
 	import { onMount } from 'svelte';
 	import type { MediaImage } from '@utils/media/media-models';
-	import { fade, scale } from 'svelte/transition';
+	import { adminFade } from '@utils/admin-transitions';
 	import Button from '@components/ui/button.svelte';
 	import AspectPreview from '@components/media/aspect-preview.svelte';
 	import { page } from '$app/state';
@@ -158,7 +158,7 @@ and rule-of-thirds grid overlay.
 {#if show}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-		transition:fade={{ duration: 150 }}
+		transition:adminFade={{ duration: 150 }}
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
@@ -181,7 +181,7 @@ and rule-of-thirds grid overlay.
 			class="relative flex max-h-[90vh] w-full flex-col rounded bg-surface-500/10 shadow-xl dark:bg-surface-800 mx-4"
 			class:max-w-lg={!focalPointPluginEnabled}
 			class:max-w-3xl={focalPointPluginEnabled}
-			transition:scale={{ start: 0.95, duration: 150 }}
+			transition:adminFade={{ duration: 150 }}
 		>
 			<!-- Header -->
 			<header

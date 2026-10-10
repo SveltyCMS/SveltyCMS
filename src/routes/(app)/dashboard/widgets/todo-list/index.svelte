@@ -65,7 +65,7 @@
 </script>
 
 <div
-	class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4"
+	class="card p-5 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4"
 >
 	<div
 		class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3"

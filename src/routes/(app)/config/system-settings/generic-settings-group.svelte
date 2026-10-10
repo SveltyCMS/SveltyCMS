@@ -839,7 +839,7 @@ Handles all field types and validation automatically
 												<Badge
 													variant="tertiary"
 													size="lg"
-													class="group hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
+													class="group hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
 													<span class="text-sm font-medium"
 														>{displayLanguage(langCode)} ({langCode})</span
@@ -1028,7 +1028,7 @@ Handles all field types and validation automatically
 												<Badge
 													variant="tertiary"
 													size="lg"
-													class="group hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
+													class="group hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
 													<span class="text-sm font-medium"
 														>{displayLanguage(langCode)} ({langCode})</span
@@ -1383,7 +1383,7 @@ Handles all field types and validation automatically
 												<Badge
 													variant="tertiary"
 													size="lg"
-													class="group hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
+													class="group hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
 													<span class="text-sm font-medium"
 														>{displayLanguage(langCode)} ({langCode})</span
@@ -1495,7 +1495,7 @@ Handles all field types and validation automatically
 												<Badge
 													variant="tertiary"
 													size="lg"
-													class="group capitalize hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
+													class="group capitalize hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
 													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}

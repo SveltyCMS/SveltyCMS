@@ -717,7 +717,7 @@
 						</div>
 						<Button
 							variant="tertiary"
-							class="dark:preset-filled-primary-500"
+							class="dark:bg-primary-500 dark:text-white"
 							size="sm"
 							disabled={!inferredWidget}
 							onclick={handleQuickAdd}

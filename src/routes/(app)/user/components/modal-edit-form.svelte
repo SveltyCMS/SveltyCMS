@@ -419,9 +419,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 									role="radio"
 									aria-checked={editForm.data.role === r._id}
 									tabindex={editForm.data.role === r._id ? 0 : -1}
-									class="chip {editForm.data.role === r._id
-										? 'preset-filled-tertiary-500'
-										: 'preset-ghost-secondary-500'}"
+									class={editForm.data.role === r._id
+										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
+										: 'border-surface-500/30 text-surface-600 dark:text-surface-400 opacity-70'}
 									onclick={() => (editForm.data.role = r._id)}
 									onkeydown={(e: KeyboardEvent) => {
 										if (['ArrowRight', 'ArrowDown'].includes(e.key)) {

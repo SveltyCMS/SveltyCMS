@@ -122,7 +122,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	} from '@src/paraglide/messages';
 	import DesignSystemPreview from './design-system-preview.svelte';
 	import PaletteStudio from './palette-studio.svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { adminFade } from '@utils/admin-transitions';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import type { StoredAdminTheme, ThemeSummary } from '@src/services/core/admin-theme-service';
 	import type { MarketplaceItem } from '@src/services/core/marketplace-service';
@@ -780,7 +780,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		</div>
 
 		<!-- Tab Content -->
-		<div class="p-6" in:fade={{ duration: 200 }}>
+		<div class="p-6" in:adminFade>
 			{#key activeTab}
 				<!-- ═══ MY OVERRIDES (all users) ═══ -->
 				{#if activeTab === 'overrides'}
@@ -788,7 +788,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						class="space-y-4"
 						id="my-overrides"
 						data-testid="appearance-overrides-panel"
-						in:fly={{ y: 10, duration: 200 }}
+						in:adminFade
 					>
 						<div class="flex items-center gap-2 mb-1">
 							<iconify-icon
@@ -896,17 +896,13 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 					<!-- ═══ LIVE PREVIEW (design system playground) ═══ -->
 				{:else if activeTab === 'preview'}
-					<div data-testid="appearance-preview-panel" in:fly={{ y: 10, duration: 200 }}>
+					<div data-testid="appearance-preview-panel" in:adminFade>
 						<DesignSystemPreview bind:density bind:variant />
 					</div>
 
 					<!-- ═══ THEMES (MULTI-THEME MANAGEMENT) ═══ -->
 				{:else if activeTab === 'themes' && isAdmin}
-					<div
-						class="space-y-6"
-						data-testid="appearance-themes-panel"
-						in:fly={{ y: 10, duration: 200 }}
-					>
+					<div class="space-y-6" data-testid="appearance-themes-panel" in:adminFade>
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon
 								icon="mdi:theme-light-dark"
@@ -1022,7 +1018,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 					<!-- ═══ PRESETS & IMPORT ═══ -->
 				{:else if activeTab === 'presets'}
-					<div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+					<div class="space-y-6" in:adminFade>
 						<div>
 							<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 								<iconify-icon
@@ -1204,7 +1200,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 					<!-- ═══ LAYOUT & DENSITY ═══ -->
 				{:else if activeTab === 'layout'}
-					<div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+					<div class="space-y-6" in:adminFade>
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:resize" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
@@ -1235,7 +1231,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 					<!-- ═══ VISUAL STYLE ═══ -->
 				{:else if activeTab === 'style'}
-					<div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+					<div class="space-y-6" in:adminFade>
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:format-paint" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
@@ -1279,7 +1275,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 					<!-- ═══ FEATURES ═══ -->
 				{:else if activeTab === 'features'}
-					<div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+					<div class="space-y-6" in:adminFade>
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:toggle-switch" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
@@ -1376,7 +1372,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 					<!-- ═══ ADVANCED ═══ -->
 				{:else if activeTab === 'advanced'}
-					<div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+					<div class="space-y-6" in:adminFade>
 						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
 							<iconify-icon icon="mdi:code-tags" class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>

@@ -33,7 +33,7 @@
 	import MediaGridActionTooltip from './media-grid-action-tooltip.svelte';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import { mediaDisplayUrl } from '@utils/media/media-utils';
-	import { motionDuration } from '@utils/admin-transitions';
+	import { adminFade, motionDuration } from '@utils/admin-transitions';
 	import {
 		MEDIA_DRAG_CONTAINER,
 		resolveMediaDragIds,
@@ -42,7 +42,6 @@
 	import { liftAndCarry } from '@utils/media/media-lift-drag';
 	import { formatBytes } from '@utils/file';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { fade, scale } from 'svelte/transition';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
@@ -230,7 +229,7 @@
 	{#if filteredFiles.length === 0}
 		<div
 			class="col-span-full flex min-h-full flex-col items-center justify-center gap-3 py-16 text-center"
-			transition:scale={{ duration: 200 }}
+			transition:adminFade={{ duration: 200 }}
 			data-testid="media-grid-empty"
 		>
 			<iconify-icon

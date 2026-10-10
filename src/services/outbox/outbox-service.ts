@@ -127,7 +127,7 @@ export function isOutboxEventReady(event: OutboxEvent, nowMs = Date.now()): bool
 
 /** Exported for write-path early exits (avoid dynamic import when disabled). */
 export function isOutboxDisabled(): boolean {
-  return process.env.DISABLE_OUTBOX === "true";
+  return process.env.DISABLE_OUTBOX === "true" || process.env.DISABLE_OUTBOX === "1";
 }
 
 /**

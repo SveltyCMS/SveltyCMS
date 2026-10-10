@@ -249,8 +249,9 @@ Structure optimized for LLM integration and AI-powered search.
 				<div class="flex flex-wrap gap-2">
 					<Button
 						variant="outline"
+						size="sm"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="border-tertiary-500/40 text-tertiary-500 hover:bg-tertiary-500 hover:text-white dark:border-primary-500/40 dark:text-primary-400 dark:hover:bg-primary-500 dark:hover:text-white transition-colors"
 						onclick={() => {
 							const date = new SvelteDate();
 							date.setDate(date.getDate() - 7);
@@ -263,8 +264,9 @@ Structure optimized for LLM integration and AI-powered search.
 					</Button>
 					<Button
 						variant="outline"
+						size="sm"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="border-tertiary-500/40 text-tertiary-500 hover:bg-tertiary-500 hover:text-white dark:border-primary-500/40 dark:text-primary-400 dark:hover:bg-primary-500 dark:hover:text-white transition-colors"
 						onclick={() => {
 							const date = new SvelteDate();
 							date.setDate(date.getDate() - 30);
@@ -277,8 +279,9 @@ Structure optimized for LLM integration and AI-powered search.
 					</Button>
 					<Button
 						variant="outline"
+						size="sm"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="border-tertiary-500/40 text-tertiary-500 hover:bg-tertiary-500 hover:text-white dark:border-primary-500/40 dark:text-primary-400 dark:hover:bg-primary-500 dark:hover:text-white transition-colors"
 						onclick={() => {
 							formValues.minSize = '5';
 							formValues.maxSize = '';
@@ -289,8 +292,9 @@ Structure optimized for LLM integration and AI-powered search.
 					</Button>
 					<Button
 						variant="outline"
+						size="sm"
 						type="button"
-						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
+						class="border-tertiary-500/40 text-tertiary-500 hover:bg-tertiary-500 hover:text-white dark:border-primary-500/40 dark:text-primary-400 dark:hover:bg-primary-500 dark:hover:text-white transition-colors"
 						onclick={() => {
 							formValues.minWidth = '3840';
 							formValues.minHeight = '2160';
@@ -484,7 +488,8 @@ Structure optimized for LLM integration and AI-powered search.
 				<div class="hidden text-sm sm:block">
 					<strong class="text-tertiary-500 dark:text-primary-500">{mediagallery_tip()}</strong>
 					{mediagallery_press()}
-					<kbd class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500"
+					<kbd
+						class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white"
 						>{mediagallery_ctrl_enter()}</kbd
 					>
 					{mediagallery_to_search()}

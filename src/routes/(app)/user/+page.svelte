@@ -1284,7 +1284,7 @@
 										size="sm"
 										leadingIcon="bi:trash3-fill"
 										onclick={modalConfirm}
-										class="w-full justify-start preset-ghost-error-500 sm:w-auto"
+										class="w-full justify-start text-error-500 border-error-500/40 hover:bg-error-500/10 sm:w-auto"
 										data-testid="identity-delete-account-btn"
 									>
 										{button_delete()}
@@ -1923,13 +1923,12 @@
 									>
 										{userpage_apply_appearance()}
 									</Button>
-									<a
+									<Button
+										variant="outline"
 										href="/config/design-system?tab=overrides"
 										data-testid="open-appearance-settings-btn"
 										aria-label={userpage_open_design_system_aria()}
-										data-sveltekit-preload-data="hover"
-										data-preload="hover"
-										class="btn preset-outlined-surface-500 relative inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem) px-3 text-xs font-bold tracking-tight transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500"
+										class="flex-1 text-xs font-bold tracking-tight"
 									>
 										<iconify-icon
 											icon="mdi:compass-outline"
@@ -1938,7 +1937,7 @@
 											aria-hidden="true"
 										></iconify-icon>
 										{config_tile_design()}
-									</a>
+									</Button>
 								</div>
 							</div>
 

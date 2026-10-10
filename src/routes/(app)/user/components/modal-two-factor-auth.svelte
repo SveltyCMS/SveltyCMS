@@ -344,7 +344,9 @@ This component provides a user interface for managing 2FA settings:
 			{:else if loadError && !setupData}
 				<!-- Error state with retry -->
 				<div class="flex flex-col items-center justify-center gap-3 py-8">
-					<div class="alert preset-ghost-error-500 w-full">
+					<div
+						class="alert bg-error-500/10 text-error-500 border border-error-500/30 dark:bg-error-500/20 dark:text-error-400 dark:border-error-500/40 rounded-lg p-3 w-full"
+					>
 						<iconify-icon icon="mdi:alert-circle" width={20}></iconify-icon>
 						<div class="alert-message">
 							<p class="text-sm font-medium">{user2fa_setup_failed_title()}</p>
@@ -421,7 +423,9 @@ This component provides a user interface for managing 2FA settings:
 					</div>
 
 					<!-- Backup Codes Warning -->
-					<div class="alert preset-ghost-warning-500">
+					<div
+						class="alert bg-warning-500/10 text-warning-500 border border-warning-500/30 dark:bg-warning-500/20 dark:text-warning-400 dark:border-warning-500/40 rounded-lg p-3"
+					>
 						<iconify-icon icon="mdi:information" width={20}></iconify-icon>
 						<div class="alert-message">
 							<h5 class="h5 mb-1">{twofa_backup_codes_title()}</h5>
@@ -432,7 +436,9 @@ This component provides a user interface for managing 2FA settings:
 			{/if}
 		{:else}
 			<!-- 2FA Already Enabled - Management Options -->
-			<div class="alert preset-ghost-success-500">
+			<div
+				class="alert bg-success-500/10 text-success-500 border border-success-500/30 dark:bg-success-500/20 dark:text-success-400 dark:border-success-500/40 rounded-lg p-3"
+			>
 				<iconify-icon icon="mdi:shield-check" width={24}></iconify-icon>
 				<div class="alert-message">
 					<p class="text-sm">{twofa_enabled_description()}</p>
@@ -441,7 +447,9 @@ This component provides a user interface for managing 2FA settings:
 
 			<!-- Show backup codes if generated -->
 			{#if backupCodes.length > 0}
-				<div class="alert preset-ghost-warning-500">
+				<div
+					class="alert bg-warning-500/10 text-warning-500 border border-warning-500/30 dark:bg-warning-500/20 dark:text-warning-400 dark:border-warning-500/40 rounded-lg p-3"
+				>
 					<iconify-icon icon="mdi:key-variant" width={24}></iconify-icon>
 					<div class="alert-message">
 						<h5 class="h5 mb-2">{twofa_backup_codes_title()}</h5>

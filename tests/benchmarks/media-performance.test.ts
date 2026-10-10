@@ -3,8 +3,8 @@
  * @description Enterprise Media Pipeline Benchmark (Optimized)
  * @summary Measures full upload, Sharp thumbnail processing, SDK vs HTTP latency, the cached
  * on-demand delivery transform (`/files/**?w=&q=`), derivative fan-out per uploaded image
- * (SIZES ladder, `media-pipeline-plan.mdx` §4 rows 1–2), duplicate-upload cost with zero
- * rewrites (row 2), and the media-gallery composite index
+ * (SIZES ladder, `media-system.mdx`), duplicate-upload cost with zero
+ * rewrites, and the media-gallery composite index
  * (`tenantId` + `folderId` + `ORDER BY updatedAt DESC`, LIMIT 100).
  */
 
@@ -464,7 +464,7 @@ async function runMediaAudit() {
     }
 
     // ── 4. DERIVATIVE FAN-OUT — SIZES ladder (#3) ────────────────────────────
-    // media-pipeline-plan.mdx §4 rows 1–2. Each row uploads a fresh image per iteration (so a
+    // media-system.mdx Verification & Benchmarks. Each row uploads a fresh image per iteration (so a
     // real encode cost is measured) and then counts the files and bytes that upload wrote,
     // asserting them against the configured SIZES. The 400 px row is the falsifier for
     // "upscale everything" (that source used to be enlarged into all four ladder steps / 8
@@ -575,7 +575,7 @@ async function runMediaAudit() {
     results.push({ ...smallFanOutResult, shortLabel: "Fan-Out-400", layer: "Derivatives" });
 
     // ── 5. DUPLICATE UPLOAD — dedupe before generation (#2) ──────────────────
-    // media-pipeline-plan.mdx §4 row 2. Re-uploading byte-identical content must perform zero
+    // media-system.mdx Verification & Benchmarks. Re-uploading byte-identical content must perform zero
     // encodes; encodes are counted by their effect on disk, because a rewrite moves `mtimeMs`.
     // An unchanged `{rel, size, mtimeMs}` listing for the whole `{tenant}/{hash}` subtree after
     // 48 duplicate uploads is therefore a rewrite count of zero — under the pre-#2 order every
@@ -725,7 +725,7 @@ async function runMediaAudit() {
     exportMetric("media.http.latency_p95_ms", httpResult.p95Ms || httpResult.avgMs, "ms");
     exportMetric("media.http.throughput_rps", Math.round(httpResult.rps || 0), "img/s");
     exportMetric("media.http.rss_delta_mb", httpResult.rssDelta ?? 0, "MB");
-    // Derivative fan-out (media-pipeline-plan §4 row 1) — the numeric facts behind the rows
+    // Derivative fan-out (media-system.mdx Verification & Benchmarks) — the numeric facts behind the rows
     // above, so a trend can be read without parsing the ASCII truth table.
     exportMetric("media.derivatives.sizes_configured", ladderSteps.length, "steps");
     exportMetric("media.derivatives.ladder_files_per_image", wideFanOut.ladderFiles, "files");

@@ -10,7 +10,7 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { formatRelativeDate } from '@utils/date';
-	import { fade, fly } from 'svelte/transition';
+	import { adminFade } from '@utils/admin-transitions';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -170,7 +170,7 @@
 	<div data-testid="queue-page" class="contents">
 		<div
 			class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
-			in:fly={{ y: 20, delay: 100 }}
+			in:adminFade={{ delay: 100 }}
 			data-testid="queue-stats"
 		>
 			<a
@@ -181,7 +181,7 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
@@ -205,10 +205,10 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors"
+					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
-						<div class="p-2 rounded preset-tonal-surface">
+						<div class="p-2 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400">
 							<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
@@ -227,10 +227,10 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
-						<div class="p-2 rounded preset-tonal-primary">
+						<div class="p-2 rounded bg-primary-500/10 text-primary-500 dark:text-primary-400">
 							<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
@@ -249,10 +249,10 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors"
+					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
-						<div class="p-2 rounded preset-tonal-success">
+						<div class="p-2 rounded bg-success-500/10 text-success-500 dark:text-success-400">
 							<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
@@ -273,10 +273,10 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors"
+					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
-						<div class="p-2 rounded preset-tonal-error">
+						<div class="p-2 rounded bg-error-500/10 text-error-500 dark:text-error-400">
 							<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
 						</div>
 						<div>
@@ -316,9 +316,9 @@
 			</div>
 		</div>
 
-		<div in:fade>
+		<div in:adminFade>
 			<AdminCard
-				class="p-0 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
+				class="p-0 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
 				data-testid="queue-jobs-table"
 			>
 				<div class="overflow-x-auto w-full">

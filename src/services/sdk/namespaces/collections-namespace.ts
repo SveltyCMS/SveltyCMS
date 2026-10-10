@@ -1800,7 +1800,9 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedCreate = await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedCreate = options.skipReturning
+      ? result
+      : await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // Resolved once — the three side-effect schedules below shared the same
@@ -2007,7 +2009,9 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedUpdate = await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedUpdate = options.skipReturning
+      ? result
+      : await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
       if (revisionEnabled && previousSnapshot) {

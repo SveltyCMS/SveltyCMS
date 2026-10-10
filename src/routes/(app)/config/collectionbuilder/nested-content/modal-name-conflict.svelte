@@ -72,7 +72,9 @@ Features:
 </script>
 
 <div class="modal-body p-4">
-	<div class="alert preset-filled-warning-500 mb-4">
+	<div
+		class="alert bg-warning-500/10 text-warning-500 border border-warning-500/30 dark:bg-warning-500/20 dark:text-warning-400 dark:border-warning-500/40 rounded-lg p-4 mb-4"
+	>
 		<div class="alert-message">
 			<h3 class="h3 font-bold">{modalnameconflict_heading()}</h3>
 			<p class="text-sm">

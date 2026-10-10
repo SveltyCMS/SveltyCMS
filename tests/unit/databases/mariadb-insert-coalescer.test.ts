@@ -73,6 +73,8 @@ describe("MariaDB insert coalescing (Option 3)", () => {
   it("gates on SVELTY_WRITE_COALESCING like the PostgreSQL lane", () => {
     const adapter = new ProbeAdapter();
     delete process.env.SVELTY_WRITE_COALESCING;
+    expect(adapter.coalescingGate).toBe(false);
+    process.env.SVELTY_WRITE_COALESCING = "1";
     expect(adapter.coalescingGate).toBe(true);
     process.env.SVELTY_WRITE_COALESCING = "0";
     expect(adapter.coalescingGate).toBe(false);
@@ -170,7 +172,7 @@ describe("MariaDB insert coalescing (Option 3)", () => {
   });
 
   it("insert() coalesces two concurrent inserts into one statement when the gate is open", async () => {
-    delete process.env.SVELTY_WRITE_COALESCING;
+    process.env.SVELTY_WRITE_COALESCING = "1";
     const adapter = new ProbeAdapter();
     const pool = makePool();
     (adapter as unknown as { pool: MockPool }).pool = pool;

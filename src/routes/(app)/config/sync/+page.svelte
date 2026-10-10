@@ -204,9 +204,9 @@ Allows synchronization between filesystem and database, safety mode selection, a
 >
 	<div data-testid="sync-page" class="contents">
 		<AdminCard
-			class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+			class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 		>
-			<div class="preset-tonal-surface mb-4 p-4 rounded-md">
+			<div class="mb-4 rounded-md border border-surface-500/20 bg-surface-500/10 p-4">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
 					{sync_intro_part1()}{' '}<strong>{sync_schema_code()}</strong>{sync_intro_part2()}
 					<code>{sync_sync_path()}</code>{sync_intro_part3()}
@@ -249,7 +249,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			<section transition:fade|local>
 				{#if activeTab === 'sync'}
 					{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
-						<div class="alert preset-filled-error-500 my-4 p-4 rounded-md" transition:slide>
+						<div
+							class="alert bg-error-500/10 text-error-500 border border-error-500/30 dark:bg-error-500/20 dark:text-error-400 dark:border-error-500/40 my-4 p-4 rounded-md"
+							transition:slide
+						>
 							<h4 class="font-bold flex items-center gap-2">
 								<iconify-icon icon="mdi:alert-circle"></iconify-icon>
 								{sync_unmet_heading()}
@@ -411,7 +414,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 													>
 													<td class="px-4 py-3 text-end">
 														{#if changeType === 'new'}
-															<Badge variant="tertiary" class="dark:preset-filled-primary-500"
+															<Badge variant="tertiary" class="dark:bg-primary-500 dark:text-white"
 																>{sync_new_create()}</Badge
 															>
 														{/if}

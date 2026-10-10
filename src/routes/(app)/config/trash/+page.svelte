@@ -9,7 +9,7 @@
 - Control-risk data-testids for E2E
 -->
 <script lang="ts">
-	import { fly } from 'svelte/transition';
+	import { adminFade } from '@utils/admin-transitions';
 	import { onMount } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -98,16 +98,13 @@
 
 	<div data-testid="trash-page" class="contents">
 		{#if isLoading}
-			<AdminCard
-				class="flex h-64 items-center justify-center border border-surface-500/30 bg-white p-6 dark:border-surface-500/40 dark:bg-surface-900/20"
-				data-testid="trash-loading"
-			>
+			<AdminCard class="flex h-64 items-center justify-center p-6" data-testid="trash-loading">
 				<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel={trash_aria_loading()} />
 			</AdminCard>
 		{:else if trashedItems.length === 0}
-			<div in:fly={{ y: 20, delay: 100 }}>
+			<div in:adminFade={{ delay: 100 }}>
 				<AdminCard
-					class="p-12 text-center border-dashed border-2 border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+					class="p-12 text-center border-dashed border-2 shadow-xs"
 					data-testid="trash-empty"
 				>
 					<iconify-icon icon="mdi:trash-can-outline" width="64" class="mx-auto mb-4 opacity-20"
@@ -117,11 +114,8 @@
 				</AdminCard>
 			</div>
 		{:else}
-			<div in:fly={{ y: 20, delay: 100 }}>
-				<AdminCard
-					class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
-					data-testid="trash-table"
-				>
+			<div in:adminFade={{ delay: 100 }}>
+				<AdminCard class="p-6 shadow-xs" data-testid="trash-table">
 					<div class="overflow-x-auto w-full">
 						<table class="w-full text-sm border-collapse">
 							<thead>

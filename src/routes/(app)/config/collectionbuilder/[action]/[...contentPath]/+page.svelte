@@ -470,7 +470,7 @@
 					disabled={activeTab === 'define' && !canGoNext}
 					aria-label={activeTab === 'define' ? 'Continue to Widgets' : 'Next step'}
 					data-testid={activeTab === 'define' ? 'collection-define-next' : 'collection-step-next'}
-					class="flex items-center gap-1.5 dark:preset-filled-primary-500"
+					class="flex items-center gap-1.5 dark:bg-primary-500 dark:text-white"
 				>
 					<span>{activeTab === 'define' ? 'Continue to Widgets' : 'Next'}</span>
 					<iconify-icon icon="mdi:arrow-right" width="18"></iconify-icon>
@@ -489,7 +489,7 @@
 				disabled={isLoading || !stepProgress.allRequiredDone}
 				aria-label={builder_editor_save_aria()}
 				data-testid="save-collection-button"
-				class="flex min-w-25 items-center gap-1 dark:preset-filled-primary-500"
+				class="flex min-w-25 items-center gap-1 dark:bg-primary-500 dark:text-white"
 				title={!stepProgress.defineOk
 					? builder_tip_save_need_name()
 					: !stepProgress.widgetsOk
@@ -543,8 +543,8 @@
 							type="button"
 							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode ===
 							'canvas'
-								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'canvas')}
 							data-testid="view-mode-canvas"
 						>
@@ -553,8 +553,8 @@
 						<button
 							type="button"
 							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'split')}
 							data-testid="view-mode-split"
 						>
@@ -563,8 +563,8 @@
 						<button
 							type="button"
 							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
-								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'code')}
 							data-testid="view-mode-code"
 						>
@@ -574,8 +574,8 @@
 							type="button"
 							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode ===
 							'preview'
-								? 'bg-white dark:bg-surface-800 shadow-xs text-tertiary-600 dark:text-primary-500 font-bold'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-400'}"
+								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'preview')}
 							data-testid="view-mode-preview"
 						>
@@ -607,7 +607,7 @@
 			>
 				{#if activeTab === 'define'}
 					<div
-						class="animate-in fade-in slide-in-from-bottom-4 duration-500"
+						class="animate-in fade-in duration-200 motion-reduce:animate-none"
 						role="tabpanel"
 						id="tabpanel-define"
 						aria-labelledby="tab-define"
@@ -616,7 +616,7 @@
 					</div>
 				{:else if activeTab === 'widgets'}
 					<div
-						class="flex h-full min-h-0 flex-1 flex-col animate-in fade-in slide-in-from-right-4 duration-500"
+						class="flex h-full min-h-0 flex-1 flex-col animate-in fade-in duration-200 motion-reduce:animate-none"
 						role="tabpanel"
 						id="tabpanel-widgets"
 						aria-labelledby="tab-widgets"
@@ -629,7 +629,7 @@
 					</div>
 				{:else if activeTab === 'permissions'}
 					<div
-						class="animate-in fade-in slide-in-from-right-4 duration-500"
+						class="animate-in fade-in duration-200 motion-reduce:animate-none"
 						role="tabpanel"
 						id="tabpanel-permissions"
 						aria-labelledby="tab-permissions"

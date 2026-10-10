@@ -81,6 +81,8 @@ Full cross-engine table: [Performance Architecture](./performance-architecture.m
 
 - **O(1) pagination** with cursor-based navigation.
 - **O(1) memory** with streaming for large datasets.
+- **Configurable Write Concern (`MONGO_WRITE_CONCERN`)**: Dynamic write durability resolution per query (`options.hints.mongo.writeConcern`) or globally via `MONGO_WRITE_CONCERN` / `MONGODB_WRITE_CONCERN` (e.g., `1`, `"majority"`, `0`), matching SQL engine durability tuning.
+- **`skipReturning: true` Fast Path**: Avoids read-back queries during bulk imports and database seeding by returning the prepared document immediately.
 - **Atomic Versioning**: Native `$inc` support for `system:content_version` tracking.
 
 ---

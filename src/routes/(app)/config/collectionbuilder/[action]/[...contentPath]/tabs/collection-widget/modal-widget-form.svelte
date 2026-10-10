@@ -650,7 +650,7 @@
 				</Button>
 				<Button
 					variant="tertiary"
-					class="dark:preset-filled-primary-500"
+					class="dark:bg-primary-500 dark:text-white"
 					type="button"
 					onclick={handleSave}
 					disabled={!local?.label || !local?.db_fieldName}

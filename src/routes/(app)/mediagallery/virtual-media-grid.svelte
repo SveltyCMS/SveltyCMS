@@ -96,7 +96,7 @@ Features:
 				<div
 					role="button"
 					tabindex="0"
-					class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-200 dark:bg-surface-900
+					class="group relative flex flex-col overflow-hidden rounded-lg border bg-(--admin-bg-card,var(--color-surface-50)) shadow-sm transition-all duration-200 dark:bg-surface-900
                         hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-start cursor-pointer
                         {isSelected
 						? 'border-primary-500 ring-2 ring-primary-500/20'
@@ -118,7 +118,9 @@ Features:
 					<!-- Selection Overlay -->
 					{#if isSelectionMode || isSelected}
 						<div class="absolute inset-s-2 top-2 z-20">
-							<div class="h-6 w-6 rounded-full bg-white shadow-md flex items-center justify-center">
+							<div
+								class="h-6 w-6 rounded-full bg-(--admin-bg-card,var(--color-surface-50)) shadow-md flex items-center justify-center dark:bg-surface-800"
+							>
 								<input
 									aria-label={common_input()}
 									type="checkbox"
@@ -159,7 +161,7 @@ Features:
 									onEditImage(file as MediaImage);
 								}}
 								aria-label={mediagallery_edit_aria({ name: file.filename })}
-								class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 shadow-sm"
+								class="p-0! min-w-0 bg-surface-500/90 dark:bg-surface-800/90 shadow-sm"
 							>
 								<iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
 							</Button>

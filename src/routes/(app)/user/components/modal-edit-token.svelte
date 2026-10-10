@@ -307,7 +307,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 <div class="modal-example-form space-y-4 text-black dark:text-white p-4">
 	{#if createdToken}
-		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
+		<div
+			class="card p-6 space-y-4 bg-success-500/10 border border-success-500/30 rounded-lg shadow-lg"
+		>
 			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">
 				{usertoken_invitation_created()}
 			</h3>
@@ -404,9 +406,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 								<Button
 									variant="outline"
 									type="button"
-									class="chip {tokenForm.data.role === r._id
-										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-										: 'bg-surface-200 dark:bg-surface-500/10 text-black dark:text-black opacity-60'}"
+									class={tokenForm.data.role === r._id
+										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
+										: 'border-surface-500/30 text-surface-600 dark:text-surface-400 opacity-70'}
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}

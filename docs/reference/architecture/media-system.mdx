@@ -221,14 +221,14 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 - **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth (`local-upload.svelte`).
 - **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved. Both paths share one hard ceiling: the dispatcher bounds the request at `API_MAX_BODY_SIZE_BYTES` (**15 MB**, `Content-Length` and chunked alike) and `parseMultipartStream` receives the same cap for `maxFileSize`/`maxTotalSize`, aborting incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering toward the parser defaults.
-- **Hash-First Approach**: Every file is identified by the full 64-character hex **SHA-256** digest of its bytes (`hashFileContent()` in `src/utils/media/media-processing.server.ts`). The hash is both the deduplication key and the storage directory of the file: `{tenantId}/{hash}/original/<name>-<hash>.<ext>`. The lookup happens **before any derivative work** and is scoped to the tenant — see _Storage & Deduplication_ below and [#2 of the media pipeline plan](../../project/media-pipeline-plan.mdx).
+- **Hash-First Approach**: Every file is identified by the full 64-character hex **SHA-256** digest of its bytes (`hashFileContent()` in `src/utils/media/media-processing.server.ts`). The hash is both the deduplication key and the storage directory of the file: `{tenantId}/{hash}/original/<name>-<hash>.<ext>`. The lookup happens **before any derivative work** and is scoped to the tenant — see _Storage & Deduplication_ below.
 - **SlimSniffer + unified allowlist**: `slim-sniffer.server.ts` (~2KB, no `mime-types`/`mrmime`) inspects magic bytes. Uploads use `isAllowedUploadMime()` (from `MIME_MAP`, minus scriptable/office types) and `assertMimeAgreement()` at write time. `/files` resolves Content-Type via extension → stored MIME → 512-byte sniff. Remote imports and `saveRemoteMedia` share `resolveRemoteAssetMime()`. All media responses send `X-Content-Type-Options: nosniff`.
 
 ### Phase II: Processing (Deep Metadata & AI)
 
 - **Deep Metadata Extraction (opt-in)**: EXIF/IPTC/XMP, dominant colour and the 32 px WebP placeholder are extracted by `MediaProcessingService.getMetadata()` — called by `POST /api/media/process` and the SDK, not on every serve. The deep pass is more than a header read: `metadata()` **plus** `stats()` and a `resize(32,32).webp()` thumbnail (a full decode). Results are cached 24 h per file hash; `fastPath: true` returns the header-only fields (`format`, `width`, `height`, `space`, `channels`) without the decode.
 - **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one output per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>` — **JPEG by default**, see [Derivative output format](#derivative-output-format) for the setting, the opt-ins and the measured cost. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
-- **Responsive variants (deferred)**: after the record exists, a fire-and-forget job derives `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` and stores them in `metadata.imageVariants`. Those paths are hash-keyed, so re-running the job is idempotent. This is the second pipeline that [#1](../../project/media-pipeline-plan.mdx) collapses into the ladder.
+- **Responsive variants (deferred coalescer)**: after the record exists, deferred jobs derive `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` through a single-flight FIFO coalescer (`variant-job-scheduler.server.ts`, bounded by `SVELTY_VARIANT_JOBS`, default 2). Concurrent uploads of identical bytes share a single preset pipeline run, and bulk imports queue in waves to protect memory and CPU. Full consolidation of this pass into the SIZES ladder is tracked in [2026 Roadmap](../../project/roadmap-2026.mdx).
 - **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
 - **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
 
@@ -608,6 +608,19 @@ The media engine uses **process-local TTL caches** for repeated deterministic op
 - **Watermark cache**: Watermarks rarely change. 5min TTL avoids re-fetching on every watermark tool open.
 
 All caches use plain `Map` with timestamp-based expiry — no external dependencies, no serialization overhead, zero allocation on hit.
+
+---
+
+## 🧪 Verification & Benchmarks
+
+The media pipeline's correctness and latency properties are asserted through dedicated unit suites, integration tests, and benchmark rows:
+
+| Feature / Invariant               | Verification Suite                                                                                       | Benchmark Matrix Row (`tests/benchmarks/media-performance.test.ts`)                                                                                                          |
+| :-------------------------------- | :------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dedupe before generation**      | `tests/unit/media/upload-dedupe-order.test.ts`, `tests/integration/api/media-dedupe-derivatives.test.ts` | `Media: Duplicate Upload (identical bytes)` — verifies **0 rewrites**, stable `W/"size-mtime"` ETag, ~3 ms vs ~48 ms                                                         |
+| **Derivative ladder clamping**    | `tests/unit/media/derivative-ladder.test.ts`, `tests/unit/media/processing/media-storage.test.ts`        | `Media: Derivative Fan-Out (1920px source)` and `(400px source)` — validates sub-ladder sources produce only clamped steps (400px writes 2 files, 600 B vs 8 files, 16.9 KB) |
+| **Single-flight coalescing**      | `tests/unit/media/variant-job-scheduler.test.ts`                                                         | FIFO bounds via `SVELTY_VARIANT_JOBS` (default 2), deduplicating identical concurrent uploads to protect memory                                                              |
+| **On-demand delivery transforms** | `tests/unit/media/on-demand-transform-params.test.ts`, `tests/unit/media/files-route-transform.test.ts`  | `HTTP: On-Demand Transform (cached 320px WebP)` — single-flight generate-once on miss, stream on hit                                                                         |
 
 ---
 

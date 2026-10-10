@@ -447,7 +447,7 @@ Features:
 		</div>
 
 		<!-- Filters and Search -->
-		<div class="card preset-filled-surface-500 mt-6 space-y-4 p-4">
+		<div class="card bg-surface-500/10 border border-surface-500/30 rounded-lg mt-6 space-y-4 p-4">
 			<!-- Search and Sync Button Row -->
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<!-- Search -->
