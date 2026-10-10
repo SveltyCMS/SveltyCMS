@@ -2171,6 +2171,11 @@ scheduler wiring). `node ./node_modules/vitest/vitest.mjs run tests/unit/databas
     - **MariaDB (Client-Server Network Engine)**: **−16.0% RPS** (0.873 ms → 1.046 ms, +19.8% latency). `JSON_ARRAYAGG` similarly incurs server-side serialization overhead. Declines list wire contract.
   - **Verification**: `tests/unit/hooks/collection-read-lane.test.ts` (22/22 green), full core unit suite (139 files, 1,416 tests green), `tsc --noEmit` clean, `bun run check` clean, `bun run risk:audit` 5/5 clean.
 
+- **Phase 6: Release-Pipeline Hardening (`version:verify`, SBOM lockstep, artifact verification) (2026-10-10)**: Closed the failure modes that left `v0.2.0` sitting untagged for days — the release job is gated on a fully green `main` CI, so a red run _silently skips_ every release (14 consecutive skips traced to the plugin-glob/telemetry/RTL failures now fixed).
+  - **Manifest ↔ SBOM lockstep**: `scripts/version.ts` now writes the CycloneDX root component (`sbom.json` `metadata.component` name/version/purl) in the same write as `package.json`, so a bump no longer depends on the pre-commit hook to avoid drift. `bun run version:verify` asserts that lockstep read-only and runs inside `bun run check` (pre-push Quality Gate + CI `03-check`).
+  - **Release-workflow hardening** (`auto-release.yaml`): a pre-flight `version:verify`, manual-`version` input validation, post-flight artifact verification (tag pushed + GitHub Release created — fails loudly otherwise), honest npm reporting (missing `NPM_TOKEN` → visible warning, rejected token → visible error; neither swallows the GitHub Release), and a `$GITHUB_STEP_SUMMARY` report. A `workflow_dispatch` run is the documented escape hatch when a persistent CI failure blocks the gate.
+  - **Verification**: `tests/unit/scripts/version-sbom.test.ts` (SBOM rewrite preserves every unrelated byte, drift detection on name/version/purl, `--verify` CLI contract) plus the updated `version-bump.test.ts` CLI assertions; live `bun run version:verify` green on `create-sveltycms@0.2.0`, and `v0.2.0` released end-to-end once `main` CI went green.
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)

@@ -89,6 +89,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Pre-flight: package.json and sbom.json must agree on the version before
+      # anything is tagged, so a hand-edited or stale SBOM can never ship under a
+      # mismatched version. `scripts/version.ts --verify` is read-only.
+      - name: Verify manifest and SBOM agree
+        run: bun run version:verify
+
       # The release only proceeds on a fully green CI run on `main`. The
       # `workflow_run` trigger already requires `conclusion == success`; this
       # makes the unit / integration / E2E contract explicit and fails closed if
@@ -111,6 +117,17 @@ jobs:
             exit 1
           fi
           echo "✅ All CI jobs succeeded — releasing."
+
+      - name: Validate manual version input
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.version != ''
+        env:
+          REQUESTED: ${{ github.event.inputs.version }}
+        run: |
+          if ! printf '%s' "$REQUESTED" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error title=Invalid version input::'$REQUESTED' is not a bare MAJOR.MINOR.PATCH SemVer."
+            exit 1
+          fi
+          echo "✅ manual version input '$REQUESTED' is a valid SemVer"
 
       - name: Determine version
         id: version
@@ -234,23 +251,55 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Verify npm authentication
+      # Fail loudly when a "successful" job produced no artifacts. The tag and the
+      # Release are the products of this workflow — assert both exist.
+      - name: Verify release artifacts
+        id: verify-release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -uo pipefail
+          if ! git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q "refs/tags/v$VERSION$"; then
+            echo "::error title=Missing tag::v$VERSION was not pushed to origin"
+            exit 1
+          fi
+          if ! gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error title=Missing release::GitHub Release v$VERSION was not created"
+            exit 1
+          fi
+          echo "✅ verified tag + GitHub Release v$VERSION"
+
+      # npm publish is best-effort and must never swallow the GitHub Release
+      # (already created above). A missing token is a visible warning; a token npm
+      # rejects is a visible error annotation — both leave the release intact and
+      # both are reported in the job summary below.
+      - name: Check npm publish readiness
         id: npm-auth
         if: steps.version.outputs.skip != 'true'
         continue-on-error: true
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "❌ NPM_TOKEN secret is empty or missing from repository secrets"
-            exit 1
-          fi
-          npm whoami || { echo "❌ npm token is invalid or expired — skipping npm publish"; exit 1; }
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning title=npm publish skipped::NPM_TOKEN is not set — the GitHub Release is unaffected."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! npm whoami >/dev/null 2>&1; then
+            echo "::error title=npm publish skipped::NPM_TOKEN is present but npm rejected it (invalid or expired)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Check existing npm version
         id: npm-check
-        if: steps.version.outputs.skip != 'true' && steps.npm-auth.outcome == 'success'
+        if: steps.version.outputs.skip != 'true' && steps.npm-auth.outputs.ready == 'true'
         continue-on-error: true
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
           PKG_NAME=$(node -e "console.log(require('./package.json').name)")
           if npm view "${PKG_NAME}@${VERSION}" version >/dev/null 2>&1; then
@@ -259,12 +308,33 @@ jobs:
           else
             echo "published=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          VERSION: ${{ steps.version.outputs.value }}
 
       - name: Publish to npm
-        if: steps.version.outputs.skip != 'true' && steps.npm-auth.outcome == 'success' && steps.npm-check.outputs.published != 'true'
+        id: npm-publish
+        if: steps.version.outputs.skip != 'true' && steps.npm-auth.outputs.ready == 'true' && steps.npm-check.outputs.published != 'true'
         continue-on-error: true
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Release summary
+        if: always()
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          SOURCE: ${{ steps.version.outputs.source }}
+          SKIPPED: ${{ steps.version.outputs.skip }}
+          NPM_READY: ${{ steps.npm-auth.outputs.ready }}
+          NPM_ALREADY: ${{ steps.npm-check.outputs.published }}
+        run: |
+          {
+            echo "## Auto Release"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Version | \`v${VERSION:-none}\` |"
+            echo "| Version source | ${SOURCE:-n/a} |"
+            echo "| Skipped (already released) | ${SKIPPED:-false} |"
+            echo "| npm auth ready | ${NPM_READY:-false} |"
+            echo "| npm already published | ${NPM_ALREADY:-n/a} |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -53,23 +53,31 @@
  *   bun run version:bump patch|minor|major
  *   bun run version:bump 0.0.10         # set exactly this version (no detection)
  *   bun run version:bump --dry-run      # print the decision, write nothing
+ *   bun run version:verify              # check package.json ↔ sbom.json, write nothing
  *
  * Features:
  * - dependency-free (node:child_process + node:fs only)
  * - `decideBump()` is pure and exported, so the policy is unit-tested without
  *   git (tests/unit/scripts/version-bump.test.ts)
  * - shows the source tag, the policy reason and the commits it decided from
+ * - keeps the CycloneDX root component (`sbom.json` `metadata.component`) in
+ *   lockstep with the manifest in the same write, so a bump does not depend on
+ *   the pre-commit hook to avoid an SBOM/manifest drift
+ * - `version:verify` asserts that lockstep (and a clean SemVer) read-only — the
+ *   release workflow runs it before tagging so drift fails the release
  * - idempotent: a no-op when package.json already holds the proposed version,
  *   with a note explaining why and the explicit form to use for a different one
- * - `parseCliArgs()`, `parseTargetVersion()`, `assertProposalAccepted()` and
- *   `explainNoOp()` are pure and exported, so the argument contract and both
- *   refusals are unit-tested without spawning the process
+ * - `parseCliArgs()`, `parseTargetVersion()`, `assertProposalAccepted()`,
+ *   `explainNoOp()`, `readPackageIdentity()`, `syncSbomVersion()` and
+ *   `findSbomDrift()` are pure and exported, so the argument contract, both
+ *   refusals and the SBOM contract are unit-tested without spawning the process
  */
 
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const PACKAGE_PATH = "package.json";
+const SBOM_PATH = "sbom.json";
 const RELEASE_TAG = /^v(\d+\.\d+\.\d+)$/;
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$/;
 /** CLI target literal: `0.0.10` or `v0.0.10` — the tag shape CI can actually create. */
@@ -78,7 +86,11 @@ const BREAKING_MARKER = /\bBREAKING[ -]CHANGE\b/;
 /** `type`, optional `(scope)`, optional `!`, then the `: ` Conventional Commits requires. */
 const CONVENTIONAL_SUBJECT = /^([a-z]+)(?:\([^)]*\))?(!)?:\s/i;
 const EVIDENCE_COMMITS = 5;
-const USAGE = "usage: bun run version:bump [auto|patch|minor|major|x.y.z] [--dry-run]";
+const USAGE =
+  "usage: bun run version:bump [auto|patch|minor|major|x.y.z] [--dry-run] | bun run version:bump --verify";
+
+/** Command label used by `fail()` — `version:bump`, or `version:verify` in verify mode. */
+let commandLabel = "version:bump";
 
 export type BumpKind = "auto" | "patch" | "minor" | "major";
 export type ConcreteBump = Exclude<BumpKind, "auto">;
@@ -94,6 +106,8 @@ export type BumpRequest = { mode: "kind"; kind: BumpKind } | { mode: "target"; v
 
 export interface CliArgs {
   dryRun: boolean;
+  /** Consistency-only mode: check package.json ↔ sbom.json, write nothing. */
+  verify: boolean;
   request: BumpRequest;
 }
 
@@ -116,7 +130,7 @@ interface ParsedVersion {
 }
 
 function fail(message: string): never {
-  console.error(`\n❌ version:bump: ${message}\n`);
+  console.error(`\n❌ ${commandLabel}: ${message}\n`);
   process.exit(1);
 }
 
@@ -361,6 +375,88 @@ export function replaceVersionField(raw: string, from: string, to: string): stri
 }
 
 /**
+ * The manifest identity the CycloneDX root component must mirror. Throws when
+ * package.json is not JSON or lacks a non-empty string `name`/`version`, so a
+ * broken manifest fails loudly instead of writing a half-formed SBOM.
+ * Exported for unit tests.
+ */
+export function readPackageIdentity(raw: string): { name: string; version: string } {
+  let parsed: { name?: unknown };
+  try {
+    parsed = JSON.parse(raw) as { name?: unknown };
+  } catch (error) {
+    throw new Error(
+      `package.json is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (typeof parsed.name !== "string" || parsed.name.length === 0) {
+    throw new Error('package.json has no non-empty string "name" field');
+  }
+  return { name: parsed.name, version: readPackageVersion(raw) };
+}
+
+/**
+ * Rewrites the CycloneDX root component (`metadata.component`) to the manifest's
+ * name + version, preserving every other byte (key order + the repository's
+ * 2-space, no-trailing-newline format). Returns the updated text, or `null` when
+ * the BOM is unparseable or carries no root component — a bump must not fail on
+ * an SBOM the pre-commit hook regenerates anyway (the caller warns instead).
+ * Exported for unit tests.
+ */
+export function syncSbomVersion(raw: string, name: string, version: string): string | null {
+  let bom: { metadata?: { component?: Record<string, unknown> } };
+  try {
+    bom = JSON.parse(raw) as typeof bom;
+  } catch {
+    return null;
+  }
+  const component = bom.metadata?.component;
+  if (!component || typeof component !== "object") return null;
+  return JSON.stringify(
+    {
+      ...bom,
+      metadata: {
+        ...bom.metadata,
+        component: { ...component, name, version, purl: `pkg:npm/${name}@${version}` },
+      },
+    },
+    null,
+    2,
+  );
+}
+
+/**
+ * Consistency problems between the manifest and the SBOM root component (empty
+ * = in lockstep). `version:bump --verify` runs this before the release workflow
+ * tags, so a hand-edited or stale SBOM can never ship under a mismatched version.
+ * Exported for unit tests.
+ */
+export function findSbomDrift(sbomRaw: string, name: string, version: string): string[] {
+  let bom: { metadata?: { component?: Record<string, unknown> } };
+  try {
+    bom = JSON.parse(sbomRaw) as typeof bom;
+  } catch (error) {
+    return [
+      `${SBOM_PATH} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    ];
+  }
+  const component = bom.metadata?.component;
+  if (!component) return [`${SBOM_PATH} has no metadata.component to check`];
+  const expectedPurl = `pkg:npm/${name}@${version}`;
+  const problems: string[] = [];
+  if (component.name !== name) {
+    problems.push(`${SBOM_PATH} name ${String(component.name)} ≠ ${name}`);
+  }
+  if (component.version !== version) {
+    problems.push(`${SBOM_PATH} version ${String(component.version)} ≠ ${version}`);
+  }
+  if (component.purl !== expectedPurl) {
+    problems.push(`${SBOM_PATH} purl ${String(component.purl)} ≠ ${expectedPurl}`);
+  }
+  return problems;
+}
+
+/**
  * Byte span of the top-level `"version"` **value** (quotes included), located by a
  * depth-tracking scan over the raw JSON text. Whole string tokens are skipped, so an
  * escaped quote cannot shift the depth and neither a nested `"version"` key nor the
@@ -434,6 +530,37 @@ function report(label: string, value: string): void {
 }
 
 /**
+ * `--verify`: assert package.json is a clean SemVer and the CycloneDX BOM's root
+ * component matches it exactly, then exit. Read-only — the release workflow runs
+ * it before tagging, so a drift between the two files fails the release instead
+ * of shipping a mismatched version.
+ */
+function verifyManifestConsistency(): void {
+  const raw = readFileSync(PACKAGE_PATH, "utf8");
+  const { name, version } = readPackageIdentity(raw);
+  if (!VERSION_PATTERN.test(version)) {
+    fail(`${PACKAGE_PATH} version "${version}" is not a MAJOR.MINOR.PATCH release version`);
+  }
+
+  console.log(`\n🔖 ${commandLabel}\n`);
+  report("manifest", `${PACKAGE_PATH} ${name}@${version}`);
+
+  let sbomRaw: string;
+  try {
+    sbomRaw = readFileSync(SBOM_PATH, "utf8");
+  } catch {
+    fail(`${SBOM_PATH} is missing — regenerate it with \`bun run audit:sbom\``);
+  }
+  const problems = findSbomDrift(sbomRaw, name, version);
+  if (problems.length > 0) {
+    fail(`${PACKAGE_PATH} and ${SBOM_PATH} disagree:\n   - ${problems.join("\n   - ")}`);
+  }
+  report("sbom", `${SBOM_PATH} metadata.component ${name}@${version}`);
+  report("result", "consistent — safe to tag and publish");
+  console.log();
+}
+
+/**
  * Pure argv parser: `auto|patch|minor|major`, one explicit `MAJOR.MINOR.PATCH`
  * target, and `--dry-run` in any position. Anything else — an unknown flag, a
  * malformed literal, a second version argument — throws, so the CLI contract is
@@ -441,10 +568,15 @@ function report(label: string, value: string): void {
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   let dryRun = false;
+  let verify = false;
   let request: BumpRequest | null = null;
   for (const arg of argv) {
     if (arg === "--dry-run") {
       dryRun = true;
+      continue;
+    }
+    if (arg === "--verify") {
+      verify = true;
       continue;
     }
     if (request) throw new Error(`more than one version argument given — ${USAGE}`);
@@ -456,13 +588,21 @@ export function parseCliArgs(argv: string[]): CliArgs {
       throw new Error(`unknown argument "${arg}" — ${USAGE}`);
     }
   }
-  return { dryRun, request: request ?? { mode: "kind", kind: "auto" } };
+  return { dryRun, verify, request: request ?? { mode: "kind", kind: "auto" } };
 }
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 
 function main(): void {
-  const { dryRun, request } = parseCliArgs(process.argv.slice(2));
+  const { dryRun, verify, request } = parseCliArgs(process.argv.slice(2));
+
+  // ── 0. Verify mode: consistency only, nothing is written ──────────────
+  if (verify) {
+    commandLabel = "version:verify";
+    verifyManifestConsistency();
+    return;
+  }
+
   const target = request.mode === "target" ? request.version : "";
   const requested: BumpKind = request.mode === "kind" ? request.kind : "auto";
 
@@ -616,6 +756,30 @@ function main(): void {
     );
   }
   writeFileSync(PACKAGE_PATH, updated, "utf8");
+
+  // Keep the CycloneDX BOM in lockstep with the manifest. The pre-commit hook
+  // regenerates it whenever package.json is staged, but a bump that never runs
+  // that hook (the CI release job commits directly) must not ship a mismatched
+  // SBOM — so the version is written here too. A missing/unreadable SBOM only
+  // warns: regenerating it is `bun run audit:sbom`.
+  try {
+    const sbomRaw = readFileSync(SBOM_PATH, "utf8");
+    const identity = readPackageIdentity(updated);
+    const synced = syncSbomVersion(sbomRaw, identity.name, proposedRaw);
+    if (synced === null) {
+      report(
+        "sbom",
+        `${SBOM_PATH} has no readable metadata.component — the pre-commit hook regenerates it`,
+      );
+    } else if (synced !== sbomRaw) {
+      writeFileSync(SBOM_PATH, synced, "utf8");
+      report("sbom", `${SBOM_PATH} metadata.component → ${identity.name}@${proposedRaw}`);
+    } else {
+      report("sbom", `${SBOM_PATH} already at ${proposedRaw}`);
+    }
+  } catch {
+    report("sbom", `${SBOM_PATH} not found — skipped (regenerate with \`bun run audit:sbom\`)`);
+  }
 
   report("result", `wrote ${PACKAGE_PATH}: ${currentRaw} → ${proposedRaw}`);
   report("next", "review the diff, commit, merge to main — CI creates the tag and release");

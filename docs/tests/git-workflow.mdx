@@ -80,22 +80,44 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 **Release preparation (opt-in).** `bun run git push --release` (or `--release=patch|minor|major`) arms a
 post-gate step: once the nine checks pass, `scripts/version.ts auto` derives the next SemVer version from
-the Conventional Commits since the highest `v*` tag, commits `package.json` as
-`chore(release): bump version to vX.Y.Z`, and prints the push that publishes it. The flag is consumed by
+the Conventional Commits since the highest `v*` tag, writes it into `package.json` **and the CycloneDX
+root component in `sbom.json`** (so the two can never drift), commits
+them as `chore(release): bump version to vX.Y.Z`, and prints the push that publishes it. The flag is consumed by
 `scripts/git-safe.ts` (git never forwards hook arguments), which is why the hook reads `SVELTY_RELEASE`.
 The bump runs only behind a full green gate and never inside the triggering push — git resolves the
 pushed refs first — so the release commit stays local until you push again; re-running is a no-op within
 the same release cycle. Manual equivalent: `bun run gate --release`.
+
+The manifest/SBOM lockstep is asserted read-only by `bun run version:verify`, which runs inside
+`bun run check` (so the pre-push Quality Gate and CI `03-check` both fail on drift) and again in the
+release workflow before anything is tagged.
 
 ```bash
 bun run gate                               # pre-push gate (build + verifiers + tenant + SQLite)
 bun run gate --release                     # …then bump + commit the next SemVer version
 bun run prepush                            # same as gate
 bun run git push --release origin HEAD:next HEAD:main   # gate + release, one command
+bun run version:bump --dry-run             # preview the derived version, write nothing
+bun run version:verify                      # package.json ↔ sbom.json consistency (read-only)
 bun test --timeout 300000 tests/integration/   # Integration only (needs build/)
 bun run test:doctor                        # unit + SQLite integration + gate map
 bun run risk:audit                         # same scanners as pre-commit step 4
 ```
+
+### Automated release (CI) — the GitHub Release + npm
+
+`auto-release.yaml` listens for a **successful CI run on `main`** (plus `push` of a `v*` tag and manual
+dispatch). On success it tags exactly the version `package.json` carries and creates the GitHub Release
+with generated notes. Hardening added for enterprise predictability:
+
+- **Pre-flight** `bun run version:verify` — the release refuses to run when the manifest and SBOM disagree.
+- **Post-flight** verification — the job fails loudly if the tag was not pushed or the GitHub Release was
+  not created (a "successful" job with no artifacts is the failure mode the guard exists for).
+- **npm is best-effort and honest** — a missing `NPM_TOKEN` is a visible `::warning::`, a token npm rejects
+  is a visible `::error::`; neither can swallow the GitHub Release (which is created first).
+- **Escape hatch** — because every release is gated on a fully green `main` CI, a single persistent failure
+  blocks releases. `Actions → Auto Release → Run workflow` bypasses the gate (`workflow_dispatch`), accepting
+  an exact `version` or a `bump` strategy.
 
 ---
 

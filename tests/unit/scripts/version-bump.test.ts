@@ -283,13 +283,18 @@ describe("assertProposalAccepted — release guards", () => {
 
 describe("parseCliArgs — CLI contract", () => {
   it("defaults to auto without arguments", () => {
-    expect(parseCliArgs([])).toEqual({ dryRun: false, request: { mode: "kind", kind: "auto" } });
+    expect(parseCliArgs([])).toEqual({
+      dryRun: false,
+      verify: false,
+      request: { mode: "kind", kind: "auto" },
+    });
   });
 
   it("keeps the bump kinds and accepts --dry-run in any position", () => {
     expect(parseCliArgs(["patch"]).request).toEqual({ mode: "kind", kind: "patch" });
     expect(parseCliArgs(["minor", "--dry-run"])).toEqual({
       dryRun: true,
+      verify: false,
       request: { mode: "kind", kind: "minor" },
     });
   });
@@ -298,6 +303,7 @@ describe("parseCliArgs — CLI contract", () => {
     // The CLI half of `bun run version:bump 0.0.10`.
     expect(parseCliArgs(["0.0.10"])).toEqual({
       dryRun: false,
+      verify: false,
       request: { mode: "target", version: "0.0.10" },
     });
     expect(parseCliArgs(["--dry-run", "v0.0.8"]).request).toEqual({

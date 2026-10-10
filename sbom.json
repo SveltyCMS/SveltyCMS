@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:053cc2a1-dfd4-4bef-bf18-fe15e7338552",
+  "serialNumber": "urn:uuid:c5ffc2ba-5fb0-48ba-8a07-a393de5310c0",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-08T19:15:49.330Z",
+    "timestamp": "2026-10-10T08:00:34.340Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -3181,13 +3181,13 @@
     {
       "type": "library",
       "name": "@smithy/core",
-      "version": "3.35.1",
-      "purl": "pkg:npm/@smithy/core@3.35.1",
+      "version": "3.35.2",
+      "purl": "pkg:npm/@smithy/core@3.35.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-i4YPS4B6ts7bjn7UwLnGjiZdprOvHvgGobFZsYK3GIY3E5hIqtj0rReU69BcTpGp+fvtraSNXeG1l+jtJvF55w=="
+          "content": "sha512-ejTukBuP/Pg3t9N8Ux+0zKsXeHWm7p6W3HbXFOyltKasSxZwCFmvTut7kBdZSCF3m9y1bXXyVu6p2xuMFcsTyQ=="
         }
       ]
     },
