@@ -13,9 +13,9 @@
     ],
     "component": {
       "name": "create-sveltycms",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "type": "application",
-      "purl": "pkg:npm/create-sveltycms@0.2.0"
+      "purl": "pkg:npm/create-sveltycms@0.3.0"
     }
   },
   "components": [
