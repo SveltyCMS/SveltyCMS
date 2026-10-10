@@ -192,7 +192,7 @@
     "stripe": "^23.0.0",
     "svedit": "^0.15.1",
     "svelte-canvas": "^2.1.0",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "uqr": "^0.1.3",
     "valibot": "^1.5.0",
     "ws": "^8.22.0",
