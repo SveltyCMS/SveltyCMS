@@ -29,12 +29,17 @@ import type { PluginServerModule } from "./types";
 // `registry.activatePlugin()` would find no server module and skip the plugin's
 // migrations, so plugin-owned collections are never provisioned in-process. The
 // `registerRuntimeServerModules()` fallback below restores that path.
+//
+// ⚠️ The call must stay a LITERAL `import.meta.glob(...)` expression: indirection
+// through a variable (e.g. `const glob = (import.meta as …).glob`) hides the
+// pattern from Rolldown's transform, so no lazy chunk is emitted and every
+// plugin server module 404s in production builds (the runtime fallback then
+// imports non-existent `chunks/<plugin>/index.server` paths). Under Bun the
+// property is `undefined`, calling it throws, and the try/catch yields `{}` —
+// exactly the fallback path above.
 const pluginServerModules: Record<string, () => Promise<unknown>> = (() => {
   try {
-    const glob = (import.meta as { glob?: unknown }).glob;
-    if (typeof glob === "function") {
-      return (glob as (p: string) => Record<string, () => Promise<unknown>>)("./*/index.server.ts");
-    }
+    return import.meta.glob("./*/index.server.ts") as Record<string, () => Promise<unknown>>;
   } catch {
     /* not a Vite runtime — handled by the runtime fallback */
   }
@@ -43,6 +48,13 @@ const pluginServerModules: Record<string, () => Promise<unknown>> = (() => {
 
 for (const [path, loader] of Object.entries(pluginServerModules)) {
   const id = path.replace(/^\.\/(.*)\/index\.server\.ts$/, "$1");
+  // Slot servers registered by `registerPluginSlots()` (index.ts) carry the
+  // plugin's `actions` for `/api/plugins/[pluginId]`; the glob loader only
+  // carries hooks/migrations. The slot registration runs first (this module
+  // imports `./index`), so never overwrite it — the API dispatcher reads
+  // `actions` from the registry entry and a glob-only loader would answer
+  // "Unknown action" for every plugin workspace.
+  if (pluginServerRegistry.has(id)) continue;
   pluginServerRegistry.register(id, loader as () => Promise<PluginServerModule>);
 }
 
