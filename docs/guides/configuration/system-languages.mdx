@@ -61,10 +61,16 @@ On first-run **System configuration**, add ISO codes to **System Languages**. Co
 ```json
 // project.inlang/settings.json
 {
+  "$schema": "https://inlang.com/schema/project-settings",
   "baseLocale": "en",
   "locales": ["en", "de", "fr"],
-  "sourceLanguageTag": "en",
-  "languageTags": ["en", "de", "fr"]
+  "modules": [
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@4.5.0/dist/index.js",
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@2.3.0/dist/index.js"
+  ],
+  "plugin.inlang.messageFormat": {
+    "pathPattern": "./src/messages/{locale}.json"
+  }
 }
 ```
 
@@ -103,7 +109,7 @@ Not implemented as a finished pack. Current order and snapshot: [Roadmap — Sys
 
 Today EN/DE ship compiled; extra locales are added one-by-one. Once **admin chrome is fully keyed in Paraglide** (no leftover English in the GUI), the same pipeline can fill **many locales in one pass**:
 
-1. Add the target ISO codes to `project.inlang/settings.json` `locales` / `languageTags` (or via System Settings).
+1. Add the target ISO codes to `project.inlang/settings.json` `locales` (or via System Settings). Keep `baseLocale` — `sourceLanguageTag`/`languageTags` are deprecated.
 2. `bun translate` — machine-fill every missing key in every new `src/messages/{locale}.json`.
 3. `bun run paraglide`.
 4. The [SveltyCMS Fink project](https://fink.inlang.com/github.com/SveltyCMS/SveltyCMS) is the community review surface: translators correct machine drafts in the browser; changes land as git PRs on `src/messages/`.

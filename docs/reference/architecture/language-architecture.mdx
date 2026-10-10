@@ -75,10 +75,16 @@ graph TB
 ```
 // project.inlang/settings.json
 {
+  "$schema": "https://inlang.com/schema/project-settings",
   "baseLocale": "en",
   "locales": ["en", "de"],
-  "sourceLanguageTag": "en",
-  "languageTags": ["en", "de"]
+  "modules": [
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@4.5.0/dist/index.js",
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@2.3.0/dist/index.js"
+  ],
+  "plugin.inlang.messageFormat": {
+    "pathPattern": "./src/messages/{locale}.json"
+  }
 }
 ```
 
@@ -194,7 +200,7 @@ src/paraglide/                # Generated — do not edit
 
 **Manual / community:**
 
-1. Add the code to `project.inlang/settings.json` `locales` and `languageTags`.
+1. Add the code to `project.inlang/settings.json` `locales`.
 2. `bun translate` — Inlang machine-fills `src/messages/{locale}.json`.
 3. `bun run paraglide` — compile type-safe messages.
 4. Review the catalog and open a GitHub PR, or edit in [Fink](https://fink.inlang.com/github.com/SveltyCMS/SveltyCMS).

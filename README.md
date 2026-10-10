@@ -282,7 +282,7 @@ We use [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) 
 **Add a language**
 
 1. Setup wizard (or System Settings → Available Locales) — same ISO picker as content languages, including RTL.
-2. Or edit `project.inlang/settings.json` (`locales` / `languageTags`), then:
+2. Or edit `project.inlang/settings.json` (`locales`), then:
 
 ```bash
 bun translate          # machine-fill src/messages/{locale}.json
