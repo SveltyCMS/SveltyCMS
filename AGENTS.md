@@ -161,7 +161,7 @@ Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit �
 - Branches: `next` (dev), `main` (stable). All work lands on `next`.
 - **Release flow** — a green pre-push lets the commits onto `main`. When CI then passes on `main` (unit + integration + E2E + benchmarks all green — the `release` job first asserts every CI job succeeded), `.github/workflows/auto-release.yaml` reads `package.json`. If that version's `v*` tag already exists and the CI commit is ahead of the tag, the workflow runs `scripts/version.ts auto` to derive the next version from Conventional Commits since the last release (`feat` → minor, breaking → major, else patch; on `0.x` a breaking change stays a minor, SemVer §4), commits `chore(release): bump version to vX.Y.Z`, pushes it to `main`, then creates the tag, the GitHub Release, and the npm publish. The GitHub Release is **independent of npm publish** — a missing/invalid `NPM_TOKEN` warns but never blocks the release. A checkout that is already the tagged release is skipped. The automatic step is semantic, so `0.1.2` becomes `0.1.3` for a fix-only change, `0.2.0` when a `feat` is included. The local `--release` bump still cannot travel inside the push that triggered it.
 - **Emergency paths** — push a tag manually (`git tag vX.Y.Z && git push origin vX.Y.Z` — the workflow listens for `v*` pushes) or `Actions → Auto Release → Run workflow`.
-- **Version source** — `package.json` drives the release; the tag is created FROM it. Bump it only when preparing a release — a stray bump ships the wrong version. (`auto` derives from the highest reachable `v*` tag, which can be _above_ the manifest — check the printed proposal before the publishing push.)
+- **Version source — strict SemVer** — `scripts/version.ts` derives the version from the Conventional Commits since the highest reachable `v*` tag (which can be _above_ the manifest — check the printed proposal); the release tags that `package.json`. The derivation is authoritative and a **floor**: `feat` → minor, `fix`/`perf`/anything else → patch, breaking → major (minor while `0.x`, SemVer §4). A manual override may raise it, but never go **below** it — a `feat` range can never be released as a patch (`bun run version:bump patch` is refused).
 - **Hardened git** — `bun run git commit`/`push` block `--no-verify` (bypassing requires the raw system git binary). If the gate fails, fix the issue — never bypass. Ultimate enforcement is GitHub branch protection.
 
 ## 9. Docs, Roadmap & Help
@@ -174,4 +174,4 @@ Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit �
 
 ---
 
-_Last updated: 2026-08-24_
+_Last updated: 2026-10-10_

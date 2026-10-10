@@ -441,19 +441,20 @@ For detailed information on our Git workflow, branching strategy, and commit con
 
 ### How Releases Work
 
-SveltyCMS uses **version-driven releases**: the maintainer bumps `package.json` with `bun run version:bump`, merges to `main`, and CI publishes the rest automatically.
+SveltyCMS uses **commit-driven (semantic) releases**: when CI passes on `main`, the release workflow derives the next version from the Conventional Commits since the last `v*` tag — `feat` → **minor**, a breaking change → **major** (minor while on `0.x`), anything else → **patch** — writes it into `package.json`, and publishes. You rarely bump by hand; `bun run version:bump [auto|patch|minor|major|<x.y.z>]` (or the `--release` pre-push gate) overrides the derivation when a range must release differently.
 
 ```
 next:  feat: add media gallery    ─┐
        fix: toolbar spacing        ├─ accumulate over days/weeks
        feat: image derivatives     ─┘
                                          │
-                               bun run version:bump   (writes package.json)
-                               merge next → main (when stable)
+                                    merge next → main (when stable)
                                          │
                                          ▼
                               CI passes on main → auto-release:
-                              ├─ git tag vX.Y.Z (created from package.json)
+                              ├─ derive next version from Conventional Commits
+                                 (feat → minor, breaking → major, else patch)
+                              ├─ git tag vX.Y.Z (from the bumped package.json)
                               ├─ GitHub Release with auto-generated notes
                               ├─ npm publish → npmjs.com (best-effort)
                               └─ Docker image → ghcr.io/sveltycms/sveltycms
@@ -461,7 +462,7 @@ next:  feat: add media gallery    ─┐
 
 - **`next` branch**: Active development — all features and fixes land here. No releases.
 - **`main` branch**: Production — merged from `next` when stable. Releases happen automatically when CI passes (or by pushing a `v*` tag).
-- **Version source**: `package.json` drives the release — the git tag is created from it.
+- **Version source**: `scripts/version.ts auto` derives the next version from the commits since the highest `v*` tag, then the release tags the resulting `package.json`. `bun run version:bump <kind|x.y.z>` or a manual `v*` tag push overrides this.
 
 ### Commit Convention
 
@@ -472,7 +473,7 @@ Every commit must follow [Conventional Commits](https://www.conventionalcommits.
 - `perf:` — performance improvement
 - `docs:`, `chore:`, `refactor:`, `test:`, `ci:`, `security:` — maintenance
 
-Commit prefixes inform the auto-generated release notes but do not drive version bumps — the maintainer chooses the version.
+Commit prefixes **drive the version bump**: `feat` → minor, a breaking change (`!` or `BREAKING CHANGE`) → major (minor while on `0.x`), everything else → patch — applied to the commits since the last `v*` tag. They also feed the auto-generated release notes. Override with `bun run version:bump <kind|x.y.z>` when a range should release differently.
 
 ### Verified CI Parity
 

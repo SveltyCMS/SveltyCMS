@@ -54,7 +54,8 @@ get_estimate_sec() {
     *Secret*)           echo 3  ;;
     *Tenant*)           echo 5  ;;
     *Backdoor*|*Probe*) echo 3  ;;
-    *Bundle*)           echo 3  ;;
+    *Release*)         echo 5  ;;
+    *Bundle*)          echo 3  ;;
     *Build*|*build*)    echo 90 ;;
     *Integration*)      echo 150 ;;
     *)                  echo 30 ;;

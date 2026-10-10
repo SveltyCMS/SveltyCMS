@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:arrow-up-bold-circle-outline"
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-09-30"
+updated: "2026-10-10"
 tags:
   - "upgrade"
   - "maintenance"
@@ -106,6 +106,7 @@ Start the upgraded server once; the boot log reports what the schema pass added.
 
 - **Back up your database.** The rollback tag restores code, not data. Use your engine's tooling (`pg_dump`, `mysqldump`, `mongodump`, or a copy of the SQLite file) and test the restore path at least once.
 - **Read the release notes** for the target version and confirm the branch you track in [Version Channels](./version-channels.mdx).
+- **Strict SemVer**: releases follow [Semantic Versioning](https://semver.org/) strictly — the version is derived from the release's Conventional Commits (`feat` → minor, breaking → major, everything else → patch; a breaking change stays a minor while on `0.x`). A patch or minor release therefore never hides a breaking change; an incompatible change only ever ships as the matching major.
 - **Container installs** upgrade by deploying the new image tag — the schema is applied on the first boot of the new image; this CLI is for git checkouts.
 
 ## Best Practices

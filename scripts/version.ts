@@ -101,6 +101,9 @@ export interface BumpDecision {
   evidence: string[];
 }
 
+/** SemVer ordering of concrete bumps, used to enforce the derived floor. */
+const BUMP_RANK: Record<ConcreteBump, number> = { patch: 0, minor: 1, major: 2 };
+
 /** What the CLI was asked for: a bump kind (auto included) or an exact version. */
 export type BumpRequest = { mode: "kind"; kind: BumpKind } | { mode: "target"; version: string };
 
@@ -283,22 +286,16 @@ export function decideBump(
   subjects: string[],
   bodies: string[] = [],
 ): BumpDecision {
-  if (requested !== "auto") {
-    return {
-      kind: requested,
-      reason: `explicit ${requested} argument — commit detection skipped`,
-      evidence: [],
-    };
-  }
-
   const version = parseVersion(current, "current");
 
   const breaking = subjects.filter((subject, index) =>
     hasBreakingMarker(subject, bodies[index] ?? ""),
   );
+
+  let detected: BumpDecision;
   if (breaking.length > 0) {
     const kind: ConcreteBump = version.major === 0 ? "minor" : "major";
-    return {
+    detected = {
       kind,
       reason:
         kind === "minor"
@@ -306,22 +303,39 @@ export function decideBump(
           : `${breaking.length} breaking change(s) with major ≥ 1 — SemVer §8: incompatible API change`,
       evidence: breaking,
     };
+  } else {
+    const features = subjects.filter((subject) => isFeatureSubject(subject));
+    if (features.length > 0) {
+      detected = {
+        kind: "minor",
+        reason: `${features.length} feat commit(s) — SemVer §7: MINOR adds backwards-compatible functionality`,
+        evidence: features,
+      };
+    } else {
+      detected = {
+        kind: "patch",
+        reason:
+          "no feat and no breaking change — SemVer §6: PATCH carries backwards-compatible fixes only",
+        evidence: [...subjects],
+      };
+    }
   }
 
-  const features = subjects.filter((subject) => isFeatureSubject(subject));
-  if (features.length > 0) {
-    return {
-      kind: "minor",
-      reason: `${features.length} feat commit(s) — SemVer §7: MINOR adds backwards-compatible functionality`,
-      evidence: features,
-    };
-  }
+  if (requested === "auto") return detected;
 
+  // Strict SemVer (https://semver.org/): the commits set a FLOOR. An explicit
+  // kind may raise the bump, but never lower it — a `feat` range can never be
+  // released as a patch, and a breaking range past 1.0.0 never as a minor.
+  if (BUMP_RANK[requested] < BUMP_RANK[detected.kind]) {
+    throw new Error(
+      `refusing an explicit "${requested}" bump — the commits since the last release require at least a "${detected.kind}" (${detected.reason}).\n` +
+        `   Releasing that range lower would violate SemVer (https://semver.org/).`,
+    );
+  }
   return {
-    kind: "patch",
-    reason:
-      "no feat and no breaking change — SemVer §6: PATCH carries backwards-compatible fixes only",
-    evidence: [...subjects],
+    kind: requested,
+    reason: `explicit ${requested} argument — at or above the required ${detected.kind}`,
+    evidence: detected.evidence,
   };
 }
 
@@ -626,7 +640,9 @@ function main(): void {
   // ── 2. Version source: explicit target, else the latest reachable v* tag ──
 
   const latest = latestReachableRelease();
-  const commits = target === "" && latest ? readCommits(`${latest.tag}..HEAD`) : [];
+  // Read commits whenever a baseline tag exists: the auto policy needs them, and
+  // so does the strict-SemVer floor applied to an explicit target.
+  const commits = latest ? readCommits(`${latest.tag}..HEAD`) : [];
   const breaking = commits.filter((commit) => hasBreakingMarker(commit.subject, commit.body));
   const features = commits.filter((commit) => isFeatureSubject(commit.subject));
 
@@ -640,6 +656,28 @@ function main(): void {
   if (target !== "") {
     sourceLabel = `explicit target ${target} — commit detection skipped`;
     proposedRaw = target;
+    // Strict SemVer: the commits set a floor even for an explicit target — an
+    // explicit version may be higher, but never below the derived bump.
+    if (latest) {
+      const detected = decideBump(
+        latest.version,
+        "auto",
+        commits.map((commit) => commit.subject),
+        commits.map((commit) => commit.body),
+      );
+      const derived = nextVersion(latest.version, detected.kind);
+      if (
+        compareVersions(
+          parseVersion(proposedRaw, "explicit target"),
+          parseVersion(derived, "SemVer-derived version"),
+        ) < 0
+      ) {
+        fail(
+          `explicit target ${proposedRaw} is below what the commits require (at least ${derived}: ${detected.reason}).\n` +
+            `   Releasing ${proposedRaw} would violate SemVer (https://semver.org/).`,
+        );
+      }
+    }
   } else {
     const sourceRaw = latest ? latest.version : currentRaw;
     sourceLabel = latest

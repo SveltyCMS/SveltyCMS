@@ -173,25 +173,36 @@ describe("decideBump — breaking changes", () => {
   });
 });
 
-describe("decideBump — explicit overrides", () => {
+describe("decideBump — explicit overrides (strict SemVer floor)", () => {
   const subjects = ["feat(a): new thing", "fix(b)!: reshape API"];
 
-  it("lets an explicit patch argument beat breaking and feat detection", () => {
-    const decision = decideBump("1.2.3", "patch", subjects, ["", "BREAKING CHANGE: x"]);
+  it("refuses an explicit patch argument when the commits require at least a minor", () => {
+    expect(() => decideBump("1.2.3", "patch", ["feat(a): new thing"])).toThrow(
+      /refusing an explicit "patch" bump/,
+    );
+  });
+
+  it("refuses an explicit patch argument when a breaking change requires a major", () => {
+    expect(() => decideBump("1.2.3", "patch", subjects, ["", "BREAKING CHANGE: x"])).toThrow(
+      /at least a "major"/,
+    );
+  });
+
+  it("allows an explicit patch on a patch-level range", () => {
+    const decision = decideBump("0.4.2", "patch", ["fix(a): tiny"]);
 
     expect(decision.kind).toBe("patch");
     expect(decision.reason).toContain("explicit patch argument");
-    expect(decision.evidence).toEqual([]);
   });
 
-  it("lets an explicit minor argument beat patch detection", () => {
+  it("allows an explicit minor to raise a patch-level range", () => {
     const decision = decideBump("0.1.0", "minor", ["fix(a): tiny"]);
 
     expect(decision.kind).toBe("minor");
     expect(decision.reason).toContain("explicit minor argument");
   });
 
-  it("lets an explicit major argument beat patch detection", () => {
+  it("allows an explicit major to raise a patch-level range", () => {
     const decision = decideBump("0.1.0", "major", ["chore: tidy"]);
 
     expect(decision.kind).toBe("major");

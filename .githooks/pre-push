@@ -102,10 +102,10 @@ if [ "$HAS_CODE_CHANGES" = false ]; then
 fi
 
 info "Pre-commit already verified: format, lint, unit tests."
-info "Pre-push: build + quality + security + backdoor probe + SQLite integration"
+info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration"
 echo ""
 
-TOTAL=9; OK=0
+TOTAL=10; OK=0
 
 # Step 1 — Production build (mirrors CI build job)
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
@@ -122,6 +122,15 @@ fi
 
 # Step 2 — Quality gate (TypeScript + Svelte check — mirrors CI whitebox)
 if run "✅  Quality Gate (check)" pm_run check; then
+  OK=$((OK + 1))
+fi
+
+# Step 2b — Release readiness (mirrors auto-release.yaml's pre-flight)
+# auto-release.yaml tags whatever package.json holds, so its first gate is
+# `version:verify` (package.json ↔ sbom.json lockstep) and its second is the
+# Conventional-Commits version derivation. Assert both locally and read-only so
+# a green push cannot fail the release on drift or an un-derivable bump.
+if run "🔖  Release readiness" sh -c "\"$PM_BIN\" run version:verify && \"$PM_BIN\" run version:bump auto --dry-run"; then
   OK=$((OK + 1))
 fi
 
