@@ -823,12 +823,23 @@ describe("Database Interface Contract Tests", () => {
       expect(parsedPoint.data._id).toBe(String(testId));
 
       // 3. Tenant isolation with point wire stream
-      const otherTenantWire = unwrapResult(
-        await wire.findPointWireStream(collection, testId, {
-          tenantId: "other-tenant" as unknown as DatabaseId,
-        }),
-      );
-      expect(otherTenantWire).toBeNull();
+      // A cross-tenant read is a definitive wire miss: engines that run the
+      // compiled statement answer `RECORD_NOT_FOUND` (the code the read lane
+      // matches on to build its `200 {success:true,data:null}` envelope), while
+      // engines that decline the fast path fall back to `findOne` and answer
+      // success with a null payload. Either way no body may cross the tenant
+      // boundary, so assert the payload and pin the sentinel.
+      const otherTenantWire = await wire.findPointWireStream(collection, testId, {
+        tenantId: "other-tenant" as unknown as DatabaseId,
+      });
+      const otherTenantBody = otherTenantWire.success ? otherTenantWire.data : null;
+      expect(
+        otherTenantBody,
+        `cross-tenant wire read must not serve a body (${currentDbType})`,
+      ).toBeNull();
+      if (!otherTenantWire.success) {
+        expect(otherTenantWire.error?.code).toBe("RECORD_NOT_FOUND");
+      }
 
       // Cleanup
       await db.crud.delete(collection, testId, { tenantId: TEST_TENANT });

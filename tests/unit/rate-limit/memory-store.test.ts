@@ -23,8 +23,12 @@ describe("MemoryRateLimitStore — checkAndConsume", () => {
   it("verweigert ab Kapazitaetsueberschreitung ohne Zustandsaenderung", () => {
     const store = new MemoryRateLimitStore();
     const one: TokenBucketConfig = { capacity: 1, refillPerSecond: 1 };
-    expect(store.checkAndConsume("k", one).allowed).toBe(true);
-    const denied = store.checkAndConsume("k", one);
+    // Gepinnter Timestamp: ohne ihn kann ein Refill zwischen den beiden
+    // Aufrufen greifen (Event-Loop-Stall unter Last), dann waere der zweite
+    // Aufruf erlaubt und der Test flaky.
+    const t0 = Date.now();
+    expect(store.checkAndConsume("k", one, 1, false, t0).allowed).toBe(true);
+    const denied = store.checkAndConsume("k", one, 1, false, t0);
     expect(denied.allowed).toBe(false);
     expect(denied.tokens).toBe(0);
     expect(denied.retryAfterSeconds).toBeGreaterThanOrEqual(1);
@@ -41,8 +45,10 @@ describe("MemoryRateLimitStore — checkAndConsume", () => {
   it("overdraft bucht trotz Ablehnung ab (WAF-Paritaet)", () => {
     const store = new MemoryRateLimitStore();
     const one: TokenBucketConfig = { capacity: 1, refillPerSecond: 1 };
-    expect(store.checkAndConsume("k", one).allowed).toBe(true);
-    const denied = store.checkAndConsume("k", one, 1, true);
+    // Gepinnter Timestamp — sonst flaky unter Last (Refill zwischen den Aufrufen).
+    const t0 = Date.now();
+    expect(store.checkAndConsume("k", one, 1, false, t0).allowed).toBe(true);
+    const denied = store.checkAndConsume("k", one, 1, true, t0);
     expect(denied.allowed).toBe(false);
     expect(denied.tokens).toBe(-1);
   });

@@ -334,7 +334,7 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(page.getByTestId("widget-fields-list")).not.toBeVisible();
 
     // Switch back to Canvas mode
-    const canvasModeBtn = page.getByTestId("code-view-mode-canvas");
+    const canvasModeBtn = page.getByTestId("view-mode-canvas");
     await canvasModeBtn.click();
     await expect(page.getByTestId("widget-fields-list")).toBeVisible({ timeout: 5_000 });
     await expect(codePane).not.toBeVisible();

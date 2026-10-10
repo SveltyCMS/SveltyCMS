@@ -82,7 +82,17 @@ test.describe("Automations (Testing 2026)", () => {
    */
   test("golden: builder create → list → edit → delete", async ({ page }) => {
     await goAutomations(page);
-    await page.getByTestId("automations-new").click();
+    const newBtn = page.getByTestId("automations-new");
+    await expect(newBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // SSR-rendered anchor: a click landing before hydration can miss the
+    // client router, so click until the editor route reports the outcome.
+    await expect(async () => {
+      if (!page.url().includes("/config/automations/new")) {
+        await newBtn.click({ timeout: 5_000 }).catch(() => {});
+      }
+      await expect(page).toHaveURL(/\/config\/automations\/new/, { timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
     await expect(page.getByTestId("automation-editor")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });

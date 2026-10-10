@@ -87,10 +87,20 @@ test.describe("Operations Pages", () => {
       const row = page.locator("tr", { hasText: taskType });
       await expect(row).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-      // Delete via the row action and confirm in the portal dialog.
-      await row.getByTestId("queue-job-delete").click();
+      // Delete via the row action and confirm in the portal dialog. The queue
+      // page is SSR-rendered — a click that lands before hydration is a silent
+      // no-op, so click until the dialog reports the outcome (same pattern as
+      // helpers/user-page.ts openUserTab).
       const confirmBtn = page.getByTestId("modal-confirm");
-      await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(async () => {
+        if (!(await confirmBtn.isVisible().catch(() => false))) {
+          await row
+            .getByTestId("queue-job-delete")
+            .click({ timeout: 5_000 })
+            .catch(() => {});
+        }
+        await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
       await confirmBtn.click();
 
       // Outcome: the row is removed from the jobs table after invalidateAll.

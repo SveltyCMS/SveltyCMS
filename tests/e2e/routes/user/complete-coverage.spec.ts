@@ -668,13 +668,16 @@ test.describe("Accessibility", () => {
   test("keyboard navigation: Tab through interactive elements", async ({ page }) => {
     // Press Tab to cycle through interactive elements on the page
     const body = page.locator("body");
+    const focused = page.locator(":focus");
 
-    // Start by focusing the body
-    await body.press("Tab");
-
-    // After Tab, some element should be focused
-    const focusedFirst = page.locator(":focus");
-    await expect(focusedFirst).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Start by focusing the body. A Tab that lands mid-navigation (or before
+    // the client app mounts its first focusable node) can leave no active
+    // element, so press until a visible focused element exists — the outcome
+    // of the press — instead of firing once and hoping it landed.
+    await expect(async () => {
+      await body.press("Tab");
+      await expect(focused).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 
     // Press Tab a few more times to cycle through elements (focus moves
     // synchronously per keypress — no settle sleeps needed)
@@ -684,8 +687,12 @@ test.describe("Accessibility", () => {
     await page.keyboard.press("Tab");
 
     // Something should be focused after tabbing
-    const focusedLater = page.locator(":focus");
-    await expect(focusedLater).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      if (!(await focused.isVisible().catch(() => false))) {
+        await body.press("Tab");
+      }
+      await expect(focused).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
   });
 
   test("focus ring is visible on interactive elements", async ({ page }) => {

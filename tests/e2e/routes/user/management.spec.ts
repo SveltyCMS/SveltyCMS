@@ -258,13 +258,20 @@ test.describe.serial("User Management Flow", () => {
     // ✅ UPDATE via UI when identity tab is hydrated
     const editBtn = page.getByTestId("edit-user-settings-btn");
     await expect(editBtn).toBeVisible({ timeout: 10_000 });
-    await editBtn.click();
 
     const editDialog = page
       .getByRole("dialog")
       .filter({ hasText: /edit user data|username/i })
       .first();
-    await expect(editDialog).toBeVisible({ timeout: 15_000 });
+
+    // SSR-rendered button — a pre-hydration click is a silent no-op. Click
+    // until the dialog reports the outcome (same pattern as openUserTab).
+    await expect(async () => {
+      if (!(await editDialog.isVisible().catch(() => false))) {
+        await editBtn.click({ timeout: 5_000 }).catch(() => {});
+      }
+      await expect(editDialog).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 15_000, intervals: [500, 1_000, 2_000] });
 
     const newUsername = `updatedUser_${Date.now().toString(36).slice(-6)}`;
     const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');

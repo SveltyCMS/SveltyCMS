@@ -13,6 +13,17 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { telemetryService } from "@src/services/observability/telemetry-service";
 
+// Boundary mock: the encryption path must not depend on worker-global DB state.
+// A sibling test file can register a *disconnected* adapter on the global
+// registry, which would make `dbAdapter.isConnected()` answer false and send
+// `checkUpdateStatus` down the early-return branch before the payload is built.
+vi.mock("@src/databases/db", () => ({
+  getPrivateEnv: () => ({}),
+  dbAdapter: {
+    isConnected: () => true,
+  },
+}));
+
 describe("TelemetryService Environment Checks", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
