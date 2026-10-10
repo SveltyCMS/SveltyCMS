@@ -145,7 +145,7 @@
     "migrate": "bun run src/plugins/smart-importer/cli.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
+    "@aws-sdk/client-s3": "^3.1149.0",
     "@better-svelte-email/components": "^2.3.0",
     "@better-svelte-email/preview": "^2.3.0",
     "@better-svelte-email/server": "^2.3.0",
@@ -184,7 +184,7 @@
     "iconify-icon": "^3.0.3",
     "json-render-svelte": "^0.6.1",
     "maplibre-gl": "^6.13.0",
-    "nodemailer": "^10.0.16",
+    "nodemailer": "^10.1.0",
     "ollama": "^0.6.4",
     "redis": "^6.3.0",
     "sharp": "^0.35.5",
@@ -207,8 +207,8 @@
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@types/bun": "^1.4.2",
-    "@types/google.maps": "^3.66.5",
-    "@types/node": "^26.6.4",
+    "@types/google.maps": "^3.66.6",
+    "@types/node": "^26.6.5",
     "@types/nodemailer": "^8.0.2",
     "@types/ws": "^8.18.2",
     "@vitest/browser": "^5.0.3",
