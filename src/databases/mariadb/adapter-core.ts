@@ -237,6 +237,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return true;
   }
 
+  protected override get updateCoalescingEnabled(): boolean {
+    return process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
+  }
+
   protected async rawFindById<T extends BaseEntity>(
     table: any,
     collection: string,
@@ -1788,6 +1792,42 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Raw multi-row UPDATE statement coalescing for MariaDB.
+   * Dispatches updates to the bulk update engine and returns the updated items.
+   */
+  protected override async rawUpdateManyReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
+  ): Promise<T[] | null> {
+    const len = batch.length;
+    if (len === 0) return [];
+    try {
+      const updates = batch.map((b) => ({ id: b.id, data: b.values }));
+      const options = batch[0].options;
+      const res = await this.rawBulkUpdate(table, collection, updates, new Date(), options);
+      if (!res) return null;
+
+      const idColName = this.getColumn(table, "_id")?.name || "_id";
+      const reconstructed: T[] = [];
+      for (const item of batch) {
+        reconstructed.push(
+          convertDatesToISO(
+            { ...item.values, [idColName]: item.id },
+            {
+              ...this.convertDatesOptions,
+              table: collection,
+            },
+          ) as unknown as T,
+        );
+      }
+      return reconstructed;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Bulk UPDATE via `UPDATE … JOIN JSON_TABLE` — the MariaDB twin of the
    * PostgreSQL UNNEST path. Verified against MariaDB 12.3 (2026-10-04):
    * VARCHAR extraction unquotes JSON strings, JSON columns keep them quoted
@@ -2554,5 +2594,51 @@ export abstract class AdapterCore extends SqlAdapterCore {
       ),
     );
     logger.info("Closed all per-tenant connection pools in MariaDB");
+  }
+
+  // --------------------------------------------------------------------------
+  // Dynamic JSON Field Sort Indexing (MariaDB W1 Resolution)
+  // --------------------------------------------------------------------------
+
+  private static readonly SORT_EXPR_FIELD_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  private static readonly MAX_DYNAMIC_SORT_INDEXES = 64;
+  private _dynamicSortIndexes = new Map<string, "requested" | "done">();
+
+  /**
+   * Schedule a lazy index for a dynamic JSON field sorted via `JSON_UNQUOTE(JSON_EXTRACT(data, '$.field'))`.
+   * Resolves the MariaDB W1 scale cliff (4.25 s at 1M rows down to index seeks).
+   * In MariaDB 10.6+ / 12.3+, this creates an expression index or generated virtual column index fire-and-forget.
+   */
+  protected override onDynamicSort(collection: string, tableName: string, field: string): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    if (field.includes(".") || !AdapterCore.SORT_EXPR_FIELD_RE.test(field)) return;
+    const table = this.getTable(collection);
+    // If field is already a physical column on the table, an expression index on data is unnecessary
+    if (table && this.getColumn(table, field)) return;
+
+    const key = `${collection}\0${field}`;
+    if (this._dynamicSortIndexes.has(key)) return;
+    this._dynamicSortIndexes.set(key, "requested");
+    this.evictIfFull(this._dynamicSortIndexes, AdapterCore.MAX_DYNAMIC_SORT_INDEXES);
+
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const rawIndexName = `${tableName}_${field}_expr_idx`;
+    const indexName = assertSafeSqlIdentifier(boundedSqlIndexName(rawIndexName), "index");
+
+    void (async () => {
+      try {
+        // MariaDB 10.6+ supports expression indexes directly: CREATE INDEX ... ON table ((JSON_UNQUOTE(JSON_EXTRACT(data, '$.field'))))
+        await this.raw.execute(
+          `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${safeTable}\` ((JSON_UNQUOTE(JSON_EXTRACT(\`data\`, '$.${field}'))))`,
+        );
+        this._dynamicSortIndexes.set(key, "done");
+      } catch (err: unknown) {
+        // Fallback: if functional index syntax is restricted or field extraction fails, unmark to allow retry or fallback scan
+        this._dynamicSortIndexes.delete(key);
+        logger.debug(
+          `[MariaDB] onDynamicSort index failed for ${tableName}.${field}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    })();
   }
 }

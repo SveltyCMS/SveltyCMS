@@ -425,8 +425,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return this._wireStreamEngine.findListWireStream(this, table, getTableName(table), options);
   }
 
+  protected override get updateCoalescingEnabled(): boolean {
+    return process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
+  }
+
   /**
    * Raw single-statement INSERT…RETURNING for SQLite — same prepared-cache
+
    * reuse as rawFindById. Dates bind as epoch-ms integers (the adapter stores
    * INTEGER timestamps); objects are JSON-stringified (data column). Skips the
    * Drizzle AST build on the hot write path.
@@ -628,6 +633,101 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }) as T;
         mConv?.();
         return converted;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Raw single-statement multi-row UPDATE…CASE…WHERE _id IN (…).
+   * Provides single-statement update coalescing for SQLite, avoiding per-row statement overhead.
+   */
+  protected override async rawUpdateManyReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
+  ): Promise<T[] | null> {
+    const len = batch.length;
+    if (len === 0) return [];
+    try {
+      const tableName = getTableName(table);
+      const idColName = this.getColumn(table, "_id")?.name || "_id";
+      const columns = Object.keys(batch[0].values).filter(
+        (c) => c !== idColName && c !== "id" && c !== "tenantId",
+      );
+      if (columns.length === 0) return null;
+
+      const options = batch[0].options;
+      const skipReturning = (options as { skipReturning?: boolean })?.skipReturning === true;
+      const chunkIds = batch.map((b) => String(b.id));
+
+      const setPairs: string[] = [];
+      const params: unknown[] = [];
+
+      for (const col of columns) {
+        const phys = this.getColumn(table, col);
+        const safeCol = assertSafeSqlIdentifier(phys?.name ?? col, "column");
+        const isJson = phys?.name === "data" || (phys as any)?.dataType === "json";
+        const jsonWrap =
+          isJson && batch.some((b) => getJsonDataPatch(b.values) !== undefined)
+            ? this.jsonMergeWrapper(`"${safeCol}"`)
+            : null;
+
+        const whens: string[] = [];
+        for (let i = 0; i < len; i++) {
+          whens.push("WHEN ? THEN ?");
+          params.push(chunkIds[i], batch[i].values[col]);
+        }
+        const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+        const caseSql = `CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`;
+        setPairs.push(
+          jsonWrap
+            ? `"${safeCol}" = ${jsonWrap.prefix}${caseSql}${jsonWrap.suffix}`
+            : `"${safeCol}" = ${caseSql}`,
+        );
+      }
+
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
+      const idPlaceholders = chunkIds.map(() => "?").join(", ");
+      const safeTable = assertSafeSqlIdentifier(tableName, "table");
+      const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+      const whereSql = `"${safeIdCol}" IN (${idPlaceholders})${tenantSql}`;
+      const rawSql = skipReturning
+        ? `UPDATE "${safeTable}" SET ${setPairs.join(", ")} WHERE ${whereSql}`
+        : `UPDATE "${safeTable}" SET ${setPairs.join(", ")} WHERE ${whereSql} RETURNING *`;
+
+      if (skipReturning) {
+        await this.prepareAndExecuteWrite(rawSql, "run", ...params, ...chunkIds, ...tenantParams);
+        const reconstructed: T[] = [];
+        for (const item of batch) {
+          reconstructed.push(
+            convertDatesToISO(
+              { ...item.values, [idColName]: item.id },
+              {
+                ...this.convertDatesOptions,
+                table: collection,
+                inPlace: true,
+              },
+            ) as unknown as T,
+          );
+        }
+        return reconstructed;
+      }
+
+      const rows = await this.prepareAndExecuteWrite(
+        rawSql,
+        "all",
+        ...params,
+        ...chunkIds,
+        ...tenantParams,
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        return convertArrayDatesToISO(rows, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T[];
       }
       return null;
     } catch {
