@@ -10,7 +10,7 @@ export const CSRF_TOKEN_COOKIE_NAME = "csrf_token";
 export const CSRF_TOKEN_HEADER = "X-CSRF-Token";
 const CSRF_TOKEN_LENGTH = 32; // 256 bits
 const CSRF_COOKIE_NAME_INSECURE = CSRF_TOKEN_COOKIE_NAME;
-const CSRF_COOKIE_NAME_SECURE = `__Host-${CSRF_TOKEN_COOKIE_NAME}`;
+const CSRF_COOKIE_NAME_SECURE = "__Host-" + CSRF_TOKEN_COOKIE_NAME;
 const CSRF_COOKIE_MAX_AGE = 60 * 60 * 24; // 24 hours
 
 // Precomputed cookie option shapes — cookies.set() never mutates its options
