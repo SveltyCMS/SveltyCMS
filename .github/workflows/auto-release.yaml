@@ -18,6 +18,16 @@
 # only after the whole CI workflow — unit, integration, E2E and benchmarks —
 # succeeded on `main`; a failed or partial run never touches the version.
 #
+# Branch protection: `main` requires changes through a pull request, so the
+# bot's push of the bump commit is rejected unless GitHub Actions is on the
+# bypass list (Settings → Rules → main → bypass, or a GH_TOKEN secret from an
+# account that may bypass). A rejected push is a warning, not a failure: the
+# tag, GitHub Release and npm publish are created from the local bump commit
+# regardless, so a protected branch never swallows a release. The tag then sits
+# one commit ahead of `main`; until `main` can be advanced, later runs see the
+# tag already exists and only try to fast-forward `main` to it (the `adopt`
+# path), so a release is never published twice.
+#
 # The GitHub Release is created independently of npm publish — a missing/invalid
 # NPM_TOKEN or registry failure must never swallow the release (that previously
 # left pushed tags with no GitHub Releases). npm publish is best-effort.
@@ -176,6 +186,16 @@ jobs:
                 if [ "$NEXT_VERSION" = "$PKG_VERSION" ]; then
                   echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
                   echo "source=package.json" >> $GITHUB_OUTPUT
+                elif git rev-parse "v$NEXT_VERSION" >/dev/null 2>&1; then
+                  # The derived version already carries a tag main cannot reach
+                  # yet — a previous run tagged it while the branch push was
+                  # blocked by branch protection. Do not tag or publish again;
+                  # fast-forward main to the released commit so the tag becomes
+                  # reachable and future releases resume deriving from it.
+                  echo "value=$NEXT_VERSION" >> $GITHUB_OUTPUT
+                  echo "source=already released" >> $GITHUB_OUTPUT
+                  echo "skip=true" >> $GITHUB_OUTPUT
+                  echo "adopt=true" >> $GITHUB_OUTPUT
                 else
                   echo "value=$NEXT_VERSION" >> $GITHUB_OUTPUT
                   echo "source=scripts/version.ts (auto)" >> $GITHUB_OUTPUT
@@ -192,9 +212,14 @@ jobs:
           BUMP_CHOICE: ${{ github.event.inputs.bump }}
 
       # Manual dispatch `bump`, and a CI pass whose package.json version is
-      # already tagged while HEAD has moved on. The tag step below publishes
-      # the commit this step pushes.
+      # already tagged while HEAD has moved on. The bump commit is created
+      # locally first; the tag step below points at it, so the release does not
+      # depend on the branch push. main only advances when the bot is allowed to
+      # bypass the required-PR rule (branch protection / ruleset bypass list);
+      # a rejected push is a warning, never a failure — otherwise it would skip
+      # the tag, the Release and npm publish (the failure mode this guards).
       - name: Commit version bump
+        id: bump
         if: steps.version.outputs.bumped == 'true'
         run: |
           git config user.name "github-actions[bot]"
@@ -207,15 +232,41 @@ jobs:
             exit 0
           fi
           git commit -am "chore(release): bump version to v${{ steps.version.outputs.value }}"
-          git push origin HEAD:${{ github.event.workflow_run.head_branch || 'main' }}
+          BRANCH="${{ github.event.workflow_run.head_branch || 'main' }}"
+          if git push origin "HEAD:$BRANCH"; then
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+            echo "✅ pushed the bump commit to $BRANCH"
+          else
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=$BRANCH not advanced::The release tag is still created from the local bump commit, but $BRANCH keeps the previous package.json until GitHub Actions is allowed to bypass the required-PR rule (Settings → Rules → $BRANCH → bypass list: add GitHub Actions, or set GH_TOKEN to an account that may bypass). The next green CI run re-derives the same version and skips it until $BRANCH catches up."
+          fi
+
+      # Recovery path: one or more releases were tagged while the branch push
+      # was blocked, so the tag exists but is unreachable from the branch. Push
+      # the released commit onto the branch (a fast-forward — its parent is the
+      # CI SHA) so `git tag --merged` sees it again and the next derivation is
+      # taken from the released version rather than re-deriving it forever.
+      - name: Advance branch to released tag
+        id: adopt
+        if: steps.version.outputs.adopt == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="${{ github.event.workflow_run.head_branch || 'main' }}"
+          SHA=$(git rev-list -n1 "v${{ steps.version.outputs.value }}")
+          if git push origin "$SHA:refs/heads/$BRANCH"; then
+            echo "✅ advanced $BRANCH to released v${{ steps.version.outputs.value }} ($SHA)"
+          else
+            echo "::warning title=$BRANCH still behind::Released v${{ steps.version.outputs.value }} is tagged but $BRANCH cannot be advanced past the required-PR rule. Releases resume automatically once GitHub Actions may bypass it."
+          fi
 
       # Green run: this checkout is already the tagged release. A later commit
       # takes the derive branch above instead of landing here.
       - name: Skipped release
         if: steps.version.outputs.skip == 'true'
         run: |
-          echo "::notice title=Release skipped::v${{ steps.version.outputs.value }} already points at ${{ github.sha }}. Nothing to tag."
-          echo "ℹ️ Skipped: this commit is already release v${{ steps.version.outputs.value }}."
+          echo "::notice title=Release skipped::v${{ steps.version.outputs.value }} already has a tag. Nothing to tag."
+          echo "ℹ️ v${{ steps.version.outputs.value }} is already released."
 
       # An existing tag means this version was released before (e.g. a re-run):
       # skip idempotently. `bun run version:bump` refuses to derive an
