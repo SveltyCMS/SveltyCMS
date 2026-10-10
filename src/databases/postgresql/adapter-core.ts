@@ -29,6 +29,7 @@ import {
   type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
 import { POSTGRES_DIALECT, type SqlDialect } from "../core/sql-query-builder";
+import { PostgresWireStreamEngine } from "./postgresql-wire-stream";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/query-primitives";
 import type {
   BaseQueryOptions,
@@ -40,7 +41,6 @@ import {
   isSystemTable,
   shouldMaterializeField,
   buildCompositeIndexColumns,
-  getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
 import {
   applyDeclaredFieldRenames,
@@ -876,28 +876,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   >();
 
   /** Cache for Direct-to-Wire SQL JSON statements (2027 architecture). */
-  private _rawFindPointWireSqlCache = new WeakMap<
-    any,
-    {
-      /** `SELECT … FROM table` prefix shared by every variant below. */
-      selectPrefix: string;
-      base: string;
-      tenant: string;
-      /** Published-only variants; `null` when the table has no `status` column. */
-      basePub: string | null;
-      tenantPub: string | null;
-    }
-  >();
-
-  private _rawFindListWireSqlCache = new WeakMap<
-    any,
-    {
-      base: string;
-      tenant: string;
-      basePub: string | null;
-      tenantPub: string | null;
-    }
-  >();
+  /** Engine for Direct-to-Wire SQL JSON stream queries. */
+  private _wireStreamEngine = new PostgresWireStreamEngine();
 
   protected override async rawFindById<T extends import("../db-interface").BaseEntity>(
     table: any,
@@ -985,101 +965,32 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   /**
-   * Direct-to-Wire point stream optimization for PostgreSQL:
-   * Generates `{ success: true, data: { ... } }` directly inside PostgreSQL C engine
+   * Direct-to-Wire point stream optimization for PostgreSQL (2027 architecture):
+   * Generates { success: true, data: { ... } } directly inside PostgreSQL
    * via jsonb_build_object, completely bypassing V8 JS object hydration and JSON.stringify.
    */
   protected override async rawFindPointWireStream(
     table: any,
     _collection: string,
     id: DatabaseId,
-    options: import("../db-interface").BaseQueryOptions,
+    options: BaseQueryOptions,
   ): Promise<RawPointWireStreamResult> {
     const txnSql = this.getTxnSql(options);
     if (options?.transaction && !txnSql) return { kind: "declined" };
     const exec = txnSql ?? this.sql!;
-    if (!exec) return { kind: "declined" };
-
-    try {
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" }; // Non-collection tables without a JSON blob use findOne fallback
-
-      const tableName = getTableName(table);
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"::text' : "NULL::text";
-
-      let cachedWireSql = this._rawFindPointWireSqlCache.get(table);
-      if (!cachedWireSql) {
-        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
-        const hasSlugCol = !!this.getColumn(table, "slug");
-        const hasStatusCol = !!this.getColumn(table, "status");
-
-        // Row-store hybrid: materialized fields live in real columns and the
-        // `data` blob keeps only dynamic fields, so a blob-only wire body would
-        // silently drop them. `||` concatenates (unlike jsonb merge rules it
-        // KEEPS explicit nulls) and jsonb_build_object maps a boolean column to
-        // JSON true/false, so the wire body matches the Domain-Plane flatten
-        // (columns win; an unset column is `null`, never a missing key).
-        const pairs: string[] = [`'_id', "_id"`];
-        if (hasStatusCol) pairs.push(`'status', "status"`);
-        if (hasSlugCol) pairs.push(`'slug', "slug"`);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-          const name = assertSafeSqlIdentifier(rawName, "column");
-          pairs.push(`'${name}', "${name}"`);
-        }
-
-        const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const dataExpr = `(CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)`;
-        const selectPrefix = `SELECT jsonb_build_object('success', true, 'data', ${dataExpr})::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
-
-        cachedWireSql = {
-          selectPrefix,
-          base: `${selectPrefix} WHERE "_id" = $1 LIMIT 1`,
-          tenant: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
-          // Wire Plane publication guarantee (see `requirePublished`): compiled
-          // into the statement so unpublished rows never reach the socket.
-          basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') LIMIT 1`
-            : null,
-          tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" = $2 LIMIT 1`
-            : null,
-        };
-        this._rawFindPointWireSqlCache.set(table, cachedWireSql);
-      }
-
-      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenant = tenantClause.sql !== "";
-      const wantPublished = options?.requirePublished === true;
-      // Fail closed: no `status` column means the engine cannot prove the row is
-      // published, so the caller's Domain-Plane clamp decides instead.
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
-      const sqlText = wantPublished
-        ? hasTenant
-          ? cachedWireSql.tenantPub!
-          : cachedWireSql.basePub!
-        : hasTenant
-          ? cachedWireSql.tenant
-          : cachedWireSql.base;
-      const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
-      const rows = await exec.unsafe(sqlText, params, { prepare: true });
-      if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
-      const first = rows[0];
-      return {
-        kind: "found",
-        wireBody:
-          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
-        etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
-      };
-    } catch {
-      return { kind: "declined" };
-    }
+    return this._wireStreamEngine.findPointWireStream(
+      this,
+      exec,
+      table,
+      getTableName(table),
+      id,
+      options,
+    );
   }
 
   /**
    * Raw list direct-to-wire streaming for PostgreSQL (2027 architecture).
-   * Aggregates rows directly in the PostgreSQL engine using `jsonb_agg`,
+   * Aggregates rows directly in the PostgreSQL engine using jsonb_agg,
    * completely bypassing V8 object allocation and JSON.stringify.
    */
   protected override async rawFindListWireStream(
@@ -1089,96 +1000,20 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       limit?: number;
       offset?: number;
       requirePublished?: boolean;
+      sortField?: string;
+      sortDirection?: "asc" | "desc";
     },
   ): Promise<RawListWireStreamResult> {
     const txnSql = this.getTxnSql(options);
     if (options?.transaction && !txnSql) return { kind: "declined" };
     const exec = txnSql ?? this.sql!;
-    if (!exec) return { kind: "declined" };
-
-    try {
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" };
-
-      const tableName = getTableName(table);
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol
-        ? 'coalesce(extract(epoch from "updatedAt") * 1000, 0)'
-        : "0";
-
-      let cachedWireSql = this._rawFindListWireSqlCache.get(table);
-      if (!cachedWireSql) {
-        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
-        const hasSlugCol = !!this.getColumn(table, "slug");
-        const hasStatusCol = !!this.getColumn(table, "status");
-
-        const pairs: string[] = [`'_id', "_id"`];
-        if (hasStatusCol) pairs.push(`'status', "status"`);
-        if (hasSlugCol) pairs.push(`'slug', "slug"`);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-          const name = assertSafeSqlIdentifier(rawName, "column");
-          pairs.push(`'${name}', "${name}"`);
-        }
-
-        const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const dataExpr = `(CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)`;
-        const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
-        const orderClause = `ORDER BY "_id" DESC`;
-
-        const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `
-          SELECT coalesce(jsonb_agg(sub.doc), '[]'::jsonb)::text AS wire_body,
-                 coalesce(max(sub.updated_at), 0)::text AS max_updated_at
-          FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT $${limitIdx} OFFSET $${offsetIdx}) sub
-        `;
-
-        cachedWireSql = {
-          base: wrap("", 1, 2),
-          tenant: wrap(`"tenantId" = $1`, 2, 3),
-          basePub: hasStatusCol ? wrap(`"status" IN ('publish', 'published')`, 1, 2) : null,
-          tenantPub: hasStatusCol
-            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = $1`, 2, 3)
-            : null,
-        };
-        this._rawFindListWireSqlCache.set(table, cachedWireSql);
-      }
-
-      const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;
-      const offset = typeof options.offset === "number" && options.offset >= 0 ? options.offset : 0;
-      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 1 });
-      const hasTenant = tenantClause.sql !== "";
-      const wantPublished = options?.requirePublished === true;
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
-
-      let sqlText: string;
-      let params: unknown[];
-      if (hasTenant) {
-        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [tenantClause.params[0], limit, offset];
-      } else {
-        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
-        params = [limit, offset];
-      }
-
-      const rows = await exec.unsafe(sqlText, params, { prepare: true });
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return { kind: "found", wireBody: "[]", etag: `"list-0-${limit}-${offset}"` };
-      }
-      const first = rows[0];
-      const wireBody =
-        typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body);
-      const etag = `"list-${String(first.max_updated_at ?? "0")}-${limit}-${offset}"`;
-      return {
-        kind: "found",
-        wireBody,
-        etag,
-      };
-    } catch (err: unknown) {
-      logger.debug(
-        `[Postgres rawFindListWireStream] falling back: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return { kind: "declined" };
-    }
+    return this._wireStreamEngine.findListWireStream(
+      this,
+      exec,
+      table,
+      getTableName(table),
+      options,
+    );
   }
 
   /**

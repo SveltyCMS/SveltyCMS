@@ -27,7 +27,6 @@ import {
   resolveSystemTableName,
   shouldMaterializeField,
   buildCompositeIndexColumns,
-  getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
 import {
   applyDeclaredFieldRenames,
@@ -51,13 +50,13 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
   createDatabaseError,
-  getTableBooleanColumns,
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { SqlQueryBuilder, SQLITE_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
 import { WriteBatcher, type PendingWrite } from "./write-batcher";
+import { SqliteWireStreamEngine } from "./sqlite-wire-stream";
 import { withMigrationLock } from "../migration-lock";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
@@ -172,30 +171,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     }
   >();
 
-  /** Cache for Direct-to-Wire SQL JSON statements (2027 architecture). */
-  private _rawFindPointWireSqlCache = new WeakMap<
-    object,
-    {
-      /** `SELECT … FROM table` prefix shared by every variant below. */
-      selectPrefix: string;
-      base: string;
-      tenant: string;
-      /** Published-only variants; `null` when the table has no `status` column. */
-      basePub: string | null;
-      tenantPub: string | null;
-    }
-  >();
-
-  /** Cache for Direct-to-Wire List SQL JSON statements (Phase 2). */
-  private _rawFindListWireSqlCache = new WeakMap<
-    object,
-    {
-      base: string;
-      tenant: string;
-      basePub: string | null;
-      tenantPub: string | null;
-    }
-  >();
+  /** Engine for Direct-to-Wire SQL JSON stream queries. */
+  private _wireStreamEngine = new SqliteWireStreamEngine();
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
@@ -419,107 +396,20 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<RawPointWireStreamResult> {
-    try {
-      const tableName = getTableName(table);
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" }; // Non-collection tables without a JSON blob use findOne fallback
-
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
-      let cachedWireSql = this._rawFindPointWireSqlCache.get(table);
-      if (!cachedWireSql) {
-        const quoted = `"${tableName}"`;
-        const hasSlugCol = !!this.getColumn(table, "slug");
-        const hasStatusCol = !!this.getColumn(table, "status");
-
-        // Row-store hybrid: materialized fields live in real columns and the
-        // `data` blob keeps only dynamic fields, so a blob-only wire body would
-        // silently drop them. Merge them back with `json_set` (not
-        // `json_patch`/RFC 7396, which DELETES null-valued keys — the wire body
-        // must match the Domain-Plane flatten, where columns win and an unset
-        // column is `null`, not a missing key).
-        const overrides: string[] = [`'$."_id"', "_id"`];
-        if (hasStatusCol) overrides.push(`'$."status"', "status"`);
-        if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
-        const boolCols = getTableBooleanColumns(tableName);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          // The JSON path is a string literal — a name that cannot be embedded
-          // verbatim means no faithful wire body, so decline (findOne fallback).
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-          const name = assertSafeSqlIdentifier(rawName, "column");
-          const col = `"${name}"`;
-          // INTEGER 0/1 booleans must become JSON true/false (parity with the
-          // Drizzle `mode: "boolean"` read path); anything else stays as stored.
-          const value = boolCols?.has(rawName)
-            ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
-            : col;
-          overrides.push(`'$."${name}"', ${value}`);
-        }
-
-        const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
-        const selectPrefix = `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
-
-        cachedWireSql = {
-          selectPrefix,
-          base: `${selectPrefix} WHERE "_id" = ? LIMIT 1`,
-          tenant: `${selectPrefix} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
-          // Wire Plane publication guarantee (see `requirePublished`): compiled
-          // into the statement so unpublished rows never reach the socket.
-          basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') LIMIT 1`
-            : null,
-          tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" = ? LIMIT 1`
-            : null,
-        };
-        this._rawFindPointWireSqlCache.set(table, cachedWireSql);
-      }
-
-      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
-      const wantPublished = options?.requirePublished === true;
-      // Fail closed: no `status` column means the engine cannot prove the row is
-      // published, so the caller's Domain-Plane clamp decides instead.
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
-      let sqlText: string;
-      let params: unknown[];
-      if (useTenantCache) {
-        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [String(id), ...tenantParams];
-      } else if (!tenantSql) {
-        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
-        params = [String(id)];
-      } else {
-        const publishedSql = wantPublished ? ` AND "status" = 'publish'` : "";
-        sqlText = `${cachedWireSql.selectPrefix} WHERE "_id" = ?${tenantSql}${publishedSql} LIMIT 1`;
-        params = [String(id), ...tenantParams];
-      }
-
-      const rawRow = this.prepareAndExecute(sqlText, "get", ...params) as
-        | { wire_body: string; updated_at: number | string }
-        | undefined;
-
-      if (!rawRow || !rawRow.wire_body) return { kind: "missing" };
-      return {
-        kind: "found",
-        wireBody:
-          typeof rawRow.wire_body === "string"
-            ? rawRow.wire_body
-            : JSON.stringify(rawRow.wire_body),
-        etag: `"${String(id)}-${String(rawRow.updated_at ?? "")}"`,
-      };
-    } catch (err: any) {
-      logger.debug("[SQLite rawFindPointWireStream] falling back:", err?.message);
-      return { kind: "declined" };
-    }
+    return this._wireStreamEngine.findPointWireStream(
+      this,
+      table,
+      getTableName(table),
+      id,
+      options,
+    );
   }
 
   /**
-   * Direct-to-Wire List Streaming for SQLite (Phase 2).
+   * Direct-to-Wire List Streaming for SQLite (Phase 2 & 3).
    *
    * Aggregates rows directly in the SQLite engine using `json_group_array`,
    * completely bypassing V8 object allocation and JSON.stringify.
-   * Benchmarked: +22.7% to +50.2% RPS gain over Domain Plane.
    */
   protected override async rawFindListWireStream(
     table: any,
@@ -528,91 +418,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       limit?: number;
       offset?: number;
       requirePublished?: boolean;
+      sortField?: string;
+      sortDirection?: "asc" | "desc";
     },
   ): Promise<RawListWireStreamResult> {
-    try {
-      const tableName = getTableName(table);
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" };
-
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "0";
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
-
-      let cachedWireSql = this._rawFindListWireSqlCache.get(table);
-      if (!cachedWireSql) {
-        const quoted = `"${tableName}"`;
-        const hasSlugCol = !!this.getColumn(table, "slug");
-        const hasStatusCol = !!this.getColumn(table, "status");
-
-        const overrides: string[] = [`'$."_id"', "_id"`];
-        if (hasStatusCol) overrides.push(`'$."status"', "status"`);
-        if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
-        const boolCols = getTableBooleanColumns(tableName);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-          const name = assertSafeSqlIdentifier(rawName, "column");
-          const col = `"${name}"`;
-          const value = boolCols?.has(rawName)
-            ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
-            : col;
-          overrides.push(`'$."${name}"', ${value}`);
-        }
-
-        const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
-        const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
-        const orderClause = `ORDER BY "_id" DESC LIMIT ? OFFSET ?`;
-
-        const wrap = (wherePart: string) => `
-          SELECT coalesce(json_group_array(json(doc)), '[]') AS wire_body,
-                 coalesce(max(updated_at), 0) AS max_updated_at
-          FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause});
-        `;
-
-        cachedWireSql = {
-          base: wrap(""),
-          tenant: wrap(`"tenantId" = ?`),
-          basePub: hasStatusCol ? wrap(`"status" IN ('publish', 'published')`) : null,
-          tenantPub: hasStatusCol
-            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = ?`)
-            : null,
-        };
-        this._rawFindListWireSqlCache.set(table, cachedWireSql);
-      }
-
-      const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;
-      const offset = typeof options.offset === "number" && options.offset >= 0 ? options.offset : 0;
-      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
-      const wantPublished = options?.requirePublished === true;
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
-
-      let sqlText: string;
-      let params: unknown[];
-      if (useTenantCache) {
-        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [...tenantParams, limit, offset];
-      } else if (!tenantSql) {
-        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
-        params = [limit, offset];
-      } else {
-        return { kind: "declined" };
-      }
-
-      const rawRow = this.prepareAndExecute(sqlText, "get", ...params) as
-        | { wire_body?: string; max_updated_at?: number }
-        | undefined;
-
-      const wireBody = rawRow?.wire_body ?? "[]";
-      const etag = `"list-${String(rawRow?.max_updated_at ?? 0)}-${limit}-${offset}"`;
-      return {
-        kind: "found",
-        wireBody,
-        etag,
-      };
-    } catch (err: any) {
-      logger.debug("[SQLite rawFindListWireStream] falling back:", err?.message);
-      return { kind: "declined" };
-    }
+    return this._wireStreamEngine.findListWireStream(this, table, getTableName(table), options);
   }
 
   /**

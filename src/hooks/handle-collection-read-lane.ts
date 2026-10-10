@@ -260,14 +260,19 @@ export function computeCollectionWireMeta(
     if (defTrans?.languageTag) defaultLocale = defTrans.languageTag;
   }
 
+  // Derive defaultSort from schema definition if declared
+  const rawSort =
+    (schema as unknown as { defaultSort?: string })?.defaultSort ||
+    (schema as unknown as { sort?: string })?.sort;
+  const defaultSort = rawSort ? (normalizeSortParam(rawSort) ?? undefined) : undefined;
+
   return {
     collectionId,
     defaultLocale,
     publishedFields,
     hasAfterReadHooks,
-    // No compiled default ORDER BY exists: an unsorted `findMany` emits none, so the
-    // predicate refuses any `sort=` until a compiled list statement pins one (see
-    // `normalizeSortParam`). `defaultLimit` mirrors the schema's defaultLimit or the query parser's fallback (50).
+    defaultSort,
+    // `defaultLimit` mirrors the schema's defaultLimit or the query parser's fallback (50).
     defaultLimit: (schema as unknown as { defaultLimit?: number })?.defaultLimit ?? 50,
   };
 }
@@ -413,15 +418,32 @@ export function isWirePlaneAdmissible(
     }
   }
 
-  // 6. Any filter or where parameter diverts to Domain Plane
+  // 6. Filter parameter evaluation:
+  // Complex filter / where queries divert to Domain Plane.
+  // Exception: Simple publication status filters (e.g. `filter={"status":"published"}`)
+  // are already enforced in-engine by the wire query's requirePublished clause.
   for (const key of search.keys()) {
-    if (
-      key === "filter" ||
-      key.startsWith("filter[") ||
-      key.startsWith("filter.") ||
-      key === "where"
-    ) {
+    if (key.startsWith("filter[") || key.startsWith("filter.") || key === "where") {
       return false;
+    }
+    if (key === "filter") {
+      const filterVal = search.get("filter");
+      if (!filterVal) continue;
+      try {
+        const parsed = JSON.parse(filterVal);
+        const keys = Object.keys(parsed);
+        // If filter is only { status: "published" | "publish" }, wire plane enforces this natively!
+        if (
+          keys.length === 1 &&
+          keys[0] === "status" &&
+          (parsed.status === "published" || parsed.status === "publish")
+        ) {
+          continue;
+        }
+        return false;
+      } catch {
+        return false;
+      }
     }
   }
 
@@ -430,9 +452,9 @@ export function isWirePlaneAdmissible(
   const isList = parts.length === 3;
 
   if (isList) {
-    // List wire admits only the compiled default sort + fixed limit. Fail closed when no
-    // default order is compiled — the statement would have to invent one — and compare the
-    // two spellings of the same order (`-createdAt` / `createdAt:desc`) as equal.
+    // List wire admits:
+    // (a) No sort or sort matching compiled defaultSort
+    // (b) Or an explicit sort on any published, identifier-safe schema column
     if (search.has("sort")) {
       const requestedSort = normalizeSortParam(search.get("sort"));
       const compiledSort = collectionMeta.defaultSort
@@ -764,6 +786,8 @@ async function rebuildWarmCollectionRead(
         offset: listParams.offset,
         requirePublished:
           resolvePublicationFilter(locals, event.url.searchParams.get("status")) !== "all",
+        sortField: listParams.sortField,
+        sortDirection: listParams.sortDirection,
       });
       if (wireRes?.success && wireRes.data) {
         const collectionMeta =

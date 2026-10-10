@@ -192,6 +192,8 @@ export function createTenantGuardedCrud(
               limit?: number;
               offset?: number;
               requirePublished?: boolean;
+              sortField?: string;
+              sortDirection?: "asc" | "desc";
             },
           ) =>
             inner.findListWireStream!(collection, g(options, `${collection}.findListWireStream`)),
