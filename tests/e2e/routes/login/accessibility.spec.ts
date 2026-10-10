@@ -57,14 +57,41 @@ async function revealSignInForm(page: Page): Promise<void> {
 const BRAND_FILL_CLASS = /(?:^|[^.\w-])bg-primary-500|preset-filled-primary-500/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
 
-function nodeIsExempt(node: { html?: string; target?: unknown }): boolean {
+/**
+ * Owner-accepted color pairs — the stable signal when axe truncates a node's
+ * `html` (~300 chars, elided with `...`). Elements with a long class list (the
+ * primary `<button>`, the identity `<AdminCard>`) lose the exempt class past
+ * the ellipsis, so a class-only check drops the node and the audit fails. The
+ * computed colors are not truncated.
+ *
+ * - brand fill: `#5fd317` (`--color-primary-500`) under white text → 1.94:1
+ * - muted surface text: `#717171` (`--color-surface-500`) on the light surface
+ *   `#f5f5f5` → 4.47:1 (owner-accepted with the brightened surface ramp)
+ */
+const EXEMPT_COLOR_PAIRS: ReadonlyArray<{ fg: string; bg: string }> = [
+  { fg: "#ffffff", bg: "#5fd317" },
+  { fg: "#717171", bg: "#f5f5f5" },
+];
+
+type ContrastCheck = { data?: { fgColor?: string; bgColor?: string } };
+
+function nodeShowsExemptColor(node: { any?: ContrastCheck[] }): boolean {
+  return (node.any ?? []).some((check) => {
+    const fg = (check.data?.fgColor ?? "").toLowerCase();
+    const bg = (check.data?.bgColor ?? "").toLowerCase();
+    return EXEMPT_COLOR_PAIRS.some((pair) => pair.fg === fg && pair.bg === bg);
+  });
+}
+
+function nodeIsExempt(node: { html?: string; target?: unknown; any?: ContrastCheck[] }): boolean {
   const html = node.html ?? "";
   const target = Array.isArray(node.target) ? node.target.join(" ") : "";
   return (
     BRAND_FILL_CLASS.test(html) ||
     BRAND_FILL_CLASS.test(target) ||
     SURFACE_TEXT_CLASS.test(html) ||
-    SURFACE_TEXT_CLASS.test(target)
+    SURFACE_TEXT_CLASS.test(target) ||
+    nodeShowsExemptColor(node)
   );
 }
 
@@ -177,6 +204,10 @@ test.describe("Universal Accessibility Audits", () => {
     await page.waitForFunction(() => (document.title || "").trim().length > 0, undefined, {
       timeout: 10_000,
     });
+
+    // The account page is client-rendered (root layout ssr=false) — auditing
+    // before the identity panel mounts would scan an empty page and false-pass.
+    await expect(page.getByTestId("user-identity-panel")).toBeVisible({ timeout: 15_000 });
 
     // 4. Run accessibility audit against the RTL layout
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();

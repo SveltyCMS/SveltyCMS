@@ -74,6 +74,11 @@ describe("TelemetryService Environment Checks", () => {
     vi.stubEnv("CI", undefined);
     vi.stubEnv("VITEST", undefined);
     vi.stubEnv("NODE_ENV", "production");
+    // CI sets `DO_NOT_TRACK=1` at the workflow level (ci.yml env) and the
+    // service honours it by disabling telemetry — without clearing it the
+    // encryption branch is never reached and this test only fails on CI.
+    vi.stubEnv("DO_NOT_TRACK", undefined);
+    vi.stubEnv("SVELTY_TELEMETRY_DISABLED", undefined);
 
     const settingsServiceMod = await import("@src/services/core/settings-service");
     vi.spyOn(settingsServiceMod, "getPrivateSetting").mockResolvedValue("test-client-secret-123");
