@@ -467,10 +467,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           // Wire Plane publication guarantee (see `requirePublished`): compiled
           // into the statement so unpublished rows never reach the socket.
           basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" = 'publish' LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') LIMIT 1`
             : null,
           tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" = 'publish' AND "tenantId" = ? LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" = ? LIMIT 1`
             : null,
         };
         this._rawFindPointWireSqlCache.set(table, cachedWireSql);
@@ -561,7 +561,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
         const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
         const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
-        const orderClause = `ORDER BY ${hasUpdatedAtCol ? '"updatedAt"' : '"_id"'} DESC, "_id" DESC LIMIT ? OFFSET ?`;
+        const orderClause = `ORDER BY "_id" DESC LIMIT ? OFFSET ?`;
 
         const wrap = (wherePart: string) => `
           SELECT coalesce(json_group_array(json(doc)), '[]') AS wire_body,

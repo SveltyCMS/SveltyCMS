@@ -371,7 +371,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const publishedSql =
         options?.requirePublished === true
           ? hasStatusCol
-            ? " AND `status` = 'publish'"
+            ? " AND `status` IN ('publish', 'published')"
             : null
           : "";
       if (publishedSql === null) return { kind: "declined" };
@@ -650,12 +650,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
       this.connected = true;
       const poolMax = poolConfig.connectionLimit || 20;
-      this.queueGate = new NetworkDbQueueGate({
-        maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
-        maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
-        timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
-        name: "MariaDB",
-      });
+      const gateDisabled =
+        process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";
+      if (!gateDisabled) {
+        this.queueGate = new NetworkDbQueueGate({
+          maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+          maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+          timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+          name: "MariaDB",
+          enableWriteCoalescing: false,
+        });
+      }
       logger.info("Connected to MariaDB");
       return { success: true, data: undefined };
     } catch (error) {
@@ -871,7 +876,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     const pool =
       (this._currentTenantId && this._tenantPools.get(this._currentTenantId)) || this.pool;
     if (!pool) throw new Error("Database not connected");
-    if (options?.transaction || !this.queueGate) {
+    if (options?.transaction || !this.queueGate || this.queueGate.isInsideActiveContext()) {
       const [rows] = await pool.execute(sqlText, params as any);
       return Array.isArray(rows) ? (rows as unknown[]) : [];
     }

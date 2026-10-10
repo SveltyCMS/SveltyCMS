@@ -1405,6 +1405,7 @@ export async function seedBenchmarkState(): Promise<void> {
     {
       _id: "BenchmarkStable",
       name: "BenchmarkStable",
+      defaultLimit: 10,
       fields: [
         { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
         { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },

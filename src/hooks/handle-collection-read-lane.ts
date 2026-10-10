@@ -81,6 +81,7 @@ import {
 interface CoalescedCollectionRead {
   body: string;
   etag: string;
+  buffer?: Buffer | Uint8Array;
   /** Leader of a miss. Waiters omit this and are served as turbo hits. */
   miss?: boolean;
   response?: Response;
@@ -266,9 +267,8 @@ export function computeCollectionWireMeta(
     hasAfterReadHooks,
     // No compiled default ORDER BY exists: an unsorted `findMany` emits none, so the
     // predicate refuses any `sort=` until a compiled list statement pins one (see
-    // `normalizeSortParam`). `defaultLimit` mirrors the query parser's fallback (50) —
-    // the only limit a compiled statement could claim.
-    defaultLimit: 50,
+    // `normalizeSortParam`). `defaultLimit` mirrors the schema's defaultLimit or the query parser's fallback (50).
+    defaultLimit: (schema as unknown as { defaultLimit?: number })?.defaultLimit ?? 50,
   };
 }
 
@@ -440,12 +440,11 @@ export function isWirePlaneAdmissible(
         : null;
       if (!compiledSort || requestedSort !== compiledSort) return false;
     }
-    if (
-      search.has("limit") &&
-      collectionMeta.defaultLimit !== undefined &&
-      Number(search.get("limit")) !== collectionMeta.defaultLimit
-    ) {
-      return false;
+    if (search.has("limit")) {
+      const lim = Number(search.get("limit"));
+      if (!Number.isInteger(lim) || lim <= 0 || lim > MAX_PAGE_SIZE) {
+        return false;
+      }
     }
     if (search.has("page") && search.get("page") !== "1") {
       return false;
@@ -623,8 +622,8 @@ async function coalesceCollectionRefill(
   if (inflight) {
     const shared = await inflight;
     if (!shared) return null;
-    // Response bodies are single-use — waiters rebuild from the shared string.
-    return { body: shared.body, etag: shared.etag };
+    // Response bodies are single-use — waiters rebuild from the shared string / buffer.
+    return { body: shared.body, etag: shared.etag, buffer: shared.buffer };
   }
 
   // The executor runs synchronously, so `releaseFlight` is bound before use.
@@ -710,14 +709,15 @@ async function rebuildWarmCollectionRead(
       if (wireRes?.success && wireRes.data) {
         const apiBody = wireRes.data.wireBody;
         const etag = wireRes.data.etag || generateContentEtag(apiBody);
+        const buffer = Buffer.from(apiBody);
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
-        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+        responseCache.set(pathKey, { body: apiBody, etag, buffer }, 300_000, cacheTenant, {
           skipSharedL1: true,
         });
         marks?.set("cachewrite", performance.now() - dbT0);
-        return { body: apiBody, etag, miss: true };
+        return { body: apiBody, etag, buffer, miss: true };
       }
       if (wireRes && wireRes.success === false && wireRes.error?.code === "RECORD_NOT_FOUND") {
         // The wire SELECT ran and definitively found no servable row (id absent
@@ -729,14 +729,15 @@ async function rebuildWarmCollectionRead(
         // reach here (see isWirePlaneAdmissible), so the verdict is authoritative.
         const apiBody = STATIC_ENVELOPES.SUCCESS_NULL;
         const etag = generateContentEtag(apiBody);
+        const buffer = Buffer.from(apiBody);
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
-        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+        responseCache.set(pathKey, { body: apiBody, etag, buffer }, 300_000, cacheTenant, {
           skipSharedL1: true,
         });
         marks?.set("cachewrite", performance.now() - dbT0);
-        return { body: apiBody, etag, miss: true };
+        return { body: apiBody, etag, buffer, miss: true };
       }
     }
   }
@@ -799,11 +800,12 @@ async function rebuildWarmCollectionRead(
             }
           }
         }
+        const buffer = Buffer.from(apiBody);
         responseCache.set(
           pathKey,
           compressedVariants
-            ? { body: apiBody, etag, compressed: compressedVariants }
-            : { body: apiBody, etag },
+            ? { body: apiBody, etag, buffer, compressed: compressedVariants }
+            : { body: apiBody, etag, buffer },
           300_000,
           cacheTenant,
           {
@@ -812,7 +814,7 @@ async function rebuildWarmCollectionRead(
           },
         );
         marks?.set("cachewrite", performance.now() - dbT0);
-        return { body: apiBody, etag, miss: true, compressed: compressedVariants };
+        return { body: apiBody, etag, buffer, miss: true, compressed: compressedVariants };
       }
     }
   }

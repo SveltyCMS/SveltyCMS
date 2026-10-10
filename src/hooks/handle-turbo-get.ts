@@ -337,8 +337,14 @@ export function serveTurboCacheEntry(
     bodyToSend = null;
   }
 
-  return new Response(bodyToSend as BodyInit, {
+  const res = new Response(bodyToSend as BodyInit, {
     status: 200,
     headers: responseHeaders,
   });
+  if (bodyToSend !== null) {
+    (res as unknown as { __fastBody?: string | Uint8Array }).__fastBody = bodyToSend as
+      | string
+      | Uint8Array;
+  }
+  return res;
 }

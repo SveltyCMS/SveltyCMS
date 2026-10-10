@@ -399,6 +399,8 @@ function scheduleIndexNowPing(
   tenantId: DatabaseId | null | undefined,
 ): void {
   if (!document || typeof document !== "object") return;
+  const status = (document as { status?: unknown }).status;
+  if (status !== "publish" && status !== "published") return;
   void import("@src/services/content/seo/indexnow.server")
     .then(({ notifyIndexNowOnPublish }) =>
       notifyIndexNowOnPublish({

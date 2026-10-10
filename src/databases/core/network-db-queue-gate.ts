@@ -53,9 +53,16 @@ export class NetworkDbQueueGate {
     this.timeoutMs = Math.max(500, options.timeoutMs ?? 15_000);
     this.name = options.name ?? "NetworkDB";
     this.writeCoalescer =
-      options.enableWriteCoalescing !== false && process.env.SVELTY_WRITE_COALESCING !== "0"
+      options.enableWriteCoalescing === true && process.env.SVELTY_WRITE_COALESCING === "1"
         ? new AdaptiveWriteCoalescer({ name: `${this.name}Coalescer` })
         : null;
+  }
+
+  /**
+   * Whether the current async execution context already holds an active gate permit.
+   */
+  public isInsideActiveContext(): boolean {
+    return !!this.asyncLocal.getStore();
   }
 
   /**

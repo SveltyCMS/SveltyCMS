@@ -543,11 +543,13 @@ describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
     });
     expect(isWirePlaneAdmissible(defaultOrderListEvent, meta)).toBe(false);
 
-    // The compiled default limit (50, the parser fallback) is admissible; others are not
+    // Valid limits up to MAX_PAGE_SIZE are admissible; invalid ones fail closed
     const limitListEvent = createMockEvent("/api/collections/posts?limit=50", { method: "GET" });
     expect(isWirePlaneAdmissible(limitListEvent, meta)).toBe(true);
     const otherLimitEvent = createMockEvent("/api/collections/posts?limit=25", { method: "GET" });
-    expect(isWirePlaneAdmissible(otherLimitEvent, meta)).toBe(false);
+    expect(isWirePlaneAdmissible(otherLimitEvent, meta)).toBe(true);
+    const invalidLimitEvent = createMockEvent("/api/collections/posts?limit=0", { method: "GET" });
+    expect(isWirePlaneAdmissible(invalidLimitEvent, meta)).toBe(false);
 
     // Keyset/cursor are not served by a compiled statement yet -> fail closed
     const keysetListEvent = createMockEvent("/api/collections/posts?keyset=true", {

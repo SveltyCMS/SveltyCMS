@@ -82,10 +82,12 @@ function buildJsonResponse(
         "content-length": String(byteLen),
       };
 
-  return new Response(serialized, {
+  const res = new Response(serialized, {
     status,
     headers,
   });
+  (res as unknown as { __fastBody?: string }).__fastBody = serialized;
+  return res;
 }
 
 export function successResponse(
@@ -147,10 +149,12 @@ export function fastSuccessResponse(
         "content-length": String(byteLen),
       };
 
-  return new Response(serialized, {
+  const res = new Response(serialized, {
     status,
     headers,
   });
+  (res as unknown as { __fastBody?: string }).__fastBody = serialized;
+  return res;
 }
 
 export function rawResponse(event: RequestEvent, data: any, status = 200) {

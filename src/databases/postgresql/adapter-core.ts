@@ -26,6 +26,7 @@ import {
   SqlAdapterCore,
   type ListIndexRequest,
   type RawPointWireStreamResult,
+  type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
 import { POSTGRES_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/query-primitives";
@@ -888,6 +889,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   >();
 
+  private _rawFindListWireSqlCache = new WeakMap<
+    any,
+    {
+      base: string;
+      tenant: string;
+      basePub: string | null;
+      tenantPub: string | null;
+    }
+  >();
+
   protected override async rawFindById<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
@@ -1029,10 +1040,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           // Wire Plane publication guarantee (see `requirePublished`): compiled
           // into the statement so unpublished rows never reach the socket.
           basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" = 'publish' LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') LIMIT 1`
             : null,
           tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" = 'publish' AND "tenantId" = $2 LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" = $2 LIMIT 1`
             : null,
         };
         this._rawFindPointWireSqlCache.set(table, cachedWireSql);
@@ -1062,6 +1073,110 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
       };
     } catch {
+      return { kind: "declined" };
+    }
+  }
+
+  /**
+   * Raw list direct-to-wire streaming for PostgreSQL (2027 architecture).
+   * Aggregates rows directly in the PostgreSQL engine using `jsonb_agg`,
+   * completely bypassing V8 object allocation and JSON.stringify.
+   */
+  protected override async rawFindListWireStream(
+    table: any,
+    _collection: string,
+    options: BaseQueryOptions & {
+      limit?: number;
+      offset?: number;
+      requirePublished?: boolean;
+    },
+  ): Promise<RawListWireStreamResult> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return { kind: "declined" };
+    const exec = txnSql ?? this.sql!;
+    if (!exec) return { kind: "declined" };
+
+    try {
+      const hasDataCol = !!this.getColumn(table, "data");
+      if (!hasDataCol) return { kind: "declined" };
+
+      const tableName = getTableName(table);
+      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
+      const updatedAtSelect = hasUpdatedAtCol
+        ? 'coalesce(extract(epoch from "updatedAt") * 1000, 0)'
+        : "0";
+
+      let cachedWireSql = this._rawFindListWireSqlCache.get(table);
+      if (!cachedWireSql) {
+        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
+        const hasSlugCol = !!this.getColumn(table, "slug");
+        const hasStatusCol = !!this.getColumn(table, "status");
+
+        const pairs: string[] = [`'_id', "_id"`];
+        if (hasStatusCol) pairs.push(`'status', "status"`);
+        if (hasSlugCol) pairs.push(`'slug', "slug"`);
+        for (const rawName of getMaterializedFieldColumns(table)) {
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
+          const name = assertSafeSqlIdentifier(rawName, "column");
+          pairs.push(`'${name}', "${name}"`);
+        }
+
+        const doc = `jsonb_build_object(${pairs.join(", ")})`;
+        const dataExpr = `(CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)`;
+        const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const orderClause = `ORDER BY "_id" DESC`;
+
+        const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `
+          SELECT coalesce(jsonb_agg(sub.doc), '[]'::jsonb)::text AS wire_body,
+                 coalesce(max(sub.updated_at), 0)::text AS max_updated_at
+          FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT $${limitIdx} OFFSET $${offsetIdx}) sub
+        `;
+
+        cachedWireSql = {
+          base: wrap("", 1, 2),
+          tenant: wrap(`"tenantId" = $1`, 2, 3),
+          basePub: hasStatusCol ? wrap(`"status" IN ('publish', 'published')`, 1, 2) : null,
+          tenantPub: hasStatusCol
+            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = $1`, 2, 3)
+            : null,
+        };
+        this._rawFindListWireSqlCache.set(table, cachedWireSql);
+      }
+
+      const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;
+      const offset = typeof options.offset === "number" && options.offset >= 0 ? options.offset : 0;
+      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 1 });
+      const hasTenant = tenantClause.sql !== "";
+      const wantPublished = options?.requirePublished === true;
+      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
+
+      let sqlText: string;
+      let params: unknown[];
+      if (hasTenant) {
+        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
+        params = [tenantClause.params[0], limit, offset];
+      } else {
+        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
+        params = [limit, offset];
+      }
+
+      const rows = await exec.unsafe(sqlText, params, { prepare: true });
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return { kind: "found", wireBody: "[]", etag: `"list-0-${limit}-${offset}"` };
+      }
+      const first = rows[0];
+      const wireBody =
+        typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body);
+      const etag = `"list-${String(first.max_updated_at ?? "0")}-${limit}-${offset}"`;
+      return {
+        kind: "found",
+        wireBody,
+        etag,
+      };
+    } catch (err: unknown) {
+      logger.debug(
+        `[Postgres rawFindListWireStream] falling back: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return { kind: "declined" };
     }
   }
@@ -1480,16 +1595,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const txnSql = this.getTxnSql(options ?? {});
     const exec = txnSql ?? this.sql;
     if (!exec) throw new Error("Database not connected");
-    if (txnSql || !this.queueGate) {
+    if (txnSql || !this.queueGate || this.queueGate.isInsideActiveContext()) {
       const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
       return Array.isArray(rows) ? rows : [];
     }
-    const isWrite = /^\s*(?:INSERT|UPDATE|DELETE)\b/i.test(sqlText);
     const run = async () => {
       const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
       return Array.isArray(rows) ? rows : [];
     };
-    return isWrite ? this.queueGate.coalesceWrite(run) : this.queueGate.acquire(run);
+    return this.queueGate.acquire(run);
   }
 
   /**
@@ -2118,12 +2232,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         await this.sql`SELECT 1`;
         this.connected = true;
         const poolMax = options.max || 20;
-        this.queueGate = new NetworkDbQueueGate({
-          maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
-          maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
-          timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
-          name: "PostgreSQL",
-        });
+        const gateDisabled =
+          process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";
+        if (!gateDisabled) {
+          this.queueGate = new NetworkDbQueueGate({
+            maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+            maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+            timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+            name: "PostgreSQL",
+            enableWriteCoalescing: false,
+          });
+        }
         logger.info("Connected to PostgreSQL");
         return { success: true, data: undefined };
       } catch (err: any) {
@@ -2147,12 +2266,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               await this.sql`SELECT 1`;
               this.connected = true;
               const poolMax = options.max || 20;
-              this.queueGate = new NetworkDbQueueGate({
-                maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
-                maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
-                timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
-                name: "PostgreSQL",
-              });
+              const gateDisabled =
+                process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";
+              if (!gateDisabled) {
+                this.queueGate = new NetworkDbQueueGate({
+                  maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+                  maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+                  timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+                  name: "PostgreSQL",
+                  enableWriteCoalescing: false,
+                });
+              }
               logger.info("Connected to PostgreSQL");
               return { success: true, data: undefined };
             } catch (createErr) {

@@ -202,8 +202,13 @@ async function responseToLaneResult(
   // lane never served). Gated on the verification env, so production responses
   // carry no transport fingerprint.
   if (process.env.BENCH_VERIFY_RAW === "1") headers["x-fast-lane-served"] = "1";
+  const fastBody = (out as unknown as { __fastBody?: string | Uint8Array }).__fastBody;
   const body: string | Uint8Array =
-    out.status === 204 || out.status === 304 ? "" : new Uint8Array(await out.arrayBuffer());
+    out.status === 204 || out.status === 304
+      ? ""
+      : fastBody !== undefined
+        ? fastBody
+        : new Uint8Array(await out.arrayBuffer());
   // Node would otherwise fall back to chunked encoding for a body without a
   // declared length — the lane's own writer emits one computed chunk.
   if (!headers["content-length"] && out.status !== 204 && out.status !== 304) {
@@ -335,7 +340,9 @@ export function installFastLanes(): void {
   if (process.env.SVELTY_FAST_LANE === "0") return;
   if (lanes.length === 0) {
     registerFastLane(collectionReadLane);
-    if (WRITE_LANE_ENABLED) registerFastLane(collectionWriteLane);
+    if (WRITE_LANE_ENABLED || process.env.SVELTY_FAST_LANE_WRITE === "1") {
+      registerFastLane(collectionWriteLane);
+    }
   }
 
   const host = globalThis as typeof globalThis & {
