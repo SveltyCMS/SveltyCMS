@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:c5ffc2ba-5fb0-48ba-8a07-a393de5310c0",
+  "serialNumber": "urn:uuid:f64cf4c5-c608-428e-8540-3f2b96608adc",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-10T08:00:34.340Z",
+    "timestamp": "2026-10-10T15:46:21.674Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -1660,13 +1660,13 @@
     {
       "type": "library",
       "name": "@inlang/paraglide-js",
-      "version": "2.26.0",
-      "purl": "pkg:npm/@inlang/paraglide-js@2.26.0",
+      "version": "2.27.0",
+      "purl": "pkg:npm/@inlang/paraglide-js@2.27.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-6k0WNzf941zTWtIbTHRP/Oq3Xg8LExUzpK1mteZ6HJAgRvIP8njh5tPtS4kO+mY/V+pQn88m16LEgLlWL7VteQ=="
+          "content": "sha512-KAAwRbg/h3oi2D4nB0cUCKG2ntOLpcSOmwwjm+SL2a316NhdypXWGeElJenCwK2piPz7vQTn7yOYOwCjqIEP5g=="
         }
       ]
     },
@@ -1686,13 +1686,13 @@
     {
       "type": "library",
       "name": "@inlang/sdk",
-      "version": "3.1.0",
-      "purl": "pkg:npm/@inlang/sdk@3.1.0",
+      "version": "4.0.0",
+      "purl": "pkg:npm/@inlang/sdk@4.0.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-l8LqeyqLfe00cmDvKY7J6YuCkfWVfgzaNWlB8IAHxWOWqkUAwyG4AhuMYUiBbeA0wM6zdVphPCG2lay/OzTdFg=="
+          "content": "sha512-AwGasJATSKq9J3EVBdmIbpU++2DTI8z0J5WbejT6lqymLaoDB4cf95Zp0ijmJp7XUNP/z10qQfA2lz0TAojRYA=="
         }
       ]
     },

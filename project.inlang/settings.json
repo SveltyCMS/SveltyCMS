@@ -3,13 +3,10 @@
   "baseLocale": "en",
   "locales": ["en", "de", "fr", "es", "it", "nl", "pl", "ar"],
   "modules": [
-    "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-empty-pattern@latest/dist/index.js",
-    "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-missing-translation@latest/dist/index.js",
-    "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-without-source@latest/dist/index.js",
-    "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@2/dist/index.js",
-    "https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@0/dist/index.js"
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@4.5.0/dist/index.js",
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@2.3.0/dist/index.js"
   ],
   "plugin.inlang.messageFormat": {
-    "pathPattern": "./src/messages/{languageTag}.json"
+    "pathPattern": "./src/messages/{locale}.json"
   }
 }

@@ -80,6 +80,9 @@ const SERVER_EXTERNALS = [
   "shiki", // Optional peer of @better-svelte-email/preview — not on the CMS hot path
 ];
 
+// Packages that MUST be inlined through Vite's SSR pipeline in a production
+// build (bundled into the adapter output). `drizzle-orm` is server-only but is
+// bundled in prod so no node_modules are required at runtime.
 const SSR_NO_EXTERNAL = [
   "@thisux/sveltednd",
   "svelte-canvas",
@@ -87,6 +90,12 @@ const SSR_NO_EXTERNAL = [
   "json-render-svelte",
   "drizzle-orm",
 ];
+
+// Dev-only variant: Svelte packages still need Vite's transform, but
+// `drizzle-orm` (448 files / ~16 MB) is pure ESM the Node loader handles
+// natively. Externalizing it in dev avoids transforming/bundling its whole tree
+// on the first request — a major cold-start cost on a fresh install.
+const SSR_NO_EXTERNAL_DEV = SSR_NO_EXTERNAL.filter((p) => p !== "drizzle-orm");
 
 const OPTIMIZE_DEPS_INCLUDE = [
   "@sveltejs/kit",
@@ -98,7 +107,6 @@ const OPTIMIZE_DEPS_INCLUDE = [
   "svelte-awesome-color-picker",
   "json-render-svelte",
   "valibot",
-  "drizzle-orm",
 ];
 
 const OPTIMIZE_DEPS_EXCLUDE = [...SERVER_EXTERNALS, "@src/databases/cache/cache-service"];
@@ -1420,7 +1428,10 @@ export default defineConfig(() => {
         ],
       },
     },
-    ssr: { noExternal: SSR_NO_EXTERNAL, external: SERVER_EXTERNALS },
+    ssr: {
+      noExternal: isBuildCmd ? SSR_NO_EXTERNAL : SSR_NO_EXTERNAL_DEV,
+      external: SERVER_EXTERNALS,
+    },
     define: {
       __SVELTY_SETUP_COMPLETE__: isSetupComplete(),
       global: "globalThis",
