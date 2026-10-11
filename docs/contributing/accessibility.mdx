@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:human-wheelchair"
 author: "SveltyCMS Team"
 created: "2026-01-27"
-updated: "2026-07-15"
+updated: "2026-10-11"
 tags:
   - "accessibility"
   - "wcag"
@@ -119,27 +119,20 @@ opacity, filter) to avoid layout thrash:
 
 ## Motion & Animation
 
-Respect user preferences for reduced motion:
+Shared admin motion lives in `@utils/admin-transitions`. `adminFade`, `adminPage`, `adminStagger`, and `adminSlide` return a duration of 0ms when `prefers-reduced-motion: reduce` matches or the theme enables reduced motion.
 
-```svelte
-<!-- Use Svelte transitions conditionally -->
-{#if !$prefersReducedMotion}
-  <div in:fly={{ x: 20 }}>
-{/if}
-```
-
-- Wrap animated elements with a `prefers-reduced-motion` media query or
-  use Tailwind's `motion-reduce:` prefix to disable non-essential animation.
-- Progress bars and loading spinners are considered essential and should
-  continue regardless of motion preference.
-- Toast animations should degrade gracefully (fade instead of fly).
+- `(app)/+layout.svelte` plays `adminPage` once per pathname.
+- `AdminPageShell` plays `adminFade` when it mounts. See [Page shells](../development/ui/shells.mdx#motion).
+- Do not add `in:fly` or `in:scale` on an admin page. The [GUI styling guide](./style-guide-gui.mdx#motion-transitions) lists the four helpers and when each one applies.
+- Progress bars and loading spinners are essential and keep moving when motion is reduced.
+- Toast animations degrade to a fade.
 
 ## Color & Contrast
 
 - All text must meet **4.5:1** contrast ratio (WCAG 1.4.3, Level AA).
 - Large text (≥18px bold or ≥24px regular) must meet **3:1**.
 - Focus indicators must meet **3:1** against adjacent background.
-- Use `dark:` variants for all color tokens to ensure dark mode compliance.
+- Admin chrome uses the `--admin-*` role tokens in `src/utilities.css`. They flip under `html.dark`. A `dark:` variant is for a one-off chip or gradient. Status color comes from the theme ramps (`error`, `warning`, `success`). The contract is the [GUI styling guide](./style-guide-gui.mdx#light-dark-mode).
 - Interactive states (hover, active) using `brightness()` or `opacity`
   must not reduce contrast below the minimum thresholds.
 
@@ -178,6 +171,8 @@ bun run test:e2e -- --grep accessibility
 # Visual regression tests (catches contrast/positioning regressions)
 bun run test:e2e -- --grep visual-regression
 ```
+
+Component-specific notes (icon-only Button names, the visually hidden Checkbox input, Modal focus) are in [Native controls](../development/ui/primitives.mdx).
 
 Reference files:
 

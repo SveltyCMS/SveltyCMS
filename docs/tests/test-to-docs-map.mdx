@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-09-20"
+updated: "2026-10-11"
 tags:
   - "tests"
   - "documentation"
@@ -88,7 +88,10 @@ tags:
 | `tests/unit/utils/field-encryption.test.ts`                        | `docs/reference/security/field-level-encryption.mdx`, `docs/reference/architecture/cryptography-module.mdx`                  |
 | `tests/unit/services/field-encryption-pipeline.test.ts`            | `docs/reference/security/field-level-encryption.mdx`, `docs/reference/database/write-path.mdx`                               |
 | `tests/unit/services/collection-etag.test.ts`                      | `docs/reference/api/collections.mdx`, `docs/reference/database/performance-architecture.mdx`                                 |
-| `tests/unit/utils/export-encode.test.ts`                           | `docs/reference/api/collections.mdx`, `docs/reference/database/performance-architecture.mdx`                                 |
+| `tests/unit/utils/export-encode.test.ts`                           | `docs/reference/api/collections.mdx`, `docs/reference/security/index.mdx`                                                    |
+| `tests/unit/utils/guarded-query.test.ts`                           | `docs/reference/security/field-level-access-control.mdx`, `docs/reference/security/index.mdx`                                |
+| `tests/unit/services/scheduler-job.test.ts`                        | `docs/reference/security/index.mdx`, `docs/reference/security/tested-security-features.mdx`                                  |
+| `tests/unit/services/migration-rename-exempt.test.ts`              | `docs/reference/architecture/schema-model.mdx`, `docs/guides/configuration/upgrading.mdx`                                    |
 | `tests/unit/api/streaming-json-response.test.ts`                   | `docs/reference/api/collections.mdx`, `docs/reference/database/performance-architecture.mdx`                                 |
 | `tests/benchmarks/**/*.test.ts`                                    | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                                                       |
 | `tests/e2e/accessibility.spec.ts`                                  | `docs/tests/accessibility-audit.mdx`                                                                                         |
@@ -108,6 +111,11 @@ tags:
 | `tests/unit/media/gallery-list-item.test.ts`                       | `docs/tests/routes/mediagallery.mdx`                                                                                         |
 | `tests/unit/media/media-reference-index.test.ts`                   | `docs/tests/routes/mediagallery.mdx`                                                                                         |
 | `tests/unit/media/streaming-upload.test.ts`                        | `docs/reference/architecture/media-system.mdx`, `docs/reference/api/media.mdx`                                               |
+| `tests/unit/components/image-editor/editor-shortcuts.test.ts`      | `docs/guides/content/image-editor.mdx`                                                                                       |
+| `tests/unit/components/image-editor/tool-controls.test.ts`         | `docs/guides/content/image-editor.mdx`                                                                                       |
+| `tests/unit/media/focal-point.test.ts`                             | `docs/guides/content/image-editor.mdx`, `docs/reference/api/media.mdx`                                                       |
+| `tests/unit/utils/hotkeys-plus.test.ts`                            | `docs/guides/content/image-editor.mdx`                                                                                       |
+| `tests/integration/api/media-manipulate.test.ts`                   | `docs/guides/content/image-editor.mdx`, `docs/reference/api/media.mdx`, `docs/tests/routes/mediagallery.mdx`                 |
 | `tests/e2e/routes/mediagallery/image-editor.spec.ts`               | `docs/guides/content/image-editor.mdx`, `docs/tests/routes/mediagallery.mdx`                                                 |
 | `tests/unit/graphql/graphql-server.test.ts`                        | `docs/reference/api/graphql.mdx`                                                                                             |
 | `tests/unit/content/sync-content-state.test.ts`                    | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                     |

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:file-document-plus-outline"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-09-22"
+updated: "2026-10-11"
 tags:
   - "documentation"
   - "contributing"
@@ -274,22 +274,22 @@ The site homepage has to use those paths. `/docs/architecture`, `/docs/api`, and
 
 #### Folders
 
-| Folder                         | Holds                                                                        |
-| :----------------------------- | :--------------------------------------------------------------------------- |
-| `docs/concepts.mdx`            | The product model. Keep it to a sitting's worth of reading.                  |
-| `docs/onboarding/`             | Tutorials that produce a running install.                                    |
-| `docs/guides/`                 | Tasks: `content/`, `configuration/`, `deployment/`, `legal/`.                |
-| `docs/development/`            | Widgets, plugins, dashboard widgets, LocalCMS, the site starter, automation. |
-| `docs/reference/api/`          | HTTP and API docs. Nowhere else.                                             |
-| `docs/reference/security/`     | Auth, CSP, field access, incident response.                                  |
-| `docs/reference/database/`     | The four adapters and the performance model.                                 |
-| `docs/reference/components/`   | Admin collection UI.                                                         |
-| `docs/reference/architecture/` | Why the engine is shaped this way.                                           |
-| `docs/contributing/`           | This guide, the admin style guide, accessibility, the validation pipeline.   |
-| `docs/tests/`                  | How the suite is built. For contributors.                                    |
-| `docs/project/`                | Roadmap, achievements, comparison, and generated benchmarks.                 |
-| `src/widgets/**/{name}.mdx`    | That field's page, beside its source.                                        |
-| `static/docs/`                 | Images and diagrams. Mirror the `docs/` path. No binaries inside `docs/`.    |
+| Folder                         | Holds                                                                                                          |
+| :----------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| `docs/concepts.mdx`            | The product model. Keep it to a sitting's worth of reading.                                                    |
+| `docs/onboarding/`             | Tutorials that produce a running install.                                                                      |
+| `docs/guides/`                 | Tasks: `content/`, `configuration/`, `deployment/`, `legal/`.                                                  |
+| `docs/development/`            | Widgets, plugins, dashboard widgets, LocalCMS, the site starter, the [native UI](../development/ui/index.mdx). |
+| `docs/reference/api/`          | HTTP and API docs. Nowhere else.                                                                               |
+| `docs/reference/security/`     | Auth, CSP, field access, incident response.                                                                    |
+| `docs/reference/database/`     | The four adapters and the performance model.                                                                   |
+| `docs/reference/components/`   | Collection display (entry list, fields, smart table). The native kit is `docs/development/ui/`.                |
+| `docs/reference/architecture/` | Why the engine is shaped this way.                                                                             |
+| `docs/contributing/`           | This guide, the admin style guide, accessibility, the validation pipeline.                                     |
+| `docs/tests/`                  | How the suite is built. For contributors.                                                                      |
+| `docs/project/`                | Roadmap, achievements, comparison, and generated benchmarks.                                                   |
+| `src/widgets/**/{name}.mdx`    | That field's page, beside its source.                                                                          |
+| `static/docs/`                 | Images and diagrams. Mirror the `docs/` path. No binaries inside `docs/`.                                      |
 
 Benchmark reports named `docs/project/benchmarks/benchmark_*.mdx` are generated. Do not rename them, and do not edit the marked zones by hand. The pipeline is [Database performance benchmarks](../project/benchmarks/index.mdx).
 

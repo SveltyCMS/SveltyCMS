@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-08-23"
+updated: "2026-10-11"
 tags:
   - "gui"
   - "styling"
@@ -20,11 +20,17 @@ SveltyCMS admin UI is built on **native Svelte 5 components**, Tailwind CSS v4, 
 
 ## Mandatory shells
 
-| Component            | Use for                                                                      |
-| :------------------- | :--------------------------------------------------------------------------- |
-| **`AdminPageShell`** | Every `(app)` page root — title, back link, spacing, `admin-theme-container` |
-| **`AdminCard`**      | Content blocks — semantic card surface, density radii, theme shadows         |
-| **`PageTitle`**      | Only via `AdminPageShell` (do not invent inline `<h1>` headers)              |
+| Component            | Owns                                                                                                            |
+| :------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| **`AdminPageShell`** | The `(app)` page root: `admin-theme-container`, `--admin-bg-page`, `PageTitle`, header actions, section spacing |
+| **`AdminCard`**      | Each content block: `--admin-bg-card`, density radius, and the theme's border width and shadow                  |
+| **`PageTitle`**      | The heading. Rendered by `AdminPageShell`. A page does not add its own `<h1>`                                   |
+
+`AdminPageShell` fills the route main. Its `actions` snippet is the header button row. Its children are the body, spaced with `spaceY` (`6` by default). `fullHeight` is the editor layout, where the shell itself does not scroll.
+
+`AdminCard` with no `variant` and no `preset` follows the active theme: `flat` drops the border and the shadow, `bordered` keeps a hairline and a small shadow, `elevated` uses the larger shadow. Leave `hover:shadow-lg` off the card. Set `variant` or `preset` only for a status surface; that path renders `Card` and skips the `--admin-*` inline styles.
+
+Props, the render order, and a full page example are in [Page shells](../development/ui/shells.mdx).
 
 ```svelte
 <AdminPageShell title="Example" icon="mdi:cog" description="…">
@@ -34,11 +40,15 @@ SveltyCMS admin UI is built on **native Svelte 5 components**, Tailwind CSS v4, 
 
 ## Native primitives
 
-Always prefer:
+Compose pages from the native controls in `src/components/ui`, imported from `@components/ui`:
 
 - `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>`, `<Toggle>`, `<Checkbox>`, `<Modal>`
 
+Props, accessible names, and the Live Preview coverage of each one are in [Native controls](../development/ui/primitives.mdx). The rest of the barrel (Drawer, Combobox, Tabs, and the others) is listed on [Native UI](../development/ui/index.mdx).
+
 Never mix component CSS classes (`class="badge"` on a `<Button>`, `class="btn"` on a `<Badge>`).
+
+See them painted in the active theme at `/config/design-system?tab=preview` (Button, Badge, Input, Select, Textarea, Toggle, Card).
 
 ## Semantic admin surfaces
 

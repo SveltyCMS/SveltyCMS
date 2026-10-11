@@ -1,0 +1,66 @@
+---
+path: "docs/development/ui/index.mdx"
+title: "Native UI"
+description: "Catalog of the admin shells and the native Svelte 5 controls in src/components/ui, for people building (app) pages, widgets, and plugins."
+order: 1
+icon: "mdi:view-grid-plus"
+author: "SveltyCMS Team"
+created: "2026-10-11"
+updated: "2026-10-11"
+tags:
+  - "ui"
+  - "components"
+  - "admin"
+  - "development"
+---
+
+# Native UI
+
+This page is for someone building an `(app)` route, a widget input, or a plugin view. It maps the **native UI**: `AdminPageShell`, `AdminCard`, and the Svelte 5 controls exported from `@components/ui` (`src/components/ui`).
+
+Operators who are changing colors, density, or motion use [Design System & Admin Theme Settings](../../guides/configuration/admin-theme-settings.mdx). Shade, RTL, and motion rules stay in the [GUI styling guide](../../contributing/style-guide-gui.mdx). Collection tables, field editors, and the entry list stay in [Collection display components](../../reference/components/index.mdx).
+
+## Where the pieces live
+
+| Piece      | Source                                   | Import                                                             |
+| :--------- | :--------------------------------------- | :----------------------------------------------------------------- |
+| Page shell | `src/components/admin-page-shell.svelte` | `import AdminPageShell from '@components/admin-page-shell.svelte'` |
+| Card shell | `src/components/admin-card.svelte`       | `import AdminCard from '@components/admin-card.svelte'`            |
+| Controls   | `src/components/ui/*.svelte`             | `import { Button, Input } from '@components/ui'`                   |
+
+The barrel is `src/components/ui/index.ts`. Prefer it over a deep file path so a rename stays one change.
+
+Open **Design System → Live Preview** (`/config/design-system?tab=preview`) to see Button, Badge, Input, Select, Textarea, Toggle, and Card painted with the active theme. That screen is the visual check. Props and composition are the pages below.
+
+## Version 1
+
+These are the controls an admin page is expected to compose. Later controls in the barrel are listed underneath and do not have their own page yet.
+
+| Group   | Components                                                           | Page                                       |
+| :------ | :------------------------------------------------------------------- | :----------------------------------------- |
+| Shells  | `AdminPageShell`, `AdminCard`, and the `PageTitle` the shell renders | [Page shells](./shells.mdx)                |
+| Actions | `Button`                                                             | [Native controls](./primitives.mdx#button) |
+| Status  | `Badge`                                                              | [Native controls](./primitives.mdx#badge)  |
+| Fields  | `Input`, `Select`, `Textarea`, `Toggle`, `Checkbox`                  | [Native controls](./primitives.mdx#input)  |
+| Overlay | `Modal`                                                              | [Native controls](./primitives.mdx#modal)  |
+
+## The rest of the barrel
+
+Same import. Reach for one of these when version 1 does not cover the job. `Card` is the preset surface that `AdminCard` delegates to; an `(app)` content block still starts as `AdminCard`.
+
+| Export                                                                                                                   | Use                                                                                                    |
+| :----------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| `Alert`, `StatusBadge`, `Progress`, `Loader`, `Toast`                                                                    | Feedback                                                                                               |
+| `Accordion`, `AccordionItem`, `Collapsible`, `Tabs`, `Stepper`, `Breadcrumb`                                             | Structure inside a card                                                                                |
+| `Drawer`, `Popover`, `Dropdown`, `Tooltip`                                                                               | Layers other than `Modal`                                                                              |
+| `Combobox`, `DatePicker`, `FloatingInput`, `FileUpload`, `RadioGroup`, `RadioItem`, `Slider`, `Tags`, `SegmentedControl` | Fields beyond the version-1 set. A searchable list is `Combobox`; a plain list is `Select`             |
+| `Table`                                                                                                                  | Simple tables. Sortable collection grids are [Smart Table](../../reference/components/smart-table.mdx) |
+| `Avatar`, `Image`, `TreeView`, `StickyActions`, `UpgradePrompt`, `QrCode`, `Rating`, `Marquee`, `BackToTop`, `Portal`    | Specialized surfaces. `Portal` is what `Modal` uses to leave the page scroll container                 |
+
+Theme runtime (`getThemeContext` in `src/components/ui/theme-context.svelte.ts`) is what `AdminCard` reads for shadow and border width. Configuring it is the [theme settings guide](../../guides/configuration/admin-theme-settings.mdx).
+
+## Next steps
+
+- Build a page with [Page shells](./shells.mdx).
+- Look up props for the eight controls in [Native controls](./primitives.mdx).
+- Match shade, focus, and RTL to the [GUI styling guide](../../contributing/style-guide-gui.mdx).

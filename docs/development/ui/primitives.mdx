@@ -1,0 +1,260 @@
+---
+path: "docs/development/ui/primitives.mdx"
+title: "Native Controls"
+description: "Props, usage, and accessibility for Button, Badge, Input, Select, Textarea, Toggle, Checkbox, and Modal."
+order: 3
+icon: "mdi:button-pointer"
+author: "SveltyCMS Team"
+created: "2026-10-11"
+updated: "2026-10-11"
+tags:
+  - "ui"
+  - "button"
+  - "forms"
+  - "accessibility"
+---
+
+# Native controls
+
+Import the version-1 controls from the native UI barrel:
+
+```svelte
+import { Badge, Button, Checkbox, Input, Modal, Select, Textarea, Toggle } from '@components/ui';
+```
+
+Source files are `src/components/ui/{name}.svelte`. Page chrome around them is [Page shells](./shells.mdx). The full export list is the [Native UI hub](./index.mdx).
+
+Live Preview (`/config/design-system?tab=preview`) renders Button, Badge, Input, Select, Textarea, Toggle, and Card in the active theme. Checkbox and Modal are in this kit and are omitted from that grid.
+
+## Shared rules
+
+- Put these components on an `AdminCard` inside an `AdminPageShell`. Do not add `class="btn"` to a Badge or `class="badge"` to a Button. Each component already applies its own classes.
+- One primary `Button` per header. The supporting action is `variant="tertiary"` or `variant="ghost"`.
+- Pass `href` when the control navigates. The component renders an `<a>`, so the browser cursor is the link pointer and you can set `data-preload`. Omit `href` for an action. The component renders a `<button>`, and the cursor stays the platform default. See the [accessibility guide](../../contributing/accessibility.mdx#cursor-semantics-css3-ui).
+- An icon-only control needs `aria-label`. Visible text is the accessible name when you provide it.
+- Field ids come from `generateId()` in `@utils/id-generator` (`input-0`, `checkbox-0`). The counter is request-scoped when the root layout calls `initIdGenerator()`, so server and client markup match. Pass `id` when a test or `aria-labelledby` needs a stable value. A control you write yourself uses `$props.id()`. Do not call `crypto.randomUUID()` while rendering.
+- Extra DOM attributes on Button, Input, and Textarea pass through to the native element (`data-testid`, `name`, `autocomplete`, `data-preload`).
+
+## Button
+
+`src/components/ui/button.svelte`. Triggers an action, or navigates when `href` is set.
+
+The default `variant` is `surface`. Set `primary` for the page's main action. `color` that starts with `#`, `rgb`, `hsl`, or `var(` switches the button to `preset-custom` and leaves the variant presets. Pick a `variant` instead.
+
+```svelte
+<Button variant="primary" type="submit" leadingIcon="mdi:content-save">Save</Button>
+<Button variant="tertiary" onclick={close}>Cancel</Button>
+<Button href="/config/system-settings" variant="ghost" data-preload="hover">Settings</Button>
+<Button variant="transparent" leadingIcon="mdi:close" aria-label="Close" />
+```
+
+| Prop                          | Type                                                                                                                                | Default         | Role                                                                                        |
+| :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- | :-------------- | :------------------------------------------------------------------------------------------ |
+| `variant`                     | `'primary' \| 'secondary' \| 'tertiary' \| 'surface' \| 'success' \| 'warning' \| 'error' \| 'ghost' \| 'outline' \| 'transparent'` | `'surface'`     | Visual emphasis. `transparent` has no chrome, for an icon on a tinted surface.              |
+| `size`                        | `'sm' \| 'md' \| 'lg' \| 'xl'`                                                                                                      | `'md'`          | `sm` is 32px, `md` is 40px, `lg` is 48px, `xl` is 56px. Primary actions use `md` or larger. |
+| `href`                        | `string`                                                                                                                            | —               | Renders an anchor with `role="button"`.                                                     |
+| `type`                        | `'button' \| 'submit' \| 'reset'`                                                                                                   | `'button'`      | Ignored when `href` is set.                                                                 |
+| `loading`                     | `boolean`                                                                                                                           | `false`         | Disables the control and shows `loadingIcon`.                                               |
+| `replaceTextOnLoading`        | `boolean`                                                                                                                           | `false`         | Hides the label while `loading` is true.                                                    |
+| `disabled`                    | `boolean`                                                                                                                           | `false`         | Disables the control. Combined with `loading`.                                              |
+| `leadingIcon`, `trailingIcon` | `string`                                                                                                                            | —               | Iconify names.                                                                              |
+| `loadingIcon`                 | `string`                                                                                                                            | `'mdi:loading'` | Iconify name while loading.                                                                 |
+| `rounded`                     | `boolean`                                                                                                                           | `false`         | Pill shape.                                                                                 |
+| `shape`                       | `'round' \| 'angle'`                                                                                                                | `'round'`       | `angle` opts into the theme corner-shape. Otherwise radius follows `--admin-radius-button`. |
+| `aria-label`                  | `string`                                                                                                                            | —               | Required when there is no visible label.                                                    |
+| `aria-pressed`                | `boolean \| 'true' \| 'false'`                                                                                                      | —               | Written to the DOM as `"true"` or `"false"`.                                                |
+| `labelledBy`, `describedBy`   | `string`                                                                                                                            | —               | Map to `aria-labelledby` and `aria-describedby`.                                            |
+| `onclick`                     | `(e: MouseEvent) => void`                                                                                                           | —               | Click handler.                                                                              |
+| `children`                    | snippet                                                                                                                             | —               | Label.                                                                                      |
+
+`class` replaces nothing; it is appended. Disabled and loading set `opacity-60` and `cursor-not-allowed`.
+
+## Badge
+
+`src/components/ui/badge.svelte`. Status, counts, and short metadata. It is not a button. Give it `href` only when the badge itself is a link.
+
+Default `variant` is `primary`, which maps to a filled primary preset. `rounded` defaults to `true`.
+
+```svelte
+<Badge variant="success">Published</Badge>
+<Badge variant="outline" size="sm">Draft</Badge>
+```
+
+| Prop       | Type                                                                                                    | Default        | Role                                                                      |
+| :--------- | :------------------------------------------------------------------------------------------------------ | :------------- | :------------------------------------------------------------------------ |
+| `variant`  | `'primary' \| 'secondary' \| 'tertiary' \| 'success' \| 'warning' \| 'error' \| 'surface' \| 'outline'` | `'primary'`    | Maps to a preset and a theme hue. `outline` is an outlined surface badge. |
+| `preset`   | `'filled' \| 'tonal' \| 'outlined'`                                                                     | from `variant` | Overrides the mapping.                                                    |
+| `color`    | `string`                                                                                                | from `variant` | A theme hue name, or a CSS color (`#`, `rgb`, `hsl`, `var(`).             |
+| `size`     | `'sm' \| 'md' \| 'lg'`                                                                                  | `'md'`         | Padding and type size.                                                    |
+| `rounded`  | `boolean`                                                                                               | `true`         | Pill when true.                                                           |
+| `shape`    | `'round' \| 'angle'`                                                                                    | `'round'`      | Corner treatment.                                                         |
+| `href`     | `string`                                                                                                | —              | Renders an anchor.                                                        |
+| `children` | snippet                                                                                                 | —              | Label.                                                                    |
+
+Filled warning badges keep dark text. White on amber fails WCAG AA. The status-shade contract is in the [GUI styling guide](../../contributing/style-guide-gui.mdx#status-shade-contract).
+
+## Input
+
+`src/components/ui/input.svelte`. Single-line field with a label, an error, and optional adornments.
+
+```svelte
+<Input label="Site name" bind:value={name} error={errors.name} />
+```
+
+| Prop                                | Type                           | Default               | Role                                                                          |
+| :---------------------------------- | :----------------------------- | :-------------------- | :---------------------------------------------------------------------------- |
+| `value`                             | `string \| number \| string[]` | —                     | Bindable.                                                                     |
+| `label`                             | `string`                       | —                     | Visible label, wired with `for` / `id`.                                       |
+| `error`                             | `string`                       | —                     | Sets `aria-invalid` and renders the message as `role="alert"`.                |
+| `type`                              | input type                     | `'text'`              | Native input type.                                                            |
+| `id`                                | `string`                       | `generateId('input')` | Override for tests and external labels.                                       |
+| `shape`                             | `'round' \| 'angle'`           | `'round'`             | Corner treatment. Radius follows `--admin-radius-input`.                      |
+| `focusColor`                        | `string`                       | —                     | CSS color for the focus ring.                                                 |
+| `class`, `inputClass`, `labelClass` | `string`                       | —                     | Wrapper, input, and label classes.                                            |
+| `inputRef`                          | `HTMLInputElement \| null`     | —                     | Bindable element reference.                                                   |
+| `pre`, `post`                       | snippet                        | —                     | Content inside the border, before or after the input.                         |
+| other attributes                    | `HTMLInputAttributes`          | —                     | `name`, `placeholder`, `required`, `disabled`, `autocomplete`, `data-testid`. |
+
+## Select
+
+`src/components/ui/select.svelte`. A native `<select>`. A list the user can search is `Combobox`, exported from the same barrel.
+
+```svelte
+<Select
+  label="Timezone"
+  bind:value={timezone}
+  options={[
+    { value: 'UTC', label: 'UTC' },
+    { value: 'Europe/Berlin', label: 'Berlin' }
+  ]}
+/>
+```
+
+| Prop                      | Type                                                     | Default                 | Role                                                           |
+| :------------------------ | :------------------------------------------------------- | :---------------------- | :------------------------------------------------------------- |
+| `value`                   | `string`                                                 | `''`                    | Bindable selected value.                                       |
+| `options`                 | `{ value: string; label: string; disabled?: boolean }[]` | `[]`                    | Options.                                                       |
+| `label`                   | `string`                                                 | —                       | Associated label.                                              |
+| `placeholder`             | `string`                                                 | `'Select an option...'` | First option.                                                  |
+| `allowEmptySelection`     | `boolean`                                                | `false`                 | Keeps an empty choice selectable.                              |
+| `variant`                 | `'default' \| 'floating'`                                | `'default'`             | `floating` animates the label into the border.                 |
+| `size`                    | `'sm' \| 'md' \| 'lg'`                                   | `'md'`                  | `sm` is 32px, `md` is 40px, `lg` is 48px.                      |
+| `description`             | `string`                                                 | `''`                    | Helper text, linked with `aria-describedby`.                   |
+| `error`                   | `string`                                                 | `''`                    | Error text and `aria-invalid`.                                 |
+| `invalid`                 | `boolean`                                                | `false`                 | Error styling without replacing `error`.                       |
+| `required`, `disabled`    | `boolean`                                                | `false`                 | Native constraints.                                            |
+| `id`                      | `string`                                                 | `generateId('select')`  | Stable id.                                                     |
+| `aria-label`, `ariaLabel` | `string`                                                 | —                       | Name when there is no visible `label`.                         |
+| `onchange`                | `(value: string) => void`                                | —                       | Fires with the new value.                                      |
+| `data_testid`             | `string`                                                 | —                       | Sets `data-testid` on the select. The prop name is snake case. |
+| `class`                   | `string`                                                 | —                       | Wrapper classes.                                               |
+
+## Textarea
+
+`src/components/ui/textarea.svelte`. Multi-line field. Same label and error pattern as `Input`.
+
+```svelte
+<Textarea label="Description" rows={6} bind:value={description} />
+```
+
+| Prop                                   | Type                     | Default                  | Role                                                        |
+| :------------------------------------- | :----------------------- | :----------------------- | :---------------------------------------------------------- |
+| `value`                                | `string`                 | `''`                     | Bindable.                                                   |
+| `label`                                | `string`                 | —                        | Visible label.                                              |
+| `error`                                | `string`                 | —                        | `aria-invalid` plus alert text.                             |
+| `rows`                                 | `number`                 | `4`                      | Visible rows.                                               |
+| `id`                                   | `string`                 | `generateId('textarea')` | Stable id.                                                  |
+| `class`, `textareaClass`, `labelClass` | `string`                 | —                        | Wrapper, textarea, and label classes.                       |
+| other attributes                       | `HTMLTextareaAttributes` | —                        | `name`, `placeholder`, `required`, `disabled`, `maxlength`. |
+
+Radius follows `--admin-radius-input`. The control stays user-resizable (`resize-y`).
+
+## Toggle
+
+`src/components/ui/toggle.svelte`. An on/off switch with `role="switch"` and `aria-checked`. Use it for a setting that takes effect as a boolean. Use `Checkbox` for a value that is submitted with a form or that can be indeterminate.
+
+```svelte
+<Toggle label="Reduced motion" bind:value={reducedMotion} onToggle={(next) => save(next)} />
+```
+
+| Prop                | Type                       | Default       | Role                                          |
+| :------------------ | :------------------------- | :------------ | :-------------------------------------------- |
+| `value`             | `boolean`                  | `false`       | Bindable.                                     |
+| `label`             | `string`                   | —             | Visible name. The switch is inside the label. |
+| `ariaLabel`         | `string`                   | —             | Name when `label` is omitted.                 |
+| `description`       | `string`                   | —             | Helper text under the label.                  |
+| `size`              | `'sm' \| 'md' \| 'lg'`     | `'md'`        | Track width is at least 40px, 48px, or 56px.  |
+| `iconOn`, `iconOff` | `string`                   | —             | Iconify names drawn on the thumb.             |
+| `labelColor`        | `string`                   | theme classes | Classes for the label text.                   |
+| `disabled`          | `boolean`                  | `false`       | Blocks interaction.                           |
+| `onToggle`          | `(value: boolean) => void` | —             | Called with the next value.                   |
+| `class`             | `string`                   | —             | Wrapper classes.                              |
+
+## Checkbox
+
+`src/components/ui/checkbox.svelte`. Native checkbox with a tri-state. The `<input>` is `sr-only`; the visible box is part of the label. In a browser test, click the label text or use `getByRole('checkbox', { name })`. `locator.check({ force: true })` does not activate this control reliably, and calling `check()` on a box that is already checked is a no-op.
+
+```svelte
+<Checkbox label="Publish immediately" bind:checked={publishNow} />
+<Checkbox label="Select all" checked="indeterminate" />
+```
+
+| Prop          | Type                                   | Default     | Role                                                                        |
+| :------------ | :------------------------------------- | :---------- | :-------------------------------------------------------------------------- |
+| `checked`     | `boolean \| 'indeterminate'`           | `false`     | Bindable. `'indeterminate'` sets `aria-checked="mixed"`.                    |
+| `label`       | `string`                               | —           | Accessible name.                                                            |
+| `hideLabel`   | `boolean`                              | `false`     | Visually hides the label and keeps it available to assistive tech.          |
+| `description` | `string`                               | —           | Helper text, linked with `aria-describedby`.                                |
+| `error`       | `string`                               | `''`        | Alert text under the control.                                               |
+| `invalid`     | `boolean`                              | `false`     | Error styling.                                                              |
+| `required`    | `boolean`                              | `false`     | Native required.                                                            |
+| `disabled`    | `boolean`                              | `false`     | Blocks interaction and lowers opacity.                                      |
+| `name`        | `string`                               | `''`        | Form field name.                                                            |
+| `value`       | `string`                               | `'on'`      | Submitted value.                                                            |
+| `size`        | `'sm' \| 'md' \| 'lg'`                 | `'md'`      | Control scale. Prefer `md` or `lg` when this is the main control in a row.  |
+| `variant`     | `'default' \| 'card' \| 'toggle-card'` | `'default'` | `card` and `toggle-card` are settings-panel presentations.                  |
+| `onchange`    | `(checked: boolean) => void`           | —           | Next boolean state. Indeterminate becomes a boolean after the user toggles. |
+| `class`       | `string`                               | —           | Wrapper classes.                                                            |
+
+Keyboard: Space and Enter toggle. Focus uses the theme ring.
+
+## Modal
+
+`src/components/ui/modal.svelte`. A native `<dialog>` portaled to the document, with focus held inside while it is open and restored to the opener on close. `title` is both the header text and the dialog's accessible name. The close icon is named "Close modal".
+
+Escape closes when `closeOnEsc` is true (the default). A backdrop click closes when `closeOnOuterClick` is true (the default).
+
+Because the dialog is portaled, a Playwright locator scoped to the button that opened it will not see the dialog. Query actions from the page: `getByRole('button', { name: /confirm/i })`.
+
+```svelte
+<Button variant="primary" onclick={() => (open = true)}>Edit</Button>
+
+<Modal title="Edit webhook" bind:open size="md">
+  <Input label="URL" bind:value={url} />
+  {#snippet footer()}
+    <Button variant="tertiary" onclick={() => (open = false)}>Cancel</Button>
+    <Button variant="primary" onclick={save}>Save</Button>
+  {/snippet}
+</Modal>
+```
+
+| Prop                           | Type                                                                                       | Default     | Role                                                                                                 |
+| :----------------------------- | :----------------------------------------------------------------------------------------- | :---------- | :--------------------------------------------------------------------------------------------------- |
+| `open`                         | `boolean`                                                                                  | `false`     | Bindable.                                                                                            |
+| `title`                        | `string`                                                                                   | —           | Header text and `aria-label`, unless `header` replaces the header.                                   |
+| `size`                         | `'sm' \| 'md' \| 'lg' \| 'xl' \| '2xl' \| 'editor' \| 'fullscreen'`                        | `'md'`      | `sm` through `2xl` set `max-width`. `editor` is a large fixed pane. `fullscreen` fills the viewport. |
+| `color`                        | `'surface' \| 'primary' \| 'secondary' \| 'tertiary' \| 'success' \| 'warning' \| 'error'` | `'surface'` | Header accent.                                                                                       |
+| `header`, `footer`, `children` | snippet                                                                                    | —           | Replace the header, add a footer bar, or fill the body.                                              |
+| `closeOnEsc`                   | `boolean`                                                                                  | `true`      | Escape closes.                                                                                       |
+| `closeOnOuterClick`            | `boolean`                                                                                  | `true`      | Backdrop click closes.                                                                               |
+| `onopen`, `onclose`            | `() => void`                                                                               | —           | Lifecycle.                                                                                           |
+| `class`                        | `string`                                                                                   | —           | Classes on the inner card.                                                                           |
+| `dialogClass`                  | `string`                                                                                   | —           | Classes on `<dialog>`.                                                                               |
+| `contentClass`                 | `string`                                                                                   | —           | Classes on the scrollable body.                                                                      |
+| `headerClass`                  | `string`                                                                                   | —           | Classes on the header bar.                                                                           |
+
+## Next steps
+
+- Compose them inside [Page shells](./shells.mdx).
+- See the other exports on the [Native UI hub](./index.mdx).
+- Cursor, focus, and contrast rules: [Accessibility guide](../../contributing/accessibility.mdx).

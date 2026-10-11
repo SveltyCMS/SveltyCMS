@@ -1,0 +1,162 @@
+---
+path: "docs/development/ui/shells.mdx"
+title: "Page Shells"
+description: "How AdminPageShell and AdminCard divide an (app) page: title, theme canvas, card elevation, and the slots you fill."
+order: 2
+icon: "mdi:page-layout-header"
+author: "SveltyCMS Team"
+created: "2026-10-11"
+updated: "2026-10-11"
+tags:
+  - "ui"
+  - "admin-page-shell"
+  - "admin-card"
+  - "layout"
+---
+
+# Page shells
+
+Every `(app)` page is one `AdminPageShell` and one or more `AdminCard` blocks. The shell owns the canvas, the title, and the header actions. The card owns elevation. Controls inside the card come from the [native UI](./primitives.mdx).
+
+```svelte
+<script lang="ts">
+  import AdminPageShell from '@components/admin-page-shell.svelte';
+  import AdminCard from '@components/admin-card.svelte';
+  import { Button } from '@components/ui';
+</script>
+
+<AdminPageShell title="Webhooks" icon="mdi:webhook" description="Outbound events for this tenant.">
+  {#snippet actions()}
+    <Button variant="primary" leadingIcon="mdi:plus">New webhook</Button>
+  {/snippet}
+
+  <AdminCard class="p-4">
+    <!-- fields, tables, empty states -->
+  </AdminCard>
+</AdminPageShell>
+```
+
+`PageTitle` (`src/components/page-title.svelte`) is the header inside the shell. Pass title, icon, description, back link, and the `actions` snippet through `AdminPageShell`. A second `<h1>` in the page body duplicates that header.
+
+## What the shell renders
+
+`AdminPageShell` (`src/components/admin-page-shell.svelte`) fills the route's `<main>`:
+
+1. A root with class `admin-theme-container`, `background-color: var(--admin-bg-page)`, and `color: var(--admin-text-body)`. Theme CSS is scoped to this container, so the page, portalled overlays, and scrollbars repaint together.
+2. `PageTitle`, sticky to the top of the shell. `titleBorderless` defaults to `true`, so the header has no bottom rule until you set `titleCompact` or `titleBorderless={false}`.
+3. An `AdminZone` named `content-header`, then the `children` snippet in a padded column (`px-2 pb-2 pt-4`), then an `AdminZone` named `content-footer`. Plugins inject those zones. Page content goes in `children`.
+4. Vertical rhythm between children is `space-y-4`, `space-y-6` (the default), or `space-y-8`.
+
+`fullHeight` switches the root to a column that does not scroll, and the content area becomes `flex-1 min-h-0`. Use it for an editor that scrolls an inner pane.
+
+### Motion
+
+Two transitions run, and both drop to 0ms when the user prefers reduced motion or the theme turns reduced motion on (`src/utils/admin-transitions.ts`):
+
+| Transition  | Owner                                                 | What you see                                                                                                                                                                                              |
+| :---------- | :---------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adminPage` | `(app)/+layout.svelte`, keyed on `page.url.pathname`  | 240ms fade and a small rise. Duration is 0 while a browser View Transition is running, so the route does not animate twice. Query changes (`?edit`, filters) keep the same pathname and do not replay it. |
+| `adminFade` | `AdminPageShell` when `animate` is true (the default) | 200ms opacity fade as the shell mounts.                                                                                                                                                                   |
+
+Leave `animate` on. Add `in:adminStagger` on a grid of cards when a list should cascade. Skip per-page `in:fly` and `in:scale`. The shared helpers are the [GUI styling guide](../../contributing/style-guide-gui.mdx#motion-transitions).
+
+### Shell props
+
+| Prop              | Type                | Default       | Role                                                                                         |
+| :---------------- | :------------------ | :------------ | :------------------------------------------------------------------------------------------- |
+| `title`           | `string`            | —             | Required. Becomes `PageTitle`'s `name` and the visible heading.                              |
+| `icon`            | `string`            | —             | Iconify name beside the title (`mdi:cog`).                                                   |
+| `description`     | `string`            | —             | Subtitle under the title.                                                                    |
+| `highlight`       | `string`            | `''`          | Substring of `title` drawn in the accent color.                                              |
+| `showBackButton`  | `boolean`           | `false`       | Back control in the title row.                                                               |
+| `backUrl`         | `string`            | `''`          | Target of that control.                                                                      |
+| `actions`         | snippet             | —             | Trailing header controls. One primary `Button`, supporting actions as `tertiary` or `ghost`. |
+| `subtitle`        | snippet             | —             | Extra line under the description when a string is not enough.                                |
+| `spaceY`          | `'4' \| '6' \| '8'` | `'6'`         | Gap between top-level children.                                                              |
+| `titleCompact`    | `boolean`           | `false`       | Tighter title row.                                                                           |
+| `titleBorderless` | `boolean`           | `true`        | Hides the title-row border.                                                                  |
+| `fullHeight`      | `boolean`           | `false`       | Editor layout: the shell does not scroll.                                                    |
+| `animate`         | `boolean`           | `true`        | Plays `adminFade` on mount.                                                                  |
+| `navColor`        | favorite color      | theme default | Tailwind background class for this route's FloatingNav spoke when a user favorites it.       |
+| `children`        | snippet             | —             | The page body.                                                                               |
+
+## AdminCard
+
+`AdminCard` (`src/components/admin-card.svelte`) is the content surface. It reads `getThemeContext()` and paints the **card** role, which sits above the page canvas.
+
+On the default path (no `variant`, no `preset`) the root is a `div.card` with inline style:
+
+| Property     | Token                    | Theme variant effect                                                                                        |
+| :----------- | :----------------------- | :---------------------------------------------------------------------------------------------------------- |
+| Background   | `--admin-bg-card`        | Follows light and dark.                                                                                     |
+| Text         | `--admin-text-body`      | Follows light and dark.                                                                                     |
+| Radius       | `--admin-radius-card`    | Follows density (compact, cozy, spacious).                                                                  |
+| Border color | `--admin-border-default` | —                                                                                                           |
+| Border width | `theme.cardBorder`       | `0` when the theme variant is `flat`. Otherwise `--admin-border-width`.                                     |
+| Shadow       | `theme.cardShadow`       | `none` when `flat`. A soft elevation shadow when `bordered` (the default). A larger shadow when `elevated`. |
+
+A `flat` theme therefore has no shadow and no border. `hover:shadow-lg` on the card paints a shadow the theme just removed. Put padding on the card with `class` (`class="p-4"`). Nest a second `AdminCard` when a block inside the page needs its own surface.
+
+### Preset path
+
+Set `variant` or `preset` only when the block is a status surface (a success summary, an error panel) and should use the same recipes as `Card`:
+
+| Prop      | Values                                                                                     |
+| :-------- | :----------------------------------------------------------------------------------------- |
+| `variant` | `'primary' \| 'secondary' \| 'tertiary' \| 'success' \| 'warning' \| 'error' \| 'surface'` |
+| `preset`  | `'filled' \| 'tonal' \| 'outlined'`                                                        |
+
+That path renders `Card` from `@components/ui` and **does not** apply the inline `--admin-*` styles above. `class` is forwarded. Other attributes (`id`, `data-testid`, `role`) are forwarded only on the default token path. Put test ids on a token card, or on an element inside a preset card.
+
+`Card` itself also accepts `header` and `footer` snippets and a `color` override. Page sections stay on `AdminCard` so flat, bordered, and elevated themes keep working. Use `Card` directly for a small preset tile that is not a page section.
+
+### Card props
+
+| Prop             | Type                                | Role                                                      |
+| :--------------- | :---------------------------------- | :-------------------------------------------------------- |
+| `class`          | `string`                            | Extra classes. Padding, grids, and overflow belong here.  |
+| `children`       | snippet                             | Card body.                                                |
+| `variant`        | theme hue                           | Switches to the preset `Card`. Omit for a normal section. |
+| `preset`         | `'filled' \| 'tonal' \| 'outlined'` | Switches to the preset `Card`. Omit for a normal section. |
+| other attributes | `HTMLAttributes<HTMLDivElement>`    | Applied on the token path: `id`, `data-testid`, `aria-*`. |
+
+## A full page
+
+```svelte
+<script lang="ts">
+  import AdminPageShell from '@components/admin-page-shell.svelte';
+  import AdminCard from '@components/admin-card.svelte';
+  import { Button, Input } from '@components/ui';
+
+  let name = $state('');
+</script>
+
+<AdminPageShell
+  title="General"
+  icon="mdi:cog"
+  description="Site name shown in the admin header."
+  showBackButton
+  backUrl="/config/system-settings"
+>
+  {#snippet actions()}
+    <Button variant="tertiary" href="/config/system-settings">Cancel</Button>
+    <Button variant="primary" type="submit" form="general-form">Save</Button>
+  {/snippet}
+
+  <AdminCard class="p-4">
+    <form id="general-form" class="space-y-4">
+      <Input label="Site name" bind:value={name} />
+    </form>
+  </AdminCard>
+</AdminPageShell>
+```
+
+The header `Button` with `href` is a link. The save `Button` is a submit control associated with the form by `form="general-form"`, because the action sits outside the `<form>`.
+
+Wide tables inside the card need `class="overflow-x-auto"` on a wrapper. Touch targets on actions stay at least 40px: `Button` size `md` (the default) is 40px tall; `sm` is 32px and is for dense toolbars.
+
+## Next steps
+
+- Props and accessibility for Button, fields, and Modal: [Native controls](./primitives.mdx).
+- Tokens, shade steps, and RTL: [GUI styling guide](../../contributing/style-guide-gui.mdx).
+- Try the same card under flat, bordered, and elevated: `/config/design-system?tab=preview`.

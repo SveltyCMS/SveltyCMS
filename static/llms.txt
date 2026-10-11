@@ -41,6 +41,7 @@ Task recipes for the admin and for operations.
 Extend the CMS.
 
 - [Development](https://docs.sveltycms.com/docs/development): Index.
+- [Native UI](https://docs.sveltycms.com/docs/development/ui): AdminPageShell, AdminCard, and the controls in src/components/ui.
 - [Widgets](https://docs.sveltycms.com/docs/development/widgets): Custom fields. Definition, input, and display.
 - [Dashboard widgets](https://docs.sveltycms.com/docs/development/dashboard): Cards on the admin dashboard.
 - [Local SDK vs HTTP](https://docs.sveltycms.com/docs/development/local-vs-http-api): When server code should call LocalCMS.

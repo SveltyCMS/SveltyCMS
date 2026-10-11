@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:code-braces"
 author: "SveltyCMS Team"
 created: "2026-06-27"
-updated: "2026-09-22"
+updated: "2026-10-11"
 tags:
   - "development"
   - "widgets"
@@ -20,6 +20,18 @@ tags:
 # Development
 
 Build on SveltyCMS: widgets, plugins, dashboard widgets, and the way server code calls the core. Operating the admin is [Guides](../guides/index.mdx). The product model is [Concepts](../concepts.mdx). Lookup pages are the [Reference](../reference/index.mdx).
+
+---
+
+## Admin pages
+
+`(app)` routes, widget inputs, and plugin views share one kit: `AdminPageShell`, `AdminCard`, and the controls in `src/components/ui`.
+
+- [🧩 **Native UI**](./ui/index.mdx) — Catalog, import paths, and the rest of the barrel
+- [📐 **Page shells**](./ui/shells.mdx) — How `AdminPageShell` and `AdminCard` divide a page
+- [🎛️ **Native controls**](./ui/primitives.mdx) — Button, Badge, Input, Select, Textarea, Toggle, Checkbox, Modal
+
+Shade, RTL, and motion rules stay in the [GUI styling guide](../contributing/style-guide-gui.mdx). Theme setup for operators is [Design System & Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx).
 
 ---
 
@@ -101,6 +113,7 @@ Developer tools for building on top of SveltyCMS.
 
 ## Next Steps
 
+- **Building an admin page?** Start with [Native UI](./ui/index.mdx)
 - **New to widget development?** Start with the [Widget System Overview](./widgets/index.mdx)
 - **Building a plugin?** See the [Plugin Architecture](./plugins/architecture.mdx)
 - **Using the SDK?** Read the [Hybrid Package Model](./package-model.mdx)
