@@ -30,6 +30,8 @@ export const publicConfigSchema = object({
   // --- Host configuration ---
   HOST_DEV: pipe(string(), minLength(1)),
   HOST_PROD: pipe(string(), minLength(1)),
+  // Optional origin for live-preview links. Blank falls through to HOST_PROD.
+  PREVIEW_BASE_URL: optional(string()),
 
   // --- Site configuration ---
   SITE_NAME: pipe(string(), minLength(1), maxLength(SITE_NAME_MAX_LENGTH)),

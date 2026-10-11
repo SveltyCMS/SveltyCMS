@@ -29,6 +29,17 @@ describe("export-encode", () => {
     expect(encodeCsvField({ en: "Hello" })).toBe('"{""en"":""Hello""}"');
   });
 
+  it("prefixes spreadsheet formula text and leaves numbers alone", () => {
+    expect(encodeCsvField("=1+1")).toBe("'=1+1");
+    expect(encodeCsvField("+1")).toBe("'+1");
+    expect(encodeCsvField("-1")).toBe("'-1");
+    expect(encodeCsvField("@sum")).toBe("'@sum");
+    expect(encodeCsvField("\tcmd")).toBe("'\tcmd");
+    expect(encodeCsvField(12)).toBe("12");
+    expect(encodeCsvField(-4)).toBe("-4");
+    expect(encodeCsvField(true)).toBe("true");
+  });
+
   it("builds a stable CSV header from system + schema columns", () => {
     const columns = collectExportColumns([
       { db_fieldName: "title" },

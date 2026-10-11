@@ -127,7 +127,7 @@ Streams entries from the database cursor (Mongo) or paged SQL reads (SQLite / Ma
 | `publicationFilter` | `published` / `draft` / `all` | per caller |
 
 - **NDJSON**: `application/x-ndjson` — one JSON object per line
-- **CSV**: RFC 4180, header from system columns + schema `db_fieldName`
+- **CSV**: RFC 4180, header from system columns + schema `db_fieldName`. A text cell that starts with `=`, `+`, `-`, `@`, tab, or carriage return is prefixed with `'` (`src/utils/export-encode.ts`). Numbers and booleans are unchanged.
 - **JSON**: chunked `{"success":true,"data":[…]}` array (same envelope as list streaming)
 
 Responses include `Content-Disposition: attachment` and `Cache-Control: no-store`. Encrypted fields are decrypted for authorized callers (same as find). This is a **self-described** control (September 2026), not a same-harness measurement against other CMS export tools.

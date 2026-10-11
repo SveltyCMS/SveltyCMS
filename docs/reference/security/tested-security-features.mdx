@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-09-18"
+updated: "2026-10-11"
 tags:
   - security
   - testing
@@ -266,6 +266,15 @@ External penetration-test findings closed with regression coverage in `tests/uni
 - **Open redirect after login closed (High)** — `safeRedirect(input.redirect)` on the login success path.
 - **Trusted-device cookie rebound to IP/UA at skip time (Medium)** — the 30-day 2FA-skip cookie is now validated against the presenting device's fingerprint; this also fixed a latent parsing bug where a colon-bearing fingerprint (ip prefix + UA hash) bypassed the expiry check.
 - **SSRF egress-guard coverage completed (Medium)** — IPv6 ULA `fc00::/7` is fully blocked (both `fc00:` and `fd00:` hextets), CGNAT `100.64.0.0/10` added, and bracketed IPv6 literals (`[::1]`) are now recognized as IPs instead of falling through to DNS.
+
+### 17. Off-request patches (October 2026)
+
+Helpers covered by unit tests. The write-path ownership check and the scheduler's execute path are in the source and described in the [security index](./index.mdx). They do not have their own integration test yet.
+
+- **Guarded filter and sort**: `stripGuardedFilter` and `stripGuardedSort` drop a name the caller may not read, including a nested `$and` that becomes empty. Admins and unguarded schemas get the same object back. `tests/unit/utils/guarded-query.test.ts`.
+- **CSV formula prefix**: text cells that start with `=`, `+`, `-`, `@`, tab, or carriage return are prefixed. Numbers and booleans are not. `tests/unit/utils/export-encode.test.ts`.
+- **Status-transition allow-list**: `acceptStatusTransitionJob` keeps `collectionId`, `entryId`, `targetStatus`, and `entryPath`, overwrites `scheduledBy` with the authenticated user, and rejects an unknown task or status. `tests/unit/services/scheduler-job.test.ts`.
+- **WebSocket Origin host**: `websocketOriginAllowed` allows an empty Origin, matches the host (default port omitted), and rejects a foreign or malformed Origin. Same file.
 
 ---
 

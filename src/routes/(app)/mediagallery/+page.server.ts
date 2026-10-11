@@ -34,6 +34,10 @@ import type { MediaItem, SystemVirtualFolder } from "@root/src/databases/db-inte
 import type { MediaAccess } from "@root/src/utils/media/media-models";
 // Auth
 import { dbAdapter } from "@src/databases/db";
+import {
+  allowMediaSortDirection,
+  allowMediaSortField,
+} from "@src/services/sdk/namespaces/media-namespace";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { isAdmin } from "@src/databases/auth/constants";
 import { error, isHttpError, isRedirect } from "@sveltejs/kit";
@@ -153,8 +157,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
           pageSize: 100,
           page: 1,
-          sortField: "updatedAt",
-          sortDirection: "desc",
+          sortField: allowMediaSortField(url.searchParams.get("sort")),
+          sortDirection: allowMediaSortDirection(url.searchParams.get("dir")),
           recursive,
           user, // Pass user for ownership filtering
           tenantId, // Explicit scope (raw adapter — see note above)

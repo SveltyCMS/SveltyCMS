@@ -249,6 +249,12 @@ export interface FieldInstance {
    */
   encrypt?: boolean;
 
+  /**
+   * Optional note for AI mapping and scoring. Read only while those prompts
+   * are built. Collection reads and writes ignore it.
+   */
+  llmInstructions?: string;
+
   // Functions
   validate?: (value: FieldValue) => boolean | Promise<boolean>;
   /** A reference to the widget's immutable definition. */
@@ -374,8 +380,9 @@ export interface Schema {
   /**
    * Row ownership. When set, list/count/stream queries are scoped to
    * `field === user._id` (admins and system scope bypass), and point reads drop
-   * non-matching rows on a copied envelope. A caller without a user id matches
-   * nothing.
+   * non-matching rows on a copied envelope. Update, delete, and bulk delete
+   * return 404 for a row the caller does not own. A caller without a user id
+   * matches nothing.
    */
   ownership?: { field: string };
   /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */

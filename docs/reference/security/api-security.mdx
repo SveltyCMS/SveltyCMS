@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-05-14"
-updated: "2026-09-30"
+updated: "2026-10-11"
 tags:
   - "security"
   - "auth"
@@ -118,7 +118,7 @@ GraphQL requests pass through the same middleware pipeline as REST:
 - **Validation plugin**: Query depth limit (8), alias limit (15)
 - **APQ hash binding**: for `extensions.persistedQuery`, the hash must be exactly 64 hex characters and `sha256(query)` is compared with `timingSafeEqual` **before** the query is registered — a client cannot plant a query under a hash another client will request (`PERSISTED_QUERY_HASH_INVALID` for a malformed key, `PERSISTED_QUERY_HASH_MISMATCH` for a wrong digest), which closes cache poisoning/flooding of the persisted-query store
 - **Introspection**: Explicitly blocked in production via `NoSchemaIntrospectionCustomRule`
-- **Subscriptions**: Context handler validates sessions before WebSocket upgrade
+- **Subscriptions**: Context handler validates sessions before WebSocket upgrade. `websocketOriginAllowed` in `src/hooks.ws.ts` rejects an `Origin` whose host differs from the upgrade host. An empty Origin is allowed (non-browser clients). A malformed Origin is rejected. The host check runs before the test-secret path.
 
 ### 3.3 SCIM 2.0 Authentication
 

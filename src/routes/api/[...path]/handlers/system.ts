@@ -5,6 +5,8 @@
 
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
+import { acceptStatusTransitionJob } from "@src/services/scheduler";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -289,6 +291,54 @@ export async function handleWidgetRoutes(
   throw new AppError(`Widget action ${action} not implemented`, 404);
 }
 
+async function auditWebhookChange(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+  action: "create" | "update" | "delete",
+  saved?: unknown,
+  webhookId?: string,
+): Promise<void> {
+  try {
+    const user = event.locals.user;
+    // Record even without a session: a programmatic/system webhook change must
+    // still leave a trail, attributed to `system`.
+    const actorId = (user?._id ?? "system") as DatabaseId;
+    let ip: string | undefined;
+    try {
+      ip = event.getClientAddress();
+    } catch {
+      ip = undefined;
+    }
+    const savedId =
+      saved && typeof saved === "object" && "id" in saved
+        ? String((saved as { id?: unknown }).id ?? "")
+        : "";
+    const id = savedId || webhookId || null;
+    const eventType =
+      action === "create"
+        ? AuditEventType.WEBHOOK_CREATED
+        : action === "update"
+          ? AuditEventType.WEBHOOK_UPDATED
+          : AuditEventType.WEBHOOK_DELETED;
+    await auditLogService.log(
+      `webhook:${action}`,
+      {
+        id: actorId,
+        email: user?.email || "",
+        role: typeof user?.role === "string" ? user.role : undefined,
+        ip,
+      },
+      { type: "webhook", id: id as DatabaseId },
+      eventType,
+      "low",
+      { webhookId: id },
+      tenantId,
+    );
+  } catch (err) {
+    logger.warn(`[Webhook] Audit log failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /**
  * --- WEBHOOKS ---
  */
@@ -319,11 +369,12 @@ export async function handleWebhookRoutes(
       return successResponse(event, await webhookService.getWebhooks(tenantId as string));
     if (request.method === "POST") {
       const body = await validateRequestBody(event, SaveWebhookSchema);
-      return successResponse(
-        event,
-        await webhookService.saveWebhook(body as unknown as Partial<Webhook>, tenantId as string),
-        201,
+      const saved = await webhookService.saveWebhook(
+        body as unknown as Partial<Webhook>,
+        tenantId as string,
       );
+      await auditWebhookChange(event, tenantId, "create", saved);
+      return successResponse(event, saved, 201);
     }
   } else {
     const webhooks = await webhookService.getWebhooks(tenantId as string);
@@ -341,16 +392,16 @@ export async function handleWebhookRoutes(
 
     if (request.method === "PATCH" || request.method === "PUT") {
       const body = await validateRequestBody(event, SaveWebhookSchema);
-      return successResponse(
-        event,
-        await webhookService.saveWebhook(
-          { ...body, id: webhookId } as unknown as Partial<Webhook>,
-          tenantId as string,
-        ),
+      const saved = await webhookService.saveWebhook(
+        { ...body, id: webhookId } as unknown as Partial<Webhook>,
+        tenantId as string,
       );
+      await auditWebhookChange(event, tenantId, "update", saved, webhookId);
+      return successResponse(event, saved);
     }
     if (request.method === "DELETE") {
       await webhookService.deleteWebhook(webhookId, tenantId as string);
+      await auditWebhookChange(event, tenantId, "delete", undefined, webhookId);
       return successResponse(event, { success: true });
     }
 
@@ -569,18 +620,23 @@ export async function handleSystemJobRoutes(
       throw new AppError("Jobs system not available", 501, "NOT_IMPLEMENTED");
     }
 
+    const userId = event.locals.user?._id;
+    if (!userId) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+
     const body = await request.json().catch(() => ({}));
     const { taskType, payload, runAt } = body;
-
-    if (!taskType || !payload) {
-      throw new AppError("taskType and payload are required", 400);
+    let accepted: ReturnType<typeof acceptStatusTransitionJob>;
+    try {
+      accepted = acceptStatusTransitionJob(taskType, payload, String(userId));
+    } catch (err) {
+      throw new AppError(err instanceof Error ? err.message : "Invalid job", 400);
     }
 
     const nextRunAt = runAt ? new Date(runAt) : new Date();
 
     const result = await db.system.jobs.create({
-      taskType,
-      payload,
+      taskType: accepted.taskType,
+      payload: accepted.payload,
       status: "pending",
       attempts: 0,
       maxAttempts: 3,
@@ -687,7 +743,11 @@ export async function handleAiRoutes(
   if (action === "score" && request.method === "POST") {
     const { content, collectionName } = body;
     if (!content) throw new AppError("Content payload is required", 400);
-    const scoreResult = await aiService.scoreContent(content, collectionName || "unknown");
+    const scoreResult = await aiService.scoreContent(
+      content,
+      collectionName || "unknown",
+      body.fields,
+    );
     return successResponse(event, scoreResult);
   }
 
@@ -698,6 +758,7 @@ export async function handleAiRoutes(
       collectionName,
       description || "",
       availableWidgets || [],
+      body.fields,
     );
     return successResponse(event, fields);
   }

@@ -486,9 +486,9 @@ export class WorkflowService {
    *
    * When the collection's workflow has `gatePublication` enabled, entries may
    * only be written with status "publish" while their workflow instance is in
-   * a FINAL state. Admins/super-admins keep an explicit override; system
-   * actors (scheduled publishing, sync, imports) bypass the gate by calling
-   * the write path with `system: true`.
+   * a FINAL state. Admins/super-admins keep an explicit override. Callers that
+   * pass `system: true` (sync, imports) bypass the gate. Scheduled publish
+   * runs as the scheduling user with `system: false` and is subject to this gate.
    *
    * @param entryId - existing entry (update path); omit for create-path checks
    *   (a brand-new entry has no instance yet and therefore cannot be published

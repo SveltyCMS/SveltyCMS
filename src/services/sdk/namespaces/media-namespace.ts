@@ -25,12 +25,30 @@ function isFileLike(value: unknown): value is File {
 
 type MediaAccess = "public" | "private";
 
+const MEDIA_SORT_FIELDS = new Set(["size", "filename", "updatedAt", "createdAt", "mimeType"]);
+
+/** Allow-listed media sort. Anything else stays on `updatedAt` (no new index). */
+export function allowMediaSortField(
+  field: unknown,
+): "size" | "filename" | "updatedAt" | "createdAt" | "mimeType" {
+  if (typeof field === "string" && MEDIA_SORT_FIELDS.has(field)) {
+    return field as "size" | "filename" | "updatedAt" | "createdAt" | "mimeType";
+  }
+  return "updatedAt";
+}
+
+export function allowMediaSortDirection(direction: unknown): "asc" | "desc" {
+  return direction === "asc" ? "asc" : "desc";
+}
+
 interface FindOptions {
   tenantId?: DatabaseId | null;
   limit?: number;
   folderId?: string;
   recursive?: boolean;
   prefix?: string;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
 }
 
 interface FindByIdOptions {
@@ -103,13 +121,15 @@ export class MediaNamespace {
 
   async find(options: FindOptions = {}): Promise<DatabaseResult<any>> {
     const { tenantId, limit = 100, folderId, recursive = false, prefix } = options;
+    const sortField = allowMediaSortField(options.sortField);
+    const sortDirection = allowMediaSortDirection(options.sortDirection);
 
     // Mirror collections-namespace: fail closed when multi-tenant and no tenant scope
     if (isMultiTenantEnabled() && !tenantId) {
       throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
     }
 
-    const cacheKey = `${tenantId ?? "global"}:media:folder:${folderId ?? "root"}:${limit}:${recursive}`;
+    const cacheKey = `${tenantId ?? "global"}:media:folder:${folderId ?? "root"}:${limit}:${recursive}:${sortField}:${sortDirection}`;
     if (MediaNamespace._requestCache.has(cacheKey)) {
       return MediaNamespace._requestCache.get(cacheKey);
     }
@@ -126,8 +146,8 @@ export class MediaNamespace {
     const result = await getByFolder(folderId as DatabaseId, {
       pageSize: limit,
       page: 1,
-      sortField: "updatedAt",
-      sortDirection: "desc",
+      sortField,
+      sortDirection,
       recursive,
       tenantId: tenantId as DatabaseId,
     });

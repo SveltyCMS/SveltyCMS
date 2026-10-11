@@ -174,6 +174,7 @@ export class PreviewService {
     tenantId?: string | null,
   ): string {
     const baseUrl =
+      getPublicSettingSync("PREVIEW_BASE_URL") ||
       getPublicSettingSync("HOST_PROD") ||
       getPublicSettingSync("HOST_DEV") ||
       "http://localhost:5173";

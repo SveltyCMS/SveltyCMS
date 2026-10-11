@@ -33,8 +33,9 @@ It provides the following functionality:
 		access_tab_admin
 	} from '@src/paraglide/messages';
 	import type { Role } from '@src/databases/auth/types';
-	import type { DatabaseId, ISODateString } from '@src/databases/db-interface';
+	import type { DatabaseId } from '@src/databases/db-interface';
 	import { generateUUID } from '@utils/native-utils';
+	import { nowISODateString } from '@utils/date';
 	import { modalState } from '@utils/modal.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
@@ -129,7 +130,15 @@ It provides the following functionality:
 			return;
 		}
 
+		if (/^(public|anonymous|guest)$/i.test(roleName.trim())) {
+			const proceed = confirm(
+				`"${roleName.trim()}" is a public role. People who are not signed in can receive its permissions. Save it anyway?`
+			);
+			if (!proceed) return;
+		}
+
 		const roleId = currentRoleId ?? generateUUID().replace(/-/g, '');
+		const stamped = nowISODateString();
 		const newRole = {
 			_id: roleId as DatabaseId,
 			id: roleId,
@@ -137,8 +146,8 @@ It provides the following functionality:
 			description: roleDescription,
 			groupName: currentGroupName,
 			permissions: selectedPermissions,
-			createdAt: new Date().toISOString() as ISODateString,
-			updatedAt: new Date().toISOString() as ISODateString
+			createdAt: stamped,
+			updatedAt: stamped
 		};
 
 		if (!isEditMode) {

@@ -871,6 +871,14 @@ export const settingsGroups: SettingGroup[] = [
         placeholder: "https://sveltycms.com",
       },
       {
+        key: "PREVIEW_BASE_URL",
+        label: "Preview Base URL",
+        description: "Origin used for live-preview links. Leave blank to use the production URL.",
+        type: "text",
+        category: "public",
+        placeholder: "https://preview.example.com",
+      },
+      {
         key: "EXTRACT_DATA_PATH",
         label: "Data Export Path",
         description: "File path for exported collection data",

@@ -62,35 +62,35 @@ flowchart LR
 
 ## Features (as implemented)
 
-| Feature                     | Implementation                                                                                                                            |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Server-driven data**      | `entries` and `pagination` props from SSR; `tableData = $derived(serverEntries)`                                                          |
-| **URL state**               | `search`, `page`, `pageSize`, `filter_{field}`, sort fields via `goto()`                                                                  |
-| **Debounced search**        | `globalSearchValue` synced to URL; resets to page 1 on new search                                                                         |
-| **Smart column filters**    | `createSmartFilter` maps widgets → text/select/date/numberRange/boolean; URL keys `filter_{name}`                                         |
-| **Advanced filters modal**  | `AdvancedFilterModal` compound `AND`/`OR` multi-clause query builder across all schema fields with type-aware operators                   |
-| **Active filter badges**    | Dismissible chips + clear-all + advanced count badge; `aria-live` count for accessibility                                                 |
-| **Status facets**           | `statusFacets` from `getStatusFacets` → `SmartTableStatusFacets` chips                                                                    |
-| **Saved views**             | `SmartTableSavedViewsMenu` — named filter/sort/layout presets per collection                                                              |
-| **Column resize**           | Header drag handles via `ColumnResizeHandle` + `layoutKey: entry-list:{id}`                                                               |
-| **List metrics**            | SSR `listMetrics` + `SmartTableMetricsBadge` when `?debug=table`                                                                          |
-| **Multi-column sort**       | Shift+Click header sort; ordinal rank badges (`1`, `2`, `3`); URL query serialization `sort=col1:asc,col2:desc`                           |
-| **Responsive card mode**    | View mode toggle (`table` vs `card`) in toolbar; persisted in layout prefs; adaptive mobile card presentation                             |
-| **Keyboard grid traversal** | WCAG 2.2 AA / ATAG 2.0 roving `tabindex`; arrow navigation, `Home`/`End`, `PageUp`/`PageDown`, `Space` for row selection, `Enter` to edit |
-| **Export filtered data**    | `Alt+X` keyboard shortcut and MultiButton action for streaming CSV export bounded to selected entries or active filter query              |
-| **Pagination**              | `TablePagination`; page sizes via `rowsPerPage` URL param                                                                                 |
-| **Multi-select**            | Shift+click range selection; select-all checkbox; ID-based virtualization-safe selection                                                  |
-| **Bulk actions**            | `POST /api/collections/:id/batch` (`delete`, `status`, `clone`, `bulkEdit`, `export`) via `entry-list-multi-button`                       |
-| **Archived view**           | `showDeleted` toggles active vs archived entries                                                                                          |
-| **Column manager**          | Show/hide columns; **drag-and-drop reorder** (`@thisux/sveltednd`)                                                                        |
-| **Density**                 | `normal` / `compact` / `comfortable` via `TableFilter` → `entryListPaginationSettings.density`                                            |
-| **localStorage**            | Per-collection `entryListPaginationSettings_{collectionId}` + Smart Table layout prefs (`viewMode`, `density`, `columnWidths`)            |
-| **Plugin columns**          | `availablePlugins` → dynamic headers → `PluginComponent` cells                                                                            |
-| **Translation UI**          | Embeds `translation-status.svelte` in filter toolbar                                                                                      |
-| **Hover preload**           | `preloadEntry()` from `@utils/navigation` on row hover                                                                                    |
-| **Idle warm-cache**         | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request)                                                            |
-| **Connection-aware**        | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API)                                                               |
-| **Row virtualization**      | On pages with >25 rows, only visible rows + buffer (5 above/below) render as DOM elements; spacers maintain scroll height                 |
+| Feature                     | Implementation                                                                                                                                                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Server-driven data**      | `entries` and `pagination` props from SSR; `tableData = $derived(serverEntries)`                                                                                       |
+| **URL state**               | `search`, `page`, `pageSize`, `filter_{field}`, sort fields via `goto()`                                                                                               |
+| **Debounced search**        | `globalSearchValue` synced to URL; resets to page 1 on new search                                                                                                      |
+| **Smart column filters**    | `createSmartFilter` maps widgets → text/select/date/numberRange/boolean; URL keys `filter_{name}`                                                                      |
+| **Advanced filters modal**  | `AdvancedFilterModal` compound `AND`/`OR` multi-clause query builder across all schema fields with type-aware operators                                                |
+| **Active filter badges**    | Dismissible chips + clear-all + advanced count badge; `aria-live` count for accessibility                                                                              |
+| **Status facets**           | `statusFacets` from `getStatusFacets` → `SmartTableStatusFacets` chips                                                                                                 |
+| **Saved views**             | `SmartTableSavedViewsMenu` — named filter/sort/layout presets per collection                                                                                           |
+| **Column resize**           | Header drag handles via `ColumnResizeHandle` + `layoutKey: entry-list:{id}`                                                                                            |
+| **List metrics**            | SSR `listMetrics` + `SmartTableMetricsBadge` when `?debug=table`                                                                                                       |
+| **Multi-column sort**       | Shift+Click header sort; ordinal rank badges (`1`, `2`, `3`); URL query serialization `sort=col1:asc,col2:desc`                                                        |
+| **Responsive card mode**    | View mode toggle (`table` vs `card`) in toolbar; persisted in layout prefs; adaptive mobile card presentation                                                          |
+| **Keyboard grid traversal** | WCAG 2.2 AA / ATAG 2.0 roving `tabindex`; arrow navigation, `Home`/`End`, `PageUp`/`PageDown`, `Space` for row selection, `Enter` to edit                              |
+| **Export filtered data**    | `Alt+X` keyboard shortcut and MultiButton action for streaming CSV export bounded to selected entries or active filter query. Formula-leading text cells are prefixed. |
+| **Pagination**              | `TablePagination`; page sizes via `rowsPerPage` URL param                                                                                                              |
+| **Multi-select**            | Shift+click range selection; select-all checkbox; ID-based virtualization-safe selection                                                                               |
+| **Bulk actions**            | `POST /api/collections/:id/batch` (`delete`, `status`, `clone`, `bulkEdit`, `export`) via `entry-list-multi-button`                                                    |
+| **Archived view**           | `showDeleted` toggles active vs archived entries                                                                                                                       |
+| **Column manager**          | Show/hide columns; **drag-and-drop reorder** (`@thisux/sveltednd`)                                                                                                     |
+| **Density**                 | `normal` / `compact` / `comfortable` via `TableFilter` → `entryListPaginationSettings.density`                                                                         |
+| **localStorage**            | Per-collection `entryListPaginationSettings_{collectionId}` + Smart Table layout prefs (`viewMode`, `density`, `columnWidths`)                                         |
+| **Plugin columns**          | `availablePlugins` → dynamic headers → `PluginComponent` cells                                                                                                         |
+| **Translation UI**          | Embeds `translation-status.svelte` in filter toolbar                                                                                                                   |
+| **Hover preload**           | `preloadEntry()` from `@utils/navigation` on row hover                                                                                                                 |
+| **Idle warm-cache**         | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request)                                                                                         |
+| **Connection-aware**        | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API)                                                                                            |
+| **Row virtualization**      | On pages with >25 rows, only visible rows + buffer (5 above/below) render as DOM elements; spacers maintain scroll height                                              |
 
 ---
 

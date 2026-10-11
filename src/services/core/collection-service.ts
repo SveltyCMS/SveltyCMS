@@ -38,6 +38,7 @@ import {
   buildCollectionQueryCacheKey,
   type CollectionFilterMap,
 } from "@utils/collection-query-filters";
+import { blockedGuardedNames, stripGuardedSort } from "@utils/guarded-query";
 import { recordListQuery } from "@utils/list-query-metrics";
 import { modifyRequest } from "@utils/modify-request";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -151,6 +152,24 @@ export class CollectionService {
 
     const collectionId = String(collection._id ?? collection.name ?? "unknown");
 
+    // Sort is not covered by compileSecureFilters. Drop guarded fields before
+    // the cache hash so a private sort cannot order the page or multiply keys.
+    // Admins and unguarded schemas keep the same sort reference; a session-less
+    // call is treated as the least-privilege role (guarded sorts are dropped).
+    const guarded = blockedGuardedNames(collection, user);
+    let safeSort = sort;
+    let safeSorts = sorts;
+    let listParams = params;
+    if (guarded) {
+      const strippedSort = stripGuardedSort(sort, guarded);
+      const strippedSorts = sorts ? stripGuardedSort(sorts, guarded) : sorts;
+      safeSort = strippedSort ?? { field: "createdAt", direction: "desc" };
+      safeSorts = strippedSorts;
+      if (safeSort !== sort || safeSorts !== sorts) {
+        listParams = { ...params, sort: safeSort, sorts: safeSorts };
+      }
+    }
+
     // Compile once for cache key (accepted filters only — FLAC-aware, stable)
     const compiledForKey = compileSecureFilters(filter, collection, user, {
       logRejections: false,
@@ -158,8 +177,8 @@ export class CollectionService {
     const queryHash = hashCollectionListQuery({
       compiled: compiledForKey,
       search,
-      sort,
-      sorts,
+      sort: safeSort,
+      sorts: safeSorts,
       orGroups,
     });
 
@@ -194,7 +213,7 @@ export class CollectionService {
     };
 
     if (bypassCache) {
-      return finish(await this.loadCollectionData(params, collectionId), "bypass");
+      return finish(await this.loadCollectionData(listParams, collectionId), "bypass");
     }
 
     // A4: heat-aware SWR — hot lists serve stale longer (background revalidation),
@@ -207,7 +226,7 @@ export class CollectionService {
     // Negative Bloom is intentional NO-OP for empty lists (valid empty pages).
     const cached = await cacheService.getOrSetSWR<CollectionDataResult>(
       cacheKey,
-      () => this.loadCollectionData(params, collectionId),
+      () => this.loadCollectionData(listParams, collectionId),
       COLLECTION_QUERY_TTL_MS,
       staleTtlMs,
       tenantId,
@@ -221,7 +240,7 @@ export class CollectionService {
     }
 
     logger.warn(`Cache returned null for collection query, loading uncached: ${cacheKey}`);
-    return finish(await this.loadCollectionData(params, collectionId), "miss");
+    return finish(await this.loadCollectionData(listParams, collectionId), "miss");
   }
 
   /**

@@ -106,7 +106,8 @@ livePreview: "https://www.example.com/{slug}?lang={lang}",
 ### System settings
 
 - **`PREVIEW_SECRET`** (private) — HMAC signing key for `preview_token` (fail-closed if missing)
-- **`HOST_PROD` / `HOST_DEV`** — Base URL when `livePreview` is a relative path
+- **`PREVIEW_BASE_URL`** (public, optional) — Origin for relative `livePreview` paths. Blank falls through to `HOST_PROD`
+- **`HOST_PROD` / `HOST_DEV`** — Base URL when `PREVIEW_BASE_URL` is blank and `livePreview` is a relative path
 - **`SITE_STARTER_ENABLED`** (public, default `true`) — Toggle the in-repo site starter at `/`
 
 ---

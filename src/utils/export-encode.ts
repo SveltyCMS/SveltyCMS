@@ -43,16 +43,30 @@ function csvNeedsQuotes(text: string): boolean {
   return false;
 }
 
+/**
+ * Spreadsheet formula injection (OWASP CSV injection). A text cell that starts
+ * with `=`, `+`, `-`, `@`, tab, or CR is prefixed with `'` so Excel and Sheets
+ * treat it as text. Numbers and booleans stay unprefixed.
+ */
+function neutralizeCsvFormula(text: string): string {
+  if (text.length === 0) return text;
+  const c = text.charCodeAt(0);
+  if (c === 61 || c === 43 || c === 45 || c === 64 || c === 9 || c === 13) {
+    return `'${text}`;
+  }
+  return text;
+}
+
 /** RFC 4180 CSV cell. Objects/arrays are JSON-encoded so translated fields round-trip. */
 export function encodeCsvField(value: unknown): string {
   if (value === undefined || value === null) return "";
   let text: string;
   if (typeof value === "string") {
-    text = value;
+    text = neutralizeCsvFormula(value);
   } else if (typeof value === "number" || typeof value === "boolean") {
     text = String(value);
   } else {
-    text = JSON.stringify(value) ?? "";
+    text = neutralizeCsvFormula(JSON.stringify(value) ?? "");
   }
   if (!csvNeedsQuotes(text)) return text;
   let out = '"';

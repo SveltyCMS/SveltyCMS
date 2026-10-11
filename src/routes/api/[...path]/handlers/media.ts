@@ -4,6 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { clampPageSize } from "@utils/api-params";
 import { generateUUID } from "@utils/native-utils";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -284,10 +285,12 @@ export async function handleMediaList(
   const fetchList = () =>
     cms.media.find({
       tenantId,
-      limit: Number(url.searchParams.get("limit")) || 100,
+      limit: clampPageSize(url.searchParams.get("limit"), 100),
       folderId: url.searchParams.get("folderId") || undefined,
       recursive: url.searchParams.get("recursive") === "true",
       prefix: url.searchParams.get("prefix") || undefined,
+      sortField: url.searchParams.get("sort") || undefined,
+      sortDirection: url.searchParams.get("dir") === "asc" ? "asc" : "desc",
     });
 
   const res = await cacheService.coalesceQuery(cacheKey, fetchList);

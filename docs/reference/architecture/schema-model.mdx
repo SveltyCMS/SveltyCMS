@@ -47,6 +47,8 @@ before persist and `onDelete` (`cascade`, `setNull`, `restrict`) are planned too
 before the cache key, so pages and counts never include foreign rows. Admins and the system
 scope bypass; a caller without a user id matches nothing. A point read still loads the row
 (the shared cache is untouched), then drops a non-matching row on a copied envelope.
+Update, delete, and bulk delete return 404 for a row the caller does not own. A schema
+with no ownership does not add that read.
 
 ## GraphQL lists
 

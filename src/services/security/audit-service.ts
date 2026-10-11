@@ -64,6 +64,9 @@ export enum AuditEventType {
   PASSWORD_RESET_REQUESTED = "password_reset_requested",
   PASSWORD_RESET_SUCCESS = "password_reset_success",
   WEBHOOK_TRIGGERED = "webhook_triggered",
+  WEBHOOK_CREATED = "webhook_created",
+  WEBHOOK_UPDATED = "webhook_updated",
+  WEBHOOK_DELETED = "webhook_deleted",
   API_KEY_CREATED = "api_key_created",
   API_KEY_REVOKED = "api_key_revoked",
   MAGIC_LINK_REQUESTED = "magic_link_requested",
@@ -239,12 +242,19 @@ export class AuditService {
 
         // The HTTP mutation audit (`handle-audit-logging.ts`, one entry per
         // request: method/path/user/status/ip) already covers interactive
-        // writes. This adapter hook adds a SECOND per-insert audit row and is
-        // insert-only — measured ~−22% create throughput at 8c under `AUDIT_CHAIN_SYNC=false`
-        // (updates never paid it, which is why only the create lane lagged).
-        // `AUDIT_SKIP_CONTENT_INSERT_HOOK=true` keeps the request-level trail
-        // and drops the per-row duplicate (A/B / operator opt-in).
-        if (process.env.AUDIT_SKIP_CONTENT_INSERT_HOOK === "true") return;
+        // writes. This adapter hook adds a SECOND, per-insert audit row and is
+        // insert-only — measured ~−22% create throughput at 8c under
+        // `AUDIT_CHAIN_SYNC=false` (updates never paid it, which is exactly why
+        // only the create lane lagged while reads/updates won). The per-row
+        // duplicate is therefore OFF by default; `AUDIT_INSERT_HOOK=true`
+        // restores the full per-insert DATA_IMPORT trail (forensic opt-in).
+        // `AUDIT_SKIP_CONTENT_INSERT_HOOK` is kept as an accepted alias so the
+        // earlier A/B switch still parses.
+        if (
+          process.env.AUDIT_INSERT_HOOK !== "true" ||
+          process.env.AUDIT_SKIP_CONTENT_INSERT_HOOK === "true"
+        )
+          return;
 
         // The event (actor, target, severity, hash-chain link) is the audit
         // record; embedding the FULL document serialized + SHA-256-hashed the

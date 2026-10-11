@@ -33,6 +33,42 @@ const FAST_POLL_MS = 1_000; // When jobs are pending
 const IDLE_POLL_MS = 30_000; // When no jobs found
 const MAX_RETRIES = 3;
 
+const STATUS_TRANSITION_TASK = "status-transition";
+const TRANSITION_PAYLOAD_KEYS = ["collectionId", "entryId", "targetStatus", "entryPath"] as const;
+const TRANSITION_STATUSES = new Set(["publish", "unpublish", "draft", "delete"]);
+
+/**
+ * Allow-list a status-transition job. The actor is the authenticated user;
+ * client `scheduledBy` and `tenantId` are ignored.
+ */
+export function acceptStatusTransitionJob(
+  taskType: unknown,
+  payload: unknown,
+  userId: string,
+): { taskType: typeof STATUS_TRANSITION_TASK; payload: Record<string, string> } {
+  if (taskType !== STATUS_TRANSITION_TASK) {
+    throw new Error("Unsupported task type");
+  }
+  if (!userId) throw new Error("Authentication required");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("payload is required");
+  }
+  const source = payload as Record<string, unknown>;
+  const clean: Record<string, string> = {};
+  for (const key of TRANSITION_PAYLOAD_KEYS) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim()) clean[key] = value.trim();
+  }
+  if (!clean.collectionId || !clean.entryId || !clean.targetStatus) {
+    throw new Error("collectionId, entryId, and targetStatus are required");
+  }
+  if (!TRANSITION_STATUSES.has(clean.targetStatus)) {
+    throw new Error("Unsupported target status");
+  }
+  clean.scheduledBy = userId;
+  return { taskType: STATUS_TRANSITION_TASK, payload: clean };
+}
+
 // ──────────────────────────────────────────────────────────────
 // STATE
 // ──────────────────────────────────────────────────────────────
@@ -234,130 +270,72 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
  *   - publish → unpublish
  *   - any → delete
  */
-async function executeStatusTransition(payload: Record<string, unknown>, _job: Job): Promise<void> {
+function transitionStatus(target: string): string | null {
+  if (target === "publish" || target === StatusTypes.publish) return StatusTypes.publish;
+  if (target === "unpublish" || target === StatusTypes.unpublish) return StatusTypes.unpublish;
+  if (target === "delete" || target === StatusTypes.delete) return StatusTypes.delete;
+  if (target === "draft" || target === StatusTypes.draft) return StatusTypes.draft;
+  return null;
+}
+
+async function executeStatusTransition(payload: Record<string, unknown>, job: Job): Promise<void> {
   const rawDb = getDb();
   if (!rawDb) throw new Error("Database not available");
 
-  const { collectionId, entryId, targetStatus, entryPath, tenantId: payloadTenantId } = payload;
+  const collectionId = typeof payload.collectionId === "string" ? payload.collectionId : "";
+  const entryId = typeof payload.entryId === "string" ? payload.entryId : "";
+  const targetStatus = typeof payload.targetStatus === "string" ? payload.targetStatus : "";
+  const entryPath = typeof payload.entryPath === "string" ? payload.entryPath : "";
+  const scheduledBy = typeof payload.scheduledBy === "string" ? payload.scheduledBy : "";
 
   if (!collectionId || !entryId || !targetStatus) {
     throw new Error("Missing required payload fields: collectionId, entryId, targetStatus");
   }
-
-  // Tenant-scoped adapter: prevents cross-tenant data leakage in multi-tenant deployments
-  const db = payloadTenantId ? forTenant(rawDb, payloadTenantId as any as DatabaseId) : rawDb;
-
-  const collId = collectionId as string;
-  const entId = entryId as string;
-  const status = targetStatus as string;
-  const now = nowISODateString();
-
-  logger.info(`[Scheduler] Status transition: ${entId} → ${status} (collection: ${collId})`);
-
-  switch (status) {
-    case "publish":
-    case StatusTypes.publish: {
-      if (entryPath) {
-        await db.content.nodes.update(
-          entryPath as string,
-          {
-            status: StatusTypes.publish,
-            data: { _scheduled: null },
-            updatedAt: now,
-          } as any,
-        );
-      } else {
-        await db.crud.update(
-          collId as any,
-          entId as any,
-          {
-            status: StatusTypes.publish,
-            _scheduled: null,
-            updatedAt: now,
-          } as any,
-        );
-      }
-      break;
-    }
-
-    case "unpublish":
-    case StatusTypes.unpublish: {
-      if (entryPath) {
-        await db.content.nodes.update(
-          entryPath as string,
-          {
-            status: StatusTypes.unpublish,
-            data: { _scheduled: null },
-            updatedAt: now,
-          } as any,
-        );
-      } else {
-        await db.crud.update(
-          collId as any,
-          entId as any,
-          {
-            status: StatusTypes.unpublish,
-            _scheduled: null,
-            updatedAt: now,
-          } as any,
-        );
-      }
-      break;
-    }
-
-    case "delete":
-    case StatusTypes.delete: {
-      if (entryPath) {
-        await db.content.nodes.update(
-          entryPath as string,
-          {
-            status: StatusTypes.delete,
-            updatedAt: now,
-          } as any,
-        );
-      } else {
-        await db.crud.update(
-          collId as any,
-          entId as any,
-          {
-            status: StatusTypes.delete,
-            updatedAt: now,
-          } as any,
-        );
-      }
-      break;
-    }
-
-    case "draft":
-    case StatusTypes.draft: {
-      if (entryPath) {
-        await db.content.nodes.update(
-          entryPath as string,
-          {
-            status: StatusTypes.draft,
-            data: { _scheduled: null },
-            updatedAt: now,
-          } as any,
-        );
-      } else {
-        await db.crud.update(
-          collId as any,
-          entId as any,
-          {
-            status: StatusTypes.draft,
-            _scheduled: null,
-            updatedAt: now,
-          } as any,
-        );
-      }
-      break;
-    }
-
-    default:
-      throw new Error(`Unsupported target status: ${status}`);
+  // Legacy jobs have no actor. Refuse rather than publish as system.
+  if (!scheduledBy) {
+    throw new Error("Scheduled job has no actor");
   }
 
-  logger.info(`[Scheduler] Successfully transitioned ${entId} to ${status}`);
+  const status = transitionStatus(targetStatus);
+  if (!status) throw new Error(`Unsupported target status: ${targetStatus}`);
+
+  const tenantId = job.tenantId ? String(job.tenantId) : undefined;
+  const db = tenantId ? forTenant(rawDb, tenantId as DatabaseId) : rawDb;
+
+  const userResult = await db.auth.getUserById(scheduledBy as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
+  if (!userResult?.success || !userResult.data) {
+    throw new Error("Scheduling user no longer exists");
+  }
+  const actor = userResult.data;
+
+  logger.info(
+    `[Scheduler] Status transition: ${entryId} → ${status} (collection: ${collectionId})`,
+  );
+
+  if (entryPath) {
+    if (status === StatusTypes.publish) {
+      const { workflowService } = await import("@src/services/background/workflow-service");
+      await workflowService.assertPublishAllowed(collectionId, tenantId, actor, entryId);
+    }
+    await db.content.nodes.update(entryPath, {
+      status,
+      data: { _scheduled: null },
+      updatedAt: nowISODateString(),
+    } as any);
+  } else {
+    const { LocalCMS } = await import("@src/services/sdk");
+    const cms = new LocalCMS(db);
+    await cms.collections.update(
+      collectionId,
+      entryId,
+      { status, _scheduled: null },
+      { user: actor, tenantId: tenantId as DatabaseId, system: false },
+    );
+  }
+
+  logger.info(`[Scheduler] Successfully transitioned ${entryId} to ${status}`);
 }
 
 /**
@@ -374,7 +352,7 @@ async function createAuditLog(
       actorId: "system:scheduler",
       actorRole: "system",
       tenantId: (job.tenantId as string) || null,
-      timestamp: new Date().toISOString(),
+      timestamp: nowISODateString(),
       details: {
         jobId: job._id as string,
         taskType: job.taskType,

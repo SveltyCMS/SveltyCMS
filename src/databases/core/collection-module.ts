@@ -476,6 +476,17 @@ export function hasDeclaredFieldRename(fields: unknown): boolean {
   return false;
 }
 
+/** Pairs a schema save can preserve. Empty when no field declares `renamedFrom`. */
+export function declaredFieldRenames(fields: unknown): Array<{ from: string; to: string }> {
+  if (!Array.isArray(fields)) return [];
+  const pairs: DeclaredRename[] = [];
+  for (let i = 0; i < fields.length; i++) {
+    const rename = declaredRenameOf(fields[i]);
+    if (rename) pairs.push(rename);
+  }
+  return pairs;
+}
+
 export type ColumnReconcilePlan = { action: "skip" } | { action: "rename"; from: string };
 
 export function planColumnReconcile(
@@ -509,6 +520,24 @@ const renameResolvedTables = new Set<string>();
 function quoteIdentifier(dialect: RenameDialect, name: string): string {
   if (dialect === "mariadb") return `\`${name.replace(/`/g, "``")}\``;
   return `"${name.replace(/"/g, '""')}"`;
+}
+
+/** Move one JSON object key. Identifiers are already `assertSafeSqlIdentifier`'d. */
+function jsonKeyMoveStatement(
+  dialect: RenameDialect,
+  table: string,
+  from: string,
+  to: string,
+): string {
+  const quoted = quoteIdentifier(dialect, table);
+  const data = quoteIdentifier(dialect, "data");
+  if (dialect === "postgresql") {
+    return `UPDATE ${quoted} SET ${data} = (${data} - '${from}') || jsonb_build_object('${to}', ${data}->'${from}') WHERE ${data} ? '${from}'`;
+  }
+  if (dialect === "mariadb") {
+    return `UPDATE ${quoted} SET ${data} = JSON_REMOVE(JSON_SET(${data}, '$.${to}', JSON_EXTRACT(${data}, '$.${from}')), '$.${from}') WHERE JSON_EXTRACT(${data}, '$.${from}') IS NOT NULL`;
+  }
+  return `UPDATE ${quoted} SET ${data} = json_remove(json_set(${data}, '$.${to}', json_extract(${data}, '$.${from}')), '$.${from}') WHERE json_type(${data}, '$.${from}') IS NOT NULL`;
 }
 
 /**
@@ -551,7 +580,24 @@ export async function applyDeclaredFieldRenames(
     }
 
     const actualFrom = byLowerCase.get(from.toLowerCase());
-    if (!actualFrom) continue;
+    if (!actualFrom) {
+      // JSON-only field: the value lives in `data`, not a physical column.
+      if (byLowerCase.has("data")) {
+        try {
+          await options.execute(
+            jsonKeyMoveStatement(options.dialect, options.physicalName, from, to),
+          );
+        } catch (err) {
+          unresolved = true;
+          logger.warn(
+            `[${options.dialect}] JSON key rename failed (will retry): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
+      continue;
+    }
     if (byLowerCase.has(to.toLowerCase())) continue;
 
     const sqlText = `ALTER TABLE ${quoteIdentifier(options.dialect, options.physicalName)} RENAME COLUMN ${quoteIdentifier(options.dialect, actualFrom)} TO ${quoteIdentifier(options.dialect, to)}`;

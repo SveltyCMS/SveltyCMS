@@ -70,6 +70,8 @@ export type SchemaHotFlags = {
   _requiredFields?: Array<{ name: string; key: string }>;
   /** True when schema has fields with field-level permissions or visibility restrictions. */
   _hasGuardedFields?: boolean;
+  /** db_fieldName of guarded fields. Empty when `_hasGuardedFields` is false. */
+  _guardedFieldNames?: string[];
 };
 
 const _schemaCache = new FastLRU<string, Schema>({ max: 500 });
@@ -156,6 +158,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   let hasHookFields = false;
   let hasAfterOperationHooks = false;
   let hasGuardedFields = false;
+  const guardedFieldNames: string[] = [];
 
   // Single-pass inspection. The legacy shape was a pending-widget probe loop
   // followed by a second full flag-compile loop (two field scans and two
@@ -229,7 +232,10 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
       const name = String(f.name || dbName || "unknown");
       if (key) requiredFields.push({ name, key });
     }
-    if (fieldDeclaresGuard(f)) hasGuardedFields = true;
+    if (fieldDeclaresGuard(f)) {
+      hasGuardedFields = true;
+      if (dbName) guardedFieldNames.push(dbName);
+    }
   }
 
   s._hasActiveWidgets = activeWidgetFieldNames.length > 0;
@@ -255,6 +261,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._hasRequiredFields = requiredFields.length > 0;
   s._requiredFields = requiredFields;
   s._hasGuardedFields = hasGuardedFields;
+  s._guardedFieldNames = guardedFieldNames;
   return s;
 }
 

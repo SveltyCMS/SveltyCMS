@@ -22,7 +22,7 @@ import type { Schema } from "@src/content/types";
 // Auth
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { validatePhysicalTableName } from "@src/databases/core/collection-name";
-import { MigrationEngine } from "@src/services/core/migration-engine";
+import { MigrationEngine, exemptDeclaredFieldRenames } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { type Actions, error, fail, isHttpError, isRedirect } from "@sveltejs/kit";
@@ -305,7 +305,10 @@ export const actions: Actions = {
         fields: Object.values(fields) as any[],
       };
 
-      const migrationPlan = await MigrationEngine.createPlan(tempSchema);
+      const migrationPlan = exemptDeclaredFieldRenames(
+        await MigrationEngine.createPlan(tempSchema),
+        tempSchema.fields,
+      );
       if (migrationPlan.requiresMigration && !confirmDeletions) {
         logger.warn(
           `Drift detected for collection ${contentName}. Save blocked pending confirmation.`,

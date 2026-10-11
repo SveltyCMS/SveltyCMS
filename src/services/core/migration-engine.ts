@@ -27,6 +27,7 @@ import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { compareSchemas, type SchemaChange } from "@utils/schema/comparison";
 import { withMigrationLock } from "@src/databases/migration-lock";
+import { declaredFieldRenames } from "@src/databases/core/collection-module";
 
 /** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
 let eventBusModulePromise:
@@ -171,11 +172,41 @@ async function computeChecksum(changes: SchemaChange[]): Promise<string> {
 }
 
 /**
- * Determines the risk level of a set of changes.
- * - "destructive": field_removed or type_changed (data loss)
- * - "warning": required_added or unique_added (validation risk)
- * - "safe": field_added or option_changed only
+ * A declared `renamedFrom` is a rename, not a drop plus an add. Those two
+ * changes are removed so a collection save is not blocked as data loss.
+ * Other changes are left untouched. No database work.
  */
+export function exemptDeclaredFieldRenames(plan: MigrationPlan, fields: unknown): MigrationPlan {
+  const pairs = declaredFieldRenames(fields);
+  if (pairs.length === 0) return plan;
+  const removed = new Set(pairs.map((pair) => pair.from));
+  const added = new Set(pairs.map((pair) => pair.to));
+  const changes = plan.changes.filter((change) => {
+    if (change.type === "field_removed" && removed.has(change.fieldName)) return false;
+    if (change.type === "field_added" && added.has(change.fieldName)) return false;
+    return true;
+  });
+  if (changes.length === plan.changes.length) return plan;
+  const dataLossPotential = changes.some(
+    (change) => change.type === "field_removed" || change.type === "type_changed",
+  );
+  const risk = assessRisk(changes);
+  const onlyRemovals =
+    changes.length > 0 && changes.every((change) => change.type === "field_removed");
+  const requiresMigration =
+    !onlyRemovals &&
+    changes.some((change) => change.severity === "critical" || change.severity === "warning");
+  return {
+    ...plan,
+    changes,
+    risk,
+    requiresConfirmation:
+      risk === "destructive" || (risk === "warning" && plan.impact.documentsAffected > 100),
+    impact: { ...plan.impact, dataLossPotential },
+    requiresMigration,
+  };
+}
+
 function assessRisk(changes: SchemaChange[]): MigrationRisk {
   const hasDestructive = changes.some(
     (c) => c.type === "field_removed" || c.type === "type_changed",

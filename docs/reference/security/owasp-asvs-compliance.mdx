@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-08-18"
-updated: "2026-09-29"
+updated: "2026-10-11"
 tags:
   - "security"
   - "owasp"
@@ -25,22 +25,22 @@ SveltyCMS maps its architecture and in-repo tests onto **OWASP ASVS v4.0.3 Level
 
 ## 📊 Verification Summary
 
-| ASVS Chapter | Domain                             | Level 1 | Level 2 | SveltyCMS Implementation & Verification                                                           |
-| :----------- | :--------------------------------- | :-----: | :-----: | :------------------------------------------------------------------------------------------------ |
-| **V1**       | **Architecture & Threat Modeling** |   ✅    |   ✅    | 4-layer defense-in-depth (`hooks.server.ts`), fail-closed `ENDPOINT_PERMISSIONS` map.             |
-| **V2**       | **Authentication**                 |   ✅    |   ✅    | Argon2id (64MB memory cost), 15m lockout after 5 failed attempts, TOTP 2FA, WebAuthn passkeys.    |
-| **V3**       | **Session Management**             |   ✅    |   ✅    | CSPRNG 32-char tokens, `__Host-` cookies, matching logout deletion flags, credential-free caches. |
-| **V4**       | **Access Control**                 |   ✅    |   ✅    | Granular RBAC, tenantId partition on all queries, `hasPermissionWithRoles` authorization guards.  |
-| **V5**       | **Validation & Sanitization**      |   ✅    |   ✅    | Strict CSP (`script-src 'self'`), Valibot schemas, SVG polyglot DOMPurify sanitization.           |
-| **V6**       | **Stored Cryptography**            |   ✅    |   ✅    | AES-256-GCM for secrets/TOTP, constant-time HMAC-SHA256 token comparisons, CSPRNG-only.           |
-| **V7**       | **Error Handling & Logging**       |   ✅    |   ✅    | Tamper-evident SHA-256 Merkle audit chains, generic error responses without stack traces.         |
-| **V8**       | **Data Protection**                |   ✅    |   ✅    | Sensitive attribute stripping (`stripPrivilegedUserFields`), GDPR data export/erasure endpoints.  |
-| **V9**       | **Communications**                 |   ✅    |   ✅    | HSTS `max-age=31536000; includeSubDomains; preload`, COOP/COEP/CORP cross-origin isolation.       |
-| **V10**      | **Malicious Code**                 |   ✅    |   ✅    | Static AST risk scanner (`scripts/scan-security-risk.ts`), zero eval/unsafe reflection.           |
-| **V11**      | **Business Logic**                 |   ✅    |   ✅    | Distributed stampede locks, transaction isolation (`rollback: false`), rate limiting.             |
-| **V12**      | **File & Resource Handling**       |   ✅    |   ✅    | Path traversal normalization, SSRF egress guard (`safeFetch`), stream abort teardown.             |
-| **V13**      | **API & Web Service**              |   ✅    |   ✅    | GraphQL depth limit (8), production introspection block, strict JSON payload parsers.             |
-| **V14**      | **Configuration**                  |   ✅    |   ✅    | RFC 9116 `security.txt`, lockfile dependency sync guard, automated OSV.dev supply-chain scan.     |
+| ASVS Chapter | Domain                             | Level 1 | Level 2 | SveltyCMS Implementation & Verification                                                                                                                    |
+| :----------- | :--------------------------------- | :-----: | :-----: | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **V1**       | **Architecture & Threat Modeling** |   ✅    |   ✅    | 4-layer defense-in-depth (`hooks.server.ts`), fail-closed `ENDPOINT_PERMISSIONS` map.                                                                      |
+| **V2**       | **Authentication**                 |   ✅    |   ✅    | Argon2id (64MB memory cost), 15m lockout after 5 failed attempts, TOTP 2FA, WebAuthn passkeys.                                                             |
+| **V3**       | **Session Management**             |   ✅    |   ✅    | CSPRNG 32-char tokens, `__Host-` cookies, matching logout deletion flags, credential-free caches.                                                          |
+| **V4**       | **Access Control**                 |   ✅    |   ✅    | Granular RBAC, tenantId partition on all queries, `hasPermissionWithRoles`. Row ownership on update/delete. Scheduled publish runs as the scheduling user. |
+| **V5**       | **Validation & Sanitization**      |   ✅    |   ✅    | Strict CSP (`script-src 'self'`), Valibot schemas, SVG polyglot DOMPurify sanitization, CSV formula prefix, guarded filter/sort strip.                     |
+| **V6**       | **Stored Cryptography**            |   ✅    |   ✅    | AES-256-GCM for secrets/TOTP, constant-time HMAC-SHA256 token comparisons, CSPRNG-only.                                                                    |
+| **V7**       | **Error Handling & Logging**       |   ✅    |   ✅    | Tamper-evident SHA-256 Merkle audit chains, generic error responses without stack traces.                                                                  |
+| **V8**       | **Data Protection**                |   ✅    |   ✅    | Sensitive attribute stripping (`stripPrivilegedUserFields`), GDPR data export/erasure endpoints.                                                           |
+| **V9**       | **Communications**                 |   ✅    |   ✅    | HSTS `max-age=31536000; includeSubDomains; preload`, COOP/COEP/CORP cross-origin isolation.                                                                |
+| **V10**      | **Malicious Code**                 |   ✅    |   ✅    | Static AST risk scanner (`scripts/scan-security-risk.ts`), zero eval/unsafe reflection.                                                                    |
+| **V11**      | **Business Logic**                 |   ✅    |   ✅    | Distributed stampede locks, transaction isolation (`rollback: false`), rate limiting.                                                                      |
+| **V12**      | **File & Resource Handling**       |   ✅    |   ✅    | Path traversal normalization, SSRF egress guard (`safeFetch`), stream abort teardown.                                                                      |
+| **V13**      | **API & Web Service**              |   ✅    |   ✅    | GraphQL depth limit (8), production introspection block, strict JSON payload parsers.                                                                      |
+| **V14**      | **Configuration**                  |   ✅    |   ✅    | RFC 9116 `security.txt`, lockfile dependency sync guard, automated OSV.dev supply-chain scan.                                                              |
 
 ---
 
@@ -62,10 +62,16 @@ SveltyCMS maps its architecture and in-repo tests onto **OWASP ASVS v4.0.3 Level
 - **V3.2.1 Token Randomness**: Cryptographically secure 256-bit entropy generated using `globalThis.crypto.getRandomValues()`.
 - **V3.4.1 Cookie Security**: Strict `__Host-` prefix on secure HTTPS, `SameSite=Strict`, `HttpOnly=true`, and exact attribute matching during session revocation (`clearSessionCookies()`).
 
+### V4: Access Control Verification
+
+- **V4.1.1 General access control**: Unmapped `/api` routes fail closed. Row ownership on update, delete, and bulk delete returns 404 for a missing row and for a row the caller does not own.
+- **V4.2.1 Operation-level access**: A status-transition job stores the authenticated user and ignores a client-supplied actor. The publication gate runs as that user. WebSocket upgrade compares the Origin host with the request host.
+
 ### V5: Validation, Sanitization and Encoding
 
 - **V5.1.1 Input Validation**: Type-safe validation using Valibot schemas across API and server actions.
 - **V5.2.1 SVG & Rich Text Sanitization**: Full polyglot SVG sanitization (`DOMPurify` + tag whitelist) and Tiptap URI protocol restriction (`http`, `https`, `mailto`, `tel`).
+- **V5.3.1 Output encoding**: CSV export prefixes a text cell that starts with `=`, `+`, `-`, `@`, tab, or carriage return (`src/utils/export-encode.ts`). Guarded filter and sort keys are removed unless the caller may read the field.
 
 ### V6: Stored Cryptography Verification
 

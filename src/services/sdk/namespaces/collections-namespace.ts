@@ -58,6 +58,7 @@ import { parseIdLookup } from "@src/databases/core/query-primitives";
 import { nowISODateString } from "@src/utils/date";
 import { clampPageSize } from "@utils/api-params";
 import { redactReadEnvelope, redactRecord } from "@utils/field-access";
+import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
 
@@ -497,6 +498,36 @@ export class CollectionsNamespace {
   }
 
   /**
+   * Row ownership on a write. No-op when the schema declares no ownership or
+   * the caller is admin/system. A foreign row is 404 so existence is not
+   * revealed. A missing row returns so the adapter's own update/delete 404
+   * stays the single response.
+   */
+  private async assertEntryOwnership(
+    schema: Schema,
+    entryId: string,
+    tenantId: DatabaseId | null | undefined,
+    user: unknown,
+    system?: boolean,
+  ): Promise<void> {
+    const scope = ownershipFilter(schema, user, system);
+    if (scope === false) return;
+    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
+    const field = Object.keys(scope)[0];
+    if (!field) return;
+    const existing = await this._dbAdapter.crud.findOne(
+      this.getCollectionName(schema._id as string),
+      { _id: entryId } as any,
+      { tenantId: tenantId as DatabaseId },
+    );
+    if (!existing?.success || !existing.data) return;
+    const value = ownerValue(existing.data, field);
+    if (value === undefined || value === null || String(value) !== String(scope[field])) {
+      throw new AppError("Entry not found", 404, "NOT_FOUND");
+    }
+  }
+
+  /**
    * 🚀 HYDRATION: Manually register a schema in the local cache.
    * Useful for setup scripts and benchmarks.
    *
@@ -799,7 +830,8 @@ export class CollectionsNamespace {
     const limit = clampPageSize(requestedLimit, 50);
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.schemaOf(collectionId, tenantId);
-    const normalizedFilter = normalizeRelationshipFilter(filter);
+    const guarded = blockedGuardedNames(schema, options.user, options.system);
+    const normalizedFilter = stripGuardedFilter(normalizeRelationshipFilter(filter), guarded);
     const ownership = ownershipFilter(schema, options.user, options.system);
     // Ownership declared but the caller has no user id: fail closed, never fall
     // back to an unscoped list.
@@ -808,6 +840,9 @@ export class CollectionsNamespace {
     // A supplied cursor that fails to decode must fail the request, not
     // silently fall back to an offset page (which would return duplicates).
     if (options.cursor && !decodedCursor) {
+      throw new AppError("Invalid keyset cursor", 400);
+    }
+    if (guarded && decodedCursor?.f && guarded.has(String(decodedCursor.f).split(".")[0])) {
       throw new AppError("Invalid keyset cursor", 400);
     }
     // Keyset mode: cursor-driven deep pagination, opted into by `keyset: true`
@@ -878,11 +913,12 @@ export class CollectionsNamespace {
       }
     }
 
-    const sort =
+    const requestedSort =
       options.sort ||
       (options.sortField
         ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
         : undefined);
+    const sort = stripGuardedSort(requestedSort, guarded);
 
     // Keyset mode: the cursor is self-describing, so a walk without an explicit
     // sort continues in the cursor's own field/direction; the `_id` tiebreaker
@@ -1077,8 +1113,13 @@ export class CollectionsNamespace {
     // 🚀 Avoid the `{ ...options.filter }` spread allocation when filter is empty or
     // already a plain object with no relational operators — normalizeRelationshipFilter
     // only clones when an operator rewrite is needed (lazy-clone internally).
-    const normalizedStreamFilter = normalizeRelationshipFilter(options.filter ?? {});
-    assertEncryptedFieldsNotQueried(normalizedStreamFilter, hot, options.sortField);
+    const streamGuarded = blockedGuardedNames(schema, user, options.system);
+    const normalizedStreamFilter = stripGuardedFilter(
+      normalizeRelationshipFilter(options.filter ?? {}),
+      streamGuarded,
+    );
+    const streamSortField = stripGuardedSort(options.sortField, streamGuarded);
+    assertEncryptedFieldsNotQueried(normalizedStreamFilter, hot, streamSortField);
 
     const ownership = ownershipFilter(schema, user, options.system);
     if (ownership === null) return (async function* emptyStream() {})();
@@ -1095,8 +1136,8 @@ export class CollectionsNamespace {
     const findOptions = {
       limit: options.limit,
       offset: options.offset,
-      sort: options.sortField
-        ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
+      sort: streamSortField
+        ? ([[streamSortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
         : undefined,
       fields: options.fields as any,
       tenantId: tenantId as DatabaseId,
@@ -1146,7 +1187,10 @@ export class CollectionsNamespace {
   ) {
     const { tenantId, filter = {} } = options;
     const schema = await this.schemaOf(collectionId, tenantId);
-    const normalizedFilter = normalizeRelationshipFilter(filter);
+    const normalizedFilter = stripGuardedFilter(
+      normalizeRelationshipFilter(filter),
+      blockedGuardedNames(schema, options.user, options.system),
+    );
     assertEncryptedFieldsNotQueried(normalizedFilter, ensureSchemaHotFlags(schema));
 
     const ownership = ownershipFilter(schema, options.user, options.system);
@@ -1414,6 +1458,28 @@ export class CollectionsNamespace {
         403,
         "BULK_DELETE_DISABLED",
       );
+    }
+
+    const scope = ownershipFilter(schema, user, options.system);
+    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
+    if (scope) {
+      const field = Object.keys(scope)[0];
+      const ownerId = field ? String(scope[field]) : "";
+      const found = await this._dbAdapter.crud.findByIds(
+        this.getCollectionName(schema._id as string),
+        ids as DatabaseId[],
+        { tenantId: tenantId as DatabaseId, limit: ids.length },
+      );
+      const rows = found?.success && Array.isArray(found.data) ? found.data : [];
+      const wanted = new Set(ids);
+      let owned = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] as { _id?: unknown };
+        if (!wanted.has(String(row?._id ?? ""))) continue;
+        const value = field ? ownerValue(row, field) : undefined;
+        if (value !== undefined && value !== null && String(value) === ownerId) owned++;
+      }
+      if (owned !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
     }
 
     // Single DELETE WHERE _id IN (...) with tenant isolation via mapQuery.
@@ -1852,6 +1918,9 @@ export class CollectionsNamespace {
       hot = ensureSchemaHotFlags(schema);
     }
     markWritePhase(options, "schema", tSchema);
+    if (!system) {
+      await this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+    }
 
     const tPrep = writePhaseT0(options);
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
@@ -2177,6 +2246,9 @@ export class CollectionsNamespace {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.schemaOf(collectionId, tenantId);
+    if (!system) {
+      await this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+    }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
@@ -2220,5 +2292,35 @@ export class CollectionsNamespace {
     }
 
     return result;
+  }
+
+  /**
+   * Dry-run of `prepareWritePayload`. Nothing is written. Not used by the
+   * request path — callers that want a preflight (imports, AI drafts) opt in.
+   */
+  async validate(
+    collectionId: string,
+    data: unknown,
+    options: LocalApiOptions & { operation?: "create" | "update" } = {},
+  ): Promise<{ valid: true } | { valid: false; message: string; code?: string }> {
+    const { user, tenantId, system } = options;
+    const schema = await this.schemaOf(collectionId, tenantId);
+    const hot = ensureSchemaHotFlags(schema);
+    try {
+      let entryData = prepareWritePayload(data, schema, hot, {
+        user,
+        system,
+        operation: options.operation ?? "create",
+        tenantId,
+      });
+      if (isThenable(entryData)) entryData = await entryData;
+      if (entryData === undefined) return { valid: false, message: "Empty payload" };
+      return { valid: true };
+    } catch (err) {
+      if (err instanceof AppError) {
+        return { valid: false, message: err.message, code: err.code };
+      }
+      throw err;
+    }
   }
 }

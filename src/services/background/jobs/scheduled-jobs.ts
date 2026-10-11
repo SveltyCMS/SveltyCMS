@@ -5,10 +5,12 @@
 
 import { getDb } from "@src/databases/db";
 import { StatusTypes } from "@src/content/types";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { webhookService } from "../webhook-service";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import type { DatabaseId } from "@src/databases/db-interface";
 import type { JobHandler } from "./job-queue-service";
 
 export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
@@ -109,18 +111,53 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
     );
   }
 
-  // 4b. Publish validated items
+  // 4b. Publish validated items as the user who scheduled them.
+  // A node with no actor is skipped — the sweep must not publish as system.
   for (const node of validNodes) {
     try {
+      const nodeData = (node as any).data || {};
+      const scheduledBy = nodeData._scheduledBy || (node as any)._scheduledBy;
+      if (typeof scheduledBy !== "string" || !scheduledBy) {
+        logger.warn(`[ScheduledJob] Skipping ${node._id}: scheduled entry has no actor`);
+        continue;
+      }
+
+      const collectionId = node.collectionDef?._id || node.collectionDef?.name;
+      if (collectionId) {
+        const userResult = await db.auth.getUserById(scheduledBy as DatabaseId, {
+          tenantId: node.tenantId,
+        });
+        if (!userResult?.success || !userResult.data) {
+          logger.warn(`[ScheduledJob] Skipping ${node._id}: scheduling user is gone`);
+          continue;
+        }
+        try {
+          const { workflowService } = await import("@src/services/background/workflow-service");
+          await workflowService.assertPublishAllowed(
+            String(collectionId),
+            node.tenantId ? String(node.tenantId) : undefined,
+            userResult.data,
+            String(node._id),
+          );
+        } catch (gateErr) {
+          logger.warn(
+            `[ScheduledJob] Skipping ${node._id}: publication gate refused (${
+              gateErr instanceof Error ? gateErr.message : String(gateErr)
+            })`,
+          );
+          continue;
+        }
+      }
+
       logger.info(`[ScheduledJob] Publishing scheduled item: ${node.name} (${node._id})`);
 
       const updateData = {
         status: StatusTypes.publish,
         data: {
-          ...(node as any).data,
+          ...nodeData,
           _scheduled: null,
         },
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowISODateString(),
       };
 
       if (node.path) {

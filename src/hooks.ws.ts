@@ -153,6 +153,24 @@ function normalizeUrl(ctx: WsUpgradeContext): URL {
   }
 }
 
+/**
+ * Browser Origin must match the upgrade host. An empty Origin is allowed
+ * (non-browser clients and proxies that strip it). A malformed Origin is rejected.
+ * Production cookies are SameSite=Strict; this is a second check, not a bypass.
+ * Behind a reverse proxy, set ORIGIN (or preserve Host) so the two agree.
+ */
+export function websocketOriginAllowed(origin: string, requestHost: string): boolean {
+  if (!origin) return true;
+  if (!requestHost) return false;
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return false;
+  }
+  return originHost.toLowerCase() === requestHost.toLowerCase();
+}
+
 /** Robust header getter that works across contexts */
 function getHeader(ctx: WsUpgradeContext, name: string): string {
   const lower = name.toLowerCase();
@@ -175,6 +193,10 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
 
   try {
     const url = normalizeUrl(ctx);
+    if (!websocketOriginAllowed(getHeader(ctx, "origin"), url.host)) {
+      logger.warn("[WS Upgrade] Origin does not match host");
+      return false;
+    }
 
     // Ensure DB + settings are ready
     await Promise.all([

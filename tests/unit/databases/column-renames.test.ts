@@ -135,6 +135,23 @@ describe("applyDeclaredFieldRenames", () => {
     ]);
   });
 
+  it("moves a JSON key when the old column is absent and data exists", async () => {
+    const executed: string[] = [];
+    await applyDeclaredFieldRenames({
+      dialect: "sqlite",
+      tableKey: nextTableKey("sqlite-json"),
+      physicalName: "collection_articles",
+      fields: [{ db_fieldName: "views", renamedFrom: "oldViews" }],
+      listColumns: async () => new Set(["title", "data"]),
+      execute: async (sqlText: string) => {
+        executed.push(sqlText);
+      },
+    });
+    expect(executed).toEqual([
+      `UPDATE "collection_articles" SET "data" = json_remove(json_set("data", '$.views', json_extract("data", '$.oldViews')), '$.oldViews') WHERE json_type("data", '$.oldViews') IS NOT NULL`,
+    ]);
+  });
+
   it("skips when the new column already exists and never throws on bad identifiers", async () => {
     const execute = vi.fn(async () => undefined);
     await applyDeclaredFieldRenames({

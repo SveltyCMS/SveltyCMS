@@ -128,9 +128,31 @@
 	}
 	let local = $state<any>(seedLocal());
 
+	let originalDbName = '';
+	let incomingRenamedFrom = '';
+
 	$effect(() => {
-		// Re-sync when DialogManager re-opens with a new field payload
-		local = cloneValue(value);
+		// Re-sync when DialogManager re-opens with a new field payload.
+		// Read the clone, not `local`, so typing in the form does not re-run this.
+		const next = cloneValue(value);
+		local = next;
+		originalDbName = typeof next?.db_fieldName === 'string' ? next.db_fieldName : '';
+		incomingRenamedFrom = typeof next?.renamedFrom === 'string' ? next.renamedFrom : '';
+	});
+
+	// Remember the previous column name so a save can move values once.
+	// A marker that arrived with the field stays until the name changes;
+	// reverting the name restores that marker instead of dropping it.
+	$effect(() => {
+		if (!local) return;
+		const current = typeof local.db_fieldName === 'string' ? local.db_fieldName.trim() : '';
+		const origin = originalDbName.trim();
+		if (!origin || current === origin) {
+			const restore = incomingRenamedFrom || undefined;
+			if ((local.renamedFrom || undefined) !== restore) local.renamedFrom = restore;
+			return;
+		}
+		if (local.renamedFrom !== origin) local.renamedFrom = origin;
 	});
 
 	// --- Widget metadata ---
