@@ -240,10 +240,13 @@ export function applySharpness(
   return imageData;
 }
 
-// Guard: only register the message handler when running inside a Web Worker.
-// When imported outside a Worker (e.g., in tests), only the exported functions
-// are used and the message handler is skipped.
-if (typeof self !== "undefined") {
+// Guard: only register the message handler inside a dedicated worker.
+// A dedicated worker has `self` but no `window`; the window also has `self`, so
+// this stops a main-thread import from claiming `onmessage`. Referencing
+// `window` (declared by the DOM lib) avoids depending on the `webworker` lib's
+// `WorkerGlobalScope`, which the app's tsconfig does not load.
+const isDedicatedWorker = typeof self !== "undefined" && typeof window === "undefined";
+if (isDedicatedWorker) {
   self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
     const { type, imageData, width, height, filters } = e.data;
     try {

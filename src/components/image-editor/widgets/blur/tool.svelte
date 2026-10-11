@@ -4,6 +4,7 @@
 Blur tool with interactive rectangular redaction regions.
 -->
 <script lang="ts">
+	import { bindShortcuts } from '@components/image-editor/bind-shortcuts';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { generateUUID } from '@utils/native-utils';
 	import { Layer } from 'svelte-canvas';
@@ -82,6 +83,33 @@ Blur tool with interactive rectangular redaction regions.
 	}
 
 	// Delete selected region
+	function changeBlurStrength(delta: number) {
+		const next = Math.max(5, Math.min(100, blurStrength + delta));
+		blurStrength = next;
+		if (!activeId) return;
+		storeState.blurRegions = blurRegions.map((region) =>
+			region.id === activeId ? { ...region, strength: next } : region
+		);
+	}
+
+	$effect(() => {
+		if (imageEditorStore.state.activeState !== 'blur') return;
+		return bindShortcuts([
+			[
+				'delete',
+				(event) => {
+					if (!activeId) return;
+					event.preventDefault();
+					handleDeleteRegion();
+				},
+				'Delete blur region',
+				false
+			],
+			['[', () => changeBlurStrength(-5), 'Decrease blur'],
+			[']', () => changeBlurStrength(5), 'Increase blur']
+		]);
+	});
+
 	function handleDeleteRegion() {
 		if (!activeId) return;
 		storeState.blurRegions = blurRegions.filter((r) => r.id !== activeId);

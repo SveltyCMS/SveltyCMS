@@ -6,6 +6,7 @@
 Orchestrates the filter modules using svelte-canvas compatible state.
 -->
 <script lang="ts">
+	import { bindShortcuts } from '@components/image-editor/bind-shortcuts';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import {
 		type Adjustments,
@@ -129,14 +130,45 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 						onResetAll: () => {
 							storeState.filters = { ...DEFAULT_ADJUSTMENTS };
 						},
-						onCompareToggle: () => {
-							isComparing = !isComparing;
-							imageEditorStore.compareSliderPosition = isComparing ? 50 : 0;
-						},
+						onCompareToggle: toggleFineTuneCompare,
 						onAutoAdjust: autoAdjust
 					}
 		});
 	}
+
+	function nudgeAdjustment(delta: number) {
+		const config = getAdjustmentConfig(activeAdjustment);
+		const min = config?.min ?? -100;
+		const max = config?.max ?? 100;
+		const current = Number(storeState.filters[activeAdjustment] ?? 0);
+		const next = Math.max(min, Math.min(max, current + delta));
+		storeState.filters = { ...storeState.filters, [activeAdjustment]: next };
+	}
+
+	function resetActiveAdjustment() {
+		storeState.filters = {
+			...storeState.filters,
+			[activeAdjustment]: DEFAULT_ADJUSTMENTS[activeAdjustment] ?? 0
+		};
+	}
+
+	function toggleFineTuneCompare() {
+		isComparing = !isComparing;
+		imageEditorStore.compareSliderPosition = isComparing ? 50 : 0;
+	}
+
+	$effect(() => {
+		if (imageEditorStore.state.activeState !== 'finetune') return;
+		return bindShortcuts([
+			['0', () => resetActiveAdjustment(), 'Reset adjustment'],
+			['arrowup', () => nudgeAdjustment(1), 'Increase adjustment'],
+			['arrowdown', () => nudgeAdjustment(-1), 'Decrease adjustment'],
+			['shift+arrowup', () => nudgeAdjustment(10), 'Increase adjustment by 10'],
+			['shift+arrowdown', () => nudgeAdjustment(-10), 'Decrease adjustment by 10'],
+			['c', () => toggleFineTuneCompare(), 'Compare'],
+			['shift+a', () => autoAdjust(), 'Auto adjust']
+		]);
+	});
 
 	function autoAdjust() {
 		storeState.filters = {

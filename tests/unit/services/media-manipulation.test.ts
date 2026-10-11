@@ -151,6 +151,25 @@ describe("MediaService — Sharp Pipeline", () => {
     expect(result).toBeDefined();
   });
 
+  it("stores a fractional focal point as a 0-100 percent", async () => {
+    mockUpdateOk();
+    mockFinalFindOne();
+    (mockDbAdapter.crud.findOne as any).mockResolvedValueOnce({
+      success: true,
+      data: mockRecord({ metadata: { altText: "thumb" } }),
+    });
+
+    await mediaService.manipulateMedia(
+      "img-test",
+      { saveBehavior: "overwrite", focalPoint: { x: 0.35, y: 0.7 } },
+      "user-1",
+    );
+
+    const payload = (mockDbAdapter.crud.update as any).mock.calls.at(-1)?.[2];
+    expect(payload.metadata.focalPoint).toEqual({ x: 35, y: 70 });
+    expect(payload.metadata.altText).toBe("thumb");
+  });
+
   it("saves as new media record when saveBehavior is 'new'", async () => {
     (mockDbAdapter.crud.findOne as any).mockResolvedValue({
       success: true,

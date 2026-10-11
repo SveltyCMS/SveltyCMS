@@ -140,8 +140,79 @@ test.describe("Image Editor", () => {
     const res = await manipulateResponse;
     expect(res.ok()).toBe(true);
 
+    // The editor must POST the instruction set under `manipulations` (the exact
+    // key POST /api/media/manipulate requires) and nothing else at top level.
+    const posted = res.request().postDataJSON() as Record<string, unknown>;
+    expect(posted).toHaveProperty("manipulations");
+    expect(Object.keys(posted)).toEqual(["manipulations"]);
+
     await expect(page.getByText(/image processed and saved/i)).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
+  });
+
+  test("opens every tool, compare, zoom, and the discard confirm", async ({ page }) => {
+    await uploadTestImage(page);
+    await openImageEditor(page);
+    await waitForEditorReady(page);
+
+    const dialog = page.getByRole("dialog", { name: /image editor/i });
+    const mod = process.platform === "darwin" ? "Meta" : "Control";
+
+    // Each tool's dock is rendered once the tab is selected. The proof target
+    // differs per tool: most are buttons, but the focal-point X/Y are inputs.
+    const tools: Array<{ tab: RegExp; role: "button" | "spinbutton"; proof: string }> = [
+      { tab: /^crop/i, role: "button", proof: "Aspect ratio Free" },
+      { tab: /^focal/i, role: "spinbutton", proof: "Focal X" },
+      { tab: /^rotate/i, role: "button", proof: "Rotate left 90°" },
+      { tab: /^fine-tune/i, role: "button", proof: "Auto" },
+      { tab: /^blur/i, role: "button", proof: "Add blur region" },
+      { tab: /^annotate/i, role: "button", proof: "Text" },
+      { tab: /^watermark/i, role: "button", proof: "Add text" },
+      { tab: /^zoom/i, role: "button", proof: "Fit image to screen" },
+    ];
+
+    for (const tool of tools) {
+      const tab = dialog.getByRole("tab", { name: tool.tab });
+      await tab.click();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await expect(dialog.getByRole(tool.role, { name: tool.proof }).first()).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+    }
+
+    await dialog.getByRole("tab", { name: /^crop/i }).click();
+    await page.keyboard.press("1");
+    await expect(dialog.getByRole("button", { name: "Aspect ratio 1:1" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // `F` is the crop tool's free-crop key — pressing it must release 1:1.
+    await page.keyboard.press("f");
+    await expect(dialog.getByRole("button", { name: "Aspect ratio 1:1" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    const readout = dialog.getByRole("button", { name: "Fit image in view" });
+    const beforeZoom = (await readout.innerText()).trim();
+    await dialog.getByRole("button", { name: "Zoom in" }).click();
+    await expect(readout).not.toHaveText(beforeZoom);
+    await page.keyboard.press(`${mod}+Digit1`);
+    await expect(readout).toHaveText("100%");
+
+    const compare = dialog.getByRole("button", { name: "Toggle compare mode" });
+    await compare.click();
+    await expect(compare).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Backslash");
+    await expect(compare).toHaveAttribute("aria-pressed", "false");
+
+    page.once("dialog", (confirm) => confirm.dismiss());
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+
+    page.once("dialog", (confirm) => confirm.accept());
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden({ timeout: ACTION_TIMEOUT });
   });
 });

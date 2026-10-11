@@ -4,6 +4,7 @@
 Rotate tool using svelte-canvas compatible state.
 -->
 <script lang="ts">
+	import { bindShortcuts } from '@components/image-editor/bind-shortcuts';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import RotateControls from './controls.svelte';
 
@@ -55,6 +56,25 @@ Rotate tool using svelte-canvas compatible state.
 	function toggleFlipV() {
 		storeState.flipV = !storeState.flipV;
 	}
+
+	$effect(() => {
+		if (imageEditorStore.state.activeState !== 'rotate') return;
+		return bindShortcuts([
+			['arrowleft', () => setRotation(storeState.rotation - 1), 'Nudge rotation left'],
+			['shift+arrowleft', () => setRotation(storeState.rotation - 0.1), 'Fine nudge rotation left'],
+			['mod+arrowleft', () => setRotation(storeState.rotation - 90), 'Rotate 90 left'],
+			['arrowright', () => setRotation(storeState.rotation + 1), 'Nudge rotation right'],
+			[
+				'shift+arrowright',
+				() => setRotation(storeState.rotation + 0.1),
+				'Fine nudge rotation right'
+			],
+			['mod+arrowright', () => setRotation(storeState.rotation + 90), 'Rotate 90 right'],
+			['h', () => toggleFlipH(), 'Flip horizontal'],
+			['v', () => toggleFlipV(), 'Flip vertical'],
+			['0', () => setRotation(0), 'Reset rotation']
+		]);
+	});
 
 	export function saveState() {}
 	export function beforeExit() {}

@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:image-edit"
 author: "SveltyCMS Team"
 created: "2025-11-16"
-updated: "2026-08-23"
+updated: "2026-10-11"
 tags:
   - "image-editor"
   - "svelte-canvas"
@@ -39,8 +39,9 @@ You need to crop, adjust, annotate, or filter an image that's already been uploa
 1.  Go to **Media Gallery** in the main navigation.
 2.  Hover over any image thumbnail — action buttons appear in the top-right corner.
 3.  Click the **pencil icon** (✏️) to launch the Image Editor with that image pre-loaded.
-4.  Make your edits using the tools in the bottom toolbar.
-5.  Click **Save** (or press `Ctrl+S` / `⌘S`) — your edits are sent to the server and applied.
+4.  Make your edits using the tools in the left rail. The active tool's controls sit in the bottom toolbar.
+5.  Click **Done** (or press `Ctrl+S` / `⌘S`). The editor sends instructions, and the server bakes them onto the original.
+6.  To leave without saving, press `Escape`. The editor asks you to confirm. On a phone, the close button does the same thing. The desktop toolbar has no close button.
 
 #### From a Content Entry (Widget)
 
@@ -50,34 +51,52 @@ You need to crop, adjust, annotate, or filter an image that's already been uploa
 
 ### Core Editing Tools
 
-| Tool         | What It Does                                                                                     |
-| :----------- | :----------------------------------------------------------------------------------------------- |
-| **Crop**     | Trim edges, lock to 1:1 / 4:3 / 16:9 ratios, or free-form. Rule-of-thirds grid overlay built-in. |
-| **Focal**    | Set the "focus point" of your image — ensures key subjects stay visible in responsive layouts.   |
-| **Rotate**   | Rotate 90° left/right or flip horizontally/vertically.                                           |
-| **FineTune** | Adjust brightness, contrast, saturation, temperature, and more.                                  |
+| Tool          | What it does                                                                                                                                          |
+| :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Crop**      | Trim the frame. Presets: free, 1:1, 4:3, 3:2, 16:9, 9:16, 2:3, plus a circle. Type exact x, y, width, and height while Crop is open.                  |
+| **Focal**     | Place one focus point, stored as a 0–100 percent on each axis. Saving writes that point onto the media record.                                        |
+| **Rotate**    | Turn by 90°, nudge by degrees, or flip horizontally and vertically.                                                                                   |
+| **Fine-Tune** | Brightness, contrast, exposure, highlights, shadows, saturation, vibrance, temperature, tint, clarity, and sharpness. Double-click a slider to reset. |
+| **Blur**      | Cover a region. `[` and `]` change its strength. Delete removes the selected region.                                                                  |
+| **Annotate**  | Text, arrow, rectangle, and ellipse.                                                                                                                  |
+| **Watermark** | Text or image mark, with opacity and position.                                                                                                        |
+| **Zoom**      | Fit, fill, or 100%. The toolbar zoom control does the same without opening this tool.                                                                 |
 
-| **Blur** | Paint blur regions over sensitive information or backgrounds. |
-| **Annotate** | Draw arrows, rectangles, or add text directly onto the image. |
-| **Watermark** | Apply a preset watermark with adjustable opacity and position. |
+### Keyboard shortcuts
 
-### Keyboard Shortcuts
+`Mod` is Ctrl on Windows and Linux, and Command on macOS. A shortcut does not fire while the cursor is in a text or number field. Tool keys register only while that tool is active, so they win over the same key on the editor.
 
-| Shortcut          | Action                                                             |
-| :---------------- | :----------------------------------------------------------------- |
-| `Mod + S`         | **Save Changes**: Finalizes edits and triggers server-side baking. |
-| `Mod + Z`         | **Undo**: Reverts the last state change.                           |
-| `Mod + Shift + Z` | **Redo**: Re-applies the next state change.                        |
-| `Escape`          | **Cancel**: Discards current edits and closes the editor.          |
-| `+` / `=`         | **Zoom in**: Increase canvas magnification.                        |
-| `-`               | **Zoom out**: Decrease canvas magnification.                       |
-| `0`               | **Reset zoom**: Return to 100% and center the image.               |
+These keys work from any tool:
 
-All shortcuts are displayed on buttons via `aria-keyshortcuts` and are discoverable through tooltips.
+| Shortcut               | Action                                                                 |
+| :--------------------- | :--------------------------------------------------------------------- |
+| `Mod+S`                | Save and bake on the server. The button label is **Done**.             |
+| `Mod+Z`                | Undo.                                                                  |
+| `Mod+Shift+Z`, `Mod+Y` | Redo.                                                                  |
+| `Escape`               | Ask to discard, then close.                                            |
+| `=` or `+`             | Zoom in.                                                               |
+| `-`                    | Zoom out.                                                              |
+| `Mod+0`                | Fit the image in the canvas.                                           |
+| `Mod+1`                | Actual pixels (100%), centered.                                        |
+| `\`                    | Toggle the before/after wipe.                                          |
+| `[` and `]`            | Move the wipe by 5% while it is visible. Blur uses these keys instead. |
 
-### Compare Mode
+While a tool is active:
 
-Click the **Compare** button in the toolbar to toggle a split-screen view — **original on the left, edited on the right** — so you can see exactly what changed.
+| Tool      | Keys                                                                                                              |
+| :-------- | :---------------------------------------------------------------------------------------------------------------- |
+| Crop      | `F` free. `1` 1:1. `2` 4:3. `3` 16:9. `4` 3:2. `5` 9:16. `6` 2:3.                                                 |
+| Rotate    | Left/Right arrow ±1°. Shift+arrow ±0.1°. Mod+arrow ±90°. `H` flip horizontal. `V` flip vertical. `0` reset angle. |
+| Fine-Tune | Up/Down ±1 on the current slider. Shift+arrow ±10. `0` reset that slider. `C` compare. `Shift+A` auto.            |
+| Blur      | `[` / `]` strength ±5. Delete or Backspace removes the selected region.                                           |
+| Annotate  | `T` text. `A` arrow. `R` rectangle. `O` ellipse. Delete removes the selection.                                    |
+| Watermark | `T` text. `I` image. Delete removes the selection.                                                                |
+
+The main toolbar exposes `aria-keyshortcuts` for save, undo, redo, zoom, and compare. Other keys are named in the control tooltips.
+
+### Compare
+
+The toolbar **Compare** button (`\`) splits the canvas: original on the start side, edited on the end side. Drag the line, or the round handle at its middle, to move the split. The position is `compareSliderPosition` from 0 (off) to 100. A drag stays between 1 and 100 so the wipe does not turn itself off. Both sides use the same crop, rotation, and flip. The start side draws the source without filters.
 
 ---
 
@@ -110,16 +129,15 @@ The editor is built on a modular widget system where each tool registers itself 
 - **Bundle Size**: ~8KB gzipped — a **90%+ reduction** vs. the 500KB+ Konva.js dependency.
 - **Svelte 5 Runes**: Uses `$state()` for deep reactivity, `$derived()` for computed values, and `$effect()` for side effects. No legacy stores.
 
-### Web Worker: Offloaded Pixel Processing
+### Preview worker
 
-Sharpness and blur convolution (3×3 kernel) run on a dedicated **Web Worker thread** to keep the main UI at 60fps during slider adjustments. The worker lives at `src/components/image-editor/workers/filter.worker.ts` and is initialized automatically on canvas mount.
+Sharpness and clarity for the on-screen preview run in `src/components/image-editor/workers/filter.worker.ts`. The canvas does not run an idle animation loop (`autoplay` is off). A change to those two sliders debounces for 48ms, scales the longest edge to at most 1600 pixels, and posts the buffer to the worker. The painted bitmap is the preview. Saving still sends JSON, and Sharp.js bakes the original.
 
-`/mediagallery` does **not** statically import the editor. Grid/table tiles use `mediaDisplayUrl()` (thumbnail/sm/md) so a page of originals is not decoded in the browser; `ImageEditorModal` is `import()`'d when the user clicks Edit, and the editor still loads the original URL for canvas work.
+`/mediagallery` does not statically import the editor. Grid and table tiles use `mediaDisplayUrl()` (thumbnail, sm, or md). `ImageEditorModal` is loaded with `import()` when the user clicks Edit, and the editor then loads the original URL for the canvas.
 
-- **What it handles**: `applySharpness()` — unsharp mask sharpening and box blur softening. `buildFilterString()` — CSS filter string assembly.
-- **Zero-copy transfer**: Processed `ImageData` buffers are transferred via `postMessage(buffer, [buffer])` for minimal latency.
-- **Graceful fallback**: If worker creation fails (e.g., CSP restrictions), processing falls back to the main thread silently.
-- **Performance**: A 1024×768 image with sharpness = 36 processes in **~42ms** on the worker thread vs. ~120ms on the main thread.
+- **Preview path**: `applySharpness()` — unsharp mask and softening. Brightness, contrast, color, and the other fine-tune sliders stay CSS filters at draw time.
+- **Transfer**: the worker returns `ImageData` with a transferable buffer.
+- **Fallback**: if `Worker` cannot be constructed, the same function runs on the main thread and the failure is logged at debug level.
 
 ### Touch Gestures: Mobile-First Canvas Control
 
@@ -127,16 +145,11 @@ The canvas supports native multi-touch gestures for zoom and pan on tablets and 
 
 - **Pinch-to-zoom**: Two fingers scale the viewport around the midpoint (1.5px dead zone to prevent jitter).
 - **Two-finger pan**: Translates the canvas simultaneously during pinch.
-- **Single-finger tool delegation**: Routes touch events to the active tool's mouse handlers (e.g., drag crop handles).
+- **Single-finger tool delegation**: Routes touch events to the active tool's mouse handlers (for example, crop handles). A touch on the compare line drags the wipe instead.
 
-### Compare Slider: Split-Screen Preview
+### Compare slider
 
-Toggle a vertical split-screen view to compare the **original** (left half) vs. **edited** (right half).
-
-- **Activate**: Click the "Compare" button in the bottom toolbar.
-- **Divider**: A dashed white line separates the two halves.
-- **State**: Stored as `imageEditorStore.compareSliderPosition` — auto-clamps to the 0–100 range (0 = off, 1–100 = split percentage).
-- **Programmatic access**: Set `imageEditorStore.compareSliderPosition = 50` to enable at 50%.
+`imageEditorStore.compareSliderPosition` clamps to 0–100. `0` hides the split. Any other value is the split percentage. Set it to `50` to open the wipe in the middle. See [Compare](#compare) for the drag handle and keys.
 
 ### Widget System: Auto-Discovery
 
@@ -192,79 +205,58 @@ export default {
 
 ### Server-Side Baking (Sharp.js)
 
-> **Note**: The image editor's primary image processing (filters, convolution, color adjustments) is handled client-side in a **Web Worker** for instant feedback. The server-side step described below is an optional persistence layer that re-applies lossless transformations to the original asset — it is **not** the primary processing path.
+The canvas preview is for feedback. The saved file is produced on the server from the original asset, so the browser does not upload a recompressed canvas.
 
-Instead of exporting a lossy blob from the browser, the editor sends a **JSON instruction set** to the server:
+The body must wrap the instruction set. A flat object is rejected with `400` and the message "Manipulation instruction set is required".
 
-```
+```http
 POST /api/media/manipulate/:mediaId
 Content-Type: application/json
 
 {
-  "rotation": 90,
-  "flipH": false,
-  "flipV": false,
-  "crop": { "x": 100, "y": 50, "width": 800, "height": 600 },
-  "filters": { "brightness": 10, "contrast": 5, "saturation": 0 },
-  "focalPoint": { "x": 35, "y": 65 },
-  "saveBehavior": "new",
-  "blurRegions": [],
-  "watermarks": [],
-  "annotations": []
+  "manipulations": {
+    "rotation": 90,
+    "flipH": false,
+    "flipV": false,
+    "crop": { "x": 100, "y": 50, "width": 800, "height": 600 },
+    "filters": { "brightness": 10, "contrast": 5, "saturation": 0 },
+    "focalPoint": { "x": 35, "y": 65 },
+    "saveBehavior": "new",
+    "blurRegions": [],
+    "watermarks": [],
+    "annotations": []
+  }
 }
 ```
 
-The server uses **Sharp.js** to apply these transformations to the **original, uncompressed** asset and returns the new variant. This guarantees:
+`focalPoint` is a percentage, 0–100 on each axis. A stored fraction such as `{ "x": 0.5, "y": 0.5 }` is scaled to `{ "x": 50, "y": 50 }` before it is written into `metadata.focalPoint`. Integer `1` stays 1%.
 
-- **Zero-loss quality**: No browser canvas recompression artifacts.
-- **Non-destructive**: The original is never modified — edited versions are saved as linked variants.
-- **Multi-format**: WebP and AVIF variants are generated automatically.
+Sharp.js applies the instructions to the original. `saveBehavior: "new"` stores a linked variant. Any other behavior, including `"overwrite"`, updates the current record and keeps the previous file in version metadata. WebP and AVIF variants are generated by the media pipeline after that write.
 
 ### Integration: MediaUpload Widget
 
-The `MediaUpload` widget (in `src/widgets/core/media-upload/`) embeds the editor directly:
+The MediaUpload widget and the media gallery open the editor through the modal host. They do not mount `ImageEditorModal` in the page template. Both load it when Edit is clicked:
 
-```
-<!-- Inside media-upload.svelte -->
-{#if showEditor}
-  <ImageEditorModal
-    image={value}
-    {watermarkPreset}
-    onsave={handleEditorSave}
-    close={() => (showEditor = false)}
-  />
-{/if}
+```typescript
+const { default: ImageEditorModal } =
+  await import("@src/components/image-editor/image-editor-modal.svelte");
+modalState.trigger(ImageEditorModal, {
+  image: value,
+  watermarkPreset,
+  onsave: handleEditorSave,
+});
 ```
 
-To integrate the editor in a custom widget:
+The modal host supplies `close`. After a successful save, the widget calls `modalState.close()`.
 
-```
-<script lang="ts">
-  // Prefer dynamic import() from gallery/widgets so svelte-canvas stays out of the first paint.
-  import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
-  let showEditor = $state(false);
+The save callback posts the envelope the API requires:
 
-  async function handleEditorSave(detail: any) {
-    const { mediaId, manipulations } = detail;
-    const response = await fetch(`/api/media/manipulate/${mediaId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(manipulations)
-    });
-    const result = await response.json();
-    // Update your local state with result.data
-  }
-</script>
-
-<button onclick={() => (showEditor = true)}>Edit Image</button>
-
-{#if showEditor}
-  <ImageEditorModal
-    image={someMediaObject}   <!-- MediaImage | File | string -->
-    onsave={handleEditorSave}
-    close={() => (showEditor = false)}
-  />
-{/if}
+```typescript
+await fetch(`/api/media/manipulate/${mediaId}`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ manipulations }),
+});
 ```
 
 #### ImageEditorModal Props
@@ -280,31 +272,26 @@ To integrate the editor in a custom widget:
 
 The `image-editor-store.svelte.ts` manages all editor state with Svelte 5 runes:
 
-```
-import { imageEditorStore } from "@src/stores/image-editor-store.svelte";
+```typescript
+import { imageEditorStore } from "@components/image-editor/image-editor-store.svelte";
 
-// Core state (reactive via $state)
-imageEditorStore.state.zoom; // number (0.1–5)
-imageEditorStore.state.rotation; // number (degrees)
+imageEditorStore.state.zoom; // number, clamped 0.1–5
+imageEditorStore.state.rotation; // degrees
 imageEditorStore.state.crop; // { x, y, width, height } | null
 imageEditorStore.state.filters; // Record<string, number>
-imageEditorStore.state.focalPoint; // { x: number, y: number }
-imageEditorStore.state.activeState; // string — current tool key
+imageEditorStore.state.focalPoint; // { x, y } in percent, default { x: 50, y: 50 }
+imageEditorStore.state.activeState; // current tool key
 
-// Compare slider (0 = off, 1–100 = split position)
-imageEditorStore.compareSliderPosition; // number (get/set, auto-clamped)
+imageEditorStore.compareSliderPosition; // 0 off, 1–100 split
+imageEditorStore.fitToView(); // Mod+0
+imageEditorStore.zoomActual(); // Mod+1, zoom 1 and translation 0
+imageEditorStore.zoomBy(1.15);
 
-// Derived
-imageEditorStore.canUndoState; // boolean
-imageEditorStore.canRedoState; // boolean
-
-// Actions
-imageEditorStore.setImageElement(img); // Set the source image
-imageEditorStore.switchTool("crop"); // Activate a tool
-imageEditorStore.takeSnapshot(); // Save undo point
-imageEditorStore.handleUndo(); // Undo
-imageEditorStore.handleRedo(); // Redo
-imageEditorStore.reset(); // Clear all state
+imageEditorStore.switchTool("crop");
+imageEditorStore.takeSnapshot();
+imageEditorStore.handleUndo();
+imageEditorStore.handleRedo();
+imageEditorStore.reset();
 ```
 
 ### Progressive Loading & Smart Shimmer
@@ -322,9 +309,9 @@ These are stored in `media.metadata` and consumed by the `MediaGrid` component.
 
 The Image Editor is built for creators of all abilities:
 
-- **Keyboard Navigation**: Arrow keys navigate between tool buttons. Enter/Space activates a tool. All crop handles are focusable and adjustable via arrow keys. Home/End jump to first/last tool. Zoom shortcuts: `+`/`-`/`0`.
+- **Keyboard navigation**: On the tool rail, arrow keys move between tools, Enter or Space activates one, and Home and End jump to the ends. Zoom is `+`, `-`, `Mod+0` (fit), and `Mod+1` (actual pixels). Crop size can be typed in the x, y, width, and height fields. Crop handles themselves are pointer controls.
 - **ARIA Integration**: The editor modal uses `role="dialog"` with `aria-modal="true"` and a focus trap. The sidebar uses `role="tablist"` with `orientation="vertical"`; tool buttons use `role="tab"` with `aria-selected` and `aria-posinset`/`aria-setsize`. The toolbar uses `role="toolbar"`. Status changes are announced via `aria-live="assertive"`.
-- **Focus Management**: When the editor opens, focus moves to the modal container. TAB loops inside the modal (focus trap). When closing, focus returns to the trigger element (Media Gallery or widget). `Mod+S` saves, `Escape` closes with confirmation.
+- **Focus management**: When the editor opens, focus moves to the modal container. Tab loops inside the modal. Closing returns focus to the control that opened it. `Mod+S` saves. `Escape` asks before discarding.
 - **Contrast**: Primary actions (Save button) exceed 12:1 contrast ratio. Chrome text uses subdued opacity typical of professional dark editing UIs (similar to Lightroom / Pintura). All functional UI elements have accessible names via `aria-label` or visible text.
 - **Touch Accessibility**: Pinch-to-zoom and two-finger pan support on mobile/tablet devices.
 - **CSS Architecture**: Styling uses 100% Tailwind CSS v4 utilities inline — zero external CSS files. Design tokens (`--editor-chrome-*` custom properties) are defined in a single component for consistent theming.
@@ -340,19 +327,24 @@ Since SveltyCMS is an authoring tool:
 
 ## 🧪 Testing
 
-The image editor is covered by 73 unit tests across four test files:
+Unit coverage for the editor lives in these Vitest files (not `bun:test`):
 
-| Test File                                                     | Tests | Coverage                                                                                                |
-| :------------------------------------------------------------ | :---- | :------------------------------------------------------------------------------------------------------ |
-| `tests/unit/stores/image-editor-store.test.ts`                | 26    | Undo/redo, tool switching, compare slider, zoom, rotation, reset, save behavior, error handling         |
-| `tests/unit/stores/filter-worker.test.ts`                     | 12    | `buildFilterString()`, `applySharpness()` (no-op, sharpen, blur, edge cases, 1×1, 1024×768 performance) |
-| `tests/unit/components/image-editor/widget-registry.test.ts`  | 27    | Widget validation (12 cases), defaults (8), sorting (3), disabled filtering (2), category + key lookup  |
-| `tests/unit/components/image-editor/plugin-tool-slot.test.ts` | 8     | InjectionZone acceptance, slot registration, zone isolation, server actions, props, condition filtering |
+| Test file                                                       | What it covers                                                                              |
+| :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| `tests/unit/components/image-editor/image-editor-store.test.ts` | Undo/redo, tools, compare clamp, zoom, fit, actual pixels, focal default and history, reset |
+| `tests/unit/stores/filter-worker.test.ts`                       | `buildFilterString()` and `applySharpness()`, including a 1024×768 budget under 200ms       |
+| `tests/unit/components/image-editor/widget-registry.test.ts`    | Widget validation, defaults, sorting, disabled filtering, category and key lookup           |
+| `tests/unit/components/image-editor/plugin-tool-slot.test.ts`   | `image_editor_tool` zone registration, isolation, props, and condition filtering            |
+| `tests/unit/media/focal-point.test.ts`                          | Missing point, integer percents, 0–1 fractions, and clamping                                |
+| `tests/unit/utils/hotkeys-plus.test.ts`                         | `+` still matches when Shift is held; a letter shortcut does not match Shift+letter         |
+| `tests/unit/components/image-editor/editor-shortcuts.test.ts`   | Active tool wins `[`; `Mod+0` and bare `0` stay separate; Backspace counts as Delete        |
+| `tests/unit/components/image-editor/tool-controls.test.ts`      | Crop pixel fields, and the shortcut names on Fine-Tune, Rotate, and Zoom                    |
+| `tests/unit/services/media-manipulation.test.ts`                | Sharp bake, including a fractional focal point stored as a 0–100 percent                    |
 
-Run with:
+The gallery Playwright spec `tests/e2e/routes/mediagallery/image-editor.spec.ts` opens the editor, selects every tool, sets a 1:1 crop from the keyboard, zooms, toggles compare, and confirms discard. `tests/integration/api/media-manipulate.test.ts` uploads an image and checks that rotate and crop change the stored file, and that the focal point is saved as a percent.
 
-```
-bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts tests/unit/components/image-editor/widget-registry.test.ts tests/unit/components/image-editor/plugin-tool-slot.test.ts
+```bash
+bun x vitest run tests/unit/components/image-editor tests/unit/stores/filter-worker.test.ts tests/unit/media/focal-point.test.ts tests/unit/utils/hotkeys-plus.test.ts tests/unit/services/media-manipulation.test.ts
 ```
 
 ---
@@ -360,7 +352,7 @@ bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-w
 ## 📚 Related Documentation
 
 - [**Media API Reference**](../../reference/api/media.mdx) — Full technical spec for the `/api/media/manipulate` endpoint.
-- [**MediaUpload Widget**](../../src/widgets/core/media-upload/media-upload.mdx) — Widget documentation with field configuration examples.
+- [**MediaUpload Widget**](../../../src/widgets/core/media-upload/media-upload.mdx) — Widget documentation with field configuration examples.
 - [**Accessibility Guide**](../../contributing/accessibility.mdx) — WCAG compliance requirements and testing procedures.
 - [**Contributing Docs**](../../contributing/contributing-docs.mdx) — Documentation standards and PR workflow.
 

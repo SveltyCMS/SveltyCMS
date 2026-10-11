@@ -7,6 +7,7 @@ Viewport-fixed crop frame: drag inside pans the image behind the frame;
 handles resize the frame in screen space. Image-space crop syncs on release.
 -->
 <script lang="ts">
+	import { bindShortcuts } from '@components/image-editor/bind-shortcuts';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import CropControls from './controls.svelte';
@@ -59,6 +60,37 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 		);
 	}
 
+	function applyAspectRatio(ratio: number | null) {
+		storeState.currentAspectRatio = ratio === 0 ? null : ratio;
+		if (ratio === null || ratio === 0) {
+			cropShape = 'rectangle';
+			clampViewport();
+			syncImageCropFromViewport();
+			return;
+		}
+
+		if (ratio === 1) {
+			cropShape = cropShape === 'circular' ? 'circular' : 'square';
+		} else {
+			cropShape = 'rectangle';
+		}
+
+		resizeViewportToRatio(ratio, cropShape);
+	}
+
+	$effect(() => {
+		if (imageEditorStore.state.activeState !== 'crop') return;
+		return bindShortcuts([
+			['f', () => applyAspectRatio(null), 'Free crop'],
+			['1', () => applyAspectRatio(1), 'Crop 1:1'],
+			['2', () => applyAspectRatio(4 / 3), 'Crop 4:3'],
+			['3', () => applyAspectRatio(16 / 9), 'Crop 16:9'],
+			['4', () => applyAspectRatio(3 / 2), 'Crop 3:2'],
+			['5', () => applyAspectRatio(9 / 16), 'Crop 9:16'],
+			['6', () => applyAspectRatio(2 / 3), 'Crop 2:3']
+		]);
+	});
+
 	function updateToolbar(isMobile: boolean, shape: CropShape) {
 		const ControlsComponent = isMobile ? CropControlsMobile : CropControls;
 
@@ -85,23 +117,7 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 				storeState.currentAspectRatio = 1;
 				resizeViewportToRatio(1, s);
 			},
-			onAspectRatio: (r: number | null) => {
-				storeState.currentAspectRatio = r === 0 ? null : r;
-				if (r === null || r === 0) {
-					cropShape = 'rectangle';
-					clampViewport();
-					syncImageCropFromViewport();
-					return;
-				}
-
-				if (r === 1) {
-					cropShape = cropShape === 'circular' ? 'circular' : 'square';
-				} else {
-					cropShape = 'rectangle';
-				}
-
-				resizeViewportToRatio(r, cropShape);
-			}
+			onAspectRatio: (r: number | null) => applyAspectRatio(r)
 		};
 
 		imageEditorStore.setToolbarControls({

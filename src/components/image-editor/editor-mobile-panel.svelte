@@ -269,7 +269,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							type="button"
 							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-[rgba(255,255,255,0.88)] cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
 							'rotation'
-								? 'bg-white/[0.14]'
+								? 'bg-white/14'
 								: ''}"
 							class:text-white={adjustMode === 'rotation'}
 							role="tab"
@@ -282,7 +282,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							type="button"
 							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-[rgba(255,255,255,0.88)] cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
 							'scale'
-								? 'bg-white/[0.14]'
+								? 'bg-white/14'
 								: ''}"
 							class:text-white={adjustMode === 'scale'}
 							role="tab"

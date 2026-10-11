@@ -26,6 +26,7 @@ import type {
   EntityCreate,
   EntityUpdate,
 } from "@src/databases/db-interface";
+import { normalizeFocalPercent } from "./focal-point";
 import { mediaTypeFromMime, type MediaItem } from "./media-models";
 import {
   buildOriginalRelPath,
@@ -324,6 +325,8 @@ export interface MediaManipulation {
   blurRegions?: BlurRegion[];
   watermarks?: Watermark[];
   annotations?: Annotation[];
+  /** Subject point as a percentage of the image, 0–100. Stored on media metadata. */
+  focalPoint?: { x: number; y: number };
   saveBehavior?: "overwrite" | "new";
 }
 
@@ -1210,7 +1213,10 @@ export class MediaService {
       watermarks,
       annotations,
       saveBehavior,
+      focalPoint,
     } = manipulations;
+
+    const storedFocal = focalPoint ? normalizeFocalPercent(focalPoint) : undefined;
 
     // 3. Build Sharp pipeline — order matters: geometry first, then colour, then composites
     let pipeline = sharp(originalBuffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" });
@@ -1487,7 +1493,10 @@ export class MediaService {
           path: relPath,
           createdBy: userId,
           updatedBy: userId,
-          metadata: { versions: [] },
+          metadata: {
+            versions: [],
+            ...(storedFocal ? { focalPoint: storedFocal } : {}),
+          },
           thumbnails: {},
           access: existing.access || "public",
           folderId: existing.folderId ?? undefined,
@@ -1516,6 +1525,7 @@ export class MediaService {
         updatedAt: now,
         metadata: {
           ...existing.metadata,
+          ...(storedFocal ? { focalPoint: storedFocal } : {}),
           versions: [
             ...versions,
             {

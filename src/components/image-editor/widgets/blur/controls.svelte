@@ -32,20 +32,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 		const target = e.currentTarget as HTMLInputElement;
 		onStrengthChange(Number.parseInt(target.value, 10));
 	}
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if (e.target && (e.target as HTMLElement).tagName === 'INPUT') {
-			return;
-		}
-
-		if ((e.key === 'Delete' || e.key === 'Backspace') && hasActiveRegion) {
-			e.preventDefault();
-			onDeleteRegion();
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div
 	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
@@ -84,6 +71,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 		>
 			<div class="w-full">
 				<input
+					title="[ decreases strength, ] increases it"
 					aria-label="Blur amount"
 					id="blur-strength-slider"
 					type="range"
@@ -124,7 +112,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-error-400 hover:not-disabled:bg-error-500/10 hover:not-disabled:border-error-500/30 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onDeleteRegion}
 				disabled={!hasActiveRegion}
-				title="Delete selected region"
+				title="Delete selected region (Delete)"
 				aria-label="Delete selected blur region"
 			>
 				<iconify-icon icon="mdi:delete-outline" width="15" aria-hidden="true"></iconify-icon>

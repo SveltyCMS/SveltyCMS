@@ -9,8 +9,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 <script lang="ts">
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { logger } from '@utils/logger';
-	import { onDestroy, onMount } from 'svelte';
-	import { registerHotkey } from '@src/utils/hotkeys';
+	import { normalizeFocalPercent } from '@utils/media/focal-point';
+	import { onDestroy } from 'svelte';
 	import EditorCanvas from './editor-canvas.svelte';
 	import EditorSidebar from './editor-sidebar.svelte';
 	import EditorMobilePanel from './editor-mobile-panel.svelte';
@@ -115,45 +115,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	let loadGeneration = 0;
 	let lastLoadKey = $state('');
 
-	// Register Keyboard Shortcuts for Accessibility (Top-level for auto-cleanup)
-	registerHotkey('mod+s', () => handleSave(), 'Save edited image');
-	registerHotkey('mod+z', () => imageEditorStore.handleUndo(), 'Undo last edit');
-	registerHotkey('mod+shift+z', () => imageEditorStore.handleRedo(), 'Redo last edit');
-	registerHotkey('escape', () => oncancel(), 'Cancel editing');
-	registerHotkey(
-		'=',
-		() => {
-			imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15);
-		},
-		'Zoom in'
-	);
-	registerHotkey(
-		'+',
-		() => {
-			imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15);
-		},
-		'Zoom in'
-	);
-	registerHotkey(
-		'-',
-		() => {
-			imageEditorStore.state.zoom = Math.max(0.1, imageEditorStore.state.zoom / 1.15);
-		},
-		'Zoom out'
-	);
-	registerHotkey(
-		'0',
-		() => {
-			imageEditorStore.state.zoom = 1;
-			imageEditorStore.state.translateX = 0;
-			imageEditorStore.state.translateY = 0;
-		},
-		'Reset zoom'
-	);
-
-	// Note: keydown listener is registered in the second onMount below alongside store setup.
-	// The duplicate onMount block was removed to prevent double-registration.
-
 	$effect(() => {
 		if (activeState === lastActiveToolState) {
 			return;
@@ -231,23 +192,12 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 		const measuredWidth = containerRef?.clientWidth ?? containerWidth;
 		const measuredHeight = containerRef?.clientHeight ?? containerHeight;
-		const isMobileViewport = imageEditorStore.isMobile;
-		const widthFitRatio = isMobileViewport ? 0.84 : 0.82;
-		const heightFitRatio = isMobileViewport ? 0.62 : 0.82;
 
-		if (measuredWidth > 0 && measuredHeight > 0 && img.width > 0 && img.height > 0) {
-			const scaleX = (measuredWidth * widthFitRatio) / img.width;
-			const scaleY = (measuredHeight * heightFitRatio) / img.height;
-			const fitScale = Math.min(scaleX, scaleY);
-			const isPortraitViewport = measuredHeight > measuredWidth * 1.08;
-			const portraitBoost = isPortraitViewport && !isMobileViewport ? 1.04 : 1;
-			imageEditorStore.state.zoom = Math.min(5, Math.max(0.1, fitScale * portraitBoost));
-		} else {
-			imageEditorStore.state.zoom = 1;
+		if (measuredWidth > 0 && measuredHeight > 0) {
+			imageEditorStore.state.canvasSize = { width: measuredWidth, height: measuredHeight };
 		}
-
-		imageEditorStore.state.translateX = 0;
-		imageEditorStore.state.translateY = 0;
+		imageEditorStore.state.focalPoint = normalizeFocalPercent(focalPoint);
+		imageEditorStore.fitToView();
 
 		try {
 			imageEditorStore.takeSnapshot();
@@ -315,30 +265,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 		// Assign handlers before src — cached images can complete synchronously
 		img.src = cleanedSrc;
-	}
-
-	function handleKeyDown(event: KeyboardEvent) {
-		// Guard against events with detached targets (e.g. in embedded browser contexts)
-		if (!event?.target || !(event.target as Node).ownerDocument) return;
-		const target = event.target as HTMLElement;
-		if (
-			target.tagName === 'INPUT' ||
-			target.tagName === 'TEXTAREA' ||
-			target.contentEditable === 'true'
-		) {
-			return;
-		}
-
-		const cmdOrCtrl = event.metaKey || event.ctrlKey;
-		const shift = event.shiftKey;
-
-		if (cmdOrCtrl && !shift && event.key === 'z') {
-			event.preventDefault();
-			imageEditorStore.undoState();
-		} else if ((cmdOrCtrl && shift && event.key === 'z') || (cmdOrCtrl && event.key === 'y')) {
-			event.preventDefault();
-			imageEditorStore.redoState();
-		}
 	}
 
 	export function handleCancel() {
@@ -417,13 +343,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 		}
 	}
 
-	onMount(() => {
-		window.addEventListener('keydown', handleKeyDown);
-	});
-
 	onDestroy(() => {
 		loadGeneration++;
-		window.removeEventListener('keydown', handleKeyDown);
 		const toolId = imageEditorStore.state.activeState || lastActiveToolState;
 		if (toolId) {
 			toolInstances[toolId]?.beforeExit?.();

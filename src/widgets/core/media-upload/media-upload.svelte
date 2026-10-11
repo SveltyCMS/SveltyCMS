@@ -201,7 +201,7 @@ functionality for image editing and basic file information display.
 			const response = await fetch(`/api/media/manipulate/${mediaId}`, {
 				method: 'POST',
 				headers: clientJsonHeaders(),
-				body: JSON.stringify(manipulations)
+				body: JSON.stringify({ manipulations })
 			});
 
 			if (!response.ok) {

@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-22"
+updated: "2026-10-11"
 tags:
   - "api"
   - "media"
@@ -188,18 +188,22 @@ Apply one transformation set to many assets in a single request.
 SveltyCMS provides a dedicated endpoint for server-side image baking.
 
 **Endpoint**: `POST /api/media/manipulate/{id}`  
-**Payload**: JSON instructions for transformations.
+**Payload**: JSON object with a `manipulations` instruction set. A body without that property is `400`.
 
 ```json
 {
-  "rotation": 90,
-  "flipH": true,
-  "crop": { "x": 10, "y": 10, "width": 500, "height": 500 },
-  "filters": { "brightness": 10, "contrast": 5 },
-  "focalPoint": { "x": 45, "y": 60 },
-  "saveBehavior": "overwrite"
+  "manipulations": {
+    "rotation": 90,
+    "flipH": true,
+    "crop": { "x": 10, "y": 10, "width": 500, "height": 500 },
+    "filters": { "brightness": 10, "contrast": 5 },
+    "focalPoint": { "x": 45, "y": 60 },
+    "saveBehavior": "overwrite"
+  }
 }
 ```
+
+`focalPoint` is a 0–100 percent. The server stores it on `metadata.focalPoint` for both a new variant and an overwrite.
 
 ### Focal Point & Aspect Preview
 

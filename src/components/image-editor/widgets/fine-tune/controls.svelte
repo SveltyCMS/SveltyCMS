@@ -76,34 +76,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		const target = e.currentTarget as HTMLInputElement;
 		onChange(Number.parseInt(target.value, 10));
 	}
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
-		switch (e.key) {
-			case '0':
-				e.preventDefault();
-				onReset();
-				break;
-			case 'c':
-			case 'C':
-				if (onCompareToggle) {
-					e.preventDefault();
-					onCompareToggle();
-				}
-				break;
-			case 'a':
-			case 'A':
-				if (e.shiftKey && onAutoAdjust) {
-					e.preventDefault();
-					onAutoAdjust();
-				}
-				break;
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div
 	class="flex flex-col flex-[0_0_auto] gap-1.5 items-stretch w-full min-w-0 h-auto leading-none"
@@ -240,12 +213,14 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 				></div>
 				<input
 					aria-label={config?.label ?? 'Adjustment'}
+					title="Double-click to reset. Up and down nudge the value."
 					type="range"
 					{min}
 					{max}
 					{step}
 					{value}
 					oninput={handleSliderInput}
+					ondblclick={() => onChange(0)}
 					class="relative z-2 w-full flex-1 h-1 m-0 appearance-none cursor-pointer bg-white/18 rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background={sliderFillStyle}
 					aria-valuemin={min}
@@ -263,7 +238,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onReset}
 				disabled={value === 0}
-				title="Reset to 0"
+				title="Reset to 0 (0)"
 				aria-label="Reset adjustment"
 			>
 				<iconify-icon icon="mdi:restore" width="15" aria-hidden="true"></iconify-icon>

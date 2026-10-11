@@ -20,6 +20,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import { registerHotkey } from '@utils/hotkeys';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import type { MediaImage, WatermarkOptions } from '@src/utils/media/media-models';
 	import { onMount, setContext } from 'svelte';
@@ -160,18 +161,66 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		closeModal();
 	}
 
-	function handleZoomAction(type: 'in' | 'out' | 'reset') {
-		const currentZoom = imageEditorStore.state.zoom;
-		if (type === 'in') {
-			imageEditorStore.state.zoom = Math.min(5, currentZoom * 1.15);
-		} else if (type === 'out') {
-			imageEditorStore.state.zoom = Math.max(0.1, currentZoom / 1.15);
-		} else {
-			imageEditorStore.state.zoom = 1;
-			imageEditorStore.state.translateX = 0;
-			imageEditorStore.state.translateY = 0;
-		}
+	function handleZoomAction(type: 'in' | 'out' | 'fit' | 'actual') {
+		if (type === 'in') imageEditorStore.zoomBy(1.15);
+		else if (type === 'out') imageEditorStore.zoomBy(1 / 1.15);
+		else if (type === 'actual') imageEditorStore.zoomActual();
+		else imageEditorStore.fitToView();
 	}
+
+	function toggleCompare() {
+		imageEditorStore.compareSliderPosition = imageEditorStore.compareSliderPosition > 0 ? 0 : 50;
+	}
+
+	function nudgeCompare(delta: number) {
+		const position = imageEditorStore.compareSliderPosition;
+		if (position <= 0) return;
+		imageEditorStore.compareSliderPosition = Math.max(1, Math.min(100, position + delta));
+	}
+
+	// One registration for the whole editor session. Tool docks add their own
+	// keys only while that tool is active, and those win because the stack is LIFO.
+	registerHotkey('mod+s', () => void handleSaveClick(), 'Save edited image');
+	registerHotkey('mod+z', () => imageEditorStore.handleUndo(), 'Undo');
+	registerHotkey('mod+shift+z', () => imageEditorStore.handleRedo(), 'Redo');
+	registerHotkey('mod+y', () => imageEditorStore.handleRedo(), 'Redo');
+	// The parent <Modal> (useDialog) also closes on Escape. Stop the event at the
+	// window-capture layer so this editor's discard confirm actually gates the
+	// close — otherwise a cancelled confirm would still dismiss the editor.
+	registerHotkey(
+		'escape',
+		(event) => {
+			event.stopPropagation();
+			handleCancelClick();
+		},
+		'Close editor'
+	);
+	registerHotkey('=', () => handleZoomAction('in'), 'Zoom in');
+	registerHotkey('+', () => handleZoomAction('in'), 'Zoom in');
+	registerHotkey('-', () => handleZoomAction('out'), 'Zoom out');
+	registerHotkey('mod+0', () => handleZoomAction('fit'), 'Fit image');
+	registerHotkey('mod+1', () => handleZoomAction('actual'), 'Actual pixels');
+	registerHotkey('\\', () => toggleCompare(), 'Toggle compare');
+	registerHotkey(
+		'[',
+		(event) => {
+			if (imageEditorStore.compareSliderPosition <= 0) return;
+			event.preventDefault();
+			nudgeCompare(-5);
+		},
+		'Move compare left',
+		false
+	);
+	registerHotkey(
+		']',
+		(event) => {
+			if (imageEditorStore.compareSliderPosition <= 0) return;
+			event.preventDefault();
+			nudgeCompare(5);
+		},
+		'Move compare right',
+		false
+	);
 
 	// Focus trap: loop TAB inside the modal
 	function trapFocus(e: KeyboardEvent) {
@@ -192,26 +241,9 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		}
 	}
 
-	function handleKeyDown(e: KeyboardEvent) {
-		const cmdOrCtrl = e.metaKey || e.ctrlKey;
-		if (cmdOrCtrl && e.key === 's') {
-			e.preventDefault();
-			editorComponent?.handleSave();
-		}
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			handleCancelClick();
-		}
-	}
-
 	onMount(() => {
 		// Save currently focused element (the trigger button) for restoration
 		triggerElement = document.activeElement as HTMLElement;
-
-		window.addEventListener('keydown', handleKeyDown);
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-		};
 	});
 
 	// Cleanup blob URLs on destroy
@@ -302,7 +334,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 				{isSaving}
 				onZoomIn={() => handleZoomAction('in')}
 				onZoomOut={() => handleZoomAction('out')}
-				onZoomReset={() => handleZoomAction('reset')}
+				onZoomReset={() => handleZoomAction('fit')}
 			/>
 		{/if}
 		<main class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">

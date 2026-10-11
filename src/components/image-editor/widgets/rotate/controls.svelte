@@ -68,58 +68,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		const target = e.currentTarget as HTMLInputElement;
 		onRotationChange(Number.parseFloat(target.value));
 	}
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
-		const cmdOrCtrl = e.metaKey || e.ctrlKey;
-
-		switch (e.key) {
-			case 'ArrowLeft':
-				e.preventDefault();
-				if (e.shiftKey) onRotationChange(rotationAngle - 0.1);
-				else if (cmdOrCtrl) onRotateLeft();
-				else onRotationChange(rotationAngle - 1);
-				break;
-			case 'ArrowRight':
-				e.preventDefault();
-				if (e.shiftKey) onRotationChange(rotationAngle + 0.1);
-				else if (cmdOrCtrl) onRotateRight();
-				else onRotationChange(rotationAngle + 1);
-				break;
-			case 'h':
-			case 'H':
-				e.preventDefault();
-				onFlipHorizontal();
-				break;
-			case 'v':
-			case 'V':
-				e.preventDefault();
-				onFlipVertical();
-				break;
-			case 'g':
-			case 'G':
-				if (onGridToggle) {
-					e.preventDefault();
-					onGridToggle();
-				}
-				break;
-			case 's':
-			case 'S':
-				if (onStraighten && !cmdOrCtrl) {
-					e.preventDefault();
-					onStraighten();
-				}
-				break;
-			case '0':
-				e.preventDefault();
-				onRotationChange(0);
-				break;
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div
 	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
@@ -138,7 +87,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 				type="button"
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onRotateLeft}
-				title="Rotate left 90°"
+				title="Rotate left 90° (Mod+Left)"
 				aria-label="Rotate left 90°"
 			>
 				<iconify-icon icon="mdi:rotate-left" width="15" aria-hidden="true"></iconify-icon>
@@ -147,7 +96,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 				type="button"
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onRotateRight}
-				title="Rotate right 90°"
+				title="Rotate right 90° (Mod+Right)"
 				aria-label="Rotate right 90°"
 			>
 				<iconify-icon icon="mdi:rotate-right" width="15" aria-hidden="true"></iconify-icon>
@@ -187,6 +136,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 					class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 					class:text-white={Math.abs(displayAngle - angle) < 0.5}
 					onclick={() => onRotationChange(angle)}
+					title={angle === 0 ? 'Reset rotation (0)' : `Rotate to ${angle} degrees`}
 					aria-label="Rotate to {angle} degrees"
 				>
 					{angle > 0 ? '+' : ''}{angle}°
@@ -252,10 +202,11 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		>
 			<div class="relative w-full">
 				<div
-					class="absolute top-1/2 start-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2"
+					class="absolute top-1/2 inset-s-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2"
 					aria-hidden="true"
 				></div>
 				<input
+					title="Arrow keys nudge 1°. Shift nudges 0.1°."
 					aria-label="Rotation angle"
 					id="rotate-slider"
 					type="range"

@@ -27,6 +27,7 @@ describe("ImageEditorStore", () => {
       expect(imageEditorStore.state.file).toBeNull();
       expect(imageEditorStore.state.filters.brightness).toBe(0);
       expect(imageEditorStore.compareSliderPosition).toBe(0);
+      expect(imageEditorStore.state.focalPoint).toEqual({ x: 50, y: 50 });
     });
 
     it("should return null for undo/redo with no history", () => {
@@ -191,6 +192,27 @@ describe("ImageEditorStore", () => {
       imageEditorStore.updateZoom(10);
       expect(imageEditorStore.state.zoom).toBeLessThanOrEqual(5);
     });
+
+    it("fits the image inside the canvas and recenters", () => {
+      imageEditorStore.state.imageElement = { width: 2000, height: 1000 } as HTMLImageElement;
+      imageEditorStore.state.canvasSize = { width: 1000, height: 800 };
+      imageEditorStore.state.viewportWidth = 1200;
+      imageEditorStore.state.zoom = 3;
+      imageEditorStore.state.translateX = 40;
+      imageEditorStore.fitToView();
+      expect(imageEditorStore.state.zoom).toBeCloseTo(0.41);
+      expect(imageEditorStore.state.translateX).toBe(0);
+      expect(imageEditorStore.state.translateY).toBe(0);
+    });
+
+    it("returns to actual pixels at the center", () => {
+      imageEditorStore.state.zoom = 2.4;
+      imageEditorStore.state.translateY = 12;
+      imageEditorStore.zoomActual();
+      expect(imageEditorStore.state.zoom).toBe(1);
+      expect(imageEditorStore.state.translateX).toBe(0);
+      expect(imageEditorStore.state.translateY).toBe(0);
+    });
   });
 
   describe("rotation and flip", () => {
@@ -258,6 +280,19 @@ describe("ImageEditorStore", () => {
       expect(imageEditorStore.state.error).toBe("Something went wrong");
       imageEditorStore.setError(null);
       expect(imageEditorStore.state.error).toBeNull();
+    });
+  });
+
+  describe("focal point history", () => {
+    it("normalizes a 0-1 fraction when a snapshot is restored", () => {
+      imageEditorStore.state.focalPoint = { x: 0.5, y: 0.25 };
+      imageEditorStore.takeSnapshot();
+      imageEditorStore.state.focalPoint = { x: 10, y: 10 };
+      imageEditorStore.takeSnapshot();
+
+      imageEditorStore.undoState();
+
+      expect(imageEditorStore.state.focalPoint).toEqual({ x: 50, y: 25 });
     });
   });
 

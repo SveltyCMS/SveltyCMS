@@ -69,7 +69,7 @@ Bottom circular tool rail for mobile editor.
 			type="button"
 			class="inline-flex flex-[0_1_auto] items-center justify-center size-10 text-[rgba(255,255,255,0.72)] cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] disabled:cursor-not-allowed disabled:opacity-35 {selectedToolId ===
 			tool.id
-				? 'bg-white/[0.14]'
+				? 'bg-white/14'
 				: ''}"
 			class:text-white={selectedToolId === tool.id}
 			onclick={() => handleSelect(tool.id)}

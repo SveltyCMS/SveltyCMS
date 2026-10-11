@@ -64,35 +64,7 @@ Pintura-style watermark bottom dock controls.
 		const target = e.currentTarget as HTMLInputElement;
 		onOpacityChange?.(Number.parseFloat(target.value));
 	}
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
-		switch (e.key) {
-			case 'Delete':
-			case 'Backspace':
-				if (hasSelection) {
-					e.preventDefault();
-					onDeleteWatermark();
-				}
-				break;
-			case 't':
-			case 'T':
-				if (onAddText) {
-					e.preventDefault();
-					onAddText();
-				}
-				break;
-			case 'i':
-			case 'I':
-				e.preventDefault();
-				onAddImage();
-				break;
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div
 	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
@@ -135,7 +107,7 @@ Pintura-style watermark bottom dock controls.
 				type="button"
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onDeleteWatermark}
-				title="Delete watermark"
+				title="Delete watermark (Delete)"
 				aria-label="Delete watermark"
 			>
 				<iconify-icon icon="mdi:delete" width="15" aria-hidden="true"></iconify-icon>
@@ -163,7 +135,7 @@ Pintura-style watermark bottom dock controls.
 			/>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium whitespace-nowrap cursor-pointer rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35 text-white bg-white/10 border-white/[0.14]"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium whitespace-nowrap cursor-pointer rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35 text-white bg-white/10 border-white/14"
 				onclick={onApplyText || (() => undefined)}
 			>
 				Apply

@@ -6,7 +6,7 @@ order: 17
 icon: "mdi:image-multiple"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-08-23"
+updated: "2026-10-11"
 tags:
   - "testing"
   - "e2e"
@@ -32,24 +32,24 @@ Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows 
 
 ## Control → test matrix
 
-| Control                              | Unit              | Integration           | E2E   | Spec                              |
-| ------------------------------------ | ----------------- | --------------------- | ----- | --------------------------------- |
-| Load + `media:read` gate             | page.server       | media API             | shell | unit + gallery                    |
-| Toolbar                              | —                 | —                     | ✅    | `media-gallery-toolbar`           |
-| Search / type filter                 | —                 | —                     | ✅    | `mediagallery.spec`               |
-| Grid / table toggle                  | —                 | —                     | ✅    | `media-view-*`                    |
-| Upload image                         | —                 | media upload          | ✅    | `media-upload-input`              |
-| Delete single                        | —                 | media delete          | ✅    | grid actions                      |
-| **Image editor open / crop / focal** | image-editor unit | —                     | ✅    | `image-editor.spec`               |
-| **Image editor save (manipulate)**   | —                 | manipulate API        | ✅    | `image-editor.spec` save          |
-| **Create virtual folder**            | —                 | system-virtual-folder | ✅    | `folders-bulk.spec`               |
-| **Folder appear / navigate**         | —                 | —                     | ✅    | same                              |
-| **Selection mode + bulk bar**        | —                 | —                     | ✅    | `folders-bulk.spec`               |
-| **Bulk download**                    | —                 | bulk-download         | ✅    | hits `/api/media/bulk-download`   |
-| **Bulk delete (Del key)**            | —                 | deleteMedia           | ✅    | confirm + batch toast             |
-| **Remote URL upload page**           | —                 | remoteUpload action   | ✅    | `move-remote.spec`                |
-| **Selection + breadcrumb move**      | —                 | `/api/media/move`     | ✅    | `move-remote.spec`                |
-| **Drop to sidebar folder**           | media-dnd unit    | `/api/media/move`     | ✅    | `move-remote.spec` (pointer drag) |
+| Control                               | Unit                      | Integration           | E2E   | Spec                                             |
+| ------------------------------------- | ------------------------- | --------------------- | ----- | ------------------------------------------------ |
+| Load + `media:read` gate              | page.server               | media API             | shell | unit + gallery                                   |
+| Toolbar                               | —                         | —                     | ✅    | `media-gallery-toolbar`                          |
+| Search / type filter                  | —                         | —                     | ✅    | `mediagallery.spec`                              |
+| Grid / table toggle                   | —                         | —                     | ✅    | `media-view-*`                                   |
+| Upload image                          | —                         | media upload          | ✅    | `media-upload-input`                             |
+| Delete single                         | —                         | media delete          | ✅    | grid actions                                     |
+| **Image editor tools, compare, zoom** | tool controls + shortcuts | —                     | ✅    | `image-editor.spec` walk                         |
+| **Image editor save (manipulate)**    | media-manipulation        | baked rotate + crop   | ✅    | `image-editor.spec` + `media-manipulate.test.ts` |
+| **Create virtual folder**             | —                         | system-virtual-folder | ✅    | `folders-bulk.spec`                              |
+| **Folder appear / navigate**          | —                         | —                     | ✅    | same                                             |
+| **Selection mode + bulk bar**         | —                         | —                     | ✅    | `folders-bulk.spec`                              |
+| **Bulk download**                     | —                         | bulk-download         | ✅    | hits `/api/media/bulk-download`                  |
+| **Bulk delete (Del key)**             | —                         | deleteMedia           | ✅    | confirm + batch toast                            |
+| **Remote URL upload page**            | —                         | remoteUpload action   | ✅    | `move-remote.spec`                               |
+| **Selection + breadcrumb move**       | —                         | `/api/media/move`     | ✅    | `move-remote.spec`                               |
+| **Drop to sidebar folder**            | media-dnd unit            | `/api/media/move`     | ✅    | `move-remote.spec` (pointer drag)                |
 
 > **Drop row (2026-09-22):** `@thisux/sveltednd` runs in **pointer** mode
 > (document-level `pointermove`/`pointerup` + `elementFromPoint` at release), and
@@ -65,7 +65,8 @@ Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows 
 ## Associated tests
 
 - [mediagallery.spec.ts](../../../tests/e2e/routes/mediagallery/mediagallery.spec.ts) — shell, search, views, upload, single delete
-- [image-editor.spec.ts](../../../tests/e2e/routes/mediagallery/image-editor.spec.ts) — open, tools, **save**
+- [image-editor.spec.ts](../../../tests/e2e/routes/mediagallery/image-editor.spec.ts) — open, every tool, compare, zoom, discard, **save**
+- Integration: `tests/integration/api/media-manipulate.test.ts` — upload, rotate, crop, focal point on the stored file
 - [folders-bulk.spec.ts](../../../tests/e2e/routes/mediagallery/folders-bulk.spec.ts) — folders + multi-select bulk
 - [mediagallery-page-server.test.ts](../../../tests/unit/routes/mediagallery-page-server.test.ts)
 - Integration: `tests/integration/api/media.test.ts`

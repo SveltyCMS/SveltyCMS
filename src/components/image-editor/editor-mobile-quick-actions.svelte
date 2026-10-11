@@ -30,7 +30,7 @@ Contextual transform shortcuts — sits below top toolbar, above canvas (mobile 
 
 {#if visible}
 	<div
-		class="grid shrink-0 grid-cols-3 gap-0 items-center justify-items-center w-full max-w-48 mx-auto py-0.5 pb-1 bg-transparent border-b-0 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
+		class="grid shrink-0 grid-cols-3 gap-0 items-center justify-items-center w-full max-w-48 mx-auto py-0.5 pb-1 bg-transparent border-b-0 [&_iconify-icon]:block [&_iconify-icon]:leading-0"
 		role="toolbar"
 		aria-label="Transform quick actions"
 	>

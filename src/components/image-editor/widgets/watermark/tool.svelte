@@ -6,6 +6,7 @@ Watermark tool with full text and image watermark support.
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { generateUUID } from '@utils/native-utils';
+	import { bindShortcuts } from '@components/image-editor/bind-shortcuts';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
@@ -165,6 +166,24 @@ Watermark tool with full text and image watermark support.
 	}
 
 	// Delete selected watermark
+	$effect(() => {
+		if (imageEditorStore.state.activeState !== 'watermark') return;
+		return bindShortcuts([
+			['t', () => handleAddText(), 'Add text watermark'],
+			['i', () => handleAddImage(), 'Add image watermark'],
+			[
+				'delete',
+				(event) => {
+					if (!selectedId) return;
+					event.preventDefault();
+					handleDeleteWatermark();
+				},
+				'Delete watermark',
+				false
+			]
+		]);
+	});
+
 	function handleDeleteWatermark() {
 		if (!selectedId) return;
 		storeState.watermarks = watermarks.filter((w) => w.id !== selectedId);

@@ -39,20 +39,6 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	let strokePickerRef = $state<HTMLInputElement | null>(null);
 	let fillPickerRef = $state<HTMLInputElement | null>(null);
 
-	function handleKeyDown(e: KeyboardEvent) {
-		if (
-			(e.target as HTMLElement)?.tagName === 'INPUT' ||
-			(e.target as HTMLElement)?.tagName === 'TEXTAREA'
-		) {
-			return;
-		}
-
-		if ((e.key === 'Delete' || e.key === 'Backspace') && hasSelection && onDeleteAnnotation) {
-			e.preventDefault();
-			onDeleteAnnotation();
-		}
-	}
-
 	function isStrokePreset(color: string): boolean {
 		return strokePresets.includes(color.toLowerCase() as (typeof strokePresets)[number]);
 	}
@@ -76,8 +62,6 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		return color;
 	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div class="annotate-controls-mobile" role="toolbar" aria-label="Annotate controls">
 	<div class="annotate-mobile-strip" role="group" aria-label="Annotation tools and colors">

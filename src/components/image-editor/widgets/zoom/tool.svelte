@@ -38,7 +38,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 				onZoomChange: (percent: number) => setZoom(percent / 100),
 				onFitToScreen: fitToScreen,
 				onFillScreen: fillScreen,
-				onActualSize: () => setZoom(1),
+				onActualSize: () => imageEditorStore.zoomActual(),
 				onReset: resetZoom
 			}
 		});
@@ -57,15 +57,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 	}
 
 	function fitToScreen() {
-		const { imageElement } = storeState;
-		if (!imageElement) {
-			return;
-		}
-		const baseZoom =
-			typeof storeState.zoom === 'number' && storeState.zoom > 0 ? storeState.zoom : 1;
-		setZoom(Math.max(0.35, Math.min(baseZoom, 1)));
-		storeState.translateX = 0;
-		storeState.translateY = 0;
+		imageEditorStore.fitToView();
 	}
 
 	function fillScreen() {

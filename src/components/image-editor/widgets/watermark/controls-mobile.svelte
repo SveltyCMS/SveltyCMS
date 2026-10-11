@@ -50,38 +50,10 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 		{ label: 'XL', value: 200 }
 	] as const;
 
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
-		switch (e.key) {
-			case 'Delete':
-			case 'Backspace':
-				if (hasSelection) {
-					e.preventDefault();
-					onDeleteWatermark();
-				}
-				break;
-			case 't':
-			case 'T':
-				if (onAddText) {
-					e.preventDefault();
-					onAddText();
-				}
-				break;
-			case 'i':
-			case 'I':
-				e.preventDefault();
-				onAddImage();
-				break;
-		}
-	}
-
 	function isSizeActive(value: number): boolean {
 		return Math.abs(currentSize - value) < 5;
 	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div class="watermark-controls-mobile" role="toolbar" aria-label="Watermark controls">
 	<div class="watermark-mobile-strip" role="group" aria-label="Watermark actions">

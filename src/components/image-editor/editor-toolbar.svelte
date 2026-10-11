@@ -29,34 +29,10 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 	const isComparing = $derived(imageEditorStore.compareSliderPosition > 0);
 	const zoomPercent = $derived(Math.round(imageEditorStore.state.zoom * 100));
 
-	function handleKeyDown(e: KeyboardEvent) {
-		const target = e.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
-		const cmdOrCtrl = e.metaKey || e.ctrlKey;
-
-		if (cmdOrCtrl && e.key === 's') {
-			e.preventDefault();
-			onsave();
-		}
-
-		if (cmdOrCtrl && !e.shiftKey && e.key === 'z') {
-			e.preventDefault();
-			imageEditorStore.handleUndo();
-		}
-
-		if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
-			e.preventDefault();
-			imageEditorStore.handleRedo();
-		}
-	}
-
 	function toggleCompare() {
 		imageEditorStore.compareSliderPosition = imageEditorStore.compareSliderPosition > 0 ? 0 : 50;
 	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <header
 	class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-[--editor-chrome-bg] border-b border-[--editor-chrome-border]"
@@ -71,9 +47,10 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
 				class:editor-toolbar-solo-btn-active={isComparing}
 				onclick={toggleCompare}
-				title="Compare before / after"
+				title="Compare before / after (\)"
 				aria-pressed={isComparing}
 				aria-label="Toggle compare mode"
+				aria-keyshortcuts="\\"
 			>
 				<iconify-icon icon="mdi:compare-horizontal" width="18" aria-hidden="true"></iconify-icon>
 			</button>
@@ -131,9 +108,9 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 						type="button"
 						class="zoom-pill-value min-w-12 px-1 text-xs font-medium tabular-nums text-center cursor-pointer bg-transparent border-none border-x border-[--editor-chrome-border-subtle] text-[--editor-chrome-text-hover] hover:bg-white/5 hover:rounded"
 						onclick={onZoomReset}
-						title="Reset zoom (0)"
-						aria-label="Reset zoom to fit"
-						aria-keyshortcuts="0"
+						title="Fit image (Mod+0). Actual size is Mod+1"
+						aria-label="Fit image in view"
+						aria-keyshortcuts="Mod+0"
 					>
 						{zoomPercent}%
 					</button>

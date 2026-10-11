@@ -13,8 +13,9 @@ for the image editor canvas with reactive rendering.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
+	import { logger } from '@utils/logger';
 	import type { Snippet } from 'svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { Canvas, Layer } from 'svelte-canvas';
 
@@ -97,7 +98,20 @@ for the image editor canvas with reactive rendering.
 	}
 
 	// --- Web Worker for Filter Processing ---
+	// Sharpness is baked into a capped preview bitmap. Pan and zoom only redraw that bitmap.
 	let _filterWorker: Worker | null = $state(null);
+	let workerFailed = $state(false);
+	let sharpenedPreview = $state<ImageBitmap | null>(null);
+	let previewToken = 0;
+	let compareDragging = $state(false);
+	let compareHover = $state(false);
+
+	const COMPARE_HIT = 16;
+
+	function nearCompareSplit(x: number) {
+		if (storeState.compareSliderPosition <= 0 || containerWidth <= 0) return false;
+		return Math.abs(x - (containerWidth * storeState.compareSliderPosition) / 100) <= COMPARE_HIT;
+	}
 
 	// --- Touch gesture state for pinch-to-zoom and two-finger pan ---
 	let touchStartDistance = $state(0);
@@ -121,6 +135,11 @@ for the image editor canvas with reactive rendering.
 
 		const pt = canvasPointer(e, e.currentTarget);
 		lastToolCanvasPoint = pt;
+
+		if (nearCompareSplit(pt.x)) {
+			compareDragging = true;
+			return;
+		}
 
 		if (activeTool?.handleMouseDown) {
 			activeTool.handleMouseDown(e, containerWidth, containerHeight, pt.x, pt.y);
@@ -152,6 +171,15 @@ for the image editor canvas with reactive rendering.
 			return;
 		}
 
+		if (compareDragging) {
+			const pt = canvasPointer(e, e.currentTarget);
+			const width = containerWidth || 1;
+			storeState.compareSliderPosition = Math.max(1, Math.min(100, (pt.x / width) * 100));
+			return;
+		}
+
+		compareHover = nearCompareSplit(canvasPointer(e, e.currentTarget).x);
+
 		if (activeTool?.handleMouseMove) {
 			const pt = canvasPointer(e, e.currentTarget);
 			lastToolCanvasPoint = pt;
@@ -166,6 +194,10 @@ for the image editor canvas with reactive rendering.
 	}
 
 	function handleMouseUp(e: MouseEvent) {
+		if (compareDragging) {
+			compareDragging = false;
+			return;
+		}
 		if (activeTool?.handleMouseUp) {
 			const pt = canvasPointer(e, e.currentTarget);
 			lastToolCanvasPoint = pt;
@@ -211,6 +243,12 @@ for the image editor canvas with reactive rendering.
 			touchStartDistance = getTouchDistance(e.touches);
 			touchStartZoom = storeState.zoom;
 			touchStartMidpoint = getTouchMidpoint(e.touches);
+		} else if (
+			e.touches.length === 1 &&
+			nearCompareSplit(canvasPointer(e.touches[0], e.currentTarget).x)
+		) {
+			e.preventDefault();
+			compareDragging = true;
 		} else if (e.touches.length === 1 && activeTool?.handleMouseDown) {
 			e.preventDefault();
 			const touch = e.touches[0];
@@ -248,6 +286,11 @@ for the image editor canvas with reactive rendering.
 				storeState.translateY += dy;
 				touchStartMidpoint = currentMidpoint;
 			}
+		} else if (e.touches.length === 1 && compareDragging) {
+			e.preventDefault();
+			const pt = canvasPointer(e.touches[0], e.currentTarget);
+			const width = containerWidth || 1;
+			storeState.compareSliderPosition = Math.max(1, Math.min(100, (pt.x / width) * 100));
 		} else if (e.touches.length === 1 && isPanning) {
 			const dx = e.touches[0].clientX - lastPos.x;
 			const dy = e.touches[0].clientY - lastPos.y;
@@ -270,8 +313,11 @@ for the image editor canvas with reactive rendering.
 	}
 
 	function handleTouchEnd(_e: TouchEvent) {
+		const wasCompare = compareDragging;
 		isMultiTouch = false;
 		isPanning = false;
+		compareDragging = false;
+		if (wasCompare) return;
 		if (activeTool?.handleMouseUp) {
 			activeTool.handleMouseUp(
 				new MouseEvent('mouseup', {}),
@@ -368,111 +414,24 @@ for the image editor canvas with reactive rendering.
 		return parts.join(' ');
 	}
 
-	function applySharpness(
-		canvasContext: CanvasRenderingContext2D,
-		width: number,
-		height: number,
-		filters: Record<string, number>
-	) {
-		const sharpness = filters.sharpness ?? 0;
-		const clarity = filters.clarity ?? 0;
-		const strength = sharpness / 72 + clarity / 92;
-		if (strength === 0) {
-			return;
-		}
-
-		const imageData = canvasContext.getImageData(0, 0, width, height);
-		const { data } = imageData;
-		const output = new Uint8ClampedArray(data.length);
-		const clamp = (value: number) => Math.max(0, Math.min(255, value));
-
-		if (strength < 0) {
-			const amount = Math.min(1, Math.abs(strength));
-			for (let y = 0; y < height; y++) {
-				for (let x = 0; x < width; x++) {
-					const index = (y * width + x) * 4;
-					let red = 0;
-					let green = 0;
-					let blue = 0;
-					let samples = 0;
-
-					for (let ky = -1; ky <= 1; ky++) {
-						const py = Math.max(0, Math.min(height - 1, y + ky));
-						for (let kx = -1; kx <= 1; kx++) {
-							const px = Math.max(0, Math.min(width - 1, x + kx));
-							const sourceIndex = (py * width + px) * 4;
-							red += data[sourceIndex];
-							green += data[sourceIndex + 1];
-							blue += data[sourceIndex + 2];
-							samples++;
-						}
-					}
-
-					const blurredRed = red / samples;
-					const blurredGreen = green / samples;
-					const blurredBlue = blue / samples;
-
-					output[index] = clamp(data[index] * (1 - amount) + blurredRed * amount);
-					output[index + 1] = clamp(data[index + 1] * (1 - amount) + blurredGreen * amount);
-					output[index + 2] = clamp(data[index + 2] * (1 - amount) + blurredBlue * amount);
-					output[index + 3] = data[index + 3];
-				}
-			}
-			imageData.data.set(output);
-			canvasContext.putImageData(imageData, 0, 0);
-			return;
-		}
-
-		const amount = Math.min(1, strength);
-		const sideWeight = -amount * 0.6;
-		const centerWeight = 1 + amount * 4.8;
-		const totalWeight = centerWeight + sideWeight * 4;
-		const normalize = totalWeight !== 0 ? totalWeight : 1;
-
-		for (let y = 0; y < height; y++) {
-			for (let x = 0; x < width; x++) {
-				const index = (y * width + x) * 4;
-				let red = 0;
-				let green = 0;
-				let blue = 0;
-				let alpha = data[index + 3];
-
-				for (let ky = -1; ky <= 1; ky++) {
-					const py = Math.max(0, Math.min(height - 1, y + ky));
-					for (let kx = -1; kx <= 1; kx++) {
-						const px = Math.max(0, Math.min(width - 1, x + kx));
-						const sourceIndex = (py * width + px) * 4;
-						const weight =
-							kx === 0 && ky === 0 ? centerWeight : kx === 0 || ky === 0 ? sideWeight : 0;
-						red += data[sourceIndex] * weight;
-						green += data[sourceIndex + 1] * weight;
-						blue += data[sourceIndex + 2] * weight;
-					}
-				}
-
-				output[index] = clamp(red / normalize);
-				output[index + 1] = clamp(green / normalize);
-				output[index + 2] = clamp(blue / normalize);
-				output[index + 3] = alpha;
-			}
-		}
-
-		imageData.data.set(output);
-		canvasContext.putImageData(imageData, 0, 0);
-	}
-
 	function drawSourceImage(
 		context: CanvasRenderingContext2D,
 		imageElement: HTMLImageElement,
-		crop: { x: number; y: number; width: number; height: number } | null
+		crop: { x: number; y: number; width: number; height: number } | null,
+		edited = true
 	) {
+		const bitmap = edited ? sharpenedPreview : null;
+		const source: CanvasImageSource = bitmap ?? imageElement;
+		const scaleX = bitmap && imageElement.width > 0 ? bitmap.width / imageElement.width : 1;
+		const scaleY = bitmap && imageElement.height > 0 ? bitmap.height / imageElement.height : 1;
+
 		if (crop) {
 			context.drawImage(
-				imageElement,
-				crop.x,
-				crop.y,
-				crop.width,
-				crop.height,
+				source,
+				crop.x * scaleX,
+				crop.y * scaleY,
+				crop.width * scaleX,
+				crop.height * scaleY,
 				-crop.width / 2,
 				-crop.height / 2,
 				crop.width,
@@ -482,7 +441,7 @@ for the image editor canvas with reactive rendering.
 		}
 
 		context.drawImage(
-			imageElement,
+			source,
 			-imageElement.width / 2,
 			-imageElement.height / 2,
 			imageElement.width,
@@ -597,7 +556,7 @@ for the image editor canvas with reactive rendering.
 			context.translate(width / 2 + translateX, height / 2 + translateY);
 			context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
 			context.rotate((rotation * Math.PI) / 180);
-			drawSourceImage(context, imageElement, drawCrop);
+			drawSourceImage(context, imageElement, drawCrop, false);
 			context.restore();
 
 			// Draw edited (end side)
@@ -610,8 +569,7 @@ for the image editor canvas with reactive rendering.
 			context.rotate((rotation * Math.PI) / 180);
 			const editedFilterString = buildFilterString(filters);
 			if (editedFilterString) context.filter = editedFilterString;
-			drawSourceImage(context, imageElement, drawCrop);
-			applySharpness(context, width, height, filters);
+			drawSourceImage(context, imageElement, drawCrop, true);
 			drawBlurRegions(
 				context,
 				imageElement,
@@ -629,6 +587,14 @@ for the image editor canvas with reactive rendering.
 			context.moveTo(splitX, 0);
 			context.lineTo(splitX, height);
 			context.stroke();
+			context.beginPath();
+			context.arc(splitX, height / 2, 9, 0, Math.PI * 2);
+			context.fillStyle = 'rgba(255,255,255,0.92)';
+			context.fill();
+			context.lineWidth = 2;
+			context.strokeStyle = 'rgba(0,0,0,0.45)';
+			context.setLineDash([]);
+			context.stroke();
 			context.restore();
 		} else {
 			// Normal render (no compare)
@@ -639,8 +605,7 @@ for the image editor canvas with reactive rendering.
 
 			const filterString = buildFilterString(activeFilters);
 			if (filterString) context.filter = filterString;
-			drawSourceImage(context, imageElement, drawCrop);
-			applySharpness(context, width, height, activeFilters);
+			drawSourceImage(context, imageElement, drawCrop, true);
 			drawBlurRegions(
 				context,
 				imageElement,
@@ -651,6 +616,86 @@ for the image editor canvas with reactive rendering.
 		}
 	};
 
+	$effect(() => {
+		const image = storeState.imageElement;
+		const sharpness = storeState.filters.sharpness ?? 0;
+		const clarity = storeState.filters.clarity ?? 0;
+		const worker = _filterWorker;
+		const failed = workerFailed;
+		const strength = sharpness / 72 + clarity / 92;
+
+		if (!image || strength === 0 || typeof document === 'undefined') {
+			previewToken += 1;
+			untrack(() => {
+				sharpenedPreview?.close();
+				sharpenedPreview = null;
+			});
+			return;
+		}
+
+		if (!worker && !failed) return;
+
+		const token = ++previewToken;
+		const keyFilters = { sharpness, clarity };
+		let onMessage: ((event: MessageEvent) => void) | null = null;
+
+		const timer = setTimeout(() => {
+			if (token !== previewToken) return;
+			const maxEdge = 1600;
+			const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+			const width = Math.max(1, Math.round(image.width * scale));
+			const height = Math.max(1, Math.round(image.height * scale));
+			const offscreen = document.createElement('canvas');
+			offscreen.width = width;
+			offscreen.height = height;
+			const offscreenContext = offscreen.getContext('2d', { willReadFrequently: true });
+			if (!offscreenContext) return;
+			offscreenContext.drawImage(image, 0, 0, width, height);
+			const imageData = offscreenContext.getImageData(0, 0, width, height);
+
+			const accept = (bitmap: ImageBitmap) => {
+				if (token !== previewToken) {
+					bitmap.close();
+					return;
+				}
+				untrack(() => {
+					sharpenedPreview?.close();
+					sharpenedPreview = bitmap;
+				});
+			};
+
+			if (worker) {
+				onMessage = (event: MessageEvent) => {
+					const message = event.data as { type?: string; data?: ImageData };
+					if (token !== previewToken || message?.type !== 'sharpnessApplied' || !message.data)
+						return;
+					createImageBitmap(message.data)
+						.then(accept)
+						.catch((err) => logger.debug('[ImageEditor] Sharpness preview failed', err));
+				};
+				worker.addEventListener('message', onMessage);
+				worker.postMessage(
+					{ type: 'applySharpness', imageData, width, height, filters: keyFilters },
+					[imageData.data.buffer]
+				);
+				return;
+			}
+
+			void import('./workers/filter.worker')
+				.then(({ applySharpness }) => {
+					if (token !== previewToken) return;
+					const result = applySharpness(imageData, width, height, keyFilters);
+					return createImageBitmap(result).then(accept);
+				})
+				.catch((err) => logger.debug('[ImageEditor] Sharpness preview failed', err));
+		}, 48);
+
+		return () => {
+			clearTimeout(timer);
+			if (onMessage && worker) worker.removeEventListener('message', onMessage);
+		};
+	});
+
 	onMount(() => {
 		mounted = true;
 
@@ -659,8 +704,9 @@ for the image editor canvas with reactive rendering.
 			_filterWorker = new Worker(new URL('./workers/filter.worker.ts', import.meta.url), {
 				type: 'module'
 			});
-		} catch (_err) {
-			// Fall back to main thread silently
+		} catch (err) {
+			workerFailed = true;
+			logger.debug('[ImageEditor] Filter worker unavailable', err);
 		}
 
 		if (containerRef) {
@@ -670,6 +716,7 @@ for the image editor canvas with reactive rendering.
 					if (width > 0 && height > 0) {
 						containerWidth = width;
 						containerHeight = height;
+						imageEditorStore.state.canvasSize = { width, height };
 					}
 				}
 			});
@@ -679,6 +726,7 @@ for the image editor canvas with reactive rendering.
 		return () => {
 			resizeObserver?.disconnect();
 			_filterWorker?.terminate();
+			sharpenedPreview?.close();
 		};
 	});
 </script>
@@ -692,9 +740,10 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none {isDragging
-			? 'bg-primary-500/10'
-			: ''}"
+		class="canvas-container block h-full w-full border-0 p-0 text-start focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none {compareHover ||
+		compareDragging
+			? 'cursor-ew-resize'
+			: 'cursor-grab active:cursor-grabbing'} {isDragging ? 'bg-primary-500/10' : ''}"
 		class:border-2={isDragging}
 		class:border-tertiary-500={isDragging}
 		class:dark:border-primary-500={isDragging}
@@ -712,21 +761,13 @@ for the image editor canvas with reactive rendering.
 		ontouchmove={handleTouchMove}
 		ontouchend={handleTouchEnd}
 		ontouchcancel={handleTouchEnd}
-		onkeydown={(e) => {
-			// Basic keyboard support for pan/zoom
-			if (e.key === '+' || e.key === '=') {
-				imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
-			} else if (e.key === '-' || e.key === '_') {
-				imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
-			}
-		}}
-		aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
+		aria-label="Interactive image canvas. Drag to pan, scroll to zoom, drag the compare line to wipe."
 	>
 		{#if containerWidth > 0 && containerHeight > 0}
 			<Canvas
 				width={containerWidth}
 				height={containerHeight}
-				autoplay={hasImage}
+				autoplay={false}
 				contextSettings={{ alpha: false }}
 			>
 				<Layer render={renderImage} />

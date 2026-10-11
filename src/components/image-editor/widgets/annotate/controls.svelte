@@ -30,29 +30,13 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 		onDeleteAnnotation?: () => void;
 	} = $props();
 
-	const annotateTools: { id: ToolType; label: string; icon: string }[] = [
-		{ id: 'text', label: 'Text', icon: 'mdi:format-text' },
-		{ id: 'arrow', label: 'Arrow', icon: 'mdi:arrow-top-right' },
-		{ id: 'rectangle', label: 'Rectangle', icon: 'mdi:rectangle-outline' },
-		{ id: 'circle', label: 'Ellipse', icon: 'mdi:circle-outline' }
+	const annotateTools: { id: ToolType; label: string; icon: string; shortcut: string }[] = [
+		{ id: 'text', label: 'Text', icon: 'mdi:format-text', shortcut: 'T' },
+		{ id: 'arrow', label: 'Arrow', icon: 'mdi:arrow-top-right', shortcut: 'A' },
+		{ id: 'rectangle', label: 'Rectangle', icon: 'mdi:rectangle-outline', shortcut: 'R' },
+		{ id: 'circle', label: 'Ellipse', icon: 'mdi:circle-outline', shortcut: 'O' }
 	];
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if (
-			(e.target as HTMLElement)?.tagName === 'INPUT' ||
-			(e.target as HTMLElement)?.tagName === 'TEXTAREA'
-		) {
-			return;
-		}
-
-		if ((e.key === 'Delete' || e.key === 'Backspace') && hasSelection && onDeleteAnnotation) {
-			e.preventDefault();
-			onDeleteAnnotation();
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div
 	class="flex flex-col flex-[0_0_auto] gap-0 items-stretch w-full min-w-0 h-auto leading-none"
@@ -131,7 +115,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 				type="button"
 				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onDeleteAnnotation}
-				title="Delete selected annotation"
+				title="Delete selected annotation (Delete)"
 				aria-label="Delete annotation"
 			>
 				<iconify-icon icon="mdi:delete-outline" width="15" aria-hidden="true"></iconify-icon>
@@ -148,7 +132,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 					class:text-white={currentTool === tool.id}
 					onclick={() => onSetTool(tool.id)}
-					title={tool.label}
+					title="{tool.label} ({tool.shortcut})"
 					aria-pressed={currentTool === tool.id}
 					aria-label={tool.label}
 				>

@@ -7,13 +7,11 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	import type { CropShape } from './types';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 
-	// `crop` and `onCropChange` props are still passed by tool.svelte but only consumed by
-	// the temporarily hidden numeric inputs — uncomment them together with that block.
 	let {
-		// crop,
+		crop,
 		onCropShapeChange,
 		onAspectRatio,
-		// onCropChange,
+		onCropChange,
 		cropShape
 	}: {
 		crop?: { x: number; y: number; width: number; height: number };
@@ -23,6 +21,8 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		cropShape: CropShape;
 	} = $props();
 
+	const fieldId = $props.id();
+
 	interface AspectPreset {
 		label: string;
 		ratio: number;
@@ -31,13 +31,13 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	}
 
 	const aspectPresets: AspectPreset[] = [
-		{ label: 'Free', ratio: 0, icon: 'mdi:crop-free', shortcut: '0' },
+		{ label: 'Free', ratio: 0, icon: 'mdi:crop-free', shortcut: 'F' },
 		{ label: '1:1', ratio: 1, icon: 'mdi:crop-square', shortcut: '1' },
 		{ label: '4:3', ratio: 4 / 3, icon: 'mdi:crop-landscape', shortcut: '2' },
-		{ label: '3:2', ratio: 3 / 2, icon: 'mdi:crop-3-2' },
+		{ label: '3:2', ratio: 3 / 2, icon: 'mdi:crop-3-2', shortcut: '4' },
 		{ label: '16:9', ratio: 16 / 9, icon: 'mdi:crop-16-9', shortcut: '3' },
-		{ label: '9:16', ratio: 9 / 16, icon: 'mdi:crop-portrait' },
-		{ label: '2:3', ratio: 2 / 3, icon: 'mdi:crop-2-3' }
+		{ label: '9:16', ratio: 9 / 16, icon: 'mdi:crop-portrait', shortcut: '5' },
+		{ label: '2:3', ratio: 2 / 3, icon: 'mdi:crop-2-3', shortcut: '6' }
 	];
 
 	const shapes: { id: CropShape; icon: string; label: string }[] = [
@@ -61,55 +61,18 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		}
 	});
 
-	function handleRatio(ratio: number | null) {
-		if (ratio === 0) {
-			activePreset = 0;
-			onAspectRatio(null);
-		} else if (ratio) {
-			activePreset = aspectPresets.findIndex((p) => p.ratio === ratio);
-			if (activePreset === -1) activePreset = 1;
-			onAspectRatio(ratio);
-		} else {
-			activePreset = 0;
-		}
-	}
-
 	function selectPreset(preset: AspectPreset, index: number) {
 		activePreset = index;
 		onAspectRatio(preset.ratio || null);
 	}
 
-	// Numeric crop inputs temporarily hidden — restore alongside the commented markup below
-	// function updateCropField(field: 'x' | 'y' | 'width' | 'height', value: string) {
-	// 	const numeric = Number.parseInt(value, 10);
-	// 	if (!Number.isFinite(numeric)) return;
-	// 	onCropChange({ ...crop, [field]: numeric });
-	// }
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
-		const cmdOrCtrl = e.metaKey || e.ctrlKey;
-
-		switch (e.key) {
-			case '1':
-				e.preventDefault();
-				handleRatio(1);
-				break;
-			case '0':
-				e.preventDefault();
-				handleRatio(0);
-				break;
-			case '3':
-				if (!cmdOrCtrl) {
-					e.preventDefault();
-					handleRatio(16 / 9);
-				}
-				break;
-		}
+	function updateCropField(field: 'x' | 'y' | 'width' | 'height', value: string) {
+		if (!crop || !onCropChange) return;
+		const numeric = Number.parseInt(value, 10);
+		if (!Number.isFinite(numeric)) return;
+		onCropChange({ ...crop, [field]: numeric });
 	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div
 	class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none"
@@ -117,12 +80,12 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	aria-label="Crop controls"
 >
 	<div
-		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
 	>
 		{#each aspectPresets as preset, i (preset.label)}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				class:text-white={activePreset === i}
 				onclick={() => selectPreset(preset, i)}
 				title="{preset.label}{preset.shortcut ? ` (${preset.shortcut})` : ''}"
@@ -139,7 +102,7 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		{#each shapes as shape (shape.id)}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				class:text-white={cropShape === shape.id}
 				onclick={() => onCropShapeChange(shape.id)}
 				title={shape.label}
@@ -152,24 +115,29 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		{/each}
 	</div>
 
-	<!-- Numeric crop inputs temporarily hidden — restore by uncommenting this block
-	<div class="flex flex-wrap gap-2 items-center justify-center w-full">
-		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-x">
-			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">x</span>
-			<input id="crop-x" type="number" value={crop.x} min="0" oninput={(e) => updateCropField('x', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
-		</label>
-		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-y">
-			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">y</span>
-			<input id="crop-y" type="number" value={crop.y} min="0" oninput={(e) => updateCropField('y', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
-		</label>
-		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-w">
-			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">w</span>
-			<input id="crop-w" type="number" value={crop.width} min="1" oninput={(e) => updateCropField('width', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
-		</label>
-		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-h">
-			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">h</span>
-			<input id="crop-h" type="number" value={crop.height} min="1" oninput={(e) => updateCropField('height', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
-		</label>
-	</div>
-	-->
+	{#if crop && onCropChange}
+		<div
+			class="flex flex-nowrap gap-1.5 items-center justify-center w-full"
+			role="group"
+			aria-label="Crop pixels"
+		>
+			{#each [{ key: 'x', field: 'x', value: crop.x, min: 0 }, { key: 'y', field: 'y', value: crop.y, min: 0 }, { key: 'w', field: 'width', value: crop.width, min: 1 }, { key: 'h', field: 'height', value: crop.height, min: 1 }] as field (field.key)}
+				<label class="flex items-center gap-1" for="{fieldId}-{field.key}">
+					<span class="text-[10px] font-normal text-white/45 lowercase">{field.key}</span>
+					<input
+						id="{fieldId}-{field.key}"
+						type="number"
+						value={Math.round(field.value)}
+						min={field.min}
+						onchange={(e) =>
+							updateCropField(
+								field.field as 'x' | 'y' | 'width' | 'height',
+								(e.currentTarget as HTMLInputElement).value
+							)}
+						class="w-14 h-7 px-1 text-[11px] text-white text-center bg-white/6 border border-transparent rounded-md outline-none focus-visible:border-white/30 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+					/>
+				</label>
+			{/each}
+		</div>
+	{/if}
 </div>

@@ -40,21 +40,34 @@ const isMac =
 const MOD = isMac ? "meta" : "ctrl";
 
 function normalizeCombo(combo: string): string {
-  return combo
-    .toLowerCase()
-    .replace(/\bmod\b/g, MOD)
-    .replace(/\s*\+\s*/g, "+")
-    .trim();
+  return (
+    combo
+      .toLowerCase()
+      .replace(/\bmod\b/g, MOD)
+      // `KeyboardEvent.key` is "Escape" and `eventMatches` aliases it to "esc", so
+      // the combo must resolve to the same token or an `escape` shortcut (the
+      // editor's close key) never fires.
+      .replace(/\bescape\b/g, "esc")
+      .replace(/\s*\+\s*/g, "+")
+      .trim()
+  );
 }
 
 function eventMatches(e: KeyboardEvent, combo: string): boolean {
-  const parts = combo.split("+");
+  // "+" is both the separator and a key (`Shift+=` on a US keyboard). A lone "+"
+  // or a combo that ends in "++" (`ctrl++`) means the key itself is plus.
+  // "+".split("+") is ["", ""], which previously matched every unmodified key.
+  const modifiers = new Set(["meta", "ctrl", "alt", "shift", "cmd", "option"]);
+  const plusIsKey = combo === "+" || combo.endsWith("++");
+  const parts = (plusIsKey ? combo.slice(0, -1) : combo)
+    .split("+")
+    .filter((part) => part.length > 0);
   const required = {
     meta: parts.includes("meta") || parts.includes("cmd"),
     ctrl: parts.includes("ctrl"),
     alt: parts.includes("alt") || parts.includes("option"),
     shift: parts.includes("shift"),
-    key: parts.find((p) => !["meta", "ctrl", "alt", "shift", "cmd", "option"].includes(p)) || "",
+    key: plusIsKey ? "+" : parts.find((part) => !modifiers.has(part)) || "",
   };
 
   let keyLower = e.key.toLowerCase();
@@ -65,11 +78,16 @@ function eventMatches(e: KeyboardEvent, combo: string): boolean {
     required.key === "delete" &&
     (keyLower === "delete" || (keyLower === "backspace" && !required.shift));
 
+  // `+` and `_` are shifted keys on a US layout (`Shift+=`, `Shift+-`).
+  // A combo written as "+" still matches when Shift is held.
+  const shiftOptional =
+    !required.shift && (required.key === "+" || required.key === "_" || required.key === "?");
+
   return (
     e.metaKey === required.meta &&
     e.ctrlKey === required.ctrl &&
     e.altKey === required.alt &&
-    e.shiftKey === required.shift &&
+    (shiftOptional || e.shiftKey === required.shift) &&
     (required.key === "" || keyLower === required.key || isDeleteAlias)
   );
 }

@@ -7,6 +7,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 -->
 
 <script lang="ts">
+	import { bindShortcuts } from '@components/image-editor/bind-shortcuts';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { generateUUID } from '@utils/native-utils';
 	import { Layer } from 'svelte-canvas';
@@ -443,6 +444,26 @@ Allows users to add text, arrows, rectangles, and circles to images.
 			previewPoint = null;
 		}
 	}
+
+	$effect(() => {
+		if (imageEditorStore.state.activeState !== 'annotate') return;
+		return bindShortcuts([
+			['t', () => setTool('text'), 'Text annotation'],
+			['a', () => setTool('arrow'), 'Arrow annotation'],
+			['r', () => setTool('rectangle'), 'Rectangle annotation'],
+			['o', () => setTool('circle'), 'Ellipse annotation'],
+			[
+				'delete',
+				(event) => {
+					if (!selectedAnnotationId) return;
+					event.preventDefault();
+					deleteSelectedAnnotation();
+				},
+				'Delete annotation',
+				false
+			]
+		]);
+	});
 
 	// Toolbar update
 	$effect(() => {

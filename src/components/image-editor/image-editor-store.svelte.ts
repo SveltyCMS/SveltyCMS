@@ -4,6 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { normalizeFocalPercent } from "@utils/media/focal-point";
 import type { Component } from "svelte";
 
 // Types
@@ -99,7 +100,7 @@ function createImageEditorStore() {
     canvasSize: { width: 0, height: 0 },
     crop: null,
     currentAspectRatio: null,
-    focalPoint: { x: 0.5, y: 0.5 },
+    focalPoint: { x: 50, y: 50 },
     filters: {
       brightness: 0,
       contrast: 0,
@@ -220,7 +221,7 @@ function createImageEditorStore() {
       state.translateY = snapshot.translateY ?? 0;
       state.crop = snapshot.crop ?? null;
       state.currentAspectRatio = snapshot.currentAspectRatio ?? null;
-      state.focalPoint = snapshot.focalPoint ?? { x: 0.5, y: 0.5 };
+      state.focalPoint = normalizeFocalPercent(snapshot.focalPoint);
       state.filters = snapshot.filters ?? {};
       state.annotations = snapshot.annotations ?? [];
       state.blurRegions = snapshot.blurRegions ?? [];
@@ -293,7 +294,7 @@ function createImageEditorStore() {
     state.annotations = [];
     state.blurRegions = [];
     state.watermarks = [];
-    state.focalPoint = { x: 0.5, y: 0.5 };
+    state.focalPoint = { x: 50, y: 50 };
     state.stateHistory = [];
     state.currentHistoryIndex = -1;
     state.preToolSnapshot = null;
@@ -340,6 +341,43 @@ function createImageEditorStore() {
 
   function updateZoom(delta: number) {
     state.zoom = Math.max(0.1, Math.min(5, state.zoom + delta));
+  }
+
+  /** Multiply the current zoom. Used by + / − and the toolbar. */
+  function zoomBy(factor: number) {
+    state.zoom = Math.max(0.1, Math.min(5, state.zoom * factor));
+  }
+
+  /** Photoshop Cmd+1 — 100% of the source pixel size, centered. */
+  function zoomActual() {
+    state.zoom = 1;
+    state.translateX = 0;
+    state.translateY = 0;
+  }
+
+  /**
+   * Photoshop Cmd+0 — fit the image inside the canvas.
+   * Ratios match the fit applied when an image first opens.
+   */
+  function fitToView() {
+    const img = state.imageElement;
+    const width = state.canvasSize.width;
+    const height = state.canvasSize.height;
+    state.translateX = 0;
+    state.translateY = 0;
+    if (!img || width <= 0 || height <= 0 || img.width <= 0 || img.height <= 0) {
+      state.zoom = 1;
+      return;
+    }
+    const mobile = computeIsMobile();
+    const widthFitRatio = mobile ? 0.84 : 0.82;
+    const heightFitRatio = mobile ? 0.62 : 0.82;
+    const fitScale = Math.min(
+      (width * widthFitRatio) / img.width,
+      (height * heightFitRatio) / img.height,
+    );
+    const portraitBoost = !mobile && height > width * 1.08 ? 1.04 : 1;
+    state.zoom = Math.min(5, Math.max(0.1, fitScale * portraitBoost));
   }
 
   return {
@@ -399,6 +437,9 @@ function createImageEditorStore() {
     flipH,
     flipV,
     updateZoom,
+    zoomBy,
+    zoomActual,
+    fitToView,
     saveHistory: takeSnapshot,
     get canUndo() {
       return canUndoState;
