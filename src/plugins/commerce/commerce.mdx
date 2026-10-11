@@ -1,12 +1,12 @@
 ---
 path: "src/plugins/commerce/commerce.mdx"
 title: "Commerce Plugin"
-description: "Optional guest cart, quotes, inventory, and checkout. Tenant-scoped. Stripe is a payment adapter only."
+description: "Optional guest cart, quotes, inventory, checkout, and orders. Tenant-scoped. Stripe is a payment adapter only."
 order: 100
 icon: "mdi:cart-outline"
 author: "SveltyCMS Team"
 created: "2026-08-19"
-updated: "2026-08-19"
+updated: "2026-10-11"
 license: "Freemium (marketplace.sveltycms.com)"
 tags:
   - "commerce"
@@ -19,7 +19,7 @@ tags:
 
 Opt-in store pipeline. Enable it in **Config → Extensions**. Without it, `/api/commerce/*` returns `403 COMMERCE_DISABLED`. The ecommerce Setup Wizard **preset** still provides collections; this plugin provides behavior.
 
-There is no fifth “API extension” type: HTTP is either `{ type: "route" }` on a plugin or a catch-all handler that calls `assertPluginEnabled`. Commerce uses the latter so guest CSRF and `tenantId` stay in one place.
+There is no fifth "API extension" type: HTTP is either `{ type: "route" }` on a plugin or a catch-all handler that calls `assertPluginEnabled`. Commerce uses the latter so guest CSRF and `tenantId` stay in one place. A missing preset fails closed: `503 COMMERCE_PRESET_MISSING` while `products` or `carts` is absent.
 
 Guest cart and checkout do **not** go through `/api/plugins/[pluginId]` (that path requires `plugins:execute`). They use `/api/commerce/*` with CSRF on mutations.
 
@@ -27,24 +27,86 @@ Guest cart and checkout do **not** go through `/api/plugins/[pluginId]` (that pa
 
 Every cart, order, coupon, tax rate, shipping zone, and stock update is filtered by `locals.tenantId`. The cart cookie stores only an opaque session id — never a tenant id. When multi-tenancy is on, a missing tenant is `400 TENANT_REQUIRED`.
 
-## Guest API
+## HTTP surface
 
-| Method                        | Path                              | Auth                                              |
-| ----------------------------- | --------------------------------- | ------------------------------------------------- |
-| `GET`/`POST`/`PATCH`/`DELETE` | `/api/commerce/cart`              | Public + CSRF on mutations                        |
-| `POST`                        | `/api/commerce/quote`             | Public + CSRF                                     |
-| `POST`                        | `/api/commerce/coupon`            | Public + CSRF                                     |
-| `POST`                        | `/api/commerce/checkout`          | Public + CSRF                                     |
-| `POST`                        | `/api/commerce/pay`               | Public + CSRF — amount is **server `grandTotal`** |
-| `GET`                         | `/api/commerce/orders`            | Authenticated                                     |
-| `POST`                        | `/api/commerce/orders/:id/refund` | Authenticated write                               |
+`handleCommerceRoutes` (`src/routes/api/[...path]/handlers/commerce.ts`) dispatches on the first path segment.
+
+| Method                | Path                                            | Auth                                                                     |
+| --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET`                 | `/api/commerce/cart`                            | Public — returns (or creates) the session cart                           |
+| `POST`                | `/api/commerce/cart`                            | Public + CSRF — add item (`productId`, `variantSku`, `qty`)              |
+| `PATCH` / `DELETE`    | `/api/commerce/cart`                            | Public + CSRF — set qty / remove a line (`qty: 0`)                       |
+| `POST`                | `/api/commerce/quote`                           | Public + CSRF — cart + totals for a country/state                        |
+| `POST`                | `/api/commerce/coupon`                          | Public + CSRF — apply / clear the cart coupon                            |
+| `GET`                 | `/api/commerce/legal`                           | Public — trader/legal settings + `identityReady`                         |
+| `POST`                | `/api/commerce/withdraw`                        | Public + CSRF — Widerruf (order number + email)                          |
+| `POST`                | `/api/commerce/checkout`                        | Public + CSRF — place the order; `Idempotency-Key`                       |
+| `POST`                | `/api/commerce/pay`                             | Public + CSRF — PaymentIntent for server `grandTotal`; `Idempotency-Key` |
+| `POST`                | `/api/commerce/confirm`                         | Public + CSRF — bind Intent ↔ order, move to `processing`                |
+| `GET`                 | `/api/commerce/panes`                           | Public — Commerce Pro checkout panes                                     |
+| `POST`                | `/api/commerce/subscribe`                       | Commerce Pro — returns `501 NOT_IMPLEMENTED`                             |
+| `GET`                 | `/api/commerce/orders` `/orders/:id`            | Authenticated — owner (by id/email) or admin; `:id` adds `canCancel`     |
+| `POST`                | `/orders/:id/refund` `/orders/:id/ship`         | Admin                                                                    |
+| `POST`                | `/orders/:id/cancel` `/orders/:id/reorder`      | Owner or admin                                                           |
+| `GET`                 | `/orders/:id/downloads`                         | Owner — paid orders only                                                 |
+| `GET` `POST` `DELETE` | `/api/commerce/addresses` `/addresses/:id`      | Authenticated customer                                                   |
+| `GET`                 | `/api/commerce/download?token=…`                | Signed token (no session required)                                       |
+| `POST`                | `/api/commerce/variants`                        | Authenticated — expands the attribute matrix                             |
+| `GET`                 | `/api/commerce/analytics`                       | Admin only                                                               |
+| `GET` / `POST`        | `/api/commerce/stripe/config` `/stripe/webhook` | Publishable key / signature-verified webhook                             |
 
 Line prices are loaded from `products` (tenant-scoped). Client `amount` is ignored.
 
+## Totals engine
+
+`quoteCart` (`quotes.ts`) builds a `PriceBreakdown` from weighted **adjustments** — promotion (10) → shipping (20) → tax (30) → gift card (40) — resolved by `computeTotals` (`src/services/commerce/adjustment-engine.ts`). Money is integer minor units (`Price { amount, currency }`).
+
+With `pricesIncludeTax` (the EU default), `vatFromGross` **extracts** VAT from the gross amount per line `taxClass` (`standard` / `reduced` / `zero`), after the coupon and after taxable shipping — so the consumer total stays the gross total. Coupons support `percentage`, `fixed_cart`, `fixed_product` and `free_shipping`, with `minSpend`, `usageLimit` and `expiresAt`. Shipping comes from `shipping_zones` (country match, `freeThreshold`). Gift cards require Commerce Pro.
+
+Live shipping / tax override the table rows through the `ShippingRateProvider` / `TaxProvider` ports (`fulfillment.ts`). The paid UPS/FedEx/DHL and TaxJar plugins are the implementations; unlicensed, `shipping_zones` / `tax_rates` still quote.
+
+## Payments
+
+`PaymentGateway` (`payment-gateway.ts`) is a PSP-agnostic port: `createIntent` / `retrieveIntent` take integer cents from the server `grandTotal`, never a client amount. Stripe implements it. Offline methods `cod` and `bank_transfer` (`OFFLINE_METHODS` in `order-service.ts`) skip Stripe and return instructions instead.
+
+`/pay` → `/confirm` is the card flow: `/pay` creates the Intent and stores `stripePaymentIntentId`; `/confirm` rejects an Intent that does not belong to the order (`INTENT_MISMATCH`), an amount that differs from `totalCents` (`AMOUNT_MISMATCH`), or a non-`succeeded` status (`PAYMENT_INCOMPLETE`), then transitions to `processing`.
+
+## Order lifecycle
+
+Status values match the ecommerce preset: `pending` · `processing` · `shipped` · `delivered` · `cancelled` · `refunded`. Transitions are gated by `ALLOWED` in `order-service.ts`.
+
+- A customer self-cancels a `pending` order within 60 minutes (`CANCEL_WINDOW`).
+- **Cancel and refund restore stock and release one coupon use.**
+- `/ship` records a validated `trackingUrl` (only `http(s)://`).
+- `/reorder` rebuilds a cart from a past order.
+- Order mail (received, shipped, refunded, withdrawal, merchant new-order, low stock) goes through the CMS [email system](/docs/guides/configuration/email-system.mdx); the order stays placed when mail fails.
+
+## Digital goods
+
+`downloads.server.ts` signs a per-line token (`signDownloadToken`) bound to `{ tenant, order, product }`. `GET /api/commerce/download?token=…` verifies the token, requires a paid status (`paidStatuses()`), and streams the file. `/orders/:id/downloads` resolves the files only after payment. Products carry a `downloadable` flag and a `downloadFile`.
+
+## Addresses
+
+`addresses.ts` — customer-scoped `listAddresses` / `saveAddress` / `deleteAddress` behind authenticated `/api/commerce/addresses`.
+
+## Checkout hardening (2026-10-11)
+
+Two correctness guards on the money path:
+
+- **Oversell guard.** A per-product keyed mutex (`locks.ts`) serializes the read-modify-write in `decrementStock` / `restoreStock`, so two concurrent orders cannot both pass the last-unit check and oversell.
+- **Idempotency.** `Idempotency-Key` (`idempotency.ts`) makes a retried `/checkout` replay the first order (no duplicate order, stock decrement, or email) and a retried `/pay` reuse the existing PaymentIntent instead of creating a second charge.
+
+Tests: `tests/unit/plugins/commerce-hardening.test.ts`. Durable cross-restart idempotency and a DB-level conditional decrement for multi-node are on the [roadmap](/docs/project/roadmap-2026.mdx).
+
+## EU VAT & withdrawal
+
+- **VIES.** `vies.ts` checks a buyer VAT ID against the European Commission REST service; reverse charge applies only when VIES confirms it _and_ the destination is another EU country. An unreachable VIES keeps the domestic VAT and notes the unverified ID. A format-invalid ID is `VAT_ID_INVALID`.
+- **Widerruf.** `/withdraw` + `withdrawal.ts` — the order number and the customer email must both match. A `pending`/`processing` order is cancelled with stock and coupon restored; `shipped`/`delivered` records `withdrawalAt`. A second confirmation is `409 WITHDRAWAL_CLOSED`.
+
+The trader identity (`legalName`, `legalAddress`, `legalEmail`, `phone`, and `vatId` or `taxNumber`) must be complete before checkout opens; otherwise the order button stays disabled and `/checkout` returns `409 TRADER_IDENTITY` / `409 TRADER_TAX_ID`. Operator steps: [European checkout](/docs/guides/content/ecommerce.mdx#european-checkout).
+
 ## Commerce Pro
 
-Gift cards, bundles, subscriptions, and custom checkout panes require `checkExtensionLicense("plugin", "commerce")` after the 14-day trial.
-
-Live UPS / FedEx / DHL and TaxJar are **separate paid plugins** (`plugin:shipping-live`, `plugin:taxjar`) on the `ShippingRateProvider` / `TaxProvider` ports. They are not Commerce Pro and not field widgets. Unlicensed: `shipping_zones` / `tax_rates` still quote.
+Gift cards, bundles, subscriptions, and custom checkout panes require `checkExtensionLicense("plugin", "commerce")` after the 14-day trial. Live UPS / FedEx / DHL and TaxJar are **separate paid plugins** (`plugin:shipping-live`, `plugin:taxjar`) on the `ShippingRateProvider` / `TaxProvider` ports. They are not Commerce Pro and not field widgets.
 
 Map: [E-Commerce Overview](/docs/guides/content/ecommerce.mdx).

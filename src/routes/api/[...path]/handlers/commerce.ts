@@ -61,6 +61,8 @@ import { expandVariantMatrix } from "@src/plugins/commerce/variants";
 import { orderAnalytics } from "@src/plugins/commerce/analytics";
 import { ensureCsrfToken } from "@utils/security/csrf-utils";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { normalizeIdempotencyKey, withIdempotency } from "@src/plugins/commerce/idempotency";
+import { withKeyLock } from "@src/plugins/commerce/locks";
 import { successResponse, createdResponse } from "./base";
 
 async function assertPluginEnabled(tenantId: string): Promise<void> {
@@ -360,60 +362,88 @@ export async function handleCommerceRoutes(
         const primaryRate =
           totals.vatLines.find((line) => line.rate > 0)?.rate ?? totals.vatLines[0]?.rate ?? 0;
         const acceptedAt = nowISODateString();
-        const order = await placeOrder(store, cart, breakdown, {
-          email: String(body.email || user?.["email"] || ""),
-          customerName,
-          country,
-          state: body.state ? String(body.state) : undefined,
-          shippingAddress: shippingBlock,
-          billingAddress: billingBlock,
-          shipLine1: line1,
-          shipPostal: postal,
-          shipCity: city,
-          shipCountry: country,
-          notes: body.notes ? String(body.notes) : undefined,
-          paymentMethod: method,
-          invoiceNumber: `RE-${new Date().getUTCFullYear()}-${Date.now().toString(36).toUpperCase()}`,
-          netTotal: totals.net,
-          taxRate: primaryRate,
-          vatId,
-          vatNote,
-          termsAcceptedAt: acceptedAt,
-          withdrawalInfoProvided: true,
-          digitalWaiverAt: digitalOnly ? acceptedAt : "",
-        });
-        const mailPayload = {
-          orderNumber: String(order.orderNumber),
-          email: String(order.customerEmail),
-          total: `${totals.grandTotal} ${currency}`,
-          net: `${totals.net} ${currency}`,
-          tax: `${totals.tax} ${currency}`,
-          status: String(order.status),
-          items: formatOrderItems((order.items as CartView["items"]) || cart.items),
-          hostLink: "/account/orders",
-          legalName: legal.legalName,
-          legalAddress: legal.legalAddress,
-          vatId: legal.vatId,
-          withdrawalUrl: `${event.url.origin}/widerruf`,
-        };
-        await sendOrderReceived(String(scoped), mailPayload);
-        for (const alert of (order.lowStock as Array<{
-          sku: string;
-          title: string;
-          qty: number;
-          threshold: number;
-        }>) || []) {
-          await sendLowStock(String(scoped), alert);
-        }
         const bank = (state?.settings as { bankTransferInstructions?: string } | undefined)
           ?.bankTransferInstructions;
-        return createdResponse(event, {
-          order,
-          totals: breakdownToMajors(breakdown),
-          skipShipping: cartIsDigitalOnly(cart),
-          instructions:
-            method === "bank_transfer" ? bank : method === "cod" ? "Pay on delivery." : undefined,
-        });
+        // Idempotency-Key: a retried checkout replays the first order instead of
+        // creating a second one. Same-key calls are serialized by the key lock.
+        const idemKey = normalizeIdempotencyKey(event.request.headers.get("idempotency-key"));
+        const payload = await withIdempotency(
+          idemKey,
+          async () => {
+            if (!idemKey) return null;
+            const prior = await store.findOne("orders", { idempotencyKey: idemKey });
+            const snap = (prior as Record<string, unknown> | null)?.idempotencyResponse;
+            return typeof snap === "string" && snap
+              ? (JSON.parse(snap) as Record<string, unknown>)
+              : null;
+          },
+          async () => {
+            const order = await placeOrder(store, cart, breakdown, {
+              email: String(body.email || user?.["email"] || ""),
+              customerName,
+              country,
+              state: body.state ? String(body.state) : undefined,
+              shippingAddress: shippingBlock,
+              billingAddress: billingBlock,
+              shipLine1: line1,
+              shipPostal: postal,
+              shipCity: city,
+              shipCountry: country,
+              notes: body.notes ? String(body.notes) : undefined,
+              paymentMethod: method,
+              invoiceNumber: `RE-${new Date().getUTCFullYear()}-${Date.now().toString(36).toUpperCase()}`,
+              netTotal: totals.net,
+              taxRate: primaryRate,
+              vatId,
+              vatNote,
+              termsAcceptedAt: acceptedAt,
+              withdrawalInfoProvided: true,
+              digitalWaiverAt: digitalOnly ? acceptedAt : "",
+            });
+            const mailPayload = {
+              orderNumber: String(order.orderNumber),
+              email: String(order.customerEmail),
+              total: `${totals.grandTotal} ${currency}`,
+              net: `${totals.net} ${currency}`,
+              tax: `${totals.tax} ${currency}`,
+              status: String(order.status),
+              items: formatOrderItems((order.items as CartView["items"]) || cart.items),
+              hostLink: "/account/orders",
+              legalName: legal.legalName,
+              legalAddress: legal.legalAddress,
+              vatId: legal.vatId,
+              withdrawalUrl: `${event.url.origin}/widerruf`,
+            };
+            await sendOrderReceived(String(scoped), mailPayload);
+            for (const alert of (order.lowStock as Array<{
+              sku: string;
+              title: string;
+              qty: number;
+              threshold: number;
+            }>) || []) {
+              await sendLowStock(String(scoped), alert);
+            }
+            const built = {
+              order,
+              totals: breakdownToMajors(breakdown),
+              skipShipping: cartIsDigitalOnly(cart),
+              instructions:
+                method === "bank_transfer"
+                  ? bank
+                  : method === "cod"
+                    ? "Pay on delivery."
+                    : undefined,
+            };
+            if (idemKey) {
+              await store.update("orders", String(order._id ?? ""), {
+                idempotencyKey: idemKey,
+                idempotencyResponse: JSON.stringify(built),
+              });
+            }
+            return built;
+          },
+        );
+        return createdResponse(event, payload);
       }
 
       case "pay": {
@@ -428,27 +458,45 @@ export async function handleCommerceRoutes(
             "orderId is required. Payment amount is taken from the order.",
             "ORDER_REQUIRED",
           );
-        const order = await store.findOne("orders", { _id: orderId });
-        if (!order) raise(404, "Order not found.", "ORDER_NOT_FOUND");
-        const amount = Number(order.totalCents);
-        if (!Number.isInteger(amount) || amount < 0) {
-          raise(400, "Order total is not payable.", "INVALID_TOTAL");
-        }
-        const { stripePaymentGateway } = await import("@src/plugins/stripe/server/payment-gateway");
-        const intent = await stripePaymentGateway.createIntent({
-          amount,
-          currency: String(order.currency || currency),
-          orderId,
-          tenantId: String(scoped),
-          receiptEmail: String(order.customerEmail || ""),
+        // Idempotent per order: a retried /pay reuses the existing PaymentIntent
+        // instead of creating (and charging) a second one.
+        const intentPayload = await withKeyLock(`pay:${scoped}:${orderId}`, async () => {
+          const order = await store.findOne("orders", { _id: orderId });
+          if (!order) raise(404, "Order not found.", "ORDER_NOT_FOUND");
+          const amount = Number(order.totalCents);
+          if (!Number.isInteger(amount) || amount < 0) {
+            raise(400, "Order total is not payable.", "INVALID_TOTAL");
+          }
+          const { stripePaymentGateway } =
+            await import("@src/plugins/stripe/server/payment-gateway");
+          if (order.stripePaymentIntentId) {
+            const existing = await stripePaymentGateway.retrieveIntent(
+              String(order.stripePaymentIntentId),
+              String(scoped),
+            );
+            return {
+              clientSecret: existing.clientSecret,
+              intentId: existing.id,
+              amount: existing.amount,
+              currency: existing.currency,
+            };
+          }
+          const intent = await stripePaymentGateway.createIntent({
+            amount,
+            currency: String(order.currency || currency),
+            orderId,
+            tenantId: String(scoped),
+            receiptEmail: String(order.customerEmail || ""),
+          });
+          await store.update("orders", orderId, { stripePaymentIntentId: intent.id });
+          return {
+            clientSecret: intent.clientSecret,
+            intentId: intent.id,
+            amount: intent.amount,
+            currency: intent.currency,
+          };
         });
-        await store.update("orders", orderId, { stripePaymentIntentId: intent.id });
-        return successResponse(event, {
-          clientSecret: intent.clientSecret,
-          intentId: intent.id,
-          amount: intent.amount,
-          currency: intent.currency,
-        });
+        return successResponse(event, intentPayload);
       }
 
       case "confirm": {
