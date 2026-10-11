@@ -91,7 +91,7 @@ Features:
 			style:grid-template-columns="repeat({itemsPerRow}, 1fr)"
 		>
 			{#each visibleItems as file (file._id || file.filename)}
-				{const isSelected = selectedFiles.has(file._id?.toString() || file.filename)}
+				{@const isSelected = selectedFiles.has(file._id?.toString() || file.filename)}
 
 				<div
 					role="button"

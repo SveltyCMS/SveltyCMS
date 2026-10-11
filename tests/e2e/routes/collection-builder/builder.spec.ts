@@ -401,7 +401,10 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(firstItem).toBeVisible({ timeout: 15_000 });
 
     // Find and click the favorite star button on the row
-    const starBtn = firstItem.getByRole("button", { name: /favorite/i }).first();
+    const starBtn = firstItem
+      .getByTestId("node-favorite-button")
+      .or(firstItem.getByRole("button", { name: /favorite|favorit/i }))
+      .first();
     await expect(starBtn).toBeVisible({ timeout: 5_000 });
     await starBtn.click();
 
@@ -410,7 +413,10 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(starIcon).toHaveAttribute("icon", "bi:star-fill");
 
     // Click "Manage Tags" button on the row
-    const tagBtn = firstItem.getByRole("button", { name: /manage tags/i }).first();
+    const tagBtn = firstItem
+      .getByTestId("node-tags-button")
+      .or(firstItem.getByRole("button", { name: /manage tags|tags.*verwalten|tag/i }))
+      .first();
     await expect(tagBtn).toBeVisible({ timeout: 5_000 });
     await tagBtn.click();
 
@@ -419,21 +425,24 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(tagDialog).toBeVisible({ timeout: 5_000 });
 
     const tagInput = tagDialog
-      .getByPlaceholder(/news, blog/i)
+      .getByTestId("board-tags-input")
+      .or(tagDialog.getByPlaceholder(/news, blog/i))
       .or(tagDialog.getByRole("textbox"))
       .first();
     await expect(tagInput).toBeVisible({ timeout: 5_000 });
     await tagInput.fill("alpha-tag");
 
     // Click Save inside the dialog
-    const saveTagBtn = tagDialog.getByRole("button", { name: "Save" });
+    const saveTagBtn = tagDialog
+      .getByTestId("board-tags-save-button")
+      .or(tagDialog.getByRole("button", { name: /save|speichern/i }));
     await saveTagBtn.click();
 
     // Tag badge should be visible on the node
     await expect(firstItem.getByText("alpha-tag")).toBeVisible({ timeout: 5_000 });
 
     // Click Favorites filter chip in toolbar
-    const favFilterBtn = page.getByRole("button", { name: /filter by favorites/i });
+    const favFilterBtn = page.getByTestId("filter-favorites-button").first();
     await expect(favFilterBtn).toBeVisible({ timeout: 5_000 });
     await favFilterBtn.click();
 

@@ -223,6 +223,7 @@ Features:
 			<Button
 				variant="transparent"
 				type="button"
+				data-testid="node-favorite-button"
 				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					collectionMetadata.toggleFavorite(item.id);
@@ -245,6 +246,7 @@ Features:
 			<Button
 				variant="transparent"
 				type="button"
+				data-testid="node-tags-button"
 				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					onEditTags?.(item);

@@ -268,8 +268,8 @@
 		</div>
 	{:else}
 		{#each visibleFiles as file (file._id || file.filename)}
-			{const fileId = file._id?.toString() || file.filename}
-			{const isSelected = selectedFiles.has(fileId)}
+			{@const fileId = file._id?.toString() || file.filename}
+			{@const isSelected = selectedFiles.has(fileId)}
 
 			<div
 				class="group relative flex h-full flex-col focus-within:outline-none cursor-grab active:cursor-grabbing
@@ -294,7 +294,7 @@
 				title={mediagallery_drag_to_folder()}
 				data-testid="media-item"
 				data-media-id={fileId}
-				in:fade={{ duration: motionDuration(120) }}
+				in:adminFade={{ duration: motionDuration(120) }}
 				ontouchstart={(e) => {
 					e.stopPropagation();
 					touchActiveId = fileId;
@@ -311,7 +311,7 @@
 					<div
 						class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
 						data-no-drag
-						in:scale={{ duration: motionDuration(120) }}
+						in:adminFade={{ duration: motionDuration(120) }}
 						role="presentation"
 						onclick={(e) => e.stopPropagation()}
 						onkeydown={(e) => {

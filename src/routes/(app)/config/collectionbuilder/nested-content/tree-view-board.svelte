@@ -980,6 +980,7 @@ offset within the row on the native `dragover` event — that event carries
 		<Button
 			variant="surface"
 			type="button"
+			data-testid="filter-favorites-button"
 			onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
 			aria-label={builder_filter_fav_aria()}
 		>

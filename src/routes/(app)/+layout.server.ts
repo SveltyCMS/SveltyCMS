@@ -128,7 +128,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     if (predictedNextPath) {
       queueMicrotask(() => {
         void routeResourceStateMachine
-          .fillPredictedTurboCache(predictedNextPath, tenantId || "global", user as any)
+          .fillPredictedTurboCache(predictedNextPath, tenantId || "global", sessionUser as any)
           .catch(() => {});
       });
     }
