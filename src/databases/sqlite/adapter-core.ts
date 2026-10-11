@@ -522,6 +522,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         return convertArrayDatesToISO(rows, {
           ...this.convertDatesOptions,
           table: collection,
+          inPlace: true,
         }) as T[];
       }
       return null;

@@ -1218,6 +1218,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (skipReturning) {
         return convertDatesToISO(values, {
           table: collection,
+          inPlace: true,
         }) as unknown as T;
       }
       if (Array.isArray(rows) && rows.length > 0) {
@@ -1225,6 +1226,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return convertDatesToISO(rows[0], {
           mariaDoubleParseJson: true,
           table: collection,
+          inPlace: true,
         }) as unknown as T;
       }
       return null;
@@ -1515,6 +1517,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         ...this.convertDatesOptions,
         mariaDoubleParseJson: true,
         table: collection,
+        inPlace: true,
       }) as T[];
     } catch (err) {
       // Never swallow silently: an insertMany failure must be visible in logs,

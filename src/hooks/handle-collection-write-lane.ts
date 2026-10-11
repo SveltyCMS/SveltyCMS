@@ -106,46 +106,57 @@ export function collectionWriteLaneKind(
   pathname: string,
 ): CollectionWriteLaneKind | null {
   if (!pathname.startsWith("/api/collections/")) return null;
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length < 3 || parts.length > 5) return null;
-  const collectionId = parts[2];
+  const len = pathname.length;
+  let pos = 17;
+  while (pos < len && pathname.charCodeAt(pos) === 47) pos++;
+  if (pos >= len) return null;
+
+  let slash = pathname.indexOf("/", pos);
+  let segEnd = slash < 0 ? len : slash;
+  const collectionId = pathname.slice(pos, segEnd);
   if (!collectionId || SKIP_COLLECTION_IDS.has(collectionId)) return null;
-  const entryId = parts[3];
-  const subAction = parts[4];
 
-  if (method === "POST" && parts.length === 3) return "simple";
-  if (
-    (method === "PATCH" || method === "PUT") &&
-    parts.length === 4 &&
-    entryId &&
-    entryId !== "bulk" &&
-    entryId !== "batch" &&
-    entryId !== "batch-clone"
-  ) {
-    return "simple";
+  if (segEnd === len) {
+    return method === "POST" ? "simple" : null;
   }
 
-  if (
-    method === "POST" &&
-    parts.length === 4 &&
-    (entryId === "batch" || entryId === "batch-clone" || entryId === "bulk")
-  ) {
-    return "extended";
+  pos = segEnd + 1;
+  while (pos < len && pathname.charCodeAt(pos) === 47) pos++;
+  if (pos >= len) return null;
+
+  slash = pathname.indexOf("/", pos);
+  segEnd = slash < 0 ? len : slash;
+  const entryId = pathname.slice(pos, segEnd);
+  if (!entryId) return null;
+
+  if (segEnd === len) {
+    if (method === "POST") {
+      return entryId === "batch" || entryId === "batch-clone" || entryId === "bulk"
+        ? "extended"
+        : null;
+    }
+    if (method === "PATCH" || method === "PUT") {
+      if (entryId === "bulk") return "extended";
+      if (entryId !== "batch" && entryId !== "batch-clone") return "simple";
+    }
+    return null;
   }
-  if ((method === "PATCH" || method === "PUT") && parts.length === 4 && entryId === "bulk") {
-    return "extended";
+
+  pos = segEnd + 1;
+  while (pos < len && pathname.charCodeAt(pos) === 47) pos++;
+  if (pos >= len) return null;
+
+  slash = pathname.indexOf("/", pos);
+  segEnd = slash < 0 ? len : slash;
+  const subAction = pathname.slice(pos, segEnd);
+  if (slash >= 0 && slash < len) {
+    let next = slash + 1;
+    while (next < len && pathname.charCodeAt(next) === 47) next++;
+    if (next < len) return null;
   }
-  if (method === "POST" && parts.length === 5 && subAction === "increment" && entryId) {
-    return "extended";
-  }
-  if (
-    (method === "PATCH" || method === "PUT") &&
-    parts.length === 5 &&
-    subAction === "status" &&
-    entryId
-  ) {
-    return "extended";
-  }
+
+  if (method === "POST" && subAction === "increment") return "extended";
+  if ((method === "PATCH" || method === "PUT") && subAction === "status") return "extended";
   return null;
 }
 
@@ -364,16 +375,31 @@ async function executeWarmCollectionWrite(
     throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
   }
 
-  const parts = url.pathname.split("/").filter(Boolean);
+  const pathname = url.pathname;
+  let collectionId = "";
+  let entryId = "";
+  let p = 17;
+  const len = pathname.length;
+  while (p < len && pathname.charCodeAt(p) === 47) p++;
+  let slash = pathname.indexOf("/", p);
+  if (slash < 0) {
+    collectionId = pathname.slice(p);
+  } else {
+    collectionId = pathname.slice(p, slash);
+    p = slash + 1;
+    while (p < len && pathname.charCodeAt(p) === 47) p++;
+    slash = pathname.indexOf("/", p);
+    entryId = slash < 0 ? pathname.slice(p) : pathname.slice(p, slash);
+  }
+
   if (kind === "extended") {
+    const parts = pathname.split("/").filter(Boolean);
     const extendedCms = getLaneCms();
     if (!extendedCms) return null;
     const extended = await dispatchExtendedCollectionWrite(event, extendedCms, parts);
     if (!extended) return null;
     return finishWarmWrite(event, extended, marks, srvT0, t0);
   }
-  const collectionId = parts[2];
-  const entryId = parts[3];
   const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const raw = await request.json();
   const data = unwrapWritePayload(raw);

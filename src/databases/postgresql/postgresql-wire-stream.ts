@@ -55,7 +55,7 @@ export class PostgresWireStreamEngine {
       if (!hasDataCol) return { kind: "declined" };
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? "coalesce(\"updatedAt\"::text, '')" : "''";
+      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "''";
 
       let cachedWireSql = this._pointSqlCache.get(table);
       if (!cachedWireSql) {
@@ -73,8 +73,7 @@ export class PostgresWireStreamEngine {
         }
 
         const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const dataExpr = `(CASE WHEN "data" IS NULL OR "data" = '{}'::jsonb THEN ${doc} ELSE ("data" || ${doc}) END)`;
-        const selectPrefix = `SELECT (jsonb_build_object('success', true, 'data', ${dataExpr}))::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const selectPrefix = `SELECT (coalesce("data", '{}'::jsonb) || ${doc})::text AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         cachedWireSql = {
           selectPrefix,
@@ -106,10 +105,10 @@ export class PostgresWireStreamEngine {
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
+      const docStr = typeof first.doc === "string" ? first.doc : JSON.stringify(first.doc);
       return {
         kind: "found",
-        wireBody:
-          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
+        wireBody: `{"success":true,"data":${docStr}}`,
         etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
       };
     } catch {
@@ -177,8 +176,7 @@ export class PostgresWireStreamEngine {
         }
 
         const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const dataExpr = `(CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)`;
-        const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const subSelect = `SELECT (coalesce("data", '{}'::jsonb) || ${doc}) AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
         const orderClause = `ORDER BY ${sortCol} ${sortDirection}`;
 
         const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `

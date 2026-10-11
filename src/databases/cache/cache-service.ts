@@ -129,8 +129,8 @@ export class CacheService {
     // is a deliberately cheap O(1) estimate — no deep object walk on the hot set
     // path; it approximates the retained bytes closely enough to bound RAM.
     this.l1 = new FastLRU<string, any>({
-      max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 200000,
-      maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 128 * 1024 * 1024,
+      max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 50000,
+      maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 64 * 1024 * 1024,
       // A single value larger than this is not cached (a safe no-op in
       // lru-cache v11 — never throws) so one pathological entry can't evict the
       // whole L1. Set generously above any normal cached JSON/response body.
@@ -157,6 +157,7 @@ export class CacheService {
           this.stats.evictions++;
           this.cleanupTagsForKey(key);
           this.removeFromPrefixMap(key);
+          this.negative.invalidate(key);
         }
       },
     });

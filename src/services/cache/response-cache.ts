@@ -250,21 +250,51 @@ export interface TurboKeyClass {
 export function classifyTurboKey(key: string): TurboKeyClass | null {
   const apiIdx = key.indexOf("/api/");
   if (apiIdx < 0) return null;
-  const rest = key.slice(apiIdx);
-  const q = rest.indexOf("?");
-  const pathname = q < 0 ? rest : rest.slice(0, q);
-  if (pathname === "/api/graphql" || pathname.startsWith("/api/graphql/")) {
+  const q = key.indexOf("?", apiIdx);
+  const end = q < 0 ? key.length : q;
+
+  if (
+    key.startsWith("/api/graphql", apiIdx) &&
+    (apiIdx + 12 === end || key.charCodeAt(apiIdx + 12) === 47)
+  ) {
     return { graphql: true };
   }
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "api") return null;
-  let i = 1;
-  if (parts[1] === "local") i = 2;
-  const ns = parts[i];
-  if (ns !== "collections" && ns !== "content") return null;
-  const collection = parts[i + 1];
+
+  let pos = apiIdx + 5;
+  while (pos < end && key.charCodeAt(pos) === 47) pos++;
+  if (pos >= end) return null;
+
+  let slash = key.indexOf("/", pos);
+  let segEnd = slash < 0 || slash > end ? end : slash;
+  let seg = key.slice(pos, segEnd);
+
+  if (seg === "local") {
+    pos = segEnd + 1;
+    while (pos < end && key.charCodeAt(pos) === 47) pos++;
+    if (pos >= end) return null;
+    slash = key.indexOf("/", pos);
+    segEnd = slash < 0 || slash > end ? end : slash;
+    seg = key.slice(pos, segEnd);
+  }
+
+  if (seg !== "collections" && seg !== "content") return null;
+
+  pos = segEnd + 1;
+  while (pos < end && key.charCodeAt(pos) === 47) pos++;
+  if (pos >= end) return null;
+  slash = key.indexOf("/", pos);
+  segEnd = slash < 0 || slash > end ? end : slash;
+  const collection = key.slice(pos, segEnd);
   if (!collection) return null;
-  const entry = parts[i + 2];
+
+  pos = segEnd + 1;
+  while (pos < end && key.charCodeAt(pos) === 47) pos++;
+  if (pos >= end) {
+    return { graphql: false, collection };
+  }
+  slash = key.indexOf("/", pos);
+  segEnd = slash < 0 || slash > end ? end : slash;
+  const entry = key.slice(pos, segEnd);
   if (!entry || COLLECTION_ACTION_SEGMENTS.has(entry)) {
     return { graphql: false, collection };
   }
@@ -485,6 +515,38 @@ class ResponseCacheService {
       this.listIndex.set(k, set);
     }
     set.add(fullKey);
+  }
+
+  private indexPointKey(
+    fullKey: string,
+    tenantId: string | null | undefined,
+    collection: string,
+    entryId: string,
+  ): void {
+    this.unindexKey(fullKey);
+    const tenant = tenantId || "default";
+    const meta = {
+      tenant,
+      graphql: false,
+      collection,
+      entryId,
+    };
+    this.l1Meta.set(fullKey, meta);
+    const k = `${tenant}\0${collection}\0${entryId}`;
+    let set = this.entryIndex.get(k);
+    if (!set) {
+      set = new Set();
+      this.entryIndex.set(k, set);
+    }
+    set.add(fullKey);
+
+    const colKey = `${tenant}\0${collection}`;
+    let colSet = this.collectionEntriesIndex.get(colKey);
+    if (!colSet) {
+      colSet = new Set();
+      this.collectionEntriesIndex.set(colKey, colSet);
+    }
+    colSet.add(k);
   }
 
   private unindexKey(fullKey: string): void {
@@ -762,6 +824,32 @@ class ResponseCacheService {
       undefined,
       tags,
     );
+  }
+
+  /**
+   * Fast-path cache set dedicated to point reads (`findById` / `findPointWireStream`).
+   * Bails immediately on cold / first-touch reads when the admission filter rejects,
+   * avoiding key classification, tag creation, L2 serialization, and map churn.
+   */
+  public setPoint(
+    key: string,
+    entry: CachedResponseEntry,
+    ttlMs: number = 300_000,
+    tenantId?: string | null,
+    meta?: { collection: string; entryId: string },
+  ): void {
+    const fullKey = this.buildKey(key, tenantId);
+    if (!this.admitPointRead(fullKey)) return;
+
+    entry.expiresAt = Date.now() + ttlMs;
+    entry.stale = false;
+    this.putEntry(this.pointL1, fullKey, entry);
+    this.enforceL1Capacity(this.pointL1, MAX_POINT_L1_ENTRIES);
+    if (meta?.collection && meta?.entryId) {
+      this.indexPointKey(fullKey, tenantId, meta.collection, meta.entryId);
+    } else {
+      this.indexKey(fullKey, key, tenantId);
+    }
   }
 
   /**

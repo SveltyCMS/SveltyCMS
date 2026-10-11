@@ -99,7 +99,7 @@ const DEFAULT_CONFIG: MemoryGovernorConfig = {
   idleSlackBytes: 128 * MB,
   minRssForIdleReclaim: 192 * MB,
   runtimeOverheadBytes: 64 * MB,
-  constrainedRatio: 0.75,
+  constrainedRatio: Number(process.env.SVELTY_MEMORY_CONSTRAINED_RATIO) || 0.75,
 };
 
 /** Why a sweep ran — surfaced in the evidence log line. */

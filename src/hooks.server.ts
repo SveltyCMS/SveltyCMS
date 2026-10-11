@@ -300,6 +300,7 @@ if (!building) {
             // 24-core host). The profile caps concurrency per tier to leave CPU
             // headroom for the event loop, DB pool and other requests.
             sharp.concurrency(hw.sharpConcurrency);
+            sharp.cache({ memory: 16, files: 10, items: 50 });
             logger.debug(
               `[System] Hardware optimized: ThreadPool=${hw.threadPoolSize} | SharpConcurrency=${hw.sharpConcurrency}`,
             );

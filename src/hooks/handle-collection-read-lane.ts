@@ -734,9 +734,16 @@ async function rebuildWarmCollectionRead(
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
-        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
-          skipSharedL1: true,
-        });
+        if (entryId) {
+          responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+            collection: collectionId,
+            entryId,
+          });
+        } else {
+          responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+            skipSharedL1: true,
+          });
+        }
         marks?.set("cachewrite", performance.now() - dbT0);
         return { body: apiBody, etag, miss: true };
       }
@@ -753,9 +760,16 @@ async function rebuildWarmCollectionRead(
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
-        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
-          skipSharedL1: true,
-        });
+        if (entryId) {
+          responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+            collection: collectionId,
+            entryId,
+          });
+        } else {
+          responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+            skipSharedL1: true,
+          });
+        }
         marks?.set("cachewrite", performance.now() - dbT0);
         return { body: apiBody, etag, miss: true };
       }
@@ -949,18 +963,27 @@ async function rebuildWarmCollectionRead(
     }
   }
 
-  responseCache.set(
-    pathKey,
-    compressedVariants
-      ? { body: apiBody, etag, compressed: compressedVariants }
-      : { body: apiBody, etag },
-    300_000,
-    cacheTenant,
-    // Point reads pass a bare options object: the `...(tags ? { tags } : {})`
-    // spread used to allocate an empty literal on every random-id miss. Lists
-    // keep the exact same options as before (tags present, skipSharedL1 false).
-    tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
-  );
+  if (entryId) {
+    responseCache.setPoint(
+      pathKey,
+      compressedVariants
+        ? { body: apiBody, etag, compressed: compressedVariants }
+        : { body: apiBody, etag },
+      300_000,
+      cacheTenant,
+      { collection: collectionId, entryId },
+    );
+  } else {
+    responseCache.set(
+      pathKey,
+      compressedVariants
+        ? { body: apiBody, etag, compressed: compressedVariants }
+        : { body: apiBody, etag },
+      300_000,
+      cacheTenant,
+      tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
+    );
+  }
   marks?.set("cachewrite", performance.now() - dbT0);
   if (tags) {
     // Fill the remaining encodings in the background (the served one is passed

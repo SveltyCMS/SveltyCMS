@@ -327,6 +327,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       return convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
+        inPlace: true,
       }) as unknown as T;
     } catch (err: any) {
       // Unique violations must not fall through to a second Drizzle INSERT.
@@ -425,6 +426,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       return convertArrayDatesToISO(synthesizedRows, {
         ...this.convertDatesOptions,
         table: collection,
+        inPlace: true,
       }) as unknown as T[];
     } catch (err) {
       logger.debug(`[PostgreSQL] rawInsertManyReturning error for ${collection}:`, err);

@@ -2490,12 +2490,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         return convertDatesToISO(result[0], {
           ...this.convertDatesOptions,
           table: collection,
+          inPlace: true,
         }) as T;
       }
       await (query as any);
       return convertDatesToISO(values, {
         ...this.convertDatesOptions,
         table: collection,
+        inPlace: true,
       }) as T;
     };
 
