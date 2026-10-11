@@ -237,6 +237,23 @@ export class AuditService {
         if (collection === this.collectionName) return;
         if (collection === OUTBOX_COLLECTION) return;
 
+        // The HTTP mutation audit (`handle-audit-logging.ts`, one entry per
+        // request: method/path/user/status/ip) already covers interactive
+        // writes. This adapter hook adds a SECOND per-insert audit row and is
+        // insert-only — measured ~−22% create throughput at 8c under `AUDIT_CHAIN_SYNC=false`
+        // (updates never paid it, which is why only the create lane lagged).
+        // `AUDIT_SKIP_CONTENT_INSERT_HOOK=true` keeps the request-level trail
+        // and drops the per-row duplicate (A/B / operator opt-in).
+        if (process.env.AUDIT_SKIP_CONTENT_INSERT_HOOK === "true") return;
+
+        // The event (actor, target, severity, hash-chain link) is the audit
+        // record; embedding the FULL document serialized + SHA-256-hashed the
+        // whole payload on every insert and bloated each audit row. Keep a
+        // compact id reference by default; `AUDIT_INSERT_FULL_PAYLOAD=true`
+        // restores the legacy full-document payload (A/B / forensic opt-in).
+        const details =
+          process.env.AUDIT_INSERT_FULL_PAYLOAD === "true" ? { data } : { _id: (data as any)?._id };
+
         this.log(
           "Automatic Audit",
           {
@@ -247,7 +264,7 @@ export class AuditService {
           { type: collection, id: (data as any)?._id || "unknown" },
           AuditEventType.DATA_IMPORT,
           "low",
-          { data },
+          details,
           options?.tenantId,
         ).catch((err) => logger.warn("[Audit] Hook log failed:", err));
       },

@@ -34,8 +34,7 @@ function scheduleMacrotask(fn: () => void): void {
 }
 
 function isDisabled(): boolean {
-  const raw = process.env.SVELTY_DISABLE_LIST_WARM;
-  return raw === "1" || raw?.toLowerCase() === "true";
+  return process.env.SVELTY_DISABLE_LIST_WARM === "1";
 }
 
 /** Clear the rate-limit state (unit tests). */

@@ -55,9 +55,7 @@ export class PostgresWireStreamEngine {
       if (!hasDataCol) return { kind: "declined" };
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol
-        ? 'coalesce(extract(epoch from "updatedAt") * 1000, 0)'
-        : "0";
+      const updatedAtSelect = hasUpdatedAtCol ? "coalesce(\"updatedAt\"::text, '')" : "''";
 
       let cachedWireSql = this._pointSqlCache.get(table);
       if (!cachedWireSql) {
@@ -75,8 +73,8 @@ export class PostgresWireStreamEngine {
         }
 
         const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const dataExpr = `(CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)`;
-        const selectPrefix = `SELECT (jsonb_build_object('success', true, 'data', ${dataExpr}))::text AS wire_body, ${updatedAtSelect}::text AS updated_at FROM ${safeTable}`;
+        const dataExpr = `(CASE WHEN "data" IS NULL OR "data" = '{}'::jsonb THEN ${doc} ELSE ("data" || ${doc}) END)`;
+        const selectPrefix = `SELECT (jsonb_build_object('success', true, 'data', ${dataExpr}))::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         cachedWireSql = {
           selectPrefix,

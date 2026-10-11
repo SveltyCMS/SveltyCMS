@@ -229,22 +229,24 @@ export function schedulePostWrite(
   // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
   queueInvalidation(schema, tenantId, true, id, undefined);
 
-  if (action === "create" || action === "update") {
+  if ((action === "create" || action === "update") && !options.skipReturning) {
     recordWriteAccess(tid || "global", schemaId, id);
   }
 
   const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
   const hasPluginHook = pluginRegistry.hasAnyHook(hookName);
-  const needsWorkflow = action === "create";
+  const needsWorkflow = action === "create" && !options.skipReturning;
 
-  queuePubSubEntryUpdated({
-    collection: schema.name || schemaId,
-    id,
-    action,
-    data,
-    timestamp: nowISODateString(),
-    user,
-  });
+  if (!options.skipReturning) {
+    queuePubSubEntryUpdated({
+      collection: schema.name || schemaId,
+      id,
+      action,
+      data,
+      timestamp: nowISODateString(),
+      user,
+    });
+  }
 
   if (hasPluginHook || needsWorkflow) {
     queueMicrotask(() => {
@@ -257,7 +259,7 @@ export function schedulePostWrite(
                 typeof workflowService.peekWorkflowCache === "function"
                   ? workflowService.peekWorkflowCache(schemaId, tid)
                   : undefined;
-              if (peeked !== null) {
+              if (peeked) {
                 await workflowService.initializeWorkflow(id, schemaId, tid);
               }
             } catch {
@@ -474,14 +476,14 @@ export async function persistWithOutbox(
   user: any,
   getId: (result: any) => string,
   getData: (result: any) => any,
-  options?: { skipSideEffects?: boolean },
+  options?: { skipSideEffects?: boolean; skipReturning?: boolean },
 ): Promise<any> {
   const writeMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:adapter-write") : null;
   const result = await write(EMPTY_TX_OPTS);
   writeMark?.();
   if (result?.success) {
     const id = getId(result);
-    if (id && !options?.skipSideEffects && !isOutboxDisabledEnv()) {
+    if (id && !options?.skipSideEffects && !options?.skipReturning && !isOutboxDisabledEnv()) {
       const outboxMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:outbox") : null;
       scheduleOutboxEvent({
         schema,

@@ -39,6 +39,7 @@ import {
   getLayoutPluginStates,
   layoutUserCountKey,
 } from "@utils/server/layout-caches.server";
+import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 import type { LayoutServerLoad } from "./$types";
 
 interface LayoutError {
@@ -124,6 +125,13 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
 
     // Predictive prefetch: guess the most likely next page (< 0.05ms, non-blocking, confidence-gated)
     const predictedNextPath = predictNextPathAdaptive(tenantId || "global", url.pathname);
+    if (predictedNextPath) {
+      queueMicrotask(() => {
+        void routeResourceStateMachine
+          .fillPredictedTurboCache(predictedNextPath, tenantId || "global", user as any)
+          .catch(() => {});
+      });
+    }
 
     await contentSystem.initialize(tenantId);
     let safeContentStructure: unknown[] = [];

@@ -1794,7 +1794,7 @@ export class CollectionsNamespace {
       effectiveUser,
       (res) => String(res.data?._id ?? ""),
       (res) => res.data,
-      { skipSideEffects: options.skipSideEffects },
+      { skipSideEffects: options.skipSideEffects, skipReturning: options.skipReturning },
     );
     m3?.();
     markWritePhase(options, "dbwrite", tDb);
@@ -1821,7 +1821,7 @@ export class CollectionsNamespace {
         options,
       );
       scheduleAfterOperation(schema, hot, postWriteDoc, "create", effectiveUser, tenantId);
-      if (!shouldSkipWriteSideEffects(options)) {
+      if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
         scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
@@ -2003,7 +2003,7 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       (res) => res.data,
-      { skipSideEffects: options.skipSideEffects },
+      { skipSideEffects: options.skipSideEffects, skipReturning: options.skipReturning },
     );
     m3u?.();
     markWritePhase(options, "dbwrite", tDb);
@@ -2033,7 +2033,7 @@ export class CollectionsNamespace {
         options,
       );
       scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
-      if (!shouldSkipWriteSideEffects(options)) {
+      if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
         scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
         scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
           this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),

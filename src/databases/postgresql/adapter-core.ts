@@ -321,6 +321,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
       await exec.unsafe(tpl.sqlText, boundValues, { prepare: true });
       mStmt?.();
+      if ((options as any)?.skipReturning === true) {
+        return synthesized as unknown as T;
+      }
       return convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,

@@ -1724,8 +1724,14 @@ export async function setupBenchmarkServer() {
       SVELTY_BENCHMARK_SERVER_MODE: isTestMode ? "test" : "production",
       // 🏢 Audit mode: compliance → AUDIT_CHAIN_SYNC=true, DISABLE_AUDIT_LOGS=false
       BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",
-      AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
-      DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
+      // BENCH_AUDIT_CHAIN_SYNC / BENCH_DISABLE_AUDIT_LOGS let an A/B run pin the
+      // audit chain independently of the coarse mode (isolates chainSync from volume).
+      AUDIT_CHAIN_SYNC:
+        process.env.BENCH_AUDIT_CHAIN_SYNC ??
+        (process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false"),
+      DISABLE_AUDIT_LOGS:
+        process.env.BENCH_DISABLE_AUDIT_LOGS ??
+        (process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true"),
       DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
       RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "1000000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",

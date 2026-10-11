@@ -96,13 +96,110 @@ const MIX_CYCLE = [
 // create is patched onto an existing row so the dataset size stays constant.
 const MIX_STABLE_CYCLE = MIX_CYCLE.map((op) => (op === "create" ? "update" : op));
 
+interface PhaseBucket {
+  dur: number[];
+  phases: Record<string, number[]>;
+}
+
+const workloadPhaseBuckets: Record<string, PhaseBucket> = {};
+
+function recordSplitSample(label: string, res: Response): void {
+  const durStr = res.headers.get("x-srv-dur");
+  const splitHeader = res.headers.get("x-srv-split");
+  if (!durStr && !splitHeader) return;
+
+  let bucket = workloadPhaseBuckets[label];
+  if (!bucket) {
+    bucket = { dur: [], phases: {} };
+    workloadPhaseBuckets[label] = bucket;
+  }
+  if (bucket.dur.length >= 200) return;
+
+  if (durStr) {
+    const dur = parseFloat(durStr);
+    if (Number.isFinite(dur)) bucket.dur.push(dur);
+  }
+  if (splitHeader) {
+    for (const part of splitHeader.split(";")) {
+      const eq = part.indexOf("=");
+      if (eq <= 0) continue;
+      const key = part.slice(0, eq);
+      const val = parseFloat(part.slice(eq + 1));
+      if (Number.isFinite(val)) {
+        (bucket.phases[key] ??= []).push(val);
+      }
+    }
+  }
+}
+
+function printPhaseBreakdownTable(buckets: Record<string, PhaseBucket>): void {
+  const percentile = (arr: number[], p: number) => {
+    if (!arr || arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const idx = (p / 100) * (sorted.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    return lo === hi ? sorted[lo] : sorted[lo] * (1 - (idx - lo)) + sorted[hi] * (idx - lo);
+  };
+  const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+
+  const activeEntries = Object.entries(buckets).filter(
+    ([, b]) => b.dur.length > 0 || Object.keys(b.phases).length > 0,
+  );
+  if (activeEntries.length === 0) return;
+
+  console.log("\n" + "=".repeat(108));
+  console.log(
+    "  ⚡ SERVER-SIDE PHASE DECOMPOSITION & BOTTLENECK ANALYSIS (x-srv-split / x-srv-dur)",
+  );
+  console.log("=".repeat(108));
+  console.log(
+    `${"workload".padEnd(16)} ${"samples".padStart(8)} ${"srv-p50".padStart(9)} ${"srv-avg".padStart(9)} ${"srv-p95".padStart(9)}   ${"dominant bottleneck & phase breakdown".padEnd(46)}`,
+  );
+  console.log("-".repeat(108));
+
+  for (const [name, b] of activeEntries) {
+    const srvP50 = percentile(b.dur, 50).toFixed(2);
+    const srvAvg = avg(b.dur).toFixed(2);
+    const srvP95 = percentile(b.dur, 95).toFixed(2);
+
+    let dominantPhase = "";
+    let dominantAvg = 0;
+    const phaseList: string[] = [];
+    for (const [phase, vals] of Object.entries(b.phases)) {
+      const a = avg(vals);
+      if (a > dominantAvg && phase !== "persist" && phase !== "serve") {
+        dominantAvg = a;
+        dominantPhase = phase;
+      }
+      phaseList.push(`${phase}=${a.toFixed(2)}ms`);
+    }
+
+    const dominantPct =
+      avg(b.dur) > 0 && dominantAvg > 0
+        ? ` (${((dominantAvg / avg(b.dur)) * 100).toFixed(0)}%)`
+        : "";
+    const breakdown = dominantPhase
+      ? `${dominantPhase}${dominantPct} [${phaseList.join(", ")}]`
+      : `[${phaseList.join(", ")}]`;
+
+    console.log(
+      `${name.padEnd(16)} ${String(b.dur.length || Object.values(b.phases)[0]?.length || 0).padStart(8)} ${(srvP50 + "ms").padStart(9)} ${(srvAvg + "ms").padStart(9)} ${(srvP95 + "ms").padStart(9)}   ${breakdown}`,
+    );
+  }
+  console.log("=".repeat(108) + "\n");
+}
+
 function seedArticlePayload(i: number, runId: string) {
   return {
     title: `Scaling headless CMS for enterprise — Part ${i}`,
     slug: `bench-article-${runId}-${i}`,
     status: i % 3 === 0 ? "draft" : "published",
     count: i * 10,
+    views: i * 10,
     publishDate: "2026-01-01T00:00:00.000Z",
+    tags: ["benchmark", "cms"],
+    seo: { title: `SEO Part ${i}`, description: `Scaling CMS Part ${i}` },
     content: `# Article ${i}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. `.repeat(
       12,
     ),
@@ -117,6 +214,9 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     logger.info(
       `🚀 Competitive replica: ${CONCURRENCY}c, up to ${ROUND_LIMIT} round(s), seq+con...`,
     );
+
+    process.env.SVELTY_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT || "1";
+    process.env.SVELTY_SRV_DUR = process.env.SVELTY_SRV_DUR || "1";
 
     const serverInfo = await setupBenchmarkServer();
     stopServer = serverInfo.stop;
@@ -201,6 +301,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     const findById = async () => {
       const res = await fetch(`${collectionUrl}/${stableId}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("findById", res);
       await res.arrayBuffer();
     };
 
@@ -209,36 +310,42 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const targetId = createdIds[randomIndex] || stableId;
       const res = await fetch(`${collectionUrl}/${targetId}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("findByIdRandom", res);
       await res.arrayBuffer();
     };
 
     const listPlain = async () => {
       const res = await fetch(listPlainUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("listPlain", res);
       await res.arrayBuffer();
     };
 
     const listFilterSort = async () => {
       const res = await fetch(listFilterUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("listFilterSort", res);
       await res.arrayBuffer();
     };
 
     const listLarge = async () => {
       const res = await fetch(listLargeUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("listLarge", res);
       await res.arrayBuffer();
     };
 
     const findMissing = async () => {
       const res = await fetch(missingUrl, { headers });
       if (res.status !== 404 && !res.ok) throw new Error(`Unexpected HTTP ${res.status}`);
+      recordSplitSample("findMissing", res);
       await res.arrayBuffer();
     };
 
     const graphql = async () => {
       const res = await fetch(`${baseUrl}/api/graphql`, { method: "POST", headers, body: gqlBody });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("graphql", res);
       const body = (await res.json()) as { data?: { BenchmarkStable?: unknown[] } };
       if (!body?.data?.BenchmarkStable?.length) {
         throw new Error(`GraphQL returned 0 rows: ${JSON.stringify(body)}`);
@@ -252,7 +359,10 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         slug: `bench-create-${runId}-${seq}`,
         status: "draft",
         count: 0,
+        views: 0,
         publishDate: "2026-01-01T00:00:00.000Z",
+        tags: ["benchmark"],
+        seo: { title: "Bench create", description: "created by workload" },
         content: "Created by the comparative benchmark harness.",
       });
       const res = await fetch(collectionUrl, {
@@ -264,6 +374,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("create", res);
       await res.arrayBuffer();
     };
 
@@ -294,6 +405,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("update", res);
       await res.arrayBuffer();
     };
 
@@ -527,11 +639,15 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     // so the default run path is unchanged.
     if (SWEEP_CONCURRENCY.length > 0) {
       logger.info(
-        `\n🧪 [PHASE 5] Concurrency sweep: ${SWEEP_CONCURRENCY.join(",")}c × ${SWEEP_ITERS} iters (findById, listLarge)...`,
+        `\n🧪 [PHASE 5] Concurrency sweep: ${SWEEP_CONCURRENCY.join(",")}c × ${SWEEP_ITERS} iters...`,
       );
+      const sweepWorkloads = (process.env.SWEEP_WORKLOADS || "findById,listLarge,create")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       const sweepRows: Array<{ label: string; concurrency: number; rps: number }> = [];
       for (const w of workloads) {
-        if (w.shortLabel !== "findById" && w.shortLabel !== "listLarge") continue;
+        if (!sweepWorkloads.includes(w.shortLabel)) continue;
         for (const c of SWEEP_CONCURRENCY) {
           const res = await runBenchmark({
             name: `${w.shortLabel} (Sweep ${c}c)`,
@@ -565,6 +681,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       subtitle: `Cold vs Warm Steady-State (${CONCURRENCY}c)`,
       results: [...coldResults, ...warmResults],
     });
+
+    printPhaseBreakdownTable(workloadPhaseBuckets);
 
     // ── FAST-LANE EQUIVALENCE CHECK (needs SVELTY_FAST_LANE=1 + BENCH_VERIFY_RAW=1) ──
     // Same server, same session, same database: the only difference between the two

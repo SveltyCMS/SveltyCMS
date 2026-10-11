@@ -272,9 +272,8 @@ export class RouteResourceStateMachine {
     tenantId: string = "global",
     user?: PrewarmUser | null,
   ): Promise<void> {
-    const spec = this.classifyRouteSpec(path);
     const userId = prewarmUserId(user);
-    const flightKey = `${origin || "local"}:${spec.lane}:${tenantId}:${userId || "anon"}`;
+    const flightKey = `${origin || "local"}:${path}:${tenantId}:${userId || "anon"}`;
     const existing = this._inflightPrewarms.get(flightKey);
     if (existing) return existing;
 

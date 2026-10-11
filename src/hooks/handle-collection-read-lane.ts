@@ -731,15 +731,14 @@ async function rebuildWarmCollectionRead(
       if (wireRes?.success && wireRes.data) {
         const apiBody = wireRes.data.wireBody;
         const etag = wireRes.data.etag || generateContentEtag(apiBody);
-        const buffer = Buffer.from(apiBody);
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
-        responseCache.set(pathKey, { body: apiBody, etag, buffer }, 300_000, cacheTenant, {
+        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
           skipSharedL1: true,
         });
         marks?.set("cachewrite", performance.now() - dbT0);
-        return { body: apiBody, etag, buffer, miss: true };
+        return { body: apiBody, etag, miss: true };
       }
       if (wireRes && wireRes.success === false && wireRes.error?.code === "RECORD_NOT_FOUND") {
         // The wire SELECT ran and definitively found no servable row (id absent
@@ -751,15 +750,14 @@ async function rebuildWarmCollectionRead(
         // reach here (see isWirePlaneAdmissible), so the verdict is authoritative.
         const apiBody = STATIC_ENVELOPES.SUCCESS_NULL;
         const etag = generateContentEtag(apiBody);
-        const buffer = Buffer.from(apiBody);
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
-        responseCache.set(pathKey, { body: apiBody, etag, buffer }, 300_000, cacheTenant, {
+        responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
           skipSharedL1: true,
         });
         marks?.set("cachewrite", performance.now() - dbT0);
-        return { body: apiBody, etag, buffer, miss: true };
+        return { body: apiBody, etag, miss: true };
       }
     }
   }
