@@ -43,7 +43,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	);
 
 	const menuItemClass =
-		'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-start text-sm text-surface-700 transition-colors hover:bg-surface-500/10 dark:text-surface-200 dark:hover:bg-surface-800';
+		'h-auto! w-full justify-start gap-2.5 rounded-md px-3! py-2! text-start text-sm! font-medium! text-surface-600 hover:bg-surface-500/10 dark:text-surface-400';
 
 	function updateMenuPosition() {
 		if (!triggerEl) return;
@@ -132,8 +132,9 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
 			>
-				<button
+				<Button
 					type="button"
+					variant="transparent"
 					role="menuitem"
 					class={menuItemClass}
 					onclick={() => closeAndRun(onDetails)}
@@ -141,10 +142,11 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 					<iconify-icon icon="mdi:information-outline" width="16" class="shrink-0 text-primary-500"
 					></iconify-icon>
 					<span>{mp_details()}</span>
-				</button>
+				</Button>
 
-				<button
+				<Button
 					type="button"
+					variant="transparent"
 					role="menuitem"
 					class={menuItemClass}
 					onclick={() => closeAndRun(onEdit)}
@@ -155,11 +157,12 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 						class="shrink-0 text-surface-500 dark:text-surface-400"
 					></iconify-icon>
 					<span>{button_edit()}</span>
-				</button>
+				</Button>
 
 				{#if isImage}
-					<button
+					<Button
 						type="button"
+						variant="transparent"
 						role="menuitem"
 						class={menuItemClass}
 						onclick={() => closeAndRun(onTags)}
@@ -170,18 +173,19 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 							class="shrink-0 text-surface-500 dark:text-surface-400"
 						></iconify-icon>
 						<span>{builder_tag_input_label()}</span>
-					</button>
+					</Button>
 				{/if}
 
-				<button
+				<Button
 					type="button"
+					variant="transparent"
 					role="menuitem"
-					class="{menuItemClass} text-error-600 hover:bg-error-500/10 dark:text-error-400 dark:hover:bg-error-500/10"
+					class="{menuItemClass} text-error-500 hover:bg-error-500/10 dark:text-error-400"
 					onclick={() => closeAndRun(onDelete)}
 				>
 					<iconify-icon icon="mdi:trash-can-outline" width="16" class="shrink-0"></iconify-icon>
 					<span>Delete</span>
-				</button>
+				</Button>
 			</div>
 		</Portal>
 	{/if}

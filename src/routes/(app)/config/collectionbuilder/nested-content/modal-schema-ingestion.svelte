@@ -151,10 +151,12 @@ Features:
 
 	<!-- Tab Bar -->
 	<div class="flex border-b border-surface-500/20 gap-2">
-		<button
+		<Button
 			type="button"
+			variant="transparent"
 			data-testid="ingest-tab-sql"
-			class="px-4 py-2 text-sm font-semibold border-b-2 transition-colors {activeTab === 'sql'
+			class="h-auto! rounded-none px-4! py-2! text-sm! font-semibold! border-b-2 {activeTab ===
+			'sql'
 				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			onclick={() => {
@@ -165,11 +167,13 @@ Features:
 				<iconify-icon icon="mdi:database-arrow-right" width="18"></iconify-icon>
 				<span>{builder_ingest_ddl_tab()}</span>
 			</div>
-		</button>
-		<button
+		</Button>
+		<Button
 			type="button"
+			variant="transparent"
 			data-testid="ingest-tab-json"
-			class="px-4 py-2 text-sm font-semibold border-b-2 transition-colors {activeTab === 'json'
+			class="h-auto! rounded-none px-4! py-2! text-sm! font-semibold! border-b-2 {activeTab ===
+			'json'
 				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			onclick={() => {
@@ -180,11 +184,13 @@ Features:
 				<iconify-icon icon="mdi:code-json" width="18"></iconify-icon>
 				<span>{builder_ingest_json_tab()}</span>
 			</div>
-		</button>
-		<button
+		</Button>
+		<Button
 			type="button"
+			variant="transparent"
 			data-testid="ingest-tab-database"
-			class="px-4 py-2 text-sm font-semibold border-b-2 transition-colors {activeTab === 'database'
+			class="h-auto! rounded-none px-4! py-2! text-sm! font-semibold! border-b-2 {activeTab ===
+			'database'
 				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
 			onclick={() => {
@@ -195,7 +201,7 @@ Features:
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
 				<span>{builder_ingest_live_tab()}</span>
 			</div>
-		</button>
+		</Button>
 	</div>
 
 	<!-- Tab 1: SQL DDL -->
@@ -260,7 +266,7 @@ Features:
 					type="text"
 					bind:value={jsonCollectionName}
 					placeholder={builder_ingest_json_name_placeholder()}
-					class="w-full rounded-lg border border-surface-500/30 bg-white px-3 py-1.5 text-sm text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
+					class="w-full rounded-lg border border-surface-500/30 bg-(--admin-bg-input) px-3 py-1.5 text-sm text-(--admin-text-body) focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40"
 					data-testid="ingest-json-name-input"
 				/>
 			</div>
@@ -342,7 +348,7 @@ Features:
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1">
 				{#each parsedResult.fields as field (field.db_fieldName)}
 					<div
-						class="flex items-center justify-between rounded border border-surface-500/20 bg-white px-2.5 py-1.5 text-xs dark:bg-surface-800"
+						class="flex items-center justify-between rounded border border-surface-500/20 bg-(--admin-bg-card) px-2.5 py-1.5 text-xs dark:bg-surface-800"
 					>
 						<span class="font-medium truncate max-w-30">{field.label}</span>
 						<div class="flex items-center gap-1">

@@ -1205,10 +1205,7 @@ offset within the row on the native `dragover` event — that event carries
 				<iconify-icon icon="bi:x" width="20"></iconify-icon>
 			</Button>
 
-			<h3
-				id="board-tag-modal-title"
-				class="text-lg font-bold text-surface-900 dark:text-white mb-2"
-			>
+			<h3 id="board-tag-modal-title" class="text-lg font-bold text-(--admin-text-body) mb-2">
 				{collections_manage_tags()}
 			</h3>
 			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">

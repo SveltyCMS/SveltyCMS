@@ -227,9 +227,7 @@ All dynamic CMS settings organized into logical groups
 	spaceY="8"
 >
 	<div data-testid="system-settings-page" class="contents">
-		<AdminCard
-			class="border border-surface-500/30 bg-white p-4 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
-		>
+		<AdminCard class="p-4 shadow-sm backdrop-blur-md">
 			<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
 				{syssettings_configure_heading()}
 			</h2>
@@ -271,15 +269,17 @@ All dynamic CMS settings organized into logical groups
 								{syssettings_configure_following()}
 								{unconfiguredCount === 1 ? 'group' : 'groups'}:
 								{#each availableGroups.filter( (g) => groupsNeedingConfig.has(g.id) ) as group, i (group.id)}
-									<button
+									<Button
 										type="button"
-										class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+										variant="transparent"
+										size="sm"
+										class="h-auto! min-w-0! px-1! py-0! font-semibold! underline decoration-dotted underline-offset-2 hover:opacity-90"
 										data-testid={`settings-needs-config-${group.id}`}
 										onclick={() => selectGroup(group.id)}
 									>
 										<GroupIcon icon={group.icon} class="inline" />
 										{group.name}
-									</button>{i < unconfiguredCount - 1 ? ', ' : ''}
+									</Button>{i < unconfiguredCount - 1 ? ', ' : ''}
 								{/each}
 							</p>
 						</div>
@@ -386,10 +386,7 @@ All dynamic CMS settings organized into logical groups
 		</AdminCard>
 
 		<!-- Multi-Tenancy Migration -->
-		<AdminCard
-			class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
-			data-testid="system-settings-mt-migration"
-		>
+		<AdminCard class="p-6 shadow-sm backdrop-blur-md" data-testid="system-settings-mt-migration">
 			<h2 class="h2 mb-4 font-bold text-tertiary-600 dark:text-primary-500">
 				{syssettings_mt_heading()}
 			</h2>

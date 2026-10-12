@@ -271,20 +271,22 @@
 						attributes: { dragOverClass: 'bg-secondary-200' }
 					}}
 					data-field-label={field.label}
-					class="border border-surface-500/30 my-2 grid w-full grid-cols-6 items-center rounded p-1 text-start hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-white"
+					class="border border-surface-500/30 my-2 grid w-full grid-cols-6 items-center rounded p-1 text-start text-(--admin-text-body) hover:bg-surface-500/10 dark:border-surface-500/40"
 					role="listitem"
 					tabindex="0"
 					aria-label={collection_widgetfield_field_aria({ label: field.label })}
 				>
 					<div class="flex items-center gap-1" role="cell">
-						<button
+						<Button
 							type="button"
-							class="field-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400 focus:outline-none"
+							variant="transparent"
+							size="sm"
+							class="field-drag-handle h-auto! min-w-0! cursor-grab p-1! text-surface-500 active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
 							aria-label={collection_widgetfield_drag_aria({ label: field.label })}
 							title={builder_tip_drag_reorder()}
 						>
 							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
-						</button>
+						</Button>
 						<div
 							class="inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-8 w-8 rounded-full bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/20 dark:text-primary-400"
 						>
@@ -337,7 +339,7 @@
 				variant="tertiary"
 				type="button"
 				onclick={handleCollectionSave}
-				class="mt-2 justify-end dark: dark:text-black"
+				class="mt-2 justify-end"
 			>
 				{button_save()}
 			</Button>

@@ -845,15 +845,17 @@ Handles all field types and validation automatically
 														>{displayLanguage(langCode)} ({langCode})</span
 													>
 													{#if !availableLangsField.readonly}
-														<button
+														<Button
+															variant="transparent"
+															size="sm"
 															type="button"
-															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="h-auto! min-w-0! -me-1 p-0.5! rounded-full hover:bg-surface-500/20"
 															onclick={() =>
 																removeLanguage(availableLangsField.key, langCode as string)}
 															aria-label={settings_remove_language({ langCode })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-														</button>
+														</Button>
 													{/if}
 												</Badge>
 											{/each}
@@ -908,9 +910,11 @@ Handles all field types and validation automatically
 																	.toLowerCase()
 																	.includes(search) || lang.code.toLowerCase().includes(search));
 													} ) as lang (lang.code)}
-													<button
+													<Button
+														variant="transparent"
+														size="sm"
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
+														class="h-auto! w-full justify-between rounded px-2! py-1! text-start text-xs! font-normal! hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(availableLangsField.key, lang.code);
 															showLanguagePicker[availableLangsField.key] = false;
@@ -929,7 +933,7 @@ Handles all field types and validation automatically
 															width="14"
 															class="text-tertiary-500 dark:text-primary-500"
 														></iconify-icon>
-													</button>
+													</Button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">
 														{settings_no_matches()}
@@ -1048,9 +1052,11 @@ Handles all field types and validation automatically
 														>
 													{/if}
 													{#if !localesField.readonly}
-														<button
+														<Button
+															variant="transparent"
+															size="sm"
 															type="button"
-															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="h-auto! min-w-0! -me-1 p-0.5! rounded-full hover:bg-surface-500/20"
 															onclick={() => {
 																const currentBase = values.BASE_LOCALE as string;
 																removeLanguage(localesField.key, langCode as string);
@@ -1063,7 +1069,7 @@ Handles all field types and validation automatically
 															aria-label={settings_remove_language({ langCode })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-														</button>
+														</Button>
 													{/if}
 												</Badge>
 											{/each}
@@ -1148,9 +1154,11 @@ Handles all field types and validation automatically
 																	.toLowerCase()
 																	.includes(search) || lang.code.toLowerCase().includes(search));
 													} ) as lang (lang.code)}
-													<button
+													<Button
+														variant="transparent"
+														size="sm"
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
+														class="h-auto! w-full justify-between rounded px-2! py-1! text-start text-xs! font-normal! hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(localesField.key, lang.code);
 															showLanguagePicker[localesField.key] = false;
@@ -1177,7 +1185,7 @@ Handles all field types and validation automatically
 															width="14"
 															class="text-tertiary-500 dark:text-primary-500"
 														></iconify-icon>
-													</button>
+													</Button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">
 														{settings_no_matches()}
@@ -1389,14 +1397,16 @@ Handles all field types and validation automatically
 														>{displayLanguage(langCode)} ({langCode})</span
 													>
 													{#if !field.readonly}
-														<button
+														<Button
+															variant="transparent"
+															size="sm"
 															type="button"
-															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="h-auto! min-w-0! -me-1 p-0.5! rounded-full hover:bg-surface-500/20"
 															onclick={() => removeLanguage(field.key, langCode as string)}
 															aria-label={settings_remove_language({ langCode })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-														</button>
+														</Button>
 													{/if}
 												</Badge>
 											{/each}
@@ -1451,9 +1461,11 @@ Handles all field types and validation automatically
 																	.toLowerCase()
 																	.includes(search) || lang.code.toLowerCase().includes(search));
 													} ) as lang (lang.code)}
-													<button
+													<Button
+														variant="transparent"
+														size="sm"
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
+														class="h-auto! w-full justify-between rounded px-2! py-1! text-start text-xs! font-normal! hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(field.key, lang.code);
 															showLanguagePicker[field.key] = false;
@@ -1465,7 +1477,7 @@ Handles all field types and validation automatically
 															width="14"
 															class="text-tertiary-500 dark:text-primary-500"
 														></iconify-icon>
-													</button>
+													</Button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">
 														{settings_no_matches()}
@@ -1499,14 +1511,16 @@ Handles all field types and validation automatically
 												>
 													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}
-														<button
+														<Button
+															variant="transparent"
+															size="sm"
 															type="button"
-															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="h-auto! min-w-0! -me-1 p-0.5! rounded-full hover:bg-surface-500/20"
 															onclick={() => removeLogLevel(field.key, level as LogLevel)}
 															aria-label={settings_remove_log_level({ level })}
 														>
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-														</button>
+														</Button>
 													{/if}
 												</Badge>
 											{/each}
@@ -1545,9 +1559,11 @@ Handles all field types and validation automatically
 												{#each LOG_LEVELS as level (level)}
 													{const currentValues = (values[field.key] as LogLevel[]) || []}
 													{#if !currentValues.includes(level)}
-														<button
+														<Button
+															variant="transparent"
+															size="sm"
 															type="button"
-															class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs capitalize hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
+															class="h-auto! w-full justify-between rounded px-2! py-1! text-start text-xs! font-normal! capitalize hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 															onclick={() => {
 																toggleLogLevel(field.key, level);
 																showLogLevelPicker[field.key] = false;
@@ -1559,7 +1575,7 @@ Handles all field types and validation automatically
 																width="14"
 																class="text-tertiary-500 dark:text-primary-500"
 															></iconify-icon>
-														</button>
+														</Button>
 													{/if}
 												{/each}
 											</div>

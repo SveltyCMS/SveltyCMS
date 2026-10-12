@@ -345,7 +345,7 @@
 						bind:value={description}
 						placeholder={collection_description_placeholder()}
 						title={collectionname_description()}
-						class="w-full rounded border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900 p-3 text-sm text-surface-900 dark:text-surface-100 placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500 resize-none min-h-32"
+						class="w-full min-h-32 resize-none rounded border border-(--admin-border-default) bg-(--admin-bg-input) p-3 text-sm text-(--admin-text-body) placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500"
 					></textarea>
 				</div>
 			</div>

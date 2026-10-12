@@ -146,7 +146,7 @@ before saving to the database.
 >
 	<!-- Preview Top Toolbar -->
 	<div
-		class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-500/30 bg-white p-3 shadow-2xs dark:border-surface-500/40 dark:bg-surface-900"
+		class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-3 shadow-2xs"
 	>
 		<!-- Left: Viewport Switcher -->
 		<div class="flex items-center gap-1">
@@ -158,42 +158,45 @@ before saving to the database.
 				role="group"
 				aria-label={preview_responsive_aria()}
 			>
-				<button
+				<Button
 					type="button"
-					class="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors {viewport ===
-					'desktop'
-						? 'bg-white font-bold text-tertiary-600 shadow-xs dark:bg-surface-800 dark:text-primary-500'
+					variant="transparent"
+					size="sm"
+					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'desktop'
+						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 					onclick={() => (viewport = 'desktop')}
 					aria-label={preview_desktop_aria()}
 				>
 					<iconify-icon icon="mdi:monitor" width="16"></iconify-icon>
 					<span class="hidden sm:inline">{common_desktop()}</span>
-				</button>
-				<button
+				</Button>
+				<Button
 					type="button"
-					class="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors {viewport ===
-					'tablet'
-						? 'bg-white font-bold text-tertiary-600 shadow-xs dark:bg-surface-800 dark:text-primary-500'
+					variant="transparent"
+					size="sm"
+					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'tablet'
+						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 					onclick={() => (viewport = 'tablet')}
 					aria-label={preview_tablet_aria()}
 				>
 					<iconify-icon icon="mdi:tablet" width="16"></iconify-icon>
 					<span class="hidden sm:inline">{common_tablet()}</span>
-				</button>
-				<button
+				</Button>
+				<Button
 					type="button"
-					class="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors {viewport ===
-					'mobile'
-						? 'bg-white font-bold text-tertiary-600 shadow-xs dark:bg-surface-800 dark:text-primary-500'
+					variant="transparent"
+					size="sm"
+					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'mobile'
+						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
 					onclick={() => (viewport = 'mobile')}
 					aria-label={preview_mobile_aria()}
 				>
 					<iconify-icon icon="mdi:cellphone" width="16"></iconify-icon>
 					<span class="hidden sm:inline">{common_mobile()}</span>
-				</button>
+				</Button>
 			</div>
 		</div>
 
@@ -225,7 +228,7 @@ before saving to the database.
 	<!-- Interactive Simulation Canvas -->
 	<div class="flex flex-1 items-start justify-center overflow-auto pb-8">
 		<div
-			class="{viewportWidthClass} transition-all duration-300 rounded-2xl border border-surface-500/30 bg-white p-6 shadow-md dark:border-surface-500/40 dark:bg-surface-900"
+			class="{viewportWidthClass} rounded-2xl border border-(--admin-border-default) bg-(--admin-bg-card) p-6 shadow-md transition-all duration-300"
 		>
 			<!-- Simulated Form Header -->
 			<div class="mb-6 border-b border-surface-500/20 pb-4 dark:border-surface-500/30">
@@ -354,34 +357,46 @@ before saving to the database.
 									<div
 										class="flex items-center gap-1 border-b border-surface-500/20 bg-surface-500/10 px-2 py-1.5 text-surface-600 dark:text-surface-400"
 									>
-										<button
+										<Button
 											type="button"
-											class="p-1 hover:bg-surface-500/20 rounded"
+											variant="transparent"
+											size="sm"
+											class="h-auto! min-w-0! p-1!"
 											title={preview_bold()}
+											aria-label={preview_bold()}
 										>
 											<iconify-icon icon="mdi:format-bold" width="16"></iconify-icon>
-										</button>
-										<button
+										</Button>
+										<Button
 											type="button"
-											class="p-1 hover:bg-surface-500/20 rounded"
+											variant="transparent"
+											size="sm"
+											class="h-auto! min-w-0! p-1!"
 											title={preview_italic()}
+											aria-label={preview_italic()}
 										>
 											<iconify-icon icon="mdi:format-italic" width="16"></iconify-icon>
-										</button>
-										<button
+										</Button>
+										<Button
 											type="button"
-											class="p-1 hover:bg-surface-500/20 rounded"
+											variant="transparent"
+											size="sm"
+											class="h-auto! min-w-0! p-1!"
 											title={preview_link()}
+											aria-label={preview_link()}
 										>
 											<iconify-icon icon="mdi:link" width="16"></iconify-icon>
-										</button>
-										<button
+										</Button>
+										<Button
 											type="button"
-											class="p-1 hover:bg-surface-500/20 rounded"
+											variant="transparent"
+											size="sm"
+											class="h-auto! min-w-0! p-1!"
 											title={preview_bullet_list()}
+											aria-label={preview_bullet_list()}
 										>
 											<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-										</button>
+										</Button>
 									</div>
 									<textarea
 										id="preview-{key}"
@@ -389,7 +404,7 @@ before saving to the database.
 										aria-label={item.label || key}
 										bind:value={sampleValues[key]}
 										placeholder={item.placeholder || 'Enter formatted content...'}
-										class="w-full bg-transparent p-3 text-sm focus:outline-none dark:text-white"
+										class="w-full bg-transparent p-3 text-sm focus:outline-none dark:text-(--admin-text-body)"
 									></textarea>
 								</div>
 							{:else if widgetKey.includes('textarea')}
@@ -399,7 +414,7 @@ before saving to the database.
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
 									placeholder={item.placeholder || 'Enter text...'}
-									class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:bg-surface-900 dark:text-white"
+									class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 py-2 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								></textarea>
 							{:else if widgetKey.includes('date')}
 								<input
@@ -407,7 +422,7 @@ before saving to the database.
 									type="date"
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
-									class="h-10 w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 text-sm focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:bg-surface-900 dark:text-white"
+									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								/>
 							{:else if widgetKey.includes('number') || widgetKey.includes('currency')}
 								<input
@@ -416,7 +431,7 @@ before saving to the database.
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
 									placeholder={item.placeholder || '0'}
-									class="h-10 w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 text-sm focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:bg-surface-900 dark:text-white"
+									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								/>
 							{:else}
 								<input
@@ -425,7 +440,7 @@ before saving to the database.
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
 									placeholder={item.placeholder || `Enter ${item.label || 'value'}...`}
-									class="h-10 w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 text-sm focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:bg-surface-900 dark:text-white"
+									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								/>
 							{/if}
 

@@ -106,6 +106,7 @@ floating/anchor bugs when multiple icons stack in a column.
 	);
 </script>
 
+<!-- DOM node, not Button: the tooltip measures triggerEl.getBoundingClientRect(). -->
 <button
 	bind:this={triggerEl}
 	type="button"

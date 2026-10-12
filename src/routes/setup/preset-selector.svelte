@@ -109,7 +109,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 				width="22"
 				class="text-tertiary-500 dark:text-primary-500"
 			></iconify-icon>
-			<h3 class="text-[1.05rem] font-semibold text-dark dark:text-white">Project Blueprint</h3>
+			<h3 class="text-[1.05rem] font-semibold text-(--admin-text-body)">Project Blueprint</h3>
 			<SystemTooltip
 				title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings."
 			>
@@ -175,7 +175,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					class="relative flex flex-col flex-none w-70 p-4! h-auto! items-stretch! justify-start! font-normal! overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250! hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
 					preset.id
 						? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
-						: 'bg-white! dark:bg-surface-800! border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
+						: 'border-(--admin-border-default) bg-(--admin-bg-card)! hover:border-tertiary-500 dark:hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
@@ -219,7 +219,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					<div
 						class="line-clamp-3 text-xs leading-relaxed {selected === preset.id
 							? 'text-white/90 dark:text-white/90'
-							: 'text-black/60 dark:text-white/40'}"
+							: 'text-(--admin-text-muted)'}"
 					>
 						{preset.description}
 					</div>
@@ -268,7 +268,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 			<Button
 				type="button"
 				variant="transparent"
-				class="w-1.5 h-1.5! p-0! min-w-0! cursor-pointer border-none rounded-full! transition-all duration-250! bg-black/15! dark:bg-white/20! {visibleIndex ===
+				class="h-1.5! w-1.5! min-w-0! rounded-full! border-none p-0! bg-surface-900/15! transition-all duration-250! dark:bg-surface-400! {visibleIndex ===
 				i
 					? 'w-4.5! rounded-[3px]! bg-tertiary-500! dark:bg-primary-500! '
 					: ''}"

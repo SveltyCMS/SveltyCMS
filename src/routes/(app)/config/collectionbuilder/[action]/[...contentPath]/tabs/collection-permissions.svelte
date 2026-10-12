@@ -277,54 +277,63 @@
 							<!-- View -->
 							<td class="text-center px-3 py-3">
 								{#if perm}
-									<button
+									<Button
+										type="button"
+										variant="transparent"
+										size="sm"
 										onclick={() => togglePermission(roleName, 'view')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.view
-											? 'bg-tertiary-500/10 dark:bg-primary-900/20 text-tertiary-600 dark:text-primary-500'
-											: 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="h-7! w-7! min-w-0! p-0! {perm.view
+											? 'bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-400'
+											: 'bg-surface-500/10 text-surface-400'}"
 										aria-label={`Toggle view for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.view}
 									>
 										<iconify-icon icon={perm.view ? 'mdi:check-bold' : 'mdi:close'} width="16"
 										></iconify-icon>
-									</button>
+									</Button>
 								{/if}
 							</td>
 
 							<!-- Edit -->
 							<td class="text-center px-3 py-3">
 								{#if perm}
-									<button
+									<Button
+										type="button"
+										variant="transparent"
+										size="sm"
 										onclick={() => togglePermission(roleName, 'edit')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.edit
-											? 'bg-warning-500/10 dark:bg-warning-900/20 text-warning-600 dark:text-warning-400'
-											: 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="h-7! w-7! min-w-0! p-0! {perm.edit
+											? 'bg-warning-500/10 text-warning-600 dark:bg-warning-900/20 dark:text-warning-400'
+											: 'bg-surface-500/10 text-surface-400'}"
 										aria-label={`Toggle edit for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.edit}
 									>
 										<iconify-icon icon={perm.edit ? 'mdi:check-bold' : 'mdi:close'} width="16"
 										></iconify-icon>
-									</button>
+									</Button>
 								{/if}
 							</td>
 
 							<!-- Write -->
 							<td class="text-center px-3 py-3">
 								{#if perm}
-									<button
+									<Button
+										type="button"
+										variant="transparent"
+										size="sm"
 										onclick={() => togglePermission(roleName, 'write')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.write
-											? 'bg-success-500/10 dark:bg-success-900/20 text-success-600 dark:text-success-400'
-											: 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="h-7! w-7! min-w-0! p-0! {perm.write
+											? 'bg-success-500/10 text-success-600 dark:bg-success-900/20 dark:text-success-400'
+											: 'bg-surface-500/10 text-surface-400'}"
 										aria-label={`Toggle write for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.write}
 									>
 										<iconify-icon icon={perm.write ? 'mdi:check-bold' : 'mdi:close'} width="16"
 										></iconify-icon>
-									</button>
+									</Button>
 								{/if}
 							</td>
 

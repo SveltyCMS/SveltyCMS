@@ -116,7 +116,7 @@ This component acts as an intercept layer. It either renders a fully dynamic JSO
 
 		<!-- AI Content -->
 		<div
-			class="p-4 rounded-2xl bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-white/20 shadow-xl min-h-100"
+			class="min-h-100 rounded-2xl border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl"
 		>
 			<JSONUIProvider initialState={context}>
 				<Renderer registry={sveltyRegistry} spec={currentSpec} />

@@ -249,9 +249,7 @@ Features:
 
 	<!-- Success Details -->
 	{#if state === 'success' && result}
-		<div
-			class="border-t border-success-500/20 bg-white p-4 dark:border-success-500/40 dark:bg-surface-800"
-		>
+		<div class="border-t border-success-500/20 bg-(--admin-bg-card) p-4 dark:border-success-500/40">
 			<div class="grid gap-3 text-sm">
 				{#if result.atlas}
 					<div class="flex items-center gap-2 text-success-600 dark:text-success-400">
@@ -324,9 +322,7 @@ Features:
 
 	<!-- Error Details with Troubleshooting -->
 	{#if state === 'error' && result}
-		<div
-			class="border-t border-error-500/20 bg-white p-4 dark:border-error-500/40 dark:bg-surface-800"
-		>
+		<div class="border-t border-error-500/20 bg-(--admin-bg-card) p-4 dark:border-error-500/40">
 			<!-- Technical Error Message -->
 			{#if result.error && result.error !== result.userFriendly}
 				<div class="mb-3 rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
@@ -381,7 +377,7 @@ Features:
 	<!-- Testing Animation -->
 	{#if state === 'testing'}
 		<div
-			class="border-t border-tertiary-500/20 bg-white p-4 dark:border-tertiary-500/40 dark:bg-surface-800"
+			class="border-t border-tertiary-500/20 bg-(--admin-bg-card) p-4 dark:border-tertiary-500/40"
 		>
 			<div class="flex items-center gap-3">
 				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">

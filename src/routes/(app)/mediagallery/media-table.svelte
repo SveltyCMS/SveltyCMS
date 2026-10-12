@@ -25,6 +25,7 @@
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table';
+	import Button from '@components/ui/button.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
@@ -434,9 +435,11 @@
 						class="media-table-name relative {SMART_TABLE_TH} min-w-0 text-start!"
 						style={smartTable.getColumnWidthStyle('filename')}
 					>
-						<button
+						<Button
 							type="button"
-							class="font-semibold uppercase"
+							variant="transparent"
+							size="sm"
+							class="h-auto! min-w-0! px-1! py-0! text-xs! font-semibold! uppercase"
 							onclick={() => smartTable.setSort('filename')}
 						>
 							{mediagallery_name()}
@@ -447,16 +450,18 @@
 									class="ms-0.5 inline"
 								></iconify-icon>
 							{/if}
-						</button>
+						</Button>
 						<ColumnResizeHandle columnKey="filename" onResize={smartTable.setColumnWidth} />
 					</th>
 					<th
 						class="media-table-size relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! sm:table-cell"
 						style={smartTable.getColumnWidthStyle('size')}
 					>
-						<button
+						<Button
 							type="button"
-							class="font-semibold uppercase"
+							variant="transparent"
+							size="sm"
+							class="h-auto! min-w-0! px-1! py-0! text-xs! font-semibold! uppercase"
 							onclick={() => smartTable.setSort('size')}
 						>
 							{mediagallery_size()}
@@ -467,16 +472,18 @@
 									class="ms-0.5 inline"
 								></iconify-icon>
 							{/if}
-						</button>
+						</Button>
 						<ColumnResizeHandle columnKey="size" onResize={smartTable.setColumnWidth} />
 					</th>
 					<th
 						class="media-table-type relative {SMART_TABLE_TH} hidden shrink-0 whitespace-nowrap text-end! md:table-cell"
 						style={smartTable.getColumnWidthStyle('type')}
 					>
-						<button
+						<Button
 							type="button"
-							class="font-semibold uppercase"
+							variant="transparent"
+							size="sm"
+							class="h-auto! min-w-0! px-1! py-0! text-xs! font-semibold! uppercase"
 							onclick={() => smartTable.setSort('type')}
 						>
 							{mediagallery_type_placeholder()}
@@ -487,7 +494,7 @@
 									class="ms-0.5 inline"
 								></iconify-icon>
 							{/if}
-						</button>
+						</Button>
 						<ColumnResizeHandle columnKey="type" onResize={smartTable.setColumnWidth} />
 					</th>
 					<th

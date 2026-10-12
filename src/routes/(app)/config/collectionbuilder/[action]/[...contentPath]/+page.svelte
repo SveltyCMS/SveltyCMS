@@ -508,7 +508,7 @@
 
 	<!-- Tab Navigation -->
 	<div
-		class="z-20 shrink-0 border-b border-surface-500/30 bg-white px-4 pt-2 pb-2 dark:border-surface-500/40 dark:bg-surface-900 shadow-xs"
+		class="z-20 shrink-0 border-b border-surface-500/30 bg-(--admin-bg-card) px-4 pt-2 pb-2 dark:border-surface-500/40 shadow-xs"
 		data-testid="collection-editor-tabs"
 	>
 		<div class="flex items-center justify-between gap-4">
@@ -539,48 +539,54 @@
 						role="group"
 						aria-label={builder_editor_view_mode_aria()}
 					>
-						<button
+						<Button
 							type="button"
-							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode ===
-							'canvas'
-								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+							variant="transparent"
+							size="sm"
+							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'canvas'
+								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'canvas')}
 							data-testid="view-mode-canvas"
 						>
 							{builder_editor_canvas()}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
-							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split'
-								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+							variant="transparent"
+							size="sm"
+							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'split'
+								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'split')}
 							data-testid="view-mode-split"
 						>
 							{builder_editor_split_view()}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
-							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code'
-								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+							variant="transparent"
+							size="sm"
+							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'code'
+								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'code')}
 							data-testid="view-mode-code"
 						>
 							{builder_editor_typescript()}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
-							class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode ===
-							'preview'
-								? 'bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 shadow-xs text-tertiary-500 dark:text-primary-400 font-bold'
+							variant="transparent"
+							size="sm"
+							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'preview'
+								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'preview')}
 							data-testid="view-mode-preview"
 						>
 							{builder_editor_preview()}
-						</button>
+						</Button>
 					</div>
 				{/if}
 				<p class="text-surface-500 dark:text-surface-400 hidden lg:block text-xs text-end">

@@ -11,6 +11,7 @@
 - Drag and drop support for reassigning collections
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import {
 		builder_tip_drag_reorder,
 		Unassigned_Collections,
@@ -69,7 +70,7 @@
 </script>
 
 <div class="ms-1 rounded-sm border-2 border-tertiary-500">
-	<h2 class="mb-2 text-center font-bold dark:text-white">{Unassigned_Collections()}</h2>
+	<h2 class="mb-2 text-center font-bold text-(--admin-text-body)">{Unassigned_Collections()}</h2>
 	<div
 		class="flex w-full flex-wrap overflow-x-auto p-2"
 		use:droppable={{
@@ -84,7 +85,7 @@
 		{#each items as item (item.id || item.name)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
-				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-sm border border-surface-500/40 bg-surface-500/10 text-center text-xs font-bold hover:bg-surface-500/20 dark:text-white"
+				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-sm border border-surface-500/40 bg-surface-500/10 text-center text-xs font-bold text-(--admin-text-body) hover:bg-surface-500/20"
 				data-item-id={item.id || item.name}
 				animate:flip={{ duration: flipDurationMs }}
 				use:draggable={{
@@ -96,14 +97,16 @@
 				role="listitem"
 				tabindex="0"
 			>
-				<button
+				<Button
 					type="button"
-					class="unassigned-drag-handle flex items-center justify-center p-1 text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
+					variant="transparent"
+					size="sm"
+					class="unassigned-drag-handle h-auto! min-w-0! p-1! text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
 					aria-label={unassigned_drag_aria({ name: item.name })}
 					title={builder_tip_drag_reorder()}
 				>
 					<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
-				</button>
+				</Button>
 
 				<span class="break-word flex items-center gap-2">
 					<iconify-icon icon={item.icon} width="18" class="text-error-500"></iconify-icon>

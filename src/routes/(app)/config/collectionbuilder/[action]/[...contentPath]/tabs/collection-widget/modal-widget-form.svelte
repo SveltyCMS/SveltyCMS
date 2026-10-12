@@ -292,7 +292,7 @@
 	<div class="flex flex-col w-full">
 		<!-- Header -->
 		<div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
-			<h2 class="text-lg font-bold text-surface-900 dark:text-white">
+			<h2 class="text-lg font-bold text-(--admin-text-body)">
 				{widget_form_edit_field()}{' '}<span class="text-tertiary-500 dark:text-primary-500"
 					>{local.label || 'Unnamed'}</span
 				>
@@ -526,9 +526,10 @@
 						>
 							{widget_form_visibility()}
 						</h4>
-						<button
+						<Button
 							type="button"
-							class="flex w-full items-center justify-between rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 px-4 py-3 text-start hover:border-tertiary-500/50 dark:hover:border-primary-500/50 transition-colors"
+							variant="transparent"
+							class="h-auto! w-full justify-between rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4! py-3! text-start hover:border-tertiary-500/50 dark:hover:border-primary-500/50"
 							onclick={() =>
 								updatePerms({
 									visibility: localPerms.visibility === 'public' ? 'private' : 'public'
@@ -542,7 +543,7 @@
 								width="20"
 								class="text-surface-400"
 							></iconify-icon>
-						</button>
+						</Button>
 						<p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
 							{localPerms.visibility === 'public'
 								? 'Field is visible to everyone by default.'
@@ -555,7 +556,7 @@
 						class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4"
 					>
 						<label
-							class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 p-3"
+							class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card) p-3"
 						>
 							<input
 								type="checkbox"

@@ -430,7 +430,7 @@ Features:
 				<h2 id="market-heading" class="text-sm font-medium text-surface-900 dark:text-surface-50">
 					Country and prices
 				</h2>
-				<p class="mt-1 text-xs leading-relaxed text-surface-500 dark:text-white/50">
+				<p class="mt-1 text-xs leading-relaxed text-(--admin-text-muted)">
 					Pick a country to fill currency, shop language, and a suggested tax rate. Edit every
 					value. Leave the country empty and no tax row is created. Suggested rates were checked on
 					5 October 2026. They are a starting point, not a tax ruling.
@@ -675,10 +675,10 @@ Features:
 		</section>
 
 		<!-- Languages -->
-		<section class="space-y-5 border-t border-surface-500/30 dark:border-white/10 pt-2">
+		<section class="space-y-5 border-t border-surface-500/30 dark:border-surface-500/30 pt-2">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Default System Language -->
-				<div class="space-y-2 rounded border border-surface-500/30 dark:border-white/5 p-4">
+				<div class="space-y-2 rounded border border-surface-500/30 dark:border-surface-500/20 p-4">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon
 							icon="mdi:translate"
@@ -694,7 +694,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<p class="text-[10px] text-surface-500 dark:text-white/40" id="system-lang-help">
+					<p class="text-[10px] text-(--admin-text-muted)" id="system-lang-help">
 						{setup_system_lang_primary_help()}
 					</p>
 
@@ -721,7 +721,7 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-white/20 p-2"
+							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-surface-500/40 p-2"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
@@ -744,7 +744,7 @@ Features:
 										<Button
 											variant="transparent"
 											type="button"
-											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-white/20 transition-colors"
+											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-surface-500/20 transition-colors"
 											onclick={() => removeSystemLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
@@ -773,7 +773,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 dark:border-surface-500/30 bg-(--admin-bg-card) p-2 shadow-xl"
 									role="dialog"
 									aria-label={setup_aria_add_system_language()}
 									tabindex="-1"
@@ -789,9 +789,7 @@ Features:
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if systemAvailable.length === 0}
-											<p
-												class="px-1 py-2 text-center text-[11px] text-surface-400 dark:text-white/40"
-											>
+											<p class="px-1 py-2 text-center text-[11px] text-(--admin-text-muted)">
 												{setup_help_no_matches?.() || 'No matches'}
 											</p>
 										{/if}
@@ -805,8 +803,7 @@ Features:
 											>
 												<span class="text-surface-900 dark:text-surface-50"
 													>{sug.name} ({sug.code.toUpperCase()})
-													<span class="text-surface-500 dark:text-white/40">- {sug.native}</span
-													></span
+													<span class="text-(--admin-text-muted)">- {sug.native}</span></span
 												>
 												{#if getTextDirection(sug.code) === 'rtl'}
 													<span
@@ -826,13 +823,13 @@ Features:
 								</div>
 							{/if}
 						</div>
-						<p class="mt-2 text-[10px] leading-relaxed text-surface-500 dark:text-white/40">
+						<p class="mt-2 text-[10px] leading-relaxed text-(--admin-text-muted)">
 							{setup_note_machine_translate()}
 						</p>
 					</div>
 				</div>
 				<!-- Default Content Language -->
-				<div class="space-y-2 rounded border border-surface-500/30 dark:border-white/5 p-4">
+				<div class="space-y-2 rounded border border-surface-500/30 dark:border-surface-500/20 p-4">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon
 							icon="mdi:book-open-page-variant"
@@ -847,7 +844,7 @@ Features:
 							<HelpIcon ariaLabel={setup_help_default_content_language_aria()} />
 						</SystemTooltip>
 					</div>
-					<p class="text-[10px] text-surface-500 dark:text-white/40" id="content-lang-help">
+					<p class="text-[10px] text-(--admin-text-muted)" id="content-lang-help">
 						{setup_content_lang_primary_help()}
 					</p>
 					<Select
@@ -876,7 +873,7 @@ Features:
 						<div
 							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-								: 'border-surface-500/30 dark:border-white/20 '}"
+								: 'border-surface-500/30 dark:border-surface-500/40 '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
 								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
@@ -885,7 +882,7 @@ Features:
 										<Button
 											variant="transparent"
 											type="button"
-											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-white/20 transition-colors"
+											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-surface-500/20 transition-colors"
 											onclick={() => removeContentLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
@@ -928,7 +925,7 @@ Features:
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
-											<p class="px-1 py-2 text-center text-[11px] text-white/40">
+											<p class="px-1 py-2 text-center text-[11px] text-(--admin-text-muted)">
 												{setup_help_no_matches?.() || 'No matches'}
 											</p>
 										{/if}
@@ -942,8 +939,7 @@ Features:
 											>
 												<span class="text-surface-900 dark:text-surface-50"
 													>{sug.name} ({sug.code.toUpperCase()})
-													<span class="text-surface-500 dark:text-white/40">- {sug.native}</span
-													></span
+													<span class="text-(--admin-text-muted)">- {sug.native}</span></span
 												>
 												<iconify-icon
 													icon="mdi:plus-circle-outline"
@@ -970,7 +966,7 @@ Features:
 		<!-- System Infrastructure / Mode -->
 		<section
 			id="infrastructure-section"
-			class="mt-4 border-t border-surface-500/30 dark:border-white/10 pt-4"
+			class="mt-4 border-t border-surface-500/30 dark:border-surface-500/30 pt-4"
 		>
 			<h4
 				class="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-primary-500 mb-4"
@@ -1025,7 +1021,7 @@ Features:
 		<!-- Redis Caching — expand/collapse stays inside step-content scroll; footer is absolute in +page -->
 		<section
 			id="redis-section"
-			class="mt-4 border-t border-surface-500/30 pt-4 dark:border-white/10"
+			class="mt-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
 		>
 			<div
 				class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
@@ -1122,7 +1118,7 @@ Features:
 		</section>
 
 		<!-- Enterprise Scaling & performance -->
-		<div class="mt-4 border-t border-surface-500/30 dark:border-white/10 pt-4">
+		<div class="mt-4 border-t border-surface-500/30 dark:border-surface-500/30 pt-4">
 			<Button
 				variant="transparent"
 				type="button"
@@ -1150,9 +1146,9 @@ Features:
 
 			{#if showScaling}
 				<div
-					class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300"
+					class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-surface-500/30 p-4 transition-all duration-300"
 				>
-					<p class="text-xs text-surface-500 dark:text-white/40">
+					<p class="text-xs text-(--admin-text-muted)">
 						Configure native CDN purging to synchronize global edge nodes instantly upon content
 						updates.
 					</p>

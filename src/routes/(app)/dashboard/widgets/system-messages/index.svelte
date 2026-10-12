@@ -25,6 +25,7 @@
 </script>
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
 	import { formatDate } from '@utils/format-date';
@@ -179,11 +180,13 @@
 					{#each messages.slice(0, 5) as msg (msg.id || msg.timestamp + msg.title)}
 						{const msgId = msg.id || msg.timestamp + msg.title}
 						{const isOpen = expandedId === msgId}
-						<button
+						<Button
+							type="button"
+							variant="transparent"
 							onclick={() => toggleExpand(msgId)}
-							class="w-full text-start rounded-2xl border-s-3 {severityCls(
+							class="h-auto! w-full justify-start rounded-2xl border-s-3 px-4! py-3! text-start hover:opacity-90 {severityCls(
 								msg
-							)} px-4 py-3 transition-colors hover:opacity-90"
+							)}"
 						>
 							<div class="flex items-start justify-between gap-3">
 								<div class="flex items-center gap-2 shrink-0">
@@ -233,7 +236,7 @@
 									{/each}
 								</div>
 							{/if}
-						</button>
+						</Button>
 					{/each}
 				</div>
 			</div>

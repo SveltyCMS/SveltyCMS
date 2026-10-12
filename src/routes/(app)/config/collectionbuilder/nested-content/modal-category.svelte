@@ -359,7 +359,7 @@ Features:
 							></iconify-icon>
 						</div>
 						<div class="min-w-0 flex-1">
-							<div class="truncate text-base font-semibold text-surface-900 dark:text-white">
+							<div class="truncate text-base font-semibold text-(--admin-text-body)">
 								{formData.newCategoryName || 'Category name'}
 							</div>
 							{#if formData.newCategoryDescription}

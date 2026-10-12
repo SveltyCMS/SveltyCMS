@@ -7,6 +7,7 @@
 <script lang="ts">
 	// Using iconify-icon web component
 	// Modern widget system
+	import Button from '@components/ui/button.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import {
 		widget_select_category_suffix,
@@ -102,10 +103,11 @@
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 							{#each filteredKeys as item (item)}
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}
-									<button
+									<Button
 										type="button"
+										variant="transparent"
 										onclick={() => onFormSubmit(item)}
-										class="group relative flex flex-col gap-3 rounded-xl border border-surface-500/30 bg-white p-5 text-start shadow-xs transition-all hover:-translate-y-1 hover:border-tertiary-500 hover:shadow-lg dark:border-surface-500/40 dark:bg-surface-800 dark:hover:border-primary-500"
+										class="group relative h-auto! w-full flex-col items-stretch justify-start gap-3 rounded-xl border border-surface-500/30 bg-(--admin-bg-card) p-5! text-start shadow-xs hover:-translate-y-1 hover:border-tertiary-500 dark:hover:border-primary-500"
 										aria-label={`Select ${item} widget`}
 										data-testid={`select-widget-${String(item).toLowerCase()}`}
 									>
@@ -121,7 +123,7 @@
 
 										<div>
 											<h3
-												class="text-lg font-bold text-surface-900 group-hover:text-tertiary-600 dark:text-white dark:group-hover:text-primary-400"
+												class="text-lg font-bold text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400"
 											>
 												{item}
 											</h3>
@@ -129,7 +131,7 @@
 												{availableWidgets[item]?.Description || 'No description available'}
 											</p>
 										</div>
-									</button>
+									</Button>
 								{/if}
 							{/each}
 						</div>

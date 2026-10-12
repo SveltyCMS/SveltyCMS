@@ -257,18 +257,18 @@
 							minute: '2-digit'
 						})}
 						<div
-							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
+							class="absolute pointer-events-none z-20 rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-2 text-xs shadow-xl backdrop-blur-md"
 							style="left: {Math.max(
 								20,
 								Math.min(points[activeIndex].x - 45, 220)
 							)}px; top: {points[activeIndex].y - 58}px;"
 						>
 							<div
-								class="font-mono font-semibold text-lg leading-none tabular-nums text-gray-900 dark:text-white"
+								class="font-mono text-lg leading-none font-semibold tabular-nums text-(--admin-text-body)"
 							>
 								{val.toFixed(1)}%
 							</div>
-							<div class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{time}</div>
+							<div class="mt-0.5 text-[10px] text-(--admin-text-muted)">{time}</div>
 						</div>
 					{/if}
 				</div>

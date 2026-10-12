@@ -15,6 +15,7 @@
 
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
 	import type { WidgetSize } from '@src/content/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -250,13 +251,16 @@
 								</div>
 							</div>
 
-							<button
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
 								onclick={reinitializeSystem}
-								class="rounded border border-warning-500/30 px-3 py-1.5 text-xs font-semibold text-warning-600 hover:bg-warning-500/10 dark:text-warning-400 transition-all duration-150 flex items-center gap-1.5"
+								class="h-auto! border-warning-500/30 px-3! py-1.5! text-xs! text-warning-600 dark:text-warning-400 hover:bg-warning-500/10"
 							>
 								<iconify-icon icon="mdi:refresh" width={16}></iconify-icon>
 								{dashboard_health_reinitialize()}
-							</button>
+							</Button>
 						</div>
 
 						<!-- Services Cards Feed -->

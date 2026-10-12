@@ -46,7 +46,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	}
 </script>
 
-<div class="shrink-0 bg-white p-2 dark:bg-surface-800 dark:text-surface-50">
+<div class="shrink-0 bg-(--admin-bg-card) p-2 text-(--admin-text-body)">
 	<!-- Row 1: Branding and Controls (Grid on desktop, flex on mobile) -->
 	<div class="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-center lg:gap-4">
 		<!-- Branding: Left on desktop, between on mobile -->
@@ -78,14 +78,14 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 
 			<!-- Mobile Controls (Visible only on mobile inside this flex row) -->
 			<div class="flex items-center gap-1.5 sm:gap-2 lg:hidden">
-				<div class="language-selector relative dark:text-white">
+				<div class="language-selector relative text-(--admin-text-body)">
 					<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 						<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-[75vw] max-w-64">
 							{#snippet trigger()}
 								<Button
 									variant="outline"
 									type="button"
-									class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1 dark:text-white"
+									class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1 text-(--admin-text-body)"
 								>
 									<span class="text-[10px] font-bold sm:text-sm">
 										<span class="hidden xs:inline">{getLanguageName(currentLanguageTag)}</span>
@@ -125,7 +125,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 		<!-- Center: Subtitle (Desktop only) -->
 		<div class="hidden lg:flex justify-center">
 			<p
-				class="text-center text-sm leading-snug dark:text-white xl:text-base font-medium opacity-80"
+				class="text-center text-sm leading-snug text-(--admin-text-body) xl:text-base font-medium opacity-80"
 			>
 				{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
 			</p>
@@ -134,14 +134,14 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 		<!-- Right: Action Buttons Group (Desktop only) -->
 		<div class="hidden items-center justify-end gap-1.5 sm:gap-2 lg:flex">
 			<!-- Desktop Controls (Copied from above for clean grid layout) -->
-			<div class="language-selector relative dark:text-white">
+			<div class="language-selector relative text-(--admin-text-body)">
 				<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 					<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-64">
 						{#snippet trigger()}
 							<Button
 								variant="outline"
 								type="button"
-								class="h-10 rounded px-3 gap-1 dark:text-white"
+								class="h-10 rounded px-3 gap-1 text-(--admin-text-body)"
 							>
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
 								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"
@@ -190,7 +190,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 
 	<!-- Row 2: Description (Mobile only) -->
 	<div class="mt-2 lg:hidden">
-		<p class="text-center text-xs leading-snug dark:text-white sm:text-base">
+		<p class="text-center text-xs leading-snug text-(--admin-text-body) sm:text-base">
 			{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
 		</p>
 	</div>

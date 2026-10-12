@@ -341,10 +341,10 @@
 
 		<!-- Password Requirements Box -->
 		<div
-			class="mt-4 rounded border border-x-6 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800"
+			class="mt-4 rounded border border-x-6 border-tertiary-500 bg-(--admin-bg-card) p-4 shadow-xl dark:border-primary-500"
 		>
 			<h4
-				class="mb-2 text-center text-sm font-bold tracking-tight dark:text-white"
+				class="mb-2 text-center text-sm font-bold tracking-tight text-(--admin-text-body)"
 				id="password-reqs-heading"
 			>
 				{setup_help_admin_password?.() || 'Password Requirements'}
@@ -442,7 +442,7 @@
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="mt-2 flex items-center justify-center border-t border-surface-500/40 pt-2 font-bold dark:border-surface-500/30 dark:text-white"
+					class="mt-2 flex items-center justify-center border-t border-surface-500/40 pt-2 font-bold dark:border-surface-500/30 text-(--admin-text-body)"
 				>
 					<span class="me-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon

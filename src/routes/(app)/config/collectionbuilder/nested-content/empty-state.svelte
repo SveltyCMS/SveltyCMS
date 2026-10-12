@@ -26,7 +26,7 @@
 		collection_add,
 		collection_addcategory
 	} from '@src/paraglide/messages';
-	import { fade, scale } from 'svelte/transition';
+	import { adminFade, adminStagger } from '@utils/admin-transitions';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	interface Props {
@@ -41,17 +41,17 @@
 
 <div
 	class="flex flex-col items-center justify-center p-4 pt-2 py-6 text-center"
-	in:fade={{ duration: 400 }}
+	in:adminFade={{ duration: 400 }}
 >
 	<!-- Illustration Container -->
 	<div
 		class="relative mb-4 flex h-36 w-36 items-center justify-center rounded-full bg-linear-to-br from-primary-500/10 to-tertiary-500/10 dark:from-primary-500/5 dark:to-tertiary-500/5"
-		in:scale={{ duration: 600, delay: 200, start: 0.8 }}
+		in:adminStagger={{ index: 0, step: 200, duration: 400 }}
 	>
 		<div class="absolute inset-0 animate-pulse rounded-full bg-primary-500/10 blur-2xl"></div>
 
 		<div
-			class="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-white/20 bg-white/40 shadow-xl backdrop-blur-md dark:bg-surface-800/40"
+			class="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-(--admin-border-default) bg-(--admin-bg-card)/80 shadow-xl backdrop-blur-md"
 		>
 			<iconify-icon
 				icon="fluent-mdl2:build-definition"
@@ -68,8 +68,8 @@
 	</div>
 
 	<!-- Text Content -->
-	<div class="max-w-lg space-y-2" in:fade={{ duration: 400, delay: 400 }}>
-		<h2 class="text-2xl font-bold tracking-tight text-black dark:text-white sm:text-3xl">
+	<div class="max-w-lg space-y-2" in:adminStagger={{ index: 1, step: 200, duration: 400 }}>
+		<h2 class="text-2xl font-bold tracking-tight text-(--admin-text-body) sm:text-3xl">
 			{builder_empty_your()}
 			<SiteName highlight="CMS" />
 			{builder_empty_blueprint()}
@@ -80,7 +80,7 @@
 	</div>
 
 	<!-- Call to Action — three actions in a single row -->
-	<div class="mt-6 w-full max-w-2xl" in:fade={{ duration: 400, delay: 600 }}>
+	<div class="mt-6 w-full max-w-2xl" in:adminStagger={{ index: 2, step: 200, duration: 400 }}>
 		<div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
 			{#if onQuickStart}
 				<Button

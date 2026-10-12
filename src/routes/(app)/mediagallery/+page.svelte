@@ -1221,42 +1221,36 @@
 					/>
 				</div>
 
-				<!--
-					Native <button> toggles (not Button component): guarantees aria-label,
-					aria-pressed, data-testid and onclick stay on the DOM node for E2E/a11y.
-				-->
 				<div
-					class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
+					class="flex shrink-0 overflow-hidden rounded border border-(--admin-border-default)"
 					role="group"
 					aria-label={mediagallery_view_mode()}
 				>
-					<button
+					<Button
 						type="button"
+						variant={view === 'grid' ? 'primary' : 'transparent'}
+						size="sm"
 						onclick={() => (view = 'grid')}
-						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view ===
-						'grid'
-							? 'bg-primary-500 text-white'
-							: 'text-surface-500 dark:text-surface-400'}"
+						class="h-10! w-10! min-w-0! rounded-none! p-0!"
 						aria-label={mediagallery_grid_view()}
-						aria-pressed={view === 'grid' ? 'true' : 'false'}
+						aria-pressed={view === 'grid'}
 						data-testid="media-view-grid"
 					>
 						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
-					</button>
-					<button
+					</Button>
+					<Button
 						type="button"
+						variant={view === 'table' ? 'primary' : 'transparent'}
+						size="sm"
 						onclick={() => (view = 'table')}
-						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center border-s border-surface-500/30 p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:border-surface-600 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view ===
-						'table'
-							? 'bg-primary-500 text-white'
-							: 'text-surface-500 dark:text-surface-400'}"
+						class="h-10! w-10! min-w-0! rounded-none! border-s border-(--admin-border-default) p-0!"
 						aria-label={mediagallery_table_view()}
-						aria-pressed={view === 'table' ? 'true' : 'false'}
+						aria-pressed={view === 'table'}
 						data-testid="media-view-table"
 					>
 						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"
 						></iconify-icon>
-					</button>
+					</Button>
 				</div>
 
 				{#if view === 'grid'}

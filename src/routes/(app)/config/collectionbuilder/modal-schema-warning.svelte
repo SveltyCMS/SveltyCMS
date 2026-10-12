@@ -21,6 +21,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { BreakingChange } from '@utils/collection-schema-warnings';
 	import {
 		button_cancel,
@@ -96,7 +97,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				<iconify-icon icon="mdi:alert-circle" width={28}></iconify-icon>
 			</div>
 			<div>
-				<h2 id="modal-title" class="text-lg font-bold text-surface-900 dark:text-white">
+				<h2 id="modal-title" class="text-lg font-bold text-(--admin-text-body)">
 					{hasDataLoss ? 'Data Loss Warning' : 'Breaking Changes Detected'}
 				</h2>
 				<p class="text-sm text-surface-600 dark:text-surface-50">
@@ -184,7 +185,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 						aria-describedby="confirm-description"
 					/>
 					<div>
-						<span class="font-medium text-surface-900 dark:text-white">
+						<span class="font-medium text-(--admin-text-body)">
 							{builder_warning_confirm_text()}
 						</span>
 						<p id="confirm-description" class="mt-1 text-sm text-surface-600 dark:text-surface-50">
@@ -197,23 +198,16 @@ Requires user confirmation before proceeding with changes that may cause data lo
 
 		<!-- Footer -->
 		<div class="flex justify-end gap-3 border-t border-surface-500/30 p-4 dark:border-surface-600">
-			<button
-				type="button"
-				onclick={onCancel}
-				class="rounded border border-surface-500/30 bg-white px-4 py-2 font-medium text-surface-700 transition-colors hover:bg-surface-500/10 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:hover:bg-surface-600"
-			>
-				{button_cancel()}
-			</button>
-			<button
+			<Button variant="outline" type="button" onclick={onCancel}>{button_cancel()}</Button>
+			<Button
+				variant={hasDataLoss ? 'error' : 'warning'}
 				type="button"
 				onclick={handleConfirm}
 				disabled={!canProceed}
-				class="rounded px-4 py-2 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50
-					{hasDataLoss ? 'bg-error-500 hover:bg-error-600' : 'bg-warning-500 hover:bg-warning-600'}"
 				aria-disabled={!canProceed}
 			>
 				{hasDataLoss ? 'Confirm & Delete Data' : 'Proceed with Changes'}
-			</button>
+			</Button>
 		</div>
 	</div>
 </div>

@@ -25,6 +25,7 @@
 </script>
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { getClientLicenseStatus } from '@utils/client-license-cache';
 	import type { LicenseStatus } from '@utils/license-manager';
 
@@ -252,11 +253,14 @@
 				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each filtered.slice(0, 12) as log (log.timestamp + log.message)}
-						<button
+						<Button
+							type="button"
+							variant="transparent"
+							size="sm"
 							onclick={() => toggleExpand(log.timestamp + log.message)}
-							class="flex shrink-0 items-center gap-1 rounded-full {levelBg(
+							class="h-auto! min-w-0! shrink-0 gap-1 rounded-full px-2! py-0.5! {levelBg(
 								log.level
-							)} px-2 py-0.5 hover:opacity-80 transition-opacity"
+							)} hover:opacity-80"
 							title="{log.level.toUpperCase()}: {log.message}"
 						>
 							<iconify-icon icon={levelIcon(log.level)} class="text-xs {levelCls(log.level)}"
@@ -266,7 +270,7 @@
 							>
 								{log.message}
 							</span>
-						</button>
+						</Button>
 					{/each}
 				</div>
 			</div>
@@ -276,9 +280,11 @@
 				{#each filtered as log (log.timestamp + log.message)}
 					{const logId = log.timestamp + log.message}
 					{const isOpen = expandedKey === logId}
-					<button
+					<Button
+						type="button"
+						variant="transparent"
 						onclick={() => toggleExpand(logId)}
-						class="w-full text-start group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+						class="h-auto! w-full justify-start gap-3 rounded-2xl bg-surface-500/10 px-3! py-2.5! text-start hover:bg-surface-500/20"
 					>
 						<iconify-icon
 							icon={levelIcon(log.level)}
@@ -315,7 +321,7 @@
 							icon={isOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
 							class="mt-1 shrink-0 text-sm text-surface-400 opacity-0 group-hover:opacity-100 transition-opacity"
 						></iconify-icon>
-					</button>
+					</Button>
 				{/each}
 			</div>
 		{/if}

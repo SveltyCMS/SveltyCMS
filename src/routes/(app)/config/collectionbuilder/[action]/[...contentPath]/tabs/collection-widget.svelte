@@ -696,7 +696,7 @@
 
 				<!-- Quick Add Bar -->
 				<div
-					class="mx-auto mb-4 max-w-4xl rounded-xl border border-surface-500/30 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900/20 shadow-2xs"
+					class="mx-auto mb-4 max-w-4xl rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-3 shadow-2xs"
 				>
 					<div class="flex items-center gap-2">
 						<div class="relative flex-1">
@@ -711,7 +711,7 @@
 									}
 								}}
 								placeholder={builder_ts_quick_add_placeholder()}
-								class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 px-3.5 py-2 text-xs sm:text-sm text-surface-900 placeholder:text-surface-400 focus:border-tertiary-500 dark:focus:border-primary-500 focus:bg-white focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
+								class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3.5 py-2 text-xs text-(--admin-text-body) placeholder:text-surface-400 focus:border-tertiary-500 focus:bg-(--admin-bg-input-focus) focus:outline-hidden sm:text-sm dark:focus:border-primary-500"
 								data-testid="quick-add-field-input"
 							/>
 						</div>
@@ -791,7 +791,7 @@
 							<div
 								class="group flex w-full min-h-12 items-center gap-2 sm:gap-3 cursor-pointer overflow-hidden rounded border-2 {isDuplicate
 									? 'border-warning-500/60 ring-1 ring-warning-500/40 bg-warning-500/10 dark:border-warning-500/60 dark:bg-warning-500/10'
-									: 'border-surface-500/20 bg-white dark:border-surface-500/30 dark:bg-surface-900'} px-3 py-2 transition-colors hover:border-tertiary-500/30 dark:hover:border-primary-500/30"
+									: 'border-surface-500/20 bg-(--admin-bg-card) dark:border-surface-500/30'} px-3 py-2 transition-colors hover:border-tertiary-500/30 dark:hover:border-primary-500/30"
 								onclick={() => editField(item)}
 								// Alt+Arrow reorder lives on the focusable button (not the outer
 								// listitem div) — a11y: interactive events belong on interactive
@@ -982,13 +982,15 @@
 							<!-- Starter Presets -->
 							<div class="mt-4 flex flex-wrap justify-center gap-2">
 								{#each [{ name: 'title', label: 'Title', icon: 'mdi:format-title' }, { name: 'description', label: 'Description', icon: 'mdi:text-box-outline' }, { name: 'cover_image', label: 'Cover Image', icon: 'mdi:image-outline' }, { name: 'published_at', label: 'Publish Date', icon: 'mdi:calendar-clock' }, { name: 'tags', label: 'Tags', icon: 'mdi:tag-outline' }] as starter (starter.name)}
-									<button
+									<Button
 										type="button"
+										variant="outline"
+										size="sm"
 										onclick={() => {
 											const inferred = inferWidgetFromFieldName(starter.name);
 											if (inferred) addInferredField(inferred);
 										}}
-										class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/30 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 shadow-2xs transition-all hover:border-tertiary-500 hover:text-tertiary-600 hover:shadow-xs dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-300 dark:hover:border-primary-500 dark:hover:text-primary-400"
+										class="h-auto! px-3! py-1.5! text-xs! hover:border-tertiary-500 hover:text-tertiary-600 dark:hover:border-primary-500 dark:hover:text-primary-400"
 									>
 										<iconify-icon
 											icon={starter.icon}
@@ -996,7 +998,7 @@
 											class="text-tertiary-500 dark:text-primary-500"
 										></iconify-icon>
 										+ {starter.label}
-									</button>
+									</Button>
 								{/each}
 							</div>
 						</div>
@@ -1020,7 +1022,7 @@
 		{:else}
 			<!-- ═══ RIGHT: Palette ═══ -->
 			<aside
-				class="flex w-full shrink-0 flex-col border-t border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900 lg:w-80 lg:border-t-0 lg:border-s xl:w-96"
+				class="flex w-full shrink-0 flex-col border-t border-(--admin-border-default) bg-(--admin-bg-card) lg:w-80 lg:border-t-0 lg:border-s xl:w-96"
 				data-testid="widget-palette"
 			>
 				<div
@@ -1051,18 +1053,20 @@
 						data-testid="widget-category-chips"
 					>
 						{#each [{ id: 'all', label: 'All' }, { id: 'inputs', label: 'Inputs' }, { id: 'media', label: 'Media' }, { id: 'structure', label: 'Structure' }, { id: 'advanced', label: 'Advanced' }] as cat (cat.id)}
-							<button
+							<Button
 								type="button"
-								class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors {selectedCategory ===
+								variant="transparent"
+								size="sm"
+								class="h-auto! rounded-full! px-2.5! py-0.5! text-[11px]! font-semibold! {selectedCategory ===
 								cat.id
-									? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-surface-900 shadow-2xs'
-									: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-300 dark:hover:bg-surface-700'}"
+									? 'bg-tertiary-500 text-white shadow-2xs dark:bg-primary-500 dark:text-surface-900'
+									: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
 								onclick={() => (selectedCategory = cat.id as WidgetCategory)}
 								aria-pressed={selectedCategory === cat.id}
 								data-testid={`category-chip-${cat.id}`}
 							>
 								{cat.label}
-							</button>
+							</Button>
 						{/each}
 					</div>
 					<p class="text-[11px] text-surface-500 dark:text-surface-400">
@@ -1085,6 +1089,7 @@
 								</h4>
 								<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
 									{#each list as w (w.key)}
+										<!-- Native button: use:draggable must attach to the DOM node. -->
 										<button
 											type="button"
 											use:draggable={{
@@ -1095,7 +1100,7 @@
 											onclick={() => addSidebarWidget(w.key)}
 											data-testid={`quick-add-${w.key.toLowerCase()}`}
 											aria-label={`Add ${w.label} widget`}
-											class="group flex flex-col items-center justify-center gap-2 rounded-xl border border-surface-500/30 bg-white p-3 text-center shadow-2xs transition-all hover:border-tertiary-500 hover:shadow-xs hover:bg-tertiary-500/10 dark:hover:border-primary-500 dark:border-surface-500/40 dark:bg-surface-800 dark:hover:bg-primary-900/20 {tone ===
+											class="group flex h-auto flex-col items-center justify-center gap-2 rounded-xl border border-surface-500/30 bg-(--admin-bg-card) p-3 text-center shadow-2xs transition-all hover:border-tertiary-500 hover:bg-tertiary-500/10 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 {tone ===
 											'market'
 												? 'hover:border-warning-500'
 												: ''}"
@@ -1144,7 +1149,7 @@
 							<div class="space-y-2">
 								{#each remoteFiltered as w (w.id)}
 									<div
-										class="rounded-lg border border-warning-500/30 bg-white p-3 dark:border-warning-500/40 dark:bg-surface-800"
+										class="rounded-lg border border-warning-500/30 bg-(--admin-bg-card) p-3 dark:border-warning-500/40"
 									>
 										<div class="flex items-start gap-2">
 											<div

@@ -35,7 +35,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
-	import { scale } from 'svelte/transition';
 
 	interface Props {
 		close?: (
@@ -122,26 +121,20 @@ Selecting a template auto-creates the collections using the installTemplateColle
 		{#each availablePresets as preset (preset.id)}
 			{@const isSelected = selectedPreset === preset.id}
 			{@const collections = preset.collections ?? []}
-			<button
+			<Button
 				type="button"
+				variant="transparent"
 				role="radio"
 				aria-checked={isSelected}
 				onclick={() => selectPreset(preset.id)}
 				onmouseenter={() => (hoveredPreset = preset.id)}
 				onmouseleave={() => (hoveredPreset = null)}
-				onkeydown={(e) => {
-					if (e.key === 'Enter' || e.key === ' ') {
-						e.preventDefault();
-						selectPreset(preset.id);
-					}
-				}}
-				class="relative flex flex-col rounded-lg border-2 p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] {isSelected
+				class="relative h-auto! w-full flex-col items-stretch justify-start rounded-lg border-2 p-4! text-start hover:-translate-y-0.5 {isSelected
 					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/6 dark:bg-primary-500/8 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
 					: hoveredPreset === preset.id
 						? 'border-surface-500 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-700/60'
-						: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-tertiary-500 dark:hover:border-primary-400'}"
+						: 'border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card) hover:border-tertiary-500 dark:hover:border-primary-400'}"
 				disabled={isSubmitting}
-				in:scale={{ duration: 250, delay: 80 * availablePresets.indexOf(preset) }}
 			>
 				<!-- Icon, Title & Selection -->
 				<div class="mb-3 flex items-start gap-2.5">
@@ -156,7 +149,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 						></iconify-icon>
 					</div>
 					<div class="min-w-0 flex-1">
-						<h3 class="truncate text-sm font-semibold text-surface-900 dark:text-white">
+						<h3 class="truncate text-sm font-semibold text-(--admin-text-body)">
 							{preset.title}
 						</h3>
 						<div class="mt-1 flex flex-wrap items-center gap-1.5">
@@ -173,7 +166,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 							icon="mdi:check-circle"
 							width="22"
 							class="shrink-0 text-tertiary-500 dark:text-primary-400"
-							in:scale={{ duration: 150 }}
 							aria-hidden="true"
 						></iconify-icon>
 					{/if}
@@ -216,7 +208,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 						{/if}
 					</div>
 				</div>
-			</button>
+			</Button>
 		{/each}
 	</div>
 
