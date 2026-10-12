@@ -165,46 +165,20 @@ jobs:
               echo "source=package.json" >> $GITHUB_OUTPUT
             fi
           else
-            # Automatic path (a green CI run on main). A manifest version with
-            # no tag is the release: tag it. A manifest version that already has
-            # a tag is released only when HEAD is that tag. Any later commit
-            # derives the next version onto this SHA from Conventional Commits
-            # (feat → minor, breaking → major, else patch) and the steps below
-            # commit, push, and tag it.
+            # Automatic path (a green CI run on main). The version to release is
+            # ALREADY committed in package.json on the pushed commit — the
+            # release bump is an ordinary commit, never written by CI. CI cannot
+            # bypass the required-PR rule, so a CI-side bump would only produce a
+            # tag whose commit `main` never contains (the drift/orphan-tag bug).
+            # CI therefore only tags the version the manifest carries.
             PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
+            echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
             if git rev-parse "v$PKG_VERSION" >/dev/null 2>&1; then
-              TAG_SHA=$(git rev-parse "v$PKG_VERSION^{}")
-              HEAD_SHA=$(git rev-parse HEAD)
-              if [ "$TAG_SHA" = "$HEAD_SHA" ]; then
-                echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
-                echo "source=already released" >> $GITHUB_OUTPUT
-                echo "skip=true" >> $GITHUB_OUTPUT
-              else
-                echo "ℹ️ v$PKG_VERSION already has a tag and HEAD is ahead. Deriving the next version from Conventional Commits..."
-                bun run scripts/version.ts auto
-                NEXT_VERSION=$(node -e "console.log(require('./package.json').version)")
-                if [ "$NEXT_VERSION" = "$PKG_VERSION" ]; then
-                  echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
-                  echo "source=package.json" >> $GITHUB_OUTPUT
-                elif git rev-parse "v$NEXT_VERSION" >/dev/null 2>&1; then
-                  # The derived version already carries a tag main cannot reach
-                  # yet — a previous run tagged it while the branch push was
-                  # blocked by branch protection. Do not tag or publish again;
-                  # fast-forward main to the released commit so the tag becomes
-                  # reachable and future releases resume deriving from it.
-                  echo "value=$NEXT_VERSION" >> $GITHUB_OUTPUT
-                  echo "source=already released" >> $GITHUB_OUTPUT
-                  echo "skip=true" >> $GITHUB_OUTPUT
-                  echo "adopt=true" >> $GITHUB_OUTPUT
-                else
-                  echo "value=$NEXT_VERSION" >> $GITHUB_OUTPUT
-                  echo "source=scripts/version.ts (auto)" >> $GITHUB_OUTPUT
-                  echo "bumped=true" >> $GITHUB_OUTPUT
-                fi
-              fi
+              echo "source=already released" >> $GITHUB_OUTPUT
+              echo "skip=true" >> $GITHUB_OUTPUT
+              echo "::notice title=Release skipped::package.json reads v$PKG_VERSION, which already has a tag. Run 'bun run version:bump' (or 'bun run git push --release'), commit, and push to release the next version."
             else
-              echo "value=$PKG_VERSION" >> $GITHUB_OUTPUT
-              echo "source=package.json" >> $GITHUB_OUTPUT
+              echo "source=package.json (untagged)" >> $GITHUB_OUTPUT
             fi
           fi
         env:

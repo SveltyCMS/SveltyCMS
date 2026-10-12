@@ -230,16 +230,12 @@ prepare_release() {
 
   # Runs the normal commit path (pre-commit checks included): a release commit
   # is never smuggled past the gate that validates it.
-  if ! git add package.json || ! git commit -m "chore(release): bump version to v${version}"; then
+  if ! git add package.json sbom.json || ! git commit -m "chore(release): bump version to v${version}"; then
     printf '%b\n' "  ${RED}✘${NC} release commit failed — package.json is staged and uncommitted."
     return 1
   fi
 
   printf '%b\n' "  ${GREEN}✔${NC} release commit ${BOLD}chore(release): bump version to v${version}${NC}"
-  info "A bump is not part of the push that just ran (git resolved its SHAs first)."
-  if [ -n "${RELEASE_PUSH_HINT:-}" ]; then
-    info "Push again to publish it: ${BOLD}${RELEASE_PUSH_HINT}${NC}"
-  fi
 }
 
 # ── Change detection ──────────────────────────────────────────────
