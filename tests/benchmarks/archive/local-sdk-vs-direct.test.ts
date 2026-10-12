@@ -13,8 +13,8 @@ import {
   exportMetric,
   getDbType,
   stabilize,
-} from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { LocalCMS } from "@src/services/sdk";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";

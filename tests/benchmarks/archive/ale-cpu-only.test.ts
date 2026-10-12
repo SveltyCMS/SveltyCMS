@@ -5,8 +5,8 @@
  * encryptDocumentFields over a sustained loop so process.cpuUsage() is stable.
  */
 import { performance } from "node:perf_hooks";
-import { test, describe, expect } from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+import { test, describe, expect } from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { encryptDocumentFields } from "@utils/security/field-encryption";
 
 const COLLECTION_ID = "ale_cpu";

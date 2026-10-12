@@ -15,10 +15,10 @@ import {
   stabilize,
   benchmarkAuthHeaders,
   getDbType,
-} from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
-import { seedHttpCollectionBurst } from "./modules/seed-burst";
+import { seedHttpCollectionBurst } from "../modules/seed-burst";
 import { generateUUID } from "@utils/native-utils";
 
 const CONCURRENCY = 8;

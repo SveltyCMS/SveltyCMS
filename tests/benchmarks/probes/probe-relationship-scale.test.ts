@@ -16,9 +16,9 @@ import {
   runBenchmark,
   setupBenchmarkServer,
   benchmarkAuthHeaders,
-} from "./modules/benchmark-utils";
-import { seedHttpCollectionBurst } from "./modules/seed-burst";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import { seedHttpCollectionBurst } from "../modules/seed-burst";
+import "../../unit/bun-preload.ts";
 
 const POSTS = Number(process.env.SCALE_POSTS || 500_000);
 const AUTHORS = Number(process.env.SCALE_AUTHORS || 2_000);

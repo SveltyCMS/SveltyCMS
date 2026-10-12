@@ -17,9 +17,9 @@ import {
   runBenchmark,
   setupBenchmarkServer,
   benchmarkAuthHeaders,
-} from "./modules/benchmark-utils";
-import { seedHttpCollectionBurst } from "./modules/seed-burst";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import { seedHttpCollectionBurst } from "../modules/seed-burst";
+import "../../unit/bun-preload.ts";
 
 const ITERS = Number(process.env.SCALE_ITERS || 100);
 const SLOW_SAMPLES = Number(process.env.SCALE_SLOW || 3);

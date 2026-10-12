@@ -45,9 +45,9 @@ import {
   setupBenchmarkServer,
   benchmarkAuthHeaders,
   stabilize,
-} from "./modules/benchmark-utils";
-import { seedHttpCollectionBurst } from "./modules/seed-burst";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import { seedHttpCollectionBurst } from "../modules/seed-burst";
+import "../../unit/bun-preload.ts";
 
 const SEED = Number(process.env.PROBE_SEED) || 2200;
 const N_POINT = Number(process.env.PROBE_POINT) || 2100; // > 2000 point-FIFO slots

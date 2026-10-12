@@ -18,8 +18,8 @@
  * Recipe: `DB_TYPE=sqlite bun test tests/benchmarks/probe-write-attrib.test.ts`
  * (resolved the "~1.5 ms server-side write" question — see achievements §3.38).
  */
-import { test, setupBenchmarkServer, benchmarkAuthHeaders } from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+import { test, setupBenchmarkServer, benchmarkAuthHeaders } from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 
 const ITERS = Number(process.env.ATTRIB_ITERS || 300);
 const COLLECTION = "BenchmarkStable";

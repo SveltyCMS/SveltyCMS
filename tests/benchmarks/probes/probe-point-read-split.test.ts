@@ -11,9 +11,9 @@
  *   cachewrite (responseCache.set), serve (Response build)
  * - Runs with SVELTY_SRV_SPLIT=1 / SVELTY_SRV_DUR=1 propagated to the server
  */
-import { test, setupBenchmarkServer, benchmarkAuthHeaders } from "./modules/benchmark-utils";
-import { seedHttpCollectionBurst } from "./modules/seed-burst";
-import "../unit/bun-preload.ts";
+import { test, setupBenchmarkServer, benchmarkAuthHeaders } from "../modules/benchmark-utils";
+import { seedHttpCollectionBurst } from "../modules/seed-burst";
+import "../../unit/bun-preload.ts";
 
 const N = Number(process.env.PROBE_N || 800);
 const SEED = Number(process.env.PROBE_SEED || 2500);

@@ -19,8 +19,8 @@ import {
   setupBenchmarkServer,
   getDbType,
   assertSuccess,
-} from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { serializeSuccessEnvelope } from "@utils/fast-json";

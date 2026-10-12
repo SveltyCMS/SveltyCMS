@@ -17,8 +17,8 @@ import {
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
-} from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { performance } from "node:perf_hooks";
 import {
   encryptFieldValueSync,

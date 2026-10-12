@@ -113,15 +113,17 @@ flowchart TB
 
 ### Directory Layout
 
-| Path                        | Role                                                    | Files    |
-| :-------------------------- | :------------------------------------------------------ | :------- |
-| `scripts/benchmark-matrix/` | Orchestration, reporting, statistics, host info         | 14 files |
-| `tests/benchmarks/`         | 62 registered + 24 unregistered test modules            | 86 files |
-| `tests/benchmarks/modules/` | Shared utility modules + colocated tests                | 12 files |
-| `docs/project/benchmarks/`  | 8 per-adapter reports + index + `encryption_impact.mdx` | 10 files |
-| `tests/benchmarks/results/` | History SQLite, JSONL results, CI summaries             | runtime  |
+| Path                        | Role                                                      | Files    |
+| :-------------------------- | :-------------------------------------------------------- | :------- |
+| `scripts/benchmark-matrix/` | Orchestration, reporting, statistics, host info           | 14 files |
+| `tests/benchmarks/`         | Active registered & unregistered benchmark test modules   | 71 files |
+| `tests/benchmarks/probes/`  | Targeted one-off diagnostic probes (isolated from matrix) | 9 files  |
+| `tests/benchmarks/archive/` | Archived repros & superseded micro-benchmarks             | 6 files  |
+| `tests/benchmarks/modules/` | Shared utility modules + colocated tests                  | 12 files |
+| `docs/project/benchmarks/`  | 8 per-adapter reports + index + `encryption_impact.mdx`   | 10 files |
+| `tests/benchmarks/results/` | History SQLite, JSONL results, CI summaries               | runtime  |
 
-_File counts verified against the tree on 2026-09-22._
+_File counts updated following the benchmark matrix consolidation on 2026-10-12._
 
 ### Orchestration Layer (`scripts/benchmark-matrix/`)
 
@@ -245,8 +247,13 @@ Runs automatically before `bun run benchmark` and `bun run benchmark:core`. Chec
 
 ```bash
 COMPILE_ALL_ADAPTERS=true bun run build
-bun run benchmark --db=sqlite          # preflight runs first
+bun run benchmark --db=sqlite          # preflight runs first (full tier)
 bun run benchmark:core --db=sqlite     # CI parity core suite
+
+# Tiered execution:
+bun run benchmark --db=sqlite --tier=competitive   # fastest: 1 replica test (10 workloads, ~15s)
+bun run benchmark --db=sqlite --tier=core          # 8 essential CI tests (~60s)
+bun run benchmark --db=sqlite --tier=full          # complete regression suite (default)
 
 # Single benchmark (or a few) instead of the whole matrix — substring match on the
 # file name, comma-separated; repeated flags OR together:
@@ -484,11 +491,20 @@ flowchart LR
 
 ## Commands Reference
 
-### Full Matrix
+### Matrix Tiers & Full Matrix
 
 ```bash
-# Run the complete benchmark matrix for a specific adapter
+# Fastest tier: runs only competitive-workload-replica (10 standard workloads, 1 file, ~15s)
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --tier=competitive
+# (Aliases: --replica, --competitive)
+
+# CI core tier: runs 8 essential CI benchmarks (~60s)
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --tier=core
+# (Alias: --core)
+
+# Full matrix tier (default): runs all discovered top-level benchmark modules
 bun run scripts/benchmark-matrix/index.ts --db=sqlite
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --tier=full
 bun run scripts/benchmark-matrix/index.ts --db=postgresql
 bun run scripts/benchmark-matrix/index.ts --db=mongodb
 
@@ -500,6 +516,17 @@ bun run scripts/benchmark-matrix/index.ts --db=sqlite --continue-on-error
 
 # Skip build (already built) — never rebuilds mid-run, still verifies build/index.js exists
 bun run scripts/benchmark-matrix/index.ts --db=sqlite --no-build
+```
+
+### Targeted Probe Execution
+
+Isolated one-off diagnostic probes in `tests/benchmarks/probes/` do not run in the standard matrix and can be run directly:
+
+```bash
+# Run specific isolated diagnostic probes
+bun test tests/benchmarks/probes/probe-write-split.test.ts
+bun test tests/benchmarks/probes/probe-point-read-split.test.ts
+bun test tests/benchmarks/probes/probe-cache-tiers.test.ts
 ```
 
 > **Mode contract:** matrix runs are production parity by construction. If you need a

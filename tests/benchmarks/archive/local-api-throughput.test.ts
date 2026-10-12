@@ -13,8 +13,8 @@ import {
   exportResult,
   exportMetric,
   stabilize,
-} from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateUUID } from "@utils/native-utils";
 

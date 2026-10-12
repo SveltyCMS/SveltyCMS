@@ -19,8 +19,12 @@ import { sql } from "drizzle-orm";
 import type { DatabaseId } from "@src/content/types";
 import { performance } from "node:perf_hooks";
 import { test, describe, expect } from "./modules/benchmark-utils";
+import {
+  encryptDocumentFields,
+  encryptFieldValue,
+  decryptFieldValue,
+} from "@utils/security/field-encryption";
 import "../unit/bun-preload.ts";
-import { encryptDocumentFields } from "@utils/security/field-encryption";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateUUID } from "@utils/native-utils";
 import fs from "node:fs";
@@ -67,6 +71,31 @@ function fmtDuration(ms: number) {
 }
 
 describe("ALE — dbAdapter field-encryption performance impact", () => {
+  test("smoke: field encryption round-trips correctly", async () => {
+    const ctx = { collectionId: COLLECTION_ID, tenantId: TEST_TENANT };
+    const secret = "bench-secret-email@example.com";
+    const enc = await encryptFieldValue(secret, ctx, "email");
+    expect(typeof enc).toBe("string");
+    expect(enc.startsWith("v1:")).toBe(true);
+    const dec = await decryptFieldValue(enc, ctx, "email");
+    expect(dec).toBe(secret);
+  });
+
+  test("cpu: isolated in-memory encryption throughput", async () => {
+    const ctx = { collectionId: COLLECTION_ID, tenantId: TEST_TENANT };
+    const loops = 1000;
+    const t0 = performance.now();
+    for (let i = 0; i < loops; i++) {
+      await encryptDocumentFields(
+        { _id: `e${i}`, email: `user${i}@example.com` },
+        ENCRYPTED_FIELDS,
+        ctx,
+      );
+    }
+    const elapsed = performance.now() - t0;
+    expect(elapsed).toBeGreaterThan(0);
+  });
+
   test("measure ALE overhead vs plaintext on db.crud.insert (3 runs x 1000 writes)", async () => {
     const { getDb, ensureFullInitialization } = await import("@src/databases/db");
     await ensureFullInitialization();

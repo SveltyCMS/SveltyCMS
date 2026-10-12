@@ -39,9 +39,9 @@ import {
   benchmarkAuthHeaders,
   loginBenchmarkUser,
   STABLE_COLLECTION,
-} from "./modules/benchmark-utils";
-import { seedHttpCollectionBurst } from "./modules/seed-burst";
-import "../unit/bun-preload.ts";
+} from "../modules/benchmark-utils";
+import { seedHttpCollectionBurst } from "../modules/seed-burst";
+import "../../unit/bun-preload.ts";
 
 const COLLECTION = STABLE_COLLECTION;
 /** Seeded rows (blind to pre-existing rows; the newest 199 dominate the page). */

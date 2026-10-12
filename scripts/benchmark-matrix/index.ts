@@ -132,6 +132,44 @@ const discoveredTestFiles = fs.existsSync(benchmarksDir)
       .sort()
   : [];
 
+// 🎯 Tiered benchmark execution:
+//   --tier=competitive (or --replica, --competitive): Runs competitive-workload-replica only
+//   --tier=core (or --core): Runs the 8 CI core benchmark tests
+//   --tier=full (default): Runs the comprehensive regression suite
+const tierArg = process.argv
+  .find((a) => a.startsWith("--tier="))
+  ?.slice("--tier=".length)
+  .toLowerCase();
+const isCompetitive =
+  tierArg === "competitive" ||
+  tierArg === "replica" ||
+  process.argv.includes("--competitive") ||
+  process.argv.includes("--replica");
+const isCore = tierArg === "core" || process.argv.includes("--core");
+
+const CI_CORE_TESTS = [
+  "cold-start-phased",
+  "truth-latency",
+  "database-performance",
+  "transaction-acid",
+  "cache-performance",
+  "hooks-performance",
+  "rest-api-performance",
+  "virtual-query-federation",
+];
+
+let baseTestFiles = discoveredTestFiles;
+if (isCompetitive) {
+  baseTestFiles = discoveredTestFiles.filter((f) => f.includes("competitive-workload-replica"));
+  console.log(`🎯 Benchmark Tier: COMPETITIVE REPLICA ONLY (${baseTestFiles.length} file)`);
+} else if (isCore) {
+  baseTestFiles = discoveredTestFiles.filter((f) => {
+    const base = f.replace(/\.test\.ts$/, "");
+    return CI_CORE_TESTS.includes(base);
+  });
+  console.log(`🎯 Benchmark Tier: CI CORE SUITE (${baseTestFiles.length} files)`);
+}
+
 // 🔎 `--only=name[,name]` — run a single benchmark (or a few) instead of the whole
 // matrix. Substring match on the file name, so `--only=database` also runs
 // `database-performance`; repeated flags OR together. Documented in
@@ -143,10 +181,8 @@ const onlyFilters = process.argv
 
 const testFiles =
   onlyFilters.length === 0
-    ? discoveredTestFiles
-    : discoveredTestFiles.filter((f) =>
-        onlyFilters.some((needle) => f.toLowerCase().includes(needle)),
-      );
+    ? baseTestFiles
+    : baseTestFiles.filter((f) => onlyFilters.some((needle) => f.toLowerCase().includes(needle)));
 
 if (onlyFilters.length > 0) {
   if (testFiles.length === 0) {
@@ -156,7 +192,7 @@ if (onlyFilters.length > 0) {
     process.exit(1);
   }
   console.log(
-    `🔎 --only=${onlyFilters.join(",")} → ${testFiles.length} of ${discoveredTestFiles.length} test(s): ${testFiles.join(", ")}`,
+    `🔎 --only=${onlyFilters.join(",")} → ${testFiles.length} of ${baseTestFiles.length} test(s): ${testFiles.join(", ")}`,
   );
 }
 

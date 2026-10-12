@@ -7,8 +7,8 @@
 import { sql } from "drizzle-orm";
 import type { BaseEntity, DatabaseId } from "@src/content/types";
 import type { EntityCreate } from "@src/databases/db-interface";
-import { test, describe, expect } from "./modules/benchmark-utils";
-import "../unit/bun-preload.ts";
+import { test, describe, expect } from "../modules/benchmark-utils";
+import "../../unit/bun-preload.ts";
 import { encryptFieldValue, decryptFieldValue } from "@utils/security/field-encryption";
 
 const COLLECTION_ID = "ale_smoke";
