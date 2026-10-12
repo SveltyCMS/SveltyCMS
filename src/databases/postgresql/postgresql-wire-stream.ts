@@ -73,7 +73,7 @@ export class PostgresWireStreamEngine {
         }
 
         const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const selectPrefix = `SELECT (coalesce("data", '{}'::jsonb) || ${doc})::text AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const selectPrefix = `SELECT ('{"success":true,"data":' || (CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)::text || '}')::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         cachedWireSql = {
           selectPrefix,
@@ -105,10 +105,11 @@ export class PostgresWireStreamEngine {
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
-      const docStr = typeof first.doc === "string" ? first.doc : JSON.stringify(first.doc);
+      const wireBody =
+        typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body);
       return {
         kind: "found",
-        wireBody: `{"success":true,"data":${docStr}}`,
+        wireBody,
         etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
       };
     } catch {

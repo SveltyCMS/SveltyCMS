@@ -308,9 +308,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
 
       const tpl = this._getInsertTemplate(table, tableName, synthesized);
-      const boundValues: unknown[] = [];
-      for (let i = 0; i < tpl.synthCols.length; i++) {
-        boundValues.push(bindPgParam(synthesized[tpl.synthCols[i]], tpl.isJsonMap[i]));
+      const numCols = tpl.synthCols.length;
+      const boundValues: unknown[] = Array.from({ length: numCols });
+      for (let i = 0; i < numCols; i++) {
+        boundValues[i] = bindPgParam(synthesized[tpl.synthCols[i]], tpl.isJsonMap[i]);
       }
 
       // 🔬 Parity with the SQLite adapter's `db:ins:stmt`: one mark per statement, so

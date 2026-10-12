@@ -31,7 +31,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { wafGuard } from "./handle-waf-guard";
 import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
-import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
 import {
   hasPermissionBitmask,
   isPermissionBitsetStale,
@@ -342,6 +342,20 @@ export function isWirePlaneAdmissible(
 
   if (!isSimpleCollectionRead(event)) return false;
 
+  // Fast path for simple point reads with no query parameters
+  if (!event.url.search || event.url.search === "") {
+    if (collectionMeta.hasAfterReadHooks) return false;
+    if (
+      event.cookies.get("preview") === "true" ||
+      event.cookies.get("preview_mode") === "true" ||
+      event.cookies.get("svelty_preview") === "true"
+    ) {
+      return false;
+    }
+    const parts = splitPathSegments(event.url.pathname);
+    if (parts.length === 4) return true;
+  }
+
   const search = event.url.searchParams;
 
   // 1. Published status only: query flags
@@ -541,7 +555,7 @@ async function executeWarmCollectionRead(
   locals.user = turbo.user;
   locals.roles = turbo.roles;
   locals.tenantId = resolveRequestTenant(event.request, turbo.tenantId);
-  locals.isAdmin = isAdmin(turbo.user);
+  locals.isAdmin = turbo.isAdmin;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
   (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
@@ -550,7 +564,7 @@ async function executeWarmCollectionRead(
   // The lane answers `/api/collections` GET, whose entry in `ENDPOINT_PERMISSIONS`
   // requires `collections:read` — the lane must be exactly as strict as the
   // endpoint map, never more permissive.
-  const admin = isAdmin(turbo.user);
+  const admin = turbo.isAdmin;
   const isAuthorized = admin || hasPermissionBitmask(turbo.permMask ?? 0n, "collections:read");
 
   if (!isAuthorized) return null;
@@ -563,8 +577,10 @@ async function executeWarmCollectionRead(
   const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
   if (tenantP) await tenantP;
 
-  const userId = turbo.user?._id || turbo.user?.id || null;
-  const pathKey = buildUserResponseCacheKey(url.pathname, url.search, userId);
+  const userId = turbo.userId;
+  const pathKey = turbo.userSegment
+    ? `${turbo.userSegment}:${url.pathname}${url.search}`
+    : buildUserResponseCacheKey(url.pathname, url.search, userId);
   const cacheTenant = (locals.tenantId as string | null) ?? null;
   const parts = splitPathSegments(url.pathname);
   const collectionId = parts[2];
@@ -573,7 +589,7 @@ async function executeWarmCollectionRead(
   // 🔐 FLAC gate — before any cache lookup, so a body stored before a policy
   // change can never outlive it. Non-exempt callers use the full pipeline, which
   // redacts in `handleTokenResolution`.
-  if (!admin && !isLaneFlacExempt(collectionId, cacheTenant, roleOf(turbo.user))) {
+  if (!admin && !isLaneFlacExempt(collectionId, cacheTenant, turbo.role ?? roleOf(turbo.user))) {
     return null;
   }
   const listParams = !entryId ? parseCollectionQueryParams(url.searchParams) : null;

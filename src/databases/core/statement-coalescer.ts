@@ -37,8 +37,7 @@ export interface CoalescedInsertEntry<T = unknown> {
 export type InsertBatchRunner<T = unknown> = (values: Record<string, any>[]) => Promise<T[] | null>;
 
 const defaultSchedule = (drain: () => void): void => {
-  if (typeof setImmediate === "function") setImmediate(drain);
-  else queueMicrotask(drain);
+  queueMicrotask(drain);
 };
 
 export class StatementCoalescer<T = unknown> {

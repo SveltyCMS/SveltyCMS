@@ -261,7 +261,7 @@ async function openWarmMutation(
   locals.user = turbo.user;
   locals.roles = turbo.roles;
   locals.tenantId = resolveRequestTenant(request, turbo.tenantId);
-  locals.isAdmin = isAdmin(turbo.user);
+  locals.isAdmin = turbo.isAdmin;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
   (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
@@ -327,8 +327,10 @@ export function isSimpleWriteLaneAuthorized(args: {
   user: Parameters<typeof isAdmin>[0];
   permMask?: bigint;
   permRev?: number;
+  isAdmin?: boolean;
 }): boolean {
-  const admin = isAdmin(args.user) || args.user?.role === "admin";
+  const admin =
+    args.isAdmin !== undefined ? args.isAdmin : isAdmin(args.user) || args.user?.role === "admin";
   if (!admin && !hasPermissionBitmask(args.permMask ?? 0n, "collections:write")) {
     return false;
   }
@@ -366,7 +368,7 @@ async function executeWarmCollectionWrite(
   // Non-admins on extended routes are turned back in tryCollectionWriteLane
   // before this runs, so the body is still unread. A direct caller still
   // fail-closes.
-  if (!isAdmin(turbo.user) && turbo.user?.role !== "admin") {
+  if (!turbo.isAdmin) {
     throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
   }
 
@@ -483,7 +485,7 @@ export async function serveWarmCollectionWrite(
   try {
     // Seed user on locals early so resolveAdaptiveUserTier avoids cookie peeking
     event.locals.user = turbo.user;
-    event.locals.isAdmin = isAdmin(turbo.user) || turbo.user?.role === "admin";
+    event.locals.isAdmin = turbo.isAdmin;
     // 🚀 LANE-LEAN RATE LIMIT: consume the in-memory bucket synchronously and
     // let the Redis ledger receive the spend after the response (measured
     // ~0.6 ms per warm mutation with Redis up — the in-memory bucket already
@@ -538,7 +540,7 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   }
   const turbo = resolveWarmWriteSession(event);
   // Non-admins keep the full authorization pipeline. Body stays unread.
-  if (!turbo || !(isAdmin(turbo.user) || turbo.user?.role === "admin")) {
+  if (!turbo || !turbo.isAdmin) {
     return resolve(event);
   }
   const stamp = STAMP_SRV_DUR || STAMP_WRITE_SPLIT;
@@ -546,7 +548,7 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
   try {
     event.locals.user = turbo.user;
-    event.locals.isAdmin = isAdmin(turbo.user) || turbo.user?.role === "admin";
+    event.locals.isAdmin = turbo.isAdmin;
     const res = await handleRateLimit({
       event,
       resolve: async () => {
@@ -582,7 +584,7 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   const kind = collectionWriteLaneKind(event.request.method, event.url.pathname);
   // Batch, bulk, increment, and status are valid for non-admins who hold
   // collections:write. Leave those on the full pipeline. The body is unread.
-  if (kind === "extended" && !isAdmin(turbo.user) && turbo.user?.role !== "admin") {
+  if (kind === "extended" && !turbo.isAdmin) {
     return resolve(event);
   }
   // 🚪 SIMPLE-WRITE ADMISSION (mirrors the read lane's rule): a warm session

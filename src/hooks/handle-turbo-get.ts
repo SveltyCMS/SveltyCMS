@@ -13,7 +13,6 @@ import type { User, Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {
   responseCache,
-  buildUserResponseCacheKey,
   buildGraphQLResponseCacheKey,
   type CachedResponseEntry,
 } from "@src/services/cache/response-cache";
@@ -22,7 +21,7 @@ import {
   tryCollectionNotModified,
 } from "@src/services/cache/collection-etag";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
-import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
+import { readSessionCookie, isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
 import { resolveRequestTenant } from "./request-tenant";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
@@ -33,7 +32,7 @@ import {
   setCompressionHeaders,
 } from "./handle-compression";
 
-interface TurboAuthContext {
+export interface TurboAuthContext {
   user: User;
   roles: Role[];
   tenantId: DatabaseId | null;
@@ -52,6 +51,11 @@ interface TurboAuthContext {
    * against the live epoch and forces a fall-through to the pipeline instead.
    */
   permRev?: number;
+  /** Pre-calculated hot identity attributes for zero-allocation turbo fast lanes */
+  isAdmin: boolean;
+  userId: string | null;
+  userSegment: string;
+  role?: string;
 }
 
 const turboAuthCache = new Map<string, TurboAuthContext>();
@@ -80,6 +84,14 @@ export function setTurboAuthContext(
     if (firstKey) turboAuthCache.delete(firstKey);
   }
 
+  const userId = user?._id || (user as unknown as { id?: string })?.id || null;
+  const userSegment = userId ? `u:${String(userId)}` : "anon";
+  const userAdmin = isAdmin(user) || user?.role === "admin";
+  const role =
+    typeof (user as { role?: unknown })?.role === "string"
+      ? (user as { role: string }).role
+      : undefined;
+
   turboAuthCache.set(sessionId, {
     user,
     roles,
@@ -89,6 +101,10 @@ export function setTurboAuthContext(
     permRev: permRev ?? getRoleBitsetVersion(),
     boundIp: previous?.boundIp,
     boundUserAgent: previous?.boundUserAgent,
+    isAdmin: userAdmin,
+    userId,
+    userSegment,
+    role,
   });
 }
 
@@ -179,6 +195,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   locals.user = turboCtx.user;
   locals.roles = turboCtx.roles;
   locals.tenantId = turboCtx.tenantId;
+  locals.isAdmin = turboCtx.isAdmin;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
   // 🧪 Always re-apply the per-request test-mode tenant override: the turbo
@@ -186,7 +203,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   const cacheTenant = resolveRequestTenant(request, turboCtx.tenantId);
   if (cacheTenant) locals.tenantId = cacheTenant as DatabaseId;
 
-  const userId = turboCtx.user?._id || turboCtx.user?.id || null;
+  const userId = turboCtx.userId;
   let pathKey: string;
   if (url.pathname === "/api/graphql") {
     const query = url.searchParams.get("query") || "";
@@ -197,7 +214,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
       "all";
     pathKey = buildGraphQLResponseCacheKey(query, varsStr, pubFilter, userId);
   } else {
-    pathKey = buildUserResponseCacheKey(url.pathname, url.search, userId);
+    pathKey = `${turboCtx.userSegment}:${url.pathname}${url.search}`;
   }
 
   const ifNoneMatchEarly =
