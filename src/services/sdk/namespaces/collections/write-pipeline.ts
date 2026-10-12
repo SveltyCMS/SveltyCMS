@@ -59,15 +59,32 @@ export interface PrepareWritePayloadOptions {
   entryId?: string;
 }
 
+export const SYSTEM_WRITABLE_FIELDS = new Set([
+  "_id",
+  "id",
+  "tenantId",
+  "status",
+  "createdAt",
+  "updatedAt",
+  "createdBy",
+  "updatedBy",
+  "collection",
+  "isDeleted",
+  "locale",
+  "publishedAt",
+  "slug",
+  "_scheduledBy",
+]);
+
 /**
  * Schema-declared field names, cached per schema object (WeakMap — never grows
  * beyond live schemas, no per-write array scan).
  */
 const declaredFieldNamesCache = new WeakMap<object, Set<string>>();
 
-function schemaDeclaresField(schema: Schema, name: string): boolean {
+export function getDeclaredFieldNames(schema: Schema): Set<string> | null {
   const fields = schema.fields;
-  if (!fields || fields.length === 0) return false;
+  if (!fields || fields.length === 0) return null;
   let set = declaredFieldNamesCache.get(schema as object);
   if (!set) {
     set = new Set<string>();
@@ -77,7 +94,11 @@ function schemaDeclaresField(schema: Schema, name: string): boolean {
     }
     declaredFieldNamesCache.set(schema as object, set);
   }
-  return set.has(name);
+  return set;
+}
+
+function schemaDeclaresField(schema: Schema, name: string): boolean {
+  return getDeclaredFieldNames(schema)?.has(name) ?? false;
 }
 
 /** Shared FIELD_VALIDATION_ERROR factory — hoisted so writes skip a per-call closure. */
@@ -195,6 +216,23 @@ export function prepareWritePayload(
         continue;
       const normalized = toISOString(val);
       if (normalized !== val) entryData[name] = normalized;
+    }
+  }
+
+  // 🧹 SELECTIVE DB PASSING: prune extraneous client-sent keys on strict schemas
+  // or when explicitly requested, preventing unmapped fields from bloating the JSON
+  // `data` column in the database.
+  if (
+    (schema as { strict?: boolean }).strict === true ||
+    (opts as { pruneUndeclared?: boolean }).pruneUndeclared === true
+  ) {
+    const declared = getDeclaredFieldNames(schema);
+    if (declared) {
+      for (const k in entryData) {
+        if (!declared.has(k) && !SYSTEM_WRITABLE_FIELDS.has(k)) {
+          delete entryData[k];
+        }
+      }
     }
   }
 
