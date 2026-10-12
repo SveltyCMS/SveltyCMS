@@ -48,7 +48,9 @@ const MANY_READ_OPTS = Object.freeze({
   tenantId: TEST_TENANT,
 });
 
-const PERM_DELETE_OPTS = Object.freeze(withSystemScope("benchmark", { permanent: true }));
+const PERM_DELETE_OPTS = Object.freeze(
+  withSystemScope("benchmark", { permanent: true, confirmWipe: true }),
+);
 
 let stopServer: (() => Promise<void>) | null = null;
 

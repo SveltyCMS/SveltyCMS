@@ -60,6 +60,7 @@ afterAll(async () => {
         tenantId: TEST_TENANT,
         ...withSystemScope("testing"),
         permanent: true,
+        confirmWipe: true,
       },
     );
   }

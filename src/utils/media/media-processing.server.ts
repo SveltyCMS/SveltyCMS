@@ -13,6 +13,8 @@
  */
 
 import { error } from "@sveltejs/kit";
+import { AppError } from "@utils/error-handling";
+import { bodyTooLargeMessage } from "@utils/api-body-limits";
 import { logger } from "@utils/logger";
 import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
@@ -40,16 +42,39 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
   }
 }
 
-export async function hashStream(stream: ReadableStream | Readable): Promise<string> {
+export async function hashStream(
+  stream: ReadableStream | Readable,
+  maxBytes?: number,
+): Promise<string> {
   const hash = createHash("sha256");
   const nodeStream =
     stream instanceof ReadableStream
       ? Readable.fromWeb(stream as unknown as import("node:stream/web").ReadableStream)
       : stream;
   return new Promise((resolve, reject) => {
-    nodeStream.on("data", (chunk: Buffer) => hash.update(chunk));
-    nodeStream.on("end", () => resolve(hash.digest("hex")));
-    nodeStream.on("error", reject);
+    let seen = 0;
+    let settled = false;
+    const fail = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      nodeStream.destroy();
+      reject(err);
+    };
+    nodeStream.on("data", (chunk: Buffer) => {
+      if (settled) return;
+      seen += chunk.length;
+      if (maxBytes !== undefined && seen > maxBytes) {
+        fail(new AppError(bodyTooLargeMessage(seen), 413, "PAYLOAD_TOO_LARGE"));
+        return;
+      }
+      hash.update(chunk);
+    });
+    nodeStream.on("end", () => {
+      if (settled) return;
+      settled = true;
+      resolve(hash.digest("hex"));
+    });
+    nodeStream.on("error", fail);
   });
 }
 

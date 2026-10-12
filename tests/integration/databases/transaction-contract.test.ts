@@ -55,7 +55,11 @@ beforeAll(async () => {
 afterAll(async () => {
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        TEST_COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
   }
 });

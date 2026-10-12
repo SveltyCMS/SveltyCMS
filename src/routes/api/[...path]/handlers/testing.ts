@@ -831,6 +831,7 @@ export async function handleTestingRoutes(
           {
             tenantId,
             permanent: true,
+            confirmWipe: true,
           },
         );
       } catch (err: any) {
@@ -1041,6 +1042,7 @@ export async function handleTestingRoutes(
           {
             tenantId: effectiveTenantId as DatabaseId,
             permanent: true,
+            confirmWipe: true,
           },
         );
 

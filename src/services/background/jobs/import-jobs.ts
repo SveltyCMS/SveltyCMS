@@ -52,7 +52,14 @@ export async function bulkImportCollectionDocuments(
   if (total === 0) return result;
 
   if (mode === "replace") {
-    const deleteResult = await adapter.crud.deleteMany(collectionName, {}, tenantOpts);
+    const deleteResult = await adapter.crud.deleteMany(
+      collectionName,
+      {},
+      {
+        ...tenantOpts,
+        confirmWipe: true,
+      },
+    );
     if (!deleteResult.success) {
       logger.warn(`[Import] Failed to clear collection ${collectionName} for replace mode`);
     }

@@ -175,7 +175,15 @@ async function prepareAcidCollection(db: any) {
   }
 
   await db.crud
-    .deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true })
+    .deleteMany(
+      COLLECTION_ID,
+      {},
+      {
+        tenantId: "global" as any,
+        permanent: true,
+        confirmWipe: true,
+      },
+    )
     .catch(() => {});
 }
 

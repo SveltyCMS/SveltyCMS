@@ -279,7 +279,7 @@ async function seedZstdPayloadCollection(): Promise<boolean> {
       .catch(() => undefined);
 
     await db.crud
-      .deleteMany(ZSTD_COLLECTION, {}, { tenantId: "global", permanent: true })
+      .deleteMany(ZSTD_COLLECTION, {}, { tenantId: "global", permanent: true, confirmWipe: true })
       .catch(() => undefined);
 
     const padding = "x".repeat(ZSTD_ROW_BYTES);

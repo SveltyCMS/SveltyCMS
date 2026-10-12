@@ -101,11 +101,15 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
       await db.crud.deleteMany(
         COLLECTION_ID,
         {},
-        withSystemScope("benchmark", { permanent: true }),
+        withSystemScope("benchmark", { permanent: true, confirmWipe: true }),
       );
     } catch {}
     await db.crud
-      .deleteMany(COLLECTION_ID, {}, withSystemScope("benchmark", { permanent: true }))
+      .deleteMany(
+        COLLECTION_ID,
+        {},
+        withSystemScope("benchmark", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
 
     const opts = { bypassCache: true, tenantId: TEST_TENANT };

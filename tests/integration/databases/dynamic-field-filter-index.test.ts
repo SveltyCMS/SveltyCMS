@@ -138,7 +138,11 @@ describe(`Dynamic-field filter — ${ENGINE}`, () => {
   afterAll(async () => {
     if (db?.crud?.deleteMany) {
       await db.crud
-        .deleteMany(COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+        .deleteMany(
+          COLLECTION,
+          {},
+          withSystemScope("testing", { permanent: true, confirmWipe: true }),
+        )
         .catch(() => {});
     }
   });
@@ -293,7 +297,11 @@ describePg("Dynamic-field filter plan — postgresql", () => {
 
   afterAll(async () => {
     await db.crud
-      .deleteMany(PLAN_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        PLAN_COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
   });
 
@@ -350,7 +358,11 @@ describeSql(`Composite-index policy — ${ENGINE}`, () => {
 
   afterAll(async () => {
     await db.crud
-      .deleteMany(POLICY_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        POLICY_COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
   });
 

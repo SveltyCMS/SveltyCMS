@@ -4,6 +4,7 @@
  */
 
 import { safeQuery, isMultiTenantMode } from "@src/utils/security/safe-query";
+import { queryHasPredicate, UNFILTERED_DELETE_MESSAGE } from "@src/databases/core/relational-utils";
 import { hasTenantBypass } from "../system-tenant-scope";
 import { nowISODateString, toISOString } from "@utils/date";
 import { serializeSuccessEnvelope } from "@utils/fast-json";
@@ -1202,6 +1203,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
           systemScope: options.systemScope,
         }),
       );
+
+      if (!queryHasPredicate(secureQuery) && options.confirmWipe !== true) {
+        return {
+          success: false,
+          message: UNFILTERED_DELETE_MESSAGE,
+          error: createDatabaseError(
+            new Error(UNFILTERED_DELETE_MESSAGE),
+            "DELETE_MANY_REFUSED",
+            UNFILTERED_DELETE_MESSAGE,
+          ),
+        };
+      }
 
       const deleteOptions: any = {};
       const writeConcern = this.resolveWriteConcern(options);

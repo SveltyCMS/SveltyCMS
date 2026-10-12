@@ -798,6 +798,42 @@ export const parseJsonField = <T = any>(v: any, fallback?: T): T => {
 // TENANT FILTER LOGIC (centralized)
 // ============================================================================
 
+/**
+ * Caller-supplied row predicate. The automatic live-row clause
+ * `{ isDeleted: { $ne: true } }` does not count — a delete with only that
+ * clause still matches every live row.
+ */
+export function queryHasPredicate(query: unknown): boolean {
+  if (!query || typeof query !== "object") return false;
+  const record = query as Record<string, unknown>;
+  for (const key in record) {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+    if (key === "isDeleted") {
+      const value = record[key];
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        (value as { $ne?: unknown }).$ne === true &&
+        Object.keys(value as object).length === 1
+      ) {
+        continue;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+export const UNFILTERED_DELETE_MESSAGE =
+  "Refusing deleteMany with no row filter. Pass confirmWipe: true to affect every row.";
+
+/** Throws when a delete would run with no row predicate and no explicit wipe. */
+export function assertFilteredDelete(hasFilter: boolean, confirmWipe?: boolean): void {
+  if (!hasFilter && confirmWipe !== true) {
+    throw new Error(UNFILTERED_DELETE_MESSAGE);
+  }
+}
+
 export function shouldBypassTenantCheck(options?: BaseQueryOptions): boolean {
   return hasTenantBypass(options);
 }

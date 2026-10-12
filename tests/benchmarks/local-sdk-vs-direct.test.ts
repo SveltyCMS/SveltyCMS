@@ -328,7 +328,11 @@ async function run() {
   } finally {
     // Clean up inserted test documents
     await db.crud
-      .deleteMany("SdkVsDirect", {}, withSystemScope("benchmark", { permanent: true }))
+      .deleteMany(
+        "SdkVsDirect",
+        {},
+        withSystemScope("benchmark", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
     if (stopServer) {
       await stopServer().catch(() => {});

@@ -180,14 +180,22 @@ describe("Cache Contract — Count cache write-path invalidation", () => {
       } as unknown as Schema)
       .catch(() => {});
     await db.crud
-      .deleteMany(COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
   }, 120_000);
 
   afterAll(async () => {
     if (!db?.crud?.deleteMany) return;
     await db.crud
-      .deleteMany(COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
   });
 

@@ -38,6 +38,7 @@ import {
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { assertMimeAgreement, resolveRemoteAssetMime, sniffMimeType } from "./slim-sniffer.server";
+import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
 import type { SharpOverlayOptions } from "./sharp-loader.server";
@@ -160,6 +161,22 @@ function isSvgFile(mimeType: string, filename: string): boolean {
 export const MAX_SVG_BYTES = 5 * 1024 * 1024; // 5 MiB
 
 /**
+ * Same byte ceiling a new API upload uses (`API_MAX_BODY_SIZE_BYTES`).
+ * SVG stays on the tighter {@link MAX_SVG_BYTES} cap inside `bufferAndSanitizeSvg`.
+ * `byteLength` is the buffered size when `file.size` can under-report.
+ */
+export function assertMediaReplaceSize(
+  file: { type: string; name: string; size: number },
+  byteLength?: number,
+): void {
+  if (isSvgFile(file.type, file.name)) return;
+  const bytes = byteLength ?? file.size;
+  if (bytes > API_MAX_BODY_SIZE_BYTES) {
+    throw new AppError(bodyTooLargeMessage(bytes), 413, "PAYLOAD_TOO_LARGE");
+  }
+}
+
+/**
  * Buffer + sanitize an SVG upload. Always required — never stream raw SVG to disk.
  * Rejects files above MAX_SVG_BYTES to bound memory and block sanitizer bypass.
  */
@@ -178,7 +195,13 @@ async function bufferAndSanitizeSvg(file: {
   if (typeof file.arrayBuffer !== "function") {
     throw new Error("SVG uploads require a bufferable file object for sanitization");
   }
-  const raw = Buffer.from(await file.arrayBuffer()).toString("utf-8");
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (bytes.length > MAX_SVG_BYTES) {
+    throw new Error(
+      `SVG files must be ≤ ${MAX_SVG_BYTES / (1024 * 1024)}MB and are always sanitized before storage`,
+    );
+  }
+  const raw = bytes.toString("utf-8");
   return Buffer.from(sanitizeSvg(raw), "utf-8");
 }
 
@@ -1808,6 +1831,7 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
+      assertMediaReplaceSize(file);
       // 1. Get the existing media record
       const res = await this.db.crud.findOne<DbMediaItem>(
         "media",
@@ -1831,11 +1855,12 @@ export class MediaService {
         hash = await hashFileContent(buffer);
       } else if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
         buffer = Buffer.from(await file.arrayBuffer());
+        assertMediaReplaceSize(file, buffer.length);
         hash = await hashFileContent(buffer);
       } else {
         const { hashStream } = await import("./media-processing.server");
         const [s1] = file.stream().tee();
-        hash = await hashStream(s1);
+        hash = await hashStream(s1, API_MAX_BODY_SIZE_BYTES);
       }
 
       // Generate responsive variants for small files (buffer available)

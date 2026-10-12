@@ -1228,7 +1228,15 @@ export async function seedThroughputDocs(
     /* already exists */
   }
   try {
-    await (db as any).crud.deleteMany(collectionId, {}, { tenantId, permanent: true });
+    await (db as any).crud.deleteMany(
+      collectionId,
+      {},
+      {
+        tenantId,
+        permanent: true,
+        confirmWipe: true,
+      },
+    );
   } catch {
     /* ignore */
   }

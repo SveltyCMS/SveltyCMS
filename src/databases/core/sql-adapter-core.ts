@@ -73,6 +73,7 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
+  assertFilteredDelete,
   getEffectiveTenantId,
   registerTableSchema,
   validateId,
@@ -3112,16 +3113,28 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const execWrite = async (builder: { run?: () => Promise<unknown> }) =>
           typeof builder.run === "function" ? builder.run() : builder;
 
-        if (options.permanent && (!query || Object.keys(query).length === 0)) {
-          await execWrite(
-            this.getDrizzleInstance(options).delete(table) as { run?: () => Promise<unknown> },
-          );
-          return { deletedCount: -1 };
-        }
-        // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
+        // A missing filter must not compile to DELETE/UPDATE with no WHERE.
+        // mapQuery still adds a tenant predicate when one applies; confirmWipe
+        // is the only way to affect every row.
         const whereCondition = this.mapQuery(table, query, options);
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
         const db = this.getDrizzleInstance(options);
+        if (!whereCondition) {
+          assertFilteredDelete(false, options.confirmWipe);
+          if (options.permanent || !hasIsDeleted) {
+            await execWrite(db.delete(table) as { run?: () => Promise<unknown> });
+            return { deletedCount: -1 };
+          }
+          const wiped = await execWrite(
+            db.update(table).set({ isDeleted: true, updatedAt: new Date() }) as {
+              run?: () => Promise<unknown>;
+            },
+          );
+          const wipedCount =
+            (wiped as any)?.count ?? (wiped as any)?.changes ?? (wiped as any)?.affectedRows ?? -1;
+          return { deletedCount: wipedCount };
+        }
+        // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
         if (options.permanent || !hasIsDeleted) {
           await execWrite(
             db.delete(table).where(whereCondition) as { run?: () => Promise<unknown> },

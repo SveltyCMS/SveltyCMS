@@ -110,8 +110,8 @@ async function seedPostgresHub(
   // Force-recreate CMS-side fixtures: tenant-scoped upserts silently miss rows
   // written under an older tenant convention ("global" vs "default"), leaving
   // stale connectors/schemas that the runtime can never resolve.
-  await db.crud.deleteMany(CONNECTORS_COLLECTION, {}, { permanent: true });
-  await db.crud.deleteMany(SCHEMAS_COLLECTION, {}, { permanent: true });
+  await db.crud.deleteMany(CONNECTORS_COLLECTION, {}, { permanent: true, confirmWipe: true });
+  await db.crud.deleteMany(SCHEMAS_COLLECTION, {}, { permanent: true, confirmWipe: true });
 
   const connector: ConnectorRecord = {
     _id: connectorId,
@@ -237,8 +237,8 @@ async function seedWordPressHub(
   };
 
   // Same stale-row guard as seedPostgresHub — force-recreate CMS-side fixtures.
-  await db.crud.deleteMany(CONNECTORS_COLLECTION, {}, { permanent: true });
-  await db.crud.deleteMany(SCHEMAS_COLLECTION, {}, { permanent: true });
+  await db.crud.deleteMany(CONNECTORS_COLLECTION, {}, { permanent: true, confirmWipe: true });
+  await db.crud.deleteMany(SCHEMAS_COLLECTION, {}, { permanent: true, confirmWipe: true });
 
   const wpDef = buildWordPressVirtualCollection("posts", String(connectorId), tenantId);
   const collection: VirtualCollectionRecord = {

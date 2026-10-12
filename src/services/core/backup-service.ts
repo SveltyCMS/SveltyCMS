@@ -1240,7 +1240,10 @@ export class BackupService {
         await adapter.crud.deleteMany(
           colName,
           targetTenant !== "global" ? ({ tenantId: targetTenant } as any) : ({} as any),
-          { tenantId: targetTenant as any },
+          {
+            tenantId: targetTenant as any,
+            ...(targetTenant === "global" ? { confirmWipe: true } : {}),
+          },
         );
       } catch (err) {
         logger.warn(`[BackupService] Failed to clear collection "${colName}":`, err);

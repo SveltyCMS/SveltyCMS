@@ -191,9 +191,9 @@ Cold-path trims shipped with it (all inside the lane's own steps, each visible i
 
 Existing modules to be connected or formally retired:
 
-- **Media replace size ceiling** — `MediaNamespace.uploadVersion` / `uploadNewVersion` does not apply the size cap a new upload uses. Apply that same ceiling on replace. The SVG byte cap stays as it is. Keep this off the collection read path.
-- **Empty permanent delete** — `deleteMany` with `permanent: true` and an empty query deletes the table. An empty filter should be a no-op or a 400, with an explicit opt-in when a full wipe is intended. The HTTP batch route already returns 400 for an empty `entryIds` list.
-- **SDK bulk delete empty ids** — `collections.bulkDelete` should refuse an empty id list before `deleteMany`, the same way the HTTP batch route does.
+- ✅ **Media replace size ceiling (Shipped 2026-10-11)** — `uploadNewVersion` applies the same byte ceiling as a new API upload (`API_MAX_BODY_SIZE_BYTES`). A buffered body that under-reports `file.size` is checked again, and a streamed replace stops hashing at the ceiling. The SVG byte cap stays as it is. Off the collection read path.
+- ✅ **Empty permanent delete (Shipped 2026-10-11)** — `deleteMany` no longer runs `DELETE`/`UPDATE` with no `WHERE` when the filter compiles to no row predicate. A tenant predicate still scopes the delete. A full wipe requires `confirmWipe: true`. The HTTP batch route already returns 400 for an empty `entryIds` list.
+- ✅ **SDK bulk delete empty ids (Shipped 2026-10-11)** — `collections.bulkDelete` refuses an empty id list before `deleteMany`, the same way the HTTP batch route does.
 
 - **Database-Native FTS** — Wire `IFtsAdapter` (`dbAdapter.fts` across SQLite FTS5, Postgres `tsvector`, MariaDB `MATCH...AGAINST`, Mongo `$text`) into the live `?search=` query pipeline with tenant scoping and field-level access controls.
 - **Semantic Index Persistence** — Implement incremental updates and disk persistence (`indexItem`, `indexBatch`, `persistSemanticIndex`, `rebuildSemanticIndex`) in `src/services/intelligence/semantic-index.ts`.

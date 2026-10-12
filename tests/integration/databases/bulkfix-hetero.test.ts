@@ -41,13 +41,13 @@ describe.skipIf(!isSqlite)(
           .catch(() => {});
       }
       await db.crud
-        .deleteMany(C, {}, withSystemScope("testing", { permanent: true }))
+        .deleteMany(C, {}, withSystemScope("testing", { permanent: true, confirmWipe: true }))
         .catch(() => {});
     }, 30000);
 
     afterAll(async () => {
       await db?.crud
-        ?.deleteMany(C, {}, withSystemScope("testing", { permanent: true }))
+        ?.deleteMany(C, {}, withSystemScope("testing", { permanent: true, confirmWipe: true }))
         .catch(() => {});
     }, 15000);
 

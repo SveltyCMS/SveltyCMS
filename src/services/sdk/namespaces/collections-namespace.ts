@@ -1449,6 +1449,9 @@ export class CollectionsNamespace {
   }
 
   async bulkDelete(collectionId: string, ids: string[], options: LocalApiOptions = {}) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new AppError("entryIds[] is required for bulk delete", 400);
+    }
     const { user, tenantId } = options;
     if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.schemaOf(collectionId, tenantId);

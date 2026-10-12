@@ -184,6 +184,12 @@ export interface BaseQueryOptions {
    * Set true only for admin-managed updates, testing seeds, or trusted system paths.
    */
   allowPrivilegeEscalation?: boolean;
+  /**
+   * deleteMany only. Required when the filter compiles to no row predicate,
+   * so a missing filter cannot delete the table. A tenant predicate is enough
+   * on its own; this flag is the explicit opt-in for a full wipe.
+   */
+  confirmWipe?: boolean;
 }
 
 /**

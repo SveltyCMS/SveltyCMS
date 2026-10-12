@@ -271,7 +271,7 @@ async function run() {
     // Clean up provisioned temporary read collections
     for (const col of readCols) {
       await db.crud
-        .deleteMany(col, {}, withSystemScope("benchmark", { permanent: true }))
+        .deleteMany(col, {}, withSystemScope("benchmark", { permanent: true, confirmWipe: true }))
         .catch(() => {});
     }
     if (stopServer) {

@@ -60,7 +60,11 @@ beforeAll(async () => {
 
   // Clean slate then seed a known page size (+1 for hasMore)
   await db.crud
-    .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+    .deleteMany(
+      TEST_COLLECTION,
+      {},
+      withSystemScope("testing", { permanent: true, confirmWipe: true }),
+    )
     .catch(() => {});
 
   for (let i = 0; i < 12; i++) {
@@ -81,7 +85,11 @@ beforeAll(async () => {
 afterAll(async () => {
   if (db?.crud?.deleteMany) {
     await db.crud
-      .deleteMany(TEST_COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        TEST_COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
   }
 });

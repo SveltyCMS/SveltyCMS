@@ -91,7 +91,11 @@ describe(`Aggregation contract — ${ENGINE}`, () => {
 
     // Idempotent across runs (the SQLite file persists between them).
     await db.crud
-      .deleteMany(COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+      .deleteMany(
+        COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
       .catch(() => {});
 
     for (const doc of SEED) {
@@ -120,7 +124,11 @@ describe(`Aggregation contract — ${ENGINE}`, () => {
   afterAll(async () => {
     if (db?.crud?.deleteMany) {
       await db.crud
-        .deleteMany(COLLECTION, {}, withSystemScope("testing", { permanent: true }))
+        .deleteMany(
+          COLLECTION,
+          {},
+          withSystemScope("testing", { permanent: true, confirmWipe: true }),
+        )
         .catch(() => {});
     }
   });
