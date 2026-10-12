@@ -1,0 +1,50 @@
+---
+path: "src/routes/(app)/dashboard/widgets/collection-chart/readme.mdx"
+title: "Collection Chart Dashboard Widget"
+description: "Interactive time-series and categorical charts powered by collection data with pure SVG rendering and live drill-down. Included with SveltyCMS — free."
+order: 111
+icon: "mdi:chart-bar"
+author: "SveltyCMS Team"
+created: "2026-10-12"
+updated: "2026-10-12"
+tags:
+  - "dashboard"
+  - "analytics"
+  - "charts"
+  - "collection"
+  - "free"
+---
+
+# Collection Chart Widget
+
+Zero-dependency, high-performance chart widget for the SveltyCMS admin dashboard. Renders time-series or categorical distributions straight from collection records using lightweight SVG and Tailwind design tokens.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature                   | Description                                                                                 |
+| :------------------------ | :------------------------------------------------------------------------------------------ |
+| **Grouping Modes**        | Group by Time (day, week, month, year) or Categorical Field (status, category, author, tag) |
+| **Chart Types**           | Vertical Bar / Column, Horizontal Bar, or Area / Line chart                                 |
+| **Measures**              | Aggregate by record Count, numerical Sum, or numerical Average                              |
+| **Time Granularity**      | Flexible binning by Day, Week, Month, or Year                                               |
+| **Theme Accents**         | Custom color accent ramps (`primary`, `tertiary`, `secondary`, `success`, `warning`)        |
+| **Interactive Tooltips**  | Hover over bars/points to view precise values and percentages                               |
+| **Interactive Drilldown** | Click any bar or slice to jump to the collection table pre-filtered by that category        |
+| **Zero External Deps**    | 100% native SVG and CSS; zero megabytes of third-party charting libraries                   |
+
+---
+
+## Data Source
+
+| Endpoint                               | Description                                                   |
+| :------------------------------------- | :------------------------------------------------------------ |
+| `GET /api/dashboard/analytics/sources` | Lists introspected collections and groupable/numerical fields |
+| `GET /api/dashboard/analytics/chart`   | Aggregates and bins series data for charting                  |

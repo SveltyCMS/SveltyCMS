@@ -1,0 +1,18 @@
+{
+  "id": "collection-list",
+  "name": "Collection List",
+  "description": "Dynamic, filterable collection item feed with direct entry drill-down",
+  "icon": "mdi:format-list-bulleted",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "content",
+  "sveltycms": ">=0.0.8"
+}

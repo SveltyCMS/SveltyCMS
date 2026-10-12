@@ -1,0 +1,18 @@
+{
+  "id": "collection-chart",
+  "name": "Collection Chart",
+  "description": "Interactive time-series and categorical charts powered by collection data with pure SVG rendering",
+  "icon": "mdi:chart-bar",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
+  "category": "content",
+  "sveltycms": ">=0.0.8"
+}

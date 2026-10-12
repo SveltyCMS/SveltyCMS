@@ -1,0 +1,49 @@
+---
+path: "src/routes/(app)/dashboard/widgets/collection-list/readme.mdx"
+title: "Collection List Dashboard Widget"
+description: "Dynamic, filterable collection item feed with direct entry drill-down and status badges. Included with SveltyCMS — free."
+order: 112
+icon: "mdi:format-list-bulleted"
+author: "SveltyCMS Team"
+created: "2026-10-12"
+updated: "2026-10-12"
+tags:
+  - "dashboard"
+  - "content"
+  - "feed"
+  - "collection"
+  - "free"
+---
+
+# Collection List Widget
+
+Versatile collection item feed for the SveltyCMS admin dashboard. Display live entries from any chosen collection, sorted and filtered according to administrative needs, with one-click navigation to the record editor.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature                  | Description                                                              |
+| :----------------------- | :----------------------------------------------------------------------- |
+| **Collection Selection** | Connect to any active CMS collection                                     |
+| **Custom Sorting**       | Sort by creation date, update date, or custom schema fields (ASC / DESC) |
+| **Configurable Limit**   | Choose 3, 5, or 10 recent items to display                               |
+| **Status Pills**         | Automatically renders status badges (published, draft, archived)         |
+| **Relative Timestamps**  | Formats dates with friendly relative time badges ("5m ago", "2h ago")    |
+| **Direct Edit Link**     | Clicking any row opens the full entry editor in SveltyCMS                |
+| **Compact Mode**         | Automatically condenses item cards when resized to `h:1`                 |
+
+---
+
+## Data Source
+
+| Endpoint                               | Description                                 |
+| :------------------------------------- | :------------------------------------------ |
+| `GET /api/dashboard/analytics/sources` | Lists introspected collections              |
+| `GET /api/dashboard/analytics/list`    | Fetches filtered, sorted collection entries |

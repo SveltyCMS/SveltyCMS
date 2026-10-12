@@ -1,0 +1,51 @@
+---
+path: "src/routes/(app)/dashboard/widgets/collection-figure/readme.mdx"
+title: "Collection Metric Dashboard Widget"
+description: "Interactive collection-driven KPI metric card with time-period comparisons, goal progress tracking, and SVG sparkline curves. Included with SveltyCMS — free."
+order: 110
+icon: "mdi:numeric"
+author: "SveltyCMS Team"
+created: "2026-10-12"
+updated: "2026-10-12"
+tags:
+  - "dashboard"
+  - "analytics"
+  - "metrics"
+  - "collection"
+  - "free"
+---
+
+# Collection Metric Widget
+
+Powerful, customizable collection metric card for the SveltyCMS admin dashboard. Allows editors and administrators to track key performance indicators (KPIs) directly from any CMS collection with zero custom code.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature                     | Description                                                                                                     |
+| :-------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| **Collection Selection**    | Pick any native or virtual collection in the CMS                                                                |
+| **Measures**                | Calculate Count, Sum, Average, Minimum, or Maximum                                                              |
+| **Field Binding**           | Bind to any numerical field for aggregations                                                                    |
+| **Time Periods**            | Filter by Today, This Week, This Month, This Year, Last 30 Days, Last 12 Months, or All Time                    |
+| **Period Comparison**       | Automatically compares against the previous period with +/- percentage changes and color-coded trend indicators |
+| **Goal Tracking**           | Set target thresholds with automated progress bar and remaining count calculations                              |
+| **Micro Sparklines**        | Pure SVG 8-bucket sparklines visualizing the trend over the selected period                                     |
+| **Live In-Place Config**    | Interactive settings drawer allows instant customization right on the dashboard                                 |
+| **Click-Through Drilldown** | Click the widget to navigate directly to the collection table with the matching filters                         |
+
+---
+
+## Data Source
+
+| Endpoint                               | Description                                                            |
+| :------------------------------------- | :--------------------------------------------------------------------- |
+| `GET /api/dashboard/analytics/sources` | Lists introspected collections and numerical/date fields               |
+| `GET /api/dashboard/analytics/metric`  | Computes metric figures, previous period deltas, goals, and sparklines |

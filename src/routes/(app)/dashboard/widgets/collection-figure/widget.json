@@ -1,0 +1,18 @@
+{
+  "id": "collection-figure",
+  "name": "Collection Metric",
+  "description": "Dynamic collection KPI figures, period comparisons, goal progress tracking, and SVG sparklines",
+  "icon": "mdi:numeric",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 1
+  },
+  "category": "content",
+  "sveltycms": ">=0.0.8"
+}

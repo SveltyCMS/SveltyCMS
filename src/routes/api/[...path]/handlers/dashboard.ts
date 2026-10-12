@@ -29,6 +29,11 @@ import {
   summarizeInventory,
   summarizeOrders,
 } from "@src/services/commerce/dashboard-snapshot";
+import {
+  collectionAnalyticsService,
+  type AnalyticsPeriod,
+  type MetricMeasure,
+} from "@src/services/analytics/collection-analytics-service";
 
 export const DASHBOARD_ENDPOINT_LICENSE: Readonly<Record<string, string>> = {
   audit: "audit-log",
@@ -678,6 +683,170 @@ export async function handleDashboardRoutes(
           publicationFilter: "all",
         });
         return rawResponse(event, summarizeInventory(commerceRows(found), query.limit || 8));
+      }
+
+      case "analytics":
+      case "analytics-sources":
+      case "analytics-metric":
+      case "analytics-chart":
+      case "analytics-list": {
+        const subaction = (
+          segments[2] ||
+          (query.method.startsWith("analytics-") ? query.method.replace("analytics-", "") : "") ||
+          url.searchParams.get("action") ||
+          url.searchParams.get("type") ||
+          "sources"
+        ).toLowerCase();
+
+        if (subaction === "sources") {
+          const cacheKey = `dashboard:analytics:sources:${tenantId || "global"}`;
+          const cached = cacheService.getSync<any>(cacheKey, tenantId);
+          if (cached) return rawResponse(event, cached);
+
+          const sources = await cacheService.coalesceQuery(cacheKey, async () => {
+            const data = await collectionAnalyticsService.getCollectionSources(cms, tenantId);
+            cacheService.set(cacheKey, data, 15000, tenantId);
+            return data;
+          });
+          return rawResponse(event, sources);
+        }
+
+        const collectionId =
+          url.searchParams.get("collectionId") || url.searchParams.get("collection") || "";
+        if (!collectionId) {
+          throw new AppError("collectionId is required for analytics", 400);
+        }
+
+        if (subaction === "metric") {
+          const measure = (url.searchParams.get("measure") || "count") as MetricMeasure;
+          const field = url.searchParams.get("field") || undefined;
+          const period = (url.searchParams.get("period") || "all") as AnalyticsPeriod;
+          const dateField = url.searchParams.get("dateField") || undefined;
+          const startDate = url.searchParams.get("startDate") || undefined;
+          const endDate = url.searchParams.get("endDate") || undefined;
+          const compare = (url.searchParams.get("compare") || "previous") as "previous" | "none";
+          const goalParam = url.searchParams.get("goal");
+          const goal = goalParam ? Number(goalParam) : undefined;
+          let filter: Record<string, unknown> | undefined;
+          const filterStr = url.searchParams.get("filter");
+          if (filterStr) {
+            try {
+              filter = JSON.parse(filterStr);
+            } catch {}
+          }
+
+          const cacheKey = `dashboard:analytics:metric:${tenantId || "global"}:${collectionId}:${measure}:${field || ""}:${period}:${dateField || ""}:${startDate || ""}:${endDate || ""}:${compare}:${goal || ""}:${filterStr || ""}`;
+          const cached = cacheService.getSync<any>(cacheKey, tenantId);
+          if (cached) return rawResponse(event, cached);
+
+          const metric = await cacheService.coalesceQuery(cacheKey, async () => {
+            const data = await collectionAnalyticsService.getMetricData(cms, {
+              collectionId,
+              tenantId,
+              user: event.locals.user,
+              measure,
+              field,
+              period,
+              dateField,
+              startDate,
+              endDate,
+              compare,
+              goal,
+              filter,
+            });
+            cacheService.set(cacheKey, data, 5000, tenantId);
+            return data;
+          });
+          return rawResponse(event, metric);
+        }
+
+        if (subaction === "chart") {
+          const groupBy = (url.searchParams.get("groupBy") || "time") as "time" | "field";
+          const groupField = url.searchParams.get("groupField") || undefined;
+          const timeGranularity = (url.searchParams.get("timeGranularity") || "day") as
+            | "day"
+            | "week"
+            | "month"
+            | "year";
+          const measure = (url.searchParams.get("measure") || "count") as "count" | "sum" | "avg";
+          const metricField = url.searchParams.get("metricField") || undefined;
+          const period = (url.searchParams.get("period") || "last30") as AnalyticsPeriod;
+          const dateField = url.searchParams.get("dateField") || undefined;
+          const limit = Math.min(Number(url.searchParams.get("limit")) || 12, 50);
+          let filter: Record<string, unknown> | undefined;
+          const filterStr = url.searchParams.get("filter");
+          if (filterStr) {
+            try {
+              filter = JSON.parse(filterStr);
+            } catch {}
+          }
+
+          const cacheKey = `dashboard:analytics:chart:${tenantId || "global"}:${collectionId}:${groupBy}:${groupField || ""}:${timeGranularity}:${measure}:${metricField || ""}:${period}:${dateField || ""}:${limit}:${filterStr || ""}`;
+          const cached = cacheService.getSync<any>(cacheKey, tenantId);
+          if (cached) return rawResponse(event, cached);
+
+          const chart = await cacheService.coalesceQuery(cacheKey, async () => {
+            const data = await collectionAnalyticsService.getChartData(cms, {
+              collectionId,
+              tenantId,
+              user: event.locals.user,
+              groupBy,
+              groupField,
+              timeGranularity,
+              measure,
+              metricField,
+              period,
+              dateField,
+              filter,
+              limit,
+            });
+            cacheService.set(cacheKey, data, 5000, tenantId);
+            return data;
+          });
+          return rawResponse(event, chart);
+        }
+
+        if (subaction === "list") {
+          const limit = Math.min(Number(url.searchParams.get("limit")) || 5, 50);
+          const sortField = url.searchParams.get("sortField") || undefined;
+          const sortDirection = (url.searchParams.get("sortDirection") || "desc") as "asc" | "desc";
+          const fieldsStr = url.searchParams.get("fields");
+          const fields = fieldsStr
+            ? fieldsStr
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : undefined;
+          let filter: Record<string, unknown> | undefined;
+          const filterStr = url.searchParams.get("filter");
+          if (filterStr) {
+            try {
+              filter = JSON.parse(filterStr);
+            } catch {}
+          }
+
+          const cacheKey = `dashboard:analytics:list:${tenantId || "global"}:${collectionId}:${limit}:${sortField || ""}:${sortDirection}:${fieldsStr || ""}:${filterStr || ""}`;
+          const cached = cacheService.getSync<any>(cacheKey, tenantId);
+          if (cached) return rawResponse(event, cached);
+
+          const list = await cacheService.coalesceQuery(cacheKey, async () => {
+            const data = await collectionAnalyticsService.getListData(cms, {
+              collectionId,
+              tenantId,
+              user: event.locals.user,
+              limit,
+              sortField,
+              sortDirection,
+              fields,
+              filter,
+            });
+            cacheService.set(cacheKey, data, 5000, tenantId);
+            return data;
+          });
+          return rawResponse(event, list);
+        }
+
+        throw new AppError(`Unknown analytics subaction: ${subaction}`, 400);
       }
 
       default:
