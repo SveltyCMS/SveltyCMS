@@ -436,7 +436,9 @@ describe("decryptReadResult", () => {
   it("returns the result untouched when the schema has no encrypted fields", async () => {
     const result = { success: true, data: [{ _id: "1" }] };
     const hot = { _hasEncryptedFields: false, _encryptedFieldNames: [] };
-    expect(await decryptReadResult(result, hot, ENC_CTX)).toBe(result);
+    const read = decryptReadResult(result, hot, ENC_CTX);
+    expect(read).toBe(result);
+    expect(read instanceof Promise).toBe(false);
   });
 
   it("clones the envelope data by default, leaving the source intact", async () => {

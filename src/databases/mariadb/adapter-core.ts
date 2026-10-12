@@ -1239,12 +1239,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
   /**
    * Phase 2 statement coalescing gate: concurrent single-row inserts for the
    * same collection coalesce into one multi-VALUES statement (PostgreSQL
-   * parity — SVELTY_WRITE_COALESCING=1 enables multi-row statements).
-   * Off by default because mysql2 executes single parameterized INSERT
-   * statements immediately without the setImmediate tick delay.
+   * parity). On by default. `SVELTY_WRITE_COALESCING=0` restores one
+   * statement per insert. A size-1 wave does not block the next wave.
    */
   protected override get insertCoalescingEnabled(): boolean {
-    return process.env.SVELTY_WRITE_COALESCING === "1";
+    return process.env.SVELTY_WRITE_COALESCING !== "0";
   }
 
   /**

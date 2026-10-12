@@ -18,10 +18,11 @@
  *   commit untouched.
  *
  * ### Scheduling
- * Drains on a tick boundary (`setImmediate`, microtask fallback) — a microtask
- * drain would only capture writes arriving in the same synchronous turn,
- * which concurrent HTTP requests almost never do (see sqlite/write-batcher.ts
- * for the proven tick pattern). A lone write pays at most one tick.
+ * Drains on a tick boundary (`setImmediate`, microtask fallback) so concurrent
+ * HTTP handlers in the same poll join one multi-row statement. The drain does
+ * not stay busy across that statement: a size-1 insert must not block the next
+ * wave, or coalescing turns into a serial queue and concurrent creates get
+ * slower than pipelined single-row inserts. A lone write pays at most one tick.
  */
 
 export interface CoalescedInsertEntry<T = unknown> {
@@ -43,7 +44,6 @@ const defaultSchedule = (drain: () => void): void => {
 export class StatementCoalescer<T = unknown> {
   private queue: CoalescedInsertEntry<T>[] = [];
   private scheduled = false;
-  private draining = false;
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly runBatch: InsertBatchRunner<T>;
   private readonly schedule: (drain: () => void) => void;
@@ -86,7 +86,7 @@ export class StatementCoalescer<T = unknown> {
   }
 
   private scheduleDrain(): void {
-    if (this.scheduled || this.draining || this.holdTimer) return;
+    if (this.scheduled || this.holdTimer) return;
     this.scheduled = true;
     this.schedule(() => {
       this.scheduled = false;
@@ -112,21 +112,17 @@ export class StatementCoalescer<T = unknown> {
   }
 
   private async drain(): Promise<void> {
-    if (this.draining) return;
     if (this.holdTimer) {
       clearTimeout(this.holdTimer);
       this.holdTimer = null;
     }
-    this.draining = true;
-    try {
-      while (this.queue.length > 0) {
-        const batch = this.queue.splice(0, this.queue.length);
-        await this.executeBatch(batch);
-      }
-    } finally {
-      this.draining = false;
-      if (this.queue.length > 0) this.scheduleDrain();
-    }
+    // One wave only. Holding this drain across the await serialized every
+    // insert that arrived during the statement (the concurrent-create
+    // regression: N round trips became a queue). The next wave schedules
+    // its own drain and runs in parallel with this statement.
+    const batch = this.queue.splice(0, this.queue.length);
+    if (batch.length === 0) return;
+    await this.executeBatch(batch);
   }
 
   private async executeBatch(batch: CoalescedInsertEntry<T>[]): Promise<void> {

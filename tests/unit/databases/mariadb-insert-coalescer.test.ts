@@ -73,7 +73,7 @@ describe("MariaDB insert coalescing (Option 3)", () => {
   it("gates on SVELTY_WRITE_COALESCING like the PostgreSQL lane", () => {
     const adapter = new ProbeAdapter();
     delete process.env.SVELTY_WRITE_COALESCING;
-    expect(adapter.coalescingGate).toBe(false);
+    expect(adapter.coalescingGate).toBe(true);
     process.env.SVELTY_WRITE_COALESCING = "1";
     expect(adapter.coalescingGate).toBe(true);
     process.env.SVELTY_WRITE_COALESCING = "0";

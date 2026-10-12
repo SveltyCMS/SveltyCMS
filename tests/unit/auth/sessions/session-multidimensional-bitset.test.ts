@@ -5,9 +5,9 @@
  * Verifies:
  * - Granting bit index > 63 (e.g. bit 70 in third 32-bit word, wordIndex = 2)
  * - That a 64-bit BigInt register cannot represent bit index 70 within a standard 64-bit mask
- * - Serialization into JSON-safe `number[]` (`permBits`)
- * - Persistence into InMemorySessionManager and RedisSessionManager
- * - Rehydration with `Uint32Array.from(permBits)` / `rehydratePermissionBitset`
+ * - Serialization into JSON-safe `number[]` for in-memory checks
+ * - The session store does not persist that array (`permMask` + `permRev` only)
+ * - Rehydration with `rehydratePermissionBitset` from the in-memory array
  * - Precise permission check: `hasPermissionBitIndex(bitset, 70)` is true, while 69 and 71 are false
  * - Atomic revision epoch invalidation: bump via `invalidateRoleBitsetsGlobally()` detects stale session `permRev`
  */
@@ -59,18 +59,17 @@ describe("Session Multidimensional Bitset (Dynamic Uint32Array)", () => {
     const futureExp = new Date(Date.now() + 3600 * 1000).toISOString() as ISODateString;
 
     await manager.set("sess-bit-70", user, futureExp, {
-      permBits: serializedPermBits,
       permRev: activeEpoch,
     });
 
-    // 6. Retrieve SessionData and verify JSON persistence integrity
+    // 6. The session keeps the revision epoch and does not carry the bit array.
     const sessionData = await manager.getSessionData("sess-bit-70");
     expect(sessionData).not.toBeNull();
-    expect(sessionData?.permBits).toEqual([0, 0, 64, 0]);
     expect(sessionData?.permRev).toBe(activeEpoch);
+    expect(sessionData && "permBits" in sessionData).toBe(false);
 
-    // 7. Rehydrate back to Uint32Array
-    const restoredBitset = rehydratePermissionBitset(sessionData?.permBits);
+    // 7. Rehydrate the in-memory array. The session is not the source.
+    const restoredBitset = rehydratePermissionBitset(serializedPermBits);
     expect(restoredBitset).toBeInstanceOf(Uint32Array);
     expect(restoredBitset.length).toBeGreaterThanOrEqual(3);
 
@@ -86,7 +85,7 @@ describe("Session Multidimensional Bitset (Dynamic Uint32Array)", () => {
     expect(bitAsBigInt > standard64BitMax).toBe(true);
   });
 
-  it("synchronizes permBits and permRev in RedisSessionManager with simulated Redis store", async () => {
+  it("stores permRev in Redis and omits the unused bit array", async () => {
     // Simulated redis store
     const store = new Map<string, string>();
     const fakeRedisClient = {
@@ -108,24 +107,21 @@ describe("Session Multidimensional Bitset (Dynamic Uint32Array)", () => {
     const permRev = getRoleBitsetVersion();
 
     await redisManager.set("redis-sess-70", user, futureExp, {
-      permBits,
       permRev,
     });
 
-    // Check raw JSON payload stored in simulated Redis
     const rawStored = store.get("redis-sess-70");
     expect(rawStored).toBeDefined();
     const parsed = JSON.parse(rawStored!);
-    expect(parsed.permBits).toEqual([0, 0, 64]);
+    expect(parsed.permBits).toBeUndefined();
+    expect(rawStored).not.toContain("permBits");
     expect(parsed.permRev).toBe(permRev);
 
-    // Read back through getSessionData
     const sessionData = await redisManager.getSessionData("redis-sess-70");
-    expect(sessionData?.permBits).toEqual([0, 0, 64]);
+    expect(sessionData && "permBits" in sessionData).toBe(false);
     expect(sessionData?.permRev).toBe(permRev);
 
-    // Verify rehydration from Redis data
-    const rehydrated = Uint32Array.from(sessionData!.permBits!);
+    const rehydrated = rehydratePermissionBitset(permBits);
     expect(hasPermissionBitIndex(rehydrated, 70)).toBe(true);
   });
 

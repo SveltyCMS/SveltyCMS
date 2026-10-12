@@ -7,7 +7,15 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { invalidateCache } from "@src/services/sdk/namespaces/collections/post-write";
+import {
+  invalidateCache,
+  schedulePostWrite,
+} from "@src/services/sdk/namespaces/collections/post-write";
+import { getWorkflowServiceLazy } from "@src/services/sdk/namespaces/collections/lazy-services";
+import {
+  forgetWorkflowPresence,
+  noteWorkflowPresence,
+} from "@src/services/background/workflow-presence";
 import { createCountCachedCrud } from "@src/databases/core/cache-module";
 import {
   expectClearedCovers,
@@ -48,6 +56,8 @@ describe("collections post-write invalidation", () => {
     vi.mocked(cacheService.clearByPattern).mockClear();
     vi.mocked(cacheService.bumpCollectionEpoch).mockClear();
     invalidateLocal.mockClear();
+    forgetWorkflowPresence();
+    vi.mocked(getWorkflowServiceLazy).mockClear();
   });
 
   async function flushInvalidation(): Promise<void> {
@@ -55,6 +65,43 @@ describe("collections post-write invalidation", () => {
       expect(cacheService.clearByTags).toHaveBeenCalled();
     });
   }
+
+  it("does not import the workflow service when no definition has been cached", async () => {
+    schedulePostWrite(
+      {} as never,
+      "create",
+      { _id: "Posts", name: "Posts" } as Schema,
+      "Posts",
+      "tenant-a" as DatabaseId,
+      "entry-1",
+      { title: "Hello" },
+      { _id: "user-1" },
+      {},
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(getWorkflowServiceLazy).not.toHaveBeenCalled();
+  });
+
+  it("imports the workflow service only after a definition was cached", async () => {
+    noteWorkflowPresence("Posts", "tenant-a", true);
+    vi.mocked(getWorkflowServiceLazy).mockResolvedValue({
+      peekWorkflowCache: () => ({ _id: "wf-1" }),
+      initializeWorkflow: vi.fn().mockResolvedValue(null),
+    } as never);
+    schedulePostWrite(
+      {} as never,
+      "create",
+      { _id: "Posts", name: "Posts" } as Schema,
+      "Posts",
+      "tenant-a" as DatabaseId,
+      "entry-1",
+      { title: "Hello" },
+      { _id: "user-1" },
+      {},
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(getWorkflowServiceLazy).toHaveBeenCalledTimes(1);
+  });
 
   it("clears collection + count tags, never schema/content_structure", async () => {
     invalidateCache({ _id: "Posts" } as any, "tenant-a" as any);

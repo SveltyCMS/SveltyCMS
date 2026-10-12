@@ -14,6 +14,7 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
 import { isAdmin } from "@src/databases/auth/constants";
 import { eventBus } from "./automation/event-bus";
+import { forgetWorkflowPresence, noteWorkflowPresence } from "./workflow-presence";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -60,6 +61,7 @@ export class WorkflowService {
   public invalidateWorkflowCache(_collectionId?: string, _tenantId?: string): void {
     // Full clear for now; scoped invalidation can use _collectionId/_tenantId later
     this._workflowByCollection.clear();
+    forgetWorkflowPresence();
   }
 
   /**
@@ -187,6 +189,7 @@ export class WorkflowService {
           value: null,
           exp: Date.now() + WorkflowService.WORKFLOW_CACHE_TTL_MS,
         });
+        noteWorkflowPresence(collectionId, tenantId, false);
         return null;
       }
 
@@ -195,6 +198,7 @@ export class WorkflowService {
         value: normalized,
         exp: Date.now() + WorkflowService.WORKFLOW_CACHE_TTL_MS,
       });
+      noteWorkflowPresence(collectionId, tenantId, true);
       return normalized;
     } catch (err: any) {
       // If table doesn't exist yet, just assume no workflow
@@ -203,6 +207,7 @@ export class WorkflowService {
           value: null,
           exp: Date.now() + WorkflowService.WORKFLOW_CACHE_TTL_MS,
         });
+        noteWorkflowPresence(collectionId, tenantId, false);
         return null;
       }
       throw err;

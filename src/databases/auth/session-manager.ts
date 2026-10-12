@@ -43,7 +43,6 @@ class InMemorySessionManager implements SessionStore {
       amr?: string[];
       mfaVerifiedAt?: ISODateString;
       permMask?: bigint;
-      permBits?: number[];
       permRev?: number;
     }
   > = new Map();
@@ -79,7 +78,6 @@ class InMemorySessionManager implements SessionStore {
       amr: session.amr,
       mfaVerifiedAt: session.mfaVerifiedAt,
       permMask: session.permMask,
-      permBits: session.permBits,
       permRev: session.permRev,
     };
   }
@@ -115,7 +113,6 @@ class InMemorySessionManager implements SessionStore {
       amr,
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
       permMask,
-      permBits: metadata?.permBits,
       permRev: metadata?.permRev,
     });
   }
@@ -243,7 +240,6 @@ class RedisSessionManager implements SessionStore {
             amr: parsed.amr,
             mfaVerifiedAt: parsed.mfaVerifiedAt,
             permMask: parsed.permMask ? BigInt(parsed.permMask) : undefined,
-            permBits: parsed.permBits,
             permRev: parsed.permRev,
           };
         }
@@ -277,7 +273,6 @@ class RedisSessionManager implements SessionStore {
       amr,
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
       permMask: permMaskStr,
-      permBits: metadata?.permBits,
       permRev: metadata?.permRev,
     };
 

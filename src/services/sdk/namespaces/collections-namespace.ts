@@ -69,12 +69,7 @@ import {
   getTokenEngineLazy,
   getWorkflowServiceLazy,
 } from "./collections/lazy-services";
-import {
-  evictRequestCache,
-  getRequestCache,
-  hasRequestCache,
-  setRequestCache,
-} from "./collections/request-cache";
+import { evictRequestCache, getRequestCache, setRequestCache } from "./collections/request-cache";
 import {
   clearSchemaCache,
   ensureSchemaHotFlags,
@@ -87,6 +82,7 @@ import {
   widgetNamesOf,
   type SchemaHotFlags,
 } from "./collections/schema-store";
+import { workflowKnownAbsent } from "@src/services/background/workflow-presence";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import {
   assertEncryptedFieldsNotQueried,
@@ -216,15 +212,15 @@ export function stripUnownedRows(envelope: unknown, field: string, user: unknown
   return { ...record, data: null };
 }
 
-async function presentRead(
+function presentRead(
   result: unknown,
   schema: Schema,
   hot: SchemaHotFlags,
   encCtx: FieldEncryptionContext,
   user: LocalApiOptions["user"],
   system?: boolean,
-): Promise<any> {
-  const decoded = await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+): any {
+  const decoded = decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
   const permitted =
     !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
       ? decoded
@@ -596,8 +592,11 @@ export class CollectionsNamespace {
 
     const cacheKey = `${tenantId || "global"}:system:collections:list:${includeFields}:${includeStats}`;
 
-    if (hasRequestCache(cacheKey)) {
-      return getRequestCache(cacheKey);
+    // Single L1 lookup — `hasRequestCache` + `getRequestCache` was two LRU
+    // reads and two recency promotions per hit (same pattern as readThroughCache).
+    const cachedList = getRequestCache(cacheKey);
+    if (cachedList !== undefined) {
+      return cachedList;
     }
 
     try {
@@ -742,14 +741,14 @@ export class CollectionsNamespace {
         );
 
         if (result.success && result.data) {
-          const decrypted = (await presentRead(
+          const decrypted = presentRead(
             { success: true, data: result.data },
             collection,
             hot,
             readEncryptionContext(collection, tenantId, hot),
             user,
             options.system,
-          )) as { data?: unknown };
+          ) as { data?: unknown };
           let items = Array.isArray(decrypted.data) ? decrypted.data : [];
           if (query) {
             const lowerQuery = query.toLowerCase();
@@ -1326,21 +1325,23 @@ export class CollectionsNamespace {
     }
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
-      try {
-        const workflowService = await getWorkflowServiceLazy();
-        const insertedIds = Array.from({
-          length: (result.data as any[]).length,
-        }) as string[];
-        const resultsData = result.data as any[];
-        for (let i = 0; i < resultsData.length; i++) {
-          insertedIds[i] = resultsData[i]._id as string;
-        }
-        await workflowService.bulkInitializeWorkflow(
-          insertedIds,
-          schema._id as string,
-          tenantId as string,
-        );
-      } catch {}
+      if (!workflowKnownAbsent(schema._id as string, tenantId as string | undefined)) {
+        try {
+          const workflowService = await getWorkflowServiceLazy();
+          const insertedIds = Array.from({
+            length: (result.data as any[]).length,
+          }) as string[];
+          const resultsData = result.data as any[];
+          for (let i = 0; i < resultsData.length; i++) {
+            insertedIds[i] = resultsData[i]._id as string;
+          }
+          await workflowService.bulkInitializeWorkflow(
+            insertedIds,
+            schema._id as string,
+            tenantId as string,
+          );
+        } catch {}
+      }
 
       invalidateCache(schema, tenantId);
       try {
@@ -1393,7 +1394,7 @@ export class CollectionsNamespace {
     }
 
     const now = nowISODateString();
-    const encCtx = fieldEncryptionContext(schema, tenantId);
+    const encCtx = hot._hasEncryptedFields ? fieldEncryptionContext(schema, tenantId) : undefined;
     // Resolved once — the previous per-row `(schema.fields ?? []).some(...)` walk
     // repeated the same schema scan for every row of the batch.
     const schemaHasUpdatedByField = (schema.fields ?? []).some(
@@ -1414,7 +1415,10 @@ export class CollectionsNamespace {
         ...(schemaHasUpdatedByField ? { updatedBy: user?._id } : {}),
         updatedAt: now,
       };
-      await encryptWritePayload(data, hot, encCtx);
+      if (encCtx) {
+        const encrypted = encryptWritePayload(data, hot, encCtx);
+        if (isThenable(encrypted)) await encrypted;
+      }
       formattedUpdates.push({
         id: u.id as DatabaseId,
         data,
@@ -1559,16 +1563,19 @@ export class CollectionsNamespace {
     // The request cache for this key is only ever populated by a caller that did NOT
     // pass `skipCacheService` (see `loadOneById`), so probing it on behalf of such a
     // caller is dead work on the cold point-read path.
-    if (!skipRequestCache && !options.skipCacheService && hasRequestCache(cacheKey)) {
-      const hot = ensureSchemaHotFlags(schema);
-      return presentRead(
-        getRequestCache(cacheKey),
-        schema,
-        hot,
-        readEncryptionContext(schema, tenantId, hot),
-        options.user,
-        options.system,
-      );
+    if (!skipRequestCache && !options.skipCacheService) {
+      const cachedEntry = getRequestCache(cacheKey);
+      if (cachedEntry !== undefined) {
+        const hot = ensureSchemaHotFlags(schema);
+        return presentRead(
+          cachedEntry,
+          schema,
+          hot,
+          readEncryptionContext(schema, tenantId, hot),
+          options.user,
+          options.system,
+        );
+      }
     }
 
     // 🚀 SYNC L1 HIT: Use synchronous L1 check instead of async L2 get.
@@ -1784,12 +1791,18 @@ export class CollectionsNamespace {
     // must approve before publish). System writes bypass the gate.
     const requestedStatus = (data as { status?: string } | null)?.status;
     if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
-      const workflowService = await getWorkflowServiceLazy();
-      await workflowService.assertPublishAllowed(
-        schema._id as string,
-        (tenantId as string | undefined) ?? undefined,
-        effectiveUser,
-      );
+      if (
+        !isAdmin(effectiveUser) &&
+        effectiveUser?.role !== "admin" &&
+        !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
+      ) {
+        const workflowService = await getWorkflowServiceLazy();
+        await workflowService.assertPublishAllowed(
+          schema._id as string,
+          (tenantId as string | undefined) ?? undefined,
+          effectiveUser,
+        );
+      }
 
       if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
         assertRequiredFieldsForPublish(hot, entryData);
@@ -1842,10 +1855,15 @@ export class CollectionsNamespace {
     markWritePhase(options, "prep", tPrep);
 
     const collectionName = this.getCollectionName(schema._id as string);
-    const encCtx = fieldEncryptionContext(schema, tenantId);
+    const encCtx = hot._hasEncryptedFields
+      ? fieldEncryptionContext(schema, tenantId)
+      : NO_ENCRYPTION_CONTEXT;
     const tEnc = writePhaseT0(options);
     const mEnc = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
-    finalData = await encryptWritePayload(finalData, hot, encCtx);
+    // `encryptWritePayload` is a synchronous identity — no Promise, no context
+    // read — for schemas without `encrypt: true` fields.
+    const encryptedCreate = encryptWritePayload(finalData, hot, encCtx);
+    finalData = isThenable(encryptedCreate) ? await encryptedCreate : encryptedCreate;
     mEnc?.();
     markWritePhase(options, "encrypt", tEnc);
     const tDb = writePhaseT0(options);
@@ -1871,7 +1889,7 @@ export class CollectionsNamespace {
     const tPost = writePhaseT0(options);
     const decryptedCreate = options.skipReturning
       ? result
-      : await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+      : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // Resolved once — the three side-effect schedules below shared the same
@@ -1946,13 +1964,19 @@ export class CollectionsNamespace {
     // System writes (scheduled publishing, sync, imports) bypass the gate.
     const requestedStatus = (data as { status?: string } | null)?.status;
     if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
-      const workflowService = await getWorkflowServiceLazy();
-      await workflowService.assertPublishAllowed(
-        schema._id as string,
-        (tenantId as string | undefined) ?? undefined,
-        effectiveUser,
-        entryId,
-      );
+      if (
+        !isAdmin(effectiveUser) &&
+        effectiveUser?.role !== "admin" &&
+        !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
+      ) {
+        const workflowService = await getWorkflowServiceLazy();
+        await workflowService.assertPublishAllowed(
+          schema._id as string,
+          (tenantId as string | undefined) ?? undefined,
+          effectiveUser,
+          entryId,
+        );
+      }
 
       if (schema.fields && schema.fields.length > 0) {
         preloadedExisting = await this._dbAdapter.crud.findOne(
@@ -2044,10 +2068,15 @@ export class CollectionsNamespace {
     mRev?.();
     markWritePhase(options, "snapshot", tSnap);
 
-    const encCtx = fieldEncryptionContext(schema, tenantId);
+    const encCtx = hot._hasEncryptedFields
+      ? fieldEncryptionContext(schema, tenantId)
+      : NO_ENCRYPTION_CONTEXT;
     const tEnc = writePhaseT0(options);
     const mEncU = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
-    finalData = await encryptWritePayload(finalData, hot, encCtx);
+    // `encryptWritePayload` is a synchronous identity — no Promise, no context
+    // read — for schemas without `encrypt: true` fields.
+    const encryptedUpdate = encryptWritePayload(finalData, hot, encCtx);
+    finalData = isThenable(encryptedUpdate) ? await encryptedUpdate : encryptedUpdate;
     mEncU?.();
     markWritePhase(options, "encrypt", tEnc);
     const tDb = writePhaseT0(options);
@@ -2083,7 +2112,7 @@ export class CollectionsNamespace {
     const tPost = writePhaseT0(options);
     const decryptedUpdate = options.skipReturning
       ? result
-      : await decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+      : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
       if (revisionEnabled && previousSnapshot) {

@@ -117,6 +117,13 @@ export async function ensureContentInitialized(
   const opts: ContentInitOptions = typeof options === "boolean" ? { force: options } : options;
   const isForced = opts.force === true;
 
+  if (isForced) {
+    initializedTenants.delete(tenantId);
+    initPromises.delete(tenantId);
+  } else if (initializedTenants.has(tenantId)) {
+    return;
+  }
+
   let initPromise = initPromises.get(tenantId);
 
   if (!initPromise || isForced) {

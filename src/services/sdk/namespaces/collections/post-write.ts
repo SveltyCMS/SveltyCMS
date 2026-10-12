@@ -11,7 +11,7 @@
  * ### Features:
  * - synchronous scoped L1 eviction (even when skipSideEffects is set)
  * - tick-debounced + coalesced L2 pattern clears keyed by `${tenant}:${schemaId}`
- * - workflow init only on create with peekWorkflowCache null-check
+ * - workflow init only on create after a lookup has cached a definition
  * - outbox batch queue with chunked (8) bounded parallel emission
  * - plugin afterSave/afterDelete + beforeSave hooks with tenant settings cache
  */
@@ -35,6 +35,7 @@ import {
   getWorkflowServiceLazy,
 } from "./lazy-services";
 import { recordWriteAccess } from "@src/services/intelligence/behavioral-learner";
+import { workflowApplies } from "@src/services/background/workflow-presence";
 
 /** True when the caller explicitly opted out of write side effects — no outbox, workflow, plugin afterSave, or L2 fan-out. */
 export function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
@@ -235,7 +236,11 @@ export function schedulePostWrite(
 
   const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
   const hasPluginHook = pluginRegistry.hasAnyHook(hookName);
-  const needsWorkflow = action === "create" && !options.skipReturning;
+  // Import the workflow service only after a lookup cached a definition.
+  // A cold peek cannot enroll the entry, so the import would be wasted work
+  // on every full-document create.
+  const needsWorkflow =
+    action === "create" && !options.skipReturning && workflowApplies(schemaId, tid);
 
   if (!options.skipReturning) {
     queuePubSubEntryUpdated({

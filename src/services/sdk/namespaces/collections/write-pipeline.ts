@@ -26,6 +26,7 @@ import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";
 import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
+import { isAdmin } from "@src/databases/auth/constants";
 import { sanitizeObject } from "@utils/security/input-sanitizer";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
@@ -199,7 +200,7 @@ export function prepareWritePayload(
 
   const needsWriteGuard =
     !system &&
-    !user?.isAdmin &&
+    !isAdmin(user) &&
     (hot._hasGuardedFields ?? true) &&
     !!schema.fields &&
     schema.fields.length > 0;

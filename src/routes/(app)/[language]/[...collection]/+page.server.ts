@@ -53,6 +53,9 @@ import { summarizeListQueryMetrics } from "@utils/list-query-metrics";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
+const SYSTEM_PAGES = new Set(["config", "user", "dashboard", "imageEditor", "email-previews"]);
+const UUID_REGEX = /^[a-f0-9]{32}$/i;
+
 export const load: PageServerLoad = async ({ locals, params, url }) => {
   const returnUrl = `${url.pathname}${url.search}`;
   const user = getAuthenticatedUser(locals, returnUrl);
@@ -73,8 +76,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   }
 
   const collectionNameOnly = collection?.split("/").pop();
-  const systemPages = ["config", "user", "dashboard", "imageEditor", "email-previews"];
-  if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
+  if (collectionNameOnly && SYSTEM_PAGES.has(collectionNameOnly)) {
     throw redirect(302, `/${collectionNameOnly}${url.search}`);
   }
 
@@ -91,11 +93,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     // =================================================================
     // 2. GET COLLECTION SCHEMA
     // =================================================================
-    // Ensurecontent-manageris initialized before use
+    // Ensure content-manager is initialized before use
     await contentSystem.initialize(tenantId ?? undefined);
 
     // Check if collection param is a UUID (32 char hex) or a path
-    const isUUID = /^[a-f0-9]{32}$/i.test(collection || "");
+    const isUUID = UUID_REGEX.test(collection || "");
     let currentCollection: any;
     if (isUUID) {
       // Direct UUID lookup

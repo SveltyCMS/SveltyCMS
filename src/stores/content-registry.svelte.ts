@@ -79,8 +79,8 @@ class ContentStore {
     return tenantId || "global";
   }
 
-  isInitializedForTenant(_tenantId?: string | null): boolean {
-    return this.isInitialized;
+  isInitializedForTenant(tenantId?: string | null): boolean {
+    return this.isInitialized && this._initializedTenants.has(this._tenantKey(tenantId));
   }
 
   markInitializedForTenant(tenantId?: string | null): void {

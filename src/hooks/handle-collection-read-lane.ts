@@ -489,7 +489,9 @@ const STAMP_SRV_DUR = process.env.SVELTY_SRV_DUR === "1";
  * `SVELTY_SRV_SPLIT=1` decomposes a MISS rebuild into its phases and stamps
  * them on the response (`x-srv-split`): lookup (cache get), db (findById),
  * build (stringify + etag), cachewrite (responseCache.set), serve (Response
- * build). Zero cost when off; the map is only allocated on misses while on.
+ * build). Every mark is that phase's own duration (a delta); `serve` alone
+ * stays cumulative from request start. Zero cost when off; the map is only
+ * allocated on misses while on.
  */
 const STAMP_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT === "1";
 
@@ -734,6 +736,7 @@ async function rebuildWarmCollectionRead(
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
+        const cacheT0 = marks ? performance.now() : 0;
         if (entryId) {
           responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
             collection: collectionId,
@@ -744,7 +747,7 @@ async function rebuildWarmCollectionRead(
             skipSharedL1: true,
           });
         }
-        marks?.set("cachewrite", performance.now() - dbT0);
+        marks?.set("cachewrite", performance.now() - cacheT0);
         return { body: apiBody, etag, miss: true };
       }
       if (wireRes && wireRes.success === false && wireRes.error?.code === "RECORD_NOT_FOUND") {
@@ -760,6 +763,7 @@ async function rebuildWarmCollectionRead(
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
+        const cacheT0 = marks ? performance.now() : 0;
         if (entryId) {
           responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
             collection: collectionId,
@@ -770,7 +774,7 @@ async function rebuildWarmCollectionRead(
             skipSharedL1: true,
           });
         }
-        marks?.set("cachewrite", performance.now() - dbT0);
+        marks?.set("cachewrite", performance.now() - cacheT0);
         return { body: apiBody, etag, miss: true };
       }
     }
@@ -818,6 +822,7 @@ async function rebuildWarmCollectionRead(
         (locals as { apiBody?: string }).apiBody = apiBody;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
+        const cacheT0 = marks ? performance.now() : 0;
         const tags = collectionResponseCacheTags(collectionId, null).tags;
         let compressedVariants: Record<string, Uint8Array> | undefined;
         const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
@@ -849,7 +854,7 @@ async function rebuildWarmCollectionRead(
             skipSharedL1: false,
           },
         );
-        marks?.set("cachewrite", performance.now() - dbT0);
+        marks?.set("cachewrite", performance.now() - cacheT0);
         return { body: apiBody, etag, buffer, miss: true, compressed: compressedVariants };
       }
     }
@@ -884,6 +889,7 @@ async function rebuildWarmCollectionRead(
         fields: listParams!.fields,
       });
   marks?.set("db", performance.now() - dbT0);
+  const buildT0 = marks ? performance.now() : 0;
 
   // Point-read etag reads `_id` + `updatedAt` off the RAW SDK row — computed
   // before the shared trim below, which drops `updatedAt` from the HTTP
@@ -928,7 +934,8 @@ async function rebuildWarmCollectionRead(
   // before its tag write for them — so building an entry-tag array there is
   // allocation the cold random-id path pays for and throws away.
   const tags = entryId ? null : collectionResponseCacheTags(collectionId, null).tags;
-  marks?.set("build", performance.now() - dbT0);
+  marks?.set("build", performance.now() - buildT0);
+  const cacheT0 = marks ? performance.now() : 0;
 
   // The pipeline compresses every response it owns; lane responses bypass
   // `handleCompression`, so a large list would leave the socket as identity
@@ -984,7 +991,7 @@ async function rebuildWarmCollectionRead(
       tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
     );
   }
-  marks?.set("cachewrite", performance.now() - dbT0);
+  marks?.set("cachewrite", performance.now() - cacheT0);
   if (tags) {
     // Fill the remaining encodings in the background (the served one is passed
     // in so it is never compressed twice). Point reads skip this entirely.

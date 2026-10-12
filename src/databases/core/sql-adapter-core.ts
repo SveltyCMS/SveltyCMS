@@ -2798,10 +2798,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     delete values[idCol.name];
     delete values["id"];
 
-    const conditions: SQL[] = [eq(idCol, id as any)];
-    const tenantCol = this.getColumn(table, "tenantId");
-    applyTenantFilter(conditions, tenantCol, options);
-
     // 🔀 PARTIAL-UPDATE MERGE: when this payload patches the JSON `data` blob, the
     // dialect merge operator handles it inside the UPDATE (no read). Dialects whose
     // operator is only exact for a subset of patches (SQLite/MariaDB `json_patch` /
@@ -2861,6 +2857,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // `SET "data" = <patch>` below would then replace the blob. Merge inside the
     // UPDATE where the dialect allows it (no read at all), otherwise hydrate.
     await this.mergeJsonPatchIntoSet(values, table, id, options);
+
+    // Built here, not before the raw path: `rawUpdateReturning` and the update
+    // coalescer build their own WHERE clause, so the Drizzle AST nodes were
+    // allocated and thrown away on every fast-path update.
+    const conditions: SQL[] = [eq(idCol, id as any)];
+    applyTenantFilter(conditions, this.getColumn(table, "tenantId"), options);
 
     const drizzleUpdate = this.persistTimestampsAsDate
       ? values

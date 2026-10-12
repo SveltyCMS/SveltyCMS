@@ -363,12 +363,12 @@ function decryptOneDoc(
  * bare document / array). When `clone` is true (default), the source is not
  * mutated — required so L1/L2 caches keep ciphertext.
  */
-export async function decryptReadResult(
+export function decryptReadResult(
   result: any,
   hot: SchemaHotFlags,
   context: FieldEncryptionContext,
   opts?: { clone?: boolean },
-): Promise<any> {
+): any {
   if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) return result;
   if (!result) return result;
 

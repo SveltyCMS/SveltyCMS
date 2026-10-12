@@ -305,14 +305,6 @@ export function isSimpleCollectionWrite(event: RequestEvent): boolean {
   return collectionWriteLaneKind(event.request.method, event.url.pathname) === "simple";
 }
 
-function hasWarmSession(event: RequestEvent): boolean {
-  const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
-  const sessionId = readSessionCookie(event.cookies, isSecure);
-  if (!sessionId) return false;
-  // Slide TTL — must use getTurboAuthContext, not a raw Map get.
-  return getTurboAuthContext(sessionId) !== null;
-}
-
 /** Resolve the warm turbo-auth context, or null for a cold/unknown session. */
 export function resolveWarmWriteSession(
   event: RequestEvent,
@@ -352,9 +344,12 @@ async function executeWarmCollectionWrite(
   const t0 = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
 
-  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-  const sessionId = readSessionCookie(cookies, isSecure);
-  const turbo = turboContext ?? (sessionId ? getTurboAuthContext(sessionId) : null);
+  let turbo = turboContext ?? null;
+  if (!turbo) {
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+    const sessionId = readSessionCookie(cookies, isSecure);
+    turbo = sessionId ? getTurboAuthContext(sessionId) : null;
+  }
   // Expired turbo → fall through to the full auth pipeline (session cookie
   // is still valid). A 401 here is what aborted 14/100k seed rows at ~60s
   // with no application log — the request never reached create().
@@ -401,7 +396,7 @@ async function executeWarmCollectionWrite(
     return finishWarmWrite(event, extended, marks, srvT0, t0);
   }
   const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
-  const raw = await request.json();
+  const raw = (locals as any).__parsedJsonBody || (await request.json());
   const data = unwrapWritePayload(raw);
   if (marks) marks.set("parse", performance.now() - tParse);
   const cms = getLaneCms();
@@ -414,7 +409,8 @@ async function executeWarmCollectionWrite(
   // 🔭 FIELD PROJECTION parity with the full pipeline (handlers/collections.ts):
   // `?fields=_id,count,updatedAt` prunes the UPDATE read-back to the requested
   // columns. Minimal acks already skip RETURNING entirely.
-  const projection = !minimal ? parseCollectionQueryParams(url.searchParams).fields : undefined;
+  const projection =
+    !minimal && url.search ? parseCollectionQueryParams(url.searchParams).fields : undefined;
   if (request.method === "POST") {
     result = await cms.collections.create(collectionId, data, {
       user,
@@ -485,6 +481,9 @@ export async function serveWarmCollectionWrite(
   let statusCode = 500;
   let executionError: unknown;
   try {
+    // Seed user on locals early so resolveAdaptiveUserTier avoids cookie peeking
+    event.locals.user = turbo.user;
+    event.locals.isAdmin = isAdmin(turbo.user) || turbo.user?.role === "admin";
     // 🚀 LANE-LEAN RATE LIMIT: consume the in-memory bucket synchronously and
     // let the Redis ledger receive the spend after the response (measured
     // ~0.6 ms per warm mutation with Redis up — the in-memory bucket already
@@ -537,7 +536,6 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   if (!isGraphqlWriteLanePath(event) || !dbAdapter || !isLaneServingAllowed()) {
     return resolve(event);
   }
-  if (!hasWarmSession(event)) return resolve(event);
   const turbo = resolveWarmWriteSession(event);
   // Non-admins keep the full authorization pipeline. Body stays unread.
   if (!turbo || !(isAdmin(turbo.user) || turbo.user?.role === "admin")) {
@@ -547,6 +545,8 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   const srvT0 = stamp ? performance.now() : 0;
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
   try {
+    event.locals.user = turbo.user;
+    event.locals.isAdmin = isAdmin(turbo.user) || turbo.user?.role === "admin";
     const res = await handleRateLimit({
       event,
       resolve: async () => {
@@ -571,7 +571,7 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
 };
 
 export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
-  if (!isCollectionWriteLanePath(event) || !dbAdapter || !hasWarmSession(event)) {
+  if (!isCollectionWriteLanePath(event) || !dbAdapter) {
     return resolve(event);
   }
   // 🛡️ Operational-state gate: the write lane never runs `handle-system-state`,

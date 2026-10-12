@@ -84,7 +84,9 @@ describe("ContentRegistry", () => {
   describe("multi-tenant support", () => {
     it("should return isInitializedForTenant based on state", () => {
       contentStore.initState = "initialized";
+      contentStore.markInitializedForTenant("tenant-1");
       expect(contentStore.isInitializedForTenant("tenant-1")).toBe(true);
+      expect(contentStore.isInitializedForTenant("tenant-2")).toBe(false);
 
       contentStore.initState = "uninitialized";
       expect(contentStore.isInitializedForTenant("tenant-1")).toBe(false);

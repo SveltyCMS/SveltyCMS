@@ -135,7 +135,6 @@ export interface Session {
   amr?: string[]; // Authentication Method References (e.g. ["pwd"], ["pwd", "mfa"], ["webauthn"])
   mfaVerifiedAt?: ISODateString; // When MFA was successfully verified for this session
   permMask?: string; // 64-bit permission bitset hex string ("0x...") for fast verification
-  permBits?: number[]; // Dynamic Uint32Array permission bitset words for multi-word scaling
   permRev?: number; // Active permission revision epoch for atomic cache invalidation
 }
 
@@ -144,7 +143,6 @@ export interface SessionMetadata {
   amr?: string[];
   mfaVerifiedAt?: ISODateString;
   permMask?: string | bigint;
-  permBits?: number[];
   permRev?: number;
 }
 
@@ -153,7 +151,6 @@ export interface SessionData {
   amr?: string[];
   mfaVerifiedAt?: ISODateString;
   permMask?: bigint;
-  permBits?: number[];
   permRev?: number;
 }
 

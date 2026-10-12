@@ -128,6 +128,37 @@ describe("StatementCoalescer", () => {
     expect(coalescer.metrics.batchCount).toBe(0);
   });
 
+  it("starts the next wave while an earlier batch is still in flight", async () => {
+    const scheduler = makeScheduler();
+    let releaseFirst: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let calls = 0;
+    const runBatch = vi.fn(async (values: Record<string, any>[]) => {
+      calls++;
+      if (calls === 1) await gate;
+      return values.map((v) => ({ ...v, stamped: true }));
+    });
+    const coalescer = new StatementCoalescer<Record<string, any>>(runBatch, scheduler.schedule);
+
+    const p1 = coalescer.submit(row("a"), () => Promise.resolve({ _id: "a" }));
+    const p2 = coalescer.submit(row("b"), () => Promise.resolve({ _id: "b" }));
+    scheduler.drain();
+    await Promise.resolve();
+
+    const p3 = coalescer.submit(row("c"), () => Promise.resolve({ _id: "c" }));
+    const p4 = coalescer.submit(row("d"), () => Promise.resolve({ _id: "d" }));
+    scheduler.drain();
+    await Promise.resolve();
+
+    expect(runBatch).toHaveBeenCalledTimes(2);
+    releaseFirst();
+    await Promise.all([p1, p2, p3, p4]);
+    const second = runBatch.mock.calls[1][0] as Record<string, any>[];
+    expect(second.map((v) => v._id)).toEqual(["c", "d"]);
+  });
+
   it("batches again after a previous drain without cross-batch leakage", async () => {
     const scheduler = makeScheduler();
     const runBatch = makeRunBatch();
