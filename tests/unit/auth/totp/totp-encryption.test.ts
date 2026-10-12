@@ -70,8 +70,12 @@ describe("TOTP Secret Encryption", () => {
 
     const encrypted = await encryptTotpSecret(original);
     expect(encrypted).not.toBe(original);
-    // Tamper with the ciphertext by flipping a byte in the middle
-    const tampered = encrypted.substring(0, 20) + "X" + encrypted.substring(21);
+    // Flip one bit inside the decoded envelope. A character-level swap is
+    // not deterministic: it is a no-op whenever the chosen index already
+    // holds the replacement character (observed flake, ~1/64 runs).
+    const raw = Buffer.from(encrypted, "base64");
+    raw[raw.length >> 1] ^= 0x01;
+    const tampered = raw.toString("base64");
 
     const result = await decryptTotpSecret(tampered);
     expect(result).toBeNull();
