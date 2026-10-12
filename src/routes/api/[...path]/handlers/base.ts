@@ -15,6 +15,13 @@ import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
 const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
+export const STATIC_ENVELOPES = {
+  SUCCESS_NULL: '{"success":true,"data":null}',
+  SUCCESS_EMPTY_ARRAY: '{"success":true,"data":[]}',
+  SUCCESS_EMPTY_OBJECT: '{"success":true,"data":{}}',
+  SUCCESS_TRUE: '{"success":true,"data":true}',
+} as const;
+
 /**
  * Fast byte length calculator: avoids C++ Buffer.byteLength overhead
  * for small ASCII JSON strings, while using SIMD-accelerated Buffer.byteLength
@@ -104,6 +111,10 @@ export function successResponse(
     if (typeof result.data === "string") {
       return fastSuccessResponse(event, result.data, result.data, status, extraHeaders);
     }
+    // Static null fast path: skips object wrapper allocation
+    if (result.data === null && result.meta === undefined) {
+      return fastSuccessResponse(event, "null", null, status, extraHeaders);
+    }
     // 🚀 SINGLE-PASS V8 SERIALIZATION:
     // Serializing the envelope in a single pass eliminates intermediate string allocation
     // and concatenation overhead on large payloads (e.g. 100+ documents / 225KB+).
@@ -112,6 +123,10 @@ export function successResponse(
         ? { success: true, data: result.data, meta: result.meta }
         : { success: true, data: result.data };
     return buildJsonResponse(event, body, status, extraHeaders);
+  }
+
+  if (result === null) {
+    return fastSuccessResponse(event, "null", null, status, extraHeaders);
   }
 
   const body = { success: true, data: result };
@@ -129,7 +144,16 @@ export function fastSuccessResponse(
   status = 200,
   extraHeaders?: Record<string, string>,
 ): Response {
-  const serialized = `{"success":true,"data":${serializedData}}`;
+  const serialized =
+    serializedData === "null"
+      ? STATIC_ENVELOPES.SUCCESS_NULL
+      : serializedData === "[]"
+        ? STATIC_ENVELOPES.SUCCESS_EMPTY_ARRAY
+        : serializedData === "{}"
+          ? STATIC_ENVELOPES.SUCCESS_EMPTY_OBJECT
+          : serializedData === "true"
+            ? STATIC_ENVELOPES.SUCCESS_TRUE
+            : `{"success":true,"data":${serializedData}}`;
   if (event?.locals) {
     // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
     // by token-resolution/ETag middleware; locals is never serialized into

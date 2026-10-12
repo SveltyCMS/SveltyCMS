@@ -462,6 +462,17 @@ async function executeWarmCollectionWrite(
     return finishWarmWrite(event, res, marks, srvT0, t0);
   }
 
+  if ((result as any)?.success !== false && (result as any)?.meta === undefined) {
+    const resData = (result as any)?.data !== undefined ? (result as any).data : result;
+    const res = fastSuccessResponse(
+      event,
+      JSON.stringify(resData),
+      resData,
+      request.method === "POST" ? 201 : 200,
+    );
+    return finishWarmWrite(event, res, marks, srvT0, t0);
+  }
+
   const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
   return finishWarmWrite(event, res, marks, srvT0, t0);
 }

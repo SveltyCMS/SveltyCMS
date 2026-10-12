@@ -202,6 +202,8 @@ export interface CollectionWireMeta {
   defaultSort?: string;
   /** Compiled default limit (e.g. 25) */
   defaultLimit?: number;
+  /** Pre-serialized collection meta JSON string for zero-allocation wire streaming */
+  preSerializedMeta?: string;
 }
 
 /**
@@ -266,6 +268,13 @@ export function computeCollectionWireMeta(
     (schema as unknown as { sort?: string })?.sort;
   const defaultSort = rawSort ? (normalizeSortParam(rawSort) ?? undefined) : undefined;
 
+  const metaObj = (schema as any)?._collectionMeta || {
+    id: schema._id,
+    name: schema.name,
+    label: schema.label,
+  };
+  const preSerializedMeta = JSON.stringify(metaObj);
+
   return {
     collectionId,
     defaultLocale,
@@ -274,6 +283,7 @@ export function computeCollectionWireMeta(
     defaultSort,
     // `defaultLimit` mirrors the schema's defaultLimit or the query parser's fallback (50).
     defaultLimit: (schema as unknown as { defaultLimit?: number })?.defaultLimit ?? 50,
+    preSerializedMeta,
   };
 }
 
@@ -831,17 +841,9 @@ async function rebuildWarmCollectionRead(
         fields: listParams.fields,
       });
       if (wireRes?.success && wireRes.data) {
-        const collectionMeta =
-          (schema as any)?._collectionMeta ||
-          (schema
-            ? {
-                id: schema._id,
-                name: schema.name,
-                label: schema.label,
-              }
-            : undefined);
-        const apiBody = collectionMeta
-          ? `{"success":true,"data":${wireRes.data.wireBody},"meta":{"_collection":${JSON.stringify(collectionMeta)}}}`
+        const metaStr = wireMeta.preSerializedMeta;
+        const apiBody = metaStr
+          ? `{"success":true,"data":${wireRes.data.wireBody},"meta":{"_collection":${metaStr}}}`
           : `{"success":true,"data":${wireRes.data.wireBody}}`;
         const etag = wireRes.data.etag || generateContentEtag(apiBody);
         (locals as { apiBody?: string }).apiBody = apiBody;

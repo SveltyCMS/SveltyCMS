@@ -21,7 +21,9 @@ import {
   boundedSqlIndexName,
   type ListIndexRequest,
   type RawPointWireStreamResult,
+  type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
+import { MariadbWireStreamEngine } from "./mariadb-wire-stream";
 import { MARIADB_DIALECT, type SqlDialect } from "../core/sql-query-builder";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import {
@@ -44,7 +46,6 @@ import {
   isSystemTable,
   shouldMaterializeField,
   buildCompositeIndexColumns,
-  getMaterializedFieldColumns,
 } from "../core/drizzle-sql-helpers";
 import {
   applyDeclaredFieldRenames,
@@ -65,7 +66,6 @@ import {
   buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
-  getTableBooleanColumns,
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
@@ -322,10 +322,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
     }
   }
 
+  private _wireStreamEngine = new MariadbWireStreamEngine();
+
   /**
    * Direct-to-Wire point stream optimization for MariaDB:
    * Generates `{ success: true, data: { ... } }` directly inside MariaDB C engine
-   * via JSON_OBJECT and JSON_MERGE_PATCH, completely bypassing V8 JS object hydration.
+   * via JSON_OBJECT and JSON_SET, completely bypassing V8 JS object hydration.
    */
   protected override async rawFindPointWireStream(
     table: any,
@@ -333,67 +335,33 @@ export abstract class AdapterCore extends SqlAdapterCore {
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<RawPointWireStreamResult> {
-    try {
-      const hasDataCol = !!this.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" }; // Non-collection tables without a JSON blob use findOne fallback
+    return this._wireStreamEngine.findPointWireStream(
+      this,
+      table,
+      getTableName(table),
+      id,
+      options,
+    );
+  }
 
-      const tableName = getTableName(table);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) return { kind: "declined" };
-      const idColName = idCol.name || "_id";
-      const hasUpdatedAtCol = !!this.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? "`updatedAt`" : "NULL";
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
-
-      const hasSlugCol = !!this.getColumn(table, "slug");
-      const hasStatusCol = !!this.getColumn(table, "status");
-
-      // Row-store hybrid: materialized fields live in real columns and the
-      // `data` blob keeps only dynamic fields, so a blob-only wire body would
-      // silently drop them. `JSON_SET` merges them back and — unlike
-      // `JSON_MERGE_PATCH`/RFC 7396 — KEEPS an explicit `null`, matching the
-      // Domain-Plane flatten (columns win; an unset column is `null`, not a
-      // missing key). A boolean column is expressed as a comparison so the JSON
-      // carries true/false, not TINYINT 0/1.
-      const overrides: string[] = [`'$."_id"', \`${idColName}\``];
-      if (hasStatusCol) overrides.push(`'$."status"', \`status\``);
-      if (hasSlugCol) overrides.push(`'$."slug"', \`slug\``);
-      const boolCols = getTableBooleanColumns(tableName);
-      for (const rawName of getMaterializedFieldColumns(table)) {
-        // The JSON path is a string literal — a name that cannot be embedded
-        // verbatim means no faithful wire body, so decline (findOne fallback).
-        if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-        const name = assertSafeSqlIdentifier(rawName, "column");
-        const col = `\`${name}\``;
-        overrides.push(`'$."${name}"', ${boolCols?.has(rawName) ? `(${col} = 1)` : col}`);
-      }
-
-      const dataExpr = `JSON_SET(COALESCE(\`data\`, '{}')${overrides.map((o) => `, ${o}`).join("")})`;
-
-      const safeTable = `\`${assertSafeSqlIdentifier(tableName, "table")}\``;
-      // Wire Plane publication guarantee: fail closed when the table cannot express it.
-      const publishedSql =
-        options?.requirePublished === true
-          ? hasStatusCol
-            ? " AND `status` IN ('publish', 'published')"
-            : null
-          : "";
-      if (publishedSql === null) return { kind: "declined" };
-      const rawSql = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable} WHERE \`${idColName}\` = ?${publishedSql}${tenantSql} LIMIT 1`;
-
-      const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
-      if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
-      const first = rows[0];
-      return {
-        kind: "found",
-        wireBody:
-          typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body),
-        etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
-      };
-    } catch (err: any) {
-      logger.debug("[MariaDB rawFindPointWireStream] falling back:", err?.message);
-      return { kind: "declined" };
-    }
+  /**
+   * Direct-to-Wire list stream optimization for MariaDB:
+   * Aggregates rows directly in the MariaDB C engine using `JSON_ARRAYAGG`,
+   * completely bypassing V8 object allocation and JSON.stringify.
+   */
+  protected override async rawFindListWireStream(
+    table: any,
+    _collection: string,
+    options: BaseQueryOptions & {
+      limit?: number;
+      offset?: number;
+      requirePublished?: boolean;
+      sortField?: string;
+      sortDirection?: "asc" | "desc";
+      fields?: string[];
+    },
+  ): Promise<RawListWireStreamResult> {
+    return this._wireStreamEngine.findListWireStream(this, table, getTableName(table), options);
   }
 
   /** MariaDB default sql_mode has no ANSI_QUOTES — identifiers need backticks. */

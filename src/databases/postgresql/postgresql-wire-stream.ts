@@ -206,7 +206,8 @@ export class PostgresWireStreamEngine {
             const name = assertSafeSqlIdentifier(rawName, "column");
             pairs.push(`'${name}', "${name}"`);
           }
-          doc = `(coalesce("data", '{}'::jsonb) || jsonb_build_object(${pairs.join(", ")}))`;
+          const materialized = `jsonb_build_object(${pairs.join(", ")})`;
+          doc = `(CASE WHEN "data" IS NULL THEN ${materialized} ELSE ("data" || ${materialized}) END)`;
         }
 
         const subSelect = `SELECT ${doc} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
