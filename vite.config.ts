@@ -340,6 +340,39 @@ function stubServerModulesPlugin(): Plugin {
   };
 }
 
+/**
+ * API-only production build (`SVELTY_API_ONLY=1`).
+ * Admin route modules under `(app)` and `(admin)` resolve to one 404 stub so
+ * the admin pages and the components only they import stay out of the bundle.
+ * API, login, setup, and the public site stay. Off unless the env var is set.
+ */
+function apiOnlyRouteStubPlugin(): Plugin {
+  return {
+    name: "api-only-route-stub",
+    enforce: "pre",
+    async resolveId(id, importer, options) {
+      const resolved = await this.resolve(id, importer, { ...options, skipSelf: true });
+      const nid = (resolved?.id || id).replace(/\\/g, "/");
+      if (nid.includes("/routes/(app)/") || nid.includes("/routes/(admin)/")) {
+        return "\0virtual:api-only-route";
+      }
+      return null;
+    },
+    load(id) {
+      if (id !== "\0virtual:api-only-route") return null;
+      return {
+        code: [
+          "export function load() { return { status: 404 }; }",
+          "function gone() { return new Response('API-only build', { status: 404 }); }",
+          "export { gone as GET, gone as POST, gone as PUT, gone as PATCH, gone as DELETE };",
+          "export default function ApiOnlyOmitted() { return null; }",
+        ].join("\n"),
+        map: null,
+      };
+    },
+  };
+}
+
 /** Strips unused DB adapters from production builds */
 function databaseAdapterStripperPlugin(): Plugin {
   const _isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
@@ -1360,6 +1393,7 @@ export default defineConfig(() => {
       // ── Always: production correctness / security / CMS ─────────────────
       ...(enableQuietBuild ? [buildWarningManagerPlugin()] : []),
       tailwindcss() as any,
+      ...(process.env.SVELTY_API_ONLY === "1" ? [apiOnlyRouteStubPlugin()] : []),
       databaseAdapterStripperPlugin(),
       testBackdoorStripperPlugin(),
       privateConfigFallbackPlugin(),
