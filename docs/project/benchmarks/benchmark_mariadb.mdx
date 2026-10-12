@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(12/10/2026, 18:58:25)
+(12/10/2026, 19:26:50)
 
 **✅ PASS** · 38/45 tests · 7 skipped · **MARIADB** · Bun 1.4.2
 
@@ -102,13 +102,13 @@ quadrantChart
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
     API LAYER LATENCY: [0.09, 0.95]
-    COMPETITIVE 9-WORKLOAD REPLI: [0.05, 0.05]
     MIDDLEWARE FLAMEGRAPH PROFIL: [0.05, 0.15]
     Incremental Content Reload: [0.05, 0.30]
     Middleware & Hooks Performan: [0.05, 0.05]
     State Machine Transitions: [0.95, 0.05]
     Database Adapter Raw CRUD: [0.05, 0.05]
     ACID Transaction Overhead: [0.05, 0.11]
+    System Cache Efficiency: [0.05, 0.32]
 ```
 
 </details>
@@ -124,18 +124,18 @@ quadrantChart
 ### 🔴 Top Regressions
 
 > **🔴 seo-performance [Missing Path (404 Log)]** (mariadb): +706% | 154.69ms vs 19.18ms baseline
-> **🔴 competitive-workload-replica [Seed Burst (500 docs, HTTP)]** (mariadb): +190% | 0.37ms vs 0.13ms baseline
 > **🔴 migration-scale [Bulk Migration (10k docs)]** (mariadb): +104% | 30.75ms vs 15.06ms baseline
 > **🔴 scale-spectrum [findByIdRandom @ 1]** (mariadb): +97% | 1.55ms vs 0.79ms baseline
 > **🔴 rest-api-performance [Collection Find (List Limit 20)]** (mariadb): +79% | 0.77ms vs 0.43ms baseline
+> **🔴 config-promotion [Config Status Check]** (mariadb): +67% | 11.95ms vs 7.16ms baseline
 
 ### 🟢 Top Improvements
 
 > **config-promotion [Config Import (10 cols)]** (mariadb): -81% | 12.08ms vs 62.50ms baseline
-> **competitive-workload-replica [create (Warm Concurrent 8c)]** (mariadb): -69% | 1.79ms vs 5.76ms baseline
-> **competitive-workload-replica [listLarge (Warm Concurrent 8c)]** (mariadb): -68% | 0.92ms vs 2.91ms baseline
-> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mariadb): -62% | 2.31ms vs 6.08ms baseline
-> **competitive-workload-replica [listFilterSort (Warm Concurrent 8c)]** (mariadb): -56% | 0.57ms vs 1.29ms baseline
+> **competitive-workload-replica [create (Warm Concurrent 8c)]** (mariadb): -60% | 1.97ms vs 4.88ms baseline
+> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mariadb): -57% | 2.46ms vs 5.76ms baseline
+> **admin-ux-vitality [Schema Resolution (8f)]** (mariadb): -53% | 0.25ms vs 0.53ms baseline
+> **competitive-workload-replica [mixed (Warm Concurrent 8c)]** (mariadb): -47% | 1.80ms vs 3.43ms baseline
 
 <!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
@@ -198,7 +198,7 @@ quadrantChart
 | CACHE PERFORMANCE (warm)            | 🟢    | `▂█▁▇`             | 0.949ms  |
 | CACHE SERVICE (warm)                | 🟢    | `▁▆█▁▄▆`           | 0.762ms  |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 5.501ms  |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▆▃█▃`          | 0.854ms  |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▆▄█▄`          | 1.015ms  |
 | CONCURRENCY MAX (warm)              | 🟢    | `▁█`               | 32.280ms |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▆█▅▆▆▆`          | 11.951ms |
 | CONTENT GUI SAVE (warm)             | 🟢    | `▁█`               | 2.437ms  |
@@ -818,16 +818,8 @@ Throughput dropped 73% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 0.854ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
-Throughput dropped 81% — check connection pool saturation or lock contention.  
-**Severe degradation** (+29%) — review recent commits immediately.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 1.015ms · ➡️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        COMPETITIVE 9-WORKLOAD REPLICA (MARIADB)                         ║
@@ -847,7 +839,6 @@ Throughput dropped 81% — check connection pool saturation or lock contention.
 ║ mixed (Concurrent 8c 50/50)    │        7.745 ms │ p95:       12.067 ms │ RPS:        716 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

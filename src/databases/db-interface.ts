@@ -978,6 +978,7 @@ export interface ICrudAdapter {
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     },
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>>;
   find<T extends BaseEntity>(

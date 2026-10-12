@@ -829,6 +829,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
     return { kind: "declined" };
@@ -1800,6 +1801,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     } = {},
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
     if (typeof collection !== "string") {

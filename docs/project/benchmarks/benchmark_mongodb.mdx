@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(12/10/2026, 18:59:25)
+(12/10/2026, 19:27:52)
 
 **✅ PASS** · 33/39 tests · 6 skipped · **MONGODB** · Bun 1.4.2
 
@@ -131,11 +131,11 @@ quadrantChart
 
 ### 🟢 Top Improvements
 
-> **competitive-workload-replica [listLarge (Warm Concurrent 8c)]** (mongodb): -72% | 0.95ms vs 3.39ms baseline
-> **competitive-workload-replica [update (Warm Sequential)]** (mongodb): -64% | 1.16ms vs 3.18ms baseline
-> **competitive-workload-replica [graphql (Warm Concurrent 8c)]** (mongodb): -62% | 1.46ms vs 3.81ms baseline
+> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mongodb): -59% | 2.76ms vs 6.78ms baseline
 > **sharp-vs-bun-image [Bun.Image Metadata (header-only)]** (mongodb): -59% | 0.00ms vs 0.01ms baseline
-> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mongodb): -59% | 2.85ms vs 6.91ms baseline
+> **competitive-workload-replica [update (Warm Sequential)]** (mongodb): -58% | 1.06ms vs 2.52ms baseline
+> **entry-edit-hydration [Widget Prefetch (5 types)]** (mongodb): -57% | 0.02ms vs 0.04ms baseline
+> **scale-spectrum [listFilterSort @ 50000]** (mongodb): -53% | 0.88ms vs 1.87ms baseline
 
 <!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
@@ -184,7 +184,7 @@ quadrantChart
 | CACHE PERFORMANCE (warm)            | 🟢    | `▁█▁█`             | 0.913ms   |
 | CACHE SERVICE (warm)                | 🟢    | `▁▆█▁▅▅`           | 0.605ms   |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 3.859ms   |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▄▂█▄`          | 1.160ms   |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▅▂█▃`          | 1.060ms   |
 | CONCURRENCY MAX (warm)              | 🟢    | `█▁`               | 73.933ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▁▄▆▅█▁`          | 5.778ms   |
 | CONTENT GUI SAVE (warm)             | 🟢    | `█▁`               | 1.563ms   |
@@ -719,12 +719,12 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 1.160ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 1.060ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 87% — check connection pool saturation or lock contention.  
-**Severe degradation** (+108%) — review recent commits immediately.
+> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+Throughput dropped 84% — check connection pool saturation or lock contention.  
+**Severe degradation** (+80%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->

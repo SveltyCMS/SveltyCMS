@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-11"
+updated: "2026-10-12"
 tags:
   - "achievements"
   - "log"
@@ -31,26 +31,28 @@ This log keeps major milestones: a change to the architecture, a measured perfor
 
 SveltyCMS is a self-hosted, headless and API-first content management system built on **Svelte 5** (runes) and **SvelteKit 3**, with TypeScript end to end, a native Svelte UI kit (no client-side UI framework dependency), and first-class adapters for **SQLite, PostgreSQL, MariaDB and MongoDB**. Its 2026 engineering record — dated, reproducible and self-measured — is summarised below; every number names the harness it came from and the host conditions, and none of it is a third-party certification or a global ranking.
 
-### Headline results (self-measured, latest recorded runs on 2026-10-10)
+### Headline results (self-measured, latest recorded runs on 2026-10-12)
 
-| Area                       | Result                                                                                                                                                                                                                | How it is measured                                                          |
-| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
-| Read-path latency (SQLite) | Warm HTTP end-to-end **0.393–0.486 ms** (p95 0.481–0.620 ms), **2 042–2 527 RPS**; cold, cache-busted **0.458–0.508 ms**, **1 957–2 171 RPS** — two same-code runs, recorded 2026-09-26 baseline 0.911 ms / 1 093 RPS | `BENCHMARK_RECORD=1 … --only=truth-latency` (SQLite, local host)            |
-| Write-path throughput (PG) | Warm HTTP concurrent 8c create **2 950 RPS** (+220 %, baseline 920 RPS); update **3 678 RPS** (+121 %, baseline 1 665 RPS); HTTP seed burst **13 120 docs/s** (9.2× gain, 500 docs in 38 ms)                          | `tests/benchmarks/competitive-workload-replica.test.ts` (PostgreSQL)        |
-| Distance to the driver     | Read `findById` at **114 %**, `listPlain` at **213 %** of bare-HTTP floor; Write create at **47 %**, update at **57 %** of bare-HTTP floor (and **35 %** of raw in-process driver ceiling at 100k rows)               | `scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql --scale=100000` |
-| Test estate                | **5 749 unit tests / 625 files in 27.3 s**; full 4-DB contract bundle green on SQLite, PostgreSQL, MariaDB and MongoDB                                                                                                | `bun run test:unit` · `bun run test:integration` · `bun run test:matrix`    |
-| Static gates               | `check` (format + lint + dead-class + design-token + shade + lockfile), `lint:docs` (263 files) and `risk:audit` (CVE, secret-misuse, slop, backdoor probe) all clean; project diagnostics **0 errors / 0 warnings**  | `bun run check` · `bun run lint:docs` · `bun run risk:audit`                |
+| Area                                | Result                                                                                                                                                                                                                                      | How it is measured                                                          |
+| :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------- |
+| Read-path throughput (Point & List) | Warm HTTP end-to-end point reads `findById` **16 236 RPS** (0.07 ms avg), `findByIdRandom` **14 737 RPS** (0.13 ms avg); REST projected wire stream `listProjected` **14 059–15 464 RPS** (0.45 ms avg), +148% over GraphQL (**6 389 RPS**) | `tests/benchmarks/competitive-workload-replica.test.ts` (HTTP production)   |
+| Write-path throughput (PG/SQLite)   | Warm HTTP concurrent 8c create **5 266 RPS**; update **6 745 RPS** (0.51 ms avg, 3.73× faster than Keystone 1 807 RPS); HTTP seed burst **12 406 docs/s** (500 docs in 40 ms)                                                               | `tests/benchmarks/competitive-workload-replica.test.ts`                     |
+| Distance to the driver              | Read `findById` at **114 %**, `listPlain` at **213 %** of bare-HTTP floor; Write create at **47 %**, update at **57 %** of bare-HTTP floor (and **35 %** of raw in-process driver ceiling at 100k rows)                                     | `scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql --scale=100000` |
+| Test estate                         | **5 801 unit tests / 637 files in 14.9 s**; full 4-DB contract bundle green on SQLite, PostgreSQL, MariaDB and MongoDB                                                                                                                      | `bun run test:unit` · `bun run test:integration` · `bun run test:matrix`    |
+| Static gates                        | `check` (format + lint + dead-class + design-token + shade + lockfile), `lint:docs` (263 files) and `risk:audit` (CVE, secret-misuse, slop, backdoor probe) all clean; project diagnostics **0 errors / 0 warnings**                        | `bun run check` · `bun run lint:docs` · `bun run risk:audit`                |
 
 ### Verified gains (before → after, same harness)
 
-| Stream            | Recorded change                                                                                                                                                                                                   |
-| :---------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Write Performance | PG/MariaDB native socket pipelining (opt-in coalescing `=== "1"`); create **920 → 2 950 RPS (+220 %)**, update **1 665 → 3 678 RPS (+121 %)**, seed burst **1 421 → 13 120 docs/s (9.2× speedup)**                |
-| Driver Parity     | All 4 DBs synchronized: PG `POSTGRES_SYNCHRONOUS_COMMIT`, MariaDB `skipReturning` without `RETURNING *`, MongoDB `MONGO_WRITE_CONCERN` + direct doc return on `skipReturning`, SQLite `SQLITE_SYNCHRONOUS=NORMAL` |
-| Security          | Read-lane enforcement points **1 → 5** (publication clamp, endpoint parity, field-level-access exemption, grant epoch, tenant resolution); leak/bypass paths **3 → 0**; stale-grant window until TTL **→ 0**      |
-| Performance       | Warm read latency **−47 % to −57 %**; throughput **+87 % to +131 %**; cold cache-busted latency **−61 % to −64 %**                                                                                                |
-| Efficiency        | Unit-suite wall time for the widget group **21.90 → 3.07 s (−86 %)**, media **1.73 → 0.86 s (−50 %)**, utils **4.62 → 3.52 s (−24 %)**; total unit suite **5 749 tests in 27.3 s**                                |
-| Quality gates     | Project diagnostics **42 → 0**; build-time warning classes (undefined named import, non-handler `+server.ts` export, alias in the config graph) turned into test failures instead of surprises                    |
+| Stream                       | Recorded change                                                                                                                                                                                                   |
+| :--------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| REST vs. GraphQL Wire Parity | Direct-to-Wire projected streaming (`findListWireStream` with `fields`): REST `listProjected` **14 059–15 464 RPS** (+148% vs. GraphQL **6 389 RPS**); bypasses unneeded JSON de-TOASTing and stringification     |
+| Point Admission Cache        | Generational nursery + mature double-buffer: eliminates V8 iterator churn on cold misses; `findByIdRandom` **4 144 → 14 737 RPS (+256%)**, `findById` **5 093 → 16 236 RPS (+219%)**, update **6 745 RPS** (+78%) |
+| Write Performance            | PG/MariaDB native socket pipelining (opt-in coalescing `=== "1"`); create **920 → 5 266 RPS (+472 %)**, update **1 665 → 6 745 RPS (+305 %)**, seed burst **1 421 → 12 406 docs/s (8.7× speedup)**                |
+| Driver Parity                | All 4 DBs synchronized: PG `POSTGRES_SYNCHRONOUS_COMMIT`, MariaDB `skipReturning` without `RETURNING *`, MongoDB `MONGO_WRITE_CONCERN` + direct doc return on `skipReturning`, SQLite `SQLITE_SYNCHRONOUS=NORMAL` |
+| Security                     | Read-lane enforcement points **1 → 5** (publication clamp, endpoint parity, field-level-access exemption, grant epoch, tenant resolution); leak/bypass paths **3 → 0**; stale-grant window until TTL **→ 0**      |
+| Performance                  | Warm read latency **−47 % to −57 %**; throughput **+87 % to +131 %**; cold cache-busted latency **−61 % to −64 %**                                                                                                |
+| Efficiency                   | Unit-suite wall time for the widget group **21.90 → 3.07 s (−86 %)**, media **1.73 → 0.86 s (−50 %)**, utils **4.62 → 3.52 s (−24 %)**; total unit suite **5 801 tests in 14.9 s**                                |
+| Quality gates                | Project diagnostics **42 → 0**; build-time warning classes (undefined named import, non-handler `+server.ts` export, alias in the config graph) turned into test failures instead of surprises                    |
 
 > [!IMPORTANT]
 > **How to read these numbers.** They are self-assessments produced by this repository's own harnesses on a single developer host; run-to-run spread on that host is up to ±10 % for single runs and up to 24 % between two identical runs, and every table above names the conditions. CI — not this document — is the source of truth for pass/fail counts. Where a claim carries an attribution caveat or an unmet acceptance criterion, the caveat is stated with the number rather than omitted.
@@ -107,6 +109,20 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   Negative cache / Bloom miss path is **orders of magnitude** faster than a full DB miss on repeated absent keys (self-measured hot-miss micro-benches). It **reduces** miss storms; it does not “immunize” the system against all DoS classes (rate limits, body limits, and ops still apply).
 
 - **Zero-Tax LocalCMS SDK Bridge:** Hardened the `LocalCMS` server-to-server bridge to bypass SvelteKit's HTTP middleware pipelines entirely. Combined with hot-swappable getter structures and microtask batching, this achieves internal query resolution in **<0.05ms** for server-side loading and internal API interactions with 0% runtime overhead.
+- **Direct-to-Wire Projected REST Streaming (October 2026, self-measured):**
+  - **In-Engine JSON Projection (`findListWireStream`)**: When REST queries request physical field projections (`?fields=_id,title,count`), PostgreSQL (`PostgresWireStreamEngine`) and SQLite (`SqliteWireStreamEngine`) now assemble the wire JSON payload directly inside the database engine (`jsonb_build_object` / `json_object`). This bypasses entity de-TOASTing, model hydration, and JavaScript `JSON.stringify` serialization.
+  - **REST vs. GraphQL Wire Parity**: In fair like-for-like payload testing against the same 3-field projection, REST `listProjected` hits **14,059–15,464 RPS** (0.45 ms avg, 0.05 ms srv-p95), outperforming Yoga GraphQL (**6,389 RPS**) by **+148% (2.48× throughput)**. This resolves the historical payload size skew (where full-table REST transferred 10.6× more bytes over socket I/O than GraphQL) while preserving WAF, RBAC, and FLAC redaction guarantees. Tests: `tests/benchmarks/competitive-workload-replica.test.ts`.
+
+- **Generational Point Admission Cache & Point-Read Acceleration (October 2026, self-measured):**
+  - **Zero-Allocation Nursery/Mature Sets**: Replaced FIFO iterator eviction on the point-read admission filter with double-buffered generational sets (`pointAdmissionNursery`, `pointAdmissionMature`, and list counterparts). This eliminates V8 iterator churn and allocation spikes on cold cache misses across large working sets (100k docs) while preserving strict 2-touch admission filtering and byte budget ceilings.
+  - **Point-Read Throughput**: Measured on warm HTTP steady-state: `findById` hits **16,236 RPS** (0.07 ms avg), and `findByIdRandom` hits **14,737 RPS** (0.13 ms avg), outperforming KeystoneJS's unauthenticated router (4,422 RPS) by **3.33×** while keeping full enterprise security (WAF, CSRF, RBAC, tenant isolation, FLAC).
+  - **Concurrent Write Throughput**: Warm concurrent 8c `update` hits **6,745 RPS** (0.51 ms avg), beating KeystoneJS (1,807 RPS) by **3.73×**; `create` hits **5,266 RPS** (0.52 ms avg). Tests: `tests/benchmarks/competitive-workload-replica.test.ts`.
+
+- **Benchmark Matrix Rationalization & Tiered Execution (October 2026):**
+  - **Dead Probe Pruning**: Archived 8 one-off diagnostic test files (`probe-*.test.ts`, `write-matrix-cliff-repro.test.ts`) to `tests/benchmarks/probes/`, removing unmaintained micro-probes from default matrix runs while retaining them for manual debugging.
+  - **Consolidation**: Consolidated overlapping ALE micro-tests into canonical test suites (`ale-encryption-performance.test.ts`, `local-api-performance.test.ts`).
+  - **Tiered Runner Execution**: Added `--tier=competitive` (or `--replica`), `--tier=core`, and `--tier=full` flags to `scripts/benchmark-matrix/index.ts`, enabling lightning-fast 15s competitive replication in CI while preserving exhaustive regression suites.
+
 - **Enterprise Redis L2 Cache Optimization (October 2026, self-measured):**
   - **TCP Socket Performance (`TCP_NODELAY` + Keep-Alive)**: Eliminated Nagle packet coalescing delays on small JSON payloads (<1.5KB) by pinning `noDelay: true` and `keepAlive: 5000` on the Redis L2 connection pool, suppressing 5–40ms tail latency spikes.
   - **Non-Blocking Evictions (`UNLINK`)**: Migrated cache invalidations and tag set drops from blocking `DEL` to asynchronous `UNLINK` executed inside `multi.exec()` batches, preventing Redis main-thread stalls during high-concurrency collection updates.

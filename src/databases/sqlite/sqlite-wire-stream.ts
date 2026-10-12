@@ -151,11 +151,25 @@ export class SqliteWireStreamEngine {
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
     try {
       const hasDataCol = !!executor.getColumn(table, "data");
       if (!hasDataCol) return { kind: "declined" };
+
+      const requestedFields = options.fields;
+      const isProjected = Array.isArray(requestedFields) && requestedFields.length > 0;
+      if (isProjected) {
+        for (const f of requestedFields) {
+          if (!/^[A-Za-z0-9_]+$/.test(f)) return { kind: "declined" };
+          if (f === "data") return { kind: "declined" };
+          const colName = f === "id" ? "_id" : f;
+          if (!executor.getColumn(table, colName)) {
+            return { kind: "declined" };
+          }
+        }
+      }
 
       const sortField = options.sortField;
       const sortDirection = options.sortDirection === "asc" ? "ASC" : "DESC";
@@ -166,6 +180,7 @@ export class SqliteWireStreamEngine {
         sortCol = `"${assertSafeSqlIdentifier(sortField, "column")}"`;
       }
       const sortKey = `${sortCol}:${sortDirection}`;
+      const cacheKey = isProjected ? `${sortKey}:f:${requestedFields.join(",")}` : sortKey;
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "0";
@@ -177,27 +192,48 @@ export class SqliteWireStreamEngine {
         this._listSqlCache.set(table, tableCache);
       }
 
-      let cachedWireSql = tableCache.get(sortKey);
+      let cachedWireSql = tableCache.get(cacheKey);
       if (!cachedWireSql) {
         const quoted = `"${tableName}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
-
-        const overrides: string[] = [`'$."_id"', "_id"`];
-        if (hasStatusCol) overrides.push(`'$."status"', "status"`);
-        if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
         const boolCols = getTableBooleanColumns(tableName);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-          const name = assertSafeSqlIdentifier(rawName, "column");
-          const col = `"${name}"`;
-          const value = boolCols?.has(rawName)
-            ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
-            : col;
-          overrides.push(`'$."${name}"', ${value}`);
+
+        let dataExpr: string;
+        if (isProjected) {
+          const pairs: string[] = [];
+          const seen = new Set<string>();
+          for (const rawName of requestedFields) {
+            const colName = rawName === "id" ? "_id" : rawName;
+            if (seen.has(colName)) continue;
+            seen.add(colName);
+            const safeCol = assertSafeSqlIdentifier(colName, "column");
+            const col = `"${safeCol}"`;
+            const value = boolCols?.has(colName)
+              ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
+              : col;
+            pairs.push(`'${safeCol}', ${value}`);
+          }
+          if (!seen.has("_id") && executor.getColumn(table, "_id")) {
+            pairs.unshift(`'_id', "_id"`);
+          }
+          dataExpr = `json(json_object(${pairs.join(", ")}))`;
+        } else {
+          const overrides: string[] = [`'$."_id"', "_id"`];
+          if (hasStatusCol) overrides.push(`'$."status"', "status"`);
+          if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
+          for (const rawName of getMaterializedFieldColumns(table)) {
+            if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
+            const name = assertSafeSqlIdentifier(rawName, "column");
+            const col = `"${name}"`;
+            const value = boolCols?.has(rawName)
+              ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
+              : col;
+            overrides.push(`'$."${name}"', ${value}`);
+          }
+          dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
         }
 
-        const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
         const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
         const orderClause = `ORDER BY ${sortCol} ${sortDirection} LIMIT ? OFFSET ?`;
 
@@ -215,7 +251,7 @@ export class SqliteWireStreamEngine {
             ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = ?`)
             : null,
         };
-        tableCache.set(sortKey, cachedWireSql);
+        tableCache.set(cacheKey, cachedWireSql);
       }
 
       const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;

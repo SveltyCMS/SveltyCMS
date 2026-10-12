@@ -1009,6 +1009,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
     const txnSql = this.getTxnSql(options);

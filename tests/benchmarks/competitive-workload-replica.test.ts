@@ -37,6 +37,7 @@ const ITERATIONS: Record<string, number> = {
   listFilterSort: 200,
   listLarge: 200,
   listPlain: 200,
+  listProjected: 200,
   findMissing: 200,
   graphql: 200,
   create: 300,
@@ -240,6 +241,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     const listFilterUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=20&filter=${filterQuery}&sort=-count`;
     const listLargeUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=100&filter=${filterQuery}&sort=-count`;
     const listPlainUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10`;
+    const listProjectedUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10&fields=_id,title,count`;
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
     const missingUrl = `${baseUrl}/api/collections/BenchmarkStable/bench-missing-${runId}`;
 
@@ -318,6 +320,13 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const res = await fetch(listPlainUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       recordSplitSample("listPlain", res);
+      await res.arrayBuffer();
+    };
+
+    const listProjected = async () => {
+      const res = await fetch(listProjectedUrl, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("listProjected", res);
       await res.arrayBuffer();
     };
 
@@ -413,6 +422,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       findById,
       findByIdRandom,
       listPlain,
+      listProjected,
       listFilterSort,
       listLarge,
       findMissing,
@@ -442,6 +452,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       { shortLabel: "listFilterSort", fn: listFilterSort },
       { shortLabel: "listLarge", fn: listLarge },
       { shortLabel: "listPlain", fn: listPlain },
+      { shortLabel: "listProjected", fn: listProjected },
       { shortLabel: "findMissing", fn: findMissing },
       { shortLabel: "create", fn: create },
       { shortLabel: "update", fn: update },
@@ -477,7 +488,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       logger.info(
         `\n🔥 [PHASE 2] Deep JIT warmup: ${DEEP_WARMUP} reads + ${DEEP_WARMUP_WRITES} writes...`,
       );
-      const readOps = [findById, listPlain, listFilterSort, findMissing, graphql];
+      const readOps = [findById, listPlain, listProjected, listFilterSort, findMissing, graphql];
       let rIdx = 0;
       await Promise.all(
         Array.from({ length: CONCURRENCY }, async () => {

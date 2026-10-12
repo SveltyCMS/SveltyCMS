@@ -131,6 +131,7 @@ export class PostgresWireStreamEngine {
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
     if (!exec) return { kind: "declined" };
@@ -138,6 +139,19 @@ export class PostgresWireStreamEngine {
     try {
       const hasDataCol = !!executor.getColumn(table, "data");
       if (!hasDataCol) return { kind: "declined" };
+
+      const requestedFields = options.fields;
+      const isProjected = Array.isArray(requestedFields) && requestedFields.length > 0;
+      if (isProjected) {
+        for (const f of requestedFields) {
+          if (!/^[A-Za-z0-9_]+$/.test(f)) return { kind: "declined" };
+          if (f === "data") return { kind: "declined" };
+          const colName = f === "id" ? "_id" : f;
+          if (!executor.getColumn(table, colName)) {
+            return { kind: "declined" };
+          }
+        }
+      }
 
       const sortField = options.sortField;
       const sortDirection = options.sortDirection === "asc" ? "ASC" : "DESC";
@@ -148,6 +162,7 @@ export class PostgresWireStreamEngine {
         sortCol = `"${assertSafeSqlIdentifier(sortField, "column")}"`;
       }
       const sortKey = `${sortCol}:${sortDirection}`;
+      const cacheKey = isProjected ? `${sortKey}:f:${requestedFields.join(",")}` : sortKey;
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol
@@ -160,23 +175,40 @@ export class PostgresWireStreamEngine {
         this._listSqlCache.set(table, tableCache);
       }
 
-      let cachedWireSql = tableCache.get(sortKey);
+      let cachedWireSql = tableCache.get(cacheKey);
       if (!cachedWireSql) {
         const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
 
-        const pairs: string[] = [`'_id', "_id"`];
-        if (hasStatusCol) pairs.push(`'status', "status"`);
-        if (hasSlugCol) pairs.push(`'slug', "slug"`);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-          const name = assertSafeSqlIdentifier(rawName, "column");
-          pairs.push(`'${name}', "${name}"`);
+        let doc: string;
+        if (isProjected) {
+          const pairs: string[] = [];
+          const seen = new Set<string>();
+          for (const rawName of requestedFields) {
+            const colName = rawName === "id" ? "_id" : rawName;
+            if (seen.has(colName)) continue;
+            seen.add(colName);
+            const safeCol = assertSafeSqlIdentifier(colName, "column");
+            pairs.push(`'${safeCol}', "${safeCol}"`);
+          }
+          if (!seen.has("_id") && executor.getColumn(table, "_id")) {
+            pairs.unshift(`'_id', "_id"`);
+          }
+          doc = `jsonb_build_object(${pairs.join(", ")})`;
+        } else {
+          const pairs: string[] = [`'_id', "_id"`];
+          if (hasStatusCol) pairs.push(`'status', "status"`);
+          if (hasSlugCol) pairs.push(`'slug', "slug"`);
+          for (const rawName of getMaterializedFieldColumns(table)) {
+            if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
+            const name = assertSafeSqlIdentifier(rawName, "column");
+            pairs.push(`'${name}', "${name}"`);
+          }
+          doc = `(coalesce("data", '{}'::jsonb) || jsonb_build_object(${pairs.join(", ")}))`;
         }
 
-        const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const subSelect = `SELECT (coalesce("data", '{}'::jsonb) || ${doc}) AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const subSelect = `SELECT ${doc} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
         const orderClause = `ORDER BY ${sortCol} ${sortDirection}`;
 
         const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `
@@ -193,7 +225,7 @@ export class PostgresWireStreamEngine {
             ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = $1`, 2, 3)
             : null,
         };
-        tableCache.set(sortKey, cachedWireSql);
+        tableCache.set(cacheKey, cachedWireSql);
       }
 
       const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;

@@ -420,6 +420,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       requirePublished?: boolean;
       sortField?: string;
       sortDirection?: "asc" | "desc";
+      fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
     return this._wireStreamEngine.findListWireStream(this, table, getTableName(table), options);

@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(12/10/2026, 18:58:57)
+(12/10/2026, 19:34:03)
 
 **✅ PASS** · 38/45 tests · 7 skipped · **POSTGRESQL** · Bun 1.4.2
 
@@ -102,7 +102,7 @@ quadrantChart
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
     API LAYER LATENCY: [0.05, 0.95]
-    COMPETITIVE 9-WORKLOAD REPLI: [0.05, 0.05]
+    COMPETITIVE 9-WORKLOAD REPLI: [0.05, 0.07]
     MIDDLEWARE FLAMEGRAPH PROFIL: [0.05, 0.11]
     Incremental Content Reload: [0.05, 0.13]
     Middleware & Hooks Performan: [0.05, 0.05]
@@ -199,7 +199,7 @@ quadrantChart
 | CACHE PERFORMANCE (warm)            | 🟢    | `▁█▁▇`             | 0.750ms   |
 | CACHE SERVICE (warm)                | 🟢    | `▁▆█▁▅▆`           | 0.655ms   |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 5.719ms   |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▅▂▆▂█▄`          | 1.113ms   |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▅▂█▃`          | 1.046ms   |
 | CONCURRENCY MAX (warm)              | 🟢    | `█▁`               | 22.034ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▁▁▁█▁▁`          | 9.020ms   |
 | CONTENT GUI SAVE (warm)             | 🟢    | `█▁`               | 1.413ms   |
@@ -786,11 +786,12 @@ Throughput dropped 71% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 1.113ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 1.046ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 83% — check connection pool saturation or lock contention.
+> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+Throughput dropped 87% — check connection pool saturation or lock contention.  
+**Severe degradation** (+73%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->

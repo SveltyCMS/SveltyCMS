@@ -338,20 +338,15 @@ class ResponseCacheService {
    * never been read once. That is pure overhead on the lane the competitive harness
    * measures (`findByIdRandom`), and it also churned genuinely hot entries out of the
    * tier. A first sighting now costs one Set insert; from the second sighting the entry is
-   * cached as before. Bounded FIFO so the filter itself cannot grow without limit.
+   * cached as before. Generational nursery + mature rotation completely avoids iterator churn.
    */
-  private pointAdmission = new Set<string>();
+  private pointAdmissionNursery = new Set<string>();
+  private pointAdmissionMature = new Set<string>();
   /**
-   * Capacity-gated 2-touch filter for the LIST tier. First-touch admission is
-   * kept while the tier has room (lists are re-read far more often than random
-   * point reads, so the first sighting should cache like before). Once the tier
-   * sits at its entry OR byte bound, only a second sighting buys a slot — a
-   * high-cardinality list URL stream (search pages, many distinct query
-   * strings) then costs one Set insert per URL instead of evict-and-reinsert
-   * churn (putEntry + byte accounting + index + enforce) on every request,
-   * which at 8c measured ~13 ms per request against a 0.1 ms query.
+   * Capacity-gated 2-touch filter for the LIST tier with generational rotation.
    */
-  private listAdmission = new Set<string>();
+  private listAdmissionNursery = new Set<string>();
+  private listAdmissionMature = new Set<string>();
   /** fullKey → classification, so FIFO eviction and surgical invalidation stay O(touched). */
   private l1Meta = new Map<
     string,
@@ -400,15 +395,17 @@ class ResponseCacheService {
   }
 
   /**
-   * True when this point-tier key may take a slot (second sighting). First sighting is
-   * remembered in a bounded FIFO filter and costs no cache bookkeeping.
+   * True when this point-tier key may take a slot (second sighting). Generational
+   * nursery + mature rotation completely avoids iterator and eviction allocation churn.
    */
   private admitPointRead(fullKey: string): boolean {
-    if (this.pointAdmission.has(fullKey)) return true;
-    this.pointAdmission.add(fullKey);
-    if (this.pointAdmission.size > MAX_POINT_ADMISSION) {
-      const oldest = this.pointAdmission.values().next().value;
-      if (oldest !== undefined) this.pointAdmission.delete(oldest);
+    if (this.pointAdmissionMature.has(fullKey) || this.pointAdmissionNursery.has(fullKey)) {
+      return true;
+    }
+    this.pointAdmissionNursery.add(fullKey);
+    if (this.pointAdmissionNursery.size >= MAX_POINT_ADMISSION) {
+      this.pointAdmissionMature = this.pointAdmissionNursery;
+      this.pointAdmissionNursery = new Set<string>();
     }
     return false;
   }
@@ -417,21 +414,19 @@ class ResponseCacheService {
    * True when this LIST-tier key may take a slot. Below capacity every key is
    * admitted (first touch caches — lists are re-read); at capacity the tier
    * switches to 2-touch admission so a flood of unique list URLs cannot churn
-   * the store. Replacements of an already-admitted key always pass — the
-   * dispatcher re-sets list entries after writes and that re-set must land.
+   * the store. Replacements of an already-admitted key always pass.
    */
   private admitListRead(fullKey: string, store: Map<string, CachedResponseEntry>): boolean {
     if (store.has(fullKey)) return true;
     const atCapacity = store.size >= MAX_L1_ENTRIES || this.l1Bytes >= this.l1ByteBudget(false);
     if (!atCapacity) return true;
-    if (this.listAdmission.has(fullKey)) {
-      this.listAdmission.delete(fullKey);
+    if (this.listAdmissionMature.has(fullKey) || this.listAdmissionNursery.has(fullKey)) {
       return true;
     }
-    this.listAdmission.add(fullKey);
-    if (this.listAdmission.size > MAX_LIST_ADMISSION) {
-      const oldest = this.listAdmission.values().next().value;
-      if (oldest !== undefined) this.listAdmission.delete(oldest);
+    this.listAdmissionNursery.add(fullKey);
+    if (this.listAdmissionNursery.size >= MAX_LIST_ADMISSION) {
+      this.listAdmissionMature = this.listAdmissionNursery;
+      this.listAdmissionNursery = new Set<string>();
     }
     return false;
   }
@@ -953,8 +948,10 @@ class ResponseCacheService {
     this.entryIndex.clear();
     this.collectionEntriesIndex.clear();
     this.graphqlIndex.clear();
-    this.pointAdmission.clear();
-    this.listAdmission.clear();
+    this.pointAdmissionNursery.clear();
+    this.pointAdmissionMature.clear();
+    this.listAdmissionNursery.clear();
+    this.listAdmissionMature.clear();
   }
 }
 

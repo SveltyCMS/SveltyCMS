@@ -396,8 +396,11 @@ export function isWirePlaneAdmissible(
   }
 
   // 5. Projection equality check:
-  // If `fields` param is provided, it must equal the compiled published projection
+  // If `fields` param is provided:
   if (search.has("fields")) {
+    const parts = splitPathSegments(event.url.pathname);
+    const isList = parts.length === 3;
+
     // Single-pass trim + compact: the same values as the previous
     // `.split(",").map(trim).filter(Boolean)` chain, one array instead of three.
     const requested = search.get("fields")!.split(",");
@@ -408,9 +411,14 @@ export function isWirePlaneAdmissible(
     }
     requested.length = n;
 
-    if (requested.length !== collectionMeta.publishedFields.size) {
+    if (requested.length === 0) return false;
+
+    // Point reads without custom projected stream require publishedFields equality
+    if (!isList && requested.length !== collectionMeta.publishedFields.size) {
       return false;
     }
+
+    // Every requested field must exist in publishedFields (fail closed on private / unknown fields)
     for (const f of requested) {
       if (!collectionMeta.publishedFields.has(f)) {
         return false;
@@ -804,6 +812,7 @@ async function rebuildWarmCollectionRead(
           resolvePublicationFilter(locals, event.url.searchParams.get("status")) !== "all",
         sortField: listParams.sortField,
         sortDirection: listParams.sortDirection,
+        fields: listParams.fields,
       });
       if (wireRes?.success && wireRes.data) {
         const collectionMeta =
