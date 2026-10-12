@@ -41,7 +41,58 @@ function safeNodeAdapter(opts?: Parameters<typeof nodeAdapter>[0]) {
   };
 }
 
-const adapter = process.env.ADAPTER === "bun" ? bunAdapter : safeNodeAdapter;
+// svelte-adapter-bun (1.0.1) still reads the SvelteKit-2 `config.kit.*` legacy
+// alias, which makes kit emit `adapter_config_kit_deprecated` on every
+// ADAPTER=bun build, and calls the removed `generateManifest` adapter API
+// (`adapter_generate_manifest_removed`), which otherwise aborts the build.
+// The wrapper below:
+//   - serves `kit` as a self-alias through a config proxy so the deprecated
+//     getter is never invoked (`config.kit === config`, the v2 contract the
+//     adapter was written against);
+//   - serves `generateManifest({ relativePath })` from kit's own final manifest
+//     module (`.svelte-kit/output/server/manifest.js`, written after
+//     prerendering with `relative_path: '.'`) so the adapter can inline the
+//     same expression it used to get from the removed API.
+function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
+  const orig = bunAdapter(opts);
+  return {
+    ...orig,
+    async adapt(builder: Parameters<NonNullable<typeof orig.adapt>>[0]) {
+      const wrappedBuilder = new Proxy(builder, {
+        get(target, prop, receiver) {
+          if (prop === "config") {
+            const config = Reflect.get(target, prop, receiver);
+            return new Proxy(config, {
+              get(cTarget, cProp, cReceiver) {
+                if (cProp === "kit") return cTarget;
+                return Reflect.get(cTarget, cProp, cReceiver);
+              },
+            });
+          }
+          if (prop === "generateManifest") {
+            // `relativePath` is ignored: the adapter only ever passes "./",
+            // which is what kit's manifest module is written with.
+            return () => {
+              const manifestPath = path.resolve(target.getServerDirectory(), "manifest.js");
+              const source = readFileSync(manifestPath, "utf8").trim();
+              const prefix = "export const manifest = ";
+              if (!source.startsWith(prefix) || !source.endsWith(";")) {
+                throw new Error(
+                  `[safeBunAdapter] unexpected manifest module shape at ${manifestPath}`,
+                );
+              }
+              return source.slice(prefix.length, -1);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+      return orig.adapt(wrappedBuilder);
+    },
+  };
+}
+
+const adapter = process.env.ADAPTER === "bun" ? safeBunAdapter : safeNodeAdapter;
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
