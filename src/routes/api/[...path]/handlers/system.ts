@@ -625,18 +625,34 @@ export async function handleSystemJobRoutes(
 
     const body = await request.json().catch(() => ({}));
     const { taskType, payload, runAt } = body;
-    let accepted: ReturnType<typeof acceptStatusTransitionJob>;
-    try {
-      accepted = acceptStatusTransitionJob(taskType, payload, String(userId));
-    } catch (err) {
-      throw new AppError(err instanceof Error ? err.message : "Invalid job", 400);
+
+    // Only the `status-transition` task publishes, and its actor must be the
+    // authenticated user — never a client-supplied `scheduledBy`/`tenantId`.
+    // Every other task type keeps the generic contract the queue API has always
+    // had (this endpoint is admin-only via the endpoint-permission map).
+    let normalizedTaskType: string;
+    let normalizedPayload: Record<string, unknown>;
+    if (taskType === "status-transition") {
+      try {
+        const accepted = acceptStatusTransitionJob(taskType, payload, String(userId));
+        normalizedTaskType = accepted.taskType;
+        normalizedPayload = accepted.payload;
+      } catch (err) {
+        throw new AppError(err instanceof Error ? err.message : "Invalid job", 400);
+      }
+    } else {
+      if (!taskType || !payload) {
+        throw new AppError("taskType and payload are required", 400);
+      }
+      normalizedTaskType = String(taskType);
+      normalizedPayload = payload as Record<string, unknown>;
     }
 
     const nextRunAt = runAt ? new Date(runAt) : new Date();
 
     const result = await db.system.jobs.create({
-      taskType: accepted.taskType,
-      payload: accepted.payload,
+      taskType: normalizedTaskType,
+      payload: normalizedPayload,
       status: "pending",
       attempts: 0,
       maxAttempts: 3,
