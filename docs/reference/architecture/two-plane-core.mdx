@@ -51,14 +51,14 @@ reference.
 
 ## Where each half is documented
 
-| Topic                                                                | Canonical doc                                                                                  |
-| :------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
-| Lane mechanics, bypass policy, gate table, lane threat scan          | [Server Hooks & Middleware](./server-hooks.mdx)                                                |
-| Benchmark classification (Cells 1–4) and the honest yardstick        | [Performance Architecture](../database/performance-architecture.mdx#4-cell-benchmark-contract) |
-| Tenant isolation: shared pool + RLS, bounded dedicated DSN pools     | [Multi-tenancy](./multi-tenancy.mdx)                                                           |
-| What is shipped per phase, and the open decisions                    | [Roadmap 2026](../../project/roadmap-2026.mdx)                                                 |
-| How this came to be — including what was rejected and why            | [Achievements 3.29–3.31](../../project/achievements-2026.mdx)                                  |
-| Permission evaluation (`permMask`, `permRev`, the unused `permBits`) | `src/databases/auth/permission-bitmask.ts` + the roadmap's Phase-2 item                        |
+| Topic                                                            | Canonical doc                                                                                  |
+| :--------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| Lane mechanics, bypass policy, gate table, lane threat scan      | [Server Hooks & Middleware](./server-hooks.mdx)                                                |
+| Benchmark classification (Cells 1–4) and the honest yardstick    | [Performance Architecture](../database/performance-architecture.mdx#4-cell-benchmark-contract) |
+| Tenant isolation: shared pool + RLS, bounded dedicated DSN pools | [Multi-tenancy](./multi-tenancy.mdx)                                                           |
+| What is shipped per phase, and the open decisions                | [Roadmap 2026](../../project/roadmap-2026.mdx)                                                 |
+| How this came to be — including what was rejected and why        | [Achievements 3.29–3.31](../../project/achievements-2026.mdx)                                  |
+| Permission evaluation (`permMask`, `permRev`)                    | `src/databases/auth/permission-bitmask.ts`. The session does not store `permBits`.             |
 
 ## Deliberate trade-off
 

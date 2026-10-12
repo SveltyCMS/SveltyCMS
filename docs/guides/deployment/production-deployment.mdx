@@ -406,7 +406,7 @@ If `USE_REDIS` is absent or false, SveltyCMS gracefully skips Redis initializati
 
 ### PM2 Process Manager
 
-PM2 provides cluster mode, auto-restart, and zero-downtime deployments.
+PM2 provides cluster mode, auto-restart, and zero-downtime deployments. The in-repo equivalent is `SVELTY_CLUSTER_WORKERS=<n> bun run start:cluster`, which forks the built server on one port. In-process pub/sub does not cross those workers.
 
 **File**: `ecosystem.config.js` (in project root)
 

@@ -16,7 +16,7 @@ tags:
 
 # Multi-Core Cluster Design
 
-Status: **design (2026-09-24)** — measured anchors are from the benchmark lab; the probe ships the empirical scaling curve alongside this doc.
+Status: **bootstrap shipped (2026-10-12)** — `SVELTY_CLUSTER_WORKERS` forks the built server (`bun run start:cluster`). Measured anchors are from the benchmark lab. In-process pub/sub still does not cross workers.
 
 ## Why cluster at all
 
@@ -57,7 +57,7 @@ graph TD
 
 **One host: `node:cluster`, K workers, one shared listening socket.** Every worker runs the same built entry (`index.server.mjs`); Node's cluster module binds the socket once in the primary and distributes connections round-robin (SCHED_RR) to the workers. No per-worker ports, no external LB for the single-node case. **Multiple hosts:** N replicas of the same shape behind any HTTP LB (sticky not required — see sessions), sharing PostgreSQL + Redis.
 
-Worker count heuristic: `K = min(cpu cores, DB read ceiling ÷ per-process read RPS)` — on the bench host that is 3–4 for reads; writes add another ~1.5k RPS per worker up to the WAL ceiling. `SVELTY_CLUSTER_WORKERS` (design knob) drives a tiny primary bootstrap; the primary never serves traffic, it only forks, supervises (restart on crash) and handles the rolling restart.
+Worker count heuristic: `K = min(cpu cores, DB read ceiling ÷ per-process read RPS)` — on the bench host that is 3–4 for reads; writes add another ~1.5k RPS per worker up to the WAL ceiling. `SVELTY_CLUSTER_WORKERS` is read by `scripts/cluster-serve.ts` (`bun run start:cluster`). The primary never serves traffic. It forks, restarts a worker that exits, and stops the workers on SIGINT or SIGTERM. Unset or `1` is a single process. Pub/sub events stay in the worker that raised them.
 
 ## State partition — what lives where
 
