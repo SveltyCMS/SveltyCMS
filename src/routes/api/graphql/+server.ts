@@ -51,6 +51,9 @@ import {
 } from "./resolvers/collections";
 import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
 import { contentSystem, contentStore } from "@src/content/index.server";
+import { ensureSchemaHotFlags } from "@src/services/sdk/namespaces/collections/schema-store";
+import { isAdmin } from "@src/databases/auth/constants";
+import { getAllowedFieldSet } from "@src/services/security/field-permission-service";
 import {
   analyzeQueryCost,
   formatCostError,
@@ -264,6 +267,47 @@ async function tryGraphqlFastPath(
   }
 
   const fields = matched.selections.length > 0 ? matched.selections : undefined;
+
+  // 🚀 DIRECT-TO-WIRE GRAPHQL ACCELERATION:
+  // Serve simple unfiltered list queries from the engine-side wire stream
+  // (pre-aggregated JSON array: no V8 row hydration, per-row projection, or
+  // JSON.stringify) — but only where a raw row read cannot bypass a protection
+  // the SDK path applies: read hooks (they transform documents), encrypted
+  // fields (the SDK decrypts; the wire would hand back ciphertext), and for
+  // non-admins row ownership, guarded fields, or a FIELD_PERMISSIONS policy
+  // (the same FLAC exemption the read lane uses). Engines that cannot serve the
+  // projection decline, and anything unsafe falls through to the SDK path.
+  const hot = ensureSchemaHotFlags(targetCollection);
+  const role = (ctx.user as { role?: string } | null)?.role;
+  const admin = isAdmin(ctx.user) || role === "admin";
+  const rawHooks = (targetCollection as { hooks?: Record<string, unknown> }).hooks;
+  const wireReadSafe =
+    !hot._hasEncryptedFields &&
+    !rawHooks?.afterRead &&
+    !rawHooks?.afterFind &&
+    (admin ||
+      (!(targetCollection as { ownership?: unknown }).ownership &&
+        !hot._hasGuardedFields &&
+        !getAllowedFieldSet(String(targetCollection._id), role)));
+  if (
+    wireReadSafe &&
+    typeof adapter.crud?.findListWireStream === "function" &&
+    (!matched.filter || Object.keys(matched.filter).length === 0)
+  ) {
+    const wireRes = await adapter.crud.findListWireStream(String(targetCollection._id), {
+      tenantId: ctx.tenantId as DatabaseId,
+      limit: matched.limit,
+      offset: (matched.page - 1) * matched.limit,
+      requirePublished: ctx.publicationFilter === "published",
+      sortField: matched.sort,
+      sortDirection: matched.sortDirection,
+      fields,
+    });
+    if (wireRes?.success && wireRes.data?.wireBody) {
+      return `{"data":{"${matched.field}":${wireRes.data.wireBody}}}`;
+    }
+  }
+
   const result = await sharedCMS.collections.find(targetCollection._id, {
     tenantId: ctx.tenantId as DatabaseId,
     limit: matched.limit,
