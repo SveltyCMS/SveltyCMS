@@ -38,8 +38,10 @@
  * (canonicalised: no `v` prefix, no leading zeros, no prerelease/build suffix).
  *
  * Safety:
- * - refuses to run (except --dry-run, which only previews and warns) when
- *   package.json has uncommitted changes
+ * - refuses to write (except --dry-run, which only previews and warns) when
+ *   package.json has uncommitted changes — a no-op (the proposal already
+ *   matches the manifest) writes nothing and still exits 0, so an unrelated
+ *   dirty manifest cannot block a release-less push
  * - refuses a version that already carries a `v*` tag (the case the release
  *   workflow used to swallow as "Tag already exists — skipping tag creation")
  * - refuses to downgrade package.json
@@ -620,7 +622,11 @@ function main(): void {
   const target = request.mode === "target" ? request.version : "";
   const requested: BumpKind = request.mode === "kind" ? request.kind : "auto";
 
-  // ── 1. Safety gate: the manifest must be clean (dry-run only warns) ───────
+  // ── 1. Safety gate: a run that WRITES must have a clean manifest ──────────
+  // The refusal is deferred until just before the write below: a no-op (the
+  // proposal already matches the manifest) writes nothing and exits 0 even
+  // with unrelated manifest edits — the pre-push release step relies on that
+  // to let a `main` push through when the version is already carried.
 
   const raw = readFileSync(PACKAGE_PATH, "utf8");
   const dirty = git(["status", "--porcelain", "--", PACKAGE_PATH]);
@@ -628,12 +634,6 @@ function main(): void {
   const dirtyWarning = dirty.stdout
     ? `${PACKAGE_PATH} has uncommitted changes — a real run refuses until they are committed`
     : "";
-  if (dirtyWarning && !dryRun) {
-    fail(
-      `${PACKAGE_PATH} has uncommitted changes — commit or stash them before bumping.\n` +
-        `   Pass --dry-run to preview the decision without touching the file.`,
-    );
-  }
 
   const currentRaw = readPackageVersion(raw);
 
@@ -780,6 +780,15 @@ function main(): void {
     report("result", `dry-run — ${PACKAGE_PATH} left untouched`);
     console.log();
     process.exit(0);
+  }
+
+  // A real write is imminent — this is the point where a dirty manifest must
+  // refuse (the no-op path above already exited without writing).
+  if (dirtyWarning) {
+    fail(
+      `${PACKAGE_PATH} has uncommitted changes — commit or stash them before bumping.\n` +
+        `   Pass --dry-run to preview the decision without touching the file.`,
+    );
   }
 
   const updated = replaceVersionField(raw, currentRaw, proposedRaw);
