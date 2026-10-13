@@ -311,14 +311,14 @@ It provides the following functionality:
 				aria-label={access_permissions_search_aria()}
 				placeholder={access_permissions_search_placeholder()}
 				bind:value={searchTerm}
-				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-500/30 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-500/30 bg-(--admin-bg-card) text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 			/>
 		</div>
 	</div>
 
 	{#if filteredPermissions.length === 0}
 		<div
-			class="text-center py-8 border border-dashed border-surface-500/30 dark:border-surface-500/40 rounded bg-surface-500/10 dark:bg-surface-900"
+			class="text-center py-8 border border-dashed border-(--admin-border-default) rounded bg-surface-500/10 dark:bg-surface-900"
 		>
 			<iconify-icon
 				icon="material-symbols:search-off-rounded"
@@ -333,7 +333,7 @@ It provides the following functionality:
 		<!-- Admin Notice -->
 		{#if adminRole}
 			<div
-				class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-500/10 dark:bg-surface-900/20 border border-surface-500/30 dark:border-surface-500/40 py-2 px-4 rounded w-max mx-auto shadow-xs"
+				class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-500/10 dark:bg-surface-900/20 border border-(--admin-border-default) py-2 px-4 rounded w-max mx-auto shadow-xs"
 			>
 				<span class="font-extrabold text-error-500">*</span>
 				<span
@@ -345,12 +345,12 @@ It provides the following functionality:
 			</div>
 		{/if}
 		<div
-			class="permission overflow-x-auto rounded border border-surface-500/30 dark:border-surface-500/40 shadow-sm bg-white dark:bg-surface-900"
+			class="permission overflow-x-auto rounded border border-(--admin-border-default) shadow-sm bg-(--admin-bg-card)"
 		>
 			<table class="w-full text-start border-collapse table-auto">
 				<!-- Header -->
 				<thead
-					class="bg-surface-500/10 dark:bg-surface-500/10 border-b border-surface-500/30 dark:border-surface-500/40"
+					class="bg-surface-500/10 dark:bg-surface-500/10 border-b border-(--admin-border-default)"
 				>
 					<tr>
 						<th
@@ -438,13 +438,13 @@ It provides the following functionality:
 												type="checkbox"
 												aria-label={`Select all filtered permissions for ${role.name}`}
 												title={`Select/Deselect all filtered permissions for ${role.name}`}
-												class="h-4 w-4 rounded-sm border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
+												class="h-4 w-4 rounded-sm border-(--admin-border-default) bg-(--admin-bg-card) text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
 												checked={headerState.checked}
 												indeterminate={headerState.indeterminate}
 												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
 											/>
 											<button
-												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/10 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+												class="flex items-center justify-center p-0.5 rounded-sm border border-(--admin-border-default) hover:bg-surface-500/10 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
 												title={access_permissions_assign_all_title()}
 												aria-label={`Assign ${role.name} to all filtered permissions`}
@@ -466,7 +466,7 @@ It provides the following functionality:
 							<tr class="bg-surface-500/70 dark:bg-surface-900/20">
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="px-3 py-2 font-bold text-xs tracking-wider uppercase text-black dark:text-white border-y border-surface-500/30 dark:border-surface-500/40"
+									class="px-3 py-2 font-bold text-xs tracking-wider uppercase text-(--admin-text-body) border-y border-(--admin-border-default)"
 								>
 									{group}
 								</td>
@@ -506,7 +506,7 @@ It provides the following functionality:
 														(p) => String(p) === String(permission._id)
 													)}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="h-4 w-4 rounded-sm border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
+													class="h-4 w-4 rounded-sm border-(--admin-border-default) bg-(--admin-bg-card) text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
 												/>
 											</td>
 										{/if}

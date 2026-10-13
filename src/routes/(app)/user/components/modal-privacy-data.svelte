@@ -107,7 +107,7 @@
 	}
 </script>
 
-<div class="space-y-6 text-black dark:text-white p-2">
+<div class="space-y-6 text-(--admin-text-body) p-2">
 	<header class="flex items-center gap-3 border-b border-surface-500/20 pb-4">
 		<iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500" width="32"
 		></iconify-icon>
@@ -120,7 +120,7 @@
 	<div class="grid grid-cols-1 gap-4 focus:outline-none">
 		<!-- Export Data -->
 		<div
-			class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-surface-500/30 dark:border-surface-500/40 hover:border-tertiary-500 dark:hover:border-primary-500/50 transition-colors"
+			class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-(--admin-border-default) hover:border-tertiary-500 dark:hover:border-primary-500/50 transition-colors"
 		>
 			<div class="flex items-start gap-4">
 				<div class="p-3 rounded bg-secondary-500/10 text-secondary-500">
@@ -142,7 +142,7 @@
 		<!-- Anonymize/Delete Account -->
 		{#if (totalUsers ?? 1) > 1 || !isAdmin}
 			<div
-				class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-surface-500/30 dark:border-surface-500/40 hover:border-error-500/50 transition-colors"
+				class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-(--admin-border-default) hover:border-error-500/50 transition-colors"
 			>
 				<div class="flex items-start gap-4">
 					<div class="p-3 rounded bg-error-500/10 text-error-500">

@@ -593,7 +593,7 @@
 	</div>
 {:else}
 	<div
-		class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-500/10 dark:bg-surface-800/70 border border-surface-500/30 dark:border-surface-500/40 text-sm"
+		class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-500/10 dark:bg-surface-800/70 border border-(--admin-border-default) text-sm"
 	>
 		<div class="flex items-center gap-2">
 			<iconify-icon

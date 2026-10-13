@@ -291,7 +291,7 @@
 {#if local}
 	<div class="flex flex-col w-full">
 		<!-- Header -->
-		<div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
+		<div class="border-b border-(--admin-border-default) px-6 py-4">
 			<h2 class="text-lg font-bold text-(--admin-text-body)">
 				{widget_form_edit_field()}{' '}<span class="text-tertiary-500 dark:text-primary-500"
 					>{local.label || 'Unnamed'}</span
@@ -407,7 +407,7 @@
 					</div>
 
 					<div
-						class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50"
+						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
 					>
 						<div>
 							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">
@@ -426,7 +426,7 @@
 					</div>
 
 					<div
-						class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50"
+						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
 					>
 						<div>
 							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">
@@ -519,7 +519,7 @@
 				<div class="space-y-5">
 					<!-- Visibility toggle -->
 					<div
-						class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4"
+						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
 					>
 						<h4
 							class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400"
@@ -553,10 +553,10 @@
 
 					<!-- Require auth -->
 					<div
-						class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4"
+						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
 					>
 						<label
-							class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card) p-3"
+							class="flex cursor-pointer items-center gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-3"
 						>
 							<input
 								type="checkbox"
@@ -578,7 +578,7 @@
 					<!-- Role matrix -->
 					{#if rolesProp.length > 0}
 						<div
-							class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4"
+							class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
 						>
 							<h4
 								class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400"
@@ -636,7 +636,7 @@
 						</div>
 					{:else}
 						<div
-							class="rounded-xl border border-dashed border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/10 p-6 text-center"
+							class="rounded-xl border border-dashed border-(--admin-border-default) bg-surface-500/30 dark:bg-surface-900/10 p-6 text-center"
 						>
 							<iconify-icon
 								icon="mdi:shield-account-outline"
@@ -654,7 +654,7 @@
 
 		<!-- Footer -->
 		<div
-			class="flex items-center justify-between border-t border-surface-500/30 dark:border-surface-500/40 px-6 py-4 bg-surface-500/10 dark:bg-surface-900/50"
+			class="flex items-center justify-between border-t border-(--admin-border-default) px-6 py-4 bg-surface-500/10 dark:bg-surface-900/50"
 		>
 			<div class="flex gap-2">
 				<Button variant="error" type="button" onclick={handleDelete}>

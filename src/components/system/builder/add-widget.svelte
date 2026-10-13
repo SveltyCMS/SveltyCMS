@@ -72,7 +72,7 @@
 </script>
 
 <div
-	class="fixed -top-16 inset-s-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900"
+	class="fixed -top-16 inset-s-0 flex h-screen w-full flex-col overflow-auto bg-(--admin-bg-card)"
 >
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" />

@@ -136,11 +136,14 @@ Active tool uses a soft rounded square highlight only.
 				disabled={!hasImage}
 				title={tool.name}
 			>
-				<span class="tool-icon flex items-center justify-center leading-none" aria-hidden="true">
-					<iconify-icon icon={tool.icon} width="20"></iconify-icon>
+				<span
+					class="tool-icon flex items-center justify-center leading-none text-current"
+					aria-hidden="true"
+				>
+					<iconify-icon icon={tool.icon} width="20" class="text-current"></iconify-icon>
 				</span>
 				<span
-					class="tool-label max-w-13 overflow-hidden text-[9px] font-medium leading-none text-center truncate tracking-[0.01em]"
+					class="tool-label max-w-13 overflow-hidden text-[9px] font-medium leading-none text-center truncate tracking-[0.01em] text-current"
 					>{tool.name}</span
 				>
 			</button>

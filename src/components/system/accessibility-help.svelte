@@ -138,7 +138,7 @@
 			Keyboard Shortcuts
 		</h4>
 
-		<div class="overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40">
+		<div class="overflow-hidden rounded border border-(--admin-border-default)">
 			<table class="w-full text-sm" aria-describedby="keyboard-table-desc">
 				<caption id="keyboard-table-desc" class="sr-only">
 					Keyboard shortcuts available in SveltyCMS

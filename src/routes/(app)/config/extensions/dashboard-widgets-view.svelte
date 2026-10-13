@@ -120,7 +120,7 @@
 	<!-- Stats Summary Grid -->
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="dashboard-widgets-stats">
 		<AdminCard
-			class="flex items-center gap-3.5 p-4 bg-white dark:bg-surface-800/60 border border-surface-500/20"
+			class="flex items-center gap-3.5 p-4 bg-(--admin-bg-card) border border-surface-500/20"
 		>
 			<div
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400"
@@ -134,7 +134,7 @@
 		</AdminCard>
 
 		<AdminCard
-			class="flex items-center gap-3.5 p-4 bg-white dark:bg-surface-800/60 border border-surface-500/20"
+			class="flex items-center gap-3.5 p-4 bg-(--admin-bg-card) border border-surface-500/20"
 		>
 			<div
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-success-500/10 text-success-600 dark:text-success-400"
@@ -148,7 +148,7 @@
 		</AdminCard>
 
 		<AdminCard
-			class="flex items-center gap-3.5 p-4 bg-white dark:bg-surface-800/60 border border-surface-500/20"
+			class="flex items-center gap-3.5 p-4 bg-(--admin-bg-card) border border-surface-500/20"
 		>
 			<div
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:text-tertiary-400"
@@ -162,7 +162,7 @@
 		</AdminCard>
 
 		<AdminCard
-			class="flex items-center gap-3.5 p-4 bg-white dark:bg-surface-800/60 border border-surface-500/20"
+			class="flex items-center gap-3.5 p-4 bg-(--admin-bg-card) border border-surface-500/20"
 		>
 			<div
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-secondary-500/10 text-secondary-600 dark:text-secondary-400"
@@ -198,7 +198,7 @@
 						onclick={() => (categoryFilter = cat.id as any)}
 						class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors {categoryFilter ===
 						cat.id
-							? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
+							? 'bg-(--admin-bg-card) text-primary-600 dark:text-primary-400 shadow-xs'
 							: 'text-surface-600 dark:text-surface-400 hover:text-surface-900'}"
 					>
 						{cat.label}
@@ -216,7 +216,7 @@
 						onclick={() => (licenseFilter = lic.id as any)}
 						class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors {licenseFilter ===
 						lic.id
-							? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
+							? 'bg-(--admin-bg-card) text-primary-600 dark:text-primary-400 shadow-xs'
 							: 'text-surface-600 dark:text-surface-400 hover:text-surface-900'}"
 					>
 						{lic.label}
@@ -246,7 +246,7 @@
 		>
 			{#each filteredWidgets as widget (widget.id)}
 				<AdminCard
-					class="flex flex-col justify-between p-5 bg-white dark:bg-surface-800/80 border border-surface-500/20 hover:border-surface-500/40 transition-shadow shadow-xs hover:shadow-md"
+					class="flex flex-col justify-between p-5 bg-(--admin-bg-card) border border-surface-500/20 hover:border-surface-500/40 transition-shadow shadow-xs hover:shadow-md"
 					data-testid={`dashboard-widget-card-${widget.id}`}
 				>
 					<div class="flex flex-col gap-3">

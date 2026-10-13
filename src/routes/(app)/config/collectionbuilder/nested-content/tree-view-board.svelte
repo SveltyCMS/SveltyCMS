@@ -1193,7 +1193,7 @@ offset within the row on the native `dragover` event — that event carries
 		}}
 	>
 		<AdminCard
-			class="w-full max-w-md p-6 bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 shadow-2xl relative"
+			class="w-full max-w-md p-6 bg-surface-500/10 dark:bg-surface-900 border border-(--admin-border-default) shadow-2xl relative"
 		>
 			<Button
 				variant="ghost"

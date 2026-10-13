@@ -157,7 +157,9 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 	}
 
 	function handleCancelClick() {
-		if (!window.confirm('Discard changes? These edits will not be saved.')) return;
+		if (imageEditorStore.isDirty) {
+			if (!window.confirm('Discard changes? These edits will not be saved.')) return;
+		}
 		closeModal();
 	}
 
@@ -330,6 +332,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 			</div>
 		{:else}
 			<EditorToolbar
+				onclose={handleCancelClick}
 				onsave={handleSaveClick}
 				{isSaving}
 				onZoomIn={() => handleZoomAction('in')}
@@ -378,14 +381,11 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		);
 		--editor-chrome-border-subtle: var(
 			--admin-border-subtle,
-			color-mix(in oklch, var(--admin-text-body, currentColor) 8%, transparent)
+			color-mix(in oklch, var(--admin-text-body, #0f172a) 8%, transparent)
 		);
-		--editor-chrome-text: var(
-			--admin-text-muted,
-			color-mix(in oklch, var(--admin-text-body, currentColor) 68%, transparent)
-		);
-		--editor-chrome-text-hover: var(--admin-text-body, currentColor);
-		--editor-chrome-text-active: var(--admin-text-body, currentColor);
+		--editor-chrome-text: var(--admin-text-muted, #64748b);
+		--editor-chrome-text-hover: var(--admin-text-body, #0f172a);
+		--editor-chrome-text-active: var(--admin-text-body, #0f172a);
 		--editor-accent: var(--color-primary-500, #3b82f6);
 		--editor-accent-hover: var(--color-primary-600, #2563eb);
 		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
@@ -399,6 +399,9 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 
 	:global(.dark) .image-editor-panel {
 		--editor-canvas-bg: var(--color-surface-950, #09090b);
+		--editor-chrome-text: var(--admin-text-muted, #94a3b8);
+		--editor-chrome-text-hover: var(--admin-text-body, #f8fafc);
+		--editor-chrome-text-active: var(--admin-text-body, #f8fafc);
 	}
 
 	.image-editor-panel--mobile {

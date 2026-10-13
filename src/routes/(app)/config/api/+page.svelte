@@ -12,6 +12,7 @@
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Select from '@components/ui/select.svelte';
+	import SegmentedControl from '@components/ui/segmented-control.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
 	import {
 		api_codegen_heading,
@@ -341,37 +342,40 @@ export const load: PageServerLoad = async ({ locals }) => {
 					<!-- Presets for fast testing -->
 					<div class="flex flex-wrap items-center gap-1.5">
 						<span class="text-xs text-surface-500">{api_quick_presets()}</span>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onclick={() => {
 								restMethod = 'GET';
 								restEndpoint = '/api/openapi.json';
 							}}
-							class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 						>
 							{api_openapi_spec()}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onclick={() => {
 								restMethod = 'GET';
 								restEndpoint = '/api/system/version';
 							}}
-							class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 						>
 							{api_system_version()}
-						</button>
+						</Button>
 						{#each data.collections.slice(0, 3) as col (col.id)}
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="sm"
 								onclick={() => {
 									restMethod = 'GET';
 									restEndpoint = `/api/content/${col.id}`;
 								}}
-								class="rounded bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 hover:bg-surface-500/20 dark:text-surface-400"
 							>
 								{col.name}
-							</button>
+							</Button>
 						{/each}
 					</div>
 
@@ -431,14 +435,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 							</Badge>
 						{/if}
 						{#if restResponse}
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="sm"
+								leadingIcon="mdi:content-copy"
 								onclick={() => copyToClipboard(restResponse || '', 'Response')}
-								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label={api_copy_response_aria()}
-							>
-								<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
-							</button>
+							/>
 						{/if}
 					</div>
 				</div>
@@ -548,14 +552,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 							</Badge>
 						{/if}
 						{#if gqlResponse}
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="sm"
+								leadingIcon="mdi:content-copy"
 								onclick={() => copyToClipboard(gqlResponse || '', 'GraphQL Result')}
-								class="rounded p-1 text-surface-400 hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
 								aria-label={api_copy_gql_aria()}
-							>
-								<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
-							</button>
+							/>
 						{/if}
 					</div>
 				</div>
@@ -606,50 +610,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 
 					<!-- Language Selector -->
-					<div
-						class="flex items-center gap-1 rounded-lg border border-surface-500/20 bg-surface-500/10 p-1 dark:bg-surface-800"
-					>
-						<button
-							type="button"
-							onclick={() => (selectedSnippetType = 'typescript')}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
-							'typescript'
-								? 'bg-primary-500 text-white'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
-						>
-							{api_snippet_typescript()}
-						</button>
-						<button
-							type="button"
-							onclick={() => (selectedSnippetType = 'localcms')}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
-							'localcms'
-								? 'bg-primary-500 text-white'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
-						>
-							{api_snippet_localcms()}
-						</button>
-						<button
-							type="button"
-							onclick={() => (selectedSnippetType = 'curl')}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
-							'curl'
-								? 'bg-primary-500 text-white'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
-						>
-							{api_snippet_curl()}
-						</button>
-						<button
-							type="button"
-							onclick={() => (selectedSnippetType = 'python')}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {selectedSnippetType ===
-							'python'
-								? 'bg-primary-500 text-white'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
-						>
-							{api_snippet_python()}
-						</button>
-					</div>
+					<SegmentedControl
+						name="snippet-language"
+						bind:value={selectedSnippetType}
+						options={[
+							{ label: api_snippet_typescript(), value: 'typescript' },
+							{ label: api_snippet_localcms(), value: 'localcms' },
+							{ label: api_snippet_curl(), value: 'curl' },
+							{ label: api_snippet_python(), value: 'python' }
+						]}
+					/>
 				</div>
 			</div>
 

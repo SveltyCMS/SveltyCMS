@@ -233,7 +233,7 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 inset-s-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {ui
+		class="fixed -top-16 inset-s-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-(--admin-bg-card) {ui
 			.state.leftSidebar === 'full'
 			? 'inset-s-55'
 			: 'inset-s-0'}"

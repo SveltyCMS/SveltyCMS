@@ -91,9 +91,7 @@
 </script>
 
 {#if !loading && workflow}
-	<AdminCard
-		class="p-4 border border-surface-500/30 dark:border-surface-500/40 shadow-sm space-y-4"
-	>
+	<AdminCard class="p-4 border border-(--admin-border-default) shadow-sm space-y-4">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
 				<iconify-icon
@@ -120,7 +118,7 @@
 
 		{#if !instance}
 			<div
-				class="p-4 rounded bg-surface-500/10 dark:bg-surface-500/10 text-center border-2 border-dashed border-surface-500/30 dark:border-surface-500/40"
+				class="p-4 rounded bg-surface-500/10 dark:bg-surface-500/10 text-center border-2 border-dashed border-(--admin-border-default)"
 			>
 				<p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
 				<Button
@@ -157,10 +155,7 @@
 				</div>
 
 				{#if showComment}
-					<div
-						class="space-y-3 pt-3 border-t border-surface-500/30 dark:border-surface-500/40"
-						transition:slide
-					>
+					<div class="space-y-3 pt-3 border-t border-(--admin-border-default)" transition:slide>
 						<Textarea
 							bind:value={comment}
 							label="Workflow note"
@@ -188,7 +183,7 @@
 
 			<!-- History Summary -->
 			{#if instance && instance.history.length > 0}
-				<div class="pt-2 border-t border-surface-500/30 dark:border-surface-500/40">
+				<div class="pt-2 border-t border-(--admin-border-default)">
 					<p class="text-[10px] font-bold opacity-30 uppercase mb-2">Recent History</p>
 					<div class="space-y-2">
 						{#if instance && instance.history}

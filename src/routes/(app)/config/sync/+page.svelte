@@ -204,7 +204,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 >
 	<div data-testid="sync-page" class="contents">
 		<AdminCard
-			class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+			class="p-6 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 		>
 			<div class="mb-4 rounded-md border border-surface-500/20 bg-surface-500/10 p-4">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
@@ -270,7 +270,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 					<!-- Action Controls -->
 					<div
-						class="my-6 p-4 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-900/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between"
+						class="my-6 p-4 rounded-lg border border-(--admin-border-default) bg-surface-500/50 dark:bg-surface-900/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between"
 					>
 						<!-- Safety Mode Selector -->
 						<div class="flex flex-col gap-1.5 w-full md:w-auto">
@@ -285,7 +285,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 									id="safety-mode-select"
 									aria-label={sync_safety_mode_aria()}
 									bind:value={selectedMode}
-									class="px-3 py-1.5 text-sm rounded-md border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-surface-800 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
+									class="px-3 py-1.5 text-sm rounded-md border border-(--admin-border-default) bg-(--admin-bg-card) text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
 								>
 									{#each ['merge', 'add', 'mirror', 'replace'] as const as mode (mode)}
 										<option value={mode}>{modeDescriptions[mode].label}</option>
@@ -383,13 +383,11 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								</p>
 							</div>
 
-							<AdminCard
-								class="overflow-x-auto w-full border border-surface-500/30 dark:border-surface-500/40"
-							>
+							<AdminCard class="overflow-x-auto w-full border border-(--admin-border-default)">
 								<table class="w-full text-sm border-collapse">
 									<thead>
 										<tr
-											class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400"
+											class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
 										>
 											<th class="px-4 py-3 font-semibold">{sync_name()}</th>
 											<th class="px-4 py-3 font-semibold">{sync_type()}</th>
@@ -469,7 +467,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 							{sync_raw_api()}
 						</h3>
 						<pre
-							class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 rounded bg-surface-500/10 dark:bg-surface-800">{JSON.stringify(
+							class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-(--admin-border-default) rounded bg-surface-500/10 dark:bg-surface-800">{JSON.stringify(
 								status,
 								null,
 								2

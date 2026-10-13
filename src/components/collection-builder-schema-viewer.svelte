@@ -91,7 +91,7 @@ Designed as a visual schema inspector for developers to understand what data str
 <section class="p-6 border rounded bg-white dark:bg-[#0d0f12] shadow-lg">
 	<!-- Header -->
 	<div class="flex items-center gap-4 pb-3 border-b border-slate-200 dark:border-slate-700 mb-4">
-		<h2 class="text-2xl font-bold text-black dark:text-white">
+		<h2 class="text-2xl font-bold text-(--admin-text-body)">
 			{currentSchema?.name || 'Unknown Schema'}
 		</h2>
 		<div class="flex flex-col gap-1.5">

@@ -45,10 +45,10 @@
 >
 	<div data-testid="extensions-page" class="contents">
 		<AdminCard
-			class="flex min-h-0 flex-1 flex-col border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs p-6"
+			class="flex min-h-0 flex-1 flex-col border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs p-6"
 		>
 			<div
-				class="mb-4 flex shrink-0 items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40"
+				class="mb-4 flex shrink-0 items-center justify-between border-b border-(--admin-border-default)"
 			>
 				<div
 					class="flex gap-1"

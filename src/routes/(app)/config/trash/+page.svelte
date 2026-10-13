@@ -120,7 +120,7 @@
 						<table class="w-full text-sm border-collapse">
 							<thead>
 								<tr
-									class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400"
+									class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
 								>
 									<th class="pb-3 font-semibold">{trash_th_content()}</th>
 									<th class="pb-3 font-semibold">{trash_th_collection()}</th>

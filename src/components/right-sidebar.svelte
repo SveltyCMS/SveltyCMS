@@ -281,7 +281,7 @@
 				<Collections />
 			</div>
 			{#if showSidebar}
-				<hr class="my-2 border-surface-500/30 dark:border-surface-500/40" />
+				<hr class="my-2 border-(--admin-border-default)" />
 			{/if}
 		{/if}
 

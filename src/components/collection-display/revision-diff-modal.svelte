@@ -57,7 +57,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div
-	class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-500/30 dark:border-surface-500/40 overflow-hidden"
+	class="flex flex-col h-[80vh] w-full max-w-5xl bg-(--admin-bg-card) rounded-2xl shadow-2xl border border-(--admin-border-default) overflow-hidden"
 	in:fade
 	role="dialog"
 	aria-modal="true"
@@ -65,7 +65,7 @@
 >
 	<!-- Header -->
 	<div
-		class="p-6 border-b border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between bg-surface-500/50 dark:bg-surface-900/20"
+		class="p-6 border-b border-(--admin-border-default) flex items-center justify-between bg-surface-500/50 dark:bg-surface-900/20"
 	>
 		<div>
 			<h2 id="diff-modal-title" class="text-xl font-bold flex items-center gap-2">
@@ -118,7 +118,7 @@
 					>
 						<!-- Field Header -->
 						<div
-							class="px-4 py-2 bg-surface-500/10 dark:bg-surface-500/10 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40"
+							class="px-4 py-2 bg-surface-500/10 dark:bg-surface-500/10 flex items-center justify-between border-b border-(--admin-border-default)"
 						>
 							<div class="flex flex-col">
 								<span class="text-xs font-bold opacity-40 uppercase tracking-tighter"
@@ -180,7 +180,7 @@
 
 	<!-- Footer -->
 	<div
-		class="p-4 bg-surface-500/10 dark:bg-surface-500/10 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center"
+		class="p-4 bg-surface-500/10 dark:bg-surface-500/10 border-t border-(--admin-border-default) flex justify-between items-center"
 	>
 		<div class="flex gap-4 text-[10px] font-bold opacity-50 uppercase">
 			<span class="flex items-center gap-1"

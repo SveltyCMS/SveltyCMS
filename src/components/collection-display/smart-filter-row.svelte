@@ -100,7 +100,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 
 <!-- Active filter badges (above column inputs) -->
 {#if hasActive}
-	<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+	<tr class="border-b border-(--admin-border-default)">
 		<th colspan={headers.length + 1} class="p-2!">
 			<div
 				class="flex flex-wrap items-center gap-2"
@@ -159,7 +159,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 		</th>
 	</tr>
 {:else if onOpenAdvanced}
-	<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+	<tr class="border-b border-(--admin-border-default)">
 		<th colspan={headers.length + 1} class="p-1! px-2! text-end">
 			<Button
 				variant="ghost"

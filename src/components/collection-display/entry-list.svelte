@@ -1277,7 +1277,7 @@ bulk actions, and predictive preloading.
 					type="button"
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="open-sidebar"
-					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-surface-500/30 dark:border-surface-500/40"
+					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-(--admin-border-default)"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
 				</Button>
@@ -1339,7 +1339,7 @@ bulk actions, and predictive preloading.
 				type="button"
 				onclick={() => (expand = !expand)}
 				aria-label="expand-collapse-filters"
-				class="h-10 px-3 rounded-xl sm:hidden border border-surface-500/30 dark:border-surface-500/40"
+				class="h-10 px-3 rounded-xl sm:hidden border border-(--admin-border-default)"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="20"></iconify-icon>
 			</Button>
@@ -1367,7 +1367,7 @@ bulk actions, and predictive preloading.
 	<!-- Mobile Expanded Filters -->
 	{#if expand}
 		<div
-			class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800"
+			class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-800"
 		>
 			<TableFilter
 				bind:globalSearchValue
@@ -1551,7 +1551,7 @@ bulk actions, and predictive preloading.
 								<div
 									class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer {rowSelected
 										? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
-										: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-primary-500/50 hover:shadow-md'} {isFocused
+										: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'} {isFocused
 										? 'ring-2 ring-primary-500 ring-offset-2'
 										: ''}"
 									role="row"
@@ -1665,7 +1665,7 @@ bulk actions, and predictive preloading.
 					tabindex="0"
 					role="region"
 					aria-label="Collection entries table"
-					class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-surface-500/30 dark:border-surface-500/40 shadow-xs focus:outline-hidden"
+					class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-(--admin-border-default) shadow-xs focus:outline-hidden"
 				>
 					<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
 						<!-- Table Header -->
@@ -1685,7 +1685,7 @@ bulk actions, and predictive preloading.
 							{/if}
 
 							<tr
-								class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/90"
+								class="border-b border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/90"
 							>
 								<TableIcons
 									cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}

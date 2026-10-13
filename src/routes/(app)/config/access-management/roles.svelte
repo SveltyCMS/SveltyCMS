@@ -298,7 +298,7 @@ It provides the following functionality:
 						{#each filteredRoles as role (role.id)}
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<li
-								class="animate-flip flex items-center justify-between rounded border border-surface-500/30 dark:border-surface-500/40 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
+								class="animate-flip flex items-center justify-between rounded border border-(--admin-border-default) p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
 								use:draggable={{ container: 'roles', dragData: role, keyboard: true }}
 								use:droppable={{

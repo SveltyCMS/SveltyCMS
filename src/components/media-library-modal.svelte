@@ -263,7 +263,7 @@
 									type="button"
 									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-start shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
 										? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
-										: 'border-surface-500/30 dark:border-surface-500/40'}"
+										: 'border-(--admin-border-default)'}"
 									onclick={() => {
 										if (selectedFiles.has(fileId)) {
 											selectedFiles.delete(fileId);

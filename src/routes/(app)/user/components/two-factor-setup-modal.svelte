@@ -172,7 +172,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-(--admin-bg-card)';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
 </script>
@@ -182,7 +182,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		{title ?? user2fasetup_title_missing()}
 	</header>
 
-	<article class="text-center text-sm text-black dark:text-white">
+	<article class="text-center text-sm text-(--admin-text-body)">
 		{body ?? user2fasetup_body_missing()}
 	</article>
 
@@ -227,7 +227,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				<div>
 					<label
 						for="verification-code"
-						class="mb-2 block text-sm font-medium text-black dark:text-white"
+						class="mb-2 block text-sm font-medium text-(--admin-text-body)"
 					>
 						{twofa_verify_setup_description()}
 					</label>

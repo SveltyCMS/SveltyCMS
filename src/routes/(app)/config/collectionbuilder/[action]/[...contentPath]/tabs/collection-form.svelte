@@ -449,7 +449,7 @@
 
 				<!-- Favorite Quick Access -->
 				<div
-					class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3"
+					class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">

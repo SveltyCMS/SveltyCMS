@@ -423,7 +423,7 @@
 									class="flex flex-col text-[11px] text-surface-600 dark:text-surface-400 min-w-60"
 								>
 									<div
-										class="border-b border-surface-500/30 dark:border-surface-500/40 pb-2 mb-0 text-center text-[13px]"
+										class="border-b border-(--admin-border-default) pb-2 mb-0 text-center text-[13px]"
 									>
 										{mediagallery_file_name_label()}
 										{file.filename}
@@ -431,14 +431,14 @@
 									<table class="w-full text-start border-collapse mt-2">
 										<thead>
 											<tr
-												class="border-b border-surface-500/30 dark:border-surface-500/40 text-primary-600 dark:text-primary-500"
+												class="border-b border-(--admin-border-default) text-primary-600 dark:text-primary-500"
 											>
 												<th
-													class="font-bold py-1 px-2 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
+													class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
 													>{mediagallery_size()}</th
 												>
 												<th
-													class="font-bold py-1 px-2 border-e border-surface-500/30 dark:border-surface-500/40 text-center"
+													class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-center"
 													>{mediagallery_Pixel()}</th
 												>
 												<th class="font-bold py-1 px-2 text-end" colspan="2"
@@ -447,13 +447,12 @@
 											</tr>
 										</thead>
 										<tbody class="text-surface-600 dark:text-surface-400">
-											<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+											<tr class="border-b border-(--admin-border-default)">
 												<td
-													class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
+													class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
 													>{mediagallery_original()}</td
 												>
-												<td
-													class="py-1 px-2 text-center border-e border-surface-500/30 dark:border-surface-500/40"
+												<td class="py-1 px-2 text-center border-e border-(--admin-border-default)"
 													>{getDimensionsLabel(file) || '-'}</td
 												>
 												<td class="py-1 px-2 text-end tabular-nums" colspan="2"
@@ -463,9 +462,9 @@
 											{#if file.thumbnails}
 												{@const hasWebp = hasWebpVariants(file.thumbnails)}
 												{@const primaryLabel = primaryFormatLabel(file.thumbnails)}
-												<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+												<tr class="border-b border-(--admin-border-default)">
 													<td
-														class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
+														class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-(--admin-border-default) text-start"
 														colspan="4"
 													>
 														{mediagallery_resized_variants()}
@@ -476,21 +475,19 @@
 												{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
 													{@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
 													{@const thumb = file.thumbnails[sizeKey]!}
-													<tr
-														class="border-b border-surface-500/30 dark:border-surface-500/40 last:border-0"
-													>
+													<tr class="border-b border-(--admin-border-default) last:border-0">
 														<td
-															class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-500/30 dark:border-surface-500/40 text-start"
+															class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
 															>{sizeKey}</td
 														>
 														<td
-															class="py-1 px-2 text-center border-e border-surface-500/30 dark:border-surface-500/40"
+															class="py-1 px-2 text-center border-e border-(--admin-border-default)"
 														>
 															{thumb.width}x{thumb.height}
 														</td>
 														{#if hasWebp}
 															<td
-																class="py-1 px-2 text-end tabular-nums border-e border-surface-500/30 dark:border-surface-500/40"
+																class="py-1 px-2 text-end tabular-nums border-e border-(--admin-border-default)"
 															>
 																{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
 															</td>

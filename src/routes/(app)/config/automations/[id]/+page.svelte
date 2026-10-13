@@ -529,7 +529,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											variant="surface"
 											class="p-3 text-center border-2 transition-all duration-200 rounded {isSelected
 												? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/10'
-												: 'border-surface-500/30 dark:border-surface-500/40'}"
+												: 'border-(--admin-border-default)'}"
 											onclick={() =>
 												setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
 											aria-label={automation_select_trigger_aria({ trigger: triggerOption.label })}
@@ -1196,7 +1196,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 									{#each testResult.operationResults as opResult, i (i)}
 										{const opMeta = OPERATION_TYPES.find((t) => t.type === opResult.type)}
-										<div class="py-2 border-t border-surface-500/30 dark:border-surface-500/40">
+										<div class="py-2 border-t border-(--admin-border-default)">
 											<div class="flex items-center gap-2 text-sm mb-1">
 												<iconify-icon
 													icon={opResult.status === 'success'
@@ -1291,7 +1291,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 			<!-- Footer Navigation -->
 			<div
-				class="flex items-center justify-between mt-6 p-4 border-t border-surface-500/30 dark:border-surface-500/40"
+				class="flex items-center justify-between mt-6 p-4 border-t border-(--admin-border-default)"
 				data-testid="automation-footer"
 			>
 				<div>

@@ -174,7 +174,7 @@
 			<table class="w-full text-sm">
 				<thead>
 					<tr
-						class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900"
+						class="border-b border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900"
 					>
 						<th
 							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"

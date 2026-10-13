@@ -401,7 +401,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 							alt={modaledit_avatar_alt()}
 							initials="AB"
 							size="size-32"
-							class="rounded-full border-4 border-surface-500/30 dark:border-surface-500/40 shadow-xl aspect-square"
+							class="rounded-full border-4 border-(--admin-border-default) shadow-xl aspect-square"
 						/>
 
 						<!-- Hover/Focus overlay cue when not uploading -->

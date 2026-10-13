@@ -63,8 +63,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { showConfirm } from '@utils/modal.svelte';
 	// Svelte core
 	import { onDestroy, onMount, untrack, tick } from 'svelte';
-	import { quintOut } from 'svelte/easing';
-	import { scale } from 'svelte/transition';
+	import { adminFade } from '@utils/admin-transitions';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import ModalEditForm from './modal-edit-form.svelte';
@@ -513,7 +512,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			<div
 				class="absolute inset-e-0 top-full z-50 mt-2 w-56 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
 				role="menu"
-				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
+				transition:adminFade={{ duration: 150 }}
 				onkeydown={handleDropdownKeydown}
 				tabindex="-1"
 			>

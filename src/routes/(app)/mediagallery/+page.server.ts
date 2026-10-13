@@ -335,6 +335,8 @@ export const actions: Actions = {
   // Action to delete a media file
   deleteMedia: async ({ request, locals }) => {
     try {
+      requirePagePermission(locals, "media:delete", "Insufficient permissions to delete media");
+
       const formData = await request.formData();
       const imageDataStr = formData.get("imageData");
 
@@ -438,10 +440,14 @@ export const actions: Actions = {
         // Continue with database deletion even if trash move fails
       }
 
-      // Use db-agnostic media adapter for deletion
+      // Use db-agnostic media adapter for deletion with tenant scoping
       logger.debug(`Deleting media item: ${image._id}`);
 
-      const result = await dbAdapter.media.files.delete(image._id.toString());
+      const tenantId = (locals.tenantId as DatabaseId | null) ?? null;
+      const result = await dbAdapter.media.files.delete(
+        image._id.toString(),
+        tenantId ? { tenantId } : undefined,
+      );
 
       if (result.success) {
         logger.debug("Media item deleted successfully");
@@ -457,6 +463,7 @@ export const actions: Actions = {
       logger.error("Failed to delete image from database:", result);
       throw error(500, result.message || "Failed to delete image");
     } catch (err) {
+      if (isHttpError(err) || isRedirect(err)) throw err;
       logger.error("Error in deleteMedia action:", err as LoggableValue);
       throw error(500, err instanceof Error ? err.message : "Internal Server Error");
     }

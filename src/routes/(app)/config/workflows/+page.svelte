@@ -531,7 +531,7 @@ their arrows so the canvas stays readable.
 						class="group absolute z-10 w-48 cursor-grab touch-none rounded border-2 bg-white p-4 shadow-lg transition-[border-color,box-shadow] duration-200 active:cursor-grabbing dark:bg-surface-800
                             {selectedNodeId === state.id
 							? 'border-primary-500 shadow-xl ring-4 ring-primary-500/10'
-							: 'border-surface-500/30 dark:border-surface-500/40'}"
+							: 'border-(--admin-border-default)'}"
 						style="left: {state.x ?? 0}px; top: {state.y ?? 0}px;"
 						onpointerdown={(event) => onCardPointerDown(event, state)}
 						onpointermove={onCardPointerMove}

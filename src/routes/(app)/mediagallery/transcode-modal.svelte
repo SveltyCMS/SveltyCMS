@@ -76,11 +76,9 @@
 </script>
 
 <div
-	class="p-6 space-y-6 bg-surface-500/10 dark:bg-surface-900 rounded-2xl max-w-xl mx-auto shadow-2xl border border-surface-500/30 dark:border-surface-500/40"
+	class="p-6 space-y-6 bg-surface-500/10 dark:bg-surface-900 rounded-2xl max-w-xl mx-auto shadow-2xl border border-(--admin-border-default)"
 >
-	<div
-		class="flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40 pb-4"
-	>
+	<div class="flex items-center justify-between border-b border-(--admin-border-default) pb-4">
 		<div>
 			<h2 class="text-xl font-bold text-tertiary-500 dark:text-primary-500 flex items-center gap-2">
 				<iconify-icon icon="mdi:video-processing" width="24"></iconify-icon>

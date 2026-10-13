@@ -315,7 +315,7 @@
 
 {#if activeInput.current}
 	<div
-		class="token-window fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900 p-4 shadow-xl text-(--admin-text-body)"
+		class="token-window fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl text-(--admin-text-body)"
 		style="bottom: 2rem; right: {rightPosition};"
 		transition:fade={{ duration: 150 }}
 	>

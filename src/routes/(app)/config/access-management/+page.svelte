@@ -174,7 +174,7 @@
 	{/snippet}
 
 	<AdminCard
-		class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+		class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
 		data-testid="access-mgmt-page"
 	>
 		<div class="mb-4">

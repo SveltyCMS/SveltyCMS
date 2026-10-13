@@ -65,7 +65,7 @@
 </script>
 
 <div
-	class="card p-5 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4"
+	class="card p-5 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 border border-(--admin-border-default) rounded-2xl shadow-sm space-y-4"
 >
 	<div
 		class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3"
@@ -90,7 +90,7 @@
 		<Input
 			bind:value={newTodoText}
 			placeholder={widget_todo_placeholder()}
-			inputClass="w-full px-3 py-1.5 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-xs text-surface-900 dark:text-white"
+			inputClass="w-full px-3 py-1.5 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900 text-xs text-surface-900 dark:text-white"
 			aria-label={widget_todo_new_task()}
 		/>
 		<Button type="submit" variant="primary" size="sm" class="shrink-0"

@@ -799,7 +799,7 @@
 	<!-- Header: Tabs + Invite button -->
 	<div class="flex items-center justify-between gap-3 px-4 pt-3">
 		<div
-			class="flex border-b border-surface-500/30 dark:border-surface-500/40 grow"
+			class="flex border-b border-(--admin-border-default) grow"
 			role="tablist"
 			aria-label={useradmin_views_aria()}
 		>

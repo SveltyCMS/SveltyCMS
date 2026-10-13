@@ -191,7 +191,7 @@
 
 			{#if value.rules.length === 0}
 				<div
-					class="py-10 text-center text-sm opacity-50 italic border-2 border-dashed border-surface-500/30 dark:border-surface-500/40 rounded"
+					class="py-10 text-center text-sm opacity-50 italic border-2 border-dashed border-(--admin-border-default) rounded"
 				>
 					No conditions yet.<br />
 					Add a rule or sub-group to start building logic.

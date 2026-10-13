@@ -457,7 +457,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 
 									<!-- Stats & Actions -->
 									<div
-										class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-500/30 dark:border-surface-500/40"
+										class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-(--admin-border-default)"
 									>
 										<!-- Stats -->
 										<div class="hidden lg:flex items-center gap-4 text-xs opacity-60 me-4">

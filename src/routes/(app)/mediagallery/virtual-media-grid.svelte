@@ -100,7 +100,7 @@ Features:
                         hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-start cursor-pointer
                         {isSelected
 						? 'border-primary-500 ring-2 ring-primary-500/20'
-						: 'border-surface-500/30 dark:border-surface-500/40'}"
+						: 'border-(--admin-border-default)'}"
 					style:height="{itemHeight - 32}px"
 					onclick={() => (isSelectionMode ? toggleSelection(file) : onOpenFileDetails(file))}
 					onkeydown={(e) => {

@@ -243,9 +243,7 @@
 				</div>
 
 				{#if subtitle}
-					<div
-						class="flex items-center ps-2 sm:ps-3 border-s border-surface-500/30 dark:border-surface-500/40"
-					>
+					<div class="flex items-center ps-2 sm:ps-3 border-s border-(--admin-border-default)">
 						{@render subtitle()}
 					</div>
 				{/if}

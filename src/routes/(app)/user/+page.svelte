@@ -982,7 +982,7 @@
 		});
 	}
 
-	const cardClass = 'border border-surface-500/30 dark:border-surface-500/40 p-5 sm:p-6 shadow-sm';
+	const cardClass = 'border border-(--admin-border-default) p-5 sm:p-6 shadow-sm';
 	const rowClass =
 		'flex items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-500/40 last:border-0';
 	/** Equal width for Security row actions (Setup / Manage / Refresh) */

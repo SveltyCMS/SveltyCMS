@@ -573,7 +573,7 @@ This layout provides the administrative shell, including sidebars and header con
 						<!-- Sticky action bar (only rendered when content exists) -->
 						{#if theme.features.stickyActionBar && ui.stickyActionContent}
 							<div
-								class="sticky bottom-0 z-20 w-full border-t border-surface-500/30 dark:border-surface-500/40 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
+								class="sticky bottom-0 z-20 w-full border-t border-(--admin-border-default) bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
 								style="min-height: var(--admin-sticky-bar-height, 56px);"
 								role="toolbar"
 								aria-label={applayout_page_actions()}

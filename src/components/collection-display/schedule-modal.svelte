@@ -94,7 +94,7 @@
 	}
 
 	// --- Base Classes ---
-	const cBase = 'p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
+	const cBase = 'p-4 w-modal shadow-xl space-y-4 bg-(--admin-bg-card)';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>

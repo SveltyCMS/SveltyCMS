@@ -269,7 +269,7 @@
 								{const latency = service.performance?.latency}
 								{const history = latencyHistory[name] || []}
 								<div
-									class="rounded-2xl bg-surface-500/10 dark:bg-surface-800/40 p-3 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between gap-3"
+									class="rounded-2xl bg-surface-500/10 dark:bg-surface-800/40 p-3 border border-(--admin-border-default) flex items-center justify-between gap-3"
 								>
 									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-1.5">

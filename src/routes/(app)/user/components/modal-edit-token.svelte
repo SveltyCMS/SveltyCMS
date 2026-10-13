@@ -305,7 +305,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	}
 </script>
 
-<div class="modal-example-form space-y-4 text-black dark:text-white p-4">
+<div class="modal-example-form space-y-4 text-(--admin-text-body) p-4">
 	{#if createdToken}
 		<div
 			class="card p-6 space-y-4 bg-success-500/10 border border-success-500/30 rounded-lg shadow-lg"

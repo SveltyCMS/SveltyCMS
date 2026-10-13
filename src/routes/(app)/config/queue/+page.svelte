@@ -181,7 +181,7 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
@@ -205,7 +205,7 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors"
+					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400">
@@ -227,7 +227,7 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded bg-primary-500/10 text-primary-500 dark:text-primary-400">
@@ -249,7 +249,7 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors"
+					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded bg-success-500/10 text-success-500 dark:text-success-400">
@@ -273,7 +273,7 @@
 				data-preload="hover"
 			>
 				<AdminCard
-					class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors"
+					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors"
 				>
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded bg-error-500/10 text-error-500 dark:text-error-400">
@@ -318,14 +318,14 @@
 
 		<div in:adminFade>
 			<AdminCard
-				class="p-0 border border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
+				class="p-0 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
 				data-testid="queue-jobs-table"
 			>
 				<div class="overflow-x-auto w-full">
 					<table class="w-full text-sm border-collapse whitespace-nowrap">
 						<thead>
 							<tr
-								class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400"
+								class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
 							>
 								<th class="px-4 py-3 font-semibold">{queue_job_id()}</th>
 								<th class="px-4 py-3 font-semibold">{queue_task_type()}</th>
@@ -438,7 +438,7 @@
 
 				{#if data.totalCount > data.pagination.limit}
 					<div
-						class="p-4 bg-surface-500/10 dark:bg-surface-900 border-t border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
+						class="p-4 bg-surface-500/10 dark:bg-surface-900 border-t border-(--admin-border-default) flex items-center justify-between"
 					>
 						<p class="text-xs opacity-60">
 							{queue_showing_part1()}

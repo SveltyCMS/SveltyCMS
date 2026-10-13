@@ -924,7 +924,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										data-theme-name={t.name}
 										class="p-4 border-2 {t.isActive
 											? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/30 dark:bg-primary-900/10'
-											: 'border-surface-500/30 dark:border-surface-500/40'} flex items-center gap-3 flex-wrap"
+											: 'border-(--admin-border-default)'} flex items-center gap-3 flex-wrap"
 									>
 										<iconify-icon
 											icon={t.isActive ? 'mdi:checkbox-marked-circle' : 'mdi:theme-light-dark'}
@@ -1056,7 +1056,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<AdminCard
 									class="cursor-pointer p-4 border-2 {density === 'cozy' && variant === 'bordered'
 										? 'border-tertiary-500 dark:border-primary-500'
-										: 'border-surface-500/30 dark:border-surface-500/40'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
+										: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
 									onclick={() => {
 										density = 'cozy';
 										variant = 'bordered';
@@ -1078,7 +1078,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<AdminCard
 									class="cursor-pointer p-4 border-2 {density === 'compact' && variant === 'flat'
 										? 'border-tertiary-500 dark:border-primary-500'
-										: 'border-surface-500/30 dark:border-surface-500/40'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
+										: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
 									onclick={() => {
 										density = 'compact';
 										variant = 'flat';
@@ -1101,7 +1101,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									class="cursor-pointer p-4 border-2 {density === 'spacious' &&
 									variant === 'elevated'
 										? 'border-tertiary-500 dark:border-primary-500'
-										: 'border-surface-500/30 dark:border-surface-500/40'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
+										: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
 									onclick={() => {
 										density = 'spacious';
 										variant = 'elevated';
@@ -1151,7 +1151,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							{:else}
 								<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 									{#each marketplaceThemes as item (item.id)}
-										<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
+										<AdminCard class="p-4 border border-(--admin-border-default)">
 											<h5 class="font-bold text-sm">{item.name}</h5>
 											<p
 												class="text-xs text-surface-500 dark:text-surface-400 mt-1 mb-3 line-clamp-2"
@@ -1219,7 +1219,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									<AdminCard
 										class="p-3 border {density === p.d
 											? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20'
-											: 'border-surface-500/30 dark:border-surface-500/40'}"
+											: 'border-(--admin-border-default)'}"
 									>
 										<div class="text-xs font-bold mb-1">{p.label}</div>
 										<div class="text-[10px] text-surface-500">{p.desc}</div>
@@ -1254,7 +1254,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<AdminCard
 									class="p-6 {variant === 'bordered'
 										? 'border-tertiary-500 dark:border-primary-500 ring-2'
-										: 'border-surface-500/30 dark:border-surface-500/40'}"
+										: 'border-(--admin-border-default)'}"
 									style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));"
 								>
 									<div class="text-sm font-bold mb-2">{theme_bordered()}</div>
@@ -1283,7 +1283,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						</h3>
 						<div class="max-w-2xl space-y-4">
 							<AdminCard
-								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
+								class="p-4 border border-(--admin-border-default) flex items-center justify-between"
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_sticky_bar()}</div>
@@ -1294,7 +1294,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<Toggle bind:value={stickyActionBar} />
 							</AdminCard>
 							<AdminCard
-								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
+								class="p-4 border border-(--admin-border-default) flex items-center justify-between"
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_collapsible_sidebar()}</div>
@@ -1305,7 +1305,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<Toggle bind:value={collapsibleSidebar} />
 							</AdminCard>
 							<AdminCard
-								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
+								class="p-4 border border-(--admin-border-default) flex items-center justify-between"
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_branded_login()}</div>
@@ -1316,7 +1316,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<Toggle bind:value={brandedLogin} />
 							</AdminCard>
 							<AdminCard
-								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
+								class="p-4 border border-(--admin-border-default) flex items-center justify-between"
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_high_contrast()}</div>
@@ -1327,7 +1327,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<Toggle bind:value={highContrastMode} />
 							</AdminCard>
 							<AdminCard
-								class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between"
+								class="p-4 border border-(--admin-border-default) flex items-center justify-between"
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_reduced_motion()}</div>
@@ -1339,7 +1339,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							</AdminCard>
 
 							<!-- Layout Region: Collections Position -->
-							<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
+							<AdminCard class="p-4 border border-(--admin-border-default)">
 								<div class="mb-3">
 									<div class="font-bold text-sm">{theme_collections_position()}</div>
 									<div class="text-xs text-surface-500 dark:text-surface-400">
@@ -1393,7 +1393,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								</p>
 							</div>
 
-							<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
+							<AdminCard class="p-4 border border-(--admin-border-default)">
 								<h4 class="font-bold text-sm mb-3">{theme_export_import()}</h4>
 								<div class="flex flex-wrap gap-2">
 									<Button variant="outline" onclick={exportTheme} leadingIcon="mdi:export"
@@ -1428,7 +1428,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	<!-- Save Bar (admin theme edits only) -->
 	{#if hasChanges && isAdmin && activeTab !== 'overrides' && activeTab !== 'preview'}
 		<div
-			class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-surface-500/30 dark:border-surface-500/40 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md flex items-center justify-between"
+			class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-(--admin-border-default) bg-white/90 dark:bg-surface-900/90 backdrop-blur-md flex items-center justify-between"
 		>
 			<p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
 				<iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>

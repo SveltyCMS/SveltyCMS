@@ -33,7 +33,7 @@ Relies on the centralized `themeStore` for state and logic.
 		tooltipPlacement = 'bottom',
 		variant = 'outline',
 		buttonClass = variant === 'ghost' || variant === 'transparent'
-			? 'text-black dark:text-white'
+			? 'text-(--admin-text-body)'
 			: 'border border-surface-500/30 rounded-full dark:border-surface-500/40 dark:text-white',
 		iconSize = 22,
 		iconClass = ''

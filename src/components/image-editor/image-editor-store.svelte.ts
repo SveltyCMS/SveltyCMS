@@ -128,6 +128,22 @@ function createImageEditorStore() {
   const hasActiveImage = $derived(!!state.file && !!state.imageElement);
   const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
   const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
+  const isDirty = $derived(
+    canUndoState ||
+      state.rotation !== 0 ||
+      state.flipH ||
+      state.flipV ||
+      state.crop !== null ||
+      (state.blurRegions && state.blurRegions.length > 0) ||
+      (state.watermarks && state.watermarks.length > 0) ||
+      (state.annotations && state.annotations.length > 0) ||
+      state.filters.brightness !== 0 ||
+      state.filters.contrast !== 0 ||
+      state.filters.saturation !== 0 ||
+      state.filters.grayscale !== 0 ||
+      state.filters.sepia !== 0 ||
+      state.filters.temperature !== 0,
+  );
 
   function computeIsMobile(width = state.viewportWidth) {
     return width < BREAKPOINTS.mobile;
@@ -392,6 +408,9 @@ function createImageEditorStore() {
     },
     get hasActiveImage() {
       return hasActiveImage;
+    },
+    get isDirty() {
+      return isDirty;
     },
     get isMobile() {
       return computeIsMobile();

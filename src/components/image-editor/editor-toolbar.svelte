@@ -12,12 +12,14 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 	let {
 		onsave,
+		onclose,
 		isSaving,
 		onZoomIn = () => {},
 		onZoomOut = () => {},
 		onZoomReset = () => {}
 	}: {
 		onsave: () => void;
+		onclose?: () => void;
 		isSaving: boolean;
 		onZoomIn?: () => void;
 		onZoomOut?: () => void;
@@ -26,6 +28,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 	const canUndo = $derived(imageEditorStore.canUndoState);
 	const canRedo = $derived(imageEditorStore.canRedoState);
+	const isDirty = $derived(imageEditorStore.isDirty);
 	const isComparing = $derived(imageEditorStore.compareSliderPosition > 0);
 	const zoomPercent = $derived(Math.round(imageEditorStore.state.zoom * 100));
 
@@ -128,21 +131,39 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 			</div>
 		</div>
 
-		<div class="flex gap-1.5 items-center justify-self-end">
+		<div class="flex gap-2 items-center justify-self-end">
+			{#if onclose}
+				<button
+					type="button"
+					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
+					onclick={onclose}
+					title="Close editor (Esc)"
+					aria-label="Close image editor"
+					aria-keyshortcuts="Escape"
+				>
+					<iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
+				</button>
+			{/if}
+
 			<button
 				type="button"
-				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-(--editor-control-h) px-4.5 text-[13px] font-semibold tracking-[0.01em] text-white cursor-pointer bg-(--editor-accent) border-none rounded-(--editor-radius-control) shadow-xs transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-(--editor-accent-hover) active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65"
+				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-(--editor-control-h) px-4 text-[13px] font-semibold tracking-[0.01em] cursor-pointer rounded-(--editor-radius-control) shadow-xs transition-[background,color,transform,opacity] duration-150 active:not-disabled:scale-[0.98] disabled:cursor-not-allowed {isDirty
+					? 'bg-(--editor-accent) text-white hover:bg-(--editor-accent-hover)'
+					: 'bg-[--editor-chrome-elevated] text-[--editor-chrome-text] border border-[--editor-chrome-border] opacity-50'}"
 				onclick={onsave}
-				disabled={isSaving}
-				title="Save changes (Mod+S)"
+				disabled={isSaving || !isDirty}
+				title={isDirty ? 'Save changes (Mod+S)' : 'No changes to save'}
 				aria-label="Save edited image"
 				aria-keyshortcuts="Mod+S"
 			>
 				{#if isSaving}
 					<iconify-icon icon="mdi:loading" width="16" class="animate-spin" aria-hidden="true"
 					></iconify-icon>
+				{:else}
+					<iconify-icon icon="mdi:content-save-outline" width="16" aria-hidden="true"
+					></iconify-icon>
 				{/if}
-				<span>Done</span>
+				<span>Save</span>
 			</button>
 		</div>
 	</div>

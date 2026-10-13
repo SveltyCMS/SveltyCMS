@@ -50,7 +50,7 @@ import SiteName from './site-name.svelte';
 		char = null,
 		siteName: propSiteName,
 		highlight,
-		textClass = 'text-black dark:text-white'
+		textClass = 'text-(--admin-text-body)'
 	}: Props = $props();
 
 	// Get site name dynamically from global settings store (updates live!)

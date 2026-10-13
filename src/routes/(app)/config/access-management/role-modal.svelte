@@ -139,7 +139,7 @@
 </script>
 
 <AdminCard
-	class="w-modal space-y-4 p-4 shadow-xl border border-surface-500/30 dark:border-surface-500/40"
+	class="w-modal space-y-4 p-4 shadow-xl border border-(--admin-border-default)"
 	data-testid="role-modal"
 >
 	<header class="text-center text-2xl font-bold" data-testid="role-modal-title">
@@ -147,7 +147,7 @@
 	</header>
 
 	<form
-		class="modal-form space-y-4 border border-surface-500/30 dark:border-surface-500/40 p-4 rounded overflow-y-auto max-h-[60vh]"
+		class="modal-form space-y-4 border border-(--admin-border-default) p-4 rounded overflow-y-auto max-h-[60vh]"
 		onsubmit={onFormSubmit}
 		id="roleForm"
 		data-testid="role-form"
@@ -194,7 +194,7 @@
 			</div>
 
 			<div
-				class="card h-48 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/20"
+				class="card h-48 overflow-y-auto p-2 border border-(--admin-border-default) bg-surface-500/30 dark:bg-surface-900/20"
 			>
 				{#each filteredPermissions as perm (perm._id)}
 					<div class="p-1 hover:bg-surface-500/40 dark:hover:bg-surface-900/20 rounded">

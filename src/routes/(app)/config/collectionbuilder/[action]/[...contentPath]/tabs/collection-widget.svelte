@@ -592,7 +592,7 @@
 	<div
 		class="flex min-h-0 min-w-0 flex-1 flex-col {fullWidth
 			? 'w-full'
-			: 'border-surface-500/30 dark:border-surface-500/40 lg:border-s'}"
+			: 'border-(--admin-border-default) lg:border-s'}"
 		data-testid="collection-code-pane"
 	>
 		<!-- Header -->
@@ -662,9 +662,7 @@
 		</div>
 	{:else}
 		<!-- ═══ LEFT: Field canvas (visible in canvas & split modes) ═══ -->
-		<div
-			class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-500/30 dark:border-surface-500/40 lg:border-e"
-		>
+		<div class="flex min-h-0 min-w-0 flex-1 flex-col border-(--admin-border-default) lg:border-e">
 			<!-- Header Removed -->
 
 			<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">

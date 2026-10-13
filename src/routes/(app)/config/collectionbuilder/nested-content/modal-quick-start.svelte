@@ -133,7 +133,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/6 dark:bg-primary-500/8 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
 					: hoveredPreset === preset.id
 						? 'border-surface-500 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-700/60'
-						: 'border-surface-500/30 dark:border-surface-500/40 bg-(--admin-bg-card) hover:border-tertiary-500 dark:hover:border-primary-400'}"
+						: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-tertiary-500 dark:hover:border-primary-400'}"
 				disabled={isSubmitting}
 			>
 				<!-- Icon, Title & Selection -->

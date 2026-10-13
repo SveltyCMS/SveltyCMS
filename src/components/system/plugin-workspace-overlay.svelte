@@ -16,7 +16,7 @@
 
 {#if pluginWorkspace.activePluginId}
 	<div
-		class="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-surface-900"
+		class="fixed inset-0 z-50 flex flex-col overflow-hidden bg-(--admin-bg-card)"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Plugin workspace"

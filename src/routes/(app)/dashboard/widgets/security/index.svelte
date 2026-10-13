@@ -320,7 +320,7 @@
 						<!-- Key Metrics Grid -->
 						<div class="grid grid-cols-2 gap-2">
 							<div
-								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
+								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
 								<div class="text-xs text-surface-500 dark:text-surface-400">
 									{widget_security_blocked_ips()}
@@ -330,7 +330,7 @@
 								</div>
 							</div>
 							<div
-								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
+								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
 								<div class="text-xs text-surface-500 dark:text-surface-400">
 									{widget_security_throttled()}
@@ -340,7 +340,7 @@
 								</div>
 							</div>
 							<div
-								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
+								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
 								<div class="text-xs text-surface-500 dark:text-surface-400">
 									{widget_security_csp_violations()}
@@ -352,7 +352,7 @@
 								</div>
 							</div>
 							<div
-								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-surface-500/30 dark:border-surface-500/40 flex flex-col justify-between"
+								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
 								<div class="text-xs text-surface-500 dark:text-surface-400">
 									{widget_security_rate_limits()}
@@ -379,7 +379,7 @@
 									<div class="space-y-2 overflow-y-auto pe-1 flex-1 custom-scroll max-h-40">
 										{#each activeIncidents as incident (incident.id)}
 											<div
-												class="rounded border-s-4 p-2.5 text-xs bg-surface-500/10 dark:bg-surface-800/40 border-surface-500/30 dark:border-surface-500/40
+												class="rounded border-s-4 p-2.5 text-xs bg-surface-500/10 dark:bg-surface-800/40 border-(--admin-border-default)
 												{incident.threatLevel === 'critical'
 													? 'border-s-error-500'
 													: incident.threatLevel === 'high'
@@ -418,7 +418,7 @@
 									</div>
 								{:else}
 									<div
-										class="flex flex-1 items-center justify-center rounded-2xl bg-surface-500/10 dark:bg-surface-800/30 border border-dashed border-surface-500/30 dark:border-surface-500/40 text-center py-6"
+										class="flex flex-1 items-center justify-center rounded-2xl bg-surface-500/10 dark:bg-surface-800/30 border border-dashed border-(--admin-border-default) text-center py-6"
 									>
 										<div>
 											<iconify-icon

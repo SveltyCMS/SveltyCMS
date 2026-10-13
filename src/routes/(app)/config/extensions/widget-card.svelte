@@ -73,7 +73,7 @@ canManage: boolean;
 </script>
 
 <div
-	class="rounded-xl border border-surface-500/30 bg-white dark:bg-surface-800/80 dark:text-surface-50 shadow-xs transition-shadow hover:shadow-md"
+	class="rounded-xl border border-surface-500/30 bg-(--admin-bg-card) dark:text-surface-50 shadow-xs transition-shadow hover:shadow-md"
 >
 	<!-- Widget Header -->
 	<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">

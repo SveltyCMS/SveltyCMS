@@ -540,7 +540,7 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-surface-500/40 p-2"
+							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-(--admin-border-default) p-2"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
@@ -692,7 +692,7 @@ Features:
 						<div
 							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-								: 'border-surface-500/30 dark:border-surface-500/40 '}"
+								: 'border-(--admin-border-default) '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
 								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">

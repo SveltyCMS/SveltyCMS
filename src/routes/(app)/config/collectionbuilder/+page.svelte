@@ -752,9 +752,7 @@ None (TreeView has its own keyboard navigation)
 	{/snippet}
 
 	{#if currentConfig.length > 0}
-		<AdminCard
-			class="p-6 border border-surface-500/30 dark:border-surface-500/40 backdrop-blur-md shadow-xs"
-		>
+		<AdminCard class="p-6 border border-(--admin-border-default) backdrop-blur-md shadow-xs">
 			<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
 				<Button
 					onclick={() => modalQuickStart()}

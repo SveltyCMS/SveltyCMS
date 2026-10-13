@@ -494,7 +494,7 @@
 		{tokens_intro()}
 	</p>
 
-	<AdminCard class="mb-4 border border-surface-500/30 dark:border-surface-500/40">
+	<AdminCard class="mb-4 border border-(--admin-border-default)">
 		<div class="p-4 space-y-4">
 			<h4
 				class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500"
@@ -535,7 +535,7 @@
 					</div>
 				</div>
 				<AdminCard
-					class="max-h-60 overflow-y-auto p-4 border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/20"
+					class="max-h-60 overflow-y-auto p-4 border border-(--admin-border-default) bg-surface-500/30 dark:bg-surface-900/20"
 					role="group"
 					aria-labelledby="permissions-title"
 				>
@@ -573,7 +573,7 @@
 		</div>
 	</AdminCard>
 
-	<AdminCard class="border border-surface-500/30 dark:border-surface-500/40">
+	<AdminCard class="border border-(--admin-border-default)">
 		<div class="p-4">
 			<div class={SMART_TABLE_TOOLBAR}>
 				<div class="flex items-center gap-4">
@@ -682,7 +682,7 @@
 					<table class={SMART_TABLE}>
 						<thead class={SMART_TABLE_THEAD}>
 							{#if filterShow}
-								<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+								<tr class="border-b border-(--admin-border-default)">
 									<th class={SMART_TABLE_TH}></th>
 									{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
 										<th class={SMART_TABLE_TH}>
