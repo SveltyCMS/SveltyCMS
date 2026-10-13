@@ -166,47 +166,90 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		const fx = offsetX + imageElement.width * pctToDecimal(fp.x);
 		const fy = offsetY + imageElement.height * pctToDecimal(fp.y);
 
-		// --- PREMIUM AESTHETICS ---
-		const primaryColor = '#3b82f6'; // Modern Svelty Blue
-		const secondaryColor = 'rgba(59, 130, 246, 0.4)';
+		// --- PROFESSIONAL FOCUS RETICLE (Camera / Lightroom Style) ---
+		// Dynamic accent color based on theme primary
+		const reticleColor = 'oklch(62% 0.22 250)'; // High-visibility precision cyan-blue
+		const reticleGlow = 'rgba(59, 130, 246, 0.4)';
+		const dropShadow = 'rgba(0, 0, 0, 0.5)';
 
-		// Setup glow
-		context.shadowBlur = 10 / zoom;
-		context.shadowColor = 'rgba(59, 130, 246, 0.8)';
-
-		// Draw Crosshair (Thin & Precise)
-		context.strokeStyle = primaryColor;
-		context.lineWidth = 1.5 / zoom;
+		// 1. Subtle soft focus zone ring (proportional guide)
+		context.lineWidth = 1 / zoom;
+		context.strokeStyle = 'rgba(255, 255, 255, 0.25)';
 		context.beginPath();
-		context.moveTo(fx - 24 / zoom, fy);
-		context.lineTo(fx + 24 / zoom, fy);
-		context.moveTo(fx, fy - 24 / zoom);
-		context.lineTo(fx, fy + 24 / zoom);
+		context.arc(fx, fy, 22 / zoom, 0, Math.PI * 2);
 		context.stroke();
 
-		// Draw Core Circle (Glassy)
-		context.shadowBlur = 0; // Disable shadow for core to keep it sharp
+		// 2. Camera focus square brackets (4 corner ticks)
+		const boxR = 14 / zoom;
+		const arm = 5 / zoom;
+
+		context.save();
+		context.shadowColor = dropShadow;
+		context.shadowBlur = 4 / zoom;
+		context.lineWidth = 1.75 / zoom;
+		context.strokeStyle = '#ffffff';
 		context.beginPath();
-		context.arc(fx, fy, 4 / zoom, 0, Math.PI * 2);
-		context.fillStyle = '#ffffff'; // White center for contrast
+
+		// Top-Left corner
+		context.moveTo(fx - boxR, fy - boxR + arm);
+		context.lineTo(fx - boxR, fy - boxR);
+		context.lineTo(fx - boxR + arm, fy - boxR);
+
+		// Top-Right corner
+		context.moveTo(fx + boxR - arm, fy - boxR);
+		context.lineTo(fx + boxR, fy - boxR);
+		context.lineTo(fx + boxR, fy - boxR + arm);
+
+		// Bottom-Right corner
+		context.moveTo(fx + boxR, fy + boxR - arm);
+		context.lineTo(fx + boxR, fy + boxR);
+		context.lineTo(fx + boxR - arm, fy + boxR);
+
+		// Bottom-Left corner
+		context.moveTo(fx - boxR + arm, fy + boxR);
+		context.lineTo(fx - boxR, fy + boxR);
+		context.lineTo(fx - boxR, fy + boxR - arm);
+
+		context.stroke();
+		context.restore();
+
+		// 3. Precision Center Pin (Clean dual-ring dot with micro cross)
+		// Dark outline underlay for contrast against bright images
+		context.lineWidth = 2.5 / zoom;
+		context.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+		context.beginPath();
+		context.arc(fx, fy, 3.5 / zoom, 0, Math.PI * 2);
+		context.stroke();
+
+		// Clean white inner pip
+		context.fillStyle = '#ffffff';
+		context.beginPath();
+		context.arc(fx, fy, 2.5 / zoom, 0, Math.PI * 2);
 		context.fill();
-		context.strokeStyle = primaryColor;
-		context.lineWidth = 1 / zoom;
-		context.stroke();
 
-		// Draw target rings (Multi-layered Translucency)
-		context.strokeStyle = secondaryColor;
-		context.lineWidth = 1 / zoom;
-
+		// Micro center accent pip
+		context.fillStyle = reticleColor;
 		context.beginPath();
-		context.arc(fx, fy, 16 / zoom, 0, Math.PI * 2);
-		context.stroke();
+		context.arc(fx, fy, 1.2 / zoom, 0, Math.PI * 2);
+		context.fill();
 
-		context.setLineDash([4 / zoom, 4 / zoom]); // Dashed outer ring
+		// Micro axis ticks (subtle crosshair offset from center)
+		context.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+		context.lineWidth = 1 / zoom;
 		context.beginPath();
-		context.arc(fx, fy, 32 / zoom, 0, Math.PI * 2);
+		// North tick
+		context.moveTo(fx, fy - 22 / zoom);
+		context.lineTo(fx, fy - 16 / zoom);
+		// South tick
+		context.moveTo(fx, fy + 16 / zoom);
+		context.lineTo(fx, fy + 22 / zoom);
+		// West tick
+		context.moveTo(fx - 22 / zoom, fy);
+		context.lineTo(fx - 16 / zoom, fy);
+		// East tick
+		context.moveTo(fx + 16 / zoom, fy);
+		context.lineTo(fx + 22 / zoom, fy);
 		context.stroke();
-		context.setLineDash([]); // Reset
 
 		context.restore();
 	};

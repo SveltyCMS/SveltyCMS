@@ -483,12 +483,24 @@ Comprehensive image editing interface with svelte-canvas integration.
 			radial-gradient(
 				ellipse 100% 100% at 50% 50%,
 				transparent 78%,
-				rgba(10, 10, 10, 0.28) 90%,
-				rgba(10, 10, 10, 0.72) 100%
+				color-mix(in oklch, var(--editor-canvas-bg, currentColor) 40%, transparent) 90%,
+				color-mix(in oklch, var(--editor-canvas-bg, currentColor) 80%, transparent) 100%
 			),
-			linear-gradient(to bottom, rgba(10, 10, 10, 0.5) 0%, transparent 8%),
-			linear-gradient(to right, rgba(10, 10, 10, 0.35) 0%, transparent 6%),
-			linear-gradient(to left, rgba(10, 10, 10, 0.35) 0%, transparent 6%);
+			linear-gradient(
+				to bottom,
+				color-mix(in oklch, var(--editor-canvas-bg, currentColor) 60%, transparent) 0%,
+				transparent 8%
+			),
+			linear-gradient(
+				to right,
+				color-mix(in oklch, var(--editor-canvas-bg, currentColor) 40%, transparent) 0%,
+				transparent 6%
+			),
+			linear-gradient(
+				to left,
+				color-mix(in oklch, var(--editor-canvas-bg, currentColor) 40%, transparent) 0%,
+				transparent 6%
+			);
 	}
 
 	/* Mobile — column layout: canvas + bottom panel */

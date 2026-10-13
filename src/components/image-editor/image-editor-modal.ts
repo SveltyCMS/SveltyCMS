@@ -7,4 +7,4 @@
 export const IMAGE_EDITOR_MODAL_SIZE = "editor" as const;
 
 export const IMAGE_EDITOR_MODAL_CLASSES =
-  "!w-[min(96vw,82rem)] !min-w-[min(96vw,82rem)] !max-w-[min(96vw,82rem)] !rounded-none !border-0 !ring-0 !outline-none !shadow-none !bg-[#0a0a0a] max-md:!w-full max-md:!min-w-full max-md:!max-w-none max-md:!h-full max-md:!min-h-full max-md:!max-h-none max-md:!m-0 max-md:!bg-[#1a1a1a]";
+  "!w-[min(96vw,82rem)] !min-w-[min(96vw,82rem)] !max-w-[min(96vw,82rem)] !rounded-none !border-0 !ring-0 !outline-none !shadow-none !bg-(--editor-chrome-bg,var(--admin-bg-card)) max-md:!w-full max-md:!min-w-full max-md:!max-w-none max-md:!h-full max-md:!min-h-full max-md:!max-h-none max-md:!m-0";

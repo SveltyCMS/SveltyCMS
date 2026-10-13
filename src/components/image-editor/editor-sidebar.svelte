@@ -172,12 +172,20 @@ Active tool uses a soft rounded square highlight only.
 
 <style>
 	.tool-active {
-		color: var(--editor-chrome-text-active, #fff);
-		background: rgba(255, 255, 255, 0.1);
-		border-color: rgba(255, 255, 255, 0.14);
+		color: var(--editor-accent, var(--color-primary-500));
+		background: color-mix(
+			in oklch,
+			var(--editor-accent, var(--color-primary-500)) 12%,
+			transparent
+		);
+		border-color: color-mix(
+			in oklch,
+			var(--editor-accent, var(--color-primary-500)) 25%,
+			transparent
+		);
 	}
 
 	.tool-active:focus-visible {
-		outline-color: rgba(255, 255, 255, 0.45);
+		outline-color: var(--editor-accent, var(--color-primary-500));
 	}
 </style>

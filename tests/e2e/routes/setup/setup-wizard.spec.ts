@@ -273,7 +273,9 @@ test.describe("Setup Wizard: Navigation & State", () => {
 
     await wizard.dismissModals();
 
-    const resetBtn = page.locator('button[aria-label="Reset data"]').first();
+    // The label comes from paraglide ("Reset Data"); CSS attribute selectors are
+    // case-sensitive, so match the accessible name case-insensitively.
+    const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
     await resetBtn.click({ force: true });
     // Portal-rendered confirm dialog has a render gap (see AGENTS.md pitfall #13) —
     // wait for the button instead of probing with a short timeout, otherwise the

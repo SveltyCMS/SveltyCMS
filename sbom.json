@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:a17a7fc2-0f4a-4529-b672-d6e7c375234e",
+  "serialNumber": "urn:uuid:ca3e9730-46f1-4296-abcc-f533cb10940b",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-13T15:56:49.631Z",
+    "timestamp": "2026-10-13T17:37:39.524Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "name": "create-sveltycms",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "type": "application",
-      "purl": "pkg:npm/create-sveltycms@0.6.0"
+      "purl": "pkg:npm/create-sveltycms@0.6.1"
     }
   },
   "components": [
@@ -1166,13 +1166,13 @@
     {
       "type": "library",
       "name": "@fastify/merge-json-schemas",
-      "version": "0.1.1",
-      "purl": "pkg:npm/@fastify/merge-json-schemas@0.1.1",
+      "version": "0.2.2",
+      "purl": "pkg:npm/@fastify/merge-json-schemas@0.2.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fERDVz7topgNjtXsJTTW1JKLy0rhuLRcquYqNR9rF7OcVpCa2OVW49ZPDIhaRRCaUuvVxI+N416xUoF76HNSXA=="
+          "content": "sha512-d/gx9sRbUCVgGRGzma46wLcwiY8noTqO2Nmjg/vbTARxHRE5bdh5PIL8s97Lt1X7ScRWRW52eVYxwIoPwIdVUA=="
         }
       ]
     },
@@ -5612,13 +5612,13 @@
     {
       "type": "library",
       "name": "fast-json-stringify",
-      "version": "5.16.1",
-      "purl": "pkg:npm/fast-json-stringify@5.16.1",
+      "version": "7.1.0",
+      "purl": "pkg:npm/fast-json-stringify@7.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-KAdnLvy1yu/XrRtP+LJnxbBGrhN+xXu+gt3EUvZhYGKCr3lFHq/7UFJHHFgmJKoqlh6B40bZLEv7w46B0mqn1g=="
+          "content": "sha512-wAhAQ+es0aH+x5OofdCHlZZFdqwtiM6lpEosaRIwfg271WYeEQ/tPcXdu5vpzlqZpbJ4WNqaW4QR5UjfG4Dc2w=="
         }
       ]
     },
@@ -5833,13 +5833,13 @@
     {
       "type": "library",
       "name": "graphql-jit",
-      "version": "0.8.7",
-      "purl": "pkg:npm/graphql-jit@0.8.7",
+      "version": "0.9.3",
+      "purl": "pkg:npm/graphql-jit@0.9.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-KGzCrsxQPfEiXOUIJCexWKiWF6ycjO89kAO6SdO8OWRGwYXbG0hsLuTnbFfMq0gj7d7/ib/Gh7jtst7FHZEEjw=="
+          "content": "sha512-XkNF0CbkkHE1BWcoRySR5tArDD1igD+0Ri7otHajVccQ8Ddm30csk5ZxYce7SFq3DlDSigtuYJLaxjTXoOAx5g=="
         }
       ]
     },
@@ -6132,13 +6132,13 @@
     {
       "type": "library",
       "name": "json-schema-ref-resolver",
-      "version": "1.0.1",
-      "purl": "pkg:npm/json-schema-ref-resolver@1.0.1",
+      "version": "3.0.1",
+      "purl": "pkg:npm/json-schema-ref-resolver@3.0.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EJAj1pgHc1hxF6vo2Z3s69fMjO1INq6eGHXZ8Z6wCQeldCuwxGK9Sxf4/cScGn3FZubCVUehfWtcDM/PLteCQw=="
+          "content": "sha512-w+HwgljXpVwZ3IidoUR1qPZxSOQ+NRQWuVe6a5pe8XbHsNZE4UAwVPUvzZagn7yBKbJtt6UJnRFYbNTRPZI45Q=="
         }
       ]
     },

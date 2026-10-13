@@ -357,41 +357,80 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 {/if}
 
 <style>
-	/* Shared design tokens for the image editor chrome */
+	/* Shared design tokens for the image editor chrome.
+	   Binds directly to SveltyCMS admin theme tokens so that light/dark mode and
+	   custom admin themes are fully respected. */
 	.image-editor-panel {
-		--editor-chrome-bg: #0a0a0a;
-		--editor-chrome-surface: #0f0f0f;
-		--editor-chrome-elevated: rgba(255, 255, 255, 0.06);
-		--editor-chrome-border: rgba(255, 255, 255, 0.07);
-		--editor-chrome-border-subtle: rgba(255, 255, 255, 0.05);
-		--editor-chrome-text: rgba(255, 255, 255, 0.68);
-		--editor-chrome-text-hover: rgba(255, 255, 255, 0.92);
-		--editor-chrome-text-active: #fff;
-		--editor-accent: #22c55e;
-		--editor-accent-hover: #16a34a;
-		--editor-canvas-bg: var(--editor-chrome-bg);
+		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-100));
+		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50));
+		--editor-chrome-elevated: var(
+			--admin-bg-chip,
+			color-mix(in oklch, var(--admin-text-body, currentColor) 8%, transparent)
+		);
+		--editor-chrome-hover: color-mix(
+			in oklch,
+			var(--admin-text-body, currentColor) 10%,
+			transparent
+		);
+		--editor-chrome-border: var(
+			--admin-border-default,
+			color-mix(in oklch, var(--admin-text-body, currentColor) 12%, transparent)
+		);
+		--editor-chrome-border-subtle: var(
+			--admin-border-subtle,
+			color-mix(in oklch, var(--admin-text-body, currentColor) 8%, transparent)
+		);
+		--editor-chrome-text: var(
+			--admin-text-muted,
+			color-mix(in oklch, var(--admin-text-body, currentColor) 68%, transparent)
+		);
+		--editor-chrome-text-hover: var(--admin-text-body, currentColor);
+		--editor-chrome-text-active: var(--admin-text-body, currentColor);
+		--editor-accent: var(--color-primary-500, #3b82f6);
+		--editor-accent-hover: var(--color-primary-600, #2563eb);
+		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
 		--editor-control-h: 2.25rem;
 		--editor-control-h-compact: 1.875rem;
 		--editor-radius-pill: 9999px;
-		--editor-radius-control: 0.5rem;
+		--editor-radius-control: var(--admin-radius-button, 0.5rem);
 		background: var(--editor-chrome-bg);
+		color: var(--editor-chrome-text-active);
+	}
+
+	:global(.dark) .image-editor-panel {
+		--editor-canvas-bg: var(--color-surface-950, #09090b);
 	}
 
 	.image-editor-panel--mobile {
-		--editor-chrome-bg: #1a1a1a;
-		--editor-chrome-surface: #1a1a1a;
-		--editor-canvas-bg: #1a1a1a;
-		--editor-chrome-elevated: rgba(255, 255, 255, 0.08);
-		--editor-chrome-border: rgba(255, 255, 255, 0.1);
+		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-100));
+		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50));
+		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
+		--editor-chrome-elevated: var(
+			--admin-bg-chip,
+			color-mix(in oklch, var(--admin-text-body, currentColor) 8%, transparent)
+		);
+		--editor-chrome-hover: color-mix(
+			in oklch,
+			var(--admin-text-body, currentColor) 10%,
+			transparent
+		);
+		--editor-chrome-border: var(
+			--admin-border-default,
+			color-mix(in oklch, var(--admin-text-body, currentColor) 12%, transparent)
+		);
 		--editor-chrome-border-subtle: transparent;
 		--editor-control-h: 2.25rem;
 		--editor-pill-pad: 0.1875rem;
-		--editor-accent: #22c55e;
-		--editor-accent-hover: #16a34a;
+		--editor-accent: var(--color-primary-500, #3b82f6);
+		--editor-accent-hover: var(--color-primary-600, #2563eb);
 		height: 100dvh;
 		min-height: 100dvh;
 		max-height: 100dvh;
 		background: var(--editor-chrome-bg);
+	}
+
+	:global(.dark) .image-editor-panel--mobile {
+		--editor-canvas-bg: var(--color-surface-950, #09090b);
 	}
 
 	.image-editor-panel--mobile main {
