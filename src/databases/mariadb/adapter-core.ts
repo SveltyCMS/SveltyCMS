@@ -1239,7 +1239,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * [rows, fields] (same unwrap as this.raw.execute) — bound here once so raw
    * paths stay single-line swaps between pool and txn.
    */
-  protected getRawExec(options: BaseQueryOptions): (sql: string, params?: any[]) => Promise<any[]> {
+  getRawExec(options: BaseQueryOptions): (sql: string, params?: any[]) => Promise<any[]> {
     const txnConn = this.getTxnConn(options);
     if (txnConn) {
       return async (sqlText: string, params: any[] = []) => {

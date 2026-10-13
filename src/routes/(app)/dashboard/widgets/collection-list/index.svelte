@@ -43,6 +43,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
+	import { buildCollectionDrilldownHref } from '@utils/dashboard-drilldown';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import type {
 		CollectionSourceInfo,
@@ -299,7 +300,10 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				</div>
 				<div class="mt-1.5 border-t border-surface-500/10 pt-1">
 					<a
-						href="/collections/{selectedCollection || savedSettings.collectionId}"
+						href={buildCollectionDrilldownHref({
+							language: contentLanguage.value,
+							collection: selectedCollection || savedSettings.collectionId
+						})}
 						class="inline-flex items-center gap-1 text-xs font-medium text-surface-500 transition-colors hover:text-primary-500"
 					>
 						<span>View collection</span>

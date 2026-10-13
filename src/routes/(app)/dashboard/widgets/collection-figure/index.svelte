@@ -43,6 +43,8 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 	import Button from '@components/ui/button.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
+	import { buildCollectionDrilldownHref } from '@utils/dashboard-drilldown';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import type {
 		CollectionSourceInfo,
@@ -393,7 +395,10 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 					class="mt-2 pt-1 border-t border-surface-500/10 flex items-center justify-between text-xs"
 				>
 					<a
-						href="/collections/{selectedCollection || savedSettings.collectionId}"
+						href={buildCollectionDrilldownHref({
+							language: contentLanguage.value,
+							collection: selectedCollection || savedSettings.collectionId
+						})}
 						class="inline-flex items-center gap-1 font-medium text-surface-500 hover:{accentTheme.text} transition-colors"
 					>
 						<span>View collection</span>

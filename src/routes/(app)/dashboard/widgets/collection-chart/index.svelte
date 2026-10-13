@@ -42,6 +42,8 @@ Supports time-series binning and categorical distributions with live drill-down.
 	import Button from '@components/ui/button.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
+	import { buildCollectionDrilldownHref, isFilterableBucket } from '@utils/dashboard-drilldown';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import type {
 		CollectionSourceInfo,
@@ -241,6 +243,18 @@ Supports time-series binning and categorical distributions with live drill-down.
 		}
 	}
 
+	function bucketHref(bucketLabel?: string): string {
+		const filters: Record<string, string> = {};
+		if (groupByMode === 'field' && isFilterableBucket(bucketLabel) && selectedGroupField) {
+			filters[selectedGroupField] = bucketLabel;
+		}
+		return buildCollectionDrilldownHref({
+			language: contentLanguage.value,
+			collection: selectedCollection || savedSettings.collectionId,
+			filters
+		});
+	}
+
 	const accentTheme = $derived(getAccentColorClasses(colorAccent));
 </script>
 
@@ -315,7 +329,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 								{@const heightPct = Math.max(4, Math.round((item.value / maxVal) * 100))}
 								{@const isHovered = hoveredIndex === idx}
 								<a
-									href="/collections/{selectedCollection || savedSettings.collectionId}"
+									href={bucketHref(item.label)}
 									class="group relative flex-1 flex flex-col items-center justify-end h-full focus:outline-none"
 									onmouseenter={() => (hoveredIndex = idx)}
 									onmouseleave={() => (hoveredIndex = null)}
@@ -353,7 +367,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 							{#each series as item, idx (item.label)}
 								{@const isHovered = hoveredIndex === idx}
 								<a
-									href="/collections/{selectedCollection || savedSettings.collectionId}"
+									href={bucketHref(item.label)}
 									class="group flex flex-col gap-0.5 rounded px-1.5 py-1 transition-colors hover:bg-surface-500/10 focus:outline-none"
 									onmouseenter={() => (hoveredIndex = idx)}
 									onmouseleave={() => (hoveredIndex = null)}
@@ -450,7 +464,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 					class="mt-2 pt-1 border-t border-surface-500/10 flex items-center justify-between text-xs"
 				>
 					<a
-						href="/collections/{selectedCollection || savedSettings.collectionId}"
+						href={bucketHref()}
 						class="inline-flex items-center gap-1 font-medium text-surface-500 hover:{accentTheme.text} transition-colors"
 					>
 						<span>Explore all records</span>
